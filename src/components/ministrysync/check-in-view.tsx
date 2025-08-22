@@ -188,7 +188,7 @@ export function CheckInView({ initialChildren, selectedEvent }: CheckInViewProps
                 {child.safetyInfo && <p><strong>Notes:</strong> {child.safetyInfo}</p>}
               </div>
               {child.allergies && (
-                  <Badge variant="outline" className="w-full justify-center text-base py-1 border-destructive text-destructive">
+                  <Badge variant="outline" className="w-full justify-center text-base py-1 border-destructive text-destructive rounded-sm">
                       <AlertTriangle className="mr-2 h-4 w-4" />
                       Allergy: {child.allergies}
                   </Badge>
