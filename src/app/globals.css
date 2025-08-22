@@ -8,73 +8,73 @@ body {
 
 @layer base {
   :root {
-    --background: 45 67% 94%; /* Light Sand */
-    --foreground: 200 87% 16%; /* Deep Navy */
-    --card: 45 50% 98%;
-    --card-foreground: 200 87% 16%;
-    --popover: 45 50% 98%;
-    --popover-foreground: 200 87% 16%;
-    --primary: 175 57% 55%; /* Aqua Blue */
-    --primary-foreground: 200 87% 16%;
-    --secondary: 42 100% 70%; /* Goldenrod */
-    --secondary-foreground: 200 87% 16%;
-    --muted: 45 67% 90%;
-    --muted-foreground: 200 87% 30%;
-    --accent: 42 100% 80%; /* Lighter Goldenrod */
-    --accent-foreground: 200 87% 16%;
-    --destructive: 0 100% 71%; /* Coral */
+    --background: 240 10% 97%; /* Light Gray */
+    --foreground: 240 2% 11%; /* Dark Charcoal */
+    --card: 240 10% 100%;
+    --card-foreground: 240 2% 11%;
+    --popover: 240 10% 100%;
+    --popover-foreground: 240 2% 11%;
+    --primary: 210 100% 50%; /* Bright Blue */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 48 100% 50%; /* Golden Yellow */
+    --secondary-foreground: 240 2% 11%;
+    --muted: 240 5% 90%;
+    --muted-foreground: 240 2% 40%;
+    --accent: 240 5% 95%; 
+    --accent-foreground: 240 2% 11%;
+    --destructive: 0 84% 60%; /* A standard red for destructive actions */
     --destructive-foreground: 0 0% 100%;
-    --border: 45 50% 88%;
-    --input: 45 50% 88%;
-    --ring: 175 57% 55%; /* Aqua Blue */
-    --chart-1: 175 57% 55%; /* Aqua Blue */
-    --chart-2: 0 100% 71%; /* Coral */
-    --chart-3: 42 100% 70%; /* Goldenrod */
-    --chart-4: 200 87% 16%; /* Deep Navy */
-    --chart-5: 45 67% 80%;
+    --border: 240 5% 85%;
+    --input: 240 5% 88%;
+    --ring: 210 100% 50%; /* Bright Blue */
+    --chart-1: 210 100% 50%; /* Bright Blue */
+    --chart-2: 135 65% 49%; /* Vibrant Green */
+    --chart-3: 48 100% 50%; /* Golden Yellow */
+    --chart-4: 240 2% 11%; /* Dark Charcoal */
+    --chart-5: 210 100% 75%;
     --radius: 0.5rem;
-    --sidebar-background: 45 60% 92%;
-    --sidebar-foreground: 200 87% 16%;
-    --sidebar-primary: 175 57% 55%;
-    --sidebar-primary-foreground: 200 87% 16%;
-    --sidebar-accent: 45 60% 85%;
-    --sidebar-accent-foreground: 200 87% 16%;
-    --sidebar-border: 45 50% 85%;
-    --sidebar-ring: 175 57% 55%;
+    --sidebar-background: 240 10% 95%;
+    --sidebar-foreground: 240 2% 11%;
+    --sidebar-primary: 210 100% 50%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 10% 90%;
+    --sidebar-accent-foreground: 240 2% 11%;
+    --sidebar-border: 240 5% 85%;
+    --sidebar-ring: 210 100% 50%;
   }
   .dark {
-    --background: 200 87% 10%; /* Darker Deep Navy */
-    --foreground: 45 67% 94%; /* Light Sand */
-    --card: 200 87% 12%;
-    --card-foreground: 45 67% 94%;
-    --popover: 200 87% 10%;
-    --popover-foreground: 45 67% 94%;
-    --primary: 175 57% 55%; /* Aqua Blue */
-    --primary-foreground: 200 87% 16%;
-    --secondary: 42 100% 70%; /* Goldenrod */
-    --secondary-foreground: 200 87% 16%;
-    --muted: 200 87% 15%;
-    --muted-foreground: 45 67% 80%;
-    --accent: 175 57% 45%; /* Darker Aqua */
-    --accent-foreground: 45 67% 94%;
-    --destructive: 0 100% 71%; /* Coral */
+    --background: 240 2% 11%; /* Dark Charcoal */
+    --foreground: 240 10% 97%; /* Light Gray */
+    --card: 240 2% 14%;
+    --card-foreground: 240 10% 97%;
+    --popover: 240 2% 11%;
+    --popover-foreground: 240 10% 97%;
+    --primary: 210 100% 50%; /* Bright Blue */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 48 100% 50%; /* Golden Yellow */
+    --secondary-foreground: 240 2% 11%;
+    --muted: 240 2% 20%;
+    --muted-foreground: 240 10% 70%;
+    --accent: 240 2% 18%; 
+    --accent-foreground: 240 10% 97%;
+    --destructive: 0 63% 51%;
     --destructive-foreground: 0 0% 100%;
-    --border: 200 87% 20%;
-    --input: 200 87% 20%;
-    --ring: 175 57% 55%;
-    --chart-1: 175 57% 55%;
-    --chart-2: 0 100% 71%;
-    --chart-3: 42 100% 70%;
-    --chart-4: 45 67% 94%;
-    --chart-5: 45 67% 80%;
-    --sidebar-background: 200 87% 8%;
-    --sidebar-foreground: 45 67% 94%;
-    --sidebar-primary: 175 57% 55%;
-    --sidebar-primary-foreground: 200 87% 16%;
-    --sidebar-accent: 200 87% 15%;
-    --sidebar-accent-foreground: 45 67% 94%;
-    --sidebar-border: 200 87% 18%;
-    --sidebar-ring: 175 57% 55%;
+    --border: 240 2% 25%;
+    --input: 240 2% 25%;
+    --ring: 210 100% 50%;
+    --chart-1: 210 100% 50%;
+    --chart-2: 135 65% 49%;
+    --chart-3: 48 100% 50%;
+    --chart-4: 240 10% 97%;
+    --chart-5: 210 100% 75%;
+    --sidebar-background: 240 2% 9%;
+    --sidebar-foreground: 240 10% 97%;
+    --sidebar-primary: 210 100% 50%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 2% 20%;
+    --sidebar-accent-foreground: 240 10% 97%;
+    --sidebar-border: 240 2% 22%;
+    --sidebar-ring: 210 100% 50%;
   }
 }
 
