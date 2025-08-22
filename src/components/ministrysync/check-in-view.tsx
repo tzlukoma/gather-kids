@@ -1,14 +1,15 @@
+
 'use client';
 
-import { useState } from 'react';
-import Image from 'next/image';
+import { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import type { Child } from '@/lib/types';
 import { CheckoutDialog } from './checkout-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { User } from 'lucide-react';
+import { User, Search } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 
 interface CheckInViewProps {
   initialChildren: Child[];
@@ -17,6 +18,7 @@ interface CheckInViewProps {
 export function CheckInView({ initialChildren }: CheckInViewProps) {
   const [children, setChildren] = useState<Child[]>(initialChildren);
   const [childToCheckout, setChildToCheckout] = useState<Child | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
   const { toast } = useToast();
 
   const handleCheckIn = (childId: string) => {
@@ -44,10 +46,29 @@ export function CheckInView({ initialChildren }: CheckInViewProps) {
     setChildToCheckout(null);
   };
 
+  const filteredChildren = useMemo(() => {
+    if (!searchQuery) {
+      return children;
+    }
+    return children.filter(child =>
+      `${child.firstName} ${child.lastName}`.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [searchQuery, children]);
+
   return (
     <>
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+        <Input
+          type="search"
+          placeholder="Search by child's name..."
+          className="w-full pl-10"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+        />
+      </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-        {children.map((child) => (
+        {filteredChildren.map((child) => (
           <Card key={child.id} className="flex flex-col">
             <CardHeader className="flex-row items-center gap-4 space-y-0">
                <div className="w-[60px] h-[60px] flex items-center justify-center rounded-full border-2 border-primary bg-secondary">
@@ -87,6 +108,11 @@ export function CheckInView({ initialChildren }: CheckInViewProps) {
           </Card>
         ))}
       </div>
+       {filteredChildren.length === 0 && (
+        <div className="text-center col-span-full py-12">
+            <p className="text-muted-foreground">No children found matching your search.</p>
+        </div>
+       )}
       <CheckoutDialog
         child={childToCheckout}
         onClose={closeCheckoutDialog}

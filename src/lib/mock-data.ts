@@ -1,3 +1,4 @@
+
 import type { Household, Child, Incident } from './types';
 
 export const mockChildren: Child[] = [
@@ -7,6 +8,18 @@ export const mockChildren: Child[] = [
   { id: 'c4', firstName: 'Emma', lastName: 'Miller', dob: '2016-11-30', grade: '2nd Grade', checkedIn: true, allergies: 'Dairy', checkInTime: '2024-07-21T10:05:00Z' },
   { id: 'c5', firstName: 'Ava', lastName: 'Davis', dob: '2020-03-01', grade: 'Toddler', checkedIn: false },
   { id: 'c6', firstName: 'James', lastName: 'Wilson', dob: '2018-07-19', grade: 'Kindergarten', checkedIn: true, checkInTime: '2024-07-21T10:07:00Z' },
+  { id: 'c7', firstName: 'Sophia', lastName: 'Martinez', dob: '2017-02-14', grade: '1st Grade', checkedIn: false },
+  { id: 'c8', firstName: 'Logan', lastName: 'Anderson', dob: '2019-06-08', grade: 'Pre-K', checkedIn: false, allergies: 'Gluten' },
+  { id: 'c9', firstName: 'Isabella', lastName: 'Thomas', dob: '2016-10-12', grade: '2nd Grade', checkedIn: true, checkInTime: '2024-07-21T10:08:00Z' },
+  { id: 'c10', firstName: 'Mason', lastName: 'Hernandez', dob: '2020-12-01', grade: 'Toddler', checkedIn: false },
+  { id: 'c11', firstName: 'Charlotte', lastName: 'Moore', dob: '2018-04-25', grade: 'Kindergarten', checkedIn: false },
+  { id: 'c12', firstName: 'Ethan', lastName: 'Martin', dob: '2017-09-03', grade: '1st Grade', checkedIn: true, safetyInfo: 'Has a lisp', checkInTime: '2024-07-21T10:10:00Z' },
+  { id: 'c13', firstName: 'Amelia', lastName: 'Lee', dob: '2019-11-18', grade: 'Pre-K', checkedIn: false },
+  { id: 'c14', firstName: 'Benjamin', lastName: 'Gonzalez', dob: '2016-03-20', grade: '2nd Grade', checkedIn: false },
+  { id: 'c15', firstName: 'Mia', lastName: 'Rodriguez', dob: '2021-01-30', grade: 'Toddler', checkedIn: true, allergies: 'Bee stings', checkInTime: '2024-07-21T10:11:00Z' },
+  { id: 'c16', firstName: 'Lucas', lastName: 'Perez', dob: '2018-08-08', grade: 'Kindergarten', checkedIn: false },
+  { id: 'c17', firstName: 'Harper', lastName: 'Sanchez', dob: '2017-05-16', grade: '1st Grade', checkedIn: false },
+  { id: 'c18', firstName: 'Alexander', lastName: 'Rivera', dob: '2019-09-27', grade: 'Pre-K', checkedIn: true, checkInTime: '2024-07-21T10:12:00Z' }
 ];
 
 export const mockHouseholds: Household[] = [
@@ -21,7 +34,7 @@ export const mockHouseholds: Household[] = [
     emergencyContacts: [
       { id: 'ec1', firstName: 'Sarah', lastName: 'Johnson', phone: '555-555-3333' }
     ],
-    children: [mockChildren[0], mockChildren[2]]
+    children: [mockChildren[0], mockChildren[2], mockChildren[6], mockChildren[8], mockChildren[10], mockChildren[12], mockChildren[14], mockChildren[16]]
   },
   {
     id: 'h2',
@@ -33,7 +46,7 @@ export const mockHouseholds: Household[] = [
     emergencyContacts: [
       { id: 'ec2', firstName: 'Michael', lastName: 'Brown', phone: '555-555-5555' }
     ],
-    children: [mockChildren[1], mockChildren[3], mockChildren[4], mockChildren[5]]
+    children: [mockChildren[1], mockChildren[3], mockChildren[4], mockChildren[5], mockChildren[7], mockChildren[9], mockChildren[11], mockChildren[13], mockChildren[15], mockChildren[17]]
   }
 ];
 
