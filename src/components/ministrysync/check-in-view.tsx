@@ -161,11 +161,11 @@ export function CheckInView({ initialChildren, selectedEvent }: CheckInViewProps
                 </div>
               </PopoverContent>
             </Popover>
-            <CardHeader className="flex-col items-center gap-4 space-y-0 p-4 pt-6 sm:flex-row sm:items-start sm:p-6">
-               <div className="w-[60px] h-[60px] flex-shrink-0 flex items-center justify-center rounded-full border-2 border-primary bg-muted">
+            <CardHeader className="flex flex-col items-center gap-4 p-4 pt-6 text-center sm:flex-row sm:items-start sm:p-6 sm:text-left">
+               <div className="w-[60px] h-[60px] flex-shrink-0 flex items-center justify-center rounded-full border-2 border-border bg-muted">
                     <User className="h-8 w-8 text-muted-foreground" />
                </div>
-              <div className="flex-1 text-center sm:text-left">
+              <div className="flex-1">
                 <CardTitle className="font-headline text-lg">{`${child.firstName} ${child.lastName}`}</CardTitle>
                 <CardDescription>
                   {child.familyName}
