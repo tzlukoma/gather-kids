@@ -3,7 +3,7 @@
 
 import { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import type { Child } from '@/lib/types';
 import { CheckoutDialog } from './checkout-dialog';
@@ -93,8 +93,11 @@ export function CheckInView({ initialChildren }: CheckInViewProps) {
     if (!searchQuery) {
       return children;
     }
+    const lowercasedQuery = searchQuery.toLowerCase();
     return children.filter(child =>
-      `${child.firstName} ${child.lastName}`.toLowerCase().includes(searchQuery.toLowerCase())
+        child.firstName.toLowerCase().includes(lowercasedQuery) ||
+        child.lastName.toLowerCase().includes(lowercasedQuery) ||
+        (child.familyName && child.familyName.toLowerCase().includes(lowercasedQuery))
     );
   }, [searchQuery, children]);
 
@@ -104,7 +107,7 @@ export function CheckInView({ initialChildren }: CheckInViewProps) {
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
         <Input
           type="search"
-          placeholder="Search by first or last name (e.g., Jackson)..."
+          placeholder="Search by name or family (e.g., Jackson Family)..."
           className="w-full pl-10"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
@@ -125,6 +128,7 @@ export function CheckInView({ initialChildren }: CheckInViewProps) {
                </div>
               <div className="flex-1">
                 <CardTitle className="font-headline text-lg">{`${child.firstName} ${child.lastName}`}</CardTitle>
+                <CardDescription>{child.familyName}</CardDescription>
                  <div className="flex flex-wrap gap-1 mt-1">
                     {child.checkedIn ? (
                         <Badge variant="default" className="bg-green-500 hover:bg-green-600">Checked In</Badge>

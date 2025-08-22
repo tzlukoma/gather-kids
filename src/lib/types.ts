@@ -26,6 +26,7 @@ export interface Child {
   id: string;
   firstName: string;
   lastName: string;
+  familyName?: string;
   dob: string;
   grade: string;
   allergies?: string;
