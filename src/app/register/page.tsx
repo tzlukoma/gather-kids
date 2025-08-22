@@ -33,7 +33,7 @@ const guardianSchema = z.object({
 const childSchema = z.object({
   firstName: z.string().min(1, "First name is required."),
   lastName: z.string().min(1, "Last name is required."),
-  dob: z.string().refine((val) => !isNaN(Date.parse(val)), "Valid date of birth is required."),
+  dob: z.string().refine((val) => !isNaN(Date.parse(val)), { message: "Valid date of birth is required."}),
   grade: z.string().min(1, "Grade is required."),
   allergies: z.string().optional(),
   safetyInfo: z.string().optional(),
@@ -57,8 +57,8 @@ const registrationSchema = z.object({
     bibleBee: z.boolean().default(false).optional(),
   }),
   consents: z.object({
-    liability: z.boolean().refine(val => val === true, "Liability consent is required."),
-    photoRelease: z.boolean().refine(val => val === true, "Photo release consent is required."),
+    liability: z.boolean().refine(val => val === true, { message: "Liability consent is required."}),
+    photoRelease: z.boolean().refine(val => val === true, { message: "Photo release consent is required."}),
   }),
 })
 
