@@ -8,73 +8,73 @@ body {
 
 @layer base {
   :root {
-    --background: 240 10% 97%; /* Light Gray */
-    --foreground: 240 2% 11%; /* Dark Charcoal */
-    --card: 240 10% 100%;
-    --card-foreground: 240 2% 11%;
-    --popover: 240 10% 100%;
-    --popover-foreground: 240 2% 11%;
-    --primary: 210 100% 50%; /* Bright Blue */
-    --primary-foreground: 0 0% 100%;
-    --secondary: 48 100% 50%; /* Golden Yellow */
-    --secondary-foreground: 240 2% 11%;
-    --muted: 240 5% 90%;
-    --muted-foreground: 240 2% 40%;
-    --accent: 240 5% 95%; 
-    --accent-foreground: 240 2% 11%;
-    --destructive: 0 84% 60%; /* A standard red for destructive actions */
-    --destructive-foreground: 0 0% 100%;
-    --border: 240 5% 85%;
-    --input: 240 5% 88%;
-    --ring: 210 100% 50%; /* Bright Blue */
-    --chart-1: 210 100% 50%; /* Bright Blue */
-    --chart-2: 135 65% 49%; /* Vibrant Green */
-    --chart-3: 48 100% 50%; /* Golden Yellow */
-    --chart-4: 240 2% 11%; /* Dark Charcoal */
-    --chart-5: 210 100% 75%;
+    --background: 41 100% 95%; /* Soft Cream */
+    --foreground: 180 25% 25%; /* Midnight Blue */
+    --card: 40 100% 98%;
+    --card-foreground: 180 25% 25%;
+    --popover: 40 100% 98%;
+    --popover-foreground: 180 25% 25%;
+    --primary: 180 25% 25%; /* Midnight Blue */
+    --primary-foreground: 41 100% 95%; /* Soft Cream */
+    --secondary: 43 74% 49%; /* Warm Gold */
+    --secondary-foreground: 41 100% 95%; /* Soft Cream */
+    --muted: 80 40% 90%;
+    --muted-foreground: 180 25% 45%;
+    --accent: 80 44% 85%; /* Lighter Olive for hover */
+    --accent-foreground: 180 25% 15%;
+    --destructive: 0 65% 41%; /* Crimson */
+    --destructive-foreground: 41 100% 95%; /* Soft Cream */
+    --border: 80 44% 80%;
+    --input: 80 44% 88%;
+    --ring: 180 25% 25%; /* Midnight Blue */
+    --chart-1: 180 25% 25%; /* Midnight Blue */
+    --chart-2: 80 61% 35%; /* Olive Green */
+    --chart-3: 43 74% 49%; /* Warm Gold */
+    --chart-4: 0 65% 41%; /* Crimson */
+    --chart-5: 43 74% 69%;
     --radius: 0.5rem;
-    --sidebar-background: 240 10% 95%;
-    --sidebar-foreground: 240 2% 11%;
-    --sidebar-primary: 210 100% 50%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 10% 90%;
-    --sidebar-accent-foreground: 240 2% 11%;
-    --sidebar-border: 240 5% 85%;
-    --sidebar-ring: 210 100% 50%;
+    --sidebar-background: 40 100% 98%;
+    --sidebar-foreground: 180 25% 25%;
+    --sidebar-primary: 80 61% 35%; /* Olive Green */
+    --sidebar-primary-foreground: 41 100% 95%;
+    --sidebar-accent: 80 44% 90%;
+    --sidebar-accent-foreground: 180 25% 15%;
+    --sidebar-border: 80 44% 85%;
+    --sidebar-ring: 80 61% 35%;
   }
   .dark {
-    --background: 240 2% 11%; /* Dark Charcoal */
-    --foreground: 240 10% 97%; /* Light Gray */
-    --card: 240 2% 14%;
-    --card-foreground: 240 10% 97%;
-    --popover: 240 2% 11%;
-    --popover-foreground: 240 10% 97%;
-    --primary: 210 100% 50%; /* Bright Blue */
-    --primary-foreground: 0 0% 100%;
-    --secondary: 48 100% 50%; /* Golden Yellow */
-    --secondary-foreground: 240 2% 11%;
-    --muted: 240 2% 20%;
-    --muted-foreground: 240 10% 70%;
-    --accent: 240 2% 18%; 
-    --accent-foreground: 240 10% 97%;
-    --destructive: 0 63% 51%;
-    --destructive-foreground: 0 0% 100%;
-    --border: 240 2% 25%;
-    --input: 240 2% 25%;
-    --ring: 210 100% 50%;
-    --chart-1: 210 100% 50%;
-    --chart-2: 135 65% 49%;
-    --chart-3: 48 100% 50%;
-    --chart-4: 240 10% 97%;
-    --chart-5: 210 100% 75%;
-    --sidebar-background: 240 2% 9%;
-    --sidebar-foreground: 240 10% 97%;
-    --sidebar-primary: 210 100% 50%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 2% 20%;
-    --sidebar-accent-foreground: 240 10% 97%;
-    --sidebar-border: 240 2% 22%;
-    --sidebar-ring: 210 100% 50%;
+    --background: 180 25% 18%; /* Dark Midnight Blue */
+    --foreground: 41 100% 95%; /* Soft Cream */
+    --card: 180 25% 22%;
+    --card-foreground: 41 100% 95%;
+    --popover: 180 25% 18%;
+    --popover-foreground: 41 100% 95%;
+    --primary: 80 61% 45%; /* Brighter Olive Green for dark mode */
+    --primary-foreground: 180 25% 15%;
+    --secondary: 43 74% 59%; /* Brighter Warm Gold for dark mode */
+    --secondary-foreground: 180 25% 15%;
+    --muted: 180 25% 28%;
+    --muted-foreground: 41 100% 85%;
+    --accent: 180 25% 32%;
+    --accent-foreground: 41 100% 95%;
+    --destructive: 0 65% 51%; /* Brighter Crimson */
+    --destructive-foreground: 41 100% 95%;
+    --border: 180 25% 35%;
+    --input: 180 25% 35%;
+    --ring: 80 61% 45%;
+    --chart-1: 80 61% 45%;
+    --chart-2: 43 74% 59%;
+    --chart-3: 0 65% 51%;
+    --chart-4: 41 100% 95%;
+    --chart-5: 43 74% 79%;
+    --sidebar-background: 180 25% 15%;
+    --sidebar-foreground: 41 100% 95%;
+    --sidebar-primary: 80 61% 45%;
+    --sidebar-primary-foreground: 180 25% 15%;
+    --sidebar-accent: 180 25% 28%;
+    --sidebar-accent-foreground: 41 100% 95%;
+    --sidebar-border: 180 25% 25%;
+    --sidebar-ring: 80 61% 45%;
   }
 }
 
