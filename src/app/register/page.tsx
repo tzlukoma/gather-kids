@@ -28,16 +28,18 @@ const guardianSchema = z.object({
   lastName: z.string().min(1, "Last name is required."),
   phone: z.string().min(10, "A valid phone number is required."),
   email: z.string().email("A valid email is required."),
-})
+});
 
 const childSchema = z.object({
   firstName: z.string().min(1, "First name is required."),
   lastName: z.string().min(1, "Last name is required."),
-  dob: z.string().refine((val) => !isNaN(Date.parse(val)), { message: "Valid date of birth is required."}),
+  dob: z.string().refine((val) => val && !isNaN(Date.parse(val)), {
+    message: "Valid date of birth is required.",
+  }),
   grade: z.string().min(1, "Grade is required."),
   allergies: z.string().optional(),
   safetyInfo: z.string().optional(),
-})
+});
 
 const registrationSchema = z.object({
   email: z.string().email("Please enter a valid email to begin."),
@@ -57,10 +59,15 @@ const registrationSchema = z.object({
     bibleBee: z.boolean().default(false).optional(),
   }),
   consents: z.object({
-    liability: z.boolean().refine(val => val === true, { message: "Liability consent is required."}),
-    photoRelease: z.boolean().refine(val => val === true, { message: "Photo release consent is required."}),
+    liability: z.boolean().refine((val) => val === true, {
+      message: "Liability consent is required.",
+    }),
+    photoRelease: z.boolean().refine((val) => val === true, {
+      message: "Photo release consent is required.",
+    }),
   }),
-})
+});
+
 
 type RegistrationFormValues = z.infer<typeof registrationSchema>
 
@@ -72,18 +79,27 @@ export default function RegisterPage() {
       email: "",
       household: {
         address: "",
+        pin: "",
       },
-      guardians: [{ firstName: "", lastName: "", phone: "", email: "" }],
-      emergencyContact: { firstName: "", lastName: "", phone: "" },
-      children: [{ firstName: "", lastName: "", dob: "", grade: "", allergies: "", safetyInfo: "" }],
+      guardians: [
+        { firstName: "", lastName: "", phone: "", email: "" },
+      ],
+      emergencyContact: {
+        firstName: "",
+        lastName: "",
+        phone: "",
+      },
+      children: [
+        { firstName: "", lastName: "", dob: "", grade: "", allergies: "", safetyInfo: "" },
+      ],
       ministrySelections: {
         choir: false,
-        bibleBee: false
+        bibleBee: false,
       },
       consents: {
         liability: false,
-        photoRelease: false
-      }
+        photoRelease: false,
+      },
     },
   })
 
