@@ -2,23 +2,23 @@
 import type { Household, Child, Incident } from './types';
 
 export const mockChildren: Child[] = [
-  { id: 'c1', firstName: 'Liam', lastName: 'Smith', dob: '2018-05-10', grade: 'Kindergarten', checkedIn: true, allergies: 'Peanuts', checkInTime: '2024-07-21T10:00:00Z' },
-  { id: 'c2', firstName: 'Olivia', lastName: 'Jones', dob: '2017-08-22', grade: '1st Grade', checkedIn: true, safetyInfo: 'Tends to wander.', checkInTime: '2024-07-21T10:02:00Z' },
-  { id: 'c3', firstName: 'Noah', lastName: 'Garcia', dob: '2019-01-15', grade: 'Pre-K', checkedIn: false },
-  { id: 'c4', firstName: 'Emma', lastName: 'Miller', dob: '2016-11-30', grade: '2nd Grade', checkedIn: true, allergies: 'Dairy', checkInTime: '2024-07-21T10:05:00Z' },
-  { id: 'c5', firstName: 'Ava', lastName: 'Davis', dob: '2020-03-01', grade: 'Toddler', checkedIn: false },
-  { id: 'c6', firstName: 'James', lastName: 'Wilson', dob: '2018-07-19', grade: 'Kindergarten', checkedIn: true, checkInTime: '2024-07-21T10:07:00Z' },
-  { id: 'c7', firstName: 'Sophia', lastName: 'Martinez', dob: '2017-02-14', grade: '1st Grade', checkedIn: false },
-  { id: 'c8', firstName: 'Logan', lastName: 'Anderson', dob: '2019-06-08', grade: 'Pre-K', checkedIn: false, allergies: 'Gluten' },
-  { id: 'c9', firstName: 'Isabella', lastName: 'Thomas', dob: '2016-10-12', grade: '2nd Grade', checkedIn: true, checkInTime: '2024-07-21T10:08:00Z' },
-  { id: 'c10', firstName: 'Mason', lastName: 'Hernandez', dob: '2020-12-01', grade: 'Toddler', checkedIn: false },
-  { id: 'c11', firstName: 'Charlotte', lastName: 'Moore', dob: '2018-04-25', grade: 'Kindergarten', checkedIn: false },
-  { id: 'c12', firstName: 'Ethan', lastName: 'Martin', dob: '2017-09-03', grade: '1st Grade', checkedIn: true, safetyInfo: 'Has a lisp', checkInTime: '2024-07-21T10:10:00Z' },
-  { id: 'c13', firstName: 'Amelia', lastName: 'Lee', dob: '2019-11-18', grade: 'Pre-K', checkedIn: false },
-  { id: 'c14', firstName: 'Benjamin', lastName: 'Gonzalez', dob: '2016-03-20', grade: '2nd Grade', checkedIn: false },
-  { id: 'c15', firstName: 'Mia', lastName: 'Rodriguez', dob: '2021-01-30', grade: 'Toddler', checkedIn: true, allergies: 'Bee stings', checkInTime: '2024-07-21T10:11:00Z' },
-  { id: 'c16', firstName: 'Lucas', lastName: 'Perez', dob: '2018-08-08', grade: 'Kindergarten', checkedIn: false },
-  { id: 'c17', firstName: 'Harper', lastName: 'Sanchez', dob: '2017-05-16', grade: '1st Grade', checkedIn: false },
+  { id: 'c1', firstName: 'Jada', lastName: 'Robinson', dob: '2018-05-10', grade: 'Kindergarten', checkedIn: true, checkInTime: '2024-07-21T10:00:00Z' },
+  { id: 'c2', firstName: 'Nova', lastName: 'Robinson', dob: '2017-08-22', grade: '1st Grade', checkedIn: true, safetyInfo: 'Tends to wander.', checkInTime: '2024-07-21T10:02:00Z' },
+  { id: 'c3', firstName: 'Thyschell', lastName: 'Jackson, Jr.', dob: '2019-01-15', grade: 'Pre-K', checkedIn: false },
+  { id: 'c4', firstName: 'Travon', lastName: 'Jackson', dob: '2016-11-30', grade: '2nd Grade', checkedIn: true, allergies: 'Dairy', checkInTime: '2024-07-21T10:05:00Z' },
+  { id: 'c5', firstName: 'Tobias', lastName: 'Jackson', dob: '2020-03-01', grade: 'Toddler', checkedIn: false },
+  { id: 'c6', firstName: 'Alani', lastName: 'Postell', dob: '2018-07-19', grade: 'Kindergarten', checkedIn: true, checkInTime: '2024-07-21T10:07:00Z' },
+  { id: 'c7', firstName: 'Nalla', lastName: 'Young', dob: '2017-02-14', grade: '1st Grade', checkedIn: false },
+  { id: 'c8', firstName: 'Brooke', lastName: 'Bell', dob: '2019-06-08', grade: 'Pre-K', checkedIn: false, allergies: 'Gluten' },
+  { id: 'c9', firstName: 'Savannah', lastName: 'Minott', dob: '2016-10-12', grade: '2nd Grade', checkedIn: true, checkInTime: '2024-07-21T10:08:00Z' },
+  { id: 'c10', firstName: 'Lillianna', lastName: 'Hoffman', dob: '2020-12-01', grade: 'Toddler', checkedIn: false },
+  { id: 'c11', firstName: 'Emme', lastName: 'Hoffman', dob: '2018-04-25', grade: 'Kindergarten', checkedIn: false },
+  { id: 'c12', firstName: 'Karlleigh', lastName: 'Hoffman', dob: '2017-09-03', grade: '1st Grade', checkedIn: true, safetyInfo: 'Has a lisp', checkInTime: '2024-07-21T10:10:00Z' },
+  { id: 'c13', firstName: 'Jal\'ari', lastName: 'Santiago', dob: '2019-11-18', grade: 'Pre-K', checkedIn: false },
+  { id: 'c14', firstName: 'Jessiah', lastName: 'Santiago', dob: '2016-03-20', grade: '2nd Grade', checkedIn: false },
+  { id: 'c15', firstName: 'Carter', lastName: 'Randolph', dob: '2021-01-30', grade: 'Toddler', checkedIn: true, allergies: 'Bee stings', checkInTime: '2024-07-21T10:11:00Z' },
+  { id: 'c16', firstName: 'Jaxon', lastName: 'Randolph', dob: '2018-08-08', grade: 'Kindergarten', checkedIn: false },
+  { id: 'c17', firstName: 'Naomi', lastName: 'Parks', dob: '2017-05-16', grade: '1st Grade', checkedIn: false },
   { id: 'c18', firstName: 'Alexander', lastName: 'Rivera', dob: '2019-09-27', grade: 'Pre-K', checkedIn: true, checkInTime: '2024-07-21T10:12:00Z' }
 ];
 
@@ -54,7 +54,7 @@ export const mockIncidents: Incident[] = [
     {
         id: 'i1',
         childId: 'c2',
-        childName: 'Olivia Jones',
+        childName: 'Nova Robinson',
         timestamp: '2024-07-20T10:00:00Z',
         description: 'Scraped knee on the playground.',
         severity: 'Low',
@@ -63,7 +63,7 @@ export const mockIncidents: Incident[] = [
     {
         id: 'i2',
         childId: 'c4',
-        childName: 'Emma Miller',
+        childName: 'Travon Jackson',
         timestamp: '2024-07-19T12:00:00Z',
         description: 'Had a disagreement with another child over a toy.',
         severity: 'Low',
@@ -72,7 +72,7 @@ export const mockIncidents: Incident[] = [
     {
         id: 'i3',
         childId: 'c1',
-        childName: 'Liam Smith',
+        childName: 'Jada Robinson',
         timestamp: '2024-07-21T12:00:00Z',
         description: 'Felt unwell, seems to have a slight fever.',
         severity: 'Medium',
