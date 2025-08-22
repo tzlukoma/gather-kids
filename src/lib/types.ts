@@ -31,7 +31,7 @@ export interface Child {
   grade: string;
   allergies?: string;
   safetyInfo?: string;
-  checkedIn: boolean;
+  checkedInEvent: string | null;
   checkInTime?: string;
   guardians?: ChildGuardian[];
 }

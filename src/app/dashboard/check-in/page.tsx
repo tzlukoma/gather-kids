@@ -41,7 +41,7 @@ export default function CheckInPage() {
             </Select>
         </div>
       </div>
-      <CheckInView initialChildren={children} />
+      <CheckInView initialChildren={children} selectedEvent={selectedEvent} />
     </div>
   );
 }
