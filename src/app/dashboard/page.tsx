@@ -74,7 +74,7 @@ export default function DashboardPage() {
                                             {incident.severity}
                                         </Badge>
                                     </TableCell>
-                                    <TableCell>{incident.timestamp.toLocaleTimeString()}</TableCell>
+                                    <TableCell>{new Date(incident.timestamp).toLocaleTimeString()}</TableCell>
                                     <TableCell>{incident.description}</TableCell>
                                 </TableRow>
                             ))}
