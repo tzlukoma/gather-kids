@@ -162,7 +162,7 @@ export function CheckInView({ initialChildren, selectedEvent }: CheckInViewProps
               </PopoverContent>
             </Popover>
             <CardHeader className="flex-col items-center gap-4 space-y-0 p-4 pt-6 sm:flex-row sm:items-start sm:p-6">
-               <div className="w-[60px] h-[60px] flex-shrink-0 flex items-center justify-center rounded-full border-2 border-primary bg-secondary/50">
+               <div className="w-[60px] h-[60px] flex-shrink-0 flex items-center justify-center rounded-full border-2 border-primary bg-muted">
                     <User className="h-8 w-8 text-muted-foreground" />
                </div>
               <div className="flex-1 text-center sm:text-left">
