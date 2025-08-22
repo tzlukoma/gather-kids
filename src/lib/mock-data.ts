@@ -2,24 +2,24 @@
 import type { Household, Child, Incident } from './types';
 
 export const mockChildren: Child[] = [
-  { id: 'c1', firstName: 'Jada', lastName: 'Robinson', dob: '2018-05-10', grade: 'Kindergarten', checkedIn: true, checkInTime: '2024-07-21T10:00:00Z' },
-  { id: 'c2', firstName: 'Nova', lastName: 'Robinson', dob: '2017-08-22', grade: '1st Grade', checkedIn: true, safetyInfo: 'Tends to wander.', checkInTime: '2024-07-21T10:02:00Z' },
-  { id: 'c3', firstName: 'Thyschell', lastName: 'Jackson, Jr.', dob: '2019-01-15', grade: 'Pre-K', checkedIn: false },
-  { id: 'c4', firstName: 'Travon', lastName: 'Jackson', dob: '2016-11-30', grade: '2nd Grade', checkedIn: true, allergies: 'Dairy', checkInTime: '2024-07-21T10:05:00Z' },
-  { id: 'c5', firstName: 'Tobias', lastName: 'Jackson', dob: '2020-03-01', grade: 'Toddler', checkedIn: false },
-  { id: 'c6', firstName: 'Alani', lastName: 'Postell', dob: '2018-07-19', grade: 'Kindergarten', checkedIn: true, checkInTime: '2024-07-21T10:07:00Z' },
-  { id: 'c7', firstName: 'Nalla', lastName: 'Young', dob: '2017-02-14', grade: '1st Grade', checkedIn: false },
-  { id: 'c8', firstName: 'Brooke', lastName: 'Bell', dob: '2019-06-08', grade: 'Pre-K', checkedIn: false, allergies: 'Gluten' },
-  { id: 'c9', firstName: 'Savannah', lastName: 'Minott', dob: '2016-10-12', grade: '2nd Grade', checkedIn: true, checkInTime: '2024-07-21T10:08:00Z' },
-  { id: 'c10', firstName: 'Lillianna', lastName: 'Hoffman', dob: '2020-12-01', grade: 'Toddler', checkedIn: false },
-  { id: 'c11', firstName: 'Emme', lastName: 'Hoffman', dob: '2018-04-25', grade: 'Kindergarten', checkedIn: false },
-  { id: 'c12', firstName: 'Karlleigh', lastName: 'Hoffman', dob: '2017-09-03', grade: '1st Grade', checkedIn: true, safetyInfo: 'Has a lisp', checkInTime: '2024-07-21T10:10:00Z' },
-  { id: 'c13', firstName: 'Jal\'ari', lastName: 'Santiago', dob: '2019-11-18', grade: 'Pre-K', checkedIn: false },
-  { id: 'c14', firstName: 'Jessiah', lastName: 'Santiago', dob: '2016-03-20', grade: '2nd Grade', checkedIn: false },
-  { id: 'c15', firstName: 'Carter', lastName: 'Randolph', dob: '2021-01-30', grade: 'Toddler', checkedIn: true, allergies: 'Bee stings', checkInTime: '2024-07-21T10:11:00Z' },
-  { id: 'c16', firstName: 'Jaxon', lastName: 'Randolph', dob: '2018-08-08', grade: 'Kindergarten', checkedIn: false },
-  { id: 'c17', firstName: 'Naomi', lastName: 'Parks', dob: '2017-05-16', grade: '1st Grade', checkedIn: false },
-  { id: 'c18', firstName: 'Alexander', lastName: 'Rivera', dob: '2019-09-27', grade: 'Pre-K', checkedIn: true, checkInTime: '2024-07-21T10:12:00Z' }
+  { id: 'c1', firstName: 'Jada', lastName: 'Robinson', dob: '2018-05-10', grade: 'Kindergarten', checkedIn: true, checkInTime: '2024-07-21T10:00:00Z', guardians: [{ id: 'g1', firstName: 'Tiana', lastName: 'Robinson', phone: '555-111-1111', relationship: 'Mother' }] },
+  { id: 'c2', firstName: 'Nova', lastName: 'Robinson', dob: '2017-08-22', grade: '1st Grade', checkedIn: true, safetyInfo: 'Tends to wander.', checkInTime: '2024-07-21T10:02:00Z', guardians: [{ id: 'g1', firstName: 'Tiana', lastName: 'Robinson', phone: '555-111-1111', relationship: 'Mother' }] },
+  { id: 'c3', firstName: 'Thyschell', lastName: 'Jackson, Jr.', dob: '2019-01-15', grade: 'Pre-K', checkedIn: false, guardians: [{ id: 'g2', firstName: 'Tiffani', lastName: 'Jackson', phone: '555-222-2222', relationship: 'Mother' }] },
+  { id: 'c4', firstName: 'Travon', lastName: 'Jackson', dob: '2016-11-30', grade: '2nd Grade', checkedIn: true, allergies: 'Dairy', checkInTime: '2024-07-21T10:05:00Z', guardians: [{ id: 'g2', firstName: 'Tiffani', lastName: 'Jackson', phone: '555-222-2222', relationship: 'Mother' }] },
+  { id: 'c5', firstName: 'Tobias', lastName: 'Jackson', dob: '2020-03-01', grade: 'Toddler', checkedIn: false, guardians: [{ id: 'g2', firstName: 'Tiffani', lastName: 'Jackson', phone: '555-222-2222', relationship: 'Mother' }] },
+  { id: 'c6', firstName: 'Alani', lastName: 'Postell', dob: '2018-07-19', grade: 'Kindergarten', checkedIn: true, checkInTime: '2024-07-21T10:07:00Z', guardians: [{ id: 'g3', firstName: 'Tameka', lastName: 'Postell', phone: '555-333-3333', relationship: 'Mother' }] },
+  { id: 'c7', firstName: 'Nalla', lastName: 'Young', dob: '2017-02-14', grade: '1st Grade', checkedIn: false, guardians: [{ id: 'g4', firstName: 'Toccara', lastName: 'Young', phone: '555-444-4444', relationship: 'Mother' }] },
+  { id: 'c8', firstName: 'Brooke', lastName: 'Bell', dob: '2019-06-08', grade: 'Pre-K', checkedIn: false, allergies: 'Gluten', guardians: [{ id: 'g5', firstName: 'Brittany', lastName: 'Bell', phone: '555-555-5555', relationship: 'Mother' }] },
+  { id: 'c9', firstName: 'Savannah', lastName: 'Minott', dob: '2016-10-12', grade: '2nd Grade', checkedIn: true, checkInTime: '2024-07-21T10:08:00Z', guardians: [{ id: 'g6', firstName: 'Shaniel', lastName: 'Minott', phone: '555-666-6666', relationship: 'Mother' }] },
+  { id: 'c10', firstName: 'Lillianna', lastName: 'Hoffman', dob: '2020-12-01', grade: 'Toddler', checkedIn: false, guardians: [{ id: 'g7', firstName: 'Victoria', lastName: 'Hoffman', phone: '555-777-7777', relationship: 'Mother' }] },
+  { id: 'c11', firstName: 'Emme', lastName: 'Hoffman', dob: '2018-04-25', grade: 'Kindergarten', checkedIn: false, guardians: [{ id: 'g7', firstName: 'Victoria', lastName: 'Hoffman', phone: '555-777-7777', relationship: 'Mother' }] },
+  { id: 'c12', firstName: 'Karlleigh', lastName: 'Hoffman', dob: '2017-09-03', grade: '1st Grade', checkedIn: true, safetyInfo: 'Has a lisp', checkInTime: '2024-07-21T10:10:00Z', guardians: [{ id: 'g7', firstName: 'Victoria', lastName: 'Hoffman', phone: '555-777-7777', relationship: 'Mother' }] },
+  { id: 'c13', firstName: 'Jal\'ari', lastName: 'Santiago', dob: '2019-11-18', grade: 'Pre-K', checkedIn: false, guardians: [{ id: 'g8', firstName: 'Jacqueline', lastName: 'Santiago', phone: '555-888-8888', relationship: 'Mother' }] },
+  { id: 'c14', firstName: 'Jessiah', lastName: 'Santiago', dob: '2016-03-20', grade: '2nd Grade', checkedIn: false, guardians: [{ id: 'g8', firstName: 'Jacqueline', lastName: 'Santiago', phone: '555-888-8888', relationship: 'Mother' }] },
+  { id: 'c15', firstName: 'Carter', lastName: 'Randolph', dob: '2021-01-30', grade: 'Toddler', checkedIn: true, allergies: 'Bee stings', checkInTime: '2024-07-21T10:11:00Z', guardians: [{ id: 'g9', firstName: 'Tierra', lastName: 'Randolph', phone: '555-999-9999', relationship: 'Mother' }] },
+  { id: 'c16', firstName: 'Jaxon', lastName: 'Randolph', dob: '2018-08-08', grade: 'Kindergarten', checkedIn: false, guardians: [{ id: 'g9', firstName: 'Tierra', lastName: 'Randolph', phone: '555-999-9999', relationship: 'Mother' }] },
+  { id: 'c17', firstName: 'Naomi', lastName: 'Parks', dob: '2017-05-16', grade: '1st Grade', checkedIn: false, guardians: [{ id: 'g10', firstName: 'Shatoya', lastName: 'Parks', phone: '555-101-0101', relationship: 'Mother' }] },
+  { id: 'c18', firstName: 'Alexander', lastName: 'Rivera', dob: '2019-09-27', grade: 'Pre-K', checkedIn: true, checkInTime: '2024-07-21T10:12:00Z', guardians: [{ id: 'g11', firstName: 'Erica', lastName: 'Rivera', phone: '555-121-2121', relationship: 'Mother' }] }
 ];
 
 export const mockHouseholds: Household[] = [

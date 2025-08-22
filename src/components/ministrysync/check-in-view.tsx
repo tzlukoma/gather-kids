@@ -8,8 +8,10 @@ import { Badge } from '@/components/ui/badge';
 import type { Child } from '@/lib/types';
 import { CheckoutDialog } from './checkout-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { User, Search } from 'lucide-react';
+import { User, Search, Info } from 'lucide-react';
 import { Input } from '@/components/ui/input';
+import { format } from 'date-fns';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 interface CheckInViewProps {
   initialChildren: Child[];
@@ -82,10 +84,32 @@ export function CheckInView({ initialChildren }: CheckInViewProps) {
                     <Badge variant="secondary">Checked Out</Badge>
                 )}
               </div>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
+                    <Info className="h-4 w-4" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-64" align="end">
+                  <div className="space-y-4">
+                    <h4 className="font-semibold font-headline">Guardian Info</h4>
+                    {child.guardians?.map(g => (
+                      <div key={g.id} className="text-sm">
+                        <p className="font-medium">{g.firstName} {g.lastName} ({g.relationship})</p>
+                        <p className="text-muted-foreground">{g.phone}</p>
+                      </div>
+                    ))}
+                    {!child.guardians?.length && (
+                        <p className="text-sm text-muted-foreground">No guardian information available.</p>
+                    )}
+                  </div>
+                </PopoverContent>
+              </Popover>
             </CardHeader>
             <CardContent className="flex-grow">
               <div className="text-sm text-muted-foreground space-y-2">
                 <p><strong>Grade:</strong> {child.grade}</p>
+                <p><strong>Birthday:</strong> {format(new Date(child.dob), "MMM d, yyyy")}</p>
                 {child.allergies && <p className="text-destructive"><strong>Allergies:</strong> {child.allergies}</p>}
                 {child.safetyInfo && <p><strong>Notes:</strong> {child.safetyInfo}</p>}
               </div>

@@ -1,9 +1,18 @@
+
 export interface Guardian {
   id: string;
   firstName: string;
   lastName: string;
   phone: string;
   email: string;
+}
+
+export interface ChildGuardian {
+  id: string;
+  firstName: string;
+  lastName: string;
+  phone: string;
+  relationship: string;
 }
 
 export interface EmergencyContact {
@@ -23,6 +32,7 @@ export interface Child {
   safetyInfo?: string;
   checkedIn: boolean;
   checkInTime?: string;
+  guardians?: ChildGuardian[];
 }
 
 export interface Household {
