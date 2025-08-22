@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import type { Child } from '@/lib/types';
 import { CheckoutDialog } from './checkout-dialog';
 import { useToast } from '@/hooks/use-toast';
+import { User } from 'lucide-react';
 
 interface CheckInViewProps {
   initialChildren: Child[];
@@ -49,14 +50,9 @@ export function CheckInView({ initialChildren }: CheckInViewProps) {
         {children.map((child) => (
           <Card key={child.id} className="flex flex-col">
             <CardHeader className="flex-row items-center gap-4 space-y-0">
-               <Image
-                    src={`https://placehold.co/80x80.png`}
-                    data-ai-hint="child portrait"
-                    alt={`Photo of ${child.firstName}`}
-                    width={60}
-                    height={60}
-                    className="rounded-full border-2 border-primary"
-                />
+               <div className="w-[60px] h-[60px] flex items-center justify-center rounded-full border-2 border-primary bg-secondary">
+                    <User className="h-8 w-8 text-muted-foreground" />
+               </div>
               <div className="flex-1">
                 <CardTitle className="font-headline text-lg">{`${child.firstName} ${child.lastName}`}</CardTitle>
                  {child.checkedIn ? (
