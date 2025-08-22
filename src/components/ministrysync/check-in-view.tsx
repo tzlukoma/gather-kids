@@ -8,14 +8,55 @@ import { Badge } from '@/components/ui/badge';
 import type { Child } from '@/lib/types';
 import { CheckoutDialog } from './checkout-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { User, Search, Info } from 'lucide-react';
+import { User, Search, Info, Cake } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { format } from 'date-fns';
+import { format, isWithinInterval, subDays, addDays, setYear, parseISO } from 'date-fns';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 interface CheckInViewProps {
   initialChildren: Child[];
 }
+
+const isBirthdayThisWeek = (dob: string): boolean => {
+    const today = new Date();
+    const birthDate = parseISO(dob);
+    
+    // Get the child's birthday for the current year
+    const currentYearBirthday = setYear(birthDate, today.getFullYear());
+
+    // Check if the birthday is within 7 days (before or after) today
+    const sevenDaysAgo = subDays(today, 7);
+    const sevenDaysFromNow = addDays(today, 7);
+    
+    if (isWithinInterval(currentYearBirthday, { start: sevenDaysAgo, end: sevenDaysFromNow })) {
+        return true;
+    }
+
+    // Handle year-end/year-start cases (e.g., birthday is Dec 29, today is Jan 3)
+    const nextYearBirthday = addYears(currentYearBirthday, 1);
+    if (isWithinInterval(nextYearBirthday, { start: sevenDaysAgo, end: sevenDaysFromNow })) {
+        return true;
+    }
+    const prevYearBirthday = subYears(currentYearBirthday, 1);
+     if (isWithinInterval(prevYearBirthday, { start: sevenDaysAgo, end: sevenDaysFromNow })) {
+        return true;
+    }
+
+    return false;
+}
+
+// Helper to avoid issues if date-fns version doesn't have addYears/subYears
+const addYears = (date: Date, years: number) => {
+    const newDate = new Date(date);
+    newDate.setFullYear(newDate.getFullYear() + years);
+    return newDate;
+}
+const subYears = (date: Date, years: number) => {
+    const newDate = new Date(date);
+    newDate.setFullYear(newDate.getFullYear() - years);
+    return newDate;
+}
+
 
 export function CheckInView({ initialChildren }: CheckInViewProps) {
   const [children, setChildren] = useState<Child[]>(initialChildren);
@@ -72,17 +113,25 @@ export function CheckInView({ initialChildren }: CheckInViewProps) {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
         {filteredChildren.map((child) => (
           <Card key={child.id} className="flex flex-col">
-            <CardHeader className="flex-row items-center gap-4 space-y-0">
+            <CardHeader className="flex-row items-start gap-4 space-y-0">
                <div className="w-[60px] h-[60px] flex items-center justify-center rounded-full border-2 border-primary bg-secondary">
                     <User className="h-8 w-8 text-muted-foreground" />
                </div>
               <div className="flex-1">
                 <CardTitle className="font-headline text-lg">{`${child.firstName} ${child.lastName}`}</CardTitle>
-                 {child.checkedIn ? (
-                    <Badge variant="default" className="mt-1 bg-green-500 hover:bg-green-600">Checked In</Badge>
-                ) : (
-                    <Badge variant="secondary">Checked Out</Badge>
-                )}
+                 <div className="flex flex-wrap gap-1 mt-1">
+                    {child.checkedIn ? (
+                        <Badge variant="default" className="bg-green-500 hover:bg-green-600">Checked In</Badge>
+                    ) : (
+                        <Badge variant="secondary">Checked Out</Badge>
+                    )}
+                    {isBirthdayThisWeek(child.dob) && (
+                        <Badge variant="outline" className="border-secondary text-secondary-foreground flex items-center gap-1">
+                            <Cake className="h-3 w-3" />
+                            Birthday This Week
+                        </Badge>
+                    )}
+                 </div>
               </div>
               <Popover>
                 <PopoverTrigger asChild>
@@ -109,7 +158,7 @@ export function CheckInView({ initialChildren }: CheckInViewProps) {
             <CardContent className="flex-grow">
               <div className="text-sm text-muted-foreground space-y-2">
                 <p><strong>Grade:</strong> {child.grade}</p>
-                <p><strong>Birthday:</strong> {format(new Date(child.dob), "MMM d, yyyy")}</p>
+                <p><strong>Birthday:</strong> {format(parseISO(child.dob), "MMM d, yyyy")}</p>
                 {child.allergies && <p className="text-destructive"><strong>Allergies:</strong> {child.allergies}</p>}
                 {child.safetyInfo && <p><strong>Notes:</strong> {child.safetyInfo}</p>}
               </div>
