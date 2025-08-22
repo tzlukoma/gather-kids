@@ -112,9 +112,15 @@ export function CheckInView({ initialChildren }: CheckInViewProps) {
       </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
         {filteredChildren.map((child) => (
-          <Card key={child.id} className="flex flex-col">
+          <Card key={child.id} className="flex flex-col overflow-hidden">
+            {isBirthdayThisWeek(child.dob) && (
+                <div className="bg-secondary text-secondary-foreground text-center py-1 px-2 text-sm font-semibold flex items-center justify-center gap-2">
+                    <Cake className="h-4 w-4" />
+                    Birthday This Week!
+                </div>
+            )}
             <CardHeader className="flex-row items-start gap-4 space-y-0">
-               <div className="w-[60px] h-[60px] flex items-center justify-center rounded-full border-2 border-primary bg-secondary">
+               <div className="w-[60px] h-[60px] flex items-center justify-center rounded-full border-2 border-primary bg-secondary/50">
                     <User className="h-8 w-8 text-muted-foreground" />
                </div>
               <div className="flex-1">
@@ -124,12 +130,6 @@ export function CheckInView({ initialChildren }: CheckInViewProps) {
                         <Badge variant="default" className="bg-green-500 hover:bg-green-600">Checked In</Badge>
                     ) : (
                         <Badge variant="secondary">Checked Out</Badge>
-                    )}
-                    {isBirthdayThisWeek(child.dob) && (
-                        <Badge variant="outline" className="border-secondary text-secondary-foreground flex items-center gap-1">
-                            <Cake className="h-3 w-3" />
-                            Birthday This Week
-                        </Badge>
                     )}
                  </div>
               </div>
