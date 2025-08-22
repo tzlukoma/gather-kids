@@ -3,8 +3,8 @@ import './globals.css';
 import { Toaster } from "@/components/ui/toaster"
 
 export const metadata: Metadata = {
-  title: 'MinistrySync',
-  description: 'MinistrySync - Children\'s Ministry Management',
+  title: 'gatherKids',
+  description: 'gatherKids - Children\'s Ministry Management',
   icons: {
     icon: [],
   }
