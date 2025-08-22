@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { mockIncidents } from "@/lib/mock-data";
 import { AlertTriangle, Users, CheckCircle2 } from "lucide-react";
+import { format } from "date-fns";
 
 export default function DashboardPage() {
     const unacknowledgedIncidents = mockIncidents.filter(i => !i.acknowledged);
@@ -74,7 +75,7 @@ export default function DashboardPage() {
                                             {incident.severity}
                                         </Badge>
                                     </TableCell>
-                                    <TableCell>{new Date(incident.timestamp).toLocaleTimeString()}</TableCell>
+                                    <TableCell>{format(new Date(incident.timestamp), "p")}</TableCell>
                                     <TableCell>{incident.description}</TableCell>
                                 </TableRow>
                             ))}
