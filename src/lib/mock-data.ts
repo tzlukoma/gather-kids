@@ -1,12 +1,12 @@
 import type { Household, Child, Incident } from './types';
 
 export const mockChildren: Child[] = [
-  { id: 'c1', firstName: 'Liam', lastName: 'Smith', dob: new Date('2018-05-10'), grade: 'Kindergarten', checkedIn: true, allergies: 'Peanuts', checkInTime: new Date() },
-  { id: 'c2', firstName: 'Olivia', lastName: 'Jones', dob: new Date('2017-08-22'), grade: '1st Grade', checkedIn: true, safetyInfo: 'Tends to wander.', checkInTime: new Date() },
+  { id: 'c1', firstName: 'Liam', lastName: 'Smith', dob: new Date('2018-05-10'), grade: 'Kindergarten', checkedIn: true, allergies: 'Peanuts', checkInTime: new Date('2024-01-01T10:00:00Z') },
+  { id: 'c2', firstName: 'Olivia', lastName: 'Jones', dob: new Date('2017-08-22'), grade: '1st Grade', checkedIn: true, safetyInfo: 'Tends to wander.', checkInTime: new Date('2024-01-01T10:02:00Z') },
   { id: 'c3', firstName: 'Noah', lastName: 'Garcia', dob: new Date('2019-01-15'), grade: 'Pre-K', checkedIn: false },
-  { id: 'c4', firstName: 'Emma', lastName: 'Miller', dob: new Date('2016-11-30'), grade: '2nd Grade', checkedIn: true, allergies: 'Dairy', checkInTime: new Date() },
+  { id: 'c4', firstName: 'Emma', lastName: 'Miller', dob: new Date('2016-11-30'), grade: '2nd Grade', checkedIn: true, allergies: 'Dairy', checkInTime: new Date('2024-01-01T10:05:00Z') },
   { id: 'c5', firstName: 'Ava', lastName: 'Davis', dob: new Date('2020-03-01'), grade: 'Toddler', checkedIn: false },
-  { id: 'c6', firstName: 'James', lastName: 'Wilson', dob: new Date('2018-07-19'), grade: 'Kindergarten', checkedIn: true, checkInTime: new Date() },
+  { id: 'c6', firstName: 'James', lastName: 'Wilson', dob: new Date('2018-07-19'), grade: 'Kindergarten', checkedIn: true, checkInTime: new Date('2024-01-01T10:07:00Z') },
 ];
 
 export const mockHouseholds: Household[] = [
@@ -42,7 +42,7 @@ export const mockIncidents: Incident[] = [
         id: 'i1',
         childId: 'c2',
         childName: 'Olivia Jones',
-        timestamp: new Date(new Date().getTime() - 2 * 60 * 60 * 1000), // 2 hours ago
+        timestamp: new Date('2024-07-20T10:00:00Z'), // Static date
         description: 'Scraped knee on the playground.',
         severity: 'Low',
         acknowledged: true,
@@ -51,7 +51,7 @@ export const mockIncidents: Incident[] = [
         id: 'i2',
         childId: 'c4',
         childName: 'Emma Miller',
-        timestamp: new Date(new Date().getTime() - 24 * 60 * 60 * 1000), // 1 day ago
+        timestamp: new Date('2024-07-19T12:00:00Z'), // Static date
         description: 'Had a disagreement with another child over a toy.',
         severity: 'Low',
         acknowledged: true,
@@ -60,7 +60,7 @@ export const mockIncidents: Incident[] = [
         id: 'i3',
         childId: 'c1',
         childName: 'Liam Smith',
-        timestamp: new Date(),
+        timestamp: new Date('2024-07-20T12:00:00Z'), // Static date
         description: 'Felt unwell, seems to have a slight fever.',
         severity: 'Medium',
         acknowledged: false,
