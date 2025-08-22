@@ -114,7 +114,8 @@ export function CheckInView({ initialChildren, selectedEvent }: CheckInViewProps
     const lowercasedQuery = searchQuery.toLowerCase();
     return children.filter(child =>
         child.firstName.toLowerCase().includes(lowercasedQuery) ||
-        child.lastName.toLowerCase().includes(lowercasedQuery)
+        child.lastName.toLowerCase().includes(lowercasedQuery) ||
+        child.familyName?.toLowerCase().includes(lowercasedQuery)
     );
   }, [searchQuery, children]);
 
@@ -124,7 +125,7 @@ export function CheckInView({ initialChildren, selectedEvent }: CheckInViewProps
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
         <Input
           type="search"
-          placeholder="Search by name..."
+          placeholder="Search by name or family name (e.g. Jackson Family)..."
           className="w-full pl-10"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
@@ -132,21 +133,42 @@ export function CheckInView({ initialChildren, selectedEvent }: CheckInViewProps
       </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
         {filteredChildren.map((child) => (
-          <Card key={child.id} className="flex flex-col overflow-hidden">
+          <Card key={child.id} className="relative flex flex-col overflow-hidden">
             {isBirthdayThisWeek(child.dob) && (
                 <div className="bg-secondary text-secondary-foreground text-center py-1 px-2 text-sm font-semibold flex items-center justify-center gap-2">
                     <Cake className="h-4 w-4" />
                     Birthday This Week!
                 </div>
             )}
-            <CardHeader className="flex-col items-center gap-4 space-y-0 p-4 sm:flex-row sm:items-start sm:p-6">
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-8 w-8 shrink-0 z-10">
+                  <Info className="h-4 w-4" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-64" align="end">
+                <div className="space-y-4">
+                  <h4 className="font-semibold font-headline">Guardian Info</h4>
+                  {child.guardians?.map(g => (
+                    <div key={g.id} className="text-sm">
+                      <p className="font-medium">{g.firstName} {g.lastName} ({g.relationship})</p>
+                      <p className="text-muted-foreground">{g.phone}</p>
+                    </div>
+                  ))}
+                  {!child.guardians?.length && (
+                      <p className="text-sm text-muted-foreground">No guardian information available.</p>
+                  )}
+                </div>
+              </PopoverContent>
+            </Popover>
+            <CardHeader className="flex-col items-center gap-4 space-y-0 p-4 pt-6 sm:flex-row sm:items-start sm:p-6">
                <div className="w-[60px] h-[60px] flex-shrink-0 flex items-center justify-center rounded-full border-2 border-primary bg-secondary/50">
                     <User className="h-8 w-8 text-muted-foreground" />
                </div>
               <div className="flex-1 text-center sm:text-left">
                 <CardTitle className="font-headline text-lg">{`${child.firstName} ${child.lastName}`}</CardTitle>
                 <CardDescription>
-                    {child.dob ? `DOB: ${format(parseISO(child.dob), "MMM d, yyyy")}` : ''}
+                  {child.familyName}
                 </CardDescription>
                  <div className="flex flex-wrap gap-1 mt-2 justify-center sm:justify-start">
                     {child.checkedInEvent === selectedEvent && (
@@ -160,30 +182,10 @@ export function CheckInView({ initialChildren, selectedEvent }: CheckInViewProps
                     )}
                  </div>
               </div>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
-                    <Info className="h-4 w-4" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-64" align="end">
-                  <div className="space-y-4">
-                    <h4 className="font-semibold font-headline">Guardian Info</h4>
-                    {child.guardians?.map(g => (
-                      <div key={g.id} className="text-sm">
-                        <p className="font-medium">{g.firstName} {g.lastName} ({g.relationship})</p>
-                        <p className="text-muted-foreground">{g.phone}</p>
-                      </div>
-                    ))}
-                    {!child.guardians?.length && (
-                        <p className="text-sm text-muted-foreground">No guardian information available.</p>
-                    )}
-                  </div>
-                </PopoverContent>
-              </Popover>
             </CardHeader>
             <CardContent className="flex-grow space-y-2 px-4 pb-4 sm:px-6 sm:pb-6 pt-0">
               <div className="text-sm text-muted-foreground space-y-2">
+                <p><strong>DOB:</strong> {child.dob ? format(parseISO(child.dob), "MMM d, yyyy") : 'N/A'}</p>
                 <p><strong>Grade:</strong> {child.grade}</p>
                 {child.safetyInfo && <p><strong>Notes:</strong> {child.safetyInfo}</p>}
               </div>
