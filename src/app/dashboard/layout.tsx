@@ -112,7 +112,7 @@ export default function DashboardLayout({
         <header className="flex items-center justify-between p-4 border-b">
            <SidebarTrigger />
            <p className="font-headline text-lg font-semibold">Welcome, Admin!</p>
-           <Button>
+           <Button variant="outline">
               <User className="mr-2" />
               My Profile
             </Button>
