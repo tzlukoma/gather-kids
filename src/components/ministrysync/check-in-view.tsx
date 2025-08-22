@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import type { Child } from '@/lib/types';
 import { CheckoutDialog } from './checkout-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { User, Search, Info, Cake } from 'lucide-react';
+import { User, Search, Info, Cake, AlertTriangle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { format, isWithinInterval, subDays, addDays, setYear, parseISO } from 'date-fns';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -180,13 +180,18 @@ export function CheckInView({ initialChildren, selectedEvent }: CheckInViewProps
                 </PopoverContent>
               </Popover>
             </CardHeader>
-            <CardContent className="flex-grow">
+            <CardContent className="flex-grow space-y-2">
               <div className="text-sm text-muted-foreground space-y-2">
                 <p><strong>Grade:</strong> {child.grade}</p>
                 <p><strong>Birthday:</strong> {format(parseISO(child.dob), "MMM d, yyyy")}</p>
-                {child.allergies && <p className="text-destructive"><strong>Allergies:</strong> {child.allergies}</p>}
                 {child.safetyInfo && <p><strong>Notes:</strong> {child.safetyInfo}</p>}
               </div>
+              {child.allergies && (
+                  <Badge variant="destructive" className="w-full justify-center text-base py-1">
+                      <AlertTriangle className="mr-2 h-4 w-4" />
+                      Allergy: {child.allergies}
+                  </Badge>
+              )}
             </CardContent>
             <CardFooter>
               {child.checkedInEvent === selectedEvent ? (
