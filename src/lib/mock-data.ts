@@ -1,12 +1,12 @@
 import type { Household, Child, Incident } from './types';
 
 export const mockChildren: Child[] = [
-  { id: 'c1', firstName: 'Liam', lastName: 'Smith', dob: '2018-05-10', grade: 'Kindergarten', checkedIn: true, allergies: 'Peanuts', checkInTime: '2024-01-01T10:00:00Z' },
-  { id: 'c2', firstName: 'Olivia', lastName: 'Jones', dob: '2017-08-22', grade: '1st Grade', checkedIn: true, safetyInfo: 'Tends to wander.', checkInTime: '2024-01-01T10:02:00Z' },
+  { id: 'c1', firstName: 'Liam', lastName: 'Smith', dob: '2018-05-10', grade: 'Kindergarten', checkedIn: true, allergies: 'Peanuts', checkInTime: '2024-07-21T10:00:00Z' },
+  { id: 'c2', firstName: 'Olivia', lastName: 'Jones', dob: '2017-08-22', grade: '1st Grade', checkedIn: true, safetyInfo: 'Tends to wander.', checkInTime: '2024-07-21T10:02:00Z' },
   { id: 'c3', firstName: 'Noah', lastName: 'Garcia', dob: '2019-01-15', grade: 'Pre-K', checkedIn: false },
-  { id: 'c4', firstName: 'Emma', lastName: 'Miller', dob: '2016-11-30', grade: '2nd Grade', checkedIn: true, allergies: 'Dairy', checkInTime: '2024-01-01T10:05:00Z' },
+  { id: 'c4', firstName: 'Emma', lastName: 'Miller', dob: '2016-11-30', grade: '2nd Grade', checkedIn: true, allergies: 'Dairy', checkInTime: '2024-07-21T10:05:00Z' },
   { id: 'c5', firstName: 'Ava', lastName: 'Davis', dob: '2020-03-01', grade: 'Toddler', checkedIn: false },
-  { id: 'c6', firstName: 'James', lastName: 'Wilson', dob: '2018-07-19', grade: 'Kindergarten', checkedIn: true, checkInTime: '2024-01-01T10:07:00Z' },
+  { id: 'c6', firstName: 'James', lastName: 'Wilson', dob: '2018-07-19', grade: 'Kindergarten', checkedIn: true, checkInTime: '2024-07-21T10:07:00Z' },
 ];
 
 export const mockHouseholds: Household[] = [
@@ -60,7 +60,7 @@ export const mockIncidents: Incident[] = [
         id: 'i3',
         childId: 'c1',
         childName: 'Liam Smith',
-        timestamp: '2024-07-20T12:00:00Z',
+        timestamp: '2024-07-21T12:00:00Z',
         description: 'Felt unwell, seems to have a slight fever.',
         severity: 'Medium',
         acknowledged: false,

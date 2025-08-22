@@ -11,6 +11,7 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { FileDown } from "lucide-react";
+import { format } from "date-fns";
 
 export default function RostersPage() {
   const allChildren = mockChildren;
@@ -59,7 +60,7 @@ export default function RostersPage() {
                     )}
                   </TableCell>
                   <TableCell>
-                    {child.checkInTime ? new Date(child.checkInTime).toLocaleTimeString() : 'N/A'}
+                    {child.checkInTime ? format(new Date(child.checkInTime), "p") : 'N/A'}
                   </TableCell>
                   <TableCell>
                     {child.allergies && (

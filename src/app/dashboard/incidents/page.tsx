@@ -17,6 +17,7 @@ import {
 import { mockIncidents } from "@/lib/mock-data";
 import { useToast } from "@/hooks/use-toast";
 import type { Incident } from "@/lib/types";
+import { format } from "date-fns";
 
 export default function IncidentsPage() {
     const [incidents, setIncidents] = useState<Incident[]>(mockIncidents);
@@ -84,7 +85,7 @@ export default function IncidentsPage() {
                                         {incident.severity}
                                     </Badge>
                                 </TableCell>
-                                <TableCell>{new Date(incident.timestamp).toLocaleString()}</TableCell>
+                                <TableCell>{format(new Date(incident.timestamp), "PPpp")}</TableCell>
                                 <TableCell>{incident.description}</TableCell>
                                 <TableCell>
                                     <Badge variant={incident.acknowledged ? "default" : "destructive"} className={incident.acknowledged ? 'bg-green-500 hover:bg-green-600' : ''}>
