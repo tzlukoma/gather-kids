@@ -59,7 +59,7 @@ export default function RostersPage() {
                     )}
                   </TableCell>
                   <TableCell>
-                    {child.checkInTime ? child.checkInTime.toLocaleTimeString() : 'N/A'}
+                    {child.checkInTime ? new Date(child.checkInTime).toLocaleTimeString() : 'N/A'}
                   </TableCell>
                   <TableCell>
                     {child.allergies && (

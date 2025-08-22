@@ -17,12 +17,12 @@ export interface Child {
   id: string;
   firstName: string;
   lastName: string;
-  dob: Date;
+  dob: string;
   grade: string;
   allergies?: string;
   safetyInfo?: string;
   checkedIn: boolean;
-  checkInTime?: Date;
+  checkInTime?: string;
 }
 
 export interface Household {
@@ -40,7 +40,7 @@ export interface Incident {
   id: string;
   childId: string;
   childName: string;
-  timestamp: Date;
+  timestamp: string;
   description: string;
   severity: IncidentSeverity;
   acknowledged: boolean;

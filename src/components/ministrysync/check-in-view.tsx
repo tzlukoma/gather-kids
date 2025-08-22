@@ -20,7 +20,7 @@ export function CheckInView({ initialChildren }: CheckInViewProps) {
 
   const handleCheckIn = (childId: string) => {
     setChildren((prev) =>
-      prev.map((c) => (c.id === childId ? { ...c, checkedIn: true, checkInTime: new Date() } : c))
+      prev.map((c) => (c.id === childId ? { ...c, checkedIn: true, checkInTime: new Date().toISOString() } : c))
     );
     const child = children.find(c => c.id === childId);
     toast({

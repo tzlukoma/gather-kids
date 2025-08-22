@@ -76,7 +76,7 @@ export default function IncidentsPage() {
                         </TableRow>
                         </TableHeader>
                         <TableBody>
-                        {incidents.sort((a,b) => b.timestamp.getTime() - a.timestamp.getTime()).map((incident) => (
+                        {incidents.sort((a,b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).map((incident) => (
                             <TableRow key={incident.id}>
                                 <TableCell className="font-medium">{incident.childName}</TableCell>
                                 <TableCell>
@@ -84,7 +84,7 @@ export default function IncidentsPage() {
                                         {incident.severity}
                                     </Badge>
                                 </TableCell>
-                                <TableCell>{incident.timestamp.toLocaleString()}</TableCell>
+                                <TableCell>{new Date(incident.timestamp).toLocaleString()}</TableCell>
                                 <TableCell>{incident.description}</TableCell>
                                 <TableCell>
                                     <Badge variant={incident.acknowledged ? "default" : "destructive"} className={incident.acknowledged ? 'bg-green-500 hover:bg-green-600' : ''}>
