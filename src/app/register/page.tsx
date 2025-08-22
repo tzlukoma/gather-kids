@@ -1,6 +1,6 @@
 "use client"
 
-import { useForm, useFieldArray, Controller } from "react-hook-form"
+import { useForm, useFieldArray } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { Button } from "@/components/ui/button"
@@ -69,8 +69,21 @@ export default function RegisterPage() {
   const form = useForm<RegistrationFormValues>({
     resolver: zodResolver(registrationSchema),
     defaultValues: {
+      email: "",
+      household: {
+        address: "",
+      },
       guardians: [{ firstName: "", lastName: "", phone: "", email: "" }],
+      emergencyContact: { firstName: "", lastName: "", phone: "" },
       children: [{ firstName: "", lastName: "", dob: "", grade: "", allergies: "", safetyInfo: "" }],
+      ministrySelections: {
+        choir: false,
+        bibleBee: false
+      },
+      consents: {
+        liability: false,
+        photoRelease: false
+      }
     },
   })
 
@@ -97,7 +110,8 @@ export default function RegisterPage() {
 
   useEffect(() => {
     // Bible Bee visible only in August
-    setIsBibleBeeVisible(new Date().getMonth() === 7);
+    const today = new Date();
+    setIsBibleBeeVisible(today.getMonth() === 7);
   }, []);
 
 
@@ -178,6 +192,26 @@ export default function RegisterPage() {
                     </div>
                     ))}
                     <Button type="button" variant="outline" size="sm" onClick={() => appendGuardian({ firstName: "", lastName: "", phone: "", email: "" })}><PlusCircle className="mr-2 h-4 w-4" /> Add Guardian</Button>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle className="font-headline">Emergency Contact</CardTitle>
+                    <CardDescription>This person should be different from the guardians listed above.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <FormField control={form.control} name="emergencyContact.firstName" render={({ field }) => (
+                            <FormItem><FormLabel>First Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                        )} />
+                        <FormField control={form.control} name="emergencyContact.lastName" render={({ field }) => (
+                            <FormItem><FormLabel>Last Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                        )} />
+                    </div>
+                    <FormField control={form.control} name="emergencyContact.phone" render={({ field }) => (
+                        <FormItem><FormLabel>Phone</FormLabel><FormControl><Input type="tel" {...field} /></FormControl><FormMessage /></FormItem>
+                    )} />
                 </CardContent>
             </Card>
 
