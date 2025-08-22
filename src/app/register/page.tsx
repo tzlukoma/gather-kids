@@ -275,7 +275,7 @@ export default function RegisterPage() {
                 <CardHeader>
                     <CardTitle className="font-headline">Ministry Programs</CardTitle>
                     <CardDescription>Sunday School is automatic. Select additional interests.</CardDescription>
-                </Header>
+                </CardHeader>
                 <CardContent className="space-y-4">
                     <FormField control={form.control} name="ministrySelections.choir" render={({ field }) => (
                         <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><div className="space-y-1 leading-none"><FormLabel>Children's Choir (Ages 7-12)</FormLabel><FormDescription>Requires commitment for weekly practice.</FormDescription></div></FormItem>
