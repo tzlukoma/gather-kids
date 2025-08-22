@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useForm, useFieldArray } from "react-hook-form"
@@ -33,7 +34,7 @@ const guardianSchema = z.object({
 const childSchema = z.object({
   firstName: z.string().min(1, "First name is required."),
   lastName: z.string().min(1, "Last name is required."),
-  dob: z.string().refine((val) => !isNaN(Date.parse(val)), {
+  dob: z.string().refine((val) => val && !isNaN(Date.parse(val)), {
     message: "Valid date of birth is required.",
   }),
   grade: z.string().min(1, "Grade is required."),
