@@ -1,8 +1,17 @@
 
 import type { Household, Child, Incident } from './types';
 
+// Helper to get a date string for a birthday this week
+const getBirthdayThisWeek = (birthYear: number) => {
+  const today = new Date();
+  const upcomingBirthday = new Date(today);
+  upcomingBirthday.setDate(today.getDate() + 3); // Set birthday 3 days from now
+  upcomingBirthday.setFullYear(birthYear);
+  return upcomingBirthday.toISOString().split('T')[0];
+}
+
 export const mockChildren: Child[] = [
-  { id: 'c1', firstName: 'Jada', lastName: 'Robinson', dob: '2018-05-10', grade: 'Kindergarten', checkedIn: true, checkInTime: '2024-07-21T10:00:00Z', guardians: [{ id: 'g1', firstName: 'Tiana', lastName: 'Robinson', phone: '555-111-1111', relationship: 'Mother' }] },
+  { id: 'c1', firstName: 'Jada', lastName: 'Robinson', dob: getBirthdayThisWeek(2018), grade: 'Kindergarten', checkedIn: true, checkInTime: '2024-07-21T10:00:00Z', guardians: [{ id: 'g1', firstName: 'Tiana', lastName: 'Robinson', phone: '555-111-1111', relationship: 'Mother' }] },
   { id: 'c2', firstName: 'Nova', lastName: 'Robinson', dob: '2017-08-22', grade: '1st Grade', checkedIn: true, safetyInfo: 'Tends to wander.', checkInTime: '2024-07-21T10:02:00Z', guardians: [{ id: 'g1', firstName: 'Tiana', lastName: 'Robinson', phone: '555-111-1111', relationship: 'Mother' }] },
   { id: 'c3', firstName: 'Thyschell', lastName: 'Jackson, Jr.', dob: '2019-01-15', grade: 'Pre-K', checkedIn: false, guardians: [{ id: 'g2', firstName: 'Tiffani', lastName: 'Jackson', phone: '555-222-2222', relationship: 'Mother' }] },
   { id: 'c4', firstName: 'Travon', lastName: 'Jackson', dob: '2016-11-30', grade: '2nd Grade', checkedIn: true, allergies: 'Dairy', checkInTime: '2024-07-21T10:05:00Z', guardians: [{ id: 'g2', firstName: 'Tiffani', lastName: 'Jackson', phone: '555-222-2222', relationship: 'Mother' }] },
