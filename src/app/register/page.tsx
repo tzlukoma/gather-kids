@@ -33,7 +33,7 @@ const guardianSchema = z.object({
 const childSchema = z.object({
   firstName: z.string().min(1, "First name is required."),
   lastName: z.string().min(1, "Last name is required."),
-  dob: z.string().refine((val) => val && !isNaN(Date.parse(val)), {
+  dob: z.string().refine((val) => !isNaN(Date.parse(val)), {
     message: "Valid date of birth is required.",
   }),
   grade: z.string().min(1, "Grade is required."),
@@ -106,12 +106,12 @@ export default function RegisterPage() {
   const { fields: guardianFields, append: appendGuardian, remove: removeGuardian } = useFieldArray({
     control: form.control,
     name: "guardians",
-  })
+  });
 
   const { fields: childFields, append: appendChild, remove: removeChild } = useFieldArray({
     control: form.control,
     name: "children",
-  })
+  });
 
   function onSubmit(data: RegistrationFormValues) {
     console.log(data)
