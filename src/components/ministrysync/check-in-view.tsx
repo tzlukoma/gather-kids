@@ -19,6 +19,7 @@ interface CheckInViewProps {
 }
 
 const isBirthdayThisWeek = (dob: string): boolean => {
+    if (!dob) return false;
     const today = new Date();
     const birthDate = parseISO(dob);
     
@@ -113,8 +114,7 @@ export function CheckInView({ initialChildren, selectedEvent }: CheckInViewProps
     const lowercasedQuery = searchQuery.toLowerCase();
     return children.filter(child =>
         child.firstName.toLowerCase().includes(lowercasedQuery) ||
-        child.lastName.toLowerCase().includes(lowercasedQuery) ||
-        (child.familyName && child.familyName.toLowerCase().includes(lowercasedQuery))
+        child.lastName.toLowerCase().includes(lowercasedQuery)
     );
   }, [searchQuery, children]);
 
@@ -124,7 +124,7 @@ export function CheckInView({ initialChildren, selectedEvent }: CheckInViewProps
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
         <Input
           type="search"
-          placeholder="Search by name or family (e.g., Jackson Family)..."
+          placeholder="Search by name..."
           className="w-full pl-10"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
@@ -139,13 +139,15 @@ export function CheckInView({ initialChildren, selectedEvent }: CheckInViewProps
                     Birthday This Week!
                 </div>
             )}
-            <CardHeader className="flex-col items-center gap-4 space-y-0 sm:flex-row sm:items-start">
+            <CardHeader className="flex-col items-center gap-4 space-y-0 p-4 sm:flex-row sm:items-start sm:p-6">
                <div className="w-[60px] h-[60px] flex-shrink-0 flex items-center justify-center rounded-full border-2 border-primary bg-secondary/50">
                     <User className="h-8 w-8 text-muted-foreground" />
                </div>
               <div className="flex-1 text-center sm:text-left">
                 <CardTitle className="font-headline text-lg">{`${child.firstName} ${child.lastName}`}</CardTitle>
-                <CardDescription>{child.familyName}</CardDescription>
+                <CardDescription>
+                    {child.dob ? `DOB: ${format(parseISO(child.dob), "MMM d, yyyy")}` : ''}
+                </CardDescription>
                  <div className="flex flex-wrap gap-1 mt-2 justify-center sm:justify-start">
                     {child.checkedInEvent === selectedEvent && (
                         <Badge variant="default" className="bg-green-500 hover:bg-green-600">Checked In</Badge>
@@ -180,20 +182,19 @@ export function CheckInView({ initialChildren, selectedEvent }: CheckInViewProps
                 </PopoverContent>
               </Popover>
             </CardHeader>
-            <CardContent className="flex-grow space-y-2">
+            <CardContent className="flex-grow space-y-2 px-4 pb-4 sm:px-6 sm:pb-6 pt-0">
               <div className="text-sm text-muted-foreground space-y-2">
                 <p><strong>Grade:</strong> {child.grade}</p>
-                <p><strong>Birthday:</strong> {format(parseISO(child.dob), "MMM d, yyyy")}</p>
                 {child.safetyInfo && <p><strong>Notes:</strong> {child.safetyInfo}</p>}
               </div>
               {child.allergies && (
-                  <Badge variant="destructive" className="w-full justify-center text-base py-1">
+                  <Badge variant="outline" className="w-full justify-center text-base py-1 border-destructive text-destructive">
                       <AlertTriangle className="mr-2 h-4 w-4" />
                       Allergy: {child.allergies}
                   </Badge>
               )}
             </CardContent>
-            <CardFooter>
+            <CardFooter className="px-4 pb-4 sm:px-6 sm:pb-6">
               {child.checkedInEvent === selectedEvent ? (
                 <Button
                   className="w-full"
