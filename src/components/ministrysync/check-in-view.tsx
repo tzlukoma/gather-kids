@@ -104,7 +104,7 @@ export function CheckInView({ initialChildren }: CheckInViewProps) {
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
         <Input
           type="search"
-          placeholder="Search by child's name..."
+          placeholder="Search by first or last name (e.g., Jackson)..."
           className="w-full pl-10"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
