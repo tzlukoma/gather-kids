@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState } from "react"
@@ -21,6 +22,17 @@ interface CheckoutDialogProps {
   onCheckout: (childId: string) => void
 }
 
+const eventNames: { [key: string]: string } = {
+  'sunday-school': 'Sunday School',
+  'choir-practice': "Children's Choir Practice",
+  'youth-group': 'Youth Group',
+};
+
+const getEventName = (eventId: string | null) => {
+    if (!eventId) return '';
+    return eventNames[eventId] || 'an event';
+}
+
 export function CheckoutDialog({ child, onClose, onCheckout }: CheckoutDialogProps) {
   const [pin, setPin] = useState("")
   const { toast } = useToast()
@@ -28,10 +40,7 @@ export function CheckoutDialog({ child, onClose, onCheckout }: CheckoutDialogPro
   const handleVerifyAndCheckout = () => {
     // In a real app, this would involve an API call to verify the PIN.
     if (pin === "2222" || pin === "1234") {
-      toast({
-        title: "Success!",
-        description: `${child?.firstName} has been checked out.`,
-      })
+      // Toast is now handled in the onCheckout function to be more specific
       if (child) {
         onCheckout(child.id)
       }
@@ -52,7 +61,7 @@ export function CheckoutDialog({ child, onClose, onCheckout }: CheckoutDialogPro
         <DialogHeader>
           <DialogTitle className="font-headline">Guardian Verification for {child?.firstName}</DialogTitle>
           <DialogDescription>
-            To check out {child?.firstName}, please enter the last 4 digits of an authorized guardian's phone number or the 4-digit household PIN.
+            To check out {child?.firstName} from {getEventName(child?.checkedInEvent)}, please enter the last 4 digits of an authorized guardian's phone number or the 4-digit household PIN.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">

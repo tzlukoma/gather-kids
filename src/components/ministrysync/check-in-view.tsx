@@ -15,6 +15,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 
 interface CheckInViewProps {
   initialChildren: Child[];
+  selectedEvent: string;
 }
 
 const isBirthdayThisWeek = (dob: string): boolean => {
@@ -57,8 +58,18 @@ const subYears = (date: Date, years: number) => {
     return newDate;
 }
 
+const eventNames: { [key: string]: string } = {
+  'sunday-school': 'Sunday School',
+  'choir-practice': "Children's Choir Practice",
+  'youth-group': 'Youth Group',
+};
 
-export function CheckInView({ initialChildren }: CheckInViewProps) {
+const getEventName = (eventId: string | null) => {
+    if (!eventId) return '';
+    return eventNames[eventId] || 'an event';
+}
+
+export function CheckInView({ initialChildren, selectedEvent }: CheckInViewProps) {
   const [children, setChildren] = useState<Child[]>(initialChildren);
   const [childToCheckout, setChildToCheckout] = useState<Child | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -66,19 +77,25 @@ export function CheckInView({ initialChildren }: CheckInViewProps) {
 
   const handleCheckIn = (childId: string) => {
     setChildren((prev) =>
-      prev.map((c) => (c.id === childId ? { ...c, checkedIn: true, checkInTime: new Date().toISOString() } : c))
+      prev.map((c) => (c.id === childId ? { ...c, checkedInEvent: selectedEvent, checkInTime: new Date().toISOString() } : c))
     );
     const child = children.find(c => c.id === childId);
     toast({
       title: 'Checked In',
-      description: `${child?.firstName} ${child?.lastName} has been checked in.`,
+      description: `${child?.firstName} ${child?.lastName} has been checked in to ${getEventName(selectedEvent)}.`,
     });
   };
 
   const handleCheckout = (childId: string) => {
+    const child = children.find(c => c.id === childId);
+    const eventName = getEventName(child?.checkedInEvent);
     setChildren((prev) =>
-      prev.map((c) => (c.id === childId ? { ...c, checkedIn: false } : c))
+      prev.map((c) => (c.id === childId ? { ...c, checkedInEvent: null, checkInTime: undefined } : c))
     );
+    toast({
+        title: 'Checked Out',
+        description: `${child?.firstName} ${child?.lastName} has been checked out from ${eventName}.`,
+    });
   };
   
   const openCheckoutDialog = (child: Child) => {
@@ -122,17 +139,21 @@ export function CheckInView({ initialChildren }: CheckInViewProps) {
                     Birthday This Week!
                 </div>
             )}
-            <CardHeader className="flex-row items-start gap-4 space-y-0">
-               <div className="w-[60px] h-[60px] flex items-center justify-center rounded-full border-2 border-primary bg-secondary/50">
+            <CardHeader className="flex-col items-center gap-4 space-y-0 sm:flex-row sm:items-start">
+               <div className="w-[60px] h-[60px] flex-shrink-0 flex items-center justify-center rounded-full border-2 border-primary bg-secondary/50">
                     <User className="h-8 w-8 text-muted-foreground" />
                </div>
-              <div className="flex-1">
+              <div className="flex-1 text-center sm:text-left">
                 <CardTitle className="font-headline text-lg">{`${child.firstName} ${child.lastName}`}</CardTitle>
                 <CardDescription>{child.familyName}</CardDescription>
-                 <div className="flex flex-wrap gap-1 mt-1">
-                    {child.checkedIn ? (
+                 <div className="flex flex-wrap gap-1 mt-2 justify-center sm:justify-start">
+                    {child.checkedInEvent === selectedEvent && (
                         <Badge variant="default" className="bg-green-500 hover:bg-green-600">Checked In</Badge>
-                    ) : (
+                    )}
+                    {child.checkedInEvent && child.checkedInEvent !== selectedEvent && (
+                        <Badge variant="secondary">In {getEventName(child.checkedInEvent)}</Badge>
+                    )}
+                    {!child.checkedInEvent && (
                         <Badge variant="secondary">Checked Out</Badge>
                     )}
                  </div>
@@ -168,7 +189,7 @@ export function CheckInView({ initialChildren }: CheckInViewProps) {
               </div>
             </CardContent>
             <CardFooter>
-              {child.checkedIn ? (
+              {child.checkedInEvent === selectedEvent ? (
                 <Button
                   className="w-full"
                   variant="outline"
@@ -177,7 +198,11 @@ export function CheckInView({ initialChildren }: CheckInViewProps) {
                   Check Out
                 </Button>
               ) : (
-                <Button className="w-full" onClick={() => handleCheckIn(child.id)}>
+                <Button 
+                    className="w-full"
+                    onClick={() => handleCheckIn(child.id)}
+                    disabled={!!child.checkedInEvent}
+                >
                   Check In
                 </Button>
               )}
