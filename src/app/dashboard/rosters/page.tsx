@@ -436,9 +436,9 @@ export default function RostersPage() {
     <div className="flex flex-col gap-8">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold font-headline">Class Rosters</h1>
+          <h1 className="text-3xl font-bold font-headline">Ministry Rosters</h1>
           <p className="text-muted-foreground">
-            View real-time rosters for all classes and manage attendance.
+            View real-time rosters for all ministries and manage attendance.
           </p>
         </div>
         <div className="flex flex-col sm:flex-row gap-4">
