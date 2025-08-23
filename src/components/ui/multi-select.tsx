@@ -81,7 +81,11 @@ function MultiSelect({
                                     e.preventDefault();
                                     e.stopPropagation();
                                 }}
-                                onClick={() => handleUnselect(item)}
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    handleUnselect(item)
+                                }}
                             >
                                 <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
                             </button>
