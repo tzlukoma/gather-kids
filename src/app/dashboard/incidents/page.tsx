@@ -1,7 +1,7 @@
 
 "use client"
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import { IncidentForm } from "@/components/ministrysync/incident-form";
 import { Badge } from "@/components/ui/badge";
@@ -16,6 +16,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import type { Incident } from "@/lib/types";
 import { format } from "date-fns";
@@ -27,6 +29,7 @@ export default function IncidentsPage() {
     const { toast } = useToast();
     const searchParams = useSearchParams();
     const [activeTab, setActiveTab] = useState("log");
+    const [showPendingOnly, setShowPendingOnly] = useState(false);
 
     const incidents = useLiveQuery(() => db.incidents.orderBy('timestamp').reverse().toArray(), []);
 
@@ -35,7 +38,19 @@ export default function IncidentsPage() {
         if (tabParam === 'view') {
             setActiveTab('view');
         }
+        const filterParam = searchParams.get('filter');
+        if (filterParam === 'pending') {
+            setShowPendingOnly(true);
+        }
     }, [searchParams]);
+
+    const displayedIncidents = useMemo(() => {
+        if (!incidents) return [];
+        if (showPendingOnly) {
+            return incidents.filter(incident => !incident.admin_acknowledged_at);
+        }
+        return incidents;
+    }, [incidents, showPendingOnly]);
 
     const handleAcknowledge = async (incidentId: string) => {
         try {
@@ -86,8 +101,16 @@ export default function IncidentsPage() {
         <TabsContent value="view">
             <Card>
                 <CardHeader>
-                    <CardTitle className="font-headline">Incident History</CardTitle>
-                    <CardDescription>A log of all past incidents.</CardDescription>
+                    <div className="flex justify-between items-center">
+                        <div>
+                            <CardTitle className="font-headline">Incident History</CardTitle>
+                            <CardDescription>A log of all past incidents.</CardDescription>
+                        </div>
+                         <div className="flex items-center space-x-2">
+                            <Checkbox id="show-pending" checked={showPendingOnly} onCheckedChange={(checked) => setShowPendingOnly(!!checked)} />
+                            <Label htmlFor="show-pending">Show pending only</Label>
+                        </div>
+                    </div>
                 </CardHeader>
                 <CardContent>
                     <Table>
@@ -102,7 +125,7 @@ export default function IncidentsPage() {
                         </TableRow>
                         </TableHeader>
                         <TableBody>
-                        {incidents.map((incident) => (
+                        {displayedIncidents.map((incident) => (
                             <TableRow key={incident.incident_id}>
                                 <TableCell className="font-medium">{incident.child_name}</TableCell>
                                 <TableCell>
@@ -124,6 +147,13 @@ export default function IncidentsPage() {
                                 </TableCell>
                             </TableRow>
                         ))}
+                        {displayedIncidents.length === 0 && (
+                            <TableRow>
+                                <TableCell colSpan={6} className="text-center h-24 text-muted-foreground">
+                                    No incidents match the current filter.
+                                </TableCell>
+                            </TableRow>
+                        )}
                         </TableBody>
                     </Table>
                 </CardContent>
