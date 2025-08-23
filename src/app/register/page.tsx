@@ -250,7 +250,7 @@ const ministryPrograms = [
         return isWithinInterval(today, { start: bibleBeeStart, end: bibleBeeEnd });
     }, details: "Bible Bee is a competitive program that encourages scripture memorization. Materials must be purchased separately." },
     { id: "dance", label: "Dance Ministry", eligibility: () => true, details: "You will receive information from ministry leaders regarding next steps for your child's participation." },
-    { id: "media-production", label: "Media Production Ministry", eligibility: () => true, details: "This ministry involves training on sound, lighting, and video production for our services." },
+    { id: "media-production", label: "Media Production Ministry", eligibility: () => true, details: "Thank you for registering for the Media Ministry. You will receive information from ministry leaders regarding next steps for your child's participation." },
     { id: "mentoring-boys", label: "Mentoring Ministry-Boys (Khalfani)", eligibility: () => true, details: "The Khalfani ministry provides mentorship for young boys through various activities and discussions." },
     { id: "mentoring-girls", label: "Mentoring Ministry-Girls (Nailah)", eligibility: () => true, details: "The Nailah ministry provides mentorship for young girls, focusing on empowerment and personal growth." },
     { id: "teen-fellowship", label: "New Generation Teen Fellowship", eligibility: () => true, details: "Teen Fellowship meets on Friday nights for fun, food, and faith-based discussions." },
