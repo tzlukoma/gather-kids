@@ -8,6 +8,7 @@
 
 
 
+
 import { db } from './db';
 import type { Attendance, Child, Guardian, Household, Incident, IncidentSeverity, Ministry, MinistryEnrollment, Registration, User, EmergencyContact } from './types';
 import { differenceInYears, isAfter, isBefore, parseISO } from 'date-fns';
@@ -571,6 +572,7 @@ export async function createMinistry(ministryData: Omit<Ministry, 'ministry_id' 
         created_at: now,
         updated_at: now,
         data_profile: 'Basic', // Default data profile
+        is_active: ministryData.is_active ?? true,
     };
     return db.ministries.add(newMinistry);
 }
@@ -585,5 +587,3 @@ export async function deleteMinistry(ministryId: string): Promise<void> {
     // For this prototype, we will just delete the ministry.
     return db.ministries.delete(ministryId);
 }
-
-    

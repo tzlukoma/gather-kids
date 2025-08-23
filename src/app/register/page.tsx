@@ -306,7 +306,7 @@ export default function RegisterPage() {
   const [openAccordionItems, setOpenAccordionItems] = useState<string[]>([]);
   const [isCurrentYearOverwrite, setIsCurrentYearOverwrite] = useState(false);
   
-  const allMinistries = useLiveQuery(() => db.ministries.toArray(), []);
+  const allMinistries = useLiveQuery(() => db.ministries.where('is_active').equals(1).toArray(), []);
 
   const form = useForm<RegistrationFormValues>({
     resolver: zodResolver(registrationSchema),
