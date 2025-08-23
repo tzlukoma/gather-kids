@@ -38,6 +38,7 @@ import { useEffect } from "react";
 import { v4 as uuidv4 } from 'uuid';
 import { PlusCircle, Trash2 } from "lucide-react";
 import { Separator } from "../ui/separator";
+import { db } from "@/lib/db";
 
 const customQuestionSchema = z.object({
     id: z.string(),
@@ -108,6 +109,17 @@ export function MinistryFormDialog({ isOpen, onClose, ministry }: MinistryFormDi
 
   const onSubmit = async (data: MinistryFormValues) => {
     try {
+      // Check for duplicate code
+      const existingMinistry = await db.ministries.where('code').equals(data.code).first();
+      if (existingMinistry && existingMinistry.ministry_id !== ministry?.ministry_id) {
+          toast({
+              title: "Duplicate Code",
+              description: `The code "${data.code}" is already in use by another ministry. Please choose a unique code.`,
+              variant: "destructive",
+          });
+          return;
+      }
+
       if (ministry) {
         await updateMinistry(ministry.ministry_id, data);
         toast({ title: "Ministry Updated", description: "The ministry has been successfully updated." });

@@ -159,7 +159,6 @@ export const seedDB = async () => {
             { ministry_id: uuidv4(), name: "Youth Choirs- Keita Praise Choir (Ages 9-12)", code: "choir-keita", enrollment_type: 'enrolled', min_age: 9, max_age: 12, details: "Keita Praise Choir builds on foundational skills and performs once a month. Practices are on Wednesdays.", data_profile: 'Basic', created_at: now, updated_at: now },
             { ministry_id: uuidv4(), name: "Youth Choirs- New Generation Teen Choir (Ages 13-18)", code: "choir-teen", enrollment_type: 'enrolled', min_age: 13, max_age: 18, details: "The Teen Choir performs contemporary gospel music and leads worship during Youth Sundays.", data_profile: 'Basic', created_at: now, updated_at: now },
             { ministry_id: uuidv4(), name: "Youth Ushers", code: "youth-ushers", enrollment_type: 'enrolled', details: "Thank you for registering for the Youth Ushers Ministry.\n\nYou will receive information from ministry leaders regarding next steps for your child's participation.", data_profile: 'Basic', created_at: now, updated_at: now },
-             // Teen Fellowship Interests (nested under an enrolled program) - these should be interest_only to not show on main config list
             { ministry_id: uuidv4(), name: "Podcast & YouTube Channel Projects", code: "teen_podcast", enrollment_type: 'interest_only', data_profile: 'Basic', created_at: now, updated_at: now },
             { ministry_id: uuidv4(), name: "Social Media Team", code: "teen_social_media", enrollment_type: 'interest_only', data_profile: 'Basic', created_at: now, updated_at: now },
             { ministry_id: uuidv4(), name: "Leading Community Service Projects", code: "teen_community_service", enrollment_type: 'interest_only', data_profile: 'Basic', created_at: now, updated_at: now },
@@ -206,10 +205,16 @@ export const seedDB = async () => {
             // Enroll in choir if eligible
             const age = differenceInYears(today, parseISO(child.dob!));
             if (age >= 4 && age <= 8) {
-                enrollments.push({ enrollment_id: uuidv4(), child_id: child.child_id, cycle_id: CYCLE_IDS.current, ministry_id: 'choir-joy-bells', status: 'enrolled' });
+                const choir = await db.ministries.where({code: 'choir-joy-bells'}).first();
+                if (choir) {
+                    enrollments.push({ enrollment_id: uuidv4(), child_id: child.child_id, cycle_id: CYCLE_IDS.current, ministry_id: choir.ministry_id, status: 'enrolled' });
+                }
             }
              if (age >= 9 && age <= 12) {
-                enrollments.push({ enrollment_id: uuidv4(), child_id: child.child_id, cycle_id: CYCLE_IDS.current, ministry_id: 'choir-keita', status: 'enrolled' });
+                const choir = await db.ministries.where({code: 'choir-keita'}).first();
+                if (choir) {
+                    enrollments.push({ enrollment_id: uuidv4(), child_id: child.child_id, cycle_id: CYCLE_IDS.current, ministry_id: choir.ministry_id, status: 'enrolled' });
+                }
             }
         }
         await db.registrations.bulkPut(registrations);
