@@ -57,7 +57,6 @@ function MultiSelect({
           role="combobox"
           aria-expanded={open}
           className={cn("w-full justify-between h-auto min-h-10", className)}
-          onClick={() => setOpen(!open)}
         >
           <div className="flex gap-1 flex-wrap">
             {selected.length > 0 ? (
@@ -67,14 +66,23 @@ function MultiSelect({
                         <Badge
                             variant="secondary"
                             key={item}
-                            className="mr-1 mb-1"
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                handleUnselect(item);
-                            }}
+                            className="mr-1"
                         >
                             {option ? option.label : item}
-                            <button className="ml-1 ring-offset-background rounded-full outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2" onKeyDown={(e) => {if(e.key === "Enter"){handleUnselect(item)}}} onMouseDown={(e)=>{e.preventDefault(); e.stopPropagation()}} onClick={()=>{handleUnselect(item)}}>
+                            <button
+                                aria-label={`Remove ${option ? option.label : item} option`}
+                                className="ml-1 ring-offset-background rounded-full outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                                onKeyDown={(e) => {
+                                    if (e.key === "Enter") {
+                                        handleUnselect(item);
+                                    }
+                                }}
+                                onMouseDown={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                }}
+                                onClick={() => handleUnselect(item)}
+                            >
                                 <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
                             </button>
                         </Badge>
@@ -102,7 +110,6 @@ function MultiSelect({
                         ? selected.filter((item) => item !== option.value)
                         : [...selected, option.value]
                     );
-                    setOpen(true);
                   }}
                 >
                   <Check
