@@ -1,7 +1,6 @@
-
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { CheckInView } from '@/components/ministrysync/check-in-view';
 import {
   Select,
@@ -16,10 +15,41 @@ import { db } from '@/lib/db';
 import { Button } from '@/components/ui/button';
 import { seedDB } from '@/lib/seed';
 
+const gradeSortOrder: { [key: string]: number } = {
+    "Pre-K": 0, "Kindergarten": 1, "1st Grade": 2, "2nd Grade": 3, "3rd Grade": 4, "4th Grade": 5,
+    "5th Grade": 6, "6th Grade": 7, "7th Grade": 8, "9th Grade": 9, "10th Grade": 10,
+    "11th Grade": 11, "12th Grade": 12, "13th Grade": 13,
+};
+
+const getGradeValue = (grade?: string): number => {
+    if (!grade) return 99;
+    const value = gradeSortOrder[grade];
+    return value !== undefined ? value : 99;
+};
+
 export default function CheckInPage() {
   const [selectedEvent, setSelectedEvent] = useState('evt_sunday_school');
+  const [selectedGrades, setSelectedGrades] = useState<Set<string>>(new Set());
   
   const children = useLiveQuery(() => db.children.toArray(), []);
+
+  const availableGrades = useMemo(() => {
+    if (!children) return [];
+    const grades = new Set(children.map(c => c.grade).filter(Boolean) as string[]);
+    return Array.from(grades).sort((a, b) => getGradeValue(a) - getGradeValue(b));
+  }, [children]);
+
+  const toggleGrade = (grade: string) => {
+    setSelectedGrades(prev => {
+        const newSet = new Set(prev);
+        if (newSet.has(grade)) {
+            newSet.delete(grade);
+        } else {
+            newSet.add(grade);
+        }
+        return newSet;
+    })
+  }
 
   if (!children) {
     return (
@@ -62,7 +92,24 @@ export default function CheckInPage() {
             </Select>
         </div>
       </div>
-      <CheckInView initialChildren={children} selectedEvent={selectedEvent} />
+       <div className="flex flex-wrap gap-2 items-center">
+            <Label className="font-semibold shrink-0">Filter by Grade:</Label>
+            {availableGrades.map(grade => (
+                <Button 
+                    key={grade}
+                    variant={selectedGrades.has(grade) ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => toggleGrade(grade)}
+                    className="rounded-full"
+                >
+                    {grade}
+                </Button>
+            ))}
+            {selectedGrades.size > 0 && (
+                <Button variant="link" size="sm" onClick={() => setSelectedGrades(new Set())}>Clear</Button>
+            )}
+        </div>
+      <CheckInView initialChildren={children} selectedEvent={selectedEvent} selectedGrades={Array.from(selectedGrades)} />
     </div>
   );
 }
