@@ -113,11 +113,11 @@ export default function LeaderProfilePage() {
         <div className="flex flex-col gap-8">
             <div>
                 <h1 className="text-3xl font-bold font-headline">{leader.name}</h1>
-                <p className="text-muted-foreground">
+                <div className="text-muted-foreground mt-1">
                     <Badge variant={leader.is_active ? "default" : "secondary"} className={leader.is_active ? "bg-green-500" : ""}>
                         {leader.is_active ? "Active" : "Inactive"}
                     </Badge>
-                </p>
+                </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
