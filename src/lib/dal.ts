@@ -2,6 +2,7 @@
 
 
 
+
 import { db } from './db';
 import type { Attendance, Child, Guardian, Household, Incident, IncidentSeverity, Ministry, MinistryEnrollment, Registration, User, EmergencyContact, LeaderAssignment } from './types';
 import { differenceInYears, isAfter, isBefore, parseISO } from 'date-fns';
@@ -122,13 +123,20 @@ export async function queryDashboardMetrics(cycleId: string) {
     };
 }
 
-export async function queryHouseholdList(leaderMinistryIds?: string[]) {
+export async function queryHouseholdList(leaderMinistryIds?: string[], ministryId?: string) {
     let households = await db.households.orderBy('created_at').reverse().toArray();
     let householdIds = households.map(h => h.household_id);
 
-    if (leaderMinistryIds && leaderMinistryIds.length > 0) {
+    let ministryFilterIds = leaderMinistryIds;
+
+    // If a specific ministryId filter is applied, it takes precedence
+    if (ministryId) {
+        ministryFilterIds = [ministryId];
+    }
+
+    if (ministryFilterIds && ministryFilterIds.length > 0) {
         const enrollments = await db.ministry_enrollments
-            .where('ministry_id').anyOf(leaderMinistryIds)
+            .where('ministry_id').anyOf(ministryFilterIds)
             .and(e => e.cycle_id === '2025')
             .toArray();
         const relevantChildIds = [...new Set(enrollments.map(e => e.child_id))];
@@ -657,4 +665,5 @@ export async function saveLeaderAssignments(leaderId: string, cycleId: string, n
 export async function updateLeaderStatus(leaderId: string, isActive: boolean): Promise<number> {
     return db.users.update(leaderId, { is_active: isActive });
 }
+
 
