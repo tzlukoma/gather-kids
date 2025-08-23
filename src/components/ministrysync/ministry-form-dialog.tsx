@@ -2,7 +2,7 @@
 "use client"
 
 import { useForm, useFieldArray } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { zodResolver } from "@zodform/resolvers/zod";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import {
@@ -39,6 +39,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { PlusCircle, Trash2 } from "lucide-react";
 import { Separator } from "../ui/separator";
 import { db } from "@/lib/db";
+import { Switch } from "../ui/switch";
 
 const customQuestionSchema = z.object({
     id: z.string(),
@@ -51,6 +52,7 @@ const ministryFormSchema = z.object({
     name: z.string().min(2, "Name must be at least 2 characters."),
     code: z.string().min(2, "Code must be at least 2 characters.").regex(/^[a-z0-9-]+$/, "Code can only contain lowercase letters, numbers, and hyphens."),
     enrollment_type: z.enum(["enrolled", "interest_only"]),
+    is_active: z.boolean().default(true),
     description: z.string().optional(),
     details: z.string().optional(),
     custom_questions: z.array(customQuestionSchema).optional(),
@@ -73,6 +75,7 @@ export function MinistryFormDialog({ isOpen, onClose, ministry }: MinistryFormDi
       name: "",
       code: "",
       enrollment_type: "enrolled",
+      is_active: true,
       description: "",
       details: "",
       custom_questions: [],
@@ -90,6 +93,7 @@ export function MinistryFormDialog({ isOpen, onClose, ministry }: MinistryFormDi
         name: ministry.name,
         code: ministry.code,
         enrollment_type: ministry.enrollment_type,
+        is_active: ministry.is_active ?? true,
         description: ministry.description,
         details: ministry.details,
         custom_questions: ministry.custom_questions?.map(q => ({...q, options: q.options || []})) || [],
@@ -99,6 +103,7 @@ export function MinistryFormDialog({ isOpen, onClose, ministry }: MinistryFormDi
         name: "",
         code: "",
         enrollment_type: "enrolled",
+        is_active: true,
         description: "",
         details: "",
         custom_questions: [],
@@ -157,19 +162,37 @@ export function MinistryFormDialog({ isOpen, onClose, ministry }: MinistryFormDi
                     <FormItem><FormLabel>Code</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
             </div>
-            <FormField control={form.control} name="enrollment_type" render={({ field }) => (
-                <FormItem>
-                    <FormLabel>Type</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
-                        <SelectContent>
-                            <SelectItem value="enrolled">Ministry Program (Enrolled)</SelectItem>
-                            <SelectItem value="interest_only">Interest-Only Activity</SelectItem>
-                        </SelectContent>
-                    </Select>
-                    <FormMessage />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+              <FormField control={form.control} name="enrollment_type" render={({ field }) => (
+                  <FormItem>
+                      <FormLabel>Type</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                          <SelectContent>
+                              <SelectItem value="enrolled">Ministry Program (Enrolled)</SelectItem>
+                              <SelectItem value="interest_only">Interest-Only Activity</SelectItem>
+                          </SelectContent>
+                      </Select>
+                      <FormMessage />
+                  </FormItem>
+              )} />
+              <FormField control={form.control} name="is_active" render={({ field }) => (
+                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                  <div className="space-y-0.5">
+                    <FormLabel>Active</FormLabel>
+                    <FormDescription>
+                      Inactive programs will not appear on the registration form.
+                    </FormDescription>
+                  </div>
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
                 </FormItem>
-            )} />
+              )} />
+            </div>
             <FormField control={form.control} name="description" render={({ field }) => (
                 <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea {...field} /></FormControl><FormDescription>A short description shown on the registration form.</FormDescription><FormMessage /></FormItem>
             )} />

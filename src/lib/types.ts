@@ -112,6 +112,7 @@ export interface Ministry {
     custom_questions?: CustomQuestion[];
     communicate_later?: boolean;
     optional_consent_text?: string;
+    is_active?: boolean;
 }
 
 export interface MinistryEnrollment {

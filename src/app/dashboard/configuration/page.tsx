@@ -51,6 +51,7 @@ function MinistryTable({
                         <TableRow>
                             <TableHead>Name</TableHead>
                             <TableHead>Code</TableHead>
+                            <TableHead>Status</TableHead>
                             <TableHead>Eligibility</TableHead>
                             <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
@@ -61,6 +62,11 @@ function MinistryTable({
                                 <TableCell className="font-medium">{m.name}</TableCell>
                                 <TableCell>
                                     <Badge variant="outline">{m.code}</Badge>
+                                </TableCell>
+                                <TableCell>
+                                    <Badge variant={m.is_active ? "default" : "secondary"} className={m.is_active ? 'bg-green-500' : ''}>
+                                        {m.is_active ? 'Active' : 'Inactive'}
+                                    </Badge>
                                 </TableCell>
                                 <TableCell>
                                     {m.min_age || m.max_age ? `Ages ${m.min_age ?? '?'} - ${m.max_age ?? '?'}` : 'All ages'}
@@ -95,7 +101,7 @@ function MinistryTable({
                         ))}
                         {ministries.length === 0 && (
                             <TableRow>
-                                <TableCell colSpan={4} className="text-center h-24 text-muted-foreground">
+                                <TableCell colSpan={5} className="text-center h-24 text-muted-foreground">
                                     No ministries of this type found.
                                 </TableCell>
                             </TableRow>
