@@ -9,6 +9,7 @@
 
 
 
+
 import { db } from './db';
 import type { Attendance, Child, Guardian, Household, Incident, IncidentSeverity, Ministry, MinistryEnrollment, Registration, User, EmergencyContact } from './types';
 import { differenceInYears, isAfter, isBefore, parseISO } from 'date-fns';
@@ -315,7 +316,7 @@ export async function findHouseholdByEmail(email: string, currentCycleId: string
     // 1. Check for an existing registration in the CURRENT cycle.
     const currentHousehold = await db.households.get(householdId);
     if (currentHousehold) {
-        const currentRegExists = await db.registrations.where({ cycle_id: currentCycleId, 'child_id': `c_${householdId}_1`}).first();
+        const currentRegExists = await db.registrations.where({ cycle_id: currentCycleId }).and(r => r.child_id.startsWith(`c_${householdId}`)).first();
         if (currentRegExists) {
             return {
                 isCurrentYear: true,
@@ -326,7 +327,7 @@ export async function findHouseholdByEmail(email: string, currentCycleId: string
     
     // 2. If no current registration, check for a registration in the PRIOR cycle to pre-fill from.
     const priorCycleId = String(parseInt(currentCycleId, 10) - 1);
-    const priorRegExists = await db.registrations.where({ cycle_id: priorCycleId, 'child_id': `c_${householdId}_1`}).first();
+    const priorRegExists = await db.registrations.where({ cycle_id: priorCycleId }).and(r => r.child_id.startsWith(`c_${householdId}`)).first();
     
     if (priorRegExists) {
         const priorData = await fetchFullHouseholdData(householdId, priorCycleId);
@@ -457,7 +458,7 @@ export async function registerHousehold(data: any, cycle_id: string) {
 
 
             for (const ministryCode in allSelections) {
-                if (allSelections[ministryCode]) {
+                if (allSelections[ministryCode] && ministryCode !== 'min_sunday_school') {
                     const ministry = ministryMap.get(ministryCode);
                     if (ministry) {
                          // Check eligibility
