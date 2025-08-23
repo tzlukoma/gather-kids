@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import type { Child, Guardian, Attendance, Household, EmergencyContact, Incident } from '@/lib/types';
 import { CheckoutDialog } from './checkout-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { User, Search, Info, Cake, AlertTriangle, ShieldAlert } from 'lucide-react';
+import { User, Search, Info, Cake, AlertTriangle, ShieldAlert, Smartphone, CheckCircle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { format, isWithinInterval, subDays, addDays, setYear, parseISO, differenceInYears } from 'date-fns';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -86,6 +86,7 @@ export interface EnrichedChild extends Child {
     household: Household | null;
     emergencyContact: EmergencyContact | null;
     incidents: Incident[];
+    age: number | null;
 }
 
 export function CheckInView({ initialChildren, selectedEvent, selectedGrades, statusFilter }: CheckInViewProps) {
@@ -163,6 +164,7 @@ export function CheckInView({ initialChildren, selectedEvent, selectedGrades, st
                 household: householdMap.get(c.household_id) || null,
                 emergencyContact: emergencyContactMap.get(c.household_id) || null,
                 incidents: childIncidents,
+                age: c.dob ? differenceInYears(new Date(), parseISO(c.dob)) : null,
             }
         });
         setChildren(enriched);
@@ -262,6 +264,7 @@ export function CheckInView({ initialChildren, selectedEvent, selectedGrades, st
             const isCheckedInHere = checkedInEvent === selectedEvent;
             const isCheckedInElsewhere = checkedInEvent && checkedInEvent !== selectedEvent;
             const hasIncidents = child.incidents.length > 0;
+            const canSelfCheckout = child.age !== null && child.age >= 13;
 
             return (
               <Card key={child.child_id} className="relative flex flex-col overflow-hidden">
@@ -279,6 +282,15 @@ export function CheckInView({ initialChildren, selectedEvent, selectedGrades, st
                   </PopoverTrigger>
                   <PopoverContent className="w-80" align="end">
                     <div className="space-y-4">
+                      {canSelfCheckout && child.child_mobile && (
+                          <div>
+                            <h4 className="font-semibold font-headline mb-2 flex items-center gap-2"><CheckCircle className="text-green-500" /> Self-Checkout Allowed</h4>
+                             <div className="text-sm">
+                                <p className="font-medium">{child.first_name} {child.last_name}</p>
+                                <p className="text-muted-foreground flex items-center gap-2"><Smartphone size={14} />{child.child_mobile}</p>
+                            </div>
+                         </div>
+                      )}
                       <div>
                         <h4 className="font-semibold font-headline mb-2">Guardians</h4>
                         <div className="space-y-3">
@@ -332,7 +344,7 @@ export function CheckInView({ initialChildren, selectedEvent, selectedGrades, st
                 </CardHeader>
                 <CardContent className="flex-grow space-y-2 px-4 pb-4 sm:px-6 sm:pb-6 pt-0">
                   <div className="text-sm text-muted-foreground space-y-2">
-                    <p><strong>DOB:</strong> {child.dob ? format(parseISO(child.dob), "MMM d, yyyy") : 'N/A'} ({child.dob ? differenceInYears(new Date(), parseISO(child.dob)) : ''} yrs)</p>
+                    <p><strong>DOB:</strong> {child.dob ? format(parseISO(child.dob), "MMM d, yyyy") : 'N/A'} ({child.age} yrs)</p>
                     <p><strong>Grade:</strong> {child.grade}</p>
                     {child.medical_notes && <p><strong>Notes:</strong> {child.medical_notes}</p>}
                   </div>
