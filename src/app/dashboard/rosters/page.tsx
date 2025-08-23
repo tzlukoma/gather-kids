@@ -107,6 +107,13 @@ export default function RostersPage() {
     }
   }, [searchParams]);
 
+  useEffect(() => {
+    if (user?.role === 'leader' && user.assignedMinistryIds?.length === 1) {
+        setSelectedMinistryFilter(user.assignedMinistryIds[0]);
+    }
+  }, [user]);
+
+
   const childrenWithDetails: RosterChild[] = useMemo(() => {
     if (!allChildrenQuery || !todaysAttendance || !allGuardians || !allHouseholds || !allEmergencyContacts) return [];
 
@@ -132,19 +139,24 @@ export default function RostersPage() {
   const ministryFilterOptions = useMemo(() => {
         if (!allChildrenQuery || !allMinistryEnrollments || !allMinistries) return [];
         
-        const childIdsInView = new Set(allChildrenQuery.map(c => c.child_id));
+        let relevantMinistryIds: Set<string>;
 
-        const relevantMinistryIds = new Set(
-            allMinistryEnrollments
-                .filter(e => childIdsInView.has(e.child_id))
-                .map(e => e.ministry_id)
-        );
+        if (user?.role === 'leader' && user.assignedMinistryIds) {
+            relevantMinistryIds = new Set(user.assignedMinistryIds);
+        } else {
+             const childIdsInView = new Set(allChildrenQuery.map(c => c.child_id));
+             relevantMinistryIds = new Set(
+                allMinistryEnrollments
+                    .filter(e => childIdsInView.has(e.child_id))
+                    .map(e => e.ministry_id)
+            );
+        }
 
         return allMinistries
             .filter(m => relevantMinistryIds.has(m.ministry_id))
             .sort((a,b) => a.name.localeCompare(b.name));
 
-    }, [allChildrenQuery, allMinistryEnrollments, allMinistries]);
+    }, [allChildrenQuery, allMinistryEnrollments, allMinistries, user]);
 
 
   const displayChildren = useMemo(() => {
@@ -496,7 +508,9 @@ export default function RostersPage() {
                             <SelectValue placeholder="Filter by Ministry" />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="all">All Ministries</SelectItem>
+                             {(user?.role === 'admin' || (user?.role === 'leader' && user.assignedMinistryIds && user.assignedMinistryIds.length > 1)) && (
+                                <SelectItem value="all">All Ministries</SelectItem>
+                            )}
                             {ministryFilterOptions.map(m => (
                                 <SelectItem key={m.ministry_id} value={m.ministry_id}>{m.name}</SelectItem>
                             ))}
@@ -549,5 +563,7 @@ export default function RostersPage() {
     </>
   );
 }
+
+    
 
     
