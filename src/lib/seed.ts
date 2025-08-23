@@ -1,3 +1,4 @@
+
 import { db } from './db';
 import { v4 as uuidv4 } from 'uuid';
 import type { Household, Guardian, EmergencyContact, Child, RegistrationCycle, Registration, Ministry, MinistryEnrollment, User, Event, Attendance, Incident } from './types';
@@ -42,6 +43,8 @@ const generateHouseholdsAndChildren = (): { households: Household[], children: C
         { lastName: 'Jones', guardian: { f: 'Robert', l: 'Jones' }, kids: [{ f: 'Mia', age: 3 }, { f: 'Ethan', age: 11 }] },
     ];
     
+    const birthdaysPerMonth = Array(12).fill(0);
+
     let householdCounter = 1;
     for (const family of families) {
         const householdId = `h_${householdCounter++}`;
@@ -84,12 +87,23 @@ const generateHouseholdsAndChildren = (): { households: Household[], children: C
 
         let childCounter = 1;
         for (const kid of family.kids) {
+            let birthMonth: number;
+            do {
+                birthMonth = Math.floor(Math.random() * 12);
+            } while (birthdaysPerMonth[birthMonth] >= 2);
+            
+            birthdaysPerMonth[birthMonth]++;
+            
+            const birthYear = new Date().getFullYear() - kid.age;
+            const birthDay = Math.floor(Math.random() * 28) + 1; // 1-28 to be safe
+            const dob = new Date(birthYear, birthMonth, birthDay);
+
             children.push({
                 child_id: `c_${householdId}_${childCounter++}`,
                 household_id: householdId,
                 first_name: kid.f,
                 last_name: family.lastName,
-                dob: formatISO(subYears(new Date(), kid.age)),
+                dob: formatISO(dob),
                 grade: `${kid.age - 4}th Grade`, // Simplified grade calculation
                 is_active: true,
                 created_at: now,
