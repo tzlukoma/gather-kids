@@ -39,7 +39,7 @@ const generateHouseholdsAndChildren = (): { households: Household[], children: C
 
     const families = [
         { lastName: 'Smith', guardian: { f: 'John', l: 'Smith' }, kids: [{ f: 'Emma', age: 5, allergies: 'Peanuts' }, { f: 'Liam', age: 8 }] },
-        { lastName: 'Johnson', guardian: { f: 'Mary', l: 'Johnson' }, kids: [{ f: 'Olivia', age: 4 }, { f: 'Noah', age: 7, allergies: 'Pollen' }, { f: 'Ava', age: 10 }] },
+        { lastName: 'Johnson', guardian: { f: 'Mary', l: 'Johnson' }, kids: [{ f: 'Olivia', age: 4 }, { f: 'Noah', age: 7, allergies: 'Pollen' }, { f: 'Ava', age: 10, inactive: true }] },
         { lastName: 'Williams', guardian: { f: 'James', l: 'Williams' }, kids: [{ f: 'Isabella', age: 14 }] },
         { lastName: 'Brown', guardian: { f: 'Patricia', l: 'Brown' }, kids: [{ f: 'Sophia', age: 9 }, { f: 'Mason', age: 12 }] },
         { lastName: 'Jones', guardian: { f: 'Robert', l: 'Jones' }, kids: [{ f: 'Mia', age: 3 }, { f: 'Ethan', age: 11 }] },
@@ -109,7 +109,7 @@ const generateHouseholdsAndChildren = (): { households: Household[], children: C
                 grade: getGradeFromAge(kid.age),
                 allergies: kid.allergies,
                 child_mobile: `555-555-22${childCounter < 10 ? '0' : ''}${childCounter}`,
-                is_active: true,
+                is_active: !(kid as any).inactive,
                 special_needs: false,
                 created_at: now,
                 updated_at: now,
@@ -182,21 +182,23 @@ export const seedDB = async () => {
 
         // --- HISTORICAL DATA (2024 CYCLE) ---
         for (const child of children) {
-            // Only create historical data for the first two families
-            if (child.household_id === HOUSEHOLD_IDS.Smith || child.household_id === HOUSEHOLD_IDS.Johnson) {
-                // Every child was registered for Sunday School last year
-                 enrollments.push({ enrollment_id: uuidv4(), child_id: child.child_id, cycle_id: CYCLE_IDS.prior, ministry_id: MINISTRY_IDS['min_sunday_school'], status: 'enrolled' });
-            }
+            // Every child was registered for Sunday School last year
+             enrollments.push({ enrollment_id: uuidv4(), child_id: child.child_id, cycle_id: CYCLE_IDS.prior, ministry_id: MINISTRY_IDS['min_sunday_school'], status: 'enrolled' });
         }
-        // Last year, Liam Smith (age 8 now, 7 then) was in Joy Bells
         const liam = children.find(c => c.first_name === 'Liam');
-        if (liam) {
+        if (liam) { // Last year, Liam Smith (age 8 now, 7 then) was in Joy Bells
             enrollments.push({ enrollment_id: uuidv4(), child_id: liam.child_id, cycle_id: CYCLE_IDS.prior, ministry_id: MINISTRY_IDS['choir-joy-bells'], status: 'enrolled' });
+        }
+        const ava = children.find(c => c.first_name === 'Ava');
+        if (ava) { // Last year, Ava Johnson (age 10 now, 9 then) was in Keita
+             enrollments.push({ enrollment_id: uuidv4(), child_id: ava.child_id, cycle_id: CYCLE_IDS.prior, ministry_id: MINISTRY_IDS['choir-keita'], status: 'enrolled' });
         }
 
 
         // --- CURRENT DATA (2025 CYCLE) ---
         for (const child of children) {
+            if (!child.is_active) continue; // Skip inactive children for current year
+
             // Auto-enroll all children in Sunday School for the current year
             enrollments.push({ enrollment_id: uuidv4(), child_id: child.child_id, cycle_id: CYCLE_IDS.current, ministry_id: MINISTRY_IDS['min_sunday_school'], status: 'enrolled' });
 
@@ -222,7 +224,7 @@ export const seedDB = async () => {
         await db.ministry_enrollments.bulkPut(enrollments);
 
         // --- TODAY's DATA ---
-        const checkedInChildren = children.slice(0, 5);
+        const checkedInChildren = children.filter(c => c.is_active).slice(0, 5);
         const attendance: Attendance[] = [];
         for(let i=0; i<checkedInChildren.length; i++) {
             attendance.push({
