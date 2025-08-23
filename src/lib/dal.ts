@@ -1,5 +1,6 @@
 
 
+
 import { db } from './db';
 import type { Attendance, Child, Guardian, Household, Incident, IncidentSeverity, Ministry, MinistryEnrollment, Registration, User } from './types';
 import { differenceInYears, isAfter, isBefore, parseISO } from 'date-fns';
@@ -366,4 +367,28 @@ export async function exportAttendanceRollupCSV(startISO: string, endISO: string
 
     const csv = convertToCSV(exportData);
     return new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+}
+
+// Ministry Configuration CRUD
+export async function createMinistry(ministryData: Omit<Ministry, 'ministry_id' | 'created_at' | 'updated_at' | 'data_profile'>): Promise<string> {
+    const now = new Date().toISOString();
+    const newMinistry: Ministry = {
+        ...ministryData,
+        ministry_id: uuidv4(),
+        created_at: now,
+        updated_at: now,
+        data_profile: 'Basic', // Default data profile
+    };
+    return db.ministries.add(newMinistry);
+}
+
+export async function updateMinistry(ministryId: string, updates: Partial<Ministry>): Promise<number> {
+    const now = new Date().toISOString();
+    return db.ministries.update(ministryId, { ...updates, updated_at: now });
+}
+
+export async function deleteMinistry(ministryId: string): Promise<void> {
+    // In a real app, you would handle cascading deletes or archiving.
+    // For this prototype, we will just delete the ministry.
+    return db.ministries.delete(ministryId);
 }

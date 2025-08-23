@@ -1,4 +1,12 @@
 
+
+export interface CustomQuestion {
+    id: string;
+    text: string;
+    type: 'radio' | 'checkbox' | 'text';
+    options?: string[];
+}
+
 export interface Household {
     household_id: string; // PK
     name?: string;
@@ -99,6 +107,9 @@ export interface Ministry {
     data_profile: 'Basic' | 'SafetyAware';
     created_at: string;
     updated_at: string;
+    details?: string;
+    description?: string;
+    custom_questions?: CustomQuestion[];
 }
 
 export interface MinistryEnrollment {
