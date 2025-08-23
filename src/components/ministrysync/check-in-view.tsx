@@ -5,7 +5,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import type { Child, Guardian, Attendance } from '@/lib/types';
+import type { Child, Guardian, Attendance, Household } from '@/lib/types';
 import { CheckoutDialog } from './checkout-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { User, Search, Info, Cake, AlertTriangle } from 'lucide-react';
@@ -76,6 +76,7 @@ const getEventName = (eventId: string | null) => {
 interface EnrichedChild extends Child {
     activeAttendance: Attendance | null;
     guardians: Guardian[];
+    household: Household | null;
 }
 
 export function CheckInView({ initialChildren, selectedEvent }: CheckInViewProps) {
@@ -101,14 +102,21 @@ export function CheckInView({ initialChildren, selectedEvent }: CheckInViewProps
 
         const householdIds = initialChildren.map(c => c.household_id);
         const allGuardians = await db.guardians.where('household_id').anyOf(householdIds).toArray();
-        const guardianMap = new Map<string, Guardian[]>();
+        const allHouseholds = await db.households.where('household_id').anyOf(householdIds).toArray();
 
+        const guardianMap = new Map<string, Guardian[]>();
         allGuardians.forEach(g => {
             if (!guardianMap.has(g.household_id)) {
                 guardianMap.set(g.household_id, []);
             }
             guardianMap.get(g.household_id)!.push(g);
         });
+        
+        const householdMap = new Map<string, Household>();
+        allHouseholds.forEach(h => {
+            householdMap.set(h.household_id, h);
+        });
+
 
         const enriched = initialChildren.map(c => {
             const childAttendance = attendanceByChild.get(c.child_id) || [];
@@ -122,6 +130,7 @@ export function CheckInView({ initialChildren, selectedEvent }: CheckInViewProps
                 ...c,
                 activeAttendance: activeAttendance,
                 guardians: guardianMap.get(c.household_id) || [],
+                household: householdMap.get(c.household_id) || null,
             }
         });
         setChildren(enriched);
@@ -149,7 +158,7 @@ export function CheckInView({ initialChildren, selectedEvent }: CheckInViewProps
 
   const handleCheckout = async (childId: string, attendanceId: string) => {
     try {
-        await recordCheckOut(attendanceId, {method: 'PIN', value: '----'}, 'user_admin'); // Pin is verified in dialog
+        await recordCheckOut(attendanceId, {method: 'PIN', value: '----'}); // Pin is verified in dialog
         const child = children.find(c => c.child_id === childId);
         // Find the original event name from the attendance record before it gets cleared
         const todaysRecord = todaysAttendance?.find(a => a.attendance_id === attendanceId);
@@ -184,7 +193,7 @@ export function CheckInView({ initialChildren, selectedEvent }: CheckInViewProps
     return children.filter(child =>
         child.first_name.toLowerCase().includes(lowercasedQuery) ||
         child.last_name.toLowerCase().includes(lowercasedQuery) ||
-        (child.household_id && child.household_id.toLowerCase().includes(lowercasedQuery))
+        (child.household?.name && child.household.name.toLowerCase().includes(lowercasedQuery))
     );
   }, [searchQuery, children]);
 
@@ -242,7 +251,7 @@ export function CheckInView({ initialChildren, selectedEvent }: CheckInViewProps
                   <div className="flex-1">
                     <CardTitle className="font-headline text-lg">{`${child.first_name} ${child.last_name}`}</CardTitle>
                     <CardDescription>
-                      {child.household_id}
+                      {child.household?.name || '...'}
                     </CardDescription>
                      <div className="flex flex-wrap gap-1 mt-2 justify-center sm:justify-start">
                         {isCheckedInHere && (
