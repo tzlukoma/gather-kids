@@ -48,8 +48,8 @@ const adminMenuItems = [
 
 const baseLeaderMenuItems = [
   { href: "/dashboard/rosters", icon: <Users />, label: "Rosters" },
-  { href: "/dashboard/registrations", icon: <ClipboardList />, label: "Registrations" },
   { href: "/dashboard/incidents", icon: <ShieldAlert />, label: "Incidents" },
+  { href: "/dashboard/registrations", icon: <ClipboardList />, label: "Registrations" },
 ];
 
 const inactiveLeaderMenuItems = [
@@ -81,7 +81,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         return adminMenuItems;
     }
     if (user?.role === 'leader') {
-        if (!user.is_active) {
+        if (!user.is_active || !user.assignedMinistryIds || user.assignedMinistryIds.length === 0) {
             return inactiveLeaderMenuItems;
         }
 
