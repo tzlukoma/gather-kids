@@ -51,8 +51,8 @@ const verificationSchema = z.object({
 });
 
 
-const ministrySelectionSchema = z.record(z.boolean()).optional();
-const interestSelectionSchema = z.record(z.boolean()).optional();
+const ministrySelectionSchema = z.record(z.boolean().optional()).optional();
+const interestSelectionSchema = z.record(z.boolean().optional()).optional();
 const customDataSchema = z.record(z.any()).optional();
 
 
