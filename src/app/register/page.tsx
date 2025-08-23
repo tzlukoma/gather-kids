@@ -1,4 +1,5 @@
 
+
 "use client"
 
 import { useForm, useFieldArray } from "react-hook-form"
@@ -111,11 +112,13 @@ const registrationSchema = z.object({
   }),
 });
 
+const GENERIC_VERIFICATION_ERROR = "At least one of your answers does not match our records.";
+
 const verificationSchema = z.object({
-    childDob: z.string().refine(val => val === '2020-05-10', "Date of birth does not match."),
-    streetNumber: z.string().refine(val => val === '456', "Street number does not match."),
-    emergencyContactFirstName: z.string().refine(val => val.toLowerCase() === 'susan', "Emergency contact name does not match."),
-})
+    childDob: z.string().refine(val => val === '2020-05-10', GENERIC_VERIFICATION_ERROR),
+    streetNumber: z.string().refine(val => val === '456', GENERIC_VERIFICATION_ERROR),
+    emergencyContactFirstName: z.string().refine(val => val.toLowerCase() === 'susan', GENERIC_VERIFICATION_ERROR),
+});
 
 
 type RegistrationFormValues = z.infer<typeof registrationSchema>
@@ -146,6 +149,17 @@ function VerificationStepTwoForm({ onVerifySuccess, onGoBack }: { onVerifySucces
             <CardContent>
                 <Form {...form}>
                     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                        <Alert>
+                            <Info className="h-4 w-4" />
+                            <AlertTitle>For Prototype Demo</AlertTitle>
+                            <AlertDescription>
+                                <ul className="list-disc pl-5 text-sm">
+                                    <li>Child DOB: <code className="font-semibold">2020-05-10</code></li>
+                                    <li>Street Number: <code className="font-semibold">456</code></li>
+                                    <li>Emergency Contact First Name: <code className="font-semibold">susan</code></li>
+                                </ul>
+                            </AlertDescription>
+                        </Alert>
                         <FormField
                             control={form.control}
                             name="childDob"
@@ -514,5 +528,7 @@ export default function RegisterPage() {
     </div>
   )
 }
+
+    
 
     
