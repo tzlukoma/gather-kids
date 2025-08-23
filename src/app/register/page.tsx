@@ -105,8 +105,27 @@ const registrationSchema = z.object({
       message: "Photo release consent is required.",
     }),
     choir_communications_consent: z.enum(["yes", "no"]).optional(),
-    custom_consents: z.record(z.boolean()).optional(),
+    custom_consents: z.record(z.boolean().optional()).optional(),
   }),
+}).superRefine((data, ctx) => {
+    // Dynamically check custom consents
+    // This is complex because we need the list of ministries to know which consents to check for.
+    // In a real app, you might pass the list of ministries to the validation context.
+    // For this prototype, we'll assume a hardcoded list of codes that require consent.
+    const ministriesRequiringConsent = ['orators']; // Example code
+
+    ministriesRequiringConsent.forEach(code => {
+        const isMinistrySelected = data.children.some(child => child.interestSelections?.[code]);
+        if (isMinistrySelected) {
+            if (!data.consents.custom_consents?.[code]) {
+                ctx.addIssue({
+                    code: z.ZodIssueCode.custom,
+                    path: [`consents.custom_consents.${code}`],
+                    message: `Consent for this ministry is required.`,
+                });
+            }
+        }
+    });
 });
 
 type RegistrationFormValues = z.infer<typeof registrationSchema>
