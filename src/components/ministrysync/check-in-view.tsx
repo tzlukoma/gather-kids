@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -20,6 +19,7 @@ import { Separator } from '../ui/separator';
 interface CheckInViewProps {
   initialChildren: Child[];
   selectedEvent: string;
+  selectedGrades: string[];
 }
 
 const isBirthdayThisWeek = (dob?: string): boolean => {
@@ -83,7 +83,7 @@ export interface EnrichedChild extends Child {
     emergencyContact: EmergencyContact | null;
 }
 
-export function CheckInView({ initialChildren, selectedEvent }: CheckInViewProps) {
+export function CheckInView({ initialChildren, selectedEvent, selectedGrades }: CheckInViewProps) {
   const [children, setChildren] = useState<EnrichedChild[]>([]);
   const [childToCheckout, setChildToCheckout] = useState<EnrichedChild | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -197,16 +197,23 @@ export function CheckInView({ initialChildren, selectedEvent }: CheckInViewProps
   };
 
   const filteredChildren = useMemo(() => {
-    if (!searchQuery) {
-      return children;
+    let results = children;
+
+    if (searchQuery) {
+        const lowercasedQuery = searchQuery.toLowerCase();
+        results = results.filter(child =>
+            child.first_name.toLowerCase().includes(lowercasedQuery) ||
+            child.last_name.toLowerCase().includes(lowercasedQuery) ||
+            (child.household?.name && child.household.name.toLowerCase().includes(lowercasedQuery))
+        );
     }
-    const lowercasedQuery = searchQuery.toLowerCase();
-    return children.filter(child =>
-        child.first_name.toLowerCase().includes(lowercasedQuery) ||
-        child.last_name.toLowerCase().includes(lowercasedQuery) ||
-        (child.household?.name && child.household.name.toLowerCase().includes(lowercasedQuery))
-    );
-  }, [searchQuery, children]);
+
+    if (selectedGrades.length > 0) {
+        results = results.filter(child => child.grade && selectedGrades.includes(child.grade));
+    }
+
+    return results;
+  }, [searchQuery, children, selectedGrades]);
 
   return (
     <>
@@ -331,7 +338,7 @@ export function CheckInView({ initialChildren, selectedEvent }: CheckInViewProps
       </div>
        {filteredChildren.length === 0 && (
         <div className="text-center col-span-full py-12">
-            <p className="text-muted-foreground">No children found matching your search.</p>
+            <p className="text-muted-foreground">No children found matching your search or filters.</p>
         </div>
        )}
       <CheckoutDialog
