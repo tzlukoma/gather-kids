@@ -116,8 +116,12 @@ export default function ConfigurationPage() {
 
     const { enrolledPrograms, interestPrograms } = useMemo(() => {
         if (!allMinistries) return { enrolledPrograms: [], interestPrograms: [] };
-        const enrolled = allMinistries.filter(m => m.enrollment_type === 'enrolled' && !m.code.startsWith('min_sunday'));
-        const interest = allMinistries.filter(m => m.enrollment_type === 'interest_only');
+        const enrolled = allMinistries
+            .filter(m => m.enrollment_type === 'enrolled' && !m.code.startsWith('min_sunday'))
+            .sort((a, b) => a.name.localeCompare(b.name));
+        const interest = allMinistries
+            .filter(m => m.enrollment_type === 'interest_only')
+            .sort((a, b) => a.name.localeCompare(b.name));
         return { enrolledPrograms: enrolled, interestPrograms: interest };
     }, [allMinistries]);
 
