@@ -256,7 +256,7 @@ const ministryPrograms = [
         return isWithinInterval(today, { start: bibleBeeStart, end: bibleBeeEnd });
     }, details: "Bible Bee is a competitive program that encourages scripture memorization. Materials must be purchased separately." },
     { id: "dance", label: "Dance Ministry", eligibility: () => true, details: "Thank you for registering for the Dance Ministry.\n\nYou will receive information from ministry leaders regarding next steps for your child's participation." },
-    { id: "media-production", label: "Media Production Ministry", eligibility: () => true, details: "Thank you for registering for the Media Ministry. You will receive information from ministry leaders regarding next steps for your child's participation." },
+    { id: "media-production", label: "Media Production Ministry", eligibility: () => true, details: "Thank you for registering for the Media Ministry.\n\nYou will receive information from ministry leaders regarding next steps for your child's participation." },
     { id: "mentoring-boys", label: "Mentoring Ministry-Boys (Khalfani)", eligibility: () => true, details: "The Khalfani ministry provides mentorship for young boys through various activities and discussions." },
     { id: "mentoring-girls", label: "Mentoring Ministry-Girls (Nailah)", eligibility: () => true, details: "The Nailah ministry provides mentorship for young girls, focusing on empowerment and personal growth." },
     { id: "teen-fellowship", label: "New Generation Teen Fellowship", eligibility: () => true, details: "Thank you for registering for New Generation Teen Fellowship.\n\nOn 3rd Sundays, during the 10:30 AM service,  New Generation Teen Fellowship will host Teen Church in the Family Life Enrichment Center.  Teens may sign themselves in and out of the service.\n\nYou will receive more information about ministry activities from minstry leaders." },
@@ -718,10 +718,22 @@ export default function RegisterPage() {
 
 
                 <Card>
-                    <CardHeader><CardTitle className="font-headline">Consents</CardTitle></CardHeader>
+                    <CardHeader>
+                        <CardTitle className="font-headline">Consents</CardTitle>
+                        <CardDescription>By submitting this form, I certify the following:</CardDescription>
+                    </CardHeader>
                     <CardContent className="space-y-4">
                         <FormField control={form.control} name="consents.liability" render={({ field }) => (
-                            <FormItem className="flex flex-row items-start space-x-3 space-y-0"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><div className="space-y-1 leading-none"><FormLabel>Liability Release</FormLabel><FormDescription>I release the church from liability for any injuries.</FormDescription><FormMessage /></div></FormItem>
+                            <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                                <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                                <div className="space-y-1 leading-none">
+                                    <FormLabel>Liability Release</FormLabel>
+                                    <FormDescription className="whitespace-pre-wrap leading-relaxed">
+                                    In consideration of my child’s participation in the Youth Ministry, I hereby release, waive, relinquish and forever discharge any and all liability or claims I may have or which may arise from my child’s participation in the above described event, and agree to defend, indemnify and hold harmless Cathedral International, Cathedral International Youth Ministry, their affiliates, related entities, employees, trustees, directors, respective staff, leaders and volunteers from any and all liability, claims, lawsuits, demands, judgments or damages for personal injury as well as property damage and any expenses, costs and fees of any type, kind or nature which may arise from my child’s participation in the above described event.  I hereby agree to assume sole responsibility for any damages incurred as a result of the negligent, willful or intentional act of my child and to reimburse Cathedral International for the cost of same, including but not limited to any costs to defend any and all liability, claims, lawsuits, demands, judgments or damages for personal injury as well as property damage.  Parents, please note that once children are dismissed from ministry activities and returned into your supervision, they are no longer under the care and supervision of Cathedral International staff or volunteers.
+                                    </FormDescription>
+                                    <FormMessage />
+                                </div>
+                            </FormItem>
                         )} />
                         <FormField control={form.control} name="consents.photoRelease" render={({ field }) => (
                             <FormItem className="flex flex-row items-start space-x-3 space-y-0"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><div className="space-y-1 leading-none"><FormLabel>Photo Release</FormLabel><FormDescription>I grant permission for my child's photo to be used in church publications.</FormDescription><FormMessage /></div></FormItem>
@@ -736,5 +748,3 @@ export default function RegisterPage() {
     </div>
   )
 }
-
-    
