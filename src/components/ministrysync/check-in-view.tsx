@@ -5,10 +5,10 @@ import { useState, useMemo, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import type { Child, Guardian, Attendance, Household, EmergencyContact } from '@/lib/types';
+import type { Child, Guardian, Attendance, Household, EmergencyContact, Incident } from '@/lib/types';
 import { CheckoutDialog } from './checkout-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { User, Search, Info, Cake, AlertTriangle } from 'lucide-react';
+import { User, Search, Info, Cake, AlertTriangle, ShieldAlert } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { format, isWithinInterval, subDays, addDays, setYear, parseISO, differenceInYears } from 'date-fns';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -17,6 +17,7 @@ import { db } from '@/lib/db';
 import { getTodayIsoDate, recordCheckIn, recordCheckOut } from '@/lib/dal';
 import { Separator } from '../ui/separator';
 import type { StatusFilter } from '@/app/dashboard/check-in/page';
+import { IncidentDetailsDialog } from './incident-details-dialog';
 
 interface CheckInViewProps {
   initialChildren: Child[];
@@ -84,6 +85,7 @@ export interface EnrichedChild extends Child {
     guardians: Guardian[];
     household: Household | null;
     emergencyContact: EmergencyContact | null;
+    incidents: Incident[];
 }
 
 export function CheckInView({ initialChildren, selectedEvent, selectedGrades, statusFilter }: CheckInViewProps) {
@@ -91,13 +93,18 @@ export function CheckInView({ initialChildren, selectedEvent, selectedGrades, st
   const [childToCheckout, setChildToCheckout] = useState<EnrichedChild | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const { toast } = useToast();
+  const [selectedIncident, setSelectedIncident] = useState<Incident | null>(null);
 
   const today = getTodayIsoDate();
   const todaysAttendance = useLiveQuery(() => db.attendance.where({date: today}).toArray(), [today]);
+  
+  const todaysIncidents = useLiveQuery(() => 
+    db.incidents.filter(i => i.timestamp.startsWith(today)).toArray()
+  , [today]);
 
   useEffect(() => {
     const enrichChildren = async () => {
-        if(!todaysAttendance) return;
+        if(!todaysAttendance || !todaysIncidents) return;
 
         const attendanceByChild = new Map<string, Attendance[]>();
         todaysAttendance.forEach(a => {
@@ -105,6 +112,14 @@ export function CheckInView({ initialChildren, selectedEvent, selectedGrades, st
                 attendanceByChild.set(a.child_id, []);
             }
             attendanceByChild.get(a.child_id)!.push(a);
+        });
+
+        const incidentsByChild = new Map<string, Incident[]>();
+        todaysIncidents.forEach(i => {
+            if (!incidentsByChild.has(i.child_id)) {
+                incidentsByChild.set(i.child_id, []);
+            }
+            incidentsByChild.get(i.child_id)!.push(i);
         });
 
         const householdIds = initialChildren.map(c => c.household_id);
@@ -139,18 +154,21 @@ export function CheckInView({ initialChildren, selectedEvent, selectedGrades, st
                 .sort((a, b) => new Date(b.check_in_at!).getTime() - new Date(a.check_in_at!).getTime())
                 [0] || null;
 
+            const childIncidents = (incidentsByChild.get(c.child_id) || []).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
             return {
                 ...c,
                 activeAttendance: activeAttendance,
                 guardians: guardianMap.get(c.household_id) || [],
                 household: householdMap.get(c.household_id) || null,
                 emergencyContact: emergencyContactMap.get(c.household_id) || null,
+                incidents: childIncidents,
             }
         });
         setChildren(enriched);
     }
     enrichChildren();
-  }, [initialChildren, todaysAttendance]);
+  }, [initialChildren, todaysAttendance, todaysIncidents]);
 
   const handleCheckIn = async (childId: string) => {
     try {
@@ -243,6 +261,7 @@ export function CheckInView({ initialChildren, selectedEvent, selectedGrades, st
             const checkedInEvent = child.activeAttendance?.event_id;
             const isCheckedInHere = checkedInEvent === selectedEvent;
             const isCheckedInElsewhere = checkedInEvent && checkedInEvent !== selectedEvent;
+            const hasIncidents = child.incidents.length > 0;
 
             return (
               <Card key={child.child_id} className="relative flex flex-col overflow-hidden">
@@ -324,7 +343,18 @@ export function CheckInView({ initialChildren, selectedEvent, selectedGrades, st
                       </Badge>
                   )}
                 </CardContent>
-                <CardFooter className="px-4 pb-4 sm:px-6 sm:pb-6">
+                <CardFooter className="px-4 pb-4 sm:px-6 sm:pb-6 flex items-center gap-2">
+                  {hasIncidents && (
+                     <Button
+                        variant="destructive"
+                        size="icon"
+                        className="h-full aspect-square"
+                        onClick={() => setSelectedIncident(child.incidents[0])}
+                    >
+                        <ShieldAlert className="h-5 w-5" />
+                        <span className="sr-only">View Incident</span>
+                    </Button>
+                  )}
                   {isCheckedInHere ? (
                     <Button
                       className="w-full"
@@ -357,6 +387,10 @@ export function CheckInView({ initialChildren, selectedEvent, selectedGrades, st
         onClose={closeCheckoutDialog}
         onCheckout={handleCheckout}
       />
+      <IncidentDetailsDialog
+        incident={selectedIncident}
+        onClose={() => setSelectedIncident(null)}
+       />
     </>
   );
 }
