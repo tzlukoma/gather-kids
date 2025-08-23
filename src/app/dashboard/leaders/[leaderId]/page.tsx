@@ -13,7 +13,7 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import type { LeaderAssignment } from "@/lib/types";
 
 const InfoItem = ({ icon, label, value }: { icon: React.ReactNode, label: string, value: React.ReactNode }) => (
@@ -98,6 +98,20 @@ export default function LeaderProfilePage() {
             setIsSaving(false);
         }
     };
+    
+    const assignedMinistries = useMemo(() => {
+        if (!profileData) return [];
+        return profileData.assignments
+            .map(assignment => {
+                const ministry = profileData.allMinistries.find(m => m.ministry_id === assignment.ministry_id);
+                return {
+                    ...assignment,
+                    ministryName: ministry?.name || 'Unknown'
+                };
+            })
+            .sort((a, b) => a.ministryName.localeCompare(b.ministryName));
+    }, [profileData]);
+
 
     if (!profileData) {
         return <div>Loading leader profile...</div>;
@@ -113,10 +127,13 @@ export default function LeaderProfilePage() {
         <div className="flex flex-col gap-8">
             <div>
                 <h1 className="text-3xl font-bold font-headline">{leader.name}</h1>
-                <div className="text-muted-foreground mt-1">
+                <div className="flex items-center gap-2 mt-2 flex-wrap">
                     <Badge variant={leader.is_active ? "default" : "secondary"} className={leader.is_active ? "bg-green-500" : ""}>
                         {leader.is_active ? "Active" : "Inactive"}
                     </Badge>
+                     {assignedMinistries.map(a => (
+                        <Badge key={a.assignment_id} variant="outline">{a.ministryName}</Badge>
+                    ))}
                 </div>
             </div>
 
@@ -181,3 +198,4 @@ export default function LeaderProfilePage() {
         </div>
     );
 }
+
