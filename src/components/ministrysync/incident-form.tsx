@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useForm } from "react-hook-form"
@@ -26,6 +27,7 @@ import { useLiveQuery } from "dexie-react-hooks"
 import { db } from "@/lib/db"
 import { getTodayIsoDate, logIncident } from "@/lib/dal"
 import type { IncidentSeverity } from "@/lib/types"
+import { useAuth } from "@/contexts/auth-context"
 
 const incidentFormSchema = z.object({
   childId: z.string({ required_error: "Please select a child." }),
@@ -46,6 +48,7 @@ const defaultValues: Partial<IncidentFormValues> = {
 
 export function IncidentForm() {
   const { toast } = useToast()
+  const { user } = useAuth();
   const form = useForm<IncidentFormValues>({
     resolver: zodResolver(incidentFormSchema),
     defaultValues,
@@ -56,9 +59,20 @@ export function IncidentForm() {
   const checkedInChildren = useLiveQuery(async () => {
     const attendance = await db.attendance.where({ date: today }).toArray();
     if (!attendance.length) return [];
-    const childIds = attendance.map(a => a.child_id);
+    
+    let childIds = attendance.map(a => a.child_id);
+
+    if (user?.role === 'leader' && user.assignedMinistryIds) {
+        const enrollments = await db.ministry_enrollments
+            .where('ministry_id').anyOf(user.assignedMinistryIds)
+            .and(e => e.cycle_id === '2025' && childIds.includes(e.child_id))
+            .toArray();
+        childIds = [...new Set(enrollments.map(e => e.child_id))];
+    }
+    
+    if (childIds.length === 0) return [];
     return db.children.where('child_id').anyOf(childIds).toArray();
-  }, [today]);
+  }, [today, user]);
 
 
   async function onSubmit(data: IncidentFormValues) {
@@ -71,7 +85,7 @@ export function IncidentForm() {
             child_name: `${child.first_name} ${child.last_name}`,
             description: data.description,
             severity: data.severity as IncidentSeverity,
-            leader_id: 'user_admin' // Hardcoded for now
+            leader_id: user?.id || 'unknown_user'
         });
         
         toast({
@@ -110,6 +124,11 @@ export function IncidentForm() {
                       {child.first_name} {child.last_name}
                     </SelectItem>
                   ))}
+                  {(!checkedInChildren || checkedInChildren.length === 0) && (
+                    <div className="p-4 text-center text-sm text-muted-foreground">
+                      No checked-in children found for your assigned ministries.
+                    </div>
+                  )}
                 </SelectContent>
               </Select>
               <FormMessage />

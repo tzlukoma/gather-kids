@@ -27,6 +27,7 @@ import {
   LogOut,
   Settings,
   ClipboardList,
+  Contact,
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
@@ -39,12 +40,15 @@ const adminMenuItems = [
   { href: "/dashboard/registrations", icon: <ClipboardList />, label: "Registrations" },
   { href: "/dashboard/rosters", icon: <Users />, label: "Rosters" },
   { href: "/dashboard/incidents", icon: <ShieldAlert />, label: "Incidents" },
+  { href: "/dashboard/leaders", icon: <Contact />, label: "Leaders" },
   { href: "/dashboard/reports", icon: <FileText />, label: "Reports" },
   { href: "/dashboard/configuration", icon: <Settings />, label: "Configuration" },
 ];
 
 const leaderMenuItems = [
   { href: "/dashboard/check-in", icon: <CheckCheck />, label: "Check-In/Out" },
+  { href: "/dashboard/rosters", icon: <Users />, label: "Rosters" },
+  { href: "/dashboard/registrations", icon: <ClipboardList />, label: "Registrations" },
   { href: "/dashboard/incidents", icon: <ShieldAlert />, label: "Incidents" },
 ];
 

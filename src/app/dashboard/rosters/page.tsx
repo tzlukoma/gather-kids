@@ -19,7 +19,7 @@ import { FileDown, ArrowUpDown } from "lucide-react";
 import { format } from "date-fns";
 import { getTodayIsoDate, recordCheckIn, recordCheckOut } from "@/lib/dal";
 import { useMemo, useState, useEffect } from "react";
-import type { Child, Guardian, Attendance, Household, EmergencyContact } from "@/lib/types";
+import type { Child, Guardian, Attendance, Household, EmergencyContact, Ministry } from "@/lib/types";
 import { CheckoutDialog } from "@/components/ministrysync/checkout-dialog";
 import { useToast } from "@/hooks/use-toast";
 import type { EnrichedChild } from "@/components/ministrysync/check-in-view";
@@ -29,6 +29,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useIsMobile } from '@/hooks/use-mobile';
 import { RosterCard } from '@/components/ministrysync/roster-card';
 import { useSearchParams } from 'next/navigation';
+import { useAuth } from '@/contexts/auth-context';
 
 export interface RosterChild extends EnrichedChild {}
 
@@ -47,20 +48,7 @@ const getEventName = (eventId: string | null) => {
 }
 
 const gradeSortOrder: { [key: string]: number } = {
-    "Pre-K": 0,
-    "Kindergarten": 1,
-    "1st Grade": 2,
-    "2nd Grade": 3,
-    "3rd Grade": 4,
-    "4th Grade": 5,
-    "5th Grade": 6,
-    "6th Grade": 7,
-    "7th Grade": 8,
-    "8th Grade": 9,
-    "9th Grade": 10,
-    "10th Grade": 11,
-    "11th Grade": 12,
-    "12th Grade": 13,
+    "Pre-K": 0, "Kindergarten": 1, "1st Grade": 2, "2nd Grade": 3, "3rd Grade": 4, "4th Grade": 5, "5th Grade": 6, "6th Grade": 7, "7th Grade": 8, "8th Grade": 9, "9th Grade": 10, "10th Grade": 11, "11th Grade": 12, "12th Grade": 13,
 };
 
 const getGradeValue = (grade?: string): number => {
@@ -75,6 +63,7 @@ export default function RostersPage() {
   const { toast } = useToast();
   const isMobile = useIsMobile();
   const searchParams = useSearchParams();
+  const { user } = useAuth();
 
   const [selectedEvent, setSelectedEvent] = useState('evt_sunday_school');
   const [childToCheckout, setChildToCheckout] = useState<RosterChild | null>(null);
@@ -86,8 +75,23 @@ export default function RostersPage() {
   const [selectedChildren, setSelectedChildren] = useState<Set<string>>(new Set());
 
   const [gradeSort, setGradeSort] = useState<SortDirection>("asc");
+  const [selectedMinistryFilter, setSelectedMinistryFilter] = useState<string>('all');
 
-  const allChildren = useLiveQuery(() => db.children.toArray(), []);
+  const leaderAssignedMinistries = useLiveQuery(async () => {
+    if (user?.role !== 'leader' || !user.assignedMinistryIds) return [];
+    return db.ministries.where('ministry_id').anyOf(user.assignedMinistryIds).toArray();
+  }, [user]);
+
+  const allChildrenQuery = useLiveQuery(async () => {
+    if (user?.role === 'leader') {
+        if (!user.assignedMinistryIds || user.assignedMinistryIds.length === 0) return [];
+        const enrollments = await db.ministry_enrollments.where('ministry_id').anyOf(user.assignedMinistryIds).and(e => e.cycle_id === '2025').toArray();
+        const childIds = [...new Set(enrollments.map(e => e.child_id))];
+        return db.children.where('child_id').anyOf(childIds).toArray();
+    }
+    return db.children.toArray();
+  }, [user]);
+
   const todaysAttendance = useLiveQuery(() => db.attendance.where({ date: today }).toArray(), [today]);
   
   const allGuardians = useLiveQuery(() => db.guardians.toArray(), []);
@@ -103,7 +107,7 @@ export default function RostersPage() {
   }, [searchParams]);
 
   const childrenWithDetails: RosterChild[] = useMemo(() => {
-    if (!allChildren || !todaysAttendance || !allGuardians || !allHouseholds || !allEmergencyContacts) return [];
+    if (!allChildrenQuery || !todaysAttendance || !allGuardians || !allHouseholds || !allEmergencyContacts) return [];
 
     const activeAttendance = todaysAttendance.filter(a => !a.check_out_at);
     const attendanceMap = new Map(activeAttendance.map(a => [a.child_id, a]));
@@ -115,14 +119,14 @@ export default function RostersPage() {
     const householdMap = new Map(allHouseholds.map(h => [h.household_id, h]));
     const emergencyContactMap = new Map(allEmergencyContacts.map(ec => [ec.household_id, ec]));
 
-    return allChildren.map(child => ({
+    return allChildrenQuery.map(child => ({
       ...child,
       activeAttendance: attendanceMap.get(child.child_id) || null,
       guardians: guardianMap.get(child.household_id) || [],
       household: householdMap.get(child.household_id) || null,
       emergencyContact: emergencyContactMap.get(child.household_id) || null,
     }));
-  }, [allChildren, todaysAttendance, allGuardians, allHouseholds, allEmergencyContacts]);
+  }, [allChildrenQuery, todaysAttendance, allGuardians, allHouseholds, allEmergencyContacts]);
 
   const displayChildren = useMemo(() => {
     let filtered = childrenWithDetails;
@@ -211,7 +215,7 @@ export default function RostersPage() {
 
   const handleCheckIn = async (child: RosterChild) => {
     try {
-      await recordCheckIn(child.child_id, selectedEvent, undefined, 'user_admin');
+      await recordCheckIn(child.child_id, selectedEvent, undefined, user?.id);
       toast({
         title: 'Checked In',
         description: `${child.first_name} ${child.last_name} has been checked in to ${getEventName(selectedEvent)}.`,
@@ -228,7 +232,7 @@ export default function RostersPage() {
 
   const handleCheckout = async (childId: string, attendanceId: string, verifier: { method: 'PIN' | 'other', value: string }) => {
     try {
-        await recordCheckOut(attendanceId, verifier);
+        await recordCheckOut(attendanceId, verifier, user?.id);
         const child = childrenWithDetails.find(c => c.child_id === childId);
         const eventName = getEventName(child?.activeAttendance?.event_id || null);
         toast({
@@ -457,10 +461,27 @@ export default function RostersPage() {
                 <CardDescription>A complete list of all children registered.</CardDescription>
             </div>
             <div className="flex flex-wrap items-center gap-4">
-                <div className="flex items-center space-x-2">
-                    <Checkbox id="group-by-grade" checked={groupByGrade} onCheckedChange={(checked) => setGroupByGrade(!!checked)} />
-                    <Label htmlFor="group-by-grade">Group by Grade</Label>
-                </div>
+                {leaderAssignedMinistries && leaderAssignedMinistries.length > 1 && (
+                    <div className="flex items-center space-x-2">
+                        <Select value={selectedMinistryFilter} onValueChange={setSelectedMinistryFilter}>
+                            <SelectTrigger className="w-[200px]">
+                                <SelectValue placeholder="Filter by Ministry" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All Assigned</SelectItem>
+                                {leaderAssignedMinistries.map(m => (
+                                    <SelectItem key={m.ministry_id} value={m.ministry_id}>{m.name}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                )}
+                 {user?.role === 'admin' && (
+                    <div className="flex items-center space-x-2">
+                        <Checkbox id="group-by-grade" checked={groupByGrade} onCheckedChange={(checked) => setGroupByGrade(!!checked)} />
+                        <Label htmlFor="group-by-grade">Group by Grade</Label>
+                    </div>
+                 )}
                 <div className="flex items-center space-x-2">
                     <Checkbox id="show-checked-in" checked={showCheckedIn} onCheckedChange={(checked) => setShowCheckedIn(!!checked)} />
                     <Label htmlFor="show-checked-in">Checked-In</Label>
@@ -501,6 +522,3 @@ export default function RostersPage() {
     </>
   );
 }
-
-
-

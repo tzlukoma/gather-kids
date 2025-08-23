@@ -1,17 +1,6 @@
 
-
-
-
-
-
-
-
-
-
-
-
 import { db } from './db';
-import type { Attendance, Child, Guardian, Household, Incident, IncidentSeverity, Ministry, MinistryEnrollment, Registration, User, EmergencyContact } from './types';
+import type { Attendance, Child, Guardian, Household, Incident, IncidentSeverity, Ministry, MinistryEnrollment, Registration, User, EmergencyContact, LeaderAssignment } from './types';
 import { differenceInYears, isAfter, isBefore, parseISO } from 'date-fns';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -130,9 +119,23 @@ export async function queryDashboardMetrics(cycleId: string) {
     };
 }
 
-export async function queryHouseholdList() {
-    const households = await db.households.orderBy('created_at').reverse().toArray();
-    const householdIds = households.map(h => h.household_id);
+export async function queryHouseholdList(leaderMinistryIds?: string[]) {
+    let households = await db.households.orderBy('created_at').reverse().toArray();
+    let householdIds = households.map(h => h.household_id);
+
+    if (leaderMinistryIds && leaderMinistryIds.length > 0) {
+        const enrollments = await db.ministry_enrollments
+            .where('ministry_id').anyOf(leaderMinistryIds)
+            .and(e => e.cycle_id === '2025')
+            .toArray();
+        const relevantChildIds = [...new Set(enrollments.map(e => e.child_id))];
+        const relevantChildren = await db.children.where('child_id').anyOf(relevantChildIds).toArray();
+        const relevantHouseholdIds = [...new Set(relevantChildren.map(c => c.household_id))];
+        
+        households = households.filter(h => relevantHouseholdIds.includes(h.household_id));
+        householdIds = households.map(h => h.household_id);
+    }
+    
     const allChildren = await db.children.where('household_id').anyOf(householdIds).toArray();
 
     const childrenByHousehold = new Map<string, (Child & { age: number | null })[]>();
@@ -275,8 +278,8 @@ const fetchFullHouseholdData = async (householdId: string, cycleId: string) => {
 
     const childrenWithSelections = children.map(child => {
         const childEnrollments = enrollments.filter(e => e.child_id === child.child_id);
-        const ministrySelections: { [key: string]: boolean } = {};
-        const interestSelections: { [key: string]: boolean } = {};
+        const ministrySelections: { [key: string]: boolean | undefined } = {};
+        const interestSelections: { [key: string]: boolean | undefined } = {};
         let customData: any = {};
         
         childEnrollments.forEach(enrollment => {
@@ -316,9 +319,14 @@ export async function findHouseholdByEmail(email: string, currentCycleId: string
     // 1. Check for an existing registration in the CURRENT cycle.
     const currentHousehold = await db.households.get(householdId);
     if (currentHousehold) {
-        const currentRegExists = await db.registrations.where({ cycle_id: currentCycleId }).and(r => r.child_id.startsWith(`c_${householdId}`)).first();
-        if (currentRegExists) {
-            return {
+        // A household can exist without a registration for the year. Let's check enrollments.
+        const currentEnrollmentExists = await db.ministry_enrollments.where({cycle_id: currentCycleId}).and(e => {
+            const child = db.children.get(e.child_id);
+            return child.household_id === householdId;
+        }).first();
+
+        if (currentEnrollmentExists) {
+             return {
                 isCurrentYear: true,
                 data: await fetchFullHouseholdData(householdId, currentCycleId)
             };
@@ -327,7 +335,10 @@ export async function findHouseholdByEmail(email: string, currentCycleId: string
     
     // 2. If no current registration, check for a registration in the PRIOR cycle to pre-fill from.
     const priorCycleId = String(parseInt(currentCycleId, 10) - 1);
-    const priorRegExists = await db.registrations.where({ cycle_id: priorCycleId }).and(r => r.child_id.startsWith(`c_${householdId}`)).first();
+    const priorRegExists = await db.ministry_enrollments.where({ cycle_id: priorCycleId }).and(e => {
+        const child = db.children.get(e.child_id);
+        return child.household_id === householdId;
+    }).first();
     
     if (priorRegExists) {
         const priorData = await fetchFullHouseholdData(householdId, priorCycleId);
@@ -356,7 +367,7 @@ export async function registerHousehold(data: any, cycle_id: string) {
 
         if (isUpdate) {
             // Overwrite existing data for this cycle
-            const childIds = await db.children.where({ household_id: householdId }).primaryKeys();
+            const childIds = (await db.children.where({ household_id: householdId }).toArray()).map(c => c.child_id);
             
             // Delete previous registrations and enrollments for this cycle
             await db.registrations.where('[child_id+cycle_id]').anyOf(childIds.map(cid => [cid, cycle_id])).delete();
@@ -395,21 +406,18 @@ export async function registerHousehold(data: any, cycle_id: string) {
         await db.emergency_contacts.add(emergencyContact);
         
         // Children are more complex due to updates vs inserts
-        const existingChildIds = isUpdate ? await db.children.where({ household_id: householdId }).primaryKeys() : [];
+        const existingChildIds = isUpdate ? (await db.children.where({ household_id: householdId }).toArray()).map(c => c.child_id) : [];
         const incomingChildIds: string[] = []; // We will get these from form if they exist, or generate new ones
 
         const childrenToUpsert: Child[] = data.children.map((c: any) => {
             const childId = c.child_id || `c_${householdId}_${uuidv4().substring(0, 4)}`; // Use existing or generate
             incomingChildIds.push(childId);
+            const { ministrySelections, interestSelections, customData, ...childCore } = c;
             return {
+                ...childCore,
                 child_id: childId,
                 household_id: householdId,
                 is_active: true,
-                ...c,
-                // Remove selection and custom data objects before saving to child record
-                ministrySelections: undefined,
-                interestSelections: undefined,
-                customData: undefined,
                 created_at: isUpdate && existingChildIds.includes(childId) ? (db.children.get(childId))!.created_at : now,
                 updated_at: now,
             }
@@ -452,8 +460,8 @@ export async function registerHousehold(data: any, cycle_id: string) {
             };
             await db.ministry_enrollments.add(sundaySchoolEnrollment);
 
-            const allSelections = { ...childData.ministrySelections, ...childData.interestSelections };
-            const allMinistries = await db.ministries.toArray();
+            const allSelections = { ...(childData.ministrySelections || {}), ...(childData.interestSelections || {}) };
+            const allMinistries = await db.ministries.where('is_active').equals(1).toArray();
             const ministryMap = new Map(allMinistries.map(m => [m.code, m]));
 
 
@@ -587,4 +595,51 @@ export async function deleteMinistry(ministryId: string): Promise<void> {
     // In a real app, you would handle cascading deletes or archiving.
     // For this prototype, we will just delete the ministry.
     return db.ministries.delete(ministryId);
+}
+
+// Leader Management
+export async function queryLeaders() {
+    const leaders = await db.users.where('role').equals('leader').sortBy('name');
+    const leaderIds = leaders.map(l => l.user_id);
+    const assignments = await db.leader_assignments.where('leader_id').anyOf(leaderIds).and(a => a.cycle_id === '2025').toArray();
+    const ministries = await db.ministries.toArray();
+    const ministryMap = new Map(ministries.map(m => [m.ministry_id, m.name]));
+
+    return leaders.map(leader => {
+        const leaderAssignments = assignments
+            .filter(a => a.leader_id === leader.user_id)
+            .map(a => ({...a, ministryName: ministryMap.get(a.ministry_id) || 'Unknown Ministry' }));
+        return {
+            ...leader,
+            assignments: leaderAssignments,
+        };
+    });
+}
+
+export async function getLeaderProfile(leaderId: string, cycleId: string) {
+    const leader = await db.users.get(leaderId);
+    const assignments = await db.leader_assignments.where({ leader_id: leaderId, cycle_id: cycleId }).toArray();
+    const allMinistries = await db.ministries.where('is_active').equals(1).sortBy('name');
+
+    return { leader, assignments, allMinistries };
+}
+
+export async function getLeaderAssignmentsForCycle(leaderId: string, cycleId: string) {
+    return db.leader_assignments.where({ leader_id: leaderId, cycle_id: cycleId }).toArray();
+}
+
+export async function saveLeaderAssignments(leaderId: string, cycleId: string, newAssignments: Omit<LeaderAssignment, 'assignment_id'>[]) {
+    return db.transaction('rw', db.leader_assignments, async () => {
+        // Delete old assignments for this leader and cycle
+        await db.leader_assignments.where({ leader_id: leaderId, cycle_id: cycleId }).delete();
+        
+        // Add new ones
+        if (newAssignments.length > 0) {
+            const assignmentsToCreate = newAssignments.map(a => ({
+                ...a,
+                assignment_id: uuidv4()
+            }));
+            await db.leader_assignments.bulkAdd(assignmentsToCreate);
+        }
+    });
 }

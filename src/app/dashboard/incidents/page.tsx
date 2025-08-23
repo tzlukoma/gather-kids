@@ -24,14 +24,30 @@ import { format } from "date-fns";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/lib/db";
 import { acknowledgeIncident } from "@/lib/dal";
+import { useAuth } from "@/contexts/auth-context";
 
 export default function IncidentsPage() {
     const { toast } = useToast();
+    const { user } = useAuth();
     const searchParams = useSearchParams();
     const [activeTab, setActiveTab] = useState("log");
     const [showPendingOnly, setShowPendingOnly] = useState(false);
 
-    const incidents = useLiveQuery(() => db.incidents.orderBy('timestamp').reverse().toArray(), []);
+    const incidentsQuery = useLiveQuery(async () => {
+        if (user?.role === 'leader') {
+            if (!user.assignedMinistryIds || user.assignedMinistryIds.length === 0) return [];
+
+            const enrollments = await db.ministry_enrollments
+                .where('ministry_id').anyOf(user.assignedMinistryIds)
+                .and(e => e.cycle_id === '2025')
+                .toArray();
+            
+            const childIds = [...new Set(enrollments.map(e => e.child_id))];
+            
+            return db.incidents.where('child_id').anyOf(childIds).reverse().sortBy('timestamp');
+        }
+        return db.incidents.orderBy('timestamp').reverse().toArray();
+    }, [user]);
 
     useEffect(() => {
         const tabParam = searchParams.get('tab');
@@ -45,12 +61,12 @@ export default function IncidentsPage() {
     }, [searchParams]);
 
     const displayedIncidents = useMemo(() => {
-        if (!incidents) return [];
+        if (!incidentsQuery) return [];
         if (showPendingOnly) {
-            return incidents.filter(incident => !incident.admin_acknowledged_at);
+            return incidentsQuery.filter(incident => !incident.admin_acknowledged_at);
         }
-        return incidents;
-    }, [incidents, showPendingOnly]);
+        return incidentsQuery;
+    }, [incidentsQuery, showPendingOnly]);
 
     const handleAcknowledge = async (incidentId: string) => {
         try {
@@ -69,7 +85,7 @@ export default function IncidentsPage() {
         }
     }
 
-  if (!incidents) return <div>Loading incidents...</div>
+  if (!incidentsQuery) return <div>Loading incidents...</div>
 
   return (
     <div className="flex flex-col gap-8">
@@ -141,7 +157,7 @@ export default function IncidentsPage() {
                                     </Badge>
                                 </TableCell>
                                 <TableCell>
-                                    {!incident.admin_acknowledged_at && (
+                                    {!incident.admin_acknowledged_at && user?.role === 'admin' && (
                                         <Button size="sm" onClick={() => handleAcknowledge(incident.incident_id)}>Acknowledge</Button>
                                     )}
                                 </TableCell>

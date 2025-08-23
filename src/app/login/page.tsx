@@ -15,8 +15,8 @@ import { useToast } from "@/hooks/use-toast";
 
 
 const DEMO_USERS = {
-    admin: { email: 'admin@example.com', password: 'password' },
-    leader: { email: 'leader@example.com', password: 'password' },
+    admin: { email: 'admin@example.com', password: 'password', is_active: true },
+    leader: { email: 'leader@example.com', password: 'password', is_active: true },
 };
 
 export default function LoginPage() {
@@ -33,15 +33,17 @@ export default function LoginPage() {
                 name: 'Admin User',
                 role: 'admin',
                 email: DEMO_USERS.admin.email,
+                is_active: true,
             });
              toast({ title: "Login Successful", description: "Welcome, Admin!" });
             router.push('/dashboard');
         } else if (email === DEMO_USERS.leader.email && password === DEMO_USERS.leader.password) {
             login({
                 id: 'user_leader_1',
-                name: 'Leader One',
+                name: 'Sarah Lee',
                 role: 'leader',
                 email: DEMO_USERS.leader.email,
+                is_active: true,
             });
             toast({ title: "Login Successful", description: "Welcome, Leader!" });
             router.push('/dashboard/check-in');
