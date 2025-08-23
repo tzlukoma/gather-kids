@@ -165,9 +165,9 @@ export function CheckInView({ initialChildren, selectedEvent }: CheckInViewProps
     }
   };
 
-  const handleCheckout = async (childId: string, attendanceId: string) => {
+  const handleCheckout = async (childId: string, attendanceId: string, verifier: { method: 'PIN' | 'other', value: string }) => {
     try {
-        await recordCheckOut(attendanceId, {method: 'PIN', value: '----'}); // Pin is verified in dialog
+        await recordCheckOut(attendanceId, verifier);
         const child = children.find(c => c.child_id === childId);
         // Find the original event name from the attendance record before it gets cleared
         const todaysRecord = todaysAttendance?.find(a => a.attendance_id === attendanceId);
