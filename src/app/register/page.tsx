@@ -55,8 +55,8 @@ const MOCK_HOUSEHOLD_DATA = {
         relationship: "Aunt"
     },
     children: [
-        { first_name: "Olivia", last_name: "Johnson", dob: "2020-05-10", grade: "Pre-K", child_mobile: "555-555-4444", allergies: "Tree nuts", medical_notes: "Carries an EpiPen.", ministrySelections: { "acolyte": false, "bible-bee": false, "dance": false, "media-production": false, "mentoring-boys": false, "mentoring-girls": false, "teen-fellowship": false, "choir-joy-bells": false, "choir-keita": false, "choir-teen": false, "youth-ushers": false, "teen_podcast": false, "teen_social_media": false, "teen_community_service": false }, interestSelections: { "childrens-musical": false, "confirmation": false, "orators": false, "nursery": false, "vbs": false, "college-tour": false } },
-        { first_name: "Noah", last_name: "Johnson", dob: "2015-09-15", grade: "4th Grade", child_mobile: "555-555-5555", allergies: "", medical_notes: "", ministrySelections: { "acolyte": true, "bible-bee": true, "dance": false, "media-production": false, "mentoring-boys": true, "mentoring-girls": false, "teen-fellowship": false, "choir-joy-bells": false, "choir-keita": true, "choir-teen": false, "youth-ushers": false, "teen_podcast": false, "teen_social_media": false, "teen_community_service": false }, interestSelections: { "childrens-musical": true, "confirmation": false, "orators": true, "nursery": false, "vbs": true, "college-tour": false } },
+        { first_name: "Olivia", last_name: "Johnson", dob: "2020-05-10", grade: "Pre-K", child_mobile: "555-555-4444", allergies: "Tree nuts", medical_notes: "Carries an EpiPen.", special_needs: true, special_needs_notes: "Requires a quiet space if overstimulated.", ministrySelections: { "acolyte": false, "bible-bee": false, "dance": false, "media-production": false, "mentoring-boys": false, "mentoring-girls": false, "teen-fellowship": false, "choir-joy-bells": false, "choir-keita": false, "choir-teen": false, "youth-ushers": false, "teen_podcast": false, "teen_social_media": false, "teen_community_service": false }, interestSelections: { "childrens-musical": false, "confirmation": false, "orators": false, "nursery": false, "vbs": false, "college-tour": false } },
+        { first_name: "Noah", last_name: "Johnson", dob: "2015-09-15", grade: "4th Grade", child_mobile: "555-555-5555", allergies: "", medical_notes: "", special_needs: false, special_needs_notes: "", ministrySelections: { "acolyte": true, "bible-bee": true, "dance": false, "media-production": false, "mentoring-boys": true, "mentoring-girls": false, "teen-fellowship": false, "choir-joy-bells": false, "choir-keita": true, "choir-teen": false, "youth-ushers": false, "teen_podcast": false, "teen_social_media": false, "teen_community_service": false }, interestSelections: { "childrens-musical": true, "confirmation": false, "orators": true, "nursery": false, "vbs": true, "college-tour": false } },
     ],
     consents: {
         liability: true,
@@ -114,6 +114,8 @@ const childSchema = z.object({
   child_mobile: z.string().optional(),
   allergies: z.string().optional(),
   medical_notes: z.string().optional(),
+  special_needs: z.boolean().optional(),
+  special_needs_notes: z.string().optional(),
   ministrySelections: ministrySelectionSchema,
   interestSelections: interestSelectionSchema,
   customData: customDataSchema,
@@ -242,7 +244,7 @@ function VerificationStepTwoForm({ onVerifySuccess, onGoBack }: { onVerifySucces
 }
 
 const defaultChildValues = {
-  first_name: "", last_name: "", dob: "", grade: "", child_mobile: "", allergies: "", medical_notes: "",
+  first_name: "", last_name: "", dob: "", grade: "", child_mobile: "", allergies: "", medical_notes: "", special_needs: false, special_needs_notes: "",
   ministrySelections: { "acolyte": false, "bible-bee": false, "dance": false, "media-production": false, "mentoring-boys": false, "mentoring-girls": false, "teen-fellowship": false, "choir-joy-bells": false, "choir-keita": false, "choir-teen": false, "youth-ushers": false, "teen_podcast": false, "teen_social_media": false, "teen_community_service": false },
   interestSelections: { "childrens-musical": false, "confirmation": false, "orators": false, "nursery": false, "vbs": false, "college-tour": false },
   customData: { dance_returning_member: undefined }
@@ -582,10 +584,14 @@ export default function RegisterPage() {
                     <CardHeader><CardTitle className="font-headline">Children Information</CardTitle></CardHeader>
                     <CardContent>
                         <Accordion type="multiple" className="w-full" value={openAccordionItems} onValueChange={setOpenAccordionItems}>
-                            {childFields.map((field, index) => (
+                            {childFields.map((field, index) => {
+                                const childFirstName = form.watch(`children.${index}.first_name`);
+                                const hasSpecialNeeds = form.watch(`children.${index}.special_needs`);
+
+                                return (
                                 <AccordionItem key={field.id} value={`item-${index}`}>
                                     <AccordionTrigger className="font-headline">
-                                        {form.watch(`children.${index}.first_name`) || `Child ${index + 1}`}
+                                        {childFirstName || `Child ${index + 1}`}
                                     </AccordionTrigger>
                                     <AccordionContent className="space-y-4 pt-4 relative">
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -608,14 +614,52 @@ export default function RegisterPage() {
                                         <FormField control={form.control} name={`children.${index}.allergies`} render={({ field }) => (
                                             <FormItem><FormLabel>Allergies or Medical Conditions</FormLabel><FormControl><Input placeholder="e.g., Peanuts, Asthma" {...field} /></FormControl><FormMessage /></FormItem>
                                         )} />
-                                        <FormField control={form.control} name={`children.${index}.medical_notes`} render={({ field }) => (
-                                            <FormItem><FormLabel>Other Safety Info</FormLabel><FormControl><Textarea placeholder="Anything else we should know?" {...field} /></FormControl><FormMessage /></FormItem>
-                                        )} />
+
+                                        <FormField
+                                            control={form.control}
+                                            name={`children.${index}.special_needs`}
+                                            render={({ field }) => (
+                                                <FormItem className="space-y-3 rounded-lg border p-4">
+                                                    <FormLabel>Does {childFirstName || 'this child'} have special needs that church staff should be aware of?</FormLabel>
+                                                    <FormControl>
+                                                        <RadioGroup
+                                                            onValueChange={(value) => field.onChange(value === 'true')}
+                                                            value={String(field.value)}
+                                                            className="flex flex-col space-y-1"
+                                                        >
+                                                            <FormItem className="flex items-center space-x-3 space-y-0">
+                                                                <FormControl><RadioGroupItem value="true" /></FormControl>
+                                                                <FormLabel className="font-normal">Yes</FormLabel>
+                                                            </FormItem>
+                                                            <FormItem className="flex items-center space-x-3 space-y-0">
+                                                                <FormControl><RadioGroupItem value="false" /></FormControl>
+                                                                <FormLabel className="font-normal">No</FormLabel>
+                                                            </FormItem>
+                                                        </RadioGroup>
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+
+                                        {hasSpecialNeeds && (
+                                            <FormField
+                                                control={form.control}
+                                                name={`children.${index}.special_needs_notes`}
+                                                render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>What special needs does {childFirstName || 'this child'} have?</FormLabel>
+                                                    <FormControl><Textarea placeholder="Please describe any physical, behavioral, or emotional needs." {...field} /></FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                                )}
+                                            />
+                                        )}
                                         
                                         <Button type="button" variant="destructive" size="sm" onClick={() => removeChild(index)}><Trash2 className="mr-2 h-4 w-4" /> Remove Child</Button>
                                     </AccordionContent>
                                 </AccordionItem>
-                            ))}
+                            )})}
                         </Accordion>
                         <Button type="button" variant="outline" size="sm" className="mt-4" onClick={() => {
                             appendChild(defaultChildValues);
