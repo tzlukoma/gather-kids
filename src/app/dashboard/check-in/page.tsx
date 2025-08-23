@@ -25,8 +25,16 @@ export default function CheckInPage() {
     return (
         <div className="flex flex-col items-center justify-center h-64">
             <p className="text-muted-foreground mb-4">Loading children's data...</p>
-            <p className="text-sm text-muted-foreground">If this takes a while, the database might be empty.</p>
-            <Button onClick={seedDB} className="mt-2">Seed Database</Button>
+        </div>
+    )
+  }
+
+  if(children.length === 0) {
+    return (
+        <div className="flex flex-col items-center justify-center h-64 p-8 text-center border-2 border-dashed rounded-lg">
+            <p className="text-muted-foreground mb-4">The database is currently empty.</p>
+            <p className="text-sm text-muted-foreground">You can populate it with sample data to get started.</p>
+            <Button onClick={seedDB} className="mt-4">Seed Database</Button>
         </div>
     )
   }

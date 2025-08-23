@@ -1,3 +1,4 @@
+
 import React from 'react';
 import Link from 'next/link';
 import {
@@ -22,7 +23,6 @@ import {
   ClipboardEdit,
   User,
   LogOut,
-  Database,
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
@@ -96,7 +96,6 @@ export default function DashboardLayout({
         </SidebarContent>
         <SidebarFooter>
           <div className="flex flex-col gap-2">
-            <SeedDataButton />
             <Separator />
             <div className="flex items-center gap-3">
               <Avatar className="h-8 w-8">
@@ -116,7 +115,10 @@ export default function DashboardLayout({
       </Sidebar>
       <SidebarInset>
         <header className="flex items-center justify-between p-4 border-b">
-           <SidebarTrigger />
+            <div className="flex items-center gap-2">
+                <SidebarTrigger />
+                <SeedDataButton />
+            </div>
            <p className="font-headline text-lg font-semibold">Welcome, Admin!</p>
            <Button variant="outline">
               <User className="mr-2" />
