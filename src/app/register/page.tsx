@@ -224,7 +224,7 @@ export default function RegisterPage() {
     name: "children",
   });
 
-  const prefillForm = (data: any) => {
+  const prefillForm = (data: RegistrationFormValues) => {
     form.reset(data);
   }
 
