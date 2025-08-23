@@ -57,7 +57,7 @@ export function HouseholdProfile({ profileData }: { profileData: HouseholdProfil
             <div>
                 <h1 className="text-3xl font-bold font-headline">{household?.name}</h1>
                 <p className="text-muted-foreground">
-                    Registered on {household && format(parseISO(household.created_at), "PPP")}
+                    Registered on {household && format(parseISO(household.created_at), "PPpp")}
                 </p>
             </div>
 
