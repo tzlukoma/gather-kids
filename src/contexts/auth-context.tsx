@@ -2,18 +2,21 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { getLeaderAssignmentsForCycle } from '@/lib/dal';
 
 interface User {
     id: string;
     name: string;
     email: string;
     role: 'admin' | 'leader';
+    is_active: boolean;
+    assignedMinistryIds?: string[];
 }
 
 interface AuthContextType {
     user: User | null;
     loading: boolean;
-    login: (user: User) => void;
+    login: (user: Omit<User, 'assignedMinistryIds'>) => void;
     logout: () => void;
 }
 
@@ -24,22 +27,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        try {
-            const storedUser = localStorage.getItem('gatherkids-user');
-            if (storedUser) {
-                setUser(JSON.parse(storedUser));
+        const initializeUser = async () => {
+            try {
+                const storedUserString = localStorage.getItem('gatherkids-user');
+                if (storedUserString) {
+                    const storedUser: Omit<User, 'assignedMinistryIds'> = JSON.parse(storedUserString);
+                    let finalUser: User = { ...storedUser, assignedMinistryIds: [] };
+
+                    if (storedUser.role === 'leader') {
+                        const assignments = await getLeaderAssignmentsForCycle(storedUser.id, '2025');
+                        finalUser.assignedMinistryIds = assignments.map(a => a.ministry_id);
+                    }
+                    setUser(finalUser);
+                }
+            } catch (error) {
+                console.error("Failed to parse user from localStorage", error);
+                localStorage.removeItem('gatherkids-user');
+            } finally {
+                setLoading(false);
             }
-        } catch (error) {
-            console.error("Failed to parse user from localStorage", error);
-            localStorage.removeItem('gatherkids-user');
-        } finally {
-            setLoading(false);
-        }
+        };
+        initializeUser();
     }, []);
 
-    const login = (userData: User) => {
+    const login = async (userData: Omit<User, 'assignedMinistryIds'>) => {
         localStorage.setItem('gatherkids-user', JSON.stringify(userData));
-        setUser(userData);
+        let finalUser: User = { ...userData, assignedMinistryIds: [] };
+        
+        if(userData.role === 'leader') {
+            const assignments = await getLeaderAssignmentsForCycle(userData.id, '2025');
+            finalUser.assignedMinistryIds = assignments.map(a => a.ministry_id);
+        }
+        setUser(finalUser);
     };
 
     const logout = () => {

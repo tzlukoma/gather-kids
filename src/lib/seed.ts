@@ -5,11 +5,7 @@ import { v4 as uuidv4 } from 'uuid';
 import type { Household, Guardian, EmergencyContact, Child, RegistrationCycle, Registration, Ministry, MinistryEnrollment, User, Event, Attendance, Incident } from './types';
 import { subYears, formatISO, differenceInYears, parseISO } from 'date-fns';
 
-const USER_IDS = {
-    admin: 'user_admin',
-    leader1: 'user_leader_1',
-    leader2: 'user_leader_2',
-};
+const USER_IDS: { [key: string]: string } = {};
 
 const CYCLE_IDS = {
     prior: '2024',
@@ -20,6 +16,8 @@ const MINISTRY_IDS: { [key: string]: string } = {};
 
 const EVENT_IDS = {
     sundaySchool: 'evt_sunday_school',
+    childrensChurch: 'evt_childrens_church',
+    teenChurch: 'evt_teen_church',
 };
 
 const HOUSEHOLD_IDS: { [key: string]: string } = {};
@@ -127,13 +125,25 @@ export const seedDB = async () => {
 
     const { households, children, guardians, emergencyContacts } = generateHouseholdsAndChildren();
     
-    await db.transaction('rw', db.users, db.registration_cycles, db.ministries, db.events, db.households, db.children, db.guardians, db.emergency_contacts, db.registrations, db.ministry_enrollments, db.attendance, db.incidents, async () => {
+    const leaders: User[] = [
+        { user_id: 'user_admin', name: 'Admin User', email: 'admin@example.com', role: 'admin', is_active: true, background_check_status: 'clear' },
+        { user_id: 'user_leader_1', name: 'Sarah Lee', email: 'leader@example.com', role: 'leader', is_active: true, background_check_status: 'clear' },
+        { user_id: 'user_leader_2', name: 'Michael Chen', email: 'michael.chen@example.com', role: 'leader', is_active: true, background_check_status: 'clear' },
+        { user_id: 'user_leader_3', name: 'Jessica Rodriguez', email: 'jessica.r@example.com', role: 'leader', is_active: true, background_check_status: 'clear' },
+        { user_id: 'user_leader_4', name: 'David Kim', email: 'david.kim@example.com', role: 'leader', is_active: true, background_check_status: 'pending' },
+        { user_id: 'user_leader_5', name: 'Emily White', email: 'emily.w@example.com', role: 'leader', is_active: true, background_check_status: 'clear' },
+        { user_id: 'user_leader_6', name: 'Daniel Green', email: 'daniel.g@example.com', role: 'leader', is_active: true, background_check_status: 'clear' },
+        { user_id: 'user_leader_7', name: 'Laura Black', email: 'laura.b@example.com', role: 'leader', is_active: true, background_check_status: 'expired' },
+        { user_id: 'user_leader_8', name: 'Brian Hall', email: 'brian.h@example.com', role: 'leader', is_active: true, background_check_status: 'clear' },
+        { user_id: 'user_leader_9', name: 'Nancy Adams', email: 'nancy.a@example.com', role: 'leader', is_active: false, background_check_status: 'clear' },
+        { user_id: 'user_leader_10', name: 'Kevin Clark', email: 'kevin.c@example.com', role: 'leader', is_active: false, background_check_status: 'na' },
+    ];
+    leaders.forEach(l => USER_IDS[l.name.split(' ')[0]] = l.user_id);
+
+
+    await db.transaction('rw', db.users, db.registration_cycles, db.ministries, db.events, db.households, db.children, db.guardians, db.emergency_contacts, db.registrations, db.ministry_enrollments, db.leader_assignments, db.attendance, db.incidents, async () => {
         
-        await db.users.bulkPut([
-            { user_id: USER_IDS.admin, name: 'Admin User', email: 'admin@gatherkids.com', role: 'admin', background_check_status: 'clear' },
-            { user_id: USER_IDS.leader1, name: 'Leader One', email: 'leader1@gatherkids.com', role: 'leader', background_check_status: 'clear' },
-            { user_id: USER_IDS.leader2, name: 'Leader Two', email: 'leader2@gatherkids.com', role: 'leader', background_check_status: 'pending' },
-        ]);
+        await db.users.bulkPut(leaders);
 
         await db.registration_cycles.bulkPut([
             { cycle_id: CYCLE_IDS.prior, start_date: '2023-08-01', end_date: '2024-07-31', is_active: false },
@@ -171,7 +181,9 @@ export const seedDB = async () => {
         await db.ministries.bulkPut(fullMinistries);
 
         await db.events.bulkPut([
-            { event_id: EVENT_IDS.sundaySchool, name: 'Sunday School / Children’s Church', timeslots: [{id: 'ts_0900', start_local: '09:00', end_local: '10:30'}, {id: 'ts_1100', start_local: '11:00', end_local: '12:30'}] }
+            { event_id: EVENT_IDS.sundaySchool, name: 'Sunday School', timeslots: [{id: 'ts_0900', start_local: '09:00', end_local: '10:30'}] },
+            { event_id: EVENT_IDS.childrensChurch, name: "Children's Church", timeslots: [{id: 'ts_0900', start_local: '09:00', end_local: '10:30'}] },
+            { event_id: EVENT_IDS.teenChurch, name: "Teen Church", timeslots: [{id: 'ts_0900', start_local: '09:00', end_local: '10:30'}] }
         ]);
 
         await db.households.bulkPut(households);
@@ -239,14 +251,14 @@ export const seedDB = async () => {
                 date: today.toISOString().split('T')[0],
                 timeslot_id: i % 2 === 0 ? 'ts_0900' : 'ts_1100',
                 check_in_at: today.toISOString(),
-                checked_in_by: USER_IDS.leader1
+                checked_in_by: 'user_leader_1'
             });
         }
         await db.attendance.bulkPut(attendance);
 
         await db.incidents.bulkPut([
-            { incident_id: 'inc_1', child_id: checkedInChildren[0].child_id, child_name: `${checkedInChildren[0].first_name} ${checkedInChildren[0].last_name}`, event_id: EVENT_IDS.sundaySchool, description: 'Scraped knee on the playground.', severity: 'low', leader_id: USER_IDS.leader1, timestamp: now, admin_acknowledged_at: now },
-            { incident_id: 'inc_2', child_id: checkedInChildren[1].child_id, child_name: `${checkedInChildren[1].first_name} ${checkedInChildren[1].last_name}`, event_id: EVENT_IDS.sundaySchool, description: 'Feeling unwell, slight fever.', severity: 'medium', leader_id: USER_IDS.leader2, timestamp: now, admin_acknowledged_at: null },
+            { incident_id: 'inc_1', child_id: checkedInChildren[0].child_id, child_name: `${checkedInChildren[0].first_name} ${checkedInChildren[0].last_name}`, event_id: EVENT_IDS.sundaySchool, description: 'Scraped knee on the playground.', severity: 'low', leader_id: 'user_leader_1', timestamp: now, admin_acknowledged_at: now },
+            { incident_id: 'inc_2', child_id: checkedInChildren[1].child_id, child_name: `${checkedInChildren[1].first_name} ${checkedInChildren[1].last_name}`, event_id: EVENT_IDS.sundaySchool, description: 'Feeling unwell, slight fever.', severity: 'medium', leader_id: 'user_leader_2', timestamp: now, admin_acknowledged_at: null },
         ]);
     });
     console.log("Database seeded successfully.");

@@ -22,7 +22,7 @@ class GatherKidsDB extends Dexie {
 
     constructor() {
         super('gatherKidsDB');
-        this.version(4).stores({
+        this.version(6).stores({
             households: 'household_id, created_at, [city+state+zip]',
             guardians: 'guardian_id, household_id, mobile_phone, email',
             emergency_contacts: 'contact_id, household_id, mobile_phone',
@@ -32,8 +32,8 @@ class GatherKidsDB extends Dexie {
             registrations: 'registration_id, [child_id+cycle_id], [cycle_id+status]',
             ministries: 'ministry_id, code, enrollment_type, is_active',
             ministry_enrollments: 'enrollment_id, [ministry_id+cycle_id], [child_id+cycle_id]',
-            leader_assignments: 'assignment_id, leader_id, [ministry_id+cycle_id]',
-            users: 'user_id, email, role',
+            leader_assignments: 'assignment_id, [leader_id+cycle_id], [ministry_id+cycle_id]',
+            users: 'user_id, email, role, is_active, [last_name+first_name]',
             events: 'event_id, name',
             attendance: 'attendance_id, date, [event_id+date], [child_id+date]',
             incidents: 'incident_id, child_id, admin_acknowledged_at, timestamp',

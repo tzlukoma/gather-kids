@@ -15,10 +15,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { queryHouseholdList } from "@/lib/dal";
 import { format } from "date-fns";
 import { ChevronRight } from "lucide-react";
+import { useAuth } from "@/contexts/auth-context";
 
 export default function RegistrationsPage() {
     const router = useRouter();
-    const households = useLiveQuery(() => queryHouseholdList(), []);
+    const { user } = useAuth();
+    
+    // For leaders, pass their assigned ministry IDs to the query
+    const leaderMinistryIds = user?.role === 'leader' ? user.assignedMinistryIds : undefined;
+    const households = useLiveQuery(() => queryHouseholdList(leaderMinistryIds), [leaderMinistryIds]);
 
     const handleRowClick = (householdId: string) => {
         router.push(`/dashboard/registrations/${householdId}`);

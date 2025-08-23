@@ -76,7 +76,8 @@ export interface ChildYearProfile {
 }
 
 export interface Consent {
-    type: 'liability' | 'photoRelease';
+    type: 'liability' | 'photoRelease' | 'custom';
+    text?: string; // For custom consents
     accepted_at: string | null;
     signer_id: string;
     signer_name: string;
@@ -130,7 +131,7 @@ export interface LeaderAssignment {
     leader_id: string; // FK to users
     ministry_id: string; // FK
     cycle_id: string; // FK
-    role: 'leader' | 'assistant' | 'coordinator';
+    role: 'Primary' | 'Volunteer';
 }
 
 export interface User {
@@ -139,6 +140,7 @@ export interface User {
     email: string;
     mobile_phone?: string;
     role: 'admin' | 'leader';
+    is_active: boolean;
     background_check_status?: 'clear' | 'pending' | 'expired' | 'na';
     expires_at?: string; // ISO
 }
