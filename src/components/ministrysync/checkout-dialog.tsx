@@ -14,12 +14,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
-import type { Child, Guardian, Attendance } from "@/lib/types"
-
-interface EnrichedChild extends Child {
-    activeAttendance: Attendance | null;
-    guardians: Guardian[];
-}
+import type { EnrichedChild } from "./check-in-view"
 
 interface CheckoutDialogProps {
   child: EnrichedChild | null
@@ -46,9 +41,17 @@ export function CheckoutDialog({ child, onClose, onCheckout }: CheckoutDialogPro
     if (!child) return;
 
     const guardianPhones = child.guardians.map(g => g.mobile_phone.slice(-4));
+    const emergencyContactPhone = child.emergencyContact?.mobile_phone?.slice(-4);
     const householdPin = '1234'; // This would be fetched with household data
 
-    if (guardianPhones.includes(pin) || pin === householdPin) {
+    const validPins = [...guardianPhones];
+    if (emergencyContactPhone) {
+        validPins.push(emergencyContactPhone);
+    }
+    validPins.push(householdPin);
+
+
+    if (validPins.includes(pin)) {
       if (child.activeAttendance?.attendance_id) {
         onCheckout(child.child_id, child.activeAttendance.attendance_id)
       }
@@ -96,5 +99,3 @@ export function CheckoutDialog({ child, onClose, onCheckout }: CheckoutDialogPro
     </Dialog>
   )
 }
-
-    
