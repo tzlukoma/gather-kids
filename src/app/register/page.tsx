@@ -303,7 +303,7 @@ export default function RegisterPage() {
   const [verificationStep, setVerificationStep] = useState<VerificationStep>('enter_email');
   const [verificationEmail, setVerificationEmail] = useState('');
   const [openAccordionItems, setOpenAccordionItems] = useState<string[]>([]);
-  const [existingHousehold, setExistingHousehold] = useState<Household | null>(null);
+  const [isCurrentYearOverwrite, setIsCurrentYearOverwrite] = useState(false);
   
   const allMinistries = useLiveQuery(() => db.ministries.toArray(), []);
 
@@ -377,18 +377,18 @@ export default function RegisterPage() {
     if (!verificationEmail) return;
 
     // Use current year for lookup
-    const householdData = await findHouseholdByEmail(verificationEmail, '2025');
+    const result = await findHouseholdByEmail(verificationEmail, '2025');
 
-    if (householdData) {
+    if (result) {
         toast({ title: "Household Found!", description: "Your information has been pre-filled for you to review." });
-        setExistingHousehold(householdData.household);
-        prefillForm(householdData);
+        prefillForm(result.data);
+        setIsCurrentYearOverwrite(result.isCurrentYear);
         setVerificationStep('form_visible');
     } else if (verificationEmail === MOCK_EMAILS.VERIFY) {
         setVerificationStep('verify_identity');
     } else { // New registration
         toast({ title: "New Registration", description: "Please complete the form below to register your family." });
-        setExistingHousehold(null);
+        setIsCurrentYearOverwrite(false);
         form.reset({
             household: { name: "", address_line1: "" },
             guardians: [{ first_name: "", last_name: "", mobile_phone: "", email: verificationEmail, relationship: "Mother", is_primary: true }],
@@ -426,7 +426,7 @@ export default function RegisterPage() {
         setVerificationStep('enter_email');
         setVerificationEmail('');
         setOpenAccordionItems([]);
-        setExistingHousehold(null);
+        setIsCurrentYearOverwrite(false);
     } catch(e) {
         console.error(e);
         toast({
@@ -487,9 +487,10 @@ export default function RegisterPage() {
         {verificationStep === 'verify_identity' && (
             <VerificationStepTwoForm 
                 onVerifySuccess={async () => {
-                    const householdData = await findHouseholdByEmail(MOCK_EMAILS.PREFILL_OVERWRITE, '2025');
-                    if (householdData) {
-                        prefillForm(householdData);
+                    const result = await findHouseholdByEmail(MOCK_EMAILS.PREFILL_OVERWRITE, '2025');
+                    if (result) {
+                        prefillForm(result.data);
+                        setIsCurrentYearOverwrite(result.isCurrentYear);
                         setVerificationStep('form_visible');
                     }
                 }}
@@ -502,7 +503,7 @@ export default function RegisterPage() {
             <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
 
-                {existingHousehold && (
+                {isCurrentYearOverwrite && (
                     <Alert variant="destructive">
                         <AlertTriangle className="h-4 w-4" />
                         <AlertTitle>Existing Registration Found</AlertTitle>
@@ -518,7 +519,7 @@ export default function RegisterPage() {
                         <CardDescription>
                             <Button variant="link" className="p-0 h-auto" onClick={() => {
                                 setVerificationStep('enter_email');
-                                setExistingHousehold(null);
+                                setIsCurrentYearOverwrite(false);
                             }}>
                                 Change lookup email ({verificationEmail})
                             </Button>
@@ -836,3 +837,5 @@ export default function RegisterPage() {
     </div>
   )
 }
+
+    
