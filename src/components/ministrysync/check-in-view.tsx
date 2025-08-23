@@ -5,7 +5,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import type { Child, Guardian } from '@/lib/types';
+import type { Child, Guardian, Attendance } from '@/lib/types';
 import { CheckoutDialog } from './checkout-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { User, Search, Info, Cake, AlertTriangle } from 'lucide-react';
@@ -74,9 +74,7 @@ const getEventName = (eventId: string | null) => {
 }
 
 interface EnrichedChild extends Child {
-    checkedInEvent: string | null;
-    checkedOutAt: string | null;
-    attendanceId: string | null;
+    activeAttendance: Attendance | null;
     guardians: Guardian[];
 }
 
@@ -93,7 +91,14 @@ export function CheckInView({ initialChildren, selectedEvent }: CheckInViewProps
     const enrichChildren = async () => {
         if(!todaysAttendance) return;
 
-        const attendanceMap = new Map(todaysAttendance.map(a => [a.child_id, a]));
+        const attendanceByChild = new Map<string, Attendance[]>();
+        todaysAttendance.forEach(a => {
+            if (!attendanceByChild.has(a.child_id)) {
+                attendanceByChild.set(a.child_id, []);
+            }
+            attendanceByChild.get(a.child_id)!.push(a);
+        });
+
         const householdIds = initialChildren.map(c => c.household_id);
         const allGuardians = await db.guardians.where('household_id').anyOf(householdIds).toArray();
         const guardianMap = new Map<string, Guardian[]>();
@@ -106,12 +111,16 @@ export function CheckInView({ initialChildren, selectedEvent }: CheckInViewProps
         });
 
         const enriched = initialChildren.map(c => {
-            const attendance = attendanceMap.get(c.child_id);
+            const childAttendance = attendanceByChild.get(c.child_id) || [];
+            // Find the most recent check-in that has not been checked out yet.
+            const activeAttendance = childAttendance
+                .filter(a => !a.check_out_at)
+                .sort((a, b) => new Date(b.check_in_at!).getTime() - new Date(a.check_in_at!).getTime())
+                [0] || null;
+
             return {
                 ...c,
-                checkedInEvent: attendance && !attendance.check_out_at ? attendance.event_id : null,
-                checkedOutAt: attendance?.check_out_at || null,
-                attendanceId: attendance?.attendance_id || null,
+                activeAttendance: activeAttendance,
                 guardians: guardianMap.get(c.household_id) || [],
             }
         });
@@ -128,11 +137,11 @@ export function CheckInView({ initialChildren, selectedEvent }: CheckInViewProps
         title: 'Checked In',
         description: `${child?.first_name} ${child?.last_name} has been checked in to ${getEventName(selectedEvent)}.`,
       });
-    } catch(e) {
+    } catch(e: any) {
       console.error(e);
       toast({
         title: 'Check-in Failed',
-        description: 'Could not check in the child. Please try again.',
+        description: e.message || 'Could not check in the child. Please try again.',
         variant: 'destructive',
       });
     }
@@ -192,91 +201,97 @@ export function CheckInView({ initialChildren, selectedEvent }: CheckInViewProps
         />
       </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-        {filteredChildren.map((child) => (
-          <Card key={child.child_id} className="relative flex flex-col overflow-hidden">
-             {isBirthdayThisWeek(child.dob) && (
-                <div className="bg-orange-400 text-white text-center py-1 px-2 text-sm font-semibold flex items-center justify-center gap-2">
-                    <Cake className="h-4 w-4" />
-                    Birthday This Week!
-                </div>
-            )}
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-8 w-8 shrink-0 z-10">
-                  <Info className="h-4 w-4" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-64" align="end">
-                <div className="space-y-4">
-                  <h4 className="font-semibold font-headline">Guardian Info</h4>
-                  {child.guardians?.map(g => (
-                    <div key={g.guardian_id} className="text-sm">
-                      <p className="font-medium">{g.first_name} {g.last_name} ({g.relationship})</p>
-                      <p className="text-muted-foreground">{g.mobile_phone}</p>
+        {filteredChildren.map((child) => {
+            const checkedInEvent = child.activeAttendance?.event_id;
+            const isCheckedInHere = checkedInEvent === selectedEvent;
+            const isCheckedInElsewhere = checkedInEvent && checkedInEvent !== selectedEvent;
+
+            return (
+              <Card key={child.child_id} className="relative flex flex-col overflow-hidden">
+                {isBirthdayThisWeek(child.dob) && (
+                    <div className="bg-orange-400 text-white text-center py-1 px-2 text-sm font-semibold flex items-center justify-center gap-2">
+                        <Cake className="h-4 w-4" />
+                        Birthday This Week!
                     </div>
-                  ))}
-                  {!child.guardians?.length && (
-                      <p className="text-sm text-muted-foreground">No guardian information available.</p>
+                )}
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-8 w-8 shrink-0 z-10">
+                      <Info className="h-4 w-4" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-64" align="end">
+                    <div className="space-y-4">
+                      <h4 className="font-semibold font-headline">Guardian Info</h4>
+                      {child.guardians?.map(g => (
+                        <div key={g.guardian_id} className="text-sm">
+                          <p className="font-medium">{g.first_name} {g.last_name} ({g.relationship})</p>
+                          <p className="text-muted-foreground">{g.mobile_phone}</p>
+                        </div>
+                      ))}
+                      {!child.guardians?.length && (
+                          <p className="text-sm text-muted-foreground">No guardian information available.</p>
+                      )}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+                <CardHeader className="flex flex-col items-center gap-4 p-4 pt-6 text-center sm:flex-row sm:items-start sm:p-6 sm:text-left">
+                   <div className="w-[60px] h-[60px] flex-shrink-0 flex items-center justify-center rounded-full border-2 border-border bg-muted">
+                        <User className="h-8 w-8 text-muted-foreground" />
+                   </div>
+                  <div className="flex-1">
+                    <CardTitle className="font-headline text-lg">{`${child.first_name} ${child.last_name}`}</CardTitle>
+                    <CardDescription>
+                      {child.household_id}
+                    </CardDescription>
+                     <div className="flex flex-wrap gap-1 mt-2 justify-center sm:justify-start">
+                        {isCheckedInHere && (
+                            <Badge variant="default" className="bg-green-500 hover:bg-green-600">Checked In</Badge>
+                        )}
+                        {isCheckedInElsewhere && (
+                            <Badge variant="secondary">In {getEventName(checkedInEvent)}</Badge>
+                        )}
+                        {!checkedInEvent && (
+                            <Badge variant="secondary">Checked Out</Badge>
+                        )}
+                     </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="flex-grow space-y-2 px-4 pb-4 sm:px-6 sm:pb-6 pt-0">
+                  <div className="text-sm text-muted-foreground space-y-2">
+                    <p><strong>DOB:</strong> {child.dob ? format(parseISO(child.dob), "MMM d, yyyy") : 'N/A'} ({child.dob ? differenceInYears(new Date(), parseISO(child.dob)) : ''} yrs)</p>
+                    <p><strong>Grade:</strong> {child.grade}</p>
+                    {child.medical_notes && <p><strong>Notes:</strong> {child.medical_notes}</p>}
+                  </div>
+                  {child.allergies && (
+                      <Badge variant="outline" className="w-full justify-center text-base py-1 border-destructive text-destructive rounded-sm">
+                          <AlertTriangle className="mr-2 h-4 w-4" />
+                          Allergy: {child.allergies}
+                      </Badge>
                   )}
-                </div>
-              </PopoverContent>
-            </Popover>
-            <CardHeader className="flex flex-col items-center gap-4 p-4 pt-6 text-center sm:flex-row sm:items-start sm:p-6 sm:text-left">
-               <div className="w-[60px] h-[60px] flex-shrink-0 flex items-center justify-center rounded-full border-2 border-border bg-muted">
-                    <User className="h-8 w-8 text-muted-foreground" />
-               </div>
-              <div className="flex-1">
-                <CardTitle className="font-headline text-lg">{`${child.first_name} ${child.last_name}`}</CardTitle>
-                <CardDescription>
-                  {child.household_id}
-                </CardDescription>
-                 <div className="flex flex-wrap gap-1 mt-2 justify-center sm:justify-start">
-                    {child.checkedInEvent === selectedEvent && (
-                        <Badge variant="default" className="bg-green-500 hover:bg-green-600">Checked In</Badge>
-                    )}
-                    {child.checkedInEvent && child.checkedInEvent !== selectedEvent && (
-                        <Badge variant="secondary">In {getEventName(child.checkedInEvent)}</Badge>
-                    )}
-                    {!child.checkedInEvent && (
-                        <Badge variant="secondary">Checked Out</Badge>
-                    )}
-                 </div>
-              </div>
-            </CardHeader>
-            <CardContent className="flex-grow space-y-2 px-4 pb-4 sm:px-6 sm:pb-6 pt-0">
-              <div className="text-sm text-muted-foreground space-y-2">
-                <p><strong>DOB:</strong> {child.dob ? format(parseISO(child.dob), "MMM d, yyyy") : 'N/A'} ({child.dob ? differenceInYears(new Date(), parseISO(child.dob)) : ''} yrs)</p>
-                <p><strong>Grade:</strong> {child.grade}</p>
-                {child.medical_notes && <p><strong>Notes:</strong> {child.medical_notes}</p>}
-              </div>
-              {child.allergies && (
-                  <Badge variant="outline" className="w-full justify-center text-base py-1 border-destructive text-destructive rounded-sm">
-                      <AlertTriangle className="mr-2 h-4 w-4" />
-                      Allergy: {child.allergies}
-                  </Badge>
-              )}
-            </CardContent>
-            <CardFooter className="px-4 pb-4 sm:px-6 sm:pb-6">
-              {child.checkedInEvent === selectedEvent ? (
-                <Button
-                  className="w-full"
-                  variant="outline"
-                  onClick={() => openCheckoutDialog(child)}
-                >
-                  Check Out
-                </Button>
-              ) : (
-                <Button 
-                    className="w-full"
-                    onClick={() => handleCheckIn(child.child_id)}
-                    disabled={!!child.checkedInEvent}
-                >
-                  Check In
-                </Button>
-              )}
-            </CardFooter>
-          </Card>
-        ))}
+                </CardContent>
+                <CardFooter className="px-4 pb-4 sm:px-6 sm:pb-6">
+                  {isCheckedInHere ? (
+                    <Button
+                      className="w-full"
+                      variant="outline"
+                      onClick={() => openCheckoutDialog(child)}
+                    >
+                      Check Out
+                    </Button>
+                  ) : (
+                    <Button 
+                        className="w-full"
+                        onClick={() => handleCheckIn(child.child_id)}
+                        disabled={!!checkedInEvent}
+                    >
+                      Check In
+                    </Button>
+                  )}
+                </CardFooter>
+              </Card>
+            )
+        })}
       </div>
        {filteredChildren.length === 0 && (
         <div className="text-center col-span-full py-12">
@@ -291,3 +306,5 @@ export function CheckInView({ initialChildren, selectedEvent }: CheckInViewProps
     </>
   );
 }
+
+    
