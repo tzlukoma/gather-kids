@@ -51,7 +51,7 @@ export default function DashboardPage() {
                         </CardContent>
                     </Card>
                 </Link>
-                <Link href="/dashboard/incidents?tab=view">
+                <Link href="/dashboard/incidents?tab=view&filter=pending">
                     <Card className="hover:bg-muted/50 transition-colors">
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                             <CardTitle className="text-sm font-medium">Pending Incidents</CardTitle>
