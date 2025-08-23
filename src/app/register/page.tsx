@@ -200,6 +200,7 @@ export default function RegisterPage() {
   const { toast } = useToast()
   const [verificationStep, setVerificationStep] = useState<VerificationStep>('enter_email');
   const [verificationEmail, setVerificationEmail] = useState('');
+  const [openAccordionItems, setOpenAccordionItems] = useState<string[]>([]);
   
   const form = useForm<RegistrationFormValues>({
     resolver: zodResolver(registrationSchema),
@@ -225,6 +226,9 @@ export default function RegisterPage() {
 
   const prefillForm = (data: RegistrationFormValues) => {
     form.reset(data);
+    if (data.children && data.children.length > 0) {
+      setOpenAccordionItems(data.children.map((_, index) => `item-${index}`));
+    }
   }
 
   const handleEmailLookup = () => {
@@ -250,6 +254,7 @@ export default function RegisterPage() {
                 ministrySelections: { choir: false, bibleBee: false },
                 consents: { liability: false, photoRelease: false },
              });
+            setOpenAccordionItems(['item-0']);
             setVerificationStep('form_visible');
             break;
     }
@@ -266,6 +271,7 @@ export default function RegisterPage() {
         form.reset();
         setVerificationStep('enter_email');
         setVerificationEmail('');
+        setOpenAccordionItems([]);
     } catch(e) {
         console.error(e);
         toast({
@@ -438,7 +444,7 @@ export default function RegisterPage() {
                 <Card>
                     <CardHeader><CardTitle className="font-headline">Children Information</CardTitle></CardHeader>
                     <CardContent>
-                        <Accordion type="multiple" className="w-full" defaultValue={['item-0']}>
+                        <Accordion type="multiple" className="w-full" value={openAccordionItems} onValueChange={setOpenAccordionItems}>
                             {childFields.map((field, index) => (
                                 <AccordionItem key={field.id} value={`item-${index}`}>
                                     <AccordionTrigger className="font-headline">
@@ -508,3 +514,5 @@ export default function RegisterPage() {
     </div>
   )
 }
+
+    
