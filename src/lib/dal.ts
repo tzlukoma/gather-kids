@@ -1,6 +1,7 @@
 
 
 
+
 import { db } from './db';
 import type { Attendance, Child, Guardian, Household, Incident, IncidentSeverity, Ministry, MinistryEnrollment, Registration, User } from './types';
 import { differenceInYears, isAfter, isBefore, parseISO } from 'date-fns';
@@ -250,52 +251,30 @@ export async function registerHousehold(data: any) {
             await db.ministry_enrollments.add(sundaySchoolEnrollment);
 
             const ministrySelections = childData.ministrySelections || {};
-            const isJoyBell = ministrySelections['choir-joy-bells'];
-            const isKeita = ministrySelections['choir-keita'];
-            const isTeenChoir = ministrySelections['choir-teen'];
+            for (const ministryCode in ministrySelections) {
+                if (ministrySelections[ministryCode]) {
+                    const ministry = await db.ministries.where({ code: ministryCode }).first();
+                    if (ministry) {
+                        // Check eligibility
+                        const age = child.dob ? ageOn(now, child.dob) : null;
+                        const minAge = ministry.min_age ?? -1;
+                        const maxAge = ministry.max_age ?? 999;
+                        if (age !== null && (age < minAge || age > maxAge)) {
+                            console.warn(`Skipping enrollment for ${child.first_name} in ${ministry.name} due to age restrictions.`);
+                            continue;
+                        }
 
-            // Handle Choir selections
-            if (isJoyBell) {
-                 if (await isEligibleForChoir('min_choir_kids', child.child_id)) {
-                    const choirEnrollment: MinistryEnrollment = {
-                        enrollment_id: uuidv4(), child_id: child.child_id, cycle_id: "2025",
-                        ministry_id: "choir-joy-bells", status: 'enrolled',
-                    };
-                    await db.ministry_enrollments.add(choirEnrollment);
+                        const enrollment: MinistryEnrollment = {
+                            enrollment_id: uuidv4(),
+                            child_id: child.child_id,
+                            cycle_id: "2025",
+                            ministry_id: ministry.ministry_id,
+                            status: ministry.enrollment_type,
+                            custom_fields: childData.customData, // Capture all custom data for this enrollment
+                        };
+                        await db.ministry_enrollments.add(enrollment);
+                    }
                 }
-            }
-             if (isKeita) {
-                 if (await isEligibleForChoir('min_choir_kids', child.child_id)) {
-                    const choirEnrollment: MinistryEnrollment = {
-                        enrollment_id: uuidv4(), child_id: child.child_id, cycle_id: "2025",
-                        ministry_id: "choir-keita", status: 'enrolled',
-                    };
-                    await db.ministry_enrollments.add(choirEnrollment);
-                }
-            }
-             if (isTeenChoir) {
-                 if (await isEligibleForChoir('min_choir_kids', child.child_id)) {
-                    const choirEnrollment: MinistryEnrollment = {
-                        enrollment_id: uuidv4(), child_id: child.child_id, cycle_id: "2025",
-                        ministry_id: "choir-teen", status: 'enrolled',
-                    };
-                    await db.ministry_enrollments.add(choirEnrollment);
-                }
-            }
-
-
-            // Handle Bible Bee selection
-            if (ministrySelections['bible-bee']) {
-                 if (await isWithinWindow('min_bible_bee', now)) {
-                     const bibleBeeEnrollment: MinistryEnrollment = {
-                        enrollment_id: uuidv4(),
-                        child_id: child.child_id,
-                        cycle_id: "2025",
-                        ministry_id: "min_bible_bee",
-                        status: 'interest_only',
-                    };
-                    await db.ministry_enrollments.add(bibleBeeEnrollment);
-                 }
             }
         }
     });

@@ -8,23 +8,26 @@ import {
   FormLabel,
 } from "@/components/ui/form"
 import { Checkbox } from "@/components/ui/checkbox"
+import type { CustomQuestion } from "@/lib/types"
 
-const fellowshipInterests = [
-    { id: "teen_podcast", label: "Podcast & YouTube Channel Projects" },
-    { id: "teen_social_media", label: "Being on our Social Media Team" },
-    { id: "teen_community_service", label: "Leading Community Service Projects" },
-];
+interface TeenFellowshipFormProps {
+    control: any;
+    childIndex: number;
+    customQuestions: CustomQuestion[];
+}
 
-export function TeenFellowshipForm({ control }: { control: any }) {
+export function TeenFellowshipForm({ control, childIndex, customQuestions }: TeenFellowshipFormProps) {
+    if (customQuestions.length === 0) return null;
+
     return (
         <div className="mt-4 space-y-4 p-4 border rounded-md">
             <FormLabel>Are you interested in participating in our:</FormLabel>
             <div className="space-y-2">
-                {fellowshipInterests.map(interest => (
+                {customQuestions.map(question => (
                     <FormField
-                        key={interest.id}
+                        key={question.id}
                         control={control}
-                        name={`children[0].ministrySelections.${interest.id}`}
+                        name={`children[${childIndex}].customData.${question.id}`}
                         render={({ field }) => (
                             <FormItem className="flex flex-row items-start space-x-3 space-y-0">
                                 <FormControl>
@@ -34,7 +37,7 @@ export function TeenFellowshipForm({ control }: { control: any }) {
                                     />
                                 </FormControl>
                                 <FormLabel className="font-normal">
-                                    {interest.label}
+                                    {question.text}
                                 </FormLabel>
                             </FormItem>
                         )}

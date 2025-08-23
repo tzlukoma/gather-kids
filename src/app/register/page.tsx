@@ -58,8 +58,8 @@ const MOCK_HOUSEHOLD_DATA = {
         relationship: "Aunt"
     },
     children: [
-        { first_name: "Olivia", last_name: "Johnson", dob: "2020-05-10", grade: "Pre-K", child_mobile: "555-555-4444", allergies: "Tree nuts", medical_notes: "Carries an EpiPen.", special_needs: true, special_needs_notes: "Requires a quiet space if overstimulated.", ministrySelections: { "acolyte": false, "bible-bee": false, "dance": false, "media-production": false, "mentoring-boys": false, "mentoring-girls": false, "teen-fellowship": false, "choir-joy-bells": false, "choir-keita": false, "choir-teen": false, "youth-ushers": false, "teen_podcast": false, "teen_social_media": false, "teen_community_service": false }, interestSelections: { "childrens-musical": false, "confirmation": false, "orators": false, "nursery": false, "vbs": false, "college-tour": false } },
-        { first_name: "Noah", last_name: "Johnson", dob: "2015-09-15", grade: "4th Grade", child_mobile: "555-555-5555", allergies: "", medical_notes: "", special_needs: false, special_needs_notes: "", ministrySelections: { "acolyte": true, "bible-bee": true, "dance": false, "media-production": false, "mentoring-boys": true, "mentoring-girls": false, "teen-fellowship": false, "choir-joy-bells": false, "choir-keita": true, "choir-teen": false, "youth-ushers": false, "teen_podcast": false, "teen_social_media": false, "teen_community_service": false }, interestSelections: { "childrens-musical": true, "confirmation": false, "orators": true, "nursery": false, "vbs": true, "college-tour": false } },
+        { first_name: "Olivia", last_name: "Johnson", dob: "2020-05-10", grade: "Pre-K", child_mobile: "555-555-4444", allergies: "Tree nuts", medical_notes: "Carries an EpiPen.", special_needs: true, special_needs_notes: "Requires a quiet space if overstimulated.", ministrySelections: { "acolyte": false, "bible-bee": false, "dance": false, "media-production": false, "mentoring-boys": false, "mentoring-girls": false, "teen-fellowship": false, "choir-joy-bells": false, "choir-keita": false, "choir-teen": false, "youth-ushers": false }, interestSelections: { "childrens-musical": false, "confirmation": false, "orators": false, "nursery": false, "vbs": false, "college-tour": false } },
+        { first_name: "Noah", last_name: "Johnson", dob: "2015-09-15", grade: "4th Grade", child_mobile: "555-555-5555", allergies: "", medical_notes: "", special_needs: false, special_needs_notes: "", ministrySelections: { "acolyte": true, "bible-bee": true, "dance": false, "media-production": true, "mentoring-boys": true, "mentoring-girls": false, "teen-fellowship": false, "choir-joy-bells": false, "choir-keita": true, "choir-teen": false, "youth-ushers": false }, interestSelections: { "childrens-musical": true, "confirmation": false, "orators": true, "nursery": false, "vbs": true, "college-tour": false } },
     ],
     consents: {
         liability: true,
@@ -79,9 +79,6 @@ const ministrySelectionSchema = z.object({
     "choir-keita": z.boolean().default(false),
     "choir-teen": z.boolean().default(false),
     "youth-ushers": z.boolean().default(false),
-    teen_podcast: z.boolean().default(false),
-    teen_social_media: z.boolean().default(false),
-    teen_community_service: z.boolean().default(false),
 }).optional();
 
 const interestSelectionSchema = z.object({
@@ -93,9 +90,7 @@ const interestSelectionSchema = z.object({
     "college-tour": z.boolean().default(false),
 }).optional();
 
-const customDataSchema = z.object({
-    dance_returning_member: z.enum(["yes", "no"]).optional(),
-}).optional();
+const customDataSchema = z.record(z.string(), z.any()).optional();
 
 
 const guardianSchema = z.object({
@@ -248,9 +243,9 @@ function VerificationStepTwoForm({ onVerifySuccess, onGoBack }: { onVerifySucces
 
 const defaultChildValues = {
   first_name: "", last_name: "", dob: "", grade: "", child_mobile: "", allergies: "", medical_notes: "", special_needs: false, special_needs_notes: "",
-  ministrySelections: { "acolyte": false, "bible-bee": false, "dance": false, "media-production": false, "mentoring-boys": false, "mentoring-girls": false, "teen-fellowship": false, "choir-joy-bells": false, "choir-keita": false, "choir-teen": false, "youth-ushers": false, "teen_podcast": false, "teen_social_media": false, "teen_community_service": false },
+  ministrySelections: { "acolyte": false, "bible-bee": false, "dance": false, "media-production": false, "mentoring-boys": false, "mentoring-girls": false, "teen-fellowship": false, "choir-joy-bells": false, "choir-keita": false, "choir-teen": false, "youth-ushers": false },
   interestSelections: { "childrens-musical": false, "confirmation": false, "orators": false, "nursery": false, "vbs": false, "college-tour": false },
-  customData: { dance_returning_member: undefined }
+  customData: {}
 };
 
 const getAgeFromDob = (dobString: string): number | null => {
@@ -319,7 +314,7 @@ const ProgramSection = ({ control, childrenData, program, childFields }: { contr
                 <DanceMinistryForm control={control} />
             )}
              {isAnyChildSelected && program.code === 'teen-fellowship' && (
-                <TeenFellowshipForm control={control} />
+                <TeenFellowshipForm control={control} childIndex={0} customQuestions={program.custom_questions || []} />
             )}
             {isAnyChildSelected && program.details && (
                  <Alert className="mt-4">
@@ -366,23 +361,25 @@ export default function RegisterPage() {
   
   const { enrolledPrograms, interestPrograms } = useMemo(() => {
     if (!allMinistries) return { enrolledPrograms: [], interestPrograms: [] };
-    const enrolled = allMinistries.filter(m => m.enrollment_type === 'enrolled' && m.code !== 'min_sunday_school');
-    const interest = allMinistries.filter(m => m.enrollment_type === 'interest_only');
+    const enrolled = allMinistries
+        .filter(m => m.enrollment_type === 'enrolled' && m.code !== 'min_sunday_school')
+        .sort((a,b) => a.name.localeCompare(b.name));
+    const interest = allMinistries
+        .filter(m => m.enrollment_type === 'interest_only')
+        .sort((a,b) => a.name.localeCompare(b.name));
     return { enrolledPrograms: enrolled, interestPrograms: interest };
   }, [allMinistries]);
 
-  const { choirPrograms, ministryPrograms } = useMemo(() => {
-    if (!enrolledPrograms) return { choirPrograms: [], ministryPrograms: [] };
+  const { otherMinistryPrograms, choirPrograms } = useMemo(() => {
+    if (!enrolledPrograms) return { otherMinistryPrograms: [], choirPrograms: [] };
     
     const choir = enrolledPrograms
-      .filter(program => program.code.startsWith('choir-'))
-      .sort((a, b) => a.name.localeCompare(b.name));
+      .filter(program => program.code.startsWith('choir-'));
       
     const otherMinistries = enrolledPrograms
-      .filter(program => !program.code.startsWith('choir-'))
-      .sort((a, b) => a.name.localeCompare(b.name));
+      .filter(program => !program.code.startsWith('choir-'));
     
-    return { choirPrograms: choir, ministryPrograms: otherMinistries };
+    return { otherMinistryPrograms: otherMinistries, choirPrograms: choir };
   }, [enrolledPrograms]);
 
 
@@ -719,7 +716,7 @@ export default function RegisterPage() {
                                 </div>
                             </div>
                             
-                            {ministryPrograms.map(program => (
+                            {otherMinistryPrograms.map(program => (
                                 <ProgramSection key={program.ministry_id} control={form.control} childrenData={childrenData} program={program} childFields={childFields} />
                             ))}
 
