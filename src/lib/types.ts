@@ -98,7 +98,7 @@ export interface Ministry {
     ministry_id: string; // PK
     name: string;
     code: string;
-    enrollment_type: 'enrolled' | 'interest_only';
+    enrollment_type: 'enrolled' | 'expressed_interest';
     min_age?: number;
     max_age?: number;
     min_grade?: string;
@@ -121,7 +121,7 @@ export interface MinistryEnrollment {
     child_id: string; // FK
     cycle_id: string; // FK
     ministry_id: string; // FK
-    status: 'enrolled' | 'withdrawn' | 'interest_only';
+    status: 'enrolled' | 'withdrawn' | 'expressed_interest';
     custom_fields?: object;
     notes?: string;
 }

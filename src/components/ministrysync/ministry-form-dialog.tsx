@@ -51,7 +51,7 @@ const customQuestionSchema = z.object({
 const ministryFormSchema = z.object({
     name: z.string().min(2, "Name must be at least 2 characters."),
     code: z.string().min(2, "Code must be at least 2 characters.").regex(/^[a-z0-9-]+$/, "Code can only contain lowercase letters, numbers, and hyphens."),
-    enrollment_type: z.enum(["enrolled", "interest_only"]),
+    enrollment_type: z.enum(["enrolled", "expressed_interest"]),
     is_active: z.boolean().default(true),
     description: z.string().optional(),
     details: z.string().optional(),
@@ -170,7 +170,7 @@ export function MinistryFormDialog({ isOpen, onClose, ministry }: MinistryFormDi
                           <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
                           <SelectContent>
                               <SelectItem value="enrolled">Ministry Program (Enrolled)</SelectItem>
-                              <SelectItem value="interest_only">Interest-Only Activity</SelectItem>
+                              <SelectItem value="expressed_interest">Expressed Interest Activity</SelectItem>
                           </SelectContent>
                       </Select>
                       <FormMessage />

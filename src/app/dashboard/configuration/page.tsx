@@ -126,7 +126,7 @@ export default function ConfigurationPage() {
             .filter(m => m.enrollment_type === 'enrolled' && !m.code.startsWith('min_sunday'))
             .sort((a, b) => a.name.localeCompare(b.name));
         const interest = allMinistries
-            .filter(m => m.enrollment_type === 'interest_only')
+            .filter(m => m.enrollment_type === 'expressed_interest')
             .sort((a, b) => a.name.localeCompare(b.name));
         return { enrolledPrograms: enrolled, interestPrograms: interest };
     }, [allMinistries]);
@@ -187,7 +187,7 @@ export default function ConfigurationPage() {
             />
 
             <MinistryTable 
-                title="Interest-Only Activities"
+                title="Expressed Interest Activities"
                 description="These are activities to gauge interest, but do not create an official enrollment."
                 ministries={interestPrograms}
                 onEdit={handleEdit}

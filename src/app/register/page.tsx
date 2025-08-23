@@ -357,7 +357,7 @@ export default function RegisterPage() {
         .filter(m => m.enrollment_type === 'enrolled' && m.code !== 'min_sunday_school')
         .sort((a,b) => a.name.localeCompare(b.name));
     const interest = activeMinistries
-        .filter(m => m.enrollment_type === 'interest_only')
+        .filter(m => m.enrollment_type === 'expressed_interest')
         .sort((a,b) => a.name.localeCompare(b.name));
     return { enrolledPrograms: enrolled, interestPrograms: interest };
   }, [allMinistries]);
@@ -805,7 +805,7 @@ export default function RegisterPage() {
 
                     <Card>
                         <CardHeader>
-                            <CardTitle className="font-headline">Interest-Only Activities</CardTitle>
+                            <CardTitle className="font-headline">Expressed Interest Activities</CardTitle>
                             <CardDescription>Let us know if you're interested. This does not register you.</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-6">
