@@ -26,6 +26,7 @@ import {
   User,
   LogOut,
   Settings,
+  ClipboardList,
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
@@ -35,6 +36,7 @@ import { useAuth, AuthProvider } from '@/contexts/auth-context';
 const adminMenuItems = [
   { href: "/dashboard", icon: <LayoutDashboard />, label: "Dashboard" },
   { href: "/dashboard/check-in", icon: <CheckCheck />, label: "Check-In/Out" },
+  { href: "/dashboard/registrations", icon: <ClipboardList />, label: "Registrations" },
   { href: "/dashboard/rosters", icon: <Users />, label: "Rosters" },
   { href: "/dashboard/incidents", icon: <ShieldAlert />, label: "Incidents" },
   { href: "/dashboard/reports", icon: <FileText />, label: "Reports" },
@@ -105,7 +107,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                     {menuItems.map((item) => (
                         <SidebarMenuItem key={item.href}>
                             <Link href={item.href} passHref>
-                                <SidebarMenuButton tooltip={item.label} isActive={pathname === item.href}>
+                                <SidebarMenuButton tooltip={item.label} isActive={pathname.startsWith(item.href) && (item.href !== '/dashboard' || pathname === '/dashboard')}>
                                 {item.icon}
                                 <span>{item.label}</span>
                                 </SidebarMenuButton>
