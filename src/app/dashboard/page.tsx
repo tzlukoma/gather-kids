@@ -15,7 +15,7 @@ export default function DashboardPage() {
     const today = getTodayIsoDate();
     
     const unacknowledgedIncidents = useLiveQuery(() => 
-        db.incidents.where('admin_acknowledged_at').equals(null!).toArray()
+        db.incidents.filter(i => i.admin_acknowledged_at === null).toArray()
     , []);
 
     const checkedInCount = useLiveQuery(() => 
