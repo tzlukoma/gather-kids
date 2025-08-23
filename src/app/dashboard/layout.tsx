@@ -23,6 +23,7 @@ import {
   ClipboardEdit,
   User,
   LogOut,
+  Settings,
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
@@ -49,6 +50,7 @@ export default function DashboardLayout({
                 <User className="mr-2" />
                 My Profile
                 </Button>
+                <SeedDataButton />
             </div>
         </header>
         <div className="flex flex-1">
@@ -56,7 +58,7 @@ export default function DashboardLayout({
                 <SidebarContent>
                 <SidebarHeader className="p-0">
                     <div className="flex items-center justify-between p-2">
-                        <SeedDataButton />
+                        <div/>
                         <SidebarTrigger className="hidden md:flex" />
                     </div>
                 </SidebarHeader>
