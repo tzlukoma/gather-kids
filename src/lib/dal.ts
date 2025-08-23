@@ -7,6 +7,7 @@
 
 
 
+
 import { db } from './db';
 import type { Attendance, Child, Guardian, Household, Incident, IncidentSeverity, Ministry, MinistryEnrollment, Registration, User, EmergencyContact } from './types';
 import { differenceInYears, isAfter, isBefore, parseISO } from 'date-fns';
@@ -267,6 +268,8 @@ const fetchFullHouseholdData = async (householdId: string, cycleId: string) => {
     const children = await db.children.where({ household_id: householdId }).and(c => c.is_active).toArray();
     const childIds = children.map(c => c.child_id);
     const enrollments = await db.ministry_enrollments.where('child_id').anyOf(childIds).and(e => e.cycle_id === cycleId).toArray();
+    const allMinistries = await db.ministries.toArray();
+    const ministryMap = new Map(allMinistries.map(m => [m.ministry_id, m]));
 
     const childrenWithSelections = children.map(child => {
         const childEnrollments = enrollments.filter(e => e.child_id === child.child_id);
@@ -275,14 +278,16 @@ const fetchFullHouseholdData = async (householdId: string, cycleId: string) => {
         let customData: any = {};
         
         childEnrollments.forEach(enrollment => {
-            const ministry = db.ministries.get(enrollment.ministry_id); // This is inefficient but fine for prototype
+            const ministry = ministryMap.get(enrollment.ministry_id);
+            if (!ministry) return;
+
             if (enrollment.status === 'enrolled') {
-                ministrySelections[enrollment.ministry_id] = true;
+                ministrySelections[ministry.code] = true;
                 if (enrollment.custom_fields) {
                     customData = {...customData, ...enrollment.custom_fields};
                 }
             } else if (enrollment.status === 'interest_only') {
-                interestSelections[enrollment.ministry_id] = true;
+                interestSelections[ministry.code] = true;
             }
         });
         
@@ -296,7 +301,7 @@ const fetchFullHouseholdData = async (householdId: string, cycleId: string) => {
         children: childrenWithSelections,
         consents: { liability: true, photoRelease: true } // Assume consents were given
     };
-}
+};
 
 
 // Find existing household and registration data by email
@@ -307,25 +312,31 @@ export async function findHouseholdByEmail(email: string, currentCycleId: string
     const householdId = guardian.household_id;
     
     // 1. Check for an existing registration in the CURRENT cycle.
-    const currentRegExists = await db.registrations.where({ cycle_id: currentCycleId }).and(r => r.child_id.startsWith(`c_${householdId}`)).first();
-    
-    if (currentRegExists) {
-        // Found existing registration for this cycle. Fetch all data to pre-fill the form.
-        return fetchFullHouseholdData(householdId, currentCycleId);
+    const currentHousehold = await db.households.get(householdId);
+    if (currentHousehold) {
+        const currentRegExists = await db.registrations.where({ cycle_id: currentCycleId, 'child_id': `c_${householdId}_1`}).first();
+        if (currentRegExists) {
+            return {
+                isCurrentYear: true,
+                data: await fetchFullHouseholdData(householdId, currentCycleId)
+            };
+        }
     }
     
     // 2. If no current registration, check for a registration in the PRIOR cycle to pre-fill from.
     const priorCycleId = String(parseInt(currentCycleId, 10) - 1);
-    const priorRegExists = await db.registrations.where({ cycle_id: priorCycleId }).and(r => r.child_id.startsWith(`c_${householdId}`)).first();
+    const priorRegExists = await db.registrations.where({ cycle_id: priorCycleId, 'child_id': `c_${householdId}_1`}).first();
     
     if (priorRegExists) {
-         // Found household from prior year. Fetch that data to pre-fill a NEW registration.
         const priorData = await fetchFullHouseholdData(householdId, priorCycleId);
         // Important: Remove the household_id to ensure it's treated as a new registration, not an update.
         if (priorData.household) {
             priorData.household.household_id = "";
         }
-        return priorData;
+         return {
+            isCurrentYear: false,
+            data: priorData
+        };
     }
 
     // 3. No registration found in current or prior year.
@@ -574,3 +585,5 @@ export async function deleteMinistry(ministryId: string): Promise<void> {
     // For this prototype, we will just delete the ministry.
     return db.ministries.delete(ministryId);
 }
+
+    
