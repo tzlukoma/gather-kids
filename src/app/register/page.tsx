@@ -55,8 +55,8 @@ const MOCK_HOUSEHOLD_DATA = {
         relationship: "Aunt"
     },
     children: [
-        { first_name: "Olivia", last_name: "Johnson", dob: "2020-05-10", grade: "Pre-K", allergies: "Tree nuts", medical_notes: "Carries an EpiPen.", ministrySelections: { "acolyte": false, "bible-bee": false, "dance": false, "media-production": false, "mentoring-boys": false, "mentoring-girls": false, "teen-fellowship": false, "choir-joy-bells": false, "choir-keita": false, "choir-teen": false, "youth-ushers": false, "teen_podcast": false, "teen_social_media": false, "teen_community_service": false }, interestSelections: { "childrens-musical": false, "confirmation": false, "orators": false, "nursery": false, "vbs": false, "college-tour": false } },
-        { first_name: "Noah", last_name: "Johnson", dob: "2015-09-15", grade: "4th Grade", allergies: "", medical_notes: "", ministrySelections: { "acolyte": true, "bible-bee": true, "dance": false, "media-production": false, "mentoring-boys": true, "mentoring-girls": false, "teen-fellowship": false, "choir-joy-bells": false, "choir-keita": true, "choir-teen": false, "youth-ushers": false, "teen_podcast": false, "teen_social_media": false, "teen_community_service": false }, interestSelections: { "childrens-musical": true, "confirmation": false, "orators": true, "nursery": false, "vbs": true, "college-tour": false } },
+        { first_name: "Olivia", last_name: "Johnson", dob: "2020-05-10", grade: "Pre-K", child_mobile: "555-555-4444", allergies: "Tree nuts", medical_notes: "Carries an EpiPen.", ministrySelections: { "acolyte": false, "bible-bee": false, "dance": false, "media-production": false, "mentoring-boys": false, "mentoring-girls": false, "teen-fellowship": false, "choir-joy-bells": false, "choir-keita": false, "choir-teen": false, "youth-ushers": false, "teen_podcast": false, "teen_social_media": false, "teen_community_service": false }, interestSelections: { "childrens-musical": false, "confirmation": false, "orators": false, "nursery": false, "vbs": false, "college-tour": false } },
+        { first_name: "Noah", last_name: "Johnson", dob: "2015-09-15", grade: "4th Grade", child_mobile: "555-555-5555", allergies: "", medical_notes: "", ministrySelections: { "acolyte": true, "bible-bee": true, "dance": false, "media-production": false, "mentoring-boys": true, "mentoring-girls": false, "teen-fellowship": false, "choir-joy-bells": false, "choir-keita": true, "choir-teen": false, "youth-ushers": false, "teen_podcast": false, "teen_social_media": false, "teen_community_service": false }, interestSelections: { "childrens-musical": true, "confirmation": false, "orators": true, "nursery": false, "vbs": true, "college-tour": false } },
     ],
     consents: {
         liability: true,
@@ -111,6 +111,7 @@ const childSchema = z.object({
     message: "Valid date of birth is required.",
   }),
   grade: z.string().min(1, "Grade is required."),
+  child_mobile: z.string().optional(),
   allergies: z.string().optional(),
   medical_notes: z.string().optional(),
   ministrySelections: ministrySelectionSchema,
@@ -241,7 +242,7 @@ function VerificationStepTwoForm({ onVerifySuccess, onGoBack }: { onVerifySucces
 }
 
 const defaultChildValues = {
-  first_name: "", last_name: "", dob: "", grade: "", allergies: "", medical_notes: "",
+  first_name: "", last_name: "", dob: "", grade: "", child_mobile: "", allergies: "", medical_notes: "",
   ministrySelections: { "acolyte": false, "bible-bee": false, "dance": false, "media-production": false, "mentoring-boys": false, "mentoring-girls": false, "teen-fellowship": false, "choir-joy-bells": false, "choir-keita": false, "choir-teen": false, "youth-ushers": false, "teen_podcast": false, "teen_social_media": false, "teen_community_service": false },
   interestSelections: { "childrens-musical": false, "confirmation": false, "orators": false, "nursery": false, "vbs": false, "college-tour": false },
   customData: { dance_returning_member: undefined }
@@ -599,6 +600,9 @@ export default function RegisterPage() {
                                             )} />
                                             <FormField control={form.control} name={`children.${index}.grade`} render={({ field }) => (
                                                 <FormItem><FormLabel>Grade (Fall 2024)</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                                            )} />
+                                            <FormField control={form.control} name={`children.${index}.child_mobile`} render={({ field }) => (
+                                                <FormItem><FormLabel>Child's Phone (Optional)</FormLabel><FormControl><Input type="tel" {...field} /></FormControl><FormMessage /></FormItem>
                                             )} />
                                         </div>
                                         <FormField control={form.control} name={`children.${index}.allergies`} render={({ field }) => (

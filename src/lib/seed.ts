@@ -112,6 +112,7 @@ const generateHouseholdsAndChildren = (): { households: Household[], children: C
                 last_name: family.lastName,
                 dob: formatISO(dob, { representation: 'date' }),
                 grade: getGradeFromAge(kid.age),
+                child_mobile: `555-555-22${childCounter < 10 ? '0' : ''}${childCounter}`,
                 is_active: true,
                 created_at: now,
                 updated_at: now,
