@@ -1,7 +1,7 @@
 
 
 "use client"
-
+import React from 'react';
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/lib/db";
 import { Badge } from "@/components/ui/badge";
@@ -435,4 +435,3 @@ export default function RostersPage() {
     </>
   );
 }
-
