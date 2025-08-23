@@ -172,10 +172,10 @@ export const seedDB = async () => {
         
         const ministryData: Omit<Ministry, 'ministry_id' | 'created_at' | 'updated_at'>[] = [
             { name: 'Sunday School', code: 'min_sunday_school', enrollment_type: 'enrolled', data_profile: 'SafetyAware', is_active: true },
-            { name: "Acolyte Ministry", code: "acolyte", enrollment_type: 'enrolled', details: "Thank you for registering for the Acolyte Ministry.\n\nYou will receive information from ministry leaders regarding next steps for your child's participation.", data_profile: 'Basic', is_active: true },
+            { name: "Acolyte Ministry", code: "acolyte", enrollment_type: 'enrolled', details: "Thank you for registering for the Acolyte Ministry.\n\nYou will receive information from ministry leaders regarding next steps for your child\'s participation.", data_profile: 'Basic', is_active: true },
             { name: "Bible Bee", code: "bible-bee", enrollment_type: 'enrolled', description: "Registration open until Oct. 8, 2023", open_at: `2023-01-01`, close_at: `2023-10-08`, details: "Bible Bee is a competitive program that encourages scripture memorization. Materials must be purchased separately.", data_profile: 'Basic', is_active: true },
-            { name: "Dance Ministry", code: "dance", enrollment_type: 'enrolled', details: "Thank you for registering for the Dance Ministry.\n\nYou will receive information from ministry leaders regarding next steps for your child's participation.", data_profile: 'Basic', is_active: true },
-            { name: "Media Production Ministry", code: "media-production", enrollment_type: 'enrolled', details: "Thank you for registering for the Media Ministry.\n\nYou will receive information from ministry leaders regarding next steps for your child's participation.", data_profile: 'Basic', is_active: true },
+            { name: "Dance Ministry", code: "dance", enrollment_type: 'enrolled', details: "Thank you for registering for the Dance Ministry.\n\nYou will receive information from ministry leaders regarding next steps for your child\'s participation.", data_profile: 'Basic', is_active: true },
+            { name: "Media Production Ministry", code: "media-production", enrollment_type: 'enrolled', details: "Thank you for registering for the Media Ministry.\n\nYou will receive information from ministry leaders regarding next steps for your child\'s participation.", data_profile: 'Basic', is_active: true },
             { name: "Mentoring Ministry-Boys (Khalfani)", code: "mentoring-boys", enrollment_type: 'enrolled', details: "The Khalfani ministry provides mentorship for young boys through various activities and discussions.", data_profile: 'Basic', is_active: true },
             { name: "Mentoring Ministry-Girls (Nailah)", code: "mentoring-girls", enrollment_type: 'enrolled', details: "The Nailah ministry provides mentorship for young girls, focusing on empowerment and personal growth.", data_profile: 'Basic', is_active: true },
             { name: "New Generation Teen Fellowship", code: "teen-fellowship", enrollment_type: 'enrolled', details: "Thank you for registering for New Generation Teen Fellowship.\n\nOn 3rd Sundays, during the 10:30 AM service,  New Generation Teen Fellowship will host Teen Church in the Family Life Enrichment Center.  Teens may sign themselves in and out of the service.\n\nYou will receive more information about ministry activities from minstry leaders.", data_profile: 'Basic', custom_questions: [{id: "teen_podcast", text: "Podcast & YouTube Channel Projects", type: "checkbox"}, {id: "teen_social_media", text: "Social Media Team", type: "checkbox"}, {id: "teen_community_service", text: "Leading Community Service Projects", type: "checkbox"}], is_active: true },
@@ -183,7 +183,7 @@ export const seedDB = async () => {
             { name: "Youth Choirs- Joy Bells (Ages 4-8)", code: "choir-joy-bells", enrollment_type: 'enrolled', min_age: 4, max_age: 8, details: "Joy Bells is our introductory choir for the youngest voices. Practices are held after the 11 AM service.", data_profile: 'Basic', is_active: true },
             { name: "Youth Choirs- Keita Praise Choir (Ages 9-12)", code: "choir-keita", enrollment_type: 'enrolled', min_age: 9, max_age: 12, details: "Keita Praise Choir builds on foundational skills and performs once a month. Practices are on Wednesdays.", data_profile: 'Basic', is_active: true },
             { name: "Youth Choirs- New Generation Teen Choir (Ages 13-18)", code: "choir-teen", enrollment_type: 'enrolled', min_age: 13, max_age: 18, details: "The Teen Choir performs contemporary gospel music and leads worship during Youth Sundays.", data_profile: 'Basic', is_active: true },
-            { name: "Youth Ushers", code: "youth-ushers", enrollment_type: 'enrolled', details: "Thank you for registering for the Youth Ushers Ministry.\n\nYou will receive information from ministry leaders regarding next steps for your child's participation.", data_profile: 'Basic', is_active: true },
+            { name: "Youth Ushers", code: "youth-ushers", enrollment_type: 'enrolled', details: "Thank you for registering for the Youth Ushers Ministry.\n\nYou will receive information from ministry leaders regarding next steps for your child\'s participation.", data_profile: 'Basic', is_active: true },
             { name: "Children's Musical", code: "childrens-musical", enrollment_type: 'expressed_interest', data_profile: 'Basic', communicate_later: true, is_active: true },
             { name: "Confirmation", code: "confirmation", enrollment_type: 'expressed_interest', data_profile: 'Basic', communicate_later: true, is_active: true },
             { name: "International Travel", code: "international-travel", enrollment_type: 'expressed_interest', data_profile: 'Basic', is_active: true },
@@ -222,6 +222,9 @@ export const seedDB = async () => {
         
         // --- CURRENT DATA (2025 CYCLE) ---
         const householdsToRegisterCurrent = households.filter(h => h.name !== 'Johnson Household');
+        const activeChildrenForCurrentCycle = children.filter(c => c.is_active && householdsToRegisterCurrent.some(h => h.household_id === c.household_id));
+        let oratorsCount = 0;
+
 
         for (const household of householdsToRegisterCurrent) {
             const childrenInHousehold = children.filter(c => c.household_id === household.household_id && c.is_active);
@@ -258,6 +261,16 @@ export const seedDB = async () => {
                 if (child.last_name === 'Wilson' && child.first_name === 'Leo') {
                      enrollments.push({ enrollment_id: uuidv4(), child_id: child.child_id, cycle_id: CYCLE_IDS.current, ministry_id: MINISTRY_IDS['choir-joy-bells'], status: 'enrolled' });
                 }
+            }
+        }
+        
+        // Ensure at least 7 kids are in Orators
+        for (const child of activeChildrenForCurrentCycle) {
+            if (oratorsCount < 7) {
+                enrollments.push({ enrollment_id: uuidv4(), child_id: child.child_id, cycle_id: CYCLE_IDS.current, ministry_id: MINISTRY_IDS['orators'], status: 'expressed_interest' });
+                oratorsCount++;
+            } else {
+                break;
             }
         }
         
@@ -304,3 +317,5 @@ export const resetDB = async () => {
     await db.open();
     console.log("Database reset complete.");
 };
+
+    
