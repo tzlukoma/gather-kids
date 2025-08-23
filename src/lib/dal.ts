@@ -6,6 +6,7 @@
 
 
 
+
 import { db } from './db';
 import type { Attendance, Child, Guardian, Household, Incident, IncidentSeverity, Ministry, MinistryEnrollment, Registration, User, EmergencyContact } from './types';
 import { differenceInYears, isAfter, isBefore, parseISO } from 'date-fns';
@@ -259,22 +260,7 @@ export async function logIncident(data: {child_id: string, child_name: string, d
     return db.incidents.add(incident);
 }
 
-// Find existing household and registration data by email
-export async function findHouseholdByEmail(email: string, cycleId: string) {
-    const guardian = await db.guardians.where('email').equalsIgnoreCase(email).first();
-    if (!guardian) return null;
-
-    const householdId = guardian.household_id;
-    const existingReg = await db.registrations.where({cycle_id: cycleId}).and(r => r.child_id.startsWith(`c_${householdId}`)).first();
-    
-    if (!existingReg) {
-         // Found household from prior year, but no current registration
-         // In a real app, you would fetch last year's data to pre-fill. 
-         // For this prototype, we'll treat it as a new registration.
-        return null;
-    }
-    
-    // Found existing registration for this cycle. Fetch all data to pre-fill the form.
+const fetchFullHouseholdData = async (householdId: string, cycleId: string) => {
     const household = await db.households.get(householdId);
     const guardians = await db.guardians.where({ household_id: householdId }).toArray();
     const emergencyContact = await db.emergency_contacts.where({ household_id: householdId }).first();
@@ -289,6 +275,7 @@ export async function findHouseholdByEmail(email: string, cycleId: string) {
         let customData: any = {};
         
         childEnrollments.forEach(enrollment => {
+            const ministry = db.ministries.get(enrollment.ministry_id); // This is inefficient but fine for prototype
             if (enrollment.status === 'enrolled') {
                 ministrySelections[enrollment.ministry_id] = true;
                 if (enrollment.custom_fields) {
@@ -309,6 +296,40 @@ export async function findHouseholdByEmail(email: string, cycleId: string) {
         children: childrenWithSelections,
         consents: { liability: true, photoRelease: true } // Assume consents were given
     };
+}
+
+
+// Find existing household and registration data by email
+export async function findHouseholdByEmail(email: string, currentCycleId: string) {
+    const guardian = await db.guardians.where('email').equalsIgnoreCase(email).first();
+    if (!guardian) return null;
+
+    const householdId = guardian.household_id;
+    
+    // 1. Check for an existing registration in the CURRENT cycle.
+    const currentRegExists = await db.registrations.where({ cycle_id: currentCycleId }).and(r => r.child_id.startsWith(`c_${householdId}`)).first();
+    
+    if (currentRegExists) {
+        // Found existing registration for this cycle. Fetch all data to pre-fill the form.
+        return fetchFullHouseholdData(householdId, currentCycleId);
+    }
+    
+    // 2. If no current registration, check for a registration in the PRIOR cycle to pre-fill from.
+    const priorCycleId = String(parseInt(currentCycleId, 10) - 1);
+    const priorRegExists = await db.registrations.where({ cycle_id: priorCycleId }).and(r => r.child_id.startsWith(`c_${householdId}`)).first();
+    
+    if (priorRegExists) {
+         // Found household from prior year. Fetch that data to pre-fill a NEW registration.
+        const priorData = await fetchFullHouseholdData(householdId, priorCycleId);
+        // Important: Remove the household_id to ensure it's treated as a new registration, not an update.
+        if (priorData.household) {
+            priorData.household.household_id = "";
+        }
+        return priorData;
+    }
+
+    // 3. No registration found in current or prior year.
+    return null;
 }
 
 
@@ -452,7 +473,7 @@ export async function registerHousehold(data: any, cycle_id: string) {
                             cycle_id: cycle_id,
                             ministry_id: ministry.ministry_id,
                             status: ministry.enrollment_type,
-                            custom_fields: custom_fields,
+                            custom_fields: Object.keys(custom_fields).length > 0 ? custom_fields : undefined,
                         };
                         await db.ministry_enrollments.add(enrollment);
                     }
