@@ -75,6 +75,7 @@ const getEventName = (eventId: string | null) => {
 
 interface EnrichedChild extends Child {
     checkedInEvent: string | null;
+    checkedOutAt: string | null;
     attendanceId: string | null;
     guardians: Guardian[];
 }
@@ -108,7 +109,8 @@ export function CheckInView({ initialChildren, selectedEvent }: CheckInViewProps
             const attendance = attendanceMap.get(c.child_id);
             return {
                 ...c,
-                checkedInEvent: attendance?.event_id || null,
+                checkedInEvent: attendance && !attendance.check_out_at ? attendance.event_id : null,
+                checkedOutAt: attendance?.check_out_at || null,
                 attendanceId: attendance?.attendance_id || null,
                 guardians: guardianMap.get(c.household_id) || [],
             }
@@ -140,7 +142,9 @@ export function CheckInView({ initialChildren, selectedEvent }: CheckInViewProps
     try {
         await recordCheckOut(attendanceId, {method: 'PIN', value: '----'}, 'user_admin'); // Pin is verified in dialog
         const child = children.find(c => c.child_id === childId);
-        const eventName = getEventName(child?.checkedInEvent);
+        // Find the original event name from the attendance record before it gets cleared
+        const todaysRecord = todaysAttendance?.find(a => a.attendance_id === attendanceId);
+        const eventName = getEventName(todaysRecord?.event_id || null);
         toast({
             title: 'Checked Out',
             description: `${child?.first_name} ${child?.last_name} has been checked out from ${eventName}.`,

@@ -133,12 +133,18 @@ export function recordCheckIn(childId: string, eventId: string, timeslotId?: str
     return db.attendance.add(attendanceRecord);
 }
 
-export function recordCheckOut(attendanceId: string, verifier: { method: "name_last4" | "PIN" | "other", value?: string }, userId?: string): Promise<number> {
-    return db.attendance.update(attendanceId, {
+export async function recordCheckOut(attendanceId: string, verifier: { method: "name_last4" | "PIN" | "other", value?: string }, userId?: string): Promise<string> {
+    const attendanceRecord = await db.attendance.get(attendanceId);
+    if (!attendanceRecord) throw new Error("Attendance record not found");
+
+    const updatedRecord: Attendance = {
+        ...attendanceRecord,
         check_out_at: new Date().toISOString(),
         checked_out_by: userId,
         pickup_method: verifier.method,
-    });
+    };
+    // Using put to ensure live queries are triggered correctly.
+    return db.attendance.put(updatedRecord);
 }
 
 export function acknowledgeIncident(incidentId: string): Promise<number> {
