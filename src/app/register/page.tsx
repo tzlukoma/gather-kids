@@ -235,7 +235,7 @@ const defaultChildValues = {
 };
 
 const ministryPrograms = [
-    { id: "acolyte", label: "Acolyte Ministry", eligibility: () => true, details: "Acolytes serve during the 11 AM service and require special training. A schedule will be provided." },
+    { id: "acolyte", label: "Acolyte Ministry", eligibility: () => true, details: "Acolyte Ministry: Thank you for registering for the Acolyte Ministry. You will receive information from ministry leaders regarding next steps for your child's participation." },
     { id: "bible-bee", label: "Bible Bee", description: "Registration open until Oct. 8, 2023", eligibility: () => {
         const today = new Date();
         const bibleBeeStart = new Date(today.getFullYear(), 0, 1);
