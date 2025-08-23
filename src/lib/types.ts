@@ -1,3 +1,4 @@
+
 export interface Household {
     household_id: string; // PK
     name?: string;
