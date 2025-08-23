@@ -507,35 +507,37 @@ export default function RostersPage() {
                     Export CSV
                 </Button>
             </div>
-            <div className="flex items-center">
-                <Select value={selectedMinistryFilter} onValueChange={setSelectedMinistryFilter}>
-                    <SelectTrigger className="w-full sm:w-[250px]">
-                        <SelectValue placeholder="Filter by Ministry" />
-                    </SelectTrigger>
-                    <SelectContent>
-                            {(user?.role === 'admin' || (user?.role === 'leader' && user.assignedMinistryIds && user.assignedMinistryIds.length > 1)) && (
-                            <SelectItem value="all">All Ministries</SelectItem>
-                        )}
-                        {ministryFilterOptions.map(m => (
-                            <SelectItem key={m.ministry_id} value={m.ministry_id}>{m.name}</SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
-            </div>
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-                 {user?.role === 'admin' && (
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                    {user?.role === 'admin' && (
+                        <div className="flex items-center space-x-2">
+                            <Checkbox id="group-by-grade" checked={groupByGrade} onCheckedChange={(checked) => setGroupByGrade(!!checked)} />
+                            <Label htmlFor="group-by-grade">Group by Grade</Label>
+                        </div>
+                    )}
                     <div className="flex items-center space-x-2">
-                        <Checkbox id="group-by-grade" checked={groupByGrade} onCheckedChange={(checked) => setGroupByGrade(!!checked)} />
-                        <Label htmlFor="group-by-grade">Group by Grade</Label>
+                        <Checkbox id="show-checked-in" checked={showCheckedIn} onCheckedChange={(checked) => setShowCheckedIn(!!checked)} />
+                        <Label htmlFor="show-checked-in">Checked-In</Label>
                     </div>
-                 )}
-                <div className="flex items-center space-x-2">
-                    <Checkbox id="show-checked-in" checked={showCheckedIn} onCheckedChange={(checked) => setShowCheckedIn(!!checked)} />
-                    <Label htmlFor="show-checked-in">Checked-In</Label>
+                    <div className="flex items-center space-x-2">
+                        <Checkbox id="show-checked-out" checked={showCheckedOut} onCheckedChange={(checked) => setShowCheckedOut(!!checked)} />
+                        <Label htmlFor="show-checked-out">Checked-Out</Label>
+                    </div>
                 </div>
-                 <div className="flex items-center space-x-2">
-                    <Checkbox id="show-checked-out" checked={showCheckedOut} onCheckedChange={(checked) => setShowCheckedOut(!!checked)} />
-                    <Label htmlFor="show-checked-out">Checked-Out</Label>
+                <div className="flex items-center">
+                    <Select value={selectedMinistryFilter} onValueChange={setSelectedMinistryFilter}>
+                        <SelectTrigger className="w-full sm:w-[250px]">
+                            <SelectValue placeholder="Filter by Ministry" />
+                        </SelectTrigger>
+                        <SelectContent>
+                                {(user?.role === 'admin' || (user?.role === 'leader' && user.assignedMinistryIds && user.assignedMinistryIds.length > 1)) && (
+                                <SelectItem value="all">All Ministries</SelectItem>
+                            )}
+                            {ministryFilterOptions.map(m => (
+                                <SelectItem key={m.ministry_id} value={m.ministry_id}>{m.name}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
                 </div>
             </div>
         </CardHeader>
