@@ -105,6 +105,7 @@ const registrationSchema = z.object({
       message: "Photo release consent is required.",
     }),
     choir_communications_consent: z.enum(["yes", "no"]).optional(),
+    custom_consents: z.record(z.boolean()).optional(),
   }),
 });
 
@@ -314,7 +315,7 @@ export default function RegisterPage() {
       guardians: [{ first_name: "", last_name: "", mobile_phone: "", email: "", relationship: "Mother", is_primary: true }],
       emergencyContact: { first_name: "", last_name: "", mobile_phone: "", relationship: "" },
       children: [],
-      consents: { liability: false, photoRelease: false, choir_communications_consent: undefined },
+      consents: { liability: false, photoRelease: false, choir_communications_consent: undefined, custom_consents: {} },
     },
   })
 
@@ -394,7 +395,7 @@ export default function RegisterPage() {
             guardians: [{ first_name: "", last_name: "", mobile_phone: "", email: verificationEmail, relationship: "Mother", is_primary: true }],
             emergencyContact: { first_name: "", last_name: "", mobile_phone: "", relationship: "" },
             children: [defaultChildValues],
-            consents: { liability: false, photoRelease: false },
+            consents: { liability: false, photoRelease: false, custom_consents: {} },
         });
         setOpenAccordionItems(['item-0']);
         setVerificationStep('form_visible');
@@ -439,11 +440,19 @@ export default function RegisterPage() {
 
   const primaryGuardianLastName = form.watch("guardians.0.last_name");
 
-  // Watch interest selections to show conditional alerts
+  // Watch interest selections to show conditional alerts & consents
     const watchedChildren = useWatch({
         control: form.control,
         name: 'children',
     });
+
+    const ministriesWithOptionalConsent = useMemo(() => {
+        return interestPrograms
+            .filter(p => p.optional_consent_text)
+            .filter(p => 
+                watchedChildren.some(child => child.interestSelections?.[p.code])
+            );
+    }, [interestPrograms, watchedChildren]);
 
 
   return (
@@ -850,6 +859,26 @@ export default function RegisterPage() {
                                 </div>
                             </FormItem>
                         )} />
+
+                        {ministriesWithOptionalConsent.map(ministry => (
+                             <FormField 
+                                key={ministry.code}
+                                control={form.control} 
+                                name={`consents.custom_consents.${ministry.code}`}
+                                render={({ field }) => (
+                                <FormItem className="flex flex-row items-start space-x-3 space-y-0 p-4 border rounded-md">
+                                    <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                                    <div className="space-y-1 leading-none">
+                                        <FormLabel>{ministry.name} Consent</FormLabel>
+                                        <FormDescription className="whitespace-pre-wrap leading-relaxed">
+                                            {ministry.optional_consent_text}
+                                        </FormDescription>
+                                        <FormMessage />
+                                    </div>
+                                </FormItem>
+                            )} />
+                        ))}
+
                     </CardContent>
                 </Card>
 

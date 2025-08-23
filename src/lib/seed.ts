@@ -155,7 +155,7 @@ export const seedDB = async () => {
             { name: "Youth Ushers", code: "youth-ushers", enrollment_type: 'enrolled', details: "Thank you for registering for the Youth Ushers Ministry.\n\nYou will receive information from ministry leaders regarding next steps for your child's participation.", data_profile: 'Basic' },
             { name: "Children's Musical", code: "childrens-musical", enrollment_type: 'interest_only', data_profile: 'Basic', communicate_later: true },
             { name: "Confirmation", code: "confirmation", enrollment_type: 'interest_only', data_profile: 'Basic', communicate_later: true },
-            { name: "New Jersey Orators", code: "orators", enrollment_type: 'interest_only', data_profile: 'Basic' },
+            { name: "New Jersey Orators", code: "orators", enrollment_type: 'interest_only', data_profile: 'Basic', optional_consent_text: "I agree to share my contact information with New Jersey Orators. New Jersey Orators is not a part of Cathedral International, but Cathedral hosts the Perth Amboy Chapter. Registration can take place through their website at oratorsinc.org." },
             { name: "Nursery", code: "nursery", enrollment_type: 'interest_only', data_profile: 'Basic', communicate_later: true },
             { name: "Vacation Bible School", code: "vbs", enrollment_type: 'interest_only', data_profile: 'Basic', communicate_later: true },
             { name: "College Tour", code: "college-tour", enrollment_type: 'interest_only', data_profile: 'Basic' },
