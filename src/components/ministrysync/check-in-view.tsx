@@ -93,7 +93,7 @@ export function CheckInView({ initialChildren, selectedEvent, selectedGrades, st
   const [childToCheckout, setChildToCheckout] = useState<EnrichedChild | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const { toast } = useToast();
-  const [selectedIncident, setSelectedIncident] = useState<Incident | null>(null);
+  const [selectedIncidents, setSelectedIncidents] = useState<Incident[] | null>(null);
 
   const today = getTodayIsoDate();
   const todaysAttendance = useLiveQuery(() => db.attendance.where({date: today}).toArray(), [today]);
@@ -349,10 +349,10 @@ export function CheckInView({ initialChildren, selectedEvent, selectedGrades, st
                         variant="destructive"
                         size="icon"
                         className="h-full aspect-square"
-                        onClick={() => setSelectedIncident(child.incidents[0])}
+                        onClick={() => setSelectedIncidents(child.incidents)}
                     >
                         <ShieldAlert className="h-5 w-5" />
-                        <span className="sr-only">View Incident</span>
+                        <span className="sr-only">View Incidents</span>
                     </Button>
                   )}
                   {isCheckedInHere ? (
@@ -388,8 +388,8 @@ export function CheckInView({ initialChildren, selectedEvent, selectedGrades, st
         onCheckout={handleCheckout}
       />
       <IncidentDetailsDialog
-        incident={selectedIncident}
-        onClose={() => setSelectedIncident(null)}
+        incidents={selectedIncidents}
+        onClose={() => setSelectedIncidents(null)}
        />
     </>
   );
