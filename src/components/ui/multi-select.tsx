@@ -57,6 +57,7 @@ function MultiSelect({
           role="combobox"
           aria-expanded={open}
           className={cn("w-full justify-between h-auto min-h-10", className)}
+          onClick={() => setOpen(!open)}
         >
           <div className="flex gap-1 flex-wrap">
             {selected.length > 0 ? (
@@ -67,6 +68,7 @@ function MultiSelect({
                             variant="secondary"
                             key={item}
                             className="mr-1"
+                            onClick={() => handleUnselect(item)}
                         >
                             {option ? option.label : item}
                             <button
@@ -81,11 +83,7 @@ function MultiSelect({
                                     e.preventDefault();
                                     e.stopPropagation();
                                 }}
-                                onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    handleUnselect(item)
-                                }}
+                                onClick={() => handleUnselect(item)}
                             >
                                 <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
                             </button>
@@ -102,33 +100,31 @@ function MultiSelect({
       <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
         <Command className={className}>
           <CommandInput placeholder="Search ..." />
-          <CommandList>
-            <CommandEmpty>No item found.</CommandEmpty>
-            <CommandGroup>
-              {options.map((option) => (
-                <CommandItem
-                  key={option.value}
-                  onSelect={() => {
-                    onChange(
-                      selected.includes(option.value)
-                        ? selected.filter((item) => item !== option.value)
-                        : [...selected, option.value]
-                    );
-                  }}
-                >
-                  <Check
-                    className={cn(
-                      "mr-2 h-4 w-4",
-                      selected.includes(option.value)
-                        ? "opacity-100"
-                        : "opacity-0"
-                    )}
-                  />
-                  {option.label}
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          </CommandList>
+          <CommandEmpty>No item found.</CommandEmpty>
+          <CommandGroup className="max-h-64 overflow-auto">
+            {options.map((option) => (
+              <CommandItem
+                key={option.value}
+                onSelect={() => {
+                  onChange(
+                    selected.includes(option.value)
+                      ? selected.filter((item) => item !== option.value)
+                      : [...selected, option.value]
+                  );
+                }}
+              >
+                <Check
+                  className={cn(
+                    "mr-2 h-4 w-4",
+                    selected.includes(option.value)
+                      ? "opacity-100"
+                      : "opacity-0"
+                  )}
+                />
+                {option.label}
+              </CommandItem>
+            ))}
+          </CommandGroup>
         </Command>
       </PopoverContent>
     </Popover>
