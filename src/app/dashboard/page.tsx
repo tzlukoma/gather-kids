@@ -75,8 +75,11 @@ export default function DashboardPage() {
                             <Users className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">{checkedInCount}</div>
-                            <p className="text-xs text-muted-foreground">currently on site</p>
+                            <div className="text-2xl font-bold">
+                                {checkedInCount}
+                                <span className="text-base font-medium text-muted-foreground"> of {registrationStats.childCount}</span>
+                            </div>
+                            <p className="text-xs text-muted-foreground">registered children currently on site</p>
                         </CardContent>
                     </Card>
                 </Link>
