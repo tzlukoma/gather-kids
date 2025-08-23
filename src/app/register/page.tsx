@@ -242,14 +242,14 @@ const defaultChildValues = {
 };
 
 const ministryPrograms = [
-    { id: "acolyte", label: "Acolyte Ministry", eligibility: () => true, details: "You will receive information from ministry leaders regarding next steps for your child's participation." },
+    { id: "acolyte", label: "Acolyte Ministry", eligibility: () => true, details: "Thank you for registering for the Acolyte Ministry.\n\nYou will receive information from ministry leaders regarding next steps for your child's participation." },
     { id: "bible-bee", label: "Bible Bee", description: "Registration open until Oct. 8, 2023", eligibility: () => {
         const today = new Date();
         const bibleBeeStart = new Date(today.getFullYear(), 0, 1);
         const bibleBeeEnd = new Date(today.getFullYear(), 9, 8);
         return isWithinInterval(today, { start: bibleBeeStart, end: bibleBeeEnd });
     }, details: "Bible Bee is a competitive program that encourages scripture memorization. Materials must be purchased separately." },
-    { id: "dance", label: "Dance Ministry", eligibility: () => true, details: "You will receive information from ministry leaders regarding next steps for your child's participation." },
+    { id: "dance", label: "Dance Ministry", eligibility: () => true, details: "Thank you for registering for the Dance Ministry.\n\nYou will receive information from ministry leaders regarding next steps for your child's participation." },
     { id: "media-production", label: "Media Production Ministry", eligibility: () => true, details: "Thank you for registering for the Media Ministry. You will receive information from ministry leaders regarding next steps for your child's participation." },
     { id: "mentoring-boys", label: "Mentoring Ministry-Boys (Khalfani)", eligibility: () => true, details: "The Khalfani ministry provides mentorship for young boys through various activities and discussions." },
     { id: "mentoring-girls", label: "Mentoring Ministry-Girls (Nailah)", eligibility: () => true, details: "The Nailah ministry provides mentorship for young girls, focusing on empowerment and personal growth." },
@@ -316,7 +316,7 @@ const ProgramSection = ({ control, childrenData, program }: { control: any, chil
             {isAnyChildSelected && program.details && (
                  <Alert className="mt-4">
                     <Info className="h-4 w-4" />
-                    <AlertDescription>
+                    <AlertDescription className="whitespace-pre-wrap">
                        {program.details}
                     </AlertDescription>
                 </Alert>
@@ -616,11 +616,11 @@ export default function RegisterPage() {
                         <CardContent className="space-y-6">
                              <div className="p-4 border rounded-md bg-muted/50">
                                 <h4 className="font-semibold">Sunday School / Children's Church</h4>
-                                <div className="text-sm text-muted-foreground mb-2 space-y-2">
-                                  <p>Thank you for registering for Sunday School and Children's Church.</p>
-                                  <p>Sunday School takes place in the Family Life Enrichment Center on 1st, 4th, and 5th Sundays during the 9:30AM Service. Sunday School serves ages 4-18.</p>
+                                <div className="text-sm text-muted-foreground mb-2 space-y-2 whitespace-pre-wrap">
+                                  <p>Thank you for registering for Sunday School and Children's Church</p>
+                                  <p>Sunday School takes place in the Family Life Enrichment Center on 1st, 4th, and 5th Sundays during the 9:30AM Service.  Sunday School serves ages 4-18. </p>
                                   <p>Children's Church, for ages 4-12, will take place on 3rd Sundays in the same location duirng the 9:30AM service.</p>
-                                  <p>Children must be signed in by an adult or high school-aged sibling and can be picked up by a parent/guardian, teenage sibling or the adult who signed them in. High Schoolers may sign themselves in and out of Sunday School.</p>
+                                  <p>Children must be signed in by an adult or high school-aged sibling and can be picked up by a parent/guardian, teenage sibling or the adult who signed them in. High Schoolers may sign themselves in and out of Sunday School.  </p>
                                   <p>Teens should attend Teen Church which takes place at the Hilliard Community Complex on 3rd Sundays.</p>
                                 </div>
                                 <div className="flex flex-col sm:flex-row sm:flex-wrap gap-x-6 gap-y-2 mt-2">

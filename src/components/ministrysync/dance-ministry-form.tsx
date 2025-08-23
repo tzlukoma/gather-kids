@@ -9,7 +9,6 @@ import {
   FormMessage,
 } from "@/components/ui/form"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { Alert, AlertDescription } from "../ui/alert"
 
 export function DanceMinistryForm({ control }: { control: any }) {
     return (
@@ -44,12 +43,6 @@ export function DanceMinistryForm({ control }: { control: any }) {
                 </FormItem>
                 )}
             />
-            <Alert>
-                <AlertDescription>
-                    <p>Thank you for registering for the Dance Ministry.</p>
-                    <p>You will receive information from ministry leaders regarding next steps for your child's participation.</p>
-                </AlertDescription>
-            </Alert>
         </div>
     )
 }
