@@ -1,3 +1,4 @@
+
 "use client"
 
 import { DashboardCharts } from "@/components/ministrysync/dashboard-charts";
@@ -18,8 +19,8 @@ export default function DashboardPage() {
     , []);
 
     const checkedInCount = useLiveQuery(() => 
-        db.attendance.where({ date: today }).count()
-    , []);
+        db.attendance.where({ date: today }).filter(a => !a.check_out_at).count()
+    , [today]);
 
     const registrationCount = useLiveQuery(() =>
         db.registrations.where({cycle_id: '2025'}).count()
