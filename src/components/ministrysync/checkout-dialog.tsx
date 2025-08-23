@@ -14,12 +14,10 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
-import type { Child, Guardian } from "@/lib/types"
+import type { Child, Guardian, Attendance } from "@/lib/types"
 
 interface EnrichedChild extends Child {
-    checkedInEvent: string | null;
-    checkedOutAt: string | null;
-    attendanceId: string | null;
+    activeAttendance: Attendance | null;
     guardians: Guardian[];
 }
 
@@ -51,8 +49,8 @@ export function CheckoutDialog({ child, onClose, onCheckout }: CheckoutDialogPro
     const householdPin = '1234'; // This would be fetched with household data
 
     if (guardianPhones.includes(pin) || pin === householdPin) {
-      if (child.attendanceId) {
-        onCheckout(child.child_id, child.attendanceId)
+      if (child.activeAttendance?.attendance_id) {
+        onCheckout(child.child_id, child.activeAttendance.attendance_id)
       }
       onClose()
     } else {
@@ -71,7 +69,7 @@ export function CheckoutDialog({ child, onClose, onCheckout }: CheckoutDialogPro
         <DialogHeader>
           <DialogTitle className="font-headline">Guardian Verification for {child?.first_name}</DialogTitle>
           <DialogDescription>
-            To check out {child?.first_name} from {getEventName(child?.checkedInEvent)}, please enter the last 4 digits of an authorized guardian's phone number or the 4-digit household PIN.
+            To check out {child?.first_name} from {getEventName(child?.activeAttendance?.event_id || null)}, please enter the last 4 digits of an authorized guardian's phone number or the 4-digit household PIN.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
@@ -98,3 +96,5 @@ export function CheckoutDialog({ child, onClose, onCheckout }: CheckoutDialogPro
     </Dialog>
   )
 }
+
+    
