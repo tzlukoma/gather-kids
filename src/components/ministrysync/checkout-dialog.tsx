@@ -1,7 +1,7 @@
 
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import {
   Dialog,
   DialogContent,
@@ -41,6 +41,11 @@ export function CheckoutDialog({ child, onClose, onCheckout }: CheckoutDialogPro
   const [mode, setMode] = useState<"pin" | "override">("pin");
   const { toast } = useToast()
 
+  const canSelfCheckout = useMemo(() => {
+    if (!child?.age) return false;
+    return child.age >= 13;
+  }, [child]);
+
   const handleClose = () => {
     setPin("");
     setOverrideName("");
@@ -58,6 +63,10 @@ export function CheckoutDialog({ child, onClose, onCheckout }: CheckoutDialogPro
     if (emergencyContactPhone) {
         validPins.push(emergencyContactPhone);
     }
+    if (canSelfCheckout && child.child_mobile) {
+        validPins.push(child.child_mobile.slice(-4));
+    }
+
 
     if (validPins.includes(pin)) {
       if (child.activeAttendance?.attendance_id) {
@@ -97,7 +106,7 @@ export function CheckoutDialog({ child, onClose, onCheckout }: CheckoutDialogPro
           <DialogTitle className="font-headline">Checkout: {child?.first_name} {child?.last_name}</DialogTitle>
           <DialogDescription>
             {mode === 'pin' ?
-                `To check out ${child?.first_name} from ${getEventName(child?.activeAttendance?.event_id || null)}, please enter the last 4 digits of an authorized guardian's phone number.` :
+                `To check out ${child?.first_name} from ${getEventName(child?.activeAttendance?.event_id || null)}, please enter the last 4 digits of an authorized phone number.` :
                 `Record the name of the person picking up ${child?.first_name}. This action is logged.`
             }
           </DialogDescription>
