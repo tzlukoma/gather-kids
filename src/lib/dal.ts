@@ -3,6 +3,7 @@
 
 
 
+
 import { db } from './db';
 import type { Attendance, Child, Guardian, Household, Incident, IncidentSeverity, Ministry, MinistryEnrollment, Registration, User } from './types';
 import { differenceInYears, isAfter, isBefore, parseISO } from 'date-fns';
@@ -158,24 +159,30 @@ export async function getHouseholdProfile(householdId: string): Promise<Househol
     const emergencyContact = await db.emergency_contacts.where({ household_id: householdId }).first() ?? null;
     const children = await db.children.where({ household_id: householdId }).toArray();
 
-    const childrenWithEnrollments = await Promise.all(children.map(async (child) => {
-        const enrollments = await db.ministry_enrollments.where({ child_id: child.child_id, cycle_id: '2025' }).toArray();
-        
-        const enrollmentsWithDetails = await Promise.all(enrollments.map(async (e) => {
-            const ministry = await db.ministries.get(e.ministry_id);
-            return {
-                ...e,
-                ministryName: ministry?.name,
-                customQuestions: ministry?.custom_questions
-            };
-        }));
+    const childIds = children.map(c => c.child_id);
+    const allEnrollments = await db.ministry_enrollments.where('child_id').anyOf(childIds).toArray();
+    const allMinistries = await db.ministries.toArray();
+    const ministryMap = new Map(allMinistries.map(m => [m.ministry_id, m]));
+
+    const childrenWithEnrollments = children.map(child => {
+        const childEnrollments = allEnrollments
+            .filter(e => e.child_id === child.child_id)
+            .map(e => {
+                const ministry = ministryMap.get(e.ministry_id);
+                return {
+                    ...e,
+                    ministryName: ministry?.name,
+                    customQuestions: ministry?.custom_questions
+                };
+            })
+            .filter(e => e.ministryName); // Filter out enrollments where ministry might have been deleted
 
         return {
             ...child,
             age: child.dob ? ageOn(new Date().toISOString(), child.dob) : null,
-            enrollments: enrollmentsWithDetails,
+            enrollments: childEnrollments,
         };
-    }));
+    });
 
     return {
         household,
@@ -335,7 +342,7 @@ export async function registerHousehold(data: any) {
                             cycle_id: "2025",
                             ministry_id: ministry.ministry_id,
                             status: ministry.enrollment_type,
-                            custom_fields: childData.customData?.[ministry.code] || {},
+                            custom_fields: childData.customData?.[ministry.code],
                         };
                         await db.ministry_enrollments.add(enrollment);
                     }
