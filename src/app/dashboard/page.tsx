@@ -2,7 +2,6 @@
 "use client"
 
 import Link from "next/link";
-import { DashboardCharts } from "@/components/ministrysync/dashboard-charts";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -63,7 +62,7 @@ export default function DashboardPage() {
                         </CardContent>
                     </Card>
                 </Link>
-                <Link href="/dashboard/rosters">
+                <Link href="/dashboard/registrations">
                     <Card className="hover:bg-muted/50 transition-colors">
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                             <CardTitle className="text-sm font-medium">Registrations</CardTitle>
@@ -76,8 +75,6 @@ export default function DashboardPage() {
                     </Card>
                 </Link>
             </div>
-
-            <DashboardCharts />
 
             <Card>
                 <CardHeader>
