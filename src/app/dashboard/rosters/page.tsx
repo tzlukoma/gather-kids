@@ -85,8 +85,12 @@ export default function RostersPage() {
   const allChildrenQuery = useLiveQuery(async () => {
     if (user?.role === 'leader') {
         if (!user.assignedMinistryIds || user.assignedMinistryIds.length === 0) return [];
-        const enrollments = await db.ministry_enrollments.where('ministry_id').anyOf(user.assignedMinistryIds).and(e => e.cycle_id === '2025').toArray();
+        const enrollments = await db.ministry_enrollments
+            .where('ministry_id').anyOf(user.assignedMinistryIds)
+            .and(e => e.cycle_id === '2025')
+            .toArray();
         const childIds = [...new Set(enrollments.map(e => e.child_id))];
+        if (childIds.length === 0) return [];
         return db.children.where('child_id').anyOf(childIds).toArray();
     }
     return db.children.toArray();

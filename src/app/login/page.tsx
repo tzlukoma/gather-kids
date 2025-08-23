@@ -16,8 +16,8 @@ import { useToast } from "@/hooks/use-toast";
 
 
 const DEMO_USERS = {
-    admin: { email: 'admin@example.com', password: 'password', is_active: true },
-    leader: { email: 'leader@example.com', password: 'password', is_active: true },
+    admin: { email: 'admin@example.com', password: 'password', is_active: true, name: 'Admin User', id: 'user_admin' },
+    leader: { email: 'leader@example.com', password: 'password', is_active: true, name: 'Sarah Lee', id: 'user_leader_1' },
     khalfaniLeader: { email: 'chris.e@example.com', password: 'password', is_active: true, name: 'Chris Evans', id: 'user_leader_11' },
     joybellsLeader: { email: 'megan.y@example.com', password: 'password', is_active: true, name: 'Megan Young', id: 'user_leader_12' },
     inactiveLeader: { email: 'tom.a@example.com', password: 'password', is_active: false, name: 'Tom Allen', id: 'user_leader_13' },
@@ -31,45 +31,33 @@ export default function LoginPage() {
     const [password, setPassword] = useState('');
 
     const handleLogin = () => {
-        if (email === DEMO_USERS.admin.email && password === DEMO_USERS.admin.password) {
+        const userToLogin = Object.values(DEMO_USERS).find(
+            u => u.email === email && u.password === password
+        );
+
+        if (userToLogin) {
             login({
-                id: 'user_admin',
-                name: 'Admin User',
-                role: 'admin',
-                email: DEMO_USERS.admin.email,
-                is_active: true,
+                id: userToLogin.id,
+                name: userToLogin.name,
+                role: userToLogin.id.includes('admin') ? 'admin' : 'leader',
+                email: userToLogin.email,
+                is_active: userToLogin.is_active,
             });
-             toast({ title: "Login Successful", description: "Welcome, Admin!" });
-            router.push('/dashboard');
-        } else if (email === DEMO_USERS.leader.email && password === DEMO_USERS.leader.password) {
-            login({
-                id: 'user_leader_1',
-                name: 'Sarah Lee',
-                role: 'leader',
-                email: DEMO_USERS.leader.email,
-                is_active: true,
-            });
-            toast({ title: "Login Successful", description: "Welcome, Leader!" });
-            router.push('/dashboard/check-in');
-        } else if (email === DEMO_USERS.khalfaniLeader.email && password === DEMO_USERS.khalfaniLeader.password) {
-            login({ id: DEMO_USERS.khalfaniLeader.id, name: DEMO_USERS.khalfaniLeader.name, role: 'leader', email: DEMO_USERS.khalfaniLeader.email, is_active: DEMO_USERS.khalfaniLeader.is_active });
-            toast({ title: "Login Successful", description: `Welcome, ${DEMO_USERS.khalfaniLeader.name}!` });
-            router.push('/dashboard/rosters');
-        } else if (email === DEMO_USERS.joybellsLeader.email && password === DEMO_USERS.joybellsLeader.password) {
-            login({ id: DEMO_USERS.joybellsLeader.id, name: DEMO_USERS.joybellsLeader.name, role: 'leader', email: DEMO_USERS.joybellsLeader.email, is_active: DEMO_USERS.joybellsLeader.is_active });
-            toast({ title: "Login Successful", description: `Welcome, ${DEMO_USERS.joybellsLeader.name}!` });
-            router.push('/dashboard/rosters');
-        } else if (email === DEMO_USERS.inactiveLeader.email && password === DEMO_USERS.inactiveLeader.password) {
-            login({ id: DEMO_USERS.inactiveLeader.id, name: DEMO_USERS.inactiveLeader.name, role: 'leader', email: DEMO_USERS.inactiveLeader.email, is_active: DEMO_USERS.inactiveLeader.is_active });
-            toast({ title: "Login Successful", description: `Welcome, ${DEMO_USERS.inactiveLeader.name}!` });
-            router.push('/dashboard/incidents');
-        }
-        else {
+            toast({ title: "Login Successful", description: `Welcome, ${userToLogin.name}!` });
+
+            if (userToLogin.id.includes('admin')) {
+                router.push('/dashboard');
+            } else if (!userToLogin.is_active) {
+                router.push('/dashboard/incidents');
+            } else {
+                router.push('/dashboard/check-in');
+            }
+        } else {
             toast({ title: "Invalid Credentials", description: "Please use one of the demo accounts.", variant: "destructive" });
         }
     };
     
-    const prefillDemoCredentials = (role: 'admin' | 'leader' | 'khalfaniLeader' | 'joybellsLeader' | 'inactiveLeader') => {
+    const prefillDemoCredentials = (role: keyof typeof DEMO_USERS) => {
         setEmail(DEMO_USERS[role].email);
         setPassword(DEMO_USERS[role].password);
     }
@@ -121,5 +109,3 @@ export default function LoginPage() {
         </div>
     );
 }
-
-    

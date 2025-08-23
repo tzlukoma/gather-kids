@@ -46,12 +46,16 @@ const adminMenuItems = [
   { href: "/dashboard/configuration", icon: <Settings />, label: "Configuration" },
 ];
 
-const leaderMenuItems = [
+const activeLeaderMenuItems = [
   { href: "/dashboard/check-in", icon: <CheckCheck />, label: "Check-In/Out" },
   { href: "/dashboard/rosters", icon: <Users />, label: "Rosters" },
-  { href: "/dashboard/incidents", icon: <ShieldAlert />, label: "Incidents" },
   { href: "/dashboard/registrations", icon: <ClipboardList />, label: "Registrations" },
+  { href: "/dashboard/incidents", icon: <ShieldAlert />, label: "Incidents" },
 ];
+
+const inactiveLeaderMenuItems = [
+    { href: "/dashboard/incidents", icon: <ShieldAlert />, label: "Incidents" },
+]
 
 
 function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
@@ -73,7 +77,17 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
     )
   }
 
-  const menuItems = user?.role === 'admin' ? adminMenuItems : leaderMenuItems;
+  const getMenuItems = () => {
+    if (user?.role === 'admin') {
+        return adminMenuItems;
+    }
+    if (user?.role === 'leader') {
+        return user.is_active ? activeLeaderMenuItems : inactiveLeaderMenuItems;
+    }
+    return [];
+  }
+
+  const menuItems = getMenuItems();
 
   const handleLogout = () => {
     logout();
@@ -159,5 +173,3 @@ export default function DashboardLayout({
     </AuthProvider>
   )
 }
-
-    
