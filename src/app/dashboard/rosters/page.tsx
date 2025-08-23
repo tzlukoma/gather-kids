@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useLiveQuery } from "dexie-react-hooks";
@@ -31,7 +32,9 @@ export default function RostersPage() {
   const childrenWithAttendance: ChildWithAttendance[] = useMemo(() => {
     if (!allChildren || !todaysAttendance) return [];
     
-    const attendanceMap = new Map(todaysAttendance.map(a => [a.child_id, a]));
+    // Only consider attendance records where the child has not been checked out yet.
+    const activeAttendance = todaysAttendance.filter(a => !a.check_out_at);
+    const attendanceMap = new Map(activeAttendance.map(a => [a.child_id, a]));
 
     return allChildren.map(child => ({
       ...child,
