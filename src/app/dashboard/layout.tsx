@@ -3,6 +3,7 @@
 
 import React from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import {
   SidebarProvider,
   Sidebar,
@@ -36,6 +37,20 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const pathname = usePathname();
+
+  const menuItems = [
+    { href: "/dashboard", icon: <LayoutDashboard />, label: "Dashboard" },
+    { href: "/dashboard/check-in", icon: <CheckCheck />, label: "Check-In/Out" },
+    { href: "/dashboard/rosters", icon: <Users />, label: "Rosters" },
+    { href: "/dashboard/incidents", icon: <ShieldAlert />, label: "Incidents" },
+    { href: "/dashboard/reports", icon: <FileText />, label: "Reports" },
+  ];
+
+  const registrationItems = [
+     { href: "/register", icon: <ClipboardEdit />, label: "New Registration" },
+  ];
+
   return (
     <SidebarProvider>
       <div className="flex flex-col min-h-screen">
@@ -65,55 +80,27 @@ export default function DashboardLayout({
                     </div>
                 </SidebarHeader>
                 <SidebarMenu>
-                    <SidebarMenuItem>
-                    <Link href="/dashboard" passHref>
-                        <SidebarMenuButton tooltip="Dashboard" isActive>
-                        <LayoutDashboard />
-                        <span>Dashboard</span>
-                        </SidebarMenuButton>
-                    </Link>
-                    </SidebarMenuItem>
-                    <SidebarMenuItem>
-                    <Link href="/dashboard/check-in" passHref>
-                        <SidebarMenuButton tooltip="Check-In/Out">
-                        <CheckCheck />
-                        <span>Check-In/Out</span>
-                        </SidebarMenuButton>
-                    </Link>
-                    </SidebarMenuItem>
-                    <SidebarMenuItem>
-                    <Link href="/dashboard/rosters" passHref>
-                        <SidebarMenuButton tooltip="Rosters">
-                        <Users />
-                        <span>Rosters</span>
-                        </SidebarMenuButton>
-                    </Link>
-                    </SidebarMenuItem>
-                    <SidebarMenuItem>
-                    <Link href="/dashboard/incidents" passHref>
-                        <SidebarMenuButton tooltip="Incidents">
-                        <ShieldAlert />
-                        <span>Incidents</span>
-                        </SidebarMenuButton>
-                    </Link>
-                    </SidebarMenuItem>
-                    <SidebarMenuItem>
-                    <Link href="/dashboard/reports" passHref>
-                        <SidebarMenuButton tooltip="Reports">
-                        <FileText />
-                        <span>Reports</span>
-                        </SidebarMenuButton>
-                    </Link>
-                    </SidebarMenuItem>
+                    {menuItems.map((item) => (
+                        <SidebarMenuItem key={item.href}>
+                            <Link href={item.href} passHref>
+                                <SidebarMenuButton tooltip={item.label} isActive={pathname === item.href}>
+                                {item.icon}
+                                <span>{item.label}</span>
+                                </SidebarMenuButton>
+                            </Link>
+                        </SidebarMenuItem>
+                    ))}
                     <Separator className="my-2" />
-                    <SidebarMenuItem>
-                    <Link href="/register" passHref>
-                        <SidebarMenuButton tooltip="New Registration">
-                        <ClipboardEdit />
-                        <span>New Registration</span>
-                        </SidebarMenuButton>
-                    </Link>
-                    </SidebarMenuItem>
+                    {registrationItems.map((item) => (
+                         <SidebarMenuItem key={item.href}>
+                            <Link href={item.href} passHref>
+                                <SidebarMenuButton tooltip={item.label} isActive={pathname === item.href}>
+                                {item.icon}
+                                <span>{item.label}</span>
+                                </SidebarMenuButton>
+                            </Link>
+                        </SidebarMenuItem>
+                    ))}
                 </SidebarMenu>
                 </SidebarContent>
                 <SidebarFooter>
