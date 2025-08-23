@@ -44,14 +44,9 @@ export default function LoginPage() {
                 is_active: userToLogin.is_active,
             });
             toast({ title: "Login Successful", description: `Welcome, ${userToLogin.name}!` });
+            
+            router.push('/dashboard');
 
-            if (userToLogin.id.includes('admin')) {
-                router.push('/dashboard');
-            } else if (!userToLogin.is_active) {
-                router.push('/dashboard/incidents');
-            } else {
-                router.push('/dashboard/check-in');
-            }
         } else {
             toast({ title: "Invalid Credentials", description: "Please use one of the demo accounts.", variant: "destructive" });
         }
