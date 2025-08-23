@@ -372,6 +372,7 @@ export default function RegisterPage() {
   }, [allMinistries]);
 
   const {choirPrograms, otherMinistryPrograms} = useMemo(() => {
+    if (!enrolledPrograms) return { choirPrograms: [], otherMinistryPrograms: [] };
     const choir = enrolledPrograms.filter(p => p.code.startsWith('choir-'));
     const other = enrolledPrograms.filter(p => !p.code.startsWith('choir-'));
     return { choirPrograms: choir, otherMinistryPrograms: other };
