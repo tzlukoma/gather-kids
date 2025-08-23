@@ -16,16 +16,31 @@ import { queryLeaders } from "@/lib/dal";
 import { Badge } from "@/components/ui/badge";
 import { ChevronRight } from "lucide-react";
 import type { User } from "@/lib/types";
+import { useAuth } from "@/contexts/auth-context";
+import { useEffect, useState } from "react";
 
 export default function LeadersPage() {
     const router = useRouter();
+    const { user, loading } = useAuth();
+    const [isAuthorized, setIsAuthorized] = useState(false);
+    
     const leaders = useLiveQuery(() => queryLeaders(), []);
+
+    useEffect(() => {
+        if (!loading && user) {
+            if (user.role !== 'admin') {
+                router.push('/dashboard'); 
+            } else {
+                setIsAuthorized(true);
+            }
+        }
+    }, [user, loading, router]);
 
     const handleRowClick = (leaderId: string) => {
         router.push(`/dashboard/leaders/${leaderId}`);
     };
 
-    if (leaders === undefined) {
+    if (loading || !isAuthorized || leaders === undefined) {
         return <div>Loading leaders...</div>;
     }
 

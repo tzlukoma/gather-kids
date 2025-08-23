@@ -10,8 +10,15 @@ import { format } from "date-fns";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/lib/db";
 import { getTodayIsoDate } from "@/lib/dal";
+import { useAuth } from "@/contexts/auth-context";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
 export default function DashboardPage() {
+    const router = useRouter();
+    const { user, loading } = useAuth();
+    const [isAuthorized, setIsAuthorized] = useState(false);
+    
     const today = getTodayIsoDate();
     
     const unacknowledgedIncidents = useLiveQuery(() => 
@@ -25,8 +32,21 @@ export default function DashboardPage() {
     const registrationCount = useLiveQuery(() =>
         db.registrations.where({cycle_id: '2025'}).count()
     , [])
+    
+    useEffect(() => {
+        if (!loading && user) {
+            if (user.role !== 'admin') {
+                // For this prototype, non-admins are just redirected.
+                // A more robust app might have a different dashboard for leaders.
+                router.push('/dashboard/rosters'); 
+            } else {
+                setIsAuthorized(true);
+            }
+        }
+    }, [user, loading, router]);
 
-    if (unacknowledgedIncidents === undefined || checkedInCount === undefined || registrationCount === undefined) {
+
+    if (loading || !isAuthorized || unacknowledgedIncidents === undefined || checkedInCount === undefined || registrationCount === undefined) {
         return <div>Loading dashboard data...</div>
     }
 

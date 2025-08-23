@@ -2,7 +2,7 @@
 "use client";
 
 import { useLiveQuery } from "dexie-react-hooks";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { getLeaderProfile, saveLeaderAssignments, updateLeaderStatus } from "@/lib/dal";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -17,6 +17,7 @@ import { useEffect, useState, useMemo } from "react";
 import type { LeaderAssignment, User as LeaderUser } from "@/lib/types";
 import { Switch } from "@/components/ui/switch";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { useAuth } from "@/contexts/auth-context";
 
 
 const InfoItem = ({ icon, label, value }: { icon: React.ReactNode, label: string, value: React.ReactNode }) => (
@@ -38,6 +39,10 @@ type AssignmentState = {
 
 export default function LeaderProfilePage() {
     const params = useParams();
+    const router = useRouter();
+    const { user, loading } = useAuth();
+    const [isAuthorized, setIsAuthorized] = useState(false);
+
     const leaderId = params.leaderId as string;
     const { toast } = useToast();
 
@@ -50,6 +55,17 @@ export default function LeaderProfilePage() {
     const hasAssignments = useMemo(() => {
         return Object.values(assignments).some(a => a.assigned);
     }, [assignments]);
+
+    useEffect(() => {
+        if (!loading && user) {
+            if (user.role !== 'admin') {
+                router.push('/dashboard'); 
+            } else {
+                setIsAuthorized(true);
+            }
+        }
+    }, [user, loading, router]);
+
 
     useEffect(() => {
         if (profileData) {
@@ -162,7 +178,7 @@ export default function LeaderProfilePage() {
     }, [profileData]);
 
 
-    if (!profileData) {
+    if (loading || !isAuthorized || !profileData) {
         return <div>Loading leader profile...</div>;
     }
 
