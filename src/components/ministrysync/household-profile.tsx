@@ -93,11 +93,15 @@ export function HouseholdProfile({ profileData }: { profileData: HouseholdProfil
                 <div className="lg:col-span-2 space-y-6">
                     {children.map(child => {
                         const sortedCycleIds = Object.keys(child.enrollmentsByCycle).sort((a, b) => b.localeCompare(a));
-                        
+                        const currentCycleId = sortedCycleIds.length > 0 ? sortedCycleIds[0] : undefined;
+
                         return (
                             <Card key={child.child_id}>
                                 <CardHeader>
-                                    <CardTitle className="font-headline">{child.first_name} {child.last_name}</CardTitle>
+                                    <CardTitle className="font-headline flex items-center gap-2">
+                                        {child.first_name} {child.last_name}
+                                        {!child.is_active && <Badge variant="outline">Inactive</Badge>}
+                                    </CardTitle>
                                     <CardDescription>{child.grade} (Age {child.age})</CardDescription>
                                 </CardHeader>
                                 <CardContent className="space-y-6">
@@ -108,7 +112,7 @@ export function HouseholdProfile({ profileData }: { profileData: HouseholdProfil
                                     <Separator />
                                     <div>
                                         <h4 className="font-semibold mb-2 flex items-center gap-2"><CheckCircle2 /> Program Enrollments & Interests</h4>
-                                        <Accordion type="multiple" defaultValue={sortedCycleIds.length > 0 ? [sortedCycleIds[0]] : []} className="w-full">
+                                        <Accordion type="multiple" defaultValue={currentCycleId ? [currentCycleId] : []} className="w-full">
                                             {sortedCycleIds.map((cycleId) => {
                                                 const enrollments = child.enrollmentsByCycle[cycleId];
                                                 return (
