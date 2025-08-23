@@ -14,22 +14,36 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { mockIncidents } from "@/lib/mock-data";
 import { useToast } from "@/hooks/use-toast";
 import type { Incident } from "@/lib/types";
 import { format } from "date-fns";
+import { useLiveQuery } from "dexie-react-hooks";
+import { db } from "@/lib/db";
+import { acknowledgeIncident } from "@/lib/dal";
 
 export default function IncidentsPage() {
-    const [incidents, setIncidents] = useState<Incident[]>(mockIncidents);
     const { toast } = useToast();
 
-    const handleAcknowledge = (incidentId: string) => {
-        setIncidents(prev => prev.map(i => i.id === incidentId ? { ...i, acknowledged: true } : i));
-        toast({
-            title: "Incident Acknowledged",
-            description: "The incident has been marked as acknowledged.",
-        });
+    const incidents = useLiveQuery(() => db.incidents.orderBy('timestamp').reverse().toArray(), []);
+
+    const handleAcknowledge = async (incidentId: string) => {
+        try {
+            await acknowledgeIncident(incidentId);
+            toast({
+                title: "Incident Acknowledged",
+                description: "The incident has been marked as acknowledged.",
+            });
+        } catch (error) {
+            console.error("Failed to acknowledge incident", error);
+            toast({
+                title: "Error",
+                description: "Failed to acknowledge the incident.",
+                variant: "destructive"
+            });
+        }
     }
+
+  if (!incidents) return <div>Loading incidents...</div>
 
   return (
     <div className="flex flex-col gap-8">
@@ -77,24 +91,24 @@ export default function IncidentsPage() {
                         </TableRow>
                         </TableHeader>
                         <TableBody>
-                        {incidents.sort((a,b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).map((incident) => (
-                            <TableRow key={incident.id}>
-                                <TableCell className="font-medium">{incident.childName}</TableCell>
+                        {incidents.map((incident) => (
+                            <TableRow key={incident.incident_id}>
+                                <TableCell className="font-medium">{incident.child_name}</TableCell>
                                 <TableCell>
-                                    <Badge variant={incident.severity === "High" ? "destructive" : incident.severity === "Medium" ? "secondary" : "outline"}>
+                                    <Badge variant={incident.severity === "high" ? "destructive" : incident.severity === "medium" ? "secondary" : "outline"} className="capitalize">
                                         {incident.severity}
                                     </Badge>
                                 </TableCell>
                                 <TableCell>{format(new Date(incident.timestamp), "PPpp")}</TableCell>
                                 <TableCell>{incident.description}</TableCell>
                                 <TableCell>
-                                    <Badge variant={incident.acknowledged ? "default" : "destructive"} className={incident.acknowledged ? 'bg-green-500 hover:bg-green-600' : ''}>
-                                        {incident.acknowledged ? "Acknowledged" : "Pending"}
+                                    <Badge variant={incident.admin_acknowledged_at ? "default" : "destructive"} className={incident.admin_acknowledged_at ? 'bg-green-500 hover:bg-green-600' : ''}>
+                                        {incident.admin_acknowledged_at ? "Acknowledged" : "Pending"}
                                     </Badge>
                                 </TableCell>
                                 <TableCell>
-                                    {!incident.acknowledged && (
-                                        <Button size="sm" onClick={() => handleAcknowledge(incident.id)}>Acknowledge</Button>
+                                    {!incident.admin_acknowledged_at && (
+                                        <Button size="sm" onClick={() => handleAcknowledge(incident.incident_id)}>Acknowledge</Button>
                                     )}
                                 </TableCell>
                             </TableRow>

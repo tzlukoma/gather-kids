@@ -14,18 +14,24 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
-import type { Child } from "@/lib/types"
+import type { Child, Guardian } from "@/lib/types"
+
+interface EnrichedChild extends Child {
+    checkedInEvent: string | null;
+    attendanceId: string | null;
+    guardians: Guardian[];
+}
 
 interface CheckoutDialogProps {
-  child: Child | null
+  child: EnrichedChild | null
   onClose: () => void
-  onCheckout: (childId: string) => void
+  onCheckout: (childId: string, attendanceId: string) => void
 }
 
 const eventNames: { [key: string]: string } = {
-  'sunday-school': 'Sunday School',
-  'choir-practice': "Children's Choir Practice",
-  'youth-group': 'Youth Group',
+  'evt_sunday_school': 'Sunday School',
+  'min_choir_kids': "Children's Choir Practice",
+  'min_youth_group': 'Youth Group',
 };
 
 const getEventName = (eventId: string | null) => {
@@ -38,18 +44,21 @@ export function CheckoutDialog({ child, onClose, onCheckout }: CheckoutDialogPro
   const { toast } = useToast()
 
   const handleVerifyAndCheckout = () => {
-    // In a real app, this would involve an API call to verify the PIN.
-    if (pin === "2222" || pin === "1234") {
-      // Toast is now handled in the onCheckout function to be more specific
-      if (child) {
-        onCheckout(child.id)
+    if (!child) return;
+
+    const guardianPhones = child.guardians.map(g => g.mobile_phone.slice(-4));
+    const householdPin = '1234'; // This would be fetched with household data
+
+    if (guardianPhones.includes(pin) || pin === householdPin) {
+      if (child.attendanceId) {
+        onCheckout(child.child_id, child.attendanceId)
       }
       onClose()
     } else {
       toast({
         variant: "destructive",
         title: "Verification Failed",
-        description: "Invalid PIN or phone number. Please try again.",
+        description: "Invalid PIN or phone number last 4 digits. Please try again.",
       })
     }
     setPin("")
@@ -59,9 +68,9 @@ export function CheckoutDialog({ child, onClose, onCheckout }: CheckoutDialogPro
     <Dialog open={!!child} onOpenChange={(open) => !open && onClose()}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle className="font-headline">Guardian Verification for {child?.firstName}</DialogTitle>
+          <DialogTitle className="font-headline">Guardian Verification for {child?.first_name}</DialogTitle>
           <DialogDescription>
-            To check out {child?.firstName} from {getEventName(child?.checkedInEvent)}, please enter the last 4 digits of an authorized guardian's phone number or the 4-digit household PIN.
+            To check out {child?.first_name} from {getEventName(child?.checkedInEvent)}, please enter the last 4 digits of an authorized guardian's phone number or the 4-digit household PIN.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">

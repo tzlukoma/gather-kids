@@ -1,6 +1,6 @@
 "use client"
 
-import { useForm, Controller } from "react-hook-form"
+import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { Button } from "@/components/ui/button"
@@ -22,12 +22,14 @@ import {
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/hooks/use-toast"
-import { mockChildren } from "@/lib/mock-data"
+import { useLiveQuery } from "dexie-react-hooks"
+import { db } from "@/lib/db"
+import { getTodayIsoDate, logIncident } from "@/lib/dal"
 import type { IncidentSeverity } from "@/lib/types"
 
 const incidentFormSchema = z.object({
   childId: z.string({ required_error: "Please select a child." }),
-  severity: z.enum(["Low", "Medium", "High"], {
+  severity: z.enum(["low", "medium", "high"], {
     required_error: "You need to select a severity level.",
   }),
   description: z
@@ -50,13 +52,41 @@ export function IncidentForm() {
     mode: "onChange",
   })
 
-  function onSubmit(data: IncidentFormValues) {
-    toast({
-      title: "Incident Logged",
-      description: `An incident for ${mockChildren.find(c => c.id === data.childId)?.firstName} has been logged.`,
-    })
-    console.log(data)
-    form.reset()
+  const today = getTodayIsoDate();
+  const checkedInChildren = useLiveQuery(async () => {
+    const attendance = await db.attendance.where({ date: today }).toArray();
+    if (!attendance.length) return [];
+    const childIds = attendance.map(a => a.child_id);
+    return db.children.where('child_id').anyOf(childIds).toArray();
+  }, [today]);
+
+
+  async function onSubmit(data: IncidentFormValues) {
+    try {
+        const child = checkedInChildren?.find(c => c.child_id === data.childId);
+        if (!child) throw new Error("Child not found");
+
+        await logIncident({
+            child_id: data.childId,
+            child_name: `${child.first_name} ${child.last_name}`,
+            description: data.description,
+            severity: data.severity as IncidentSeverity,
+            leader_id: 'user_admin' // Hardcoded for now
+        });
+        
+        toast({
+            title: "Incident Logged",
+            description: `An incident for ${child.first_name} has been logged.`,
+        })
+        form.reset()
+    } catch(e) {
+        console.error(e);
+        toast({
+            title: "Error",
+            description: "Failed to log the incident.",
+            variant: "destructive"
+        })
+    }
   }
 
   return (
@@ -71,13 +101,13 @@ export function IncidentForm() {
               <Select onValueChange={field.onChange} defaultValue={field.value}>
                 <FormControl>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select a child" />
+                    <SelectValue placeholder="Select a checked-in child" />
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  {mockChildren.filter(c => c.checkedIn).map(child => (
-                    <SelectItem key={child.id} value={child.id}>
-                      {child.firstName} {child.lastName}
+                  {checkedInChildren?.map(child => (
+                    <SelectItem key={child.child_id} value={child.child_id}>
+                      {child.first_name} {child.last_name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -99,9 +129,9 @@ export function IncidentForm() {
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  <SelectItem value="Low">Low</SelectItem>
-                  <SelectItem value="Medium">Medium</SelectItem>
-                  <SelectItem value="High">High</SelectItem>
+                  <SelectItem value="low">Low</SelectItem>
+                  <SelectItem value="medium">Medium</SelectItem>
+                  <SelectItem value="high">High</SelectItem>
                 </SelectContent>
               </Select>
               <FormDescription>

@@ -1,53 +1,56 @@
 
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import type { Child } from '@/lib/types';
+import type { Child, Guardian } from '@/lib/types';
 import { CheckoutDialog } from './checkout-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { User, Search, Info, Cake, AlertTriangle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { format, isWithinInterval, subDays, addDays, setYear, parseISO } from 'date-fns';
+import { format, isWithinInterval, subDays, addDays, setYear, parseISO, differenceInYears } from 'date-fns';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { useLiveQuery } from 'dexie-react-hooks';
+import { db } from '@/lib/db';
+import { getTodayIsoDate, recordCheckIn, recordCheckOut } from '@/lib/dal';
 
 interface CheckInViewProps {
   initialChildren: Child[];
   selectedEvent: string;
 }
 
-const isBirthdayThisWeek = (dob: string): boolean => {
+const isBirthdayThisWeek = (dob?: string): boolean => {
     if (!dob) return false;
-    const today = new Date();
-    const birthDate = parseISO(dob);
-    
-    // Get the child's birthday for the current year
-    const currentYearBirthday = setYear(birthDate, today.getFullYear());
+    try {
+        const today = new Date();
+        const birthDate = parseISO(dob);
+        
+        const currentYearBirthday = setYear(birthDate, today.getFullYear());
 
-    // Check if the birthday is within 7 days (before or after) today
-    const sevenDaysAgo = subDays(today, 7);
-    const sevenDaysFromNow = addDays(today, 7);
-    
-    if (isWithinInterval(currentYearBirthday, { start: sevenDaysAgo, end: sevenDaysFromNow })) {
-        return true;
-    }
+        const sevenDaysAgo = subDays(today, 7);
+        const sevenDaysFromNow = addDays(today, 7);
+        
+        if (isWithinInterval(currentYearBirthday, { start: sevenDaysAgo, end: sevenDaysFromNow })) {
+            return true;
+        }
 
-    // Handle year-end/year-start cases (e.g., birthday is Dec 29, today is Jan 3)
-    const nextYearBirthday = addYears(currentYearBirthday, 1);
-    if (isWithinInterval(nextYearBirthday, { start: sevenDaysAgo, end: sevenDaysFromNow })) {
-        return true;
-    }
-    const prevYearBirthday = subYears(currentYearBirthday, 1);
-     if (isWithinInterval(prevYearBirthday, { start: sevenDaysAgo, end: sevenDaysFromNow })) {
-        return true;
+        const nextYearBirthday = addYears(currentYearBirthday, 1);
+        if (isWithinInterval(nextYearBirthday, { start: sevenDaysAgo, end: sevenDaysFromNow })) {
+            return true;
+        }
+        const prevYearBirthday = subYears(currentYearBirthday, 1);
+        if (isWithinInterval(prevYearBirthday, { start: sevenDaysAgo, end: sevenDaysFromNow })) {
+            return true;
+        }
+    } catch(e) {
+        return false;
     }
 
     return false;
 }
 
-// Helper to avoid issues if date-fns version doesn't have addYears/subYears
 const addYears = (date: Date, years: number) => {
     const newDate = new Date(date);
     newDate.setFullYear(newDate.getFullYear() + years);
@@ -60,9 +63,9 @@ const subYears = (date: Date, years: number) => {
 }
 
 const eventNames: { [key: string]: string } = {
-  'sunday-school': 'Sunday School',
-  'choir-practice': "Children's Choir Practice",
-  'youth-group': 'Youth Group',
+  'evt_sunday_school': 'Sunday School',
+  'min_choir_kids': "Children's Choir Practice",
+  'min_youth_group': 'Youth Group',
 };
 
 const getEventName = (eventId: string | null) => {
@@ -70,36 +73,89 @@ const getEventName = (eventId: string | null) => {
     return eventNames[eventId] || 'an event';
 }
 
+interface EnrichedChild extends Child {
+    checkedInEvent: string | null;
+    attendanceId: string | null;
+    guardians: Guardian[];
+}
+
 export function CheckInView({ initialChildren, selectedEvent }: CheckInViewProps) {
-  const [children, setChildren] = useState<Child[]>(initialChildren);
-  const [childToCheckout, setChildToCheckout] = useState<Child | null>(null);
+  const [children, setChildren] = useState<EnrichedChild[]>([]);
+  const [childToCheckout, setChildToCheckout] = useState<EnrichedChild | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const { toast } = useToast();
 
-  const handleCheckIn = (childId: string) => {
-    setChildren((prev) =>
-      prev.map((c) => (c.id === childId ? { ...c, checkedInEvent: selectedEvent, checkInTime: new Date().toISOString() } : c))
-    );
-    const child = children.find(c => c.id === childId);
-    toast({
-      title: 'Checked In',
-      description: `${child?.firstName} ${child?.lastName} has been checked in to ${getEventName(selectedEvent)}.`,
-    });
+  const today = getTodayIsoDate();
+  const todaysAttendance = useLiveQuery(() => db.attendance.where({date: today}).toArray(), [today]);
+
+  useEffect(() => {
+    const enrichChildren = async () => {
+        if(!todaysAttendance) return;
+
+        const attendanceMap = new Map(todaysAttendance.map(a => [a.child_id, a]));
+        const householdIds = initialChildren.map(c => c.household_id);
+        const allGuardians = await db.guardians.where('household_id').anyOf(householdIds).toArray();
+        const guardianMap = new Map<string, Guardian[]>();
+
+        allGuardians.forEach(g => {
+            if (!guardianMap.has(g.household_id)) {
+                guardianMap.set(g.household_id, []);
+            }
+            guardianMap.get(g.household_id)!.push(g);
+        });
+
+        const enriched = initialChildren.map(c => {
+            const attendance = attendanceMap.get(c.child_id);
+            return {
+                ...c,
+                checkedInEvent: attendance?.event_id || null,
+                attendanceId: attendance?.attendance_id || null,
+                guardians: guardianMap.get(c.household_id) || [],
+            }
+        });
+        setChildren(enriched);
+    }
+    enrichChildren();
+  }, [initialChildren, todaysAttendance]);
+
+  const handleCheckIn = async (childId: string) => {
+    try {
+      await recordCheckIn(childId, selectedEvent, undefined, 'user_admin');
+      const child = children.find(c => c.child_id === childId);
+      toast({
+        title: 'Checked In',
+        description: `${child?.first_name} ${child?.last_name} has been checked in to ${getEventName(selectedEvent)}.`,
+      });
+    } catch(e) {
+      console.error(e);
+      toast({
+        title: 'Check-in Failed',
+        description: 'Could not check in the child. Please try again.',
+        variant: 'destructive',
+      });
+    }
   };
 
-  const handleCheckout = (childId: string) => {
-    const child = children.find(c => c.id === childId);
-    const eventName = getEventName(child?.checkedInEvent);
-    setChildren((prev) =>
-      prev.map((c) => (c.id === childId ? { ...c, checkedInEvent: null, checkInTime: undefined } : c))
-    );
-    toast({
-        title: 'Checked Out',
-        description: `${child?.firstName} ${child?.lastName} has been checked out from ${eventName}.`,
-    });
+  const handleCheckout = async (childId: string, attendanceId: string) => {
+    try {
+        await recordCheckOut(attendanceId, {method: 'PIN', value: '----'}, 'user_admin'); // Pin is verified in dialog
+        const child = children.find(c => c.child_id === childId);
+        const eventName = getEventName(child?.checkedInEvent);
+        toast({
+            title: 'Checked Out',
+            description: `${child?.first_name} ${child?.last_name} has been checked out from ${eventName}.`,
+        });
+    } catch (e) {
+        console.error(e);
+        toast({
+            title: 'Check-out Failed',
+            description: 'Could not check out the child. Please try again.',
+            variant: 'destructive',
+        });
+    }
   };
   
-  const openCheckoutDialog = (child: Child) => {
+  const openCheckoutDialog = (child: EnrichedChild) => {
     setChildToCheckout(child);
   };
 
@@ -113,9 +169,9 @@ export function CheckInView({ initialChildren, selectedEvent }: CheckInViewProps
     }
     const lowercasedQuery = searchQuery.toLowerCase();
     return children.filter(child =>
-        child.firstName.toLowerCase().includes(lowercasedQuery) ||
-        child.lastName.toLowerCase().includes(lowercasedQuery) ||
-        child.familyName?.toLowerCase().includes(lowercasedQuery)
+        child.first_name.toLowerCase().includes(lowercasedQuery) ||
+        child.last_name.toLowerCase().includes(lowercasedQuery) ||
+        (child.household_id && child.household_id.toLowerCase().includes(lowercasedQuery))
     );
   }, [searchQuery, children]);
 
@@ -125,7 +181,7 @@ export function CheckInView({ initialChildren, selectedEvent }: CheckInViewProps
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
         <Input
           type="search"
-          placeholder="Search by name or family name (e.g. Jackson Family)..."
+          placeholder="Search by name or family name (e.g. Jackson)..."
           className="w-full pl-10"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
@@ -133,9 +189,9 @@ export function CheckInView({ initialChildren, selectedEvent }: CheckInViewProps
       </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
         {filteredChildren.map((child) => (
-          <Card key={child.id} className="relative flex flex-col overflow-hidden">
-            {isBirthdayThisWeek(child.dob) && (
-                <div className="bg-secondary text-secondary-foreground text-center py-1 px-2 text-sm font-semibold flex items-center justify-center gap-2">
+          <Card key={child.child_id} className="relative flex flex-col overflow-hidden">
+             {isBirthdayThisWeek(child.dob) && (
+                <div className="bg-orange-400 text-white text-center py-1 px-2 text-sm font-semibold flex items-center justify-center gap-2">
                     <Cake className="h-4 w-4" />
                     Birthday This Week!
                 </div>
@@ -150,9 +206,9 @@ export function CheckInView({ initialChildren, selectedEvent }: CheckInViewProps
                 <div className="space-y-4">
                   <h4 className="font-semibold font-headline">Guardian Info</h4>
                   {child.guardians?.map(g => (
-                    <div key={g.id} className="text-sm">
-                      <p className="font-medium">{g.firstName} {g.lastName} ({g.relationship})</p>
-                      <p className="text-muted-foreground">{g.phone}</p>
+                    <div key={g.guardian_id} className="text-sm">
+                      <p className="font-medium">{g.first_name} {g.last_name} ({g.relationship})</p>
+                      <p className="text-muted-foreground">{g.mobile_phone}</p>
                     </div>
                   ))}
                   {!child.guardians?.length && (
@@ -166,9 +222,9 @@ export function CheckInView({ initialChildren, selectedEvent }: CheckInViewProps
                     <User className="h-8 w-8 text-muted-foreground" />
                </div>
               <div className="flex-1">
-                <CardTitle className="font-headline text-lg">{`${child.firstName} ${child.lastName}`}</CardTitle>
+                <CardTitle className="font-headline text-lg">{`${child.first_name} ${child.last_name}`}</CardTitle>
                 <CardDescription>
-                  {child.familyName}
+                  {child.household_id}
                 </CardDescription>
                  <div className="flex flex-wrap gap-1 mt-2 justify-center sm:justify-start">
                     {child.checkedInEvent === selectedEvent && (
@@ -185,9 +241,9 @@ export function CheckInView({ initialChildren, selectedEvent }: CheckInViewProps
             </CardHeader>
             <CardContent className="flex-grow space-y-2 px-4 pb-4 sm:px-6 sm:pb-6 pt-0">
               <div className="text-sm text-muted-foreground space-y-2">
-                <p><strong>DOB:</strong> {child.dob ? format(parseISO(child.dob), "MMM d, yyyy") : 'N/A'}</p>
+                <p><strong>DOB:</strong> {child.dob ? format(parseISO(child.dob), "MMM d, yyyy") : 'N/A'} ({differenceInYears(new Date(), parseISO(child.dob || ''))} yrs)</p>
                 <p><strong>Grade:</strong> {child.grade}</p>
-                {child.safetyInfo && <p><strong>Notes:</strong> {child.safetyInfo}</p>}
+                {child.medical_notes && <p><strong>Notes:</strong> {child.medical_notes}</p>}
               </div>
               {child.allergies && (
                   <Badge variant="outline" className="w-full justify-center text-base py-1 border-destructive text-destructive rounded-sm">
@@ -208,7 +264,7 @@ export function CheckInView({ initialChildren, selectedEvent }: CheckInViewProps
               ) : (
                 <Button 
                     className="w-full"
-                    onClick={() => handleCheckIn(child.id)}
+                    onClick={() => handleCheckIn(child.child_id)}
                     disabled={!!child.checkedInEvent}
                 >
                   Check In

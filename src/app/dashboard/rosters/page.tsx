@@ -1,4 +1,7 @@
-import { mockChildren } from "@/lib/mock-data";
+"use client"
+
+import { useLiveQuery } from "dexie-react-hooks";
+import { db } from "@/lib/db";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -12,9 +15,34 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { FileDown } from "lucide-react";
 import { format } from "date-fns";
+import { getTodayIsoDate } from "@/lib/dal";
+import { useMemo } from "react";
+import type { Child, Attendance } from "@/lib/types";
+
+interface ChildWithAttendance extends Child {
+  attendance?: Attendance;
+}
 
 export default function RostersPage() {
-  const allChildren = mockChildren;
+  const today = getTodayIsoDate();
+  const allChildren = useLiveQuery(() => db.children.toArray(), []);
+  const todaysAttendance = useLiveQuery(() => db.attendance.where({ date: today }).toArray(), [today]);
+
+  const childrenWithAttendance: ChildWithAttendance[] = useMemo(() => {
+    if (!allChildren || !todaysAttendance) return [];
+    
+    const attendanceMap = new Map(todaysAttendance.map(a => [a.child_id, a]));
+
+    return allChildren.map(child => ({
+      ...child,
+      attendance: attendanceMap.get(child.child_id),
+    }));
+  }, [allChildren, todaysAttendance]);
+
+
+  if (!allChildren || !todaysAttendance) {
+    return <div>Loading rosters...</div>
+  }
 
   return (
     <div className="flex flex-col gap-8">
@@ -48,19 +76,19 @@ export default function RostersPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {allChildren.map((child) => (
-                <TableRow key={child.id}>
-                  <TableCell className="font-medium">{`${child.firstName} ${child.lastName}`}</TableCell>
+              {childrenWithAttendance.map((child) => (
+                <TableRow key={child.child_id}>
+                  <TableCell className="font-medium">{`${child.first_name} ${child.last_name}`}</TableCell>
                   <TableCell>{child.grade}</TableCell>
                   <TableCell>
-                    {child.checkedIn ? (
+                    {child.attendance ? (
                       <Badge className="bg-green-500 hover:bg-green-600">Checked In</Badge>
                     ) : (
                       <Badge variant="secondary">Checked Out</Badge>
                     )}
                   </TableCell>
                   <TableCell>
-                    {child.checkInTime ? format(new Date(child.checkInTime), "p") : 'N/A'}
+                    {child.attendance?.check_in_at ? format(new Date(child.attendance.check_in_at), "p") : 'N/A'}
                   </TableCell>
                   <TableCell>
                     {child.allergies && (
