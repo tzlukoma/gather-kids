@@ -5,7 +5,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import type { Child, Guardian, Attendance, Household } from '@/lib/types';
+import type { Child, Guardian, Attendance, Household, EmergencyContact } from '@/lib/types';
 import { CheckoutDialog } from './checkout-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { User, Search, Info, Cake, AlertTriangle } from 'lucide-react';
@@ -73,10 +73,11 @@ const getEventName = (eventId: string | null) => {
     return eventNames[eventId] || 'an event';
 }
 
-interface EnrichedChild extends Child {
+export interface EnrichedChild extends Child {
     activeAttendance: Attendance | null;
     guardians: Guardian[];
     household: Household | null;
+    emergencyContact: EmergencyContact | null;
 }
 
 export function CheckInView({ initialChildren, selectedEvent }: CheckInViewProps) {
@@ -103,6 +104,7 @@ export function CheckInView({ initialChildren, selectedEvent }: CheckInViewProps
         const householdIds = initialChildren.map(c => c.household_id);
         const allGuardians = await db.guardians.where('household_id').anyOf(householdIds).toArray();
         const allHouseholds = await db.households.where('household_id').anyOf(householdIds).toArray();
+        const allEmergencyContacts = await db.emergency_contacts.where('household_id').anyOf(householdIds).toArray();
 
         const guardianMap = new Map<string, Guardian[]>();
         allGuardians.forEach(g => {
@@ -115,6 +117,11 @@ export function CheckInView({ initialChildren, selectedEvent }: CheckInViewProps
         const householdMap = new Map<string, Household>();
         allHouseholds.forEach(h => {
             householdMap.set(h.household_id, h);
+        });
+
+        const emergencyContactMap = new Map<string, EmergencyContact>();
+        allEmergencyContacts.forEach(ec => {
+            emergencyContactMap.set(ec.household_id, ec);
         });
 
 
@@ -131,6 +138,7 @@ export function CheckInView({ initialChildren, selectedEvent }: CheckInViewProps
                 activeAttendance: activeAttendance,
                 guardians: guardianMap.get(c.household_id) || [],
                 household: householdMap.get(c.household_id) || null,
+                emergencyContact: emergencyContactMap.get(c.household_id) || null,
             }
         });
         setChildren(enriched);
@@ -315,5 +323,3 @@ export function CheckInView({ initialChildren, selectedEvent }: CheckInViewProps
     </>
   );
 }
-
-    
