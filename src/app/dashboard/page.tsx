@@ -1,6 +1,7 @@
 
 "use client"
 
+import Link from "next/link";
 import { DashboardCharts } from "@/components/ministrysync/dashboard-charts";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -38,36 +39,42 @@ export default function DashboardPage() {
             </div>
 
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Checked-In Children</CardTitle>
-                        <Users className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{checkedInCount}</div>
-                        <p className="text-xs text-muted-foreground">currently on site</p>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Pending Incidents</CardTitle>
-                        <AlertTriangle className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{unacknowledgedIncidents.length}</div>
-                        <p className="text-xs text-muted-foreground">requires acknowledgement</p>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Registrations</CardTitle>
-                        <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{registrationCount}</div>
-                        <p className="text-xs text-muted-foreground">households registered this year</p>
-                    </CardContent>
-                </Card>
+                <Link href="/dashboard/rosters?status=checkedIn">
+                    <Card className="hover:bg-muted/50 transition-colors">
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">Checked-In Children</CardTitle>
+                            <Users className="h-4 w-4 text-muted-foreground" />
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold">{checkedInCount}</div>
+                            <p className="text-xs text-muted-foreground">currently on site</p>
+                        </CardContent>
+                    </Card>
+                </Link>
+                <Link href="/dashboard/incidents?tab=view">
+                    <Card className="hover:bg-muted/50 transition-colors">
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">Pending Incidents</CardTitle>
+                            <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold">{unacknowledgedIncidents.length}</div>
+                            <p className="text-xs text-muted-foreground">requires acknowledgement</p>
+                        </CardContent>
+                    </Card>
+                </Link>
+                <Link href="/dashboard/rosters">
+                    <Card className="hover:bg-muted/50 transition-colors">
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">Registrations</CardTitle>
+                            <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold">{registrationCount}</div>
+                            <p className="text-xs text-muted-foreground">households registered this year</p>
+                        </CardContent>
+                    </Card>
+                </Link>
             </div>
 
             <DashboardCharts />

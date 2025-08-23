@@ -18,7 +18,7 @@ import { Button } from "@/components/ui/button";
 import { FileDown, ArrowUpDown } from "lucide-react";
 import { format } from "date-fns";
 import { getTodayIsoDate, recordCheckIn, recordCheckOut } from "@/lib/dal";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import type { Child, Guardian, Attendance, Household, EmergencyContact } from "@/lib/types";
 import { CheckoutDialog } from "@/components/ministrysync/checkout-dialog";
 import { useToast } from "@/hooks/use-toast";
@@ -28,6 +28,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { useIsMobile } from '@/hooks/use-mobile';
 import { RosterCard } from '@/components/ministrysync/roster-card';
+import { useSearchParams } from 'next/navigation';
 
 export interface RosterChild extends EnrichedChild {}
 
@@ -73,6 +74,7 @@ export default function RostersPage() {
   const today = getTodayIsoDate();
   const { toast } = useToast();
   const isMobile = useIsMobile();
+  const searchParams = useSearchParams();
 
   const [selectedEvent, setSelectedEvent] = useState('evt_sunday_school');
   const [childToCheckout, setChildToCheckout] = useState<RosterChild | null>(null);
@@ -91,6 +93,14 @@ export default function RostersPage() {
   const allGuardians = useLiveQuery(() => db.guardians.toArray(), []);
   const allHouseholds = useLiveQuery(() => db.households.toArray(), []);
   const allEmergencyContacts = useLiveQuery(() => db.emergency_contacts.toArray(), []);
+
+  useEffect(() => {
+    const statusParam = searchParams.get('status');
+    if (statusParam === 'checkedIn') {
+        setShowCheckedIn(true);
+        setShowCheckedOut(false);
+    }
+  }, [searchParams]);
 
   const childrenWithDetails: RosterChild[] = useMemo(() => {
     if (!allChildren || !todaysAttendance || !allGuardians || !allHouseholds || !allEmergencyContacts) return [];
@@ -491,5 +501,6 @@ export default function RostersPage() {
     </>
   );
 }
+
 
 
