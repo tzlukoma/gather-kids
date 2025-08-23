@@ -66,6 +66,7 @@ export default function LeadersPage() {
                                             {leader.assignments.map(a => (
                                                 <Badge key={a.assignment_id} variant="outline">{a.ministryName}</Badge>
                                             ))}
+                                            {leader.assignments.length === 0 && <span className="text-xs text-muted-foreground">No assignments</span>}
                                         </div>
                                     </TableCell>
                                     <TableCell>
