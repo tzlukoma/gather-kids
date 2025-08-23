@@ -23,36 +23,40 @@ import { useToast } from "@/hooks/use-toast"
 import { PlusCircle, Trash2 } from "lucide-react"
 import { useEffect, useState } from "react"
 import { Textarea } from "@/components/ui/textarea"
+import { registerHousehold } from "@/lib/dal"
 
 const guardianSchema = z.object({
-  firstName: z.string().min(1, "First name is required."),
-  lastName: z.string().min(1, "Last name is required."),
-  phone: z.string().min(10, "A valid phone number is required."),
-  email: z.string().email("A valid email is required."),
+  first_name: z.string().min(1, "First name is required."),
+  last_name: z.string().min(1, "Last name is required."),
+  mobile_phone: z.string().min(10, "A valid phone number is required."),
+  email: z.string().email("A valid email is required.").optional(),
+  relationship: z.string().min(1, "Relationship is required."),
+  is_primary: z.boolean().default(false),
 });
 
 const childSchema = z.object({
-  firstName: z.string().min(1, "First name is required."),
-  lastName: z.string().min(1, "Last name is required."),
+  first_name: z.string().min(1, "First name is required."),
+  last_name: z.string().min(1, "Last name is required."),
   dob: z.string().refine((val) => val && !isNaN(Date.parse(val)), {
     message: "Valid date of birth is required.",
   }),
   grade: z.string().min(1, "Grade is required."),
   allergies: z.string().optional(),
-  safetyInfo: z.string().optional(),
+  medical_notes: z.string().optional(),
 });
 
 const registrationSchema = z.object({
-  email: z.string().email("Please enter a valid email to begin."),
+  verificationEmail: z.string().email("Please enter a valid email to begin."),
   household: z.object({
-    address: z.string().min(1, "Address is required."),
-    pin: z.string().length(4, "PIN must be 4 digits.").optional(),
+    name: z.string().optional(),
+    address_line1: z.string().min(1, "Address is required."),
   }),
   guardians: z.array(guardianSchema).min(1, "At least one guardian is required."),
   emergencyContact: z.object({
-    firstName: z.string().min(1, "First name is required."),
-    lastName: z.string().min(1, "Last name is required."),
-    phone: z.string().min(10, "A valid phone number is required."),
+    first_name: z.string().min(1, "First name is required."),
+    last_name: z.string().min(1, "Last name is required."),
+    mobile_phone: z.string().min(10, "A valid phone number is required."),
+    relationship: z.string().min(1, "Relationship is required."),
   }),
   children: z.array(childSchema).min(1, "At least one child is required."),
   ministrySelections: z.object({
@@ -77,21 +81,21 @@ export default function RegisterPage() {
   const form = useForm<RegistrationFormValues>({
     resolver: zodResolver(registrationSchema),
     defaultValues: {
-      email: "",
+      verificationEmail: "",
       household: {
-        address: "",
-        pin: "",
+        address_line1: "",
       },
       guardians: [
-        { firstName: "", lastName: "", phone: "", email: "" },
+        { first_name: "", last_name: "", mobile_phone: "", email: "", relationship: "Mother", is_primary: true },
       ],
       emergencyContact: {
-        firstName: "",
-        lastName: "",
-        phone: "",
+        first_name: "",
+        last_name: "",
+        mobile_phone: "",
+        relationship: ""
       },
       children: [
-        { firstName: "", lastName: "", dob: "", grade: "", allergies: "", safetyInfo: "" },
+        { first_name: "", last_name: "", dob: "", grade: "", allergies: "", medical_notes: "" },
       ],
       ministrySelections: {
         choir: false,
@@ -114,13 +118,22 @@ export default function RegisterPage() {
     name: "children",
   });
 
-  function onSubmit(data: RegistrationFormValues) {
-    console.log(data)
-    toast({
-      title: "Registration Submitted!",
-      description: "Thank you! Your family's registration has been received.",
-    })
-    form.reset()
+  async function onSubmit(data: RegistrationFormValues) {
+    try {
+        await registerHousehold(data);
+        toast({
+            title: "Registration Submitted!",
+            description: "Thank you! Your family's registration has been received.",
+        });
+        form.reset();
+    } catch(e) {
+        console.error(e);
+        toast({
+            title: "Submission Error",
+            description: "There was an error processing your registration. Please try again.",
+            variant: "destructive"
+        })
+    }
   }
 
   const [isBibleBeeVisible, setIsBibleBeeVisible] = useState(false);
@@ -153,7 +166,7 @@ export default function RegisterPage() {
                 <CardContent>
                     <FormField
                     control={form.control}
-                    name="email"
+                    name="verificationEmail"
                     render={({ field }) => (
                         <FormItem>
                         <FormLabel>Verification Email</FormLabel>
@@ -174,7 +187,7 @@ export default function RegisterPage() {
                 <CardContent className="space-y-6">
                     <FormField
                         control={form.control}
-                        name="household.address"
+                        name="household.address_line1"
                         render={({ field }) => (
                             <FormItem>
                                 <FormLabel>Street Address</FormLabel>
@@ -190,17 +203,20 @@ export default function RegisterPage() {
                     <div key={field.id} className="space-y-4 p-4 border rounded-lg relative">
                         <h3 className="font-semibold font-headline">Guardian {index + 1}</h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <FormField control={form.control} name={`guardians.${index}.firstName`} render={({ field }) => (
+                        <FormField control={form.control} name={`guardians.${index}.first_name`} render={({ field }) => (
                             <FormItem><FormLabel>First Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                         )} />
-                        <FormField control={form.control} name={`guardians.${index}.lastName`} render={({ field }) => (
+                        <FormField control={form.control} name={`guardians.${index}.last_name`} render={({ field }) => (
                             <FormItem><FormLabel>Last Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                         )} />
-                        <FormField control={form.control} name={`guardians.${index}.phone`} render={({ field }) => (
+                        <FormField control={form.control} name={`guardians.${index}.mobile_phone`} render={({ field }) => (
                             <FormItem><FormLabel>Phone</FormLabel><FormControl><Input type="tel" {...field} /></FormControl><FormMessage /></FormItem>
                         )} />
                         <FormField control={form.control} name={`guardians.${index}.email`} render={({ field }) => (
                             <FormItem><FormLabel>Email</FormLabel><FormControl><Input type="email" {...field} /></FormControl><FormMessage /></FormItem>
+                        )} />
+                         <FormField control={form.control} name={`guardians.${index}.relationship`} render={({ field }) => (
+                            <FormItem><FormLabel>Relationship</FormLabel><FormControl><Input placeholder="e.g., Mother, Grandfather" {...field} /></FormControl><FormMessage /></FormItem>
                         )} />
                         </div>
                         {guardianFields.length > 1 && (
@@ -208,7 +224,7 @@ export default function RegisterPage() {
                         )}
                     </div>
                     ))}
-                    <Button type="button" variant="outline" size="sm" onClick={() => appendGuardian({ firstName: "", lastName: "", phone: "", email: "" })}><PlusCircle className="mr-2 h-4 w-4" /> Add Guardian</Button>
+                    <Button type="button" variant="outline" size="sm" onClick={() => appendGuardian({ first_name: "", last_name: "", mobile_phone: "", email: "", relationship: "", is_primary: false })}><PlusCircle className="mr-2 h-4 w-4" /> Add Guardian</Button>
                 </CardContent>
             </Card>
 
@@ -219,16 +235,19 @@ export default function RegisterPage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <FormField control={form.control} name="emergencyContact.firstName" render={({ field }) => (
+                        <FormField control={form.control} name="emergencyContact.first_name" render={({ field }) => (
                             <FormItem><FormLabel>First Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                         )} />
-                        <FormField control={form.control} name="emergencyContact.lastName" render={({ field }) => (
+                        <FormField control={form.control} name="emergencyContact.last_name" render={({ field }) => (
                             <FormItem><FormLabel>Last Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                         )} />
+                         <FormField control={form.control} name="emergencyContact.relationship" render={({ field }) => (
+                            <FormItem><FormLabel>Relationship</FormLabel><FormControl><Input placeholder="e.g., Aunt, Neighbor" {...field} /></FormControl><FormMessage /></FormItem>
+                        )} />
+                         <FormField control={form.control} name="emergencyContact.mobile_phone" render={({ field }) => (
+                            <FormItem><FormLabel>Phone</FormLabel><FormControl><Input type="tel" {...field} /></FormControl><FormMessage /></FormItem>
+                        )} />
                     </div>
-                    <FormField control={form.control} name="emergencyContact.phone" render={({ field }) => (
-                        <FormItem><FormLabel>Phone</FormLabel><FormControl><Input type="tel" {...field} /></FormControl><FormMessage /></FormItem>
-                    )} />
                 </CardContent>
             </Card>
 
@@ -239,14 +258,14 @@ export default function RegisterPage() {
                         {childFields.map((field, index) => (
                             <AccordionItem key={field.id} value={`item-${index}`}>
                                 <AccordionTrigger className="font-headline">
-                                    {form.watch(`children.${index}.firstName`) || `Child ${index + 1}`}
+                                    {form.watch(`children.${index}.first_name`) || `Child ${index + 1}`}
                                 </AccordionTrigger>
                                 <AccordionContent className="space-y-4 pt-4">
                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <FormField control={form.control} name={`children.${index}.firstName`} render={({ field }) => (
+                                        <FormField control={form.control} name={`children.${index}.first_name`} render={({ field }) => (
                                             <FormItem><FormLabel>First Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                                         )} />
-                                        <FormField control={form.control} name={`children.${index}.lastName`} render={({ field }) => (
+                                        <FormField control={form.control} name={`children.${index}.last_name`} render={({ field }) => (
                                             <FormItem><FormLabel>Last Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                                         )} />
                                         <FormField control={form.control} name={`children.${index}.dob`} render={({ field }) => (
@@ -259,7 +278,7 @@ export default function RegisterPage() {
                                     <FormField control={form.control} name={`children.${index}.allergies`} render={({ field }) => (
                                         <FormItem><FormLabel>Allergies or Medical Conditions</FormLabel><FormControl><Input placeholder="e.g., Peanuts, Asthma" {...field} /></FormControl><FormMessage /></FormItem>
                                     )} />
-                                    <FormField control={form.control} name={`children.${index}.safetyInfo`} render={({ field }) => (
+                                    <FormField control={form.control} name={`children.${index}.medical_notes`} render={({ field }) => (
                                         <FormItem><FormLabel>Other Safety Info</FormLabel><FormControl><Textarea placeholder="Anything else we should know?" {...field} /></FormControl><FormMessage /></FormItem>
                                     )} />
                                     <Button type="button" variant="destructive" size="sm" onClick={() => removeChild(index)}><Trash2 className="mr-2 h-4 w-4" /> Remove Child</Button>
@@ -267,7 +286,7 @@ export default function RegisterPage() {
                             </AccordionItem>
                         ))}
                     </Accordion>
-                     <Button type="button" variant="outline" size="sm" className="mt-4" onClick={() => appendChild({ firstName: "", lastName: "", dob: "", grade: "", allergies: "", safetyInfo: "" })}><PlusCircle className="mr-2 h-4 w-4" /> Add Child</Button>
+                     <Button type="button" variant="outline" size="sm" className="mt-4" onClick={() => appendChild({ first_name: "", last_name: "", dob: "", grade: "", allergies: "", medical_notes: "" })}><PlusCircle className="mr-2 h-4 w-4" /> Add Child</Button>
                 </CardContent>
             </Card>
 
@@ -304,5 +323,3 @@ export default function RegisterPage() {
     </div>
   )
 }
-
-    

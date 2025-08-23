@@ -2,7 +2,6 @@
 'use client';
 
 import { useState } from 'react';
-import { mockChildren } from '@/lib/mock-data';
 import { CheckInView } from '@/components/ministrysync/check-in-view';
 import {
   Select,
@@ -12,11 +11,25 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { useLiveQuery } from 'dexie-react-hooks';
+import { db } from '@/lib/db';
+import { Button } from '@/components/ui/button';
+import { seedDB } from '@/lib/seed';
 
 export default function CheckInPage() {
-  const [selectedEvent, setSelectedEvent] = useState('sunday-school');
-  // In a real application, you would fetch this data from your database.
-  const children = mockChildren;
+  const [selectedEvent, setSelectedEvent] = useState('evt_sunday_school');
+  
+  const children = useLiveQuery(() => db.children.toArray(), []);
+
+  if (!children) {
+    return (
+        <div className="flex flex-col items-center justify-center h-64">
+            <p className="text-muted-foreground mb-4">Loading children's data...</p>
+            <p className="text-sm text-muted-foreground">If this takes a while, the database might be empty.</p>
+            <Button onClick={seedDB} className="mt-2">Seed Database</Button>
+        </div>
+    )
+  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -34,9 +47,9 @@ export default function CheckInPage() {
                     <SelectValue placeholder="Select an event..." />
                 </SelectTrigger>
                 <SelectContent>
-                    <SelectItem value="sunday-school">Sunday School</SelectItem>
-                    <SelectItem value="choir-practice">Children's Choir Practice</SelectItem>
-                    <SelectItem value="youth-group">Youth Group</SelectItem>
+                    <SelectItem value="evt_sunday_school">Sunday School</SelectItem>
+                    <SelectItem value="min_choir_kids">Children's Choir Practice</SelectItem>
+                    <SelectItem value="min_youth_group">Youth Group</SelectItem>
                 </SelectContent>
             </Select>
         </div>

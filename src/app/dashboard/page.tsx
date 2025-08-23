@@ -1,13 +1,33 @@
+"use client"
+
 import { DashboardCharts } from "@/components/ministrysync/dashboard-charts";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { mockIncidents } from "@/lib/mock-data";
 import { AlertTriangle, Users, CheckCircle2 } from "lucide-react";
 import { format } from "date-fns";
+import { useLiveQuery } from "dexie-react-hooks";
+import { db } from "@/lib/db";
+import { getTodayIsoDate } from "@/lib/dal";
 
 export default function DashboardPage() {
-    const unacknowledgedIncidents = mockIncidents.filter(i => !i.acknowledged);
+    const today = getTodayIsoDate();
+    
+    const unacknowledgedIncidents = useLiveQuery(() => 
+        db.incidents.where('admin_acknowledged_at').equals(0).toArray()
+    , []);
+
+    const checkedInCount = useLiveQuery(() => 
+        db.attendance.where({ date: today }).count()
+    , []);
+
+    const registrationCount = useLiveQuery(() =>
+        db.registrations.where({cycle_id: '2025'}).count()
+    , [])
+
+    if (unacknowledgedIncidents === undefined || checkedInCount === undefined || registrationCount === undefined) {
+        return <div>Loading dashboard data...</div>
+    }
 
     return (
         <div className="flex flex-col gap-8">
@@ -23,7 +43,7 @@ export default function DashboardPage() {
                         <Users className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">4</div>
+                        <div className="text-2xl font-bold">{checkedInCount}</div>
                         <p className="text-xs text-muted-foreground">currently on site</p>
                     </CardContent>
                 </Card>
@@ -33,7 +53,7 @@ export default function DashboardPage() {
                         <AlertTriangle className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">1</div>
+                        <div className="text-2xl font-bold">{unacknowledgedIncidents.length}</div>
                         <p className="text-xs text-muted-foreground">requires acknowledgement</p>
                     </CardContent>
                 </Card>
@@ -43,7 +63,7 @@ export default function DashboardPage() {
                         <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">30</div>
+                        <div className="text-2xl font-bold">{registrationCount}</div>
                         <p className="text-xs text-muted-foreground">households registered this year</p>
                     </CardContent>
                 </Card>
@@ -68,10 +88,10 @@ export default function DashboardPage() {
                         </TableHeader>
                         <TableBody>
                             {unacknowledgedIncidents.map(incident => (
-                                <TableRow key={incident.id}>
-                                    <TableCell className="font-medium">{incident.childName}</TableCell>
+                                <TableRow key={incident.incident_id}>
+                                    <TableCell className="font-medium">{incident.child_name}</TableCell>
                                     <TableCell>
-                                        <Badge variant={incident.severity === 'High' ? 'destructive' : 'secondary'}>
+                                        <Badge variant={incident.severity === 'high' ? 'destructive' : 'secondary'} className="capitalize">
                                             {incident.severity}
                                         </Badge>
                                     </TableCell>
@@ -79,6 +99,13 @@ export default function DashboardPage() {
                                     <TableCell>{incident.description}</TableCell>
                                 </TableRow>
                             ))}
+                             {unacknowledgedIncidents.length === 0 && (
+                                <TableRow>
+                                    <TableCell colSpan={4} className="text-center text-muted-foreground">
+                                        No unacknowledged incidents.
+                                    </TableCell>
+                                </TableRow>
+                            )}
                         </TableBody>
                     </Table>
                 </CardContent>

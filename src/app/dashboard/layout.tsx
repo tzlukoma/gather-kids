@@ -22,9 +22,11 @@ import {
   ClipboardEdit,
   User,
   LogOut,
+  Database,
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
+import { SeedDataButton } from '@/components/ministrysync/seed-data-button';
 
 export default function DashboardLayout({
   children,
@@ -93,19 +95,23 @@ export default function DashboardLayout({
           </SidebarMenu>
         </SidebarContent>
         <SidebarFooter>
-          <div className="flex items-center gap-3">
-             <Avatar className="h-8 w-8">
-                <AvatarImage src="https://placehold.co/40x40.png" alt="Admin" data-ai-hint="user avatar" />
-                <AvatarFallback>A</AvatarFallback>
-            </Avatar>
-            <div className="flex flex-col text-sm">
-                <span className="font-semibold text-sidebar-foreground">Admin User</span>
-                <span className="text-muted-foreground">admin@church.org</span>
+          <div className="flex flex-col gap-2">
+            <SeedDataButton />
+            <Separator />
+            <div className="flex items-center gap-3">
+              <Avatar className="h-8 w-8">
+                  <AvatarImage src="https://placehold.co/40x40.png" alt="Admin" data-ai-hint="user avatar" />
+                  <AvatarFallback>A</AvatarFallback>
+              </Avatar>
+              <div className="flex flex-col text-sm">
+                  <span className="font-semibold text-sidebar-foreground">Admin User</span>
+                  <span className="text-muted-foreground">admin@church.org</span>
+              </div>
+              <Button variant="ghost" size="icon" className="h-8 w-8 ml-auto">
+                <LogOut className="h-4 w-4" />
+              </Button>
             </div>
           </div>
-          <Button variant="ghost" size="icon" className="h-8 w-8 ml-auto">
-            <LogOut className="h-4 w-4" />
-          </Button>
         </SidebarFooter>
       </Sidebar>
       <SidebarInset>

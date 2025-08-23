@@ -10,20 +10,57 @@ import {
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
-import { Calendar as CalendarIcon, FileDown, ArrowRight } from "lucide-react"
-import { format } from "date-fns"
+import { Calendar as CalendarIcon, FileDown } from "lucide-react"
+import { format, startOfMonth } from "date-fns"
 import type { DateRange } from "react-day-picker"
-import { mockChildren } from "@/lib/mock-data"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
+import { useLiveQuery } from "dexie-react-hooks"
+import { db } from "@/lib/db"
+import { exportAttendanceRollupCSV, exportEmergencySnapshotCSV, getTodayIsoDate } from "@/lib/dal"
+import { useToast } from "@/hooks/use-toast"
 
 export default function ReportsPage() {
-  const [date, setDate] = useState<DateRange | undefined>({
-    from: new Date(2024, 0, 20),
-    to: new Date(2024, 0, 20),
-  })
+    const today = getTodayIsoDate();
+    const { toast } = useToast();
 
-  const checkedInChildren = mockChildren.filter(c => c.checkedIn);
+    const [date, setDate] = useState<DateRange | undefined>({
+        from: startOfMonth(new Date()),
+        to: new Date(),
+    })
+
+    const checkedInChildren = useLiveQuery(async () => {
+        const attendance = await db.attendance.where({ date: today }).toArray();
+        if (!attendance.length) return [];
+        const childIds = attendance.map(a => a.child_id);
+        return db.children.where('child_id').anyOf(childIds).toArray();
+    }, [today]);
+
+    const handleExportEmergency = async () => {
+        const blob = await exportEmergencySnapshotCSV(today);
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `emergency_snapshot_${today}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+        toast({ title: "Exported", description: "Emergency Snapshot CSV has been downloaded." });
+    }
+    
+    const handleExportAttendance = async () => {
+        if (!date?.from || !date?.to) {
+            toast({ title: "Error", description: "Please select a date range.", variant: "destructive" });
+            return;
+        }
+        const blob = await exportAttendanceRollupCSV(date.from.toISOString(), date.to.toISOString());
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `attendance_rollup_${format(date.from, "yyyy-MM-dd")}_to_${format(date.to, "yyyy-MM-dd")}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+        toast({ title: "Exported", description: "Attendance Rollup CSV has been downloaded." });
+    }
 
   return (
     <div className="flex flex-col gap-8">
@@ -50,20 +87,27 @@ export default function ReportsPage() {
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {checkedInChildren.map(child => (
-                             <TableRow key={child.id}>
-                                <TableCell className="font-medium">{child.firstName} {child.lastName}</TableCell>
+                        {checkedInChildren?.map(child => (
+                             <TableRow key={child.child_id}>
+                                <TableCell className="font-medium">{child.first_name} {child.last_name}</TableCell>
                                 <TableCell>
                                     {child.allergies ? <Badge variant="destructive">{child.allergies}</Badge> : 'None'}
                                 </TableCell>
-                                <TableCell>{child.safetyInfo ?? 'N/A'}</TableCell>
+                                <TableCell>{child.medical_notes ?? 'N/A'}</TableCell>
                             </TableRow>
                         ))}
+                         {(!checkedInChildren || checkedInChildren.length === 0) && (
+                            <TableRow>
+                                <TableCell colSpan={3} className="text-center text-muted-foreground">
+                                    No children checked in today.
+                                </TableCell>
+                            </TableRow>
+                        )}
                     </TableBody>
                 </Table>
             </CardContent>
             <CardFooter>
-                 <Button className="ml-auto">
+                 <Button className="ml-auto" onClick={handleExportEmergency}>
                     <FileDown className="mr-2 h-4 w-4" />
                     Export CSV
                 </Button>
@@ -114,13 +158,9 @@ export default function ReportsPage() {
                         </PopoverContent>
                     </Popover>
                 </div>
-                <div className="p-4 bg-secondary rounded-md text-center">
-                    <p className="font-bold text-3xl font-headline">125</p>
-                    <p className="text-sm text-muted-foreground">Total Check-Ins in Selected Range</p>
-                </div>
             </CardContent>
             <CardFooter>
-                <Button className="ml-auto">
+                <Button className="ml-auto" onClick={handleExportAttendance}>
                     <FileDown className="mr-2 h-4 w-4" />
                     Export CSV
                 </Button>

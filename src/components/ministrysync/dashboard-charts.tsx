@@ -16,6 +16,8 @@ import {
 } from "@/components/ui/chart"
 import { Progress } from "../ui/progress"
 import { Badge } from "../ui/badge"
+import { useLiveQuery } from "dexie-react-hooks"
+import { queryDashboardMetrics } from "@/lib/dal"
 
 const chartData = [
   { grade: "Pre-K", missing: 1, total: 10 },
@@ -35,6 +37,12 @@ const chartConfig = {
 }
 
 export function DashboardCharts() {
+  const metrics = useLiveQuery(() => queryDashboardMetrics("2025"));
+
+  if (!metrics) {
+    return <div>Loading metrics...</div>
+  }
+
   return (
     <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         <Card>
@@ -48,16 +56,16 @@ export function DashboardCharts() {
                         <svg className="h-full w-full" width="36" height="36" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg">
                             <circle cx="18" cy="18" r="16" fill="none" className="stroke-current text-gray-200 dark:text-gray-700" strokeWidth="2"></circle>
                             <g className="origin-center -rotate-90 transform">
-                                <circle cx="18" cy="18" r="16" fill="none" className="stroke-current text-primary" strokeWidth="2" strokeDasharray="100" strokeDashoffset="25"></circle>
+                                <circle cx="18" cy="18" r="16" fill="none" className="stroke-current text-primary" strokeWidth="2" strokeDasharray="100" strokeDashoffset={100 - metrics.completionPct}></circle>
                             </g>
                         </svg>
                         <div className="absolute top-1/2 start-1/2 transform -translate-y-1/2 -translate-x-1/2">
-                            <span className="text-center text-3xl font-bold text-gray-800 dark:text-white">75%</span>
+                            <span className="text-center text-3xl font-bold text-gray-800 dark:text-white">{metrics.completionPct}%</span>
                         </div>
                     </div>
                 </div>
                 <div className="text-center text-muted-foreground">
-                    <p>30 out of 40 families completed.</p>
+                    <p>{metrics.completedCount} out of {metrics.totalCount} families completed.</p>
                 </div>
             </CardContent>
         </Card>
@@ -67,7 +75,8 @@ export function DashboardCharts() {
                 <CardDescription>Number of children with outstanding consent forms.</CardDescription>
             </CardHeader>
             <CardContent>
-                <ChartContainer config={chartConfig} className="h-[250px] w-full">
+                <p className="text-center text-muted-foreground">Chart not implemented yet. Total missing consents: {metrics.missingConsentsCount}</p>
+                {/* <ChartContainer config={chartConfig} className="h-[250px] w-full">
                 <BarChart accessibilityLayer data={chartData}>
                     <CartesianGrid vertical={false} />
                     <XAxis
@@ -84,7 +93,7 @@ export function DashboardCharts() {
                     />
                     <Bar dataKey="missing" fill="var(--color-missing)" radius={4} />
                 </BarChart>
-                </ChartContainer>
+                </ChartContainer> */}
             </CardContent>
         </Card>
         <Card>
@@ -93,20 +102,16 @@ export function DashboardCharts() {
                 <CardDescription>Warnings for children outside the eligible age range.</CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-3">
-                <div className="flex justify-between items-center p-2 rounded-lg bg-yellow-100 dark:bg-yellow-900/50">
-                    <div>
-                        <p className="font-semibold">James Wilson</p>
-                        <p className="text-sm text-muted-foreground">Too young (Age 5)</p>
+                {metrics.choirEligibilityWarnings.map(warning => (
+                    <div key={warning.child_id} className="flex justify-between items-center p-2 rounded-lg bg-yellow-100 dark:bg-yellow-900/50">
+                        <div>
+                            <p className="font-semibold">{warning.child_name}</p>
+                            <p className="text-sm text-muted-foreground">{warning.reason}</p>
+                        </div>
+                        <Badge variant="outline" className="text-yellow-700 border-yellow-700">Warning</Badge>
                     </div>
-                    <Badge variant="outline" className="text-yellow-700 border-yellow-700">Warning</Badge>
-                </div>
-                <div className="flex justify-between items-center p-2 rounded-lg bg-yellow-100 dark:bg-yellow-900/50">
-                    <div>
-                        <p className="font-semibold">Ava Davis</p>
-                        <p className="text-sm text-muted-foreground">Too young (Age 4)</p>
-                    </div>
-                    <Badge variant="outline" className="text-yellow-700 border-yellow-700">Warning</Badge>
-                </div>
+                ))}
+                {metrics.choirEligibilityWarnings.length === 0 && <p className="text-muted-foreground text-sm">No eligibility warnings.</p>}
             </CardContent>
         </Card>
         <Card>
