@@ -372,19 +372,21 @@ export default function RegisterPage() {
   }, [allMinistries]);
 
   const { choirPrograms, teenFellowshipProgram, otherMinistryPrograms } = useMemo(() => {
+    if (!enrolledPrograms) return { choirPrograms: [], teenFellowshipProgram: null, otherMinistryPrograms: [] };
+
+    const sortedPrograms = [...enrolledPrograms].sort((a, b) => a.name.localeCompare(b.name));
+    
     const choir: Ministry[] = [];
     let teen: Ministry | null = null;
     const other: Ministry[] = [];
     
-    if (enrolledPrograms) {
-      for (const program of enrolledPrograms) {
-        if (program.code.startsWith('choir-')) {
-          choir.push(program);
-        } else if (program.code === 'teen-fellowship') {
-          teen = program;
-        } else {
-          other.push(program);
-        }
+    for (const program of sortedPrograms) {
+      if (program.code.startsWith('choir-')) {
+        choir.push(program);
+      } else if (program.code === 'teen-fellowship') {
+        teen = program;
+      } else {
+        other.push(program);
       }
     }
     
