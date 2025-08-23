@@ -511,7 +511,7 @@ export default function RostersPage() {
             </div>
             <div className="p-6 space-y-4">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                    <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-x-4 gap-y-2">
                         {user?.role === 'admin' && (
                             <div className="flex items-center space-x-2">
                                 <Checkbox id="group-by-grade" checked={groupByGrade} onCheckedChange={(checked) => setGroupByGrade(!!checked)} />
