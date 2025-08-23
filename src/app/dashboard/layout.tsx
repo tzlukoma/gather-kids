@@ -35,7 +35,7 @@ export default function DashboardLayout({
 }) {
   return (
     <div className="flex flex-col min-h-screen">
-      <header className="flex items-center justify-between p-4 border-b bg-background z-20">
+      <header className="flex items-center justify-between p-4 border-b bg-background z-20 h-16">
         <div className="flex items-center gap-4">
             <Link href="/dashboard" className="flex items-center gap-2 text-foreground">
                 <div className="font-headline text-2xl font-bold">gatherKids</div>
@@ -108,7 +108,7 @@ export default function DashboardLayout({
                       New Registration
                     </SidebarMenuButton>
                   </Link>
-                </SidebarMenuItem>
+                </MenuItem>
               </SidebarMenu>
             </SidebarContent>
             <SidebarFooter>
