@@ -1,6 +1,8 @@
+
 "use client"
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { IncidentForm } from "@/components/ministrysync/incident-form";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -23,8 +25,17 @@ import { acknowledgeIncident } from "@/lib/dal";
 
 export default function IncidentsPage() {
     const { toast } = useToast();
+    const searchParams = useSearchParams();
+    const [activeTab, setActiveTab] = useState("log");
 
     const incidents = useLiveQuery(() => db.incidents.orderBy('timestamp').reverse().toArray(), []);
+
+    useEffect(() => {
+        const tabParam = searchParams.get('tab');
+        if (tabParam === 'view') {
+            setActiveTab('view');
+        }
+    }, [searchParams]);
 
     const handleAcknowledge = async (incidentId: string) => {
         try {
@@ -54,7 +65,7 @@ export default function IncidentsPage() {
         </p>
       </div>
 
-      <Tabs defaultValue="log">
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="log">Log New Incident</TabsTrigger>
           <TabsTrigger value="view">View Incidents</TabsTrigger>
