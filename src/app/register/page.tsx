@@ -31,6 +31,9 @@ import { differenceInYears, isWithinInterval, parseISO, isValid } from "date-fns
 import { DanceMinistryForm } from "@/components/ministrysync/dance-ministry-form"
 import { TeenFellowshipForm } from "@/components/ministrysync/teen-fellowship-form"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { useLiveQuery } from "dexie-react-hooks"
+import { db } from "@/lib/db"
+import type { Ministry } from "@/lib/types"
 
 
 const MOCK_EMAILS = {
@@ -250,34 +253,6 @@ const defaultChildValues = {
   customData: { dance_returning_member: undefined }
 };
 
-const ministryPrograms = [
-    { id: "acolyte", label: "Acolyte Ministry", eligibility: () => true, details: "Thank you for registering for the Acolyte Ministry.\n\nYou will receive information from ministry leaders regarding next steps for your child's participation." },
-    { id: "bible-bee", label: "Bible Bee", description: "Registration open until Oct. 8, 2023", eligibility: () => {
-        const today = new Date();
-        const bibleBeeStart = new Date(today.getFullYear(), 0, 1);
-        const bibleBeeEnd = new Date(today.getFullYear(), 9, 8);
-        return isWithinInterval(today, { start: bibleBeeStart, end: bibleBeeEnd });
-    }, details: "Bible Bee is a competitive program that encourages scripture memorization. Materials must be purchased separately." },
-    { id: "dance", label: "Dance Ministry", eligibility: () => true, details: "Thank you for registering for the Dance Ministry.\n\nYou will receive information from ministry leaders regarding next steps for your child's participation." },
-    { id: "media-production", label: "Media Production Ministry", eligibility: () => true, details: "Thank you for registering for the Media Ministry.\n\nYou will receive information from ministry leaders regarding next steps for your child's participation." },
-    { id: "mentoring-boys", label: "Mentoring Ministry-Boys (Khalfani)", eligibility: () => true, details: "The Khalfani ministry provides mentorship for young boys through various activities and discussions." },
-    { id: "mentoring-girls", label: "Mentoring Ministry-Girls (Nailah)", eligibility: () => true, details: "The Nailah ministry provides mentorship for young girls, focusing on empowerment and personal growth." },
-    { id: "teen-fellowship", label: "New Generation Teen Fellowship", eligibility: () => true, details: "Thank you for registering for New Generation Teen Fellowship.\n\nOn 3rd Sundays, during the 10:30 AM service,  New Generation Teen Fellowship will host Teen Church in the Family Life Enrichment Center.  Teens may sign themselves in and out of the service.\n\nYou will receive more information about ministry activities from minstry leaders." },
-    { id: "choir-joy-bells", label: "Youth Choirs- Joy Bells (Ages 4-8)", eligibility: (age: number | null) => age !== null && age >= 4 && age <= 8, details: "Joy Bells is our introductory choir for the youngest voices. Practices are held after the 11 AM service." },
-    { id: "choir-keita", label: "Youth Choirs- Keita Praise Choir (Ages 9-12)", eligibility: (age: number | null) => age !== null && age >= 9 && age <= 12, details: "Keita Praise Choir builds on foundational skills and performs once a month. Practices are on Wednesdays." },
-    { id: "choir-teen", label: "Youth Choirs- New Generation Teen Choir (Ages 13-18)", eligibility: (age: number | null) => age !== null && age >= 13 && age <= 18, details: "The Teen Choir performs contemporary gospel music and leads worship during Youth Sundays." },
-    { id: "youth-ushers", label: "Youth Ushers", eligibility: () => true, details: "Thank you for registering for the Youth Ushers Ministry.\n\nYou will receive information from ministry leaders regarding next steps for your child's participation." },
-];
-
-const interestPrograms = [
-    { id: "childrens-musical", label: "Children's Musical", eligibility: () => true },
-    { id: "confirmation", label: "Confirmation", eligibility: () => true },
-    { id: "orators", label: "New Jersey Orators", eligibility: () => true },
-    { id: "nursery", label: "Nursery", eligibility: () => true },
-    { id: "vbs", label: "Vacation Bible School", eligibility: () => true },
-    { id: "college-tour", label: "College Tour", eligibility: () => true },
-];
-
 const getAgeFromDob = (dobString: string): number | null => {
     if (dobString && isValid(parseISO(dobString))) {
         return differenceInYears(new Date(), parseISO(dobString));
@@ -285,30 +260,51 @@ const getAgeFromDob = (dobString: string): number | null => {
     return null;
 }
 
-const ProgramSection = ({ control, childrenData, program, childFields }: { control: any, childrenData: any[], program: any, childFields: any[] }) => {
+const checkEligibility = (program: Ministry, age: number | null): boolean => {
+    if (program.min_age && age !== null && age < program.min_age) return false;
+    if (program.max_age && age !== null && age > program.max_age) return false;
+
+    if (program.code === 'bible-bee') {
+        const today = new Date();
+        const bibleBeeStart = program.open_at ? parseISO(program.open_at) : new Date(today.getFullYear(), 0, 1);
+        const bibleBeeEnd = program.close_at ? parseISO(program.close_at) : new Date(today.getFullYear(), 9, 8);
+        return isWithinInterval(today, { start: bibleBeeStart, end: bibleBeeEnd });
+    }
+
+    return true;
+}
+
+const ProgramSection = ({ control, childrenData, program, childFields }: { control: any, childrenData: any[], program: Ministry, childFields: any[] }) => {
     const ministrySelections = useWatch({
         control,
         name: 'children',
     });
 
     const isAnyChildSelected = childrenData.some((_, index) => 
-        ministrySelections[index]?.ministrySelections?.[program.id]
+        ministrySelections[index]?.ministrySelections?.[program.code as keyof z.infer<typeof ministrySelectionSchema>]
     );
+    
+    const anyChildEligible = childrenData.some(child => {
+        const age = getAgeFromDob(child.dob);
+        return checkEligibility(program, age);
+    });
+
+    if (!anyChildEligible) return null;
 
     return (
         <div className="p-4 border rounded-md">
-            <h4 className="font-semibold">{program.label}</h4>
+            <h4 className="font-semibold">{program.name}</h4>
             {program.description && <p className="text-sm text-muted-foreground mb-2">{program.description}</p>}
             <div className="flex flex-col sm:flex-row sm:flex-wrap gap-x-6 gap-y-2 mt-2">
                 {childrenData.map((child, index) => {
                     const age = getAgeFromDob(child.dob);
-                    if (!program.eligibility(age)) return null;
+                    if (!checkEligibility(program, age)) return null;
                     
                     return (
                         <FormField
-                            key={`${program.id}-${childFields[index].id}`}
+                            key={`${program.code}-${childFields[index].id}`}
                             control={control}
-                            name={`children.${index}.ministrySelections.${program.id as keyof z.infer<typeof ministrySelectionSchema>}`}
+                            name={`children.${index}.ministrySelections.${program.code as keyof z.infer<typeof ministrySelectionSchema>}`}
                             render={({ field }) => (
                                 <FormItem className="flex flex-row items-start space-x-3 space-y-0">
                                     <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
@@ -319,10 +315,10 @@ const ProgramSection = ({ control, childrenData, program, childFields }: { contr
                     )
                 })}
             </div>
-             {isAnyChildSelected && program.id === 'dance' && (
+             {isAnyChildSelected && program.code === 'dance' && (
                 <DanceMinistryForm control={control} />
             )}
-             {isAnyChildSelected && program.id === 'teen-fellowship' && (
+             {isAnyChildSelected && program.code === 'teen-fellowship' && (
                 <TeenFellowshipForm control={control} />
             )}
             {isAnyChildSelected && program.details && (
@@ -343,6 +339,8 @@ export default function RegisterPage() {
   const [verificationEmail, setVerificationEmail] = useState('');
   const [openAccordionItems, setOpenAccordionItems] = useState<string[]>([]);
   
+  const allMinistries = useLiveQuery(() => db.ministries.toArray(), []);
+
   const form = useForm<RegistrationFormValues>({
     resolver: zodResolver(registrationSchema),
     defaultValues: {
@@ -366,8 +364,18 @@ export default function RegisterPage() {
 
   const childrenData = useWatch({ control: form.control, name: 'children' });
   
-  const choirPrograms = ministryPrograms.filter(p => p.id.startsWith('choir-'));
-  const otherMinistryPrograms = ministryPrograms.filter(p => !p.id.startsWith('choir-'));
+  const {enrolledPrograms, interestPrograms} = useMemo(() => {
+    if (!allMinistries) return { enrolledPrograms: [], interestPrograms: [] };
+    const enrolled = allMinistries.filter(m => m.enrollment_type === 'enrolled' && !m.code.startsWith('min_sunday'));
+    const interest = allMinistries.filter(m => m.enrollment_type === 'interest_only');
+    return { enrolledPrograms: enrolled, interestPrograms: interest };
+  }, [allMinistries]);
+
+  const {choirPrograms, otherMinistryPrograms} = useMemo(() => {
+    const choir = enrolledPrograms.filter(p => p.code.startsWith('choir-'));
+    const other = enrolledPrograms.filter(p => !p.code.startsWith('choir-'));
+    return { choirPrograms: choir, otherMinistryPrograms: other };
+  }, [enrolledPrograms]);
 
 
   const prefillForm = (data: any) => {
@@ -703,7 +711,7 @@ export default function RegisterPage() {
                                 </div>
                             </div>
                             {otherMinistryPrograms.map(program => (
-                                <ProgramSection key={program.id} control={form.control} childrenData={childrenData} program={program} childFields={childFields} />
+                                <ProgramSection key={program.ministry_id} control={form.control} childrenData={childrenData} program={program} childFields={childFields} />
                             ))}
                             <div className="p-4 border rounded-md space-y-4">
                                 <h3 className="text-lg font-semibold font-headline">Youth Choirs</h3>
@@ -735,7 +743,7 @@ export default function RegisterPage() {
                                 />
                                 <div className="space-y-6">
                                 {choirPrograms.map(program => (
-                                    <ProgramSection key={program.id} control={form.control} childrenData={childrenData} program={program} childFields={childFields} />
+                                    <ProgramSection key={program.ministry_id} control={form.control} childrenData={childrenData} program={program} childFields={childFields} />
                                 ))}
                                 </div>
                             </div>
@@ -749,14 +757,14 @@ export default function RegisterPage() {
                         </CardHeader>
                         <CardContent className="space-y-6">
                             {interestPrograms.map(program => (
-                                <div key={program.id} className="p-4 border rounded-md">
-                                    <h4 className="font-semibold">{program.label}</h4>
+                                <div key={program.ministry_id} className="p-4 border rounded-md">
+                                    <h4 className="font-semibold">{program.name}</h4>
                                      <div className="flex flex-col sm:flex-row sm:flex-wrap gap-x-6 gap-y-2 mt-2">
                                         {childrenData.map((child, index) => (
                                             <FormField
-                                                key={`${program.id}-${childFields[index].id}`}
+                                                key={`${program.code}-${childFields[index].id}`}
                                                 control={form.control}
-                                                name={`children.${index}.interestSelections.${program.id as keyof z.infer<typeof interestSelectionSchema>}`}
+                                                name={`children.${index}.interestSelections.${program.code as keyof z.infer<typeof interestSelectionSchema>}`}
                                                 render={({ field }) => (
                                                     <FormItem className="flex flex-row items-start space-x-3 space-y-0">
                                                         <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>

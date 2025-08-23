@@ -1,4 +1,5 @@
 
+
 import { db } from './db';
 import { v4 as uuidv4 } from 'uuid';
 import type { Household, Guardian, EmergencyContact, Child, RegistrationCycle, Registration, Ministry, MinistryEnrollment, User, Event, Attendance, Incident } from './types';
@@ -144,10 +145,27 @@ export const seedDB = async () => {
         ]);
 
         await db.ministries.bulkPut([
-            { ministry_id: MINISTRY_IDS.sundaySchool, name: 'Sunday School', code: 'SUNDAY_SCHOOL', enrollment_type: 'enrolled', data_profile: 'SafetyAware', created_at: now, updated_at: now },
-            { ministry_id: MINISTRY_IDS.choirKids, name: 'Kids Choir', code: 'CHOIR_KIDS', enrollment_type: 'enrolled', min_age: 7, max_age: 12, data_profile: 'Basic', created_at: now, updated_at: now },
-            { ministry_id: MINISTRY_IDS.youthGroup, name: 'Youth Group', code: 'YOUTH_GROUP', enrollment_type: 'enrolled', min_grade: '6th Grade', max_grade: '12th Grade', data_profile: 'Basic', created_at: now, updated_at: now },
-            { ministry_id: MINISTRY_IDS.bibleBee, name: 'Bible Bee', code: 'BIBLE_BEE', enrollment_type: 'interest_only', open_at: '2025-08-01', close_at: '2025-08-31', data_profile: 'Basic', created_at: now, updated_at: now },
+            // Enrolled
+            { ministry_id: 'min_sunday_school', name: 'Sunday School', code: 'min_sunday_school', enrollment_type: 'enrolled', data_profile: 'SafetyAware', created_at: now, updated_at: now },
+            { ministry_id: uuidv4(), name: "Acolyte Ministry", code: "acolyte", enrollment_type: 'enrolled', details: "Thank you for registering for the Acolyte Ministry.\n\nYou will receive information from ministry leaders regarding next steps for your child's participation.", data_profile: 'Basic', created_at: now, updated_at: now },
+            { ministry_id: uuidv4(), name: "Bible Bee", code: "bible-bee", enrollment_type: 'enrolled', description: "Registration open until Oct. 8, 2023", open_at: `2023-01-01`, close_at: `2023-10-08`, details: "Bible Bee is a competitive program that encourages scripture memorization. Materials must be purchased separately.", data_profile: 'Basic', created_at: now, updated_at: now },
+            { ministry_id: uuidv4(), name: "Dance Ministry", code: "dance", enrollment_type: 'enrolled', details: "Thank you for registering for the Dance Ministry.\n\nYou will receive information from ministry leaders regarding next steps for your child's participation.", data_profile: 'Basic', created_at: now, updated_at: now },
+            { ministry_id: uuidv4(), name: "Media Production Ministry", code: "media-production", enrollment_type: 'enrolled', details: "Thank you for registering for the Media Ministry.\n\nYou will receive information from ministry leaders regarding next steps for your child's participation.", data_profile: 'Basic', created_at: now, updated_at: now },
+            { ministry_id: uuidv4(), name: "Mentoring Ministry-Boys (Khalfani)", code: "mentoring-boys", enrollment_type: 'enrolled', details: "The Khalfani ministry provides mentorship for young boys through various activities and discussions.", data_profile: 'Basic', created_at: now, updated_at: now },
+            { ministry_id: uuidv4(), name: "Mentoring Ministry-Girls (Nailah)", code: "mentoring-girls", enrollment_type: 'enrolled', details: "The Nailah ministry provides mentorship for young girls, focusing on empowerment and personal growth.", data_profile: 'Basic', created_at: now, updated_at: now },
+            { ministry_id: uuidv4(), name: "New Generation Teen Fellowship", code: "teen-fellowship", enrollment_type: 'enrolled', details: "Thank you for registering for New Generation Teen Fellowship.\n\nOn 3rd Sundays, during the 10:30 AM service,  New Generation Teen Fellowship will host Teen Church in the Family Life Enrichment Center.  Teens may sign themselves in and out of the service.\n\nYou will receive more information about ministry activities from minstry leaders.", data_profile: 'Basic', created_at: now, updated_at: now },
+            { ministry_id: uuidv4(), name: "Youth Choirs- Joy Bells (Ages 4-8)", code: "choir-joy-bells", enrollment_type: 'enrolled', min_age: 4, max_age: 8, details: "Joy Bells is our introductory choir for the youngest voices. Practices are held after the 11 AM service.", data_profile: 'Basic', created_at: now, updated_at: now },
+            { ministry_id: uuidv4(), name: "Youth Choirs- Keita Praise Choir (Ages 9-12)", code: "choir-keita", enrollment_type: 'enrolled', min_age: 9, max_age: 12, details: "Keita Praise Choir builds on foundational skills and performs once a month. Practices are on Wednesdays.", data_profile: 'Basic', created_at: now, updated_at: now },
+            { ministry_id: uuidv4(), name: "Youth Choirs- New Generation Teen Choir (Ages 13-18)", code: "choir-teen", enrollment_type: 'enrolled', min_age: 13, max_age: 18, details: "The Teen Choir performs contemporary gospel music and leads worship during Youth Sundays.", data_profile: 'Basic', created_at: now, updated_at: now },
+            { ministry_id: uuidv4(), name: "Youth Ushers", code: "youth-ushers", enrollment_type: 'enrolled', details: "Thank you for registering for the Youth Ushers Ministry.\n\nYou will receive information from ministry leaders regarding next steps for your child's participation.", data_profile: 'Basic', created_at: now, updated_at: now },
+            
+            // Interest Only
+            { ministry_id: uuidv4(), name: "Children's Musical", code: "childrens-musical", enrollment_type: 'interest_only', data_profile: 'Basic', created_at: now, updated_at: now },
+            { ministry_id: uuidv4(), name: "Confirmation", code: "confirmation", enrollment_type: 'interest_only', data_profile: 'Basic', created_at: now, updated_at: now },
+            { ministry_id: uuidv4(), name: "New Jersey Orators", code: "orators", enrollment_type: 'interest_only', data_profile: 'Basic', created_at: now, updated_at: now },
+            { ministry_id: uuidv4(), name: "Nursery", code: "nursery", enrollment_type: 'interest_only', data_profile: 'Basic', created_at: now, updated_at: now },
+            { ministry_id: uuidv4(), name: "Vacation Bible School", code: "vbs", enrollment_type: 'interest_only', data_profile: 'Basic', created_at: now, updated_at: now },
+            { ministry_id: uuidv4(), name: "College Tour", code: "college-tour", enrollment_type: 'interest_only', data_profile: 'Basic', created_at: now, updated_at: now },
         ]);
 
         await db.events.bulkPut([
@@ -182,8 +200,11 @@ export const seedDB = async () => {
             
             // Enroll in choir if eligible
             const age = differenceInYears(today, parseISO(child.dob!));
-            if (age >= 7 && age <= 12) {
-                enrollments.push({ enrollment_id: uuidv4(), child_id: child.child_id, cycle_id: CYCLE_IDS.current, ministry_id: MINISTRY_IDS.choirKids, status: 'enrolled' });
+            if (age >= 4 && age <= 8) {
+                enrollments.push({ enrollment_id: uuidv4(), child_id: child.child_id, cycle_id: CYCLE_IDS.current, ministry_id: 'choir-joy-bells', status: 'enrolled' });
+            }
+             if (age >= 9 && age <= 12) {
+                enrollments.push({ enrollment_id: uuidv4(), child_id: child.child_id, cycle_id: CYCLE_IDS.current, ministry_id: 'choir-keita', status: 'enrolled' });
             }
         }
         await db.registrations.bulkPut(registrations);
