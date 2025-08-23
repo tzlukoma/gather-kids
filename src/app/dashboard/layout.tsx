@@ -1,4 +1,6 @@
 
+'use client';
+
 import React from 'react';
 import Link from 'next/link';
 import {
@@ -36,7 +38,7 @@ export default function DashboardLayout({
 }) {
   return (
     <SidebarProvider>
-        <div className="flex flex-col min-h-screen">
+      <div className="flex flex-col min-h-screen">
         <header className="flex items-center justify-between p-4 border-b bg-background z-20 h-16">
             <div className="flex items-center gap-4">
                 <SidebarTrigger className="md:hidden" />
@@ -45,12 +47,12 @@ export default function DashboardLayout({
                 </Link>
             </div>
             <div className="flex items-center gap-4">
-            <p className="font-headline text-lg font-semibold hidden sm:block">Welcome, Admin!</p>
-            <Button variant="outline">
-                <User className="mr-2" />
-                My Profile
-                </Button>
-                <SeedDataButton />
+              <p className="font-headline text-lg font-semibold hidden sm:block">Welcome, Admin!</p>
+              <Button variant="outline">
+                  <User className="mr-2" />
+                  My Profile
+              </Button>
+              <SeedDataButton />
             </div>
         </header>
         <div className="flex flex-1">
