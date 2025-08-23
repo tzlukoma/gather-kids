@@ -220,7 +220,9 @@ export async function registerHousehold(data: any) {
         await db.emergency_contacts.add(emergencyContact);
         await db.children.bulkAdd(children);
 
-        for (const child of children) {
+        for (const [index, child] of children.entries()) {
+            const childData = data.children[index];
+
             const registration: Registration = {
                 registration_id: uuidv4(),
                 child_id: child.child_id,
@@ -246,24 +248,43 @@ export async function registerHousehold(data: any) {
             };
             await db.ministry_enrollments.add(sundaySchoolEnrollment);
 
-            // Handle Choir selection
-            if (data.ministrySelections.choir) {
-                if (await isEligibleForChoir('min_choir_kids', child.child_id)) {
+            const ministrySelections = childData.ministrySelections || {};
+            const isJoyBell = ministrySelections['choir-joy-bells'];
+            const isKeita = ministrySelections['choir-keita'];
+            const isTeenChoir = ministrySelections['choir-teen'];
+
+            // Handle Choir selections
+            if (isJoyBell) {
+                 if (await isEligibleForChoir('min_choir_kids', child.child_id)) {
                     const choirEnrollment: MinistryEnrollment = {
-                        enrollment_id: uuidv4(),
-                        child_id: child.child_id,
-                        cycle_id: "2025",
-                        ministry_id: "min_choir_kids",
-                        status: 'enrolled',
+                        enrollment_id: uuidv4(), child_id: child.child_id, cycle_id: "2025",
+                        ministry_id: "choir-joy-bells", status: 'enrolled',
                     };
                     await db.ministry_enrollments.add(choirEnrollment);
-                } else {
-                    console.warn(`Child ${child.first_name} is not eligible for choir but was selected.`);
+                }
+            }
+             if (isKeita) {
+                 if (await isEligibleForChoir('min_choir_kids', child.child_id)) {
+                    const choirEnrollment: MinistryEnrollment = {
+                        enrollment_id: uuidv4(), child_id: child.child_id, cycle_id: "2025",
+                        ministry_id: "choir-keita", status: 'enrolled',
+                    };
+                    await db.ministry_enrollments.add(choirEnrollment);
+                }
+            }
+             if (isTeenChoir) {
+                 if (await isEligibleForChoir('min_choir_kids', child.child_id)) {
+                    const choirEnrollment: MinistryEnrollment = {
+                        enrollment_id: uuidv4(), child_id: child.child_id, cycle_id: "2025",
+                        ministry_id: "choir-teen", status: 'enrolled',
+                    };
+                    await db.ministry_enrollments.add(choirEnrollment);
                 }
             }
 
+
             // Handle Bible Bee selection
-            if (data.ministrySelections.bibleBee) {
+            if (ministrySelections['bible-bee']) {
                  if (await isWithinWindow('min_bible_bee', now)) {
                      const bibleBeeEnrollment: MinistryEnrollment = {
                         enrollment_id: uuidv4(),
