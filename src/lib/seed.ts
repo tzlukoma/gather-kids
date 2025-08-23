@@ -29,6 +29,13 @@ const EVENT_IDS = {
 
 const HOUSEHOLD_IDS: { [key: string]: string } = {};
 
+const getGradeFromAge = (age: number): string => {
+    if (age <= 4) return "Pre-K";
+    if (age === 5) return "Kindergarten";
+    if (age >= 6 && age <= 17) return `${age - 5}${age - 5 === 1 ? 'st' : age - 5 === 2 ? 'nd' : age - 5 === 3 ? 'rd' : 'th'} Grade`;
+    return "12th Grade"; // cap at 12th
+}
+
 const generateHouseholdsAndChildren = (): { households: Household[], children: Child[], guardians: Guardian[], emergencyContacts: EmergencyContact[] } => {
     const households: Household[] = [];
     const children: Child[] = [];
@@ -103,8 +110,8 @@ const generateHouseholdsAndChildren = (): { households: Household[], children: C
                 household_id: householdId,
                 first_name: kid.f,
                 last_name: family.lastName,
-                dob: formatISO(dob),
-                grade: `${kid.age - 4}th Grade`, // Simplified grade calculation
+                dob: formatISO(dob, { representation: 'date' }),
+                grade: getGradeFromAge(kid.age),
                 is_active: true,
                 created_at: now,
                 updated_at: now,
@@ -138,7 +145,7 @@ export const seedDB = async () => {
         await db.ministries.bulkPut([
             { ministry_id: MINISTRY_IDS.sundaySchool, name: 'Sunday School', code: 'SUNDAY_SCHOOL', enrollment_type: 'enrolled', data_profile: 'SafetyAware', created_at: now, updated_at: now },
             { ministry_id: MINISTRY_IDS.choirKids, name: 'Kids Choir', code: 'CHOIR_KIDS', enrollment_type: 'enrolled', min_age: 7, max_age: 12, data_profile: 'Basic', created_at: now, updated_at: now },
-            { ministry_id: MINISTRY_IDS.youthGroup, name: 'Youth Group', code: 'YOUTH_GROUP', enrollment_type: 'enrolled', min_grade: '6', max_grade: '12', data_profile: 'Basic', created_at: now, updated_at: now },
+            { ministry_id: MINISTRY_IDS.youthGroup, name: 'Youth Group', code: 'YOUTH_GROUP', enrollment_type: 'enrolled', min_grade: '6th Grade', max_grade: '12th Grade', data_profile: 'Basic', created_at: now, updated_at: now },
             { ministry_id: MINISTRY_IDS.bibleBee, name: 'Bible Bee', code: 'BIBLE_BEE', enrollment_type: 'interest_only', open_at: '2025-08-01', close_at: '2025-08-31', data_profile: 'Basic', created_at: now, updated_at: now },
         ]);
 

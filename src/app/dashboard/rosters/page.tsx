@@ -43,7 +43,7 @@ const getEventName = (eventId: string | null) => {
 
 const gradeSortOrder: { [key: string]: number } = {
     "Pre-K": 0,
-    "K": 1,
+    "Kindergarten": 1,
     "1st Grade": 2,
     "2nd Grade": 3,
     "3rd Grade": 4,
