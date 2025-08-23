@@ -1,6 +1,7 @@
 
 
 
+
 import { db } from './db';
 import type { Attendance, Child, Guardian, Household, Incident, IncidentSeverity, Ministry, MinistryEnrollment, Registration, User, EmergencyContact, LeaderAssignment } from './types';
 import { differenceInYears, isAfter, isBefore, parseISO } from 'date-fns';
@@ -317,38 +318,40 @@ export async function findHouseholdByEmail(email: string, currentCycleId: string
     if (!guardian) return null;
 
     const householdId = guardian.household_id;
-    
-    // 1. Check for an existing registration in the CURRENT cycle.
-    const currentHousehold = await db.households.get(householdId);
-    if (currentHousehold) {
-        // A household can exist without a registration for the year. Let's check enrollments.
-        const currentEnrollmentExists = await db.ministry_enrollments.where({cycle_id: currentCycleId}).and(e => {
-            const child = db.children.get(e.child_id);
-            return child.household_id === householdId;
-        }).first();
+    const householdChildren = await db.children.where({ household_id: householdId }).toArray();
+    const householdChildIds = householdChildren.map(c => c.child_id);
 
-        if (currentEnrollmentExists) {
-             return {
-                isCurrentYear: true,
-                data: await fetchFullHouseholdData(householdId, currentCycleId)
-            };
-        }
+    if (householdChildIds.length === 0) return null; // No children in household, so no registration
+
+    // 1. Check for an existing registration in the CURRENT cycle.
+    const currentEnrollmentExists = await db.ministry_enrollments
+        .where('child_id').anyOf(householdChildIds)
+        .and(e => e.cycle_id === currentCycleId)
+        .first();
+
+    if (currentEnrollmentExists) {
+        return {
+            isCurrentYear: true,
+            data: await fetchFullHouseholdData(householdId, currentCycleId)
+        };
     }
     
     // 2. If no current registration, check for a registration in the PRIOR cycle to pre-fill from.
     const priorCycleId = String(parseInt(currentCycleId, 10) - 1);
-    const priorRegExists = await db.ministry_enrollments.where({ cycle_id: priorCycleId }).and(e => {
-        const child = db.children.get(e.child_id);
-        return child.household_id === householdId;
-    }).first();
+    const priorRegExists = await db.ministry_enrollments
+        .where('child_id').anyOf(householdChildIds)
+        .and(e => e.cycle_id === priorCycleId)
+        .first();
     
     if (priorRegExists) {
         const priorData = await fetchFullHouseholdData(householdId, priorCycleId);
-        // Important: Remove the household_id to ensure it's treated as a new registration, not an update.
+        // Important: Clear household_id and child_id to ensure it's treated as a new registration for the current year, not an update.
         if (priorData.household) {
             priorData.household.household_id = "";
         }
-         return {
+        priorData.children.forEach(c => c.child_id = undefined);
+        
+        return {
             isCurrentYear: false,
             data: priorData
         };
@@ -654,3 +657,4 @@ export async function saveLeaderAssignments(leaderId: string, cycleId: string, n
 export async function updateLeaderStatus(leaderId: string, isActive: boolean): Promise<number> {
     return db.users.update(leaderId, { is_active: isActive });
 }
+
