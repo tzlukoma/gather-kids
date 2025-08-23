@@ -1,5 +1,4 @@
 
-
 "use client"
 
 import { useForm, useFieldArray } from "react-hook-form"
@@ -188,22 +187,6 @@ export default function RegisterPage() {
                     <CardTitle className="font-headline">Household & Guardian Information</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                     <FormField
-                        control={form.control}
-                        name="household.name"
-                        render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>Household Name</FormLabel>
-                                <FormControl>
-                                    <Input placeholder={primaryGuardianLastName ? `${primaryGuardianLastName} Household` : "e.g. Smith Household"} {...field} />
-                                </FormControl>
-                                 <FormDescription>
-                                    How should we refer to your household? If left blank, we'll use the placeholder text.
-                                 </FormDescription>
-                                <FormMessage />
-                            </FormItem>
-                        )}
-                    />
                     <FormField
                         control={form.control}
                         name="household.address_line1"
@@ -238,6 +221,26 @@ export default function RegisterPage() {
                             <FormItem><FormLabel>Relationship</FormLabel><FormControl><Input placeholder="e.g., Mother, Grandfather" {...field} /></FormControl><FormMessage /></FormItem>
                         )} />
                         </div>
+                        {index === 0 && (
+                            <div className="pt-4">
+                                 <FormField
+                                    control={form.control}
+                                    name="household.name"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Household Name</FormLabel>
+                                            <FormControl>
+                                                <Input placeholder={primaryGuardianLastName ? `${primaryGuardianLastName} Household` : "e.g. Smith Household"} {...field} />
+                                            </FormControl>
+                                            <FormDescription>
+                                                How should we refer to your household? If left blank, we'll use the placeholder text.
+                                            </FormDescription>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                            </div>
+                        )}
                         {guardianFields.length > 1 && (
                             <Button type="button" variant="destructive" size="icon" className="absolute top-2 right-2" onClick={() => removeGuardian(index)}><Trash2 className="h-4 w-4" /></Button>
                         )}
@@ -342,3 +345,5 @@ export default function RegisterPage() {
     </div>
   )
 }
+
+    
