@@ -159,10 +159,10 @@ export const seedDB = async () => {
             { ministry_id: uuidv4(), name: "Youth Choirs- Keita Praise Choir (Ages 9-12)", code: "choir-keita", enrollment_type: 'enrolled', min_age: 9, max_age: 12, details: "Keita Praise Choir builds on foundational skills and performs once a month. Practices are on Wednesdays.", data_profile: 'Basic', created_at: now, updated_at: now },
             { ministry_id: uuidv4(), name: "Youth Choirs- New Generation Teen Choir (Ages 13-18)", code: "choir-teen", enrollment_type: 'enrolled', min_age: 13, max_age: 18, details: "The Teen Choir performs contemporary gospel music and leads worship during Youth Sundays.", data_profile: 'Basic', created_at: now, updated_at: now },
             { ministry_id: uuidv4(), name: "Youth Ushers", code: "youth-ushers", enrollment_type: 'enrolled', details: "Thank you for registering for the Youth Ushers Ministry.\n\nYou will receive information from ministry leaders regarding next steps for your child's participation.", data_profile: 'Basic', created_at: now, updated_at: now },
-             // Teen Fellowship Interests (nested under an enrolled program)
-            { ministry_id: uuidv4(), name: "Podcast & YouTube Channel Projects", code: "teen_podcast", enrollment_type: 'enrolled', data_profile: 'Basic', created_at: now, updated_at: now },
-            { ministry_id: uuidv4(), name: "Social Media Team", code: "teen_social_media", enrollment_type: 'enrolled', data_profile: 'Basic', created_at: now, updated_at: now },
-            { ministry_id: uuidv4(), name: "Leading Community Service Projects", code: "teen_community_service", enrollment_type: 'enrolled', data_profile: 'Basic', created_at: now, updated_at: now },
+             // Teen Fellowship Interests (nested under an enrolled program) - these should be interest_only to not show on main config list
+            { ministry_id: uuidv4(), name: "Podcast & YouTube Channel Projects", code: "teen_podcast", enrollment_type: 'interest_only', data_profile: 'Basic', created_at: now, updated_at: now },
+            { ministry_id: uuidv4(), name: "Social Media Team", code: "teen_social_media", enrollment_type: 'interest_only', data_profile: 'Basic', created_at: now, updated_at: now },
+            { ministry_id: uuidv4(), name: "Leading Community Service Projects", code: "teen_community_service", enrollment_type: 'interest_only', data_profile: 'Basic', created_at: now, updated_at: now },
 
             // Interest-Only Programs
             { ministry_id: uuidv4(), name: "Children's Musical", code: "childrens-musical", enrollment_type: 'interest_only', data_profile: 'Basic', created_at: now, updated_at: now },

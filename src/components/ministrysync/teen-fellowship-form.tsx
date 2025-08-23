@@ -24,7 +24,7 @@ export function TeenFellowshipForm({ control }: { control: any }) {
                     <FormField
                         key={interest.id}
                         control={control}
-                        name={`ministrySelections.${interest.id}`}
+                        name={`children[0].ministrySelections.${interest.id}`}
                         render={({ field }) => (
                             <FormItem className="flex flex-row items-start space-x-3 space-y-0">
                                 <FormControl>
