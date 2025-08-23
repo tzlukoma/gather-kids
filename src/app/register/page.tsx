@@ -1,4 +1,5 @@
 
+
 "use client"
 
 import { useForm, useFieldArray } from "react-hook-form"
@@ -230,10 +231,10 @@ export default function RegisterPage() {
                                         <FormItem>
                                             <FormLabel>Household Name</FormLabel>
                                             <FormControl>
-                                                <Input placeholder={primaryGuardianLastName ? `${primaryGuardianLastName} Household` : "e.g. Smith Household"} {...field} />
+                                                <Input placeholder={primaryGuardianLastName ? `${primaryGuardianLastName} Household` : ""} {...field} />
                                             </FormControl>
                                             <FormDescription>
-                                                How should we refer to your household? If left blank, we'll use the placeholder text.
+                                                This is how we will identify your household - please change it if you want a different name used.
                                             </FormDescription>
                                             <FormMessage />
                                         </FormItem>
