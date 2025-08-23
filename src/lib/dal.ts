@@ -1,4 +1,5 @@
 
+
 import { db } from './db';
 import type { Attendance, Child, Guardian, Household, Incident, IncidentSeverity, Ministry, MinistryEnrollment, Registration, User } from './types';
 import { differenceInYears, isAfter, isBefore, parseISO } from 'date-fns';
@@ -182,7 +183,7 @@ export async function registerHousehold(data: any) {
 
     const household: Household = {
         household_id: householdId,
-        name: `${data.guardians[0].last_name} Household`,
+        name: data.household.name || `${data.guardians[0].last_name} Household`,
         address_line1: data.household.address_line1,
         created_at: now,
         updated_at: now,
@@ -344,5 +345,3 @@ export async function exportAttendanceRollupCSV(startISO: string, endISO: string
     const csv = convertToCSV(exportData);
     return new Blob([csv], { type: 'text/csv;charset=utf-8;' });
 }
-
-    
