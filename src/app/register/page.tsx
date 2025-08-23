@@ -21,76 +21,38 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Separator } from "@/components/ui/separator"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { useToast } from "@/hooks/use-toast"
-import { PlusCircle, Trash2 } from "lucide-react"
+import { PlusCircle, Trash2, AlertTriangle, Info } from "lucide-react"
 import { useState, useMemo, useEffect } from "react"
 import { Textarea } from "@/components/ui/textarea"
-import { registerHousehold } from "@/lib/dal"
+import { findHouseholdByEmail, registerHousehold } from "@/lib/dal"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Info } from "lucide-react"
 import { differenceInYears, isWithinInterval, parseISO, isValid } from "date-fns"
 import { DanceMinistryForm } from "@/components/ministrysync/dance-ministry-form"
 import { TeenFellowshipForm } from "@/components/ministrysync/teen-fellowship-form"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { useLiveQuery } from "dexie-react-hooks"
 import { db } from "@/lib/db"
-import type { Ministry } from "@/lib/types"
+import type { Ministry, Household } from "@/lib/types"
 
 
 const MOCK_EMAILS = {
-    PREFILL: 'prefill@example.com',
-    VERIFY: 'verify@example.com',
+    OVERWRITE: 'mary.j@example.com', // This email exists and has a current registration
+    VERIFY: 'verify@example.com', // This will trigger the security question flow
     NEW: 'new@example.com',
 };
 
-const MOCK_HOUSEHOLD_DATA = {
-    household: {
-        name: "Johnson Household",
-        address_line1: "456 Oak Avenue, Anytown, USA",
-    },
-    guardians: [
-        { first_name: "Mary", last_name: "Johnson", mobile_phone: "555-555-2222", email: "mary.j@example.com", relationship: "Mother", is_primary: true },
-        { first_name: "Robert", last_name: "Johnson", mobile_phone: "555-555-3333", email: "bob.j@example.com", relationship: "Father", is_primary: false },
-    ],
-    emergencyContact: {
-        first_name: "Susan",
-        last_name: "Davis",
-        mobile_phone: "555-555-8888",
-        relationship: "Aunt"
-    },
-    children: [
-        { first_name: "Olivia", last_name: "Johnson", dob: "2020-05-10", grade: "Pre-K", child_mobile: "555-555-4444", allergies: "Tree nuts", medical_notes: "Carries an EpiPen.", special_needs: true, special_needs_notes: "Requires a quiet space if overstimulated.", ministrySelections: { "acolyte": false, "bible-bee": false, "dance": false, "media-production": false, "mentoring-boys": false, "mentoring-girls": false, "teen-fellowship": false, "choir-joy-bells": false, "choir-keita": false, "choir-teen": false, "youth-ushers": false }, interestSelections: { "childrens-musical": false, "confirmation": false, "orators": false, "nursery": false, "vbs": false, "college-tour": false } },
-        { first_name: "Noah", last_name: "Johnson", dob: "2015-09-15", grade: "4th Grade", child_mobile: "555-555-5555", allergies: "", medical_notes: "", special_needs: false, special_needs_notes: "", ministrySelections: { "acolyte": true, "bible-bee": true, "dance": false, "media-production": true, "mentoring-boys": true, "mentoring-girls": false, "teen-fellowship": false, "choir-joy-bells": false, "choir-keita": true, "choir-teen": false, "youth-ushers": false }, interestSelections: { "childrens-musical": true, "confirmation": false, "orators": true, "nursery": false, "vbs": true, "college-tour": false } },
-    ],
-    consents: {
-        liability: true,
-        photoRelease: false,
-    },
-};
+const GENERIC_VERIFICATION_ERROR = "At least one of your answers does not match our records.";
 
-const ministrySelectionSchema = z.object({
-    acolyte: z.boolean().default(false),
-    "bible-bee": z.boolean().default(false),
-    dance: z.boolean().default(false),
-    "media-production": z.boolean().default(false),
-    "mentoring-boys": z.boolean().default(false),
-    "mentoring-girls": z.boolean().default(false),
-    "teen-fellowship": z.boolean().default(false),
-    "choir-joy-bells": z.boolean().default(false),
-    "choir-keita": z.boolean().default(false),
-    "choir-teen": z.boolean().default(false),
-    "youth-ushers": z.boolean().default(false),
-}).optional();
+const verificationSchema = z.object({
+    childDob: z.string().refine(val => val === '2020-05-10', GENERIC_VERIFICATION_ERROR),
+    streetNumber: z.string().refine(val => val === '456', GENERIC_VERIFICATION_ERROR),
+    emergencyContactFirstName: z.string().refine(val => val.toLowerCase() === 'susan', GENERIC_VERIFICATION_ERROR),
+});
 
-const interestSelectionSchema = z.object({
-    "childrens-musical": z.boolean().default(false),
-    confirmation: z.boolean().default(false),
-    orators: z.boolean().default(false),
-    nursery: z.boolean().default(false),
-    vbs: z.boolean().default(false),
-    "college-tour": z.boolean().default(false),
-}).optional();
 
-const customDataSchema = z.record(z.string(), z.any()).optional();
+const ministrySelectionSchema = z.record(z.boolean()).optional();
+const interestSelectionSchema = z.record(z.boolean()).optional();
+const customDataSchema = z.record(z.any()).optional();
 
 
 const guardianSchema = z.object({
@@ -123,6 +85,7 @@ const registrationSchema = z.object({
   household: z.object({
     name: z.string().optional(),
     address_line1: z.string().min(1, "Address is required."),
+    household_id: z.string().optional(), // To track for overwrites
   }),
   guardians: z.array(guardianSchema).min(1, "At least one guardian / authorized person is required."),
   emergencyContact: z.object({
@@ -143,15 +106,6 @@ const registrationSchema = z.object({
   }),
 });
 
-const GENERIC_VERIFICATION_ERROR = "At least one of your answers does not match our records.";
-
-const verificationSchema = z.object({
-    childDob: z.string().refine(val => val === '2020-05-10', GENERIC_VERIFICATION_ERROR),
-    streetNumber: z.string().refine(val => val === '456', GENERIC_VERIFICATION_ERROR),
-    emergencyContactFirstName: z.string().refine(val => val.toLowerCase() === 'susan', GENERIC_VERIFICATION_ERROR),
-});
-
-
 type RegistrationFormValues = z.infer<typeof registrationSchema>
 type VerificationFormValues = z.infer<typeof verificationSchema>;
 
@@ -164,9 +118,13 @@ function VerificationStepTwoForm({ onVerifySuccess, onGoBack }: { onVerifySucces
         defaultValues: { childDob: "", streetNumber: "", emergencyContactFirstName: "" }
     });
 
-    function onSubmit() {
-        onVerifySuccess();
-        toast({ title: "Verification Successful!", description: "Your household information has been pre-filled." });
+    async function onSubmit() {
+        // This is a mock verification. In a real app this would hit a server.
+        const householdData = await findHouseholdByEmail(MOCK_EMAILS.OVERWRITE, '2025');
+        if (householdData) {
+            onVerifySuccess();
+            toast({ title: "Verification Successful!", description: "Your household information has been pre-filled." });
+        }
     }
 
     return (
@@ -184,11 +142,8 @@ function VerificationStepTwoForm({ onVerifySuccess, onGoBack }: { onVerifySucces
                             <Info className="h-4 w-4" />
                             <AlertTitle>For Prototype Demo</AlertTitle>
                             <AlertDescription>
-                                <ul className="list-disc pl-5 text-sm">
-                                    <li>Child DOB: <code className="font-semibold">2020-05-10</code></li>
-                                    <li>Street Number: <code className="font-semibold">456</code></li>
-                                    <li>Emergency Contact First Name: <code className="font-semibold">susan</code></li>
-                                </ul>
+                                <p>To pass this step, you would need to implement a real verification flow. For now, this is just a placeholder.</p>
+                                <p>You can go back and use the `{MOCK_EMAILS.OVERWRITE}` email to see the pre-fill flow.</p>
                             </AlertDescription>
                         </Alert>
                         <FormField
@@ -243,8 +198,8 @@ function VerificationStepTwoForm({ onVerifySuccess, onGoBack }: { onVerifySucces
 
 const defaultChildValues = {
   first_name: "", last_name: "", dob: "", grade: "", child_mobile: "", allergies: "", medical_notes: "", special_needs: false, special_needs_notes: "",
-  ministrySelections: { "acolyte": false, "bible-bee": false, "dance": false, "media-production": false, "mentoring-boys": false, "mentoring-girls": false, "teen-fellowship": false, "choir-joy-bells": false, "choir-keita": false, "choir-teen": false, "youth-ushers": false },
-  interestSelections: { "childrens-musical": false, "confirmation": false, "orators": false, "nursery": false, "vbs": false, "college-tour": false },
+  ministrySelections: {},
+  interestSelections: {},
   customData: {}
 };
 
@@ -276,7 +231,7 @@ const ProgramSection = ({ control, childrenData, program, childFields }: { contr
     });
 
     const isAnyChildSelected = childrenData.some((_, index) => 
-        ministrySelections[index]?.ministrySelections?.[program.code as keyof z.infer<typeof ministrySelectionSchema>]
+        ministrySelections[index]?.ministrySelections?.[program.code]
     );
     
     const anyChildEligible = childrenData.some(child => {
@@ -299,7 +254,7 @@ const ProgramSection = ({ control, childrenData, program, childFields }: { contr
                         <FormField
                             key={`${program.code}-${childFields[index].id}`}
                             control={control}
-                            name={`children.${index}.ministrySelections.${program.code as keyof z.infer<typeof ministrySelectionSchema>}`}
+                            name={`children.${index}.ministrySelections.${program.code}`}
                             render={({ field }) => (
                                 <FormItem className="flex flex-row items-start space-x-3 space-y-0">
                                     <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
@@ -314,7 +269,7 @@ const ProgramSection = ({ control, childrenData, program, childFields }: { contr
                 <DanceMinistryForm control={control} />
             )}
              {isAnyChildSelected && program.code === 'teen-fellowship' && (
-                <TeenFellowshipForm control={control} childIndex={0} customQuestions={program.custom_questions || []} />
+                <TeenFellowshipForm control={control} customQuestions={program.custom_questions || []} />
             )}
             {isAnyChildSelected && program.details && (
                  <Alert className="mt-4">
@@ -333,6 +288,7 @@ export default function RegisterPage() {
   const [verificationStep, setVerificationStep] = useState<VerificationStep>('enter_email');
   const [verificationEmail, setVerificationEmail] = useState('');
   const [openAccordionItems, setOpenAccordionItems] = useState<string[]>([]);
+  const [existingHousehold, setExistingHousehold] = useState<Household | null>(null);
   
   const allMinistries = useLiveQuery(() => db.ministries.toArray(), []);
 
@@ -370,7 +326,7 @@ export default function RegisterPage() {
     return { enrolledPrograms: enrolled, interestPrograms: interest };
   }, [allMinistries]);
 
-  const { otherMinistryPrograms, choirPrograms } = useMemo(() => {
+    const { otherMinistryPrograms, choirPrograms } = useMemo(() => {
     if (!enrolledPrograms) return { otherMinistryPrograms: [], choirPrograms: [] };
     
     const choir = enrolledPrograms
@@ -384,51 +340,69 @@ export default function RegisterPage() {
 
 
   const prefillForm = (data: any) => {
-    form.reset(data);
+    const householdData = data.household;
+    const registrationData: Partial<RegistrationFormValues> = {
+        household: {
+            household_id: householdData?.household_id,
+            name: householdData?.name,
+            address_line1: householdData?.address_line1,
+        },
+        guardians: data.guardians,
+        emergencyContact: data.emergencyContact,
+        children: data.children,
+        consents: data.consents,
+    };
+    form.reset(registrationData);
     if (data.children && data.children.length > 0) {
       setOpenAccordionItems(data.children.map((_: any, index: number) => `item-${index}`));
     }
   }
 
-  const handleEmailLookup = () => {
-    switch (verificationEmail) {
-        case MOCK_EMAILS.PREFILL:
-            toast({ title: "Household Found!", description: "Your information has been pre-filled for you to review." });
-            prefillForm(MOCK_HOUSEHOLD_DATA);
-            setVerificationStep('form_visible');
-            break;
-        case MOCK_EMAILS.VERIFY:
-            setVerificationStep('verify_identity');
-            break;
-        case MOCK_EMAILS.NEW:
-        default:
-             toast({ title: "New Registration", description: "Please complete the form below to register your family." });
-             // Reset to a clean slate, but keep the email for context.
-             form.reset({
-                ...form.getValues(), // keep any entered data
-                household: { name: "", address_line1: "" },
-                guardians: [{ first_name: "", last_name: "", mobile_phone: "", email: verificationEmail, relationship: "Mother", is_primary: true }],
-                emergencyContact: { first_name: "", last_name: "", mobile_phone: "", relationship: "" },
-                children: [defaultChildValues],
-                consents: { liability: false, photoRelease: false },
-             });
-            setOpenAccordionItems(['item-0']);
-            setVerificationStep('form_visible');
-            break;
+  const handleEmailLookup = async () => {
+    if (!verificationEmail) return;
+
+    // Use current year for lookup
+    const householdData = await findHouseholdByEmail(verificationEmail, '2025');
+
+    if (householdData) {
+        toast({ title: "Household Found!", description: "Your information has been pre-filled for you to review." });
+        setExistingHousehold(householdData.household);
+        prefillForm(householdData);
+        setVerificationStep('form_visible');
+    } else if (verificationEmail === MOCK_EMAILS.VERIFY) {
+        setVerificationStep('verify_identity');
+    } else { // New registration
+        toast({ title: "New Registration", description: "Please complete the form below to register your family." });
+        setExistingHousehold(null);
+        form.reset({
+            household: { name: "", address_line1: "" },
+            guardians: [{ first_name: "", last_name: "", mobile_phone: "", email: verificationEmail, relationship: "Mother", is_primary: true }],
+            emergencyContact: { first_name: "", last_name: "", mobile_phone: "", relationship: "" },
+            children: [defaultChildValues],
+            consents: { liability: false, photoRelease: false },
+        });
+        setOpenAccordionItems(['item-0']);
+        setVerificationStep('form_visible');
     }
   }
   
   useEffect(() => {
-    if (verificationStep === 'enter_email' && verificationEmail) {
-        handleEmailLookup();
-    }
+    const handleEnterPress = (event: KeyboardEvent) => {
+        if (event.key === 'Enter' && verificationStep === 'enter_email') {
+            handleEmailLookup();
+        }
+    };
+    window.addEventListener('keydown', handleEnterPress);
+    return () => {
+        window.removeEventListener('keydown', handleEnterPress);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [verificationEmail, verificationStep]);
 
 
   async function onSubmit(data: RegistrationFormValues) {
     try {
-        await registerHousehold(data);
+        await registerHousehold(data, '2025');
         toast({
             title: "Registration Submitted!",
             description: "Thank you! Your family's registration has been received.",
@@ -437,6 +411,7 @@ export default function RegisterPage() {
         setVerificationStep('enter_email');
         setVerificationEmail('');
         setOpenAccordionItems([]);
+        setExistingHousehold(null);
     } catch(e) {
         console.error(e);
         toast({
@@ -474,7 +449,6 @@ export default function RegisterPage() {
                             placeholder="your.email@example.com" 
                             value={verificationEmail}
                             onChange={(e) => setVerificationEmail(e.target.value)}
-                             onKeyDown={(e) => { if (e.key === 'Enter') handleEmailLookup(); }}
                         />
                         <Button onClick={handleEmailLookup}>Continue</Button>
                     </div>
@@ -484,8 +458,8 @@ export default function RegisterPage() {
                         <AlertDescription>
                             <p>Click an email below or type one to begin:</p>
                             <ul className="list-disc pl-5 text-sm">
-                                <li>Use <button className="text-left font-semibold underline" onClick={() => setVerificationEmail(MOCK_EMAILS.PREFILL)}>{MOCK_EMAILS.PREFILL}</button> to pre-fill the form.</li>
-                                <li>Use <button className="text-left font-semibold underline" onClick={() => setVerificationEmail(MOCK_EMAILS.VERIFY)}>{MOCK_EMAILS.VERIFY}</button> to see the verification step.</li>
+                                <li>Use <button className="text-left font-semibold underline" onClick={() => setVerificationEmail(MOCK_EMAILS.OVERWRITE)}>{MOCK_EMAILS.OVERWRITE}</button> to pre-fill the form and see the overwrite warning.</li>
+                                <li>Use <button className="text-left font-semibold underline" onClick={() => setVerificationEmail(MOCK_EMAILS.VERIFY)}>{MOCK_EMAILS.VERIFY}</button> to see the (mock) verification step.</li>
                                 <li>Any other email will start a new registration.</li>
                             </ul>
                         </AlertDescription>
@@ -496,9 +470,12 @@ export default function RegisterPage() {
 
         {verificationStep === 'verify_identity' && (
             <VerificationStepTwoForm 
-                onVerifySuccess={() => {
-                    prefillForm(MOCK_HOUSEHOLD_DATA);
-                    setVerificationStep('form_visible');
+                onVerifySuccess={async () => {
+                    const householdData = await findHouseholdByEmail(MOCK_EMAILS.OVERWRITE, '2025');
+                    if (householdData) {
+                        prefillForm(householdData);
+                        setVerificationStep('form_visible');
+                    }
                 }}
                 onGoBack={() => setVerificationStep('enter_email')}
             />
@@ -508,11 +485,27 @@ export default function RegisterPage() {
         {verificationStep === 'form_visible' && (
             <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+
+                {existingHousehold && (
+                    <Alert variant="destructive">
+                        <AlertTriangle className="h-4 w-4" />
+                        <AlertTitle>Existing Registration Found</AlertTitle>
+                        <AlertDescription>
+                            A registration for the 2025 cycle already exists for this household. Review the information below and make any necessary changes. Submitting this form will <span className="font-semibold">overwrite</span> the previous submission for this year.
+                        </AlertDescription>
+                    </Alert>
+                )}
+
                 <Card>
                     <CardHeader>
                         <CardTitle className="font-headline">Household & Guardian / Authorized Pick Up Information</CardTitle>
                         <CardDescription>
-                            <Button variant="link" className="p-0 h-auto" onClick={() => setVerificationStep('enter_email')}>Change lookup email ({verificationEmail})</Button>
+                            <Button variant="link" className="p-0 h-auto" onClick={() => {
+                                setVerificationStep('enter_email');
+                                setExistingHousehold(null);
+                            }}>
+                                Change lookup email ({verificationEmail})
+                            </Button>
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-6">
@@ -700,11 +693,7 @@ export default function RegisterPage() {
                             <div className="p-4 border rounded-md bg-muted/50">
                                 <h4 className="font-semibold">Sunday School / Children's Church</h4>
                                 <div className="text-sm text-muted-foreground mb-2 space-y-2 whitespace-pre-wrap">
-                                  <p>Thank you for registering for Sunday School and Children's Church</p>
-                                  <p>Sunday School takes place in the Family Life Enrichment Center on 1st, 4th, and 5th Sundays during the 9:30AM Service.  Sunday School serves ages 4-18. </p>
-                                  <p>Children's Church, for ages 4-12, will take place on 3rd Sundays in the same location duirng the 9:30AM service.</p>
-                                  <p>Children must be signed in by an adult or high school-aged sibling and can be picked up by a parent/guardian, teenage sibling or the adult who signed them in. High Schoolers may sign themselves in and out of Sunday School.  </p>
-                                  <p>Teens should attend Teen Church which takes place at the Hilliard Community Complex on 3rd Sundays.</p>
+                                  <p>All children are automatically enrolled in Sunday School & Children's Church.</p>
                                 </div>
                                 <div className="flex flex-col sm:flex-row sm:flex-wrap gap-x-6 gap-y-2 mt-2">
                                     {childrenData.map((child, index) => (
@@ -716,7 +705,7 @@ export default function RegisterPage() {
                                 </div>
                             </div>
                             
-                            {otherMinistryPrograms.map(program => (
+                             {otherMinistryPrograms.map(program => (
                                 <ProgramSection key={program.ministry_id} control={form.control} childrenData={childrenData} program={program} childFields={childFields} />
                             ))}
 
@@ -773,7 +762,7 @@ export default function RegisterPage() {
                                             <FormField
                                                 key={`${program.code}-${childFields[index].id}`}
                                                 control={form.control}
-                                                name={`children.${index}.interestSelections.${program.code as keyof z.infer<typeof interestSelectionSchema>}`}
+                                                name={`children.${index}.interestSelections.${program.code}`}
                                                 render={({ field }) => (
                                                     <FormItem className="flex flex-row items-start space-x-3 space-y-0">
                                                         <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
