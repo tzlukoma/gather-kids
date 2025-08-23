@@ -615,7 +615,7 @@ export default function RegisterPage() {
                         </CardHeader>
                         <CardContent className="space-y-6">
                              <div className="p-4 border rounded-md bg-muted/50">
-                                <h4 className="font-semibold">Sunday School/Children's Church</h4>
+                                <h4 className="font-semibold">Sunday School / Children's Church</h4>
                                 <div className="text-sm text-muted-foreground mb-2 space-y-2">
                                   <p>Thank you for registering for Sunday School and Children's Church.</p>
                                   <p>Sunday School takes place in the Family Life Enrichment Center on 1st, 4th, and 5th Sundays during the 9:30AM Service. Sunday School serves ages 4-18.</p>
