@@ -366,7 +366,7 @@ export default function RegisterPage() {
   
   const {enrolledPrograms, interestPrograms} = useMemo(() => {
     if (!allMinistries) return { enrolledPrograms: [], interestPrograms: [] };
-    const enrolled = allMinistries.filter(m => m.enrollment_type === 'enrolled' && !m.code.startsWith('min_sunday'));
+    const enrolled = allMinistries.filter(m => m.enrollment_type === 'enrolled' && m.code !== 'min_sunday_school');
     const interest = allMinistries.filter(m => m.enrollment_type === 'interest_only');
     return { enrolledPrograms: enrolled, interestPrograms: interest };
   }, [allMinistries]);
