@@ -1,5 +1,4 @@
 
-
 "use client"
 import React from 'react';
 import { useLiveQuery } from "dexie-react-hooks";
@@ -77,10 +76,7 @@ export default function RostersPage() {
   const [gradeSort, setGradeSort] = useState<SortDirection>("asc");
   const [selectedMinistryFilter, setSelectedMinistryFilter] = useState<string>('all');
 
-  const leaderAssignedMinistries = useLiveQuery(async () => {
-    if (user?.role !== 'leader' || !user.assignedMinistryIds) return [];
-    return db.ministries.where('ministry_id').anyOf(user.assignedMinistryIds).toArray();
-  }, [user]);
+  const allMinistryEnrollments = useLiveQuery(() => db.ministry_enrollments.where({ cycle_id: '2025' }).toArray(), []);
 
   const allChildrenQuery = useLiveQuery(async () => {
     if (user?.role === 'leader') {
@@ -101,6 +97,7 @@ export default function RostersPage() {
   const allGuardians = useLiveQuery(() => db.guardians.toArray(), []);
   const allHouseholds = useLiveQuery(() => db.households.toArray(), []);
   const allEmergencyContacts = useLiveQuery(() => db.emergency_contacts.toArray(), []);
+  const allMinistries = useLiveQuery(() => db.ministries.toArray(), []);
 
   useEffect(() => {
     const statusParam = searchParams.get('status');
@@ -132,8 +129,36 @@ export default function RostersPage() {
     }));
   }, [allChildrenQuery, todaysAttendance, allGuardians, allHouseholds, allEmergencyContacts]);
 
+  const ministryFilterOptions = useMemo(() => {
+        if (!allChildrenQuery || !allMinistryEnrollments || !allMinistries) return [];
+        
+        const childIdsInView = new Set(allChildrenQuery.map(c => c.child_id));
+
+        const relevantMinistryIds = new Set(
+            allMinistryEnrollments
+                .filter(e => childIdsInView.has(e.child_id))
+                .map(e => e.ministry_id)
+        );
+
+        return allMinistries
+            .filter(m => relevantMinistryIds.has(m.ministry_id))
+            .sort((a,b) => a.name.localeCompare(b.name));
+
+    }, [allChildrenQuery, allMinistryEnrollments, allMinistries]);
+
+
   const displayChildren = useMemo(() => {
     let filtered = childrenWithDetails;
+
+    if (selectedMinistryFilter !== 'all' && allMinistryEnrollments) {
+        const childrenInMinistry = new Set(
+            allMinistryEnrollments
+                .filter(e => e.ministry_id === selectedMinistryFilter)
+                .map(e => e.child_id)
+        );
+        filtered = filtered.filter(c => childrenInMinistry.has(c.child_id));
+    }
+
 
     const isFiltered = showCheckedIn !== showCheckedOut;
     if (isFiltered) {
@@ -157,7 +182,7 @@ export default function RostersPage() {
     }
 
     return filtered;
-  }, [childrenWithDetails, showCheckedIn, showCheckedOut, gradeSort])
+  }, [childrenWithDetails, showCheckedIn, showCheckedOut, gradeSort, selectedMinistryFilter, allMinistryEnrollments])
   
   const groupedChildren = useMemo(() => {
     if (!groupByGrade) return null;
@@ -465,21 +490,19 @@ export default function RostersPage() {
                 <CardDescription>A complete list of all children registered.</CardDescription>
             </div>
             <div className="flex flex-wrap items-center gap-4">
-                {leaderAssignedMinistries && leaderAssignedMinistries.length > 1 && (
-                    <div className="flex items-center space-x-2">
-                        <Select value={selectedMinistryFilter} onValueChange={setSelectedMinistryFilter}>
-                            <SelectTrigger className="w-[200px]">
-                                <SelectValue placeholder="Filter by Ministry" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">All Assigned</SelectItem>
-                                {leaderAssignedMinistries.map(m => (
-                                    <SelectItem key={m.ministry_id} value={m.ministry_id}>{m.name}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
-                )}
+                <div className="flex items-center space-x-2">
+                    <Select value={selectedMinistryFilter} onValueChange={setSelectedMinistryFilter}>
+                        <SelectTrigger className="w-full sm:w-[200px]">
+                            <SelectValue placeholder="Filter by Ministry" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">All Ministries</SelectItem>
+                            {ministryFilterOptions.map(m => (
+                                <SelectItem key={m.ministry_id} value={m.ministry_id}>{m.name}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
                  {user?.role === 'admin' && (
                     <div className="flex items-center space-x-2">
                         <Checkbox id="group-by-grade" checked={groupByGrade} onCheckedChange={(checked) => setGroupByGrade(!!checked)} />
@@ -526,3 +549,5 @@ export default function RostersPage() {
     </>
   );
 }
+
+    
