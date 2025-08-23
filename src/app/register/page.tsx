@@ -29,6 +29,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Info } from "lucide-react"
 import { differenceInYears, isWithinInterval, parseISO, isValid } from "date-fns"
 import { DanceMinistryForm } from "@/components/ministrysync/dance-ministry-form"
+import { TeenFellowshipForm } from "@/components/ministrysync/teen-fellowship-form"
 
 
 const MOCK_EMAILS = {
@@ -53,8 +54,8 @@ const MOCK_HOUSEHOLD_DATA = {
         relationship: "Aunt"
     },
     children: [
-        { first_name: "Olivia", last_name: "Johnson", dob: "2020-05-10", grade: "Pre-K", allergies: "Tree nuts", medical_notes: "Carries an EpiPen.", ministrySelections: { "acolyte": false, "bible-bee": false, "dance": false, "media-production": false, "mentoring-boys": false, "mentoring-girls": false, "teen-fellowship": false, "choir-joy-bells": false, "choir-keita": false, "choir-teen": false, "youth-ushers": false }, interestSelections: { "childrens-musical": false, "confirmation": false, "orators": false, "nursery": false, "vbs": false, "college-tour": false } },
-        { first_name: "Noah", last_name: "Johnson", dob: "2015-09-15", grade: "4th Grade", allergies: "", medical_notes: "", ministrySelections: { "acolyte": true, "bible-bee": true, "dance": false, "media-production": false, "mentoring-boys": true, "mentoring-girls": false, "teen-fellowship": false, "choir-joy-bells": false, "choir-keita": true, "choir-teen": false, "youth-ushers": false }, interestSelections: { "childrens-musical": true, "confirmation": false, "orators": true, "nursery": false, "vbs": true, "college-tour": false } },
+        { first_name: "Olivia", last_name: "Johnson", dob: "2020-05-10", grade: "Pre-K", allergies: "Tree nuts", medical_notes: "Carries an EpiPen.", ministrySelections: { "acolyte": false, "bible-bee": false, "dance": false, "media-production": false, "mentoring-boys": false, "mentoring-girls": false, "teen-fellowship": false, "choir-joy-bells": false, "choir-keita": false, "choir-teen": false, "youth-ushers": false, "teen_podcast": false, "teen_social_media": false, "teen_community_service": false }, interestSelections: { "childrens-musical": false, "confirmation": false, "orators": false, "nursery": false, "vbs": false, "college-tour": false } },
+        { first_name: "Noah", last_name: "Johnson", dob: "2015-09-15", grade: "4th Grade", allergies: "", medical_notes: "", ministrySelections: { "acolyte": true, "bible-bee": true, "dance": false, "media-production": false, "mentoring-boys": true, "mentoring-girls": false, "teen-fellowship": false, "choir-joy-bells": false, "choir-keita": true, "choir-teen": false, "youth-ushers": false, "teen_podcast": false, "teen_social_media": false, "teen_community_service": false }, interestSelections: { "childrens-musical": true, "confirmation": false, "orators": true, "nursery": false, "vbs": true, "college-tour": false } },
     ],
     consents: {
         liability: true,
@@ -74,6 +75,9 @@ const ministrySelectionSchema = z.object({
     "choir-keita": z.boolean().default(false),
     "choir-teen": z.boolean().default(false),
     "youth-ushers": z.boolean().default(false),
+    teen_podcast: z.boolean().default(false),
+    teen_social_media: z.boolean().default(false),
+    teen_community_service: z.boolean().default(false),
 }).optional();
 
 const interestSelectionSchema = z.object({
@@ -236,7 +240,7 @@ function VerificationStepTwoForm({ onVerifySuccess, onGoBack }: { onVerifySucces
 
 const defaultChildValues = {
   first_name: "", last_name: "", dob: "", grade: "", allergies: "", medical_notes: "",
-  ministrySelections: { "acolyte": false, "bible-bee": false, "dance": false, "media-production": false, "mentoring-boys": false, "mentoring-girls": false, "teen-fellowship": false, "choir-joy-bells": false, "choir-keita": false, "choir-teen": false, "youth-ushers": false },
+  ministrySelections: { "acolyte": false, "bible-bee": false, "dance": false, "media-production": false, "mentoring-boys": false, "mentoring-girls": false, "teen-fellowship": false, "choir-joy-bells": false, "choir-keita": false, "choir-teen": false, "youth-ushers": false, "teen_podcast": false, "teen_social_media": false, "teen_community_service": false },
   interestSelections: { "childrens-musical": false, "confirmation": false, "orators": false, "nursery": false, "vbs": false, "college-tour": false },
   customData: { dance_returning_member: undefined }
 };
@@ -253,7 +257,7 @@ const ministryPrograms = [
     { id: "media-production", label: "Media Production Ministry", eligibility: () => true, details: "Thank you for registering for the Media Ministry. You will receive information from ministry leaders regarding next steps for your child's participation." },
     { id: "mentoring-boys", label: "Mentoring Ministry-Boys (Khalfani)", eligibility: () => true, details: "The Khalfani ministry provides mentorship for young boys through various activities and discussions." },
     { id: "mentoring-girls", label: "Mentoring Ministry-Girls (Nailah)", eligibility: () => true, details: "The Nailah ministry provides mentorship for young girls, focusing on empowerment and personal growth." },
-    { id: "teen-fellowship", label: "New Generation Teen Fellowship", eligibility: () => true, details: "Teen Fellowship meets on Friday nights for fun, food, and faith-based discussions." },
+    { id: "teen-fellowship", label: "New Generation Teen Fellowship", eligibility: () => true, details: "Thank you for registering for New Generation Teen Fellowship.\n\nOn 3rd Sundays, during the 10:30 AM service,  New Generation Teen Fellowship will host Teen Church in the Family Life Enrichment Center.  Teens may sign themselves in and out of the service.\n\nYou will receive more information about ministry activities from minstry leaders." },
     { id: "choir-joy-bells", label: "Youth Choirs- Joy Bells (Ages 4-8)", eligibility: (age: number | null) => age !== null && age >= 4 && age <= 8, details: "Joy Bells is our introductory choir for the youngest voices. Practices are held after the 11 AM service." },
     { id: "choir-keita", label: "Youth Choirs- Keita Praise Choir (Ages 9-12)", eligibility: (age: number | null) => age !== null && age >= 9 && age <= 12, details: "Keita Praise Choir builds on foundational skills and performs once a month. Practices are on Wednesdays." },
     { id: "choir-teen", label: "Youth Choirs- New Generation Teen Choir (Ages 13-18)", eligibility: (age: number | null) => age !== null && age >= 13 && age <= 18, details: "The Teen Choir performs contemporary gospel music and leads worship during Youth Sundays." },
@@ -276,7 +280,7 @@ const getAgeFromDob = (dobString: string): number | null => {
     return null;
 }
 
-const ProgramSection = ({ control, childrenData, program }: { control: any, childrenData: any[], program: any }) => {
+const ProgramSection = ({ control, childrenData, program, childFields }: { control: any, childrenData: any[], program: any, childFields: any[] }) => {
     const ministrySelections = useWatch({
         control,
         name: 'children',
@@ -297,7 +301,7 @@ const ProgramSection = ({ control, childrenData, program }: { control: any, chil
                     
                     return (
                         <FormField
-                            key={`${program.id}-${child.first_name || index}`}
+                            key={`${program.id}-${childFields[index].id}`}
                             control={control}
                             name={`children.${index}.ministrySelections.${program.id as keyof z.infer<typeof ministrySelectionSchema>}`}
                             render={({ field }) => (
@@ -312,6 +316,9 @@ const ProgramSection = ({ control, childrenData, program }: { control: any, chil
             </div>
              {isAnyChildSelected && program.id === 'dance' && (
                 <DanceMinistryForm control={control} />
+            )}
+             {isAnyChildSelected && program.id === 'teen-fellowship' && (
+                <TeenFellowshipForm control={control} />
             )}
             {isAnyChildSelected && program.details && (
                  <Alert className="mt-4">
@@ -625,7 +632,7 @@ export default function RegisterPage() {
                                 </div>
                                 <div className="flex flex-col sm:flex-row sm:flex-wrap gap-x-6 gap-y-2 mt-2">
                                     {childrenData.map((child, index) => (
-                                        <div key={`ss-${child.first_name || index}`} className="flex flex-row items-start space-x-3 space-y-0">
+                                        <div key={`ss-${childFields[index].id}`} className="flex flex-row items-start space-x-3 space-y-0">
                                             <Checkbox checked={true} disabled={true} />
                                             <label className="font-normal text-sm text-muted-foreground">{child.first_name || `Child ${index + 1}`}</label>
                                         </div>
@@ -633,7 +640,7 @@ export default function RegisterPage() {
                                 </div>
                             </div>
                             {ministryPrograms.map(program => (
-                                <ProgramSection key={program.id} control={form.control} childrenData={childrenData} program={program} />
+                                <ProgramSection key={program.id} control={form.control} childrenData={childrenData} program={program} childFields={childFields} />
                             ))}
                         </CardContent>
                     </Card>
@@ -689,3 +696,5 @@ export default function RegisterPage() {
     </div>
   )
 }
+
+    
