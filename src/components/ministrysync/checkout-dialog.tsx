@@ -18,6 +18,7 @@ import type { Child, Guardian } from "@/lib/types"
 
 interface EnrichedChild extends Child {
     checkedInEvent: string | null;
+    checkedOutAt: string | null;
     attendanceId: string | null;
     guardians: Guardian[];
 }
