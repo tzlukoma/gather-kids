@@ -115,6 +115,7 @@ const generateHouseholdsAndChildren = (): { households: Household[], children: C
                 grade: getGradeFromAge(kid.age),
                 child_mobile: `555-555-22${childCounter < 10 ? '0' : ''}${childCounter}`,
                 is_active: true,
+                special_needs: false,
                 created_at: now,
                 updated_at: now,
             });
@@ -145,10 +146,10 @@ export const seedDB = async () => {
         ]);
 
         await db.ministries.bulkPut([
-            // Enrolled
+            // Enrolled Programs
             { ministry_id: 'min_sunday_school', name: 'Sunday School', code: 'min_sunday_school', enrollment_type: 'enrolled', data_profile: 'SafetyAware', created_at: now, updated_at: now },
             { ministry_id: uuidv4(), name: "Acolyte Ministry", code: "acolyte", enrollment_type: 'enrolled', details: "Thank you for registering for the Acolyte Ministry.\n\nYou will receive information from ministry leaders regarding next steps for your child's participation.", data_profile: 'Basic', created_at: now, updated_at: now },
-            { ministry_id: uuidv4(), name: "Bible Bee", code: "bible-bee", enrollment_type: 'enrolled', description: "Registration open until Oct. 8, 2023", open_at: `2023-01-01`, close_at: `2023-10-08`, details: "Bible Bee is a competitive program that encourages scripture memorization. Materials must be purchased separately.", data_profile: 'Basic', created_at: now, updated_at: now },
+            { ministry_id: MINISTRY_IDS.bibleBee, name: "Bible Bee", code: "bible-bee", enrollment_type: 'enrolled', description: "Registration open until Oct. 8, 2023", open_at: `2023-01-01`, close_at: `2023-10-08`, details: "Bible Bee is a competitive program that encourages scripture memorization. Materials must be purchased separately.", data_profile: 'Basic', created_at: now, updated_at: now },
             { ministry_id: uuidv4(), name: "Dance Ministry", code: "dance", enrollment_type: 'enrolled', details: "Thank you for registering for the Dance Ministry.\n\nYou will receive information from ministry leaders regarding next steps for your child's participation.", data_profile: 'Basic', created_at: now, updated_at: now },
             { ministry_id: uuidv4(), name: "Media Production Ministry", code: "media-production", enrollment_type: 'enrolled', details: "Thank you for registering for the Media Ministry.\n\nYou will receive information from ministry leaders regarding next steps for your child's participation.", data_profile: 'Basic', created_at: now, updated_at: now },
             { ministry_id: uuidv4(), name: "Mentoring Ministry-Boys (Khalfani)", code: "mentoring-boys", enrollment_type: 'enrolled', details: "The Khalfani ministry provides mentorship for young boys through various activities and discussions.", data_profile: 'Basic', created_at: now, updated_at: now },
@@ -158,8 +159,12 @@ export const seedDB = async () => {
             { ministry_id: uuidv4(), name: "Youth Choirs- Keita Praise Choir (Ages 9-12)", code: "choir-keita", enrollment_type: 'enrolled', min_age: 9, max_age: 12, details: "Keita Praise Choir builds on foundational skills and performs once a month. Practices are on Wednesdays.", data_profile: 'Basic', created_at: now, updated_at: now },
             { ministry_id: uuidv4(), name: "Youth Choirs- New Generation Teen Choir (Ages 13-18)", code: "choir-teen", enrollment_type: 'enrolled', min_age: 13, max_age: 18, details: "The Teen Choir performs contemporary gospel music and leads worship during Youth Sundays.", data_profile: 'Basic', created_at: now, updated_at: now },
             { ministry_id: uuidv4(), name: "Youth Ushers", code: "youth-ushers", enrollment_type: 'enrolled', details: "Thank you for registering for the Youth Ushers Ministry.\n\nYou will receive information from ministry leaders regarding next steps for your child's participation.", data_profile: 'Basic', created_at: now, updated_at: now },
-            
-            // Interest Only
+             // Teen Fellowship Interests (nested under an enrolled program)
+            { ministry_id: uuidv4(), name: "Podcast & YouTube Channel Projects", code: "teen_podcast", enrollment_type: 'enrolled', data_profile: 'Basic', created_at: now, updated_at: now },
+            { ministry_id: uuidv4(), name: "Social Media Team", code: "teen_social_media", enrollment_type: 'enrolled', data_profile: 'Basic', created_at: now, updated_at: now },
+            { ministry_id: uuidv4(), name: "Leading Community Service Projects", code: "teen_community_service", enrollment_type: 'enrolled', data_profile: 'Basic', created_at: now, updated_at: now },
+
+            // Interest-Only Programs
             { ministry_id: uuidv4(), name: "Children's Musical", code: "childrens-musical", enrollment_type: 'interest_only', data_profile: 'Basic', created_at: now, updated_at: now },
             { ministry_id: uuidv4(), name: "Confirmation", code: "confirmation", enrollment_type: 'interest_only', data_profile: 'Basic', created_at: now, updated_at: now },
             { ministry_id: uuidv4(), name: "New Jersey Orators", code: "orators", enrollment_type: 'interest_only', data_profile: 'Basic', created_at: now, updated_at: now },
