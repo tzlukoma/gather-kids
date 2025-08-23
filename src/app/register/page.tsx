@@ -126,7 +126,7 @@ const registrationSchema = z.object({
     name: z.string().optional(),
     address_line1: z.string().min(1, "Address is required."),
   }),
-  guardians: z.array(guardianSchema).min(1, "At least one guardian is required."),
+  guardians: z.array(guardianSchema).min(1, "At least one guardian / authorized person is required."),
   emergencyContact: z.object({
     first_name: z.string().min(1, "First name is required."),
     last_name: z.string().min(1, "Last name is required."),
@@ -488,7 +488,7 @@ export default function RegisterPage() {
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
                 <Card>
                     <CardHeader>
-                        <CardTitle className="font-headline">Household & Guardian Information</CardTitle>
+                        <CardTitle className="font-headline">Household & Guardian / Authorized Pick Up Information</CardTitle>
                         <CardDescription>
                             <Button variant="link" className="p-0 h-auto" onClick={() => setVerificationStep('enter_email')}>Change lookup email ({verificationEmail})</Button>
                         </CardDescription>
@@ -510,7 +510,7 @@ export default function RegisterPage() {
                         <Separator />
                         {guardianFields.map((field, index) => (
                         <div key={field.id} className="space-y-4 p-4 border rounded-lg relative">
-                            <h3 className="font-semibold font-headline">Guardian {index + 1}</h3>
+                            <h3 className="font-semibold font-headline">Guardian / Authorized to Pick Up {index + 1}</h3>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <FormField control={form.control} name={`guardians.${index}.first_name`} render={({ field }) => (
                                 <FormItem><FormLabel>First Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
@@ -553,7 +553,7 @@ export default function RegisterPage() {
                             )}
                         </div>
                         ))}
-                        <Button type="button" variant="outline" size="sm" onClick={() => appendGuardian({ first_name: "", last_name: "", mobile_phone: "", email: "", relationship: "", is_primary: false })}><PlusCircle className="mr-2 h-4 w-4" /> Add Guardian</Button>
+                        <Button type="button" variant="outline" size="sm" onClick={() => appendGuardian({ first_name: "", last_name: "", mobile_phone: "", email: "", relationship: "", is_primary: false })}><PlusCircle className="mr-2 h-4 w-4" /> Add Guardian / Authorized Person</Button>
                     </CardContent>
                 </Card>
 
@@ -777,7 +777,7 @@ export default function RegisterPage() {
                                 <div className="space-y-1 leading-none">
                                     <FormLabel>Liability Release</FormLabel>
                                     <FormDescription className="whitespace-pre-wrap leading-relaxed">
-                                    In consideration of my child’s participation in the Youth Ministry, I hereby release, waive, relinquish and forever discharge any and all liability or claims I may have or which may arise from my child’s participation in the above described event, and agree to defend, indemnify and hold harmless Cathedral International, Cathedral International Youth Ministry, their affiliates, related entities, employees, trustees, directors, respective staff, leaders and volunteers from any and all liability, claims, lawsuits, demands, judgments or damages for personal injury as well as property damage and any expenses, costs and fees of any type, kind or nature which may arise from my child’s participation in the above described event.  I hereby agree to assume sole responsibility for any damages incurred as a result of the negligent, willful or intentional act of my child and to reimburse Cathedral International for the cost of same, including but not limited to any costs to defend any and all liability, claims, lawsuits, demands, judgments or damages for personal injury as well as property damage.  Parents, please note that once children are dismissed from ministry activities and returned into your supervision, they are no longer under the care and supervision of Cathedral International staff or volunteers.
+                                    In consideration of my child’s participation in the Youth Ministry, I hereby release, waive, relinquish and forever discharge any and all liability or claims I may have or which may arise from my child’s participation in the above described event, and agree to defend, indemnify and hold harmless Cathedral International, Cathedral International Youth Ministry, their affiliates, related entities, employees, trustees, directors, respective staff, leaders and volunteers from any and all liability, claims, lawsuits, demands, judgments or damages for personal injury as well as property damage and any expenses, costs and fees of any type, kind or nature which may arise from my child’s participation in the above described event.  I hereby agree to assume sole responsibility for any damages incurred as a result of the negligent, willful or intentional act of my child and to reimburse Cathedral International for the cost of same, including but not to any costs to defend any and all liability, claims, lawsuits, demands, judgments or damages for personal injury as well as property damage.  Parents, please note that once children are dismissed from ministry activities and returned into your supervision, they are no longer under the care and supervision of Cathedral International staff or volunteers.
                                     </FormDescription>
                                     <FormMessage />
                                 </div>
