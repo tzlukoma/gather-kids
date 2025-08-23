@@ -69,25 +69,27 @@ function MinistryTable({
                                     <Button variant="ghost" size="icon" onClick={() => onEdit(m)}>
                                         <Edit className="h-4 w-4" />
                                     </Button>
-                                    <AlertDialogTrigger asChild>
-                                         <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
-                                            <Trash2 className="h-4 w-4" />
-                                        </Button>
-                                    </AlertDialogTrigger>
-                                     <AlertDialogContent>
-                                        <AlertDialogHeader>
-                                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                        <AlertDialogDescription>
-                                            This action cannot be undone. This will permanently delete the ministry.
-                                        </AlertDialogDescription>
-                                        </AlertDialogHeader>
-                                        <AlertDialogFooter>
-                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                        <AlertDialogAction onClick={() => onDelete(m.ministry_id)} className="bg-destructive hover:bg-destructive/90">
-                                            Delete
-                                        </AlertDialogAction>
-                                        </AlertDialogFooter>
-                                    </AlertDialogContent>
+                                    <AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                            <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
+                                                <Trash2 className="h-4 w-4" />
+                                            </Button>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                                This action cannot be undone. This will permanently delete the ministry.
+                                            </AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter>
+                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                            <AlertDialogAction onClick={() => onDelete(m.ministry_id)} className="bg-destructive hover:bg-destructive/90">
+                                                Delete
+                                            </AlertDialogAction>
+                                            </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                    </AlertDialog>
                                 </TableCell>
                             </TableRow>
                         ))}
@@ -152,42 +154,41 @@ export default function ConfigurationPage() {
     }
 
     return (
-        <AlertDialog>
-            <div className="flex flex-col gap-8">
-                <div className="flex items-center justify-between">
-                    <div>
-                        <h1 className="text-3xl font-bold font-headline">Configuration</h1>
-                        <p className="text-muted-foreground">
-                            Manage the ministries and activities available for registration.
-                        </p>
-                    </div>
-                    <Button onClick={handleAddNew}>
-                        <PlusCircle className="mr-2" />
-                        Add New Program
-                    </Button>
+        <div className="flex flex-col gap-8">
+            <div className="flex items-center justify-between">
+                <div>
+                    <h1 className="text-3xl font-bold font-headline">Configuration</h1>
+                    <p className="text-muted-foreground">
+                        Manage the ministries and activities available for registration.
+                    </p>
                 </div>
-                
-                <MinistryTable 
-                    title="Ministry Programs"
-                    description="These are programs children can be officially enrolled in."
-                    ministries={enrolledPrograms}
-                    onEdit={handleEdit}
-                    onDelete={handleDelete}
-                />
-
-                <MinistryTable 
-                    title="Interest-Only Activities"
-                    description="These are activities to gauge interest, but do not create an official enrollment."
-                    ministries={interestPrograms}
-                    onEdit={handleEdit}
-                    onDelete={handleDelete}
-                />
+                <Button onClick={handleAddNew}>
+                    <PlusCircle className="mr-2" />
+                    Add New Program
+                </Button>
             </div>
-             <MinistryFormDialog
+            
+            <MinistryTable 
+                title="Ministry Programs"
+                description="These are programs children can be officially enrolled in."
+                ministries={enrolledPrograms}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+            />
+
+            <MinistryTable 
+                title="Interest-Only Activities"
+                description="These are activities to gauge interest, but do not create an official enrollment."
+                ministries={interestPrograms}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+            />
+
+            <MinistryFormDialog
                 isOpen={isDialogOpen}
                 onClose={() => setIsDialogOpen(false)}
                 ministry={editingMinistry}
             />
-        </AlertDialog>
+        </div>
     );
 }
