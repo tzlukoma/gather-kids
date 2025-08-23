@@ -25,7 +25,7 @@ import { useToast } from "@/hooks/use-toast";
 import type { EnrichedChild } from "@/components/ministrysync/check-in-view";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface RosterChild extends EnrichedChild {}
 
@@ -71,7 +71,12 @@ export default function RostersPage() {
 
   const [selectedEvent, setSelectedEvent] = useState('evt_sunday_school');
   const [childToCheckout, setChildToCheckout] = useState<RosterChild | null>(null);
-  const [showOnlyCheckedIn, setShowOnlyCheckedIn] = useState(false);
+  
+  const [showCheckedIn, setShowCheckedIn] = useState(false);
+  const [showCheckedOut, setShowCheckedOut] = useState(false);
+
+  const [selectedChildren, setSelectedChildren] = useState<Set<string>>(new Set());
+
   const [gradeSort, setGradeSort] = useState<SortDirection>("none");
 
   const allChildren = useLiveQuery(() => db.children.toArray(), []);
@@ -106,8 +111,13 @@ export default function RostersPage() {
   const displayChildren = useMemo(() => {
     let filtered = childrenWithDetails;
 
-    if (showOnlyCheckedIn) {
-        filtered = filtered.filter(child => child.activeAttendance);
+    const isFiltered = showCheckedIn !== showCheckedOut;
+    if (isFiltered) {
+        if (showCheckedIn) {
+             filtered = filtered.filter(child => child.activeAttendance);
+        } else { // showCheckedOut
+            filtered = filtered.filter(child => !child.activeAttendance);
+        }
     }
     
     if (gradeSort !== 'none') {
@@ -123,7 +133,51 @@ export default function RostersPage() {
     }
 
     return filtered;
-  }, [childrenWithDetails, showOnlyCheckedIn, gradeSort])
+  }, [childrenWithDetails, showCheckedIn, showCheckedOut, gradeSort])
+
+  const handleBulkAction = async () => {
+    const promises = [];
+    const childrenToUpdate = Array.from(selectedChildren);
+    
+    if (showCheckedOut) { // Bulk Check-In
+        for (const childId of childrenToUpdate) {
+            promises.push(recordCheckIn(childId, selectedEvent, undefined, 'user_admin_bulk'));
+        }
+        await Promise.all(promises);
+        toast({ title: "Bulk Check-In Complete", description: `${childrenToUpdate.length} children checked in.` });
+    } else if (showCheckedIn) { // Bulk Check-Out
+        for (const childId of childrenToUpdate) {
+            const child = displayChildren.find(c => c.child_id === childId);
+            if (child?.activeAttendance) {
+                 promises.push(recordCheckOut(child.activeAttendance.attendance_id, { method: 'other', value: 'Admin Bulk Checkout' }, 'user_admin_bulk'));
+            }
+        }
+        await Promise.all(promises);
+        toast({ title: "Bulk Check-Out Complete", description: `${childrenToUpdate.length} children checked out.` });
+    }
+    
+    setSelectedChildren(new Set());
+  };
+
+  const toggleSelection = (childId: string) => {
+    setSelectedChildren(prev => {
+        const newSet = new Set(prev);
+        if (newSet.has(childId)) {
+            newSet.delete(childId);
+        } else {
+            newSet.add(childId);
+        }
+        return newSet;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedChildren.size === displayChildren.length) {
+        setSelectedChildren(new Set());
+    } else {
+        setSelectedChildren(new Set(displayChildren.map(c => c.child_id)));
+    }
+  };
 
 
   const handleCheckIn = async (child: RosterChild) => {
@@ -172,6 +226,9 @@ export default function RostersPage() {
     return <div>Loading rosters...</div>
   }
 
+  const showBulkActions = (showCheckedIn && !showCheckedOut) || (!showCheckedIn && showCheckedOut);
+
+
   return (
     <>
     <div className="flex flex-col gap-8">
@@ -200,15 +257,19 @@ export default function RostersPage() {
       </div>
 
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
                 <CardTitle className="font-headline">All Children</CardTitle>
                 <CardDescription>A complete list of all children registered.</CardDescription>
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex flex-wrap items-center gap-4">
                 <div className="flex items-center space-x-2">
-                    <Switch id="show-checked-in" checked={showOnlyCheckedIn} onCheckedChange={setShowOnlyCheckedIn} />
-                    <Label htmlFor="show-checked-in">Show Only Checked-In</Label>
+                    <Checkbox id="show-checked-in" checked={showCheckedIn} onCheckedChange={(checked) => setShowCheckedIn(!!checked)} />
+                    <Label htmlFor="show-checked-in">Checked-In</Label>
+                </div>
+                 <div className="flex items-center space-x-2">
+                    <Checkbox id="show-checked-out" checked={showCheckedOut} onCheckedChange={(checked) => setShowCheckedOut(!!checked)} />
+                    <Label htmlFor="show-checked-out">Checked-Out</Label>
                 </div>
                 <Button variant="outline">
                     <FileDown className="mr-2 h-4 w-4" />
@@ -217,9 +278,26 @@ export default function RostersPage() {
             </div>
         </CardHeader>
         <CardContent>
+            {showBulkActions && (
+                 <div className="border-b mb-4 pb-4 flex items-center justify-between">
+                    <p className="text-sm text-muted-foreground">{selectedChildren.size} children selected</p>
+                    <Button onClick={handleBulkAction} disabled={selectedChildren.size === 0}>
+                        {showCheckedOut ? 'Bulk Check-In' : 'Bulk Check-Out'}
+                    </Button>
+                </div>
+            )}
           <Table>
             <TableHeader>
               <TableRow>
+                {showBulkActions && (
+                    <TableHead className="w-[50px]">
+                        <Checkbox 
+                            onCheckedChange={toggleSelectAll}
+                            checked={selectedChildren.size > 0 && selectedChildren.size === displayChildren.length}
+                            aria-label="Select all"
+                        />
+                    </TableHead>
+                )}
                 <TableHead>Name</TableHead>
                 <TableHead>
                     <Button variant="ghost" onClick={toggleGradeSort} className="px-1">
@@ -235,7 +313,16 @@ export default function RostersPage() {
             </TableHeader>
             <TableBody>
               {displayChildren.map((child) => (
-                <TableRow key={child.child_id}>
+                <TableRow key={child.child_id} data-state={selectedChildren.has(child.child_id) && "selected"}>
+                  {showBulkActions && (
+                        <TableCell>
+                            <Checkbox 
+                                checked={selectedChildren.has(child.child_id)}
+                                onCheckedChange={() => toggleSelection(child.child_id)}
+                                aria-label={`Select ${child.first_name}`}
+                            />
+                        </TableCell>
+                  )}
                   <TableCell className="font-medium">{`${child.first_name} ${child.last_name}`}</TableCell>
                   <TableCell>{child.grade}</TableCell>
                   <TableCell>
@@ -264,8 +351,8 @@ export default function RostersPage() {
               ))}
               {displayChildren.length === 0 && (
                 <TableRow>
-                    <TableCell colSpan={6} className="text-center h-24 text-muted-foreground">
-                        {showOnlyCheckedIn ? "No children are currently checked in." : "No children found."}
+                    <TableCell colSpan={showBulkActions ? 7 : 6} className="text-center h-24 text-muted-foreground">
+                        No children match the current filter.
                     </TableCell>
                 </TableRow>
               )}
