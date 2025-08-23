@@ -21,7 +21,7 @@ class GatherKidsDB extends Dexie {
 
     constructor() {
         super('gatherKidsDB');
-        this.version(1).stores({
+        this.version(2).stores({
             households: 'household_id, [city+state+zip]',
             guardians: 'guardian_id, household_id, mobile_phone, email',
             emergency_contacts: 'contact_id, household_id, mobile_phone',
