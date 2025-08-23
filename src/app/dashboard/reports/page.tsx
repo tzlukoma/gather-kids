@@ -1,6 +1,7 @@
+
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Calendar } from "@/components/ui/calendar"
 import {
   Popover,
@@ -19,8 +20,14 @@ import { useLiveQuery } from "dexie-react-hooks"
 import { db } from "@/lib/db"
 import { exportAttendanceRollupCSV, exportEmergencySnapshotCSV, getTodayIsoDate } from "@/lib/dal"
 import { useToast } from "@/hooks/use-toast"
+import { useAuth } from "@/contexts/auth-context"
+import { useRouter } from "next/navigation"
 
 export default function ReportsPage() {
+    const router = useRouter();
+    const { user, loading } = useAuth();
+    const [isAuthorized, setIsAuthorized] = useState(false);
+    
     const today = getTodayIsoDate();
     const { toast } = useToast();
 
@@ -35,6 +42,17 @@ export default function ReportsPage() {
         const childIds = attendance.map(a => a.child_id);
         return db.children.where('child_id').anyOf(childIds).toArray();
     }, [today]);
+
+    useEffect(() => {
+        if (!loading && user) {
+            if (user.role !== 'admin') {
+                router.push('/dashboard'); 
+            } else {
+                setIsAuthorized(true);
+            }
+        }
+    }, [user, loading, router]);
+
 
     const handleExportEmergency = async () => {
         const blob = await exportEmergencySnapshotCSV(today);
@@ -61,6 +79,10 @@ export default function ReportsPage() {
         URL.revokeObjectURL(url);
         toast({ title: "Exported", description: "Attendance Rollup CSV has been downloaded." });
     }
+    
+  if (loading || !isAuthorized) {
+    return <div>Loading reports...</div>
+  }
 
   return (
     <div className="flex flex-col gap-8">

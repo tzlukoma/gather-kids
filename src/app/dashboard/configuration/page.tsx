@@ -8,7 +8,7 @@ import type { Ministry } from "@/lib/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { PlusCircle, Edit, Trash2 } from "lucide-react";
 import { MinistryFormDialog } from "@/components/ministrysync/ministry-form-dialog";
@@ -25,6 +25,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import { useAuth } from "@/contexts/auth-context";
+import { useRouter } from "next/navigation";
 
 function MinistryTable({ 
     title, 
@@ -114,11 +116,26 @@ function MinistryTable({
 }
 
 export default function ConfigurationPage() {
+    const router = useRouter();
+    const { user, loading } = useAuth();
+    const [isAuthorized, setIsAuthorized] = useState(false);
+    
     const allMinistries = useLiveQuery(() => db.ministries.toArray(), []);
     const { toast } = useToast();
 
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [editingMinistry, setEditingMinistry] = useState<Ministry | null>(null);
+
+    useEffect(() => {
+        if (!loading && user) {
+            if (user.role !== 'admin') {
+                router.push('/dashboard'); 
+            } else {
+                setIsAuthorized(true);
+            }
+        }
+    }, [user, loading, router]);
+
 
     const { enrolledPrograms, interestPrograms } = useMemo(() => {
         if (!allMinistries) return { enrolledPrograms: [], interestPrograms: [] };
@@ -159,7 +176,7 @@ export default function ConfigurationPage() {
     };
 
 
-    if (!allMinistries) {
+    if (loading || !isAuthorized || !allMinistries) {
         return <div>Loading configuration...</div>
     }
 
