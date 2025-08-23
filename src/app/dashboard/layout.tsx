@@ -3,7 +3,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   SidebarProvider,
   Sidebar,
@@ -23,33 +23,53 @@ import {
   Users,
   ShieldAlert,
   FileText,
-  ClipboardEdit,
   User,
   LogOut,
-  Settings,
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import { SeedDataButton } from '@/components/ministrysync/seed-data-button';
+import { useAuth, AuthProvider } from '@/contexts/auth-context';
 
-export default function DashboardLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+const adminMenuItems = [
+  { href: "/dashboard", icon: <LayoutDashboard />, label: "Dashboard" },
+  { href: "/dashboard/check-in", icon: <CheckCheck />, label: "Check-In/Out" },
+  { href: "/dashboard/rosters", icon: <Users />, label: "Rosters" },
+  { href: "/dashboard/incidents", icon: <ShieldAlert />, label: "Incidents" },
+  { href: "/dashboard/reports", icon: <FileText />, label: "Reports" },
+];
+
+const leaderMenuItems = [
+  { href: "/dashboard/check-in", icon: <CheckCheck />, label: "Check-In/Out" },
+  { href: "/dashboard/incidents", icon: <ShieldAlert />, label: "Incidents" },
+];
+
+
+function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const { user, loading, logout } = useAuth();
 
-  const menuItems = [
-    { href: "/dashboard", icon: <LayoutDashboard />, label: "Dashboard" },
-    { href: "/dashboard/check-in", icon: <CheckCheck />, label: "Check-In/Out" },
-    { href: "/dashboard/rosters", icon: <Users />, label: "Rosters" },
-    { href: "/dashboard/incidents", icon: <ShieldAlert />, label: "Incidents" },
-    { href: "/dashboard/reports", icon: <FileText />, label: "Reports" },
-  ];
+  React.useEffect(() => {
+    if (!loading && !user) {
+      router.push('/login');
+    }
+  }, [user, loading, router]);
+  
+  if (loading || !user) {
+    return (
+        <div className="flex items-center justify-center h-screen">
+            <p>Loading...</p>
+        </div>
+    )
+  }
 
-  const registrationItems = [
-     { href: "/register", icon: <ClipboardEdit />, label: "New Registration" },
-  ];
+  const menuItems = user?.role === 'admin' ? adminMenuItems : leaderMenuItems;
+
+  const handleLogout = () => {
+    logout();
+    router.push('/');
+  }
 
   return (
     <SidebarProvider>
@@ -62,12 +82,12 @@ export default function DashboardLayout({
                 </Link>
             </div>
             <div className="flex items-center gap-4">
-              <p className="font-headline text-lg font-semibold hidden sm:block">Welcome, Admin!</p>
-              <Button variant="outline">
-                  <User className="mr-2" />
-                  My Profile
+              <p className="font-headline text-lg font-semibold hidden sm:block">Welcome, {user.name}!</p>
+              {user.role === 'admin' && <SeedDataButton />}
+               <Button variant="outline" onClick={handleLogout}>
+                  <LogOut className="mr-2" />
+                  Sign Out
               </Button>
-              <SeedDataButton />
             </div>
         </header>
         <div className="flex flex-1">
@@ -90,17 +110,6 @@ export default function DashboardLayout({
                             </Link>
                         </SidebarMenuItem>
                     ))}
-                    <Separator className="my-2" />
-                    {registrationItems.map((item) => (
-                         <SidebarMenuItem key={item.href}>
-                            <Link href={item.href} passHref>
-                                <SidebarMenuButton tooltip={item.label} isActive={pathname === item.href}>
-                                {item.icon}
-                                <span>{item.label}</span>
-                                </SidebarMenuButton>
-                            </Link>
-                        </SidebarMenuItem>
-                    ))}
                 </SidebarMenu>
                 </SidebarContent>
                 <SidebarFooter>
@@ -108,16 +117,13 @@ export default function DashboardLayout({
                     <Separator />
                     <div className="flex items-center gap-3">
                     <Avatar className="h-8 w-8">
-                        <AvatarImage src="https://placehold.co/40x40.png" alt="Admin" data-ai-hint="user avatar" />
-                        <AvatarFallback>A</AvatarFallback>
+                        <AvatarImage src="https://placehold.co/40x40.png" alt={user.name} data-ai-hint="user avatar" />
+                        <AvatarFallback>{user.name?.charAt(0).toUpperCase()}</AvatarFallback>
                     </Avatar>
                     <div className="flex flex-col text-sm group-data-[collapsible=icon]:hidden">
-                        <span className="font-semibold text-sidebar-foreground">Admin User</span>
-                        <span className="text-muted-foreground">admin@church.org</span>
+                        <span className="font-semibold text-sidebar-foreground">{user.name}</span>
+                        <span className="text-muted-foreground">{user.email}</span>
                     </div>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 ml-auto group-data-[collapsible=icon]:hidden">
-                        <LogOut className="h-4 w-4" />
-                    </Button>
                     </div>
                 </div>
                 </SidebarFooter>
@@ -128,7 +134,19 @@ export default function DashboardLayout({
                 </main>
             </SidebarInset>
         </div>
-        </div>
+      </div>
     </SidebarProvider>
   );
+}
+
+export default function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <AuthProvider>
+        <DashboardLayoutContent>{children}</DashboardLayoutContent>
+    </AuthProvider>
+  )
 }
