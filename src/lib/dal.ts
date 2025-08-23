@@ -4,6 +4,7 @@
 
 
 
+
 import { db } from './db';
 import type { Attendance, Child, Guardian, Household, Incident, IncidentSeverity, Ministry, MinistryEnrollment, Registration, User } from './types';
 import { differenceInYears, isAfter, isBefore, parseISO } from 'date-fns';
@@ -146,11 +147,12 @@ export async function queryHouseholdList() {
     }));
 }
 
+type EnrichedEnrollment = MinistryEnrollment & { ministryName?: string; customQuestions?: any[] };
 export interface HouseholdProfileData {
     household: Household | null;
     guardians: Guardian[];
     emergencyContact: EmergencyContact | null;
-    children: (Child & { age: number | null, enrollments: (MinistryEnrollment & { ministryName?: string, customQuestions?: any[] })[] })[];
+    children: (Child & { age: number | null, enrollmentsByCycle: Record<string, EnrichedEnrollment[]> })[];
 }
 
 export async function getHouseholdProfile(householdId: string): Promise<HouseholdProfileData> {
@@ -165,22 +167,29 @@ export async function getHouseholdProfile(householdId: string): Promise<Househol
     const ministryMap = new Map(allMinistries.map(m => [m.ministry_id, m]));
 
     const childrenWithEnrollments = children.map(child => {
-        const childEnrollments = allEnrollments
+        const enrollmentsByCycle = allEnrollments
             .filter(e => e.child_id === child.child_id)
-            .map(e => {
+            .reduce((acc, e) => {
                 const ministry = ministryMap.get(e.ministry_id);
-                return {
+                if (!ministry) return acc;
+                
+                const enrichedEnrollment: EnrichedEnrollment = {
                     ...e,
-                    ministryName: ministry?.name,
-                    customQuestions: ministry?.custom_questions
+                    ministryName: ministry.name,
+                    customQuestions: ministry.custom_questions
                 };
-            })
-            .filter(e => e.ministryName); // Filter out enrollments where ministry might have been deleted
+
+                if (!acc[e.cycle_id]) {
+                    acc[e.cycle_id] = [];
+                }
+                acc[e.cycle_id].push(enrichedEnrollment);
+                return acc;
+            }, {} as Record<string, EnrichedEnrollment[]>);
 
         return {
             ...child,
             age: child.dob ? ageOn(new Date().toISOString(), child.dob) : null,
-            enrollments: childEnrollments,
+            enrollmentsByCycle: enrollmentsByCycle,
         };
     });
 
@@ -254,6 +263,7 @@ export async function logIncident(data: {child_id: string, child_name: string, d
 export async function registerHousehold(data: any) {
     const householdId = uuidv4();
     const now = new Date().toISOString();
+    const cycle_id = "2025";
 
     const household: Household = {
         household_id: householdId,
@@ -282,6 +292,10 @@ export async function registerHousehold(data: any) {
         household_id: householdId,
         is_active: true,
         ...c,
+        // Remove selection and custom data objects before saving to child record
+        ministrySelections: undefined,
+        interestSelections: undefined,
+        customData: undefined,
         created_at: now,
         updated_at: now,
     }));
@@ -299,7 +313,7 @@ export async function registerHousehold(data: any) {
             const registration: Registration = {
                 registration_id: uuidv4(),
                 child_id: child.child_id,
-                cycle_id: "2025", // Current cycle
+                cycle_id: cycle_id,
                 status: 'active',
                 pre_registered_sunday_school: true,
                 consents: [
@@ -315,7 +329,7 @@ export async function registerHousehold(data: any) {
             const sundaySchoolEnrollment: MinistryEnrollment = {
                 enrollment_id: uuidv4(),
                 child_id: child.child_id,
-                cycle_id: "2025",
+                cycle_id: cycle_id,
                 ministry_id: "min_sunday_school",
                 status: 'enrolled',
             };
@@ -339,10 +353,10 @@ export async function registerHousehold(data: any) {
                         const enrollment: MinistryEnrollment = {
                             enrollment_id: uuidv4(),
                             child_id: child.child_id,
-                            cycle_id: "2025",
+                            cycle_id: cycle_id,
                             ministry_id: ministry.ministry_id,
                             status: ministry.enrollment_type,
-                            custom_fields: childData.customData?.[ministry.code],
+                            custom_fields: childData.customData,
                         };
                         await db.ministry_enrollments.add(enrollment);
                     }

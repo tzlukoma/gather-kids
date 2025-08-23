@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { format, parseISO } from "date-fns";
 import { Mail, Phone, User, Home, Shield, HeartPulse } from "lucide-react";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 const InfoItem = ({ icon, label, value }: { icon: React.ReactNode, label: string, value: React.ReactNode }) => (
     <div className="flex items-start gap-3">
@@ -17,6 +18,36 @@ const InfoItem = ({ icon, label, value }: { icon: React.ReactNode, label: string
         </div>
     </div>
 );
+
+const ProgramEnrollmentCard = ({ enrollment }: { enrollment: HouseholdProfileData['children'][0]['enrollmentsByCycle'][string][0] }) => {
+    const customFields = enrollment.custom_fields || {};
+    const customQuestions = enrollment.customQuestions || [];
+    
+    return (
+        <div className="p-3 rounded-md border bg-muted/25">
+            <div className="flex justify-between items-center">
+                <p className="font-medium">{enrollment.ministryName}</p>
+                <Badge variant={enrollment.status === 'enrolled' ? 'default' : 'secondary'}>{enrollment.status.replace('_', ' ')}</Badge>
+            </div>
+            {Object.keys(customFields).length > 0 && (
+                    <div className="mt-2 text-sm text-muted-foreground pl-4 border-l-2 ml-2 space-y-1">
+                    {Object.entries(customFields).map(([key, value]) => {
+                        const question = customQuestions.find(q => q.id === key);
+                        if (!question) return null;
+
+                        const displayValue = typeof value === 'boolean' ? (value ? "Yes" : "No") : String(value);
+
+                        return (
+                            <p key={key}>
+                                <strong>{question?.text}:</strong> {displayValue}
+                            </p>
+                        )
+                    })}
+                </div>
+            )}
+        </div>
+    );
+};
 
 export function HouseholdProfile({ profileData }: { profileData: HouseholdProfileData }) {
     const { household, guardians, emergencyContact, children } = profileData;
@@ -74,30 +105,23 @@ export function HouseholdProfile({ profileData }: { profileData: HouseholdProfil
                                 <Separator />
                                 <div>
                                     <h4 className="font-semibold mb-2 flex items-center gap-2"><Shield /> Program Enrollments & Interests</h4>
-                                    <div className="space-y-3">
-                                        {child.enrollments.map(e => (
-                                            <div key={e.enrollment_id} className="p-3 rounded-md border bg-muted/25">
-                                                <div className="flex justify-between items-center">
-                                                    <p className="font-medium">{e.ministryName}</p>
-                                                    <Badge variant={e.status === 'enrolled' ? 'default' : 'secondary'}>{e.status.replace('_', ' ')}</Badge>
-                                                </div>
-                                                {e.custom_fields && Object.keys(e.custom_fields).length > 0 && (
-                                                     <div className="mt-2 text-sm text-muted-foreground pl-4 border-l-2 ml-2 space-y-1">
-                                                        {Object.entries(e.custom_fields).map(([key, value]) => {
-                                                            const question = e.customQuestions?.find(q => q.id === key);
-                                                            if (!question) return null;
-                                                            return (
-                                                                <p key={key}>
-                                                                    <strong>{question?.text}:</strong> {value ? "Yes" : "No"}
-                                                                </p>
-                                                            )
-                                                        })}
-                                                    </div>
-                                                )}
-                                            </div>
+                                    <Accordion type="multiple" defaultValue={Object.keys(child.enrollmentsByCycle).slice(0,1)} className="w-full">
+                                        {Object.entries(child.enrollmentsByCycle)
+                                            .sort(([cycleA], [cycleB]) => cycleB.localeCompare(cycleA)) // Sort by year descending
+                                            .map(([cycleId, enrollments]) => (
+                                                <AccordionItem key={cycleId} value={cycleId}>
+                                                    <AccordionTrigger>
+                                                        {cycleId} Registration Year
+                                                    </AccordionTrigger>
+                                                    <AccordionContent>
+                                                        <div className="space-y-3">
+                                                            {enrollments.map(e => <ProgramEnrollmentCard key={e.enrollment_id} enrollment={e} />)}
+                                                            {enrollments.length === 0 && <p className="text-sm text-muted-foreground">No program enrollments or interests listed for this year.</p>}
+                                                        </div>
+                                                    </AccordionContent>
+                                                </AccordionItem>
                                         ))}
-                                        {child.enrollments.length === 0 && <p className="text-sm text-muted-foreground">No program enrollments or interests listed.</p>}
-                                    </div>
+                                    </Accordion>
                                 </div>
                             </CardContent>
                         </Card>
