@@ -5,7 +5,7 @@ import type { HouseholdProfileData } from "@/lib/dal";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { Mail, Phone, User, Home, Shield, HeartPulse } from "lucide-react";
 
 const InfoItem = ({ icon, label, value }: { icon: React.ReactNode, label: string, value: React.ReactNode }) => (
@@ -26,7 +26,7 @@ export function HouseholdProfile({ profileData }: { profileData: HouseholdProfil
             <div>
                 <h1 className="text-3xl font-bold font-headline">{household?.name}</h1>
                 <p className="text-muted-foreground">
-                    Registered on {household && format(new Date(household.created_at), "PPP")}
+                    Registered on {household && format(parseISO(household.created_at), "PPP")}
                 </p>
             </div>
 
@@ -82,12 +82,13 @@ export function HouseholdProfile({ profileData }: { profileData: HouseholdProfil
                                                     <Badge variant={e.status === 'enrolled' ? 'default' : 'secondary'}>{e.status.replace('_', ' ')}</Badge>
                                                 </div>
                                                 {e.custom_fields && Object.keys(e.custom_fields).length > 0 && (
-                                                     <div className="mt-2 text-sm text-muted-foreground pl-4 border-l-2 ml-2">
+                                                     <div className="mt-2 text-sm text-muted-foreground pl-4 border-l-2 ml-2 space-y-1">
                                                         {Object.entries(e.custom_fields).map(([key, value]) => {
                                                             const question = e.customQuestions?.find(q => q.id === key);
+                                                            if (!question) return null;
                                                             return (
                                                                 <p key={key}>
-                                                                    <strong>{question?.text || key}:</strong> {String(value)}
+                                                                    <strong>{question?.text}:</strong> {value ? "Yes" : "No"}
                                                                 </p>
                                                             )
                                                         })}
