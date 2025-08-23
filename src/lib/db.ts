@@ -1,3 +1,4 @@
+
 import Dexie, { type EntityTable } from 'dexie';
 import type { Household, Guardian, EmergencyContact, Child, RegistrationCycle, ChildYearProfile, Registration, Ministry, MinistryEnrollment, LeaderAssignment, User, Event, Attendance, Incident, AuditLog } from './types';
 
@@ -21,8 +22,8 @@ class GatherKidsDB extends Dexie {
 
     constructor() {
         super('gatherKidsDB');
-        this.version(2).stores({
-            households: 'household_id, [city+state+zip]',
+        this.version(3).stores({
+            households: 'household_id, created_at, [city+state+zip]',
             guardians: 'guardian_id, household_id, mobile_phone, email',
             emergency_contacts: 'contact_id, household_id, mobile_phone',
             children: 'child_id, household_id, [last_name+first_name]',
