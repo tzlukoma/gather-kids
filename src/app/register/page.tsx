@@ -306,7 +306,7 @@ export default function RegisterPage() {
   const [openAccordionItems, setOpenAccordionItems] = useState<string[]>([]);
   const [isCurrentYearOverwrite, setIsCurrentYearOverwrite] = useState(false);
   
-  const allMinistries = useLiveQuery(() => db.ministries.where('is_active').equals(1).toArray(), []);
+  const allMinistries = useLiveQuery(() => db.ministries.toArray(), []);
 
   const form = useForm<RegistrationFormValues>({
     resolver: zodResolver(registrationSchema),
@@ -333,10 +333,11 @@ export default function RegisterPage() {
   
   const { enrolledPrograms, interestPrograms } = useMemo(() => {
     if (!allMinistries) return { enrolledPrograms: [], interestPrograms: [] };
-    const enrolled = allMinistries
+    const activeMinistries = allMinistries.filter(m => m.is_active);
+    const enrolled = activeMinistries
         .filter(m => m.enrollment_type === 'enrolled' && m.code !== 'min_sunday_school')
         .sort((a,b) => a.name.localeCompare(b.name));
-    const interest = allMinistries
+    const interest = activeMinistries
         .filter(m => m.enrollment_type === 'interest_only')
         .sort((a,b) => a.name.localeCompare(b.name));
     return { enrolledPrograms: enrolled, interestPrograms: interest };
