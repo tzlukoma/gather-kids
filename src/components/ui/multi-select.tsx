@@ -56,7 +56,7 @@ function MultiSelect({
           variant="outline"
           role="combobox"
           aria-expanded={open}
-          className={cn("w-full justify-between h-10", selected.length > 0 ? "h-full" : "h-10", className)}
+          className={cn("w-full justify-between h-auto min-h-10", className)}
           onClick={() => setOpen(!open)}
         >
           <div className="flex gap-1 flex-wrap">
@@ -74,7 +74,9 @@ function MultiSelect({
                             }}
                         >
                             {option ? option.label : item}
-                            <X className="ml-1 h-3 w-3" />
+                            <button className="ml-1 ring-offset-background rounded-full outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2" onKeyDown={(e) => {if(e.key === "Enter"){handleUnselect(item)}}} onMouseDown={(e)=>{e.preventDefault(); e.stopPropagation()}} onClick={()=>{handleUnselect(item)}}>
+                                <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
+                            </button>
                         </Badge>
                     )
                 })
@@ -85,7 +87,7 @@ function MultiSelect({
           <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-full p-0">
+      <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
         <Command className={className}>
           <CommandInput placeholder="Search ..." />
           <CommandList>
