@@ -5,6 +5,7 @@
 
 
 
+
 import { db } from './db';
 import type { Attendance, Child, Guardian, Household, Incident, IncidentSeverity, Ministry, MinistryEnrollment, Registration, User, EmergencyContact, LeaderAssignment } from './types';
 import { differenceInYears, isAfter, isBefore, parseISO } from 'date-fns';
@@ -546,7 +547,8 @@ export async function exportRosterCSV(children: any[]): Promise<Blob> {
             medical_notes: child.medical_notes || 'None',
             household: child.household?.name || 'N/A',
             primary_guardian: primaryGuardian ? `${primaryGuardian.first_name} ${primaryGuardian.last_name}` : 'N/A',
-            guardian_phone: primaryGuardian ? primaryGuardian.mobile_phone : 'N/A'
+            guardian_phone: primaryGuardian ? primaryGuardian.mobile_phone : 'N/A',
+            guardian_email: primaryGuardian ? primaryGuardian.email : 'N/A',
         };
     });
 
