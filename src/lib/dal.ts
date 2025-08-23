@@ -3,6 +3,7 @@
 
 
 
+
 import { db } from './db';
 import type { Attendance, Child, Guardian, Household, Incident, IncidentSeverity, Ministry, MinistryEnrollment, Registration, User, EmergencyContact, LeaderAssignment } from './types';
 import { differenceInYears, isAfter, isBefore, parseISO } from 'date-fns';
@@ -302,7 +303,7 @@ const fetchFullHouseholdData = async (householdId: string, cycleId: string) => {
                 if (enrollment.custom_fields) {
                     customData = {...customData, ...enrollment.custom_fields};
                 }
-            } else if (enrollment.status === 'interest_only') {
+            } else if (enrollment.status === 'expressed_interest') {
                 interestSelections[ministry.code] = true;
             }
         });
@@ -665,5 +666,3 @@ export async function saveLeaderAssignments(leaderId: string, cycleId: string, n
 export async function updateLeaderStatus(leaderId: string, isActive: boolean): Promise<number> {
     return db.users.update(leaderId, { is_active: isActive });
 }
-
-

@@ -184,13 +184,13 @@ export const seedDB = async () => {
             { name: "Youth Choirs- Keita Praise Choir (Ages 9-12)", code: "choir-keita", enrollment_type: 'enrolled', min_age: 9, max_age: 12, details: "Keita Praise Choir builds on foundational skills and performs once a month. Practices are on Wednesdays.", data_profile: 'Basic', is_active: true },
             { name: "Youth Choirs- New Generation Teen Choir (Ages 13-18)", code: "choir-teen", enrollment_type: 'enrolled', min_age: 13, max_age: 18, details: "The Teen Choir performs contemporary gospel music and leads worship during Youth Sundays.", data_profile: 'Basic', is_active: true },
             { name: "Youth Ushers", code: "youth-ushers", enrollment_type: 'enrolled', details: "Thank you for registering for the Youth Ushers Ministry.\n\nYou will receive information from ministry leaders regarding next steps for your child's participation.", data_profile: 'Basic', is_active: true },
-            { name: "Children's Musical", code: "childrens-musical", enrollment_type: 'interest_only', data_profile: 'Basic', communicate_later: true, is_active: true },
-            { name: "Confirmation", code: "confirmation", enrollment_type: 'interest_only', data_profile: 'Basic', communicate_later: true, is_active: true },
-            { name: "International Travel", code: "international-travel", enrollment_type: 'interest_only', data_profile: 'Basic', is_active: true },
-            { name: "New Jersey Orators", code: "orators", enrollment_type: 'interest_only', data_profile: 'Basic', optional_consent_text: "I agree to share my contact information with New Jersey Orators. New Jersey Orators is not a part of Cathedral International, but Cathedral hosts the Perth Amboy Chapter. Registration can take place through their website at oratorsinc.org.", is_active: true },
-            { name: "Nursery", code: "nursery", enrollment_type: 'interest_only', data_profile: 'Basic', communicate_later: true, is_active: true },
-            { name: "Vacation Bible School", code: "vbs", enrollment_type: 'interest_only', data_profile: 'Basic', communicate_later: true, is_active: true },
-            { name: "College Tour", code: "college-tour", enrollment_type: 'interest_only', data_profile: 'Basic', is_active: true },
+            { name: "Children's Musical", code: "childrens-musical", enrollment_type: 'expressed_interest', data_profile: 'Basic', communicate_later: true, is_active: true },
+            { name: "Confirmation", code: "confirmation", enrollment_type: 'expressed_interest', data_profile: 'Basic', communicate_later: true, is_active: true },
+            { name: "International Travel", code: "international-travel", enrollment_type: 'expressed_interest', data_profile: 'Basic', is_active: true },
+            { name: "New Jersey Orators", code: "orators", enrollment_type: 'expressed_interest', data_profile: 'Basic', optional_consent_text: "I agree to share my contact information with New Jersey Orators. New Jersey Orators is not a part of Cathedral International, but Cathedral hosts the Perth Amboy Chapter. Registration can take place through their website at oratorsinc.org.", is_active: true },
+            { name: "Nursery", code: "nursery", enrollment_type: 'expressed_interest', data_profile: 'Basic', communicate_later: true, is_active: true },
+            { name: "Vacation Bible School", code: "vbs", enrollment_type: 'expressed_interest', data_profile: 'Basic', communicate_later: true, is_active: true },
+            { name: "College Tour", code: "college-tour", enrollment_type: 'expressed_interest', data_profile: 'Basic', is_active: true },
         ];
 
         const fullMinistries = ministryData.map(m => {
@@ -227,17 +227,31 @@ export const seedDB = async () => {
             const childrenInHousehold = children.filter(c => c.household_id === household.household_id && c.is_active);
             for (const child of childrenInHousehold) {
                 registrations.push({ registration_id: uuidv4(), child_id: child.child_id, cycle_id: CYCLE_IDS.current, status: 'active', pre_registered_sunday_school: true, consents: [], submitted_at: now, submitted_via: 'import' });
+                
+                // Auto-enroll in Sunday School
                 enrollments.push({ enrollment_id: uuidv4(), child_id: child.child_id, cycle_id: CYCLE_IDS.current, ministry_id: MINISTRY_IDS['min_sunday_school'], status: 'enrolled' });
                 
-                // Assign to Khalfani
+                const age = differenceInYears(today, parseISO(child.dob!));
+
+                // Assign to various ministries based on age and family
+                 if (age >= 9 && age <= 12 && household.name === 'Brown Household') {
+                    enrollments.push({ enrollment_id: uuidv4(), child_id: child.child_id, cycle_id: CYCLE_IDS.current, ministry_id: MINISTRY_IDS['choir-keita'], status: 'enrolled' });
+                }
+                if (age >= 13 && household.name === 'Williams Household') {
+                    enrollments.push({ enrollment_id: uuidv4(), child_id: child.child_id, cycle_id: CYCLE_IDS.current, ministry_id: MINISTRY_IDS['teen-fellowship'], status: 'enrolled', custom_fields: { teen_podcast: true } });
+                }
+                if (age >= 13 && household.name === 'Miller Household') {
+                    enrollments.push({ enrollment_id: uuidv4(), child_id: child.child_id, cycle_id: CYCLE_IDS.current, ministry_id: MINISTRY_IDS['college-tour'], status: 'expressed_interest' });
+                }
+                 if (age >= 6 && age <= 10 && household.name === 'Garcia Household') {
+                    enrollments.push({ enrollment_id: uuidv4(), child_id: child.child_id, cycle_id: CYCLE_IDS.current, ministry_id: MINISTRY_IDS['vbs'], status: 'expressed_interest' });
+                }
                 if (child.last_name === 'Garcia' && child.first_name === 'Benjamin') {
                     enrollments.push({ enrollment_id: uuidv4(), child_id: child.child_id, cycle_id: CYCLE_IDS.current, ministry_id: MINISTRY_IDS['mentoring-boys'], status: 'enrolled' });
                 }
                 if (child.last_name === 'Martinez' && child.first_name === 'Jack') {
                     enrollments.push({ enrollment_id: uuidv4(), child_id: child.child_id, cycle_id: CYCLE_IDS.current, ministry_id: MINISTRY_IDS['mentoring-boys'], status: 'enrolled' });
                 }
-
-                // Assign to Joy Bells
                 if (child.last_name === 'Davis' && child.first_name === 'Henry') {
                      enrollments.push({ enrollment_id: uuidv4(), child_id: child.child_id, cycle_id: CYCLE_IDS.current, ministry_id: MINISTRY_IDS['choir-joy-bells'], status: 'enrolled' });
                 }
