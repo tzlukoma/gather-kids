@@ -41,6 +41,21 @@ const generateHouseholdsAndChildren = (): { households: Household[], children: C
         { lastName: 'Williams', guardian: { f: 'James', l: 'Williams' }, kids: [{ f: 'Isabella', age: 14 }] },
         { lastName: 'Brown', guardian: { f: 'Patricia', l: 'Brown' }, kids: [{ f: 'Sophia', age: 9 }, { f: 'Mason', age: 12 }] },
         { lastName: 'Jones', guardian: { f: 'Robert', l: 'Jones' }, kids: [{ f: 'Mia', age: 3 }, { f: 'Ethan', age: 11 }] },
+        { lastName: 'Garcia', guardian: { f: 'Maria', l: 'Garcia' }, kids: [{ f: 'Abigail', age: 6 }, { f: 'Benjamin', age: 13 }] },
+        { lastName: 'Miller', guardian: { f: 'David', l: 'Miller' }, kids: [{ f: 'Emily', age: 16 }] },
+        { lastName: 'Davis', guardian: { f: 'Linda', l: 'Davis' }, kids: [{ f: 'Charlotte', age: 2 }, { f: 'Henry', age: 5 }] },
+        { lastName: 'Rodriguez', guardian: { f: 'Richard', l: 'Rodriguez' }, kids: [{ f: 'Harper', age: 10 }] },
+        { lastName: 'Martinez', guardian: { f: 'Susan', l: 'Martinez' }, kids: [{ f: 'Evelyn', age: 7 }, { f: 'Jack', age: 15 }] },
+        { lastName: 'Hernandez', guardian: { f: 'Joseph', l: 'Hernandez' }, kids: [{ f: 'Aria', age: 8 }] },
+        { lastName: 'Lopez', guardian: { f: 'Karen', l: 'Lopez' }, kids: [{ f: 'Grace', age: 6 }, { f: 'Lucas', age: 9 }] },
+        { lastName: 'Gonzalez', guardian: { f: 'Thomas', l: 'Gonzalez' }, kids: [{ f: 'Chloe', age: 11 }, { f: 'Daniel', age: 14 }] },
+        { lastName: 'Wilson', guardian: { f: 'Nancy', l: 'Wilson' }, kids: [{ f: 'Zoey', age: 4 }, { f: 'Leo', age: 7 }] },
+        { lastName: 'Anderson', guardian: { f: 'Mark', l: 'Anderson' }, kids: [{ f: 'Penelope', age: 12 }] },
+        { lastName: 'Thomas', guardian: { f: 'Sandra', l: 'Thomas' }, kids: [{ f: 'Riley', age: 5 }, { f: 'Owen', age: 8 }] },
+        { lastName: 'Taylor', guardian: { f: 'Paul', l: 'Taylor' }, kids: [{ f: 'Layla', age: 10 }, { f: 'Wyatt', age: 13 }] },
+        { lastName: 'Moore', guardian: { f: 'Betty', l: 'Moore' }, kids: [{ f: 'Nora', age: 3 }, { f: 'Caleb', age: 6 }] },
+        { lastName: 'Jackson', guardian: { f: 'Steven', l: 'Jackson' }, kids: [{ f: 'Hannah', age: 15 }, { f: 'Isaac', age: 17 }] },
+        { lastName: 'White', guardian: { f: 'Donna', l: 'White' }, kids: [{ f: 'Stella', age: 9 }, { f: 'Gabriel', age: 12, allergies: 'Dairy' }] },
     ];
     
     const birthdaysPerMonth = Array(12).fill(0);
@@ -90,7 +105,7 @@ const generateHouseholdsAndChildren = (): { households: Household[], children: C
             let birthMonth: number;
             do {
                 birthMonth = Math.floor(Math.random() * 12);
-            } while (birthdaysPerMonth[birthMonth] >= 2);
+            } while (birthdaysPerMonth[birthMonth] >= 4); // Allow up to 4 birthdays per month with 20 families
             
             birthdaysPerMonth[birthMonth]++;
             
@@ -201,43 +216,33 @@ export const seedDB = async () => {
 
         // --- HISTORICAL DATA (2024 CYCLE) ---
         for (const child of children) {
-            // Every child was registered for Sunday School last year
              registrations.push({ registration_id: uuidv4(), child_id: child.child_id, cycle_id: CYCLE_IDS.prior, status: 'active', pre_registered_sunday_school: true, consents: [], submitted_at: now, submitted_via: 'import' });
              enrollments.push({ enrollment_id: uuidv4(), child_id: child.child_id, cycle_id: CYCLE_IDS.prior, ministry_id: MINISTRY_IDS['min_sunday_school'], status: 'enrolled' });
         }
-        const liam = children.find(c => c.first_name === 'Liam');
-        if (liam) { // Last year, Liam Smith (age 8 now, 7 then) was in Joy Bells
-            enrollments.push({ enrollment_id: uuidv4(), child_id: liam.child_id, cycle_id: CYCLE_IDS.prior, ministry_id: MINISTRY_IDS['choir-joy-bells'], status: 'enrolled' });
-        }
-        const ava = children.find(c => c.first_name === 'Ava');
-        if (ava) { // Last year, Ava Johnson (age 10 now, 9 then) was in Keita
-             enrollments.push({ enrollment_id: uuidv4(), child_id: ava.child_id, cycle_id: CYCLE_IDS.prior, ministry_id: MINISTRY_IDS['choir-keita'], status: 'enrolled' });
-        }
-
-
+        
         // --- CURRENT DATA (2025 CYCLE) ---
         const householdsToRegisterCurrent = households.filter(h => h.name !== 'Johnson Household');
 
         for (const household of householdsToRegisterCurrent) {
             const childrenInHousehold = children.filter(c => c.household_id === household.household_id && c.is_active);
             for (const child of childrenInHousehold) {
-                // Register for current cycle
                 registrations.push({ registration_id: uuidv4(), child_id: child.child_id, cycle_id: CYCLE_IDS.current, status: 'active', pre_registered_sunday_school: true, consents: [], submitted_at: now, submitted_via: 'import' });
                 enrollments.push({ enrollment_id: uuidv4(), child_id: child.child_id, cycle_id: CYCLE_IDS.current, ministry_id: MINISTRY_IDS['min_sunday_school'], status: 'enrolled' });
-
-                if (child.first_name === 'Isabella') { // Williams, age 14
-                    enrollments.push({ enrollment_id: uuidv4(), child_id: child.child_id, cycle_id: CYCLE_IDS.current, ministry_id: MINISTRY_IDS['teen-fellowship'], status: 'enrolled', custom_fields: { teen_podcast: true, teen_community_service: true } });
-                    enrollments.push({ enrollment_id: uuidv4(), child_id: child.child_id, cycle_id: CYCLE_IDS.current, ministry_id: MINISTRY_IDS['choir-teen'], status: 'enrolled' });
-                }
                 
-                if (child.first_name === 'Liam') { // Smith, age 8
-                     enrollments.push({ enrollment_id: uuidv4(), child_id: child.child_id, cycle_id: CYCLE_IDS.current, ministry_id: MINISTRY_IDS['acolyte'], status: 'enrolled' });
+                // Assign to Khalfani
+                if (child.last_name === 'Garcia' && child.first_name === 'Benjamin') {
+                    enrollments.push({ enrollment_id: uuidv4(), child_id: child.child_id, cycle_id: CYCLE_IDS.current, ministry_id: MINISTRY_IDS['mentoring-boys'], status: 'enrolled' });
+                }
+                if (child.last_name === 'Martinez' && child.first_name === 'Jack') {
+                    enrollments.push({ enrollment_id: uuidv4(), child_id: child.child_id, cycle_id: CYCLE_IDS.current, ministry_id: MINISTRY_IDS['mentoring-boys'], status: 'enrolled' });
+                }
+
+                // Assign to Joy Bells
+                if (child.last_name === 'Davis' && child.first_name === 'Henry') {
                      enrollments.push({ enrollment_id: uuidv4(), child_id: child.child_id, cycle_id: CYCLE_IDS.current, ministry_id: MINISTRY_IDS['choir-joy-bells'], status: 'enrolled' });
                 }
-                 if (child.first_name === 'Mason') { // Brown, age 12
-                     enrollments.push({ enrollment_id: uuidv4(), child_id: child.child_id, cycle_id: CYCLE_IDS.current, ministry_id: MINISTRY_IDS['media-production'], status: 'enrolled' });
-                     enrollments.push({ enrollment_id: uuidv4(), child_id: child.child_id, cycle_id: CYCLE_IDS.current, ministry_id: MINISTRY_IDS['choir-keita'], status: 'enrolled' });
-                     enrollments.push({ enrollment_id: uuidv4(), child_id: child.child_id, cycle_id: CYCLE_IDS.current, ministry_id: MINISTRY_IDS['vbs'], status: 'interest_only' });
+                if (child.last_name === 'Wilson' && child.first_name === 'Leo') {
+                     enrollments.push({ enrollment_id: uuidv4(), child_id: child.child_id, cycle_id: CYCLE_IDS.current, ministry_id: MINISTRY_IDS['choir-joy-bells'], status: 'enrolled' });
                 }
             }
         }
@@ -249,11 +254,12 @@ export const seedDB = async () => {
             { assignment_id: uuidv4(), leader_id: 'user_leader_11', ministry_id: MINISTRY_IDS['mentoring-boys'], cycle_id: CYCLE_IDS.current, role: 'Primary' },
             { assignment_id: uuidv4(), leader_id: 'user_leader_12', ministry_id: MINISTRY_IDS['min_sunday_school'], cycle_id: CYCLE_IDS.current, role: 'Volunteer' },
             { assignment_id: uuidv4(), leader_id: 'user_leader_12', ministry_id: MINISTRY_IDS['choir-joy-bells'], cycle_id: CYCLE_IDS.current, role: 'Primary' },
+            { assignment_id: uuidv4(), leader_id: 'user_leader_13', ministry_id: MINISTRY_IDS['acolyte'], cycle_id: CYCLE_IDS.prior, role: 'Primary' },
         ];
         await db.leader_assignments.bulkPut(leaderAssignments);
 
         // --- TODAY's DATA ---
-        const checkedInChildren = children.filter(c => c.is_active).slice(0, 5);
+        const checkedInChildren = children.filter(c => c.is_active).slice(0, 8);
         const attendance: Attendance[] = [];
         for(let i=0; i<checkedInChildren.length; i++) {
             attendance.push({
@@ -272,6 +278,7 @@ export const seedDB = async () => {
             { incident_id: 'inc_1', child_id: checkedInChildren[0].child_id, child_name: `${checkedInChildren[0].first_name} ${checkedInChildren[0].last_name}`, event_id: EVENT_IDS.sundaySchool, description: 'Scraped knee on the playground.', severity: 'low', leader_id: 'user_leader_1', timestamp: now, admin_acknowledged_at: now },
             { incident_id: 'inc_2', child_id: checkedInChildren[1].child_id, child_name: `${checkedInChildren[1].first_name} ${checkedInChildren[1].last_name}`, event_id: EVENT_IDS.sundaySchool, description: 'Feeling unwell, slight fever.', severity: 'medium', leader_id: 'user_leader_2', timestamp: now, admin_acknowledged_at: null },
             { incident_id: 'inc_3', child_id: checkedInChildren[2].child_id, child_name: `${checkedInChildren[2].first_name} ${checkedInChildren[2].last_name}`, event_id: EVENT_IDS.sundaySchool, description: 'Did not want to participate in activity.', severity: 'low', leader_id: 'user_leader_13', timestamp: subYears(new Date(), 1).toISOString(), admin_acknowledged_at: subYears(new Date(), 1).toISOString() },
+            { incident_id: 'inc_4', child_id: checkedInChildren[3].child_id, child_name: `${checkedInChildren[3].first_name} ${checkedInChildren[3].last_name}`, event_id: EVENT_IDS.sundaySchool, description: 'Shared toys nicely with another child.', severity: 'low', leader_id: 'user_leader_13', timestamp: now, admin_acknowledged_at: null },
         ]);
     });
     console.log("Database seeded successfully.");
@@ -283,9 +290,3 @@ export const resetDB = async () => {
     await db.open();
     console.log("Database reset complete.");
 };
-
-
-
-    
-
-    
