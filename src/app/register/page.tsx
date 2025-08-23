@@ -22,7 +22,7 @@ import { Separator } from "@/components/ui/separator"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { useToast } from "@/hooks/use-toast"
 import { PlusCircle, Trash2 } from "lucide-react"
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { Textarea } from "@/components/ui/textarea"
 import { registerHousehold } from "@/lib/dal"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -404,6 +404,13 @@ export default function RegisterPage() {
             break;
     }
   }
+  
+  useEffect(() => {
+    if (verificationStep === 'enter_email' && verificationEmail) {
+        handleEmailLookup();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [verificationEmail, verificationStep]);
 
 
   async function onSubmit(data: RegistrationFormValues) {
@@ -454,6 +461,7 @@ export default function RegisterPage() {
                             placeholder="your.email@example.com" 
                             value={verificationEmail}
                             onChange={(e) => setVerificationEmail(e.target.value)}
+                             onKeyDown={(e) => { if (e.key === 'Enter') handleEmailLookup(); }}
                         />
                         <Button onClick={handleEmailLookup}>Continue</Button>
                     </div>
@@ -461,9 +469,10 @@ export default function RegisterPage() {
                         <Info className="h-4 w-4" />
                         <AlertTitle>For Prototype Demo</AlertTitle>
                         <AlertDescription>
+                            <p>Click an email below or type one to begin:</p>
                             <ul className="list-disc pl-5 text-sm">
-                                <li>Use <code className="font-semibold">{MOCK_EMAILS.PREFILL}</code> to pre-fill the form.</li>
-                                <li>Use <code className="font-semibold">{MOCK_EMAILS.VERIFY}</code> to see the verification step.</li>
+                                <li>Use <button className="text-left font-semibold underline" onClick={() => setVerificationEmail(MOCK_EMAILS.PREFILL)}>{MOCK_EMAILS.PREFILL}</button> to pre-fill the form.</li>
+                                <li>Use <button className="text-left font-semibold underline" onClick={() => setVerificationEmail(MOCK_EMAILS.VERIFY)}>{MOCK_EMAILS.VERIFY}</button> to see the verification step.</li>
                                 <li>Any other email will start a new registration.</li>
                             </ul>
                         </AlertDescription>
