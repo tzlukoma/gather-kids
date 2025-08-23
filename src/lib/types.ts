@@ -111,6 +111,7 @@ export interface Ministry {
     description?: string;
     custom_questions?: CustomQuestion[];
     communicate_later?: boolean;
+    optional_consent_text?: string;
 }
 
 export interface MinistryEnrollment {
