@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -15,11 +16,13 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
 import { getTodayIsoDate, recordCheckIn, recordCheckOut } from '@/lib/dal';
 import { Separator } from '../ui/separator';
+import type { StatusFilter } from '@/app/dashboard/check-in/page';
 
 interface CheckInViewProps {
   initialChildren: Child[];
   selectedEvent: string;
   selectedGrades: string[];
+  statusFilter: StatusFilter;
 }
 
 const isBirthdayThisWeek = (dob?: string): boolean => {
@@ -83,7 +86,7 @@ export interface EnrichedChild extends Child {
     emergencyContact: EmergencyContact | null;
 }
 
-export function CheckInView({ initialChildren, selectedEvent, selectedGrades }: CheckInViewProps) {
+export function CheckInView({ initialChildren, selectedEvent, selectedGrades, statusFilter }: CheckInViewProps) {
   const [children, setChildren] = useState<EnrichedChild[]>([]);
   const [childToCheckout, setChildToCheckout] = useState<EnrichedChild | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -212,8 +215,16 @@ export function CheckInView({ initialChildren, selectedEvent, selectedGrades }: 
         results = results.filter(child => child.grade && selectedGrades.includes(child.grade));
     }
 
+    if (statusFilter !== 'all') {
+        if (statusFilter === 'checkedIn') {
+            results = results.filter(child => child.activeAttendance !== null);
+        } else { // 'checkedOut'
+            results = results.filter(child => child.activeAttendance === null);
+        }
+    }
+
     return results;
-  }, [searchQuery, children, selectedGrades]);
+  }, [searchQuery, children, selectedGrades, statusFilter]);
 
   return (
     <>
