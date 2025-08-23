@@ -1,6 +1,5 @@
 
 
-
 import { db } from './db';
 import { v4 as uuidv4 } from 'uuid';
 import type { Household, Guardian, EmergencyContact, Child, RegistrationCycle, Registration, Ministry, MinistryEnrollment, User, Event, Attendance, Incident } from './types';
@@ -154,11 +153,11 @@ export const seedDB = async () => {
             { name: "Youth Choirs- Keita Praise Choir (Ages 9-12)", code: "choir-keita", enrollment_type: 'enrolled', min_age: 9, max_age: 12, details: "Keita Praise Choir builds on foundational skills and performs once a month. Practices are on Wednesdays.", data_profile: 'Basic' },
             { name: "Youth Choirs- New Generation Teen Choir (Ages 13-18)", code: "choir-teen", enrollment_type: 'enrolled', min_age: 13, max_age: 18, details: "The Teen Choir performs contemporary gospel music and leads worship during Youth Sundays.", data_profile: 'Basic' },
             { name: "Youth Ushers", code: "youth-ushers", enrollment_type: 'enrolled', details: "Thank you for registering for the Youth Ushers Ministry.\n\nYou will receive information from ministry leaders regarding next steps for your child's participation.", data_profile: 'Basic' },
-            { name: "Children's Musical", code: "childrens-musical", enrollment_type: 'interest_only', data_profile: 'Basic' },
-            { name: "Confirmation", code: "confirmation", enrollment_type: 'interest_only', data_profile: 'Basic' },
+            { name: "Children's Musical", code: "childrens-musical", enrollment_type: 'interest_only', data_profile: 'Basic', communicate_later: true },
+            { name: "Confirmation", code: "confirmation", enrollment_type: 'interest_only', data_profile: 'Basic', communicate_later: true },
             { name: "New Jersey Orators", code: "orators", enrollment_type: 'interest_only', data_profile: 'Basic' },
-            { name: "Nursery", code: "nursery", enrollment_type: 'interest_only', data_profile: 'Basic' },
-            { name: "Vacation Bible School", code: "vbs", enrollment_type: 'interest_only', data_profile: 'Basic' },
+            { name: "Nursery", code: "nursery", enrollment_type: 'interest_only', data_profile: 'Basic', communicate_later: true },
+            { name: "Vacation Bible School", code: "vbs", enrollment_type: 'interest_only', data_profile: 'Basic', communicate_later: true },
             { name: "College Tour", code: "college-tour", enrollment_type: 'interest_only', data_profile: 'Basic' },
         ];
 
