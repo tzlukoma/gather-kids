@@ -235,22 +235,22 @@ const defaultChildValues = {
 };
 
 const ministryPrograms = [
-    { id: "acolyte", label: "Acolyte Ministry", eligibility: () => true },
+    { id: "acolyte", label: "Acolyte Ministry", eligibility: () => true, details: "Acolytes serve during the 11 AM service and require special training. A schedule will be provided." },
     { id: "bible-bee", label: "Bible Bee", description: "Registration open until Oct. 8, 2023", eligibility: () => {
         const today = new Date();
         const bibleBeeStart = new Date(today.getFullYear(), 0, 1);
         const bibleBeeEnd = new Date(today.getFullYear(), 9, 8);
         return isWithinInterval(today, { start: bibleBeeStart, end: bibleBeeEnd });
-    }},
-    { id: "dance", label: "Dance Ministry", eligibility: () => true },
-    { id: "media-production", label: "Media Production Ministry", eligibility: () => true },
-    { id: "mentoring-boys", label: "Mentoring Ministry-Boys (Khalfani)", eligibility: () => true },
-    { id: "mentoring-girls", label: "Mentoring Ministry-Girls (Nailah)", eligibility: () => true },
-    { id: "teen-fellowship", label: "New Generation Teen Fellowship", eligibility: () => true },
-    { id: "choir-joy-bells", label: "Youth Choirs- Joy Bells (Ages 4-8)", eligibility: (age: number | null) => age !== null && age >= 4 && age <= 8 },
-    { id: "choir-keita", label: "Youth Choirs- Keita Praise Choir (Ages 9-12)", eligibility: (age: number | null) => age !== null && age >= 9 && age <= 12 },
-    { id: "choir-teen", label: "Youth Choirs- New Generation Teen Choir (Ages 13-18)", eligibility: (age: number | null) => age !== null && age >= 13 && age <= 18 },
-    { id: "youth-ushers", label: "Youth Ushers", eligibility: () => true },
+    }, details: "Bible Bee is a competitive program that encourages scripture memorization. Materials must be purchased separately." },
+    { id: "dance", label: "Dance Ministry", eligibility: () => true, details: "The Dance Ministry practices on Saturdays. A schedule and attire requirements will be provided." },
+    { id: "media-production", label: "Media Production Ministry", eligibility: () => true, details: "This ministry involves training on sound, lighting, and video production for our services." },
+    { id: "mentoring-boys", label: "Mentoring Ministry-Boys (Khalfani)", eligibility: () => true, details: "The Khalfani ministry provides mentorship for young boys through various activities and discussions." },
+    { id: "mentoring-girls", label: "Mentoring Ministry-Girls (Nailah)", eligibility: () => true, details: "The Nailah ministry provides mentorship for young girls, focusing on empowerment and personal growth." },
+    { id: "teen-fellowship", label: "New Generation Teen Fellowship", eligibility: () => true, details: "Teen Fellowship meets on Friday nights for fun, food, and faith-based discussions." },
+    { id: "choir-joy-bells", label: "Youth Choirs- Joy Bells (Ages 4-8)", eligibility: (age: number | null) => age !== null && age >= 4 && age <= 8, details: "Joy Bells is our introductory choir for the youngest voices. Practices are held after the 11 AM service." },
+    { id: "choir-keita", label: "Youth Choirs- Keita Praise Choir (Ages 9-12)", eligibility: (age: number | null) => age !== null && age >= 9 && age <= 12, details: "Keita Praise Choir builds on foundational skills and performs once a month. Practices are on Wednesdays." },
+    { id: "choir-teen", label: "Youth Choirs- New Generation Teen Choir (Ages 13-18)", eligibility: (age: number | null) => age !== null && age >= 13 && age <= 18, details: "The Teen Choir performs contemporary gospel music and leads worship during Youth Sundays." },
+    { id: "youth-ushers", label: "Youth Ushers", eligibility: () => true, details: "Youth Ushers serve during the 11 AM service, welcoming members and assisting with the offering." },
 ];
 
 const interestPrograms = [
@@ -267,6 +267,52 @@ const getAgeFromDob = (dobString: string): number | null => {
         return differenceInYears(new Date(), parseISO(dobString));
     }
     return null;
+}
+
+const ProgramSection = ({ control, childrenData, program }: { control: any, childrenData: any[], program: any }) => {
+    const ministrySelections = useWatch({
+        control,
+        name: 'children',
+    });
+
+    const isAnyChildSelected = childrenData.some((_, index) => 
+        ministrySelections[index]?.ministrySelections?.[program.id]
+    );
+
+    return (
+        <div className="p-4 border rounded-md">
+            <h4 className="font-semibold">{program.label}</h4>
+            {program.description && <p className="text-sm text-muted-foreground mb-2">{program.description}</p>}
+            <div className="flex flex-col sm:flex-row sm:flex-wrap gap-x-6 gap-y-2 mt-2">
+                {childrenData.map((child, index) => {
+                    const age = getAgeFromDob(child.dob);
+                    if (!program.eligibility(age)) return null;
+                    
+                    return (
+                        <FormField
+                            key={`${program.id}-${child.first_name || index}`}
+                            control={control}
+                            name={`children.${index}.ministrySelections.${program.id as keyof z.infer<typeof ministrySelectionSchema>}`}
+                            render={({ field }) => (
+                                <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                                    <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                                    <FormLabel className="font-normal">{child.first_name || `Child ${index + 1}`}</FormLabel>
+                                </FormItem>
+                            )}
+                        />
+                    )
+                })}
+            </div>
+            {isAnyChildSelected && program.details && (
+                 <Alert className="mt-4">
+                    <Info className="h-4 w-4" />
+                    <AlertDescription>
+                       {program.details}
+                    </AlertDescription>
+                </Alert>
+            )}
+        </div>
+    )
 }
 
 export default function RegisterPage() {
@@ -556,39 +602,23 @@ export default function RegisterPage() {
                     <Card>
                         <CardHeader>
                             <CardTitle className="font-headline">Ministry Programs</CardTitle>
-                            <CardDescription>Sunday School/Children's Church is automatic for all registered children.</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-6">
-                            {ministryPrograms.map(program => {
-                                const isProgramVisible = childrenData.some((child, i) => program.eligibility(getAgeFromDob(child.dob)));
-                                if (!isProgramVisible) return null;
-                                
-                                return (
-                                <div key={program.id} className="p-4 border rounded-md">
-                                    <h4 className="font-semibold">{program.label}</h4>
-                                    {program.description && <p className="text-sm text-muted-foreground mb-2">{program.description}</p>}
-                                    <div className="flex flex-col sm:flex-row sm:flex-wrap gap-x-6 gap-y-2 mt-2">
-                                        {childrenData.map((child, index) => {
-                                            const age = getAgeFromDob(child.dob);
-                                            if (!program.eligibility(age)) return null;
-                                            
-                                            return (
-                                                <FormField
-                                                    key={`${program.id}-${childFields[index].id}`}
-                                                    control={form.control}
-                                                    name={`children.${index}.ministrySelections.${program.id as keyof z.infer<typeof ministrySelectionSchema>}`}
-                                                    render={({ field }) => (
-                                                        <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                                                            <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
-                                                            <FormLabel className="font-normal">{child.first_name || `Child ${index + 1}`}</FormLabel>
-                                                        </FormItem>
-                                                    )}
-                                                />
-                                            )
-                                        })}
-                                    </div>
+                             <div className="p-4 border rounded-md bg-muted/50">
+                                <h4 className="font-semibold">Sunday School/Children's Church</h4>
+                                <p className="text-sm text-muted-foreground mb-2">Enrollment is automatic for all registered children.</p>
+                                <div className="flex flex-col sm:flex-row sm:flex-wrap gap-x-6 gap-y-2 mt-2">
+                                    {childrenData.map((child, index) => (
+                                        <div key={`ss-${child.first_name || index}`} className="flex flex-row items-start space-x-3 space-y-0">
+                                            <Checkbox checked={true} disabled={true} />
+                                            <label className="font-normal text-sm text-muted-foreground">{child.first_name || `Child ${index + 1}`}</label>
+                                        </div>
+                                    ))}
                                 </div>
-                            )})}
+                            </div>
+                            {ministryPrograms.map(program => (
+                                <ProgramSection key={program.id} control={form.control} childrenData={childrenData} program={program} />
+                            ))}
                         </CardContent>
                     </Card>
 
@@ -643,3 +673,5 @@ export default function RegisterPage() {
     </div>
   )
 }
+
+    
