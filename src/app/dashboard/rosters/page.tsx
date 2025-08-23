@@ -210,7 +210,7 @@ export default function RostersPage() {
                       <Badge variant="destructive">Allergy</Badge>
                     )}
                   </TableCell>
-                   <TableCell className="w-28">
+                   <TableCell className="w-[120px]">
                     {child.activeAttendance ? (
                       <Button variant="outline" size="sm" className="w-full" onClick={() => setChildToCheckout(child)}>Check Out</Button>
                     ) : (
