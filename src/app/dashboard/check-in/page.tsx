@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo } from 'react';
@@ -27,9 +28,12 @@ const getGradeValue = (grade?: string): number => {
     return value !== undefined ? value : 99;
 };
 
+export type StatusFilter = 'all' | 'checkedIn' | 'checkedOut';
+
 export default function CheckInPage() {
   const [selectedEvent, setSelectedEvent] = useState('evt_sunday_school');
   const [selectedGrades, setSelectedGrades] = useState<Set<string>>(new Set());
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   
   const children = useLiveQuery(() => db.children.toArray(), []);
 
@@ -92,6 +96,12 @@ export default function CheckInPage() {
             </Select>
         </div>
       </div>
+      <div className="flex flex-wrap gap-2 items-center">
+            <Label className="font-semibold shrink-0">Filter by Status:</Label>
+            <Button variant={statusFilter === 'all' ? 'default' : 'outline'} size="sm" onClick={() => setStatusFilter('all')}>All</Button>
+            <Button variant={statusFilter === 'checkedIn' ? 'default' : 'outline'} size="sm" onClick={() => setStatusFilter('checkedIn')}>Checked In</Button>
+            <Button variant={statusFilter === 'checkedOut' ? 'default' : 'outline'} size="sm" onClick={() => setStatusFilter('checkedOut')}>Checked Out</Button>
+       </div>
        <div className="flex flex-wrap gap-2 items-center">
             <Label className="font-semibold shrink-0">Filter by Grade:</Label>
             {availableGrades.map(grade => (
@@ -109,7 +119,7 @@ export default function CheckInPage() {
                 <Button variant="link" size="sm" onClick={() => setSelectedGrades(new Set())}>Clear</Button>
             )}
         </div>
-      <CheckInView initialChildren={children} selectedEvent={selectedEvent} selectedGrades={Array.from(selectedGrades)} />
+      <CheckInView initialChildren={children} selectedEvent={selectedEvent} selectedGrades={Array.from(selectedGrades)} statusFilter={statusFilter} />
     </div>
   );
 }
