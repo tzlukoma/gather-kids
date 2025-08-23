@@ -74,6 +74,7 @@ export default function RostersPage() {
   
   const [showCheckedIn, setShowCheckedIn] = useState(false);
   const [showCheckedOut, setShowCheckedOut] = useState(false);
+  const [groupByGrade, setGroupByGrade] = useState(false);
 
   const [selectedChildren, setSelectedChildren] = useState<Set<string>>(new Set());
 
@@ -134,6 +135,19 @@ export default function RostersPage() {
 
     return filtered;
   }, [childrenWithDetails, showCheckedIn, showCheckedOut, gradeSort])
+  
+  const groupedChildren = useMemo(() => {
+    if (!groupByGrade) return null;
+    return displayChildren.reduce((acc, child) => {
+        const grade = child.grade || 'Ungraded';
+        if (!acc[grade]) {
+            acc[grade] = [];
+        }
+        acc[grade].push(child);
+        return acc;
+    }, {} as Record<string, RosterChild[]>);
+  }, [displayChildren, groupByGrade]);
+
 
   const handleBulkAction = async () => {
     const promises = [];
@@ -264,6 +278,10 @@ export default function RostersPage() {
             </div>
             <div className="flex flex-wrap items-center gap-4">
                 <div className="flex items-center space-x-2">
+                    <Checkbox id="group-by-grade" checked={groupByGrade} onCheckedChange={(checked) => setGroupByGrade(!!checked)} />
+                    <Label htmlFor="group-by-grade">Group by Grade</Label>
+                </div>
+                <div className="flex items-center space-x-2">
                     <Checkbox id="show-checked-in" checked={showCheckedIn} onCheckedChange={(checked) => setShowCheckedIn(!!checked)} />
                     <Label htmlFor="show-checked-in">Checked-In</Label>
                 </div>
@@ -312,7 +330,7 @@ export default function RostersPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {displayChildren.map((child) => (
+              {!groupedChildren && displayChildren.map((child) => (
                 <TableRow key={child.child_id} data-state={selectedChildren.has(child.child_id) && "selected"}>
                   {showBulkActions && (
                         <TableCell>
@@ -349,6 +367,54 @@ export default function RostersPage() {
                   </TableCell>
                 </TableRow>
               ))}
+               {groupedChildren && Object.entries(groupedChildren)
+                    .sort(([gradeA], [gradeB]) => getGradeValue(gradeA) - getGradeValue(gradeB))
+                    .map(([grade, childrenInGrade]) => (
+                    <React.Fragment key={grade}>
+                        <TableRow className="bg-muted/50 hover:bg-muted/50">
+                            <TableCell colSpan={showBulkActions ? 7 : 6} className="font-bold text-muted-foreground">
+                                {grade} ({childrenInGrade.length})
+                            </TableCell>
+                        </TableRow>
+                        {childrenInGrade.map(child => (
+                           <TableRow key={child.child_id} data-state={selectedChildren.has(child.child_id) && "selected"}>
+                                {showBulkActions && (
+                                    <TableCell>
+                                        <Checkbox 
+                                            checked={selectedChildren.has(child.child_id)}
+                                            onCheckedChange={() => toggleSelection(child.child_id)}
+                                            aria-label={`Select ${child.first_name}`}
+                                        />
+                                    </TableCell>
+                                )}
+                                <TableCell className="font-medium">{`${child.first_name} ${child.last_name}`}</TableCell>
+                                <TableCell>{child.grade}</TableCell>
+                                <TableCell>
+                                    {child.activeAttendance ? (
+                                    <Badge className="bg-green-500 hover:bg-green-600">Checked In</Badge>
+                                    ) : (
+                                    <Badge variant="secondary">Checked Out</Badge>
+                                    )}
+                                </TableCell>
+                                <TableCell>
+                                    {child.activeAttendance?.check_in_at ? format(new Date(child.activeAttendance.check_in_at), "p") : 'N/A'}
+                                </TableCell>
+                                <TableCell>
+                                    {child.allergies && (
+                                    <Badge variant="destructive">Allergy</Badge>
+                                    )}
+                                </TableCell>
+                                <TableCell className="w-[120px]">
+                                    {child.activeAttendance ? (
+                                    <Button variant="outline" size="sm" className="w-full" onClick={() => setChildToCheckout(child)}>Check Out</Button>
+                                    ) : (
+                                    <Button size="sm" className="w-full" onClick={() => handleCheckIn(child)}>Check In</Button>
+                                    )}
+                                </TableCell>
+                           </TableRow>
+                        ))}
+                    </React.Fragment>
+               ))}
               {displayChildren.length === 0 && (
                 <TableRow>
                     <TableCell colSpan={showBulkActions ? 7 : 6} className="text-center h-24 text-muted-foreground">
@@ -369,3 +435,4 @@ export default function RostersPage() {
     </>
   );
 }
+
