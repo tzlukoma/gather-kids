@@ -207,7 +207,7 @@ export default function RegisterPage() {
       household: { name: "", address_line1: "" },
       guardians: [{ first_name: "", last_name: "", mobile_phone: "", email: "", relationship: "Mother", is_primary: true }],
       emergencyContact: { first_name: "", last_name: "", mobile_phone: "", relationship: "" },
-      children: [{ first_name: "", last_name: "", dob: "", grade: "", allergies: "", medical_notes: "" }],
+      children: [],
       ministrySelections: { choir: false, bibleBee: false },
       consents: { liability: false, photoRelease: false },
     },
@@ -240,6 +240,16 @@ export default function RegisterPage() {
         case MOCK_EMAILS.NEW:
         default:
              toast({ title: "New Registration", description: "Please complete the form below to register your family." });
+             // Reset to a clean slate, but keep the email for context.
+             form.reset({
+                ...form.getValues(), // keep any entered data
+                household: { name: "", address_line1: "" },
+                guardians: [{ first_name: "", last_name: "", mobile_phone: "", email: verificationEmail, relationship: "Mother", is_primary: true }],
+                emergencyContact: { first_name: "", last_name: "", mobile_phone: "", relationship: "" },
+                children: [{ first_name: "", last_name: "", dob: "", grade: "", allergies: "", medical_notes: "" }],
+                ministrySelections: { choir: false, bibleBee: false },
+                consents: { liability: false, photoRelease: false },
+             });
             setVerificationStep('form_visible');
             break;
     }
@@ -498,5 +508,3 @@ export default function RegisterPage() {
     </div>
   )
 }
-
-    
