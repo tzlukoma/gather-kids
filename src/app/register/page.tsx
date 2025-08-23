@@ -440,7 +440,7 @@ export default function RegisterPage() {
   const primaryGuardianLastName = form.watch("guardians.0.last_name");
 
   // Watch interest selections to show conditional alerts
-    const interestSelections = useWatch({
+    const watchedChildren = useWatch({
         control: form.control,
         name: 'children',
     });
@@ -716,10 +716,10 @@ export default function RegisterPage() {
                             <div className="p-4 border rounded-md bg-muted/50">
                                 <h4 className="font-semibold">Sunday School / Children's Church</h4>
                                 <div className="text-sm text-muted-foreground mb-2 space-y-2 whitespace-pre-wrap">
-                                  <p>Sunday School takes place in the Family Life Enrichment Center on 1st, 4th, and 5th Sundays during the 9:30 AM Service.  Sunday School serves ages 4-18.</p>
-                                  <p>Children's Church, for ages 4-12, will take place on 3rd Sundays in the same location during the 9:30 AM service.</p>
-                                  <p>Children must be signed in by an adult or high school-aged sibling and can be picked up by a parent/guardian, teenage sibling, or the adult who signed them in. High Schoolers may sign themselves in and out of Sunday School.</p>
-                                  <p>Teens should attend Teen Church which takes place at the Family Life Enrichment Center on 3rd Sundays.  Teens can sign themselved into and out of Teen Church.</p>
+<p>Sunday School takes place in the Family Life Enrichment Center on 1st, 4th, and 5th Sundays during the 9:30 AM Service.  Sunday School serves ages 4-18.</p>
+<p>Children's Church, for ages 4-12, will take place on 3rd Sundays in the same location during the 9:30 AM service.</p>
+<p>Children must be signed in by an adult or high school-aged sibling and can be picked up by a parent/guardian, teenage sibling, or the adult who signed them in. High Schoolers may sign themselves in and out of Sunday School.</p>
+<p>Teens should attend Teen Church which takes place at the Family Life Enrichment Center on 3rd Sundays.  Teens can sign themselved into and out of Teen Church.</p>
                                 </div>
                                 <div className="flex flex-col sm:flex-row sm:flex-wrap gap-x-6 gap-y-2 mt-2">
                                     {childrenData.map((child, index) => (
@@ -781,8 +781,8 @@ export default function RegisterPage() {
                         </CardHeader>
                         <CardContent className="space-y-6">
                             {interestPrograms.map(program => {
-                                const isAnyChildInterested = childrenData.some((_, index) => 
-                                    interestSelections[index]?.interestSelections?.[program.code]
+                                const isAnyChildInterested = watchedChildren.some((child) => 
+                                    child.interestSelections?.[program.code]
                                 );
 
                                 return (
