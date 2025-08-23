@@ -34,7 +34,7 @@ class GatherKidsDB extends Dexie {
             leader_assignments: 'assignment_id, leader_id, [ministry_id+cycle_id]',
             users: 'user_id, email, role',
             events: 'event_id, name',
-            attendance: 'attendance_id, [event_id+date], [child_id+date]',
+            attendance: 'attendance_id, date, [event_id+date], [child_id+date]',
             incidents: 'incident_id, child_id, admin_acknowledged_at',
             audit_logs: 'log_id, [actor_user_id+timestamp], target_id',
         });
