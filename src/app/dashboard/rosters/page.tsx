@@ -24,7 +24,6 @@ import { useToast } from "@/hooks/use-toast";
 import type { EnrichedChild } from "@/components/ministrysync/check-in-view";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { MultiSelect } from "@/components/ui/multi-select";
 
 interface RosterChild extends EnrichedChild {}
 
@@ -43,7 +42,6 @@ export default function RostersPage() {
   const { toast } = useToast();
 
   const [selectedEvent, setSelectedEvent] = useState('evt_sunday_school');
-  const [selectedGrades, setSelectedGrades] = useState<string[]>([]);
   const [childToCheckout, setChildToCheckout] = useState<RosterChild | null>(null);
 
   const allChildren = useLiveQuery(() => db.children.toArray(), []);
@@ -52,12 +50,6 @@ export default function RostersPage() {
   const allGuardians = useLiveQuery(() => db.guardians.toArray(), []);
   const allHouseholds = useLiveQuery(() => db.households.toArray(), []);
   const allEmergencyContacts = useLiveQuery(() => db.emergency_contacts.toArray(), []);
-
-  const availableGrades = useMemo(() => {
-    if (!allChildren) return [];
-    const grades = new Set(allChildren.map(c => c.grade).filter(Boolean) as string[]);
-    return Array.from(grades).sort(); // Sort for consistent order
-  }, [allChildren]);
 
   const childrenWithDetails: RosterChild[] = useMemo(() => {
     if (!allChildren || !todaysAttendance || !allGuardians || !allHouseholds || !allEmergencyContacts) return [];
@@ -72,21 +64,14 @@ export default function RostersPage() {
     const householdMap = new Map(allHouseholds.map(h => [h.household_id, h]));
     const emergencyContactMap = new Map(allEmergencyContacts.map(ec => [ec.household_id, ec]));
 
-    const enriched = allChildren.map(child => ({
+    return allChildren.map(child => ({
       ...child,
       activeAttendance: attendanceMap.get(child.child_id) || null,
       guardians: guardianMap.get(child.household_id) || [],
       household: householdMap.get(child.household_id) || null,
       emergencyContact: emergencyContactMap.get(child.household_id) || null,
     }));
-
-    if (selectedGrades.length === 0) {
-      return enriched;
-    }
-
-    return enriched.filter(child => child.grade && selectedGrades.includes(child.grade));
-
-  }, [allChildren, todaysAttendance, allGuardians, allHouseholds, allEmergencyContacts, selectedGrades]);
+  }, [allChildren, todaysAttendance, allGuardians, allHouseholds, allEmergencyContacts]);
 
 
   const handleCheckIn = async (child: RosterChild) => {
@@ -140,17 +125,6 @@ export default function RostersPage() {
           </p>
         </div>
         <div className="flex flex-col sm:flex-row gap-4">
-          <div className="grid w-full max-w-sm items-center gap-1.5">
-              <Label htmlFor="grade-filter">Filter by Grade</Label>
-              <MultiSelect
-                  id="grade-filter"
-                  options={availableGrades.map(grade => ({ value: grade, label: grade }))}
-                  selected={selectedGrades}
-                  onChange={setSelectedGrades}
-                  className="w-full sm:w-[250px]"
-                  placeholder="All Grades"
-              />
-          </div>
           <div className="grid w-full max-w-sm items-center gap-1.5">
               <Label htmlFor="event-select">Check-In Event</Label>
               <Select value={selectedEvent} onValueChange={setSelectedEvent}>
