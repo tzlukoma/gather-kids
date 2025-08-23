@@ -61,7 +61,13 @@ export default function LeadersPage() {
                                             {leader.is_active ? "Active" : "Inactive"}
                                         </Badge>
                                     </TableCell>
-                                    <TableCell>{leader.assignments.map(a => a.ministryName).join(', ')}</TableCell>
+                                    <TableCell>
+                                        <div className="flex flex-wrap gap-1">
+                                            {leader.assignments.map(a => (
+                                                <Badge key={a.assignment_id} variant="outline">{a.ministryName}</Badge>
+                                            ))}
+                                        </div>
+                                    </TableCell>
                                     <TableCell>
                                         <ChevronRight className="h-4 w-4 text-muted-foreground" />
                                     </TableCell>
