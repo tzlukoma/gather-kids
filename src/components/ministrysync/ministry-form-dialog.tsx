@@ -2,7 +2,7 @@
 "use client"
 
 import { useForm, useFieldArray } from "react-hook-form";
-import { zodResolver } from "@zodform/resolvers/zod";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import {
