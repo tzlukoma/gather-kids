@@ -1,4 +1,5 @@
 
+
 "use client"
 
 import { useState } from "react";
@@ -17,6 +18,9 @@ import { useToast } from "@/hooks/use-toast";
 const DEMO_USERS = {
     admin: { email: 'admin@example.com', password: 'password', is_active: true },
     leader: { email: 'leader@example.com', password: 'password', is_active: true },
+    khalfaniLeader: { email: 'chris.e@example.com', password: 'password', is_active: true, name: 'Chris Evans', id: 'user_leader_11' },
+    joybellsLeader: { email: 'megan.y@example.com', password: 'password', is_active: true, name: 'Megan Young', id: 'user_leader_12' },
+    inactiveLeader: { email: 'tom.a@example.com', password: 'password', is_active: false, name: 'Tom Allen', id: 'user_leader_13' },
 };
 
 export default function LoginPage() {
@@ -47,12 +51,25 @@ export default function LoginPage() {
             });
             toast({ title: "Login Successful", description: "Welcome, Leader!" });
             router.push('/dashboard/check-in');
-        } else {
+        } else if (email === DEMO_USERS.khalfaniLeader.email && password === DEMO_USERS.khalfaniLeader.password) {
+            login({ id: DEMO_USERS.khalfaniLeader.id, name: DEMO_USERS.khalfaniLeader.name, role: 'leader', email: DEMO_USERS.khalfaniLeader.email, is_active: DEMO_USERS.khalfaniLeader.is_active });
+            toast({ title: "Login Successful", description: `Welcome, ${DEMO_USERS.khalfaniLeader.name}!` });
+            router.push('/dashboard/rosters');
+        } else if (email === DEMO_USERS.joybellsLeader.email && password === DEMO_USERS.joybellsLeader.password) {
+            login({ id: DEMO_USERS.joybellsLeader.id, name: DEMO_USERS.joybellsLeader.name, role: 'leader', email: DEMO_USERS.joybellsLeader.email, is_active: DEMO_USERS.joybellsLeader.is_active });
+            toast({ title: "Login Successful", description: `Welcome, ${DEMO_USERS.joybellsLeader.name}!` });
+            router.push('/dashboard/rosters');
+        } else if (email === DEMO_USERS.inactiveLeader.email && password === DEMO_USERS.inactiveLeader.password) {
+            login({ id: DEMO_USERS.inactiveLeader.id, name: DEMO_USERS.inactiveLeader.name, role: 'leader', email: DEMO_USERS.inactiveLeader.email, is_active: DEMO_USERS.inactiveLeader.is_active });
+            toast({ title: "Login Successful", description: `Welcome, ${DEMO_USERS.inactiveLeader.name}!` });
+            router.push('/dashboard/incidents');
+        }
+        else {
             toast({ title: "Invalid Credentials", description: "Please use one of the demo accounts.", variant: "destructive" });
         }
     };
     
-    const prefillDemoCredentials = (role: 'admin' | 'leader') => {
+    const prefillDemoCredentials = (role: 'admin' | 'leader' | 'khalfaniLeader' | 'joybellsLeader' | 'inactiveLeader') => {
         setEmail(DEMO_USERS[role].email);
         setPassword(DEMO_USERS[role].password);
     }
@@ -80,7 +97,10 @@ export default function LoginPage() {
                             <p>Click one of the following accounts to sign in:</p>
                             <ul className="list-disc pl-5 text-sm mt-2">
                                 <li>Admin: <button className="text-left font-semibold underline" onClick={() => prefillDemoCredentials('admin')}>{DEMO_USERS.admin.email}</button></li>
-                                <li>Leader: <button className="text-left font-semibold underline" onClick={() => prefillDemoCredentials('leader')}>{DEMO_USERS.leader.email}</button></li>
+                                <li>Leader (Generic): <button className="text-left font-semibold underline" onClick={() => prefillDemoCredentials('leader')}>{DEMO_USERS.leader.email}</button></li>
+                                <li>Leader (Khalfani): <button className="text-left font-semibold underline" onClick={() => prefillDemoCredentials('khalfaniLeader')}>{DEMO_USERS.khalfaniLeader.email}</button></li>
+                                <li>Leader (Joy Bells): <button className="text-left font-semibold underline" onClick={() => prefillDemoCredentials('joybellsLeader')}>{DEMO_USERS.joybellsLeader.email}</button></li>
+                                <li>Leader (Inactive): <button className="text-left font-semibold underline" onClick={() => prefillDemoCredentials('inactiveLeader')}>{DEMO_USERS.inactiveLeader.email}</button></li>
                                 <li>Password: <code className="font-semibold">password</code></li>
                             </ul>
                         </AlertDescription>
@@ -101,3 +121,5 @@ export default function LoginPage() {
         </div>
     );
 }
+
+    

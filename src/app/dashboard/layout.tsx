@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React from 'react';
@@ -37,9 +38,9 @@ import { useAuth, AuthProvider } from '@/contexts/auth-context';
 const adminMenuItems = [
   { href: "/dashboard", icon: <LayoutDashboard />, label: "Dashboard" },
   { href: "/dashboard/check-in", icon: <CheckCheck />, label: "Check-In/Out" },
-  { href: "/dashboard/registrations", icon: <ClipboardList />, label: "Registrations" },
   { href: "/dashboard/rosters", icon: <Users />, label: "Rosters" },
   { href: "/dashboard/incidents", icon: <ShieldAlert />, label: "Incidents" },
+  { href: "/dashboard/registrations", icon: <ClipboardList />, label: "Registrations" },
   { href: "/dashboard/leaders", icon: <Contact />, label: "Leaders" },
   { href: "/dashboard/reports", icon: <FileText />, label: "Reports" },
   { href: "/dashboard/configuration", icon: <Settings />, label: "Configuration" },
@@ -48,8 +49,8 @@ const adminMenuItems = [
 const leaderMenuItems = [
   { href: "/dashboard/check-in", icon: <CheckCheck />, label: "Check-In/Out" },
   { href: "/dashboard/rosters", icon: <Users />, label: "Rosters" },
-  { href: "/dashboard/registrations", icon: <ClipboardList />, label: "Registrations" },
   { href: "/dashboard/incidents", icon: <ShieldAlert />, label: "Incidents" },
+  { href: "/dashboard/registrations", icon: <ClipboardList />, label: "Registrations" },
 ];
 
 
@@ -158,3 +159,5 @@ export default function DashboardLayout({
     </AuthProvider>
   )
 }
+
+    

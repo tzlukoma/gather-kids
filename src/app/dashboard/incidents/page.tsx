@@ -1,4 +1,5 @@
 
+
 "use client"
 
 import { useState, useEffect, useMemo } from "react";
@@ -25,6 +26,8 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/lib/db";
 import { acknowledgeIncident } from "@/lib/dal";
 import { useAuth } from "@/contexts/auth-context";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Info } from "lucide-react";
 
 export default function IncidentsPage() {
     const { toast } = useToast();
@@ -34,7 +37,12 @@ export default function IncidentsPage() {
     const [showPendingOnly, setShowPendingOnly] = useState(false);
 
     const incidentsQuery = useLiveQuery(async () => {
-        if (user?.role === 'leader') {
+        if (!user) return [];
+        
+        if (user.role === 'leader') {
+            if (!user.is_active) {
+                return db.incidents.where('leader_id').equals(user.id).reverse().sortBy('timestamp');
+            }
             if (!user.assignedMinistryIds || user.assignedMinistryIds.length === 0) return [];
 
             const enrollments = await db.ministry_enrollments
@@ -86,6 +94,65 @@ export default function IncidentsPage() {
     }
 
   if (!incidentsQuery) return <div>Loading incidents...</div>
+
+  if (user?.role === 'leader' && !user.is_active) {
+    return (
+        <div className="flex flex-col gap-8">
+             <Alert variant="destructive">
+                <Info className="h-4 w-4" />
+                <AlertTitle>Account Inactive</AlertTitle>
+                <AlertDescription>
+                    Your leader account is currently inactive. You can only view historical incidents that you have logged.
+                </AlertDescription>
+            </Alert>
+            <Card>
+                 <CardHeader>
+                    <CardTitle className="font-headline">Your Logged Incidents</CardTitle>
+                    <CardDescription>A log of all past incidents you have reported.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <Table>
+                        <TableHeader>
+                        <TableRow>
+                            <TableHead>Child</TableHead>
+                            <TableHead>Severity</TableHead>
+                            <TableHead>Date & Time</TableHead>
+                            <TableHead className="w-[40%]">Description</TableHead>
+                            <TableHead>Status</TableHead>
+                        </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                        {displayedIncidents.map((incident) => (
+                            <TableRow key={incident.incident_id}>
+                                <TableCell className="font-medium">{incident.child_name}</TableCell>
+                                <TableCell>
+                                    <Badge variant={incident.severity === "high" ? "destructive" : incident.severity === "medium" ? "secondary" : "outline"} className="capitalize">
+                                        {incident.severity}
+                                    </Badge>
+                                </TableCell>
+                                <TableCell>{format(new Date(incident.timestamp), "PPpp")}</TableCell>
+                                <TableCell>{incident.description}</TableCell>
+                                <TableCell>
+                                    <Badge variant={incident.admin_acknowledged_at ? "default" : "destructive"} className={incident.admin_acknowledged_at ? 'bg-green-500 hover:bg-green-600' : ''}>
+                                        {incident.admin_acknowledged_at ? "Acknowledged" : "Pending"}
+                                    </Badge>
+                                </TableCell>
+                            </TableRow>
+                        ))}
+                        {displayedIncidents.length === 0 && (
+                            <TableRow>
+                                <TableCell colSpan={5} className="text-center h-24 text-muted-foreground">
+                                    You have not logged any incidents.
+                                </TableCell>
+                            </TableRow>
+                        )}
+                        </TableBody>
+                    </Table>
+                </CardContent>
+            </Card>
+        </div>
+    )
+  }
 
   return (
     <div className="flex flex-col gap-8">
@@ -179,3 +246,5 @@ export default function IncidentsPage() {
     </div>
   );
 }
+
+    
