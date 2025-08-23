@@ -25,6 +25,7 @@ import {
   FileText,
   User,
   LogOut,
+  Settings,
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
@@ -37,6 +38,7 @@ const adminMenuItems = [
   { href: "/dashboard/rosters", icon: <Users />, label: "Rosters" },
   { href: "/dashboard/incidents", icon: <ShieldAlert />, label: "Incidents" },
   { href: "/dashboard/reports", icon: <FileText />, label: "Reports" },
+  { href: "/dashboard/configuration", icon: <Settings />, label: "Configuration" },
 ];
 
 const leaderMenuItems = [
