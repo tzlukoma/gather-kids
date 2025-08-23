@@ -26,8 +26,10 @@ import type { EnrichedChild } from "@/components/ministrysync/check-in-view";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { useIsMobile } from '@/hooks/use-mobile';
+import { RosterCard } from '@/components/ministrysync/roster-card';
 
-interface RosterChild extends EnrichedChild {}
+export interface RosterChild extends EnrichedChild {}
 
 type SortDirection = "asc" | "desc" | "none";
 
@@ -68,6 +70,7 @@ const getGradeValue = (grade?: string): number => {
 export default function RostersPage() {
   const today = getTodayIsoDate();
   const { toast } = useToast();
+  const isMobile = useIsMobile();
 
   const [selectedEvent, setSelectedEvent] = useState('evt_sunday_school');
   const [childToCheckout, setChildToCheckout] = useState<RosterChild | null>(null);
@@ -243,6 +246,171 @@ export default function RostersPage() {
   const showBulkActions = (showCheckedIn && !showCheckedOut) || (!showCheckedIn && showCheckedOut);
 
 
+  const renderTable = () => (
+     <Table>
+        <TableHeader>
+            <TableRow>
+            {showBulkActions && (
+                <TableHead className="w-[50px]">
+                    <Checkbox 
+                        onCheckedChange={toggleSelectAll}
+                        checked={selectedChildren.size > 0 && selectedChildren.size === displayChildren.length}
+                        aria-label="Select all"
+                    />
+                </TableHead>
+            )}
+            <TableHead>Name</TableHead>
+            <TableHead>
+                <Button variant="ghost" onClick={toggleGradeSort} className="px-1">
+                    Grade
+                    <ArrowUpDown className="ml-2 h-4 w-4" />
+                </Button>
+            </TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead>Check-In Time</TableHead>
+            <TableHead>Alerts</TableHead>
+            <TableHead>Action</TableHead>
+            </TableRow>
+        </TableHeader>
+        <TableBody>
+            {!groupedChildren && displayChildren.map((child) => (
+            <TableRow key={child.child_id} data-state={selectedChildren.has(child.child_id) && "selected"}>
+                {showBulkActions && (
+                    <TableCell>
+                        <Checkbox 
+                            checked={selectedChildren.has(child.child_id)}
+                            onCheckedChange={() => toggleSelection(child.child_id)}
+                            aria-label={`Select ${child.first_name}`}
+                        />
+                    </TableCell>
+                )}
+                <TableCell className="font-medium">{`${child.first_name} ${child.last_name}`}</TableCell>
+                <TableCell>{child.grade}</TableCell>
+                <TableCell>
+                {child.activeAttendance ? (
+                    <Badge className="bg-green-500 hover:bg-green-600">Checked In</Badge>
+                ) : (
+                    <Badge variant="secondary">Checked Out</Badge>
+                )}
+                </TableCell>
+                <TableCell>
+                {child.activeAttendance?.check_in_at ? format(new Date(child.activeAttendance.check_in_at), "p") : 'N/A'}
+                </TableCell>
+                <TableCell>
+                {child.allergies && (
+                    <Badge variant="destructive">Allergy</Badge>
+                )}
+                </TableCell>
+                <TableCell className="w-[120px]">
+                {child.activeAttendance ? (
+                    <Button variant="outline" size="sm" className="w-full" onClick={() => setChildToCheckout(child)}>Check Out</Button>
+                ) : (
+                    <Button size="sm" className="w-full" onClick={() => handleCheckIn(child)}>Check In</Button>
+                )}
+                </TableCell>
+            </TableRow>
+            ))}
+            {groupedChildren && Object.entries(groupedChildren)
+                .sort(([gradeA], [gradeB]) => getGradeValue(gradeA) - getGradeValue(gradeB))
+                .map(([grade, childrenInGrade]) => (
+                <React.Fragment key={grade}>
+                    <TableRow className="bg-muted/50 hover:bg-muted/50">
+                        <TableCell colSpan={showBulkActions ? 7 : 6} className="font-bold text-muted-foreground">
+                            {grade} ({childrenInGrade.length})
+                        </TableCell>
+                    </TableRow>
+                    {childrenInGrade.map(child => (
+                        <TableRow key={child.child_id} data-state={selectedChildren.has(child.child_id) && "selected"}>
+                            {showBulkActions && (
+                                <TableCell>
+                                    <Checkbox 
+                                        checked={selectedChildren.has(child.child_id)}
+                                        onCheckedChange={() => toggleSelection(child.child_id)}
+                                        aria-label={`Select ${child.first_name}`}
+                                    />
+                                </TableCell>
+                            )}
+                            <TableCell className="font-medium">{`${child.first_name} ${child.last_name}`}</TableCell>
+                            <TableCell>{child.grade}</TableCell>
+                            <TableCell>
+                                {child.activeAttendance ? (
+                                <Badge className="bg-green-500 hover:bg-green-600">Checked In</Badge>
+                                ) : (
+                                <Badge variant="secondary">Checked Out</Badge>
+                                )}
+                            </TableCell>
+                            <TableCell>
+                                {child.activeAttendance?.check_in_at ? format(new Date(child.activeAttendance.check_in_at), "p") : 'N/A'}
+                            </TableCell>
+                            <TableCell>
+                                {child.allergies && (
+                                <Badge variant="destructive">Allergy</Badge>
+                                )}
+                            </TableCell>
+                            <TableCell className="w-[120px]">
+                                {child.activeAttendance ? (
+                                <Button variant="outline" size="sm" className="w-full" onClick={() => setChildToCheckout(child)}>Check Out</Button>
+                                ) : (
+                                <Button size="sm" className="w-full" onClick={() => handleCheckIn(child)}>Check In</Button>
+                                )}
+                            </TableCell>
+                        </TableRow>
+                    ))}
+                </React.Fragment>
+            ))}
+            {displayChildren.length === 0 && (
+            <TableRow>
+                <TableCell colSpan={showBulkActions ? 7 : 6} className="text-center h-24 text-muted-foreground">
+                    No children match the current filter.
+                </TableCell>
+            </TableRow>
+            )}
+        </TableBody>
+    </Table>
+  );
+
+  const renderCards = () => (
+     <div className="grid grid-cols-1 gap-4">
+        {groupedChildren && Object.entries(groupedChildren)
+            .sort(([gradeA], [gradeB]) => getGradeValue(gradeA) - getGradeValue(gradeB))
+            .map(([grade, childrenInGrade]) => (
+            <React.Fragment key={grade}>
+                <div className="bg-muted/50 p-2 rounded-md">
+                    <h3 className="font-bold text-muted-foreground">{grade} ({childrenInGrade.length})</h3>
+                </div>
+                {childrenInGrade.map(child => (
+                    <RosterCard 
+                        key={child.child_id}
+                        child={child}
+                        showBulkActions={showBulkActions}
+                        isSelected={selectedChildren.has(child.child_id)}
+                        onToggleSelection={toggleSelection}
+                        onCheckIn={handleCheckIn}
+                        onSetChildToCheckout={setChildToCheckout}
+                    />
+                ))}
+            </React.Fragment>
+        ))}
+        {!groupedChildren && displayChildren.map(child => (
+            <RosterCard 
+                key={child.child_id}
+                child={child}
+                showBulkActions={showBulkActions}
+                isSelected={selectedChildren.has(child.child_id)}
+                onToggleSelection={toggleSelection}
+                onCheckIn={handleCheckIn}
+                onSetChildToCheckout={setChildToCheckout}
+            />
+        ))}
+        {displayChildren.length === 0 && (
+            <div className="text-center h-24 py-10 text-muted-foreground">
+                No children match the current filter.
+            </div>
+        )}
+     </div>
+  );
+
+
   return (
     <>
     <div className="flex flex-col gap-8">
@@ -298,132 +466,18 @@ export default function RostersPage() {
         <CardContent>
             {showBulkActions && (
                  <div className="border-b mb-4 pb-4 flex items-center justify-between">
-                    <p className="text-sm text-muted-foreground">{selectedChildren.size} children selected</p>
+                    <div>
+                        <p className="text-sm text-muted-foreground">{selectedChildren.size} children selected</p>
+                        <Button variant="link" size="sm" className="p-0 h-auto" onClick={toggleSelectAll}>
+                           {selectedChildren.size === displayChildren.length ? 'Deselect All' : 'Select All'}
+                        </Button>
+                    </div>
                     <Button onClick={handleBulkAction} disabled={selectedChildren.size === 0}>
                         {showCheckedOut ? 'Bulk Check-In' : 'Bulk Check-Out'}
                     </Button>
                 </div>
             )}
-          <Table>
-            <TableHeader>
-              <TableRow>
-                {showBulkActions && (
-                    <TableHead className="w-[50px]">
-                        <Checkbox 
-                            onCheckedChange={toggleSelectAll}
-                            checked={selectedChildren.size > 0 && selectedChildren.size === displayChildren.length}
-                            aria-label="Select all"
-                        />
-                    </TableHead>
-                )}
-                <TableHead>Name</TableHead>
-                <TableHead>
-                    <Button variant="ghost" onClick={toggleGradeSort} className="px-1">
-                        Grade
-                        <ArrowUpDown className="ml-2 h-4 w-4" />
-                    </Button>
-                </TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Check-In Time</TableHead>
-                <TableHead>Alerts</TableHead>
-                <TableHead>Action</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {!groupedChildren && displayChildren.map((child) => (
-                <TableRow key={child.child_id} data-state={selectedChildren.has(child.child_id) && "selected"}>
-                  {showBulkActions && (
-                        <TableCell>
-                            <Checkbox 
-                                checked={selectedChildren.has(child.child_id)}
-                                onCheckedChange={() => toggleSelection(child.child_id)}
-                                aria-label={`Select ${child.first_name}`}
-                            />
-                        </TableCell>
-                  )}
-                  <TableCell className="font-medium">{`${child.first_name} ${child.last_name}`}</TableCell>
-                  <TableCell>{child.grade}</TableCell>
-                  <TableCell>
-                    {child.activeAttendance ? (
-                      <Badge className="bg-green-500 hover:bg-green-600">Checked In</Badge>
-                    ) : (
-                      <Badge variant="secondary">Checked Out</Badge>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {child.activeAttendance?.check_in_at ? format(new Date(child.activeAttendance.check_in_at), "p") : 'N/A'}
-                  </TableCell>
-                  <TableCell>
-                    {child.allergies && (
-                      <Badge variant="destructive">Allergy</Badge>
-                    )}
-                  </TableCell>
-                   <TableCell className="w-[120px]">
-                    {child.activeAttendance ? (
-                      <Button variant="outline" size="sm" className="w-full" onClick={() => setChildToCheckout(child)}>Check Out</Button>
-                    ) : (
-                      <Button size="sm" className="w-full" onClick={() => handleCheckIn(child)}>Check In</Button>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
-               {groupedChildren && Object.entries(groupedChildren)
-                    .sort(([gradeA], [gradeB]) => getGradeValue(gradeA) - getGradeValue(gradeB))
-                    .map(([grade, childrenInGrade]) => (
-                    <React.Fragment key={grade}>
-                        <TableRow className="bg-muted/50 hover:bg-muted/50">
-                            <TableCell colSpan={showBulkActions ? 7 : 6} className="font-bold text-muted-foreground">
-                                {grade} ({childrenInGrade.length})
-                            </TableCell>
-                        </TableRow>
-                        {childrenInGrade.map(child => (
-                           <TableRow key={child.child_id} data-state={selectedChildren.has(child.child_id) && "selected"}>
-                                {showBulkActions && (
-                                    <TableCell>
-                                        <Checkbox 
-                                            checked={selectedChildren.has(child.child_id)}
-                                            onCheckedChange={() => toggleSelection(child.child_id)}
-                                            aria-label={`Select ${child.first_name}`}
-                                        />
-                                    </TableCell>
-                                )}
-                                <TableCell className="font-medium">{`${child.first_name} ${child.last_name}`}</TableCell>
-                                <TableCell>{child.grade}</TableCell>
-                                <TableCell>
-                                    {child.activeAttendance ? (
-                                    <Badge className="bg-green-500 hover:bg-green-600">Checked In</Badge>
-                                    ) : (
-                                    <Badge variant="secondary">Checked Out</Badge>
-                                    )}
-                                </TableCell>
-                                <TableCell>
-                                    {child.activeAttendance?.check_in_at ? format(new Date(child.activeAttendance.check_in_at), "p") : 'N/A'}
-                                </TableCell>
-                                <TableCell>
-                                    {child.allergies && (
-                                    <Badge variant="destructive">Allergy</Badge>
-                                    )}
-                                </TableCell>
-                                <TableCell className="w-[120px]">
-                                    {child.activeAttendance ? (
-                                    <Button variant="outline" size="sm" className="w-full" onClick={() => setChildToCheckout(child)}>Check Out</Button>
-                                    ) : (
-                                    <Button size="sm" className="w-full" onClick={() => handleCheckIn(child)}>Check In</Button>
-                                    )}
-                                </TableCell>
-                           </TableRow>
-                        ))}
-                    </React.Fragment>
-               ))}
-              {displayChildren.length === 0 && (
-                <TableRow>
-                    <TableCell colSpan={showBulkActions ? 7 : 6} className="text-center h-24 text-muted-foreground">
-                        No children match the current filter.
-                    </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
+          {isMobile ? renderCards() : renderTable()}
         </CardContent>
       </Card>
     </div>
@@ -435,3 +489,4 @@ export default function RostersPage() {
     </>
   );
 }
+
