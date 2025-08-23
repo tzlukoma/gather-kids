@@ -1,4 +1,5 @@
 
+
 "use client"
 
 import { useForm, useFieldArray } from "react-hook-form"
@@ -83,6 +84,7 @@ export default function RegisterPage() {
     defaultValues: {
       verificationEmail: "",
       household: {
+        name: "",
         address_line1: "",
       },
       guardians: [
@@ -137,6 +139,7 @@ export default function RegisterPage() {
   }
 
   const [isBibleBeeVisible, setIsBibleBeeVisible] = useState(false);
+  const primaryGuardianLastName = form.watch("guardians.0.last_name");
 
   useEffect(() => {
     // Bible Bee visible only in August
@@ -185,6 +188,22 @@ export default function RegisterPage() {
                     <CardTitle className="font-headline">Household & Guardian Information</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-6">
+                     <FormField
+                        control={form.control}
+                        name="household.name"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Household Name</FormLabel>
+                                <FormControl>
+                                    <Input placeholder={primaryGuardianLastName ? `${primaryGuardianLastName} Household` : "e.g. Smith Household"} {...field} />
+                                </FormControl>
+                                 <FormDescription>
+                                    How should we refer to your household? If left blank, we'll use the placeholder text.
+                                 </FormDescription>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
                     <FormField
                         control={form.control}
                         name="household.address_line1"
