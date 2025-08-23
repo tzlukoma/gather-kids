@@ -91,41 +91,46 @@ export function HouseholdProfile({ profileData }: { profileData: HouseholdProfil
                 </Card>
 
                 <div className="lg:col-span-2 space-y-6">
-                    {children.map(child => (
-                        <Card key={child.child_id}>
-                            <CardHeader>
-                                <CardTitle className="font-headline">{child.first_name} {child.last_name}</CardTitle>
-                                <CardDescription>{child.grade} (Age {child.age})</CardDescription>
-                            </CardHeader>
-                            <CardContent className="space-y-6">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                     <InfoItem icon={<HeartPulse size={16} />} label="Allergies / Medical" value={child.allergies || "None"} />
-                                     <InfoItem icon={<HeartPulse size={16} />} label="Special Needs" value={child.special_needs ? (child.special_needs_notes || 'Yes') : 'No'} />
-                                </div>
-                                <Separator />
-                                <div>
-                                    <h4 className="font-semibold mb-2 flex items-center gap-2"><Shield /> Program Enrollments & Interests</h4>
-                                    <Accordion type="multiple" defaultValue={Object.keys(child.enrollmentsByCycle).slice(0,1)} className="w-full">
-                                        {Object.entries(child.enrollmentsByCycle)
-                                            .sort(([cycleA], [cycleB]) => cycleB.localeCompare(cycleA)) // Sort by year descending
-                                            .map(([cycleId, enrollments]) => (
-                                                <AccordionItem key={cycleId} value={cycleId}>
-                                                    <AccordionTrigger>
-                                                        {cycleId} Registration Year
-                                                    </AccordionTrigger>
-                                                    <AccordionContent>
-                                                        <div className="space-y-3">
-                                                            {enrollments.map(e => <ProgramEnrollmentCard key={e.enrollment_id} enrollment={e} />)}
-                                                            {enrollments.length === 0 && <p className="text-sm text-muted-foreground">No program enrollments or interests listed for this year.</p>}
-                                                        </div>
-                                                    </AccordionContent>
-                                                </AccordionItem>
-                                        ))}
-                                    </Accordion>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    ))}
+                    {children.map(child => {
+                        const sortedCycleIds = Object.keys(child.enrollmentsByCycle).sort((a, b) => b.localeCompare(a));
+                        
+                        return (
+                            <Card key={child.child_id}>
+                                <CardHeader>
+                                    <CardTitle className="font-headline">{child.first_name} {child.last_name}</CardTitle>
+                                    <CardDescription>{child.grade} (Age {child.age})</CardDescription>
+                                </CardHeader>
+                                <CardContent className="space-y-6">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <InfoItem icon={<HeartPulse size={16} />} label="Allergies / Medical" value={child.allergies || "None"} />
+                                        <InfoItem icon={<HeartPulse size={16} />} label="Special Needs" value={child.special_needs ? (child.special_needs_notes || 'Yes') : 'No'} />
+                                    </div>
+                                    <Separator />
+                                    <div>
+                                        <h4 className="font-semibold mb-2 flex items-center gap-2"><Shield /> Program Enrollments & Interests</h4>
+                                        <Accordion type="multiple" defaultValue={sortedCycleIds.length > 0 ? [sortedCycleIds[0]] : []} className="w-full">
+                                            {sortedCycleIds.map((cycleId) => {
+                                                const enrollments = child.enrollmentsByCycle[cycleId];
+                                                return (
+                                                    <AccordionItem key={cycleId} value={cycleId}>
+                                                        <AccordionTrigger>
+                                                            {cycleId} Registration Year
+                                                        </AccordionTrigger>
+                                                        <AccordionContent>
+                                                            <div className="space-y-3">
+                                                                {enrollments.map(e => <ProgramEnrollmentCard key={e.enrollment_id} enrollment={e} />)}
+                                                                {enrollments.length === 0 && <p className="text-sm text-muted-foreground">No program enrollments or interests listed for this year.</p>}
+                                                            </div>
+                                                        </AccordionContent>
+                                                    </AccordionItem>
+                                                )
+                                            })}
+                                        </Accordion>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        )
+                    })}
                 </div>
             </div>
         </div>
