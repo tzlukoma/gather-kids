@@ -110,6 +110,7 @@ export interface Ministry {
     details?: string;
     description?: string;
     custom_questions?: CustomQuestion[];
+    communicate_later?: boolean;
 }
 
 export interface MinistryEnrollment {

@@ -439,6 +439,12 @@ export default function RegisterPage() {
 
   const primaryGuardianLastName = form.watch("guardians.0.last_name");
 
+  // Watch interest selections to show conditional alerts
+    const interestSelections = useWatch({
+        control: form.control,
+        name: 'children',
+    });
+
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -774,26 +780,40 @@ export default function RegisterPage() {
                             <CardDescription>Let us know if you're interested. This does not register you.</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-6">
-                            {interestPrograms.map(program => (
-                                <div key={program.ministry_id} className="p-4 border rounded-md">
-                                    <h4 className="font-semibold">{program.name}</h4>
-                                     <div className="flex flex-col sm:flex-row sm:flex-wrap gap-x-6 gap-y-2 mt-2">
-                                        {childrenData.map((child, index) => (
-                                            <FormField
-                                                key={`${program.code}-${childFields[index].id}`}
-                                                control={form.control}
-                                                name={`children.${index}.interestSelections.${program.code}`}
-                                                render={({ field }) => (
-                                                    <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                                                        <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
-                                                        <FormLabel className="font-normal">{child.first_name || `Child ${index + 1}`}</FormLabel>
-                                                    </FormItem>
-                                                )}
-                                            />
-                                        ))}
+                            {interestPrograms.map(program => {
+                                const isAnyChildInterested = childrenData.some((_, index) => 
+                                    interestSelections[index]?.interestSelections?.[program.code]
+                                );
+
+                                return (
+                                    <div key={program.ministry_id} className="p-4 border rounded-md">
+                                        <h4 className="font-semibold">{program.name}</h4>
+                                        <div className="flex flex-col sm:flex-row sm:flex-wrap gap-x-6 gap-y-2 mt-2">
+                                            {childrenData.map((child, index) => (
+                                                <FormField
+                                                    key={`${program.code}-${childFields[index].id}`}
+                                                    control={form.control}
+                                                    name={`children.${index}.interestSelections.${program.code}`}
+                                                    render={({ field }) => (
+                                                        <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                                                            <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                                                            <FormLabel className="font-normal">{child.first_name || `Child ${index + 1}`}</FormLabel>
+                                                        </FormItem>
+                                                    )}
+                                                />
+                                            ))}
+                                        </div>
+                                        {isAnyChildInterested && program.communicate_later && (
+                                             <Alert className="mt-4">
+                                                <Info className="h-4 w-4" />
+                                                <AlertDescription>
+                                                    You will receive information about {program.name} when it is available.
+                                                </AlertDescription>
+                                            </Alert>
+                                        )}
                                     </div>
-                                </div>
-                            ))}
+                                )
+                            })}
                         </CardContent>
                     </Card>
                     </>
@@ -840,5 +860,3 @@ export default function RegisterPage() {
     </div>
   )
 }
-
-    
