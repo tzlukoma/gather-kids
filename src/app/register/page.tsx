@@ -30,6 +30,7 @@ import { Info } from "lucide-react"
 import { differenceInYears, isWithinInterval, parseISO, isValid } from "date-fns"
 import { DanceMinistryForm } from "@/components/ministrysync/dance-ministry-form"
 import { TeenFellowshipForm } from "@/components/ministrysync/teen-fellowship-form"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 
 
 const MOCK_EMAILS = {
@@ -137,6 +138,7 @@ const registrationSchema = z.object({
     photoRelease: z.boolean().refine((val) => val === true, {
       message: "Photo release consent is required.",
     }),
+    choir_communications_consent: z.enum(["yes", "no"]).optional(),
   }),
 });
 
@@ -345,7 +347,7 @@ export default function RegisterPage() {
       guardians: [{ first_name: "", last_name: "", mobile_phone: "", email: "", relationship: "Mother", is_primary: true }],
       emergencyContact: { first_name: "", last_name: "", mobile_phone: "", relationship: "" },
       children: [],
-      consents: { liability: false, photoRelease: false },
+      consents: { liability: false, photoRelease: false, choir_communications_consent: undefined },
     },
   })
 
@@ -360,6 +362,10 @@ export default function RegisterPage() {
   });
 
   const childrenData = useWatch({ control: form.control, name: 'children' });
+  
+  const choirPrograms = ministryPrograms.filter(p => p.id.startsWith('choir-'));
+  const otherMinistryPrograms = ministryPrograms.filter(p => !p.id.startsWith('choir-'));
+
 
   const prefillForm = (data: any) => {
     form.reset(data);
@@ -639,9 +645,43 @@ export default function RegisterPage() {
                                     ))}
                                 </div>
                             </div>
-                            {ministryPrograms.map(program => (
+                            {otherMinistryPrograms.map(program => (
                                 <ProgramSection key={program.id} control={form.control} childrenData={childrenData} program={program} childFields={childFields} />
                             ))}
+                            <div className="p-4 border rounded-md space-y-4">
+                                <h3 className="text-lg font-semibold font-headline">Youth Choirs</h3>
+                                <FormField
+                                    control={form.control}
+                                    name="consents.choir_communications_consent"
+                                    render={({ field }) => (
+                                    <FormItem className="space-y-3 p-4 border rounded-md bg-muted/50">
+                                        <FormLabel className="font-normal leading-relaxed">Cathedral International youth choirs communicate using the Planning Center app. By clicking yes, you agree to be added into the app, which will enable you to download the app, receive emails and push communications.</FormLabel>
+                                        <FormControl>
+                                        <RadioGroup
+                                            onValueChange={field.onChange}
+                                            defaultValue={field.value}
+                                            className="flex flex-col space-y-1"
+                                        >
+                                            <FormItem className="flex items-center space-x-3 space-y-0">
+                                                <FormControl><RadioGroupItem value="yes" /></FormControl>
+                                                <FormLabel className="font-normal">Yes</FormLabel>
+                                            </FormItem>
+                                            <FormItem className="flex items-center space-x-3 space-y-0">
+                                                <FormControl><RadioGroupItem value="no" /></FormControl>
+                                                <FormLabel className="font-normal">No</FormLabel>
+                                            </FormItem>
+                                        </RadioGroup>
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                    )}
+                                />
+                                <div className="space-y-6">
+                                {choirPrograms.map(program => (
+                                    <ProgramSection key={program.id} control={form.control} childrenData={childrenData} program={program} childFields={childFields} />
+                                ))}
+                                </div>
+                            </div>
                         </CardContent>
                     </Card>
 
