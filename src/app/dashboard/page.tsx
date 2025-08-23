@@ -5,14 +5,14 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { AlertTriangle, Users, CheckCircle2 } from "lucide-react";
+import { AlertTriangle, Users, CheckCircle2, Home } from "lucide-react";
 import { format } from "date-fns";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/lib/db";
 import { getTodayIsoDate } from "@/lib/dal";
 import { useAuth } from "@/contexts/auth-context";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 export default function DashboardPage() {
     const router = useRouter();
@@ -29,9 +29,19 @@ export default function DashboardPage() {
         db.attendance.where({ date: today }).filter(a => !a.check_out_at).count()
     , [today]);
 
-    const registrationCount = useLiveQuery(() =>
-        db.registrations.where({cycle_id: '2025'}).count()
-    , [])
+    const registrationStats = useLiveQuery(async () => {
+        const registrations = await db.registrations.where({ cycle_id: '2025' }).toArray();
+        if (registrations.length === 0) {
+            return { householdCount: 0, childCount: 0 };
+        }
+        const childIds = registrations.map(r => r.child_id);
+        const children = await db.children.where('child_id').anyOf(childIds).toArray();
+        const householdIds = new Set(children.map(c => c.household_id));
+        return {
+            householdCount: householdIds.size,
+            childCount: registrations.length,
+        };
+    }, []);
     
     useEffect(() => {
         if (!loading && user) {
@@ -46,7 +56,7 @@ export default function DashboardPage() {
     }, [user, loading, router]);
 
 
-    if (loading || !isAuthorized || unacknowledgedIncidents === undefined || checkedInCount === undefined || registrationCount === undefined) {
+    if (loading || !isAuthorized || unacknowledgedIncidents === undefined || checkedInCount === undefined || registrationStats === undefined) {
         return <div>Loading dashboard data...</div>
     }
 
@@ -85,12 +95,12 @@ export default function DashboardPage() {
                 <Link href="/dashboard/registrations">
                     <Card className="hover:bg-muted/50 transition-colors">
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Registrations</CardTitle>
-                            <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
+                            <CardTitle className="text-sm font-medium">Registrations (2025)</CardTitle>
+                            <Home className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">{registrationCount}</div>
-                            <p className="text-xs text-muted-foreground">households registered this year</p>
+                            <div className="text-2xl font-bold">{registrationStats.householdCount}</div>
+                            <p className="text-xs text-muted-foreground">{registrationStats.childCount} children in {registrationStats.householdCount} households</p>
                         </CardContent>
                     </Card>
                 </Link>
