@@ -5,8 +5,9 @@
 
 
 
+
 import { db } from './db';
-import type { Attendance, Child, Guardian, Household, Incident, IncidentSeverity, Ministry, MinistryEnrollment, Registration, User } from './types';
+import type { Attendance, Child, Guardian, Household, Incident, IncidentSeverity, Ministry, MinistryEnrollment, Registration, User, EmergencyContact } from './types';
 import { differenceInYears, isAfter, isBefore, parseISO } from 'date-fns';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -202,7 +203,6 @@ export async function getHouseholdProfile(householdId: string): Promise<Househol
 }
 
 
-
 // Mutation Functions
 export async function recordCheckIn(childId: string, eventId: string, timeslotId?: string, userId?: string): Promise<string> {
     const today = getTodayIsoDate();
@@ -259,55 +259,138 @@ export async function logIncident(data: {child_id: string, child_name: string, d
     return db.incidents.add(incident);
 }
 
-// Registration Logic
-export async function registerHousehold(data: any) {
-    const householdId = uuidv4();
-    const now = new Date().toISOString();
-    const cycle_id = "2025";
+// Find existing household and registration data by email
+export async function findHouseholdByEmail(email: string, cycleId: string) {
+    const guardian = await db.guardians.where('email').equalsIgnoreCase(email).first();
+    if (!guardian) return null;
 
-    const household: Household = {
-        household_id: householdId,
-        name: data.household.name || `${data.guardians[0].last_name} Household`,
-        address_line1: data.household.address_line1,
-        created_at: now,
-        updated_at: now,
-    };
-
-    const guardians: Guardian[] = data.guardians.map((g: any) => ({
-        guardian_id: uuidv4(),
-        household_id: householdId,
-        ...g,
-        created_at: now,
-        updated_at: now,
-    }));
-
-    const emergencyContact = {
-        contact_id: uuidv4(),
-        household_id: householdId,
-        ...data.emergencyContact
-    };
+    const householdId = guardian.household_id;
+    const existingReg = await db.registrations.where({cycle_id: cycleId}).and(r => r.child_id.startsWith(`c_${householdId}`)).first();
     
-    const children: Child[] = data.children.map((c: any) => ({
-        child_id: uuidv4(),
-        household_id: householdId,
-        is_active: true,
-        ...c,
-        // Remove selection and custom data objects before saving to child record
-        ministrySelections: undefined,
-        interestSelections: undefined,
-        customData: undefined,
-        created_at: now,
-        updated_at: now,
-    }));
+    if (!existingReg) {
+         // Found household from prior year, but no current registration
+         // In a real app, you would fetch last year's data to pre-fill. 
+         // For this prototype, we'll treat it as a new registration.
+        return null;
+    }
+    
+    // Found existing registration for this cycle. Fetch all data to pre-fill the form.
+    const household = await db.households.get(householdId);
+    const guardians = await db.guardians.where({ household_id: householdId }).toArray();
+    const emergencyContact = await db.emergency_contacts.where({ household_id: householdId }).first();
+    const children = await db.children.where({ household_id: householdId }).and(c => c.is_active).toArray();
+    const childIds = children.map(c => c.child_id);
+    const enrollments = await db.ministry_enrollments.where('child_id').anyOf(childIds).and(e => e.cycle_id === cycleId).toArray();
 
-    // Transaction
+    const childrenWithSelections = children.map(child => {
+        const childEnrollments = enrollments.filter(e => e.child_id === child.child_id);
+        const ministrySelections: { [key: string]: boolean } = {};
+        const interestSelections: { [key: string]: boolean } = {};
+        let customData: any = {};
+        
+        childEnrollments.forEach(enrollment => {
+            if (enrollment.status === 'enrolled') {
+                ministrySelections[enrollment.ministry_id] = true;
+                if (enrollment.custom_fields) {
+                    customData = {...customData, ...enrollment.custom_fields};
+                }
+            } else if (enrollment.status === 'interest_only') {
+                interestSelections[enrollment.ministry_id] = true;
+            }
+        });
+        
+        return { ...child, ministrySelections, interestSelections, customData };
+    });
+    
+    return {
+        household,
+        guardians,
+        emergencyContact,
+        children: childrenWithSelections,
+        consents: { liability: true, photoRelease: true } // Assume consents were given
+    };
+}
+
+
+// Registration Logic
+export async function registerHousehold(data: any, cycle_id: string) {
+    const householdId = data.household.household_id || uuidv4();
+    const isUpdate = !!data.household.household_id;
+    const now = new Date().toISOString();
+
     await db.transaction('rw', db.households, db.guardians, db.emergency_contacts, db.children, db.registrations, db.ministry_enrollments, db.ministries, async () => {
-        await db.households.add(household);
-        await db.guardians.bulkAdd(guardians);
-        await db.emergency_contacts.add(emergencyContact);
-        await db.children.bulkAdd(children);
 
-        for (const [index, child] of children.entries()) {
+        if (isUpdate) {
+            // Overwrite existing data for this cycle
+            const childIds = await db.children.where({ household_id: householdId }).primaryKeys();
+            
+            // Delete previous registrations and enrollments for this cycle
+            await db.registrations.where('[child_id+cycle_id]').anyOf(childIds.map(cid => [cid, cycle_id])).delete();
+            await db.ministry_enrollments.where('[child_id+cycle_id]').anyOf(childIds.map(cid => [cid, cycle_id])).delete();
+
+            // Clear out old guardian/contact info to be replaced
+            await db.guardians.where({ household_id: householdId }).delete();
+            await db.emergency_contacts.where({ household_id: householdId }).delete();
+        }
+
+
+        const household: Household = {
+            household_id: householdId,
+            name: data.household.name || `${data.guardians[0].last_name} Household`,
+            address_line1: data.household.address_line1,
+            created_at: isUpdate ? (await db.households.get(householdId))!.created_at : now,
+            updated_at: now,
+        };
+        await db.households.put(household);
+
+
+        const guardians: Guardian[] = data.guardians.map((g: any) => ({
+            guardian_id: uuidv4(),
+            household_id: householdId,
+            ...g,
+            created_at: now,
+            updated_at: now,
+        }));
+        await db.guardians.bulkAdd(guardians);
+
+        const emergencyContact: EmergencyContact = {
+            contact_id: uuidv4(),
+            household_id: householdId,
+            ...data.emergencyContact
+        };
+        await db.emergency_contacts.add(emergencyContact);
+        
+        // Children are more complex due to updates vs inserts
+        const existingChildIds = isUpdate ? await db.children.where({ household_id: householdId }).primaryKeys() : [];
+        const incomingChildIds: string[] = []; // We will get these from form if they exist, or generate new ones
+
+        const childrenToUpsert: Child[] = data.children.map((c: any) => {
+            const childId = c.child_id || `c_${householdId}_${uuidv4().substring(0, 4)}`; // Use existing or generate
+            incomingChildIds.push(childId);
+            return {
+                child_id: childId,
+                household_id: householdId,
+                is_active: true,
+                ...c,
+                // Remove selection and custom data objects before saving to child record
+                ministrySelections: undefined,
+                interestSelections: undefined,
+                customData: undefined,
+                created_at: isUpdate && existingChildIds.includes(childId) ? (db.children.get(childId))!.created_at : now,
+                updated_at: now,
+            }
+        });
+        await db.children.bulkPut(childrenToUpsert);
+
+        // Deactivate children who were removed from the form
+        const childrenToRemove = existingChildIds.filter(id => !incomingChildIds.includes(id));
+        if (childrenToRemove.length > 0) {
+            await db.children.where('child_id').anyOf(childrenToRemove).modify({ is_active: false });
+        }
+
+
+        // Re-create registrations and enrollments
+        for (const [index, child] of childrenToUpsert.entries()) {
             const childData = data.children[index];
 
             const registration: Registration = {
@@ -336,10 +419,13 @@ export async function registerHousehold(data: any) {
             await db.ministry_enrollments.add(sundaySchoolEnrollment);
 
             const allSelections = { ...childData.ministrySelections, ...childData.interestSelections };
+            const allMinistries = await db.ministries.toArray();
+            const ministryMap = new Map(allMinistries.map(m => [m.code, m]));
+
 
             for (const ministryCode in allSelections) {
                 if (allSelections[ministryCode]) {
-                    const ministry = await db.ministries.where({ code: ministryCode }).first();
+                    const ministry = ministryMap.get(ministryCode);
                     if (ministry) {
                          // Check eligibility
                         const age = child.dob ? ageOn(now, child.dob) : null;
@@ -350,13 +436,23 @@ export async function registerHousehold(data: any) {
                             continue;
                         }
 
+                        // Collect custom data for this ministry
+                        const custom_fields: { [key: string]: any } = {};
+                        if(childData.customData && ministry.custom_questions) {
+                             for (const q of ministry.custom_questions) {
+                                if (childData.customData[q.id] !== undefined) {
+                                    custom_fields[q.id] = childData.customData[q.id];
+                                }
+                            }
+                        }
+
                         const enrollment: MinistryEnrollment = {
                             enrollment_id: uuidv4(),
                             child_id: child.child_id,
                             cycle_id: cycle_id,
                             ministry_id: ministry.ministry_id,
                             status: ministry.enrollment_type,
-                            custom_fields: childData.customData,
+                            custom_fields: custom_fields,
                         };
                         await db.ministry_enrollments.add(enrollment);
                     }
@@ -439,7 +535,7 @@ export async function createMinistry(ministryData: Omit<Ministry, 'ministry_id' 
     const now = new Date().toISOString();
     const newMinistry: Ministry = {
         ...ministryData,
-        ministry_id: uuidv4(),
+        ministry_id: ministryData.code, // Use code as ID for simplicity
         created_at: now,
         updated_at: now,
         data_profile: 'Basic', // Default data profile
