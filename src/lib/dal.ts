@@ -4,6 +4,7 @@
 
 
 
+
 import { db } from './db';
 import type { Attendance, Child, Guardian, Household, Incident, IncidentSeverity, Ministry, MinistryEnrollment, Registration, User, EmergencyContact, LeaderAssignment } from './types';
 import { differenceInYears, isAfter, isBefore, parseISO } from 'date-fns';
@@ -531,6 +532,27 @@ function convertToCSV(data: any[]): string {
     return csvRows.join('\r\n');
 }
 
+export async function exportRosterCSV(children: any[]): Promise<Blob> {
+    const exportData = children.map(child => {
+        const primaryGuardian = child.guardians?.find((g: Guardian) => g.is_primary) || child.guardians?.[0];
+        
+        return {
+            child_name: `${child.first_name} ${child.last_name}`,
+            grade: child.grade,
+            status: child.activeAttendance ? 'Checked In' : 'Checked Out',
+            check_in_time: child.activeAttendance?.check_in_at ? new Date(child.activeAttendance.check_in_at).toLocaleTimeString() : 'N/A',
+            event: child.activeAttendance?.event_id || 'N/A',
+            allergies: child.allergies || 'None',
+            medical_notes: child.medical_notes || 'None',
+            household: child.household?.name || 'N/A',
+            primary_guardian: primaryGuardian ? `${primaryGuardian.first_name} ${primaryGuardian.last_name}` : 'N/A',
+            guardian_phone: primaryGuardian ? primaryGuardian.mobile_phone : 'N/A'
+        };
+    });
+
+    const csv = convertToCSV(exportData);
+    return new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+}
 
 export async function exportEmergencySnapshotCSV(dateISO: string): Promise<Blob> {
     const roster = await querySundaySchoolRoster(dateISO);
