@@ -1,4 +1,5 @@
 
+
 import { db } from './db';
 import type { Attendance, Child, Guardian, Household, Incident, IncidentSeverity, Ministry, MinistryEnrollment, Registration, User, EmergencyContact, LeaderAssignment } from './types';
 import { differenceInYears, isAfter, isBefore, parseISO } from 'date-fns';
@@ -619,7 +620,12 @@ export async function queryLeaders() {
 export async function getLeaderProfile(leaderId: string, cycleId: string) {
     const leader = await db.users.get(leaderId);
     const assignments = await db.leader_assignments.where({ leader_id: leaderId, cycle_id: cycleId }).toArray();
-    const allMinistries = await db.ministries.where('is_active').equals(1).sortBy('name');
+    
+    // Fetch all ministries and then filter by is_active in code.
+    const allMinistriesRaw = await db.ministries.toArray();
+    const allMinistries = allMinistriesRaw
+        .filter(m => m.is_active)
+        .sort((a, b) => a.name.localeCompare(b.name));
 
     return { leader, assignments, allMinistries };
 }
