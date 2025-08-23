@@ -1,5 +1,6 @@
 
 
+
 import { db } from './db';
 import type { Attendance, Child, Guardian, Household, Incident, IncidentSeverity, Ministry, MinistryEnrollment, Registration, User, EmergencyContact, LeaderAssignment } from './types';
 import { differenceInYears, isAfter, isBefore, parseISO } from 'date-fns';
@@ -648,4 +649,8 @@ export async function saveLeaderAssignments(leaderId: string, cycleId: string, n
             await db.leader_assignments.bulkAdd(assignmentsToCreate);
         }
     });
+}
+
+export async function updateLeaderStatus(leaderId: string, isActive: boolean): Promise<number> {
+    return db.users.update(leaderId, { is_active: isActive });
 }
