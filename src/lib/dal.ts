@@ -148,7 +148,7 @@ export async function recordCheckIn(childId: string, eventId: string, timeslotId
     return db.attendance.add(attendanceRecord);
 }
 
-export async function recordCheckOut(attendanceId: string, verifier: { method: "name_last4" | "PIN" | "other", value?: string }, userId?: string): Promise<string> {
+export async function recordCheckOut(attendanceId: string, verifier: { method: "PIN" | "other", value: string }, userId?: string): Promise<string> {
     const attendanceRecord = await db.attendance.get(attendanceId);
     if (!attendanceRecord) throw new Error("Attendance record not found");
 
@@ -157,6 +157,7 @@ export async function recordCheckOut(attendanceId: string, verifier: { method: "
         check_out_at: new Date().toISOString(),
         checked_out_by: userId,
         pickup_method: verifier.method,
+        picked_up_by: verifier.method === 'other' ? verifier.value : undefined,
     };
     // Using put to ensure live queries are triggered correctly.
     return db.attendance.put(updatedRecord);
