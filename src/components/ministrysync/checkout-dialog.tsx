@@ -42,14 +42,11 @@ export function CheckoutDialog({ child, onClose, onCheckout }: CheckoutDialogPro
 
     const guardianPhones = child.guardians.map(g => g.mobile_phone.slice(-4));
     const emergencyContactPhone = child.emergencyContact?.mobile_phone?.slice(-4);
-    const householdPin = '1234'; // This would be fetched with household data
-
+    
     const validPins = [...guardianPhones];
     if (emergencyContactPhone) {
         validPins.push(emergencyContactPhone);
     }
-    validPins.push(householdPin);
-
 
     if (validPins.includes(pin)) {
       if (child.activeAttendance?.attendance_id) {
@@ -72,13 +69,13 @@ export function CheckoutDialog({ child, onClose, onCheckout }: CheckoutDialogPro
         <DialogHeader>
           <DialogTitle className="font-headline">Guardian Verification for {child?.first_name}</DialogTitle>
           <DialogDescription>
-            To check out {child?.first_name} from {getEventName(child?.activeAttendance?.event_id || null)}, please enter the last 4 digits of an authorized guardian's phone number or the 4-digit household PIN.
+            To check out {child?.first_name} from {getEventName(child?.activeAttendance?.event_id || null)}, please enter the last 4 digits of an authorized guardian's phone number.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="pin" className="text-right">
-              PIN / Phone
+              Phone Last 4
             </Label>
             <Input
               id="pin"
