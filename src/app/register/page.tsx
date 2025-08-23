@@ -28,6 +28,7 @@ import { registerHousehold } from "@/lib/dal"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Info } from "lucide-react"
 import { differenceInYears, isWithinInterval, parseISO, isValid } from "date-fns"
+import { DanceMinistryForm } from "@/components/ministrysync/dance-ministry-form"
 
 
 const MOCK_EMAILS = {
@@ -84,6 +85,10 @@ const interestSelectionSchema = z.object({
     "college-tour": z.boolean().default(false),
 }).optional();
 
+const customDataSchema = z.object({
+    dance_returning_member: z.enum(["yes", "no"]).optional(),
+}).optional();
+
 
 const guardianSchema = z.object({
   first_name: z.string().min(1, "First name is required."),
@@ -105,6 +110,7 @@ const childSchema = z.object({
   medical_notes: z.string().optional(),
   ministrySelections: ministrySelectionSchema,
   interestSelections: interestSelectionSchema,
+  customData: customDataSchema,
 });
 
 const registrationSchema = z.object({
@@ -231,18 +237,19 @@ function VerificationStepTwoForm({ onVerifySuccess, onGoBack }: { onVerifySucces
 const defaultChildValues = {
   first_name: "", last_name: "", dob: "", grade: "", allergies: "", medical_notes: "",
   ministrySelections: { "acolyte": false, "bible-bee": false, "dance": false, "media-production": false, "mentoring-boys": false, "mentoring-girls": false, "teen-fellowship": false, "choir-joy-bells": false, "choir-keita": false, "choir-teen": false, "youth-ushers": false },
-  interestSelections: { "childrens-musical": false, "confirmation": false, "orators": false, "nursery": false, "vbs": false, "college-tour": false }
+  interestSelections: { "childrens-musical": false, "confirmation": false, "orators": false, "nursery": false, "vbs": false, "college-tour": false },
+  customData: { dance_returning_member: undefined }
 };
 
 const ministryPrograms = [
-    { id: "acolyte", label: "Acolyte Ministry", eligibility: () => true, details: "Thank you for registering for the Acolyte Ministry. You will receive information from ministry leaders regarding next steps for your child's participation." },
+    { id: "acolyte", label: "Acolyte Ministry", eligibility: () => true, details: "You will receive information from ministry leaders regarding next steps for your child's participation." },
     { id: "bible-bee", label: "Bible Bee", description: "Registration open until Oct. 8, 2023", eligibility: () => {
         const today = new Date();
         const bibleBeeStart = new Date(today.getFullYear(), 0, 1);
         const bibleBeeEnd = new Date(today.getFullYear(), 9, 8);
         return isWithinInterval(today, { start: bibleBeeStart, end: bibleBeeEnd });
     }, details: "Bible Bee is a competitive program that encourages scripture memorization. Materials must be purchased separately." },
-    { id: "dance", label: "Dance Ministry", eligibility: () => true, details: "The Dance Ministry practices on Saturdays. A schedule and attire requirements will be provided." },
+    { id: "dance", label: "Dance Ministry", eligibility: () => true, details: "You will receive information from ministry leaders regarding next steps for your child's participation." },
     { id: "media-production", label: "Media Production Ministry", eligibility: () => true, details: "This ministry involves training on sound, lighting, and video production for our services." },
     { id: "mentoring-boys", label: "Mentoring Ministry-Boys (Khalfani)", eligibility: () => true, details: "The Khalfani ministry provides mentorship for young boys through various activities and discussions." },
     { id: "mentoring-girls", label: "Mentoring Ministry-Girls (Nailah)", eligibility: () => true, details: "The Nailah ministry provides mentorship for young girls, focusing on empowerment and personal growth." },
@@ -303,6 +310,9 @@ const ProgramSection = ({ control, childrenData, program }: { control: any, chil
                     )
                 })}
             </div>
+             {isAnyChildSelected && program.id === 'dance' && (
+                <DanceMinistryForm control={control} />
+            )}
             {isAnyChildSelected && program.details && (
                  <Alert className="mt-4">
                     <Info className="h-4 w-4" />
@@ -673,5 +683,3 @@ export default function RegisterPage() {
     </div>
   )
 }
-
-    
