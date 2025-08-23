@@ -1,3 +1,4 @@
+
 import { db } from './db';
 import type { Attendance, Child, Guardian, Household, Incident, IncidentSeverity, Ministry, MinistryEnrollment, Registration, User } from './types';
 import { differenceInYears, isAfter, isBefore, parseISO } from 'date-fns';
@@ -120,17 +121,43 @@ export async function queryDashboardMetrics(cycleId: string) {
 
 
 // Mutation Functions
-export function recordCheckIn(childId: string, eventId: string, timeslotId?: string, userId?: string): Promise<string> {
-    const attendanceRecord: Attendance = {
-        attendance_id: uuidv4(),
-        event_id: eventId,
-        child_id: childId,
-        date: getTodayIsoDate(),
-        timeslot_id: timeslotId,
-        check_in_at: new Date().toISOString(),
-        checked_in_by: userId,
-    };
-    return db.attendance.add(attendanceRecord);
+export async function recordCheckIn(childId: string, eventId: string, timeslotId?: string, userId?: string): Promise<string> {
+    const today = getTodayIsoDate();
+    const existingRecord = await db.attendance
+        .where({ child_id: childId, date: today })
+        .first();
+
+    if (existingRecord) {
+        // Child was already checked in today. If they were checked out, re-check them in.
+        if (existingRecord.check_out_at) {
+            const updates = {
+                ...existingRecord,
+                event_id: eventId, // They might be checking into a different event now
+                timeslot_id: timeslotId,
+                check_in_at: new Date().toISOString(),
+                checked_in_by: userId,
+                check_out_at: undefined, // Clear the checkout time
+                checked_out_by: undefined,
+                pickup_method: undefined,
+            };
+            return db.attendance.put(updates);
+        } else {
+            // Already checked in and not checked out, do nothing.
+            return existingRecord.attendance_id;
+        }
+    } else {
+        // No record for today, create a new one.
+        const attendanceRecord: Attendance = {
+            attendance_id: uuidv4(),
+            event_id: eventId,
+            child_id: childId,
+            date: today,
+            timeslot_id: timeslotId,
+            check_in_at: new Date().toISOString(),
+            checked_in_by: userId,
+        };
+        return db.attendance.add(attendanceRecord);
+    }
 }
 
 export async function recordCheckOut(attendanceId: string, verifier: { method: "name_last4" | "PIN" | "other", value?: string }, userId?: string): Promise<string> {
@@ -198,7 +225,7 @@ export async function registerHousehold(data: any) {
     }));
 
     // Transaction
-    await db.transaction('rw', db.households, db.guardians, db.emergency_contacts, db.children, db.registrations, db.ministry_enrollments, async () => {
+    await db.transaction('rw', db.households, db.guardians, db.emergency_contacts, db.children, db.registrations, db.ministry_enrollments, db.ministries, async () => {
         await db.households.add(household);
         await db.guardians.bulkAdd(guardians);
         await db.emergency_contacts.add(emergencyContact);

@@ -245,7 +245,7 @@ export function CheckInView({ initialChildren, selectedEvent }: CheckInViewProps
             </CardHeader>
             <CardContent className="flex-grow space-y-2 px-4 pb-4 sm:px-6 sm:pb-6 pt-0">
               <div className="text-sm text-muted-foreground space-y-2">
-                <p><strong>DOB:</strong> {child.dob ? format(parseISO(child.dob), "MMM d, yyyy") : 'N/A'} ({differenceInYears(new Date(), parseISO(child.dob || ''))} yrs)</p>
+                <p><strong>DOB:</strong> {child.dob ? format(parseISO(child.dob), "MMM d, yyyy") : 'N/A'} ({child.dob ? differenceInYears(new Date(), parseISO(child.dob)) : ''} yrs)</p>
                 <p><strong>Grade:</strong> {child.grade}</p>
                 {child.medical_notes && <p><strong>Notes:</strong> {child.medical_notes}</p>}
               </div>
