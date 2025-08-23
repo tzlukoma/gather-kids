@@ -1,4 +1,5 @@
 
+
 "use client"
 
 import { useLiveQuery } from "dexie-react-hooks";
@@ -14,7 +15,7 @@ import {
 } from "@/components/ui/table";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FileDown } from "lucide-react";
+import { FileDown, ArrowUpDown } from "lucide-react";
 import { format } from "date-fns";
 import { getTodayIsoDate, recordCheckIn, recordCheckOut } from "@/lib/dal";
 import { useMemo, useState } from "react";
@@ -28,6 +29,8 @@ import { Switch } from "@/components/ui/switch";
 
 interface RosterChild extends EnrichedChild {}
 
+type SortDirection = "asc" | "desc" | "none";
+
 const getEventName = (eventId: string | null) => {
     if (!eventId) return '';
     const eventNames: { [key: string]: string } = {
@@ -38,6 +41,30 @@ const getEventName = (eventId: string | null) => {
     return eventNames[eventId] || 'an event';
 }
 
+const gradeSortOrder: { [key: string]: number } = {
+    "Pre-K": 0,
+    "K": 1,
+    "1st Grade": 2,
+    "2nd Grade": 3,
+    "3rd Grade": 4,
+    "4th Grade": 5,
+    "5th Grade": 6,
+    "6th Grade": 7,
+    "7th Grade": 8,
+    "8th Grade": 9,
+    "9th Grade": 10,
+    "10th Grade": 11,
+    "11th Grade": 12,
+    "12th Grade": 13,
+};
+
+const getGradeValue = (grade?: string): number => {
+    if (!grade) return 99;
+    const value = gradeSortOrder[grade];
+    return value !== undefined ? value : 99;
+};
+
+
 export default function RostersPage() {
   const today = getTodayIsoDate();
   const { toast } = useToast();
@@ -45,6 +72,7 @@ export default function RostersPage() {
   const [selectedEvent, setSelectedEvent] = useState('evt_sunday_school');
   const [childToCheckout, setChildToCheckout] = useState<RosterChild | null>(null);
   const [showOnlyCheckedIn, setShowOnlyCheckedIn] = useState(false);
+  const [gradeSort, setGradeSort] = useState<SortDirection>("none");
 
   const allChildren = useLiveQuery(() => db.children.toArray(), []);
   const todaysAttendance = useLiveQuery(() => db.attendance.where({ date: today }).toArray(), [today]);
@@ -76,11 +104,26 @@ export default function RostersPage() {
   }, [allChildren, todaysAttendance, allGuardians, allHouseholds, allEmergencyContacts]);
 
   const displayChildren = useMemo(() => {
+    let filtered = childrenWithDetails;
+
     if (showOnlyCheckedIn) {
-        return childrenWithDetails.filter(child => child.activeAttendance);
+        filtered = filtered.filter(child => child.activeAttendance);
     }
-    return childrenWithDetails;
-  }, [childrenWithDetails, showOnlyCheckedIn])
+    
+    if (gradeSort !== 'none') {
+        filtered.sort((a, b) => {
+            const aVal = getGradeValue(a.grade);
+            const bVal = getGradeValue(b.grade);
+            if (gradeSort === 'asc') {
+                return aVal - bVal;
+            } else {
+                return bVal - aVal;
+            }
+        });
+    }
+
+    return filtered;
+  }, [childrenWithDetails, showOnlyCheckedIn, gradeSort])
 
 
   const handleCheckIn = async (child: RosterChild) => {
@@ -117,6 +160,12 @@ export default function RostersPage() {
             variant: 'destructive',
         });
     }
+  };
+
+  const toggleGradeSort = () => {
+    if (gradeSort === 'none') setGradeSort('asc');
+    else if (gradeSort === 'asc') setGradeSort('desc');
+    else setGradeSort('none');
   };
 
   if (!childrenWithDetails) {
@@ -172,7 +221,12 @@ export default function RostersPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Name</TableHead>
-                <TableHead>Grade</TableHead>
+                <TableHead>
+                    <Button variant="ghost" onClick={toggleGradeSort} className="px-1">
+                        Grade
+                        <ArrowUpDown className="ml-2 h-4 w-4" />
+                    </Button>
+                </TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Check-In Time</TableHead>
                 <TableHead>Alerts</TableHead>
