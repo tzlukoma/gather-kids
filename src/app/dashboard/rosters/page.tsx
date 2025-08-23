@@ -24,6 +24,7 @@ import { useToast } from "@/hooks/use-toast";
 import type { EnrichedChild } from "@/components/ministrysync/check-in-view";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 
 interface RosterChild extends EnrichedChild {}
 
@@ -43,6 +44,7 @@ export default function RostersPage() {
 
   const [selectedEvent, setSelectedEvent] = useState('evt_sunday_school');
   const [childToCheckout, setChildToCheckout] = useState<RosterChild | null>(null);
+  const [showOnlyCheckedIn, setShowOnlyCheckedIn] = useState(false);
 
   const allChildren = useLiveQuery(() => db.children.toArray(), []);
   const todaysAttendance = useLiveQuery(() => db.attendance.where({ date: today }).toArray(), [today]);
@@ -72,6 +74,13 @@ export default function RostersPage() {
       emergencyContact: emergencyContactMap.get(child.household_id) || null,
     }));
   }, [allChildren, todaysAttendance, allGuardians, allHouseholds, allEmergencyContacts]);
+
+  const displayChildren = useMemo(() => {
+    if (showOnlyCheckedIn) {
+        return childrenWithDetails.filter(child => child.activeAttendance);
+    }
+    return childrenWithDetails;
+  }, [childrenWithDetails, showOnlyCheckedIn])
 
 
   const handleCheckIn = async (child: RosterChild) => {
@@ -147,10 +156,16 @@ export default function RostersPage() {
                 <CardTitle className="font-headline">All Children</CardTitle>
                 <CardDescription>A complete list of all children registered.</CardDescription>
             </div>
-            <Button variant="outline">
-                <FileDown className="mr-2 h-4 w-4" />
-                Export CSV
-            </Button>
+            <div className="flex items-center gap-4">
+                <div className="flex items-center space-x-2">
+                    <Switch id="show-checked-in" checked={showOnlyCheckedIn} onCheckedChange={setShowOnlyCheckedIn} />
+                    <Label htmlFor="show-checked-in">Show Only Checked-In</Label>
+                </div>
+                <Button variant="outline">
+                    <FileDown className="mr-2 h-4 w-4" />
+                    Export CSV
+                </Button>
+            </div>
         </CardHeader>
         <CardContent>
           <Table>
@@ -165,7 +180,7 @@ export default function RostersPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {childrenWithDetails.map((child) => (
+              {displayChildren.map((child) => (
                 <TableRow key={child.child_id}>
                   <TableCell className="font-medium">{`${child.first_name} ${child.last_name}`}</TableCell>
                   <TableCell>{child.grade}</TableCell>
@@ -193,6 +208,13 @@ export default function RostersPage() {
                   </TableCell>
                 </TableRow>
               ))}
+              {displayChildren.length === 0 && (
+                <TableRow>
+                    <TableCell colSpan={6} className="text-center h-24 text-muted-foreground">
+                        {showOnlyCheckedIn ? "No children are currently checked in." : "No children found."}
+                    </TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
         </CardContent>
