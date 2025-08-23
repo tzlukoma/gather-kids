@@ -39,15 +39,14 @@ const adminMenuItems = [
   { href: "/dashboard", icon: <LayoutDashboard />, label: "Dashboard" },
   { href: "/dashboard/check-in", icon: <CheckCheck />, label: "Check-In/Out" },
   { href: "/dashboard/rosters", icon: <Users />, label: "Rosters" },
-  { href: "/dashboard/incidents", icon: <ShieldAlert />, label: "Incidents" },
   { href: "/dashboard/registrations", icon: <ClipboardList />, label: "Registrations" },
+  { href: "/dashboard/incidents", icon: <ShieldAlert />, label: "Incidents" },
   { href: "/dashboard/leaders", icon: <Contact />, label: "Leaders" },
   { href: "/dashboard/reports", icon: <FileText />, label: "Reports" },
   { href: "/dashboard/configuration", icon: <Settings />, label: "Configuration" },
 ];
 
-const activeLeaderMenuItems = [
-  { href: "/dashboard/check-in", icon: <CheckCheck />, label: "Check-In/Out" },
+const baseLeaderMenuItems = [
   { href: "/dashboard/rosters", icon: <Users />, label: "Rosters" },
   { href: "/dashboard/registrations", icon: <ClipboardList />, label: "Registrations" },
   { href: "/dashboard/incidents", icon: <ShieldAlert />, label: "Incidents" },
@@ -82,7 +81,17 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         return adminMenuItems;
     }
     if (user?.role === 'leader') {
-        return user.is_active ? activeLeaderMenuItems : inactiveLeaderMenuItems;
+        if (!user.is_active) {
+            return inactiveLeaderMenuItems;
+        }
+
+        let menu = [...baseLeaderMenuItems];
+        
+        // Conditionally add Check-In/Out if the leader is assigned to Sunday School
+        if (user.assignedMinistryIds?.includes('min_sunday_school')) {
+            menu.unshift({ href: "/dashboard/check-in", icon: <CheckCheck />, label: "Check-In/Out" });
+        }
+        return menu;
     }
     return [];
   }
