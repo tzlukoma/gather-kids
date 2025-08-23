@@ -736,7 +736,16 @@ export default function RegisterPage() {
                             </FormItem>
                         )} />
                         <FormField control={form.control} name="consents.photoRelease" render={({ field }) => (
-                            <FormItem className="flex flex-row items-start space-x-3 space-y-0"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><div className="space-y-1 leading-none"><FormLabel>Photo Release</FormLabel><FormDescription>I grant permission for my child's photo to be used in church publications.</FormDescription><FormMessage /></div></FormItem>
+                            <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                                <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                                <div className="space-y-1 leading-none">
+                                    <FormLabel>Photo Release</FormLabel>
+                                    <FormDescription className="whitespace-pre-wrap leading-relaxed">
+                                    I hereby grant Cathedral International permission to use my photograph/​video image in any and all publications for Cathedral International including website and social media entries, without payment or any other consideration in perpetuity. I hereby authorize Cathedral International to edit, alter, copy, exhibit, publish or distribute all photos and images. I waive the right to inspect or approve the finished product, including a written or electronic copy, wherein my photo appears. Additionally, I waive any right to royalties or other compensation arising or related to the use of the photograph or video images. I hereby hold harmless and release and forever discharge Cathedral International from all claims, demands, and causes of action which I, my heirs, representatives, executors, administrators, or any other persons acting on my behalf or on behalf of my estate may have.
+                                    </FormDescription>
+                                    <FormMessage />
+                                </div>
+                            </FormItem>
                         )} />
                     </CardContent>
                 </Card>
