@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { format, parseISO } from "date-fns";
-import { Mail, Phone, User, Home, Shield, HeartPulse } from "lucide-react";
+import { Mail, Phone, User, Home, CheckCircle2, HeartPulse } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 const InfoItem = ({ icon, label, value }: { icon: React.ReactNode, label: string, value: React.ReactNode }) => (
@@ -107,7 +107,7 @@ export function HouseholdProfile({ profileData }: { profileData: HouseholdProfil
                                     </div>
                                     <Separator />
                                     <div>
-                                        <h4 className="font-semibold mb-2 flex items-center gap-2"><Shield /> Program Enrollments & Interests</h4>
+                                        <h4 className="font-semibold mb-2 flex items-center gap-2"><CheckCircle2 /> Program Enrollments & Interests</h4>
                                         <Accordion type="multiple" defaultValue={sortedCycleIds.length > 0 ? [sortedCycleIds[0]] : []} className="w-full">
                                             {sortedCycleIds.map((cycleId) => {
                                                 const enrollments = child.enrollmentsByCycle[cycleId];
