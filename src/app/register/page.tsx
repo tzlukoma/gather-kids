@@ -22,12 +22,12 @@ import { Separator } from "@/components/ui/separator"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { useToast } from "@/hooks/use-toast"
 import { PlusCircle, Trash2 } from "lucide-react"
-import { useEffect, useState, useMemo } from "react"
+import { useState, useMemo } from "react"
 import { Textarea } from "@/components/ui/textarea"
 import { registerHousehold } from "@/lib/dal"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Info } from "lucide-react"
-import { differenceInYears, isWithinInterval, parse, parseISO, isValid } from "date-fns"
+import { differenceInYears, isWithinInterval, parseISO, isValid } from "date-fns"
 
 
 const MOCK_EMAILS = {
@@ -234,118 +234,40 @@ const defaultChildValues = {
   interestSelections: { "childrens-musical": false, "confirmation": false, "orators": false, "nursery": false, "vbs": false, "college-tour": false }
 };
 
-const ChildMinistryForm = ({ childIndex, control }: { childIndex: number, control: any }) => {
-    const dobString = useWatch({
-        control,
-        name: `children.${childIndex}.dob`,
-    });
-
-    const eligibility = useMemo(() => {
-        const result = {
-            age: null as number | null,
-            isBibleBeeOpen: false,
-            isJoyBellsEligible: false,
-            isKeitaPraiseEligible: false,
-            isTeenChoirEligible: false,
-        };
-
-        if (dobString && isValid(parseISO(dobString))) {
-            const age = differenceInYears(new Date(), parseISO(dobString));
-            result.age = age;
-            result.isJoyBellsEligible = age >= 4 && age <= 8;
-            result.isKeitaPraiseEligible = age >= 9 && age <= 12;
-            result.isTeenChoirEligible = age >= 13 && age <= 18;
-        }
-
+const ministryPrograms = [
+    { id: "acolyte", label: "Acolyte Ministry", eligibility: () => true },
+    { id: "bible-bee", label: "Bible Bee", description: "Registration open until Oct. 8, 2023", eligibility: () => {
         const today = new Date();
-        const bibleBeeStart = new Date(today.getFullYear(), 0, 1); // Assume open all year for demo
+        const bibleBeeStart = new Date(today.getFullYear(), 0, 1);
         const bibleBeeEnd = new Date(today.getFullYear(), 9, 8);
-        result.isBibleBeeOpen = isWithinInterval(today, { start: bibleBeeStart, end: bibleBeeEnd });
+        return isWithinInterval(today, { start: bibleBeeStart, end: bibleBeeEnd });
+    }},
+    { id: "dance", label: "Dance Ministry", eligibility: () => true },
+    { id: "media-production", label: "Media Production Ministry", eligibility: () => true },
+    { id: "mentoring-boys", label: "Mentoring Ministry-Boys (Khalfani)", eligibility: () => true },
+    { id: "mentoring-girls", label: "Mentoring Ministry-Girls (Nailah)", eligibility: () => true },
+    { id: "teen-fellowship", label: "New Generation Teen Fellowship", eligibility: () => true },
+    { id: "choir-joy-bells", label: "Youth Choirs- Joy Bells (Ages 4-8)", eligibility: (age: number | null) => age !== null && age >= 4 && age <= 8 },
+    { id: "choir-keita", label: "Youth Choirs- Keita Praise Choir (Ages 9-12)", eligibility: (age: number | null) => age !== null && age >= 9 && age <= 12 },
+    { id: "choir-teen", label: "Youth Choirs- New Generation Teen Choir (Ages 13-18)", eligibility: (age: number | null) => age !== null && age >= 13 && age <= 18 },
+    { id: "youth-ushers", label: "Youth Ushers", eligibility: () => true },
+];
 
-        return result;
-    }, [dobString]);
+const interestPrograms = [
+    { id: "childrens-musical", label: "Children's Musical", eligibility: () => true },
+    { id: "confirmation", label: "Confirmation", eligibility: () => true },
+    { id: "orators", label: "New Jersey Orators", eligibility: () => true },
+    { id: "nursery", label: "Nursery", eligibility: () => true },
+    { id: "vbs", label: "Vacation Bible School", eligibility: () => true },
+    { id: "college-tour", label: "College Tour", eligibility: () => true },
+];
 
-
-    return (
-        <div className="space-y-6 pt-4">
-            <Separator />
-            <h4 className="font-semibold font-headline text-lg">Ministry Programs</h4>
-            <div className="space-y-4">
-                <p className="font-medium">Programs to Join</p>
-                <p className="text-sm text-muted-foreground">Sunday School/Children's Church is automatic for all registered children.</p>
-
-                <FormField control={control} name={`children.${childIndex}.ministrySelections.acolyte`} render={({ field }) => (
-                    <FormItem className="flex flex-row items-start space-x-3 space-y-0"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><div className="space-y-1 leading-none"><FormLabel>Acolyte Ministry</FormLabel></div></FormItem>
-                )} />
-
-                {eligibility.isBibleBeeOpen && (
-                    <FormField control={control} name={`children.${childIndex}.ministrySelections.bible-bee`} render={({ field }) => (
-                        <FormItem className="flex flex-row items-start space-x-3 space-y-0"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><div className="space-y-1 leading-none"><FormLabel>Bible Bee</FormLabel><FormDescription>Registration open until Oct. 8, 2023</FormDescription></div></FormItem>
-                    )} />
-                )}
-
-                <FormField control={control} name={`children.${childIndex}.ministrySelections.dance`} render={({ field }) => (
-                    <FormItem className="flex flex-row items-start space-x-3 space-y-0"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><div className="space-y-1 leading-none"><FormLabel>Dance Ministry</FormLabel></div></FormItem>
-                )} />
-                <FormField control={control} name={`children.${childIndex}.ministrySelections.media-production`} render={({ field }) => (
-                    <FormItem className="flex flex-row items-start space-x-3 space-y-0"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><div className="space-y-1 leading-none"><FormLabel>Media Production Ministry</FormLabel></div></FormItem>
-                )} />
-                <FormField control={control} name={`children.${childIndex}.ministrySelections.mentoring-boys`} render={({ field }) => (
-                    <FormItem className="flex flex-row items-start space-x-3 space-y-0"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><div className="space-y-1 leading-none"><FormLabel>Mentoring Ministry-Boys (Khalfani)</FormLabel></div></FormItem>
-                )} />
-                <FormField control={control} name={`children.${childIndex}.ministrySelections.mentoring-girls`} render={({ field }) => (
-                    <FormItem className="flex flex-row items-start space-x-3 space-y-0"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><div className="space-y-1 leading-none"><FormLabel>Mentoring Ministry-Girls (Nailah)</FormLabel></div></FormItem>
-                )} />
-                <FormField control={control} name={`children.${childIndex}.ministrySelections.teen-fellowship`} render={({ field }) => (
-                    <FormItem className="flex flex-row items-start space-x-3 space-y-0"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><div className="space-y-1 leading-none"><FormLabel>New Generation Teen Fellowship</FormLabel></div></FormItem>
-                )} />
-
-                {eligibility.isJoyBellsEligible && (
-                    <FormField control={control} name={`children.${childIndex}.ministrySelections.choir-joy-bells`} render={({ field }) => (
-                        <FormItem className="flex flex-row items-start space-x-3 space-y-0"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><div className="space-y-1 leading-none"><FormLabel>Youth Choirs- Joy Bells (Ages 4-8)</FormLabel></div></FormItem>
-                    )} />
-                )}
-                 {eligibility.isKeitaPraiseEligible && (
-                    <FormField control={control} name={`children.${childIndex}.ministrySelections.choir-keita`} render={({ field }) => (
-                        <FormItem className="flex flex-row items-start space-x-3 space-y-0"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><div className="space-y-1 leading-none"><FormLabel>Youth Choirs- Keita Praise Choir (Ages 9-12)</FormLabel></div></FormItem>
-                    )} />
-                )}
-                {eligibility.isTeenChoirEligible && (
-                    <FormField control={control} name={`children.${childIndex}.ministrySelections.choir-teen`} render={({ field }) => (
-                        <FormItem className="flex flex-row items-start space-x-3 space-y-0"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><div className="space-y-1 leading-none"><FormLabel>Youth Choirs- New Generation Teen Choir (Ages 13-18)</FormLabel></div></FormItem>
-                    )} />
-                )}
-                
-                <FormField control={control} name={`children.${childIndex}.ministrySelections.youth-ushers`} render={({ field }) => (
-                    <FormItem className="flex flex-row items-start space-x-3 space-y-0"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><div className="space-y-1 leading-none"><FormLabel>Youth Ushers</FormLabel></div></FormItem>
-                )} />
-            </div>
-            <Separator />
-            <div className="space-y-4">
-                <p className="font-medium">Express Interest In</p>
-                <FormField control={control} name={`children.${childIndex}.interestSelections.childrens-musical`} render={({ field }) => (
-                    <FormItem className="flex flex-row items-start space-x-3 space-y-0"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><div className="space-y-1 leading-none"><FormLabel>Children's Musical</FormLabel></div></FormItem>
-                )} />
-                 <FormField control={control} name={`children.${childIndex}.interestSelections.confirmation`} render={({ field }) => (
-                    <FormItem className="flex flex-row items-start space-x-3 space-y-0"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><div className="space-y-1 leading-none"><FormLabel>Confirmation</FormLabel></div></FormItem>
-                )} />
-                 <FormField control={control} name={`children.${childIndex}.interestSelections.orators`} render={({ field }) => (
-                    <FormItem className="flex flex-row items-start space-x-3 space-y-0"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><div className="space-y-1 leading-none"><FormLabel>New Jersey Orators</FormLabel></div></FormItem>
-                )} />
-                 <FormField control={control} name={`children.${childIndex}.interestSelections.nursery`} render={({ field }) => (
-                    <FormItem className="flex flex-row items-start space-x-3 space-y-0"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><div className="space-y-1 leading-none"><FormLabel>Nursery</FormLabel></div></FormItem>
-                )} />
-                <FormField control={control} name={`children.${childIndex}.interestSelections.vbs`} render={({ field }) => (
-                    <FormItem className="flex flex-row items-start space-x-3 space-y-0"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><div className="space-y-1 leading-none"><FormLabel>Vacation Bible School</FormLabel></div></FormItem>
-                )} />
-                <FormField control={control} name={`children.${childIndex}.interestSelections.college-tour`} render={({ field }) => (
-                    <FormItem className="flex flex-row items-start space-x-3 space-y-0"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><div className="space-y-1 leading-none"><FormLabel>College Tour</FormLabel></div></FormItem>
-                )} />
-            </div>
-        </div>
-    );
-};
-
+const getAgeFromDob = (dobString: string): number | null => {
+    if (dobString && isValid(parseISO(dobString))) {
+        return differenceInYears(new Date(), parseISO(dobString));
+    }
+    return null;
+}
 
 export default function RegisterPage() {
   const { toast } = useToast()
@@ -373,6 +295,8 @@ export default function RegisterPage() {
     control: form.control,
     name: "children",
   });
+
+  const childrenData = useWatch({ control: form.control, name: 'children' });
 
   const prefillForm = (data: any) => {
     form.reset(data);
@@ -593,7 +517,7 @@ export default function RegisterPage() {
                                     <AccordionTrigger className="font-headline">
                                         {form.watch(`children.${index}.first_name`) || `Child ${index + 1}`}
                                     </AccordionTrigger>
-                                    <AccordionContent className="space-y-4 pt-4">
+                                    <AccordionContent className="space-y-4 pt-4 relative">
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                             <FormField control={form.control} name={`children.${index}.first_name`} render={({ field }) => (
                                                 <FormItem><FormLabel>First Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
@@ -615,16 +539,90 @@ export default function RegisterPage() {
                                             <FormItem><FormLabel>Other Safety Info</FormLabel><FormControl><Textarea placeholder="Anything else we should know?" {...field} /></FormControl><FormMessage /></FormItem>
                                         )} />
                                         
-                                        <ChildMinistryForm childIndex={index} control={form.control} />
-                                        
                                         <Button type="button" variant="destructive" size="sm" onClick={() => removeChild(index)}><Trash2 className="mr-2 h-4 w-4" /> Remove Child</Button>
                                     </AccordionContent>
                                 </AccordionItem>
                             ))}
                         </Accordion>
-                        <Button type="button" variant="outline" size="sm" className="mt-4" onClick={() => appendChild(defaultChildValues)}><PlusCircle className="mr-2 h-4 w-4" /> Add Child</Button>
+                        <Button type="button" variant="outline" size="sm" className="mt-4" onClick={() => {
+                            appendChild(defaultChildValues);
+                            setOpenAccordionItems(prev => [...prev, `item-${childFields.length}`]);
+                        }}><PlusCircle className="mr-2 h-4 w-4" /> Add Child</Button>
                     </CardContent>
                 </Card>
+
+                {childFields.length > 0 && (
+                    <>
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="font-headline">Ministry Programs</CardTitle>
+                            <CardDescription>Sunday School/Children's Church is automatic for all registered children.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-6">
+                            {ministryPrograms.map(program => {
+                                const isProgramVisible = childrenData.some((child, i) => program.eligibility(getAgeFromDob(child.dob)));
+                                if (!isProgramVisible) return null;
+                                
+                                return (
+                                <div key={program.id} className="p-4 border rounded-md">
+                                    <h4 className="font-semibold">{program.label}</h4>
+                                    {program.description && <p className="text-sm text-muted-foreground mb-2">{program.description}</p>}
+                                    <div className="flex flex-col sm:flex-row sm:flex-wrap gap-x-6 gap-y-2 mt-2">
+                                        {childrenData.map((child, index) => {
+                                            const age = getAgeFromDob(child.dob);
+                                            if (!program.eligibility(age)) return null;
+                                            
+                                            return (
+                                                <FormField
+                                                    key={`${program.id}-${childFields[index].id}`}
+                                                    control={form.control}
+                                                    name={`children.${index}.ministrySelections.${program.id as keyof z.infer<typeof ministrySelectionSchema>}`}
+                                                    render={({ field }) => (
+                                                        <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                                                            <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                                                            <FormLabel className="font-normal">{child.first_name || `Child ${index + 1}`}</FormLabel>
+                                                        </FormItem>
+                                                    )}
+                                                />
+                                            )
+                                        })}
+                                    </div>
+                                </div>
+                            )})}
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="font-headline">Interest-Only Activities</CardTitle>
+                            <CardDescription>Let us know if you're interested. This does not register you.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-6">
+                            {interestPrograms.map(program => (
+                                <div key={program.id} className="p-4 border rounded-md">
+                                    <h4 className="font-semibold">{program.label}</h4>
+                                     <div className="flex flex-col sm:flex-row sm:flex-wrap gap-x-6 gap-y-2 mt-2">
+                                        {childrenData.map((child, index) => (
+                                            <FormField
+                                                key={`${program.id}-${childFields[index].id}`}
+                                                control={form.control}
+                                                name={`children.${index}.interestSelections.${program.id as keyof z.infer<typeof interestSelectionSchema>}`}
+                                                render={({ field }) => (
+                                                    <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                                                        <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                                                        <FormLabel className="font-normal">{child.first_name || `Child ${index + 1}`}</FormLabel>
+                                                    </FormItem>
+                                                )}
+                                            />
+                                        ))}
+                                    </div>
+                                </div>
+                            ))}
+                        </CardContent>
+                    </Card>
+                    </>
+                )}
+
 
                 <Card>
                     <CardHeader><CardTitle className="font-headline">Consents</CardTitle></CardHeader>
