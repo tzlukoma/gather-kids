@@ -496,27 +496,33 @@ export default function RostersPage() {
       </div>
 
       <Card>
-        <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div>
-                <CardTitle className="font-headline">All Children</CardTitle>
-                <CardDescription>A complete list of all children registered.</CardDescription>
-            </div>
-            <div className="flex flex-wrap items-center gap-4">
-                <div className="flex items-center space-x-2">
-                    <Select value={selectedMinistryFilter} onValueChange={setSelectedMinistryFilter}>
-                        <SelectTrigger className="w-full sm:w-[200px]">
-                            <SelectValue placeholder="Filter by Ministry" />
-                        </SelectTrigger>
-                        <SelectContent>
-                             {(user?.role === 'admin' || (user?.role === 'leader' && user.assignedMinistryIds && user.assignedMinistryIds.length > 1)) && (
-                                <SelectItem value="all">All Ministries</SelectItem>
-                            )}
-                            {ministryFilterOptions.map(m => (
-                                <SelectItem key={m.ministry_id} value={m.ministry_id}>{m.name}</SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
+        <CardHeader className="space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                <div>
+                    <CardTitle className="font-headline">All Children</CardTitle>
+                    <CardDescription>A complete list of all children registered.</CardDescription>
                 </div>
+                <Button variant="outline">
+                    <FileDown className="mr-2 h-4 w-4" />
+                    Export CSV
+                </Button>
+            </div>
+            <div className="flex items-center">
+                <Select value={selectedMinistryFilter} onValueChange={setSelectedMinistryFilter}>
+                    <SelectTrigger className="w-full sm:w-[250px]">
+                        <SelectValue placeholder="Filter by Ministry" />
+                    </SelectTrigger>
+                    <SelectContent>
+                            {(user?.role === 'admin' || (user?.role === 'leader' && user.assignedMinistryIds && user.assignedMinistryIds.length > 1)) && (
+                            <SelectItem value="all">All Ministries</SelectItem>
+                        )}
+                        {ministryFilterOptions.map(m => (
+                            <SelectItem key={m.ministry_id} value={m.ministry_id}>{m.name}</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+            </div>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
                  {user?.role === 'admin' && (
                     <div className="flex items-center space-x-2">
                         <Checkbox id="group-by-grade" checked={groupByGrade} onCheckedChange={(checked) => setGroupByGrade(!!checked)} />
@@ -531,10 +537,6 @@ export default function RostersPage() {
                     <Checkbox id="show-checked-out" checked={showCheckedOut} onCheckedChange={(checked) => setShowCheckedOut(!!checked)} />
                     <Label htmlFor="show-checked-out">Checked-Out</Label>
                 </div>
-                <Button variant="outline">
-                    <FileDown className="mr-2 h-4 w-4" />
-                    Export CSV
-                </Button>
             </div>
         </CardHeader>
         <CardContent>
@@ -563,7 +565,3 @@ export default function RostersPage() {
     </>
   );
 }
-
-    
-
-    
