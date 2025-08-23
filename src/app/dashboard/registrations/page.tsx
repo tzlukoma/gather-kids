@@ -14,6 +14,7 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { queryHouseholdList } from "@/lib/dal";
 import { format } from "date-fns";
+import { ChevronRight } from "lucide-react";
 
 export default function RegistrationsPage() {
     const router = useRouter();
@@ -47,6 +48,7 @@ export default function RegistrationsPage() {
                                 <TableHead>Household Name</TableHead>
                                 <TableHead>Registration Date</TableHead>
                                 <TableHead>Children</TableHead>
+                                <TableHead className="w-[50px]"></TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -55,11 +57,14 @@ export default function RegistrationsPage() {
                                     <TableCell className="font-medium">{household.name}</TableCell>
                                     <TableCell>{format(new Date(household.created_at), "PPP")}</TableCell>
                                     <TableCell>{household.children.map(c => `${c.first_name} (${c.age})`).join(', ')}</TableCell>
+                                    <TableCell>
+                                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                                    </TableCell>
                                 </TableRow>
                             ))}
                             {households.length === 0 && (
                                 <TableRow>
-                                    <TableCell colSpan={3} className="text-center h-24 text-muted-foreground">
+                                    <TableCell colSpan={4} className="text-center h-24 text-muted-foreground">
                                         No households have registered yet.
                                     </TableCell>
                                 </TableRow>
