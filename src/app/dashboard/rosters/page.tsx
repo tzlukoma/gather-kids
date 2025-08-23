@@ -183,11 +183,11 @@ export default function RostersPage() {
                       <Badge variant="destructive">Allergy</Badge>
                     )}
                   </TableCell>
-                   <TableCell>
+                   <TableCell className="w-28">
                     {child.activeAttendance ? (
-                      <Button variant="outline" size="sm" onClick={() => setChildToCheckout(child)}>Check Out</Button>
+                      <Button variant="outline" size="sm" className="w-full" onClick={() => setChildToCheckout(child)}>Check Out</Button>
                     ) : (
-                      <Button size="sm" onClick={() => handleCheckIn(child)}>Check In</Button>
+                      <Button size="sm" className="w-full" onClick={() => handleCheckIn(child)}>Check In</Button>
                     )}
                   </TableCell>
                 </TableRow>
