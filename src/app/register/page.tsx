@@ -2,7 +2,7 @@
 
 "use client"
 
-import { useForm, useFieldArray } from "react-hook-form"
+import { useForm, useFieldArray, useWatch } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { Button } from "@/components/ui/button"
@@ -22,11 +22,12 @@ import { Separator } from "@/components/ui/separator"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { useToast } from "@/hooks/use-toast"
 import { PlusCircle, Trash2 } from "lucide-react"
-import { useEffect, useState } from "react"
+import { useEffect, useState, useMemo } from "react"
 import { Textarea } from "@/components/ui/textarea"
 import { registerHousehold } from "@/lib/dal"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Info } from "lucide-react"
+import { differenceInYears, isWithinInterval, parse, parseISO, isValid } from "date-fns"
 
 
 const MOCK_EMAILS = {
@@ -51,18 +52,37 @@ const MOCK_HOUSEHOLD_DATA = {
         relationship: "Aunt"
     },
     children: [
-        { first_name: "Olivia", last_name: "Johnson", dob: "2020-05-10", grade: "Pre-K", allergies: "Tree nuts", medical_notes: "Carries an EpiPen." },
-        { first_name: "Noah", last_name: "Johnson", dob: "2017-09-15", grade: "2nd Grade", allergies: "", medical_notes: "" },
+        { first_name: "Olivia", last_name: "Johnson", dob: "2020-05-10", grade: "Pre-K", allergies: "Tree nuts", medical_notes: "Carries an EpiPen.", ministrySelections: { "acolyte": false, "bible-bee": false, "dance": false, "media-production": false, "mentoring-boys": false, "mentoring-girls": false, "teen-fellowship": false, "choir-joy-bells": false, "choir-keita": false, "choir-teen": false, "youth-ushers": false }, interestSelections: { "childrens-musical": false, "confirmation": false, "orators": false, "nursery": false, "vbs": false, "college-tour": false } },
+        { first_name: "Noah", last_name: "Johnson", dob: "2015-09-15", grade: "4th Grade", allergies: "", medical_notes: "", ministrySelections: { "acolyte": true, "bible-bee": true, "dance": false, "media-production": false, "mentoring-boys": true, "mentoring-girls": false, "teen-fellowship": false, "choir-joy-bells": false, "choir-keita": true, "choir-teen": false, "youth-ushers": false }, interestSelections: { "childrens-musical": true, "confirmation": false, "orators": true, "nursery": false, "vbs": true, "college-tour": false } },
     ],
-    ministrySelections: {
-        choir: true,
-        bibleBee: false,
-    },
     consents: {
         liability: true,
         photoRelease: false,
     },
 };
+
+const ministrySelectionSchema = z.object({
+    acolyte: z.boolean().default(false),
+    "bible-bee": z.boolean().default(false),
+    dance: z.boolean().default(false),
+    "media-production": z.boolean().default(false),
+    "mentoring-boys": z.boolean().default(false),
+    "mentoring-girls": z.boolean().default(false),
+    "teen-fellowship": z.boolean().default(false),
+    "choir-joy-bells": z.boolean().default(false),
+    "choir-keita": z.boolean().default(false),
+    "choir-teen": z.boolean().default(false),
+    "youth-ushers": z.boolean().default(false),
+}).optional();
+
+const interestSelectionSchema = z.object({
+    "childrens-musical": z.boolean().default(false),
+    confirmation: z.boolean().default(false),
+    orators: z.boolean().default(false),
+    nursery: z.boolean().default(false),
+    vbs: z.boolean().default(false),
+    "college-tour": z.boolean().default(false),
+}).optional();
 
 
 const guardianSchema = z.object({
@@ -83,6 +103,8 @@ const childSchema = z.object({
   grade: z.string().min(1, "Grade is required."),
   allergies: z.string().optional(),
   medical_notes: z.string().optional(),
+  ministrySelections: ministrySelectionSchema,
+  interestSelections: interestSelectionSchema,
 });
 
 const registrationSchema = z.object({
@@ -98,10 +120,6 @@ const registrationSchema = z.object({
     relationship: z.string().min(1, "Relationship is required."),
   }),
   children: z.array(childSchema).min(1, "At least one child is required."),
-  ministrySelections: z.object({
-    choir: z.boolean().default(false).optional(),
-    bibleBee: z.boolean().default(false).optional(),
-  }),
   consents: z.object({
     liability: z.boolean().refine((val) => val === true, {
       message: "Liability consent is required.",
@@ -210,6 +228,125 @@ function VerificationStepTwoForm({ onVerifySuccess, onGoBack }: { onVerifySucces
     );
 }
 
+const defaultChildValues = {
+  first_name: "", last_name: "", dob: "", grade: "", allergies: "", medical_notes: "",
+  ministrySelections: { "acolyte": false, "bible-bee": false, "dance": false, "media-production": false, "mentoring-boys": false, "mentoring-girls": false, "teen-fellowship": false, "choir-joy-bells": false, "choir-keita": false, "choir-teen": false, "youth-ushers": false },
+  interestSelections: { "childrens-musical": false, "confirmation": false, "orators": false, "nursery": false, "vbs": false, "college-tour": false }
+};
+
+const ChildMinistryForm = ({ childIndex, control }: { childIndex: number, control: any }) => {
+    const dobString = useWatch({
+        control,
+        name: `children.${childIndex}.dob`,
+    });
+
+    const eligibility = useMemo(() => {
+        const result = {
+            age: null as number | null,
+            isBibleBeeOpen: false,
+            isJoyBellsEligible: false,
+            isKeitaPraiseEligible: false,
+            isTeenChoirEligible: false,
+        };
+
+        if (dobString && isValid(parseISO(dobString))) {
+            const age = differenceInYears(new Date(), parseISO(dobString));
+            result.age = age;
+            result.isJoyBellsEligible = age >= 4 && age <= 8;
+            result.isKeitaPraiseEligible = age >= 9 && age <= 12;
+            result.isTeenChoirEligible = age >= 13 && age <= 18;
+        }
+
+        const today = new Date();
+        const bibleBeeStart = new Date(today.getFullYear(), 0, 1); // Assume open all year for demo
+        const bibleBeeEnd = new Date(today.getFullYear(), 9, 8);
+        result.isBibleBeeOpen = isWithinInterval(today, { start: bibleBeeStart, end: bibleBeeEnd });
+
+        return result;
+    }, [dobString]);
+
+
+    return (
+        <div className="space-y-6 pt-4">
+            <Separator />
+            <h4 className="font-semibold font-headline text-lg">Ministry Programs</h4>
+            <div className="space-y-4">
+                <p className="font-medium">Programs to Join</p>
+                <p className="text-sm text-muted-foreground">Sunday School/Children's Church is automatic for all registered children.</p>
+
+                <FormField control={control} name={`children.${childIndex}.ministrySelections.acolyte`} render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><div className="space-y-1 leading-none"><FormLabel>Acolyte Ministry</FormLabel></div></FormItem>
+                )} />
+
+                {eligibility.isBibleBeeOpen && (
+                    <FormField control={control} name={`children.${childIndex}.ministrySelections.bible-bee`} render={({ field }) => (
+                        <FormItem className="flex flex-row items-start space-x-3 space-y-0"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><div className="space-y-1 leading-none"><FormLabel>Bible Bee</FormLabel><FormDescription>Registration open until Oct. 8, 2023</FormDescription></div></FormItem>
+                    )} />
+                )}
+
+                <FormField control={control} name={`children.${childIndex}.ministrySelections.dance`} render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><div className="space-y-1 leading-none"><FormLabel>Dance Ministry</FormLabel></div></FormItem>
+                )} />
+                <FormField control={control} name={`children.${childIndex}.ministrySelections.media-production`} render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><div className="space-y-1 leading-none"><FormLabel>Media Production Ministry</FormLabel></div></FormItem>
+                )} />
+                <FormField control={control} name={`children.${childIndex}.ministrySelections.mentoring-boys`} render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><div className="space-y-1 leading-none"><FormLabel>Mentoring Ministry-Boys (Khalfani)</FormLabel></div></FormItem>
+                )} />
+                <FormField control={control} name={`children.${childIndex}.ministrySelections.mentoring-girls`} render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><div className="space-y-1 leading-none"><FormLabel>Mentoring Ministry-Girls (Nailah)</FormLabel></div></FormItem>
+                )} />
+                <FormField control={control} name={`children.${childIndex}.ministrySelections.teen-fellowship`} render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><div className="space-y-1 leading-none"><FormLabel>New Generation Teen Fellowship</FormLabel></div></FormItem>
+                )} />
+
+                {eligibility.isJoyBellsEligible && (
+                    <FormField control={control} name={`children.${childIndex}.ministrySelections.choir-joy-bells`} render={({ field }) => (
+                        <FormItem className="flex flex-row items-start space-x-3 space-y-0"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><div className="space-y-1 leading-none"><FormLabel>Youth Choirs- Joy Bells (Ages 4-8)</FormLabel></div></FormItem>
+                    )} />
+                )}
+                 {eligibility.isKeitaPraiseEligible && (
+                    <FormField control={control} name={`children.${childIndex}.ministrySelections.choir-keita`} render={({ field }) => (
+                        <FormItem className="flex flex-row items-start space-x-3 space-y-0"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><div className="space-y-1 leading-none"><FormLabel>Youth Choirs- Keita Praise Choir (Ages 9-12)</FormLabel></div></FormItem>
+                    )} />
+                )}
+                {eligibility.isTeenChoirEligible && (
+                    <FormField control={control} name={`children.${childIndex}.ministrySelections.choir-teen`} render={({ field }) => (
+                        <FormItem className="flex flex-row items-start space-x-3 space-y-0"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><div className="space-y-1 leading-none"><FormLabel>Youth Choirs- New Generation Teen Choir (Ages 13-18)</FormLabel></div></FormItem>
+                    )} />
+                )}
+                
+                <FormField control={control} name={`children.${childIndex}.ministrySelections.youth-ushers`} render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><div className="space-y-1 leading-none"><FormLabel>Youth Ushers</FormLabel></div></FormItem>
+                )} />
+            </div>
+            <Separator />
+            <div className="space-y-4">
+                <p className="font-medium">Express Interest In</p>
+                <FormField control={control} name={`children.${childIndex}.interestSelections.childrens-musical`} render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><div className="space-y-1 leading-none"><FormLabel>Children's Musical</FormLabel></div></FormItem>
+                )} />
+                 <FormField control={control} name={`children.${childIndex}.interestSelections.confirmation`} render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><div className="space-y-1 leading-none"><FormLabel>Confirmation</FormLabel></div></FormItem>
+                )} />
+                 <FormField control={control} name={`children.${childIndex}.interestSelections.orators`} render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><div className="space-y-1 leading-none"><FormLabel>New Jersey Orators</FormLabel></div></FormItem>
+                )} />
+                 <FormField control={control} name={`children.${childIndex}.interestSelections.nursery`} render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><div className="space-y-1 leading-none"><FormLabel>Nursery</FormLabel></div></FormItem>
+                )} />
+                <FormField control={control} name={`children.${childIndex}.interestSelections.vbs`} render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><div className="space-y-1 leading-none"><FormLabel>Vacation Bible School</FormLabel></div></FormItem>
+                )} />
+                <FormField control={control} name={`children.${childIndex}.interestSelections.college-tour`} render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><div className="space-y-1 leading-none"><FormLabel>College Tour</FormLabel></div></FormItem>
+                )} />
+            </div>
+        </div>
+    );
+};
+
+
 export default function RegisterPage() {
   const { toast } = useToast()
   const [verificationStep, setVerificationStep] = useState<VerificationStep>('enter_email');
@@ -223,7 +360,6 @@ export default function RegisterPage() {
       guardians: [{ first_name: "", last_name: "", mobile_phone: "", email: "", relationship: "Mother", is_primary: true }],
       emergencyContact: { first_name: "", last_name: "", mobile_phone: "", relationship: "" },
       children: [],
-      ministrySelections: { choir: false, bibleBee: false },
       consents: { liability: false, photoRelease: false },
     },
   })
@@ -238,10 +374,10 @@ export default function RegisterPage() {
     name: "children",
   });
 
-  const prefillForm = (data: RegistrationFormValues) => {
+  const prefillForm = (data: any) => {
     form.reset(data);
     if (data.children && data.children.length > 0) {
-      setOpenAccordionItems(data.children.map((_, index) => `item-${index}`));
+      setOpenAccordionItems(data.children.map((_: any, index: number) => `item-${index}`));
     }
   }
 
@@ -264,8 +400,7 @@ export default function RegisterPage() {
                 household: { name: "", address_line1: "" },
                 guardians: [{ first_name: "", last_name: "", mobile_phone: "", email: verificationEmail, relationship: "Mother", is_primary: true }],
                 emergencyContact: { first_name: "", last_name: "", mobile_phone: "", relationship: "" },
-                children: [{ first_name: "", last_name: "", dob: "", grade: "", allergies: "", medical_notes: "" }],
-                ministrySelections: { choir: false, bibleBee: false },
+                children: [defaultChildValues],
                 consents: { liability: false, photoRelease: false },
              });
             setOpenAccordionItems(['item-0']);
@@ -296,13 +431,7 @@ export default function RegisterPage() {
     }
   }
 
-  const [isBibleBeeVisible, setIsBibleBeeVisible] = useState(false);
   const primaryGuardianLastName = form.watch("guardians.0.last_name");
-
-  useEffect(() => {
-    const today = new Date();
-    setIsBibleBeeVisible(today.getMonth() === 7);
-  }, []);
 
 
   return (
@@ -485,27 +614,15 @@ export default function RegisterPage() {
                                         <FormField control={form.control} name={`children.${index}.medical_notes`} render={({ field }) => (
                                             <FormItem><FormLabel>Other Safety Info</FormLabel><FormControl><Textarea placeholder="Anything else we should know?" {...field} /></FormControl><FormMessage /></FormItem>
                                         )} />
+                                        
+                                        <ChildMinistryForm childIndex={index} control={form.control} />
+                                        
                                         <Button type="button" variant="destructive" size="sm" onClick={() => removeChild(index)}><Trash2 className="mr-2 h-4 w-4" /> Remove Child</Button>
                                     </AccordionContent>
                                 </AccordionItem>
                             ))}
                         </Accordion>
-                        <Button type="button" variant="outline" size="sm" className="mt-4" onClick={() => appendChild({ first_name: "", last_name: "", dob: "", grade: "", allergies: "", medical_notes: "" })}><PlusCircle className="mr-2 h-4 w-4" /> Add Child</Button>
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="font-headline">Ministry Programs</CardTitle>
-                        <CardDescription>Sunday School is automatic. Select additional interests.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        <FormField control={form.control} name="ministrySelections.choir" render={({ field }) => (
-                            <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><div className="space-y-1 leading-none"><FormLabel>Children's Choir (Ages 7-12)</FormLabel><FormDescription>Requires commitment for weekly practice.</FormDescription></div></FormItem>
-                        )} />
-                        {isBibleBeeVisible && <FormField control={form.control} name="ministrySelections.bibleBee" render={({ field }) => (
-                            <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><div className="space-y-1 leading-none"><FormLabel>Bible Bee Competition (Interest Only)</FormLabel><FormDescription>Sign-ups open in August only. This indicates interest for more information.</FormDescription></div></FormItem>
-                        )} />}
+                        <Button type="button" variant="outline" size="sm" className="mt-4" onClick={() => appendChild(defaultChildValues)}><PlusCircle className="mr-2 h-4 w-4" /> Add Child</Button>
                     </CardContent>
                 </Card>
 
@@ -528,7 +645,3 @@ export default function RegisterPage() {
     </div>
   )
 }
-
-    
-
-    
