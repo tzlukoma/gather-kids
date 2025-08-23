@@ -32,11 +32,12 @@ import { TeenFellowshipForm } from "@/components/ministrysync/teen-fellowship-fo
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { useLiveQuery } from "dexie-react-hooks"
 import { db } from "@/lib/db"
-import type { Ministry, Household } from "@/lib/types"
+import type { Ministry, Household, CustomQuestion } from "@/lib/types"
 
 
 const MOCK_EMAILS = {
-    OVERWRITE: 'mary.j@example.com', // This email exists and has a current registration
+    PREFILL_OVERWRITE: 'prefill.overwrite@example.com', // This email exists and has a current registration
+    PREFILL_NO_OVERWRITE: 'mary.j@example.com', // This email exists from a prior year registration
     VERIFY: 'verify@example.com', // This will trigger the security question flow
     NEW: 'new@example.com',
 };
@@ -65,6 +66,7 @@ const guardianSchema = z.object({
 });
 
 const childSchema = z.object({
+  child_id: z.string().optional(),
   first_name: z.string().min(1, "First name is required."),
   last_name: z.string().min(1, "Last name is required."),
   dob: z.string().refine((val) => val && !isNaN(Date.parse(val)), {
@@ -120,7 +122,7 @@ function VerificationStepTwoForm({ onVerifySuccess, onGoBack }: { onVerifySucces
 
     async function onSubmit() {
         // This is a mock verification. In a real app this would hit a server.
-        const householdData = await findHouseholdByEmail(MOCK_EMAILS.OVERWRITE, '2025');
+        const householdData = await findHouseholdByEmail(MOCK_EMAILS.PREFILL_OVERWRITE, '2025');
         if (householdData) {
             onVerifySuccess();
             toast({ title: "Verification Successful!", description: "Your household information has been pre-filled." });
@@ -143,7 +145,7 @@ function VerificationStepTwoForm({ onVerifySuccess, onGoBack }: { onVerifySucces
                             <AlertTitle>For Prototype Demo</AlertTitle>
                             <AlertDescription>
                                 <p>To pass this step, you would need to implement a real verification flow. For now, this is just a placeholder.</p>
-                                <p>You can go back and use the `{MOCK_EMAILS.OVERWRITE}` email to see the pre-fill flow.</p>
+                                <p>You can go back and use the `{MOCK_EMAILS.PREFILL_OVERWRITE}` email to see the pre-fill flow.</p>
                             </AlertDescription>
                         </Alert>
                         <FormField
@@ -268,9 +270,22 @@ const ProgramSection = ({ control, childrenData, program, childFields }: { contr
              {isAnyChildSelected && program.code === 'dance' && (
                 <DanceMinistryForm control={control} />
             )}
-             {isAnyChildSelected && program.code === 'teen-fellowship' && (
-                <TeenFellowshipForm control={control} customQuestions={program.custom_questions || []} />
-            )}
+            {childrenData.map((child, index) => {
+                 const isSelected = ministrySelections[index]?.ministrySelections?.[program.code];
+                 if (!isSelected || !program.custom_questions || program.custom_questions.length === 0) return null;
+
+                 return (
+                    <div key={`custom-form-${child.child_id || index}`}>
+                        <p className="font-medium mt-4 mb-2 text-sm">Questions for {child.first_name}:</p>
+                        {program.code === 'teen-fellowship' ? (
+                            <TeenFellowshipForm control={control} childIndex={index} customQuestions={program.custom_questions || []} />
+                        ) : (
+                            // Generic Custom Form renderer could go here if needed
+                            null
+                        )}
+                    </div>
+                 )
+            })}
             {isAnyChildSelected && program.details && (
                  <Alert className="mt-4">
                     <Info className="h-4 w-4" />
@@ -458,7 +473,8 @@ export default function RegisterPage() {
                         <AlertDescription>
                             <p>Click an email below or type one to begin:</p>
                             <ul className="list-disc pl-5 text-sm">
-                                <li>Use <button className="text-left font-semibold underline" onClick={() => setVerificationEmail(MOCK_EMAILS.OVERWRITE)}>{MOCK_EMAILS.OVERWRITE}</button> to pre-fill the form and see the overwrite warning.</li>
+                                <li>Use <button className="text-left font-semibold underline" onClick={() => setVerificationEmail(MOCK_EMAILS.PREFILL_OVERWRITE)}>{MOCK_EMAILS.PREFILL_OVERWRITE}</button> to pre-fill the form and see the overwrite warning.</li>
+                                <li>Use <button className="text-left font-semibold underline" onClick={() => setVerificationEmail(MOCK_EMAILS.PREFILL_NO_OVERWRITE)}>{MOCK_EMAILS.PREFILL_NO_OVERWRITE}</button> to pre-fill from a prior year's registration.</li>
                                 <li>Use <button className="text-left font-semibold underline" onClick={() => setVerificationEmail(MOCK_EMAILS.VERIFY)}>{MOCK_EMAILS.VERIFY}</button> to see the (mock) verification step.</li>
                                 <li>Any other email will start a new registration.</li>
                             </ul>
@@ -471,7 +487,7 @@ export default function RegisterPage() {
         {verificationStep === 'verify_identity' && (
             <VerificationStepTwoForm 
                 onVerifySuccess={async () => {
-                    const householdData = await findHouseholdByEmail(MOCK_EMAILS.OVERWRITE, '2025');
+                    const householdData = await findHouseholdByEmail(MOCK_EMAILS.PREFILL_OVERWRITE, '2025');
                     if (householdData) {
                         prefillForm(householdData);
                         setVerificationStep('form_visible');
@@ -705,7 +721,7 @@ export default function RegisterPage() {
                                 </div>
                             </div>
                             
-                             {otherMinistryPrograms.map(program => (
+                             {otherMinistryPrograms.filter(p => p.code !== 'min_sunday_school').map(program => (
                                 <ProgramSection key={program.ministry_id} control={form.control} childrenData={childrenData} program={program} childFields={childFields} />
                             ))}
 
