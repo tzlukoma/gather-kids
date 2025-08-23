@@ -371,26 +371,18 @@ export default function RegisterPage() {
     return { enrolledPrograms: enrolled, interestPrograms: interest };
   }, [allMinistries]);
 
-  const { choirPrograms, teenFellowshipProgram, otherMinistryPrograms } = useMemo(() => {
-    if (!enrolledPrograms) return { choirPrograms: [], teenFellowshipProgram: null, otherMinistryPrograms: [] };
-
-    const sortedPrograms = [...enrolledPrograms].sort((a, b) => a.name.localeCompare(b.name));
+  const { choirPrograms, ministryPrograms } = useMemo(() => {
+    if (!enrolledPrograms) return { choirPrograms: [], ministryPrograms: [] };
     
-    const choir: Ministry[] = [];
-    let teen: Ministry | null = null;
-    const other: Ministry[] = [];
+    const choir = enrolledPrograms
+      .filter(program => program.code.startsWith('choir-'))
+      .sort((a, b) => a.name.localeCompare(b.name));
+      
+    const otherMinistries = enrolledPrograms
+      .filter(program => !program.code.startsWith('choir-'))
+      .sort((a, b) => a.name.localeCompare(b.name));
     
-    for (const program of sortedPrograms) {
-      if (program.code.startsWith('choir-')) {
-        choir.push(program);
-      } else if (program.code === 'teen-fellowship') {
-        teen = program;
-      } else {
-        other.push(program);
-      }
-    }
-    
-    return { choirPrograms: choir, teenFellowshipProgram: teen, otherMinistryPrograms: other };
+    return { choirPrograms: choir, ministryPrograms: otherMinistries };
   }, [enrolledPrograms]);
 
 
@@ -727,13 +719,9 @@ export default function RegisterPage() {
                                 </div>
                             </div>
                             
-                            {otherMinistryPrograms.map(program => (
+                            {ministryPrograms.map(program => (
                                 <ProgramSection key={program.ministry_id} control={form.control} childrenData={childrenData} program={program} childFields={childFields} />
                             ))}
-                            
-                            {teenFellowshipProgram && (
-                                <ProgramSection key={teenFellowshipProgram.ministry_id} control={form.control} childrenData={childrenData} program={teenFellowshipProgram} childFields={childFields} />
-                            )}
 
                             {choirPrograms.length > 0 && (
                                 <div className="p-4 border rounded-md space-y-4">
