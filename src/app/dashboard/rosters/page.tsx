@@ -16,7 +16,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { FileDown, ArrowUpDown } from "lucide-react";
 import { format } from "date-fns";
-import { getTodayIsoDate, recordCheckIn, recordCheckOut } from "@/lib/dal";
+import { getTodayIsoDate, recordCheckIn, recordCheckOut, exportRosterCSV } from "@/lib/dal";
 import { useMemo, useState, useEffect } from "react";
 import type { Child, Guardian, Attendance, Household, EmergencyContact, Ministry } from "@/lib/types";
 import { CheckoutDialog } from "@/components/ministrysync/checkout-dialog";
@@ -296,6 +296,17 @@ export default function RostersPage() {
     else setGradeSort('none');
   };
 
+  const handleExport = async () => {
+    const blob = await exportRosterCSV(displayChildren);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `roster_${today}_${selectedMinistryFilter}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast({ title: "Exported", description: "The filtered roster has been downloaded." });
+  }
+
   if (!childrenWithDetails) {
     return <div>Loading rosters...</div>
   }
@@ -503,7 +514,7 @@ export default function RostersPage() {
                         <CardTitle className="font-headline">All Children</CardTitle>
                         <CardDescription>A complete list of all children registered.</CardDescription>
                     </div>
-                    <Button variant="outline">
+                    <Button variant="outline" onClick={handleExport}>
                         <FileDown className="mr-2 h-4 w-4" />
                         Export CSV
                     </Button>
