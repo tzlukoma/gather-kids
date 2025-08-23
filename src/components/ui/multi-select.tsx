@@ -20,7 +20,6 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
 
 export type MultiSelectOption = {
   value: string;
@@ -50,14 +49,6 @@ function MultiSelect({
     onChange(selected.filter((i) => i !== item));
   };
 
-  const handleSelect = (value: string) => {
-    onChange(
-        selected.includes(value)
-          ? selected.filter((item) => item !== value)
-          : [...selected, value]
-      );
-  }
-
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild id={id}>
@@ -66,6 +57,7 @@ function MultiSelect({
           role="combobox"
           aria-expanded={open}
           className={cn("w-full justify-between h-auto min-h-10", className)}
+          onClick={() => setOpen(!open)}
         >
           <div className="flex gap-1 flex-wrap">
             {selected.length > 0 ? (
@@ -76,24 +68,13 @@ function MultiSelect({
                             variant="secondary"
                             key={item}
                             className="mr-1"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                handleUnselect(item);
+                            }}
                         >
                             {option ? option.label : item}
-                            <button
-                                aria-label={`Remove ${option ? option.label : item} option`}
-                                className="ml-1 ring-offset-background rounded-full outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-                                onKeyDown={(e) => {
-                                    if (e.key === "Enter") {
-                                        handleUnselect(item);
-                                    }
-                                }}
-                                onMouseDown={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                }}
-                                onClick={() => handleUnselect(item)}
-                            >
-                                <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
-                            </button>
+                            <X className="h-3 w-3 text-muted-foreground hover:text-foreground ml-1" />
                         </Badge>
                     )
                 })
@@ -113,21 +94,26 @@ function MultiSelect({
                     {options.map((option) => (
                     <CommandItem
                         key={option.value}
-                        onSelect={() => handleSelect(option.value)}
-                        className="flex items-center"
+                        onSelect={() => {
+                          onChange(
+                            selected.includes(option.value)
+                              ? selected.filter((item) => item !== option.value)
+                              : [...selected, option.value]
+                          );
+                          setOpen(true);
+                        }}
                     >
-                        <Checkbox
-                            id={`multi-select-${option.value}`}
-                            className="mr-2"
-                            checked={selected.includes(option.value)}
-                            onCheckedChange={() => handleSelect(option.value)}
-                        />
-                        <label
-                            htmlFor={`multi-select-${option.value}`}
-                            className="cursor-pointer w-full"
+                        <div
+                            className={cn(
+                            "mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary",
+                            selected.includes(option.value)
+                                ? "bg-primary text-primary-foreground"
+                                : "opacity-50 [&_svg]:invisible"
+                            )}
                         >
-                            {option.label}
-                        </label>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                        </div>
+                        {option.label}
                     </CommandItem>
                     ))}
                 </CommandGroup>
