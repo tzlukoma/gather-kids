@@ -38,6 +38,7 @@ export default function DashboardLayout({
         <div className="flex flex-col min-h-screen">
         <header className="flex items-center justify-between p-4 border-b bg-background z-20 h-16">
             <div className="flex items-center gap-4">
+                <SidebarTrigger className="md:hidden" />
                 <Link href="/dashboard" className="flex items-center gap-2 text-foreground">
                     <div className="font-headline text-2xl font-bold">gatherKids</div>
                 </Link>
@@ -56,7 +57,7 @@ export default function DashboardLayout({
                 <SidebarHeader className="p-0">
                     <div className="flex items-center justify-between p-2">
                         <SeedDataButton />
-                        <SidebarTrigger />
+                        <SidebarTrigger className="hidden md:flex" />
                     </div>
                 </SidebarHeader>
                 <SidebarMenu>
@@ -64,7 +65,7 @@ export default function DashboardLayout({
                     <Link href="/dashboard" passHref>
                         <SidebarMenuButton tooltip="Dashboard" isActive>
                         <LayoutDashboard />
-                        Dashboard
+                        <span>Dashboard</span>
                         </SidebarMenuButton>
                     </Link>
                     </SidebarMenuItem>
@@ -72,7 +73,7 @@ export default function DashboardLayout({
                     <Link href="/dashboard/check-in" passHref>
                         <SidebarMenuButton tooltip="Check-In/Out">
                         <CheckCheck />
-                        Check-In/Out
+                        <span>Check-In/Out</span>
                         </SidebarMenuButton>
                     </Link>
                     </SidebarMenuItem>
@@ -80,7 +81,7 @@ export default function DashboardLayout({
                     <Link href="/dashboard/rosters" passHref>
                         <SidebarMenuButton tooltip="Rosters">
                         <Users />
-                        Rosters
+                        <span>Rosters</span>
                         </SidebarMenuButton>
                     </Link>
                     </SidebarMenuItem>
@@ -88,7 +89,7 @@ export default function DashboardLayout({
                     <Link href="/dashboard/incidents" passHref>
                         <SidebarMenuButton tooltip="Incidents">
                         <ShieldAlert />
-                        Incidents
+                        <span>Incidents</span>
                         </SidebarMenuButton>
                     </Link>
                     </SidebarMenuItem>
@@ -96,7 +97,7 @@ export default function DashboardLayout({
                     <Link href="/dashboard/reports" passHref>
                         <SidebarMenuButton tooltip="Reports">
                         <FileText />
-                        Reports
+                        <span>Reports</span>
                         </SidebarMenuButton>
                     </Link>
                     </SidebarMenuItem>
@@ -105,7 +106,7 @@ export default function DashboardLayout({
                     <Link href="/register" passHref>
                         <SidebarMenuButton tooltip="New Registration">
                         <ClipboardEdit />
-                        New Registration
+                        <span>New Registration</span>
                         </SidebarMenuButton>
                     </Link>
                     </SidebarMenuItem>
@@ -119,11 +120,11 @@ export default function DashboardLayout({
                         <AvatarImage src="https://placehold.co/40x40.png" alt="Admin" data-ai-hint="user avatar" />
                         <AvatarFallback>A</AvatarFallback>
                     </Avatar>
-                    <div className="flex flex-col text-sm">
+                    <div className="flex flex-col text-sm group-data-[collapsible=icon]:hidden">
                         <span className="font-semibold text-sidebar-foreground">Admin User</span>
                         <span className="text-muted-foreground">admin@church.org</span>
                     </div>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 ml-auto">
+                    <Button variant="ghost" size="icon" className="h-8 w-8 ml-auto group-data-[collapsible=icon]:hidden">
                         <LogOut className="h-4 w-4" />
                     </Button>
                     </div>
