@@ -461,7 +461,7 @@ export async function registerHousehold(data: any, cycle_id: string) {
             await db.ministry_enrollments.add(sundaySchoolEnrollment);
 
             const allSelections = { ...(childData.ministrySelections || {}), ...(childData.interestSelections || {}) };
-            const allMinistries = await db.ministries.where('is_active').equals(1).toArray();
+            const allMinistries = await db.ministries.toArray();
             const ministryMap = new Map(allMinistries.map(m => [m.code, m]));
 
 
