@@ -56,8 +56,8 @@ export default function CheckInPage() {
                 </SelectTrigger>
                 <SelectContent>
                     <SelectItem value="evt_sunday_school">Sunday School</SelectItem>
-                    <SelectItem value="min_choir_kids">Children's Choir Practice</SelectItem>
-                    <SelectItem value="min_youth_group">Youth Group</SelectItem>
+                    <SelectItem value="evt_childrens_church">Children's Church</SelectItem>
+                    <SelectItem value="evt_teen_church">Teen Church</SelectItem>
                 </SelectContent>
             </Select>
         </div>

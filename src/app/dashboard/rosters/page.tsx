@@ -37,6 +37,8 @@ const getEventName = (eventId: string | null) => {
     if (!eventId) return '';
     const eventNames: { [key: string]: string } = {
       'evt_sunday_school': 'Sunday School',
+      'evt_childrens_church': "Children's Church",
+      'evt_teen_church': 'Teen Church',
       'min_choir_kids': "Children's Choir Practice",
       'min_youth_group': 'Youth Group',
     };
@@ -81,7 +83,7 @@ export default function RostersPage() {
 
   const [selectedChildren, setSelectedChildren] = useState<Set<string>>(new Set());
 
-  const [gradeSort, setGradeSort] = useState<SortDirection>("none");
+  const [gradeSort, setGradeSort] = useState<SortDirection>("asc");
 
   const allChildren = useLiveQuery(() => db.children.toArray(), []);
   const todaysAttendance = useLiveQuery(() => db.attendance.where({ date: today }).toArray(), [today]);
@@ -430,8 +432,8 @@ export default function RostersPage() {
                   </SelectTrigger>
                   <SelectContent>
                       <SelectItem value="evt_sunday_school">Sunday School</SelectItem>
-                      <SelectItem value="min_choir_kids">Children's Choir Practice</SelectItem>
-                      <SelectItem value="min_youth_group">Youth Group</SelectItem>
+                      <SelectItem value="evt_childrens_church">Children's Church</SelectItem>
+                      <SelectItem value="evt_teen_church">Teen Church</SelectItem>
                   </SelectContent>
               </Select>
           </div>
@@ -489,4 +491,5 @@ export default function RostersPage() {
     </>
   );
 }
+
 
