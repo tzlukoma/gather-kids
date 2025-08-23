@@ -15,6 +15,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
 import { getTodayIsoDate, recordCheckIn, recordCheckOut } from '@/lib/dal';
+import { Separator } from '../ui/separator';
 
 interface CheckInViewProps {
   initialChildren: Child[];
@@ -237,18 +238,34 @@ export function CheckInView({ initialChildren, selectedEvent }: CheckInViewProps
                       <Info className="h-4 w-4" />
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-64" align="end">
+                  <PopoverContent className="w-80" align="end">
                     <div className="space-y-4">
-                      <h4 className="font-semibold font-headline">Guardian Info</h4>
-                      {child.guardians?.map(g => (
-                        <div key={g.guardian_id} className="text-sm">
-                          <p className="font-medium">{g.first_name} {g.last_name} ({g.relationship})</p>
-                          <p className="text-muted-foreground">{g.mobile_phone}</p>
+                      <div>
+                        <h4 className="font-semibold font-headline mb-2">Guardians</h4>
+                        <div className="space-y-3">
+                            {child.guardians?.map(g => (
+                                <div key={g.guardian_id} className="text-sm">
+                                <p className="font-medium">{g.first_name} {g.last_name} ({g.relationship})</p>
+                                <p className="text-muted-foreground">{g.mobile_phone}</p>
+                                </div>
+                            ))}
+                            {!child.guardians?.length && (
+                                <p className="text-sm text-muted-foreground">No guardian information available.</p>
+                            )}
                         </div>
-                      ))}
-                      {!child.guardians?.length && (
-                          <p className="text-sm text-muted-foreground">No guardian information available.</p>
-                      )}
+                      </div>
+                      <Separator />
+                      <div>
+                        <h4 className="font-semibold font-headline mb-2">Emergency Contact</h4>
+                        {child.emergencyContact ? (
+                             <div className="text-sm">
+                                <p className="font-medium">{child.emergencyContact.first_name} {child.emergencyContact.last_name} ({child.emergencyContact.relationship})</p>
+                                <p className="text-muted-foreground">{child.emergencyContact.mobile_phone}</p>
+                            </div>
+                        ) : (
+                            <p className="text-sm text-muted-foreground">No emergency contact available.</p>
+                        )}
+                      </div>
                     </div>
                   </PopoverContent>
                 </Popover>
