@@ -149,12 +149,14 @@ export const seedDB = async () => {
             { name: "Mentoring Ministry-Boys (Khalfani)", code: "mentoring-boys", enrollment_type: 'enrolled', details: "The Khalfani ministry provides mentorship for young boys through various activities and discussions.", data_profile: 'Basic' },
             { name: "Mentoring Ministry-Girls (Nailah)", code: "mentoring-girls", enrollment_type: 'enrolled', details: "The Nailah ministry provides mentorship for young girls, focusing on empowerment and personal growth.", data_profile: 'Basic' },
             { name: "New Generation Teen Fellowship", code: "teen-fellowship", enrollment_type: 'enrolled', details: "Thank you for registering for New Generation Teen Fellowship.\n\nOn 3rd Sundays, during the 10:30 AM service,  New Generation Teen Fellowship will host Teen Church in the Family Life Enrichment Center.  Teens may sign themselves in and out of the service.\n\nYou will receive more information about ministry activities from minstry leaders.", data_profile: 'Basic', custom_questions: [{id: "teen_podcast", text: "Podcast & YouTube Channel Projects", type: "checkbox"}, {id: "teen_social_media", text: "Social Media Team", type: "checkbox"}, {id: "teen_community_service", text: "Leading Community Service Projects", type: "checkbox"}] },
+            { name: "Symphonic Orchestra", code: "symphonic-orchestra", enrollment_type: 'enrolled', data_profile: 'Basic', details: "The Symphonic Orchestra is for experienced musicians. Auditions may be required." },
             { name: "Youth Choirs- Joy Bells (Ages 4-8)", code: "choir-joy-bells", enrollment_type: 'enrolled', min_age: 4, max_age: 8, details: "Joy Bells is our introductory choir for the youngest voices. Practices are held after the 11 AM service.", data_profile: 'Basic' },
             { name: "Youth Choirs- Keita Praise Choir (Ages 9-12)", code: "choir-keita", enrollment_type: 'enrolled', min_age: 9, max_age: 12, details: "Keita Praise Choir builds on foundational skills and performs once a month. Practices are on Wednesdays.", data_profile: 'Basic' },
             { name: "Youth Choirs- New Generation Teen Choir (Ages 13-18)", code: "choir-teen", enrollment_type: 'enrolled', min_age: 13, max_age: 18, details: "The Teen Choir performs contemporary gospel music and leads worship during Youth Sundays.", data_profile: 'Basic' },
             { name: "Youth Ushers", code: "youth-ushers", enrollment_type: 'enrolled', details: "Thank you for registering for the Youth Ushers Ministry.\n\nYou will receive information from ministry leaders regarding next steps for your child's participation.", data_profile: 'Basic' },
             { name: "Children's Musical", code: "childrens-musical", enrollment_type: 'interest_only', data_profile: 'Basic', communicate_later: true },
             { name: "Confirmation", code: "confirmation", enrollment_type: 'interest_only', data_profile: 'Basic', communicate_later: true },
+            { name: "International Travel", code: "international-travel", enrollment_type: 'interest_only', data_profile: 'Basic'},
             { name: "New Jersey Orators", code: "orators", enrollment_type: 'interest_only', data_profile: 'Basic', optional_consent_text: "I agree to share my contact information with New Jersey Orators. New Jersey Orators is not a part of Cathedral International, but Cathedral hosts the Perth Amboy Chapter. Registration can take place through their website at oratorsinc.org." },
             { name: "Nursery", code: "nursery", enrollment_type: 'interest_only', data_profile: 'Basic', communicate_later: true },
             { name: "Vacation Bible School", code: "vbs", enrollment_type: 'interest_only', data_profile: 'Basic', communicate_later: true },
@@ -256,3 +258,4 @@ export const resetDB = async () => {
     await db.open();
     console.log("Database reset complete.");
 };
+
