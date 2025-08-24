@@ -63,7 +63,7 @@ export function HouseholdProfile({ profileData }: { profileData: HouseholdProfil
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <Card className="lg:col-span-1">
+                <Card className="lg:col-span-1 h-fit">
                     <CardHeader>
                         <CardTitle className="font-headline flex items-center gap-2"><User /> Guardians & Contacts</CardTitle>
                     </CardHeader>
