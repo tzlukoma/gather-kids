@@ -14,13 +14,13 @@ export default function RegisterLayout({
   const [isFlagDialogOpen, setIsFlagDialogOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="flex flex-col min-h-screen bg-background">
       <header className="p-4 border-b">
         <div className="container mx-auto flex items-center gap-2">
             <div className="font-headline text-2xl font-bold text-foreground">gatherKids</div>
         </div>
       </header>
-      <main className="container mx-auto p-4 md:p-6 lg:p-8">
+      <main className="flex-1 container mx-auto p-4 md:p-6 lg:p-8">
         {children}
       </main>
       <footer className="py-6 border-t">
