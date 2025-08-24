@@ -37,7 +37,7 @@ const generateHouseholdsAndChildren = (): { households: Household[], children: C
 
     const families = [
         { lastName: 'Smith', guardian: { f: 'John', l: 'Smith', email: 'reg.overwrite@example.com' }, kids: [{ f: 'Emma', age: 5, allergies: 'Peanuts' }, { f: 'Liam', age: 8 }] },
-        { lastName: 'Johnson', guardian: { f: 'Mary', l: 'Johnson', email: 'reg.prefill@example.com' }, kids: [{ f: 'Olivia', age: 4 }, { f: 'Noah', age: 7, allergies: 'Pollen' }, { f: 'Ava', age: 10, inactive: true }] },
+        { lastName: 'Johnson', guardian: { f: 'Mary', l: 'Johnson', email: 'reg.prefill@example.com' }, kids: [{ f: 'Olivia', age: 4 }, { f: 'Noah', age: 7, allergies: 'Pollen' }, { f: 'Ava', age: 10 }] },
         { lastName: 'Williams', guardian: { f: 'James', l: 'Williams' }, kids: [{ f: 'Isabella', age: 14, mobile: '555-555-3001' }] },
         { lastName: 'Brown', guardian: { f: 'Patricia', l: 'Brown' }, kids: [{ f: 'Sophia', age: 9 }, { f: 'Mason', age: 12 }] },
         { lastName: 'Jones', guardian: { f: 'Robert', l: 'Jones' }, kids: [{ f: 'Mia', age: 3 }, { f: 'Ethan', age: 11 }] },
