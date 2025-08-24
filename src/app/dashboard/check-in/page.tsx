@@ -4,21 +4,20 @@
 import { useState, useMemo, useEffect } from 'react';
 import { CheckInView } from '@/components/gatherKids/check-in-view';
 import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from '@/components/ui/select';
+	Dialog,
+	DialogContent,
+	DialogHeader,
+	DialogTitle,
+	DialogTrigger,
+	DialogDescription,
+} from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
 import { Button } from '@/components/ui/button';
-import { seedDB } from '@/lib/seed';
 import { useAuth } from '@/contexts/auth-context';
 import { useRouter } from 'next/navigation';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { ShieldAlert, Users, Filter } from 'lucide-react';
+import { Users, Filter, Edit } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { getTodayIsoDate } from '@/lib/dal';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -31,6 +30,7 @@ import {
 	SheetTitle,
 	SheetTrigger,
 } from '@/components/ui/sheet';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
 const gradeSortOrder: { [key: string]: number } = {
 	'Pre-K': 0,
@@ -57,11 +57,11 @@ const getGradeValue = (grade?: string): number => {
 
 export type StatusFilter = 'all' | 'checkedIn' | 'checkedOut';
 
-const eventNames: { [key: string]: string } = {
-	evt_sunday_school: 'Sunday School',
-	evt_childrens_church: "Children's Church",
-	evt_teen_church: 'Teen Church',
-};
+const eventOptions = [
+	{ id: 'evt_sunday_school', name: 'Sunday School' },
+	{ id: 'evt_childrens_church', name: "Children's Church" },
+	{ id: 'evt_teen_church', name: 'Teen Church' },
+];
 
 export default function CheckInPage() {
 	const router = useRouter();
@@ -73,6 +73,7 @@ export default function CheckInPage() {
 	const [selectedGrades, setSelectedGrades] = useState<Set<string>>(new Set());
 	const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
 	const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
+	const [isEventDialogOpen, setIsEventDialogOpen] = useState(false);
 
 	const children = useLiveQuery(() => db.children.toArray(), []);
 	const today = getTodayIsoDate();
@@ -85,6 +86,11 @@ export default function CheckInPage() {
 		if (!todaysAttendance) return 0;
 		return todaysAttendance.filter((a) => !a.check_out_at).length;
 	}, [todaysAttendance]);
+
+	const currentEventName = useMemo(() => {
+		return eventOptions.find((e) => e.id === selectedEvent)?.name || 'Select Event';
+	}, [selectedEvent]);
+
 
 	useEffect(() => {
 		if (!loading && user) {
@@ -191,29 +197,40 @@ export default function CheckInPage() {
 
 	return (
 		<div className="flex flex-col gap-4">
-			<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+			<div className="flex items-start justify-between gap-4">
 				<div>
-					<h1 className="text-3xl font-bold font-headline">
+					<h1 className="text-xl font-bold font-headline text-muted-foreground">
 						Child Check-In & Out
 					</h1>
-					<p className="text-muted-foreground">
-						Event: <span className="font-semibold text-foreground">{eventNames[selectedEvent]}</span>
-					</p>
-				</div>
-				<div className="grid w-full max-w-sm items-center gap-1.5">
-					<Label htmlFor="event-select">Select Event</Label>
-					<Select value={selectedEvent} onValueChange={setSelectedEvent}>
-						<SelectTrigger id="event-select">
-							<SelectValue placeholder="Select an event..." />
-						</SelectTrigger>
-						<SelectContent>
-							<SelectItem value="evt_sunday_school">Sunday School</SelectItem>
-							<SelectItem value="evt_childrens_church">
-								Children's Church
-							</SelectItem>
-							<SelectItem value="evt_teen_church">Teen Church</SelectItem>
-						</SelectContent>
-					</Select>
+					<Dialog open={isEventDialogOpen} onOpenChange={setIsEventDialogOpen}>
+						<DialogTrigger asChild>
+							<Button variant="link" className="text-3xl font-bold font-headline p-0 h-auto">
+								{currentEventName}
+								<Edit className="ml-2 h-5 w-5" />
+							</Button>
+						</DialogTrigger>
+						<DialogContent>
+							<DialogHeader>
+								<DialogTitle>Change Event</DialogTitle>
+								<DialogDescription>Select the event you want to manage check-ins for.</DialogDescription>
+							</DialogHeader>
+							<RadioGroup
+								value={selectedEvent}
+								onValueChange={(value) => {
+									setSelectedEvent(value);
+									setIsEventDialogOpen(false);
+								}}
+								className="space-y-2"
+							>
+								{eventOptions.map((event) => (
+									<Label key={event.id} htmlFor={event.id} className="flex items-center gap-4 p-4 border rounded-md cursor-pointer hover:bg-muted/50 has-[input:checked]:bg-muted has-[input:checked]:border-primary">
+										<RadioGroupItem value={event.id} id={event.id} />
+										<span>{event.name}</span>
+									</Label>
+								))}
+							</RadioGroup>
+						</DialogContent>
+					</Dialog>
 				</div>
 			</div>
 
