@@ -7,6 +7,7 @@
 
 
 
+
 import { db } from './db';
 import type { Attendance, Child, Guardian, Household, Incident, IncidentSeverity, Ministry, MinistryEnrollment, Registration, User, EmergencyContact, LeaderAssignment } from './types';
 import { differenceInYears, isAfter, isBefore, parseISO } from 'date-fns';
@@ -344,6 +345,7 @@ export async function findHouseholdByEmail(email: string, currentCycleId: string
     if (currentEnrollmentExists) {
         return {
             isCurrentYear: true,
+            isPrefill: false,
             data: await fetchFullHouseholdData(householdId, currentCycleId)
         };
     }
@@ -357,14 +359,9 @@ export async function findHouseholdByEmail(email: string, currentCycleId: string
     
     if (priorRegExists) {
         const priorData = await fetchFullHouseholdData(householdId, priorCycleId);
-        // Important: Clear household_id and child_id to ensure it's treated as a new registration for the current year, not an update.
-        if (priorData.household) {
-            priorData.household.household_id = "";
-        }
-        priorData.children.forEach(c => c.child_id = undefined);
-        
         return {
             isCurrentYear: false,
+            isPrefill: true,
             data: priorData
         };
     }
