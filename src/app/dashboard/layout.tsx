@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import React from 'react';
@@ -34,6 +33,8 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import { SeedDataButton } from '@/components/ministrysync/seed-data-button';
 import { useAuth, AuthProvider } from '@/contexts/auth-context';
+import { useFeatureFlags } from '@/contexts/feature-flag-context';
+import { FeatureFlagDialog } from '@/components/feature-flag-dialog';
 
 const adminMenuItems = [
   { href: "/dashboard", icon: <LayoutDashboard />, label: "Dashboard" },
@@ -61,6 +62,8 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { user, loading, logout } = useAuth();
+  const { flags } = useFeatureFlags();
+  const [isFlagDialogOpen, setIsFlagDialogOpen] = React.useState(false);
   const [initialRedirectComplete, setInitialRedirectComplete] = React.useState(false);
 
 
@@ -130,7 +133,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
             </div>
             <div className="flex items-center gap-4">
               <p className="font-headline text-lg font-semibold hidden sm:block">Welcome, {user.name}!</p>
-              {user.role === 'admin' && <SeedDataButton />}
+              {user.role === 'admin' && flags.showDemoFeatures && <SeedDataButton />}
                <Button variant="outline" onClick={handleLogout}>
                   <LogOut className="mr-2" />
                   Sign Out
@@ -160,17 +163,21 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                 </SidebarMenu>
                 </SidebarContent>
                 <SidebarFooter>
-                <div className="flex flex-col gap-2">
+                <div className="flex flex-col gap-2 p-2">
+                    <Button variant="ghost" size="sm" onClick={() => setIsFlagDialogOpen(true)} className="w-full justify-start">
+                        <Settings className="mr-2" />
+                        <span className="group-data-[collapsible=icon]:hidden">App Settings</span>
+                    </Button>
                     <Separator />
                     <div className="flex items-center gap-3">
-                    <Avatar className="h-8 w-8">
-                        <AvatarImage src="https://placehold.co/40x40.png" alt={user.name} data-ai-hint="user avatar" />
-                        <AvatarFallback>{user.name?.charAt(0).toUpperCase()}</AvatarFallback>
-                    </Avatar>
-                    <div className="flex flex-col text-sm group-data-[collapsible=icon]:hidden">
-                        <span className="font-semibold text-sidebar-foreground">{user.name}</span>
-                        <span className="text-muted-foreground">{user.email}</span>
-                    </div>
+                        <Avatar className="h-8 w-8">
+                            <AvatarImage src="https://placehold.co/40x40.png" alt={user.name} data-ai-hint="user avatar" />
+                            <AvatarFallback>{user.name?.charAt(0).toUpperCase()}</AvatarFallback>
+                        </Avatar>
+                        <div className="flex flex-col text-sm group-data-[collapsible=icon]:hidden">
+                            <span className="font-semibold text-sidebar-foreground">{user.name}</span>
+                            <span className="text-muted-foreground">{user.email}</span>
+                        </div>
                     </div>
                 </div>
                 </SidebarFooter>
@@ -182,6 +189,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
             </SidebarInset>
         </div>
       </div>
+      <FeatureFlagDialog isOpen={isFlagDialogOpen} onClose={() => setIsFlagDialogOpen(false)} />
     </SidebarProvider>
   );
 }
