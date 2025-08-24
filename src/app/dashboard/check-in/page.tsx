@@ -220,12 +220,9 @@ export default function CheckInPage() {
             </Sheet>
         ) : (
             <Card className="md:col-span-2">
-            <CardHeader>
-                <CardTitle className="text-base font-semibold">Filters</CardTitle>
-            </CardHeader>
-            <CardContent>
-                <FilterControls />
-            </CardContent>
+                <CardContent className="pt-6">
+                    <FilterControls />
+                </CardContent>
             </Card>
         )}
       </div>
