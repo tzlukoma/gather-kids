@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -8,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import type { Child, Guardian, Attendance, Household, EmergencyContact, Incident } from '@/lib/types';
 import { CheckoutDialog } from './checkout-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { User, Search, Info, Cake, AlertTriangle, ShieldAlert, Smartphone, CheckCircle } from 'lucide-react';
+import { User, Search, Info, Cake, AlertTriangle, ShieldAlert, Smartphone, CheckCircle, Camera } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { format, isWithinInterval, subDays, addDays, setYear, parseISO, differenceInYears } from 'date-fns';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -18,6 +19,9 @@ import { getTodayIsoDate, recordCheckIn, recordCheckOut } from '@/lib/dal';
 import { Separator } from '../ui/separator';
 import type { StatusFilter } from '@/app/dashboard/check-in/page';
 import { IncidentDetailsDialog } from './incident-details-dialog';
+import { PhotoCaptureDialog } from './photo-capture-dialog';
+import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
+
 
 interface CheckInViewProps {
   initialChildren: Child[];
@@ -95,6 +99,8 @@ export function CheckInView({ initialChildren, selectedEvent, selectedGrades, st
   const [searchQuery, setSearchQuery] = useState('');
   const { toast } = useToast();
   const [selectedIncidents, setSelectedIncidents] = useState<Incident[] | null>(null);
+  const [selectedChildForPhoto, setSelectedChildForPhoto] = useState<Child | null>(null);
+
 
   const today = getTodayIsoDate();
   const todaysAttendance = useLiveQuery(() => db.attendance.where({date: today}).toArray(), [today]);
@@ -321,9 +327,17 @@ export function CheckInView({ initialChildren, selectedEvent, selectedGrades, st
                   </PopoverContent>
                 </Popover>
                 <CardHeader className="flex flex-col items-center gap-4 p-4 pt-6 text-center sm:flex-row sm:items-start sm:p-6 sm:text-left">
-                   <div className="w-[60px] h-[60px] flex-shrink-0 flex items-center justify-center rounded-full border-2 border-border bg-muted">
-                        <User className="h-8 w-8 text-muted-foreground" />
-                   </div>
+                    <button className="relative w-[60px] h-[60px] flex-shrink-0 group" onClick={() => setSelectedChildForPhoto(child)}>
+                        <Avatar className="w-full h-full border-2 border-border group-hover:border-primary transition-colors">
+                            <AvatarImage src={child.photo_url} alt={child.first_name} />
+                            <AvatarFallback>
+                                <User className="h-8 w-8 text-muted-foreground" />
+                            </AvatarFallback>
+                        </Avatar>
+                        <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Camera className="h-6 w-6 text-white" />
+                        </div>
+                   </button>
                   <div className="flex-1">
                     <CardTitle className="font-headline text-lg">{`${child.first_name} ${child.last_name}`}</CardTitle>
                     <CardDescription>
@@ -403,6 +417,10 @@ export function CheckInView({ initialChildren, selectedEvent, selectedGrades, st
         incidents={selectedIncidents}
         onClose={() => setSelectedIncidents(null)}
        />
+        <PhotoCaptureDialog
+            child={selectedChildForPhoto}
+            onClose={() => setSelectedChildForPhoto(null)}
+        />
     </>
   );
 }

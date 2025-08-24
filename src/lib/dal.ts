@@ -11,6 +11,7 @@
 
 
 
+
 import { db } from './db';
 import type { Attendance, Child, Guardian, Household, Incident, IncidentSeverity, Ministry, MinistryEnrollment, Registration, User, EmergencyContact, LeaderAssignment } from './types';
 import { differenceInYears, isAfter, isBefore, parseISO } from 'date-fns';
@@ -694,4 +695,8 @@ export async function saveLeaderAssignments(leaderId: string, cycleId: string, n
 
 export async function updateLeaderStatus(leaderId: string, isActive: boolean): Promise<number> {
     return db.users.update(leaderId, { is_active: isActive });
+}
+
+export async function updateChildPhoto(childId: string, photoDataUrl: string): Promise<number> {
+    return db.children.update(childId, { photo_url: photoDataUrl });
 }
