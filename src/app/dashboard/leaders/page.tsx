@@ -77,12 +77,13 @@ export default function LeadersPage() {
                                         </Badge>
                                     </TableCell>
                                     <TableCell>
-                                        <div className="flex flex-wrap gap-1">
-                                            {leader.assignments.map(a => (
-                                                <Badge key={a.assignment_id} variant="outline">{a.ministryName}</Badge>
-                                            ))}
-                                            {leader.assignments.length === 0 && <span className="text-xs text-muted-foreground">No assignments</span>}
-                                        </div>
+                                        {leader.assignments.length > 0 ? (
+                                            <span className="text-sm text-muted-foreground">
+                                                {leader.assignments.map(a => a.ministryName).join(', ')}
+                                            </span>
+                                        ) : (
+                                            <span className="text-xs text-muted-foreground">No assignments</span>
+                                        )}
                                     </TableCell>
                                     <TableCell>
                                         <ChevronRight className="h-4 w-4 text-muted-foreground" />
@@ -103,3 +104,4 @@ export default function LeadersPage() {
         </div>
     );
 }
+
