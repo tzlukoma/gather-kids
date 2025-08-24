@@ -104,7 +104,7 @@ export default function RostersPage() {
   useEffect(() => {
     if (!loading && user) {
         if (user.role === 'leader' && (!user.is_active || !user.assignedMinistryIds || user.assignedMinistryIds.length === 0)) {
-            router.push('/dashboard');
+            router.push('/dashboard/incidents');
         } else {
             setIsAuthorized(true);
         }
@@ -595,3 +595,4 @@ export default function RostersPage() {
     </>
   );
 }
+
