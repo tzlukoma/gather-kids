@@ -33,6 +33,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { useLiveQuery } from "dexie-react-hooks"
 import { db } from "@/lib/db"
 import type { Ministry, Household, CustomQuestion } from "@/lib/types"
+import { useFeatureFlags } from "@/contexts/feature-flag-context"
 
 
 const MOCK_EMAILS = {
@@ -326,6 +327,7 @@ const ProgramSection = ({ control, childrenData, program, childFields }: { contr
 
 export default function RegisterPage() {
   const { toast } = useToast()
+  const { flags } = useFeatureFlags();
   const [verificationStep, setVerificationStep] = useState<VerificationStep>('enter_email');
   const [verificationEmail, setVerificationEmail] = useState('');
   const [openAccordionItems, setOpenAccordionItems] = useState<string[]>([]);
@@ -508,19 +510,21 @@ export default function RegisterPage() {
                         />
                         <Button onClick={handleEmailLookup}>Continue</Button>
                     </div>
-                    <Alert>
-                        <Info className="h-4 w-4" />
-                        <AlertTitle>For Prototype Demo</AlertTitle>
-                        <AlertDescription>
-                            <p>Click an email below or type one to begin:</p>
-                            <ul className="list-disc pl-5 text-sm">
-                                <li>Use <button className="text-left font-semibold underline" onClick={() => setVerificationEmail(MOCK_EMAILS.PREFILL_OVERWRITE)}>{MOCK_EMAILS.PREFILL_OVERWRITE}</button> to pre-fill the form and see the overwrite warning.</li>
-                                <li>Use <button className="text-left font-semibold underline" onClick={() => setVerificationEmail(MOCK_EMAILS.PREFILL_NO_OVERWRITE)}>{MOCK_EMAILS.PREFILL_NO_OVERWRITE}</button> to pre-fill from a prior year's registration.</li>
-                                <li>Use <button className="text-left font-semibold underline" onClick={() => setVerificationEmail(MOCK_EMAILS.VERIFY)}>{MOCK_EMAILS.VERIFY}</button> to see the (mock) verification step.</li>
-                                <li>Any other email will start a new registration.</li>
-                            </ul>
-                        </AlertDescription>
-                    </Alert>
+                    {flags.showDemoFeatures && (
+                        <Alert>
+                            <Info className="h-4 w-4" />
+                            <AlertTitle>For Prototype Demo</AlertTitle>
+                            <AlertDescription>
+                                <p>Click an email below or type one to begin:</p>
+                                <ul className="list-disc pl-5 text-sm">
+                                    <li>Use <button className="text-left font-semibold underline" onClick={() => setVerificationEmail(MOCK_EMAILS.PREFILL_OVERWRITE)}>{MOCK_EMAILS.PREFILL_OVERWRITE}</button> to pre-fill the form and see the overwrite warning.</li>
+                                    <li>Use <button className="text-left font-semibold underline" onClick={() => setVerificationEmail(MOCK_EMAILS.PREFILL_NO_OVERWRITE)}>{MOCK_EMAILS.PREFILL_NO_OVERWRITE}</button> to pre-fill from a prior year's registration.</li>
+                                    <li>Use <button className="text-left font-semibold underline" onClick={() => setVerificationEmail(MOCK_EMAILS.VERIFY)}>{MOCK_EMAILS.VERIFY}</button> to see the (mock) verification step.</li>
+                                    <li>Any other email will start a new registration.</li>
+                                </ul>
+                            </AlertDescription>
+                        </Alert>
+                    )}
                 </CardContent>
             </Card>
         )}
