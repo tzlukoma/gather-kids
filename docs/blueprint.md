@@ -1,4 +1,4 @@
-# **App Name**: MinistrySync
+# **App Name**: gatherKids
 
 ## Core Features:
 
