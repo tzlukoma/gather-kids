@@ -757,25 +757,25 @@ export default function RegisterPage() {
                                         )}
                                         
                                         <div className="flex items-center gap-4">
-                                            {isExistingChild ? (
-                                                 <AlertDialog>
+                                             {isExistingChild ? (
+                                                <AlertDialog>
                                                     <AlertDialogTrigger asChild>
                                                         {removeButton}
                                                     </AlertDialogTrigger>
                                                     <AlertDialogContent>
                                                         <AlertDialogHeader>
-                                                        <AlertDialogTitle>Are you sure you want to remove {childFirstName || 'this child'}?</AlertDialogTitle>
-                                                        <AlertDialogDescription>
-                                                            This will mark {childFirstName || 'this child'} as inactive for this year's registration and remove them from this form. Their historical data from previous years will be retained.
-                                                            <br/><br/>
-                                                            Are you sure you want to proceed?
-                                                        </AlertDialogDescription>
+                                                            <AlertDialogTitle>Are you sure you want to remove {childFirstName || 'this child'}?</AlertDialogTitle>
+                                                            <AlertDialogDescription>
+                                                                This will mark {childFirstName || 'this child'} as inactive for this year's registration and remove them from this form. Their historical data from previous years will be retained.
+                                                                <br /><br />
+                                                                Are you sure you want to proceed?
+                                                            </AlertDialogDescription>
                                                         </AlertDialogHeader>
                                                         <AlertDialogFooter>
-                                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                        <AlertDialogAction onClick={() => removeChild(index)} className="bg-destructive hover:bg-destructive/90">
-                                                            Yes, Remove Child
-                                                        </AlertDialogAction>
+                                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                            <AlertDialogAction onClick={() => removeChild(index)} className="bg-destructive hover:bg-destructive/90">
+                                                                Yes, Remove Child
+                                                            </AlertDialogAction>
                                                         </AlertDialogFooter>
                                                     </AlertDialogContent>
                                                 </AlertDialog>
@@ -785,6 +785,7 @@ export default function RegisterPage() {
                                                 </Button>
                                             )}
                                         </div>
+
                                     </AccordionContent>
                                 </AccordionItem>
                             )})}
