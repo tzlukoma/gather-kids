@@ -140,7 +140,7 @@ gather-kids/
 │   │   └── register/         # Family registration
 │   ├── components/            # Reusable UI components
 │   │   ├── ui/               # Base UI components (Radix)
-│   │   └── ministrysync/     # Ministry-specific components
+│   │   └── gatherKids/     # Application-specific components
 │   ├── contexts/              # React contexts (auth, features)
 │   ├── hooks/                 # Custom React hooks
 │   ├── lib/                   # Utilities and data access
