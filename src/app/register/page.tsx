@@ -268,13 +268,16 @@ const ProgramSection = ({ control, childrenData, program, childFields }: { contr
             <h4 className="font-semibold">{program.name}</h4>
             {program.description && <p className="text-sm text-muted-foreground mb-2">{program.description}</p>}
             <div className="flex flex-col sm:flex-row sm:flex-wrap gap-x-6 gap-y-2 mt-2">
-                {childrenData.map((child, index) => {
+                {childFields.map((field, index) => {
+                    const child = childrenData[index];
+                    if (!child) return null; // Should not happen if arrays are synced
+                    
                     const age = getAgeFromDob(child.dob);
                     if (!checkEligibility(program, age)) return null;
                     
                     return (
                         <FormField
-                            key={`${program.code}-${childFields[index].id}`}
+                            key={`${program.code}-${field.id}`}
                             control={control}
                             name={`children.${index}.ministrySelections.${program.code}`}
                             render={({ field }) => (
@@ -290,12 +293,15 @@ const ProgramSection = ({ control, childrenData, program, childFields }: { contr
              {isAnyChildSelected && program.code === 'dance' && (
                 <DanceMinistryForm control={control} />
             )}
-            {childrenData.map((child, index) => {
+            {childFields.map((field, index) => {
+                 const child = childrenData[index];
+                 if (!child) return null;
+
                  const isSelected = ministrySelections[index]?.ministrySelections?.[program.code];
                  if (!isSelected || !program.custom_questions || program.custom_questions.length === 0) return null;
 
                  return (
-                    <div key={`custom-form-${child.child_id || index}`}>
+                    <div key={`custom-form-${field.id}`}>
                         <p className="font-medium mt-4 mb-2 text-sm">Questions for {child.first_name}:</p>
                         {program.code === 'teen-fellowship' ? (
                             <TeenFellowshipForm control={control} childIndex={index} customQuestions={program.custom_questions || []} />
@@ -909,5 +915,3 @@ export default function RegisterPage() {
     </div>
   )
 }
-
-    
