@@ -818,15 +818,15 @@ export default function RegisterPage() {
                                     <div key={program.ministry_id} className="p-4 border rounded-md">
                                         <h4 className="font-semibold">{program.name}</h4>
                                         <div className="flex flex-col sm:flex-row sm:flex-wrap gap-x-6 gap-y-2 mt-2">
-                                            {childrenData.map((child, index) => (
+                                            {childFields.map((field, index) => (
                                                 <FormField
-                                                    key={`${program.code}-${childFields[index].id}`}
+                                                    key={`${program.code}-${field.id}`}
                                                     control={form.control}
                                                     name={`children.${index}.interestSelections.${program.code}`}
                                                     render={({ field }) => (
                                                         <FormItem className="flex flex-row items-start space-x-3 space-y-0">
                                                             <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
-                                                            <FormLabel className="font-normal">{child.first_name || `Child ${index + 1}`}</FormLabel>
+                                                            <FormLabel className="font-normal">{childrenData[index]?.first_name || `Child ${index + 1}`}</FormLabel>
                                                         </FormItem>
                                                     )}
                                                 />
@@ -909,3 +909,5 @@ export default function RegisterPage() {
     </div>
   )
 }
+
+    
