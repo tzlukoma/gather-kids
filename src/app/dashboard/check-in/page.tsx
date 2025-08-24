@@ -18,9 +18,19 @@ import { seedDB } from '@/lib/seed';
 import { useAuth } from '@/contexts/auth-context';
 import { useRouter } from 'next/navigation';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { ShieldAlert, Users } from 'lucide-react';
+import { ShieldAlert, Users, Filter } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { getTodayIsoDate } from '@/lib/dal';
+import { useIsMobile } from '@/hooks/use-mobile';
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 
 const gradeSortOrder: { [key: string]: number } = {
     "Pre-K": 0, "Kindergarten": 1, "1st Grade": 2, "2nd Grade": 3, "3rd Grade": 4, "4th Grade": 5,
@@ -40,10 +50,12 @@ export default function CheckInPage() {
   const router = useRouter();
   const { user, loading } = useAuth();
   const [isAuthorized, setIsAuthorized] = useState(false);
+  const isMobile = useIsMobile();
 
   const [selectedEvent, setSelectedEvent] = useState('evt_sunday_school');
   const [selectedGrades, setSelectedGrades] = useState<Set<string>>(new Set());
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
   
   const children = useLiveQuery(() => db.children.toArray(), []);
   const today = getTodayIsoDate();
@@ -83,6 +95,38 @@ export default function CheckInPage() {
         return newSet;
     })
   }
+
+  const FilterControls = () => (
+    <div className="space-y-4">
+        <div className='space-y-2'>
+            <Label className="font-semibold shrink-0">Filter by Status:</Label>
+            <div className="flex flex-wrap gap-2 items-center">
+                <Button variant={statusFilter === 'all' ? 'default' : 'outline'} size="sm" onClick={() => setStatusFilter('all')}>All</Button>
+                <Button variant={statusFilter === 'checkedIn' ? 'default' : 'outline'} size="sm" onClick={() => setStatusFilter('checkedIn')}>Checked In</Button>
+                <Button variant={statusFilter === 'checkedOut' ? 'default' : 'outline'} size="sm" onClick={() => setStatusFilter('checkedOut')}>Checked Out</Button>
+            </div>
+       </div>
+       <div className='space-y-2'>
+            <Label className="font-semibold shrink-0">Filter by Grade:</Label>
+            <div className="flex flex-wrap gap-2 items-center">
+                {availableGrades.map(grade => (
+                    <Button 
+                        key={grade}
+                        variant={selectedGrades.has(grade) ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => toggleGrade(grade)}
+                        className="rounded-full"
+                    >
+                        {grade}
+                    </Button>
+                ))}
+                {selectedGrades.size > 0 && (
+                    <Button variant="link" size="sm" onClick={() => setSelectedGrades(new Set())}>Clear</Button>
+                )}
+            </div>
+        </div>
+    </div>
+  );
   
   if (loading || !isAuthorized) {
     return (
@@ -146,30 +190,45 @@ export default function CheckInPage() {
             <p className="text-xs text-muted-foreground">children currently on site</p>
         </CardContent>
     </Card>
-      <div className="flex flex-wrap gap-2 items-center">
-            <Label className="font-semibold shrink-0">Filter by Status:</Label>
-            <Button variant={statusFilter === 'all' ? 'default' : 'outline'} size="sm" onClick={() => setStatusFilter('all')}>All</Button>
-            <Button variant={statusFilter === 'checkedIn' ? 'default' : 'outline'} size="sm" onClick={() => setStatusFilter('checkedIn')}>Checked In</Button>
-            <Button variant={statusFilter === 'checkedOut' ? 'default' : 'outline'} size="sm" onClick={() => setStatusFilter('checkedOut')}>Checked Out</Button>
-       </div>
-       <div className="flex flex-wrap gap-2 items-center">
-            <Label className="font-semibold shrink-0">Filter by Grade:</Label>
-            {availableGrades.map(grade => (
-                <Button 
-                    key={grade}
-                    variant={selectedGrades.has(grade) ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => toggleGrade(grade)}
-                    className="rounded-full"
-                >
-                    {grade}
-                </Button>
-            ))}
-            {selectedGrades.size > 0 && (
-                <Button variant="link" size="sm" onClick={() => setSelectedGrades(new Set())}>Clear</Button>
-            )}
-        </div>
+      
+      {isMobile ? (
+        <Sheet open={isFilterSheetOpen} onOpenChange={setIsFilterSheetOpen}>
+          <SheetTrigger asChild>
+            <Button variant="outline" className="w-full">
+              <Filter className="mr-2 h-4 w-4" />
+              Filters
+            </Button>
+          </SheetTrigger>
+          <SheetContent>
+            <SheetHeader>
+              <SheetTitle>Filters</SheetTitle>
+              <SheetDescription>
+                Refine the list of children below.
+              </SheetDescription>
+            </SheetHeader>
+            <div className="py-4">
+              <FilterControls />
+            </div>
+            <SheetFooter>
+              <Button onClick={() => setIsFilterSheetOpen(false)} className="w-full">
+                View Results
+              </Button>
+            </SheetFooter>
+          </SheetContent>
+        </Sheet>
+      ) : (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base font-semibold">Filters</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <FilterControls />
+          </CardContent>
+        </Card>
+      )}
+
       <CheckInView initialChildren={children} selectedEvent={selectedEvent} selectedGrades={Array.from(selectedGrades)} statusFilter={statusFilter} />
     </div>
   );
 }
+
