@@ -177,58 +177,60 @@ export default function CheckInPage() {
             </Select>
         </div>
       </div>
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Currently Checked In</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-            <div className="text-2xl font-bold">
-                {checkedInCount}
-                <span className="text-base font-medium text-muted-foreground"> of {children.length}</span>
-            </div>
-            <p className="text-xs text-muted-foreground">children currently on site</p>
-        </CardContent>
-    </Card>
-      
-      {isMobile ? (
-        <Sheet open={isFilterSheetOpen} onOpenChange={setIsFilterSheetOpen}>
-          <SheetTrigger asChild>
-            <Button variant="outline" className="w-full">
-              <Filter className="mr-2 h-4 w-4" />
-              Filters
-            </Button>
-          </SheetTrigger>
-          <SheetContent>
-            <SheetHeader>
-              <SheetTitle>Filters</SheetTitle>
-              <SheetDescription>
-                Refine the list of children below.
-              </SheetDescription>
-            </SheetHeader>
-            <div className="py-4">
-              <FilterControls />
-            </div>
-            <SheetFooter>
-              <Button onClick={() => setIsFilterSheetOpen(false)} className="w-full">
-                View Results
-              </Button>
-            </SheetFooter>
-          </SheetContent>
-        </Sheet>
-      ) : (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base font-semibold">Filters</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <FilterControls />
-          </CardContent>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card className="md:col-span-1">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Currently Checked In</CardTitle>
+                <Users className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+                <div className="text-2xl font-bold">
+                    {checkedInCount}
+                    <span className="text-base font-medium text-muted-foreground"> of {children.length}</span>
+                </div>
+                <p className="text-xs text-muted-foreground">children currently on site</p>
+            </CardContent>
         </Card>
-      )}
+      
+        {isMobile ? (
+            <Sheet open={isFilterSheetOpen} onOpenChange={setIsFilterSheetOpen}>
+            <SheetTrigger asChild>
+                <Button variant="outline" className="w-full">
+                <Filter className="mr-2 h-4 w-4" />
+                Filters
+                </Button>
+            </SheetTrigger>
+            <SheetContent>
+                <SheetHeader>
+                <SheetTitle>Filters</SheetTitle>
+                <SheetDescription>
+                    Refine the list of children below.
+                </SheetDescription>
+                </SheetHeader>
+                <div className="py-4">
+                <FilterControls />
+                </div>
+                <SheetFooter>
+                <Button onClick={() => setIsFilterSheetOpen(false)} className="w-full">
+                    View Results
+                </Button>
+                </SheetFooter>
+            </SheetContent>
+            </Sheet>
+        ) : (
+            <Card className="md:col-span-2">
+            <CardHeader>
+                <CardTitle className="text-base font-semibold">Filters</CardTitle>
+            </CardHeader>
+            <CardContent>
+                <FilterControls />
+            </CardContent>
+            </Card>
+        )}
+      </div>
 
       <CheckInView initialChildren={children} selectedEvent={selectedEvent} selectedGrades={Array.from(selectedGrades)} statusFilter={statusFilter} />
     </div>
   );
 }
-
