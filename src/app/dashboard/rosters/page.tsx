@@ -20,7 +20,7 @@ import {
 	CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { FileDown, ArrowUpDown, Edit } from 'lucide-react';
+import { FileDown, ArrowUpDown, Edit, Camera } from 'lucide-react';
 import { format } from 'date-fns';
 import {
 	getTodayIsoDate,
@@ -62,6 +62,7 @@ import {
 	DialogTrigger,
 } from '@/components/ui/dialog';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { PhotoViewerDialog } from '@/components/gatherKids/photo-viewer-dialog';
 
 export interface RosterChild extends EnrichedChild {}
 
@@ -116,6 +117,7 @@ export default function RostersPage() {
 		null
 	);
 	const [isEventDialogOpen, setIsEventDialogOpen] = useState(false);
+	const [viewingPhoto, setViewingPhoto] = useState<{ name: string; url: string } | null>(null);
 
 	const [showCheckedIn, setShowCheckedIn] = useState(false);
 	const [showCheckedOut, setShowCheckedOut] = useState(false);
@@ -461,6 +463,7 @@ export default function RostersPage() {
 							/>
 						</TableHead>
 					)}
+					<TableHead className="w-[50px]">Photo</TableHead>
 					<TableHead>Name</TableHead>
 					<TableHead>
 						<Button variant="ghost" onClick={toggleGradeSort} className="px-1">
@@ -489,6 +492,13 @@ export default function RostersPage() {
 									/>
 								</TableCell>
 							)}
+							<TableCell>
+								{child.photo_url && (
+									<Button variant="ghost" size="icon" onClick={() => setViewingPhoto({ name: `${child.first_name} ${child.last_name}`, url: child.photo_url! })}>
+										<Camera className="h-4 w-4" />
+									</Button>
+								)}
+							</TableCell>
 							<TableCell className="font-medium">{`${child.first_name} ${child.last_name}`}</TableCell>
 							<TableCell>{child.grade}</TableCell>
 							<TableCell>
@@ -540,7 +550,7 @@ export default function RostersPage() {
 							<React.Fragment key={grade}>
 								<TableRow className="bg-muted/50 hover:bg-muted/50">
 									<TableCell
-										colSpan={showBulkActions ? 7 : 6}
+										colSpan={showBulkActions ? 8 : 7}
 										className="font-bold text-muted-foreground">
 										{grade} ({childrenInGrade.length})
 									</TableCell>
@@ -562,6 +572,13 @@ export default function RostersPage() {
 												/>
 											</TableCell>
 										)}
+										<TableCell>
+											{child.photo_url && (
+												<Button variant="ghost" size="icon" onClick={() => setViewingPhoto({ name: `${child.first_name} ${child.last_name}`, url: child.photo_url! })}>
+													<Camera className="h-4 w-4" />
+												</Button>
+											)}
+										</TableCell>
 										<TableCell className="font-medium">{`${child.first_name} ${child.last_name}`}</TableCell>
 										<TableCell>{child.grade}</TableCell>
 										<TableCell>
@@ -611,7 +628,7 @@ export default function RostersPage() {
 				{displayChildren.length === 0 && (
 					<TableRow>
 						<TableCell
-							colSpan={showBulkActions ? 7 : 6}
+							colSpan={showBulkActions ? 8 : 7}
 							className="text-center h-24 text-muted-foreground">
 							No children match the current filter.
 						</TableCell>
@@ -645,6 +662,7 @@ export default function RostersPage() {
 									onToggleSelection={toggleSelection}
 									onCheckIn={handleCheckIn}
 									onSetChildToCheckout={setChildToCheckout}
+									onViewPhoto={setViewingPhoto}
 								/>
 							))}
 						</React.Fragment>
@@ -659,6 +677,7 @@ export default function RostersPage() {
 						onToggleSelection={toggleSelection}
 						onCheckIn={handleCheckIn}
 						onSetChildToCheckout={setChildToCheckout}
+						onViewPhoto={setViewingPhoto}
 					/>
 				))}
 			{displayChildren.length === 0 && (
@@ -819,6 +838,10 @@ export default function RostersPage() {
 				child={childToCheckout}
 				onClose={() => setChildToCheckout(null)}
 				onCheckout={handleCheckout}
+			/>
+			<PhotoViewerDialog
+				photo={viewingPhoto}
+				onClose={() => setViewingPhoto(null)}
 			/>
 		</>
 	);

@@ -7,8 +7,9 @@ import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
 import { Checkbox } from "../ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
-import { Info, CheckCircle, Smartphone } from "lucide-react";
+import { Info, CheckCircle, Smartphone, User } from "lucide-react";
 import { Separator } from "../ui/separator";
+import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 
 interface RosterCardProps {
     child: RosterChild;
@@ -17,17 +18,26 @@ interface RosterCardProps {
     onToggleSelection: (childId: string) => void;
     onCheckIn: (child: RosterChild) => void;
     onSetChildToCheckout: (child: RosterChild) => void;
+    onViewPhoto: (photo: { name: string; url: string }) => void;
 }
 
-export function RosterCard({ child, showBulkActions, isSelected, onToggleSelection, onCheckIn, onSetChildToCheckout }: RosterCardProps) {
+export function RosterCard({ child, showBulkActions, isSelected, onToggleSelection, onCheckIn, onSetChildToCheckout, onViewPhoto }: RosterCardProps) {
     const canSelfCheckout = child.age !== null && child.age >= 13;
     
     return (
         <Card key={child.child_id} className={isSelected ? 'border-primary' : ''}>
-            <CardHeader className="flex flex-row items-start justify-between">
-                <div>
-                    <CardTitle className="font-headline text-lg">{`${child.first_name} ${child.last_name}`}</CardTitle>
-                    <CardDescription>{child.grade}</CardDescription>
+             <CardHeader className="flex flex-row items-start justify-between">
+                <div className="flex items-start gap-4">
+                     <Avatar className="w-12 h-12 border" onClick={() => child.photo_url && onViewPhoto({ name: `${child.first_name} ${child.last_name}`, url: child.photo_url })}>
+                        <AvatarImage src={child.photo_url} alt={child.first_name} />
+                        <AvatarFallback>
+                            <User className="w-6 h-6" />
+                        </AvatarFallback>
+                    </Avatar>
+                    <div>
+                        <CardTitle className="font-headline text-lg">{`${child.first_name} ${child.last_name}`}</CardTitle>
+                        <CardDescription>{child.grade}</CardDescription>
+                    </div>
                 </div>
                  <div className="flex items-center gap-2">
                     <Popover>
