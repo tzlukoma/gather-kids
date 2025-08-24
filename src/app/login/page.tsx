@@ -17,10 +17,10 @@ import { useFeatureFlags } from "@/contexts/feature-flag-context";
 
 const DEMO_USERS = {
     admin: { email: 'admin@example.com', password: 'password', is_active: true, name: 'Admin User', id: 'user_admin' },
-    leader: { email: 'leader@example.com', password: 'password', is_active: true, name: 'Sarah Lee', id: 'user_leader_1' },
-    khalfaniLeader: { email: 'chris.e@example.com', password: 'password', is_active: true, name: 'Chris Evans', id: 'user_leader_11' },
-    joybellsLeader: { email: 'megan.y@example.com', password: 'password', is_active: true, name: 'Megan Young', id: 'user_leader_12' },
-    inactiveLeader: { email: 'tom.a@example.com', password: 'password', is_active: false, name: 'Tom Allen', id: 'user_leader_13' },
+    leader: { email: 'leader.generic@example.com', password: 'password', is_active: true, name: 'Sarah Lee', id: 'user_leader_1' },
+    khalfaniLeader: { email: 'leader.khalfani@example.com', password: 'password', is_active: true, name: 'Chris Evans', id: 'user_leader_11' },
+    joybellsLeader: { email: 'leader.joybells@example.com', password: 'password', is_active: true, name: 'Megan Young', id: 'user_leader_12' },
+    inactiveLeader: { email: 'leader.inactive@example.com', password: 'password', is_active: false, name: 'Tom Allen', id: 'user_leader_13' },
 };
 
 export default function LoginPage() {
