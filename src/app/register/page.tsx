@@ -343,6 +343,7 @@ export default function RegisterPage() {
   const [verificationEmail, setVerificationEmail] = useState('');
   const [openAccordionItems, setOpenAccordionItems] = useState<string[]>([]);
   const [isCurrentYearOverwrite, setIsCurrentYearOverwrite] = useState(false);
+  const [isPrefill, setIsPrefill] = useState(false);
   
   const allMinistries = useLiveQuery(() => db.ministries.toArray(), []);
 
@@ -423,12 +424,14 @@ export default function RegisterPage() {
         toast({ title: "Household Found!", description: "Your information has been pre-filled for you to review." });
         prefillForm(result.data);
         setIsCurrentYearOverwrite(result.isCurrentYear);
+        setIsPrefill(result.isPrefill || false);
         setVerificationStep('form_visible');
     } else if (verificationEmail === MOCK_EMAILS.VERIFY) {
         setVerificationStep('verify_identity');
     } else { // New registration
         toast({ title: "New Registration", description: "Please complete the form below to register your family." });
         setIsCurrentYearOverwrite(false);
+        setIsPrefill(false);
         form.reset({
             household: { name: "", address_line1: "" },
             guardians: [{ first_name: "", last_name: "", mobile_phone: "", email: verificationEmail, relationship: "Mother", is_primary: true }],
@@ -457,7 +460,8 @@ export default function RegisterPage() {
 
   async function onSubmit(data: RegistrationFormValues) {
     try {
-        await registerHousehold(data, '2025');
+        const submissionData = isPrefill ? { ...data, household: { ...data.household, household_id: undefined } } : data;
+        await registerHousehold(submissionData, '2025');
         toast({
             title: "Registration Submitted!",
             description: "Thank you! Your family's registration has been received.",
@@ -467,6 +471,7 @@ export default function RegisterPage() {
         setVerificationEmail('');
         setOpenAccordionItems([]);
         setIsCurrentYearOverwrite(false);
+        setIsPrefill(false);
     } catch(e) {
         console.error(e);
         toast({
