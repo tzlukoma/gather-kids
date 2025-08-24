@@ -63,13 +63,13 @@ const ChildCard = ({ child, onPhotoClick, onPhotoViewClick }: { child: Household
     return (
         <Card className={!child.is_active ? 'bg-muted/25' : ''}>
             <CardHeader className="flex-row gap-4 items-start">
-                 <div className="relative flex-shrink-0">
+                 <div className="relative w-16 h-16 sm:w-16 sm:h-16 flex-shrink-0">
                     <Button
                         variant="ghost"
-                        className="w-16 h-16 p-0 rounded-full"
+                        className="w-full h-full p-0 rounded-full"
                         onClick={() => child.photo_url && onPhotoViewClick({ name: `${child.first_name} ${child.last_name}`, url: child.photo_url })}
                     >
-                        <Avatar className="h-16 w-16">
+                        <Avatar className="h-full w-full">
                             <AvatarImage src={child.photo_url} alt={child.first_name} />
                             <AvatarFallback>
                                 <User className="h-8 w-8" />
