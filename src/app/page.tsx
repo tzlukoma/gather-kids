@@ -1,10 +1,18 @@
 
+"use client";
+
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, Church } from 'lucide-react';
+import { ArrowRight, Church, Settings } from 'lucide-react';
 import { SimpleSeedButton } from '@/components/ministrysync/simple-seed-button';
+import { useFeatureFlags } from '@/contexts/feature-flag-context';
+import { useState } from 'react';
+import { FeatureFlagDialog } from '@/components/feature-flag-dialog';
 
 export default function Home() {
+  const { flags } = useFeatureFlags();
+  const [isFlagDialogOpen, setIsFlagDialogOpen] = useState(false);
+
   return (
     <div className="flex flex-col min-h-screen">
       <header className="p-4 border-b">
@@ -37,13 +45,20 @@ export default function Home() {
                         Go to Admin Dashboard
                     </Button>
                 </Link>
-                <SimpleSeedButton size="lg" variant="outline" />
+                {flags.showDemoFeatures && <SimpleSeedButton size="lg" variant="outline" />}
             </div>
         </div>
       </main>
-      <footer className="py-6 text-center text-sm text-muted-foreground">
-        <p>&copy; {new Date().getFullYear()} gatherKids. All rights reserved.</p>
+      <footer className="py-6 border-t">
+        <div className="container mx-auto flex justify-between items-center text-sm text-muted-foreground">
+            <p>&copy; {new Date().getFullYear()} gatherKids. All rights reserved.</p>
+            <Button variant="ghost" size="icon" onClick={() => setIsFlagDialogOpen(true)}>
+                <Settings className="h-4 w-4" />
+                <span className="sr-only">Open Feature Flags</span>
+            </Button>
+        </div>
       </footer>
+      <FeatureFlagDialog isOpen={isFlagDialogOpen} onClose={() => setIsFlagDialogOpen(false)} />
     </div>
   );
 }

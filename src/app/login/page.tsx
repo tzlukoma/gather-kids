@@ -1,5 +1,4 @@
 
-
 "use client"
 
 import { useState } from "react";
@@ -13,6 +12,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Info } from "lucide-react";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
+import { useFeatureFlags } from "@/contexts/feature-flag-context";
 
 
 const DEMO_USERS = {
@@ -27,6 +27,7 @@ export default function LoginPage() {
     const router = useRouter();
     const { login } = useAuth();
     const { toast } = useToast();
+    const { flags } = useFeatureFlags();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
 
@@ -73,21 +74,23 @@ export default function LoginPage() {
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                     <Alert>
-                        <Info className="h-4 w-4" />
-                        <AlertTitle>For Prototype Demo</AlertTitle>
-                        <AlertDescription>
-                            <p>Click one of the following accounts to sign in:</p>
-                            <ul className="list-disc pl-5 text-sm mt-2">
-                                <li>Admin: <button className="text-left font-semibold underline" onClick={() => prefillDemoCredentials('admin')}>{DEMO_USERS.admin.email}</button></li>
-                                <li>Leader (Generic): <button className="text-left font-semibold underline" onClick={() => prefillDemoCredentials('leader')}>{DEMO_USERS.leader.email}</button></li>
-                                <li>Leader (Khalfani): <button className="text-left font-semibold underline" onClick={() => prefillDemoCredentials('khalfaniLeader')}>{DEMO_USERS.khalfaniLeader.email}</button></li>
-                                <li>Leader (Joy Bells): <button className="text-left font-semibold underline" onClick={() => prefillDemoCredentials('joybellsLeader')}>{DEMO_USERS.joybellsLeader.email}</button></li>
-                                <li>Leader (Inactive): <button className="text-left font-semibold underline" onClick={() => prefillDemoCredentials('inactiveLeader')}>{DEMO_USERS.inactiveLeader.email}</button></li>
-                                <li>Password: <code className="font-semibold">password</code></li>
-                            </ul>
-                        </AlertDescription>
-                    </Alert>
+                     {flags.showDemoFeatures && (
+                        <Alert>
+                            <Info className="h-4 w-4" />
+                            <AlertTitle>For Prototype Demo</AlertTitle>
+                            <AlertDescription>
+                                <p>Click one of the following accounts to sign in:</p>
+                                <ul className="list-disc pl-5 text-sm mt-2">
+                                    <li>Admin: <button className="text-left font-semibold underline" onClick={() => prefillDemoCredentials('admin')}>{DEMO_USERS.admin.email}</button></li>
+                                    <li>Leader (Generic): <button className="text-left font-semibold underline" onClick={() => prefillDemoCredentials('leader')}>{DEMO_USERS.leader.email}</button></li>
+                                    <li>Leader (Khalfani): <button className="text-left font-semibold underline" onClick={() => prefillDemoCredentials('khalfaniLeader')}>{DEMO_USERS.khalfaniLeader.email}</button></li>
+                                    <li>Leader (Joy Bells): <button className="text-left font-semibold underline" onClick={() => prefillDemoCredentials('joybellsLeader')}>{DEMO_USERS.joybellsLeader.email}</button></li>
+                                    <li>Leader (Inactive): <button className="text-left font-semibold underline" onClick={() => prefillDemoCredentials('inactiveLeader')}>{DEMO_USERS.inactiveLeader.email}</button></li>
+                                    <li>Password: <code className="font-semibold">password</code></li>
+                                </ul>
+                            </AlertDescription>
+                        </Alert>
+                    )}
                     <div className="space-y-2">
                         <Label htmlFor="email">Email</Label>
                         <Input id="email" type="email" placeholder="m@example.com" required value={email} onChange={(e) => setEmail(e.target.value)} />
