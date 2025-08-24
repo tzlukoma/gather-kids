@@ -82,7 +82,7 @@ export default function LeadersPage() {
                                                 {leader.assignments.map(a => a.ministryName).join(', ')}
                                             </span>
                                         ) : (
-                                            <span className="text-xs text-muted-foreground">No assignments</span>
+                                            <span className="text-sm text-muted-foreground">No assignments</span>
                                         )}
                                     </TableCell>
                                     <TableCell>
