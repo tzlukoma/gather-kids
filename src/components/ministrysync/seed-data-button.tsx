@@ -24,17 +24,25 @@ import {
     DropdownMenuLabel,
     DropdownMenuSeparator,
     DropdownMenuTrigger,
+    DropdownMenuSub,
+    DropdownMenuSubTrigger,
+    DropdownMenuSubContent,
+    DropdownMenuPortal
 } from "@/components/ui/dropdown-menu";
+import { Slot } from "@radix-ui/react-slot";
+import React from "react";
 
-export function SeedDataButton() {
+interface SeedDataButtonProps {
+    asChild?: boolean;
+}
+
+export const SeedDataButton = React.forwardRef<HTMLDivElement, SeedDataButtonProps>(({ asChild = false }, ref) => {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
-  const [isResetting, setIsResetting] = useState(false);
-  const [isSeeding, setIsSeeding] = useState(false);
+  const Comp = asChild ? Slot : "div";
 
   const handleSeed = async () => {
     setIsLoading(true);
-    setIsSeeding(true);
     try {
         await resetDB();
         await seedDB();
@@ -51,13 +59,11 @@ export function SeedDataButton() {
         });
     } finally {
         setIsLoading(false);
-        setIsSeeding(false);
     }
   };
 
   const handleReset = async () => {
     setIsLoading(true);
-    setIsResetting(true);
     try {
         await resetDB();
         toast({
@@ -73,34 +79,33 @@ export function SeedDataButton() {
         });
     } finally {
         setIsLoading(false);
-        setIsResetting(false);
     }
   };
 
   return (
     <AlertDialog>
-        <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" disabled={isLoading}>
-                    {isLoading ? <LoaderCircle className="animate-spin" /> : <Settings />}
-                    <span className="sr-only">Data Settings</span>
-                </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start">
-                <DropdownMenuLabel>Data Management</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleSeed} disabled={isLoading}>
+        <Comp ref={ref}>
+            <DropdownMenuSub>
+                <DropdownMenuSubTrigger>
                     <Database className="mr-2" />
-                    <span>Seed Database</span>
-                </DropdownMenuItem>
-                <AlertDialogTrigger asChild>
-                    <DropdownMenuItem className="text-destructive focus:bg-destructive/10 focus:text-destructive" disabled={isLoading}>
-                        <Trash2 className="mr-2" />
-                        <span>Reset to Empty</span>
-                    </DropdownMenuItem>
-                </AlertDialogTrigger>
-            </DropdownMenuContent>
-        </DropdownMenu>
+                    <span>Data Management</span>
+                </DropdownMenuSubTrigger>
+                <DropdownMenuPortal>
+                    <DropdownMenuSubContent>
+                        <DropdownMenuItem onClick={handleSeed} disabled={isLoading}>
+                             {isLoading ? <LoaderCircle className="animate-spin mr-2" /> : <Database className="mr-2" />}
+                            <span>Seed Database</span>
+                        </DropdownMenuItem>
+                        <AlertDialogTrigger asChild>
+                            <DropdownMenuItem className="text-destructive focus:bg-destructive/10 focus:text-destructive" disabled={isLoading}>
+                                <Trash2 className="mr-2" />
+                                <span>Reset to Empty</span>
+                            </DropdownMenuItem>
+                        </AlertDialogTrigger>
+                    </DropdownMenuSubContent>
+                </DropdownMenuPortal>
+            </DropdownMenuSub>
+        </Comp>
 
         <AlertDialogContent>
             <AlertDialogHeader>
@@ -118,4 +123,7 @@ export function SeedDataButton() {
         </AlertDialogContent>
     </AlertDialog>
   );
-}
+});
+
+SeedDataButton.displayName = "SeedDataButton";
+

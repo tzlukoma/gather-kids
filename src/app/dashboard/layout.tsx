@@ -18,6 +18,14 @@ import {
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
   LayoutDashboard,
   CheckCheck,
   Users,
@@ -28,6 +36,8 @@ import {
   Settings,
   ClipboardList,
   Contact,
+  Database,
+  Trash2
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
@@ -98,12 +108,12 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
     }
 
     if (!initialRedirectComplete && menuItems.length > 0) {
-      const topMenuItem = menuItems[0];
-      // Only redirect if the user is at the base dashboard and not already on their target page
-      if (pathname === '/dashboard' && topMenuItem.href !== '/dashboard') {
-        router.replace(topMenuItem.href);
-      }
-      setInitialRedirectComplete(true);
+        const topMenuItem = menuItems[0];
+        // Only redirect if the user is at the base dashboard and not already on their target page
+        if (pathname === '/dashboard' && topMenuItem.href !== '/dashboard') {
+            router.replace(topMenuItem.href);
+        }
+        setInitialRedirectComplete(true);
     }
   }, [user, loading, router, menuItems, initialRedirectComplete, pathname]);
   
@@ -132,12 +142,37 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                 </Link>
             </div>
             <div className="flex items-center gap-4">
-              <p className="font-headline text-lg font-semibold hidden sm:block">Welcome, {user.name}!</p>
-              {user.role === 'admin' && flags.showDemoFeatures && <SeedDataButton />}
-               <Button variant="outline" onClick={handleLogout}>
-                  <LogOut className="mr-2" />
-                  Sign Out
-              </Button>
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" className="relative h-10 w-10 rounded-full">
+                            <Avatar className="h-10 w-10">
+                                <AvatarImage src={`https://placehold.co/40x40.png`} alt={user.name} data-ai-hint="user avatar" />
+                                <AvatarFallback>{user.name?.charAt(0).toUpperCase()}</AvatarFallback>
+                            </Avatar>
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="w-56" align="end" forceMount>
+                        <DropdownMenuLabel className="font-normal">
+                        <div className="flex flex-col space-y-1">
+                            <p className="text-sm font-medium leading-none">{user.name}</p>
+                            <p className="text-xs leading-none text-muted-foreground">
+                            {user.email}
+                            </p>
+                        </div>
+                        </DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        {user.role === 'admin' && flags.showDemoFeatures && <SeedDataButton asChild />}
+                        <DropdownMenuItem onSelect={() => setIsFlagDialogOpen(true)}>
+                            <Settings className="mr-2" />
+                            <span>App Settings</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onSelect={handleLogout}>
+                            <LogOut className="mr-2" />
+                            <span>Sign Out</span>
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
             </div>
         </header>
         <div className="flex flex-1">
@@ -163,23 +198,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                 </SidebarMenu>
                 </SidebarContent>
                 <SidebarFooter>
-                <div className="flex flex-col gap-2 p-2">
-                    <Button variant="ghost" size="sm" onClick={() => setIsFlagDialogOpen(true)} className="w-full justify-start">
-                        <Settings className="mr-2" />
-                        <span className="group-data-[collapsible=icon]:hidden">App Settings</span>
-                    </Button>
-                    <Separator />
-                    <div className="flex items-center gap-3">
-                        <Avatar className="h-8 w-8">
-                            <AvatarImage src="https://placehold.co/40x40.png" alt={user.name} data-ai-hint="user avatar" />
-                            <AvatarFallback>{user.name?.charAt(0).toUpperCase()}</AvatarFallback>
-                        </Avatar>
-                        <div className="flex flex-col text-sm group-data-[collapsible=icon]:hidden">
-                            <span className="font-semibold text-sidebar-foreground">{user.name}</span>
-                            <span className="text-muted-foreground">{user.email}</span>
-                        </div>
-                    </div>
-                </div>
+                    {/* Footer content can go here if needed in the future */}
                 </SidebarFooter>
             </Sidebar>
             <SidebarInset>
