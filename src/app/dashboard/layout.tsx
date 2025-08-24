@@ -138,7 +138,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
             <div className="flex items-center gap-4">
                 <SidebarTrigger className="md:hidden" />
                 <Link href="/dashboard" className="flex items-center gap-2 text-foreground">
-                    <div className="font-headline text-2xl font-bold">gatherKids</div>
+                    <div className="font-headline text-2xl font-bold">MinistrySync</div>
                 </Link>
             </div>
             <div className="flex items-center gap-4">
@@ -146,7 +146,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                     <DropdownMenuTrigger asChild>
                         <Button variant="ghost" className="relative h-10 w-10 rounded-full">
                             <Avatar className="h-10 w-10">
-                                <AvatarImage src={`https://placehold.co/40x40.png`} alt={user.name} data-ai-hint="user avatar" />
+                                <AvatarImage src={undefined} alt={user.name} />
                                 <AvatarFallback>
                                     <User className="h-5 w-5" />
                                 </AvatarFallback>
