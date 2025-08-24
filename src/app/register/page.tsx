@@ -738,7 +738,14 @@ export default function RegisterPage() {
                                             />
                                         )}
                                         
-                                        <Button type="button" variant="destructive" size="sm" onClick={() => removeChild(index)}><Trash2 className="mr-2 h-4 w-4" /> Remove Child</Button>
+                                        <div className="flex items-center gap-4">
+                                            <Button type="button" variant="destructive" size="sm" onClick={() => removeChild(index)}><Trash2 className="mr-2 h-4 w-4" /> Remove Child</Button>
+                                            {childrenData[index]?.child_id && (
+                                                <p className="text-xs text-muted-foreground">
+                                                    If this child was previously registered, removing them marks them inactive for this year but retains their history.
+                                                </p>
+                                            )}
+                                        </div>
                                     </AccordionContent>
                                 </AccordionItem>
                             )})}
