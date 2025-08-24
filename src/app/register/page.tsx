@@ -460,8 +460,7 @@ export default function RegisterPage() {
 
   async function onSubmit(data: RegistrationFormValues) {
     try {
-        const submissionData = isPrefill ? { ...data, household: { ...data.household, household_id: undefined } } : data;
-        await registerHousehold(submissionData, '2025');
+        await registerHousehold(data, '2025', isPrefill);
         toast({
             title: "Registration Submitted!",
             description: "Thank you! Your family's registration has been received.",
@@ -552,6 +551,7 @@ export default function RegisterPage() {
                     if (result) {
                         prefillForm(result.data);
                         setIsCurrentYearOverwrite(result.isCurrentYear);
+                        setIsPrefill(result.isPrefill);
                         setVerificationStep('form_visible');
                     }
                 }}
@@ -762,7 +762,7 @@ export default function RegisterPage() {
                                         )}
                                         
                                         <div className="flex items-center gap-4">
-                                             {isExistingChild ? (
+                                            {isExistingChild ? (
                                                 <AlertDialog>
                                                     <AlertDialogTrigger asChild>
                                                         {removeButton}
@@ -785,7 +785,7 @@ export default function RegisterPage() {
                                                     </AlertDialogContent>
                                                 </AlertDialog>
                                             ) : (
-                                                <Button type="button" variant="destructive" size="sm" onClick={() => removeChild(index)}>
+                                                 <Button type="button" variant="destructive" size="sm" onClick={() => removeChild(index)}>
                                                     <Trash2 className="mr-2 h-4 w-4" /> Remove Child
                                                 </Button>
                                             )}

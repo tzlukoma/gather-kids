@@ -8,6 +8,7 @@
 
 
 
+
 import { db } from './db';
 import type { Attendance, Child, Guardian, Household, Incident, IncidentSeverity, Ministry, MinistryEnrollment, Registration, User, EmergencyContact, LeaderAssignment } from './types';
 import { differenceInYears, isAfter, isBefore, parseISO } from 'date-fns';
@@ -183,7 +184,7 @@ export async function getHouseholdProfile(householdId: string): Promise<Househol
     const household = await db.households.get(householdId) ?? null;
     const guardians = await db.guardians.where({ household_id: householdId }).toArray();
     const emergencyContact = await db.emergency_contacts.where({ household_id: householdId }).first() ?? null;
-    const children = await db.children.where({ household_id: householdId }).toArray();
+    const children = await db.children.where({ household_id: householdId }).toArray(); // Fetch all, including inactive
 
     const childIds = children.map(c => c.child_id);
     const allEnrollments = await db.ministry_enrollments.where('child_id').anyOf(childIds).toArray();
@@ -372,14 +373,14 @@ export async function findHouseholdByEmail(email: string, currentCycleId: string
 
 
 // Registration Logic
-export async function registerHousehold(data: any, cycle_id: string) {
+export async function registerHousehold(data: any, cycle_id: string, isPrefill: boolean) {
     const householdId = data.household.household_id || uuidv4();
     const isUpdate = !!data.household.household_id;
     const now = new Date().toISOString();
 
     await db.transaction('rw', db.households, db.guardians, db.emergency_contacts, db.children, db.registrations, db.ministry_enrollments, db.ministries, async () => {
 
-        if (isUpdate) {
+        if (isUpdate && !isPrefill) {
             // Overwrite existing data for this cycle
             const childIds = (await db.children.where({ household_id: householdId }).toArray()).map(c => c.child_id);
             
@@ -420,28 +421,30 @@ export async function registerHousehold(data: any, cycle_id: string) {
         await db.emergency_contacts.add(emergencyContact);
         
         // Children are more complex due to updates vs inserts
-        const existingChildIds = isUpdate ? (await db.children.where({ household_id: householdId }).toArray()).map(c => c.child_id) : [];
-        const incomingChildIds: string[] = []; // We will get these from form if they exist, or generate new ones
+        const existingChildren = isUpdate ? await db.children.where({ household_id: householdId }).toArray() : [];
+        const existingChildIds = existingChildren.map(c => c.child_id);
+        const incomingChildIds = data.children.map((c: any) => c.child_id).filter(Boolean);
 
         const childrenToUpsert: Child[] = data.children.map((c: any) => {
-            const childId = c.child_id || `c_${householdId}_${uuidv4().substring(0, 4)}`; // Use existing or generate
-            incomingChildIds.push(childId);
             const { ministrySelections, interestSelections, customData, ...childCore } = c;
+            const existingChild = childCore.child_id ? existingChildren.find(ec => ec.child_id === childCore.child_id) : undefined;
             return {
                 ...childCore,
-                child_id: childId,
+                child_id: childCore.child_id || uuidv4(),
                 household_id: householdId,
-                is_active: true,
-                created_at: isUpdate && existingChildIds.includes(childId) ? (db.children.get(childId))!.created_at : now,
+                is_active: true, // All children submitted are considered active for this registration
+                created_at: existingChild?.created_at || now,
                 updated_at: now,
             }
         });
         await db.children.bulkPut(childrenToUpsert);
 
-        // Deactivate children who were removed from the form
-        const childrenToRemove = existingChildIds.filter(id => !incomingChildIds.includes(id));
-        if (childrenToRemove.length > 0) {
-            await db.children.where('child_id').anyOf(childrenToRemove).modify({ is_active: false });
+        // Deactivate children who were in the household but removed from the form on an update
+        if (isUpdate && !isPrefill) {
+            const childrenToRemove = existingChildIds.filter(id => !incomingChildIds.includes(id));
+            if (childrenToRemove.length > 0) {
+                await db.children.where('child_id').anyOf(childrenToRemove).modify({ is_active: false });
+            }
         }
 
 
