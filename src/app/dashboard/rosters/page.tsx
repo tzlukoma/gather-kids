@@ -1,3 +1,4 @@
+
 'use client';
 import React from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
@@ -57,15 +58,16 @@ export interface RosterChild extends EnrichedChild {}
 
 type SortDirection = 'asc' | 'desc' | 'none';
 
+const eventNames: { [key: string]: string } = {
+	evt_sunday_school: 'Sunday School',
+	evt_childrens_church: "Children's Church",
+	evt_teen_church: 'Teen Church',
+	min_choir_kids: "Children's Choir Practice",
+	min_youth_group: 'Youth Group',
+};
+
 const getEventName = (eventId: string | null) => {
 	if (!eventId) return '';
-	const eventNames: { [key: string]: string } = {
-		evt_sunday_school: 'Sunday School',
-		evt_childrens_church: "Children's Church",
-		evt_teen_church: 'Teen Church',
-		min_choir_kids: "Children's Choir Practice",
-		min_youth_group: 'Youth Group',
-	};
 	return eventNames[eventId] || 'an event';
 };
 
@@ -663,7 +665,7 @@ export default function RostersPage() {
 							Ministry Rosters
 						</h1>
 						<p className="text-muted-foreground">
-							View real-time rosters for all ministries and manage attendance.
+							Event: <span className="font-semibold text-foreground">{eventNames[selectedEvent]}</span>
 						</p>
 					</div>
 					<div className="flex flex-col sm:flex-row gap-4">

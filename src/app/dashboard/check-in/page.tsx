@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -55,6 +56,12 @@ const getGradeValue = (grade?: string): number => {
 };
 
 export type StatusFilter = 'all' | 'checkedIn' | 'checkedOut';
+
+const eventNames: { [key: string]: string } = {
+	evt_sunday_school: 'Sunday School',
+	evt_childrens_church: "Children's Church",
+	evt_teen_church: 'Teen Church',
+};
 
 export default function CheckInPage() {
 	const router = useRouter();
@@ -190,7 +197,7 @@ export default function CheckInPage() {
 						Child Check-In & Out
 					</h1>
 					<p className="text-muted-foreground">
-						Manage child check-ins and check-outs for today's services.
+						Event: <span className="font-semibold text-foreground">{eventNames[selectedEvent]}</span>
 					</p>
 				</div>
 				<div className="grid w-full max-w-sm items-center gap-1.5">
