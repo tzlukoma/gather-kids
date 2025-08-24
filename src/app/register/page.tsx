@@ -751,10 +751,10 @@ export default function RegisterPage() {
 <p>Teens should attend Teen Church which takes place at the Family Life Enrichment Center on 3rd Sundays.  Teens can sign themselved into and out of Teen Church.</p>
                                 </div>
                                 <div className="flex flex-col sm:flex-row sm:flex-wrap gap-x-6 gap-y-2 mt-2">
-                                    {childrenData.map((child, index) => (
-                                        <div key={`ss-${childFields[index].id}`} className="flex flex-row items-start space-x-3 space-y-0">
+                                    {childFields.map((field, index) => (
+                                        <div key={field.id} className="flex flex-row items-start space-x-3 space-y-0">
                                             <Checkbox checked={true} disabled={true} />
-                                            <label className="font-normal text-sm text-muted-foreground">{child.first_name || `Child ${index + 1}`}</label>
+                                            <label className="font-normal text-sm text-muted-foreground">{childrenData[index]?.first_name || `Child ${index + 1}`}</label>
                                         </div>
                                     ))}
                                 </div>
