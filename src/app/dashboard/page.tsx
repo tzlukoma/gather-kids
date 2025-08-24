@@ -139,7 +139,7 @@ export default function DashboardPage() {
                             ))}
                              {unacknowledgedIncidents.length === 0 && (
                                 <TableRow>
-                                    <TableCell colSpan={4} className="text-center text-muted-foreground">
+                                    <TableCell colSpan={4} className="text-center h-24 text-muted-foreground">
                                         No unacknowledged incidents.
                                     </TableCell>
                                 </TableRow>
