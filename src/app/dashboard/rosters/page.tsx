@@ -20,7 +20,7 @@ import {
 	CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { FileDown, ArrowUpDown } from 'lucide-react';
+import { FileDown, ArrowUpDown, Edit } from 'lucide-react';
 import { format } from 'date-fns';
 import {
 	getTodayIsoDate,
@@ -53,22 +53,30 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { RosterCard } from '@/components/gatherKids/roster-card';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogHeader,
+	DialogTitle,
+	DialogTrigger,
+} from '@/components/ui/dialog';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
 export interface RosterChild extends EnrichedChild {}
 
 type SortDirection = 'asc' | 'desc' | 'none';
 
-const eventNames: { [key: string]: string } = {
-	evt_sunday_school: 'Sunday School',
-	evt_childrens_church: "Children's Church",
-	evt_teen_church: 'Teen Church',
-	min_choir_kids: "Children's Choir Practice",
-	min_youth_group: 'Youth Group',
-};
+const eventOptions = [
+	{ id: 'evt_sunday_school', name: 'Sunday School' },
+	{ id: 'evt_childrens_church', name: "Children's Church" },
+	{ id: 'evt_teen_church', name: 'Teen Church' },
+];
 
 const getEventName = (eventId: string | null) => {
 	if (!eventId) return '';
-	return eventNames[eventId] || 'an event';
+	const event = eventOptions.find(e => e.id === eventId);
+	return event?.name || 'an event';
 };
 
 const gradeSortOrder: { [key: string]: number } = {
@@ -107,6 +115,7 @@ export default function RostersPage() {
 	const [childToCheckout, setChildToCheckout] = useState<RosterChild | null>(
 		null
 	);
+	const [isEventDialogOpen, setIsEventDialogOpen] = useState(false);
 
 	const [showCheckedIn, setShowCheckedIn] = useState(false);
 	const [showCheckedOut, setShowCheckedOut] = useState(false);
@@ -157,6 +166,10 @@ export default function RostersPage() {
 		[]
 	);
 	const allMinistries = useLiveQuery(() => db.ministries.toArray(), []);
+
+	const currentEventName = useMemo(() => {
+		return eventOptions.find((e) => e.id === selectedEvent)?.name || 'Select Event';
+	}, [selectedEvent]);
 
 	useEffect(() => {
 		if (!loading && user) {
@@ -659,37 +672,45 @@ export default function RostersPage() {
 	return (
 		<>
 			<div className="flex flex-col gap-8">
-				<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+				<div className="flex items-start justify-between gap-4">
 					<div>
-						<h1 className="text-3xl font-bold font-headline">
+						<h1 className="text-xl font-bold font-headline text-muted-foreground">
 							Ministry Rosters
 						</h1>
-						<p className="text-muted-foreground">
-							Event: <span className="font-semibold text-foreground">{eventNames[selectedEvent]}</span>
-						</p>
-					</div>
-					<div className="flex flex-col sm:flex-row gap-4">
-						<div className="grid w-full max-w-sm items-center gap-1.5">
-							<Label htmlFor="event-select">Check-In Event</Label>
-							<Select value={selectedEvent} onValueChange={setSelectedEvent}>
-								<SelectTrigger
-									id="event-select"
-									className="w-full sm:w-[250px]">
-									<SelectValue placeholder="Select an event..." />
-								</SelectTrigger>
-								<SelectContent>
-									<SelectItem value="evt_sunday_school">
-										Sunday School
-									</SelectItem>
-									<SelectItem value="evt_childrens_church">
-										Children's Church
-									</SelectItem>
-									<SelectItem value="evt_teen_church">Teen Church</SelectItem>
-								</SelectContent>
-							</Select>
-						</div>
+						<Dialog open={isEventDialogOpen} onOpenChange={setIsEventDialogOpen}>
+							<DialogTrigger asChild>
+								<Button variant="link" className="text-3xl font-bold font-headline p-0 h-auto">
+									Check-in: {currentEventName}
+									<Edit className="ml-2 h-5 w-5" />
+								</Button>
+							</DialogTrigger>
+							<DialogContent>
+								<DialogHeader>
+									<DialogTitle>Change Check-in Event</DialogTitle>
+									<DialogDescription>
+										Select the event you want to check children into or out of.
+									</DialogDescription>
+								</DialogHeader>
+								<RadioGroup
+									value={selectedEvent}
+									onValueChange={(value) => {
+										setSelectedEvent(value);
+										setIsEventDialogOpen(false);
+									}}
+									className="space-y-2"
+								>
+									{eventOptions.map((event) => (
+										<Label key={event.id} htmlFor={event.id} className="flex items-center gap-4 p-4 border rounded-md cursor-pointer hover:bg-muted/50 has-[input:checked]:bg-muted has-[input:checked]:border-primary">
+											<RadioGroupItem value={event.id} id={event.id} />
+											<span>{event.name}</span>
+										</Label>
+									))}
+								</RadioGroup>
+							</DialogContent>
+						</Dialog>
 					</div>
 				</div>
+
 
 				<Card>
 					<CardHeader className="p-0">
