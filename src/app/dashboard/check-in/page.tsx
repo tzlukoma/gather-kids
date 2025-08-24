@@ -144,16 +144,6 @@ export default function CheckInPage() {
     )
   }
 
-  if(children.length === 0) {
-    return (
-        <div className="flex flex-col items-center justify-center h-64 p-8 text-center border-2 border-dashed rounded-lg">
-            <p className="text-muted-foreground mb-4">The database is currently empty.</p>
-            <p className="text-sm text-muted-foreground">You can populate it with sample data to get started.</p>
-            <Button onClick={seedDB} className="mt-4">Seed Database</Button>
-        </div>
-    )
-  }
-
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
