@@ -1,0 +1,2 @@
+- When a new feature is added to the application or a feature updated, make sure to update the FEATURES.md file accordingly.
+- If the tech stack changes, update the README.md file to reflect the new tech stack and any relevant changes to the project setup.
