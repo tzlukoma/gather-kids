@@ -61,20 +61,8 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { user, loading, logout } = useAuth();
+  const [initialRedirectComplete, setInitialRedirectComplete] = React.useState(false);
 
-  React.useEffect(() => {
-    if (!loading && !user) {
-      router.push('/login');
-    }
-  }, [user, loading, router]);
-  
-  if (loading || !user) {
-    return (
-        <div className="flex items-center justify-center h-screen">
-            <p>Loading...</p>
-        </div>
-    )
-  }
 
   const getMenuItems = () => {
     if (user?.role === 'admin') {
@@ -97,6 +85,33 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   }
 
   const menuItems = getMenuItems();
+
+  React.useEffect(() => {
+    if (loading) return;
+
+    if (!user) {
+      router.push('/login');
+      return;
+    }
+
+    if (!initialRedirectComplete && menuItems.length > 0) {
+      const topMenuItem = menuItems[0];
+      // Only redirect if the user is at the base dashboard and not already on their target page
+      if (pathname === '/dashboard' && topMenuItem.href !== '/dashboard') {
+        router.replace(topMenuItem.href);
+      }
+      setInitialRedirectComplete(true);
+    }
+  }, [user, loading, router, menuItems, initialRedirectComplete, pathname]);
+  
+  if (loading || !user) {
+    return (
+        <div className="flex items-center justify-center h-screen">
+            <p>Loading...</p>
+        </div>
+    )
+  }
+
 
   const handleLogout = () => {
     logout();
