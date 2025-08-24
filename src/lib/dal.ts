@@ -6,6 +6,7 @@
 
 
 
+
 import { db } from './db';
 import type { Attendance, Child, Guardian, Household, Incident, IncidentSeverity, Ministry, MinistryEnrollment, Registration, User, EmergencyContact, LeaderAssignment } from './types';
 import { differenceInYears, isAfter, isBefore, parseISO } from 'date-fns';
@@ -288,7 +289,7 @@ const fetchFullHouseholdData = async (householdId: string, cycleId: string) => {
     const childIds = children.map(c => c.child_id);
     const enrollments = await db.ministry_enrollments.where('child_id').anyOf(childIds).and(e => e.cycle_id === cycleId).toArray();
     const allMinistries = await db.ministries.toArray();
-    const ministryMap = new Map(allMinistries.map(m => [m.ministry_id, m]));
+    const ministryMap = new Map(allMinistries.map(m => [m.code, m]));
 
     const childrenWithSelections = children.map(child => {
         const childEnrollments = enrollments.filter(e => e.child_id === child.child_id);
@@ -647,8 +648,12 @@ export async function queryLeaders() {
         const leaderAssignments = assignments
             .filter(a => a.leader_id === leader.user_id)
             .map(a => ({...a, ministryName: ministryMap.get(a.ministry_id) || 'Unknown Ministry' }));
+        
+        const isActive = leader.is_active && leaderAssignments.length > 0;
+
         return {
             ...leader,
+            is_active: isActive,
             assignments: leaderAssignments,
         };
     });
