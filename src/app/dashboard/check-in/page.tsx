@@ -18,7 +18,9 @@ import { seedDB } from '@/lib/seed';
 import { useAuth } from '@/contexts/auth-context';
 import { useRouter } from 'next/navigation';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { ShieldAlert } from 'lucide-react';
+import { ShieldAlert, Users } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { getTodayIsoDate } from '@/lib/dal';
 
 const gradeSortOrder: { [key: string]: number } = {
     "Pre-K": 0, "Kindergarten": 1, "1st Grade": 2, "2nd Grade": 3, "3rd Grade": 4, "4th Grade": 5,
@@ -44,6 +46,13 @@ export default function CheckInPage() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   
   const children = useLiveQuery(() => db.children.toArray(), []);
+  const today = getTodayIsoDate();
+  const todaysAttendance = useLiveQuery(() => db.attendance.where({date: today}).toArray(), [today]);
+  
+  const checkedInCount = useMemo(() => {
+    if (!todaysAttendance) return 0;
+    return todaysAttendance.filter(a => !a.check_out_at).length;
+  }, [todaysAttendance]);
 
   useEffect(() => {
     if (!loading && user) {
@@ -83,7 +92,7 @@ export default function CheckInPage() {
     )
   }
 
-  if (!children) {
+  if (!children || !todaysAttendance) {
     return (
         <div className="flex flex-col items-center justify-center h-64">
             <p className="text-muted-foreground mb-4">Loading children's data...</p>
@@ -124,6 +133,19 @@ export default function CheckInPage() {
             </Select>
         </div>
       </div>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Currently Checked In</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+            <div className="text-2xl font-bold">
+                {checkedInCount}
+                <span className="text-base font-medium text-muted-foreground"> of {children.length}</span>
+            </div>
+            <p className="text-xs text-muted-foreground">children currently on site</p>
+        </CardContent>
+    </Card>
       <div className="flex flex-wrap gap-2 items-center">
             <Label className="font-semibold shrink-0">Filter by Status:</Label>
             <Button variant={statusFilter === 'all' ? 'default' : 'outline'} size="sm" onClick={() => setStatusFilter('all')}>All</Button>
