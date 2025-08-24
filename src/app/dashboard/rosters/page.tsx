@@ -27,7 +27,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { useIsMobile } from '@/hooks/use-mobile';
 import { RosterCard } from '@/components/ministrysync/roster-card';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 
 export interface RosterChild extends EnrichedChild {}
@@ -62,7 +62,9 @@ export default function RostersPage() {
   const { toast } = useToast();
   const isMobile = useIsMobile();
   const searchParams = useSearchParams();
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
+  const router = useRouter();
+  const [isAuthorized, setIsAuthorized] = useState(false);
 
   const [selectedEvent, setSelectedEvent] = useState('evt_sunday_school');
   const [childToCheckout, setChildToCheckout] = useState<RosterChild | null>(null);
@@ -80,7 +82,7 @@ export default function RostersPage() {
 
   const allChildrenQuery = useLiveQuery(async () => {
     if (user?.role === 'leader') {
-        if (!user.assignedMinistryIds || user.assignedMinistryIds.length === 0) return [];
+        if (!user.is_active || !user.assignedMinistryIds || user.assignedMinistryIds.length === 0) return [];
         const enrollments = await db.ministry_enrollments
             .where('ministry_id').anyOf(user.assignedMinistryIds)
             .and(e => e.cycle_id === '2025')
@@ -98,6 +100,17 @@ export default function RostersPage() {
   const allHouseholds = useLiveQuery(() => db.households.toArray(), []);
   const allEmergencyContacts = useLiveQuery(() => db.emergency_contacts.toArray(), []);
   const allMinistries = useLiveQuery(() => db.ministries.toArray(), []);
+
+  useEffect(() => {
+    if (!loading && user) {
+        if (user.role === 'leader' && (!user.is_active || !user.assignedMinistryIds || user.assignedMinistryIds.length === 0)) {
+            router.push('/dashboard');
+        } else {
+            setIsAuthorized(true);
+        }
+    }
+  }, [user, loading, router]);
+
 
   useEffect(() => {
     const statusParam = searchParams.get('status');
@@ -307,7 +320,7 @@ export default function RostersPage() {
     toast({ title: "Exported", description: "The filtered roster has been downloaded." });
   }
 
-  if (!childrenWithDetails) {
+  if (loading || !isAuthorized || !childrenWithDetails) {
     return <div>Loading rosters...</div>
   }
 
