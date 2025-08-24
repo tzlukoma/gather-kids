@@ -6,12 +6,13 @@ This plan outlines the implementation of Supabase as the production database for
 
 ## 🎯 Objectives
 
-1. **Dual Database Support**: IndexedDB for demo mode, Supabase for production
+1. **Triple Database Support**: IndexedDB for demo mode, SQLite (Prisma) for local development, Supabase for production
 2. **Seamless Switching**: Feature flag controlled database mode switching
 3. **Unified API**: Single data access layer regardless of database backend
-4. **Environment Management**: DEV, UAT, and PROD Supabase environments
-5. **Data Migration**: Tools to migrate data between environments
+4. **Environment Management**: Local (SQLite), DEV, UAT, and PROD Supabase environments
+5. **Data Migration**: Tools to migrate data between environments and database types
 6. **Performance**: Optimized queries and real-time subscriptions
+7. **Type Safety**: Prisma-generated types for enhanced development experience
 
 ## 🏗️ Architecture Overview
 
@@ -30,14 +31,259 @@ This plan outlines the implementation of Supabase as the production database for
                     ┌───────────┴───────────┐
                     ▼                       ▼
             ┌─────────────┐         ┌─────────────┐
-            │  IndexedDB  │         │   Supabase  │
-            │  (Demo)     │         │ (Production)│
+            │  IndexedDB  │         │   Prisma    │
+            │  (Demo)     │         │ (Local Dev) │
             └─────────────┘         └─────────────┘
+                                │
+                                ▼
+                        ┌─────────────┐
+                        │   Supabase  │
+                        │(Production) │
+                        └─────────────┘
 ```
 
-## 🔧 Phase 1: Supabase Setup & Configuration
+## 🔧 Phase 1: Prisma & Supabase Setup & Configuration
 
-### 1.1 Supabase Project Creation
+### 1.1 Prisma Setup
+
+#### Install Prisma Dependencies
+
+```bash
+npm install prisma @prisma/client
+npm install -D prisma
+```
+
+#### Initialize Prisma
+
+```bash
+npx prisma init
+```
+
+#### Configure Prisma Schema
+
+```prisma
+// prisma/schema.prisma
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Household Model
+model Household {
+  household_id    String   @id @default(cuid())
+  name            String?
+  address_line1   String?
+  address_line2   String?
+  city            String?
+  state           String?
+  zip             String?
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  // Relations
+  guardians       Guardian[]
+  emergency_contacts EmergencyContact[]
+  children        Child[]
+
+  @@map("households")
+}
+
+// Guardian Model
+model Guardian {
+  guardian_id    String   @id @default(cuid())
+  household_id   String
+  first_name     String
+  last_name      String
+  mobile_phone   String
+  email          String?
+  relationship   String
+  is_primary     Boolean  @default(false)
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
+
+  // Relations
+  household      Household @relation(fields: [household_id], references: [household_id])
+
+  @@map("guardians")
+}
+
+// Child Model
+model Child {
+  child_id       String   @id @default(cuid())
+  household_id   String
+  first_name     String
+  last_name      String
+  dob            DateTime?
+  grade          String?
+  child_mobile   String?
+  allergies      String?
+  medical_notes  String?
+  special_needs  Boolean  @default(false)
+  special_needs_notes String?
+  is_active      Boolean  @default(true)
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
+
+  // Relations
+  household      Household @relation(fields: [household_id], references: [household_id])
+  registrations Registration[]
+  enrollments   MinistryEnrollment[]
+  attendance    Attendance[]
+  incidents     Incident[]
+
+  @@map("children")
+}
+
+// Ministry Model
+model Ministry {
+  ministry_id    String   @id @default(cuid())
+  name           String
+  code           String   @unique
+  enrollment_type String
+  min_age        Int?
+  max_age        Int?
+  min_grade      String?
+  max_grade      String?
+  open_at        DateTime?
+  close_at       DateTime?
+  data_profile   String
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
+  details        String?
+  description    String?
+  is_active      Boolean  @default(true)
+
+  // Relations
+  enrollments    MinistryEnrollment[]
+  assignments    LeaderAssignment[]
+
+  @@map("ministries")
+}
+
+// Registration Model
+model Registration {
+  registration_id String   @id @default(cuid())
+  child_id       String
+  cycle_id       String
+  status         String
+  pre_registered_sunday_school Boolean @default(false)
+  submitted_via  String
+  submitted_at   DateTime @default(now())
+
+  // Relations
+  child          Child @relation(fields: [child_id], references: [child_id])
+
+  @@map("registrations")
+}
+
+// Ministry Enrollment Model
+model MinistryEnrollment {
+  enrollment_id  String   @id @default(cuid())
+  child_id       String
+  cycle_id       String
+  ministry_id    String
+  status         String
+  custom_fields  Json?
+  notes          String?
+
+  // Relations
+  child          Child @relation(fields: [child_id], references: [child_id])
+  ministry       Ministry @relation(fields: [ministry_id], references: [ministry_id])
+
+  @@map("ministry_enrollments")
+}
+
+// Attendance Model
+model Attendance {
+  attendance_id  String   @id @default(cuid())
+  event_id       String
+  child_id       String
+  date           String
+  timeslot_id    String?
+  check_in_at    DateTime?
+  checked_in_by  String?
+  check_out_at   DateTime?
+  picked_up_by  String?
+  pickup_method  String?
+  notes          String?
+  first_time_flag Boolean @default(false)
+
+  // Relations
+  child          Child @relation(fields: [child_id], references: [child_id])
+
+  @@map("attendance")
+}
+
+// Incident Model
+model Incident {
+  incident_id    String   @id @default(cuid())
+  child_id       String
+  child_name     String
+  event_id       String?
+  description    String
+  severity       String
+  leader_id      String
+  timestamp      DateTime @default(now())
+  admin_acknowledged_at DateTime?
+
+  // Relations
+  child          Child @relation(fields: [child_id], references: [child_id])
+
+  @@map("incidents")
+}
+
+// User Model
+model User {
+  user_id       String   @id @default(cuid())
+  name          String
+  email         String   @unique
+  mobile_phone  String?
+  role          String
+  is_active     Boolean  @default(true)
+  background_check_status String?
+  expires_at    DateTime?
+
+  // Relations
+  assignments   LeaderAssignment[]
+
+  @@map("users")
+}
+
+// Leader Assignment Model
+model LeaderAssignment {
+  assignment_id String   @id @default(cuid())
+  leader_id     String
+  ministry_id   String
+  cycle_id      String
+  role          String
+
+  // Relations
+  leader        User @relation(fields: [leader_id], references: [user_id])
+  ministry      Ministry @relation(fields: [ministry_id], references: [ministry_id])
+
+  @@map("leader_assignments")
+}
+```
+
+#### Environment Configuration for Prisma
+
+```env
+# .env.local
+DATABASE_URL="file:./dev.db"
+```
+
+#### Generate Prisma Client
+
+```bash
+npx prisma generate
+npx prisma db push
+```
+
+### 1.2 Supabase Project Creation
 
 #### Development Environment (DEV)
 
@@ -69,7 +315,10 @@ supabase projects create gatherkids-prod
 
 ```env
 # Database Mode
-NEXT_PUBLIC_DATABASE_MODE=demo  # demo | supabase
+NEXT_PUBLIC_DATABASE_MODE=prisma  # demo | prisma | supabase
+
+# Prisma Configuration
+DATABASE_URL="file:./dev.db"
 
 # Supabase Configuration
 NEXT_PUBLIC_SUPABASE_URL=https://your-dev-project.supabase.co
@@ -79,6 +328,7 @@ SUPABASE_SERVICE_ROLE_KEY=your-dev-service-role-key
 # Feature Flags
 NEXT_PUBLIC_SHOW_DEMO_FEATURES=true
 NEXT_PUBLIC_ENABLE_SUPABASE_MODE=false
+NEXT_PUBLIC_ENABLE_PRISMA_MODE=true
 ```
 
 #### .env.staging (UAT)
@@ -90,6 +340,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-uat-anon-key
 SUPABASE_SERVICE_ROLE_KEY=your-uat-service-role-key
 NEXT_PUBLIC_SHOW_DEMO_FEATURES=false
 NEXT_PUBLIC_ENABLE_SUPABASE_MODE=true
+NEXT_PUBLIC_ENABLE_PRISMA_MODE=false
 ```
 
 #### .env.production (PROD)
@@ -101,6 +352,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-prod-anon-key
 SUPABASE_SERVICE_ROLE_KEY=your-prod-service-role-key
 NEXT_PUBLIC_SHOW_DEMO_FEATURES=false
 NEXT_PUBLIC_ENABLE_SUPABASE_MODE=true
+NEXT_PUBLIC_ENABLE_PRISMA_MODE=false
 ```
 
 ### 1.3 Database Schema Setup
@@ -195,7 +447,7 @@ export interface DatabaseAdapter {
 
 ### 2.2 Implement IndexedDB Adapter
 
-```typescript
+````typescript
 // src/lib/database/indexeddb-adapter.ts
 import { DatabaseAdapter } from './types';
 import { db } from '../db';
@@ -232,7 +484,260 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 		return () => {}; // Cleanup function
 	}
 }
-```
+
+### 2.3 Implement Prisma Adapter
+
+```typescript
+// src/lib/database/prisma-adapter.ts
+import { DatabaseAdapter } from './types';
+import { PrismaClient } from '@prisma/client';
+import type { Household, Child, Attendance /* other types */ } from '../types';
+
+export class PrismaAdapter implements DatabaseAdapter {
+	private client: PrismaClient;
+
+	constructor() {
+		this.client = new PrismaClient();
+	}
+
+	async getHousehold(id: string): Promise<Household | null> {
+		const household = await this.client.household.findUnique({
+			where: { household_id: id },
+			include: {
+				guardians: true,
+				emergency_contacts: true,
+				children: true,
+			},
+		});
+
+		return household;
+	}
+
+	async createHousehold(
+		data: Omit<Household, 'household_id' | 'created_at' | 'updated_at'>
+	): Promise<Household> {
+		const household = await this.client.household.create({
+			data: {
+				...data,
+				guardians: {
+					create: data.guardians || [],
+				},
+				emergency_contacts: {
+					create: data.emergency_contacts || [],
+				},
+				children: {
+					create: data.children || [],
+				},
+			},
+			include: {
+				guardians: true,
+				emergency_contacts: true,
+				children: true,
+			},
+		});
+
+		return household;
+	}
+
+	async updateHousehold(id: string, data: Partial<Household>): Promise<Household> {
+		const household = await this.client.household.update({
+			where: { household_id: id },
+			data,
+			include: {
+				guardians: true,
+				emergency_contacts: true,
+				children: true,
+			},
+		});
+
+		return household;
+	}
+
+	async deleteHousehold(id: string): Promise<void> {
+		await this.client.household.delete({
+			where: { household_id: id },
+		});
+	}
+
+	async listHouseholds(filters?: HouseholdFilters): Promise<Household[]> {
+		const where: any = {};
+
+		if (filters?.city) where.city = filters.city;
+		if (filters?.state) where.state = filters.state;
+		if (filters?.zip) where.zip = filters.zip;
+
+		const households = await this.client.household.findMany({
+			where,
+			include: {
+				guardians: true,
+				emergency_contacts: true,
+				children: true,
+			},
+		});
+
+		return households;
+	}
+
+	async getChild(id: string): Promise<Child | null> {
+		const child = await this.client.child.findUnique({
+			where: { child_id: id },
+			include: {
+				household: true,
+				registrations: true,
+				enrollments: true,
+				attendance: true,
+				incidents: true,
+			},
+		});
+
+		return child;
+	}
+
+	async createChild(
+		data: Omit<Child, 'child_id' | 'created_at' | 'updated_at'>
+	): Promise<Child> {
+		const child = await this.client.child.create({
+			data,
+			include: {
+				household: true,
+				registrations: true,
+				enrollments: true,
+				attendance: true,
+				incidents: true,
+			},
+		});
+
+		return child;
+	}
+
+	async updateChild(id: string, data: Partial<Child>): Promise<Child> {
+		const child = await this.client.child.update({
+			where: { child_id: id },
+			data,
+			include: {
+				household: true,
+				registrations: true,
+				enrollments: true,
+				attendance: true,
+				incidents: true,
+			},
+		});
+
+		return child;
+	}
+
+	async deleteChild(id: string): Promise<void> {
+		await this.client.child.delete({
+			where: { child_id: id },
+		});
+	}
+
+	async listChildren(filters?: ChildFilters): Promise<Child[]> {
+		const where: any = {};
+
+		if (filters?.household_id) where.household_id = filters.household_id;
+		if (filters?.grade) where.grade = filters.grade;
+		if (filters?.is_active !== undefined) where.is_active = filters.is_active;
+
+		const children = await this.client.child.findMany({
+			where,
+			include: {
+				household: true,
+				registrations: true,
+				enrollments: true,
+				attendance: true,
+				incidents: true,
+			},
+		});
+
+		return children;
+	}
+
+	async getAttendance(id: string): Promise<Attendance | null> {
+		const attendance = await this.client.attendance.findUnique({
+			where: { attendance_id: id },
+			include: {
+				child: true,
+			},
+		});
+
+		return attendance;
+	}
+
+	async createAttendance(
+		data: Omit<Attendance, 'attendance_id'>
+	): Promise<Attendance> {
+		const attendance = await this.client.attendance.create({
+			data,
+			include: {
+				child: true,
+			},
+		});
+
+		return attendance;
+	}
+
+	async updateAttendance(id: string, data: Partial<Attendance>): Promise<Attendance> {
+		const attendance = await this.client.attendance.update({
+			where: { attendance_id: id },
+			data,
+			include: {
+				child: true,
+			},
+		});
+
+		return attendance;
+	}
+
+	async listAttendance(filters?: AttendanceFilters): Promise<Attendance[]> {
+		const where: any = {};
+
+		if (filters?.date) where.date = filters.date;
+		if (filters?.event_id) where.event_id = filters.event_id;
+		if (filters?.child_id) where.child_id = filters.child_id;
+		if (filters?.timeslot_id) where.timeslot_id = filters.timeslot_id;
+
+		const attendance = await this.client.attendance.findMany({
+			where,
+			include: {
+				child: true,
+			},
+		});
+
+		return attendance;
+	}
+
+	subscribeToTable<T>(
+		table: string,
+		callback: (data: T[]) => void
+	): () => void {
+		// For local development, we'll implement polling-based updates
+		// This can be enhanced with WebSockets or Server-Sent Events later
+		const interval = setInterval(async () => {
+			try {
+				const data = await this.listData(table);
+				callback(data as T[]);
+			} catch (error) {
+				console.error(`Error polling ${table}:`, error);
+			}
+		}, 5000); // Poll every 5 seconds
+
+		return () => {
+			clearInterval(interval);
+		};
+	}
+
+	async transaction<T>(operations: () => Promise<T>): Promise<T> {
+		return await this.client.$transaction(operations);
+	}
+
+	async disconnect(): Promise<void> {
+		await this.client.$disconnect();
+	}
+}
+````
+
+````
 
 ### 2.3 Implement Supabase Adapter
 
@@ -315,7 +820,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 		}
 	}
 }
-```
+````
 
 ### 2.4 Database Factory
 
@@ -323,17 +828,24 @@ export class SupabaseAdapter implements DatabaseAdapter {
 // src/lib/database/factory.ts
 import { DatabaseAdapter } from './types';
 import { IndexedDBAdapter } from './indexeddb-adapter';
+import { PrismaAdapter } from './prisma-adapter';
 import { SupabaseAdapter } from './supabase-adapter';
 
 export function createDatabaseAdapter(): DatabaseAdapter {
 	const mode = process.env.NEXT_PUBLIC_DATABASE_MODE || 'demo';
 
-	if (mode === 'demo') {
-		return new IndexedDBAdapter();
-	} else {
-		const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-		const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-		return new SupabaseAdapter(url, anonKey);
+	switch (mode) {
+		case 'demo':
+			return new IndexedDBAdapter();
+		case 'prisma':
+			return new PrismaAdapter();
+		case 'supabase':
+			const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+			const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+			return new SupabaseAdapter(url, anonKey);
+		default:
+			console.warn(`Unknown database mode: ${mode}, falling back to demo mode`);
+			return new IndexedDBAdapter();
 	}
 }
 
@@ -553,6 +1065,185 @@ migrateData().catch(console.error);
 ```
 
 ### 6.2 Seeding Scripts
+
+#### Prisma Seeding
+
+```typescript
+// prisma/seed.ts
+import { PrismaClient } from '@prisma/client';
+import { seedData } from '../src/lib/seed';
+
+const prisma = new PrismaClient();
+
+async function seedPrisma() {
+	try {
+		console.log('Starting Prisma seeding...');
+
+		// Clear existing data
+		await prisma.attendance.deleteMany();
+		await prisma.incident.deleteMany();
+		await prisma.ministryEnrollment.deleteMany();
+		await prisma.registration.deleteMany();
+		await prisma.child.deleteMany();
+		await prisma.guardian.deleteMany();
+		await prisma.emergencyContact.deleteMany();
+		await prisma.household.deleteMany();
+		await prisma.leaderAssignment.deleteMany();
+		await prisma.ministry.deleteMany();
+		await prisma.user.deleteMany();
+
+		console.log('Existing data cleared');
+
+		// Seed ministries
+		const ministries = await Promise.all(
+			seedData.ministries.map((ministry) =>
+				prisma.ministry.create({
+					data: {
+						ministry_id: ministry.ministry_id,
+						name: ministry.name,
+						code: ministry.code,
+						enrollment_type: ministry.enrollment_type,
+						min_age: ministry.min_age,
+						max_age: ministry.max_age,
+						min_grade: ministry.min_grade,
+						max_grade: ministry.max_grade,
+						open_at: ministry.open_at ? new Date(ministry.open_at) : null,
+						close_at: ministry.close_at ? new Date(ministry.close_at) : null,
+						data_profile: ministry.data_profile,
+						details: ministry.details,
+						description: ministry.description,
+						is_active: ministry.is_active,
+					},
+				})
+			)
+		);
+
+		console.log(`${ministries.length} ministries created`);
+
+		// Seed users
+		const users = await Promise.all(
+			seedData.users.map((user) =>
+				prisma.user.create({
+					data: {
+						user_id: user.user_id,
+						name: user.name,
+						email: user.email,
+						mobile_phone: user.mobile_phone,
+						role: user.role,
+						is_active: user.is_active,
+						background_check_status: user.background_check_status,
+						expires_at: user.expires_at ? new Date(user.expires_at) : null,
+					},
+				})
+			)
+		);
+
+		console.log(`${users.length} users created`);
+
+		// Seed households with related data
+		for (const householdData of seedData.households) {
+			const household = await prisma.household.create({
+				data: {
+					household_id: householdData.household_id,
+					name: householdData.name,
+					address_line1: householdData.address_line1,
+					address_line2: householdData.address_line2,
+					city: householdData.city,
+					state: householdData.state,
+					zip: householdData.zip,
+					created_at: new Date(householdData.created_at),
+					updated_at: new Date(householdData.updated_at),
+				},
+			});
+
+			// Create guardians for this household
+			const householdGuardians = seedData.guardians.filter(
+				(g) => g.household_id === household.household_id
+			);
+			await Promise.all(
+				householdGuardians.map((guardian) =>
+					prisma.guardian.create({
+						data: {
+							guardian_id: guardian.guardian_id,
+							household_id: household.household_id,
+							first_name: guardian.first_name,
+							last_name: guardian.last_name,
+							mobile_phone: guardian.mobile_phone,
+							email: guardian.email,
+							relationship: guardian.relationship,
+							is_primary: guardian.is_primary,
+							created_at: new Date(guardian.created_at),
+							updated_at: new Date(guardian.updated_at),
+						},
+					})
+				)
+			);
+
+			// Create emergency contacts for this household
+			const householdEmergencyContacts = seedData.emergencyContacts.filter(
+				(ec) => ec.household_id === household.household_id
+			);
+			await Promise.all(
+				householdEmergencyContacts.map((ec) =>
+					prisma.emergencyContact.create({
+						data: {
+							contact_id: ec.contact_id,
+							household_id: household.household_id,
+							first_name: ec.first_name,
+							last_name: ec.last_name,
+							mobile_phone: ec.mobile_phone,
+							relationship: ec.relationship,
+						},
+					})
+				)
+			);
+
+			// Create children for this household
+			const householdChildren = seedData.children.filter(
+				(c) => c.household_id === household.household_id
+			);
+			await Promise.all(
+				householdChildren.map((child) =>
+					prisma.child.create({
+						data: {
+							child_id: child.child_id,
+							household_id: household.household_id,
+							first_name: child.first_name,
+							last_name: child.last_name,
+							dob: child.dob ? new Date(child.dob) : null,
+							grade: child.grade,
+							child_mobile: child.child_mobile,
+							allergies: child.allergies,
+							medical_notes: child.medical_notes,
+							special_needs: child.special_needs,
+							special_needs_notes: child.special_needs_notes,
+							is_active: child.is_active,
+							created_at: new Date(child.created_at),
+							updated_at: new Date(child.updated_at),
+						},
+					})
+				)
+			);
+		}
+
+		console.log('Households and related data created');
+
+		// Seed other related data (registrations, enrollments, etc.)
+		// ... additional seeding logic
+
+		console.log('Prisma seeding completed successfully');
+	} catch (error) {
+		console.error('Error during Prisma seeding:', error);
+		throw error;
+	} finally {
+		await prisma.$disconnect();
+	}
+}
+
+seedPrisma().catch(console.error);
+```
+
+#### Supabase Seeding
 
 ```typescript
 // scripts/seed-supabase.ts
