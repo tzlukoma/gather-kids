@@ -26,6 +26,17 @@ import { useState, useMemo, useEffect } from "react"
 import { Textarea } from "@/components/ui/textarea"
 import { findHouseholdByEmail, registerHousehold } from "@/lib/dal"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 import { differenceInYears, isWithinInterval, parseISO, isValid } from "date-fns"
 import { DanceMinistryForm } from "@/components/ministrysync/dance-ministry-form"
 import { TeenFellowshipForm } from "@/components/ministrysync/teen-fellowship-form"
@@ -669,6 +680,13 @@ export default function RegisterPage() {
                             {childFields.map((field, index) => {
                                 const childFirstName = form.watch(`children.${index}.first_name`);
                                 const hasSpecialNeeds = form.watch(`children.${index}.special_needs`);
+                                const isExistingChild = !!childrenData[index]?.child_id;
+
+                                const removeButton = (
+                                    <Button type="button" variant="destructive" size="sm">
+                                        <Trash2 className="mr-2 h-4 w-4" /> Remove Child
+                                    </Button>
+                                );
 
                                 return (
                                 <AccordionItem key={field.id} value={`item-${index}`}>
@@ -739,11 +757,32 @@ export default function RegisterPage() {
                                         )}
                                         
                                         <div className="flex items-center gap-4">
-                                            <Button type="button" variant="destructive" size="sm" onClick={() => removeChild(index)}><Trash2 className="mr-2 h-4 w-4" /> Remove Child</Button>
-                                            {childrenData[index]?.child_id && (
-                                                <p className="text-xs text-muted-foreground">
-                                                    If this child was previously registered, removing them marks them inactive for this year but retains their history.
-                                                </p>
+                                            {isExistingChild ? (
+                                                 <AlertDialog>
+                                                    <AlertDialogTrigger asChild>
+                                                        {removeButton}
+                                                    </AlertDialogTrigger>
+                                                    <AlertDialogContent>
+                                                        <AlertDialogHeader>
+                                                        <AlertDialogTitle>Are you sure you want to remove {childFirstName || 'this child'}?</AlertDialogTitle>
+                                                        <AlertDialogDescription>
+                                                            This will mark {childFirstName || 'this child'} as inactive for this year's registration and remove them from this form. Their historical data from previous years will be retained.
+                                                            <br/><br/>
+                                                            Are you sure you want to proceed?
+                                                        </AlertDialogDescription>
+                                                        </AlertDialogHeader>
+                                                        <AlertDialogFooter>
+                                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                        <AlertDialogAction onClick={() => removeChild(index)} className="bg-destructive hover:bg-destructive/90">
+                                                            Yes, Remove Child
+                                                        </AlertDialogAction>
+                                                        </AlertDialogFooter>
+                                                    </AlertDialogContent>
+                                                </AlertDialog>
+                                            ) : (
+                                                <Button type="button" variant="destructive" size="sm" onClick={() => removeChild(index)}>
+                                                    <Trash2 className="mr-2 h-4 w-4" /> Remove Child
+                                                </Button>
                                             )}
                                         </div>
                                     </AccordionContent>
