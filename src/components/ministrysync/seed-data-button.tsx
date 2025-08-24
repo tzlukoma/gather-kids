@@ -36,10 +36,11 @@ export function SeedDataButton() {
     setIsLoading(true);
     setIsSeeding(true);
     try {
+        await resetDB();
         await seedDB();
         toast({
             title: "Database Seeded!",
-            description: "The database has been populated with fresh sample data.",
+            description: "The database has been reset and populated with fresh sample data.",
         });
     } catch (e) {
         console.error(e);
