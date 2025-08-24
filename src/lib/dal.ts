@@ -10,6 +10,7 @@
 
 
 
+
 import { db } from './db';
 import type { Attendance, Child, Guardian, Household, Incident, IncidentSeverity, Ministry, MinistryEnrollment, Registration, User, EmergencyContact, LeaderAssignment } from './types';
 import { differenceInYears, isAfter, isBefore, parseISO } from 'date-fns';
@@ -442,6 +443,7 @@ export async function registerHousehold(data: any, cycle_id: string, isPrefill: 
         // Deactivate children who were in the household but removed from the form on an update
         if (isUpdate) {
             const childrenToRemove = existingChildren
+                .filter(c => c.is_active) // Only consider currently active children
                 .map(c => c.child_id)
                 .filter(id => !incomingChildIds.includes(id));
             if (childrenToRemove.length > 0) {
