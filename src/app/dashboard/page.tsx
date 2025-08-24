@@ -46,9 +46,10 @@ export default function DashboardPage() {
     useEffect(() => {
         if (!loading && user) {
             if (user.role !== 'admin') {
-                // For this prototype, non-admins are just redirected.
-                // A more robust app might have a different dashboard for leaders.
-                router.push('/dashboard/rosters'); 
+                // Non-admin users are redirected from the layout based on their permissions.
+                // This page is for admins only. If a non-admin somehow lands here,
+                // the layout will redirect them. We'll just prevent rendering the content.
+                setIsAuthorized(false);
             } else {
                 setIsAuthorized(true);
             }
