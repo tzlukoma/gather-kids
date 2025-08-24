@@ -7,7 +7,7 @@ import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
 import { Checkbox } from "../ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
-import { Info, CheckCircle, Smartphone, User } from "lucide-react";
+import { Info, CheckCircle, Smartphone, User, Camera } from "lucide-react";
 import { Separator } from "../ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 
@@ -28,12 +28,14 @@ export function RosterCard({ child, showBulkActions, isSelected, onToggleSelecti
         <Card key={child.child_id} className={isSelected ? 'border-primary' : ''}>
              <CardHeader className="flex flex-row items-start justify-between">
                 <div className="flex items-start gap-4">
-                     <Avatar className="w-12 h-12 border" onClick={() => child.photo_url && onViewPhoto({ name: `${child.first_name} ${child.last_name}`, url: child.photo_url })}>
-                        <AvatarImage src={child.photo_url} alt={child.first_name} />
-                        <AvatarFallback>
-                            <User className="w-6 h-6" />
-                        </AvatarFallback>
-                    </Avatar>
+                     <div className="relative w-20 h-20 sm:w-12 sm:h-12 flex-shrink-0">
+                        <Avatar className="w-full h-full border" onClick={() => child.photo_url && onViewPhoto({ name: `${child.first_name} ${child.last_name}`, url: child.photo_url })}>
+                            <AvatarImage src={child.photo_url} alt={child.first_name} />
+                            <AvatarFallback>
+                                <User className="w-10 h-10 sm:w-6 sm:h-6" />
+                            </AvatarFallback>
+                        </Avatar>
+                     </div>
                     <div>
                         <CardTitle className="font-headline text-lg">{`${child.first_name} ${child.last_name}`}</CardTitle>
                         <CardDescription>{child.grade}</CardDescription>
