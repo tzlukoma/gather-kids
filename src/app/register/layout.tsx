@@ -23,7 +23,7 @@ export default function RegisterLayout({
       <main className="flex-1 container mx-auto p-4 md:p-6 lg:p-8">
         {children}
       </main>
-      <footer className="py-6 border-t">
+      <footer className="py-6 border-t mt-auto">
         <div className="container mx-auto flex justify-between items-center text-sm text-muted-foreground">
             <p>&copy; {new Date().getFullYear()} gatherKids. All rights reserved.</p>
             <Button variant="ghost" size="icon" onClick={() => setIsFlagDialogOpen(true)}>

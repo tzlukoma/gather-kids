@@ -497,7 +497,7 @@ export default function RegisterPage() {
                 <CardHeader>
                     <CardTitle className="font-headline">Household Lookup</CardTitle>
                     <CardDescription>
-                        Enter your email to find your household, or start a new registration.
+                        Enter your primary household email address. If you've registered with us before, we'll pre-fill your information for you. If not, you can start a new registration.
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -562,6 +562,8 @@ export default function RegisterPage() {
                     <CardHeader>
                         <CardTitle className="font-headline">Household & Guardian / Authorized Pick Up Information</CardTitle>
                         <CardDescription>
+                            Please provide information for your household and list all parents, guardians, or other adults who are authorized to pick up your children.
+                            <br />
                             <Button variant="link" className="p-0 h-auto" onClick={() => {
                                 setVerificationStep('enter_email');
                                 setIsCurrentYearOverwrite(false);
@@ -658,7 +660,10 @@ export default function RegisterPage() {
                 </Card>
 
                 <Card>
-                    <CardHeader><CardTitle className="font-headline">Children Information</CardTitle></CardHeader>
+                    <CardHeader>
+                        <CardTitle className="font-headline">Children Information</CardTitle>
+                        <CardDescription>Please add each child you are registering.</CardDescription>
+                    </CardHeader>
                     <CardContent>
                         <Accordion type="multiple" className="w-full" value={openAccordionItems} onValueChange={setOpenAccordionItems}>
                             {childFields.map((field, index) => {
@@ -750,6 +755,7 @@ export default function RegisterPage() {
                     <Card>
                         <CardHeader>
                             <CardTitle className="font-headline">Ministry Programs</CardTitle>
+                            <CardDescription>Select the programs each child wishes to enroll in.</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-6">
                             <div className="p-4 border rounded-md bg-muted/50">
@@ -816,7 +822,7 @@ export default function RegisterPage() {
                     <Card>
                         <CardHeader>
                             <CardTitle className="font-headline">Expressed Interest Activities</CardTitle>
-                            <CardDescription>Let us know if you're interested. This does not register you.</CardDescription>
+                            <CardDescription>Let us know if you're interested. This does not register you for these activities but helps us gauge interest for future planning.</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-6">
                             {interestPrograms.map(program => {
@@ -862,7 +868,7 @@ export default function RegisterPage() {
                 <Card>
                     <CardHeader>
                         <CardTitle className="font-headline">Consents</CardTitle>
-                        <CardDescription>By submitting this form, I certify the following:</CardDescription>
+                        <CardDescription>Please review and accept the following terms to complete your registration.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <FormField control={form.control} name="consents.liability" render={({ field }) => (
