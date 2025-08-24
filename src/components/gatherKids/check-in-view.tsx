@@ -329,7 +329,7 @@ export function CheckInView({ initialChildren, selectedEvent, selectedGrades, st
                   </PopoverContent>
                 </Popover>
                 <CardHeader className="flex flex-col items-center gap-4 p-4 pt-6 text-center sm:flex-row sm:items-start sm:p-6 sm:text-left">
-                    <div className="relative w-[60px] h-[60px] flex-shrink-0">
+                    <div className="relative w-40 h-40 sm:w-[60px] sm:h-[60px] flex-shrink-0">
                         <Button
                             variant="ghost"
                             className="w-full h-full p-0 rounded-full"
@@ -338,7 +338,7 @@ export function CheckInView({ initialChildren, selectedEvent, selectedGrades, st
                             <Avatar className="w-full h-full border-2 border-border hover:border-primary transition-colors">
                                 <AvatarImage src={child.photo_url} alt={child.first_name} />
                                 <AvatarFallback>
-                                    <User className="h-8 w-8 text-muted-foreground" />
+                                    <User className="h-16 w-16 sm:h-8 sm:w-8 text-muted-foreground" />
                                 </AvatarFallback>
                             </Avatar>
                         </Button>
