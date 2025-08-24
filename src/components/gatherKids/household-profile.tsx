@@ -63,17 +63,23 @@ const ChildCard = ({ child, onPhotoClick, onPhotoViewClick }: { child: Household
     return (
         <Card className={!child.is_active ? 'bg-muted/25' : ''}>
             <CardHeader className="flex-row gap-4 items-start">
-                 <div className="relative group">
-                    <Avatar className="h-16 w-16 cursor-pointer" onClick={() => child.photo_url && onPhotoViewClick({ name: `${child.first_name} ${child.last_name}`, url: child.photo_url })}>
-                        <AvatarImage src={child.photo_url} alt={child.first_name} />
-                        <AvatarFallback>
-                            <User className="h-8 w-8" />
-                        </AvatarFallback>
-                    </Avatar>
+                 <div className="relative flex-shrink-0">
+                    <Button
+                        variant="ghost"
+                        className="w-16 h-16 p-0 rounded-full"
+                        onClick={() => child.photo_url && onPhotoViewClick({ name: `${child.first_name} ${child.last_name}`, url: child.photo_url })}
+                    >
+                        <Avatar className="h-16 w-16">
+                            <AvatarImage src={child.photo_url} alt={child.first_name} />
+                            <AvatarFallback>
+                                <User className="h-8 w-8" />
+                            </AvatarFallback>
+                        </Avatar>
+                    </Button>
                      <Button
                         variant="outline"
                         size="icon"
-                        className="absolute -bottom-2 -right-2 h-7 w-7 rounded-full bg-background opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="absolute -bottom-1 -right-1 h-7 w-7 rounded-full bg-background"
                         onClick={() => onPhotoClick(child)}
                         >
                         <Camera className="h-4 w-4" />
