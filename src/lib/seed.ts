@@ -36,8 +36,8 @@ const generateHouseholdsAndChildren = (): { households: Household[], children: C
     const emergencyContacts: EmergencyContact[] = [];
 
     const families = [
-        { lastName: 'Smith', guardian: { f: 'John', l: 'Smith', email: 'prefill.overwrite@example.com' }, kids: [{ f: 'Emma', age: 5, allergies: 'Peanuts' }, { f: 'Liam', age: 8 }] },
-        { lastName: 'Johnson', guardian: { f: 'Mary', l: 'Johnson', email: 'mary.j@example.com' }, kids: [{ f: 'Olivia', age: 4 }, { f: 'Noah', age: 7, allergies: 'Pollen' }, { f: 'Ava', age: 10, inactive: true }] },
+        { lastName: 'Smith', guardian: { f: 'John', l: 'Smith', email: 'reg.overwrite@example.com' }, kids: [{ f: 'Emma', age: 5, allergies: 'Peanuts' }, { f: 'Liam', age: 8 }] },
+        { lastName: 'Johnson', guardian: { f: 'Mary', l: 'Johnson', email: 'reg.prefill@example.com' }, kids: [{ f: 'Olivia', age: 4 }, { f: 'Noah', age: 7, allergies: 'Pollen' }, { f: 'Ava', age: 10, inactive: true }] },
         { lastName: 'Williams', guardian: { f: 'James', l: 'Williams' }, kids: [{ f: 'Isabella', age: 14, mobile: '555-555-3001' }] },
         { lastName: 'Brown', guardian: { f: 'Patricia', l: 'Brown' }, kids: [{ f: 'Sophia', age: 9 }, { f: 'Mason', age: 12 }] },
         { lastName: 'Jones', guardian: { f: 'Robert', l: 'Jones' }, kids: [{ f: 'Mia', age: 3 }, { f: 'Ethan', age: 11 }] },
@@ -142,7 +142,7 @@ export const seedDB = async () => {
     
     const leaders: User[] = [
         { user_id: 'user_admin', name: 'Admin User', email: 'admin@example.com', role: 'admin', is_active: true, background_check_status: 'clear' },
-        { user_id: 'user_leader_1', name: 'Sarah Lee', email: 'leader@example.com', role: 'leader', is_active: true, background_check_status: 'clear' },
+        { user_id: 'user_leader_1', name: 'Sarah Lee', email: 'leader.generic@example.com', role: 'leader', is_active: true, background_check_status: 'clear' },
         { user_id: 'user_leader_2', name: 'Michael Chen', email: 'michael.chen@example.com', role: 'leader', is_active: true, background_check_status: 'clear' },
         { user_id: 'user_leader_3', name: 'Jessica Rodriguez', email: 'jessica.r@example.com', role: 'leader', is_active: true, background_check_status: 'clear' },
         { user_id: 'user_leader_4', name: 'David Kim', email: 'david.kim@example.com', role: 'leader', is_active: true, background_check_status: 'pending' },
@@ -154,9 +154,9 @@ export const seedDB = async () => {
         { user_id: 'user_leader_10', name: 'Kevin Clark', email: 'kevin.c@example.com', role: 'leader', is_active: false, background_check_status: 'na' },
 
         // New Leaders
-        { user_id: 'user_leader_11', name: 'Chris Evans', email: 'chris.e@example.com', role: 'leader', is_active: true, background_check_status: 'clear' },
-        { user_id: 'user_leader_12', name: 'Megan Young', email: 'megan.y@example.com', role: 'leader', is_active: true, background_check_status: 'clear' },
-        { user_id: 'user_leader_13', name: 'Tom Allen', email: 'tom.a@example.com', role: 'leader', is_active: false, background_check_status: 'clear' },
+        { user_id: 'user_leader_11', name: 'Chris Evans', email: 'leader.khalfani@example.com', role: 'leader', is_active: true, background_check_status: 'clear' },
+        { user_id: 'user_leader_12', name: 'Megan Young', email: 'leader.joybells@example.com', role: 'leader', is_active: true, background_check_status: 'clear' },
+        { user_id: 'user_leader_13', name: 'Tom Allen', email: 'leader.inactive@example.com', role: 'leader', is_active: false, background_check_status: 'clear' },
     ];
     leaders.forEach(l => USER_IDS[l.name.split(' ')[0]] = l.user_id);
 

@@ -37,9 +37,9 @@ import { useFeatureFlags } from "@/contexts/feature-flag-context"
 
 
 const MOCK_EMAILS = {
-    PREFILL_OVERWRITE: 'prefill.overwrite@example.com', // This email exists and has a current registration
-    PREFILL_NO_OVERWRITE: 'mary.j@example.com', // This email exists from a prior year registration
-    VERIFY: 'verify@example.com', // This will trigger the security question flow
+    PREFILL_OVERWRITE: 'reg.overwrite@example.com',
+    PREFILL_NO_OVERWRITE: 'reg.prefill@example.com',
+    VERIFY: 'reg.verify@example.com',
     NEW: 'new@example.com',
 };
 
