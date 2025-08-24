@@ -141,7 +141,7 @@ export function ChildCard({
                         <Avatar className="w-full h-full border-2 border-border hover:border-primary transition-colors">
                             <AvatarImage src={child.photo_url} alt={child.first_name} />
                             <AvatarFallback>
-                                <User className="h-24 w-24 sm:h-8 sm:w-8 text-muted-foreground" />
+                                <User className="h-32 w-32 sm:h-8 sm:w-8 text-muted-foreground" />
                             </AvatarFallback>
                         </Avatar>
                     </Button>
