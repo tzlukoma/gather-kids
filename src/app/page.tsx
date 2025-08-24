@@ -2,6 +2,7 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { ArrowRight, Church } from 'lucide-react';
+import { SimpleSeedButton } from '@/components/ministrysync/simple-seed-button';
 
 export default function Home() {
   return (
@@ -36,6 +37,7 @@ export default function Home() {
                         Go to Admin Dashboard
                     </Button>
                 </Link>
+                <SimpleSeedButton size="lg" variant="outline" />
             </div>
         </div>
       </main>
