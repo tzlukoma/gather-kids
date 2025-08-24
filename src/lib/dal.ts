@@ -9,6 +9,7 @@
 
 
 
+
 import { db } from './db';
 import type { Attendance, Child, Guardian, Household, Incident, IncidentSeverity, Ministry, MinistryEnrollment, Registration, User, EmergencyContact, LeaderAssignment } from './types';
 import { differenceInYears, isAfter, isBefore, parseISO } from 'date-fns';
@@ -291,7 +292,7 @@ const fetchFullHouseholdData = async (householdId: string, cycleId: string) => {
     const childIds = children.map(c => c.child_id);
     const enrollments = await db.ministry_enrollments.where('child_id').anyOf(childIds).and(e => e.cycle_id === cycleId).toArray();
     const allMinistries = await db.ministries.toArray();
-    const ministryMap = new Map(allMinistries.map(m => [m.code, m]));
+    const ministryMap = new Map(allMinistries.map(m => [m.ministry_id, m]));
 
     const childrenWithSelections = children.map(child => {
         const childEnrollments = enrollments.filter(e => e.child_id === child.child_id);
@@ -380,19 +381,21 @@ export async function registerHousehold(data: any, cycle_id: string, isPrefill: 
 
     await db.transaction('rw', db.households, db.guardians, db.emergency_contacts, db.children, db.registrations, db.ministry_enrollments, db.ministries, async () => {
 
+        // This block handles overwriting an existing registration for the *current* cycle.
+        // It should NOT run for a pre-fill from a previous year.
         if (isUpdate && !isPrefill) {
-            // Overwrite existing data for this cycle
             const childIds = (await db.children.where({ household_id: householdId }).toArray()).map(c => c.child_id);
             
             // Delete previous registrations and enrollments for this cycle
             await db.registrations.where('[child_id+cycle_id]').anyOf(childIds.map(cid => [cid, cycle_id])).delete();
             await db.ministry_enrollments.where('[child_id+cycle_id]').anyOf(childIds.map(cid => [cid, cycle_id])).delete();
+        }
 
-            // Clear out old guardian/contact info to be replaced
+        // Always clear and re-add guardians/contacts on any update/prefill submission
+        if (isUpdate) {
             await db.guardians.where({ household_id: householdId }).delete();
             await db.emergency_contacts.where({ household_id: householdId }).delete();
         }
-
 
         const household: Household = {
             household_id: householdId,
@@ -402,7 +405,6 @@ export async function registerHousehold(data: any, cycle_id: string, isPrefill: 
             updated_at: now,
         };
         await db.households.put(household);
-
 
         const guardians: Guardian[] = data.guardians.map((g: any) => ({
             guardian_id: uuidv4(),
@@ -420,9 +422,7 @@ export async function registerHousehold(data: any, cycle_id: string, isPrefill: 
         };
         await db.emergency_contacts.add(emergencyContact);
         
-        // Children are more complex due to updates vs inserts
         const existingChildren = isUpdate ? await db.children.where({ household_id: householdId }).toArray() : [];
-        const existingChildIds = existingChildren.map(c => c.child_id);
         const incomingChildIds = data.children.map((c: any) => c.child_id).filter(Boolean);
 
         const childrenToUpsert: Child[] = data.children.map((c: any) => {
@@ -440,15 +440,16 @@ export async function registerHousehold(data: any, cycle_id: string, isPrefill: 
         await db.children.bulkPut(childrenToUpsert);
 
         // Deactivate children who were in the household but removed from the form on an update
-        if (isUpdate && !isPrefill) {
-            const childrenToRemove = existingChildIds.filter(id => !incomingChildIds.includes(id));
+        if (isUpdate) {
+            const childrenToRemove = existingChildren
+                .map(c => c.child_id)
+                .filter(id => !incomingChildIds.includes(id));
             if (childrenToRemove.length > 0) {
                 await db.children.where('child_id').anyOf(childrenToRemove).modify({ is_active: false });
             }
         }
 
-
-        // Re-create registrations and enrollments
+        // Re-create registrations and enrollments for the current cycle
         for (const [index, child] of childrenToUpsert.entries()) {
             const childData = data.children[index];
 
@@ -481,12 +482,10 @@ export async function registerHousehold(data: any, cycle_id: string, isPrefill: 
             const allMinistries = await db.ministries.toArray();
             const ministryMap = new Map(allMinistries.map(m => [m.code, m]));
 
-
             for (const ministryCode in allSelections) {
                 if (allSelections[ministryCode] && ministryCode !== 'min_sunday_school') {
                     const ministry = ministryMap.get(ministryCode);
                     if (ministry) {
-                         // Check eligibility
                         const age = child.dob ? ageOn(now, child.dob) : null;
                         const minAge = ministry.min_age ?? -1;
                         const maxAge = ministry.max_age ?? 999;
@@ -495,7 +494,6 @@ export async function registerHousehold(data: any, cycle_id: string, isPrefill: 
                             continue;
                         }
 
-                        // Collect custom data for this ministry
                         const custom_fields: { [key: string]: any } = {};
                         if(childData.customData && ministry.custom_questions) {
                              for (const q of ministry.custom_questions) {
