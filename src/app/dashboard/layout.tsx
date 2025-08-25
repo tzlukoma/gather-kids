@@ -100,9 +100,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 						<Link
 							href="/dashboard"
 							className="flex items-center gap-2 text-foreground">
-							<div className="font-headline text-2xl font-bold">
-								gatherKids
-							</div>
+							<div className="font-headline text-2xl font-bold">gatherKids</div>
 						</Link>
 					</div>
 					<div className="flex items-center gap-4">

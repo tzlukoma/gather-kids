@@ -57,7 +57,7 @@ const generateHouseholdsAndChildren = (): { households: Household[], children: C
         { lastName: 'Jackson', guardian: { f: 'Steven', l: 'Jackson' }, kids: [{ f: 'Hannah', age: 15, mobile: '555-555-3007' }, { f: 'Isaac', age: 17, mobile: '555-555-3008' }] },
         { lastName: 'White', guardian: { f: 'Donna', l: 'White' }, kids: [{ f: 'Stella', age: 9 }, { f: 'Gabriel', age: 12, allergies: 'Dairy' }] },
     ];
-    
+
     const birthdaysPerMonth = Array(12).fill(0);
 
     let householdCounter = 1;
@@ -106,9 +106,9 @@ const generateHouseholdsAndChildren = (): { households: Household[], children: C
             do {
                 birthMonth = Math.floor(Math.random() * 12);
             } while (birthdaysPerMonth[birthMonth] >= 4); // Allow up to 4 birthdays per month with 20 families
-            
+
             birthdaysPerMonth[birthMonth]++;
-            
+
             const birthYear = new Date().getFullYear() - kid.age;
             const birthDay = Math.floor(Math.random() * 28) + 1; // 1-28 to be safe
             const dob = new Date(birthYear, birthMonth, birthDay);
@@ -139,37 +139,37 @@ export const seedDB = async () => {
     const today = new Date();
 
     const { households, children, guardians, emergencyContacts } = generateHouseholdsAndChildren();
-    
+
     const leaders: User[] = [
-        { user_id: 'user_admin', name: 'Admin User', email: 'admin@example.com', role: 'admin', is_active: true, background_check_status: 'clear' },
-        { user_id: 'user_leader_1', name: 'Sarah Lee', email: 'leader.generic@example.com', role: 'leader', is_active: true, background_check_status: 'clear' },
-        { user_id: 'user_leader_2', name: 'Michael Chen', email: 'michael.chen@example.com', role: 'leader', is_active: true, background_check_status: 'clear' },
-        { user_id: 'user_leader_3', name: 'Jessica Rodriguez', email: 'jessica.r@example.com', role: 'leader', is_active: true, background_check_status: 'clear' },
-        { user_id: 'user_leader_4', name: 'David Kim', email: 'david.kim@example.com', role: 'leader', is_active: true, background_check_status: 'pending' },
-        { user_id: 'user_leader_5', name: 'Emily White', email: 'emily.w@example.com', role: 'leader', is_active: true, background_check_status: 'clear' },
-        { user_id: 'user_leader_6', name: 'Daniel Green', email: 'daniel.g@example.com', role: 'leader', is_active: true, background_check_status: 'clear' },
-        { user_id: 'user_leader_7', name: 'Laura Black', email: 'laura.b@example.com', role: 'leader', is_active: true, background_check_status: 'expired' },
-        { user_id: 'user_leader_8', name: 'Brian Hall', email: 'brian.h@example.com', role: 'leader', is_active: true, background_check_status: 'clear' },
-        { user_id: 'user_leader_9', name: 'Nancy Adams', email: 'nancy.a@example.com', role: 'leader', is_active: false, background_check_status: 'clear' },
-        { user_id: 'user_leader_10', name: 'Kevin Clark', email: 'kevin.c@example.com', role: 'leader', is_active: false, background_check_status: 'na' },
+        { user_id: 'user_admin', name: 'Admin User', email: 'admin@example.com', role: 'ADMIN', is_active: true, background_check_status: 'clear' },
+        { user_id: 'user_leader_1', name: 'Sarah Lee', email: 'leader.generic@example.com', role: 'MINISTRY_LEADER', is_active: true, background_check_status: 'clear' },
+        { user_id: 'user_leader_2', name: 'Michael Chen', email: 'michael.chen@example.com', role: 'MINISTRY_LEADER', is_active: true, background_check_status: 'clear' },
+        { user_id: 'user_leader_3', name: 'Jessica Rodriguez', email: 'jessica.r@example.com', role: 'MINISTRY_LEADER', is_active: true, background_check_status: 'clear' },
+        { user_id: 'user_leader_4', name: 'David Kim', email: 'david.kim@example.com', role: 'MINISTRY_LEADER', is_active: true, background_check_status: 'pending' },
+        { user_id: 'user_leader_5', name: 'Emily White', email: 'emily.w@example.com', role: 'MINISTRY_LEADER', is_active: true, background_check_status: 'clear' },
+        { user_id: 'user_leader_6', name: 'Daniel Green', email: 'daniel.g@example.com', role: 'MINISTRY_LEADER', is_active: true, background_check_status: 'clear' },
+        { user_id: 'user_leader_7', name: 'Laura Black', email: 'laura.b@example.com', role: 'MINISTRY_LEADER', is_active: true, background_check_status: 'expired' },
+        { user_id: 'user_leader_8', name: 'Brian Hall', email: 'brian.h@example.com', role: 'MINISTRY_LEADER', is_active: true, background_check_status: 'clear' },
+        { user_id: 'user_leader_9', name: 'Nancy Adams', email: 'nancy.a@example.com', role: 'MINISTRY_LEADER', is_active: false, background_check_status: 'clear' },
+        { user_id: 'user_leader_10', name: 'Kevin Clark', email: 'kevin.c@example.com', role: 'MINISTRY_LEADER', is_active: false, background_check_status: 'na' },
 
         // New Leaders
-        { user_id: 'user_leader_11', name: 'Chris Evans', email: 'leader.khalfani@example.com', role: 'leader', is_active: true, background_check_status: 'clear' },
-        { user_id: 'user_leader_12', name: 'Megan Young', email: 'leader.joybells@example.com', role: 'leader', is_active: true, background_check_status: 'clear' },
-        { user_id: 'user_leader_13', name: 'Tom Allen', email: 'leader.inactive@example.com', role: 'leader', is_active: false, background_check_status: 'clear' },
+        { user_id: 'user_leader_11', name: 'Chris Evans', email: 'leader.khalfani@example.com', role: 'MINISTRY_LEADER', is_active: true, background_check_status: 'clear' },
+        { user_id: 'user_leader_12', name: 'Megan Young', email: 'leader.joybells@example.com', role: 'MINISTRY_LEADER', is_active: true, background_check_status: 'clear' },
+        { user_id: 'user_leader_13', name: 'Tom Allen', email: 'leader.inactive@example.com', role: 'MINISTRY_LEADER', is_active: false, background_check_status: 'clear' },
     ];
     leaders.forEach(l => USER_IDS[l.name.split(' ')[0]] = l.user_id);
 
 
     await db.transaction('rw', db.users, db.registration_cycles, db.ministries, db.events, db.households, db.children, db.guardians, db.emergency_contacts, db.registrations, db.ministry_enrollments, db.leader_assignments, db.attendance, db.incidents, async () => {
-        
+
         await db.users.bulkPut(leaders);
 
         await db.registration_cycles.bulkPut([
             { cycle_id: CYCLE_IDS.prior, start_date: '2023-08-01', end_date: '2024-07-31', is_active: false },
             { cycle_id: CYCLE_IDS.current, start_date: '2024-08-01', end_date: '2025-07-31', is_active: true },
         ]);
-        
+
         const ministryData: Omit<Ministry, 'ministry_id' | 'created_at' | 'updated_at'>[] = [
             { name: 'Sunday School', code: 'min_sunday_school', enrollment_type: 'enrolled', data_profile: 'SafetyAware', is_active: true },
             { name: "Acolyte Ministry", code: "acolyte", enrollment_type: 'enrolled', details: "Thank you for registering for the Acolyte Ministry.\n\nYou will receive information from ministry leaders regarding next steps for your child\'s participation.", data_profile: 'Basic', is_active: true },
@@ -178,7 +178,7 @@ export const seedDB = async () => {
             { name: "Media Production Ministry", code: "media-production", enrollment_type: 'enrolled', details: "Thank you for registering for the Media Ministry.\n\nYou will receive information from ministry leaders regarding next steps for your child\'s participation.", data_profile: 'Basic', is_active: true },
             { name: "Mentoring Ministry-Boys (Khalfani)", code: "mentoring-boys", enrollment_type: 'enrolled', details: "The Khalfani ministry provides mentorship for young boys through various activities and discussions.", data_profile: 'Basic', is_active: true },
             { name: "Mentoring Ministry-Girls (Nailah)", code: "mentoring-girls", enrollment_type: 'enrolled', details: "The Nailah ministry provides mentorship for young girls, focusing on empowerment and personal growth.", data_profile: 'Basic', is_active: true },
-            { name: "New Generation Teen Fellowship", code: "teen-fellowship", enrollment_type: 'enrolled', details: "Thank you for registering for New Generation Teen Fellowship.\n\nOn 3rd Sundays, during the 10:30 AM service,  New Generation Teen Fellowship will host Teen Church in the Family Life Enrichment Center.  Teens may sign themselves in and out of the service.\n\nYou will receive more information about ministry activities from minstry leaders.", data_profile: 'Basic', custom_questions: [{id: "teen_podcast", text: "Podcast & YouTube Channel Projects", type: "checkbox"}, {id: "teen_social_media", text: "Social Media Team", type: "checkbox"}, {id: "teen_community_service", text: "Leading Community Service Projects", type: "checkbox"}], is_active: true },
+            { name: "New Generation Teen Fellowship", code: "teen-fellowship", enrollment_type: 'enrolled', details: "Thank you for registering for New Generation Teen Fellowship.\n\nOn 3rd Sundays, during the 10:30 AM service,  New Generation Teen Fellowship will host Teen Church in the Family Life Enrichment Center.  Teens may sign themselves in and out of the service.\n\nYou will receive more information about ministry activities from minstry leaders.", data_profile: 'Basic', custom_questions: [{ id: "teen_podcast", text: "Podcast & YouTube Channel Projects", type: "checkbox" }, { id: "teen_social_media", text: "Social Media Team", type: "checkbox" }, { id: "teen_community_service", text: "Leading Community Service Projects", type: "checkbox" }], is_active: true },
             { name: "Symphonic Orchestra", code: "symphonic-orchestra", enrollment_type: 'enrolled', data_profile: 'Basic', details: "The Symphonic Orchestra is for experienced musicians. Auditions may be required.", is_active: true },
             { name: "Youth Choirs- Joy Bells (Ages 4-8)", code: "choir-joy-bells", enrollment_type: 'enrolled', min_age: 4, max_age: 8, details: "Joy Bells is our introductory choir for the youngest voices. Practices are held after the 11 AM service.", data_profile: 'Basic', is_active: true },
             { name: "Youth Choirs- Keita Praise Choir (Ages 9-12)", code: "choir-keita", enrollment_type: 'enrolled', min_age: 9, max_age: 12, details: "Keita Praise Choir builds on foundational skills and performs once a month. Practices are on Wednesdays.", data_profile: 'Basic', is_active: true },
@@ -201,25 +201,25 @@ export const seedDB = async () => {
         await db.ministries.bulkPut(fullMinistries);
 
         await db.events.bulkPut([
-            { event_id: EVENT_IDS.sundaySchool, name: 'Sunday School', timeslots: [{id: 'ts_0900', start_local: '09:00', end_local: '10:30'}] },
-            { event_id: EVENT_IDS.childrensChurch, name: "Children's Church", timeslots: [{id: 'ts_0900', start_local: '09:00', end_local: '10:30'}] },
-            { event_id: EVENT_IDS.teenChurch, name: "Teen Church", timeslots: [{id: 'ts_0900', start_local: '09:00', end_local: '10:30'}] }
+            { event_id: EVENT_IDS.sundaySchool, name: 'Sunday School', timeslots: [{ id: 'ts_0900', start_local: '09:00', end_local: '10:30' }] },
+            { event_id: EVENT_IDS.childrensChurch, name: "Children's Church", timeslots: [{ id: 'ts_0900', start_local: '09:00', end_local: '10:30' }] },
+            { event_id: EVENT_IDS.teenChurch, name: "Teen Church", timeslots: [{ id: 'ts_0900', start_local: '09:00', end_local: '10:30' }] }
         ]);
 
         await db.households.bulkPut(households);
         await db.children.bulkPut(children);
         await db.guardians.bulkPut(guardians);
         await db.emergency_contacts.bulkPut(emergencyContacts);
-        
+
         const registrations: Registration[] = [];
         const enrollments: MinistryEnrollment[] = [];
 
         // --- HISTORICAL DATA (2024 CYCLE) ---
         for (const child of children) {
-             registrations.push({ registration_id: uuidv4(), child_id: child.child_id, cycle_id: CYCLE_IDS.prior, status: 'active', pre_registered_sunday_school: true, consents: [], submitted_at: now, submitted_via: 'import' });
-             enrollments.push({ enrollment_id: uuidv4(), child_id: child.child_id, cycle_id: CYCLE_IDS.prior, ministry_id: MINISTRY_IDS['min_sunday_school'], status: 'enrolled' });
+            registrations.push({ registration_id: uuidv4(), child_id: child.child_id, cycle_id: CYCLE_IDS.prior, status: 'active', pre_registered_sunday_school: true, consents: [], submitted_at: now, submitted_via: 'import' });
+            enrollments.push({ enrollment_id: uuidv4(), child_id: child.child_id, cycle_id: CYCLE_IDS.prior, ministry_id: MINISTRY_IDS['min_sunday_school'], status: 'enrolled' });
         }
-        
+
         // --- CURRENT DATA (2025 CYCLE) ---
         const householdsToRegisterCurrent = households.filter(h => h.name !== 'Johnson Household');
         const activeChildrenForCurrentCycle = children.filter(c => c.is_active && householdsToRegisterCurrent.some(h => h.household_id === c.household_id));
@@ -230,14 +230,14 @@ export const seedDB = async () => {
             const childrenInHousehold = children.filter(c => c.household_id === household.household_id && c.is_active);
             for (const child of childrenInHousehold) {
                 registrations.push({ registration_id: uuidv4(), child_id: child.child_id, cycle_id: CYCLE_IDS.current, status: 'active', pre_registered_sunday_school: true, consents: [], submitted_at: now, submitted_via: 'import' });
-                
+
                 // Auto-enroll in Sunday School
                 enrollments.push({ enrollment_id: uuidv4(), child_id: child.child_id, cycle_id: CYCLE_IDS.current, ministry_id: MINISTRY_IDS['min_sunday_school'], status: 'enrolled' });
-                
+
                 const age = differenceInYears(today, parseISO(child.dob!));
 
                 // Assign to various ministries based on age and family
-                 if (age >= 9 && age <= 12 && household.name === 'Brown Household') {
+                if (age >= 9 && age <= 12 && household.name === 'Brown Household') {
                     enrollments.push({ enrollment_id: uuidv4(), child_id: child.child_id, cycle_id: CYCLE_IDS.current, ministry_id: MINISTRY_IDS['choir-keita'], status: 'enrolled' });
                 }
                 if (age >= 13 && household.name === 'Williams Household') {
@@ -246,7 +246,7 @@ export const seedDB = async () => {
                 if (age >= 13 && household.name === 'Miller Household') {
                     enrollments.push({ enrollment_id: uuidv4(), child_id: child.child_id, cycle_id: CYCLE_IDS.current, ministry_id: MINISTRY_IDS['college-tour'], status: 'expressed_interest' });
                 }
-                 if (age >= 6 && age <= 10 && household.name === 'Garcia Household') {
+                if (age >= 6 && age <= 10 && household.name === 'Garcia Household') {
                     enrollments.push({ enrollment_id: uuidv4(), child_id: child.child_id, cycle_id: CYCLE_IDS.current, ministry_id: MINISTRY_IDS['vbs'], status: 'expressed_interest' });
                 }
                 if (child.last_name === 'Garcia' && child.first_name === 'Benjamin') {
@@ -256,14 +256,14 @@ export const seedDB = async () => {
                     enrollments.push({ enrollment_id: uuidv4(), child_id: child.child_id, cycle_id: CYCLE_IDS.current, ministry_id: MINISTRY_IDS['mentoring-boys'], status: 'enrolled' });
                 }
                 if (child.last_name === 'Davis' && child.first_name === 'Henry') {
-                     enrollments.push({ enrollment_id: uuidv4(), child_id: child.child_id, cycle_id: CYCLE_IDS.current, ministry_id: MINISTRY_IDS['choir-joy-bells'], status: 'enrolled' });
+                    enrollments.push({ enrollment_id: uuidv4(), child_id: child.child_id, cycle_id: CYCLE_IDS.current, ministry_id: MINISTRY_IDS['choir-joy-bells'], status: 'enrolled' });
                 }
                 if (child.last_name === 'Wilson' && child.first_name === 'Leo') {
-                     enrollments.push({ enrollment_id: uuidv4(), child_id: child.child_id, cycle_id: CYCLE_IDS.current, ministry_id: MINISTRY_IDS['choir-joy-bells'], status: 'enrolled' });
+                    enrollments.push({ enrollment_id: uuidv4(), child_id: child.child_id, cycle_id: CYCLE_IDS.current, ministry_id: MINISTRY_IDS['choir-joy-bells'], status: 'enrolled' });
                 }
             }
         }
-        
+
         // Ensure at least 7 kids are in Orators
         for (const child of activeChildrenForCurrentCycle) {
             if (oratorsCount < 7) {
@@ -273,7 +273,7 @@ export const seedDB = async () => {
                 break;
             }
         }
-        
+
         await db.registrations.bulkPut(registrations);
         await db.ministry_enrollments.bulkPut(enrollments);
 
@@ -288,7 +288,7 @@ export const seedDB = async () => {
         // --- TODAY's DATA ---
         const checkedInChildren = children.filter(c => c.is_active).slice(0, 8);
         const attendance: Attendance[] = [];
-        for(let i=0; i<checkedInChildren.length; i++) {
+        for (let i = 0; i < checkedInChildren.length; i++) {
             attendance.push({
                 attendance_id: `att_${i}`,
                 event_id: EVENT_IDS.sundaySchool,
@@ -318,4 +318,3 @@ export const resetDB = async () => {
     console.log("Database reset complete.");
 };
 
-    
