@@ -81,7 +81,7 @@ export default function LoginPage() {
 	const [password, setPassword] = useState('');
 	const [isFlagDialogOpen, setIsFlagDialogOpen] = useState(false);
 
-	const handleLogin = () => {
+	const handleLogin = async () => {
 		const userToLogin = Object.values(DEMO_USERS).find(
 			(u) => u.email === email && u.password === password
 		);
@@ -98,7 +98,7 @@ export default function LoginPage() {
 				},
 			};
 			console.log('Login - Calling login with data:', loginData);
-			login(loginData);
+			await login(loginData);
 			toast({
 				title: 'Login Successful',
 				description: `Welcome, ${userToLogin.name}!`,

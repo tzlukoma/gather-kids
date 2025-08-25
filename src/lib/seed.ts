@@ -278,10 +278,11 @@ export const seedDB = async () => {
         await db.ministry_enrollments.bulkPut(enrollments);
 
         const leaderAssignments: LeaderAssignment[] = [
+            // Make user_leader_1 the only Sunday School leader in the seed
             { assignment_id: uuidv4(), leader_id: 'user_leader_1', ministry_id: MINISTRY_IDS['min_sunday_school'], cycle_id: CYCLE_IDS.current, role: 'Volunteer' },
             { assignment_id: uuidv4(), leader_id: 'user_leader_11', ministry_id: MINISTRY_IDS['mentoring-boys'], cycle_id: CYCLE_IDS.current, role: 'Primary' },
-            { assignment_id: uuidv4(), leader_id: 'user_leader_12', ministry_id: MINISTRY_IDS['min_sunday_school'], cycle_id: CYCLE_IDS.current, role: 'Volunteer' },
-            { assignment_id: uuidv4(), leader_id: 'user_leader_12', ministry_id: MINISTRY_IDS['choir-joy-bells'], cycle_id: CYCLE_IDS.current, role: 'Primary' },
+            // user_leader_12 keeps choir assignment but not Sunday School
+            { assignment_id: uuidv4(), leader_id: 'user_leader_12', ministry_id: MINISTRY_IDS['choir-joy-bells', 'min_sunday_school'], cycle_id: CYCLE_IDS.current, role: 'Primary' },
             { assignment_id: uuidv4(), leader_id: 'user_leader_13', ministry_id: MINISTRY_IDS['acolyte'], cycle_id: CYCLE_IDS.prior, role: 'Primary' },
         ];
         await db.leader_assignments.bulkPut(leaderAssignments);

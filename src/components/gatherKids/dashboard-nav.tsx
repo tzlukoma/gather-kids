@@ -13,6 +13,7 @@ import {
 	SidebarMenuButton,
 	SidebarTrigger,
 } from '@/components/ui/sidebar';
+import { getLeaderAssignmentsForCycle } from '@/lib/dal';
 import { Button } from '@/components/ui/button';
 import {
 	DropdownMenu,
@@ -26,6 +27,7 @@ import { MENU_ITEMS } from '@/lib/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import { LogOut } from 'lucide-react';
 import Image from 'next/image';
+import { AuthRole } from '@/lib/auth-types';
 
 interface DashboardNavProps {
 	children: React.ReactNode;
@@ -41,6 +43,38 @@ export function DashboardNav({ children }: DashboardNavProps) {
 		router.replace('/login');
 	};
 
+	const [assignmentsFromDb, setAssignmentsFromDb] = React.useState<
+		string[] | null
+	>(null);
+
+	// Load leader assignments from DB if user is a leader and assignedMinistryIds is empty
+	React.useEffect(() => {
+		let mounted = true;
+		const load = async () => {
+			if (!user || !userRole) return;
+			if (userRole === undefined) return;
+			// If user already has assignedMinistryIds, no need to fetch
+			if (user.assignedMinistryIds && user.assignedMinistryIds.length > 0)
+				return;
+			if (userRole === AuthRole.MINISTRY_LEADER) {
+				try {
+					const dbAssignments = await getLeaderAssignmentsForCycle(
+						user.uid,
+						'2025'
+					);
+					if (!mounted) return;
+					setAssignmentsFromDb(dbAssignments.map((a) => a.ministry_id));
+				} catch (e) {
+					console.error('Failed to load leader assignments from DB', e);
+				}
+			}
+		};
+		load();
+		return () => {
+			mounted = false;
+		};
+	}, [user, userRole]);
+
 	// Filter menu items based on user role and ministry assignments
 	const filteredMenuItems = MENU_ITEMS.filter((item) => {
 		if (!user || !userRole) {
@@ -51,10 +85,19 @@ export function DashboardNav({ children }: DashboardNavProps) {
 			userRole,
 			itemRoles: item.roles,
 			hasAccess: item.roles.includes(userRole),
+			assignedMinistryIds: user.assignedMinistryIds,
+			assignmentsFromDb,
 		});
 		if (!item.roles.includes(userRole)) return false;
-		if (item.ministryCheck && user.assignedMinistryIds) {
-			return item.ministryCheck(user.assignedMinistryIds);
+
+		// prefer assignedMinistryIds on user, fall back to assignmentsFromDb
+		const ministryIds =
+			user.assignedMinistryIds && user.assignedMinistryIds.length > 0
+				? user.assignedMinistryIds
+				: assignmentsFromDb ?? [];
+
+		if (item.ministryCheck) {
+			return item.ministryCheck(ministryIds, userRole);
 		}
 		return true;
 	});
