@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import { useAuth } from '@/contexts/auth-context';
 import { HouseholdProfile } from '@/components/gatherKids/household-profile';
@@ -8,7 +8,9 @@ import type { HouseholdProfileData } from '@/lib/dal';
 
 export default function GuardianHouseholdPage() {
 	const { user } = useAuth();
-	const [profileData, setProfileData] = useState<HouseholdProfileData | null>(null);
+	const [profileData, setProfileData] = useState<HouseholdProfileData | null>(
+		null
+	);
 
 	useEffect(() => {
 		const load = async () => {

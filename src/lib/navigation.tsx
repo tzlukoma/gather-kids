@@ -17,7 +17,7 @@ interface MenuItem {
 	label: string;
 	roles: AuthRole[];
 	requiresActive?: boolean;
-	ministryCheck?: (ministryIds: string[]) => boolean;
+	ministryCheck?: (ministryIds: string[], userRole?: AuthRole) => boolean;
 }
 
 export const MENU_ITEMS: MenuItem[] = [
@@ -33,6 +33,9 @@ export const MENU_ITEMS: MenuItem[] = [
 		label: 'Check-In/Out',
 		roles: [AuthRole.ADMIN, AuthRole.MINISTRY_LEADER, AuthRole.GUARDIAN],
 		requiresActive: true,
+		// Only show check-in to admins or leaders assigned to Sunday School
+		ministryCheck: (ministryIds: string[], userRole?: AuthRole) =>
+			userRole === AuthRole.ADMIN || ministryIds.includes('min_sunday_school'),
 	},
 	{
 		href: '/dashboard/rosters',
@@ -96,7 +99,8 @@ export const getAuthorizedMenuItems = (
 		if (item.requiresActive && !isActive) return false;
 
 		// Check if the item requires specific ministry assignments
-		if (item.ministryCheck && !item.ministryCheck(ministryIds)) return false;
+		if (item.ministryCheck && !item.ministryCheck(ministryIds, userRole))
+			return false;
 
 		return true;
 	});
