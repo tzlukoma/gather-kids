@@ -1,6 +1,6 @@
 
 import Dexie, { type EntityTable } from 'dexie';
-import type { Household, Guardian, EmergencyContact, Child, RegistrationCycle, ChildYearProfile, Registration, Ministry, MinistryEnrollment, LeaderAssignment, User, Event, Attendance, Incident, AuditLog } from './types';
+import type { Household, Guardian, EmergencyContact, Child, RegistrationCycle, ChildYearProfile, Registration, Ministry, MinistryEnrollment, LeaderAssignment, User, Event, Attendance, Incident, AuditLog, CompetitionYear, Scripture, GradeRule, StudentScripture, StudentEssay } from './types';
 
 // prettier-ignore
 class GatherKidsDB extends Dexie {
@@ -19,10 +19,16 @@ class GatherKidsDB extends Dexie {
     attendance!: EntityTable<Attendance, 'attendance_id'>;
     incidents!: EntityTable<Incident, 'incident_id'>;
     audit_logs!: EntityTable<AuditLog, 'log_id'>;
+    // Bible Bee stores
+    competitionYears!: EntityTable<CompetitionYear, 'id'>;
+    scriptures!: EntityTable<Scripture, 'id'>;
+    gradeRules!: EntityTable<GradeRule, 'id'>;
+    studentScriptures!: EntityTable<StudentScripture, 'id'>;
+    studentEssays!: EntityTable<StudentEssay, 'id'>;
 
     constructor() {
         super('gatherKidsDB');
-        this.version(9).stores({
+        this.version(10).stores({
             households: 'household_id, created_at, [city+state+zip]',
             guardians: 'guardian_id, household_id, mobile_phone, email',
             emergency_contacts: 'contact_id, household_id, mobile_phone',
@@ -38,6 +44,12 @@ class GatherKidsDB extends Dexie {
             attendance: 'attendance_id, date, [event_id+date], [child_id+date]',
             incidents: 'incident_id, child_id, admin_acknowledged_at, timestamp, leader_id',
             audit_logs: 'log_id, [actor_user_id+timestamp], target_id',
+            // Bible Bee
+            competitionYears: 'id, year',
+            scriptures: 'id, competitionYearId, sortOrder',
+            gradeRules: 'id, competitionYearId, [competitionYearId+minGrade+maxGrade], type',
+            studentScriptures: 'id, childId, competitionYearId, scriptureId, status',
+            studentEssays: 'id, childId, competitionYearId, status',
         });
     }
 }
