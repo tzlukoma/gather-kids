@@ -3,7 +3,6 @@ import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { db } from '@/lib/db';
 import type { CompetitionYear, GradeRule, Scripture } from '@/lib/types';
 import { createCompetitionYear, upsertScripture, createGradeRule as createRule, toggleScriptureCompletion, submitEssay } from '@/lib/bibleBee';
-import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 
 export function useCompetitionYears() {
     const [years, setYears] = useState<CompetitionYear[]>([]);
@@ -93,7 +92,7 @@ export function useToggleScriptureMutation(childId: string) {
     const qc = useQueryClient();
     const key = ['studentAssignments', childId];
     return useMutation(async ({ id, complete }: { id: string; complete: boolean }) => toggleScriptureCompletion(id, complete), {
-        onMutate: async ({ id, complete }) => {
+        onMutate: async ({ id, complete }: { id: string; complete: boolean }) => {
             await qc.cancelQueries(key);
             const previous = qc.getQueryData<any>(key);
             qc.setQueryData(key, (old: any) => {
@@ -103,7 +102,7 @@ export function useToggleScriptureMutation(childId: string) {
             });
             return { previous };
         },
-        onError: (_err, _vars, context: any) => {
+        onError: (_err: unknown, _vars: { id: string; complete: boolean } | undefined, context: any) => {
             if (context?.previous) qc.setQueryData(key, context.previous);
         },
         onSettled: () => qc.invalidateQueries(key),
@@ -114,7 +113,7 @@ export function useSubmitEssayMutation(childId: string) {
     const qc = useQueryClient();
     const key = ['studentAssignments', childId];
     return useMutation(async ({ competitionYearId }: { competitionYearId: string }) => submitEssay(childId, competitionYearId), {
-        onMutate: async ({ competitionYearId }) => {
+        onMutate: async ({ competitionYearId }: { competitionYearId: string }) => {
             await qc.cancelQueries(key);
             const previous = qc.getQueryData<any>(key);
             qc.setQueryData(key, (old: any) => {
@@ -124,7 +123,7 @@ export function useSubmitEssayMutation(childId: string) {
             });
             return { previous };
         },
-        onError: (_err, _vars, context: any) => {
+        onError: (_err: unknown, _vars: { competitionYearId?: string } | undefined, context: any) => {
             if (context?.previous) qc.setQueryData(key, context.previous);
         },
         onSettled: () => qc.invalidateQueries(key),
