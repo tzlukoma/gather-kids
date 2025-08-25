@@ -1,80 +1,141 @@
+'use client';
 
-"use client";
-
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, {
+	createContext,
+	useContext,
+	useState,
+	useEffect,
+	ReactNode,
+} from 'react';
 import { getLeaderAssignmentsForCycle } from '@/lib/dal';
+import { User, UserRole, ROLES } from '@/lib/constants/roles';
+import { ProtectedRoute } from '@/components/auth/protected-route';
 
-interface User {
-    id: string;
-    name: string;
-    email: string;
-    role: 'admin' | 'leader';
-    is_active: boolean;
-    assignedMinistryIds?: string[];
+interface ExtendedUser extends Omit<User, 'metadata'> {
+	name?: string;
+	is_active: boolean;
+	assignedMinistryIds?: string[];
+	metadata: {
+		role: UserRole;
+		household_id?: string;
+	};
 }
 
 interface AuthContextType {
-    user: User | null;
-    loading: boolean;
-    login: (user: Omit<User, 'assignedMinistryIds'>) => void;
-    logout: () => void;
+	user: ExtendedUser | null;
+	loading: boolean;
+	userRole: UserRole | null;
+	login: (user: Omit<ExtendedUser, 'assignedMinistryIds'>) => void;
+	logout: () => void;
+	setUserRole: (role: UserRole) => void; // For demo mode role switching
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+export const AuthContext = createContext<AuthContextType | undefined>(
+	undefined
+);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-    const [user, setUser] = useState<User | null>(null);
-    const [loading, setLoading] = useState(true);
+	const [user, setUser] = useState<ExtendedUser | null>(null);
+	const [loading, setLoading] = useState<boolean>(true);
+	const [userRole, setUserRole] = useState<UserRole | null>(null);
 
-    useEffect(() => {
-        const initializeUser = async () => {
-            try {
-                const storedUserString = localStorage.getItem('gatherkids-user');
-                if (storedUserString) {
-                    const storedUser: Omit<User, 'assignedMinistryIds'> = JSON.parse(storedUserString);
-                    let finalUser: User = { ...storedUser, assignedMinistryIds: [] };
+	useEffect(() => {
+		const initializeUser = async () => {
+			setLoading(true);
+			try {
+				const storedUserString = localStorage.getItem('gatherkids-user');
+				if (storedUserString) {
+					const storedUser = JSON.parse(storedUserString);
+					let finalUser: ExtendedUser = {
+						...storedUser,
+						metadata: {
+							...storedUser.metadata,
+							role: storedUser.metadata?.role || ROLES.ADMIN,
+						},
+						assignedMinistryIds: [],
+					};
 
-                    if (storedUser.role === 'leader') {
-                        const assignments = await getLeaderAssignmentsForCycle(storedUser.id, '2025');
-                        finalUser.assignedMinistryIds = assignments.map(a => a.ministry_id);
-                    }
-                    setUser(finalUser);
-                }
-            } catch (error) {
-                console.error("Failed to parse user from localStorage", error);
-                localStorage.removeItem('gatherkids-user');
-            } finally {
-                setLoading(false);
-            }
-        };
-        initializeUser();
-    }, []);
+					if (finalUser.metadata.role === ROLES.MINISTRY_LEADER) {
+						const assignments = await getLeaderAssignmentsForCycle(
+							storedUser.id,
+							'2025'
+						);
+						finalUser.assignedMinistryIds = assignments.map(
+							(a) => a.ministry_id
+						);
+					}
+					setUser(finalUser);
+					setUserRole(finalUser.metadata.role);
+				}
+			} catch (error) {
+				console.error('Failed to parse user from localStorage', error);
+				localStorage.removeItem('gatherkids-user');
+			}
+			setLoading(false);
+		};
+		initializeUser();
+	}, []);
 
-    const login = async (userData: Omit<User, 'assignedMinistryIds'>) => {
-        localStorage.setItem('gatherkids-user', JSON.stringify(userData));
-        let finalUser: User = { ...userData, assignedMinistryIds: [] };
-        
-        if(userData.role === 'leader') {
-            const assignments = await getLeaderAssignmentsForCycle(userData.id, '2025');
-            finalUser.assignedMinistryIds = assignments.map(a => a.ministry_id);
-        }
-        setUser(finalUser);
-    };
+	const login = async (userData: Omit<ExtendedUser, 'assignedMinistryIds'>) => {
+		setLoading(true);
+		try {
+			const finalUser: ExtendedUser = {
+				...userData,
+				metadata: {
+					...userData.metadata,
+					role: userData.metadata?.role || ROLES.ADMIN,
+				},
+				assignedMinistryIds: [],
+			};
 
-    const logout = () => {
-        localStorage.removeItem('gatherkids-user');
-        setUser(null);
-    };
+			if (finalUser.metadata.role === ROLES.MINISTRY_LEADER) {
+				const assignments = await getLeaderAssignmentsForCycle(
+					userData.id,
+					'2025'
+				);
+				finalUser.assignedMinistryIds = assignments.map((a) => a.ministry_id);
+			}
 
-    const value = { user, loading, login, logout };
+			localStorage.setItem('gatherkids-user', JSON.stringify(finalUser));
+			setUser(finalUser);
+			setUserRole(finalUser.metadata.role);
+		} finally {
+			setLoading(false);
+		}
+	};
 
-    return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+	const logout = () => {
+		setLoading(true);
+		try {
+			setUser(null);
+			setUserRole(null);
+			localStorage.removeItem('gatherkids-user');
+		} finally {
+			setLoading(false);
+		}
+	};
+
+	const value = { user, loading, userRole, login, logout, setUserRole };
+
+	return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}
+
+export function withRole(allowedRoles: UserRole[]) {
+	return function <P extends object>(WrappedComponent: React.ComponentType<P>) {
+		return function WithRoleComponent(props: P) {
+			return (
+				<ProtectedRoute allowedRoles={allowedRoles}>
+					<WrappedComponent {...props} />
+				</ProtectedRoute>
+			);
+		};
+	};
 }
 
 export function useAuth() {
-    const context = useContext(AuthContext);
-    if (context === undefined) {
-        throw new Error('useAuth must be used within an AuthProvider');
-    }
-    return context;
+	const context = useContext(AuthContext);
+	if (context === undefined) {
+		throw new Error('useAuth must be used within an AuthProvider');
+	}
+	return context;
 }
