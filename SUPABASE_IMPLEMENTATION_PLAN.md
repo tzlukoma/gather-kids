@@ -4,6 +4,8 @@
 
 We will run **Supabase locally via the Supabase CLI** (which manages Docker for us) for DEV, and use **hosted Supabase Free projects** for UAT/PROD. IndexedDB (Dexie.js) remains for demo mode. A feature flag selects the backend at runtime, and a unified **Data Access Layer (DAL)** abstracts database specifics.
 
+**Avatar storage (NEW):** In **Demo**, store avatars as small base64 WebP strings in IndexedDB. In **DEV/UAT/PROD**, store avatars in **Supabase Storage** (`avatars` bucket) and keep a path reference in Postgres.
+
 ## 🎯 Objectives
 
 1. **Triple Support**: IndexedDB (Demo), **Local Postgres (Supabase CLI) for DEV**, Hosted Supabase (UAT/PROD)
@@ -13,6 +15,7 @@ We will run **Supabase locally via the Supabase CLI** (which manages Docker for 
 5. **Migrations**: Prisma migrations applied identically across all envs
 6. **Realtime & Perf**: Subscriptions (Supabase Realtime) + indexed queries
 7. **Type Safety**: Prisma Client types
+8. **Avatars (NEW)**: Base64 in Demo; Supabase Storage in DEV/UAT/PROD
 
 ---
 
@@ -153,6 +156,90 @@ create policy "family_can_read_own_household" on households
 
 ---
 
+## 🖼️ Avatar Strategy (NEW)
+
+### Demo (IndexedDB / Dexie)
+
+- Add `avatar_base64?: string` on the child (or a demo-only `child_avatars_demo` store).
+- Store **small WebP** (≈128–200px, target ≤50–100 KB).
+- Render as a Data URL: `data:image/webp;base64,${avatar_base64}`.
+
+### DEV/UAT/PROD (Supabase Storage + Postgres reference)
+
+- **Bucket** (public for MVP):
+
+  ```bash
+  supabase storage create-bucket avatars --public
+  ```
+
+- **Reference table**:
+
+  ```sql
+  create table if not exists child_avatars (
+    child_id uuid primary key references children(child_id) on delete cascade,
+    storage_path text not null,                     -- e.g. 'avatars/<child_uuid>.webp'
+    media_type text not null default 'image/webp',
+    updated_at timestamptz not null default now()
+  );
+  ```
+
+- **RLS suggestions**:
+
+  ```sql
+  alter table child_avatars enable row level security;
+
+  create policy family_read_avatars on child_avatars
+    for select using (exists (
+      select 1 from children c
+      join user_households uh on uh.household_id = c.household_id
+      where c.child_id = child_avatars.child_id and uh.user_id = auth.uid()::text
+    ));
+
+  create policy family_upsert_own_avatars on child_avatars
+    for insert with check (exists (
+      select 1 from children c
+      join user_households uh on uh.household_id = c.household_id
+      where c.child_id = child_avatars.child_id and uh.user_id = auth.uid()::text
+    ));
+
+  create policy family_update_own_avatars on child_avatars
+    for update using (exists (
+      select 1 from children c
+      join user_households uh on uh.household_id = c.household_id
+      where c.child_id = child_avatars.child_id and uh.user_id = auth.uid()::text
+    ));
+  ```
+
+- **Upload flow** (client):
+
+  1. Downscale & convert to **WebP** in-browser.
+  2. Upload:
+
+     ```ts
+     const path = `avatars/${childId}.webp`;
+     await supabase.storage
+     	.from('avatars')
+     	.upload(path, file, { upsert: true });
+     await supabase
+     	.from('child_avatars')
+     	.upsert({ child_id: childId, storage_path: path });
+     ```
+
+- **Display flow**:
+
+  ```ts
+  const { data } = supabase.storage.from('avatars').getPublicUrl(path);
+  img.src = data.publicUrl;
+  ```
+
+- **Notes**:
+
+  - Keep original files small (reject > 512 KB before processing).
+  - Lazy-load avatars in lists; cache in browser if desired.
+  - Later you can switch the bucket to **private + signed URLs** without touching the UI (only the adapter logic changes).
+
+---
+
 ## 🔧 Phase 3: Database Abstraction Layer
 
 ### 3.1 Adapter Interface
@@ -264,6 +351,7 @@ npx prisma db seed
 ```
 
 - Populate ministries (incl. choirs, Bible Bee), households, guardians, children, registrations, enrollments, sample attendance, incidents.
+- **(NEW)** Optionally upload a few sample avatars to the `avatars` bucket and insert matching `child_avatars` rows.
 
 ### 5.2 Supabase Seed (UAT/PROD as needed)
 
@@ -274,6 +362,7 @@ Use a separate script with **service role key** for UAT only (never PROD live da
 ## 🔧 Phase 6: CI/CD
 
 - **DEV**: local only.
+
 - **UAT**: On tag `uat-*`
 
   - `supabase link <UAT_REF>`
@@ -303,6 +392,7 @@ Keep keys as CI secrets. Never log service keys.
 - Prefer **SQL views** for dashboard metrics.
 - Add **indexes** on common filters: `(ministry_id, cycle_id)`, `(child_id, date)`, `(event_id, date)`.
 - Use server-side pagination; avoid chatty realtime channels.
+- **(NEW)** Avatars: keep images tiny; consider private bucket + signed URLs later if privacy requirements tighten.
 
 ---
 
@@ -313,6 +403,8 @@ Keep keys as CI secrets. Never log service keys.
 | DEV  | Supabase CLI (local Postgres) | Yes           | \$0  | CLI abstracts Docker; full parity |
 | UAT  | Hosted Supabase (Free)        | Yes           | \$0  | Stakeholder testing               |
 | PROD | Hosted Supabase (Free)        | Yes           | \$0  | Live                              |
+
+**Avatar storage:** Demo = base64 in IndexedDB; DEV/UAT/PROD = Supabase Storage (`avatars` bucket) with path references in `child_avatars`.
 
 ---
 
@@ -349,6 +441,7 @@ supabase stop
 - **Realtime overuse**: Subscribe narrowly; debounce cache invalidations.
 - **Secrets leakage**: Keep anon/service keys in env/CI secrets only.
 - **Local setup pain**: CLI abstracts Docker lifecycle—devs only need `supabase start/stop/reset`.
+- **(NEW) Avatar payload bloat (Demo)**: enforce downscale to \~128–200px WebP, lazy-load in lists.
 
 ---
 
@@ -357,3 +450,4 @@ supabase stop
 - Prisma Migrate (Postgres)
 - Supabase JS Client (Auth/Realtime/Storage)
 - Supabase CLI (local dev, linking, db push/reset)
+- **(NEW)** Supabase Storage (upload, public URL, signed URLs)
