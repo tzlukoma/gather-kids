@@ -104,7 +104,13 @@ export default function LoginPage() {
 				description: `Welcome, ${userToLogin.name}!`,
 			});
 
-			router.push('/dashboard');
+			// Redirect based on role: admin -> dashboard, leader -> rosters, guardian -> household
+			const role = userToLogin.role as AuthRole;
+			let target = '/';
+			if (role === AuthRole.ADMIN) target = '/dashboard';
+			else if (role === AuthRole.MINISTRY_LEADER) target = '/dashboard/rosters';
+			else if (role === AuthRole.GUARDIAN) target = '/household';
+			router.push(target);
 		} else {
 			toast({
 				title: 'Invalid Credentials',

@@ -25,7 +25,7 @@ export const MENU_ITEMS: MenuItem[] = [
 		href: '/dashboard',
 		icon: <LayoutDashboard />,
 		label: 'Dashboard',
-		roles: [AuthRole.ADMIN, AuthRole.MINISTRY_LEADER],
+		roles: [AuthRole.ADMIN],
 	},
 	{
 		href: '/dashboard/check-in',

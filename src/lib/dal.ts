@@ -13,6 +13,7 @@
 
 
 import { db } from './db';
+import { AuthRole } from './auth-types';
 import type { Attendance, Child, Guardian, Household, Incident, IncidentSeverity, Ministry, MinistryEnrollment, Registration, User, EmergencyContact, LeaderAssignment } from './types';
 import { differenceInYears, isAfter, isBefore, parseISO } from 'date-fns';
 import { v4 as uuidv4 } from 'uuid';
@@ -49,10 +50,10 @@ export async function isWithinWindow(ministryId: string, todayISO: string): Prom
     const ministry = await db.ministries.get(ministryId);
     if (!ministry) return false;
     const today = parseISO(todayISO);
-    
+
     const isOpen = ministry.open_at ? isAfter(today, parseISO(ministry.open_at)) : true;
     const isClosed = ministry.close_at ? isBefore(today, parseISO(ministry.close_at)) : true;
-    
+
     return isOpen && isClosed;
 }
 
@@ -78,7 +79,7 @@ export async function queryRostersForMinistry(ministryId: string, cycleId: strin
 
     const children = await db.children.where('child_id').anyOf(childIds).toArray();
     const childProfiles = await db.child_year_profiles.where('[child_id+cycle_id]').anyOf(childIds.map(cid => [cid, cycleId])).toArray();
-    
+
     const profileMap = new Map(childProfiles.map(p => [p.child_id, p]));
 
     return children.map(child => ({
@@ -90,9 +91,9 @@ export async function queryRostersForMinistry(ministryId: string, cycleId: strin
 export async function queryDashboardMetrics(cycleId: string) {
     const totalRegistrations = await db.registrations.where({ cycle_id: cycleId }).count();
     const activeRegistrations = await db.registrations.where({ cycle_id: cycleId, status: 'active' }).toArray();
-    
+
     const completionPct = totalRegistrations > 0 ? Math.round((activeRegistrations.length / totalRegistrations) * 100) : 0;
-    
+
     let missingConsentsCount = 0;
     for (const reg of activeRegistrations) {
         const hasLiability = reg.consents.some(c => c.type === 'liability' && c.accepted_at);
@@ -112,7 +113,7 @@ export async function queryDashboardMetrics(cycleId: string) {
         if (!child.dob) continue;
         const age = ageOn(getTodayIsoDate(), child.dob);
         if (age === null) continue;
-        
+
         if (age < (choirMinistry?.min_age ?? 7) || age > (choirMinistry?.max_age ?? 12)) {
             choirEligibilityWarnings.push({
                 child_id: child.child_id,
@@ -151,11 +152,11 @@ export async function queryHouseholdList(leaderMinistryIds?: string[], ministryI
         const relevantChildIds = [...new Set(enrollments.map(e => e.child_id))];
         const relevantChildren = await db.children.where('child_id').anyOf(relevantChildIds).toArray();
         const relevantHouseholdIds = [...new Set(relevantChildren.map(c => c.household_id))];
-        
+
         households = households.filter(h => relevantHouseholdIds.includes(h.household_id));
         householdIds = households.map(h => h.household_id);
     }
-    
+
     const allChildren = await db.children.where('household_id').anyOf(householdIds).toArray();
 
     const childrenByHousehold = new Map<string, (Child & { age: number | null })[]>();
@@ -200,7 +201,7 @@ export async function getHouseholdProfile(householdId: string): Promise<Househol
             .reduce((acc, e) => {
                 const ministry = ministryMap.get(e.ministry_id);
                 if (!ministry) return acc;
-                
+
                 const enrichedEnrollment: EnrichedEnrollment = {
                     ...e,
                     ministryName: ministry.name,
@@ -233,7 +234,7 @@ export async function getHouseholdProfile(householdId: string): Promise<Househol
 // Mutation Functions
 export async function recordCheckIn(childId: string, eventId: string, timeslotId?: string, userId?: string): Promise<string> {
     const today = getTodayIsoDate();
-    
+
     // Find if the child has any active check-in record for today.
     const activeCheckIn = await db.attendance
         .where({ child_id: childId, date: today })
@@ -243,7 +244,7 @@ export async function recordCheckIn(childId: string, eventId: string, timeslotId
     if (activeCheckIn) {
         throw new Error("This child is already checked in to another event.");
     }
-    
+
     // No active record, create a new one.
     const attendanceRecord: Attendance = {
         attendance_id: uuidv4(),
@@ -276,7 +277,7 @@ export function acknowledgeIncident(incidentId: string): Promise<number> {
     return db.incidents.update(incidentId, { admin_acknowledged_at: new Date().toISOString() });
 }
 
-export async function logIncident(data: {child_id: string, child_name: string, description: string, severity: IncidentSeverity, leader_id: string, event_id?: string}) {
+export async function logIncident(data: { child_id: string, child_name: string, description: string, severity: IncidentSeverity, leader_id: string, event_id?: string }) {
     const incident: Incident = {
         incident_id: uuidv4(),
         ...data,
@@ -301,7 +302,7 @@ const fetchFullHouseholdData = async (householdId: string, cycleId: string) => {
         const ministrySelections: { [key: string]: boolean | undefined } = {};
         const interestSelections: { [key: string]: boolean | undefined } = {};
         let customData: any = {};
-        
+
         childEnrollments.forEach(enrollment => {
             const ministry = ministryMap.get(enrollment.ministry_id);
             if (!ministry) return;
@@ -309,16 +310,16 @@ const fetchFullHouseholdData = async (householdId: string, cycleId: string) => {
             if (enrollment.status === 'enrolled') {
                 ministrySelections[ministry.code] = true;
                 if (enrollment.custom_fields) {
-                    customData = {...customData, ...enrollment.custom_fields};
+                    customData = { ...customData, ...enrollment.custom_fields };
                 }
             } else if (enrollment.status === 'expressed_interest') {
                 interestSelections[ministry.code] = true;
             }
         });
-        
+
         return { ...child, ministrySelections, interestSelections, customData };
     });
-    
+
     return {
         household,
         guardians,
@@ -353,14 +354,14 @@ export async function findHouseholdByEmail(email: string, currentCycleId: string
             data: await fetchFullHouseholdData(householdId, currentCycleId)
         };
     }
-    
+
     // 2. If no current registration, check for a registration in the PRIOR cycle to pre-fill from.
     const priorCycleId = String(parseInt(currentCycleId, 10) - 1);
     const priorRegExists = await db.ministry_enrollments
         .where('child_id').anyOf(householdChildIds)
         .and(e => e.cycle_id === priorCycleId)
         .first();
-    
+
     if (priorRegExists) {
         const priorData = await fetchFullHouseholdData(householdId, priorCycleId);
         return {
@@ -387,7 +388,7 @@ export async function registerHousehold(data: any, cycle_id: string, isPrefill: 
         // It should NOT run for a pre-fill from a previous year.
         if (isUpdate && !isPrefill) {
             const childIds = (await db.children.where({ household_id: householdId }).toArray()).map(c => c.child_id);
-            
+
             // Delete previous registrations and enrollments for this cycle
             await db.registrations.where('[child_id+cycle_id]').anyOf(childIds.map(cid => [cid, cycle_id])).delete();
             await db.ministry_enrollments.where('[child_id+cycle_id]').anyOf(childIds.map(cid => [cid, cycle_id])).delete();
@@ -423,7 +424,7 @@ export async function registerHousehold(data: any, cycle_id: string, isPrefill: 
             ...data.emergencyContact
         };
         await db.emergency_contacts.add(emergencyContact);
-        
+
         const existingChildren = isUpdate ? await db.children.where({ household_id: householdId }).toArray() : [];
         const incomingChildIds = data.children.map((c: any) => c.child_id).filter(Boolean);
 
@@ -498,8 +499,8 @@ export async function registerHousehold(data: any, cycle_id: string, isPrefill: 
                         }
 
                         const custom_fields: { [key: string]: any } = {};
-                        if(childData.customData && ministry.custom_questions) {
-                             for (const q of ministry.custom_questions) {
+                        if (childData.customData && ministry.custom_questions) {
+                            for (const q of ministry.custom_questions) {
                                 if (childData.customData[q.id] !== undefined) {
                                     custom_fields[q.id] = childData.customData[q.id];
                                 }
@@ -527,10 +528,10 @@ function convertToCSV(data: any[]): string {
     if (data.length === 0) return "";
     const headers = Object.keys(data[0]);
     const csvRows = [
-      headers.join(','),
-      ...data.map(row =>
-        headers.map(fieldName => JSON.stringify(row[fieldName] ?? '')).join(',')
-      )
+        headers.join(','),
+        ...data.map(row =>
+            headers.map(fieldName => JSON.stringify(row[fieldName] ?? '')).join(',')
+        )
     ];
     return csvRows.join('\r\n');
 }
@@ -538,7 +539,7 @@ function convertToCSV(data: any[]): string {
 export async function exportRosterCSV(children: any[]): Promise<Blob> {
     const exportData = children.map(child => {
         const primaryGuardian = child.guardians?.find((g: Guardian) => g.is_primary) || child.guardians?.[0];
-        
+
         return {
             child_name: `${child.first_name} ${child.last_name}`,
             grade: child.grade,
@@ -561,7 +562,7 @@ export async function exportRosterCSV(children: any[]): Promise<Blob> {
 export async function exportEmergencySnapshotCSV(dateISO: string): Promise<Blob> {
     const roster = await querySundaySchoolRoster(dateISO);
     const householdIds = roster.map(r => r.household_id);
-    
+
     const guardians = await db.guardians.where('household_id').anyOf(householdIds).and(g => g.is_primary).toArray();
     const contacts = await db.emergency_contacts.where('household_id').anyOf(householdIds).toArray();
 
@@ -579,7 +580,7 @@ export async function exportEmergencySnapshotCSV(dateISO: string): Promise<Blob>
         emergency_contact: contactMap.get(child.household_id)?.first_name + ' ' + contactMap.get(child.household_id)?.last_name,
         emergency_phone: contactMap.get(child.household_id)?.mobile_phone,
     }));
-    
+
     const csv = convertToCSV(exportData);
     return new Blob([csv], { type: 'text/csv;charset=utf-8;' });
 }
@@ -639,7 +640,7 @@ export async function deleteMinistry(ministryId: string): Promise<void> {
 
 // Leader Management
 export async function queryLeaders() {
-    const leaders = await db.users.where('role').equals('leader').sortBy('name');
+    const leaders = await db.users.where('role').equals(AuthRole.MINISTRY_LEADER).sortBy('name');
     const leaderIds = leaders.map(l => l.user_id);
     const assignments = await db.leader_assignments.where('leader_id').anyOf(leaderIds).and(a => a.cycle_id === '2025').toArray();
     const ministries = await db.ministries.toArray();
@@ -648,8 +649,8 @@ export async function queryLeaders() {
     return leaders.map(leader => {
         const leaderAssignments = assignments
             .filter(a => a.leader_id === leader.user_id)
-            .map(a => ({...a, ministryName: ministryMap.get(a.ministry_id) || 'Unknown Ministry' }));
-        
+            .map(a => ({ ...a, ministryName: ministryMap.get(a.ministry_id) || 'Unknown Ministry' }));
+
         const isActive = leader.is_active && leaderAssignments.length > 0;
 
         return {
@@ -663,7 +664,7 @@ export async function queryLeaders() {
 export async function getLeaderProfile(leaderId: string, cycleId: string) {
     const leader = await db.users.get(leaderId);
     const assignments = await db.leader_assignments.where({ leader_id: leaderId, cycle_id: cycleId }).toArray();
-    
+
     // Fetch all ministries and then filter by is_active in code.
     const allMinistriesRaw = await db.ministries.toArray();
     const allMinistries = allMinistriesRaw
@@ -681,7 +682,7 @@ export async function saveLeaderAssignments(leaderId: string, cycleId: string, n
     return db.transaction('rw', db.leader_assignments, async () => {
         // Delete old assignments for this leader and cycle
         await db.leader_assignments.where({ leader_id: leaderId, cycle_id: cycleId }).delete();
-        
+
         // Add new ones
         if (newAssignments.length > 0) {
             const assignmentsToCreate = newAssignments.map(a => ({
