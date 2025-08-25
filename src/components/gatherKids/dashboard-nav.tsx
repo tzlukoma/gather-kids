@@ -76,7 +76,8 @@ export function DashboardNav({ children }: DashboardNavProps) {
 	}, [user, userRole]);
 
 	// Determine if the current user is an inactive ministry leader
-	const isInactiveLeader = userRole === AuthRole.MINISTRY_LEADER && user && !user.is_active;
+	const isInactiveLeader =
+		userRole === AuthRole.MINISTRY_LEADER && user && !user.is_active;
 
 	// Filter menu items based on user role and ministry assignments
 	const filteredMenuItems = MENU_ITEMS.filter((item) => {
