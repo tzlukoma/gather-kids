@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { db } from '@/lib/db';
 import type { CompetitionYear, GradeRule, Scripture } from '@/lib/types';
-import { createCompetitionYear, upsertScripture, createGradeRule as createRule } from '@/lib/bibleBee';
+import { createCompetitionYear, upsertScripture, createGradeRule as createRule, toggleScriptureCompletion, submitEssay } from '@/lib/bibleBee';
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 
 export function useCompetitionYears() {
     const [years, setYears] = useState<CompetitionYear[]>([]);
@@ -59,4 +60,73 @@ export function useScripturesForYearQuery(yearId: string) {
 
 export async function createGradeRule(payload: Omit<GradeRule, 'id' | 'createdAt' | 'updatedAt'>) {
     return createRule(payload as any);
+}
+
+// --- Student / Parent hooks
+export function useStudentAssignmentsQuery(childId: string) {
+    const key = ['studentAssignments', childId];
+    return useQuery(key, async () => {
+        // Fetch student scriptures and essays and enrich with scripture data
+        const scriptures = await db.studentScriptures.where({ childId }).toArray();
+        const essays = await db.studentEssays.where({ childId }).toArray();
+
+        const enrichedScriptures = await Promise.all(
+            scriptures.map(async (s) => {
+                const scripture = await db.scriptures.get(s.scriptureId);
+                const year = await db.competitionYears.get(s.competitionYearId);
+                return { ...s, scripture, year };
+            })
+        );
+
+        const enrichedEssays = await Promise.all(
+            essays.map(async (e) => {
+                const year = await db.competitionYears.get(e.competitionYearId);
+                return { ...e, year };
+            })
+        );
+
+        return { scriptures: enrichedScriptures, essays: enrichedEssays };
+    });
+}
+
+export function useToggleScriptureMutation(childId: string) {
+    const qc = useQueryClient();
+    const key = ['studentAssignments', childId];
+    return useMutation(async ({ id, complete }: { id: string; complete: boolean }) => toggleScriptureCompletion(id, complete), {
+        onMutate: async ({ id, complete }) => {
+            await qc.cancelQueries(key);
+            const previous = qc.getQueryData<any>(key);
+            qc.setQueryData(key, (old: any) => {
+                if (!old) return old;
+                const newScriptures = old.scriptures.map((s: any) => s.id === id ? { ...s, status: complete ? 'completed' : 'assigned', completedAt: complete ? new Date().toISOString() : undefined } : s);
+                return { ...old, scriptures: newScriptures };
+            });
+            return { previous };
+        },
+        onError: (_err, _vars, context: any) => {
+            if (context?.previous) qc.setQueryData(key, context.previous);
+        },
+        onSettled: () => qc.invalidateQueries(key),
+    });
+}
+
+export function useSubmitEssayMutation(childId: string) {
+    const qc = useQueryClient();
+    const key = ['studentAssignments', childId];
+    return useMutation(async ({ competitionYearId }: { competitionYearId: string }) => submitEssay(childId, competitionYearId), {
+        onMutate: async ({ competitionYearId }) => {
+            await qc.cancelQueries(key);
+            const previous = qc.getQueryData<any>(key);
+            qc.setQueryData(key, (old: any) => {
+                if (!old) return old;
+                const newEssays = old.essays.map((e: any) => e.competitionYearId === competitionYearId ? { ...e, status: 'submitted', submittedAt: new Date().toISOString() } : e);
+                return { ...old, essays: newEssays };
+            });
+            return { previous };
+        },
+        onError: (_err, _vars, context: any) => {
+            if (context?.previous) qc.setQueryData(key, context.previous);
+        },
+        onSettled: () => qc.invalidateQueries(key),
+    });
 }
