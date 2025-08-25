@@ -198,3 +198,63 @@ export interface AuditLog {
     diff?: object;
     fields_returned?: string[];
 }
+
+// --- Bible Bee domain types ---
+export interface CompetitionYear {
+    id: string;
+    year: number;
+    name?: string;
+    description?: string;
+    opensAt?: string;
+    closesAt?: string;
+    createdAt: string;
+    updatedAt: string;
+}
+
+export interface Scripture {
+    id: string;
+    competitionYearId: string;
+    reference: string;
+    text: string;
+    translation?: string;
+    bookLangAlt?: string;
+    sortOrder?: number;
+    createdAt: string;
+    updatedAt: string;
+}
+
+export interface GradeRule {
+    id: string;
+    competitionYearId: string;
+    minGrade: number;
+    maxGrade: number;
+    type: 'scripture' | 'essay';
+    targetCount?: number;
+    promptText?: string;
+    instructions?: string;
+    createdAt: string;
+    updatedAt: string;
+}
+
+export interface StudentScripture {
+    id: string;
+    childId: string;
+    competitionYearId: string;
+    scriptureId: string;
+    status: 'assigned' | 'completed';
+    completedAt?: string;
+    createdAt: string;
+    updatedAt: string;
+}
+
+export interface StudentEssay {
+    id: string;
+    childId: string;
+    competitionYearId: string;
+    status: 'assigned' | 'submitted';
+    submittedAt?: string;
+    promptText: string;
+    instructions?: string;
+    createdAt: string;
+    updatedAt: string;
+}
