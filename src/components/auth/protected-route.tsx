@@ -1,12 +1,12 @@
 import { ReactNode, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
-import { UserRole } from '@/lib/constants/roles';
+import { AuthRole } from '@/lib/auth-types';
 import { DefaultLoadingSpinner } from '@/components/ui/spinner';
 
 interface ProtectedRouteProps {
 	children: ReactNode;
-	allowedRoles: UserRole[];
+	allowedRoles: AuthRole[];
 	loadingComponent?: ReactNode;
 }
 
@@ -30,7 +30,13 @@ export const ProtectedRoute = ({
 				return;
 			}
 
+			console.log('ProtectedRoute - Current userRole:', userRole);
+			console.log('ProtectedRoute - Allowed roles:', allowedRoles);
+
 			if (!userRole || !allowedRoles.includes(userRole)) {
+				console.log('Role check failed - redirecting to unauthorized');
+				console.log('userRole:', userRole);
+				console.log('allowedRoles:', allowedRoles);
 				setIsNavigating(true);
 				await router.replace('/unauthorized');
 				setIsNavigating(false);

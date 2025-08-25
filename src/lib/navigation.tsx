@@ -9,13 +9,13 @@ import {
 	Contact,
 	Settings,
 } from 'lucide-react';
-import { ROLES, UserRole } from './constants/roles';
+import { AuthRole } from './auth-types';
 
 interface MenuItem {
 	href: string;
 	icon: ReactNode;
 	label: string;
-	roles: UserRole[];
+	roles: AuthRole[];
 	requiresActive?: boolean;
 	ministryCheck?: (ministryIds: string[]) => boolean;
 }
@@ -25,64 +25,64 @@ export const MENU_ITEMS: MenuItem[] = [
 		href: '/dashboard',
 		icon: <LayoutDashboard />,
 		label: 'Dashboard',
-		roles: [ROLES.ADMIN, ROLES.MINISTRY_LEADER],
+		roles: [AuthRole.ADMIN, AuthRole.MINISTRY_LEADER],
 	},
 	{
 		href: '/dashboard/check-in',
 		icon: <CheckCheck />,
 		label: 'Check-In/Out',
-		roles: [ROLES.ADMIN, ROLES.MINISTRY_LEADER, ROLES.GUARDIAN],
+		roles: [AuthRole.ADMIN, AuthRole.MINISTRY_LEADER, AuthRole.GUARDIAN],
 		requiresActive: true,
 	},
 	{
 		href: '/dashboard/rosters',
 		icon: <Users />,
 		label: 'Rosters',
-		roles: [ROLES.ADMIN, ROLES.MINISTRY_LEADER],
+		roles: [AuthRole.ADMIN, AuthRole.MINISTRY_LEADER],
 		requiresActive: true,
 	},
 	{
 		href: '/dashboard/registrations',
 		icon: <ClipboardList />,
 		label: 'Registrations',
-		roles: [ROLES.ADMIN, ROLES.MINISTRY_LEADER],
+		roles: [AuthRole.ADMIN, AuthRole.MINISTRY_LEADER],
 		requiresActive: true,
 	},
 	{
 		href: '/dashboard/incidents',
 		icon: <ShieldAlert />,
 		label: 'Incidents',
-		roles: [ROLES.ADMIN, ROLES.MINISTRY_LEADER],
+		roles: [AuthRole.ADMIN, AuthRole.MINISTRY_LEADER],
 	},
 	{
 		href: '/dashboard/leaders',
 		icon: <Contact />,
 		label: 'Leaders',
-		roles: [ROLES.ADMIN],
+		roles: [AuthRole.ADMIN],
 	},
 	{
 		href: '/dashboard/reports',
 		icon: <FileText />,
 		label: 'Reports',
-		roles: [ROLES.ADMIN],
+		roles: [AuthRole.ADMIN],
 	},
 	{
 		href: '/dashboard/configuration',
 		icon: <Settings />,
 		label: 'Configuration',
-		roles: [ROLES.ADMIN],
+		roles: [AuthRole.ADMIN],
 	},
 	// Guardian menu items
 	{
 		href: '/household',
 		icon: <Users />,
 		label: 'My Household',
-		roles: [ROLES.GUARDIAN],
+		roles: [AuthRole.GUARDIAN],
 	},
 ];
 
 export const getAuthorizedMenuItems = (
-	userRole: UserRole | null,
+	userRole: AuthRole | null,
 	isActive: boolean = true,
 	ministryIds: string[] = []
 ): MenuItem[] => {

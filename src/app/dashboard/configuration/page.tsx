@@ -151,7 +151,7 @@ export default function ConfigurationPage() {
 
 	useEffect(() => {
 		if (!loading && user) {
-			if (user.role !== 'admin') {
+			if (user.metadata.role !== 'ADMIN') {
 				router.push('/dashboard');
 			} else {
 				setIsAuthorized(true);

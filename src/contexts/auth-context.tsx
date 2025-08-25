@@ -8,26 +8,16 @@ import React, {
 	ReactNode,
 } from 'react';
 import { getLeaderAssignmentsForCycle } from '@/lib/dal';
-import { User, UserRole, ROLES } from '@/lib/constants/roles';
+import { AuthRole, BaseUser } from '@/lib/auth-types';
 import { ProtectedRoute } from '@/components/auth/protected-route';
 
-interface ExtendedUser extends Omit<User, 'metadata'> {
-	name?: string;
-	is_active: boolean;
-	assignedMinistryIds?: string[];
-	metadata: {
-		role: UserRole;
-		household_id?: string;
-	};
-}
-
 interface AuthContextType {
-	user: ExtendedUser | null;
+	user: BaseUser | null;
 	loading: boolean;
-	userRole: UserRole | null;
-	login: (user: Omit<ExtendedUser, 'assignedMinistryIds'>) => void;
+	userRole: AuthRole | null;
+	login: (user: Omit<BaseUser, 'assignedMinistryIds'>) => void;
 	logout: () => void;
-	setUserRole: (role: UserRole) => void; // For demo mode role switching
+	setUserRole: (role: AuthRole) => void; // For demo mode role switching
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(
@@ -35,9 +25,9 @@ export const AuthContext = createContext<AuthContextType | undefined>(
 );
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-	const [user, setUser] = useState<ExtendedUser | null>(null);
+	const [user, setUser] = useState<BaseUser | null>(null);
 	const [loading, setLoading] = useState<boolean>(true);
-	const [userRole, setUserRole] = useState<UserRole | null>(null);
+	const [userRole, setUserRole] = useState<AuthRole | null>(null);
 
 	useEffect(() => {
 		const initializeUser = async () => {
@@ -46,18 +36,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 				const storedUserString = localStorage.getItem('gatherkids-user');
 				if (storedUserString) {
 					const storedUser = JSON.parse(storedUserString);
-					let finalUser: ExtendedUser = {
+					let finalUser: BaseUser = {
 						...storedUser,
 						metadata: {
 							...storedUser.metadata,
-							role: storedUser.metadata?.role || ROLES.ADMIN,
+							role: storedUser.metadata?.role || AuthRole.ADMIN,
 						},
+						is_active: true,
 						assignedMinistryIds: [],
 					};
 
-					if (finalUser.metadata.role === ROLES.MINISTRY_LEADER) {
+					if (finalUser.metadata.role === AuthRole.MINISTRY_LEADER) {
 						const assignments = await getLeaderAssignmentsForCycle(
-							storedUser.id,
+							storedUser.uid,
 							'2025'
 						);
 						finalUser.assignedMinistryIds = assignments.map(
@@ -76,28 +67,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 		initializeUser();
 	}, []);
 
-	const login = async (userData: Omit<ExtendedUser, 'assignedMinistryIds'>) => {
+	const login = async (userData: Omit<BaseUser, 'assignedMinistryIds'>) => {
 		setLoading(true);
 		try {
-			const finalUser: ExtendedUser = {
+			console.log('Auth Context - Login - Input userData:', userData);
+			const finalUser: BaseUser = {
 				...userData,
+				is_active: true,
 				metadata: {
 					...userData.metadata,
-					role: userData.metadata?.role || ROLES.ADMIN,
+					role: userData.metadata?.role || AuthRole.ADMIN,
 				},
 				assignedMinistryIds: [],
 			};
+			console.log(
+				'Auth Context - Login - Final user with role:',
+				finalUser.metadata.role
+			);
 
-			if (finalUser.metadata.role === ROLES.MINISTRY_LEADER) {
+			if (finalUser.metadata.role === AuthRole.MINISTRY_LEADER) {
 				const assignments = await getLeaderAssignmentsForCycle(
-					userData.id,
+					userData.uid,
 					'2025'
 				);
 				finalUser.assignedMinistryIds = assignments.map((a) => a.ministry_id);
 			}
 
+			console.log('Storing user with role:', finalUser.metadata.role);
 			localStorage.setItem('gatherkids-user', JSON.stringify(finalUser));
 			setUser(finalUser);
+			console.log('Setting userRole to:', finalUser.metadata.role);
 			setUserRole(finalUser.metadata.role);
 		} finally {
 			setLoading(false);
@@ -120,7 +119,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 	return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
-export function withRole(allowedRoles: UserRole[]) {
+export function withRole(allowedRoles: AuthRole[]) {
 	return function <P extends object>(WrappedComponent: React.ComponentType<P>) {
 		return function WithRoleComponent(props: P) {
 			return (
