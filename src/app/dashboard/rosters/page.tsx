@@ -1,4 +1,5 @@
 
+
 'use client';
 import React from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
@@ -20,8 +21,8 @@ import {
 	CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { FileDown, ArrowUpDown, Edit } from 'lucide-react';
-import { format } from 'date-fns';
+import { FileDown, ArrowUpDown, Edit, Camera } from 'lucide-react';
+import { format, parseISO, differenceInYears } from 'date-fns';
 import {
 	getTodayIsoDate,
 	recordCheckIn,
@@ -36,6 +37,7 @@ import type {
 	Household,
 	EmergencyContact,
 	Ministry,
+	Incident,
 } from '@/lib/types';
 import { CheckoutDialog } from '@/components/gatherKids/checkout-dialog';
 import { useToast } from '@/hooks/use-toast';
@@ -50,7 +52,6 @@ import {
 } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { RosterCard } from '@/components/gatherKids/roster-card';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import {
@@ -62,6 +63,10 @@ import {
 	DialogTrigger,
 } from '@/components/ui/dialog';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { PhotoViewerDialog } from '@/components/gatherKids/photo-viewer-dialog';
+import { ChildCard } from '@/components/gatherKids/child-card';
+import { IncidentDetailsDialog } from '@/components/gatherKids/incident-details-dialog';
+import { PhotoCaptureDialog } from '@/components/gatherKids/photo-capture-dialog';
 
 export interface RosterChild extends EnrichedChild {}
 
@@ -116,6 +121,7 @@ export default function RostersPage() {
 		null
 	);
 	const [isEventDialogOpen, setIsEventDialogOpen] = useState(false);
+	const [viewingPhoto, setViewingPhoto] = useState<{ name: string; url: string } | null>(null);
 
 	const [showCheckedIn, setShowCheckedIn] = useState(false);
 	const [showCheckedOut, setShowCheckedOut] = useState(false);
@@ -128,6 +134,10 @@ export default function RostersPage() {
 	const [gradeSort, setGradeSort] = useState<SortDirection>('asc');
 	const [selectedMinistryFilter, setSelectedMinistryFilter] =
 		useState<string>('all');
+
+	const [selectedIncidents, setSelectedIncidents] = useState<Incident[] | null>(null);
+    const [selectedChildForPhoto, setSelectedChildForPhoto] = useState<Child | null>(null);
+
 
 	const allMinistryEnrollments = useLiveQuery(
 		() => db.ministry_enrollments.where({ cycle_id: '2025' }).toArray(),
@@ -158,6 +168,9 @@ export default function RostersPage() {
 		() => db.attendance.where({ date: today }).toArray(),
 		[today]
 	);
+	const todaysIncidents = useLiveQuery(() => 
+		db.incidents.filter(i => i.timestamp.startsWith(today)).toArray()
+  	, [today]);
 
 	const allGuardians = useLiveQuery(() => db.guardians.toArray(), []);
 	const allHouseholds = useLiveQuery(() => db.households.toArray(), []);
@@ -206,7 +219,8 @@ export default function RostersPage() {
 			!todaysAttendance ||
 			!allGuardians ||
 			!allHouseholds ||
-			!allEmergencyContacts
+			!allEmergencyContacts ||
+			!todaysIncidents
 		)
 			return [];
 
@@ -221,6 +235,14 @@ export default function RostersPage() {
 		const emergencyContactMap = new Map(
 			allEmergencyContacts.map((ec) => [ec.household_id, ec])
 		);
+		
+		const incidentsByChild = new Map<string, Incident[]>();
+        todaysIncidents.forEach(i => {
+            if (!incidentsByChild.has(i.child_id)) {
+                incidentsByChild.set(i.child_id, []);
+            }
+            incidentsByChild.get(i.child_id)!.push(i);
+        });
 
 		return allChildrenQuery.map((child) => ({
 			...child,
@@ -228,6 +250,8 @@ export default function RostersPage() {
 			guardians: guardianMap.get(child.household_id) || [],
 			household: householdMap.get(child.household_id) || null,
 			emergencyContact: emergencyContactMap.get(child.household_id) || null,
+			incidents: (incidentsByChild.get(child.child_id) || []).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()),
+            age: child.dob ? differenceInYears(new Date(), parseISO(child.dob)) : null,
 		}));
 	}, [
 		allChildrenQuery,
@@ -235,6 +259,7 @@ export default function RostersPage() {
 		allGuardians,
 		allHouseholds,
 		allEmergencyContacts,
+		todaysIncidents,
 	]);
 
 	const ministryFilterOptions = useMemo(() => {
@@ -375,13 +400,14 @@ export default function RostersPage() {
 		}
 	};
 
-	const handleCheckIn = async (child: RosterChild) => {
+	const handleCheckIn = async (childId: string) => {
 		try {
-			await recordCheckIn(child.child_id, selectedEvent, undefined, user?.id);
+			await recordCheckIn(childId, selectedEvent, undefined, user?.id);
+			const child = childrenWithDetails.find(c => c.child_id === childId);
 			toast({
 				title: 'Checked In',
-				description: `${child.first_name} ${
-					child.last_name
+				description: `${child?.first_name} ${
+					child?.last_name
 				} has been checked in to ${getEventName(selectedEvent)}.`,
 			});
 		} catch (e: any) {
@@ -461,6 +487,7 @@ export default function RostersPage() {
 							/>
 						</TableHead>
 					)}
+					<TableHead className="w-[50px]">Photo</TableHead>
 					<TableHead>Name</TableHead>
 					<TableHead>
 						<Button variant="ghost" onClick={toggleGradeSort} className="px-1">
@@ -489,6 +516,13 @@ export default function RostersPage() {
 									/>
 								</TableCell>
 							)}
+							<TableCell>
+								{child.photo_url && (
+									<Button variant="ghost" size="icon" onClick={() => setViewingPhoto({ name: `${child.first_name} ${child.last_name}`, url: child.photo_url! })}>
+										<Camera className="h-4 w-4" />
+									</Button>
+								)}
+							</TableCell>
 							<TableCell className="font-medium">{`${child.first_name} ${child.last_name}`}</TableCell>
 							<TableCell>{child.grade}</TableCell>
 							<TableCell>
@@ -523,7 +557,7 @@ export default function RostersPage() {
 									<Button
 										size="sm"
 										className="w-full"
-										onClick={() => handleCheckIn(child)}>
+										onClick={() => handleCheckIn(child.child_id)}>
 										Check In
 									</Button>
 								)}
@@ -540,7 +574,7 @@ export default function RostersPage() {
 							<React.Fragment key={grade}>
 								<TableRow className="bg-muted/50 hover:bg-muted/50">
 									<TableCell
-										colSpan={showBulkActions ? 7 : 6}
+										colSpan={showBulkActions ? 8 : 7}
 										className="font-bold text-muted-foreground">
 										{grade} ({childrenInGrade.length})
 									</TableCell>
@@ -562,6 +596,13 @@ export default function RostersPage() {
 												/>
 											</TableCell>
 										)}
+										<TableCell>
+											{child.photo_url && (
+												<Button variant="ghost" size="icon" onClick={() => setViewingPhoto({ name: `${child.first_name} ${child.last_name}`, url: child.photo_url! })}>
+													<Camera className="h-4 w-4" />
+												</Button>
+											)}
+										</TableCell>
 										<TableCell className="font-medium">{`${child.first_name} ${child.last_name}`}</TableCell>
 										<TableCell>{child.grade}</TableCell>
 										<TableCell>
@@ -599,7 +640,7 @@ export default function RostersPage() {
 												<Button
 													size="sm"
 													className="w-full"
-													onClick={() => handleCheckIn(child)}>
+													onClick={() => handleCheckIn(child.child_id)}>
 													Check In
 												</Button>
 											)}
@@ -611,7 +652,7 @@ export default function RostersPage() {
 				{displayChildren.length === 0 && (
 					<TableRow>
 						<TableCell
-							colSpan={showBulkActions ? 7 : 6}
+							colSpan={showBulkActions ? 8 : 7}
 							className="text-center h-24 text-muted-foreground">
 							No children match the current filter.
 						</TableCell>
@@ -637,28 +678,30 @@ export default function RostersPage() {
 								</h3>
 							</div>
 							{childrenInGrade.map((child) => (
-								<RosterCard
+								<ChildCard
 									key={child.child_id}
 									child={child}
-									showBulkActions={showBulkActions}
-									isSelected={selectedChildren.has(child.child_id)}
-									onToggleSelection={toggleSelection}
+									selectedEvent={selectedEvent}
 									onCheckIn={handleCheckIn}
-									onSetChildToCheckout={setChildToCheckout}
+									onCheckout={setChildToCheckout}
+									onViewIncidents={setSelectedIncidents}
+									onUpdatePhoto={setSelectedChildForPhoto}
+									onViewPhoto={setViewingPhoto}
 								/>
 							))}
 						</React.Fragment>
 					))}
 			{!groupedChildren &&
 				displayChildren.map((child) => (
-					<RosterCard
+					<ChildCard
 						key={child.child_id}
 						child={child}
-						showBulkActions={showBulkActions}
-						isSelected={selectedChildren.has(child.child_id)}
-						onToggleSelection={toggleSelection}
+						selectedEvent={selectedEvent}
 						onCheckIn={handleCheckIn}
-						onSetChildToCheckout={setChildToCheckout}
+						onCheckout={setChildToCheckout}
+						onViewIncidents={setSelectedIncidents}
+						onUpdatePhoto={setSelectedChildForPhoto}
+						onViewPhoto={setViewingPhoto}
 					/>
 				))}
 			{displayChildren.length === 0 && (
@@ -819,6 +862,18 @@ export default function RostersPage() {
 				child={childToCheckout}
 				onClose={() => setChildToCheckout(null)}
 				onCheckout={handleCheckout}
+			/>
+			<PhotoViewerDialog
+				photo={viewingPhoto}
+				onClose={() => setViewingPhoto(null)}
+			/>
+			<IncidentDetailsDialog
+				incidents={selectedIncidents}
+				onClose={() => setSelectedIncidents(null)}
+			/>
+			<PhotoCaptureDialog
+				child={selectedChildForPhoto}
+				onClose={() => setSelectedChildForPhoto(null)}
 			/>
 		</>
 	);

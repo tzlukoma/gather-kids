@@ -1,70 +1,29 @@
 
+
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import type { Child, Guardian, Attendance, Household, EmergencyContact, Incident } from '@/lib/types';
-import { CheckoutDialog } from './checkout-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { User, Search, Info, Cake, AlertTriangle, ShieldAlert, Smartphone, CheckCircle } from 'lucide-react';
+import { Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { format, isWithinInterval, subDays, addDays, setYear, parseISO, differenceInYears } from 'date-fns';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
 import { getTodayIsoDate, recordCheckIn, recordCheckOut } from '@/lib/dal';
-import { Separator } from '../ui/separator';
 import type { StatusFilter } from '@/app/dashboard/check-in/page';
 import { IncidentDetailsDialog } from './incident-details-dialog';
+import { PhotoCaptureDialog } from './photo-capture-dialog';
+import { PhotoViewerDialog } from './photo-viewer-dialog';
+import { parseISO, differenceInYears } from 'date-fns';
+import { ChildCard } from './child-card';
+import { CheckoutDialog } from './checkout-dialog';
+
 
 interface CheckInViewProps {
   initialChildren: Child[];
   selectedEvent: string;
   selectedGrades: string[];
   statusFilter: StatusFilter;
-}
-
-const isBirthdayThisWeek = (dob?: string): boolean => {
-    if (!dob) return false;
-    try {
-        const today = new Date();
-        const birthDate = parseISO(dob);
-        
-        const currentYearBirthday = setYear(birthDate, today.getFullYear());
-
-        const sevenDaysAgo = subDays(today, 7);
-        const sevenDaysFromNow = addDays(today, 7);
-        
-        if (isWithinInterval(currentYearBirthday, { start: sevenDaysAgo, end: sevenDaysFromNow })) {
-            return true;
-        }
-
-        const nextYearBirthday = addYears(currentYearBirthday, 1);
-        if (isWithinInterval(nextYearBirthday, { start: sevenDaysAgo, end: sevenDaysFromNow })) {
-            return true;
-        }
-        const prevYearBirthday = subYears(currentYearBirthday, 1);
-        if (isWithinInterval(prevYearBirthday, { start: sevenDaysAgo, end: sevenDaysFromNow })) {
-            return true;
-        }
-    } catch(e) {
-        return false;
-    }
-
-    return false;
-}
-
-const addYears = (date: Date, years: number) => {
-    const newDate = new Date(date);
-    newDate.setFullYear(newDate.getFullYear() + years);
-    return newDate;
-}
-const subYears = (date: Date, years: number) => {
-    const newDate = new Date(date);
-    newDate.setFullYear(newDate.getFullYear() - years);
-    return newDate;
 }
 
 const eventNames: { [key: string]: string } = {
@@ -95,6 +54,9 @@ export function CheckInView({ initialChildren, selectedEvent, selectedGrades, st
   const [searchQuery, setSearchQuery] = useState('');
   const { toast } = useToast();
   const [selectedIncidents, setSelectedIncidents] = useState<Incident[] | null>(null);
+  const [selectedChildForPhoto, setSelectedChildForPhoto] = useState<Child | null>(null);
+  const [viewingPhoto, setViewingPhoto] = useState<{name: string, url: string} | null>(null);
+
 
   const today = getTodayIsoDate();
   const todaysAttendance = useLiveQuery(() => db.attendance.where({date: today}).toArray(), [today]);
@@ -259,135 +221,18 @@ export function CheckInView({ initialChildren, selectedEvent, selectedGrades, st
         />
       </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-        {filteredChildren.map((child) => {
-            const checkedInEvent = child.activeAttendance?.event_id;
-            const isCheckedInHere = checkedInEvent === selectedEvent;
-            const isCheckedInElsewhere = checkedInEvent && checkedInEvent !== selectedEvent;
-            const hasIncidents = child.incidents.length > 0;
-            const canSelfCheckout = child.age !== null && child.age >= 13;
-
-            return (
-              <Card key={child.child_id} className="relative flex flex-col overflow-hidden">
-                {isBirthdayThisWeek(child.dob) && (
-                    <div className="bg-orange-400 text-white text-center py-1 px-2 text-sm font-semibold flex items-center justify-center gap-2">
-                        <Cake className="h-4 w-4" />
-                        Birthday This Week!
-                    </div>
-                )}
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-8 w-8 shrink-0 z-10">
-                      <Info className="h-4 w-4" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-80" align="end">
-                    <div className="space-y-4">
-                      {canSelfCheckout && child.child_mobile && (
-                          <div>
-                            <h4 className="font-semibold font-headline mb-2 flex items-center gap-2"><CheckCircle className="text-green-500" /> Self-Checkout Allowed</h4>
-                             <div className="text-sm">
-                                <p className="font-medium">{child.first_name} {child.last_name}</p>
-                                <p className="text-muted-foreground flex items-center gap-2"><Smartphone size={14} />{child.child_mobile}</p>
-                            </div>
-                         </div>
-                      )}
-                      <div>
-                        <h4 className="font-semibold font-headline mb-2">Guardians</h4>
-                        <div className="space-y-3">
-                            {child.guardians?.map(g => (
-                                <div key={g.guardian_id} className="text-sm">
-                                <p className="font-medium">{g.first_name} {g.last_name} ({g.relationship})</p>
-                                <p className="text-muted-foreground">{g.mobile_phone}</p>
-                                </div>
-                            ))}
-                            {!child.guardians?.length && (
-                                <p className="text-sm text-muted-foreground">No guardian information available.</p>
-                            )}
-                        </div>
-                      </div>
-                      <Separator />
-                      <div>
-                        <h4 className="font-semibold font-headline mb-2">Emergency Contact</h4>
-                        {child.emergencyContact ? (
-                             <div className="text-sm">
-                                <p className="font-medium">{child.emergencyContact.first_name} {child.emergencyContact.last_name} ({child.emergencyContact.relationship})</p>
-                                <p className="text-muted-foreground">{child.emergencyContact.mobile_phone}</p>
-                            </div>
-                        ) : (
-                            <p className="text-sm text-muted-foreground">No emergency contact available.</p>
-                        )}
-                      </div>
-                    </div>
-                  </PopoverContent>
-                </Popover>
-                <CardHeader className="flex flex-col items-center gap-4 p-4 pt-6 text-center sm:flex-row sm:items-start sm:p-6 sm:text-left">
-                   <div className="w-[60px] h-[60px] flex-shrink-0 flex items-center justify-center rounded-full border-2 border-border bg-muted">
-                        <User className="h-8 w-8 text-muted-foreground" />
-                   </div>
-                  <div className="flex-1">
-                    <CardTitle className="font-headline text-lg">{`${child.first_name} ${child.last_name}`}</CardTitle>
-                    <CardDescription>
-                      {child.household?.name || '...'}
-                    </CardDescription>
-                     <div className="flex flex-wrap gap-1 mt-2 justify-center sm:justify-start">
-                        {isCheckedInHere && (
-                            <Badge variant="default" className="bg-green-500 hover:bg-green-600">Checked In</Badge>
-                        )}
-                        {isCheckedInElsewhere && (
-                            <Badge variant="secondary">In {getEventName(checkedInEvent)}</Badge>
-                        )}
-                        {!checkedInEvent && (
-                            <Badge variant="secondary">Checked Out</Badge>
-                        )}
-                     </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="flex-grow space-y-2 px-4 pb-4 sm:px-6 sm:pb-6 pt-0">
-                  <div className="text-sm text-muted-foreground space-y-2">
-                    <p><strong>DOB:</strong> {child.dob ? format(parseISO(child.dob), "MMM d, yyyy") : 'N/A'} ({child.age} yrs)</p>
-                    <p><strong>Grade:</strong> {child.grade}</p>
-                    {child.medical_notes && <p><strong>Notes:</strong> {child.medical_notes}</p>}
-                  </div>
-                  {child.allergies && (
-                      <Badge variant="outline" className="w-full justify-center text-base py-1 border-destructive text-destructive rounded-sm">
-                          <AlertTriangle className="mr-2 h-4 w-4" />
-                          Allergy: {child.allergies}
-                      </Badge>
-                  )}
-                </CardContent>
-                <CardFooter className="px-4 pb-4 sm:px-6 sm:pb-6 flex items-center gap-2">
-                  {hasIncidents && (
-                     <Button
-                        variant="destructive"
-                        size="icon"
-                        className="h-full aspect-square"
-                        onClick={() => setSelectedIncidents(child.incidents)}
-                    >
-                        <ShieldAlert className="h-5 w-5" />
-                        <span className="sr-only">View Incidents</span>
-                    </Button>
-                  )}
-                  {isCheckedInHere ? (
-                    <Button
-                      className="w-full"
-                      variant="outline"
-                      onClick={() => openCheckoutDialog(child)}
-                    >
-                      Check Out
-                    </Button>
-                  ) : (
-                    <Button 
-                        className="w-full"
-                        onClick={() => handleCheckIn(child.child_id)}
-                        disabled={!!checkedInEvent}
-                    >
-                      Check In
-                    </Button>
-                  )}
-                </CardFooter>
-              </Card>
-            )
-        })}
+        {filteredChildren.map((child) => (
+            <ChildCard
+                key={child.child_id}
+                child={child}
+                selectedEvent={selectedEvent}
+                onCheckIn={handleCheckIn}
+                onCheckout={openCheckoutDialog}
+                onViewIncidents={setSelectedIncidents}
+                onUpdatePhoto={setSelectedChildForPhoto}
+                onViewPhoto={setViewingPhoto}
+            />
+        ))}
       </div>
        {filteredChildren.length === 0 && (
         <div className="text-center col-span-full py-12">
@@ -403,6 +248,14 @@ export function CheckInView({ initialChildren, selectedEvent, selectedGrades, st
         incidents={selectedIncidents}
         onClose={() => setSelectedIncidents(null)}
        />
+        <PhotoCaptureDialog
+            child={selectedChildForPhoto}
+            onClose={() => setSelectedChildForPhoto(null)}
+        />
+        <PhotoViewerDialog
+            photo={viewingPhoto}
+            onClose={() => setViewingPhoto(null)}
+        />
     </>
   );
 }
