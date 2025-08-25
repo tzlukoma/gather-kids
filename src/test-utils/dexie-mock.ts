@@ -12,11 +12,27 @@ function createTable(primaryKey: string) {
             store.set(String(key), JSON.parse(JSON.stringify(obj)));
             return key;
         },
+        async bulkAdd(items: RecordObj[]) {
+            for (const obj of items) {
+                const key = obj[primaryKey];
+                if (!key) throw new Error(`Missing primary key ${primaryKey}`);
+                store.set(String(key), JSON.parse(JSON.stringify(obj)));
+            }
+            return items.map(i => i[primaryKey]);
+        },
         async put(obj: RecordObj) {
             const key = obj[primaryKey];
             if (!key) throw new Error(`Missing primary key ${primaryKey}`);
             store.set(String(key), JSON.parse(JSON.stringify(obj)));
             return key;
+        },
+        async bulkPut(items: RecordObj[]) {
+            for (const obj of items) {
+                const key = obj[primaryKey];
+                if (!key) throw new Error(`Missing primary key ${primaryKey}`);
+                store.set(String(key), JSON.parse(JSON.stringify(obj)));
+            }
+            return items.map(i => i[primaryKey]);
         },
         async get(id: string) {
             return store.get(String(id));
@@ -62,6 +78,15 @@ function createTable(primaryKey: string) {
                 }
 
                 return {
+                    equals: (val: any) => ({
+                        toArray: async () => {
+                            const res: any[] = [];
+                            for (const v of store.values()) {
+                                if (v[index] === val) res.push(v);
+                            }
+                            return res;
+                        }
+                    }),
                     anyOf: (vals: any[]) => ({
                         toArray: async () => {
                             const res: any[] = [];
@@ -146,6 +171,12 @@ export function createInMemoryDB() {
         events: createTable('event_id'),
         attendance: createTable('attendance_id'),
         incidents: createTable('incident_id'),
+    // Bible Bee stores
+    competitionYears: createTable('id'),
+    scriptures: createTable('id'),
+    gradeRules: createTable('id'),
+    studentScriptures: createTable('id'),
+    studentEssays: createTable('id'),
         audit_logs: createTable('log_id'),
     } as any;
 }
