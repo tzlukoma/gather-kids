@@ -38,6 +38,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useAuth } from '@/contexts/auth-context';
 import { useRouter } from 'next/navigation';
+import { AuthRole } from '@/lib/auth-types';
 
 function MinistryTable({
 	title,
@@ -151,8 +152,12 @@ export default function ConfigurationPage() {
 
 	useEffect(() => {
 		if (!loading && user) {
-			if (user.role !== 'admin') {
-				router.push('/dashboard');
+			if (user?.metadata?.role !== AuthRole.ADMIN) {
+				if (user?.metadata?.role === AuthRole.MINISTRY_LEADER) {
+					router.push('/dashboard/rosters');
+				} else {
+					router.push('/');
+				}
 			} else {
 				setIsAuthorized(true);
 			}

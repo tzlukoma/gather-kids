@@ -44,75 +44,25 @@ import { SeedDataButton } from '@/components/gatherKids/seed-data-button';
 import { useAuth, AuthProvider } from '@/contexts/auth-context';
 import { useFeatureFlags } from '@/contexts/feature-flag-context';
 import { FeatureFlagDialog } from '@/components/feature-flag-dialog';
+import { ProtectedRoute } from '@/components/auth/protected-route';
+import { ROLES } from '@/lib/constants/roles';
+import { AdminSkeleton } from '@/components/skeletons/admin-skeleton';
 
-const adminMenuItems = [
-	{ href: '/dashboard', icon: <LayoutDashboard />, label: 'Dashboard' },
-	{ href: '/dashboard/check-in', icon: <CheckCheck />, label: 'Check-In/Out' },
-	{ href: '/dashboard/rosters', icon: <Users />, label: 'Rosters' },
-	{
-		href: '/dashboard/registrations',
-		icon: <ClipboardList />,
-		label: 'Registrations',
-	},
-	{ href: '/dashboard/incidents', icon: <ShieldAlert />, label: 'Incidents' },
-	{ href: '/dashboard/leaders', icon: <Contact />, label: 'Leaders' },
-	{ href: '/dashboard/reports', icon: <FileText />, label: 'Reports' },
-	{
-		href: '/dashboard/configuration',
-		icon: <Settings />,
-		label: 'Configuration',
-	},
-];
-
-const baseLeaderMenuItems = [
-	{ href: '/dashboard/rosters', icon: <Users />, label: 'Rosters' },
-	{ href: '/dashboard/incidents', icon: <ShieldAlert />, label: 'Incidents' },
-	{
-		href: '/dashboard/registrations',
-		icon: <ClipboardList />,
-		label: 'Registrations',
-	},
-];
-
-const inactiveLeaderMenuItems = [
-	{ href: '/dashboard/incidents', icon: <ShieldAlert />, label: 'Incidents' },
-];
+import { getAuthorizedMenuItems } from '@/lib/navigation';
 
 function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 	const pathname = usePathname();
 	const router = useRouter();
-	const { user, loading, logout } = useAuth();
+	const { user, loading, logout, userRole } = useAuth();
 	const { flags } = useFeatureFlags();
 	const [isFlagDialogOpen, setIsFlagDialogOpen] = React.useState(false);
-	const [initialRedirectComplete, setInitialRedirectComplete] =
-		React.useState(false);
 
 	const getMenuItems = () => {
-		if (user?.role === 'admin') {
-			return adminMenuItems;
-		}
-		if (user?.role === 'leader') {
-			if (
-				!user.is_active ||
-				!user.assignedMinistryIds ||
-				user.assignedMinistryIds.length === 0
-			) {
-				return inactiveLeaderMenuItems;
-			}
-
-			let menu = [...baseLeaderMenuItems];
-
-			// Conditionally add Check-In/Out if the leader is assigned to Sunday School
-			if (user.assignedMinistryIds?.includes('min_sunday_school')) {
-				menu.unshift({
-					href: '/dashboard/check-in',
-					icon: <CheckCheck />,
-					label: 'Check-In/Out',
-				});
-			}
-			return menu;
-		}
-		return [];
+		return getAuthorizedMenuItems(
+			userRole,
+			user?.is_active ?? false,
+			user?.assignedMinistryIds ?? []
+		);
 	};
 
 	const menuItems = getMenuItems();
@@ -125,23 +75,16 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 			return;
 		}
 
-		if (!initialRedirectComplete && menuItems.length > 0) {
+		if (menuItems.length > 0) {
 			const topMenuItem = menuItems[0];
 			// Only redirect if the user is at the base dashboard and not already on their target page
 			if (pathname === '/dashboard' && topMenuItem.href !== '/dashboard') {
 				router.replace(topMenuItem.href);
 			}
-			setInitialRedirectComplete(true);
 		}
-	}, [user, loading, router, menuItems, initialRedirectComplete, pathname]);
+	}, [user, loading, router, menuItems, pathname]);
 
-	if (loading || !user) {
-		return (
-			<div className="flex items-center justify-center h-screen">
-				<p>Loading...</p>
-			</div>
-		);
-	}
+	if (!user) return null;
 
 	const handleLogout = () => {
 		logout();
@@ -186,7 +129,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 									</div>
 								</DropdownMenuLabel>
 								<DropdownMenuSeparator />
-								{user.role === 'admin' && flags.showDemoFeatures && (
+								{userRole === ROLES.ADMIN && flags.showDemoFeatures && (
 									<SeedDataButton asChild />
 								)}
 								<DropdownMenuItem onSelect={() => setIsFlagDialogOpen(true)}>
@@ -254,7 +197,11 @@ export default function DashboardLayout({
 }) {
 	return (
 		<AuthProvider>
-			<DashboardLayoutContent>{children}</DashboardLayoutContent>
+			<ProtectedRoute
+				allowedRoles={[ROLES.ADMIN, ROLES.MINISTRY_LEADER]}
+				loadingComponent={<AdminSkeleton />}>
+				<DashboardLayoutContent>{children}</DashboardLayoutContent>
+			</ProtectedRoute>
 		</AuthProvider>
 	);
 }
