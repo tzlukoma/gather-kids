@@ -2,6 +2,8 @@
 
 'use client';
 
+"use client";
+
 import { useState, useMemo, useEffect } from 'react';
 import type { Child, Guardian, Attendance, Household, EmergencyContact, Incident } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';

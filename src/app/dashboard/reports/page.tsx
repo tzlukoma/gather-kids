@@ -64,7 +64,12 @@ export default function ReportsPage() {
 	useEffect(() => {
 		if (!loading && user) {
 			if (user?.metadata?.role !== AuthRole.ADMIN) {
-				router.push('/dashboard');
+				// Redirect non-admins to a role-appropriate page
+				if (user?.metadata?.role === AuthRole.MINISTRY_LEADER) {
+					router.push('/dashboard/rosters');
+				} else {
+					router.push('/');
+				}
 			} else {
 				setIsAuthorized(true);
 			}

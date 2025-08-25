@@ -79,7 +79,11 @@ export default function LeaderProfilePage() {
 	useEffect(() => {
 		if (!loading && user) {
 			if (user?.metadata?.role !== AuthRole.ADMIN) {
-				router.push('/dashboard');
+				if (user?.metadata?.role === AuthRole.MINISTRY_LEADER) {
+					router.push('/dashboard/rosters');
+				} else {
+					router.push('/');
+				}
 			} else {
 				setIsAuthorized(true);
 			}
