@@ -42,7 +42,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 							...storedUser.metadata,
 							role: storedUser.metadata?.role || AuthRole.ADMIN,
 						},
-						is_active: true,
+						// preserve is_active from stored data (do not force true)
+						is_active: typeof storedUser.is_active === 'boolean' ? storedUser.is_active : true,
 						assignedMinistryIds: [],
 					};
 
@@ -73,7 +74,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 			console.log('Auth Context - Login - Input userData:', userData);
 			const finalUser: BaseUser = {
 				...userData,
-				is_active: true,
+				// preserve is_active if provided by userData (seed/login), default to true
+				is_active: typeof userData.is_active === 'boolean' ? userData.is_active : true,
 				metadata: {
 					...userData.metadata,
 					role: userData.metadata?.role || AuthRole.ADMIN,

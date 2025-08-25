@@ -45,27 +45,10 @@ export default function IncidentsPage() {
 		if (!user) return [];
 
 		if (user?.metadata?.role === AuthRole.MINISTRY_LEADER) {
-			if (!user.is_active) {
-				return db.incidents
-					.where('leader_id')
-					.equals(user.uid)
-					.reverse()
-					.sortBy('timestamp');
-			}
-			if (!user.assignedMinistryIds || user.assignedMinistryIds.length === 0)
-				return [];
-
-			const enrollments = await db.ministry_enrollments
-				.where('ministry_id')
-				.anyOf(user.assignedMinistryIds)
-				.and((e) => e.cycle_id === '2025')
-				.toArray();
-
-			const childIds = [...new Set(enrollments.map((e) => e.child_id))];
-
+			// Always restrict leaders to incidents they logged
 			return db.incidents
-				.where('child_id')
-				.anyOf(childIds)
+				.where('leader_id')
+				.equals(user.uid)
 				.reverse()
 				.sortBy('timestamp');
 		}

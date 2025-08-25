@@ -75,6 +75,9 @@ export function DashboardNav({ children }: DashboardNavProps) {
 		};
 	}, [user, userRole]);
 
+	// Determine if the current user is an inactive ministry leader
+	const isInactiveLeader = userRole === AuthRole.MINISTRY_LEADER && user && !user.is_active;
+
 	// Filter menu items based on user role and ministry assignments
 	const filteredMenuItems = MENU_ITEMS.filter((item) => {
 		if (!user || !userRole) {
@@ -88,6 +91,7 @@ export function DashboardNav({ children }: DashboardNavProps) {
 			assignedMinistryIds: user.assignedMinistryIds,
 			assignmentsFromDb,
 		});
+
 		if (!item.roles.includes(userRole)) return false;
 
 		// prefer assignedMinistryIds on user, fall back to assignmentsFromDb
@@ -97,10 +101,16 @@ export function DashboardNav({ children }: DashboardNavProps) {
 				: assignmentsFromDb ?? [];
 
 		if (item.ministryCheck) {
-			return item.ministryCheck(ministryIds, userRole);
+			// navigation.ts uses a single-argument ministryCheck(ids) signature
+			return item.ministryCheck(ministryIds as string[]);
 		}
 		return true;
 	});
+
+	// If the user is a ministry leader and inactive, restrict nav to Incidents only
+	const finalMenuItems = isInactiveLeader
+		? MENU_ITEMS.filter((item) => item.href === '/dashboard/incidents')
+		: filteredMenuItems;
 
 	return (
 		<SidebarProvider>
@@ -121,8 +131,8 @@ export function DashboardNav({ children }: DashboardNavProps) {
 					</SidebarHeader>
 					<SidebarContent>
 						<SidebarMenu>
-							{filteredMenuItems.map((item) => {
-								const Icon = item.icon;
+							{finalMenuItems.map((item) => {
+								const Icon = item.icon as React.ComponentType<any>;
 								return (
 									<SidebarMenuItem
 										key={item.href}
@@ -131,7 +141,7 @@ export function DashboardNav({ children }: DashboardNavProps) {
 											<Link
 												href={item.href}
 												className="flex items-center gap-2">
-												<Icon className="w-4 h-4" />
+												{React.createElement(Icon, { className: 'w-4 h-4' })}
 												<span>{item.label}</span>
 											</Link>
 										</SidebarMenuButton>
@@ -172,7 +182,10 @@ export function DashboardNav({ children }: DashboardNavProps) {
 
 				{/* Main content area */}
 				<main className="flex-1 overflow-y-auto">
-					<div className="container py-6">{children}</div>
+					<div className="container py-6">
+						{/* Alert moved to the Incidents page; do not show it in the nav */}
+						{children}
+					</div>
 				</main>
 			</div>
 		</SidebarProvider>
