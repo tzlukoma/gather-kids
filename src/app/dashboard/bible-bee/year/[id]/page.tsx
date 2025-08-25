@@ -9,6 +9,7 @@ import {
 } from '@/lib/bibleBee';
 import {
 	useScripturesForYear,
+	useScripturesForYearQuery,
 	createGradeRule as hookCreateGradeRule,
 } from '@/lib/hooks/useBibleBee';
 import {
@@ -26,6 +27,8 @@ export default function YearManagePage() {
 	const yearId = params.id as string;
 	const { scriptures, refresh: refreshScriptures } =
 		useScripturesForYear(yearId);
+	const { data: qScriptures, upsertScriptureMutation } =
+		useScripturesForYearQuery(yearId);
 	const [localScriptures, setLocalScriptures] = React.useState<any[]>([]);
 	const [rules, setRules] = React.useState<any[]>([]);
 	const [filePreview, setFilePreview] = React.useState<any[] | null>(null);
@@ -49,38 +52,53 @@ export default function YearManagePage() {
 	}, [yearId]);
 
 	async function handleAddScripture(ref: string, text: string) {
-		const s = await upsertScripture({
+		const payload = {
 			competitionYearId: yearId,
 			reference: ref,
 			text,
 			sortOrder: localScriptures.length + 1,
-		});
-		setLocalScriptures((prev) => [...prev, s]);
+		} as any;
+		// optimistic mutation
+		await upsertScriptureMutation.mutateAsync(payload);
+		// local list will be refreshed via the query invalidation; keep UI responsive
+		setLocalScriptures((prev) => [...prev, payload]);
 	}
 
-	function handleFileSelected(ev: React.ChangeEvent<HTMLInputElement>) {
+	async function handleFileSelected(ev: React.ChangeEvent<HTMLInputElement>) {
 		const f = ev.target.files?.[0];
 		if (!f) return;
-		const reader = new FileReader();
-		reader.onload = () => {
-			const txt = String(reader.result || '');
-			const rows = txt
-				.split(/\r?\n/)
-				.map((line) => {
-					const [reference, text, translation, sortOrder] = line.split(',');
-					return {
-						reference: reference?.trim(),
-						text: text?.trim(),
-						translation: translation?.trim(),
-						sortOrder: sortOrder ? Number(sortOrder) : undefined,
-					};
-				})
-				.filter((r) => r.reference || r.text);
-			const res = validateCsvRows(rows);
-			setFilePreview(rows);
-			setFileErrors(res.errors);
-		};
-		reader.readAsText(f);
+		try {
+			const { parse } = await import('papaparse');
+			parse(f, {
+				header: true,
+				skipEmptyLines: true,
+				transformHeader: (h: string) => h?.trim?.() ?? h,
+				complete: (results: any) => {
+					const rows = (results.data || [])
+						.map((row: any) => ({
+							reference: (row.reference ?? row.Reference ?? '')
+								?.toString?.()
+								?.trim?.(),
+							text: (row.text ?? row.Text ?? '')?.toString?.()?.trim?.(),
+							translation: (row.translation ?? row.Translation ?? '')
+								?.toString?.()
+								?.trim?.(),
+							sortOrder: row.sortOrder ? Number(row.sortOrder) : undefined,
+						}))
+						.filter((r: any) => r.reference || r.text);
+					const res = validateCsvRows(rows);
+					setFilePreview(rows);
+					setFileErrors(res.errors);
+				},
+				error: (err: any) => {
+					setFileErrors([{ row: 0, message: err?.message ?? String(err) }]);
+					setFilePreview(null);
+				},
+			});
+		} catch (err: any) {
+			setFileErrors([{ row: 0, message: err?.message ?? String(err) }]);
+			setFilePreview(null);
+		}
 	}
 
 	async function handleCommitPreview() {
