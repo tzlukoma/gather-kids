@@ -142,7 +142,7 @@ export const seedDB = async () => {
 
     const leaders: User[] = [
         { user_id: 'user_admin', name: 'Admin User', email: 'admin@example.com', role: 'ADMIN', is_active: true, background_check_status: 'clear' },
-        { user_id: 'user_leader_1', name: 'Sarah Lee', email: 'leader.generic@example.com', role: 'MINISTRY_LEADER', is_active: true, background_check_status: 'clear' },
+        { user_id: 'user_leader_1', name: 'Sarah Lee', email: 'leader.sundayschool@example.com', role: 'MINISTRY_LEADER', is_active: true, background_check_status: 'clear' },
         { user_id: 'user_leader_2', name: 'Michael Chen', email: 'michael.chen@example.com', role: 'MINISTRY_LEADER', is_active: true, background_check_status: 'clear' },
         { user_id: 'user_leader_3', name: 'Jessica Rodriguez', email: 'jessica.r@example.com', role: 'MINISTRY_LEADER', is_active: true, background_check_status: 'clear' },
         { user_id: 'user_leader_4', name: 'David Kim', email: 'david.kim@example.com', role: 'MINISTRY_LEADER', is_active: true, background_check_status: 'pending' },
@@ -278,6 +278,7 @@ export const seedDB = async () => {
         await db.ministry_enrollments.bulkPut(enrollments);
 
         const leaderAssignments: LeaderAssignment[] = [
+            { assignment_id: uuidv4(), leader_id: 'user_leader_1', ministry_id: MINISTRY_IDS['min_sunday_school'], cycle_id: CYCLE_IDS.current, role: 'Volunteer' },
             { assignment_id: uuidv4(), leader_id: 'user_leader_11', ministry_id: MINISTRY_IDS['mentoring-boys'], cycle_id: CYCLE_IDS.current, role: 'Primary' },
             { assignment_id: uuidv4(), leader_id: 'user_leader_12', ministry_id: MINISTRY_IDS['min_sunday_school'], cycle_id: CYCLE_IDS.current, role: 'Volunteer' },
             { assignment_id: uuidv4(), leader_id: 'user_leader_12', ministry_id: MINISTRY_IDS['choir-joy-bells'], cycle_id: CYCLE_IDS.current, role: 'Primary' },

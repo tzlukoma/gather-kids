@@ -31,7 +31,7 @@ const DEMO_USERS = {
 		role: AuthRole.ADMIN,
 	},
 	leader: {
-		email: 'leader.generic@example.com',
+		email: 'leader.sundayschool@example.com',
 		password: 'password',
 		is_active: true,
 		name: 'Sarah Lee',
@@ -164,7 +164,7 @@ export default function LoginPage() {
 											</button>
 										</li>
 										<li>
-											Leader (Generic):{' '}
+											Leader (Sunday School):{' '}
 											<button
 												className="text-left font-semibold underline"
 												onClick={() => prefillDemoCredentials('leader')}>
