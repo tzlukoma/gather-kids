@@ -101,7 +101,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 							href="/dashboard"
 							className="flex items-center gap-2 text-foreground">
 							<div className="font-headline text-2xl font-bold">
-								MinistrySync
+								gatherKids
 							</div>
 						</Link>
 					</div>
