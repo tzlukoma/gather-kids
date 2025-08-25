@@ -1,8 +1,9 @@
-
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { CheckInView } from '@/components/gatherKids/check-in-view';
+import { ROLES } from '@/lib/constants/roles';
+import { ProtectedRoute } from '@/components/auth/protected-route';
 import {
 	Dialog,
 	DialogContent,
@@ -63,10 +64,8 @@ const eventOptions = [
 	{ id: 'evt_teen_church', name: 'Teen Church' },
 ];
 
-export default function CheckInPage() {
-	const router = useRouter();
-	const { user, loading } = useAuth();
-	const [isAuthorized, setIsAuthorized] = useState(false);
+function CheckInContent() {
+	const { user } = useAuth();
 	const isMobile = useIsMobile();
 
 	const [selectedEvent, setSelectedEvent] = useState('evt_sunday_school');
@@ -74,7 +73,6 @@ export default function CheckInPage() {
 	const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
 	const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
 	const [isEventDialogOpen, setIsEventDialogOpen] = useState(false);
-
 	const children = useLiveQuery(() => db.children.toArray(), []);
 	const today = getTodayIsoDate();
 	const todaysAttendance = useLiveQuery(
@@ -88,23 +86,10 @@ export default function CheckInPage() {
 	}, [todaysAttendance]);
 
 	const currentEventName = useMemo(() => {
-		return eventOptions.find((e) => e.id === selectedEvent)?.name || 'Select Event';
+		return (
+			eventOptions.find((e) => e.id === selectedEvent)?.name || 'Select Event'
+		);
 	}, [selectedEvent]);
-
-
-	useEffect(() => {
-		if (!loading && user) {
-			const authorized =
-				user.role === 'admin' ||
-				(user.role === 'leader' &&
-					user.assignedMinistryIds?.includes('min_sunday_school'));
-			if (!authorized) {
-				router.push('/dashboard');
-			} else {
-				setIsAuthorized(true);
-			}
-		}
-	}, [user, loading, router]);
 
 	const availableGrades = useMemo(() => {
 		if (!children) return [];
@@ -179,14 +164,6 @@ export default function CheckInPage() {
 		</div>
 	);
 
-	if (loading || !isAuthorized) {
-		return (
-			<div className="flex flex-col items-center justify-center h-64">
-				<p className="text-muted-foreground mb-4">Verifying access...</p>
-			</div>
-		);
-	}
-
 	if (!children || !todaysAttendance) {
 		return (
 			<div className="flex flex-col items-center justify-center h-64">
@@ -204,7 +181,9 @@ export default function CheckInPage() {
 					</h1>
 					<Dialog open={isEventDialogOpen} onOpenChange={setIsEventDialogOpen}>
 						<DialogTrigger asChild>
-							<Button variant="link" className="text-3xl font-bold font-headline p-0 h-auto">
+							<Button
+								variant="link"
+								className="text-3xl font-bold font-headline p-0 h-auto">
 								{currentEventName}
 								<Edit className="ml-2 h-5 w-5" />
 							</Button>
@@ -212,7 +191,9 @@ export default function CheckInPage() {
 						<DialogContent>
 							<DialogHeader>
 								<DialogTitle>Change Event</DialogTitle>
-								<DialogDescription>Select the event you want to manage check-ins for.</DialogDescription>
+								<DialogDescription>
+									Select the event you want to manage check-ins for.
+								</DialogDescription>
 							</DialogHeader>
 							<RadioGroup
 								value={selectedEvent}
@@ -220,10 +201,12 @@ export default function CheckInPage() {
 									setSelectedEvent(value);
 									setIsEventDialogOpen(false);
 								}}
-								className="space-y-2"
-							>
+								className="space-y-2">
 								{eventOptions.map((event) => (
-									<Label key={event.id} htmlFor={event.id} className="flex items-center gap-4 p-4 border rounded-md cursor-pointer hover:bg-muted/50 has-[input:checked]:bg-muted has-[input:checked]:border-primary">
+									<Label
+										key={event.id}
+										htmlFor={event.id}
+										className="flex items-center gap-4 p-4 border rounded-md cursor-pointer hover:bg-muted/50 has-[input:checked]:bg-muted has-[input:checked]:border-primary">
 										<RadioGroupItem value={event.id} id={event.id} />
 										<span>{event.name}</span>
 									</Label>
@@ -299,5 +282,14 @@ export default function CheckInPage() {
 				statusFilter={statusFilter}
 			/>
 		</div>
+	);
+}
+
+export default function Page() {
+	return (
+		<ProtectedRoute
+			allowedRoles={[ROLES.ADMIN, ROLES.MINISTRY_LEADER, ROLES.GUARDIAN]}>
+			<CheckInContent />
+		</ProtectedRoute>
 	);
 }

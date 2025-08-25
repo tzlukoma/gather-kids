@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { AuthRole } from '@/lib/auth-types';
 import { IncidentForm } from '@/components/gatherKids/incident-form';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -43,28 +44,11 @@ export default function IncidentsPage() {
 	const incidentsQuery = useLiveQuery(async () => {
 		if (!user) return [];
 
-		if (user.role === 'leader') {
-			if (!user.is_active) {
-				return db.incidents
-					.where('leader_id')
-					.equals(user.id)
-					.reverse()
-					.sortBy('timestamp');
-			}
-			if (!user.assignedMinistryIds || user.assignedMinistryIds.length === 0)
-				return [];
-
-			const enrollments = await db.ministry_enrollments
-				.where('ministry_id')
-				.anyOf(user.assignedMinistryIds)
-				.and((e) => e.cycle_id === '2025')
-				.toArray();
-
-			const childIds = [...new Set(enrollments.map((e) => e.child_id))];
-
+		if (user?.metadata?.role === AuthRole.MINISTRY_LEADER) {
+			// Always restrict leaders to incidents they logged
 			return db.incidents
-				.where('child_id')
-				.anyOf(childIds)
+				.where('leader_id')
+				.equals(user.uid)
 				.reverse()
 				.sortBy('timestamp');
 		}
@@ -111,7 +95,7 @@ export default function IncidentsPage() {
 
 	if (!incidentsQuery) return <div>Loading incidents...</div>;
 
-	if (user?.role === 'leader' && !user.is_active) {
+	if (user?.metadata?.role === AuthRole.MINISTRY_LEADER && !user.is_active) {
 		return (
 			<div className="flex flex-col gap-8">
 				<Alert variant="destructive">
@@ -307,7 +291,7 @@ export default function IncidentsPage() {
 											</TableCell>
 											<TableCell>
 												{!incident.admin_acknowledged_at &&
-													user?.role === 'admin' && (
+													user?.metadata?.role === AuthRole.ADMIN && (
 														<Button
 															size="sm"
 															onClick={() =>

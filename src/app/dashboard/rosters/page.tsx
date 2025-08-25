@@ -1,10 +1,9 @@
-
-
 'use client';
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
 import { Badge } from '@/components/ui/badge';
+import { AuthRole } from '@/lib/auth-types';
 import {
 	Table,
 	TableBody,
@@ -29,7 +28,7 @@ import {
 	recordCheckOut,
 	exportRosterCSV,
 } from '@/lib/dal';
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState } from 'react';
 import type {
 	Child,
 	Guardian,
@@ -80,7 +79,7 @@ const eventOptions = [
 
 const getEventName = (eventId: string | null) => {
 	if (!eventId) return '';
-	const event = eventOptions.find(e => e.id === eventId);
+	const event = eventOptions.find((e) => e.id === eventId);
 	return event?.name || 'an event';
 };
 
@@ -121,7 +120,10 @@ export default function RostersPage() {
 		null
 	);
 	const [isEventDialogOpen, setIsEventDialogOpen] = useState(false);
-	const [viewingPhoto, setViewingPhoto] = useState<{ name: string; url: string } | null>(null);
+	const [viewingPhoto, setViewingPhoto] = useState<{
+		name: string;
+		url: string;
+	} | null>(null);
 
 	const [showCheckedIn, setShowCheckedIn] = useState(false);
 	const [showCheckedOut, setShowCheckedOut] = useState(false);
@@ -135,9 +137,11 @@ export default function RostersPage() {
 	const [selectedMinistryFilter, setSelectedMinistryFilter] =
 		useState<string>('all');
 
-	const [selectedIncidents, setSelectedIncidents] = useState<Incident[] | null>(null);
-    const [selectedChildForPhoto, setSelectedChildForPhoto] = useState<Child | null>(null);
-
+	const [selectedIncidents, setSelectedIncidents] = useState<Incident[] | null>(
+		null
+	);
+	const [selectedChildForPhoto, setSelectedChildForPhoto] =
+		useState<Child | null>(null);
 
 	const allMinistryEnrollments = useLiveQuery(
 		() => db.ministry_enrollments.where({ cycle_id: '2025' }).toArray(),
@@ -145,7 +149,7 @@ export default function RostersPage() {
 	);
 
 	const allChildrenQuery = useLiveQuery(async () => {
-		if (user?.role === 'leader') {
+		if (user?.metadata?.role === AuthRole.MINISTRY_LEADER) {
 			if (
 				!user.is_active ||
 				!user.assignedMinistryIds ||
@@ -168,9 +172,10 @@ export default function RostersPage() {
 		() => db.attendance.where({ date: today }).toArray(),
 		[today]
 	);
-	const todaysIncidents = useLiveQuery(() => 
-		db.incidents.filter(i => i.timestamp.startsWith(today)).toArray()
-  	, [today]);
+	const todaysIncidents = useLiveQuery(
+		() => db.incidents.filter((i) => i.timestamp.startsWith(today)).toArray(),
+		[today]
+	);
 
 	const allGuardians = useLiveQuery(() => db.guardians.toArray(), []);
 	const allHouseholds = useLiveQuery(() => db.households.toArray(), []);
@@ -181,13 +186,15 @@ export default function RostersPage() {
 	const allMinistries = useLiveQuery(() => db.ministries.toArray(), []);
 
 	const currentEventName = useMemo(() => {
-		return eventOptions.find((e) => e.id === selectedEvent)?.name || 'Select Event';
+		return (
+			eventOptions.find((e) => e.id === selectedEvent)?.name || 'Select Event'
+		);
 	}, [selectedEvent]);
 
 	useEffect(() => {
 		if (!loading && user) {
 			if (
-				user.role === 'leader' &&
+				user.metadata.role === AuthRole.MINISTRY_LEADER &&
 				(!user.is_active ||
 					!user.assignedMinistryIds ||
 					user.assignedMinistryIds.length === 0)
@@ -208,7 +215,10 @@ export default function RostersPage() {
 	}, [searchParams]);
 
 	useEffect(() => {
-		if (user?.role === 'leader' && user.assignedMinistryIds?.length === 1) {
+		if (
+			user?.metadata?.role === AuthRole.MINISTRY_LEADER &&
+			user.assignedMinistryIds?.length === 1
+		) {
 			setSelectedMinistryFilter(user.assignedMinistryIds[0]);
 		}
 	}, [user]);
@@ -235,14 +245,14 @@ export default function RostersPage() {
 		const emergencyContactMap = new Map(
 			allEmergencyContacts.map((ec) => [ec.household_id, ec])
 		);
-		
+
 		const incidentsByChild = new Map<string, Incident[]>();
-        todaysIncidents.forEach(i => {
-            if (!incidentsByChild.has(i.child_id)) {
-                incidentsByChild.set(i.child_id, []);
-            }
-            incidentsByChild.get(i.child_id)!.push(i);
-        });
+		todaysIncidents.forEach((i) => {
+			if (!incidentsByChild.has(i.child_id)) {
+				incidentsByChild.set(i.child_id, []);
+			}
+			incidentsByChild.get(i.child_id)!.push(i);
+		});
 
 		return allChildrenQuery.map((child) => ({
 			...child,
@@ -250,8 +260,13 @@ export default function RostersPage() {
 			guardians: guardianMap.get(child.household_id) || [],
 			household: householdMap.get(child.household_id) || null,
 			emergencyContact: emergencyContactMap.get(child.household_id) || null,
-			incidents: (incidentsByChild.get(child.child_id) || []).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()),
-            age: child.dob ? differenceInYears(new Date(), parseISO(child.dob)) : null,
+			incidents: (incidentsByChild.get(child.child_id) || []).sort(
+				(a, b) =>
+					new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+			),
+			age: child.dob
+				? differenceInYears(new Date(), parseISO(child.dob))
+				: null,
 		}));
 	}, [
 		allChildrenQuery,
@@ -268,7 +283,10 @@ export default function RostersPage() {
 
 		let relevantMinistryIds: Set<string>;
 
-		if (user?.role === 'leader' && user.assignedMinistryIds) {
+		if (
+			user?.metadata?.role === AuthRole.MINISTRY_LEADER &&
+			user.assignedMinistryIds
+		) {
 			relevantMinistryIds = new Set(user.assignedMinistryIds);
 		} else {
 			const childIdsInView = new Set(allChildrenQuery.map((c) => c.child_id));
@@ -403,7 +421,7 @@ export default function RostersPage() {
 	const handleCheckIn = async (childId: string) => {
 		try {
 			await recordCheckIn(childId, selectedEvent, undefined, user?.id);
-			const child = childrenWithDetails.find(c => c.child_id === childId);
+			const child = childrenWithDetails.find((c) => c.child_id === childId);
 			toast({
 				title: 'Checked In',
 				description: `${child?.first_name} ${
@@ -518,7 +536,15 @@ export default function RostersPage() {
 							)}
 							<TableCell>
 								{child.photo_url && (
-									<Button variant="ghost" size="icon" onClick={() => setViewingPhoto({ name: `${child.first_name} ${child.last_name}`, url: child.photo_url! })}>
+									<Button
+										variant="ghost"
+										size="icon"
+										onClick={() =>
+											setViewingPhoto({
+												name: `${child.first_name} ${child.last_name}`,
+												url: child.photo_url!,
+											})
+										}>
 										<Camera className="h-4 w-4" />
 									</Button>
 								)}
@@ -598,7 +624,15 @@ export default function RostersPage() {
 										)}
 										<TableCell>
 											{child.photo_url && (
-												<Button variant="ghost" size="icon" onClick={() => setViewingPhoto({ name: `${child.first_name} ${child.last_name}`, url: child.photo_url! })}>
+												<Button
+													variant="ghost"
+													size="icon"
+													onClick={() =>
+														setViewingPhoto({
+															name: `${child.first_name} ${child.last_name}`,
+															url: child.photo_url!,
+														})
+													}>
 													<Camera className="h-4 w-4" />
 												</Button>
 											)}
@@ -720,9 +754,13 @@ export default function RostersPage() {
 						<h1 className="text-xl font-bold font-headline text-muted-foreground">
 							Ministry Rosters
 						</h1>
-						<Dialog open={isEventDialogOpen} onOpenChange={setIsEventDialogOpen}>
+						<Dialog
+							open={isEventDialogOpen}
+							onOpenChange={setIsEventDialogOpen}>
 							<DialogTrigger asChild>
-								<Button variant="link" className="text-3xl font-bold font-headline p-0 h-auto">
+								<Button
+									variant="link"
+									className="text-3xl font-bold font-headline p-0 h-auto">
 									Check-in: {currentEventName}
 									<Edit className="ml-2 h-5 w-5" />
 								</Button>
@@ -740,10 +778,12 @@ export default function RostersPage() {
 										setSelectedEvent(value);
 										setIsEventDialogOpen(false);
 									}}
-									className="space-y-2"
-								>
+									className="space-y-2">
 									{eventOptions.map((event) => (
-										<Label key={event.id} htmlFor={event.id} className="flex items-center gap-4 p-4 border rounded-md cursor-pointer hover:bg-muted/50 has-[input:checked]:bg-muted has-[input:checked]:border-primary">
+										<Label
+											key={event.id}
+											htmlFor={event.id}
+											className="flex items-center gap-4 p-4 border rounded-md cursor-pointer hover:bg-muted/50 has-[input:checked]:bg-muted has-[input:checked]:border-primary">
 											<RadioGroupItem value={event.id} id={event.id} />
 											<span>{event.name}</span>
 										</Label>
@@ -753,7 +793,6 @@ export default function RostersPage() {
 						</Dialog>
 					</div>
 				</div>
-
 
 				<Card>
 					<CardHeader className="p-0">
@@ -774,7 +813,7 @@ export default function RostersPage() {
 						<div className="p-6 space-y-4">
 							<div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
 								<div className="flex flex-col sm:flex-row items-start sm:items-center gap-x-4 gap-y-2">
-									{user?.role === 'admin' && (
+									{user?.metadata?.role === AuthRole.ADMIN && (
 										<div className="flex items-center space-x-2">
 											<Checkbox
 												id="group-by-grade"
@@ -813,8 +852,8 @@ export default function RostersPage() {
 											<SelectValue placeholder="Filter by Ministry" />
 										</SelectTrigger>
 										<SelectContent>
-											{(user?.role === 'admin' ||
-												(user?.role === 'leader' &&
+											{(user?.metadata?.role === AuthRole.ADMIN ||
+												(user?.metadata?.role === AuthRole.MINISTRY_LEADER &&
 													user.assignedMinistryIds &&
 													user.assignedMinistryIds.length > 1)) && (
 												<SelectItem value="all">All Ministries</SelectItem>

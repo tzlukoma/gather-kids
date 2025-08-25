@@ -140,7 +140,7 @@ export interface User {
     name: string;
     email: string;
     mobile_phone?: string;
-    role: 'admin' | 'leader';
+    role: 'ADMIN' | 'MINISTRY_LEADER' | 'GUARDIAN' | 'VOLUNTEER';
     is_active: boolean;
     background_check_status?: 'clear' | 'pending' | 'expired' | 'na';
     expires_at?: string; // ISO
