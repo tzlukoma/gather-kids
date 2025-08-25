@@ -15,7 +15,7 @@
 import { db } from './db';
 import { AuthRole } from './auth-types';
 import type { Attendance, Child, Guardian, Household, Incident, IncidentSeverity, Ministry, MinistryEnrollment, Registration, User, EmergencyContact, LeaderAssignment } from './types';
-import { differenceInYears, isAfter, isBefore, parseISO } from 'date-fns';
+import { differenceInYears, isAfter, isBefore, parseISO, isValid } from 'date-fns';
 import { v4 as uuidv4 } from 'uuid';
 
 // Utility Functions
@@ -23,13 +23,13 @@ export const getTodayIsoDate = () => new Date().toISOString().split('T')[0];
 
 export function ageOn(dateISO: string, dobISO?: string): number | null {
     if (!dobISO) return null;
-    try {
-        const date = parseISO(dateISO);
-        const dob = parseISO(dobISO);
-        return differenceInYears(date, dob);
-    } catch (e) {
-        return null;
-    }
+    const date = parseISO(dateISO);
+    const dob = parseISO(dobISO);
+    if (!isValid(date) || !isValid(dob)) return null;
+    const years = differenceInYears(date, dob);
+    // differenceInYears can return NaN in edge cases; guard against that
+    if (Number.isNaN(years)) return null;
+    return years;
 }
 
 export async function isEligibleForChoir(ministryId: string, childId: string): Promise<boolean> {
