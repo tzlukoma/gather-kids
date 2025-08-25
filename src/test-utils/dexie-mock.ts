@@ -85,6 +85,16 @@ function createTable(primaryKey: string) {
                                 if (v[index] === val) res.push(v);
                             }
                             return res;
+                        },
+                        sortBy: async (key: string) => {
+                            const res: any[] = [];
+                            for (const v of store.values()) {
+                                if (v[index] === val) res.push(v);
+                            }
+                            return res.sort((a, b) => {
+                                const av = a[key]; const bv = b[key];
+                                if (av === bv) return 0; return (av ?? 0) < (bv ?? 0) ? -1 : 1;
+                            });
                         }
                     }),
                     anyOf: (vals: any[]) => ({
@@ -171,12 +181,12 @@ export function createInMemoryDB() {
         events: createTable('event_id'),
         attendance: createTable('attendance_id'),
         incidents: createTable('incident_id'),
-    // Bible Bee stores
-    competitionYears: createTable('id'),
-    scriptures: createTable('id'),
-    gradeRules: createTable('id'),
-    studentScriptures: createTable('id'),
-    studentEssays: createTable('id'),
+        // Bible Bee stores
+        competitionYears: createTable('id'),
+        scriptures: createTable('id'),
+        gradeRules: createTable('id'),
+        studentScriptures: createTable('id'),
+        studentEssays: createTable('id'),
         audit_logs: createTable('log_id'),
     } as any;
 }
