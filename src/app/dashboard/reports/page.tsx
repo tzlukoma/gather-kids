@@ -63,7 +63,7 @@ export default function ReportsPage() {
 
 	useEffect(() => {
 		if (!loading && user) {
-			if (user.metadata.role !== AuthRole.ADMIN) {
+			if (user?.metadata?.role !== AuthRole.ADMIN) {
 				router.push('/dashboard');
 			} else {
 				setIsAuthorized(true);

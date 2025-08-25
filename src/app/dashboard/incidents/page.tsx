@@ -44,7 +44,7 @@ export default function IncidentsPage() {
 	const incidentsQuery = useLiveQuery(async () => {
 		if (!user) return [];
 
-		if (user.metadata.role === AuthRole.MINISTRY_LEADER) {
+		if (user?.metadata?.role === AuthRole.MINISTRY_LEADER) {
 			if (!user.is_active) {
 				return db.incidents
 					.where('leader_id')
