@@ -27,6 +27,7 @@ import type { LeaderAssignment, User as LeaderUser } from '@/lib/types';
 import { Switch } from '@/components/ui/switch';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useAuth } from '@/contexts/auth-context';
+import { AuthRole } from '@/lib/auth-types';
 
 const InfoItem = ({
 	icon,
@@ -77,7 +78,7 @@ export default function LeaderProfilePage() {
 
 	useEffect(() => {
 		if (!loading && user) {
-			if (user.role !== 'ADMIN') {
+			if (user?.metadata?.role !== AuthRole.ADMIN) {
 				router.push('/dashboard');
 			} else {
 				setIsAuthorized(true);

@@ -23,6 +23,7 @@ import { ChevronRight } from 'lucide-react';
 import type { User } from '@/lib/types';
 import { useAuth } from '@/contexts/auth-context';
 import { useEffect, useState } from 'react';
+import { AuthRole } from '@/lib/auth-types';
 
 export default function LeadersPage() {
 	const router = useRouter();
@@ -33,7 +34,7 @@ export default function LeadersPage() {
 
 	useEffect(() => {
 		if (!loading && user) {
-			if (user.metadata.role !== 'ADMIN') {
+			if (user?.metadata?.role !== AuthRole.ADMIN) {
 				router.push('/dashboard');
 			} else {
 				setIsAuthorized(true);

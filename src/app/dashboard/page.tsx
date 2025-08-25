@@ -70,7 +70,7 @@ export default function DashboardPage() {
 
 	useEffect(() => {
 		if (!loading && user) {
-			if (user.metadata.role !== AuthRole.ADMIN) {
+			if (user?.metadata?.role !== AuthRole.ADMIN) {
 				// Non-admin users are redirected from the layout based on their permissions.
 				// This page is for admins only. If a non-admin somehow lands here,
 				// the layout will redirect them. We'll just prevent rendering the content.
