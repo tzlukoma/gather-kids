@@ -127,6 +127,7 @@ function createTable(primaryKey: string) {
         toArray: async () => Array.from(store.values()),
         _internalStore: store,
     };
+    return table;
 }
 
 export function createInMemoryDB() {
