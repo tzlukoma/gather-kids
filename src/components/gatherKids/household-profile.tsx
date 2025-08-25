@@ -7,8 +7,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { format, parseISO } from "date-fns";
-import { Mail, Phone, User, Home, CheckCircle2, HeartPulse } from "lucide-react";
+import { Mail, Phone, User, Home, CheckCircle2, HeartPulse, Camera, Expand } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
+import { Button } from "../ui/button";
+import { useState } from "react";
+import { PhotoCaptureDialog } from "./photo-capture-dialog";
+import type { Child } from "@/lib/types";
+import { PhotoViewerDialog } from "./photo-viewer-dialog";
 
 const InfoItem = ({ icon, label, value }: { icon: React.ReactNode, label: string, value: React.ReactNode }) => (
     <div className="flex items-start gap-3">
@@ -50,18 +56,42 @@ const ProgramEnrollmentCard = ({ enrollment }: { enrollment: HouseholdProfileDat
     );
 };
 
-const ChildCard = ({ child }: { child: HouseholdProfileData['children'][0] }) => {
+const ChildCard = ({ child, onPhotoClick, onPhotoViewClick }: { child: HouseholdProfileData['children'][0], onPhotoClick: (child: Child) => void, onPhotoViewClick: (photo: { name: string; url: string }) => void }) => {
     const sortedCycleIds = Object.keys(child.enrollmentsByCycle).sort((a, b) => b.localeCompare(a));
     const currentCycleId = sortedCycleIds.length > 0 ? sortedCycleIds[0] : undefined;
 
     return (
         <Card className={!child.is_active ? 'bg-muted/25' : ''}>
-            <CardHeader>
-                <CardTitle className="font-headline flex items-center gap-2">
-                    {child.first_name} {child.last_name}
-                    {!child.is_active && <Badge variant="outline">Inactive</Badge>}
-                </CardTitle>
-                <CardDescription>{child.grade} (Age {child.age})</CardDescription>
+            <CardHeader className="flex-row gap-4 items-start">
+                 <div className="relative w-16 h-16 sm:w-16 sm:h-16 flex-shrink-0">
+                    <Button
+                        variant="ghost"
+                        className="w-full h-full p-0 rounded-full"
+                        onClick={() => child.photo_url && onPhotoViewClick({ name: `${child.first_name} ${child.last_name}`, url: child.photo_url })}
+                    >
+                        <Avatar className="h-full w-full">
+                            <AvatarImage src={child.photo_url} alt={child.first_name} />
+                            <AvatarFallback>
+                                <User className="h-8 w-8" />
+                            </AvatarFallback>
+                        </Avatar>
+                    </Button>
+                     <Button
+                        variant="outline"
+                        size="icon"
+                        className="absolute -bottom-1 -right-1 h-7 w-7 rounded-full bg-background"
+                        onClick={() => onPhotoClick(child)}
+                        >
+                        <Camera className="h-4 w-4" />
+                    </Button>
+                </div>
+                <div>
+                    <CardTitle className="font-headline flex items-center gap-2">
+                        {child.first_name} {child.last_name}
+                        {!child.is_active && <Badge variant="outline">Inactive</Badge>}
+                    </CardTitle>
+                    <CardDescription>{child.grade} (Age {child.age})</CardDescription>
+                </div>
             </CardHeader>
             <CardContent className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -98,11 +128,14 @@ const ChildCard = ({ child }: { child: HouseholdProfileData['children'][0] }) =>
 
 export function HouseholdProfile({ profileData }: { profileData: HouseholdProfileData }) {
     const { household, guardians, emergencyContact, children } = profileData;
+    const [selectedChildForPhoto, setSelectedChildForPhoto] = useState<Child | null>(null);
+    const [viewingPhoto, setViewingPhoto] = useState<{name: string, url: string} | null>(null);
 
     const activeChildren = children.filter(c => c.is_active);
     const inactiveChildren = children.filter(c => !c.is_active);
 
     return (
+        <>
         <div className="flex flex-col gap-8">
             <div>
                 <h1 className="text-3xl font-bold font-headline">{household?.name}</h1>
@@ -142,7 +175,7 @@ export function HouseholdProfile({ profileData }: { profileData: HouseholdProfil
 
                 <div className="lg:col-span-2 space-y-6">
                     {activeChildren.map(child => (
-                        <ChildCard key={child.child_id} child={child} />
+                        <ChildCard key={child.child_id} child={child} onPhotoClick={setSelectedChildForPhoto} onPhotoViewClick={setViewingPhoto} />
                     ))}
 
                     {inactiveChildren.length > 0 && (
@@ -158,12 +191,21 @@ export function HouseholdProfile({ profileData }: { profileData: HouseholdProfil
                                 </div>
                             </div>
                             {inactiveChildren.map(child => (
-                                <ChildCard key={child.child_id} child={child} />
+                                <ChildCard key={child.child_id} child={child} onPhotoClick={setSelectedChildForPhoto} onPhotoViewClick={setViewingPhoto} />
                             ))}
                         </>
                     )}
                 </div>
             </div>
         </div>
+        <PhotoCaptureDialog
+            child={selectedChildForPhoto}
+            onClose={() => setSelectedChildForPhoto(null)}
+        />
+        <PhotoViewerDialog
+            photo={viewingPhoto}
+            onClose={() => setViewingPhoto(null)}
+        />
+        </>
     );
 }

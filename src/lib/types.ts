@@ -56,6 +56,7 @@ export interface Child {
     is_active: boolean;
     created_at: string;
     updated_at: string;
+    photo_url?: string;
 }
 
 export interface RegistrationCycle {
@@ -139,7 +140,7 @@ export interface User {
     name: string;
     email: string;
     mobile_phone?: string;
-    role: 'admin' | 'leader';
+    role: 'ADMIN' | 'MINISTRY_LEADER' | 'GUARDIAN' | 'VOLUNTEER';
     is_active: boolean;
     background_check_status?: 'clear' | 'pending' | 'expired' | 'na';
     expires_at?: string; // ISO
