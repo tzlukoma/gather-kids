@@ -28,6 +28,15 @@ import { Switch } from '@/components/ui/switch';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useAuth } from '@/contexts/auth-context';
 import { AuthRole } from '@/lib/auth-types';
+import { getLeaderBibleBeeProgress } from '@/lib/dal';
+import Link from 'next/link';
+import {
+	Select,
+	SelectTrigger,
+	SelectValue,
+	SelectContent,
+	SelectItem,
+} from '@/components/ui/select';
 
 const InfoItem = ({
 	icon,
@@ -360,6 +369,155 @@ export default function LeaderProfilePage() {
 					</CardContent>
 				</Card>
 			</div>
+
+			<Card>
+				<CardHeader>
+					<CardTitle className="font-headline">Bible Bee Progress</CardTitle>
+					<CardDescription>
+						Read-only progress for children assigned to your ministries.
+					</CardDescription>
+				</CardHeader>
+				<CardContent>
+					{typeof leader.user_id === 'string' ? (
+						<LeaderBibleBeeProgress
+							leaderId={leader.user_id}
+							cycleId={'2025'}
+						/>
+					) : (
+						<div>No Bible Bee data available.</div>
+					)}
+				</CardContent>
+			</Card>
+		</div>
+	);
+}
+
+function LeaderBibleBeeProgress({
+	leaderId,
+	cycleId,
+}: {
+	leaderId: string;
+	cycleId: string;
+}) {
+	const [rows, setRows] = useState<any[] | null>(null);
+	const [filterGradeGroup, setFilterGradeGroup] = useState<string | 'all'>(
+		'all'
+	);
+	const [filterStatus, setFilterStatus] = useState<
+		'all' | 'Not Started' | 'In-Progress' | 'Complete'
+	>('all');
+	const [availableGradeGroups, setAvailableGradeGroups] = useState<string[]>(
+		[]
+	);
+
+	useEffect(() => {
+		let mounted = true;
+		const load = async () => {
+			const res = await getLeaderBibleBeeProgress(leaderId, cycleId);
+			if (mounted) {
+				setRows(res);
+				// collect grade groups
+				const groups = new Set<string>();
+				res.forEach((r: any) => {
+					if (r.gradeGroup) groups.add(r.gradeGroup);
+				});
+				setAvailableGradeGroups(Array.from(groups).sort());
+			}
+		};
+		load();
+		return () => {
+			mounted = false;
+		};
+	}, [leaderId, cycleId]);
+
+	if (!rows) return <div>Loading Bible Bee progress...</div>;
+
+	if (rows.length === 0)
+		return <div>No children enrolled in Bible Bee for this cycle.</div>;
+
+	const filtered = rows.filter((r: any) => {
+		if (filterGradeGroup !== 'all') {
+			if (r.gradeGroup !== filterGradeGroup) return false;
+		}
+		if (filterStatus !== 'all') return r.bibleBeeStatus === filterStatus;
+		return true;
+	});
+
+	return (
+		<div className="space-y-2">
+			<div className="flex items-center gap-4 mb-2">
+				<div className="w-56">
+					<Select onValueChange={(v: any) => setFilterGradeGroup(v as any)}>
+						<SelectTrigger>
+							<SelectValue>
+								{filterGradeGroup === 'all'
+									? 'All Grade Groups'
+									: filterGradeGroup}
+							</SelectValue>
+						</SelectTrigger>
+						<SelectContent>
+							<SelectItem value={'all'}>All Grade Groups</SelectItem>
+							{availableGradeGroups.map((g) => (
+								<SelectItem key={g} value={g}>
+									{g}
+								</SelectItem>
+							))}
+						</SelectContent>
+					</Select>
+				</div>
+
+				<div className="flex items-center gap-2">
+					<button
+						className={`px-3 py-1 rounded ${
+							filterStatus === 'all' ? 'bg-accent' : ''
+						}`}
+						onClick={() => setFilterStatus('all')}>
+						All
+					</button>
+					<button
+						className={`px-3 py-1 rounded ${
+							filterStatus === 'Not Started' ? 'bg-accent' : ''
+						}`}
+						onClick={() => setFilterStatus('Not Started')}>
+						Not Started
+					</button>
+					<button
+						className={`px-3 py-1 rounded ${
+							filterStatus === 'In-Progress' ? 'bg-accent' : ''
+						}`}
+						onClick={() => setFilterStatus('In-Progress')}>
+						In-Progress
+					</button>
+					<button
+						className={`px-3 py-1 rounded ${
+							filterStatus === 'Complete' ? 'bg-accent' : ''
+						}`}
+						onClick={() => setFilterStatus('Complete')}>
+						Complete
+					</button>
+				</div>
+			</div>
+			{filtered.map((r: any) => (
+				<div
+					key={r.childId}
+					className="p-3 border rounded-md flex items-center justify-between">
+					<div>
+						<div className="font-medium">
+							<Link href={`/household/children/${r.childId}`}>
+								{r.childName}
+							</Link>
+						</div>
+						<div className="text-sm text-muted-foreground">
+							Scriptures: {r.completedScriptures}/{r.totalScriptures} — Essay:{' '}
+							{r.essayStatus}
+						</div>
+						<div className="text-xs text-muted-foreground">
+							Grade Group: {r.gradeGroup || 'N/A'} — Ministries:{' '}
+							{(r.ministries || []).map((m: any) => m.ministryName).join(', ')}
+						</div>
+					</div>
+				</div>
+			))}
 		</div>
 	);
 }
