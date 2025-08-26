@@ -23,6 +23,11 @@ interface ChildIdCardProps {
 		percentDone: number;
 		bonus: number;
 	} | null;
+	essaySummary?: {
+		count: number;
+		submitted: number;
+		pending: number;
+	} | null;
 }
 
 export function ChildIdCard({
@@ -30,6 +35,7 @@ export function ChildIdCard({
 	onUpdatePhoto,
 	onViewPhoto,
 	bibleBeeStats,
+	essaySummary,
 }: ChildIdCardProps) {
 	if (!child) return <div>Loading child...</div>;
 
@@ -146,6 +152,27 @@ export function ChildIdCard({
 							<div className="text-xs text-muted-foreground">Bonus</div>
 							<div className="font-semibold text-lg">
 								{bibleBeeStats!.bonus}
+							</div>
+						</div>
+					</div>
+				</div>
+			) : essaySummary ? (
+				<div className="mt-3">
+					<div className="grid grid-cols-3 gap-2">
+						<div className="p-3 bg-background border rounded text-center">
+							<div className="text-xs text-muted-foreground">Essays</div>
+							<div className="font-semibold text-lg">{essaySummary.count}</div>
+						</div>
+						<div className="p-3 bg-background border rounded text-center">
+							<div className="text-xs text-muted-foreground">Submitted</div>
+							<div className="font-semibold text-lg">
+								{essaySummary.submitted}
+							</div>
+						</div>
+						<div className="p-3 bg-background border rounded text-center">
+							<div className="text-xs text-muted-foreground">Pending</div>
+							<div className="font-semibold text-lg">
+								{essaySummary.pending}
 							</div>
 						</div>
 					</div>

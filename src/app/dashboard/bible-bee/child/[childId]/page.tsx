@@ -51,11 +51,42 @@ export default function DashboardChildBibleBeePage() {
 		bonus: number;
 	} | null>(null);
 
+	const [essaySummary, setEssaySummary] = useState<{
+		count: number;
+		submitted: number;
+		pending: number;
+	} | null>(null);
+
 	useEffect(() => {
 		const compute = async () => {
-			if (!data) return setBbStats(null);
+			if (!data) {
+				setBbStats(null);
+				setEssaySummary(null);
+				return;
+			}
+
 			const scriptures = data.scriptures || [];
-			if (scriptures.length === 0) return setBbStats(null);
+			const essays = data.essays || [];
+
+			// Prepare essay summary
+			if (essays.length > 0 && scriptures.length === 0) {
+				const submitted = essays.filter(
+					(e: any) => e.status === 'submitted'
+				).length;
+				setEssaySummary({
+					count: essays.length,
+					submitted,
+					pending: essays.length - submitted,
+				});
+			} else {
+				setEssaySummary(null);
+			}
+
+			if (scriptures.length === 0) {
+				// No scriptures to compute
+				setBbStats(null);
+				return;
+			}
 			const competitionYearId = scriptures[0].competitionYearId;
 			let required = scriptures.length;
 			try {
@@ -121,55 +152,61 @@ export default function DashboardChildBibleBeePage() {
 				onUpdatePhoto={handleUpdatePhoto}
 				onViewPhoto={handleViewPhoto}
 				bibleBeeStats={bbStats}
+				essaySummary={essaySummary}
 			/>
 
-			<div>
-				<h2 className="font-semibold text-2xl mb-3">Scriptures</h2>
-				<div className="grid gap-2">
-					{data.scriptures.map((s: any, idx: number) => (
-						<ScriptureCard
-							key={s.id}
-							assignment={s}
-							index={idx}
-							onToggleAction={(id, next) =>
-								toggleMutation.mutate({ id, complete: next })
-							}
-						/>
-					))}
+			{/* Show scriptures if present, otherwise show essays. Child can't have both. */}
+			{data.scriptures && data.scriptures.length > 0 ? (
+				<div>
+					<h2 className="font-semibold text-2xl mb-3">Scriptures</h2>
+					<div className="grid gap-2">
+						{data.scriptures.map((s: any, idx: number) => (
+							<ScriptureCard
+								key={s.id}
+								assignment={s}
+								index={idx}
+								onToggleAction={(id, next) =>
+									toggleMutation.mutate({ id, complete: next })
+								}
+							/>
+						))}
+					</div>
 				</div>
-			</div>
-
-			<div>
-				<h2 className="font-semibold text-2xl mb-3">Essays</h2>
-				<div className="space-y-2">
-					{data.essays.map((e: any) => (
-						<Card key={e.id}>
-							<CardHeader>
-								<CardTitle>Essay for {e.year?.year}</CardTitle>
-								<CardDescription>{e.promptText}</CardDescription>
-							</CardHeader>
-							<CardContent>
-								<div className="flex items-center gap-4">
-									<div className="text-sm text-muted-foreground">
-										Status: {e.status}
+			) : data.essays && data.essays.length > 0 ? (
+				<div>
+					<h2 className="font-semibold text-2xl mb-3">Essays</h2>
+					<div className="space-y-2">
+						{data.essays.map((e: any) => (
+							<Card key={e.id}>
+								<CardHeader>
+									<CardTitle>Essay for {e.year?.year}</CardTitle>
+									<CardDescription>{e.promptText}</CardDescription>
+								</CardHeader>
+								<CardContent>
+									<div className="flex items-center gap-4">
+										<div className="text-sm text-muted-foreground">
+											Status: {e.status}
+										</div>
+										{e.status !== 'submitted' && (
+											<Button
+												onClick={() =>
+													essayMutation.mutate({
+														competitionYearId: e.competitionYearId,
+													})
+												}
+												size="sm">
+												Mark Submitted
+											</Button>
+										)}
 									</div>
-									{e.status !== 'submitted' && (
-										<Button
-											onClick={() =>
-												essayMutation.mutate({
-													competitionYearId: e.competitionYearId,
-												})
-											}
-											size="sm">
-											Mark Submitted
-										</Button>
-									)}
-								</div>
-							</CardContent>
-						</Card>
-					))}
+								</CardContent>
+							</Card>
+						))}
+					</div>
 				</div>
-			</div>
+			) : null}
+
+			{/* duplicate essays block removed; page shows either Scriptures or Essays above */}
 		</div>
 	);
 }

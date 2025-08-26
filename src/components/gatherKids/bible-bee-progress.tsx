@@ -298,8 +298,14 @@ export function LeaderBibleBeeProgress({
 								</Link>
 							</div>
 							<div className="text-sm text-muted-foreground">
-								Scriptures: {r.completedScriptures}/{r.totalScriptures} — Essay:{' '}
-								{r.essayStatus}
+								{(r.totalScriptures || r.requiredScriptures) > 0 ? (
+									<>
+										Scriptures: {r.completedScriptures}/
+										{r.totalScriptures || r.requiredScriptures}
+									</>
+								) : (
+									<>Essay: {r.essayStatus || 'none'}</>
+								)}
 							</div>
 							<div className="text-xs text-muted-foreground">
 								Grade Group: {r.gradeGroup || 'N/A'} — Ministries:{' '}
