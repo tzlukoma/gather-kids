@@ -18,7 +18,7 @@ export default {
     extend: {
       fontFamily: {
         display: ['Work Sans', 'sans-serif'],
-        body: ['Source Sans Pro', 'sans-serif'],
+        body: ['Work Sans', 'sans-serif'],
         headline: ['Work Sans', 'sans-serif'],
         scripture: ['Merriweather', 'serif'],
         code: ['Source Code Pro', 'monospace'],
