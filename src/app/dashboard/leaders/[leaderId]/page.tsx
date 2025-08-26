@@ -37,6 +37,7 @@ import {
 	SelectContent,
 	SelectItem,
 } from '@/components/ui/select';
+import { db } from '@/lib/db';
 
 const InfoItem = ({
 	icon,
@@ -410,10 +411,31 @@ function LeaderBibleBeeProgress({
 		[]
 	);
 
+	// cycle selection
+	const competitionYears = useLiveQuery(
+		() => db.competitionYears.orderBy('year').reverse().toArray(),
+		[]
+	);
+	const [selectedCycle, setSelectedCycle] = useState<string>(cycleId);
+
+	// sorting
+	const [sortBy, setSortBy] = useState<
+		'name-asc' | 'name-desc' | 'progress-desc' | 'progress-asc'
+	>('name-asc');
+
+	useEffect(() => {
+		// initialize selected cycle when competition years load
+		if (competitionYears && competitionYears.length > 0) {
+			// default to the newest year if not explicitly provided
+			const defaultYear = String(competitionYears[0].year);
+			setSelectedCycle((prev) => prev || defaultYear);
+		}
+	}, [competitionYears]);
+
 	useEffect(() => {
 		let mounted = true;
 		const load = async () => {
-			const res = await getLeaderBibleBeeProgress(leaderId, cycleId);
+			const res = await getLeaderBibleBeeProgress(leaderId, selectedCycle);
 			if (mounted) {
 				setRows(res);
 				// collect grade groups
@@ -428,7 +450,7 @@ function LeaderBibleBeeProgress({
 		return () => {
 			mounted = false;
 		};
-	}, [leaderId, cycleId]);
+	}, [leaderId, selectedCycle]);
 
 	if (!rows) return <div>Loading Bible Bee progress...</div>;
 
@@ -443,9 +465,45 @@ function LeaderBibleBeeProgress({
 		return true;
 	});
 
+	const withProgress = filtered.map((r: any) => {
+		const denom = r.requiredScriptures || r.totalScriptures || 1;
+		const pct = denom === 0 ? 0 : (r.completedScriptures / denom) * 100;
+		return { ...r, progressPct: pct };
+	});
+
+	const sorted = withProgress.sort((a: any, b: any) => {
+		switch (sortBy) {
+			case 'name-asc':
+				return a.childName.localeCompare(b.childName);
+			case 'name-desc':
+				return b.childName.localeCompare(a.childName);
+			case 'progress-desc':
+				return b.progressPct - a.progressPct;
+			case 'progress-asc':
+				return a.progressPct - b.progressPct;
+			default:
+				return 0;
+		}
+	});
+
 	return (
 		<div className="space-y-2">
 			<div className="flex items-center gap-4 mb-2">
+				<div className="w-48">
+					<Select onValueChange={(v: any) => setSelectedCycle(String(v))}>
+						<SelectTrigger>
+							<SelectValue>{selectedCycle || cycleId}</SelectValue>
+						</SelectTrigger>
+						<SelectContent>
+							{(competitionYears || []).map((y: any) => (
+								<SelectItem key={y.id} value={String(y.year)}>
+									{String(y.year)}
+								</SelectItem>
+							))}
+						</SelectContent>
+					</Select>
+				</div>
+
 				<div className="w-56">
 					<Select onValueChange={(v: any) => setFilterGradeGroup(v as any)}>
 						<SelectTrigger>
@@ -462,6 +520,29 @@ function LeaderBibleBeeProgress({
 									{g}
 								</SelectItem>
 							))}
+						</SelectContent>
+					</Select>
+				</div>
+
+				<div className="w-48">
+					<Select onValueChange={(v: any) => setSortBy(v as any)}>
+						<SelectTrigger>
+							<SelectValue>
+								{sortBy === 'name-asc' && 'Name (A → Z)'}
+								{sortBy === 'name-desc' && 'Name (Z → A)'}
+								{sortBy === 'progress-desc' && 'Progress (High → Low)'}
+								{sortBy === 'progress-asc' && 'Progress (Low → High)'}
+							</SelectValue>
+						</SelectTrigger>
+						<SelectContent>
+							<SelectItem value={'name-asc'}>Name (A → Z)</SelectItem>
+							<SelectItem value={'name-desc'}>Name (Z → A)</SelectItem>
+							<SelectItem value={'progress-desc'}>
+								Progress (High → Low)
+							</SelectItem>
+							<SelectItem value={'progress-asc'}>
+								Progress (Low → High)
+							</SelectItem>
 						</SelectContent>
 					</Select>
 				</div>
@@ -497,7 +578,7 @@ function LeaderBibleBeeProgress({
 					</button>
 				</div>
 			</div>
-			{filtered.map((r: any) => (
+			{sorted.map((r: any) => (
 				<div
 					key={r.childId}
 					className="p-3 border rounded-md flex items-center justify-between">
@@ -515,6 +596,9 @@ function LeaderBibleBeeProgress({
 							Grade Group: {r.gradeGroup || 'N/A'} — Ministries:{' '}
 							{(r.ministries || []).map((m: any) => m.ministryName).join(', ')}
 						</div>
+					</div>
+					<div className="text-sm text-muted-foreground">
+						{Math.round(r.progressPct)}%
 					</div>
 				</div>
 			))}
