@@ -24,26 +24,26 @@ export const MENU_ITEMS: MenuItem[] = [
         label: 'Dashboard',
         href: '/dashboard',
         icon: Home,
-        roles: [AuthRole.ADMIN, AuthRole.LEADER, AuthRole.STAFF],
+        roles: [AuthRole.ADMIN, AuthRole.MINISTRY_LEADER, AuthRole.VOLUNTEER],
     },
     {
         label: 'Check-in',
         href: '/dashboard/check-in',
         icon: CheckSquare,
-        roles: [AuthRole.ADMIN, AuthRole.LEADER, AuthRole.STAFF],
+        roles: [AuthRole.ADMIN, AuthRole.MINISTRY_LEADER, AuthRole.VOLUNTEER],
         ministryCheck: (ids: string[]) => ids.length > 0,
     },
     {
         label: 'Registrations',
         href: '/dashboard/registrations',
         icon: ClipboardCheck,
-        roles: [AuthRole.ADMIN, AuthRole.LEADER],
+        roles: [AuthRole.ADMIN, AuthRole.MINISTRY_LEADER],
     },
     {
         label: 'Rosters',
         href: '/dashboard/rosters',
         icon: Book,
-        roles: [AuthRole.ADMIN, AuthRole.LEADER],
+        roles: [AuthRole.ADMIN, AuthRole.MINISTRY_LEADER],
     },
     {
         label: 'Reports',
@@ -55,7 +55,7 @@ export const MENU_ITEMS: MenuItem[] = [
         label: 'Calendar',
         href: '/dashboard/calendar',
         icon: Calendar,
-        roles: [AuthRole.ADMIN, AuthRole.LEADER],
+        roles: [AuthRole.ADMIN, AuthRole.MINISTRY_LEADER],
     },
     {
         label: 'Leaders',
@@ -64,9 +64,35 @@ export const MENU_ITEMS: MenuItem[] = [
         roles: [AuthRole.ADMIN],
     },
     {
+        label: 'Incidents',
+        href: '/dashboard/incidents',
+        icon: FileText,
+        roles: [AuthRole.ADMIN, AuthRole.MINISTRY_LEADER],
+    },
+    {
+        label: 'Bible Bee',
+        href: '/dashboard/bible-bee',
+        icon: Book,
+        roles: [AuthRole.ADMIN, AuthRole.MINISTRY_LEADER],
+        ministryCheck: (ids: string[]) => ids.includes('bible-bee'),
+    },
+    {
         label: 'Configuration',
         href: '/dashboard/configuration',
         icon: Shield,
         roles: [AuthRole.ADMIN],
     },
 ];
+
+export const getAuthorizedMenuItems = (
+    userRole: AuthRole | null,
+    ministryIds: string[] = [],
+    isActive: boolean = true
+) => {
+    if (!userRole) return [] as MenuItem[];
+    return MENU_ITEMS.filter((item) => {
+        if (!item.roles.includes(userRole)) return false;
+        if (item.ministryCheck && !item.ministryCheck(ministryIds)) return false;
+        return true;
+    });
+};

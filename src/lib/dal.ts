@@ -13,9 +13,10 @@
 
 
 import { db } from './db';
+import { getApplicableGradeRule } from './bibleBee';
 import { AuthRole } from './auth-types';
 import type { Attendance, Child, Guardian, Household, Incident, IncidentSeverity, Ministry, MinistryEnrollment, Registration, User, EmergencyContact, LeaderAssignment } from './types';
-import { differenceInYears, isAfter, isBefore, parseISO } from 'date-fns';
+import { differenceInYears, isAfter, isBefore, parseISO, isValid } from 'date-fns';
 import { v4 as uuidv4 } from 'uuid';
 
 // Utility Functions
@@ -23,13 +24,13 @@ export const getTodayIsoDate = () => new Date().toISOString().split('T')[0];
 
 export function ageOn(dateISO: string, dobISO?: string): number | null {
     if (!dobISO) return null;
-    try {
-        const date = parseISO(dateISO);
-        const dob = parseISO(dobISO);
-        return differenceInYears(date, dob);
-    } catch (e) {
-        return null;
-    }
+    const date = parseISO(dateISO);
+    const dob = parseISO(dobISO);
+    if (!isValid(date) || !isValid(dob)) return null;
+    const years = differenceInYears(date, dob);
+    // differenceInYears can return NaN in edge cases; guard against that
+    if (Number.isNaN(years)) return null;
+    return years;
 }
 
 export async function isEligibleForChoir(ministryId: string, childId: string): Promise<boolean> {
@@ -382,7 +383,7 @@ export async function registerHousehold(data: any, cycle_id: string, isPrefill: 
     const isUpdate = !!data.household.household_id;
     const now = new Date().toISOString();
 
-    await db.transaction('rw', db.households, db.guardians, db.emergency_contacts, db.children, db.registrations, db.ministry_enrollments, db.ministries, async () => {
+    await (db as any).transaction('rw', db.households, db.guardians, db.emergency_contacts, db.children, db.registrations, db.ministry_enrollments, db.ministries, async () => {
 
         // This block handles overwriting an existing registration for the *current* cycle.
         // It should NOT run for a pre-fill from a previous year.
@@ -678,8 +679,195 @@ export async function getLeaderAssignmentsForCycle(leaderId: string, cycleId: st
     return db.leader_assignments.where({ leader_id: leaderId, cycle_id: cycleId }).toArray();
 }
 
+export async function getLeaderBibleBeeProgress(leaderId: string, cycleId: string) {
+    // Find ministries this leader is assigned to for the cycle
+    const assignments = await getLeaderAssignmentsForCycle(leaderId, cycleId);
+    const ministryIds = assignments.map(a => a.ministry_id);
+    if (ministryIds.length === 0) return [];
+
+    // Find children enrolled in those ministries for the cycle
+    const enrollments = await db.ministry_enrollments.where('ministry_id').anyOf(ministryIds).and(e => e.cycle_id === cycleId).toArray();
+    const childIds = [...new Set(enrollments.map(e => e.child_id))];
+    if (childIds.length === 0) return [];
+
+    const children = await db.children.where('child_id').anyOf(childIds).toArray();
+
+    // Find the competition year matching the numeric cycle year (if present)
+    const yearNum = Number(cycleId);
+    const compYear = await db.competitionYears.where('year').equals(yearNum).first();
+
+    // For each child compute scripture and essay progress for the found competition year
+    const results: any[] = [];
+    // Build a map of childId -> ministries they are enrolled in
+    const allEnrollmentsForChildren = await db.ministry_enrollments.where('child_id').anyOf(childIds).and(e => e.cycle_id === cycleId).toArray();
+    const ministryList = await db.ministries.toArray();
+    const ministryMap = new Map(ministryList.map(m => [m.ministry_id, m]));
+
+    // Prefetch guardians for all households to avoid per-child queries
+    const householdIds = children.map(c => c.household_id).filter(Boolean);
+    const allGuardians = householdIds.length ? await db.guardians.where('household_id').anyOf(householdIds).toArray() : [];
+    const guardianMap = new Map<string, any>();
+    for (const g of allGuardians) {
+        if (!guardianMap.has(g.household_id)) guardianMap.set(g.household_id, []);
+        guardianMap.get(g.household_id).push(g);
+    }
+
+    for (const child of children) {
+        let scriptures: any[] = [];
+        let essays: any[] = [];
+        if (compYear) {
+            scriptures = await db.studentScriptures.where({ childId: child.child_id, competitionYearId: compYear.id }).toArray();
+            essays = await db.studentEssays.where({ childId: child.child_id, competitionYearId: compYear.id }).toArray();
+        }
+
+        const totalScriptures = scriptures.length;
+        const completedScriptures = scriptures.filter(s => s.status === 'completed').length;
+        const essayStatus = essays.length ? essays[0].status : 'none';
+
+        const childEnrolls = allEnrollmentsForChildren.filter(e => e.child_id === child.child_id).map(e => ({ ...e, ministryName: ministryMap.get(e.ministry_id)?.name || 'Unknown' }));
+
+        // Identify primary guardian from pre-fetched guardians
+        let primaryGuardian = null;
+        const guardiansForHouse = guardianMap.get(child.household_id) || [];
+        primaryGuardian = guardiansForHouse.find((g: any) => g.is_primary) || guardiansForHouse[0] || null;
+
+        // Determine required/scripture target for this child's grade using grade rules
+        let requiredScriptures: number | null = null;
+        let gradeGroup: string | null = null;
+        try {
+            const gradeNum = child.grade ? Number(child.grade) : NaN;
+            const rule = !isNaN(gradeNum) && compYear ? await getApplicableGradeRule(compYear.id, gradeNum) : null;
+            requiredScriptures = rule?.targetCount ?? null;
+            if (rule) {
+                if (rule.minGrade === rule.maxGrade) gradeGroup = `Grade ${rule.minGrade}`;
+                else gradeGroup = `Grades ${rule.minGrade}-${rule.maxGrade}`;
+            }
+        } catch (err) {
+            requiredScriptures = null;
+            gradeGroup = null;
+        }
+
+        // Derive completion status per user request: Not Started, In-Progress (some but not enough), Complete (has completed the minimum)
+        const target = requiredScriptures ?? totalScriptures;
+        let bibleBeeStatus: 'Not Started' | 'In-Progress' | 'Complete' = 'Not Started';
+        if (completedScriptures === 0) {
+            bibleBeeStatus = 'Not Started';
+        } else if (completedScriptures >= target) {
+            bibleBeeStatus = 'Complete';
+        } else {
+            bibleBeeStatus = 'In-Progress';
+        }
+
+        results.push({
+            childId: child.child_id,
+            childName: `${child.first_name} ${child.last_name}`,
+            totalScriptures,
+            completedScriptures,
+            requiredScriptures: requiredScriptures ?? totalScriptures,
+            bibleBeeStatus,
+            gradeGroup,
+            essayStatus,
+            ministries: childEnrolls,
+            primaryGuardian,
+            child,
+        });
+    }
+
+    // sort by child name
+    return results.sort((a, b) => a.childName.localeCompare(b.childName));
+}
+
+export async function getBibleBeeProgressForCycle(cycleId: string) {
+    // Find enrollments for the bible-bee ministry for the cycle
+    const enrollments = await db.ministry_enrollments
+        .where('ministry_id').equals('bible-bee')
+        .and(e => e.cycle_id === cycleId)
+        .toArray();
+
+    const childIds = [...new Set(enrollments.map(e => e.child_id))];
+    if (childIds.length === 0) return [];
+
+    const children = await db.children.where('child_id').anyOf(childIds).toArray();
+
+    // Find the competition year matching the numeric cycle year (if present)
+    const yearNum = Number(cycleId);
+    const compYear = await db.competitionYears.where('year').equals(yearNum).first();
+
+    const results: any[] = [];
+    const allEnrollmentsForChildren = await db.ministry_enrollments.where('child_id').anyOf(childIds).and(e => e.cycle_id === cycleId).toArray();
+    const ministryList = await db.ministries.toArray();
+    const ministryMap = new Map(ministryList.map(m => [m.ministry_id, m]));
+
+    for (const child of children) {
+        let scriptures: any[] = [];
+        let essays: any[] = [];
+        if (compYear) {
+            scriptures = await db.studentScriptures.where({ childId: child.child_id, competitionYearId: compYear.id }).toArray();
+            essays = await db.studentEssays.where({ childId: child.child_id, competitionYearId: compYear.id }).toArray();
+        }
+
+        const totalScriptures = scriptures.length;
+        const completedScriptures = scriptures.filter(s => s.status === 'completed').length;
+        const essayStatus = essays.length ? essays[0].status : 'none';
+
+        const childEnrolls = allEnrollmentsForChildren.filter(e => e.child_id === child.child_id).map(e => ({ ...e, ministryName: ministryMap.get(e.ministry_id)?.name || 'Unknown' }));
+
+        let requiredScriptures: number | null = null;
+        let gradeGroup: string | null = null;
+        try {
+            const gradeNum = child.grade ? Number(child.grade) : NaN;
+            const rule = !isNaN(gradeNum) && compYear ? await getApplicableGradeRule(compYear.id, gradeNum) : null;
+            requiredScriptures = rule?.targetCount ?? null;
+            if (rule) {
+                if (rule.minGrade === rule.maxGrade) gradeGroup = `Grade ${rule.minGrade}`;
+                else gradeGroup = `Grades ${rule.minGrade}-${rule.maxGrade}`;
+            }
+        } catch (err) {
+            requiredScriptures = null;
+            gradeGroup = null;
+        }
+
+        const target = requiredScriptures ?? totalScriptures;
+        let bibleBeeStatus: 'Not Started' | 'In-Progress' | 'Complete' = 'Not Started';
+        if (completedScriptures === 0) {
+            bibleBeeStatus = 'Not Started';
+        } else if (completedScriptures >= target) {
+            bibleBeeStatus = 'Complete';
+        } else {
+            bibleBeeStatus = 'In-Progress';
+        }
+
+        // Fetch primary guardian for display in leader progress
+        let primaryGuardian = null;
+        try {
+            if (child.household_id) {
+                const guardians = await db.guardians.where({ household_id: child.household_id }).toArray();
+                primaryGuardian = guardians.find(g => g.is_primary) || guardians[0] || null;
+            }
+        } catch (err) {
+            primaryGuardian = null;
+        }
+
+        results.push({
+            childId: child.child_id,
+            childName: `${child.first_name} ${child.last_name}`,
+            totalScriptures,
+            completedScriptures,
+            requiredScriptures: requiredScriptures ?? totalScriptures,
+            bibleBeeStatus,
+            gradeGroup,
+            essayStatus,
+            ministries: childEnrolls,
+            primaryGuardian,
+            child,
+        });
+    }
+
+    return results.sort((a, b) => a.childName.localeCompare(b.childName));
+}
+
 export async function saveLeaderAssignments(leaderId: string, cycleId: string, newAssignments: Omit<LeaderAssignment, 'assignment_id'>[]) {
-    return db.transaction('rw', db.leader_assignments, async () => {
+    return (db as any).transaction('rw', db.leader_assignments, async () => {
         // Delete old assignments for this leader and cycle
         await db.leader_assignments.where({ leader_id: leaderId, cycle_id: cycleId }).delete();
 

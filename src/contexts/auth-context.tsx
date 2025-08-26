@@ -51,13 +51,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 					};
 
 					if (finalUser.metadata.role === AuthRole.MINISTRY_LEADER) {
-						const assignments = await getLeaderAssignmentsForCycle(
-							storedUser.uid,
-							'2025'
-						);
-						finalUser.assignedMinistryIds = assignments.map(
-							(a) => a.ministry_id
-						);
+						const leaderId = (storedUser.uid ||
+							storedUser.id ||
+							(storedUser as any).user_id) as string | undefined;
+						if (leaderId) {
+							const assignments = await getLeaderAssignmentsForCycle(
+								leaderId,
+								'2025'
+							);
+							finalUser.assignedMinistryIds = assignments.map(
+								(a) => a.ministry_id
+							);
+						}
 					}
 					setUser(finalUser);
 					setUserRole(finalUser.metadata.role);
@@ -92,11 +97,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 			);
 
 			if (finalUser.metadata.role === AuthRole.MINISTRY_LEADER) {
-				const assignments = await getLeaderAssignmentsForCycle(
-					userData.uid,
-					'2025'
-				);
-				finalUser.assignedMinistryIds = assignments.map((a) => a.ministry_id);
+				const leaderId = (userData.uid ||
+					userData.id ||
+					(userData as any).user_id) as string | undefined;
+				if (leaderId) {
+					const assignments = await getLeaderAssignmentsForCycle(
+						leaderId,
+						'2025'
+					);
+					finalUser.assignedMinistryIds = assignments.map((a) => a.ministry_id);
+				}
 			}
 
 			console.log('Storing user with role:', finalUser.metadata.role);

@@ -46,9 +46,13 @@ export default function IncidentsPage() {
 
 		if (user?.metadata?.role === AuthRole.MINISTRY_LEADER) {
 			// Always restrict leaders to incidents they logged
+			const leaderId = (user.uid || user.id || (user as any).user_id) as
+				| string
+				| undefined;
+			if (!leaderId) return [];
 			return db.incidents
 				.where('leader_id')
-				.equals(user.uid)
+				.equals(leaderId)
 				.reverse()
 				.sortBy('timestamp');
 		}

@@ -28,6 +28,17 @@ import { Switch } from '@/components/ui/switch';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useAuth } from '@/contexts/auth-context';
 import { AuthRole } from '@/lib/auth-types';
+import { getLeaderBibleBeeProgress } from '@/lib/dal';
+import Link from 'next/link';
+import {
+	Select,
+	SelectTrigger,
+	SelectValue,
+	SelectContent,
+	SelectItem,
+} from '@/components/ui/select';
+import { db } from '@/lib/db';
+import LeaderBibleBeeProgress from '@/components/gatherKids/bible-bee-progress';
 
 const InfoItem = ({
 	icon,
@@ -360,6 +371,25 @@ export default function LeaderProfilePage() {
 					</CardContent>
 				</Card>
 			</div>
+
+			<Card>
+				<CardHeader>
+					<CardTitle className="font-headline">Bible Bee Progress</CardTitle>
+					<CardDescription>
+						All children enrolled in Bible Bee for the 2025 cycle. Leaders may
+						upload scriptures if they have upload permissions.
+					</CardDescription>
+				</CardHeader>
+				<CardContent>
+					{typeof leader.user_id === 'string' ? (
+						<LeaderBibleBeeProgress cycleId={'2025'} canUpload={true} />
+					) : (
+						<div>No Bible Bee data available.</div>
+					)}
+				</CardContent>
+			</Card>
 		</div>
 	);
 }
+// LeaderBibleBeeProgress is now provided by the shared component at
+// src/components/gatherKids/bible-bee-progress.tsx

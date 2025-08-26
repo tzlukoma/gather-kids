@@ -1,6 +1,9 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import { ProtectedRoute } from '@/components/auth/protected-route';
-import { renderWithAuth, mockUsers } from './test-utils';
+import {
+	renderWithAuth,
+	mockUsers,
+} from '../../src/test-utils/auth/test-utils';
 import { useRouter } from 'next/navigation';
 import { ROLES } from '@/lib/constants/roles';
 
