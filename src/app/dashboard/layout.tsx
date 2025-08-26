@@ -167,7 +167,9 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 												}>
 												{React.isValidElement(item.icon)
 													? item.icon
-													: React.createElement(item.icon as any, { className: 'w-4 h-4' })}
+													: React.createElement(item.icon as any, {
+															className: 'w-4 h-4',
+													  })}
 												<span>{item.label}</span>
 											</SidebarMenuButton>
 										</Link>
