@@ -60,8 +60,8 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 	const getMenuItems = () => {
 		return getAuthorizedMenuItems(
 			userRole,
-			user?.is_active ?? false,
-			user?.assignedMinistryIds ?? []
+			user?.assignedMinistryIds ?? [],
+			user?.is_active ?? true
 		);
 	};
 
@@ -155,7 +155,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 								</div>
 							</SidebarHeader>
 							<SidebarMenu>
-								{menuItems.map((item) => (
+								{menuItems.map((item: any) => (
 									<SidebarMenuItem key={item.href}>
 										<Link href={item.href} passHref>
 											<SidebarMenuButton
@@ -165,7 +165,11 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 													(item.href !== '/dashboard' ||
 														pathname === '/dashboard')
 												}>
-												{item.icon}
+												{React.isValidElement(item.icon)
+													? item.icon
+													: React.createElement(item.icon as any, {
+															className: 'w-4 h-4',
+													  })}
 												<span>{item.label}</span>
 											</SidebarMenuButton>
 										</Link>
