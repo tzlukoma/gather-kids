@@ -157,9 +157,11 @@ export default function YearManagePage() {
 									<button
 										key={v}
 										onClick={() => setDisplayVersion(v)}
-										className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+										aria-pressed={v === displayVersion}
+										aria-label={`Show ${v}`}
+										className={`inline-flex items-center rounded-full border px-3 py-1 text-sm font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 ${
 											v === displayVersion
-												? 'bg-primary text-primary-foreground'
+												? 'bg-primary text-primary-foreground shadow-sm'
 												: 'bg-background text-muted-foreground border'
 										}`}>
 										{v}
