@@ -383,7 +383,7 @@ export async function registerHousehold(data: any, cycle_id: string, isPrefill: 
     const isUpdate = !!data.household.household_id;
     const now = new Date().toISOString();
 
-    await db.transaction('rw', db.households, db.guardians, db.emergency_contacts, db.children, db.registrations, db.ministry_enrollments, db.ministries, async () => {
+    await (db as any).transaction('rw', db.households, db.guardians, db.emergency_contacts, db.children, db.registrations, db.ministry_enrollments, db.ministries, async () => {
 
         // This block handles overwriting an existing registration for the *current* cycle.
         // It should NOT run for a pre-fill from a previous year.
@@ -763,7 +763,7 @@ export async function getLeaderBibleBeeProgress(leaderId: string, cycleId: strin
 }
 
 export async function saveLeaderAssignments(leaderId: string, cycleId: string, newAssignments: Omit<LeaderAssignment, 'assignment_id'>[]) {
-    return db.transaction('rw', db.leader_assignments, async () => {
+    return (db as any).transaction('rw', db.leader_assignments, async () => {
         // Delete old assignments for this leader and cycle
         await db.leader_assignments.where({ leader_id: leaderId, cycle_id: cycleId }).delete();
 

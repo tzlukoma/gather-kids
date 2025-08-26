@@ -1,13 +1,18 @@
-export enum AuthRole {
-    ADMIN = 'ADMIN',
-    MINISTRY_LEADER = 'MINISTRY_LEADER',
-    GUARDIAN = 'GUARDIAN',
-    VOLUNTEER = 'VOLUNTEER'
-}
+export const AuthRole = {
+    ADMIN: 'ADMIN',
+    MINISTRY_LEADER: 'MINISTRY_LEADER',
+    GUARDIAN: 'GUARDIAN',
+    VOLUNTEER: 'VOLUNTEER'
+} as const;
+
+export type AuthRole = typeof AuthRole[keyof typeof AuthRole];
 
 export interface BaseUser {
-    uid: string;
+    // support either `uid` or `id` depending on caller
+    uid?: string;
+    id?: string;
     email: string;
+    name?: string;
     displayName?: string;
     metadata: {
         role: AuthRole;

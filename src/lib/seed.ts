@@ -113,6 +113,7 @@ const generateHouseholdsAndChildren = (): { households: Household[], children: C
             const birthDay = Math.floor(Math.random() * 28) + 1; // 1-28 to be safe
             const dob = new Date(birthYear, birthMonth, birthDay);
 
+            const k = kid as any;
             children.push({
                 child_id: `c_${householdId}_${childCounter++}`,
                 household_id: householdId,
@@ -120,9 +121,9 @@ const generateHouseholdsAndChildren = (): { households: Household[], children: C
                 last_name: family.lastName,
                 dob: formatISO(dob, { representation: 'date' }),
                 grade: getGradeFromAge(kid.age),
-                allergies: kid.allergies,
-                child_mobile: kid.mobile,
-                is_active: !(kid as any).inactive,
+                allergies: k.allergies,
+                child_mobile: k.mobile,
+                is_active: !k.inactive,
                 special_needs: false,
                 created_at: now,
                 updated_at: now,
@@ -163,7 +164,7 @@ export const seedDB = async () => {
     leaders.forEach(l => USER_IDS[l.name.split(' ')[0]] = l.user_id);
 
 
-    await db.transaction('rw', db.users, db.registration_cycles, db.ministries, db.events, db.households, db.children, db.guardians, db.emergency_contacts, db.registrations, db.ministry_enrollments, db.leader_assignments, db.attendance, db.incidents, async () => {
+    await (db as any).transaction('rw', db.users, db.registration_cycles, db.ministries, db.events, db.households, db.children, db.guardians, db.emergency_contacts, db.registrations, db.ministry_enrollments, db.leader_assignments, db.attendance, db.incidents, async () => {
 
         await db.users.bulkPut(leaders);
 

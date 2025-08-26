@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import { ReactNode, ComponentType } from 'react';
 import {
 	LayoutDashboard,
 	CheckCheck,
@@ -8,12 +8,13 @@ import {
 	ClipboardList,
 	Contact,
 	Settings,
+	Book,
 } from 'lucide-react';
 import { AuthRole } from './auth-types';
 
 interface MenuItem {
 	href: string;
-	icon: ReactNode;
+	icon: ComponentType<any> | ReactNode;
 	label: string;
 	roles: AuthRole[];
 	requiresActive?: boolean;
@@ -23,13 +24,13 @@ interface MenuItem {
 export const MENU_ITEMS: MenuItem[] = [
 	{
 		href: '/dashboard',
-		icon: <LayoutDashboard />,
+		icon: LayoutDashboard,
 		label: 'Dashboard',
 		roles: [AuthRole.ADMIN],
 	},
 	{
 		href: '/dashboard/check-in',
-		icon: <CheckCheck />,
+		icon: CheckCheck,
 		label: 'Check-In/Out',
 		roles: [AuthRole.ADMIN, AuthRole.MINISTRY_LEADER, AuthRole.GUARDIAN],
 		requiresActive: true,
@@ -39,46 +40,55 @@ export const MENU_ITEMS: MenuItem[] = [
 	},
 	{
 		href: '/dashboard/rosters',
-		icon: <Users />,
+		icon: Users,
 		label: 'Rosters',
 		roles: [AuthRole.ADMIN, AuthRole.MINISTRY_LEADER],
 		requiresActive: true,
 	},
 	{
 		href: '/dashboard/registrations',
-		icon: <ClipboardList />,
+		icon: ClipboardList,
 		label: 'Registrations',
 		roles: [AuthRole.ADMIN, AuthRole.MINISTRY_LEADER],
 		requiresActive: true,
 	},
 	{
 		href: '/dashboard/incidents',
-		icon: <ShieldAlert />,
+		icon: ShieldAlert,
 		label: 'Incidents',
 		roles: [AuthRole.ADMIN, AuthRole.MINISTRY_LEADER],
 	},
 	{
+		href: '/dashboard/bible-bee',
+		icon: Book,
+		label: 'Bible Bee',
+		roles: [AuthRole.ADMIN, AuthRole.MINISTRY_LEADER],
+		requiresActive: true,
+		ministryCheck: (ministryIds: string[], userRole?: AuthRole) =>
+			userRole === AuthRole.ADMIN || ministryIds.includes('bible-bee'),
+	},
+	{
 		href: '/dashboard/leaders',
-		icon: <Contact />,
+		icon: Contact,
 		label: 'Leaders',
 		roles: [AuthRole.ADMIN],
 	},
 	{
 		href: '/dashboard/reports',
-		icon: <FileText />,
+		icon: FileText,
 		label: 'Reports',
 		roles: [AuthRole.ADMIN],
 	},
 	{
 		href: '/dashboard/configuration',
-		icon: <Settings />,
+		icon: Settings,
 		label: 'Configuration',
 		roles: [AuthRole.ADMIN],
 	},
 	// Guardian menu items
 	{
 		href: '/household',
-		icon: <Users />,
+		icon: Users,
 		label: 'My Household',
 		roles: [AuthRole.GUARDIAN],
 	},
@@ -86,8 +96,8 @@ export const MENU_ITEMS: MenuItem[] = [
 
 export const getAuthorizedMenuItems = (
 	userRole: AuthRole | null,
-	isActive: boolean = true,
-	ministryIds: string[] = []
+	ministryIds: string[] = [],
+	isActive: boolean = true
 ): MenuItem[] => {
 	if (!userRole) return [];
 
