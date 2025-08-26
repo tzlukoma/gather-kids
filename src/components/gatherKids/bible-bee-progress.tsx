@@ -45,7 +45,8 @@ export function LeaderBibleBeeProgress({
 	useEffect(() => {
 		if (competitionYears && competitionYears.length > 0) {
 			const defaultYear = String(competitionYears[0].year);
-			setSelectedCycle((prev) => prev || defaultYear);
+			// default to the most recent competition year
+			setSelectedCycle(defaultYear);
 		}
 	}, [competitionYears]);
 
@@ -60,6 +61,9 @@ export function LeaderBibleBeeProgress({
 					if (r.gradeGroup) groups.add(r.gradeGroup);
 				});
 				setAvailableGradeGroups(Array.from(groups).sort());
+				// Prefill dropdowns when data loads: ensure grade filter and sort are defaults
+				setFilterGradeGroup('all');
+				setSortBy('name-asc');
 			}
 		};
 		load();
@@ -69,8 +73,6 @@ export function LeaderBibleBeeProgress({
 	}, [selectedCycle]);
 
 	if (!rows) return <div>Loading Bible Bee progress...</div>;
-	if (rows.length === 0)
-		return <div>No children enrolled in Bible Bee for this cycle.</div>;
 
 	const filtered = rows.filter((r: any) => {
 		if (filterGradeGroup !== 'all') {
@@ -105,7 +107,9 @@ export function LeaderBibleBeeProgress({
 		<div className="space-y-2">
 			<div className="flex items-center gap-4 mb-2">
 				<div className="w-48">
-					<Select onValueChange={(v: any) => setSelectedCycle(String(v))}>
+					<Select
+						value={selectedCycle}
+						onValueChange={(v: any) => setSelectedCycle(String(v))}>
 						<SelectTrigger>
 							<SelectValue>{selectedCycle || cycleId}</SelectValue>
 						</SelectTrigger>
@@ -120,7 +124,9 @@ export function LeaderBibleBeeProgress({
 				</div>
 
 				<div className="w-56">
-					<Select onValueChange={(v: any) => setFilterGradeGroup(v as any)}>
+					<Select
+						value={filterGradeGroup}
+						onValueChange={(v: any) => setFilterGradeGroup(v as any)}>
 						<SelectTrigger>
 							<SelectValue>
 								{filterGradeGroup === 'all'
@@ -140,7 +146,9 @@ export function LeaderBibleBeeProgress({
 				</div>
 
 				<div className="w-48">
-					<Select onValueChange={(v: any) => setSortBy(v as any)}>
+					<Select
+						value={sortBy}
+						onValueChange={(v: any) => setSortBy(v as any)}>
 						<SelectTrigger>
 							<SelectValue>
 								{sortBy === 'name-asc' && 'Name (A → Z)'}
@@ -194,30 +202,38 @@ export function LeaderBibleBeeProgress({
 				</div>
 			</div>
 
-			{sorted.map((r: any) => (
-				<div
-					key={r.childId}
-					className="p-3 border rounded-md flex items-center justify-between">
-					<div>
-						<div className="font-medium">
-							<Link href={`/household/children/${r.childId}`}>
-								{r.childName}
-							</Link>
+			{sorted.length === 0 ? (
+				<div className="p-3 text-muted-foreground">
+					No children enrolled in Bible Bee for this cycle.
+				</div>
+			) : (
+				sorted.map((r: any) => (
+					<div
+						key={r.childId}
+						className="p-3 border rounded-md flex items-center justify-between">
+						<div>
+							<div className="font-medium">
+								<Link href={`/household/children/${r.childId}`}>
+									{r.childName}
+								</Link>
+							</div>
+							<div className="text-sm text-muted-foreground">
+								Scriptures: {r.completedScriptures}/{r.totalScriptures} — Essay:{' '}
+								{r.essayStatus}
+							</div>
+							<div className="text-xs text-muted-foreground">
+								Grade Group: {r.gradeGroup || 'N/A'} — Ministries:{' '}
+								{(r.ministries || [])
+									.map((m: any) => m.ministryName)
+									.join(', ')}
+							</div>
 						</div>
 						<div className="text-sm text-muted-foreground">
-							Scriptures: {r.completedScriptures}/{r.totalScriptures} — Essay:{' '}
-							{r.essayStatus}
-						</div>
-						<div className="text-xs text-muted-foreground">
-							Grade Group: {r.gradeGroup || 'N/A'} — Ministries:{' '}
-							{(r.ministries || []).map((m: any) => m.ministryName).join(', ')}
+							{Math.round(r.progressPct)}%
 						</div>
 					</div>
-					<div className="text-sm text-muted-foreground">
-						{Math.round(r.progressPct)}%
-					</div>
-				</div>
-			))}
+				))
+			)}
 		</div>
 	);
 }
