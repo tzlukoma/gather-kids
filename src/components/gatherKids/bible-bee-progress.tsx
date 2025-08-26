@@ -123,7 +123,15 @@ export function LeaderBibleBeeProgress({
 		if (filterGradeGroup !== 'all') {
 			if (r.gradeGroup !== filterGradeGroup) return false;
 		}
-		if (filterStatus !== 'all') return r.bibleBeeStatus === filterStatus;
+		if (filterStatus !== 'all') {
+			if (filterStatus === 'Complete') {
+				// Treat submitted essays (for children with no scriptures) as Complete
+				const isEssayComplete =
+					(r.totalScriptures || 0) === 0 && r.essayStatus === 'submitted';
+				return r.bibleBeeStatus === 'Complete' || isEssayComplete;
+			}
+			return r.bibleBeeStatus === filterStatus;
+		}
 		return true;
 	});
 
