@@ -10,15 +10,18 @@ import {
 	SelectContent,
 	SelectItem,
 } from '@/components/ui/select';
-import { getLeaderBibleBeeProgress } from '@/lib/dal';
+import {
+	getLeaderBibleBeeProgress,
+	getBibleBeeProgressForCycle,
+} from '@/lib/dal';
 import Link from 'next/link';
 
 export function LeaderBibleBeeProgress({
-	leaderId,
 	cycleId,
+	canUpload = false,
 }: {
-	leaderId: string;
 	cycleId: string;
+	canUpload?: boolean;
 }) {
 	const [rows, setRows] = useState<any[] | null>(null);
 	const [filterGradeGroup, setFilterGradeGroup] = useState<string | 'all'>(
@@ -49,7 +52,7 @@ export function LeaderBibleBeeProgress({
 	useEffect(() => {
 		let mounted = true;
 		const load = async () => {
-			const res = await getLeaderBibleBeeProgress(leaderId, selectedCycle);
+			const res = await getBibleBeeProgressForCycle(selectedCycle);
 			if (mounted) {
 				setRows(res);
 				const groups = new Set<string>();
@@ -63,7 +66,7 @@ export function LeaderBibleBeeProgress({
 		return () => {
 			mounted = false;
 		};
-	}, [leaderId, selectedCycle]);
+	}, [selectedCycle]);
 
 	if (!rows) return <div>Loading Bible Bee progress...</div>;
 	if (rows.length === 0)

@@ -376,15 +376,13 @@ export default function LeaderProfilePage() {
 				<CardHeader>
 					<CardTitle className="font-headline">Bible Bee Progress</CardTitle>
 					<CardDescription>
-						Read-only progress for children assigned to your ministries.
+						All children enrolled in Bible Bee for the 2025 cycle. Leaders may
+						upload scriptures if they have upload permissions.
 					</CardDescription>
 				</CardHeader>
 				<CardContent>
 					{typeof leader.user_id === 'string' ? (
-						<LeaderBibleBeeProgress
-							leaderId={leader.user_id}
-							cycleId={'2025'}
-						/>
+						<LeaderBibleBeeProgress cycleId={'2025'} canUpload={true} />
 					) : (
 						<div>No Bible Bee data available.</div>
 					)}
