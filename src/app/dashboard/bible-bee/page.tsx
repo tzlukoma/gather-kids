@@ -127,7 +127,8 @@ export default function BibleBeePage() {
 			</div>
 
 			<Tabs value={activeTab} onValueChange={setActiveTab}>
-				<TabsList className="grid w-full grid-cols-3">
+				{/* make tabs only as wide as their content */}
+				<TabsList className="inline-flex items-center gap-2">
 					<TabsTrigger value="students">Students</TabsTrigger>
 					<TabsTrigger value="scriptures">Scriptures</TabsTrigger>
 					{canManage && <TabsTrigger value="manage">Manage</TabsTrigger>}
