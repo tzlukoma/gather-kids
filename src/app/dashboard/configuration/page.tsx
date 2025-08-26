@@ -242,7 +242,7 @@ export default function ConfigurationPage() {
 
 			<MinistryFormDialog
 				isOpen={isDialogOpen}
-				onClose={() => setIsDialogOpen(false)}
+				onCloseAction={() => setIsDialogOpen(false)}
 				ministry={editingMinistry}
 			/>
 		</div>
