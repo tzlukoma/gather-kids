@@ -12,6 +12,8 @@ interface ScriptureCardProps {
 	onToggleAction?: (id: string, next: boolean) => void;
 	// When true, render the same visual card but without completion controls or click handlers
 	readOnly?: boolean;
+	// Optional override for which version to display (e.g. 'NIV', 'KJV')
+	displayVersion?: string;
 }
 
 export default function ScriptureCard({
@@ -19,18 +21,35 @@ export default function ScriptureCard({
 	index,
 	onToggleAction,
 	readOnly = false,
+	displayVersion,
 }: ScriptureCardProps) {
 	const completed = assignment.status === 'completed';
 	const reference = assignment.scripture?.reference ?? assignment.scriptureId;
-	const verseHtml = assignment.verseText ?? assignment.scripture?.text ?? '';
+	// choose verse HTML by preference: displayVersion prop -> assignment.verseText -> scripture.texts map -> scripture.text
+	const textsMap =
+		(assignment.scripture as any)?.texts ??
+		(assignment.scripture as any)?.alternateTexts ??
+		undefined;
+	const requestedVersion = displayVersion ?? undefined;
+	let verseHtml = assignment.verseText ?? assignment.scripture?.text ?? '';
+	if (requestedVersion && textsMap) {
+		// normalize keys for case-insensitive lookup
+		const norm: Record<string, string> = {};
+		Object.keys(textsMap).forEach((k) => {
+			norm[String(k).toUpperCase()] = textsMap[k];
+		});
+		const found = norm[String(requestedVersion).toUpperCase()];
+		if (found) verseHtml = found;
+	}
 	const idVal =
 		assignment.scripture?.id ?? assignment.scriptureId ?? String(index + 1);
 	const seq = `#${idVal}`;
-	const translation =
+	let translation =
 		assignment.displayTranslation ??
 		assignment.scripture?.translation ??
 		assignment.scripture?.version ??
 		'KJV';
+	if (requestedVersion) translation = requestedVersion;
 
 	// Sanitize verse HTML for safe insertion. Allow basic formatting used in scriptures.
 	const safeHtml = React.useMemo(() => {

@@ -61,6 +61,10 @@ export default function BibleBeePage() {
 	);
 	const [activeTab, setActiveTab] = useState<string>('students');
 	const [scriptures, setScriptures] = useState<any[] | null>(null);
+	const [displayVersion, setDisplayVersion] = useState<string | undefined>(
+		undefined
+	);
+	const [availableVersions, setAvailableVersions] = useState<string[]>([]);
 	const [canManage, setCanManage] = useState(false);
 
 	// leader list removed — Admin no longer filters by leader
@@ -81,14 +85,28 @@ export default function BibleBeePage() {
 				.where('competitionYearId')
 				.equals(yearObj.id)
 				.toArray();
-			if (mounted)
-				setScriptures(
-					s.sort(
-						(a: any, b: any) =>
-							Number(a.order ?? a.sortOrder ?? 0) -
-							Number(b.order ?? b.sortOrder ?? 0)
-					)
+			if (mounted) {
+				const sorted = s.sort(
+					(a: any, b: any) =>
+						Number(a.order ?? a.sortOrder ?? 0) -
+						Number(b.order ?? b.sortOrder ?? 0)
 				);
+				setScriptures(sorted);
+				// collect available versions from scriptures texts maps and translation fields
+				const versions = new Set<string>();
+				for (const item of sorted) {
+					if (item.texts)
+						Object.keys(item.texts).forEach((k) =>
+							versions.add(k.toUpperCase())
+						);
+					if (item.translation)
+						versions.add(String(item.translation).toUpperCase());
+				}
+				const vlist = Array.from(versions);
+				setAvailableVersions(vlist);
+				// default to first available
+				if (!displayVersion && vlist.length) setDisplayVersion(vlist[0]);
+			}
 		};
 		load();
 		return () => {
@@ -170,22 +188,57 @@ export default function BibleBeePage() {
 							) : scriptures.length === 0 ? (
 								<div>No scriptures defined for this year.</div>
 							) : (
-								<div className="grid gap-2">
-									{scriptures.map((s: any, idx: number) => (
-										<ScriptureCard
-											key={s.id}
-											assignment={{
-												id: s.id,
-												scriptureId: s.id,
-												scripture: s,
-												verseText: s.text,
-												competitionYearId: s.competitionYearId,
-											}}
-											index={idx}
-											readOnly
-										/>
-									))}
-								</div>
+								<>
+									{availableVersions.length > 0 && (
+										<div className="flex gap-2 mb-2">
+											{availableVersions.map((v) => (
+												<button
+													key={v}
+													onClick={() => setDisplayVersion(v)}
+													className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+														v === displayVersion
+															? 'bg-primary text-primary-foreground'
+															: 'bg-background text-muted-foreground border'
+													}`}>
+													{v}
+												</button>
+											))}
+										</div>
+									)}
+									<div className="grid gap-2">
+										{scriptures
+											.filter((s: any) => {
+												if (!displayVersion) return true;
+												const v = String(displayVersion).toUpperCase();
+												if (
+													s.translation &&
+													String(s.translation).toUpperCase() === v
+												)
+													return true;
+												const keys = s.texts
+													? Object.keys(s.texts).map((k: string) =>
+															k.toUpperCase()
+													  )
+													: [];
+												return keys.includes(v);
+											})
+											.map((s: any, idx: number) => (
+												<ScriptureCard
+													key={s.id}
+													assignment={{
+														id: s.id,
+														scriptureId: s.id,
+														scripture: s,
+														verseText: s.text,
+														competitionYearId: s.competitionYearId,
+													}}
+													index={idx}
+													readOnly
+													displayVersion={displayVersion}
+												/>
+											))}
+									</div>
+								</>
 							)}
 						</CardContent>
 					</Card>
