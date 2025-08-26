@@ -157,6 +157,8 @@ export const seedDB = async () => {
         { user_id: 'user_leader_11', name: 'Chris Evans', email: 'leader.khalfani@example.com', role: 'MINISTRY_LEADER', is_active: true, background_check_status: 'clear' },
         { user_id: 'user_leader_12', name: 'Megan Young', email: 'leader.joybells@example.com', role: 'MINISTRY_LEADER', is_active: true, background_check_status: 'clear' },
         { user_id: 'user_leader_13', name: 'Tom Allen', email: 'leader.inactive@example.com', role: 'MINISTRY_LEADER', is_active: false, background_check_status: 'clear' },
+        // Bible Bee Primary Leader
+        { user_id: 'user_leader_14', name: 'Alex Pastor', email: 'leader.biblebee@example.com', role: 'MINISTRY_LEADER', is_active: true, background_check_status: 'clear' },
     ];
     leaders.forEach(l => USER_IDS[l.name.split(' ')[0]] = l.user_id);
 
@@ -274,6 +276,14 @@ export const seedDB = async () => {
             }
         }
 
+        // Ensure at least 20 kids are enrolled in Bible Bee for the current cycle
+        let bibleBeeCount = 0;
+        for (const child of activeChildrenForCurrentCycle) {
+            if (bibleBeeCount >= 20) break;
+            enrollments.push({ enrollment_id: uuidv4(), child_id: child.child_id, cycle_id: CYCLE_IDS.current, ministry_id: MINISTRY_IDS['bible-bee'], status: 'enrolled' });
+            bibleBeeCount++;
+        }
+
         await db.registrations.bulkPut(registrations);
         await db.ministry_enrollments.bulkPut(enrollments);
 
@@ -287,6 +297,8 @@ export const seedDB = async () => {
             { assignment_id: uuidv4(), leader_id: 'user_leader_12', ministry_id: MINISTRY_IDS['min_sunday_school'], cycle_id: CYCLE_IDS.current, role: 'Volunteer' },
             // user_leader_13 -> prior acolyte assignment
             { assignment_id: uuidv4(), leader_id: 'user_leader_13', ministry_id: MINISTRY_IDS['acolyte'], cycle_id: CYCLE_IDS.prior, role: 'Primary' },
+            // user_leader_14 -> Bible Bee Primary
+            { assignment_id: uuidv4(), leader_id: 'user_leader_14', ministry_id: MINISTRY_IDS['bible-bee'], cycle_id: CYCLE_IDS.current, role: 'Primary' },
         ];
         await db.leader_assignments.bulkPut(leaderAssignments);
 

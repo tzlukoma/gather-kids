@@ -54,6 +54,15 @@ const DEMO_USERS = {
 		uid: 'user_leader_12',
 		role: AuthRole.MINISTRY_LEADER,
 	},
+	// Bible Bee Primary Leader
+	bibleBeeLeader: {
+		email: 'leader.biblebee@example.com',
+		password: 'password',
+		is_active: true,
+		name: 'Alex Pastor',
+		uid: 'user_leader_14',
+		role: AuthRole.MINISTRY_LEADER,
+	},
 	guardian: {
 		email: 'guardian@example.com',
 		password: 'password',
@@ -189,6 +198,16 @@ export default function LoginPage() {
 													prefillDemoCredentials('joybellsLeader')
 												}>
 												{DEMO_USERS.joybellsLeader.email}
+											</button>
+										</li>
+										<li>
+											Leader (Bible Bee Primary):{' '}
+											<button
+												className="text-left font-semibold underline"
+												onClick={() =>
+													prefillDemoCredentials('bibleBeeLeader')
+												}>
+												{DEMO_USERS.bibleBeeLeader.email}
 											</button>
 										</li>
 										<li>
