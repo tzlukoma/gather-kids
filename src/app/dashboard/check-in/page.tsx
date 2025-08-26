@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { CheckInView } from '@/components/gatherKids/check-in-view';
 import { ROLES } from '@/lib/constants/roles';
 import { ProtectedRoute } from '@/components/auth/protected-route';
@@ -17,7 +17,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/auth-context';
-import { useRouter } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { Users, Filter, Edit } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { getTodayIsoDate } from '@/lib/dal';
@@ -67,6 +67,7 @@ const eventOptions = [
 function CheckInContent() {
 	const { user } = useAuth();
 	const isMobile = useIsMobile();
+	const searchParams = useSearchParams();
 
 	const [selectedEvent, setSelectedEvent] = useState('evt_sunday_school');
 	const [selectedGrades, setSelectedGrades] = useState<Set<string>>(new Set());
@@ -112,6 +113,19 @@ function CheckInContent() {
 			return newSet;
 		});
 	};
+
+	// Read query params on mount / when they change and apply initial filters.
+	useEffect(() => {
+		if (!searchParams) return;
+		const filter = searchParams.get('filter');
+		if (filter === 'checkedIn' || filter === 'checkedOut' || filter === 'all') {
+			setStatusFilter(filter as StatusFilter);
+		}
+		const event = searchParams.get('event');
+		if (event && eventOptions.find((e) => e.id === event)) {
+			setSelectedEvent(event);
+		}
+	}, [searchParams]);
 
 	const FilterControls = () => (
 		<div className="space-y-4">

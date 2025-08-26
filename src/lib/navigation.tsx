@@ -68,8 +68,7 @@ export const MENU_ITEMS: MenuItem[] = [
 				fill="none"
 				stroke="currentColor"
 				strokeWidth={1.5}
-				className="h-5 w-5"
-			>
+				className="h-5 w-5">
 				<path d="M12 3c.667 0 2 1.333 2 2s-1.333 2-2 2-2-1.333-2-2 1.333-2 2-2z" />
 				<path d="M7 8c-1 1-2 2-2 4s1 3 3 3h.5" />
 				<path d="M17 8c1 1 2 2 2 4s-1 3-3 3h-.5" />
