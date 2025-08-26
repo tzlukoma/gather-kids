@@ -25,28 +25,28 @@ import Link from 'next/link';
 
 function AuthLoader({ user, setAllowed }: any) {
 	useEffect(() => {
- 		let mounted = true;
- 		const load = async () => {
- 			if (!user) return;
+		let mounted = true;
+		const load = async () => {
+			if (!user) return;
 
- 			if (user?.metadata?.role === AuthRole.ADMIN) {
- 				setAllowed(true);
- 				return;
- 			}
+			if (user?.metadata?.role === AuthRole.ADMIN) {
+				setAllowed(true);
+				return;
+			}
 
- 			if (user?.metadata?.role === AuthRole.MINISTRY_LEADER) {
- 				// If a ministry leader and assigned to bible-bee, allow; DAL check not required here
- 				setAllowed(true);
- 			}
- 		};
+			if (user?.metadata?.role === AuthRole.MINISTRY_LEADER) {
+				// If a ministry leader and assigned to bible-bee, allow; DAL check not required here
+				setAllowed(true);
+			}
+		};
 
- 		load();
- 		return () => {
- 			mounted = false;
- 		};
- 	}, [user, setAllowed]);
+		load();
+		return () => {
+			mounted = false;
+		};
+	}, [user, setAllowed]);
 
- 	return null;
+	return null;
 }
 
 export default function BibleBeePage() {
@@ -69,12 +69,17 @@ export default function BibleBeePage() {
 		let mounted = true;
 		const load = async () => {
 			if (!competitionYears) return;
-			const yearObj = competitionYears.find((y: any) => String(y.year) === String(selectedCycle));
+			const yearObj = competitionYears.find(
+				(y: any) => String(y.year) === String(selectedCycle)
+			);
 			if (!yearObj) {
 				setScriptures([]);
 				return;
 			}
-			const s = await db.scriptures.where('competitionYearId').equals(yearObj.id).toArray();
+			const s = await db.scriptures
+				.where('competitionYearId')
+				.equals(yearObj.id)
+				.toArray();
 			if (mounted) setScriptures(s);
 		};
 		load();
@@ -93,10 +98,20 @@ export default function BibleBeePage() {
 		if (user?.metadata?.role === AuthRole.MINISTRY_LEADER) {
 			// simple check: if user has an assignment as Primary for bible-bee in current cycle
 			(async () => {
-				const uid = (user as any).id || (user as any).uid || (user as any).user_id || (user as any).userId;
+				const uid =
+					(user as any).id ||
+					(user as any).uid ||
+					(user as any).user_id ||
+					(user as any).userId;
 				if (!uid) return;
-				const assignments = await db.leader_assignments.where({ leader_id: uid, cycle_id: selectedCycle }).toArray();
-				const hasPrimary = assignments.some((a: any) => (a as any).ministry_id === 'bible-bee' && (a as any).role === 'Primary');
+				const assignments = await db.leader_assignments
+					.where({ leader_id: uid, cycle_id: selectedCycle })
+					.toArray();
+				const hasPrimary = assignments.some(
+					(a: any) =>
+						(a as any).ministry_id === 'bible-bee' &&
+						(a as any).role === 'Primary'
+				);
 				setCanManage(hasPrimary);
 			})();
 		}
@@ -106,7 +121,9 @@ export default function BibleBeePage() {
 		<div className="flex flex-col gap-6">
 			<div>
 				<h1 className="text-3xl font-bold font-headline">Bible Bee</h1>
-				<p className="text-muted-foreground">Progress and scriptures for the selected year.</p>
+				<p className="text-muted-foreground">
+					Progress and scriptures for the selected year.
+				</p>
 			</div>
 
 			<Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -134,7 +151,9 @@ export default function BibleBeePage() {
 					<Card>
 						<CardHeader>
 							<CardTitle>Scriptures for {selectedCycle}</CardTitle>
-							<CardDescription>Scriptures assigned for the selected competition year.</CardDescription>
+							<CardDescription>
+								Scriptures assigned for the selected competition year.
+							</CardDescription>
 						</CardHeader>
 						<CardContent>
 							{!scriptures ? (
@@ -146,7 +165,9 @@ export default function BibleBeePage() {
 									{scriptures.map((s: any) => (
 										<div key={s.id} className="p-2 border rounded">
 											<div className="font-medium">{s.reference}</div>
-											<div className="text-sm text-muted-foreground">{s.text}</div>
+											<div className="text-sm text-muted-foreground">
+												{s.text}
+											</div>
 										</div>
 									))}
 								</div>
@@ -160,7 +181,9 @@ export default function BibleBeePage() {
 						<Card>
 							<CardHeader>
 								<CardTitle>Manage Competition Years</CardTitle>
-								<CardDescription>Manage competition years and scriptures.</CardDescription>
+								<CardDescription>
+									Manage competition years and scriptures.
+								</CardDescription>
 							</CardHeader>
 							<CardContent>
 								<YearList />

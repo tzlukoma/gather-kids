@@ -165,6 +165,8 @@ export const seedDB = async () => {
         { user_id: 'user_leader_13', name: 'Tom Allen', email: 'leader.inactive@example.com', role: 'MINISTRY_LEADER', is_active: false, background_check_status: 'clear' },
         // Bible Bee Primary Leader
         { user_id: 'user_leader_14', name: 'Alex Pastor', email: 'leader.biblebee@example.com', role: 'MINISTRY_LEADER', is_active: true, background_check_status: 'clear' },
+        // Bible Bee Volunteer Leader (demo)
+        { user_id: 'user_leader_15', name: 'Bible Bee Volunteer', email: 'leader.biblebeevolunteer@example.com', role: 'MINISTRY_LEADER', is_active: true, background_check_status: 'clear' },
     ];
     leaders.forEach(l => USER_IDS[l.name.split(' ')[0]] = l.user_id);
 
@@ -410,6 +412,8 @@ export const seedDB = async () => {
                 { assignment_id: uuidv4(), leader_id: 'user_leader_13', ministry_id: MINISTRY_IDS['acolyte'], cycle_id: CYCLE_IDS.prior, role: 'Primary' },
                 // user_leader_14 -> Bible Bee Primary
                 { assignment_id: uuidv4(), leader_id: 'user_leader_14', ministry_id: MINISTRY_IDS['bible-bee'], cycle_id: CYCLE_IDS.current, role: 'Primary' },
+                // user_leader_15 -> Bible Bee Volunteer
+                { assignment_id: uuidv4(), leader_id: 'user_leader_15', ministry_id: MINISTRY_IDS['bible-bee'], cycle_id: CYCLE_IDS.current, role: 'Volunteer' },
             ];
             await db.leader_assignments.bulkPut(leaderAssignments);
 
