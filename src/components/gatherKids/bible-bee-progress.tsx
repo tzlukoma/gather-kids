@@ -80,9 +80,38 @@ export function LeaderBibleBeeProgress({
 		const load = async () => {
 			const res = await getBibleBeeProgressForCycle(selectedCycle);
 			if (mounted) {
-				setRows(res);
+				// Prefetch guardians for rows' households to ensure primary guardian is available
+				const householdIds = Array.from(
+					new Set(res.map((r: any) => r.child?.household_id).filter(Boolean))
+				);
+				let guardianMap = new Map<string, any>();
+				if (householdIds.length > 0) {
+					const guardians = await db.guardians
+						.where('household_id')
+						.anyOf(householdIds)
+						.toArray();
+					for (const g of guardians) {
+						if (!guardianMap.has(g.household_id))
+							guardianMap.set(g.household_id, []);
+						guardianMap.get(g.household_id).push(g);
+					}
+				}
+
+				const resWithGuardians = res.map((r: any) => {
+					const existing = r.primaryGuardian ?? null;
+					if (existing) return r;
+					const guardiansForHouse =
+						guardianMap.get(r.child?.household_id) || [];
+					const primary =
+						guardiansForHouse.find((g: any) => g.is_primary) ||
+						guardiansForHouse[0] ||
+						null;
+					return { ...r, primaryGuardian: primary };
+				});
+
+				setRows(resWithGuardians);
 				const groups = new Set<string>();
-				res.forEach((r: any) => {
+				resWithGuardians.forEach((r: any) => {
 					if (r.gradeGroup) groups.add(r.gradeGroup);
 				});
 				const sortedGroups = Array.from(groups).sort();
@@ -289,9 +318,9 @@ export function LeaderBibleBeeProgress({
 					<div
 						key={r.childId}
 						className="p-3 border rounded-md flex items-center justify-between">
-						<div>
+						<div className="flex-1">
 							<div className="font-medium">
-								{/**
+								{/*
 								 * Guardians should go to the household child profile.
 								 * Leaders, volunteers, admins should go to the Bible Bee assignments page
 								 * to avoid the guardian-only authorization check in the household profile page.
@@ -305,7 +334,8 @@ export function LeaderBibleBeeProgress({
 									{r.childName}
 								</Link>
 							</div>
-							<div className="text-sm text-muted-foreground">
+
+							<div className="text-sm text-muted-foreground mt-1">
 								{(r.totalScriptures || r.requiredScriptures) > 0 ? (
 									<>
 										Scriptures: {r.completedScriptures}/
@@ -315,13 +345,26 @@ export function LeaderBibleBeeProgress({
 									<>Essay: {r.essayStatus || 'none'}</>
 								)}
 							</div>
-							<div className="text-xs text-muted-foreground">
+
+							<div className="text-xs text-muted-foreground mt-1">
 								Grade Group: {r.gradeGroup || 'N/A'} — Ministries:{' '}
 								{(r.ministries || [])
 									.map((m: any) => m.ministryName)
 									.join(', ')}
 							</div>
+
+							<div className="text-sm text-muted-foreground mt-1">
+								{r.primaryGuardian ? (
+									<>
+										{r.primaryGuardian.first_name} {r.primaryGuardian.last_name}{' '}
+										• {r.primaryGuardian.mobile_phone || 'no phone'}
+									</>
+								) : (
+									<>No guardian info</>
+								)}
+							</div>
 						</div>
+
 						<div className="text-sm text-muted-foreground">
 							{Math.round(r.progressPct)}%
 						</div>
