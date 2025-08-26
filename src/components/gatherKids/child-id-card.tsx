@@ -10,7 +10,7 @@ import {
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { User, Camera, Cake } from 'lucide-react';
-import { format, parseISO, differenceInYears } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import type { EnrichedChild } from './check-in-view';
 
 interface ChildIdCardProps {
@@ -121,7 +121,6 @@ export function ChildIdCard({
 				</CardContent>
 			</Card>
 
-			{/* Bible Bee summary stats (show only when provided) */}
 			{bibleBeeStats ? (
 				<div className="mt-3">
 					<div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
