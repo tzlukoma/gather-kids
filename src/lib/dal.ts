@@ -13,6 +13,7 @@
 
 
 import { db } from './db';
+import { getApplicableGradeRule } from './bibleBee';
 import { AuthRole } from './auth-types';
 import type { Attendance, Child, Guardian, Household, Incident, IncidentSeverity, Ministry, MinistryEnrollment, Registration, User, EmergencyContact, LeaderAssignment } from './types';
 import { differenceInYears, isAfter, isBefore, parseISO, isValid } from 'date-fns';
@@ -676,6 +677,89 @@ export async function getLeaderProfile(leaderId: string, cycleId: string) {
 
 export async function getLeaderAssignmentsForCycle(leaderId: string, cycleId: string) {
     return db.leader_assignments.where({ leader_id: leaderId, cycle_id: cycleId }).toArray();
+}
+
+export async function getLeaderBibleBeeProgress(leaderId: string, cycleId: string) {
+    // Find ministries this leader is assigned to for the cycle
+    const assignments = await getLeaderAssignmentsForCycle(leaderId, cycleId);
+    const ministryIds = assignments.map(a => a.ministry_id);
+    if (ministryIds.length === 0) return [];
+
+    // Find children enrolled in those ministries for the cycle
+    const enrollments = await db.ministry_enrollments.where('ministry_id').anyOf(ministryIds).and(e => e.cycle_id === cycleId).toArray();
+    const childIds = [...new Set(enrollments.map(e => e.child_id))];
+    if (childIds.length === 0) return [];
+
+    const children = await db.children.where('child_id').anyOf(childIds).toArray();
+
+    // Find the competition year matching the numeric cycle year (if present)
+    const yearNum = Number(cycleId);
+    const compYear = await db.competitionYears.where('year').equals(yearNum).first();
+
+    // For each child compute scripture and essay progress for the found competition year
+    const results: any[] = [];
+    // Build a map of childId -> ministries they are enrolled in
+    const allEnrollmentsForChildren = await db.ministry_enrollments.where('child_id').anyOf(childIds).and(e => e.cycle_id === cycleId).toArray();
+    const ministryList = await db.ministries.toArray();
+    const ministryMap = new Map(ministryList.map(m => [m.ministry_id, m]));
+
+    for (const child of children) {
+        let scriptures: any[] = [];
+        let essays: any[] = [];
+        if (compYear) {
+            scriptures = await db.studentScriptures.where({ childId: child.child_id, competitionYearId: compYear.id }).toArray();
+            essays = await db.studentEssays.where({ childId: child.child_id, competitionYearId: compYear.id }).toArray();
+        }
+
+        const totalScriptures = scriptures.length;
+        const completedScriptures = scriptures.filter(s => s.status === 'completed').length;
+        const essayStatus = essays.length ? essays[0].status : 'none';
+
+        const childEnrolls = allEnrollmentsForChildren.filter(e => e.child_id === child.child_id).map(e => ({ ...e, ministryName: ministryMap.get(e.ministry_id)?.name || 'Unknown' }));
+
+        // Determine required/scripture target for this child's grade using grade rules
+        let requiredScriptures: number | null = null;
+        let gradeGroup: string | null = null;
+        try {
+            const gradeNum = child.grade ? Number(child.grade) : NaN;
+            const rule = !isNaN(gradeNum) && compYear ? await getApplicableGradeRule(compYear.id, gradeNum) : null;
+            requiredScriptures = rule?.targetCount ?? null;
+            if (rule) {
+                if (rule.minGrade === rule.maxGrade) gradeGroup = `Grade ${rule.minGrade}`;
+                else gradeGroup = `Grades ${rule.minGrade}-${rule.maxGrade}`;
+            }
+        } catch (err) {
+            requiredScriptures = null;
+            gradeGroup = null;
+        }
+
+        // Derive completion status per user request: Not Started, In-Progress (some but not enough), Complete (has completed the minimum)
+        const target = requiredScriptures ?? totalScriptures;
+        let bibleBeeStatus: 'Not Started' | 'In-Progress' | 'Complete' = 'Not Started';
+        if (completedScriptures === 0) {
+            bibleBeeStatus = 'Not Started';
+        } else if (completedScriptures >= target) {
+            bibleBeeStatus = 'Complete';
+        } else {
+            bibleBeeStatus = 'In-Progress';
+        }
+
+        results.push({
+            childId: child.child_id,
+            childName: `${child.first_name} ${child.last_name}`,
+            totalScriptures,
+            completedScriptures,
+            requiredScriptures: requiredScriptures ?? totalScriptures,
+            bibleBeeStatus,
+            gradeGroup,
+            essayStatus,
+            ministries: childEnrolls,
+            child,
+        });
+    }
+
+    // sort by child name
+    return results.sort((a, b) => a.childName.localeCompare(b.childName));
 }
 
 export async function saveLeaderAssignments(leaderId: string, cycleId: string, newAssignments: Omit<LeaderAssignment, 'assignment_id'>[]) {
