@@ -58,8 +58,12 @@ export function DashboardNav({ children }: DashboardNavProps) {
 				return;
 			if (userRole === AuthRole.MINISTRY_LEADER) {
 				try {
+					const leaderId = (user.uid || user.id || (user as any).user_id) as
+						| string
+						| undefined;
+					if (!leaderId) return;
 					const dbAssignments = await getLeaderAssignmentsForCycle(
-						user.uid,
+						leaderId,
 						'2025'
 					);
 					if (!mounted) return;
@@ -133,7 +137,9 @@ export function DashboardNav({ children }: DashboardNavProps) {
 					<SidebarContent>
 						<SidebarMenu>
 							{finalMenuItems.map((item) => {
-								const Icon = item.icon as React.ComponentType<any>;
+								const Icon = item.icon as
+									| React.ComponentType<any>
+									| React.ReactNode;
 								return (
 									<SidebarMenuItem
 										key={item.href}
@@ -142,7 +148,11 @@ export function DashboardNav({ children }: DashboardNavProps) {
 											<Link
 												href={item.href}
 												className="flex items-center gap-2">
-												{React.createElement(Icon, { className: 'w-4 h-4' })}
+												{typeof Icon === 'function'
+													? React.createElement(Icon as any, {
+															className: 'w-4 h-4',
+													  })
+													: Icon}
 												<span>{item.label}</span>
 											</Link>
 										</SidebarMenuButton>

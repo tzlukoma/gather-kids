@@ -1,12 +1,10 @@
 
-import type {NextConfig} from 'next';
+import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
   /* config options here */
   devIndicators: {
-    allowedDevOrigins: [
-      '**.*.cloudworkstations.dev'
-    ]
+    // allowedDevOrigins removed to satisfy Next.js config typing in this environment
   },
   typescript: {
     ignoreBuildErrors: true,

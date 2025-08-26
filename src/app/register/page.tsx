@@ -180,8 +180,8 @@ function VerificationStepTwoForm({
 	const form = useForm<VerificationFormValues>({
 		resolver: zodResolver(verificationSchema),
 		defaultValues: {
-			childDob: '',
-			streetNumber: '',
+			childDob: undefined,
+			streetNumber: undefined,
 			emergencyContactFirstName: '',
 		},
 	});

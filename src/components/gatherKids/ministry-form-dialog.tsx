@@ -164,7 +164,7 @@ export function MinistryFormDialog({
 					description: 'The new ministry has been created.',
 				});
 			}
-			onClose();
+			onCloseAction();
 		} catch (error) {
 			console.error('Failed to save ministry', error);
 			toast({
