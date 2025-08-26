@@ -22,6 +22,7 @@ import {
 	CardDescription,
 } from '@/components/ui/card';
 import Link from 'next/link';
+import ScriptureCard from '@/components/gatherKids/scripture-card';
 
 function AuthLoader({ user, setAllowed }: any) {
 	useEffect(() => {
@@ -80,7 +81,14 @@ export default function BibleBeePage() {
 				.where('competitionYearId')
 				.equals(yearObj.id)
 				.toArray();
-			if (mounted) setScriptures(s);
+			if (mounted)
+				setScriptures(
+					s.sort(
+						(a: any, b: any) =>
+							Number(a.order ?? a.sortOrder ?? 0) -
+							Number(b.order ?? b.sortOrder ?? 0)
+					)
+				);
 		};
 		load();
 		return () => {
@@ -162,14 +170,20 @@ export default function BibleBeePage() {
 							) : scriptures.length === 0 ? (
 								<div>No scriptures defined for this year.</div>
 							) : (
-								<div className="space-y-2">
-									{scriptures.map((s: any) => (
-										<div key={s.id} className="p-2 border rounded">
-											<div className="font-medium">{s.reference}</div>
-											<div className="text-sm text-muted-foreground">
-												{s.text}
-											</div>
-										</div>
+								<div className="grid gap-2">
+									{scriptures.map((s: any, idx: number) => (
+										<ScriptureCard
+											key={s.id}
+											assignment={{
+												id: s.id,
+												scriptureId: s.id,
+												scripture: s,
+												verseText: s.text,
+												competitionYearId: s.competitionYearId,
+											}}
+											index={idx}
+											readOnly
+										/>
 									))}
 								</div>
 							)}

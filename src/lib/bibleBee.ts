@@ -14,19 +14,23 @@ export async function createCompetitionYear(payload: Omit<CompetitionYear, 'id' 
         createdAt: now,
         updatedAt: now,
     };
-    await db.competitionYears.add(item);
+    await db.competitionYears.put(item);
     return item;
 }
 
 export async function upsertScripture(payload: Omit<Scripture, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }) {
     const now = new Date().toISOString();
     const id = payload.id ?? crypto.randomUUID();
+    // support legacy payload.alternateTexts but prefer payload.texts
+    const textsMap = (payload as any).texts ?? (payload as any).alternateTexts ?? undefined;
+
     const item: Scripture = {
         id,
         competitionYearId: payload.competitionYearId,
         reference: payload.reference,
         text: payload.text,
         translation: payload.translation,
+        texts: textsMap,
         bookLangAlt: payload.bookLangAlt,
         sortOrder: payload.sortOrder ?? 0,
         createdAt: now,
@@ -69,7 +73,8 @@ export async function enrollChildInBibleBee(childId: string, competitionYearId: 
     const now = new Date().toISOString();
 
     if (rule.type === 'scripture') {
-        const scriptures = await db.scriptures.where('competitionYearId').equals(competitionYearId).toArray();
+        const scriptures = (await db.scriptures.where('competitionYearId').equals(competitionYearId).toArray())
+            .sort((a: any, b: any) => Number(a.order ?? a.sortOrder ?? 0) - Number(b.order ?? b.sortOrder ?? 0));
         const existing = await db.studentScriptures.where({ childId, competitionYearId }).toArray();
         const existingKeys = new Set(existing.map(s => s.scriptureId));
         const toInsert = scriptures
@@ -150,6 +155,8 @@ export async function commitCsvRowsToYear(rows: CsvRow[], competitionYearId: str
         reference: r.reference ?? '',
         text: r.text ?? '',
         translation: r.translation,
+        // CSV rows may include a flattened texts object (e.g. as JSON) or legacy alternateTexts
+        texts: (r as any).texts ?? (r as any).alternateTexts,
         sortOrder: r.sortOrder ?? 0,
         createdAt: now,
         updatedAt: now,

@@ -145,7 +145,9 @@ export default function DashboardChildBibleBeePage() {
 
 	return (
 		<div className="space-y-6">
-			<h1 className="text-2xl font-headline">Bible Bee Assignments</h1>
+			<h1 className="text-3xl font-bold font-headline">
+				Bible Bee Assignments
+			</h1>
 
 			<ChildIdCard
 				child={enrichedChild}
