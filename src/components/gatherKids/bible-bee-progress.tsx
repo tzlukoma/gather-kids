@@ -15,6 +15,8 @@ import {
 	getBibleBeeProgressForCycle,
 } from '@/lib/dal';
 import Link from 'next/link';
+import { useAuth } from '@/contexts/auth-context';
+import { AuthRole } from '@/lib/auth-types';
 
 export function LeaderBibleBeeProgress({
 	cycleId,
@@ -59,6 +61,8 @@ export function LeaderBibleBeeProgress({
 	const [sortBy, setSortBy] = useState<
 		'name-asc' | 'name-desc' | 'progress-desc' | 'progress-asc'
 	>(initial?.sortBy ?? 'name-asc');
+
+	const { userRole } = useAuth();
 
 	useEffect(() => {
 		if (competitionYears && competitionYears.length > 0) {
@@ -279,7 +283,17 @@ export function LeaderBibleBeeProgress({
 						className="p-3 border rounded-md flex items-center justify-between">
 						<div>
 							<div className="font-medium">
-								<Link href={`/household/children/${r.childId}`}>
+								{/**
+								 * Guardians should go to the household child profile.
+								 * Leaders, volunteers, admins should go to the Bible Bee assignments page
+								 * to avoid the guardian-only authorization check in the household profile page.
+								 */}
+								<Link
+									href={
+										userRole === AuthRole.GUARDIAN
+											? `/household/children/${r.childId}`
+											: `/dashboard/bible-bee/child/${r.childId}`
+									}>
 									{r.childName}
 								</Link>
 							</div>
