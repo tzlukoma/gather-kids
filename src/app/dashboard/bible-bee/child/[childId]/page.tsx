@@ -21,7 +21,8 @@ import {
 	CardTitle,
 	CardDescription,
 } from '@/components/ui/card';
-import { Checkbox } from '@/components/ui/checkbox';
+import { CheckCircle } from 'lucide-react';
+import ScriptureCard from '@/components/gatherKids/scripture-card';
 
 export default function DashboardChildBibleBeePage() {
 	const params = useParams();
@@ -41,22 +42,6 @@ export default function DashboardChildBibleBeePage() {
 	}, [childCore?.household_id]);
 	const toggleMutation = useToggleScriptureMutation(childId);
 	const essayMutation = useSubmitEssayMutation(childId);
-
-	if (isLoading || !data) return <div>Loading Bible Bee assignments...</div>;
-
-	const enrichedChild = childCore
-		? {
-				...childCore,
-				guardians: guardiansForHousehold || [],
-				household: household || null,
-				activeAttendance: null,
-				emergencyContact: null,
-				incidents: [],
-				age: childCore.dob
-					? new Date().getFullYear() - new Date(childCore.dob).getFullYear()
-					: null,
-		  }
-		: null;
 
 	// Compute Bible Bee stats for the current competition year (if any)
 	const [bbStats, setBbStats] = useState<{
@@ -101,6 +86,22 @@ export default function DashboardChildBibleBeePage() {
 		compute();
 	}, [data, childCore]);
 
+	if (isLoading || !data) return <div>Loading Bible Bee assignments...</div>;
+
+	const enrichedChild = childCore
+		? {
+				...childCore,
+				guardians: guardiansForHousehold || [],
+				household: household || null,
+				activeAttendance: null,
+				emergencyContact: null,
+				incidents: [],
+				age: childCore.dob
+					? new Date().getFullYear() - new Date(childCore.dob).getFullYear()
+					: null,
+		  }
+		: null;
+
 	const handleUpdatePhoto = async (c: any) => {
 		// delegate to DAL if available
 		if (!c || !c.child_id) return;
@@ -123,40 +124,23 @@ export default function DashboardChildBibleBeePage() {
 			/>
 
 			<div>
-				<h2 className="font-semibold">Scriptures</h2>
+				<h2 className="font-semibold text-2xl mb-3">Scriptures</h2>
 				<div className="grid gap-2">
-					{data.scriptures.map((s: any) => (
-						<Card key={s.id}>
-							<CardHeader>
-								<CardTitle>{s.scripture?.reference ?? s.scriptureId}</CardTitle>
-								<CardDescription>{s.scripture?.text}</CardDescription>
-							</CardHeader>
-							<CardContent>
-								<div className="flex items-center gap-4">
-									<Checkbox
-										checked={s.status === 'completed'}
-										onCheckedChange={(v) =>
-											toggleMutation.mutate({ id: s.id, complete: !!v })
-										}
-									/>
-									<div className="text-sm text-muted-foreground">
-										{s.status === 'completed'
-											? `Completed ${
-													s.completedAt
-														? new Date(s.completedAt).toLocaleString()
-														: ''
-											  }`
-											: 'Not completed'}
-									</div>
-								</div>
-							</CardContent>
-						</Card>
+					{data.scriptures.map((s: any, idx: number) => (
+						<ScriptureCard
+							key={s.id}
+							assignment={s}
+							index={idx}
+							onToggleAction={(id, next) =>
+								toggleMutation.mutate({ id, complete: next })
+							}
+						/>
 					))}
 				</div>
 			</div>
 
 			<div>
-				<h2 className="font-semibold">Essays</h2>
+				<h2 className="font-semibold text-2xl mb-3">Essays</h2>
 				<div className="space-y-2">
 					{data.essays.map((e: any) => (
 						<Card key={e.id}>

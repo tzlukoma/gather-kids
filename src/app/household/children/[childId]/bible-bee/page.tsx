@@ -15,7 +15,7 @@ import {
 	CardTitle,
 	CardDescription,
 } from '@/components/ui/card';
-import { Checkbox } from '@/components/ui/checkbox';
+import ScriptureCard from '@/components/gatherKids/scripture-card';
 
 export default function ChildBibleBeePage() {
 	const params = useParams();
@@ -32,34 +32,17 @@ export default function ChildBibleBeePage() {
 			<h1 className="text-2xl font-headline">Bible Bee Assignments</h1>
 
 			<div>
-				<h2 className="font-semibold">Scriptures</h2>
+				<h2 className="font-semibold text-2xl">Scriptures</h2>
 				<div className="grid gap-2">
-					{data.scriptures.map((s: any) => (
-						<Card key={s.id}>
-							<CardHeader>
-								<CardTitle>{s.scripture?.reference ?? s.scriptureId}</CardTitle>
-								<CardDescription>{s.scripture?.text}</CardDescription>
-							</CardHeader>
-							<CardContent>
-								<div className="flex items-center gap-4">
-									<Checkbox
-										checked={s.status === 'completed'}
-										onCheckedChange={(v) =>
-											toggleMutation.mutate({ id: s.id, complete: !!v })
-										}
-									/>
-									<div className="text-sm text-muted-foreground">
-										{s.status === 'completed'
-											? `Completed ${
-													s.completedAt
-														? new Date(s.completedAt).toLocaleString()
-														: ''
-											  }`
-											: 'Not completed'}
-									</div>
-								</div>
-							</CardContent>
-						</Card>
+					{data.scriptures.map((s: any, idx: number) => (
+						<ScriptureCard
+							key={s.id}
+							assignment={s}
+							index={idx}
+							onToggleAction={(id, next) =>
+								toggleMutation.mutate({ id, complete: next })
+							}
+						/>
 					))}
 				</div>
 			</div>
