@@ -31,6 +31,12 @@ export default function YearManagePage() {
 	const { data: qScriptures, upsertScriptureMutation } =
 		useScripturesForYearQuery(yearId);
 	const [localScriptures, setLocalScriptures] = React.useState<any[]>([]);
+	const [displayVersion, setDisplayVersion] = React.useState<
+		string | undefined
+	>(undefined);
+	const [availableVersions, setAvailableVersions] = React.useState<string[]>(
+		[]
+	);
 	const [rules, setRules] = React.useState<any[]>([]);
 	const [filePreview, setFilePreview] = React.useState<any[] | null>(null);
 	const [fileErrors, setFileErrors] = React.useState<any[]>([]);
@@ -43,6 +49,19 @@ export default function YearManagePage() {
 				.toArray();
 			if (mounted) {
 				setLocalScriptures(scriptures);
+				// collect versions from scriptures
+				const versions = new Set<string>();
+				for (const item of scriptures || []) {
+					if (item?.texts)
+						Object.keys(item.texts).forEach((k) =>
+							versions.add(k.toUpperCase())
+						);
+					if (item?.translation)
+						versions.add(String(item.translation).toUpperCase());
+				}
+				const vlist = Array.from(versions);
+				setAvailableVersions(vlist);
+				if (!displayVersion && vlist.length) setDisplayVersion(vlist[0]);
 				setRules(r);
 			}
 		}
@@ -132,21 +151,52 @@ export default function YearManagePage() {
 						<CardTitle>Scriptures</CardTitle>
 					</CardHeader>
 					<CardContent>
+						{availableVersions.length > 0 && (
+							<div className="flex gap-2 mb-2">
+								{availableVersions.map((v) => (
+									<button
+										key={v}
+										onClick={() => setDisplayVersion(v)}
+										className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+											v === displayVersion
+												? 'bg-primary text-primary-foreground'
+												: 'bg-background text-muted-foreground border'
+										}`}>
+										{v}
+									</button>
+								))}
+							</div>
+						)}
 						<div className="grid gap-2">
-							{localScriptures.map((s: any, idx: number) => (
-								<ScriptureCard
-									key={s.id}
-									assignment={{
-										id: s.id,
-										scriptureId: s.id,
-										scripture: s,
-										verseText: s.text,
-										competitionYearId: s.competitionYearId,
-									}}
-									index={idx}
-									readOnly
-								/>
-							))}
+							{localScriptures
+								.filter((s: any) => {
+									if (!displayVersion) return true;
+									const v = String(displayVersion).toUpperCase();
+									if (
+										s.translation &&
+										String(s.translation).toUpperCase() === v
+									)
+										return true;
+									const keys = s.texts
+										? Object.keys(s.texts).map((k: string) => k.toUpperCase())
+										: [];
+									return keys.includes(v);
+								})
+								.map((s: any, idx: number) => (
+									<ScriptureCard
+										key={s.id}
+										assignment={{
+											id: s.id,
+											scriptureId: s.id,
+											scripture: s,
+											verseText: s.text,
+											competitionYearId: s.competitionYearId,
+										}}
+										index={idx}
+										readOnly
+										displayVersion={displayVersion}
+									/>
+								))}
 						</div>
 						<div className="mt-4">
 							<ScriptureForm onAdd={handleAddScripture} />
