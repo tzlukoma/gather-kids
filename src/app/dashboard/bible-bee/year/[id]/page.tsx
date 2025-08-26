@@ -21,6 +21,7 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import ScriptureCard from '@/components/gatherKids/scripture-card';
 
 export default function YearManagePage() {
 	const params = useParams();
@@ -107,8 +108,14 @@ export default function YearManagePage() {
 		const s = await db.scriptures
 			.where('competitionYearId')
 			.equals(yearId)
-			.sortBy('sortOrder');
-		setLocalScriptures(s);
+			.toArray();
+		setLocalScriptures(
+			s.sort(
+				(a: any, b: any) =>
+					Number(a.order ?? a.sortOrder ?? 0) -
+					Number(b.order ?? b.sortOrder ?? 0)
+			)
+		);
 		setFilePreview(null);
 		setFileErrors([]);
 	}
@@ -125,18 +132,22 @@ export default function YearManagePage() {
 						<CardTitle>Scriptures</CardTitle>
 					</CardHeader>
 					<CardContent>
-						<ul className="space-y-2">
-							{localScriptures.map((s) => (
-								<li key={s.id} className="flex justify-between items-center">
-									<div>
-										<div className="font-medium">{s.reference}</div>
-										<div className="text-sm text-muted-foreground">
-											{s.text}
-										</div>
-									</div>
-								</li>
+						<div className="grid gap-2">
+							{localScriptures.map((s: any, idx: number) => (
+								<ScriptureCard
+									key={s.id}
+									assignment={{
+										id: s.id,
+										scriptureId: s.id,
+										scripture: s,
+										verseText: s.text,
+										competitionYearId: s.competitionYearId,
+									}}
+									index={idx}
+									readOnly
+								/>
 							))}
-						</ul>
+						</div>
 						<div className="mt-4">
 							<ScriptureForm onAdd={handleAddScripture} />
 						</div>

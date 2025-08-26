@@ -18,10 +18,11 @@ export function useScripturesForYear(yearId: string) {
     const [scriptures, setScriptures] = useState<Scripture[]>([]);
     useEffect(() => {
         let mounted = true;
-        db.scriptures.where('competitionYearId').equals(yearId).sortBy('sortOrder').then(s => { if (mounted) setScriptures(s); });
+        const sortByOrder = (a: any, b: any) => (Number(a.order ?? a.sortOrder ?? 0) - Number(b.order ?? b.sortOrder ?? 0));
+        db.scriptures.where('competitionYearId').equals(yearId).toArray().then(s => { if (mounted) setScriptures(s.sort(sortByOrder)); });
         return () => { mounted = false };
     }, [yearId]);
-    return { scriptures, refresh: async () => { const s = await db.scriptures.where('competitionYearId').equals(yearId).sortBy('sortOrder'); setScriptures(s); } };
+    return { scriptures, refresh: async () => { const s = await db.scriptures.where('competitionYearId').equals(yearId).toArray(); setScriptures(s.sort((a: any, b: any) => (Number(a.order ?? a.sortOrder ?? 0) - Number(b.order ?? b.sortOrder ?? 0)))); } };
 }
 
 // React Query version: returns query data and mutation with optimistic updates
@@ -29,7 +30,8 @@ export function useScripturesForYearQuery(yearId: string) {
     const qc = useQueryClient();
     const key = ['scriptures', yearId];
     const query = useQuery(key, async () => {
-        return await db.scriptures.where('competitionYearId').equals(yearId).sortBy('sortOrder');
+        const s = await db.scriptures.where('competitionYearId').equals(yearId).toArray();
+        return s.sort((a: any, b: any) => Number(a.order ?? a.sortOrder ?? 0) - Number(b.order ?? b.sortOrder ?? 0));
     });
 
     const mutation = useMutation(async (payload: any) => upsertScripture(payload), {
@@ -69,11 +71,25 @@ export function useStudentAssignmentsQuery(childId: string) {
         const scriptures = await db.studentScriptures.where({ childId }).toArray();
         const essays = await db.studentEssays.where({ childId }).toArray();
 
+        // Fetch child's household preference for translation
+        const child = await db.children.get(childId as any);
+        const household = child ? await db.households.get(child.household_id) : null;
+        const preferred = household?.preferredScriptureTranslation;
+
         const enrichedScriptures = await Promise.all(
             scriptures.map(async (s) => {
                 const scripture = await db.scriptures.get(s.scriptureId);
                 const year = await db.competitionYears.get(s.competitionYearId);
-                return { ...s, scripture, year };
+                // determine verse text based on household preference with fallbacks
+                let verseText = scripture?.text ?? '';
+                let displayTranslation = scripture?.translation ?? 'NIV';
+                // Prefer flattened `texts` map (e.g. { NIV: '...', KJV: '...' }).
+                const textsMap = (scripture as any)?.texts ?? (scripture as any)?.alternateTexts ?? undefined;
+                if (preferred && textsMap && textsMap[preferred]) {
+                    verseText = textsMap[preferred];
+                    displayTranslation = preferred;
+                }
+                return { ...s, scripture, year, verseText, displayTranslation };
             })
         );
 

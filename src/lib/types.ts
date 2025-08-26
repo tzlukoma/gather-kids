@@ -10,6 +10,7 @@ export interface CustomQuestion {
 export interface Household {
     household_id: string; // PK
     name?: string;
+    preferredScriptureTranslation?: string;
     address_line1?: string;
     address_line2?: string;
     city?: string;
@@ -218,6 +219,8 @@ export interface Scripture {
     reference: string;
     text: string;
     translation?: string;
+    // Flattened map of translation key -> text. Example: { NIV: '...', KJV: '...' }
+    texts?: { [key: string]: string };
     bookLangAlt?: string;
     sortOrder?: number;
     createdAt: string;

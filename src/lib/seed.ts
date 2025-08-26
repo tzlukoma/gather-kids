@@ -2,6 +2,7 @@
 
 import { db } from './db';
 import { v4 as uuidv4 } from 'uuid';
+import { seedBibleBeeDemo } from './seedBibleBee';
 import type { Household, Guardian, EmergencyContact, Child, RegistrationCycle, Registration, Ministry, MinistryEnrollment, User, Event, Attendance, Incident, LeaderAssignment } from './types';
 import { subYears, formatISO, differenceInYears, parseISO } from 'date-fns';
 
@@ -78,6 +79,8 @@ const generateHouseholdsAndChildren = (): { households: Household[], children: C
             city: 'Anytown',
             state: 'CA',
             zip: '12345',
+            // randomly assign a preferred scripture translation for demo purposes
+            preferredScriptureTranslation: Math.random() < 0.33 ? 'NIV' : Math.random() < 0.5 ? 'KJV' : 'NLT',
             created_at: now,
             updated_at: now,
         });
@@ -253,23 +256,19 @@ export const seedDB = async () => {
             }
             if (rulesToUpdate.length) await db.gradeRules.bulkPut(rulesToUpdate);
 
-            // Add a short set of example scriptures for the competition (same list for prior and current)
-            const sampleScriptures = [
-                { reference: 'John 3:16', text: 'For God so loved the world...', sortOrder: 1 },
-                { reference: 'Psalm 23:1', text: 'The Lord is my shepherd...', sortOrder: 2 },
-                { reference: 'Philippians 4:13', text: 'I can do all things through Christ...', sortOrder: 3 },
-                { reference: 'Proverbs 3:5', text: 'Trust in the Lord with all your heart...', sortOrder: 4 },
-                { reference: 'Matthew 5:9', text: 'Blessed are the peacemakers...', sortOrder: 5 },
-                { reference: 'Romans 8:28', text: 'And we know that in all things God works for the good...', sortOrder: 6 },
-                { reference: 'Galatians 5:22', text: 'But the fruit of the Spirit is love, joy, peace...', sortOrder: 7 },
-                { reference: 'Ephesians 2:8', text: 'For by grace you have been saved through faith...', sortOrder: 8 },
-            ];
-            const scriptureRecords: any[] = [];
-            for (const s of sampleScriptures) {
-                scriptureRecords.push({ id: crypto.randomUUID(), competitionYearId: compYearCurrentId, reference: s.reference, text: s.text, sortOrder: s.sortOrder, createdAt: nowIso, updatedAt: nowIso });
-                scriptureRecords.push({ id: crypto.randomUUID(), competitionYearId: compYearPriorId, reference: s.reference, text: s.text, sortOrder: s.sortOrder, createdAt: nowIso, updatedAt: nowIso });
+            // Run the Bible Bee specific seed which creates curated competition years, scriptures, and grade rules.
+            // Scriptures will come exclusively from that seeded data.
+            try {
+                await seedBibleBeeDemo({ priorId: compYearPriorId, currentId: compYearCurrentId });
+            } catch (err) {
+                console.error('Failed to seed Bible Bee demo data:', err);
             }
-            await db.scriptures.bulkPut(scriptureRecords);
+
+            // Load scripture records for the current competition year (seeded above) to assign to students.
+            const scriptureRecords: any[] = await db.scriptures
+                .where('competitionYearId')
+                .equals(compYearCurrentId)
+                .sortBy('sortOrder');
 
             const registrations: Registration[] = [];
             const enrollments: MinistryEnrollment[] = [];
