@@ -703,6 +703,15 @@ export async function getLeaderBibleBeeProgress(leaderId: string, cycleId: strin
     const ministryList = await db.ministries.toArray();
     const ministryMap = new Map(ministryList.map(m => [m.ministry_id, m]));
 
+    // Prefetch guardians for all households to avoid per-child queries
+    const householdIds = children.map(c => c.household_id).filter(Boolean);
+    const allGuardians = householdIds.length ? await db.guardians.where('household_id').anyOf(householdIds).toArray() : [];
+    const guardianMap = new Map<string, any>();
+    for (const g of allGuardians) {
+        if (!guardianMap.has(g.household_id)) guardianMap.set(g.household_id, []);
+        guardianMap.get(g.household_id).push(g);
+    }
+
     for (const child of children) {
         let scriptures: any[] = [];
         let essays: any[] = [];
@@ -716,6 +725,11 @@ export async function getLeaderBibleBeeProgress(leaderId: string, cycleId: strin
         const essayStatus = essays.length ? essays[0].status : 'none';
 
         const childEnrolls = allEnrollmentsForChildren.filter(e => e.child_id === child.child_id).map(e => ({ ...e, ministryName: ministryMap.get(e.ministry_id)?.name || 'Unknown' }));
+
+        // Identify primary guardian from pre-fetched guardians
+        let primaryGuardian = null;
+        const guardiansForHouse = guardianMap.get(child.household_id) || [];
+        primaryGuardian = guardiansForHouse.find((g: any) => g.is_primary) || guardiansForHouse[0] || null;
 
         // Determine required/scripture target for this child's grade using grade rules
         let requiredScriptures: number | null = null;
@@ -754,6 +768,7 @@ export async function getLeaderBibleBeeProgress(leaderId: string, cycleId: strin
             gradeGroup,
             essayStatus,
             ministries: childEnrolls,
+            primaryGuardian,
             child,
         });
     }
@@ -822,6 +837,17 @@ export async function getBibleBeeProgressForCycle(cycleId: string) {
             bibleBeeStatus = 'In-Progress';
         }
 
+        // Fetch primary guardian for display in leader progress
+        let primaryGuardian = null;
+        try {
+            if (child.household_id) {
+                const guardians = await db.guardians.where({ household_id: child.household_id }).toArray();
+                primaryGuardian = guardians.find(g => g.is_primary) || guardians[0] || null;
+            }
+        } catch (err) {
+            primaryGuardian = null;
+        }
+
         results.push({
             childId: child.child_id,
             childName: `${child.first_name} ${child.last_name}`,
@@ -832,6 +858,7 @@ export async function getBibleBeeProgressForCycle(cycleId: string) {
             gradeGroup,
             essayStatus,
             ministries: childEnrolls,
+            primaryGuardian,
             child,
         });
     }
