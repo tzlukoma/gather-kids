@@ -109,7 +109,7 @@ body {
 /* Font variables for use in components and utilities */
 :root {
   --font-display: 'Work Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
-  --font-body: 'Source Sans Pro', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+  --font-body: 'Work Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
   --font-scripture: 'Merriweather', Georgia, 'Times New Roman', serif;
 }
 
