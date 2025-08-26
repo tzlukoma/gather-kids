@@ -23,13 +23,8 @@ export function LeaderBibleBeeProgress({
 	cycleId: string;
 	canUpload?: boolean;
 }) {
+	const STORAGE_KEY = 'bb_progress_filters_v1';
 	const [rows, setRows] = useState<any[] | null>(null);
-	const [filterGradeGroup, setFilterGradeGroup] = useState<string | 'all'>(
-		'all'
-	);
-	const [filterStatus, setFilterStatus] = useState<
-		'all' | 'Not Started' | 'In-Progress' | 'Complete'
-	>('all');
 	const [availableGradeGroups, setAvailableGradeGroups] = useState<string[]>(
 		[]
 	);
@@ -37,17 +32,43 @@ export function LeaderBibleBeeProgress({
 		() => db.competitionYears.orderBy('year').reverse().toArray(),
 		[]
 	);
-	const [selectedCycle, setSelectedCycle] = useState<string>(cycleId);
+
+	// Initialize filters from localStorage when possible so tab switches keep state
+	const loadInitial = () => {
+		try {
+			if (typeof localStorage === 'undefined') return null;
+			const raw = localStorage.getItem(STORAGE_KEY);
+			if (!raw) return null;
+			return JSON.parse(raw);
+		} catch (e) {
+			return null;
+		}
+	};
+
+	const initial = loadInitial();
+
+	const [selectedCycle, setSelectedCycle] = useState<string>(
+		initial?.selectedCycle ?? cycleId
+	);
+	const [filterGradeGroup, setFilterGradeGroup] = useState<string | 'all'>(
+		initial?.filterGradeGroup ?? 'all'
+	);
+	const [filterStatus, setFilterStatus] = useState<
+		'all' | 'Not Started' | 'In-Progress' | 'Complete'
+	>(initial?.filterStatus ?? 'all');
 	const [sortBy, setSortBy] = useState<
 		'name-asc' | 'name-desc' | 'progress-desc' | 'progress-asc'
-	>('name-asc');
+	>(initial?.sortBy ?? 'name-asc');
 
 	useEffect(() => {
 		if (competitionYears && competitionYears.length > 0) {
 			const defaultYear = String(competitionYears[0].year);
-			// default to the most recent competition year
-			setSelectedCycle(defaultYear);
+			// default to the most recent competition year only if not set by storage
+			if (!initial?.selectedCycle || initial?.selectedCycle === cycleId) {
+				setSelectedCycle(defaultYear);
+			}
 		}
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [competitionYears]);
 
 	useEffect(() => {
@@ -60,10 +81,15 @@ export function LeaderBibleBeeProgress({
 				res.forEach((r: any) => {
 					if (r.gradeGroup) groups.add(r.gradeGroup);
 				});
-				setAvailableGradeGroups(Array.from(groups).sort());
-				// Prefill dropdowns when data loads: ensure grade filter and sort are defaults
-				setFilterGradeGroup('all');
-				setSortBy('name-asc');
+				const sortedGroups = Array.from(groups).sort();
+				setAvailableGradeGroups(sortedGroups);
+				// If stored gradeGroup no longer exists for this year, reset to 'all'
+				if (
+					filterGradeGroup !== 'all' &&
+					!sortedGroups.includes(filterGradeGroup)
+				) {
+					setFilterGradeGroup('all');
+				}
 			}
 		};
 		load();
@@ -71,6 +97,21 @@ export function LeaderBibleBeeProgress({
 			mounted = false;
 		};
 	}, [selectedCycle]);
+
+	// persist filter state so switching tabs (which may unmount) preserves selections
+	useEffect(() => {
+		try {
+			const payload = {
+				selectedCycle,
+				filterGradeGroup,
+				filterStatus,
+				sortBy,
+			};
+			localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+		} catch (e) {
+			// ignore storage failures
+		}
+	}, [selectedCycle, filterGradeGroup, filterStatus, sortBy]);
 
 	if (!rows) return <div>Loading Bible Bee progress...</div>;
 
@@ -199,8 +240,33 @@ export function LeaderBibleBeeProgress({
 						onClick={() => setFilterStatus('Complete')}>
 						Complete
 					</button>
+					<div className="flex-1" />
+					<button
+						className="px-2 py-1 border rounded"
+						onClick={() => {
+							// reset to defaults
+							if (competitionYears && competitionYears.length > 0)
+								setSelectedCycle(String(competitionYears[0].year));
+							setFilterGradeGroup('all');
+							setFilterStatus('all');
+							setSortBy('name-asc');
+							try {
+								localStorage.removeItem(STORAGE_KEY);
+							} catch (e) {}
+						}}>
+						Clear
+					</button>
 				</div>
 			</div>
+
+			{/* show prior-year hint if viewing a non-latest year */}
+			{competitionYears &&
+				competitionYears.length > 0 &&
+				String(competitionYears[0].year) !== String(selectedCycle) && (
+					<div className="p-2 bg-yellow-50 border-l-4 border-yellow-300 text-sm text-yellow-800">
+						Viewing prior year — edits disabled
+					</div>
+				)}
 
 			{sorted.length === 0 ? (
 				<div className="p-3 text-muted-foreground">
