@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import { ReactNode, ComponentType } from 'react';
 import {
 	LayoutDashboard,
 	CheckCheck,
@@ -8,12 +8,13 @@ import {
 	ClipboardList,
 	Contact,
 	Settings,
+	Book,
 } from 'lucide-react';
 import { AuthRole } from './auth-types';
 
 interface MenuItem {
 	href: string;
-	icon: ReactNode;
+	icon: ComponentType<any> | ReactNode;
 	label: string;
 	roles: AuthRole[];
 	requiresActive?: boolean;
@@ -23,13 +24,13 @@ interface MenuItem {
 export const MENU_ITEMS: MenuItem[] = [
 	{
 		href: '/dashboard',
-		icon: <LayoutDashboard />,
+		icon: LayoutDashboard,
 		label: 'Dashboard',
 		roles: [AuthRole.ADMIN],
 	},
 	{
 		href: '/dashboard/check-in',
-		icon: <CheckCheck />,
+		icon: CheckCheck,
 		label: 'Check-In/Out',
 		roles: [AuthRole.ADMIN, AuthRole.MINISTRY_LEADER, AuthRole.GUARDIAN],
 		requiresActive: true,
@@ -39,46 +40,70 @@ export const MENU_ITEMS: MenuItem[] = [
 	},
 	{
 		href: '/dashboard/rosters',
-		icon: <Users />,
+		icon: Users,
 		label: 'Rosters',
 		roles: [AuthRole.ADMIN, AuthRole.MINISTRY_LEADER],
 		requiresActive: true,
 	},
 	{
 		href: '/dashboard/registrations',
-		icon: <ClipboardList />,
+		icon: ClipboardList,
 		label: 'Registrations',
 		roles: [AuthRole.ADMIN, AuthRole.MINISTRY_LEADER],
 		requiresActive: true,
 	},
 	{
 		href: '/dashboard/incidents',
-		icon: <ShieldAlert />,
+		icon: ShieldAlert,
 		label: 'Incidents',
 		roles: [AuthRole.ADMIN, AuthRole.MINISTRY_LEADER],
 	},
 	{
+		href: '/dashboard/bible-bee',
+		// Inline bee SVG to use as the Bible Bee icon
+		icon: (
+			<svg
+				xmlns="http://www.w3.org/2000/svg"
+				viewBox="0 0 24 24"
+				fill="none"
+				stroke="currentColor"
+				strokeWidth={1.5}
+				className="h-5 w-5">
+				<path d="M12 3c.667 0 2 1.333 2 2s-1.333 2-2 2-2-1.333-2-2 1.333-2 2-2z" />
+				<path d="M7 8c-1 1-2 2-2 4s1 3 3 3h.5" />
+				<path d="M17 8c1 1 2 2 2 4s-1 3-3 3h-.5" />
+				<path d="M9 14c0 1 1 3 3 3s3-2 3-3" />
+				<path d="M12 7v7" strokeLinecap="round" strokeLinejoin="round" />
+			</svg>
+		),
+		label: 'Bible Bee',
+		roles: [AuthRole.ADMIN, AuthRole.MINISTRY_LEADER],
+		requiresActive: true,
+		ministryCheck: (ministryIds: string[], userRole?: AuthRole) =>
+			userRole === AuthRole.ADMIN || ministryIds.includes('bible-bee'),
+	},
+	{
 		href: '/dashboard/leaders',
-		icon: <Contact />,
+		icon: Contact,
 		label: 'Leaders',
 		roles: [AuthRole.ADMIN],
 	},
 	{
 		href: '/dashboard/reports',
-		icon: <FileText />,
+		icon: FileText,
 		label: 'Reports',
 		roles: [AuthRole.ADMIN],
 	},
 	{
 		href: '/dashboard/configuration',
-		icon: <Settings />,
+		icon: Settings,
 		label: 'Configuration',
 		roles: [AuthRole.ADMIN],
 	},
 	// Guardian menu items
 	{
 		href: '/household',
-		icon: <Users />,
+		icon: Users,
 		label: 'My Household',
 		roles: [AuthRole.GUARDIAN],
 	},
@@ -86,8 +111,8 @@ export const MENU_ITEMS: MenuItem[] = [
 
 export const getAuthorizedMenuItems = (
 	userRole: AuthRole | null,
-	isActive: boolean = true,
-	ministryIds: string[] = []
+	ministryIds: string[] = [],
+	isActive: boolean = true
 ): MenuItem[] => {
 	if (!userRole) return [];
 
