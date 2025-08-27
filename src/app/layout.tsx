@@ -4,6 +4,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { AuthProvider } from '@/contexts/auth-context';
 import { FeatureFlagProvider } from '@/contexts/feature-flag-context';
 import { ReactQueryProvider } from '@/lib/queryClient';
+import VercelAnalytics from '@/components/VercelAnalytics';
 
 export const metadata: Metadata = {
 	title: 'gatherKids',
@@ -36,6 +37,7 @@ export default function RootLayout({
 					</AuthProvider>
 				</FeatureFlagProvider>
 				<Toaster />
+				{process.env.NODE_ENV === 'production' && <VercelAnalytics />}
 			</body>
 		</html>
 	);
