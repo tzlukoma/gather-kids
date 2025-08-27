@@ -14,3 +14,17 @@ jobs:
         with:
           branch: ${{ github.event.pull_request.head.ref }}
           token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Delete head branch (API fallback)
+        if: github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'main'
+        env:
+          REPO: ${{ github.repository }}
+          BRANCH: ${{ github.event.pull_request.head.ref }}
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Deleting branch: $BRANCH from $REPO"
+          # Delete the branch ref via REST API
+          curl -s -X DELETE \
+            -H "Authorization: Bearer $TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/$REPO/git/refs/heads/$BRANCH" \
+            || echo "Delete request returned non-zero exit (branch may already be gone or protected)"
