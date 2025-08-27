@@ -78,16 +78,17 @@ describe('Child Bible Bee UI', () => {
 			expect(screen.getByText(/John 3:16/)).toBeInTheDocument()
 		);
 
-		// find checkbox (Radix checkbox exposes data-state="checked" when checked)
-		const checkbox = screen.getByRole('checkbox');
-		expect(checkbox.getAttribute('data-state')).not.toBe('checked');
+		// find the mark-completed button (component renders a button with aria-label)
+		const toggleBtn = screen.getByRole('button', { name: /Mark completed/i });
+		expect(toggleBtn).toBeInTheDocument();
+		expect(toggleBtn.getAttribute('aria-pressed')).toBe('false');
 
 		// toggle
-		fireEvent.click(checkbox);
+		fireEvent.click(toggleBtn);
 
-		// optimistic update should mark it completed immediately
+		// optimistic update should mark it completed immediately (aria-pressed -> true)
 		await waitFor(() =>
-			expect(checkbox.getAttribute('data-state')).toBe('checked')
+			expect(toggleBtn.getAttribute('aria-pressed')).toBe('true')
 		);
 	});
 });
