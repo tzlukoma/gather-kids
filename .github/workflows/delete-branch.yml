@@ -9,12 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'main'
     steps:
-      - name: Delete head branch
-        uses: peter-evans/delete-branch@v2
-        with:
-          branch: ${{ github.event.pull_request.head.ref }}
-          token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Delete head branch (API fallback)
+      - name: Delete head branch via GitHub API
         if: github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'main'
         env:
           REPO: ${{ github.repository }}
@@ -23,8 +18,13 @@ jobs:
         run: |
           echo "Deleting branch: $BRANCH from $REPO"
           # Delete the branch ref via REST API
-          curl -s -X DELETE \
+          resp=$(curl -s -o /dev/null -w "%{http_code}" -X DELETE \
             -H "Authorization: Bearer $TOKEN" \
             -H "Accept: application/vnd.github+json" \
-            "https://api.github.com/repos/$REPO/git/refs/heads/$BRANCH" \
-            || echo "Delete request returned non-zero exit (branch may already be gone or protected)"
+            "https://api.github.com/repos/$REPO/git/refs/heads/$BRANCH")
+          if [ "$resp" = "204" ]; then
+            echo "Branch deleted successfully."
+          else
+            echo "Delete request returned HTTP $resp (branch may already be gone or protected)"
+            # Exit with success to avoid failing the workflow when branch deletion is blocked
+          fi
