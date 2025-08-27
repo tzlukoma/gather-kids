@@ -311,6 +311,27 @@ NEXT_PUBLIC_ENABLE_SUPABASE_MODE=true
 NEXT_PUBLIC_ENABLE_PRISMA_MODE=false
 ```
 
+## CI, Pull Requests & Deployments
+
+This repository is configured with GitHub Actions and Vercel to provide automated CI and preview deployments.
+
+- CI workflow: `.github/workflows/ci.yml` — runs test suite on pull requests (and on push for branches if enabled). The CI job checks out the code, installs dependencies, and runs `npm test`.
+- Vercel Preview: when you open a pull request a Preview Deployment is created by Vercel for the branch. Vercel will build the latest commit on the PR branch and post a preview URL into the PR where you can review the running app.
+
+Notes about how PR runs are chosen
+
+- GitHub uses the workflow file from the base branch (usually `main`) when evaluating `pull_request` events. That means a workflow added only on a feature branch will not run for PRs targeting `main` until the workflow exists on `main`. If you need immediate CI on a branch push, enable `push` triggers in `.github/workflows/ci.yml`.
+
+What happens after a PR is merged
+
+- When a PR is merged into `main` Vercel will deploy the merge commit to your production environment (depending on your Vercel project settings).
+- A workflow `.github/workflows/delete-branch.yml` will attempt to delete the source branch after the PR is merged into `main` (this uses the repository token by default). If your organization blocks marketplace actions, the workflow contains an API fallback that uses `GITHUB_TOKEN` to remove the branch.
+
+If you need to change CI behavior
+
+- Edit `.github/workflows/ci.yml` to add steps (lint, typecheck, build) or to enable `push:` triggers so pushes to feature branches also run CI.
+- If you need the delete-branch action to run but your org blocks marketplace actions, either allowlist the action (`peter-evans/delete-branch`) in organization settings or rely on the API fallback step in the workflow.
+
 ## 🤝 Contributing
 
 1. Fork the repository
