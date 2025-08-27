@@ -1,9 +1,6 @@
 name: CI - Tests
 
 on:
-  push:
-    branches:
-      - '**' # or list specific branches you want
   pull_request:
     types: [opened, synchronize, reopened]
 
