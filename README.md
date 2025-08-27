@@ -326,6 +326,15 @@ What happens after a PR is merged
 
 - When a PR is merged into `main` Vercel will deploy the merge commit to your production environment (depending on your Vercel project settings).
 - A workflow `.github/workflows/delete-branch.yml` will attempt to delete the source branch after the PR is merged into `main` (this uses the repository token by default). If your organization blocks marketplace actions, the workflow contains an API fallback that uses `GITHUB_TOKEN` to remove the branch.
+- When a PR is merged into `main` Vercel will deploy the merge commit to your production environment (depending on your Vercel project settings).
+
+Branch cleanup after merge
+
+- This repository relies on GitHub's native "Automatically delete head branches" feature to remove the source branch after a pull request is merged. To enable it:
+  1.  Go to your repository Settings → General → Merge button settings.
+  2.  Check "Automatically delete head branches".
+
+If you prefer automation in workflows (instead of the native setting), you can add a workflow that calls the GitHub API to delete the merged branch — but the native setting is simpler and recommended.
 
 If you need to change CI behavior
 
