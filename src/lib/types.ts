@@ -10,6 +10,7 @@ export interface CustomQuestion {
 export interface Household {
     household_id: string; // PK
     name?: string;
+    preferredScriptureTranslation?: string;
     address_line1?: string;
     address_line2?: string;
     city?: string;
@@ -56,6 +57,7 @@ export interface Child {
     is_active: boolean;
     created_at: string;
     updated_at: string;
+    photo_url?: string;
 }
 
 export interface RegistrationCycle {
@@ -139,7 +141,7 @@ export interface User {
     name: string;
     email: string;
     mobile_phone?: string;
-    role: 'admin' | 'leader';
+    role: 'ADMIN' | 'MINISTRY_LEADER' | 'GUARDIAN' | 'VOLUNTEER';
     is_active: boolean;
     background_check_status?: 'clear' | 'pending' | 'expired' | 'na';
     expires_at?: string; // ISO
@@ -197,4 +199,66 @@ export interface AuditLog {
     timestamp: string; // ISO
     diff?: object;
     fields_returned?: string[];
+}
+
+// --- Bible Bee domain types ---
+export interface CompetitionYear {
+    id: string;
+    year: number;
+    name?: string;
+    description?: string;
+    opensAt?: string;
+    closesAt?: string;
+    createdAt: string;
+    updatedAt: string;
+}
+
+export interface Scripture {
+    id: string;
+    competitionYearId: string;
+    reference: string;
+    text: string;
+    translation?: string;
+    // Flattened map of translation key -> text. Example: { NIV: '...', KJV: '...' }
+    texts?: { [key: string]: string };
+    bookLangAlt?: string;
+    sortOrder?: number;
+    createdAt: string;
+    updatedAt: string;
+}
+
+export interface GradeRule {
+    id: string;
+    competitionYearId: string;
+    minGrade: number;
+    maxGrade: number;
+    type: 'scripture' | 'essay';
+    targetCount?: number;
+    promptText?: string;
+    instructions?: string;
+    createdAt: string;
+    updatedAt: string;
+}
+
+export interface StudentScripture {
+    id: string;
+    childId: string;
+    competitionYearId: string;
+    scriptureId: string;
+    status: 'assigned' | 'completed';
+    completedAt?: string;
+    createdAt: string;
+    updatedAt: string;
+}
+
+export interface StudentEssay {
+    id: string;
+    childId: string;
+    competitionYearId: string;
+    status: 'assigned' | 'submitted';
+    submittedAt?: string;
+    promptText: string;
+    instructions?: string;
+    createdAt: string;
+    updatedAt: string;
 }

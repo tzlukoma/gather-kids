@@ -1,4 +1,4 @@
-import type {Config} from 'tailwindcss';
+import type { Config } from 'tailwindcss';
 
 export default {
   darkMode: ['class'],
@@ -17,8 +17,10 @@ export default {
     },
     extend: {
       fontFamily: {
+        display: ['Work Sans', 'sans-serif'],
         body: ['Work Sans', 'sans-serif'],
-        headline: ['Nunito', 'sans-serif'],
+        headline: ['Work Sans', 'sans-serif'],
+        scripture: ['Merriweather', 'serif'],
         code: ['Source Code Pro', 'monospace'],
       },
       colors: {
