@@ -131,6 +131,17 @@ npm run genkit:watch # Start Genkit with file watching
 
 ## 🏗️ Project Structure
 
+### UAT / DB Support scripts
+
+Quick helpers added for UAT and migration validation:
+
+- `scripts/db/snapshot_uat.sh` - create a pg_dump snapshot of a target DATABASE_URL
+- `scripts/test/uat_smoke.sh` - small curl-based smoke checks (assumes app running)
+- `scripts/db/check_fks.sh` - FK integrity checker used by CI
+- `.github/workflows/uat-db-check.yml` - manual workflow to apply `supabase/migrations` and run FK checks against UAT (trigger via GitHub Actions > Workflows)
+
+See `docs/PROD_PROMOTION_RUNBOOK.md` for the promotion runbook.
+
 ```
 gather-kids/
 ├── src/
