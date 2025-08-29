@@ -242,6 +242,36 @@ Flexible feature management system allowing administrators to control feature av
 
 ---
 
+## Epic 11: Private Label & Branding Customization
+
+### Epic Description
+
+Comprehensive white-label customization system allowing organizations to fully brand the application with their identity, including custom logos, app names, descriptions, and social media integration.
+
+### User Stories
+
+#### As an Administrator
+
+- **US-11.1**: I want to customize the app name so that it reflects my organization's branding throughout the interface
+- **US-11.2**: I want to upload a custom logo so that it replaces the default icon and appears in navigation
+- **US-11.3**: I want to set a custom description/tagline so that it appears on the home page and marketing materials
+- **US-11.4**: I want to add social media links (YouTube, Instagram) so that they appear on the home page for community engagement
+- **US-11.5**: I want to preview branding changes in real-time so that I can see how customizations will appear to users
+- **US-11.6**: I want to reset branding to defaults so that I can quickly revert to the original branding if needed
+- **US-11.7**: I want branding settings to persist across sessions so that customizations remain active after browser restarts
+- **US-11.8**: I want file upload validation for logos so that only appropriate image files and sizes are accepted
+
+#### As a Parent/Guardian
+
+- **US-11.9**: I want to see my organization's custom branding so that the app feels familiar and aligned with my church/ministry
+- **US-11.10**: I want to access my organization's social media links so that I can stay connected with the community
+
+#### As a Ministry Leader
+
+- **US-11.11**: I want to see consistent organization branding throughout the app so that it feels like our ministry's tool
+
+---
+
 ## Technical Implementation Details
 
 ### Technology Stack
@@ -271,6 +301,11 @@ Flexible feature management system allowing administrators to control feature av
 - ✅ Consent management (liability, photo release)
 - ✅ Age and grade-based ministry eligibility
 - ✅ Custom ministry questions and data collection
+- ✅ Private label & branding customization
+- ✅ Custom logo upload with validation
+- ✅ Dynamic app name and description
+- ✅ Social media integration
+- ✅ Real-time branding preview
 
 ### Data Models
 
@@ -282,5 +317,6 @@ Flexible feature management system allowing administrators to control feature av
 - **Attendance**: Check-in/out tracking
 - **Incident**: Safety and behavior reporting
 - **User**: System users with role assignments
+- **BrandingSettings**: Organization branding configuration (app name, logo, description, social media links)
 
 This comprehensive feature set provides a complete solution for children's ministry management, addressing the needs of administrators, leaders, and families while maintaining security, compliance, and ease of use.
