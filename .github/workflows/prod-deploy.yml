@@ -1,25 +1,25 @@
-name: UAT DB checks
+name: PROD deploy (manual approval)
 
 on:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
-  apply-migrations-and-check:
+  deploy:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
+    environment:
+      name: production
+      url: ${{ secrets.PROD_APP_URL }}
     steps:
       - uses: actions/checkout@v4
       - name: Install psql
         run: sudo apt-get update && sudo apt-get install -y postgresql-client
-      - name: Apply migrations (safe runner)
+      - name: Apply migrations (manual approval required by environment)
         env:
-          DATABASE_URL: ${{ secrets.UAT_DATABASE_URL }}
+          DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
         run: |
           chmod +x scripts/db/apply_migrations_safe.sh
           ./scripts/db/apply_migrations_safe.sh "$DATABASE_URL"
-      - name: Run FK checks
-        env:
-          DATABASE_URL: ${{ secrets.UAT_DATABASE_URL }}
-        run: |
-          bash scripts/db/check_fks.sh "$DATABASE_URL"
+*** End Patch
