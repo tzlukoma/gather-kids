@@ -20,7 +20,33 @@ _Families registering children and managing household information_
 
 ---
 
-## Epic 1: User Authentication & Authorization
+## Epic 1: Leader Profile Management
+
+### Epic Description
+
+Comprehensive leader management system with central profiles, multi-ministry memberships, and ministry-scoped RBAC authentication.
+
+### User Stories
+
+#### As an Administrator
+
+- **US-1.1**: I want to create and manage leader profiles independently of user accounts so that I can maintain accurate leader information
+- **US-1.2**: I want to search leader profiles by name or email so that I can quickly find specific leaders
+- **US-1.3**: I want to assign leaders to multiple ministries with different roles (PRIMARY/VOLUNTEER) so that they can serve across programs
+- **US-1.4**: I want to view all leader profiles in a directory interface so that I can manage the complete leadership roster
+- **US-1.5**: I want to activate/deactivate leader profiles so that I can control their status in the system
+- **US-1.6**: I want to migrate existing user-based leaders to the new profile system so that I can preserve historical data
+- **US-1.7**: I want to create ministry-specific accounts for RBAC so that leaders can access ministry-scoped functions
+- **US-1.8**: I want to track leader membership history across ministries so that I can maintain accurate records
+
+#### As a Ministry Leader
+
+- **US-1.9**: I want to view my profile information so that I can verify my contact details are current
+- **US-1.10**: I want to see my ministry memberships and roles so that I know which programs I'm responsible for
+
+---
+
+## Epic 2: User Authentication & Authorization
 
 ### Epic Description
 
@@ -30,22 +56,22 @@ Secure access control system with role-based permissions for administrators and 
 
 #### As an Administrator
 
-- **US-1.1**: I want to log in with admin credentials so that I can access all system features
-- **US-1.2**: I want to manage user accounts so that I can control who has access to the system
-- **US-1.3**: I want to assign ministry roles to leaders so that they can only access relevant ministry data
+- **US-2.1**: I want to log in with admin credentials so that I can access all system features
+- **US-2.2**: I want to manage user accounts so that I can control who has access to the system
+- **US-2.3**: I want to assign ministry roles to leaders so that they can only access relevant ministry data
 
 #### As a Ministry Leader
 
-- **US-1.4**: I want to log in with leader credentials so that I can access ministry-specific features
-- **US-1.5**: I want to see only my assigned ministries so that I can focus on relevant children and activities
+- **US-2.4**: I want to log in with leader credentials so that I can access ministry-specific features
+- **US-2.5**: I want to see only my assigned ministries so that I can focus on relevant children and activities
 
 #### As a Parent/Guardian
 
-- **US-1.6**: I want to access a public registration form so that I can register my family without needing system access
+- **US-2.6**: I want to access a public registration form so that I can register my family without needing system access
 
 ---
 
-## Epic 2: Family Registration & Profile Management
+## Epic 3: Family Registration & Profile Management
 
 ### Epic Description
 
@@ -55,23 +81,23 @@ Comprehensive family registration system with household profiles, guardian infor
 
 #### As a Parent/Guardian
 
-- **US-2.1**: I want to register my household information so that my family can participate in ministry activities
-- **US-2.2**: I want to add multiple children to my household so that all my children can be registered together
-- **US-2.3**: I want to provide emergency contact information so that leaders can reach someone if needed
-- **US-2.4**: I want to specify my children's allergies and medical needs so that leaders can ensure their safety
-- **US-2.5**: I want to select ministries for my children so that they can participate in appropriate activities
-- **US-2.6**: I want to provide consent for liability and photo release so that my children can fully participate
-- **US-2.7**: I want to update my family information so that my records remain current
+- **US-3.1**: I want to register my household information so that my family can participate in ministry activities
+- **US-3.2**: I want to add multiple children to my household so that all my children can be registered together
+- **US-3.3**: I want to provide emergency contact information so that leaders can reach someone if needed
+- **US-3.4**: I want to specify my children's allergies and medical needs so that leaders can ensure their safety
+- **US-3.5**: I want to select ministries for my children so that they can participate in appropriate activities
+- **US-3.6**: I want to provide consent for liability and photo release so that my children can fully participate
+- **US-3.7**: I want to update my family information so that my records remain current
 
 #### As an Administrator
 
-- **US-2.8**: I want to view all registered households so that I can monitor registration completion
-- **US-2.9**: I want to see registration statistics so that I can track ministry participation
-- **US-2.10**: I want to filter registrations by ministry so that I can focus on specific programs
+- **US-3.8**: I want to view all registered households so that I can monitor registration completion
+- **US-3.9**: I want to see registration statistics so that I can track ministry participation
+- **US-3.10**: I want to filter registrations by ministry so that I can focus on specific programs
 
 ---
 
-## Epic 3: Check-In & Check-Out Management
+## Epic 4: Check-In & Check-Out Management
 
 ### Epic Description
 
@@ -97,7 +123,7 @@ Real-time attendance tracking system with secure guardian verification for child
 
 ---
 
-## Epic 4: Incident Management & Reporting
+## Epic 5: Incident Management & Reporting
 
 ### Epic Description
 
@@ -123,7 +149,7 @@ Comprehensive incident logging system with severity tracking and administrative 
 
 ---
 
-## Epic 5: Ministry Configuration & Management
+## Epic 6: Ministry Configuration & Management
 
 ### Epic Description
 
@@ -148,7 +174,7 @@ Flexible ministry setup system with customizable enrollment types, age restricti
 
 ---
 
-## Epic 6: Reporting & Data Export
+## Epic 7: Reporting & Data Export
 
 ### Epic Description
 
@@ -167,7 +193,7 @@ Comprehensive reporting system for administrative oversight and compliance requi
 
 ---
 
-## Epic 7: Dashboard & Analytics
+## Epic 8: Dashboard & Analytics
 
 ### Epic Description
 
@@ -189,7 +215,7 @@ Real-time dashboard providing key metrics and status overview for administrators
 
 ---
 
-## Epic 8: Mobile-First Responsive Design
+## Epic 9: Mobile-First Responsive Design
 
 ### Epic Description
 
@@ -210,7 +236,7 @@ Optimized user experience across all devices with mobile-first design principles
 
 ---
 
-## Epic 9: Data Management & Seeding
+## Epic 10: Data Management & Seeding
 
 ### Epic Description
 
@@ -226,7 +252,7 @@ Comprehensive data management system with sample data for demonstration and test
 
 ---
 
-## Epic 10: Feature Flags & Configuration
+## Epic 11: Feature Flags & Configuration
 
 ### Epic Description
 
@@ -256,6 +282,11 @@ Flexible feature management system allowing administrators to control feature av
 
 ### Key Features Implemented
 
+- ✅ Central leader profile management with multi-ministry support
+- ✅ Leader Directory interface with search and profile creation
+- ✅ Ministry-scoped RBAC with separate ministry accounts
+- ✅ Leader profile migration from user-based system
+- ✅ Real-time leader profile search and filtering
 - ✅ Role-based access control (Admin/Leader)
 - ✅ Family registration with multi-child support
 - ✅ Real-time check-in/out with guardian verification
@@ -274,6 +305,9 @@ Flexible feature management system allowing administrators to control feature av
 
 ### Data Models
 
+- **LeaderProfile**: Central non-user leader records with normalized contact data
+- **MinistryLeaderMembership**: Many-to-many relationships with role types (PRIMARY/VOLUNTEER)
+- **MinistryAccount**: One per ministry for RBAC authentication and scoped access
 - **Household**: Family unit information
 - **Guardian**: Parent/guardian details with contact info
 - **Child**: Individual child records with medical/allergy info
