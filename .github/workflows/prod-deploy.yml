@@ -22,4 +22,3 @@ jobs:
         run: |
           chmod +x scripts/db/apply_migrations_safe.sh
           ./scripts/db/apply_migrations_safe.sh "$DATABASE_URL"
-*** End Patch
