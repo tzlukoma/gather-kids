@@ -19,15 +19,23 @@ const args = process.argv.slice(2);
 const dryRun = args.includes('--dry-run') || args.includes('-n');
 // --tables=households,children  OR --tables households,children
 let tablesToImport = null;
-const tablesArgIndex = args.findIndex((a) => a === '--tables' || a.startsWith('--tables='));
+const tablesArgIndex = args.findIndex(
+	(a) => a === '--tables' || a.startsWith('--tables=')
+);
 if (tablesArgIndex !== -1) {
 	const a = args[tablesArgIndex];
 	let val = null;
 	if (a.includes('=')) val = a.split('=')[1];
 	else val = args[tablesArgIndex + 1];
-	if (val) tablesToImport = val.split(',').map((s) => s.trim()).filter(Boolean);
+	if (val)
+		tablesToImport = val
+			.split(',')
+			.map((s) => s.trim())
+			.filter(Boolean);
 }
-const fileArg = args.find((a) => !a.startsWith('-')) || path.resolve('scripts/seed/gather-kids-export.json');
+const fileArg =
+	args.find((a) => !a.startsWith('-')) ||
+	path.resolve('scripts/seed/gather-kids-export.json');
 if (!fs.existsSync(fileArg)) {
 	console.error('Export file not found:', fileArg);
 	console.error(
@@ -40,6 +48,7 @@ const SUPABASE_URL =
 	process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'http://localhost:54321';
 const SUPABASE_SERVICE_ROLE_KEY =
 	process.env.SUPABASE_SERVICE_ROLE_KEY ??
+	process.env.SUPABASE_SERVICE_ROLE ??
 	(fs.existsSync(process.env.HOME + '/.supabase/local-service-role-key')
 		? fs
 				.readFileSync(
@@ -50,7 +59,7 @@ const SUPABASE_SERVICE_ROLE_KEY =
 		: undefined);
 if (!SUPABASE_SERVICE_ROLE_KEY) {
 	console.error(
-		'Service role key not found. Set SUPABASE_SERVICE_ROLE_KEY or ensure ~/.supabase/local-service-role-key exists'
+		'Service role key not found. Set SUPABASE_SERVICE_ROLE_KEY or SUPABASE_SERVICE_ROLE, or ensure ~/.supabase/local-service-role-key exists'
 	);
 	process.exit(1);
 }
@@ -178,33 +187,38 @@ async function chunkUpsert(table, rows, chunkSize = 200) {
 			})`
 		);
 		if (dryRun) {
-			console.log(`[dry-run] would upsert ${batch.length} rows into ${dbTable}`);
+			console.log(
+				`[dry-run] would upsert ${batch.length} rows into ${dbTable}`
+			);
 			continue;
 		}
-			const { data, error } = await supabase.from(dbTable).upsert(batch).select('*');
+		const { data, error } = await supabase
+			.from(dbTable)
+			.upsert(batch)
+			.select('*');
 		if (error) {
 			console.error(`Error upserting into ${dbTable}:`, error);
 			throw error;
 		}
-			console.log(`Upserted ${data?.length ?? 0} rows into ${dbTable}`);
+		console.log(`Upserted ${data?.length ?? 0} rows into ${dbTable}`);
 
-			// collect mapping external_id -> server PK when available
-			if (data && data.length > 0) {
-				for (const row of data) {
-					// households: external_id -> household_id
-					if (dbTable === 'households' && row.external_id && row.household_id) {
-						mappingReport.households[row.external_id] = row.household_id;
-					}
-					// children: external_id -> child_id
-					if (dbTable === 'children' && row.external_id && row.child_id) {
-						mappingReport.children[row.external_id] = row.child_id;
-					}
-					// guardians: external_id -> guardian_id
-					if (dbTable === 'guardians' && row.external_id && row.guardian_id) {
-						mappingReport.guardians[row.external_id] = row.guardian_id;
-					}
+		// collect mapping external_id -> server PK when available
+		if (data && data.length > 0) {
+			for (const row of data) {
+				// households: external_id -> household_id
+				if (dbTable === 'households' && row.external_id && row.household_id) {
+					mappingReport.households[row.external_id] = row.household_id;
+				}
+				// children: external_id -> child_id
+				if (dbTable === 'children' && row.external_id && row.child_id) {
+					mappingReport.children[row.external_id] = row.child_id;
+				}
+				// guardians: external_id -> guardian_id
+				if (dbTable === 'guardians' && row.external_id && row.guardian_id) {
+					mappingReport.guardians[row.external_id] = row.guardian_id;
 				}
 			}
+		}
 	}
 }
 
@@ -239,7 +253,7 @@ async function run() {
 
 	if (tablesToImport && tablesToImport.length > 0) {
 		console.log('Import restricted to tables:', tablesToImport.join(','));
-		order = order.filter(t => tablesToImport.includes(t));
+		order = order.filter((t) => tablesToImport.includes(t));
 	}
 
 	// keep maps from external ids -> primary keys for tables where we imported external ids
@@ -273,12 +287,20 @@ async function run() {
 				if (!m.child_id) m.child_id = uuidv4();
 			}
 			// resolve household_id from previously-built households external map if available
-			const extIds = Array.from(new Set(mapped.map(m => m.external_household_id).filter(Boolean)));
+			const extIds = Array.from(
+				new Set(mapped.map((m) => m.external_household_id).filter(Boolean))
+			);
 			if (extIds.length > 0) {
 				// fetch mapping from households if we haven't already
-				if (!externalMaps.households || Object.keys(externalMaps.households).length === 0) {
+				if (
+					!externalMaps.households ||
+					Object.keys(externalMaps.households).length === 0
+				) {
 					try {
-						const { data: hhData, error: hhErr } = await supabase.from('households').select('household_id, external_id').in('external_id', extIds);
+						const { data: hhData, error: hhErr } = await supabase
+							.from('households')
+							.select('household_id, external_id')
+							.in('external_id', extIds);
 						if (hhErr) throw hhErr;
 						for (const h of hhData || []) {
 							externalMaps.households[h.external_id] = h.household_id;
@@ -290,34 +312,52 @@ async function run() {
 								if (!m.guardian_id) m.guardian_id = uuidv4();
 							}
 							// resolve household_id from households external mapping if available
-							const extHouseIds = Array.from(new Set(mapped.map(m => m.external_household_id).filter(Boolean)));
+							const extHouseIds = Array.from(
+								new Set(
+									mapped.map((m) => m.external_household_id).filter(Boolean)
+								)
+							);
 							if (extHouseIds.length > 0) {
-								if (!externalMaps.households || Object.keys(externalMaps.households).length === 0) {
+								if (
+									!externalMaps.households ||
+									Object.keys(externalMaps.households).length === 0
+								) {
 									try {
-										const { data: hhData, error: hhErr } = await supabase.from('households').select('household_id, external_id').in('external_id', extHouseIds);
+										const { data: hhData, error: hhErr } = await supabase
+											.from('households')
+											.select('household_id, external_id')
+											.in('external_id', extHouseIds);
 										if (hhErr) throw hhErr;
 										for (const h of hhData || []) {
 											externalMaps.households[h.external_id] = h.household_id;
 										}
 									} catch (e) {
-										console.error('Failed to fetch households mapping for guardians:', e?.message || e);
+										console.error(
+											'Failed to fetch households mapping for guardians:',
+											e?.message || e
+										);
 									}
 								}
 								for (const m of mapped) {
 									if (m.external_household_id) {
-										m.household_id = externalMaps.households[m.external_household_id] || null;
+										m.household_id =
+											externalMaps.households[m.external_household_id] || null;
 									}
 								}
 							}
 						}
 					} catch (e) {
-						console.error('Failed to fetch households mapping:', e?.message || e);
+						console.error(
+							'Failed to fetch households mapping:',
+							e?.message || e
+						);
 					}
 				}
 				// apply mapping
 				for (const m of mapped) {
 					if (m.external_household_id) {
-						m.household_id = externalMaps.households[m.external_household_id] || null;
+						m.household_id =
+							externalMaps.households[m.external_household_id] || null;
 					}
 				}
 			}
@@ -325,18 +365,18 @@ async function run() {
 		await chunkUpsert(table, mapped, 200);
 	}
 
-		// write mapping report to disk
-		try {
-			const mapsDir = path.join(__dirname, '..', 'import', 'mappings');
-			if (!fs.existsSync(mapsDir)) fs.mkdirSync(mapsDir, { recursive: true });
-			const outPath = path.join(mapsDir, `${Date.now()}-mapping.json`);
-			fs.writeFileSync(outPath, JSON.stringify(mappingReport, null, 2), 'utf8');
-			console.log('Mapping report written to', outPath);
-		} catch (e) {
-			console.error('Failed to write mapping report:', e?.message || e);
-		}
+	// write mapping report to disk
+	try {
+		const mapsDir = path.join(__dirname, '..', 'import', 'mappings');
+		if (!fs.existsSync(mapsDir)) fs.mkdirSync(mapsDir, { recursive: true });
+		const outPath = path.join(mapsDir, `${Date.now()}-mapping.json`);
+		fs.writeFileSync(outPath, JSON.stringify(mappingReport, null, 2), 'utf8');
+		console.log('Mapping report written to', outPath);
+	} catch (e) {
+		console.error('Failed to write mapping report:', e?.message || e);
+	}
 
-		console.log('Import complete.');
+	console.log('Import complete.');
 }
 
 run().catch((err) => {
