@@ -103,17 +103,23 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 							href="/dashboard"
 							className="flex items-center gap-2 text-foreground">
 							{settings.logo_url ? (
-								<img
-									src={settings.logo_url}
-									alt={`${settings.app_name || 'gatherKids'} Logo`}
-									className="h-8 w-8 object-contain"
-								/>
+								<>
+									<img
+										src={settings.logo_url}
+										alt={`${settings.app_name || 'gatherKids'} Logo`}
+										className="min-h-6 w-auto object-contain"
+									/>
+									{!settings.use_logo_only && (
+										<div className="font-headline text-2xl font-bold">
+											{settings.app_name || 'gatherKids'}
+										</div>
+									)}
+								</>
 							) : (
-								<div className="h-8 w-8" />
+								<div className="font-headline text-2xl font-bold">
+									{settings.app_name || 'gatherKids'}
+								</div>
 							)}
-							<div className="font-headline text-2xl font-bold">
-								{settings.app_name || 'gatherKids'}
-							</div>
 						</Link>
 					</div>
 					<div className="flex items-center gap-4">
