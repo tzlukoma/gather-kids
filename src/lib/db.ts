@@ -55,3 +55,9 @@ class GatherKidsDB extends Dexie {
 }
 
 export const db = new GatherKidsDB();
+
+// after `export const db = new GatherKidsDB();`
+if (typeof window !== 'undefined') {
+  // @ts-ignore
+  window.gatherKidsDB = db;
+}
