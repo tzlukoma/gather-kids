@@ -1,0 +1,5211 @@
+{
+  "exportedAt": "2025-08-29T02:25:08.225Z",
+  "dbName": "gatherKidsDB",
+  "data": {
+    "attendance": [
+      {
+        "attendance_id": "att_0",
+        "event_id": "evt_sunday_school",
+        "child_id": "c_h_1_1",
+        "date": "2025-08-26",
+        "timeslot_id": "ts_0900",
+        "check_in_at": "2025-08-26T05:39:44.998Z",
+        "checked_in_by": "user_leader_1"
+      },
+      {
+        "attendance_id": "att_1",
+        "event_id": "evt_sunday_school",
+        "child_id": "c_h_1_2",
+        "date": "2025-08-26",
+        "timeslot_id": "ts_1100",
+        "check_in_at": "2025-08-26T05:39:44.998Z",
+        "checked_in_by": "user_leader_1"
+      },
+      {
+        "attendance_id": "att_2",
+        "event_id": "evt_sunday_school",
+        "child_id": "c_h_2_1",
+        "date": "2025-08-26",
+        "timeslot_id": "ts_0900",
+        "check_in_at": "2025-08-26T05:39:44.998Z",
+        "checked_in_by": "user_leader_1"
+      },
+      {
+        "attendance_id": "att_3",
+        "event_id": "evt_sunday_school",
+        "child_id": "c_h_2_2",
+        "date": "2025-08-26",
+        "timeslot_id": "ts_1100",
+        "check_in_at": "2025-08-26T05:39:44.998Z",
+        "checked_in_by": "user_leader_1"
+      },
+      {
+        "attendance_id": "att_4",
+        "event_id": "evt_sunday_school",
+        "child_id": "c_h_2_3",
+        "date": "2025-08-26",
+        "timeslot_id": "ts_0900",
+        "check_in_at": "2025-08-26T05:39:44.998Z",
+        "checked_in_by": "user_leader_1"
+      },
+      {
+        "attendance_id": "att_5",
+        "event_id": "evt_sunday_school",
+        "child_id": "c_h_3_1",
+        "date": "2025-08-26",
+        "timeslot_id": "ts_1100",
+        "check_in_at": "2025-08-26T05:39:44.998Z",
+        "checked_in_by": "user_leader_1"
+      },
+      {
+        "attendance_id": "att_6",
+        "event_id": "evt_sunday_school",
+        "child_id": "c_h_4_1",
+        "date": "2025-08-26",
+        "timeslot_id": "ts_0900",
+        "check_in_at": "2025-08-26T05:39:44.998Z",
+        "checked_in_by": "user_leader_1"
+      },
+      {
+        "attendance_id": "att_7",
+        "event_id": "evt_sunday_school",
+        "child_id": "c_h_4_2",
+        "date": "2025-08-26",
+        "timeslot_id": "ts_1100",
+        "check_in_at": "2025-08-26T05:39:44.998Z",
+        "checked_in_by": "user_leader_1"
+      }
+    ],
+    "audit_logs": [],
+    "child_year_profiles": [],
+    "children": [
+      {
+        "child_id": "c_h_10_1",
+        "household_id": "h_10",
+        "first_name": "Evelyn",
+        "last_name": "Martinez",
+        "dob": "2018-01-16",
+        "grade": "2",
+        "is_active": true,
+        "special_needs": false,
+        "created_at": "2025-08-26T05:39:44.999Z",
+        "updated_at": "2025-08-26T05:39:44.999Z"
+      },
+      {
+        "child_id": "c_h_10_2",
+        "household_id": "h_10",
+        "first_name": "Jack",
+        "last_name": "Martinez",
+        "dob": "2010-09-25",
+        "grade": "10",
+        "child_mobile": "555-555-3004",
+        "is_active": true,
+        "special_needs": false,
+        "created_at": "2025-08-26T05:39:44.999Z",
+        "updated_at": "2025-08-26T05:39:44.999Z"
+      },
+      {
+        "child_id": "c_h_11_1",
+        "household_id": "h_11",
+        "first_name": "Aria",
+        "last_name": "Hernandez",
+        "dob": "2017-08-04",
+        "grade": "3",
+        "is_active": true,
+        "special_needs": false,
+        "created_at": "2025-08-26T05:39:44.999Z",
+        "updated_at": "2025-08-26T05:39:44.999Z"
+      },
+      {
+        "child_id": "c_h_12_1",
+        "household_id": "h_12",
+        "first_name": "Grace",
+        "last_name": "Lopez",
+        "dob": "2019-06-01",
+        "grade": "1",
+        "is_active": true,
+        "special_needs": false,
+        "created_at": "2025-08-26T05:39:44.999Z",
+        "updated_at": "2025-08-26T05:39:44.999Z"
+      },
+      {
+        "child_id": "c_h_12_2",
+        "household_id": "h_12",
+        "first_name": "Lucas",
+        "last_name": "Lopez",
+        "dob": "2016-01-23",
+        "grade": "4",
+        "is_active": true,
+        "special_needs": false,
+        "created_at": "2025-08-26T05:39:44.999Z",
+        "updated_at": "2025-08-26T05:39:44.999Z"
+      },
+      {
+        "child_id": "c_h_13_1",
+        "household_id": "h_13",
+        "first_name": "Chloe",
+        "last_name": "Gonzalez",
+        "dob": "2014-07-15",
+        "grade": "6",
+        "is_active": true,
+        "special_needs": false,
+        "created_at": "2025-08-26T05:39:44.999Z",
+        "updated_at": "2025-08-26T05:39:44.999Z"
+      },
+      {
+        "child_id": "c_h_13_2",
+        "household_id": "h_13",
+        "first_name": "Daniel",
+        "last_name": "Gonzalez",
+        "dob": "2011-04-21",
+        "grade": "9",
+        "child_mobile": "555-555-3005",
+        "is_active": true,
+        "special_needs": false,
+        "created_at": "2025-08-26T05:39:44.999Z",
+        "updated_at": "2025-08-26T05:39:44.999Z"
+      },
+      {
+        "child_id": "c_h_14_1",
+        "household_id": "h_14",
+        "first_name": "Zoey",
+        "last_name": "Wilson",
+        "dob": "2021-01-27",
+        "grade": "0",
+        "is_active": true,
+        "special_needs": false,
+        "created_at": "2025-08-26T05:39:44.999Z",
+        "updated_at": "2025-08-26T05:39:44.999Z"
+      },
+      {
+        "child_id": "c_h_14_2",
+        "household_id": "h_14",
+        "first_name": "Leo",
+        "last_name": "Wilson",
+        "dob": "2018-11-05",
+        "grade": "2",
+        "is_active": true,
+        "special_needs": false,
+        "created_at": "2025-08-26T05:39:44.999Z",
+        "updated_at": "2025-08-26T05:39:44.999Z"
+      },
+      {
+        "child_id": "c_h_15_1",
+        "household_id": "h_15",
+        "first_name": "Penelope",
+        "last_name": "Anderson",
+        "dob": "2013-03-23",
+        "grade": "7",
+        "is_active": true,
+        "special_needs": false,
+        "created_at": "2025-08-26T05:39:44.999Z",
+        "updated_at": "2025-08-26T05:39:44.999Z"
+      },
+      {
+        "child_id": "c_h_16_1",
+        "household_id": "h_16",
+        "first_name": "Riley",
+        "last_name": "Thomas",
+        "dob": "2020-01-21",
+        "grade": "0",
+        "is_active": true,
+        "special_needs": false,
+        "created_at": "2025-08-26T05:39:44.999Z",
+        "updated_at": "2025-08-26T05:39:44.999Z"
+      },
+      {
+        "child_id": "c_h_16_2",
+        "household_id": "h_16",
+        "first_name": "Owen",
+        "last_name": "Thomas",
+        "dob": "2017-09-28",
+        "grade": "3",
+        "is_active": true,
+        "special_needs": false,
+        "created_at": "2025-08-26T05:39:44.999Z",
+        "updated_at": "2025-08-26T05:39:44.999Z"
+      },
+      {
+        "child_id": "c_h_17_1",
+        "household_id": "h_17",
+        "first_name": "Layla",
+        "last_name": "Taylor",
+        "dob": "2015-04-23",
+        "grade": "5",
+        "is_active": true,
+        "special_needs": false,
+        "created_at": "2025-08-26T05:39:44.999Z",
+        "updated_at": "2025-08-26T05:39:44.999Z"
+      },
+      {
+        "child_id": "c_h_17_2",
+        "household_id": "h_17",
+        "first_name": "Wyatt",
+        "last_name": "Taylor",
+        "dob": "2012-05-20",
+        "grade": "8",
+        "child_mobile": "555-555-3006",
+        "is_active": true,
+        "special_needs": false,
+        "created_at": "2025-08-26T05:39:44.999Z",
+        "updated_at": "2025-08-26T05:39:44.999Z"
+      },
+      {
+        "child_id": "c_h_18_1",
+        "household_id": "h_18",
+        "first_name": "Nora",
+        "last_name": "Moore",
+        "dob": "2022-07-12",
+        "grade": "0",
+        "is_active": true,
+        "special_needs": false,
+        "created_at": "2025-08-26T05:39:44.999Z",
+        "updated_at": "2025-08-26T05:39:44.999Z"
+      },
+      {
+        "child_id": "c_h_18_2",
+        "household_id": "h_18",
+        "first_name": "Caleb",
+        "last_name": "Moore",
+        "dob": "2019-11-06",
+        "grade": "1",
+        "is_active": true,
+        "special_needs": false,
+        "created_at": "2025-08-26T05:39:44.999Z",
+        "updated_at": "2025-08-26T05:39:44.999Z"
+      },
+      {
+        "child_id": "c_h_19_1",
+        "household_id": "h_19",
+        "first_name": "Hannah",
+        "last_name": "Jackson",
+        "dob": "2010-05-07",
+        "grade": "10",
+        "child_mobile": "555-555-3007",
+        "is_active": true,
+        "special_needs": false,
+        "created_at": "2025-08-26T05:39:44.999Z",
+        "updated_at": "2025-08-26T05:39:44.999Z"
+      },
+      {
+        "child_id": "c_h_19_2",
+        "household_id": "h_19",
+        "first_name": "Isaac",
+        "last_name": "Jackson",
+        "dob": "2008-08-09",
+        "grade": "12",
+        "child_mobile": "555-555-3008",
+        "is_active": true,
+        "special_needs": false,
+        "created_at": "2025-08-26T05:39:44.999Z",
+        "updated_at": "2025-08-26T05:39:44.999Z"
+      },
+      {
+        "child_id": "c_h_1_1",
+        "household_id": "h_1",
+        "first_name": "Emma",
+        "last_name": "Smith",
+        "dob": "2020-11-23",
+        "grade": "0",
+        "allergies": "Peanuts",
+        "is_active": true,
+        "special_needs": false,
+        "created_at": "2025-08-26T05:39:44.999Z",
+        "updated_at": "2025-08-26T05:39:44.999Z"
+      },
+      {
+        "child_id": "c_h_1_2",
+        "household_id": "h_1",
+        "first_name": "Liam",
+        "last_name": "Smith",
+        "dob": "2017-12-23",
+        "grade": "3",
+        "is_active": true,
+        "special_needs": false,
+        "created_at": "2025-08-26T05:39:44.999Z",
+        "updated_at": "2025-08-26T05:39:44.999Z"
+      },
+      {
+        "child_id": "c_h_20_1",
+        "household_id": "h_20",
+        "first_name": "Stella",
+        "last_name": "White",
+        "dob": "2016-10-07",
+        "grade": "4",
+        "is_active": true,
+        "special_needs": false,
+        "created_at": "2025-08-26T05:39:44.999Z",
+        "updated_at": "2025-08-26T05:39:44.999Z"
+      },
+      {
+        "child_id": "c_h_20_2",
+        "household_id": "h_20",
+        "first_name": "Gabriel",
+        "last_name": "White",
+        "dob": "2013-03-13",
+        "grade": "7",
+        "allergies": "Dairy",
+        "is_active": true,
+        "special_needs": false,
+        "created_at": "2025-08-26T05:39:44.999Z",
+        "updated_at": "2025-08-26T05:39:44.999Z"
+      },
+      {
+        "child_id": "c_h_2_1",
+        "household_id": "h_2",
+        "first_name": "Olivia",
+        "last_name": "Johnson",
+        "dob": "2021-08-21",
+        "grade": "0",
+        "is_active": true,
+        "special_needs": false,
+        "created_at": "2025-08-26T05:39:44.999Z",
+        "updated_at": "2025-08-26T05:39:44.999Z"
+      },
+      {
+        "child_id": "c_h_2_2",
+        "household_id": "h_2",
+        "first_name": "Noah",
+        "last_name": "Johnson",
+        "dob": "2018-03-07",
+        "grade": "2",
+        "allergies": "Pollen",
+        "is_active": true,
+        "special_needs": false,
+        "created_at": "2025-08-26T05:39:44.999Z",
+        "updated_at": "2025-08-26T05:39:44.999Z"
+      },
+      {
+        "child_id": "c_h_2_3",
+        "household_id": "h_2",
+        "first_name": "Ava",
+        "last_name": "Johnson",
+        "dob": "2015-04-03",
+        "grade": "5",
+        "is_active": true,
+        "special_needs": false,
+        "created_at": "2025-08-26T05:39:44.999Z",
+        "updated_at": "2025-08-26T05:39:44.999Z"
+      },
+      {
+        "child_id": "c_h_3_1",
+        "household_id": "h_3",
+        "first_name": "Isabella",
+        "last_name": "Williams",
+        "dob": "2011-06-19",
+        "grade": "9",
+        "child_mobile": "555-555-3001",
+        "is_active": true,
+        "special_needs": false,
+        "created_at": "2025-08-26T05:39:44.999Z",
+        "updated_at": "2025-08-26T05:39:44.999Z"
+      },
+      {
+        "child_id": "c_h_4_1",
+        "household_id": "h_4",
+        "first_name": "Sophia",
+        "last_name": "Brown",
+        "dob": "2016-05-08",
+        "grade": "4",
+        "is_active": true,
+        "special_needs": false,
+        "created_at": "2025-08-26T05:39:44.999Z",
+        "updated_at": "2025-08-26T05:39:44.999Z"
+      },
+      {
+        "child_id": "c_h_4_2",
+        "household_id": "h_4",
+        "first_name": "Mason",
+        "last_name": "Brown",
+        "dob": "2013-06-28",
+        "grade": "7",
+        "is_active": true,
+        "special_needs": false,
+        "created_at": "2025-08-26T05:39:44.999Z",
+        "updated_at": "2025-08-26T05:39:44.999Z"
+      },
+      {
+        "child_id": "c_h_5_1",
+        "household_id": "h_5",
+        "first_name": "Mia",
+        "last_name": "Jones",
+        "dob": "2022-10-03",
+        "grade": "0",
+        "is_active": true,
+        "special_needs": false,
+        "created_at": "2025-08-26T05:39:44.999Z",
+        "updated_at": "2025-08-26T05:39:44.999Z"
+      },
+      {
+        "child_id": "c_h_5_2",
+        "household_id": "h_5",
+        "first_name": "Ethan",
+        "last_name": "Jones",
+        "dob": "2014-05-08",
+        "grade": "6",
+        "is_active": true,
+        "special_needs": false,
+        "created_at": "2025-08-26T05:39:44.999Z",
+        "updated_at": "2025-08-26T05:39:44.999Z"
+      },
+      {
+        "child_id": "c_h_6_1",
+        "household_id": "h_6",
+        "first_name": "Abigail",
+        "last_name": "Garcia",
+        "dob": "2019-06-22",
+        "grade": "1",
+        "is_active": true,
+        "special_needs": false,
+        "created_at": "2025-08-26T05:39:44.999Z",
+        "updated_at": "2025-08-26T05:39:44.999Z"
+      },
+      {
+        "child_id": "c_h_6_2",
+        "household_id": "h_6",
+        "first_name": "Benjamin",
+        "last_name": "Garcia",
+        "dob": "2012-04-19",
+        "grade": "8",
+        "child_mobile": "555-555-3002",
+        "is_active": true,
+        "special_needs": false,
+        "created_at": "2025-08-26T05:39:44.999Z",
+        "updated_at": "2025-08-26T05:39:44.999Z"
+      },
+      {
+        "child_id": "c_h_7_1",
+        "household_id": "h_7",
+        "first_name": "Emily",
+        "last_name": "Miller",
+        "dob": "2009-12-02",
+        "grade": "11",
+        "child_mobile": "555-555-3003",
+        "is_active": true,
+        "special_needs": false,
+        "created_at": "2025-08-26T05:39:44.999Z",
+        "updated_at": "2025-08-26T05:39:44.999Z"
+      },
+      {
+        "child_id": "c_h_8_1",
+        "household_id": "h_8",
+        "first_name": "Charlotte",
+        "last_name": "Davis",
+        "dob": "2023-02-22",
+        "grade": "0",
+        "is_active": true,
+        "special_needs": false,
+        "created_at": "2025-08-26T05:39:44.999Z",
+        "updated_at": "2025-08-26T05:39:44.999Z"
+      },
+      {
+        "child_id": "c_h_8_2",
+        "household_id": "h_8",
+        "first_name": "Henry",
+        "last_name": "Davis",
+        "dob": "2020-11-19",
+        "grade": "0",
+        "is_active": true,
+        "special_needs": false,
+        "created_at": "2025-08-26T05:39:44.999Z",
+        "updated_at": "2025-08-26T05:39:44.999Z"
+      },
+      {
+        "child_id": "c_h_9_1",
+        "household_id": "h_9",
+        "first_name": "Harper",
+        "last_name": "Rodriguez",
+        "dob": "2015-09-09",
+        "grade": "5",
+        "is_active": true,
+        "special_needs": false,
+        "created_at": "2025-08-26T05:39:44.999Z",
+        "updated_at": "2025-08-26T05:39:44.999Z"
+      }
+    ],
+    "competitionYears": [
+      {
+        "id": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "year": 2025,
+        "name": "Bible Bee 2025",
+        "description": "Demo year 2025",
+        "createdAt": "2025-08-26T05:39:45.070Z",
+        "updatedAt": "2025-08-26T05:39:45.070Z"
+      },
+      {
+        "id": "6662abff-3518-4c68-a0d9-8a624bfd24f6",
+        "year": 2024,
+        "name": "Bible Bee 2024",
+        "description": "Demo year 2024",
+        "createdAt": "2025-08-26T05:39:45.069Z",
+        "updatedAt": "2025-08-26T05:39:45.069Z"
+      }
+    ],
+    "emergency_contacts": [
+      {
+        "contact_id": "ec_10",
+        "household_id": "h_9",
+        "first_name": "Jane",
+        "last_name": "Doe",
+        "mobile_phone": "555-555-9999",
+        "relationship": "Aunt"
+      },
+      {
+        "contact_id": "ec_11",
+        "household_id": "h_10",
+        "first_name": "Jane",
+        "last_name": "Doe",
+        "mobile_phone": "555-555-9999",
+        "relationship": "Aunt"
+      },
+      {
+        "contact_id": "ec_12",
+        "household_id": "h_11",
+        "first_name": "Jane",
+        "last_name": "Doe",
+        "mobile_phone": "555-555-9999",
+        "relationship": "Aunt"
+      },
+      {
+        "contact_id": "ec_13",
+        "household_id": "h_12",
+        "first_name": "Jane",
+        "last_name": "Doe",
+        "mobile_phone": "555-555-9999",
+        "relationship": "Aunt"
+      },
+      {
+        "contact_id": "ec_14",
+        "household_id": "h_13",
+        "first_name": "Jane",
+        "last_name": "Doe",
+        "mobile_phone": "555-555-9999",
+        "relationship": "Aunt"
+      },
+      {
+        "contact_id": "ec_15",
+        "household_id": "h_14",
+        "first_name": "Jane",
+        "last_name": "Doe",
+        "mobile_phone": "555-555-9999",
+        "relationship": "Aunt"
+      },
+      {
+        "contact_id": "ec_16",
+        "household_id": "h_15",
+        "first_name": "Jane",
+        "last_name": "Doe",
+        "mobile_phone": "555-555-9999",
+        "relationship": "Aunt"
+      },
+      {
+        "contact_id": "ec_17",
+        "household_id": "h_16",
+        "first_name": "Jane",
+        "last_name": "Doe",
+        "mobile_phone": "555-555-9999",
+        "relationship": "Aunt"
+      },
+      {
+        "contact_id": "ec_18",
+        "household_id": "h_17",
+        "first_name": "Jane",
+        "last_name": "Doe",
+        "mobile_phone": "555-555-9999",
+        "relationship": "Aunt"
+      },
+      {
+        "contact_id": "ec_19",
+        "household_id": "h_18",
+        "first_name": "Jane",
+        "last_name": "Doe",
+        "mobile_phone": "555-555-9999",
+        "relationship": "Aunt"
+      },
+      {
+        "contact_id": "ec_2",
+        "household_id": "h_1",
+        "first_name": "Jane",
+        "last_name": "Doe",
+        "mobile_phone": "555-555-9999",
+        "relationship": "Aunt"
+      },
+      {
+        "contact_id": "ec_20",
+        "household_id": "h_19",
+        "first_name": "Jane",
+        "last_name": "Doe",
+        "mobile_phone": "555-555-9999",
+        "relationship": "Aunt"
+      },
+      {
+        "contact_id": "ec_21",
+        "household_id": "h_20",
+        "first_name": "Jane",
+        "last_name": "Doe",
+        "mobile_phone": "555-555-9999",
+        "relationship": "Aunt"
+      },
+      {
+        "contact_id": "ec_3",
+        "household_id": "h_2",
+        "first_name": "Jane",
+        "last_name": "Doe",
+        "mobile_phone": "555-555-9999",
+        "relationship": "Aunt"
+      },
+      {
+        "contact_id": "ec_4",
+        "household_id": "h_3",
+        "first_name": "Jane",
+        "last_name": "Doe",
+        "mobile_phone": "555-555-9999",
+        "relationship": "Aunt"
+      },
+      {
+        "contact_id": "ec_5",
+        "household_id": "h_4",
+        "first_name": "Jane",
+        "last_name": "Doe",
+        "mobile_phone": "555-555-9999",
+        "relationship": "Aunt"
+      },
+      {
+        "contact_id": "ec_6",
+        "household_id": "h_5",
+        "first_name": "Jane",
+        "last_name": "Doe",
+        "mobile_phone": "555-555-9999",
+        "relationship": "Aunt"
+      },
+      {
+        "contact_id": "ec_7",
+        "household_id": "h_6",
+        "first_name": "Jane",
+        "last_name": "Doe",
+        "mobile_phone": "555-555-9999",
+        "relationship": "Aunt"
+      },
+      {
+        "contact_id": "ec_8",
+        "household_id": "h_7",
+        "first_name": "Jane",
+        "last_name": "Doe",
+        "mobile_phone": "555-555-9999",
+        "relationship": "Aunt"
+      },
+      {
+        "contact_id": "ec_9",
+        "household_id": "h_8",
+        "first_name": "Jane",
+        "last_name": "Doe",
+        "mobile_phone": "555-555-9999",
+        "relationship": "Aunt"
+      }
+    ],
+    "events": [
+      {
+        "event_id": "evt_childrens_church",
+        "name": "Children's Church",
+        "timeslots": [
+          {
+            "id": "ts_0900",
+            "start_local": "09:00",
+            "end_local": "10:30"
+          }
+        ]
+      },
+      {
+        "event_id": "evt_sunday_school",
+        "name": "Sunday School",
+        "timeslots": [
+          {
+            "id": "ts_0900",
+            "start_local": "09:00",
+            "end_local": "10:30"
+          }
+        ]
+      },
+      {
+        "event_id": "evt_teen_church",
+        "name": "Teen Church",
+        "timeslots": [
+          {
+            "id": "ts_0900",
+            "start_local": "09:00",
+            "end_local": "10:30"
+          }
+        ]
+      }
+    ],
+    "gradeRules": [
+      {
+        "id": "33089924-24f7-4a5f-bd62-30ded8c534a9",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "minGrade": 0,
+        "maxGrade": 4,
+        "type": "scripture",
+        "targetCount": 4,
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "4968d4e0-958f-465a-bbb4-b3274162ed1a",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "minGrade": 7,
+        "maxGrade": 12,
+        "type": "essay",
+        "promptText": "Explain the central theme of Ephesians 2",
+        "instructions": "500 words",
+        "createdAt": "2025-08-26T05:39:45.082Z",
+        "updatedAt": "2025-08-26T05:39:45.082Z"
+      },
+      {
+        "id": "71cbe281-f262-41ff-8262-822ff07d96b6",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "minGrade": 9,
+        "maxGrade": 12,
+        "type": "essay",
+        "promptText": "Write a 500-word reflection on the role of scripture in daily life.",
+        "instructions": "Submit a 500-word essay.",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "d310c9fa-928d-4c1b-aa13-ce09365dbd29",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "minGrade": 5,
+        "maxGrade": 8,
+        "type": "scripture",
+        "targetCount": 6,
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "d5b45990-5333-41ca-be19-5c966b11790c",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "minGrade": 1,
+        "maxGrade": 6,
+        "type": "scripture",
+        "targetCount": 20,
+        "createdAt": "2025-08-26T05:39:45.081Z",
+        "updatedAt": "2025-08-26T05:39:45.081Z"
+      }
+    ],
+    "guardians": [
+      {
+        "guardian_id": "g_10",
+        "household_id": "h_9",
+        "first_name": "Richard",
+        "last_name": "Rodriguez",
+        "mobile_phone": "555-555-1110",
+        "email": "richard@example.com",
+        "relationship": "Parent",
+        "is_primary": true,
+        "created_at": "2025-08-26T05:39:44.999Z",
+        "updated_at": "2025-08-26T05:39:44.999Z"
+      },
+      {
+        "guardian_id": "g_11",
+        "household_id": "h_10",
+        "first_name": "Susan",
+        "last_name": "Martinez",
+        "mobile_phone": "555-555-1111",
+        "email": "susan@example.com",
+        "relationship": "Parent",
+        "is_primary": true,
+        "created_at": "2025-08-26T05:39:44.999Z",
+        "updated_at": "2025-08-26T05:39:44.999Z"
+      },
+      {
+        "guardian_id": "g_12",
+        "household_id": "h_11",
+        "first_name": "Joseph",
+        "last_name": "Hernandez",
+        "mobile_phone": "555-555-1112",
+        "email": "joseph@example.com",
+        "relationship": "Parent",
+        "is_primary": true,
+        "created_at": "2025-08-26T05:39:44.999Z",
+        "updated_at": "2025-08-26T05:39:44.999Z"
+      },
+      {
+        "guardian_id": "g_13",
+        "household_id": "h_12",
+        "first_name": "Karen",
+        "last_name": "Lopez",
+        "mobile_phone": "555-555-1113",
+        "email": "karen@example.com",
+        "relationship": "Parent",
+        "is_primary": true,
+        "created_at": "2025-08-26T05:39:44.999Z",
+        "updated_at": "2025-08-26T05:39:44.999Z"
+      },
+      {
+        "guardian_id": "g_14",
+        "household_id": "h_13",
+        "first_name": "Thomas",
+        "last_name": "Gonzalez",
+        "mobile_phone": "555-555-1114",
+        "email": "thomas@example.com",
+        "relationship": "Parent",
+        "is_primary": true,
+        "created_at": "2025-08-26T05:39:44.999Z",
+        "updated_at": "2025-08-26T05:39:44.999Z"
+      },
+      {
+        "guardian_id": "g_15",
+        "household_id": "h_14",
+        "first_name": "Nancy",
+        "last_name": "Wilson",
+        "mobile_phone": "555-555-1115",
+        "email": "nancy@example.com",
+        "relationship": "Parent",
+        "is_primary": true,
+        "created_at": "2025-08-26T05:39:44.999Z",
+        "updated_at": "2025-08-26T05:39:44.999Z"
+      },
+      {
+        "guardian_id": "g_16",
+        "household_id": "h_15",
+        "first_name": "Mark",
+        "last_name": "Anderson",
+        "mobile_phone": "555-555-1116",
+        "email": "mark@example.com",
+        "relationship": "Parent",
+        "is_primary": true,
+        "created_at": "2025-08-26T05:39:44.999Z",
+        "updated_at": "2025-08-26T05:39:44.999Z"
+      },
+      {
+        "guardian_id": "g_17",
+        "household_id": "h_16",
+        "first_name": "Sandra",
+        "last_name": "Thomas",
+        "mobile_phone": "555-555-1117",
+        "email": "sandra@example.com",
+        "relationship": "Parent",
+        "is_primary": true,
+        "created_at": "2025-08-26T05:39:44.999Z",
+        "updated_at": "2025-08-26T05:39:44.999Z"
+      },
+      {
+        "guardian_id": "g_18",
+        "household_id": "h_17",
+        "first_name": "Paul",
+        "last_name": "Taylor",
+        "mobile_phone": "555-555-1118",
+        "email": "paul@example.com",
+        "relationship": "Parent",
+        "is_primary": true,
+        "created_at": "2025-08-26T05:39:44.999Z",
+        "updated_at": "2025-08-26T05:39:44.999Z"
+      },
+      {
+        "guardian_id": "g_19",
+        "household_id": "h_18",
+        "first_name": "Betty",
+        "last_name": "Moore",
+        "mobile_phone": "555-555-1119",
+        "email": "betty@example.com",
+        "relationship": "Parent",
+        "is_primary": true,
+        "created_at": "2025-08-26T05:39:44.999Z",
+        "updated_at": "2025-08-26T05:39:44.999Z"
+      },
+      {
+        "guardian_id": "g_2",
+        "household_id": "h_1",
+        "first_name": "John",
+        "last_name": "Smith",
+        "mobile_phone": "555-555-1102",
+        "email": "reg.overwrite@example.com",
+        "relationship": "Parent",
+        "is_primary": true,
+        "created_at": "2025-08-26T05:39:44.999Z",
+        "updated_at": "2025-08-26T05:39:44.999Z"
+      },
+      {
+        "guardian_id": "g_20",
+        "household_id": "h_19",
+        "first_name": "Steven",
+        "last_name": "Jackson",
+        "mobile_phone": "555-555-1120",
+        "email": "steven@example.com",
+        "relationship": "Parent",
+        "is_primary": true,
+        "created_at": "2025-08-26T05:39:44.999Z",
+        "updated_at": "2025-08-26T05:39:44.999Z"
+      },
+      {
+        "guardian_id": "g_21",
+        "household_id": "h_20",
+        "first_name": "Donna",
+        "last_name": "White",
+        "mobile_phone": "555-555-1121",
+        "email": "donna@example.com",
+        "relationship": "Parent",
+        "is_primary": true,
+        "created_at": "2025-08-26T05:39:44.999Z",
+        "updated_at": "2025-08-26T05:39:44.999Z"
+      },
+      {
+        "guardian_id": "g_3",
+        "household_id": "h_2",
+        "first_name": "Mary",
+        "last_name": "Johnson",
+        "mobile_phone": "555-555-1103",
+        "email": "reg.prefill@example.com",
+        "relationship": "Parent",
+        "is_primary": true,
+        "created_at": "2025-08-26T05:39:44.999Z",
+        "updated_at": "2025-08-26T05:39:44.999Z"
+      },
+      {
+        "guardian_id": "g_4",
+        "household_id": "h_3",
+        "first_name": "James",
+        "last_name": "Williams",
+        "mobile_phone": "555-555-1104",
+        "email": "james@example.com",
+        "relationship": "Parent",
+        "is_primary": true,
+        "created_at": "2025-08-26T05:39:44.999Z",
+        "updated_at": "2025-08-26T05:39:44.999Z"
+      },
+      {
+        "guardian_id": "g_5",
+        "household_id": "h_4",
+        "first_name": "Patricia",
+        "last_name": "Brown",
+        "mobile_phone": "555-555-1105",
+        "email": "patricia@example.com",
+        "relationship": "Parent",
+        "is_primary": true,
+        "created_at": "2025-08-26T05:39:44.999Z",
+        "updated_at": "2025-08-26T05:39:44.999Z"
+      },
+      {
+        "guardian_id": "g_6",
+        "household_id": "h_5",
+        "first_name": "Robert",
+        "last_name": "Jones",
+        "mobile_phone": "555-555-1106",
+        "email": "robert@example.com",
+        "relationship": "Parent",
+        "is_primary": true,
+        "created_at": "2025-08-26T05:39:44.999Z",
+        "updated_at": "2025-08-26T05:39:44.999Z"
+      },
+      {
+        "guardian_id": "g_7",
+        "household_id": "h_6",
+        "first_name": "Maria",
+        "last_name": "Garcia",
+        "mobile_phone": "555-555-1107",
+        "email": "maria@example.com",
+        "relationship": "Parent",
+        "is_primary": true,
+        "created_at": "2025-08-26T05:39:44.999Z",
+        "updated_at": "2025-08-26T05:39:44.999Z"
+      },
+      {
+        "guardian_id": "g_8",
+        "household_id": "h_7",
+        "first_name": "David",
+        "last_name": "Miller",
+        "mobile_phone": "555-555-1108",
+        "email": "david@example.com",
+        "relationship": "Parent",
+        "is_primary": true,
+        "created_at": "2025-08-26T05:39:44.999Z",
+        "updated_at": "2025-08-26T05:39:44.999Z"
+      },
+      {
+        "guardian_id": "g_9",
+        "household_id": "h_8",
+        "first_name": "Linda",
+        "last_name": "Davis",
+        "mobile_phone": "555-555-1109",
+        "email": "linda@example.com",
+        "relationship": "Parent",
+        "is_primary": true,
+        "created_at": "2025-08-26T05:39:44.999Z",
+        "updated_at": "2025-08-26T05:39:44.999Z"
+      }
+    ],
+    "households": [
+      {
+        "household_id": "h_1",
+        "name": "Smith Household",
+        "address_line1": "246 Main St",
+        "city": "Anytown",
+        "state": "CA",
+        "zip": "12345",
+        "preferredScriptureTranslation": "KJV",
+        "created_at": "2025-08-26T05:39:44.999Z",
+        "updated_at": "2025-08-26T05:39:44.999Z"
+      },
+      {
+        "household_id": "h_10",
+        "name": "Martinez Household",
+        "address_line1": "1353 Main St",
+        "city": "Anytown",
+        "state": "CA",
+        "zip": "12345",
+        "preferredScriptureTranslation": "KJV",
+        "created_at": "2025-08-26T05:39:44.999Z",
+        "updated_at": "2025-08-26T05:39:44.999Z"
+      },
+      {
+        "household_id": "h_11",
+        "name": "Hernandez Household",
+        "address_line1": "1476 Main St",
+        "city": "Anytown",
+        "state": "CA",
+        "zip": "12345",
+        "preferredScriptureTranslation": "KJV",
+        "created_at": "2025-08-26T05:39:44.999Z",
+        "updated_at": "2025-08-26T05:39:44.999Z"
+      },
+      {
+        "household_id": "h_12",
+        "name": "Lopez Household",
+        "address_line1": "1599 Main St",
+        "city": "Anytown",
+        "state": "CA",
+        "zip": "12345",
+        "preferredScriptureTranslation": "KJV",
+        "created_at": "2025-08-26T05:39:44.999Z",
+        "updated_at": "2025-08-26T05:39:44.999Z"
+      },
+      {
+        "household_id": "h_13",
+        "name": "Gonzalez Household",
+        "address_line1": "1722 Main St",
+        "city": "Anytown",
+        "state": "CA",
+        "zip": "12345",
+        "preferredScriptureTranslation": "NLT",
+        "created_at": "2025-08-26T05:39:44.999Z",
+        "updated_at": "2025-08-26T05:39:44.999Z"
+      },
+      {
+        "household_id": "h_14",
+        "name": "Wilson Household",
+        "address_line1": "1845 Main St",
+        "city": "Anytown",
+        "state": "CA",
+        "zip": "12345",
+        "preferredScriptureTranslation": "NLT",
+        "created_at": "2025-08-26T05:39:44.999Z",
+        "updated_at": "2025-08-26T05:39:44.999Z"
+      },
+      {
+        "household_id": "h_15",
+        "name": "Anderson Household",
+        "address_line1": "1968 Main St",
+        "city": "Anytown",
+        "state": "CA",
+        "zip": "12345",
+        "preferredScriptureTranslation": "KJV",
+        "created_at": "2025-08-26T05:39:44.999Z",
+        "updated_at": "2025-08-26T05:39:44.999Z"
+      },
+      {
+        "household_id": "h_16",
+        "name": "Thomas Household",
+        "address_line1": "2091 Main St",
+        "city": "Anytown",
+        "state": "CA",
+        "zip": "12345",
+        "preferredScriptureTranslation": "NIV",
+        "created_at": "2025-08-26T05:39:44.999Z",
+        "updated_at": "2025-08-26T05:39:44.999Z"
+      },
+      {
+        "household_id": "h_17",
+        "name": "Taylor Household",
+        "address_line1": "2214 Main St",
+        "city": "Anytown",
+        "state": "CA",
+        "zip": "12345",
+        "preferredScriptureTranslation": "NIV",
+        "created_at": "2025-08-26T05:39:44.999Z",
+        "updated_at": "2025-08-26T05:39:44.999Z"
+      },
+      {
+        "household_id": "h_18",
+        "name": "Moore Household",
+        "address_line1": "2337 Main St",
+        "city": "Anytown",
+        "state": "CA",
+        "zip": "12345",
+        "preferredScriptureTranslation": "NIV",
+        "created_at": "2025-08-26T05:39:44.999Z",
+        "updated_at": "2025-08-26T05:39:44.999Z"
+      },
+      {
+        "household_id": "h_19",
+        "name": "Jackson Household",
+        "address_line1": "2460 Main St",
+        "city": "Anytown",
+        "state": "CA",
+        "zip": "12345",
+        "preferredScriptureTranslation": "KJV",
+        "created_at": "2025-08-26T05:39:44.999Z",
+        "updated_at": "2025-08-26T05:39:44.999Z"
+      },
+      {
+        "household_id": "h_2",
+        "name": "Johnson Household",
+        "address_line1": "369 Main St",
+        "city": "Anytown",
+        "state": "CA",
+        "zip": "12345",
+        "preferredScriptureTranslation": "KJV",
+        "created_at": "2025-08-26T05:39:44.999Z",
+        "updated_at": "2025-08-26T05:39:44.999Z"
+      },
+      {
+        "household_id": "h_20",
+        "name": "White Household",
+        "address_line1": "2583 Main St",
+        "city": "Anytown",
+        "state": "CA",
+        "zip": "12345",
+        "preferredScriptureTranslation": "NIV",
+        "created_at": "2025-08-26T05:39:44.999Z",
+        "updated_at": "2025-08-26T05:39:44.999Z"
+      },
+      {
+        "household_id": "h_3",
+        "name": "Williams Household",
+        "address_line1": "492 Main St",
+        "city": "Anytown",
+        "state": "CA",
+        "zip": "12345",
+        "preferredScriptureTranslation": "NIV",
+        "created_at": "2025-08-26T05:39:44.999Z",
+        "updated_at": "2025-08-26T05:39:44.999Z"
+      },
+      {
+        "household_id": "h_4",
+        "name": "Brown Household",
+        "address_line1": "615 Main St",
+        "city": "Anytown",
+        "state": "CA",
+        "zip": "12345",
+        "preferredScriptureTranslation": "NLT",
+        "created_at": "2025-08-26T05:39:44.999Z",
+        "updated_at": "2025-08-26T05:39:44.999Z"
+      },
+      {
+        "household_id": "h_5",
+        "name": "Jones Household",
+        "address_line1": "738 Main St",
+        "city": "Anytown",
+        "state": "CA",
+        "zip": "12345",
+        "preferredScriptureTranslation": "KJV",
+        "created_at": "2025-08-26T05:39:44.999Z",
+        "updated_at": "2025-08-26T05:39:44.999Z"
+      },
+      {
+        "household_id": "h_6",
+        "name": "Garcia Household",
+        "address_line1": "861 Main St",
+        "city": "Anytown",
+        "state": "CA",
+        "zip": "12345",
+        "preferredScriptureTranslation": "KJV",
+        "created_at": "2025-08-26T05:39:44.999Z",
+        "updated_at": "2025-08-26T05:39:44.999Z"
+      },
+      {
+        "household_id": "h_7",
+        "name": "Miller Household",
+        "address_line1": "984 Main St",
+        "city": "Anytown",
+        "state": "CA",
+        "zip": "12345",
+        "preferredScriptureTranslation": "KJV",
+        "created_at": "2025-08-26T05:39:44.999Z",
+        "updated_at": "2025-08-26T05:39:44.999Z"
+      },
+      {
+        "household_id": "h_8",
+        "name": "Davis Household",
+        "address_line1": "1107 Main St",
+        "city": "Anytown",
+        "state": "CA",
+        "zip": "12345",
+        "preferredScriptureTranslation": "NLT",
+        "created_at": "2025-08-26T05:39:44.999Z",
+        "updated_at": "2025-08-26T05:39:44.999Z"
+      },
+      {
+        "household_id": "h_9",
+        "name": "Rodriguez Household",
+        "address_line1": "1230 Main St",
+        "city": "Anytown",
+        "state": "CA",
+        "zip": "12345",
+        "preferredScriptureTranslation": "KJV",
+        "created_at": "2025-08-26T05:39:44.999Z",
+        "updated_at": "2025-08-26T05:39:44.999Z"
+      }
+    ],
+    "incidents": [
+      {
+        "incident_id": "inc_1",
+        "child_id": "c_h_1_1",
+        "child_name": "Emma Smith",
+        "event_id": "evt_sunday_school",
+        "description": "Scraped knee on the playground.",
+        "severity": "low",
+        "leader_id": "user_leader_1",
+        "timestamp": "2025-08-26T05:39:44.998Z",
+        "admin_acknowledged_at": "2025-08-26T05:39:44.998Z"
+      },
+      {
+        "incident_id": "inc_2",
+        "child_id": "c_h_1_2",
+        "child_name": "Liam Smith",
+        "event_id": "evt_sunday_school",
+        "description": "Feeling unwell, slight fever.",
+        "severity": "medium",
+        "leader_id": "user_leader_2",
+        "timestamp": "2025-08-26T05:39:44.998Z",
+        "admin_acknowledged_at": null
+      },
+      {
+        "incident_id": "inc_3",
+        "child_id": "c_h_2_1",
+        "child_name": "Olivia Johnson",
+        "event_id": "evt_sunday_school",
+        "description": "Did not want to participate in activity.",
+        "severity": "low",
+        "leader_id": "user_leader_13",
+        "timestamp": "2024-08-26T05:39:45.114Z",
+        "admin_acknowledged_at": "2024-08-26T05:39:45.114Z"
+      },
+      {
+        "incident_id": "inc_4",
+        "child_id": "c_h_2_2",
+        "child_name": "Noah Johnson",
+        "event_id": "evt_sunday_school",
+        "description": "Shared toys nicely with another child.",
+        "severity": "low",
+        "leader_id": "user_leader_13",
+        "timestamp": "2025-08-26T05:39:44.998Z",
+        "admin_acknowledged_at": null
+      }
+    ],
+    "leader_assignments": [
+      {
+        "assignment_id": "24fdf264-3133-4f28-9b8a-05d33d52e005",
+        "leader_id": "user_leader_12",
+        "ministry_id": "min_sunday_school",
+        "cycle_id": "2025",
+        "role": "Volunteer"
+      },
+      {
+        "assignment_id": "6ce73e40-378a-4f47-85bd-b509a5056416",
+        "leader_id": "user_leader_13",
+        "ministry_id": "acolyte",
+        "cycle_id": "2024",
+        "role": "Primary"
+      },
+      {
+        "assignment_id": "817cf06f-245e-4620-94ae-cfaa4db20849",
+        "leader_id": "user_leader_11",
+        "ministry_id": "mentoring-boys",
+        "cycle_id": "2025",
+        "role": "Primary"
+      },
+      {
+        "assignment_id": "9a13f8fe-7394-4f84-89b0-75e68fa65d4d",
+        "leader_id": "user_leader_1",
+        "ministry_id": "min_sunday_school",
+        "cycle_id": "2025",
+        "role": "Volunteer"
+      },
+      {
+        "assignment_id": "afb0adf1-8372-437f-8714-129f479d400b",
+        "leader_id": "user_leader_14",
+        "ministry_id": "bible-bee",
+        "cycle_id": "2025",
+        "role": "Primary"
+      },
+      {
+        "assignment_id": "b241556a-f344-4eb6-abd3-1221319f3de2",
+        "leader_id": "user_leader_12",
+        "ministry_id": "choir-joy-bells",
+        "cycle_id": "2025",
+        "role": "Primary"
+      },
+      {
+        "assignment_id": "cff3cae4-0652-4603-b3ff-6520b34a2833",
+        "leader_id": "user_leader_15",
+        "ministry_id": "bible-bee",
+        "cycle_id": "2025",
+        "role": "Volunteer"
+      }
+    ],
+    "ministries": [
+      {
+        "name": "Acolyte Ministry",
+        "code": "acolyte",
+        "enrollment_type": "enrolled",
+        "details": "Thank you for registering for the Acolyte Ministry.\n\nYou will receive information from ministry leaders regarding next steps for your child's participation.",
+        "data_profile": "Basic",
+        "is_active": true,
+        "ministry_id": "acolyte",
+        "created_at": "2025-08-26T05:39:44.998Z",
+        "updated_at": "2025-08-26T05:39:44.998Z"
+      },
+      {
+        "name": "Bible Bee",
+        "code": "bible-bee",
+        "enrollment_type": "enrolled",
+        "description": "Registration open until Oct. 8, 2025",
+        "open_at": "2025-01-01",
+        "close_at": "2025-10-08",
+        "details": "Bible Bee is a competitive program that encourages scripture memorization. Materials must be purchased separately.",
+        "data_profile": "Basic",
+        "is_active": true,
+        "ministry_id": "bible-bee",
+        "created_at": "2025-08-26T05:39:44.998Z",
+        "updated_at": "2025-08-26T05:39:44.998Z"
+      },
+      {
+        "name": "Children's Musical",
+        "code": "childrens-musical",
+        "enrollment_type": "expressed_interest",
+        "data_profile": "Basic",
+        "communicate_later": true,
+        "is_active": true,
+        "ministry_id": "childrens-musical",
+        "created_at": "2025-08-26T05:39:44.998Z",
+        "updated_at": "2025-08-26T05:39:44.998Z"
+      },
+      {
+        "name": "Youth Choirs- Joy Bells (Ages 4-8)",
+        "code": "choir-joy-bells",
+        "enrollment_type": "enrolled",
+        "min_age": 4,
+        "max_age": 8,
+        "details": "Joy Bells is our introductory choir for the youngest voices. Practices are held after the 11 AM service.",
+        "data_profile": "Basic",
+        "is_active": true,
+        "ministry_id": "choir-joy-bells",
+        "created_at": "2025-08-26T05:39:44.998Z",
+        "updated_at": "2025-08-26T05:39:44.998Z"
+      },
+      {
+        "name": "Youth Choirs- Keita Praise Choir (Ages 9-12)",
+        "code": "choir-keita",
+        "enrollment_type": "enrolled",
+        "min_age": 9,
+        "max_age": 12,
+        "details": "Keita Praise Choir builds on foundational skills and performs once a month. Practices are on Wednesdays.",
+        "data_profile": "Basic",
+        "is_active": true,
+        "ministry_id": "choir-keita",
+        "created_at": "2025-08-26T05:39:44.998Z",
+        "updated_at": "2025-08-26T05:39:44.998Z"
+      },
+      {
+        "name": "Youth Choirs- New Generation Teen Choir (Ages 13-18)",
+        "code": "choir-teen",
+        "enrollment_type": "enrolled",
+        "min_age": 13,
+        "max_age": 18,
+        "details": "The Teen Choir performs contemporary gospel music and leads worship during Youth Sundays.",
+        "data_profile": "Basic",
+        "is_active": true,
+        "ministry_id": "choir-teen",
+        "created_at": "2025-08-26T05:39:44.998Z",
+        "updated_at": "2025-08-26T05:39:44.998Z"
+      },
+      {
+        "name": "College Tour",
+        "code": "college-tour",
+        "enrollment_type": "expressed_interest",
+        "data_profile": "Basic",
+        "is_active": true,
+        "ministry_id": "college-tour",
+        "created_at": "2025-08-26T05:39:44.998Z",
+        "updated_at": "2025-08-26T05:39:44.998Z"
+      },
+      {
+        "name": "Confirmation",
+        "code": "confirmation",
+        "enrollment_type": "expressed_interest",
+        "data_profile": "Basic",
+        "communicate_later": true,
+        "is_active": true,
+        "ministry_id": "confirmation",
+        "created_at": "2025-08-26T05:39:44.998Z",
+        "updated_at": "2025-08-26T05:39:44.998Z"
+      },
+      {
+        "name": "Dance Ministry",
+        "code": "dance",
+        "enrollment_type": "enrolled",
+        "details": "Thank you for registering for the Dance Ministry.\n\nYou will receive information from ministry leaders regarding next steps for your child's participation.",
+        "data_profile": "Basic",
+        "is_active": true,
+        "ministry_id": "dance",
+        "created_at": "2025-08-26T05:39:44.998Z",
+        "updated_at": "2025-08-26T05:39:44.998Z"
+      },
+      {
+        "name": "International Travel",
+        "code": "international-travel",
+        "enrollment_type": "expressed_interest",
+        "data_profile": "Basic",
+        "is_active": true,
+        "ministry_id": "international-travel",
+        "created_at": "2025-08-26T05:39:44.998Z",
+        "updated_at": "2025-08-26T05:39:44.998Z"
+      },
+      {
+        "name": "Media Production Ministry",
+        "code": "media-production",
+        "enrollment_type": "enrolled",
+        "details": "Thank you for registering for the Media Ministry.\n\nYou will receive information from ministry leaders regarding next steps for your child's participation.",
+        "data_profile": "Basic",
+        "is_active": true,
+        "ministry_id": "media-production",
+        "created_at": "2025-08-26T05:39:44.998Z",
+        "updated_at": "2025-08-26T05:39:44.998Z"
+      },
+      {
+        "name": "Mentoring Ministry-Boys (Khalfani)",
+        "code": "mentoring-boys",
+        "enrollment_type": "enrolled",
+        "details": "The Khalfani ministry provides mentorship for young boys through various activities and discussions.",
+        "data_profile": "Basic",
+        "is_active": true,
+        "ministry_id": "mentoring-boys",
+        "created_at": "2025-08-26T05:39:44.998Z",
+        "updated_at": "2025-08-26T05:39:44.998Z"
+      },
+      {
+        "name": "Mentoring Ministry-Girls (Nailah)",
+        "code": "mentoring-girls",
+        "enrollment_type": "enrolled",
+        "details": "The Nailah ministry provides mentorship for young girls, focusing on empowerment and personal growth.",
+        "data_profile": "Basic",
+        "is_active": true,
+        "ministry_id": "mentoring-girls",
+        "created_at": "2025-08-26T05:39:44.998Z",
+        "updated_at": "2025-08-26T05:39:44.998Z"
+      },
+      {
+        "name": "Sunday School",
+        "code": "min_sunday_school",
+        "enrollment_type": "enrolled",
+        "data_profile": "SafetyAware",
+        "is_active": true,
+        "ministry_id": "min_sunday_school",
+        "created_at": "2025-08-26T05:39:44.998Z",
+        "updated_at": "2025-08-26T05:39:44.998Z"
+      },
+      {
+        "name": "Nursery",
+        "code": "nursery",
+        "enrollment_type": "expressed_interest",
+        "data_profile": "Basic",
+        "communicate_later": true,
+        "is_active": true,
+        "ministry_id": "nursery",
+        "created_at": "2025-08-26T05:39:44.998Z",
+        "updated_at": "2025-08-26T05:39:44.998Z"
+      },
+      {
+        "name": "New Jersey Orators",
+        "code": "orators",
+        "enrollment_type": "expressed_interest",
+        "data_profile": "Basic",
+        "optional_consent_text": "I agree to share my contact information with New Jersey Orators. New Jersey Orators is not a part of Cathedral International, but Cathedral hosts the Perth Amboy Chapter. Registration can take place through their website at oratorsinc.org.",
+        "is_active": true,
+        "ministry_id": "orators",
+        "created_at": "2025-08-26T05:39:44.998Z",
+        "updated_at": "2025-08-26T05:39:44.998Z"
+      },
+      {
+        "name": "Symphonic Orchestra",
+        "code": "symphonic-orchestra",
+        "enrollment_type": "enrolled",
+        "data_profile": "Basic",
+        "details": "The Symphonic Orchestra is for experienced musicians. Auditions may be required.",
+        "is_active": true,
+        "ministry_id": "symphonic-orchestra",
+        "created_at": "2025-08-26T05:39:44.998Z",
+        "updated_at": "2025-08-26T05:39:44.998Z"
+      },
+      {
+        "name": "New Generation Teen Fellowship",
+        "code": "teen-fellowship",
+        "enrollment_type": "enrolled",
+        "details": "Thank you for registering for New Generation Teen Fellowship.\n\nOn 3rd Sundays, during the 10:30 AM service,  New Generation Teen Fellowship will host Teen Church in the Family Life Enrichment Center.  Teens may sign themselves in and out of the service.\n\nYou will receive more information about ministry activities from minstry leaders.",
+        "data_profile": "Basic",
+        "custom_questions": [
+          {
+            "id": "teen_podcast",
+            "text": "Podcast & YouTube Channel Projects",
+            "type": "checkbox"
+          },
+          {
+            "id": "teen_social_media",
+            "text": "Social Media Team",
+            "type": "checkbox"
+          },
+          {
+            "id": "teen_community_service",
+            "text": "Leading Community Service Projects",
+            "type": "checkbox"
+          }
+        ],
+        "is_active": true,
+        "ministry_id": "teen-fellowship",
+        "created_at": "2025-08-26T05:39:44.998Z",
+        "updated_at": "2025-08-26T05:39:44.998Z"
+      },
+      {
+        "name": "Vacation Bible School",
+        "code": "vbs",
+        "enrollment_type": "expressed_interest",
+        "data_profile": "Basic",
+        "communicate_later": true,
+        "is_active": true,
+        "ministry_id": "vbs",
+        "created_at": "2025-08-26T05:39:44.998Z",
+        "updated_at": "2025-08-26T05:39:44.998Z"
+      },
+      {
+        "name": "Youth Ushers",
+        "code": "youth-ushers",
+        "enrollment_type": "enrolled",
+        "details": "Thank you for registering for the Youth Ushers Ministry.\n\nYou will receive information from ministry leaders regarding next steps for your child's participation.",
+        "data_profile": "Basic",
+        "is_active": true,
+        "ministry_id": "youth-ushers",
+        "created_at": "2025-08-26T05:39:44.998Z",
+        "updated_at": "2025-08-26T05:39:44.998Z"
+      }
+    ],
+    "ministry_enrollments": [
+      {
+        "enrollment_id": "01b3a4c4-542f-45eb-800f-78e9a87a17a3",
+        "child_id": "c_h_14_1",
+        "cycle_id": "2025",
+        "ministry_id": "min_sunday_school",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "02036085-1298-40b5-95f0-98df666e9cce",
+        "child_id": "c_h_20_1",
+        "cycle_id": "2024",
+        "ministry_id": "min_sunday_school",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "0356e403-a999-46e7-af4d-3d6061a91789",
+        "child_id": "c_h_13_2",
+        "cycle_id": "2025",
+        "ministry_id": "bible-bee",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "03597a00-2fce-41fe-b872-e7851cc156ad",
+        "child_id": "c_h_12_1",
+        "cycle_id": "2025",
+        "ministry_id": "min_sunday_school",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "03755646-29ec-44ab-b7fa-a23f7683688a",
+        "child_id": "c_h_13_1",
+        "cycle_id": "2025",
+        "ministry_id": "bible-bee",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "0f442451-4956-43a4-8356-75bddf76a663",
+        "child_id": "c_h_13_2",
+        "cycle_id": "2025",
+        "ministry_id": "min_sunday_school",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "108eddd7-f1ac-483e-9b7e-e5dc2e160181",
+        "child_id": "c_h_20_2",
+        "cycle_id": "2025",
+        "ministry_id": "min_sunday_school",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "12d6d06b-0eb5-4c15-a3f0-88c60b2033b3",
+        "child_id": "c_h_10_2",
+        "cycle_id": "2025",
+        "ministry_id": "bible-bee",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "13ed188b-756a-4f5c-af81-663d5b4fa0f2",
+        "child_id": "c_h_18_2",
+        "cycle_id": "2025",
+        "ministry_id": "min_sunday_school",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "1458db0d-f737-413e-bfc3-84dd2c6351ed",
+        "child_id": "c_h_17_1",
+        "cycle_id": "2024",
+        "ministry_id": "min_sunday_school",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "18f1b936-3b91-42e8-9443-1fb3f920faf4",
+        "child_id": "c_h_4_1",
+        "cycle_id": "2025",
+        "ministry_id": "bible-bee",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "19932c0e-78d5-41a8-a3af-2d5e4522200e",
+        "child_id": "c_h_5_2",
+        "cycle_id": "2024",
+        "ministry_id": "min_sunday_school",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "1a275666-32c6-4667-bfb5-d60c215b7d20",
+        "child_id": "c_h_9_1",
+        "cycle_id": "2024",
+        "ministry_id": "min_sunday_school",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "1bbf2de6-b813-4ffb-b7f5-6c83ac46852b",
+        "child_id": "c_h_12_1",
+        "cycle_id": "2025",
+        "ministry_id": "bible-bee",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "1c2c41f5-3ba4-492a-adef-a7f599d5eb62",
+        "child_id": "c_h_6_2",
+        "cycle_id": "2025",
+        "ministry_id": "bible-bee",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "1c4bb8c2-1824-46d5-bb2a-a8229f0c5e6d",
+        "child_id": "c_h_10_1",
+        "cycle_id": "2024",
+        "ministry_id": "min_sunday_school",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "212d85fd-c24c-4392-8a80-31084809be7e",
+        "child_id": "c_h_1_1",
+        "cycle_id": "2025",
+        "ministry_id": "min_sunday_school",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "2319ed94-45f4-4102-a6c7-76068a1f40fb",
+        "child_id": "c_h_5_1",
+        "cycle_id": "2024",
+        "ministry_id": "min_sunday_school",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "2367beec-c565-436e-be6d-cb6aa9687fbb",
+        "child_id": "c_h_4_1",
+        "cycle_id": "2025",
+        "ministry_id": "orators",
+        "status": "expressed_interest"
+      },
+      {
+        "enrollment_id": "271648be-3594-4918-a7d6-18a69bc8a7f1",
+        "child_id": "c_h_5_2",
+        "cycle_id": "2025",
+        "ministry_id": "min_sunday_school",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "27f8ae63-3b5c-49c3-b15d-769407c98d97",
+        "child_id": "c_h_18_1",
+        "cycle_id": "2025",
+        "ministry_id": "min_sunday_school",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "2ab48b1b-90d2-47c8-bc07-5e10b9ad704f",
+        "child_id": "c_h_1_2",
+        "cycle_id": "2025",
+        "ministry_id": "min_sunday_school",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "30c90184-8cc6-4ab3-ab34-ea261a8c0d9b",
+        "child_id": "c_h_6_1",
+        "cycle_id": "2025",
+        "ministry_id": "vbs",
+        "status": "expressed_interest"
+      },
+      {
+        "enrollment_id": "31207cff-2470-42ba-95fc-0008aa39ff94",
+        "child_id": "c_h_14_2",
+        "cycle_id": "2024",
+        "ministry_id": "min_sunday_school",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "35dfe369-f823-4cae-9b2b-f399c2e95a58",
+        "child_id": "c_h_8_1",
+        "cycle_id": "2025",
+        "ministry_id": "bible-bee",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "3881aae6-79a2-4c47-a197-c0b2ed1aab0e",
+        "child_id": "c_h_6_1",
+        "cycle_id": "2025",
+        "ministry_id": "min_sunday_school",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "3a6ce664-a64e-424f-9154-6fabbcbb5a93",
+        "child_id": "c_h_3_1",
+        "cycle_id": "2025",
+        "ministry_id": "min_sunday_school",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "40e6d9a8-a0f5-4f94-932f-18b6788cc945",
+        "child_id": "c_h_10_1",
+        "cycle_id": "2025",
+        "ministry_id": "bible-bee",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "44026773-b701-4f2f-943d-08f0e9775857",
+        "child_id": "c_h_11_1",
+        "cycle_id": "2025",
+        "ministry_id": "min_sunday_school",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "453d2f5f-ab41-4fbe-a888-2e8d883fcee4",
+        "child_id": "c_h_17_2",
+        "cycle_id": "2024",
+        "ministry_id": "min_sunday_school",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "48f7abe1-8fb6-4e9f-9494-8ea3cd002397",
+        "child_id": "c_h_19_2",
+        "cycle_id": "2025",
+        "ministry_id": "min_sunday_school",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "4ce7a1f7-7457-494b-9562-2f8696694168",
+        "child_id": "c_h_4_2",
+        "cycle_id": "2025",
+        "ministry_id": "bible-bee",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "4e0e921a-ae45-45da-92ac-86a00c37c1c2",
+        "child_id": "c_h_13_1",
+        "cycle_id": "2024",
+        "ministry_id": "min_sunday_school",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "4ee3aa8f-7ee1-4ffd-a809-873818a2bf02",
+        "child_id": "c_h_3_1",
+        "cycle_id": "2025",
+        "ministry_id": "bible-bee",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "4f048c6d-42f1-4854-a129-e3feae05a09f",
+        "child_id": "c_h_17_1",
+        "cycle_id": "2025",
+        "ministry_id": "min_sunday_school",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "4f7f2287-af5a-4f67-927c-904c24476d71",
+        "child_id": "c_h_1_1",
+        "cycle_id": "2024",
+        "ministry_id": "min_sunday_school",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "513296ea-0d4e-41d8-a47b-632d55544413",
+        "child_id": "c_h_5_2",
+        "cycle_id": "2025",
+        "ministry_id": "orators",
+        "status": "expressed_interest"
+      },
+      {
+        "enrollment_id": "5257fe7d-4baf-4f5b-b58e-e4a0a03c2aa0",
+        "child_id": "c_h_1_1",
+        "cycle_id": "2025",
+        "ministry_id": "orators",
+        "status": "expressed_interest"
+      },
+      {
+        "enrollment_id": "532d6389-9aeb-406e-9c4c-13d6c34573f7",
+        "child_id": "c_h_7_1",
+        "cycle_id": "2025",
+        "ministry_id": "min_sunday_school",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "53f0b0d2-50c8-4877-89d8-7c68bd214869",
+        "child_id": "c_h_14_2",
+        "cycle_id": "2025",
+        "ministry_id": "min_sunday_school",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "541b22cb-4497-4f30-9cab-91c5ae0e8790",
+        "child_id": "c_h_19_1",
+        "cycle_id": "2025",
+        "ministry_id": "min_sunday_school",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "5b9168c0-572c-4c39-a93b-cac6fa09731c",
+        "child_id": "c_h_6_2",
+        "cycle_id": "2025",
+        "ministry_id": "min_sunday_school",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "5c0af0ca-7d06-4148-bd34-e23dd012dd24",
+        "child_id": "c_h_3_1",
+        "cycle_id": "2024",
+        "ministry_id": "min_sunday_school",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "5d6ce27e-1113-4403-8b9b-5375ed75e9ba",
+        "child_id": "c_h_5_1",
+        "cycle_id": "2025",
+        "ministry_id": "orators",
+        "status": "expressed_interest"
+      },
+      {
+        "enrollment_id": "5d840c64-bbea-4a00-8979-ae692c2a1177",
+        "child_id": "c_h_2_1",
+        "cycle_id": "2024",
+        "ministry_id": "min_sunday_school",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "5d9b7a14-fbab-4ea9-87f3-2b40cb6edec6",
+        "child_id": "c_h_17_2",
+        "cycle_id": "2025",
+        "ministry_id": "min_sunday_school",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "60612026-7d6e-438c-b76b-83570697a7ec",
+        "child_id": "c_h_6_1",
+        "cycle_id": "2024",
+        "ministry_id": "min_sunday_school",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "63d65975-c71d-4dba-be4a-f6234aff491c",
+        "child_id": "c_h_7_1",
+        "cycle_id": "2025",
+        "ministry_id": "college-tour",
+        "status": "expressed_interest"
+      },
+      {
+        "enrollment_id": "68bf73a5-7a74-4c3e-9372-403d8bfb784d",
+        "child_id": "c_h_8_2",
+        "cycle_id": "2025",
+        "ministry_id": "choir-joy-bells",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "6b41edbc-d003-455a-a5d2-478fde3a4d9a",
+        "child_id": "c_h_16_1",
+        "cycle_id": "2024",
+        "ministry_id": "min_sunday_school",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "70b9f5b9-db05-4ac4-b5df-c4cdf841832b",
+        "child_id": "c_h_12_2",
+        "cycle_id": "2024",
+        "ministry_id": "min_sunday_school",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "779ff0f0-eca6-405f-8cc2-4ad52deebb04",
+        "child_id": "c_h_18_1",
+        "cycle_id": "2024",
+        "ministry_id": "min_sunday_school",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "7c8de0fc-2366-4c8b-ba7a-18e64c63cf09",
+        "child_id": "c_h_18_2",
+        "cycle_id": "2024",
+        "ministry_id": "min_sunday_school",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "7d200f0a-6489-4770-87ae-ccc983f10947",
+        "child_id": "c_h_3_1",
+        "cycle_id": "2025",
+        "ministry_id": "orators",
+        "status": "expressed_interest"
+      },
+      {
+        "enrollment_id": "833f572a-8943-49b0-b63e-8d10418e98ed",
+        "child_id": "c_h_8_1",
+        "cycle_id": "2025",
+        "ministry_id": "min_sunday_school",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "8495f7b5-6e74-4fc0-8fc6-db1384cbfff3",
+        "child_id": "c_h_13_2",
+        "cycle_id": "2024",
+        "ministry_id": "min_sunday_school",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "8562e156-1460-4c55-afe6-25ff1db454cb",
+        "child_id": "c_h_15_1",
+        "cycle_id": "2025",
+        "ministry_id": "min_sunday_school",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "892d3576-5493-4aff-9749-85efcbff99aa",
+        "child_id": "c_h_6_2",
+        "cycle_id": "2024",
+        "ministry_id": "min_sunday_school",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "8a4d77fa-7f08-4c26-ae28-457daa4b226b",
+        "child_id": "c_h_4_2",
+        "cycle_id": "2024",
+        "ministry_id": "min_sunday_school",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "8fe4b158-1244-4b5a-8259-5d42590c7bef",
+        "child_id": "c_h_19_2",
+        "cycle_id": "2024",
+        "ministry_id": "min_sunday_school",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "93819309-0b23-4fcb-b44a-7bc684b1804a",
+        "child_id": "c_h_20_1",
+        "cycle_id": "2025",
+        "ministry_id": "min_sunday_school",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "951c5842-6c0f-4f4c-b127-8801d34b6ffe",
+        "child_id": "c_h_4_2",
+        "cycle_id": "2025",
+        "ministry_id": "min_sunday_school",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "999514c8-ab90-44a6-bf9b-92462a7a828e",
+        "child_id": "c_h_8_2",
+        "cycle_id": "2025",
+        "ministry_id": "bible-bee",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "99b29bbb-0e2d-498e-8996-f117ac30b371",
+        "child_id": "c_h_7_1",
+        "cycle_id": "2024",
+        "ministry_id": "min_sunday_school",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "9eb40f1c-f4fd-419a-9b3e-80a656916c59",
+        "child_id": "c_h_1_2",
+        "cycle_id": "2025",
+        "ministry_id": "bible-bee",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "9f06656a-d636-42a0-8205-2e4b4a373122",
+        "child_id": "c_h_15_1",
+        "cycle_id": "2024",
+        "ministry_id": "min_sunday_school",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "9f821c19-df53-4dc3-9eda-2c6b0562341d",
+        "child_id": "c_h_10_1",
+        "cycle_id": "2025",
+        "ministry_id": "min_sunday_school",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "a01cc4c4-3f55-4ddd-891f-42f63d3e7f88",
+        "child_id": "c_h_1_2",
+        "cycle_id": "2024",
+        "ministry_id": "min_sunday_school",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "a02b0827-9c33-4fff-b305-2c7dab0e0b24",
+        "child_id": "c_h_10_2",
+        "cycle_id": "2024",
+        "ministry_id": "min_sunday_school",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "a1848cad-bdf6-4ac6-9da7-97ceaea2b1cc",
+        "child_id": "c_h_14_2",
+        "cycle_id": "2025",
+        "ministry_id": "choir-joy-bells",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "a1c2e301-489c-4c60-baf0-eb7367c05e3c",
+        "child_id": "c_h_3_1",
+        "cycle_id": "2025",
+        "ministry_id": "teen-fellowship",
+        "status": "enrolled",
+        "custom_fields": {
+          "teen_podcast": true
+        }
+      },
+      {
+        "enrollment_id": "a4e8991f-ad22-4c3d-8274-5c0703005012",
+        "child_id": "c_h_13_1",
+        "cycle_id": "2025",
+        "ministry_id": "min_sunday_school",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "a54d7ca5-235b-4688-ad6d-6739cb766bff",
+        "child_id": "c_h_19_1",
+        "cycle_id": "2024",
+        "ministry_id": "min_sunday_school",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "a568da0c-255b-439e-84c2-90326f1beda5",
+        "child_id": "c_h_7_1",
+        "cycle_id": "2025",
+        "ministry_id": "bible-bee",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "aa09b72e-62c9-4374-990a-1b7664e8a911",
+        "child_id": "c_h_5_2",
+        "cycle_id": "2025",
+        "ministry_id": "bible-bee",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "aab7b1d6-94b0-46db-bd1d-4dfd2a164725",
+        "child_id": "c_h_11_1",
+        "cycle_id": "2024",
+        "ministry_id": "min_sunday_school",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "af3f0ef2-4e8d-448d-855f-595a791ecb4a",
+        "child_id": "c_h_4_1",
+        "cycle_id": "2025",
+        "ministry_id": "min_sunday_school",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "b11e0aa7-6053-415b-898c-8d9f480bf5d8",
+        "child_id": "c_h_1_2",
+        "cycle_id": "2025",
+        "ministry_id": "orators",
+        "status": "expressed_interest"
+      },
+      {
+        "enrollment_id": "b197dbe1-ff75-443f-93ea-f59d1a57d957",
+        "child_id": "c_h_9_1",
+        "cycle_id": "2025",
+        "ministry_id": "min_sunday_school",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "b2f236bf-a1d5-44aa-8aa0-182617464c63",
+        "child_id": "c_h_1_1",
+        "cycle_id": "2025",
+        "ministry_id": "bible-bee",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "b6eedbf7-d704-4a11-9e45-f1c43d626291",
+        "child_id": "c_h_20_2",
+        "cycle_id": "2024",
+        "ministry_id": "min_sunday_school",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "bd253d82-071b-49aa-ba2d-25162d9d1ba7",
+        "child_id": "c_h_4_1",
+        "cycle_id": "2025",
+        "ministry_id": "choir-keita",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "bf110694-0569-4722-8656-cc39aa8d7d1d",
+        "child_id": "c_h_11_1",
+        "cycle_id": "2025",
+        "ministry_id": "bible-bee",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "c594b5c6-bb0b-488b-9d46-ce9ecdaa1fa4",
+        "child_id": "c_h_5_1",
+        "cycle_id": "2025",
+        "ministry_id": "min_sunday_school",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "c84c12ba-dbfe-4a17-bee0-90a40c8cd086",
+        "child_id": "c_h_8_1",
+        "cycle_id": "2024",
+        "ministry_id": "min_sunday_school",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "ca068178-e3e6-4115-8c9d-55532fd68419",
+        "child_id": "c_h_6_2",
+        "cycle_id": "2025",
+        "ministry_id": "mentoring-boys",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "cdcb2a71-c44d-4674-9757-d16bb406179f",
+        "child_id": "c_h_8_2",
+        "cycle_id": "2024",
+        "ministry_id": "min_sunday_school",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "ce88eff4-214f-410c-bb79-bd879ae92126",
+        "child_id": "c_h_12_2",
+        "cycle_id": "2025",
+        "ministry_id": "min_sunday_school",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "d914104f-8510-4b0f-8b82-c6d66abcfb50",
+        "child_id": "c_h_5_1",
+        "cycle_id": "2025",
+        "ministry_id": "bible-bee",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "dbd35dd2-5480-4521-bc6b-1acd387e788f",
+        "child_id": "c_h_16_2",
+        "cycle_id": "2025",
+        "ministry_id": "min_sunday_school",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "dc6431d4-1dc8-4e95-9de4-dfa6de1cf390",
+        "child_id": "c_h_6_1",
+        "cycle_id": "2025",
+        "ministry_id": "bible-bee",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "e38fcc0c-49ca-49a8-865c-252cb0b4ed75",
+        "child_id": "c_h_10_2",
+        "cycle_id": "2025",
+        "ministry_id": "min_sunday_school",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "e618c2fa-90a9-45c8-9283-5eb9847da5d0",
+        "child_id": "c_h_4_2",
+        "cycle_id": "2025",
+        "ministry_id": "orators",
+        "status": "expressed_interest"
+      },
+      {
+        "enrollment_id": "e84ef80d-280b-44c6-8448-1bda05970809",
+        "child_id": "c_h_12_2",
+        "cycle_id": "2025",
+        "ministry_id": "bible-bee",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "e87356fb-0a6a-44e9-b2a2-1cd4a2cc4d66",
+        "child_id": "c_h_9_1",
+        "cycle_id": "2025",
+        "ministry_id": "bible-bee",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "e96c1122-1732-4cd7-b16d-dafa348732f5",
+        "child_id": "c_h_8_2",
+        "cycle_id": "2025",
+        "ministry_id": "min_sunday_school",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "ef55d803-8860-4bb0-b18d-9c037978a7db",
+        "child_id": "c_h_16_1",
+        "cycle_id": "2025",
+        "ministry_id": "min_sunday_school",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "f2bdc63f-8ad5-4cc2-8b0f-c9f3637ae98c",
+        "child_id": "c_h_2_3",
+        "cycle_id": "2024",
+        "ministry_id": "min_sunday_school",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "f625d371-97fa-457d-adff-1f92d7d96b17",
+        "child_id": "c_h_4_2",
+        "cycle_id": "2025",
+        "ministry_id": "choir-keita",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "f9202c2a-11e7-44d9-8ff2-49b47de75930",
+        "child_id": "c_h_16_2",
+        "cycle_id": "2024",
+        "ministry_id": "min_sunday_school",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "faeace46-95be-497c-90a3-326aa6f56daf",
+        "child_id": "c_h_12_1",
+        "cycle_id": "2024",
+        "ministry_id": "min_sunday_school",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "fcac683e-d7ec-45c8-969e-083324ffb61a",
+        "child_id": "c_h_10_2",
+        "cycle_id": "2025",
+        "ministry_id": "mentoring-boys",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "fdc1e203-91ca-4c41-a5c0-dd4d05585822",
+        "child_id": "c_h_2_2",
+        "cycle_id": "2024",
+        "ministry_id": "min_sunday_school",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "fe7f1128-95cb-4f24-ba66-a8f8eeee066b",
+        "child_id": "c_h_4_1",
+        "cycle_id": "2024",
+        "ministry_id": "min_sunday_school",
+        "status": "enrolled"
+      },
+      {
+        "enrollment_id": "ff9fe17a-74c5-460f-8977-40bf85e74fe3",
+        "child_id": "c_h_14_1",
+        "cycle_id": "2024",
+        "ministry_id": "min_sunday_school",
+        "status": "enrolled"
+      }
+    ],
+    "registration_cycles": [
+      {
+        "cycle_id": "2024",
+        "start_date": "2023-08-01",
+        "end_date": "2024-07-31",
+        "is_active": false
+      },
+      {
+        "cycle_id": "2025",
+        "start_date": "2024-08-01",
+        "end_date": "2025-07-31",
+        "is_active": true
+      }
+    ],
+    "registrations": [
+      {
+        "registration_id": "038a04dd-3fb5-4bc4-9baa-14f98139d3c9",
+        "child_id": "c_h_16_1",
+        "cycle_id": "2024",
+        "status": "active",
+        "pre_registered_sunday_school": true,
+        "consents": [],
+        "submitted_at": "2025-08-26T05:39:44.998Z",
+        "submitted_via": "import"
+      },
+      {
+        "registration_id": "09055a68-8c63-4b0c-8874-8169f40fde09",
+        "child_id": "c_h_8_1",
+        "cycle_id": "2025",
+        "status": "active",
+        "pre_registered_sunday_school": true,
+        "consents": [],
+        "submitted_at": "2025-08-26T05:39:44.998Z",
+        "submitted_via": "import"
+      },
+      {
+        "registration_id": "099795b7-8f5c-4510-8600-a0c64aff42ee",
+        "child_id": "c_h_1_2",
+        "cycle_id": "2024",
+        "status": "active",
+        "pre_registered_sunday_school": true,
+        "consents": [],
+        "submitted_at": "2025-08-26T05:39:44.998Z",
+        "submitted_via": "import"
+      },
+      {
+        "registration_id": "0a0ea1e1-453a-4fd2-b742-7327701a282b",
+        "child_id": "c_h_4_2",
+        "cycle_id": "2025",
+        "status": "active",
+        "pre_registered_sunday_school": true,
+        "consents": [],
+        "submitted_at": "2025-08-26T05:39:44.998Z",
+        "submitted_via": "import"
+      },
+      {
+        "registration_id": "0b994a8d-6a24-4ac9-8abf-a4cf12378631",
+        "child_id": "c_h_7_1",
+        "cycle_id": "2025",
+        "status": "active",
+        "pre_registered_sunday_school": true,
+        "consents": [],
+        "submitted_at": "2025-08-26T05:39:44.998Z",
+        "submitted_via": "import"
+      },
+      {
+        "registration_id": "112bf386-4092-40a9-9d03-ecde3907319d",
+        "child_id": "c_h_12_2",
+        "cycle_id": "2025",
+        "status": "active",
+        "pre_registered_sunday_school": true,
+        "consents": [],
+        "submitted_at": "2025-08-26T05:39:44.998Z",
+        "submitted_via": "import"
+      },
+      {
+        "registration_id": "12a1de23-8c35-488c-a37a-04ffc6223139",
+        "child_id": "c_h_2_1",
+        "cycle_id": "2024",
+        "status": "active",
+        "pre_registered_sunday_school": true,
+        "consents": [],
+        "submitted_at": "2025-08-26T05:39:44.998Z",
+        "submitted_via": "import"
+      },
+      {
+        "registration_id": "1423975a-8648-4a51-8033-359810de4950",
+        "child_id": "c_h_6_1",
+        "cycle_id": "2024",
+        "status": "active",
+        "pre_registered_sunday_school": true,
+        "consents": [],
+        "submitted_at": "2025-08-26T05:39:44.998Z",
+        "submitted_via": "import"
+      },
+      {
+        "registration_id": "1da74e18-299d-46fa-babe-ce93781e1f83",
+        "child_id": "c_h_1_1",
+        "cycle_id": "2024",
+        "status": "active",
+        "pre_registered_sunday_school": true,
+        "consents": [],
+        "submitted_at": "2025-08-26T05:39:44.998Z",
+        "submitted_via": "import"
+      },
+      {
+        "registration_id": "2272c3f9-6e0b-43ef-b19f-9b82101ad309",
+        "child_id": "c_h_13_2",
+        "cycle_id": "2025",
+        "status": "active",
+        "pre_registered_sunday_school": true,
+        "consents": [],
+        "submitted_at": "2025-08-26T05:39:44.998Z",
+        "submitted_via": "import"
+      },
+      {
+        "registration_id": "246ab0d8-b76f-455b-9f85-5ebd5d2a3e55",
+        "child_id": "c_h_16_2",
+        "cycle_id": "2025",
+        "status": "active",
+        "pre_registered_sunday_school": true,
+        "consents": [],
+        "submitted_at": "2025-08-26T05:39:44.998Z",
+        "submitted_via": "import"
+      },
+      {
+        "registration_id": "24bcc80a-d5eb-4144-846c-c7ea40d1d633",
+        "child_id": "c_h_2_2",
+        "cycle_id": "2024",
+        "status": "active",
+        "pre_registered_sunday_school": true,
+        "consents": [],
+        "submitted_at": "2025-08-26T05:39:44.998Z",
+        "submitted_via": "import"
+      },
+      {
+        "registration_id": "2c77abdc-8309-4cbb-acaa-b4d422aa68c4",
+        "child_id": "c_h_15_1",
+        "cycle_id": "2024",
+        "status": "active",
+        "pre_registered_sunday_school": true,
+        "consents": [],
+        "submitted_at": "2025-08-26T05:39:44.998Z",
+        "submitted_via": "import"
+      },
+      {
+        "registration_id": "31a440b6-acaf-4461-88b4-d3d18379d05a",
+        "child_id": "c_h_12_1",
+        "cycle_id": "2024",
+        "status": "active",
+        "pre_registered_sunday_school": true,
+        "consents": [],
+        "submitted_at": "2025-08-26T05:39:44.998Z",
+        "submitted_via": "import"
+      },
+      {
+        "registration_id": "31b9a84a-ddda-4682-9243-44913534546c",
+        "child_id": "c_h_9_1",
+        "cycle_id": "2025",
+        "status": "active",
+        "pre_registered_sunday_school": true,
+        "consents": [],
+        "submitted_at": "2025-08-26T05:39:44.998Z",
+        "submitted_via": "import"
+      },
+      {
+        "registration_id": "32f133f5-c971-44d9-b336-c120389dc604",
+        "child_id": "c_h_5_1",
+        "cycle_id": "2024",
+        "status": "active",
+        "pre_registered_sunday_school": true,
+        "consents": [],
+        "submitted_at": "2025-08-26T05:39:44.998Z",
+        "submitted_via": "import"
+      },
+      {
+        "registration_id": "3378129e-da49-43da-8663-e31f4c646c44",
+        "child_id": "c_h_17_2",
+        "cycle_id": "2024",
+        "status": "active",
+        "pre_registered_sunday_school": true,
+        "consents": [],
+        "submitted_at": "2025-08-26T05:39:44.998Z",
+        "submitted_via": "import"
+      },
+      {
+        "registration_id": "358a1443-05e9-45ee-96e4-fea3c52c7e3d",
+        "child_id": "c_h_14_2",
+        "cycle_id": "2025",
+        "status": "active",
+        "pre_registered_sunday_school": true,
+        "consents": [],
+        "submitted_at": "2025-08-26T05:39:44.998Z",
+        "submitted_via": "import"
+      },
+      {
+        "registration_id": "3ce0c4ca-c675-4064-aeef-75e23737dcc7",
+        "child_id": "c_h_5_1",
+        "cycle_id": "2025",
+        "status": "active",
+        "pre_registered_sunday_school": true,
+        "consents": [],
+        "submitted_at": "2025-08-26T05:39:44.998Z",
+        "submitted_via": "import"
+      },
+      {
+        "registration_id": "3ff8a18a-8a5a-4f6f-b867-c0de9cecda02",
+        "child_id": "c_h_17_2",
+        "cycle_id": "2025",
+        "status": "active",
+        "pre_registered_sunday_school": true,
+        "consents": [],
+        "submitted_at": "2025-08-26T05:39:44.998Z",
+        "submitted_via": "import"
+      },
+      {
+        "registration_id": "434a0611-efb4-4823-812e-a76e2c882a09",
+        "child_id": "c_h_18_2",
+        "cycle_id": "2024",
+        "status": "active",
+        "pre_registered_sunday_school": true,
+        "consents": [],
+        "submitted_at": "2025-08-26T05:39:44.998Z",
+        "submitted_via": "import"
+      },
+      {
+        "registration_id": "467b7d77-eebe-40a7-8b0f-5ab8253ffff7",
+        "child_id": "c_h_3_1",
+        "cycle_id": "2024",
+        "status": "active",
+        "pre_registered_sunday_school": true,
+        "consents": [],
+        "submitted_at": "2025-08-26T05:39:44.998Z",
+        "submitted_via": "import"
+      },
+      {
+        "registration_id": "4b3d0133-6493-4fac-bab0-70e480e2910f",
+        "child_id": "c_h_20_1",
+        "cycle_id": "2025",
+        "status": "active",
+        "pre_registered_sunday_school": true,
+        "consents": [],
+        "submitted_at": "2025-08-26T05:39:44.998Z",
+        "submitted_via": "import"
+      },
+      {
+        "registration_id": "4f61a914-6aa3-42a3-ae87-739de6ea924f",
+        "child_id": "c_h_10_2",
+        "cycle_id": "2025",
+        "status": "active",
+        "pre_registered_sunday_school": true,
+        "consents": [],
+        "submitted_at": "2025-08-26T05:39:44.998Z",
+        "submitted_via": "import"
+      },
+      {
+        "registration_id": "5251a84a-f6dd-41fa-8527-5c07b4d8d674",
+        "child_id": "c_h_4_1",
+        "cycle_id": "2025",
+        "status": "active",
+        "pre_registered_sunday_school": true,
+        "consents": [],
+        "submitted_at": "2025-08-26T05:39:44.998Z",
+        "submitted_via": "import"
+      },
+      {
+        "registration_id": "52fe02b9-64b3-4ed0-9f4f-a8a20f02d909",
+        "child_id": "c_h_12_1",
+        "cycle_id": "2025",
+        "status": "active",
+        "pre_registered_sunday_school": true,
+        "consents": [],
+        "submitted_at": "2025-08-26T05:39:44.998Z",
+        "submitted_via": "import"
+      },
+      {
+        "registration_id": "55881015-f782-45cf-8c60-2a38fd108185",
+        "child_id": "c_h_18_1",
+        "cycle_id": "2024",
+        "status": "active",
+        "pre_registered_sunday_school": true,
+        "consents": [],
+        "submitted_at": "2025-08-26T05:39:44.998Z",
+        "submitted_via": "import"
+      },
+      {
+        "registration_id": "67dfae32-a69a-4f27-91ac-b8084909510e",
+        "child_id": "c_h_1_2",
+        "cycle_id": "2025",
+        "status": "active",
+        "pre_registered_sunday_school": true,
+        "consents": [],
+        "submitted_at": "2025-08-26T05:39:44.998Z",
+        "submitted_via": "import"
+      },
+      {
+        "registration_id": "6ffcd722-bf4b-43ef-8dc8-3ded4659712f",
+        "child_id": "c_h_19_1",
+        "cycle_id": "2024",
+        "status": "active",
+        "pre_registered_sunday_school": true,
+        "consents": [],
+        "submitted_at": "2025-08-26T05:39:44.998Z",
+        "submitted_via": "import"
+      },
+      {
+        "registration_id": "73658b65-5764-4828-bff5-d0c39cb9f9b7",
+        "child_id": "c_h_3_1",
+        "cycle_id": "2025",
+        "status": "active",
+        "pre_registered_sunday_school": true,
+        "consents": [],
+        "submitted_at": "2025-08-26T05:39:44.998Z",
+        "submitted_via": "import"
+      },
+      {
+        "registration_id": "73a26a17-f28a-4598-80f2-c2747e20cdc5",
+        "child_id": "c_h_20_1",
+        "cycle_id": "2024",
+        "status": "active",
+        "pre_registered_sunday_school": true,
+        "consents": [],
+        "submitted_at": "2025-08-26T05:39:44.998Z",
+        "submitted_via": "import"
+      },
+      {
+        "registration_id": "7b088a8e-595d-4913-a033-99fac2b6e357",
+        "child_id": "c_h_8_2",
+        "cycle_id": "2025",
+        "status": "active",
+        "pre_registered_sunday_school": true,
+        "consents": [],
+        "submitted_at": "2025-08-26T05:39:44.998Z",
+        "submitted_via": "import"
+      },
+      {
+        "registration_id": "82e50199-7e7e-45a5-96b5-f4be43f94172",
+        "child_id": "c_h_5_2",
+        "cycle_id": "2025",
+        "status": "active",
+        "pre_registered_sunday_school": true,
+        "consents": [],
+        "submitted_at": "2025-08-26T05:39:44.998Z",
+        "submitted_via": "import"
+      },
+      {
+        "registration_id": "86cb6b20-c695-4e34-a6d3-ae4f13cd6378",
+        "child_id": "c_h_18_2",
+        "cycle_id": "2025",
+        "status": "active",
+        "pre_registered_sunday_school": true,
+        "consents": [],
+        "submitted_at": "2025-08-26T05:39:44.998Z",
+        "submitted_via": "import"
+      },
+      {
+        "registration_id": "89954d50-d3fa-40fa-8cfa-29c11150e043",
+        "child_id": "c_h_16_1",
+        "cycle_id": "2025",
+        "status": "active",
+        "pre_registered_sunday_school": true,
+        "consents": [],
+        "submitted_at": "2025-08-26T05:39:44.998Z",
+        "submitted_via": "import"
+      },
+      {
+        "registration_id": "8ca85cf9-b4b1-43fa-9c7d-0c7de6fa3092",
+        "child_id": "c_h_8_2",
+        "cycle_id": "2024",
+        "status": "active",
+        "pre_registered_sunday_school": true,
+        "consents": [],
+        "submitted_at": "2025-08-26T05:39:44.998Z",
+        "submitted_via": "import"
+      },
+      {
+        "registration_id": "8da2ca56-cb2c-467a-9e5f-9a7c99cff4ad",
+        "child_id": "c_h_7_1",
+        "cycle_id": "2024",
+        "status": "active",
+        "pre_registered_sunday_school": true,
+        "consents": [],
+        "submitted_at": "2025-08-26T05:39:44.998Z",
+        "submitted_via": "import"
+      },
+      {
+        "registration_id": "8dc2c750-5a8c-4691-a3ba-5d1ab539386e",
+        "child_id": "c_h_17_1",
+        "cycle_id": "2024",
+        "status": "active",
+        "pre_registered_sunday_school": true,
+        "consents": [],
+        "submitted_at": "2025-08-26T05:39:44.998Z",
+        "submitted_via": "import"
+      },
+      {
+        "registration_id": "8df37d75-de3f-4bd4-892e-e7071d336a12",
+        "child_id": "c_h_9_1",
+        "cycle_id": "2024",
+        "status": "active",
+        "pre_registered_sunday_school": true,
+        "consents": [],
+        "submitted_at": "2025-08-26T05:39:44.998Z",
+        "submitted_via": "import"
+      },
+      {
+        "registration_id": "96c3c1ce-1b75-4024-b3ad-53ea9e316680",
+        "child_id": "c_h_14_1",
+        "cycle_id": "2025",
+        "status": "active",
+        "pre_registered_sunday_school": true,
+        "consents": [],
+        "submitted_at": "2025-08-26T05:39:44.998Z",
+        "submitted_via": "import"
+      },
+      {
+        "registration_id": "9862ce3d-9229-4eb0-a24d-2a5baff29da5",
+        "child_id": "c_h_13_2",
+        "cycle_id": "2024",
+        "status": "active",
+        "pre_registered_sunday_school": true,
+        "consents": [],
+        "submitted_at": "2025-08-26T05:39:44.998Z",
+        "submitted_via": "import"
+      },
+      {
+        "registration_id": "98cf7c0d-95cf-4d72-a5c1-cccc4570e9e8",
+        "child_id": "c_h_10_1",
+        "cycle_id": "2025",
+        "status": "active",
+        "pre_registered_sunday_school": true,
+        "consents": [],
+        "submitted_at": "2025-08-26T05:39:44.998Z",
+        "submitted_via": "import"
+      },
+      {
+        "registration_id": "a47a4529-9bf0-4f9d-86af-91997fcc9116",
+        "child_id": "c_h_8_1",
+        "cycle_id": "2024",
+        "status": "active",
+        "pre_registered_sunday_school": true,
+        "consents": [],
+        "submitted_at": "2025-08-26T05:39:44.998Z",
+        "submitted_via": "import"
+      },
+      {
+        "registration_id": "a835c3f5-7dfb-4a21-85ac-a474f2ea6fb9",
+        "child_id": "c_h_15_1",
+        "cycle_id": "2025",
+        "status": "active",
+        "pre_registered_sunday_school": true,
+        "consents": [],
+        "submitted_at": "2025-08-26T05:39:44.998Z",
+        "submitted_via": "import"
+      },
+      {
+        "registration_id": "a8ac77af-7d49-4133-92a5-2822a06e7eb7",
+        "child_id": "c_h_19_1",
+        "cycle_id": "2025",
+        "status": "active",
+        "pre_registered_sunday_school": true,
+        "consents": [],
+        "submitted_at": "2025-08-26T05:39:44.998Z",
+        "submitted_via": "import"
+      },
+      {
+        "registration_id": "a8b1b8e5-95f2-4930-9730-8f38e3c82bd9",
+        "child_id": "c_h_6_2",
+        "cycle_id": "2024",
+        "status": "active",
+        "pre_registered_sunday_school": true,
+        "consents": [],
+        "submitted_at": "2025-08-26T05:39:44.998Z",
+        "submitted_via": "import"
+      },
+      {
+        "registration_id": "a95c92c9-58fc-4951-a638-0585f2e7d204",
+        "child_id": "c_h_6_2",
+        "cycle_id": "2025",
+        "status": "active",
+        "pre_registered_sunday_school": true,
+        "consents": [],
+        "submitted_at": "2025-08-26T05:39:44.998Z",
+        "submitted_via": "import"
+      },
+      {
+        "registration_id": "ae839df2-ee5d-4469-a30d-655eecfbca0c",
+        "child_id": "c_h_4_2",
+        "cycle_id": "2024",
+        "status": "active",
+        "pre_registered_sunday_school": true,
+        "consents": [],
+        "submitted_at": "2025-08-26T05:39:44.998Z",
+        "submitted_via": "import"
+      },
+      {
+        "registration_id": "b8823a17-3204-42da-8bd2-876e8a7fa709",
+        "child_id": "c_h_14_2",
+        "cycle_id": "2024",
+        "status": "active",
+        "pre_registered_sunday_school": true,
+        "consents": [],
+        "submitted_at": "2025-08-26T05:39:44.998Z",
+        "submitted_via": "import"
+      },
+      {
+        "registration_id": "c13ad485-7368-4860-8810-fa9669f6db05",
+        "child_id": "c_h_14_1",
+        "cycle_id": "2024",
+        "status": "active",
+        "pre_registered_sunday_school": true,
+        "consents": [],
+        "submitted_at": "2025-08-26T05:39:44.998Z",
+        "submitted_via": "import"
+      },
+      {
+        "registration_id": "cf577f56-a0be-4fd8-88fe-2354d1557c89",
+        "child_id": "c_h_13_1",
+        "cycle_id": "2024",
+        "status": "active",
+        "pre_registered_sunday_school": true,
+        "consents": [],
+        "submitted_at": "2025-08-26T05:39:44.998Z",
+        "submitted_via": "import"
+      },
+      {
+        "registration_id": "d85e79d0-50b5-40c7-b271-c6d96427e192",
+        "child_id": "c_h_19_2",
+        "cycle_id": "2025",
+        "status": "active",
+        "pre_registered_sunday_school": true,
+        "consents": [],
+        "submitted_at": "2025-08-26T05:39:44.998Z",
+        "submitted_via": "import"
+      },
+      {
+        "registration_id": "d88bede3-7169-4d39-ac04-7c6e11643da7",
+        "child_id": "c_h_12_2",
+        "cycle_id": "2024",
+        "status": "active",
+        "pre_registered_sunday_school": true,
+        "consents": [],
+        "submitted_at": "2025-08-26T05:39:44.998Z",
+        "submitted_via": "import"
+      },
+      {
+        "registration_id": "dbf36c3a-06dc-4344-9e17-55b9ef072e6a",
+        "child_id": "c_h_10_2",
+        "cycle_id": "2024",
+        "status": "active",
+        "pre_registered_sunday_school": true,
+        "consents": [],
+        "submitted_at": "2025-08-26T05:39:44.998Z",
+        "submitted_via": "import"
+      },
+      {
+        "registration_id": "e03b20d5-5148-4828-a3b5-d99c4f454b58",
+        "child_id": "c_h_18_1",
+        "cycle_id": "2025",
+        "status": "active",
+        "pre_registered_sunday_school": true,
+        "consents": [],
+        "submitted_at": "2025-08-26T05:39:44.998Z",
+        "submitted_via": "import"
+      },
+      {
+        "registration_id": "e26c1a6a-93ca-4716-a8d9-d35df998bd02",
+        "child_id": "c_h_5_2",
+        "cycle_id": "2024",
+        "status": "active",
+        "pre_registered_sunday_school": true,
+        "consents": [],
+        "submitted_at": "2025-08-26T05:39:44.998Z",
+        "submitted_via": "import"
+      },
+      {
+        "registration_id": "edd4925b-d356-4f5d-a94b-822a1916e1d2",
+        "child_id": "c_h_11_1",
+        "cycle_id": "2025",
+        "status": "active",
+        "pre_registered_sunday_school": true,
+        "consents": [],
+        "submitted_at": "2025-08-26T05:39:44.998Z",
+        "submitted_via": "import"
+      },
+      {
+        "registration_id": "ef61b1fa-9843-471c-a912-60c95eef5526",
+        "child_id": "c_h_1_1",
+        "cycle_id": "2025",
+        "status": "active",
+        "pre_registered_sunday_school": true,
+        "consents": [],
+        "submitted_at": "2025-08-26T05:39:44.998Z",
+        "submitted_via": "import"
+      },
+      {
+        "registration_id": "f1f7fd07-62b6-4f8f-83bf-a60e3c8c65aa",
+        "child_id": "c_h_4_1",
+        "cycle_id": "2024",
+        "status": "active",
+        "pre_registered_sunday_school": true,
+        "consents": [],
+        "submitted_at": "2025-08-26T05:39:44.998Z",
+        "submitted_via": "import"
+      },
+      {
+        "registration_id": "f2793973-6c7e-4ef6-b67a-940e938043d3",
+        "child_id": "c_h_20_2",
+        "cycle_id": "2025",
+        "status": "active",
+        "pre_registered_sunday_school": true,
+        "consents": [],
+        "submitted_at": "2025-08-26T05:39:44.998Z",
+        "submitted_via": "import"
+      },
+      {
+        "registration_id": "f2f50c29-1beb-4651-bca9-6c179f190fc0",
+        "child_id": "c_h_13_1",
+        "cycle_id": "2025",
+        "status": "active",
+        "pre_registered_sunday_school": true,
+        "consents": [],
+        "submitted_at": "2025-08-26T05:39:44.998Z",
+        "submitted_via": "import"
+      },
+      {
+        "registration_id": "f33b95a9-e243-4bf4-90e2-dc51622c25ba",
+        "child_id": "c_h_6_1",
+        "cycle_id": "2025",
+        "status": "active",
+        "pre_registered_sunday_school": true,
+        "consents": [],
+        "submitted_at": "2025-08-26T05:39:44.998Z",
+        "submitted_via": "import"
+      },
+      {
+        "registration_id": "f348b5c0-5dd2-4c51-85ab-2b2e7e7a0092",
+        "child_id": "c_h_17_1",
+        "cycle_id": "2025",
+        "status": "active",
+        "pre_registered_sunday_school": true,
+        "consents": [],
+        "submitted_at": "2025-08-26T05:39:44.998Z",
+        "submitted_via": "import"
+      },
+      {
+        "registration_id": "f3b1e7e9-fa6d-4986-b820-8e11597e9ca8",
+        "child_id": "c_h_16_2",
+        "cycle_id": "2024",
+        "status": "active",
+        "pre_registered_sunday_school": true,
+        "consents": [],
+        "submitted_at": "2025-08-26T05:39:44.998Z",
+        "submitted_via": "import"
+      },
+      {
+        "registration_id": "f3f5b556-a5c9-4cf4-979e-53cf843eeee0",
+        "child_id": "c_h_10_1",
+        "cycle_id": "2024",
+        "status": "active",
+        "pre_registered_sunday_school": true,
+        "consents": [],
+        "submitted_at": "2025-08-26T05:39:44.998Z",
+        "submitted_via": "import"
+      },
+      {
+        "registration_id": "f4310f09-7641-48da-9e48-9e3b0cc48ebf",
+        "child_id": "c_h_19_2",
+        "cycle_id": "2024",
+        "status": "active",
+        "pre_registered_sunday_school": true,
+        "consents": [],
+        "submitted_at": "2025-08-26T05:39:44.998Z",
+        "submitted_via": "import"
+      },
+      {
+        "registration_id": "f4cff9a6-250c-4ccc-b508-8b5ad5253ae4",
+        "child_id": "c_h_20_2",
+        "cycle_id": "2024",
+        "status": "active",
+        "pre_registered_sunday_school": true,
+        "consents": [],
+        "submitted_at": "2025-08-26T05:39:44.998Z",
+        "submitted_via": "import"
+      },
+      {
+        "registration_id": "f70b07bc-18f2-4dbe-a415-d6c7c22dd530",
+        "child_id": "c_h_2_3",
+        "cycle_id": "2024",
+        "status": "active",
+        "pre_registered_sunday_school": true,
+        "consents": [],
+        "submitted_at": "2025-08-26T05:39:44.998Z",
+        "submitted_via": "import"
+      },
+      {
+        "registration_id": "fb9ba1f9-a079-4ee7-bfc9-889fa43ae3f2",
+        "child_id": "c_h_11_1",
+        "cycle_id": "2024",
+        "status": "active",
+        "pre_registered_sunday_school": true,
+        "consents": [],
+        "submitted_at": "2025-08-26T05:39:44.998Z",
+        "submitted_via": "import"
+      }
+    ],
+    "scriptures": [
+      {
+        "id": "02529ea9-8197-4054-a7d6-036f4f1d0415",
+        "competitionYearId": "6662abff-3518-4c68-a0d9-8a624bfd24f6",
+        "reference": "Psalm 8:1",
+        "text": "Sample scripture 8 for 2024",
+        "sortOrder": 8,
+        "createdAt": "2025-08-26T05:39:45.072Z",
+        "updatedAt": "2025-08-26T05:39:45.072Z"
+      },
+      {
+        "id": "079021e8-bd0f-40ef-94e7-9f90790f704a",
+        "competitionYearId": "6662abff-3518-4c68-a0d9-8a624bfd24f6",
+        "reference": "Psalm 1:1",
+        "text": "Sample scripture 1 for 2024",
+        "sortOrder": 1,
+        "createdAt": "2025-08-26T05:39:45.070Z",
+        "updatedAt": "2025-08-26T05:39:45.070Z"
+      },
+      {
+        "id": "1-2",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "reference": "Philippians 4:4-5",
+        "text": "<sup>4</sup> Rejoice in the Lord always. I will say it again: Rejoice! <sup>5</sup> Let your gentleness be evident to all. The Lord is near.",
+        "translation": "NIV",
+        "texts": {
+          "NIV": "<sup>4</sup> Rejoice in the Lord always. I will say it again: Rejoice! <sup>5</sup> Let your gentleness be evident to all. The Lord is near.",
+          "KJV": "<sup>4</sup> Rejoice in the Lord alway: and again I say, Rejoice. <sup>5</sup> Let your moderation be known unto all men. The Lord is at hand.",
+          "NLT": "<sup>4</sup> Always be full of joy in the Lord. I say it again—rejoice! <sup>5</sup> Let everyone see that you are considerate in all you do. Remember, the Lord is coming soon."
+        },
+        "sortOrder": 1,
+        "createdAt": "2025-08-26T05:39:45.073Z",
+        "updatedAt": "2025-08-26T05:39:45.073Z"
+      },
+      {
+        "id": "10",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "reference": "Lamentations 3:22",
+        "text": "<sup>22</sup> Because of the Lord’s great love we are not consumed, for his compassions never fail.",
+        "translation": "NIV",
+        "texts": {
+          "NIV": "<sup>22</sup> Because of the Lord’s great love we are not consumed, for his compassions never fail.",
+          "KJV": "<sup>22</sup> It is of the Lord's mercies that we are not consumed, because his compassions fail not.",
+          "NLT": "<sup>22</sup> The faithful love of the Lord never ends! His mercies never cease."
+        },
+        "sortOrder": 8,
+        "createdAt": "2025-08-26T05:39:45.074Z",
+        "updatedAt": "2025-08-26T05:39:45.074Z"
+      },
+      {
+        "id": "11-12",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "reference": "Matthew 7:1-2",
+        "text": "<sup>1</sup> Do not judge, or you too will be judged. <sup>2</sup> For in the same way you judge others, you will be judged, and with the measure you use, it will be measured to you.",
+        "translation": "NIV",
+        "texts": {
+          "NIV": "<sup>1</sup> Do not judge, or you too will be judged. <sup>2</sup> For in the same way you judge others, you will be judged, and with the measure you use, it will be measured to you.",
+          "KJV": "<sup>1</sup> Judge not, that ye be not judged. <sup>2</sup> For with what judgment ye judge, ye shall be judged: and with what measure ye mete, it shall be measured to you again.",
+          "NLT": "<sup>1</sup> Do not judge others, and you will not be judged. <sup>2</sup> For you will be treated as you treat others. The standard you use in judging is the standard by which you will be judged."
+        },
+        "sortOrder": 9,
+        "createdAt": "2025-08-26T05:39:45.074Z",
+        "updatedAt": "2025-08-26T05:39:45.074Z"
+      },
+      {
+        "id": "13-14",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "reference": "Matthew 7:3-4",
+        "text": "<sup>3</sup> Why do you look at the speck of sawdust in your brother’s eye and pay no attention to the plank in your own eye? <sup>4</sup> How can you say to your brother, ‘Let me take the speck out of your eye,’ when all the time there is a plank in your own eye?",
+        "translation": "NIV",
+        "texts": {
+          "NIV": "<sup>3</sup> Why do you look at the speck of sawdust in your brother’s eye and pay no attention to the plank in your own eye? <sup>4</sup> How can you say to your brother, ‘Let me take the speck out of your eye,’ when all the time there is a plank in your own eye?",
+          "KJV": "<sup>3</sup> And why beholdest thou the mote that is in thy brother's eye, but considerest not the beam that is in thine own eye? <sup>4</sup> Or how wilt thou say to thy brother, Let me pull out the mote out of thine eye; and, behold, a beam is in thine own eye?",
+          "NLT": "<sup>3</sup> And why worry about a speck in your friend’s eye when you have a log in your own? <sup>4</sup> How can you think of saying to your friend, ‘Let me help você get rid of that speck in your eye,’ when you can’t see past the log in your own eye?"
+        },
+        "sortOrder": 10,
+        "createdAt": "2025-08-26T05:39:45.075Z",
+        "updatedAt": "2025-08-26T05:39:45.075Z"
+      },
+      {
+        "id": "15",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "reference": "Matthew 7:5",
+        "text": "<sup>5</sup> You hypocrite, first take the plank out of your own eye, and then you will see clearly to remove the speck from your brother’s eye.",
+        "translation": "NIV",
+        "texts": {
+          "NIV": "<sup>5</sup> You hypocrite, first take the plank out of your own eye, and then you will see clearly to remove the speck from your brother’s eye.",
+          "KJV": "<sup>5</sup> Thou hypocrite, first cast out the beam out of thine own eye; and then shalt thou see clearly to cast out the mote out of thy brother's eye.",
+          "NLT": "<sup>5</sup> Hypocrite! First get rid of the log in your own eye; then you will see well enough to deal with the speck in your friend’s eye."
+        },
+        "sortOrder": 11,
+        "createdAt": "2025-08-26T05:39:45.075Z",
+        "updatedAt": "2025-08-26T05:39:45.075Z"
+      },
+      {
+        "id": "16",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "reference": "Matthew 7:6",
+        "text": "<sup>6</sup> Do not give dogs what is sacred; do not throw your pearls to pigs. If you do, they may trample them under their feet, and turn and tear you to pieces.",
+        "translation": "NIV",
+        "texts": {
+          "NIV": "<sup>6</sup> Do not give dogs what is sacred; do not throw your pearls to pigs. If you do, they may trample them under their feet, and turn and tear you to pieces.",
+          "KJV": "<sup>6</sup> Give not that which is holy unto the dogs, neither cast ye your pearls before swine, lest they trample them under their feet, and turn again and rend you.",
+          "NLT": "<sup>6</sup> Don’t waste what is holy on people who are unholy. Don’t throw your pearls to pigs! They will trample the pearls, then turn and attack you."
+        },
+        "sortOrder": 12,
+        "createdAt": "2025-08-26T05:39:45.075Z",
+        "updatedAt": "2025-08-26T05:39:45.075Z"
+      },
+      {
+        "id": "17-18",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "reference": "Matthew 7:7-8",
+        "text": "<sup>7</sup> Ask and it will be given to you; seek and you will find; knock and the door will be opened to you. <sup>8</sup> For everyone who asks receives; the one who seeks finds; and to the one who knocks, the door will be opened.",
+        "translation": "NIV",
+        "texts": {
+          "NIV": "<sup>7</sup> Ask and it will be given to you; seek and you will find; knock and the door will be opened to you. <sup>8</sup> For everyone who asks receives; the one who seeks finds; and to the one who knocks, the door will be opened.",
+          "KJV": "<sup>7</sup> Ask, and it shall be given you; seek, and ye shall find; knock, and it shall be opened unto you: <sup>8</sup> For every one that asketh receiveth; and he that seeketh findeth; and to him that knocketh it shall be opened.",
+          "NLT": "<sup>7</sup> Keep on asking, and you will receive what you ask for. Keep on seeking, and you will find. Keep on knocking, and the door will be opened to you. <sup>8</sup> For everyone who asks, receives. Everyone who seeks, finds. And to everyone who knocks, the door will be opened."
+        },
+        "sortOrder": 13,
+        "createdAt": "2025-08-26T05:39:45.075Z",
+        "updatedAt": "2025-08-26T05:39:45.075Z"
+      },
+      {
+        "id": "19-20",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "reference": "Galatians 6:7-8",
+        "text": "<sup>7</sup> Do not be deceived: God cannot be mocked. A man reaps what he sows. <sup>8</sup> Whoever sows to please their flesh, from the flesh will reap destruction; whoever sows to please the Spirit, from the Spirit will reap eternal life.",
+        "translation": "NIV",
+        "texts": {
+          "NIV": "<sup>7</sup> Do not be deceived: God cannot be mocked. A man reaps what he sows. <sup>8</sup> Whoever sows to please their flesh, from the flesh will reap destruction; whoever sows to please the Spirit, from the Spirit will reap eternal life.",
+          "KJV": "<sup>7</sup> Be not deceived; God is not mocked: for whatsoever a man soweth, that shall he also reap. <sup>8</sup> For he that soweth to his flesh shall of the flesh reap corruption; but he that soweth to the Spirit shall of the Spirit reap life everlasting.",
+          "NLT": "<sup>7</sup> Don’t be misled—you cannot mock the justice of God. You will always harvest what you plant. <sup>8</sup> Those who live only to satisfy their own sinful nature will harvest decay and death from that sinful nature. But those who live to please the Spirit will harvest everlasting life from the Spirit."
+        },
+        "sortOrder": 14,
+        "createdAt": "2025-08-26T05:39:45.075Z",
+        "updatedAt": "2025-08-26T05:39:45.075Z"
+      },
+      {
+        "id": "21",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "reference": "2 Timothy 1:7",
+        "text": "<sup>7</sup> For the Spirit God gave us does not make us timid, but gives us power, love and self-discipline.",
+        "translation": "NIV",
+        "texts": {
+          "NIV": "<sup>7</sup> For the Spirit God gave us does not make us timid, but gives us power, love and self-discipline.",
+          "KJV": "<sup>7</sup> For God hath not given us the spirit of fear; but of power, and of love, and of a sound mind.",
+          "NLT": "<sup>7</sup> For God has not given us a spirit of fear and timidity, but of power, love, and self-discipline."
+        },
+        "sortOrder": 15,
+        "createdAt": "2025-08-26T05:39:45.076Z",
+        "updatedAt": "2025-08-26T05:39:45.076Z"
+      },
+      {
+        "id": "22-23",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "reference": "Proverbs 3:5-6",
+        "text": "<sup>5</sup> Trust in the Lord with all your heart and lean not on your own understanding; <sup>6</sup> in all your ways submit to him, and he will make your paths straight.",
+        "translation": "NIV",
+        "texts": {
+          "NIV": "<sup>5</sup> Trust in the Lord with all your heart and lean not on your own understanding; <sup>6</sup> in all your ways submit to him, and he will make your paths straight.",
+          "KJV": "<sup>5</sup> Trust in the Lord with all thine heart; and lean not unto thine own understanding. <sup>6</sup> In all thy ways acknowledge him, and he shall direct thy paths.",
+          "NLT": "<sup>5</sup> Trust in the Lord with all your heart; do not depend on your own understanding. <sup>6</sup> Seek his will in all you do, and he will show you which path to take."
+        },
+        "sortOrder": 16,
+        "createdAt": "2025-08-26T05:39:45.076Z",
+        "updatedAt": "2025-08-26T05:39:45.076Z"
+      },
+      {
+        "id": "24-25",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "reference": "Proverbs 3:7-8",
+        "text": "<sup>7</sup> Do not be wise in your own eyes; fear the Lord and shun evil. <sup>8</sup> This will bring health to your body and nourishment to your bones.",
+        "translation": "NIV",
+        "texts": {
+          "NIV": "<sup>7</sup> Do not be wise in your own eyes; fear the Lord and shun evil. <sup>8</sup> This will bring health to your body and nourishment to your bones.",
+          "KJV": "<sup>7</sup> Be not wise in thine own eyes: fear the Lord, and depart from evil. <sup>8</sup> It shall be health to thy navel, and marrow to thy bones.",
+          "NLT": "<sup>7</sup> Don’t be impressed with your own wisdom. Instead, fear the Lord and turn away from evil. <sup>8</sup> Then you will have healing for your body and strength for your bones."
+        },
+        "sortOrder": 17,
+        "createdAt": "2025-08-26T05:39:45.076Z",
+        "updatedAt": "2025-08-26T05:39:45.076Z"
+      },
+      {
+        "id": "26-27",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "reference": "Numbers 6:24-26",
+        "text": "<sup>24</sup> The Lord bless you and keep you; <sup>25</sup> the Lord make his face shine on you and be gracious to you; <sup>26</sup> the Lord turn his face toward you and give you peace.",
+        "translation": "NIV",
+        "texts": {
+          "NIV": "<sup>24</sup> The Lord bless you and keep you; <sup>25</sup> the Lord make his face shine on you and be gracious to you; <sup>26</sup> the Lord turn his face toward you and give you peace.",
+          "KJV": "<sup>24</sup> The Lord bless thee, and keep thee: <sup>25</sup> The Lord make his face shine upon thee, and be gracious unto thee: <sup>26</sup> The Lord lift up his countenance upon thee, and give thee peace.",
+          "NLT": "<sup>24</sup> May the Lord bless you and protect you. <sup>25</sup> May the Lord smile on you and be gracious to you. <sup>26</sup> May the Lord show you his favor and give you his peace."
+        },
+        "sortOrder": 18,
+        "createdAt": "2025-08-26T05:39:45.076Z",
+        "updatedAt": "2025-08-26T05:39:45.076Z"
+      },
+      {
+        "id": "28",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "reference": "Deuteronomy 31:6",
+        "text": "<sup>6</sup> Be strong and courageous. Do not be afraid or terrified because of them, for the Lord your God goes with you; he will never leave you nor forsake you.",
+        "translation": "NIV",
+        "texts": {
+          "NIV": "<sup>6</sup> Be strong and courageous. Do not be afraid or terrified because of them, for the Lord your God goes with you; he will never leave you nor forsake you.",
+          "KJV": "<sup>6</sup> Be strong and of a good courage, fear not, nor be afraid of them: for the Lord thy God, he it is that doth go with thee; he will not fail thee, nor forsake thee.",
+          "NLT": "<sup>6</sup> So be strong and courageous! Do not be afraid and do not panic before them. For the Lord your God will personally go ahead of you. He will neither fail you nor abandon you."
+        },
+        "sortOrder": 19,
+        "createdAt": "2025-08-26T05:39:45.076Z",
+        "updatedAt": "2025-08-26T05:39:45.076Z"
+      },
+      {
+        "id": "29",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "reference": "Revelation 1:8",
+        "text": "<sup>8</sup> I am the Alpha and the Omega, says the Lord God, who is, and who was, and who is to come, the Almighty.",
+        "translation": "NIV",
+        "texts": {
+          "NIV": "<sup>8</sup> I am the Alpha and the Omega, says the Lord God, who is, and who was, and who is to come, the Almighty.",
+          "KJV": "<sup>8</sup> I am Alpha and Omega, the beginning and the ending, saith the Lord, which is, and which was, and which is to come, the Almighty.",
+          "NLT": "<sup>8</sup> I am the Alpha and the Omega—the beginning and the end, says the Lord God. I am the one who is, who always was, and who is still to come—the Almighty One."
+        },
+        "sortOrder": 20,
+        "createdAt": "2025-08-26T05:39:45.077Z",
+        "updatedAt": "2025-08-26T05:39:45.077Z"
+      },
+      {
+        "id": "3",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "reference": "Philippians 4:6",
+        "text": "<sup>6</sup> Do not be anxious about anything, but in every situation, by prayer and petition, with thanksgiving, present your requests to God.",
+        "translation": "NIV",
+        "texts": {
+          "NIV": "<sup>6</sup> Do not be anxious about anything, but in every situation, by prayer and petition, with thanksgiving, present your requests to God.",
+          "KJV": "<sup>6</sup> Be careful for nothing; but in every thing by prayer and supplication with thanksgiving let your requests be made known unto God.",
+          "NLT": "<sup>6</sup> Don’t worry about anything; instead, pray about everything. Tell God what you need, and thank him for all he has done."
+        },
+        "sortOrder": 2,
+        "createdAt": "2025-08-26T05:39:45.073Z",
+        "updatedAt": "2025-08-26T05:39:45.073Z"
+      },
+      {
+        "id": "30",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "reference": "Psalm 145:13",
+        "text": "<sup>13</sup> Your kingdom is an everlasting kingdom, and your dominion endures through all generations. The Lord is trustworthy in all he promises and faithful in all he does.",
+        "translation": "NIV",
+        "texts": {
+          "NIV": "<sup>13</sup> Your kingdom is an everlasting kingdom, and your dominion endures through all generations. The Lord is trustworthy in all he promises and faithful in all he does.",
+          "KJV": "<sup>13</sup> Thy kingdom is an everlasting kingdom, and thy dominion endureth throughout all generations.",
+          "NLT": "<sup>13</sup> For your kingdom is an everlasting kingdom. You rule throughout all generations. The Lord always keeps his promises; he is gracious in all he does."
+        },
+        "sortOrder": 21,
+        "createdAt": "2025-08-26T05:39:45.077Z",
+        "updatedAt": "2025-08-26T05:39:45.077Z"
+      },
+      {
+        "id": "31",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "reference": "John 6:35",
+        "text": "<sup>35</sup> Then Jesus declared, \"I am the bread of life. Whoever comes to me will never go hungry, and whoever believes in me will never be thirsty.\",",
+        "translation": "NIV",
+        "texts": {
+          "NIV": "<sup>35</sup> Then Jesus declared, \"I am the bread of life. Whoever comes to me will never go hungry, and whoever believes in me will never be thirsty.\"",
+          "KJV": "<sup>35</sup> And Jesus said unto them, I am the bread of life: he that cometh to me shall never hunger; and he that believeth on me shall never thirst.",
+          "NLT": "<sup>35</sup> Jesus replied, “I am the bread of life. Whoever comes to me will never be hungry again. Whoever believes in me will never be thirsty.”"
+        },
+        "sortOrder": 22,
+        "createdAt": "2025-08-26T05:39:45.077Z",
+        "updatedAt": "2025-08-26T05:39:45.077Z"
+      },
+      {
+        "id": "32",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "reference": "1 Corinthians 13:13",
+        "text": "<sup>13</sup> And now these three remain: faith, hope and love. But the greatest of these is love.",
+        "translation": "NIV",
+        "texts": {
+          "NIV": "<sup>13</sup> And now these three remain: faith, hope and love. But the greatest of these is love.",
+          "KJV": "<sup>13</sup> And now abideth faith, hope, charity, these three; but the greatest of these is charity.",
+          "NLT": "<sup>13</sup> Three things will last forever—faith, hope, and love—and the greatest of these is love."
+        },
+        "sortOrder": 23,
+        "createdAt": "2025-08-26T05:39:45.077Z",
+        "updatedAt": "2025-08-26T05:39:45.077Z"
+      },
+      {
+        "id": "33-34",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "reference": "Hebrews 12:1-2",
+        "text": "<sup>1</sup> Therefore, since we are surrounded by such a great cloud of witnesses, let us throw off everything that hinders and the sin that so easily entangles. And let us run with perseverance the race marked out for us, <sup>2</sup> fixing our eyes on Jesus, the pioneer and perfecter of faith. For the joy set before him he endured the cross, scorning its shame, and sat down at the right hand of the throne of God.",
+        "translation": "NIV",
+        "texts": {
+          "NIV": "<sup>1</sup> Therefore, since we are surrounded by such a great cloud of witnesses, let us throw off everything that hinders and the sin that so easily entangles. And let us run with perseverance the race marked out for us, <sup>2</sup> fixing our eyes on Jesus, the pioneer and perfecter of faith. For the joy set before him he endured the cross, scorning its shame, and sat down at the right hand of the throne of God.",
+          "KJV": "<sup>1</sup> Wherefore seeing we also are compassed about with so great a cloud of witnesses, let us lay aside every weight, and the sin which doth so easily beset us, and let us run with patience the race that is set before us, <sup>2</sup> Looking unto Jesus the author and finisher of our faith; who for the joy that was set before him endured the cross, despising the shame, and is set down at the right hand of the throne of God.",
+          "NLT": "<sup>1</sup> Therefore, since we are surrounded by such a huge crowd of witnesses to the life of faith, let us strip off every weight that slows us down, especially the sin that so easily trips us up. And let us run with endurance the race God has set before us. <sup>2</sup> We do this by keeping our eyes on Jesus, the champion who initiates and perfects our faith. Because of the joy awaiting him, he endured the cross, disregarding its shame. Now he is seated in the place of honor beside God’s throne."
+        },
+        "sortOrder": 24,
+        "createdAt": "2025-08-26T05:39:45.078Z",
+        "updatedAt": "2025-08-26T05:39:45.078Z"
+      },
+      {
+        "id": "35",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "reference": "2 Corinthians 12:9",
+        "text": "<sup>9</sup> But he said to me, \"My grace is sufficient for you, for my power is made perfect in weakness.\" Therefore I will boast all the more gladly about my weaknesses, so that Christ's power may rest on me.",
+        "translation": "NIV",
+        "texts": {
+          "NIV": "<sup>9</sup> But he said to me, \"My grace is sufficient for you, for my power is made perfect in weakness.\" Therefore I will boast all the more gladly about my weaknesses, so that Christ's power may rest on me.",
+          "KJV": "<sup>9</sup> And he said unto me, My grace is sufficient for thee: for my strength is made perfect in weakness. Most gladly therefore will I rather glory in my infirmities, that the power of Christ may rest upon me.",
+          "NLT": "<sup>9</sup> Each time he said, “My grace is all you need. My power works best in weakness.” So now I am glad to boast about my weaknesses, so that the power of Christ can work through me."
+        },
+        "sortOrder": 25,
+        "createdAt": "2025-08-26T05:39:45.078Z",
+        "updatedAt": "2025-08-26T05:39:45.078Z"
+      },
+      {
+        "id": "36",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "reference": "Colossians 3:5",
+        "text": "<sup>5</sup> Put to death, therefore, whatever belongs to your earthly nature: sexual immorality, impurity, lust, evil desires and greed, which is idolatry.",
+        "translation": "NIV",
+        "texts": {
+          "NIV": "<sup>5</sup> Put to death, therefore, whatever belongs to your earthly nature: sexual immorality, impurity, lust, evil desires and greed, which is idolatry.",
+          "KJV": "<sup>5</sup> Mortify therefore your members which are upon the earth; fornication, uncleanness, inordinate affection, evil concupiscence, and covetousness, which is idolatry.",
+          "NLT": "<sup>5</sup> So put to death the sinful, earthly things lurking within you. Have nothing to do with sexual immorality, impurity, lust, and evil desires. Don’t be greedy, for a greedy person is an idolater, worshiping the things of this world."
+        },
+        "sortOrder": 26,
+        "createdAt": "2025-08-26T05:39:45.078Z",
+        "updatedAt": "2025-08-26T05:39:45.078Z"
+      },
+      {
+        "id": "37",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "reference": "Colossians 3:8",
+        "text": "<sup>8</sup> But now you must also rid yourselves of all such things as these: anger, rage, malice, slander, and filthy language from your lips.",
+        "translation": "NIV",
+        "texts": {
+          "NIV": "<sup>8</sup> But now you must also rid yourselves of all such things as these: anger, rage, malice, slander, and filthy language from your lips.",
+          "KJV": "<sup>8</sup> But now ye also put off all these; anger, wrath, malice, blasphemy, filthy communication out of your mouth.",
+          "NLT": "<sup>8</sup> But now is the time to get rid of anger, rage, malicious behavior, slander, and dirty language."
+        },
+        "sortOrder": 27,
+        "createdAt": "2025-08-26T05:39:45.078Z",
+        "updatedAt": "2025-08-26T05:39:45.078Z"
+      },
+      {
+        "id": "38",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "reference": "Zephaniah 3:17",
+        "text": "<sup>17</sup> The Lord your God is with you, the Mighty Warrior who saves. He will take great delight in you; in his love he will no longer rebuke you, but will rejoice over you with singing.",
+        "translation": "NIV",
+        "texts": {
+          "NIV": "<sup>17</sup> The Lord your God is with you, the Mighty Warrior who saves. He will take great delight in you; in his love he will no longer rebuke you, but will rejoice over you with singing.",
+          "KJV": "<sup>17</sup> The Lord thy God in the midst of thee is mighty; he will save, he will rejoice over thee with joy; he will rest in his love, he will joy over thee with singing.",
+          "NLT": "<sup>17</sup> For the Lord your God is living among you. He is a mighty savior. He will take delight in you with gladness. With his love, he will calm all your fears. He will rejoice over you with joyful songs."
+        },
+        "sortOrder": 28,
+        "createdAt": "2025-08-26T05:39:45.079Z",
+        "updatedAt": "2025-08-26T05:39:45.079Z"
+      },
+      {
+        "id": "39",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "reference": "Psalm 51:10",
+        "text": "<sup>10</sup> Create in me a pure heart, O God, and renew a steadfast spirit within me.",
+        "translation": "NIV",
+        "texts": {
+          "NIV": "<sup>10</sup> Create in me a pure heart, O God, and renew a steadfast spirit within me.",
+          "KJV": "<sup>10</sup> Create in me a clean heart, O God; and renew a right spirit within me.",
+          "NLT": "<sup>10</sup> Create in me a clean heart, O God. Renew a loyal spirit within me."
+        },
+        "sortOrder": 29,
+        "createdAt": "2025-08-26T05:39:45.079Z",
+        "updatedAt": "2025-08-26T05:39:45.079Z"
+      },
+      {
+        "id": "4",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "reference": "Philippians 4:7",
+        "text": "<sup>7</sup> And the peace of God, which transcends all understanding, will guard your hearts and your minds in Christ Jesus.",
+        "translation": "NIV",
+        "texts": {
+          "NIV": "<sup>7</sup> And the peace of God, which transcends all understanding, will guard your hearts and your minds in Christ Jesus.",
+          "KJV": "<sup>7</sup> And the peace of God, which passeth all understanding, shall keep your hearts and minds through Christ Jesus.",
+          "NLT": "<sup>7</sup> Then you will experience God’s peace, which exceeds anything we can understand. His peace will guard your hearts and minds as you live in Christ Jesus."
+        },
+        "sortOrder": 3,
+        "createdAt": "2025-08-26T05:39:45.073Z",
+        "updatedAt": "2025-08-26T05:39:45.073Z"
+      },
+      {
+        "id": "40-41",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "reference": "Proverbs 16:3-4",
+        "text": "<sup>3</sup> Commit to the Lord whatever you do, and he will establish your plans. <sup>4</sup> The Lord works out everything to its proper end—even the wicked for a day of disaster.",
+        "translation": "NIV",
+        "texts": {
+          "NIV": "<sup>3</sup> Commit to the Lord whatever you do, and he will establish your plans. <sup>4</sup> The Lord works out everything to its proper end—even the wicked for a day of disaster.",
+          "KJV": "<sup>3</sup> Commit thy works unto the Lord, and thy thoughts shall be established. <sup>4</sup> The Lord hath made all things for himself: yea, even the wicked for the day of evil.",
+          "NLT": "<sup>3</sup> Commit your actions to the Lord, and your plans will succeed. <sup>4</sup> The Lord has made everything for his own purposes, even the wicked for a day of disaster."
+        },
+        "sortOrder": 30,
+        "createdAt": "2025-08-26T05:39:45.079Z",
+        "updatedAt": "2025-08-26T05:39:45.079Z"
+      },
+      {
+        "id": "42",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "reference": "Matthew 5:16",
+        "text": "<sup>16</sup> In the same way, let your light shine before others, that they may see your good deeds and glorify your Father in heaven.",
+        "translation": "NIV",
+        "texts": {
+          "NIV": "<sup>16</sup> In the same way, let your light shine before others, that they may see your good deeds and glorify your Father in heaven.",
+          "KJV": "<sup>16</sup> Let your light so shine before men, that they may see your good works, and glorify your Father which is in heaven.",
+          "NLT": "<sup>16</sup> In the same way, let your good deeds shine out for all to see, so that everyone will praise your heavenly Father."
+        },
+        "sortOrder": 31,
+        "createdAt": "2025-08-26T05:39:45.079Z",
+        "updatedAt": "2025-08-26T05:39:45.079Z"
+      },
+      {
+        "id": "43-44",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "reference": "Proverbs 16:18-19",
+        "text": "<sup>18</sup> Pride goes before destruction, a haughty spirit before a fall. <sup>19</sup> Better to be lowly in spirit along with the oppressed than to share plunder with the proud.",
+        "translation": "NIV",
+        "texts": {
+          "NIV": "<sup>18</sup> Pride goes before destruction, a haughty spirit before a fall. <sup>19</sup> Better to be lowly in spirit along with the oppressed than to share plunder with the proud.",
+          "KJV": "<sup>18</sup> Pride goeth before destruction, and an haughty spirit before a fall. <sup>19</sup> Better it is to be of an humble spirit with the lowly, than to divide the spoil with the proud.",
+          "NLT": "<sup>18</sup> Pride goes before destruction, and haughtiness before a fall. <sup>19</sup> Better to live humbly with the poor than to share plunder with the proud."
+        },
+        "sortOrder": 32,
+        "createdAt": "2025-08-26T05:39:45.079Z",
+        "updatedAt": "2025-08-26T05:39:45.079Z"
+      },
+      {
+        "id": "43d82edf-7730-4ada-8f12-1dda47c89e50",
+        "competitionYearId": "6662abff-3518-4c68-a0d9-8a624bfd24f6",
+        "reference": "Psalm 5:1",
+        "text": "Sample scripture 5 for 2024",
+        "sortOrder": 5,
+        "createdAt": "2025-08-26T05:39:45.071Z",
+        "updatedAt": "2025-08-26T05:39:45.071Z"
+      },
+      {
+        "id": "45",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "reference": "Ephesians 2:10",
+        "text": "<sup>10</sup> For we are God’s handiwork, created in Christ Jesus to do good works, which God prepared in advance for us to do.",
+        "translation": "NIV",
+        "texts": {
+          "NIV": "<sup>10</sup> For we are God’s handiwork, created in Christ Jesus to do good works, which God prepared in advance for us to do.",
+          "KJV": "<sup>10</sup> For we are his workmanship, created in Christ Jesus unto good works, which God hath before ordained that we should walk in them.",
+          "NLT": "<sup>10</sup> For we are God’s masterpiece. He has created us anew in Christ Jesus, so we can do the good things he planned for us long ago."
+        },
+        "sortOrder": 33,
+        "createdAt": "2025-08-26T05:39:45.080Z",
+        "updatedAt": "2025-08-26T05:39:45.080Z"
+      },
+      {
+        "id": "46-47",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "reference": "Galatians 5:22-23",
+        "text": "<sup>22</sup> But the fruit of the Spirit is love, joy, peace, forbearance, kindness, goodness, faithfulness, <sup>23</sup> gentleness and self-control. Against such things there is no law.",
+        "translation": "NIV",
+        "texts": {
+          "NIV": "<sup>22</sup> But the fruit of the Spirit is love, joy, peace, forbearance, kindness, goodness, faithfulness, <sup>23</sup> gentleness and self-control. Against such things there is no law.",
+          "KJV": "<sup>22</sup> But the fruit of the Spirit is love, joy, peace, longsuffering, gentleness, goodness, faith, <sup>23</sup> Meekness, temperance: against such there is no law.",
+          "NLT": "<sup>22</sup> But the Holy Spirit produces this kind of fruit in our lives: love, joy, peace, patience, kindness, goodness, faithfulness, <sup>23</sup> gentleness, and self-control. There is no law against these things!"
+        },
+        "sortOrder": 34,
+        "createdAt": "2025-08-26T05:39:45.081Z",
+        "updatedAt": "2025-08-26T05:39:45.081Z"
+      },
+      {
+        "id": "48-52",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "reference": "1 Thessalonians 5:19-22",
+        "text": "<sup>19</sup> Do not quench the Spirit. <sup>20</sup> Do not treat prophecies with contempt <sup>21</sup> but test them all; hold on to what is good, <sup>22</sup> reject every kind of evil.",
+        "translation": "NIV",
+        "texts": {
+          "NIV": "<sup>19</sup> Do not quench the Spirit. <sup>20</sup> Do not treat prophecies with contempt <sup>21</sup> but test them all; hold on to what is good, <sup>22</sup> reject every kind of evil.",
+          "KJV": "<sup>19</sup> Quench not the Spirit. <sup>20</sup> Despise not prophesyings. <sup>21</sup> Prove all things; hold fast that which is good. <sup>22</sup> Abstain from all appearance of evil.",
+          "NLT": "<sup>19</sup> Do not stifle the Holy Spirit. <sup>20</sup> Do not scoff at prophecies, <sup>21</sup> but test everything that is said. Hold on to what is good. <sup>22</sup> Stay away from every kind of evil."
+        },
+        "sortOrder": 35,
+        "createdAt": "2025-08-26T05:39:45.081Z",
+        "updatedAt": "2025-08-26T05:39:45.081Z"
+      },
+      {
+        "id": "5",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "reference": "Philippians 4:8",
+        "text": "<sup>8</sup> Finally, brothers and sisters, whatever is true, whatever is noble, whatever is right, whatever is pure, whatever is lovely, whatever is admirable—if anything is excellent or praiseworthy—think about such things.",
+        "translation": "NIV",
+        "texts": {
+          "NIV": "<sup>8</sup> Finally, brothers and sisters, whatever is true, whatever is noble, whatever is right, whatever is pure, whatever is lovely, whatever is admirable—if anything is excellent or praiseworthy—think about such things.",
+          "KJV": "<sup>8</sup> Finally, brethren, whatsoever things are true, whatsoever things are honest, whatsoever things are just, whatsoever things are pure, whatsoever things are lovely, whatsoever things are of good report; if there be any virtue, and if there be any praise, think on these things.",
+          "NLT": "<sup>8</sup> And now, dear brothers and sisters, one final thing. Fix your thoughts on what is true, and honorable, and right, and pure, and lovely, and admirable. Think about things that are excellent and worthy of praise."
+        },
+        "sortOrder": 4,
+        "createdAt": "2025-08-26T05:39:45.073Z",
+        "updatedAt": "2025-08-26T05:39:45.073Z"
+      },
+      {
+        "id": "6",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "reference": "Philippians 4:9",
+        "text": "<sup>9</sup> Whatever you have learned or received or heard from me, or seen in me—put it into practice. And the God of peace will be with you.",
+        "translation": "NIV",
+        "texts": {
+          "NIV": "<sup>9</sup> Whatever you have learned or received or heard from me, or seen in me—put it into practice. And the God of peace will be with you.",
+          "KJV": "<sup>9</sup> Those things, which ye have both learned, and received, and heard, and seen in me, do: and the God of peace shall be with you.",
+          "NLT": "<sup>9</sup> Keep putting into practice all you learned and received from me—everything you heard from me and saw me doing. Then the God of peace will be with you."
+        },
+        "sortOrder": 5,
+        "createdAt": "2025-08-26T05:39:45.074Z",
+        "updatedAt": "2025-08-26T05:39:45.074Z"
+      },
+      {
+        "id": "67d3bbcd-6d74-4c40-b269-9c14d1866eda",
+        "competitionYearId": "6662abff-3518-4c68-a0d9-8a624bfd24f6",
+        "reference": "Psalm 7:1",
+        "text": "Sample scripture 7 for 2024",
+        "sortOrder": 7,
+        "createdAt": "2025-08-26T05:39:45.072Z",
+        "updatedAt": "2025-08-26T05:39:45.072Z"
+      },
+      {
+        "id": "7-8",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "reference": "Philippians 4:12-13",
+        "text": "<sup>12</sup> I know what it is to be in need, and I know what it is to have plenty. I have learned the secret of being content in any and every situation, whether well fed or hungry, whether living in plenty or in want. <sup>13</sup> I can do all this through him who gives me strength.",
+        "translation": "NIV",
+        "texts": {
+          "NIV": "<sup>12</sup> I know what it is to be in need, and I know what it is to have plenty. I have learned the secret of being content in any and every situation, whether well fed or hungry, whether living in plenty or in want. <sup>13</sup> I can do all this through him who gives me strength.",
+          "KJV": "<sup>12</sup> I know both how to be abased, and I know how to abound: every where and in all things I am instructed both to be full and to be hungry, both to abound and to suffer need. <sup>13</sup> I can do all things through Christ which strengtheneth me.",
+          "NLT": "<sup>12</sup> I know how to live on almost nothing or with everything. I have learned the secret of living in every situation, whether it is with a full stomach or empty, with plenty or little. <sup>13</sup> For I can do everything through Christ, who gives me strength."
+        },
+        "sortOrder": 6,
+        "createdAt": "2025-08-26T05:39:45.074Z",
+        "updatedAt": "2025-08-26T05:39:45.074Z"
+      },
+      {
+        "id": "9",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "reference": "Philippians 4:19",
+        "text": "<sup>19</sup> And my God will meet all your needs according to the riches of his glory in Christ Jesus.",
+        "translation": "NIV",
+        "texts": {
+          "NIV": "<sup>19</sup> And my God will meet all your needs according to the riches of his glory in Christ Jesus.",
+          "KJV": "<sup>19</sup> But my God shall supply all your need according to his riches in glory by Christ Jesus.",
+          "NLT": "<sup>19</sup> And this same God who takes care of me will supply all your needs from his glorious riches, which have been given to us in Christ Jesus."
+        },
+        "sortOrder": 7,
+        "createdAt": "2025-08-26T05:39:45.074Z",
+        "updatedAt": "2025-08-26T05:39:45.074Z"
+      },
+      {
+        "id": "9cc4c1a0-7edf-4f76-93ab-1f1a21f60b03",
+        "competitionYearId": "6662abff-3518-4c68-a0d9-8a624bfd24f6",
+        "reference": "Psalm 6:1",
+        "text": "Sample scripture 6 for 2024",
+        "sortOrder": 6,
+        "createdAt": "2025-08-26T05:39:45.071Z",
+        "updatedAt": "2025-08-26T05:39:45.071Z"
+      },
+      {
+        "id": "a42eda14-3f5a-4dae-a2cb-6533822b5763",
+        "competitionYearId": "6662abff-3518-4c68-a0d9-8a624bfd24f6",
+        "reference": "Psalm 3:1",
+        "text": "Sample scripture 3 for 2024",
+        "sortOrder": 3,
+        "createdAt": "2025-08-26T05:39:45.071Z",
+        "updatedAt": "2025-08-26T05:39:45.071Z"
+      },
+      {
+        "id": "aa2d9170-85b3-413c-8a67-5e54d76ad220",
+        "competitionYearId": "6662abff-3518-4c68-a0d9-8a624bfd24f6",
+        "reference": "Psalm 9:1",
+        "text": "Sample scripture 9 for 2024",
+        "sortOrder": 9,
+        "createdAt": "2025-08-26T05:39:45.072Z",
+        "updatedAt": "2025-08-26T05:39:45.072Z"
+      },
+      {
+        "id": "b1c141b5-e5db-4436-a3ab-311f72ccb1a2",
+        "competitionYearId": "6662abff-3518-4c68-a0d9-8a624bfd24f6",
+        "reference": "Psalm 4:1",
+        "text": "Sample scripture 4 for 2024",
+        "sortOrder": 4,
+        "createdAt": "2025-08-26T05:39:45.071Z",
+        "updatedAt": "2025-08-26T05:39:45.071Z"
+      },
+      {
+        "id": "e29fcb9c-c417-4c96-952a-3d6210bbeb1d",
+        "competitionYearId": "6662abff-3518-4c68-a0d9-8a624bfd24f6",
+        "reference": "Psalm 2:1",
+        "text": "Sample scripture 2 for 2024",
+        "sortOrder": 2,
+        "createdAt": "2025-08-26T05:39:45.070Z",
+        "updatedAt": "2025-08-26T05:39:45.070Z"
+      },
+      {
+        "id": "f620db1f-f3c9-4e8b-b5e5-bdeeb77a1196",
+        "competitionYearId": "6662abff-3518-4c68-a0d9-8a624bfd24f6",
+        "reference": "Psalm 10:1",
+        "text": "Sample scripture 10 for 2024",
+        "sortOrder": 10,
+        "createdAt": "2025-08-26T05:39:45.072Z",
+        "updatedAt": "2025-08-26T05:39:45.072Z"
+      }
+    ],
+    "studentEssays": [
+      {
+        "id": "173f292d-b821-403b-abe6-0df1f8805f16",
+        "childId": "c_h_10_2",
+        "competitionYearId": "6662abff-3518-4c68-a0d9-8a624bfd24f6",
+        "status": "submitted",
+        "promptText": "Write a 500-word reflection on the role of scripture in daily life.",
+        "instructions": "Submit a 500-word essay.",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "27467399-16ef-4598-aadf-d1d2688a5ee7",
+        "childId": "c_h_7_1",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "status": "assigned",
+        "promptText": "Write a 500-word reflection on the role of scripture in daily life.",
+        "instructions": "Submit a 500-word essay.",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "2b56fc01-0bbd-4192-b0ad-f60ebf856b2d",
+        "childId": "c_h_3_1",
+        "competitionYearId": "6662abff-3518-4c68-a0d9-8a624bfd24f6",
+        "status": "submitted",
+        "promptText": "Write a 500-word reflection on the role of scripture in daily life.",
+        "instructions": "Submit a 500-word essay.",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "5632199f-fad9-4fe8-9a56-0fdbf581c8ce",
+        "childId": "c_h_10_2",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "status": "assigned",
+        "promptText": "Write a 500-word reflection on the role of scripture in daily life.",
+        "instructions": "Submit a 500-word essay.",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "87e40da5-5694-4a1e-929a-2cbbcae4a071",
+        "childId": "c_h_3_1",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "status": "assigned",
+        "promptText": "Write a 500-word reflection on the role of scripture in daily life.",
+        "instructions": "Submit a 500-word essay.",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "b8c6cda7-f203-48bf-89b2-2b5007c90d56",
+        "childId": "c_h_7_1",
+        "competitionYearId": "6662abff-3518-4c68-a0d9-8a624bfd24f6",
+        "status": "submitted",
+        "promptText": "Write a 500-word reflection on the role of scripture in daily life.",
+        "instructions": "Submit a 500-word essay.",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "cc3290df-f56a-46c4-a773-70b4d4681619",
+        "childId": "c_h_13_2",
+        "competitionYearId": "6662abff-3518-4c68-a0d9-8a624bfd24f6",
+        "status": "submitted",
+        "promptText": "Write a 500-word reflection on the role of scripture in daily life.",
+        "instructions": "Submit a 500-word essay.",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "cea3f4f8-f0e3-49f0-ac9e-7a11b61f92ae",
+        "childId": "c_h_13_2",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "status": "assigned",
+        "promptText": "Write a 500-word reflection on the role of scripture in daily life.",
+        "instructions": "Submit a 500-word essay.",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      }
+    ],
+    "studentScriptures": [
+      {
+        "id": "018f111b-f521-474c-b04b-5cb0a791d032",
+        "childId": "c_h_4_2",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "scriptureId": "6",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "0304f930-e79c-4853-9273-d5a8197e1987",
+        "childId": "c_h_12_2",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "scriptureId": "3",
+        "status": "assigned",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "05579ea2-5f79-455c-9e17-93c0c3259287",
+        "childId": "c_h_1_1",
+        "competitionYearId": "6662abff-3518-4c68-a0d9-8a624bfd24f6",
+        "scriptureId": "3",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "067cae64-a0ac-4a2e-a208-887411dcaf05",
+        "childId": "c_h_1_1",
+        "competitionYearId": "6662abff-3518-4c68-a0d9-8a624bfd24f6",
+        "scriptureId": "5",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "097e0da6-e25f-4be3-b102-cabeea77c35d",
+        "childId": "c_h_13_1",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "scriptureId": "3",
+        "status": "assigned",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "0c09cb06-9141-457f-b667-1207cf471fc1",
+        "childId": "c_h_4_1",
+        "competitionYearId": "6662abff-3518-4c68-a0d9-8a624bfd24f6",
+        "scriptureId": "5",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "0cbb1c7a-ff84-4583-b160-573bb6bd369f",
+        "childId": "c_h_4_2",
+        "competitionYearId": "6662abff-3518-4c68-a0d9-8a624bfd24f6",
+        "scriptureId": "3",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "1036d5ca-8d84-44e8-aa4a-39adbc24925c",
+        "childId": "c_h_8_1",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "scriptureId": "1-2",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "121b9f0c-95c9-42df-8422-7c6696bfd118",
+        "childId": "c_h_12_1",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "scriptureId": "5",
+        "status": "assigned",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "1dcd9bac-84a1-4136-b18c-864e7ec18b68",
+        "childId": "c_h_13_1",
+        "competitionYearId": "6662abff-3518-4c68-a0d9-8a624bfd24f6",
+        "scriptureId": "4",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "200e6708-1a8e-4851-8e73-5ceb8b5ed890",
+        "childId": "c_h_6_2",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "scriptureId": "5",
+        "status": "assigned",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "23531ed5-2c7f-4716-a0a6-8513d7463196",
+        "childId": "c_h_1_2",
+        "competitionYearId": "6662abff-3518-4c68-a0d9-8a624bfd24f6",
+        "scriptureId": "3",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "25a309a8-bd79-4338-a294-a9977847c1d9",
+        "childId": "c_h_5_1",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "scriptureId": "3",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "25adb53a-b972-4eaa-b8f9-9ec664b8d353",
+        "childId": "c_h_6_1",
+        "competitionYearId": "6662abff-3518-4c68-a0d9-8a624bfd24f6",
+        "scriptureId": "4",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "2736799e-c454-46ff-a02e-e6bdf142e85e",
+        "childId": "c_h_12_1",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "scriptureId": "1-2",
+        "status": "assigned",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "289874fe-6044-4ac9-88ec-a1e8ede3e7d9",
+        "childId": "c_h_5_1",
+        "competitionYearId": "6662abff-3518-4c68-a0d9-8a624bfd24f6",
+        "scriptureId": "5",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "2c003681-80b4-4943-8210-a7efad05b49b",
+        "childId": "c_h_8_1",
+        "competitionYearId": "6662abff-3518-4c68-a0d9-8a624bfd24f6",
+        "scriptureId": "1-2",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "2ca17306-ea92-43cb-af8c-015424a88ef6",
+        "childId": "c_h_8_2",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "scriptureId": "3",
+        "status": "assigned",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "2e6cc37d-1b22-4097-9687-e24f1cd59545",
+        "childId": "c_h_5_2",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "scriptureId": "4",
+        "status": "assigned",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "309f0986-243c-44f2-90fa-3d0757c51e27",
+        "childId": "c_h_8_1",
+        "competitionYearId": "6662abff-3518-4c68-a0d9-8a624bfd24f6",
+        "scriptureId": "4",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "3615ccf5-57b2-4f08-b9e6-8a678ca68162",
+        "childId": "c_h_6_2",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "scriptureId": "6",
+        "status": "assigned",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "362ff806-dff4-4de6-8eb5-02b9a7beaf8f",
+        "childId": "c_h_12_2",
+        "competitionYearId": "6662abff-3518-4c68-a0d9-8a624bfd24f6",
+        "scriptureId": "3",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "364a0efd-5aad-4ac8-885d-102812df9894",
+        "childId": "c_h_6_1",
+        "competitionYearId": "6662abff-3518-4c68-a0d9-8a624bfd24f6",
+        "scriptureId": "5",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "39baabe2-ca7b-4359-af7b-34233e1d42e8",
+        "childId": "c_h_11_1",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "scriptureId": "5",
+        "status": "assigned",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "3abcbcea-5c90-406f-9d47-6cbc71e9dd13",
+        "childId": "c_h_11_1",
+        "competitionYearId": "6662abff-3518-4c68-a0d9-8a624bfd24f6",
+        "scriptureId": "5",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "3c031197-f4f4-4cfe-a6d2-b27c8244f6d5",
+        "childId": "c_h_9_1",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "scriptureId": "7-8",
+        "status": "assigned",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "3c843281-5272-4bbd-a2e4-ef278e7e3a4e",
+        "childId": "c_h_6_2",
+        "competitionYearId": "6662abff-3518-4c68-a0d9-8a624bfd24f6",
+        "scriptureId": "1-2",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "3d5bfb0e-1588-4b04-8b33-ce031ae5ab9c",
+        "childId": "c_h_8_1",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "scriptureId": "5",
+        "status": "assigned",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "419deeea-9ff0-4ca6-b407-f1f942a42192",
+        "childId": "c_h_5_2",
+        "competitionYearId": "6662abff-3518-4c68-a0d9-8a624bfd24f6",
+        "scriptureId": "3",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "445d9a1c-4cf4-460c-9be3-2a9e062d1e49",
+        "childId": "c_h_1_1",
+        "competitionYearId": "6662abff-3518-4c68-a0d9-8a624bfd24f6",
+        "scriptureId": "1-2",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "4e55a42e-8a2e-45b3-b36a-11d490959cbe",
+        "childId": "c_h_9_1",
+        "competitionYearId": "6662abff-3518-4c68-a0d9-8a624bfd24f6",
+        "scriptureId": "4",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "4e8713fa-1237-4ef0-b99b-d4905d0e9ef9",
+        "childId": "c_h_1_2",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "scriptureId": "5",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "4ecfb9db-778b-4c0c-b058-63b16695fbfe",
+        "childId": "c_h_12_2",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "scriptureId": "5",
+        "status": "assigned",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "50cc4a6c-9539-4a98-bde0-a87081257fc8",
+        "childId": "c_h_6_1",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "scriptureId": "3",
+        "status": "assigned",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "53dc5bfe-9d9b-40b2-b55f-58a7b3b0f04d",
+        "childId": "c_h_6_2",
+        "competitionYearId": "6662abff-3518-4c68-a0d9-8a624bfd24f6",
+        "scriptureId": "7-8",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "55f042a3-3f56-46b1-8fff-671e30fb0d4e",
+        "childId": "c_h_6_2",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "scriptureId": "4",
+        "status": "assigned",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "5801ab37-578a-478b-a762-a09e4c65f369",
+        "childId": "c_h_4_2",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "scriptureId": "1-2",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "5a0759dd-ed2d-4ef0-939f-a89485cd99f9",
+        "childId": "c_h_8_2",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "scriptureId": "1-2",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "5ce75db2-c5f7-4f9a-a331-e1e900c4129f",
+        "childId": "c_h_12_2",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "scriptureId": "4",
+        "status": "assigned",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "5d63000f-2b85-4b89-a9be-b61f7076bc29",
+        "childId": "c_h_9_1",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "scriptureId": "4",
+        "status": "assigned",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "622bac22-1405-48ff-98a5-d6770454a72e",
+        "childId": "c_h_5_2",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "scriptureId": "3",
+        "status": "assigned",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "63de8c58-2460-4463-92f2-8d0a5aec5457",
+        "childId": "c_h_12_1",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "scriptureId": "4",
+        "status": "assigned",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "64d32801-17c7-4175-9535-46ad80b46fca",
+        "childId": "c_h_9_1",
+        "competitionYearId": "6662abff-3518-4c68-a0d9-8a624bfd24f6",
+        "scriptureId": "7-8",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "6626762f-4d13-4561-b627-43936ccdb3f1",
+        "childId": "c_h_6_2",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "scriptureId": "3",
+        "status": "assigned",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "6a916845-98da-4a91-b401-e3aba18cb677",
+        "childId": "c_h_13_1",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "scriptureId": "5",
+        "status": "assigned",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "6a9d196b-6529-4de9-83e7-62c8b486c34e",
+        "childId": "c_h_9_1",
+        "competitionYearId": "6662abff-3518-4c68-a0d9-8a624bfd24f6",
+        "scriptureId": "6",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "6aed5418-f606-4a36-a6b4-5163509b65e7",
+        "childId": "c_h_9_1",
+        "competitionYearId": "6662abff-3518-4c68-a0d9-8a624bfd24f6",
+        "scriptureId": "1-2",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "6c2cf327-ea76-4a42-ae71-2de7eaa92468",
+        "childId": "c_h_1_2",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "scriptureId": "3",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "6c37e0da-325f-4655-a535-998fb19c917f",
+        "childId": "c_h_5_2",
+        "competitionYearId": "6662abff-3518-4c68-a0d9-8a624bfd24f6",
+        "scriptureId": "4",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "6dfa1615-23ba-4bd3-9d8e-15c66da40918",
+        "childId": "c_h_1_2",
+        "competitionYearId": "6662abff-3518-4c68-a0d9-8a624bfd24f6",
+        "scriptureId": "4",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "70177102-fedd-4b5b-8cca-35d61447e088",
+        "childId": "c_h_8_1",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "scriptureId": "3",
+        "status": "assigned",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "7170f6ee-6fce-4b01-85b3-d53d228dd895",
+        "childId": "c_h_4_2",
+        "competitionYearId": "6662abff-3518-4c68-a0d9-8a624bfd24f6",
+        "scriptureId": "6",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "72221c79-b9a6-4765-bfaf-602050328790",
+        "childId": "c_h_8_2",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "scriptureId": "4",
+        "status": "assigned",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "723cd751-668c-4f2a-b1b7-238ceeb2bb3b",
+        "childId": "c_h_12_1",
+        "competitionYearId": "6662abff-3518-4c68-a0d9-8a624bfd24f6",
+        "scriptureId": "3",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "728057c2-76bc-4e82-bf5c-d31b8a752c68",
+        "childId": "c_h_11_1",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "scriptureId": "1-2",
+        "status": "assigned",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "72ef933d-1b04-413a-bb35-9d9c0225426a",
+        "childId": "c_h_6_2",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "scriptureId": "7-8",
+        "status": "assigned",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "734f435b-23ad-4f9b-84f5-fe152cbdffe8",
+        "childId": "c_h_4_1",
+        "competitionYearId": "6662abff-3518-4c68-a0d9-8a624bfd24f6",
+        "scriptureId": "1-2",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "7656806d-034d-47d2-8160-f70068ff828b",
+        "childId": "c_h_4_1",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "scriptureId": "3",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "76973d35-3358-4a51-a515-beaf82f538bf",
+        "childId": "c_h_1_1",
+        "competitionYearId": "6662abff-3518-4c68-a0d9-8a624bfd24f6",
+        "scriptureId": "4",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "78984e7f-db2e-40c6-a470-301d62d2d81b",
+        "childId": "c_h_9_1",
+        "competitionYearId": "6662abff-3518-4c68-a0d9-8a624bfd24f6",
+        "scriptureId": "3",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "798cd39c-02a0-4685-b6e8-40cccb13a1f9",
+        "childId": "c_h_4_2",
+        "competitionYearId": "6662abff-3518-4c68-a0d9-8a624bfd24f6",
+        "scriptureId": "7-8",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "79c4f5f6-68e4-44c4-8af5-631d430a3b18",
+        "childId": "c_h_6_1",
+        "competitionYearId": "6662abff-3518-4c68-a0d9-8a624bfd24f6",
+        "scriptureId": "3",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "7a6401db-216d-4c47-8ca0-9ea31c9024d3",
+        "childId": "c_h_8_2",
+        "competitionYearId": "6662abff-3518-4c68-a0d9-8a624bfd24f6",
+        "scriptureId": "5",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "7a77d581-423f-4262-a351-bbb7a036d494",
+        "childId": "c_h_6_1",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "scriptureId": "1-2",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "7b75b015-460f-4b53-8674-4a659072a8da",
+        "childId": "c_h_8_2",
+        "competitionYearId": "6662abff-3518-4c68-a0d9-8a624bfd24f6",
+        "scriptureId": "1-2",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "7b9abd4d-f6b4-42fd-bc4a-ad6b79d20cc8",
+        "childId": "c_h_10_1",
+        "competitionYearId": "6662abff-3518-4c68-a0d9-8a624bfd24f6",
+        "scriptureId": "1-2",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "7c79877f-278c-4618-8d72-76858009764e",
+        "childId": "c_h_6_2",
+        "competitionYearId": "6662abff-3518-4c68-a0d9-8a624bfd24f6",
+        "scriptureId": "4",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "7c82261b-e82f-4c5e-8697-dc34bb860631",
+        "childId": "c_h_12_2",
+        "competitionYearId": "6662abff-3518-4c68-a0d9-8a624bfd24f6",
+        "scriptureId": "5",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "7cbfe76a-73a8-4313-9095-da0d1d072be2",
+        "childId": "c_h_9_1",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "scriptureId": "5",
+        "status": "assigned",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "7dee9e8a-03f4-4279-b05d-2701618e713c",
+        "childId": "c_h_6_2",
+        "competitionYearId": "6662abff-3518-4c68-a0d9-8a624bfd24f6",
+        "scriptureId": "5",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "8161d6f7-8e50-428b-aad0-a36b4e816df3",
+        "childId": "c_h_11_1",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "scriptureId": "3",
+        "status": "assigned",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "83a05755-ba7b-451c-8a8b-67012cb3132a",
+        "childId": "c_h_13_1",
+        "competitionYearId": "6662abff-3518-4c68-a0d9-8a624bfd24f6",
+        "scriptureId": "1-2",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "8690b352-7abe-4a82-8240-e5049de8a555",
+        "childId": "c_h_11_1",
+        "competitionYearId": "6662abff-3518-4c68-a0d9-8a624bfd24f6",
+        "scriptureId": "4",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "87914938-5748-4105-9eb9-af6e8892be4d",
+        "childId": "c_h_9_1",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "scriptureId": "1-2",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "89646cf1-e305-4027-9884-5ab96efe10d7",
+        "childId": "c_h_13_1",
+        "competitionYearId": "6662abff-3518-4c68-a0d9-8a624bfd24f6",
+        "scriptureId": "5",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "8bd22d59-2c73-4d67-aa0d-c32737acc5b6",
+        "childId": "c_h_5_1",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "scriptureId": "1-2",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "8c5ed6a7-ed29-431d-85fb-426554070ad5",
+        "childId": "c_h_5_2",
+        "competitionYearId": "6662abff-3518-4c68-a0d9-8a624bfd24f6",
+        "scriptureId": "7-8",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "8cf6c3fd-e760-454f-a103-9b40ca6b64e1",
+        "childId": "c_h_13_1",
+        "competitionYearId": "6662abff-3518-4c68-a0d9-8a624bfd24f6",
+        "scriptureId": "6",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "8d2fc372-8b01-47ec-9d51-aa43726de490",
+        "childId": "c_h_13_1",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "scriptureId": "6",
+        "status": "assigned",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "918db7cc-7442-4b82-a6db-7578dab86a3a",
+        "childId": "c_h_4_2",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "scriptureId": "5",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "93429e63-79f0-4756-912d-eed173c45888",
+        "childId": "c_h_9_1",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "scriptureId": "6",
+        "status": "assigned",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "96d28b8c-5947-48ce-a8d0-fb3f84090e68",
+        "childId": "c_h_10_1",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "scriptureId": "1-2",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "97071f2d-e338-4bd4-9599-34c645cdf806",
+        "childId": "c_h_8_1",
+        "competitionYearId": "6662abff-3518-4c68-a0d9-8a624bfd24f6",
+        "scriptureId": "5",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "9831c54a-89ca-4311-b13d-c04d01b52497",
+        "childId": "c_h_5_1",
+        "competitionYearId": "6662abff-3518-4c68-a0d9-8a624bfd24f6",
+        "scriptureId": "1-2",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "99083ecd-62d2-4ab3-b1c3-bd672a762b8e",
+        "childId": "c_h_11_1",
+        "competitionYearId": "6662abff-3518-4c68-a0d9-8a624bfd24f6",
+        "scriptureId": "1-2",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "99204350-4712-4ee4-ac27-669e84c7da12",
+        "childId": "c_h_4_1",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "scriptureId": "4",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "9b6428dc-27aa-4181-b19c-1d562cce3d6f",
+        "childId": "c_h_4_2",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "scriptureId": "3",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "9cf700a7-6b6a-4b3b-b776-4a44bc96f2c2",
+        "childId": "c_h_5_2",
+        "competitionYearId": "6662abff-3518-4c68-a0d9-8a624bfd24f6",
+        "scriptureId": "1-2",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "9e1a9acf-0437-42d1-bac0-4ade862c61f1",
+        "childId": "c_h_13_1",
+        "competitionYearId": "6662abff-3518-4c68-a0d9-8a624bfd24f6",
+        "scriptureId": "7-8",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "9f82c29c-1247-4f5a-9a72-0376b4105204",
+        "childId": "c_h_4_2",
+        "competitionYearId": "6662abff-3518-4c68-a0d9-8a624bfd24f6",
+        "scriptureId": "4",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "9fb9b10b-3020-4a08-ba56-befd51b13d5c",
+        "childId": "c_h_1_1",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "scriptureId": "3",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "a05be167-cc66-459b-8854-fb07d76ce2ca",
+        "childId": "c_h_5_2",
+        "competitionYearId": "6662abff-3518-4c68-a0d9-8a624bfd24f6",
+        "scriptureId": "6",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "a26c69e6-181b-4a49-a042-9fb9f2d79bce",
+        "childId": "c_h_10_1",
+        "competitionYearId": "6662abff-3518-4c68-a0d9-8a624bfd24f6",
+        "scriptureId": "3",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "a581e795-1c28-43d8-9461-ecee90d4d8c4",
+        "childId": "c_h_12_1",
+        "competitionYearId": "6662abff-3518-4c68-a0d9-8a624bfd24f6",
+        "scriptureId": "5",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "a767e53f-3a28-4fa2-abe0-1b1e4deeacd8",
+        "childId": "c_h_10_1",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "scriptureId": "5",
+        "status": "assigned",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "a80ec600-3acf-4b7c-bb3e-422b07fe2928",
+        "childId": "c_h_5_1",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "scriptureId": "5",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "a8ce4feb-c0a9-409e-92aa-d79180930fd8",
+        "childId": "c_h_12_1",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "scriptureId": "3",
+        "status": "assigned",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "ab074aee-0c95-46a0-b8a0-de327f5bd2d5",
+        "childId": "c_h_1_2",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "scriptureId": "4",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "ab4ad020-b953-4f19-8113-78c7055c9b0f",
+        "childId": "c_h_6_1",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "scriptureId": "5",
+        "status": "assigned",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "adb1e037-c337-4be9-9f4f-c68ac730b413",
+        "childId": "c_h_5_2",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "scriptureId": "1-2",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "ae22f803-8d20-43d5-98f5-a2b7606ba8b7",
+        "childId": "c_h_5_1",
+        "competitionYearId": "6662abff-3518-4c68-a0d9-8a624bfd24f6",
+        "scriptureId": "4",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "b11dab51-188d-4afa-a3b5-3f2ba595de08",
+        "childId": "c_h_12_2",
+        "competitionYearId": "6662abff-3518-4c68-a0d9-8a624bfd24f6",
+        "scriptureId": "1-2",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "b1fbe747-6609-482a-8549-da05942bc530",
+        "childId": "c_h_5_2",
+        "competitionYearId": "6662abff-3518-4c68-a0d9-8a624bfd24f6",
+        "scriptureId": "5",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "b4228daf-66c9-4264-86e7-20b8fd6e8627",
+        "childId": "c_h_9_1",
+        "competitionYearId": "6662abff-3518-4c68-a0d9-8a624bfd24f6",
+        "scriptureId": "5",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "b4907ecf-5ed5-43ba-ab4b-ae34208bd7cb",
+        "childId": "c_h_9_1",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "scriptureId": "3",
+        "status": "assigned",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "b59e78cb-238e-477d-825d-601dbf6d3421",
+        "childId": "c_h_13_1",
+        "competitionYearId": "6662abff-3518-4c68-a0d9-8a624bfd24f6",
+        "scriptureId": "3",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "baad52c8-1f83-4633-bcab-5fae0592baad",
+        "childId": "c_h_10_1",
+        "competitionYearId": "6662abff-3518-4c68-a0d9-8a624bfd24f6",
+        "scriptureId": "4",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "c2ab8f1c-7373-4611-8fac-591387f157fa",
+        "childId": "c_h_1_1",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "scriptureId": "5",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "c50c2685-d0b5-48dc-86e2-6f89b86004ca",
+        "childId": "c_h_1_2",
+        "competitionYearId": "6662abff-3518-4c68-a0d9-8a624bfd24f6",
+        "scriptureId": "1-2",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "c8daf3d1-dece-464f-9a2b-b304f646f071",
+        "childId": "c_h_12_2",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "scriptureId": "1-2",
+        "status": "assigned",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "cc2a4370-21a0-4337-8220-1eb1fc3f38dd",
+        "childId": "c_h_13_1",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "scriptureId": "7-8",
+        "status": "assigned",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "cd3e020e-4d7c-453c-b784-c3e963e4330d",
+        "childId": "c_h_4_2",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "scriptureId": "7-8",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "cfefa9e8-fa27-4baf-9d72-dbfef0efc60c",
+        "childId": "c_h_5_2",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "scriptureId": "5",
+        "status": "assigned",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "d137ba5b-d85a-41c0-b581-6d2a1db628d3",
+        "childId": "c_h_4_2",
+        "competitionYearId": "6662abff-3518-4c68-a0d9-8a624bfd24f6",
+        "scriptureId": "1-2",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "d2f42b68-a135-4493-8e05-1662f9c43f26",
+        "childId": "c_h_6_1",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "scriptureId": "4",
+        "status": "assigned",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "d4d4b799-35e2-49db-ac07-46f4a70a3be5",
+        "childId": "c_h_8_2",
+        "competitionYearId": "6662abff-3518-4c68-a0d9-8a624bfd24f6",
+        "scriptureId": "3",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "d6799b25-9127-48a5-83dc-068855d37402",
+        "childId": "c_h_13_1",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "scriptureId": "1-2",
+        "status": "assigned",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "d7cd1fa6-db99-4b19-b80f-b11459659207",
+        "childId": "c_h_11_1",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "scriptureId": "4",
+        "status": "assigned",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "d9e5e754-c03c-44c6-97e9-0582850e99be",
+        "childId": "c_h_11_1",
+        "competitionYearId": "6662abff-3518-4c68-a0d9-8a624bfd24f6",
+        "scriptureId": "3",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "db31f4c9-1721-4206-8dcc-4ae1424bff4e",
+        "childId": "c_h_8_1",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "scriptureId": "4",
+        "status": "assigned",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "dc6e1dd8-81d7-46b3-aaf5-e85267d459f1",
+        "childId": "c_h_12_1",
+        "competitionYearId": "6662abff-3518-4c68-a0d9-8a624bfd24f6",
+        "scriptureId": "1-2",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "e0774bd6-2989-4c03-b4eb-25cc642d770f",
+        "childId": "c_h_4_1",
+        "competitionYearId": "6662abff-3518-4c68-a0d9-8a624bfd24f6",
+        "scriptureId": "3",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "e094c89f-a0d7-4651-9995-0bc10423d2eb",
+        "childId": "c_h_4_2",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "scriptureId": "4",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "e189d8ea-394f-4943-ae95-99f020c99c1b",
+        "childId": "c_h_8_2",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "scriptureId": "5",
+        "status": "assigned",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "e25afe22-4593-4661-920a-7396691da06c",
+        "childId": "c_h_8_2",
+        "competitionYearId": "6662abff-3518-4c68-a0d9-8a624bfd24f6",
+        "scriptureId": "4",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "e2894785-3a11-4ca2-8383-dd5523243e4c",
+        "childId": "c_h_12_1",
+        "competitionYearId": "6662abff-3518-4c68-a0d9-8a624bfd24f6",
+        "scriptureId": "4",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "e40488c4-2ab9-40fd-839e-98a68dcb04a0",
+        "childId": "c_h_1_1",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "scriptureId": "1-2",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "e4a6fcb5-c724-4a4a-8579-d270e9284d0f",
+        "childId": "c_h_4_1",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "scriptureId": "1-2",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "e5b86fac-9cfa-4f24-8d16-2d065355423d",
+        "childId": "c_h_4_1",
+        "competitionYearId": "6662abff-3518-4c68-a0d9-8a624bfd24f6",
+        "scriptureId": "4",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "e7d9ab65-0f1a-4673-b215-3104033320db",
+        "childId": "c_h_13_1",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "scriptureId": "4",
+        "status": "assigned",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "ea7074a3-6613-435c-8c24-773da50f4cfa",
+        "childId": "c_h_5_2",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "scriptureId": "6",
+        "status": "assigned",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "eb8c54d2-15a0-4981-9c22-668fc50ad21a",
+        "childId": "c_h_5_1",
+        "competitionYearId": "6662abff-3518-4c68-a0d9-8a624bfd24f6",
+        "scriptureId": "3",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "ebcaa1e8-e78f-4834-8d36-b55befec7b4e",
+        "childId": "c_h_10_1",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "scriptureId": "3",
+        "status": "assigned",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "ed6f7ae4-baba-4624-bd28-aeefc3a17372",
+        "childId": "c_h_6_2",
+        "competitionYearId": "6662abff-3518-4c68-a0d9-8a624bfd24f6",
+        "scriptureId": "3",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "eddc4d59-152e-4336-8970-9678ef0df3f3",
+        "childId": "c_h_4_2",
+        "competitionYearId": "6662abff-3518-4c68-a0d9-8a624bfd24f6",
+        "scriptureId": "5",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "f07f5a21-19a2-460e-9876-5ffa8c1aa6a4",
+        "childId": "c_h_6_2",
+        "competitionYearId": "6662abff-3518-4c68-a0d9-8a624bfd24f6",
+        "scriptureId": "6",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "f3b3a275-8d50-4cb3-863a-99761ce39e60",
+        "childId": "c_h_1_2",
+        "competitionYearId": "6662abff-3518-4c68-a0d9-8a624bfd24f6",
+        "scriptureId": "5",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "f49b4f8b-b1db-4a62-9f81-1eb18a79bea9",
+        "childId": "c_h_5_2",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "scriptureId": "7-8",
+        "status": "assigned",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "f501b61a-d97e-4d1c-bdcc-3acb573763aa",
+        "childId": "c_h_1_2",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "scriptureId": "1-2",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "f57fd0ec-5896-4f2f-93fe-82a6cec12c7b",
+        "childId": "c_h_12_2",
+        "competitionYearId": "6662abff-3518-4c68-a0d9-8a624bfd24f6",
+        "scriptureId": "4",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "f6661945-1cb5-4c21-a10b-d18766b18080",
+        "childId": "c_h_10_1",
+        "competitionYearId": "6662abff-3518-4c68-a0d9-8a624bfd24f6",
+        "scriptureId": "5",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "f7145c35-2194-49d3-b87e-922c2e2f56fe",
+        "childId": "c_h_5_1",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "scriptureId": "4",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "fa01d9a4-a1c4-4cc3-a3e3-2f57b3f9d1c3",
+        "childId": "c_h_4_1",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "scriptureId": "5",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "fa58995a-a682-4499-91d6-3f3bd7bd1ee9",
+        "childId": "c_h_1_1",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "scriptureId": "4",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "fb8dff2d-0361-431c-a9c5-b3cecb79ca33",
+        "childId": "c_h_8_1",
+        "competitionYearId": "6662abff-3518-4c68-a0d9-8a624bfd24f6",
+        "scriptureId": "3",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "fd2ce9d2-4557-4ce1-879e-ffa9c11c9534",
+        "childId": "c_h_6_2",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "scriptureId": "1-2",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "fdd43245-0053-474e-87d3-6dd59088b74a",
+        "childId": "c_h_10_1",
+        "competitionYearId": "3cb237ba-a68d-4e50-8865-11bc72ae114e",
+        "scriptureId": "4",
+        "status": "assigned",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      },
+      {
+        "id": "fe7ee51d-a3cf-4575-8c71-56ff6ee8322b",
+        "childId": "c_h_6_1",
+        "competitionYearId": "6662abff-3518-4c68-a0d9-8a624bfd24f6",
+        "scriptureId": "1-2",
+        "status": "completed",
+        "createdAt": "2025-08-26T05:39:45.067Z",
+        "updatedAt": "2025-08-26T05:39:45.067Z"
+      }
+    ],
+    "users": [
+      {
+        "user_id": "user_admin",
+        "name": "Admin User",
+        "email": "admin@example.com",
+        "role": "ADMIN",
+        "is_active": true,
+        "background_check_status": "clear"
+      },
+      {
+        "user_id": "user_leader_1",
+        "name": "Sarah Lee",
+        "email": "leader.sundayschool@example.com",
+        "role": "MINISTRY_LEADER",
+        "is_active": true,
+        "background_check_status": "clear"
+      },
+      {
+        "user_id": "user_leader_10",
+        "name": "Kevin Clark",
+        "email": "kevin.c@example.com",
+        "role": "MINISTRY_LEADER",
+        "is_active": false,
+        "background_check_status": "na"
+      },
+      {
+        "user_id": "user_leader_11",
+        "name": "Chris Evans",
+        "email": "leader.khalfani@example.com",
+        "role": "MINISTRY_LEADER",
+        "is_active": true,
+        "background_check_status": "clear"
+      },
+      {
+        "user_id": "user_leader_12",
+        "name": "Megan Young",
+        "email": "leader.joybells@example.com",
+        "role": "MINISTRY_LEADER",
+        "is_active": true,
+        "background_check_status": "clear"
+      },
+      {
+        "user_id": "user_leader_13",
+        "name": "Tom Allen",
+        "email": "leader.inactive@example.com",
+        "role": "MINISTRY_LEADER",
+        "is_active": false,
+        "background_check_status": "clear"
+      },
+      {
+        "user_id": "user_leader_14",
+        "name": "Alex Pastor",
+        "email": "leader.biblebee@example.com",
+        "role": "MINISTRY_LEADER",
+        "is_active": true,
+        "background_check_status": "clear"
+      },
+      {
+        "user_id": "user_leader_15",
+        "name": "Bible Bee Volunteer",
+        "email": "leader.biblebeevolunteer@example.com",
+        "role": "MINISTRY_LEADER",
+        "is_active": true,
+        "background_check_status": "clear"
+      },
+      {
+        "user_id": "user_leader_2",
+        "name": "Michael Chen",
+        "email": "michael.chen@example.com",
+        "role": "MINISTRY_LEADER",
+        "is_active": true,
+        "background_check_status": "clear"
+      },
+      {
+        "user_id": "user_leader_3",
+        "name": "Jessica Rodriguez",
+        "email": "jessica.r@example.com",
+        "role": "MINISTRY_LEADER",
+        "is_active": true,
+        "background_check_status": "clear"
+      },
+      {
+        "user_id": "user_leader_4",
+        "name": "David Kim",
+        "email": "david.kim@example.com",
+        "role": "MINISTRY_LEADER",
+        "is_active": true,
+        "background_check_status": "pending"
+      },
+      {
+        "user_id": "user_leader_5",
+        "name": "Emily White",
+        "email": "emily.w@example.com",
+        "role": "MINISTRY_LEADER",
+        "is_active": true,
+        "background_check_status": "clear"
+      },
+      {
+        "user_id": "user_leader_6",
+        "name": "Daniel Green",
+        "email": "daniel.g@example.com",
+        "role": "MINISTRY_LEADER",
+        "is_active": true,
+        "background_check_status": "clear"
+      },
+      {
+        "user_id": "user_leader_7",
+        "name": "Laura Black",
+        "email": "laura.b@example.com",
+        "role": "MINISTRY_LEADER",
+        "is_active": true,
+        "background_check_status": "expired"
+      },
+      {
+        "user_id": "user_leader_8",
+        "name": "Brian Hall",
+        "email": "brian.h@example.com",
+        "role": "MINISTRY_LEADER",
+        "is_active": true,
+        "background_check_status": "clear"
+      },
+      {
+        "user_id": "user_leader_9",
+        "name": "Nancy Adams",
+        "email": "nancy.a@example.com",
+        "role": "MINISTRY_LEADER",
+        "is_active": false,
+        "background_check_status": "clear"
+      }
+    ]
+  }
+}

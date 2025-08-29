@@ -13,7 +13,10 @@
     "typecheck": "tsc --noEmit",
     "test": "jest",
     "test:watch": "jest --watch",
-    "seed:scriptures": "DOTENV_CONFIG_PATH=.env.local node -r dotenv/config scripts/seed/seedScriptures.js"
+    "seed:scriptures": "DOTENV_CONFIG_PATH=.env.local node -r dotenv/config scripts/seed/seedScriptures.js",
+    "import:grab-dexie": "node scripts/import/grabDexieExport.mjs",
+    "import:dexie": "DOTENV_CONFIG_PATH=.env.local node -r dotenv/config scripts/import/importDexie.js",
+    "import:dexie:dry": "DOTENV_CONFIG_PATH=.env.local node -r dotenv/config scripts/import/importDexie.js --dry-run"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.0.0",
