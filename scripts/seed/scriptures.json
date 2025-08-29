@@ -1,0 +1,12 @@
+[
+  {
+    "id": "00000000-0000-0000-0000-000000000001",
+    "competition_year_id": "00000000-0000-0000-0000-000000000010",
+    "order": 1,
+    "reference": "John 3:16",
+    "texts": {
+      "niv": "<p>For God so loved the world that he gave his one and only Son...</p>",
+      "esv": "<p>For God so loved the world, that he gave his only Son...</p>"
+    }
+  }
+]
