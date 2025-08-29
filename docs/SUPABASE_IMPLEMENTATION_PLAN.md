@@ -451,3 +451,21 @@ supabase stop
 - Supabase JS Client (Auth/Realtime/Storage)
 - Supabase CLI (local dev, linking, db push/reset)
 - **(NEW)** Supabase Storage (upload, public URL, signed URLs)
+
+## UAT quick note
+
+For UAT verification, use the Supabase CLI to link to your UAT project and deploy migrations:
+
+```bash
+supabase link --project-ref <UAT_REF>
+npx prisma migrate deploy
+```
+
+Addendum: Load your `.env.uat` before running commands, for example:
+
+```bash
+# in zsh
+source .env.uat
+# then run the importer against UAT
+node scripts/import/importDexie.js --file scripts/seed/gather-kids-export.json --mapping scripts/import/mappings/1756440851677-mapping.json
+```
