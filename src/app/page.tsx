@@ -24,7 +24,7 @@ export default function Home() {
 								<img
 									src={settings.logo_url}
 									alt={`${settings.app_name || 'gatherKids'} Logo`}
-									className="min-h-3 w-auto object-contain"
+									className="min-h-3 w-auto max-w-[50%] object-contain"
 								/>
 								{!settings.use_logo_only && (
 									<div className="font-headline text-2xl font-bold text-foreground">
@@ -51,7 +51,7 @@ export default function Home() {
 						<img
 							src={settings.logo_url}
 							alt={`${settings.app_name || 'gatherKids'} Logo`}
-							className="mx-auto min-h-6 w-auto mb-6 object-contain"
+							className="mx-auto min-h-6 w-auto max-w-[50%] mb-6 object-contain"
 						/>
 					) : !settings.logo_url ? (
 						<Church className="mx-auto h-16 w-16 text-primary mb-6" />
