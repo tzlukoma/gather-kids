@@ -157,7 +157,28 @@ function createTable(primaryKey: string) {
                     const av = a[key]; const bv = b[key];
                     if (av === bv) return 0; return av < bv ? 1 : -1;
                 })
-            })
+            }),
+            toArray: async () => {
+                // Handle composite keys like '[first_name+last_name]'
+                if (key.startsWith('[') && key.endsWith(']')) {
+                    const keys = key.slice(1, -1).split('+').map(s => s.trim());
+                    return Array.from(store.values()).sort((a, b) => {
+                        for (const k of keys) {
+                            const av = a[k] || '';
+                            const bv = b[k] || '';
+                            if (av !== bv) {
+                                return av < bv ? -1 : 1;
+                            }
+                        }
+                        return 0;
+                    });
+                } else {
+                    return Array.from(store.values()).sort((a, b) => {
+                        const av = a[key]; const bv = b[key];
+                        if (av === bv) return 0; return av < bv ? -1 : 1;
+                    });
+                }
+            }
         }),
         toArray: async () => Array.from(store.values()),
         _internalStore: store,
@@ -176,7 +197,11 @@ export function createInMemoryDB() {
         registrations: createTable('registration_id'),
         ministries: createTable('ministry_id'),
         ministry_enrollments: createTable('enrollment_id'),
-        leader_assignments: createTable('assignment_id'),
+        leader_assignments: createTable('assignment_id'), // Legacy
+        // NEW: Leader Management Tables
+        leader_profiles: createTable('leader_id'),
+        ministry_leader_memberships: createTable('membership_id'),
+        ministry_accounts: createTable('ministry_id'),
         users: createTable('user_id'),
         events: createTable('event_id'),
         attendance: createTable('attendance_id'),
@@ -188,6 +213,10 @@ export function createInMemoryDB() {
         studentScriptures: createTable('id'),
         studentEssays: createTable('id'),
         audit_logs: createTable('log_id'),
+        // Transaction support for tests
+        transaction: async (mode: any, tables: any, callback: () => Promise<any>) => {
+            return await callback();
+        }
     } as any;
 }
 

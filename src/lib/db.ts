@@ -1,6 +1,6 @@
 
 import Dexie, { type EntityTable } from 'dexie';
-import type { Household, Guardian, EmergencyContact, Child, RegistrationCycle, ChildYearProfile, Registration, Ministry, MinistryEnrollment, LeaderAssignment, User, Event, Attendance, Incident, AuditLog, CompetitionYear, Scripture, GradeRule, StudentScripture, StudentEssay } from './types';
+import type { Household, Guardian, EmergencyContact, Child, RegistrationCycle, ChildYearProfile, Registration, Ministry, MinistryEnrollment, LeaderAssignment, LeaderProfile, MinistryLeaderMembership, MinistryAccount, User, Event, Attendance, Incident, AuditLog, CompetitionYear, Scripture, GradeRule, StudentScripture, StudentEssay } from './types';
 
 // prettier-ignore
 class GatherKidsDB extends Dexie {
@@ -13,7 +13,11 @@ class GatherKidsDB extends Dexie {
     registrations!: EntityTable<Registration, 'registration_id'>;
     ministries!: EntityTable<Ministry, 'ministry_id'>;
     ministry_enrollments!: EntityTable<MinistryEnrollment, 'enrollment_id'>;
-    leader_assignments!: EntityTable<LeaderAssignment, 'assignment_id'>;
+    leader_assignments!: EntityTable<LeaderAssignment, 'assignment_id'>; // Legacy
+    // NEW: Leader Management Tables
+    leader_profiles!: EntityTable<LeaderProfile, 'leader_id'>;
+    ministry_leader_memberships!: EntityTable<MinistryLeaderMembership, 'membership_id'>;
+    ministry_accounts!: EntityTable<MinistryAccount, 'ministry_id'>;
     users!: EntityTable<User, 'user_id'>;
     events!: EntityTable<Event, 'event_id'>;
     attendance!: EntityTable<Attendance, 'attendance_id'>;
@@ -28,7 +32,7 @@ class GatherKidsDB extends Dexie {
 
     constructor() {
         super('gatherKidsDB');
-        this.version(10).stores({
+        this.version(11).stores({
             households: 'household_id, created_at, [city+state+zip]',
             guardians: 'guardian_id, household_id, mobile_phone, email',
             emergency_contacts: 'contact_id, household_id, mobile_phone',
@@ -38,7 +42,11 @@ class GatherKidsDB extends Dexie {
             registrations: 'registration_id, [child_id+cycle_id], [cycle_id+status]',
             ministries: 'ministry_id, code, enrollment_type, is_active',
             ministry_enrollments: 'enrollment_id, [ministry_id+cycle_id], [child_id+cycle_id], cycle_id',
-            leader_assignments: 'assignment_id, [leader_id+cycle_id], [ministry_id+cycle_id]',
+            leader_assignments: 'assignment_id, [leader_id+cycle_id], [ministry_id+cycle_id]', // Legacy
+            // NEW: Leader Management Tables
+            leader_profiles: 'leader_id, email, phone, [first_name+last_name], is_active',
+            ministry_leader_memberships: 'membership_id, [ministry_id+leader_id], ministry_id, leader_id, is_active',
+            ministry_accounts: 'ministry_id, email',
             users: 'user_id, email, role, is_active, [last_name+first_name]',
             events: 'event_id, name',
             attendance: 'attendance_id, date, [event_id+date], [child_id+date]',
