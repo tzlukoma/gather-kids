@@ -47,6 +47,7 @@ import { FeatureFlagDialog } from '@/components/feature-flag-dialog';
 import { ProtectedRoute } from '@/components/auth/protected-route';
 import { ROLES } from '@/lib/constants/roles';
 import { AdminSkeleton } from '@/components/skeletons/admin-skeleton';
+import { useBranding } from '@/contexts/branding-context';
 
 import { getAuthorizedMenuItems } from '@/lib/navigation';
 
@@ -55,6 +56,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 	const router = useRouter();
 	const { user, loading, logout, userRole } = useAuth();
 	const { flags } = useFeatureFlags();
+	const { settings } = useBranding();
 	const [isFlagDialogOpen, setIsFlagDialogOpen] = React.useState(false);
 
 	const getMenuItems = () => {
@@ -100,7 +102,18 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 						<Link
 							href="/dashboard"
 							className="flex items-center gap-2 text-foreground">
-							<div className="font-headline text-2xl font-bold">gatherKids</div>
+							{settings.logo_url ? (
+								<img
+									src={settings.logo_url}
+									alt={`${settings.app_name || 'gatherKids'} Logo`}
+									className="h-8 w-8 object-contain"
+								/>
+							) : (
+								<div className="h-8 w-8" />
+							)}
+							<div className="font-headline text-2xl font-bold">
+								{settings.app_name || 'gatherKids'}
+							</div>
 						</Link>
 					</div>
 					<div className="flex items-center gap-4">
