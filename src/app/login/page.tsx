@@ -29,6 +29,7 @@ const DEMO_USERS = {
 		name: 'Admin User',
 		uid: 'user_admin',
 		role: AuthRole.ADMIN,
+		metadata: {},
 	},
 	leader: {
 		email: 'leader.sundayschool@example.com',
@@ -37,6 +38,7 @@ const DEMO_USERS = {
 		name: 'Sarah Lee',
 		uid: 'user_leader_1',
 		role: AuthRole.MINISTRY_LEADER,
+		metadata: {},
 	},
 	khalfaniLeader: {
 		email: 'leader.khalfani@example.com',
@@ -45,6 +47,7 @@ const DEMO_USERS = {
 		name: 'Chris Evans',
 		uid: 'user_leader_11',
 		role: AuthRole.MINISTRY_LEADER,
+		metadata: {},
 	},
 	joybellsLeader: {
 		email: 'leader.joybells@example.com',
@@ -53,6 +56,7 @@ const DEMO_USERS = {
 		name: 'Megan Young',
 		uid: 'user_leader_12',
 		role: AuthRole.MINISTRY_LEADER,
+		metadata: {},
 	},
 	// Bible Bee Primary Leader
 	bibleBeeLeader: {
@@ -62,6 +66,7 @@ const DEMO_USERS = {
 		name: 'Alex Pastor',
 		uid: 'user_leader_14',
 		role: AuthRole.MINISTRY_LEADER,
+		metadata: {},
 	},
 	// Bible Bee Volunteer Leader
 	bibleBeeVolunteer: {
@@ -71,6 +76,7 @@ const DEMO_USERS = {
 		name: 'Bible Bee Volunteer',
 		uid: 'user_leader_15',
 		role: AuthRole.MINISTRY_LEADER,
+		metadata: {},
 	},
 	guardian: {
 		email: 'guardian@example.com',
@@ -79,6 +85,19 @@ const DEMO_USERS = {
 		name: 'Parent User',
 		uid: 'user_guardian_1',
 		role: AuthRole.GUARDIAN,
+		metadata: {},
+	},
+	// Demo Parent with household access  
+	parent: {
+		email: 'parent-demo@example.com',
+		password: 'password',
+		is_active: true,
+		name: 'Demo Parent',
+		uid: 'user_parent_demo',
+		role: AuthRole.GUARDIAN,
+		metadata: {
+			household_id: 'h_1' // Smith household from seed data
+		}
 	},
 	inactiveLeader: {
 		email: 'leader.inactive@example.com',
@@ -87,6 +106,7 @@ const DEMO_USERS = {
 		name: 'Tom Allen',
 		uid: 'user_leader_13',
 		role: AuthRole.MINISTRY_LEADER,
+		metadata: {},
 	},
 };
 
@@ -113,6 +133,7 @@ export default function LoginPage() {
 				is_active: userToLogin.is_active,
 				metadata: {
 					role: userToLogin.role as AuthRole,
+					...(userToLogin.metadata || {}),
 				},
 			};
 			console.log('Login - Calling login with data:', loginData);
@@ -237,6 +258,14 @@ export default function LoginPage() {
 													prefillDemoCredentials('inactiveLeader')
 												}>
 												{DEMO_USERS.inactiveLeader.email}
+											</button>
+										</li>
+										<li>
+											Parent (Demo):{' '}
+											<button
+												className="text-left font-semibold underline"
+												onClick={() => prefillDemoCredentials('parent')}>
+												{DEMO_USERS.parent.email}
 											</button>
 										</li>
 										<li>
