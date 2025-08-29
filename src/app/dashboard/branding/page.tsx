@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { Upload, Image as ImageIcon, Youtube, Instagram, Palette } from 'lucide-react';
@@ -19,6 +20,7 @@ interface BrandingFormData {
     app_name: string;
     description: string;
     logo_url: string;
+    use_logo_only: boolean;
     youtube_url: string;
     instagram_url: string;
 }
@@ -34,6 +36,7 @@ export default function BrandingPage() {
         app_name: '',
         description: '',
         logo_url: '',
+        use_logo_only: false,
         youtube_url: '',
         instagram_url: '',
     });
@@ -54,13 +57,14 @@ export default function BrandingPage() {
                 app_name: settings.app_name || '',
                 description: settings.description || '',
                 logo_url: settings.logo_url || '',
+                use_logo_only: settings.use_logo_only || false,
                 youtube_url: settings.youtube_url || '',
                 instagram_url: settings.instagram_url || '',
             });
         }
     }, [settings]);
 
-    const handleInputChange = (field: keyof BrandingFormData, value: string) => {
+    const handleInputChange = (field: keyof BrandingFormData, value: string | boolean) => {
         setFormData(prev => ({
             ...prev,
             [field]: value,
@@ -101,6 +105,17 @@ export default function BrandingPage() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        
+        // Validate that if "Use Logo Only" is enabled, a logo must be provided
+        if (formData.use_logo_only && !formData.logo_url) {
+            toast({
+                title: 'Logo Required',
+                description: 'When "Use Logo Only" is enabled, a logo file must be uploaded.',
+                variant: 'destructive',
+            });
+            return;
+        }
+        
         setLoading(true);
 
         try {
@@ -108,6 +123,7 @@ export default function BrandingPage() {
                 app_name: formData.app_name || undefined,
                 description: formData.description || undefined,
                 logo_url: formData.logo_url || undefined,
+                use_logo_only: formData.use_logo_only || undefined,
                 youtube_url: formData.youtube_url || undefined,
                 instagram_url: formData.instagram_url || undefined,
             });
@@ -135,6 +151,7 @@ export default function BrandingPage() {
             app_name: 'gatherKids',
             description: "The simple, secure, and smart way to manage your children's ministry. Streamline check-ins, track attendance, and keep your community connected.",
             logo_url: '',
+            use_logo_only: false,
             youtube_url: '',
             instagram_url: '',
         });
@@ -264,6 +281,33 @@ export default function BrandingPage() {
                                 Remove Logo
                             </Button>
                         )}
+
+                        {/* Use Logo Only Option */}
+                        <div className="space-y-3">
+                            <div className="flex items-center space-x-2">
+                                <Checkbox
+                                    id="use_logo_only"
+                                    checked={formData.use_logo_only}
+                                    onCheckedChange={(checked) => 
+                                        handleInputChange('use_logo_only', checked === true)
+                                    }
+                                />
+                                <Label
+                                    htmlFor="use_logo_only"
+                                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                                >
+                                    Use Logo Only
+                                </Label>
+                            </div>
+                            <p className="text-sm text-muted-foreground">
+                                When enabled, only the logo will be displayed in headers (no app name text). A logo file is required when this option is selected.
+                            </p>
+                            {formData.use_logo_only && !formData.logo_url && (
+                                <p className="text-sm text-destructive font-medium">
+                                    ⚠️ A logo file is required when "Use Logo Only" is enabled.
+                                </p>
+                            )}
+                        </div>
                     </CardContent>
                 </Card>
 

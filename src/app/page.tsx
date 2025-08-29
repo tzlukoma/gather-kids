@@ -20,17 +20,23 @@ export default function Home() {
 				<div className="container mx-auto flex items-center justify-between gap-2">
 					<div className="flex items-center gap-2">
 						{settings.logo_url ? (
-							<img
-								src={settings.logo_url}
-								alt={`${settings.app_name || 'gatherKids'} Logo`}
-								className="h-8 w-8 object-contain"
-							/>
+							<>
+								<img
+									src={settings.logo_url}
+									alt={`${settings.app_name || 'gatherKids'} Logo`}
+									className="h-8 w-8 object-contain"
+								/>
+								{!settings.use_logo_only && (
+									<div className="font-headline text-2xl font-bold text-foreground">
+										{settings.app_name || 'gatherKids'}
+									</div>
+								)}
+							</>
 						) : (
-							<div className="h-8 w-8" />
+							<div className="font-headline text-2xl font-bold text-foreground">
+								{settings.app_name || 'gatherKids'}
+							</div>
 						)}
-						<div className="font-headline text-2xl font-bold text-foreground">
-							{settings.app_name || 'gatherKids'}
-						</div>
 					</div>
 					<nav>
 						<Link href="/login">

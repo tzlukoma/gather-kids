@@ -929,6 +929,7 @@ export async function getDefaultBrandingSettings(): Promise<Partial<BrandingSett
         app_name: 'gatherKids',
         description: "The simple, secure, and smart way to manage your children's ministry. Streamline check-ins, track attendance, and keep your community connected.",
         logo_url: undefined, // Will use default cross icon
+        use_logo_only: false, // Show app name with logo by default
         youtube_url: undefined,
         instagram_url: undefined,
     };
