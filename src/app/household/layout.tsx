@@ -172,7 +172,6 @@ function HouseholdLayoutContent({ children }: { children: React.ReactNode }) {
 					</Sidebar>
 					<SidebarInset>
 						<main className="p-4 md:p-6 lg:p-8">
-							<h1 className="text-2xl font-bold mb-6">My Household</h1>
 							{children}
 						</main>
 					</SidebarInset>
