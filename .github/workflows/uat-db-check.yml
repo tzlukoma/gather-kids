@@ -1,0 +1,27 @@
+name: UAT DB checks
+
+on:
+  workflow_dispatch:
+
+jobs:
+  apply-migrations-and-check:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install psql
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+      - name: Apply migrations
+        env:
+          DATABASE_URL: ${{ secrets.UAT_DATABASE_URL }}
+        run: |
+          for f in supabase/migrations/*.sql; do
+            echo "Applying $f"
+            psql "$DATABASE_URL" -f "$f"
+          done
+      - name: Run FK checks
+        env:
+          DATABASE_URL: ${{ secrets.UAT_DATABASE_URL }}
+        run: |
+          bash scripts/db/check_fks.sh "$DATABASE_URL"
