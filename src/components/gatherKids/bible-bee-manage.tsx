@@ -76,17 +76,17 @@ export default function BibleBeeManage({ className }: BibleBeeManageProps) {
         db.bible_bee_years.orderBy('label').toArray(), []
     );
     
-    const divisions = useLiveQuery(() => 
+    const divisions = useLiveQuery(async () => 
         selectedYearId 
-            ? db.divisions.where('year_id').equals(selectedYearId).toArray()
-            : Promise.resolve([]), 
+            ? await db.divisions.where('year_id').equals(selectedYearId).toArray()
+            : [], 
         [selectedYearId]
     );
 
-    const essayPrompts = useLiveQuery(() => 
+    const essayPrompts = useLiveQuery(async () => 
         selectedYearId 
-            ? db.essay_prompts.where('year_id').equals(selectedYearId).toArray()
-            : Promise.resolve([]), 
+            ? await db.essay_prompts.where('year_id').equals(selectedYearId).toArray()
+            : [], 
         [selectedYearId]
     );
 
