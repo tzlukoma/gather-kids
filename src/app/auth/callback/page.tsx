@@ -64,43 +64,28 @@ function AuthCallbackContent() {
 					return;
 				}
 
-				// Ensure the browser client exposes the URL-parsing helper
-				if (
-					!supabase ||
-					!supabase.auth ||
-					typeof supabase.auth.getSessionFromUrl !== 'function'
-				) {
-					console.error(
-						'Supabase auth helper getSessionFromUrl is not available on the client.',
-						{
-							supabaseAvailable: !!supabase,
-							authPresent: !!(supabase && (supabase as any).auth),
-							getSessionFromUrlType:
-								supabase && (supabase as any).auth
-									? typeof (supabase as any).auth.getSessionFromUrl
-									: 'undefined',
-						}
-					);
+				// Try to use exchangeCodeForSession for PKCE flow, which is the modern approach
+				let data, authError;
 
-					setError(
-						'Authentication helper missing: this build of the Supabase client does not expose "auth.getSessionFromUrl".\n\n' +
-							'Possible causes:\n' +
-							'- The Supabase client was initialized on the server during SSR instead of lazily in the browser.\n' +
-							'- An incompatible Supabase helper package is being used.\n\n' +
-							'What to try:\n' +
-							"1. Ensure the app uses the browser client factory (see src/lib/supabaseClient.ts) and that it's created only in the browser.\n" +
-							'2. Open the magic link in the same browser/tab where it was requested.\n' +
-							'3. If you still see this, run locally and inspect window.supabase to confirm the client shape.'
-					);
-					setLoading(false);
-					return;
+				try {
+					// Extract the code from the URL
+					const url = new URL(window.location.href);
+					const code = url.searchParams.get('code');
+
+					if (!code) {
+						authError = new Error('No code parameter found in URL');
+						console.error('Auth callback error: No code parameter in URL');
+					} else {
+						console.log('Found code in URL, exchanging for session');
+						// This is the recommended method for PKCE flow in newer Supabase versions
+						const result = await supabase.auth.exchangeCodeForSession(code);
+						data = result.data;
+						authError = result.error;
+					}
+				} catch (err) {
+					console.error('Error processing auth callback:', err);
+					authError = err;
 				}
-
-				// Use the proper Supabase method to parse the URL session
-				const { data, error: authError } =
-					await supabase.auth.getSessionFromUrl({
-						storeSession: true,
-					});
 
 				if (authError) {
 					console.error('Auth error:', authError);

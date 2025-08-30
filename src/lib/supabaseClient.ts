@@ -47,12 +47,10 @@ export const supabaseBrowser = () =>
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       auth: {
-        // Standard configuration based on Supabase Next.js docs
         persistSession: true,
         autoRefreshToken: true,
-        detectSessionInUrl: false, // Only callback page should parse URL
+        detectSessionInUrl: false, // Only the callback page should parse the URL
         flowType: 'pkce',
-        // Use localStorage-based storage for cross-tab compatibility
         storage: new NextJSStorage(),
       },
     }
@@ -67,3 +65,6 @@ export const supabase = (() => {
   if (!_supabase) _supabase = supabaseBrowser();
   return _supabase;
 })();
+
+// production: no dev exports or compatibility helpers — use native helpers from the
+// Supabase browser client (createBrowserClient) which includes getSessionFromUrl.
