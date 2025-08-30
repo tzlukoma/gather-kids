@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
+import type { Division, GradeRule } from '@/lib/types';
 import { 
     createBibleBeeYear, 
     updateBibleBeeYear, 
@@ -125,12 +126,36 @@ export default function BibleBeeManage({ className }: BibleBeeManageProps) {
         return years;
     }, [bibleBeeYears, competitionYears]);
     
-    const divisions = useLiveQuery(async () => 
-        selectedYearId 
-            ? await db.divisions.where('year_id').equals(selectedYearId).toArray()
-            : [], 
-        [selectedYearId]
-    );
+    const divisions = useLiveQuery(async () => {
+        if (!selectedYearId) return [];
+        
+        // First try new schema
+        const newDivisions = await db.divisions.where('year_id').equals(selectedYearId).toArray();
+        
+        // If we found divisions in new schema, return them
+        if (newDivisions.length > 0) {
+            return newDivisions;
+        }
+        
+        // For legacy years, bridge from gradeRules
+        const legacyGradeRules = await db.gradeRules
+            .where('competitionYearId').equals(selectedYearId)
+            .and((rule: GradeRule) => rule.type === 'scripture') // Only scripture rules define divisions
+            .toArray();
+            
+        // Convert legacy gradeRules to Division format
+        return legacyGradeRules.map((rule: GradeRule, index: number): Division => ({
+            id: `legacy-division-${rule.id}`,
+            year_id: selectedYearId,
+            name: `Grades ${rule.minGrade}-${rule.maxGrade}`,
+            minimum_required: rule.targetCount || 0,
+            min_last_order: undefined,
+            min_grade: rule.minGrade,
+            max_grade: rule.maxGrade,
+            created_at: rule.createdAt,
+            updated_at: rule.updatedAt
+        }));
+    }, [selectedYearId]);
 
     const essayPrompts = useLiveQuery(async () => 
         selectedYearId 

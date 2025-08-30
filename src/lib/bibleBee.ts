@@ -393,15 +393,28 @@ export async function previewAutoEnrollment(yearId: string): Promise<{
     console.log('Bible Bee ministry:', bibleBeeMinistry);
     
     // Validate that we have valid IDs for the compound key
-    if (!currentCycle.cycle_id || !bibleBeeMinistry.ministry_id) {
-        throw new Error(`Invalid IDs for query: cycle_id=${currentCycle.cycle_id}, ministry_id=${bibleBeeMinistry.ministry_id}`);
+    if (!currentCycle?.cycle_id || !bibleBeeMinistry?.ministry_id) {
+        const errorMsg = `Invalid IDs for query: cycle_id=${currentCycle?.cycle_id}, ministry_id=${bibleBeeMinistry?.ministry_id}`;
+        console.error(errorMsg);
+        throw new Error(errorMsg);
     }
     
-    const bibleBeeEnrollments = await db.ministry_enrollments
-        .where('[cycle_id+ministry_id]')
-        .equals([currentCycle.cycle_id, bibleBeeMinistry.ministry_id])
-        .and((e: MinistryEnrollment) => e.status === 'enrolled')
-        .toArray();
+    console.log('Compound key values:', [bibleBeeMinistry.ministry_id, currentCycle.cycle_id]);
+    
+    // Note: The compound index is [ministry_id+cycle_id], not [cycle_id+ministry_id]
+    let bibleBeeEnrollments: MinistryEnrollment[] = [];
+    try {
+        bibleBeeEnrollments = await db.ministry_enrollments
+            .where('[ministry_id+cycle_id]')
+            .equals([bibleBeeMinistry.ministry_id, currentCycle.cycle_id])
+            .and((e: MinistryEnrollment) => e.status === 'enrolled')
+            .toArray();
+        
+        console.log('Bible Bee enrollments found:', bibleBeeEnrollments.length);
+    } catch (error) {
+        console.error('Error querying ministry_enrollments:', error);
+        throw error;
+    }
     
     const childIds = bibleBeeEnrollments.map((e: MinistryEnrollment) => e.child_id);
     const children = await db.children.where('child_id').anyOf(childIds).toArray();
