@@ -647,10 +647,17 @@ function ScriptureManagement({ yearId, yearLabel }: { yearId: string; yearLabel:
     const [jsonMode, setJsonMode] = useState<'merge' | 'overwrite'>('merge');
 
     // Load scriptures for this year
-    const scriptures = useLiveQuery(async () => 
-        await db.scriptures.where('year_id').equals(yearId).sortBy('scripture_order'), 
-        [yearId]
-    );
+    const scriptures = useLiveQuery(async () => {
+        try {
+            console.log('Loading scriptures for year:', yearId);
+            const result = await db.scriptures.where('year_id').equals(yearId).sortBy('scripture_order');
+            console.log(`Found ${result.length} scriptures for year ${yearId}`);
+            return result;
+        } catch (error) {
+            console.error('Error loading scriptures:', error);
+            return [];
+        }
+    }, [yearId]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -787,7 +794,9 @@ function ScriptureManagement({ yearId, yearLabel }: { yearId: string; yearLabel:
         if (!csvPreview.length) return;
 
         try {
+            console.log('Committing CSV import:', csvPreview.length, 'records for year', yearId);
             await commitEnhancedCsvRowsToYear(csvPreview, yearId);
+            
             toast({
                 title: 'CSV Import Complete',
                 description: `Successfully imported ${csvPreview.length} scripture records.`,
@@ -795,6 +804,12 @@ function ScriptureManagement({ yearId, yearLabel }: { yearId: string; yearLabel:
             setCsvFile(null);
             setCsvPreview([]);
             setShowCsvImport(false);
+            setError(null);
+            
+            // Check if scriptures were actually created
+            const scriptureCount = await db.scriptures.where('year_id').equals(yearId).count();
+            console.log(`Total scriptures for year ${yearId} after CSV import:`, scriptureCount);
+            
         } catch (error: any) {
             console.error('Error importing CSV:', error);
             setError(error.message || 'Error importing CSV');
@@ -835,13 +850,24 @@ function ScriptureManagement({ yearId, yearLabel }: { yearId: string; yearLabel:
             const data = JSON.parse(text);
             
             const result = await uploadJsonTexts(yearId, data, jsonMode, false);
+            
+            // Force refresh the scripture list by updating the yearId dependency
+            console.log('JSON upload completed:', result);
+            
             toast({
                 title: 'JSON Upload Complete',
                 description: `Updated ${result.updated} scriptures, created ${result.created} new scriptures.`,
             });
+            
             setJsonFile(null);
             setJsonPreview(null);
             setShowJsonUpload(false);
+            setError(null);
+            
+            // Check if scriptures were actually created/updated
+            const scriptureCount = await db.scriptures.where('year_id').equals(yearId).count();
+            console.log(`Total scriptures for year ${yearId}:`, scriptureCount);
+            
         } catch (error: any) {
             console.error('Error uploading JSON:', error);
             setError(error.message || 'Error uploading JSON');
@@ -1524,12 +1550,39 @@ function EnrollmentManagement({ yearId, yearLabel, divisions }: {
     const [preview, setPreview] = useState<any>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    
+    // Load preview automatically when year or divisions change
+    React.useEffect(() => {
+        if (yearId && divisions.length >= 0) {
+            loadPreview();
+        }
+    }, [yearId, divisions.length]);
 
     const loadPreview = async () => {
         setIsLoading(true);
         setError(null);
         try {
+            console.log('Loading auto-enrollment preview for year:', yearId);
+            console.log('Available divisions:', divisions.length);
+            
+            // Check prerequisites
+            const childrenCount = await db.children.where('is_active').equals(1).count();
+            console.log('Active children count:', childrenCount);
+            
+            if (childrenCount === 0) {
+                setError('No active children found in the database. Please ensure children are marked as active.');
+                setIsLoading(false);
+                return;
+            }
+            
+            if (divisions.length === 0) {
+                setError('No divisions found for this year. Please create divisions first.');
+                setIsLoading(false);
+                return;
+            }
+            
             const previewData = await previewAutoEnrollment(yearId);
+            console.log('Preview data:', previewData);
             setPreview(previewData);
         } catch (error: any) {
             console.error('Error loading preview:', error);
