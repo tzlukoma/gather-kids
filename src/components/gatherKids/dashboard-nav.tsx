@@ -28,6 +28,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { LogOut } from 'lucide-react';
 import Image from 'next/image';
 import { AuthRole } from '@/lib/auth-types';
+import { isDemo } from '@/lib/authGuards';
 
 interface DashboardNavProps {
 	children: React.ReactNode;
@@ -38,7 +39,19 @@ export function DashboardNav({ children }: DashboardNavProps) {
 	const router = useRouter();
 	const { user, userRole, logout } = useAuth();
 
-	const handleLogout = () => {
+	const handleLogout = async () => {
+		// Handle Supabase logout if not in demo mode
+		if (!isDemo()) {
+			try {
+				const { supabaseBrowser } = await import('@/lib/supabaseClient');
+				const supabase = supabaseBrowser();
+				await supabase.auth.signOut();
+			} catch (error) {
+				console.error('Error signing out from Supabase:', error);
+			}
+		}
+		
+		// Always call the context logout to clear local state
 		logout();
 		router.replace('/login');
 	};
