@@ -1272,7 +1272,7 @@ function EssayManagement({ yearId, yearLabel, essayPrompts, divisions }: {
     const [isCreating, setIsCreating] = useState(false);
     const [editingEssay, setEditingEssay] = useState<any>(null);
     const [formData, setFormData] = useState({
-        division_name: '',
+        division_name: 'all',
         prompt_text: '',
         due_date: ''
     });
@@ -1285,6 +1285,7 @@ function EssayManagement({ yearId, yearLabel, essayPrompts, divisions }: {
             const essayData = {
                 ...formData,
                 year_id: yearId,
+                division_name: formData.division_name === 'all' ? '' : formData.division_name,
                 due_date: formData.due_date || new Date().toISOString().split('T')[0] // Default to today if not provided
             };
 
@@ -1305,7 +1306,7 @@ function EssayManagement({ yearId, yearLabel, essayPrompts, divisions }: {
                 setIsCreating(false);
             }
             setFormData({
-                division_name: '',
+                division_name: 'all',
                 prompt_text: '',
                 due_date: ''
             });
@@ -1333,7 +1334,7 @@ function EssayManagement({ yearId, yearLabel, essayPrompts, divisions }: {
     const startEdit = (essay: any) => {
         setEditingEssay(essay);
         setFormData({
-            division_name: essay.division_name || '',
+            division_name: essay.division_name || 'all',
             prompt_text: essay.prompt_text || '',
             due_date: essay.due_date || ''
         });
@@ -1380,7 +1381,7 @@ function EssayManagement({ yearId, yearLabel, essayPrompts, divisions }: {
                                         <SelectValue placeholder="All Divisions" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="">All Divisions</SelectItem>
+                                        <SelectItem value="all">All Divisions</SelectItem>
                                         {divisions.map(division => (
                                             <SelectItem key={division.id} value={division.name}>
                                                 {division.name}
@@ -1421,7 +1422,7 @@ function EssayManagement({ yearId, yearLabel, essayPrompts, divisions }: {
                                     setIsCreating(false);
                                     setEditingEssay(null);
                                     setFormData({
-                                        division_name: '',
+                                        division_name: 'all',
                                         prompt_text: '',
                                         due_date: ''
                                     });
