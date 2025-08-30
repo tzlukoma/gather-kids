@@ -16,8 +16,13 @@ import {
     previewAutoEnrollment,
     commitAutoEnrollment,
     createEnrollmentOverride,
+    updateEnrollmentOverride,
+    deleteEnrollmentOverride,
     deleteEnrollmentOverrideByChild,
-    recalculateMinimumBoundaries
+    recalculateMinimumBoundaries,
+    commitEnhancedCsvRowsToYear,
+    validateJsonTextUpload,
+    uploadJsonTexts
 } from '@/lib/bibleBee';
 import { gradeCodeToLabel } from '@/lib/gradeUtils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -608,16 +613,588 @@ function DivisionManagement({ yearId, yearLabel, divisions }: {
 
 // Placeholder components - will implement these in next phases
 function ScriptureManagement({ yearId, yearLabel }: { yearId: string; yearLabel: string }) {
+    const { toast } = useToast();
+    const [isCreating, setIsCreating] = useState(false);
+    const [editingScripture, setEditingScripture] = useState<any>(null);
+    const [showCsvImport, setShowCsvImport] = useState(false);
+    const [showJsonUpload, setShowJsonUpload] = useState(false);
+    const [formData, setFormData] = useState({
+        scripture_number: '',
+        scripture_order: 1,
+        counts_for: 1,
+        reference: '',
+        category: '',
+        text: '', // For backward compatibility
+        translation: 'NIV'
+    });
+    const [error, setError] = useState<string | null>(null);
+    const [csvFile, setCsvFile] = useState<File | null>(null);
+    const [csvPreview, setCsvPreview] = useState<any[]>([]);
+    const [jsonFile, setJsonFile] = useState<File | null>(null);
+    const [jsonPreview, setJsonPreview] = useState<any>(null);
+    const [jsonMode, setJsonMode] = useState<'merge' | 'overwrite'>('merge');
+
+    // Load scriptures for this year
+    const scriptures = useLiveQuery(async () => 
+        await db.scriptures.where('year_id').equals(yearId).toArray(), 
+        [yearId]
+    );
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setError(null);
+        try {
+            const scriptureData = {
+                ...formData,
+                year_id: yearId,
+                scripture_order: Number(formData.scripture_order),
+                counts_for: Number(formData.counts_for),
+                competitionYearId: '', // Legacy field
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+            };
+
+            if (editingScripture) {
+                await db.scriptures.put({ ...editingScripture, ...scriptureData });
+                toast({
+                    title: `Scripture ${formData.scripture_number} Updated`,
+                    description: 'Scripture has been successfully updated.',
+                });
+                setEditingScripture(null);
+                setIsCreating(false);
+            } else {
+                await db.scriptures.put({ 
+                    id: crypto.randomUUID(), 
+                    ...scriptureData 
+                });
+                toast({
+                    title: `Scripture ${formData.scripture_number} Created`,
+                    description: 'Scripture has been successfully created.',
+                });
+                setIsCreating(false);
+            }
+            setFormData({
+                scripture_number: '',
+                scripture_order: 1,
+                counts_for: 1,
+                reference: '',
+                category: '',
+                text: '',
+                translation: 'NIV'
+            });
+        } catch (error: any) {
+            console.error('Error saving scripture:', error);
+            setError(error.message || 'Error saving scripture');
+        }
+    };
+
+    const handleDelete = async (scripture: any) => {
+        if (confirm(`Delete scripture "${scripture.scripture_number}"?`)) {
+            try {
+                await db.scriptures.delete(scripture.id);
+                toast({
+                    title: `Scripture ${scripture.scripture_number} Deleted`,
+                    description: 'Scripture has been successfully deleted.',
+                });
+            } catch (error: any) {
+                console.error('Error deleting scripture:', error);
+                setError(error.message || 'Error deleting scripture');
+            }
+        }
+    };
+
+    const startEdit = (scripture: any) => {
+        setEditingScripture(scripture);
+        setFormData({
+            scripture_number: scripture.scripture_number || '',
+            scripture_order: scripture.scripture_order || 1,
+            counts_for: scripture.counts_for || 1,
+            reference: scripture.reference || '',
+            category: scripture.category || '',
+            text: scripture.text || '',
+            translation: scripture.translation || 'NIV'
+        });
+        setIsCreating(true);
+        setError(null);
+    };
+
+    const handleRecalculateBoundaries = async () => {
+        try {
+            await recalculateMinimumBoundaries(yearId);
+            toast({
+                title: 'Boundaries Recalculated',
+                description: 'Minimum boundaries have been successfully recalculated.',
+            });
+        } catch (error: any) {
+            console.error('Error recalculating boundaries:', error);
+            setError(error.message || 'Error recalculating boundaries');
+        }
+    };
+
+    const handleCsvUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        try {
+            const text = await file.text();
+            const lines = text.split('\n').filter(line => line.trim());
+            const headers = lines[0].split(',').map(h => h.trim());
+            
+            const preview = lines.slice(1).map((line, index) => {
+                const values = line.split(',').map(v => v.trim());
+                const row: any = {};
+                headers.forEach((header, i) => {
+                    if (header === 'scripture_order') row[header] = parseInt(values[i]) || 0;
+                    else if (header === 'counts_for') row[header] = parseInt(values[i]) || 1;
+                    else row[header] = values[i] || '';
+                });
+                return { ...row, _rowIndex: index + 2 };
+            });
+
+            setCsvFile(file);
+            setCsvPreview(preview);
+        } catch (error: any) {
+            setError('Error reading CSV file: ' + error.message);
+        }
+    };
+
+    const commitCsvImport = async () => {
+        if (!csvPreview.length) return;
+
+        try {
+            await commitEnhancedCsvRowsToYear(csvPreview, yearId);
+            toast({
+                title: 'CSV Import Complete',
+                description: `Successfully imported ${csvPreview.length} scripture records.`,
+            });
+            setCsvFile(null);
+            setCsvPreview([]);
+            setShowCsvImport(false);
+        } catch (error: any) {
+            console.error('Error importing CSV:', error);
+            setError(error.message || 'Error importing CSV');
+        }
+    };
+
+    const handleJsonUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        try {
+            const text = await file.text();
+            const data = JSON.parse(text);
+            
+            // Validate the JSON structure
+            const validation = validateJsonTextUpload(data);
+            if (!validation.isValid) {
+                setError('Invalid JSON format: ' + validation.errors.join(', '));
+                return;
+            }
+
+            setJsonFile(file);
+            
+            // Generate dry-run preview
+            const preview = await uploadJsonTexts(yearId, data, jsonMode, true);
+            setJsonPreview(preview);
+        } catch (error: any) {
+            console.error('Error reading JSON file:', error);
+            setError('Error reading JSON file: ' + error.message);
+        }
+    };
+
+    const commitJsonUpload = async () => {
+        if (!jsonFile || !jsonPreview) return;
+
+        try {
+            const text = await jsonFile.text();
+            const data = JSON.parse(text);
+            
+            const result = await uploadJsonTexts(yearId, data, jsonMode, false);
+            toast({
+                title: 'JSON Upload Complete',
+                description: `Updated ${result.updated} scriptures, created ${result.created} new scriptures.`,
+            });
+            setJsonFile(null);
+            setJsonPreview(null);
+            setShowJsonUpload(false);
+        } catch (error: any) {
+            console.error('Error uploading JSON:', error);
+            setError(error.message || 'Error uploading JSON');
+        }
+    };
+
     return (
         <Card>
             <CardHeader>
-                <CardTitle>Scriptures - {yearLabel}</CardTitle>
-                <CardDescription>Manage scriptures, CSV import, and JSON text uploads</CardDescription>
-            </CardHeader>
-            <CardContent>
-                <div className="text-center py-8 text-muted-foreground">
-                    Scripture management coming in Phase 4
+                <div className="flex items-center justify-between">
+                    <div>
+                        <CardTitle>Scriptures - {yearLabel}</CardTitle>
+                        <CardDescription>Manage scriptures, CSV import, and JSON text uploads</CardDescription>
+                    </div>
+                    <div className="flex gap-2">
+                        <Button 
+                            variant="outline"
+                            onClick={handleRecalculateBoundaries}
+                        >
+                            <Calculator className="h-4 w-4 mr-2" />
+                            Recalculate Boundaries
+                        </Button>
+                        <Button 
+                            variant="outline"
+                            onClick={() => setShowCsvImport(true)}
+                        >
+                            <Upload className="h-4 w-4 mr-2" />
+                            CSV Import
+                        </Button>
+                        <Button 
+                            variant="outline"
+                            onClick={() => setShowJsonUpload(true)}
+                        >
+                            <FileText className="h-4 w-4 mr-2" />
+                            JSON Upload
+                        </Button>
+                        <Button 
+                            onClick={() => setIsCreating(true)}
+                            disabled={isCreating}
+                        >
+                            <Plus className="h-4 w-4 mr-2" />
+                            Add Scripture
+                        </Button>
+                    </div>
                 </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                {error && (
+                    <Alert variant="destructive">
+                        <AlertTriangle className="h-4 w-4" />
+                        <AlertTitle>Error</AlertTitle>
+                        <AlertDescription>{error}</AlertDescription>
+                    </Alert>
+                )}
+
+                {/* CSV Import Dialog */}
+                <Dialog open={showCsvImport} onOpenChange={setShowCsvImport}>
+                    <DialogContent className="max-w-4xl">
+                        <DialogHeader>
+                            <DialogTitle>CSV Import</DialogTitle>
+                            <DialogDescription>
+                                Import scripture metadata. Expected columns: scripture_order, scripture_number, counts_for, reference, category
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-4">
+                            <div>
+                                <Label htmlFor="csv-file">Select CSV File</Label>
+                                <Input
+                                    id="csv-file"
+                                    type="file"
+                                    accept=".csv"
+                                    onChange={handleCsvUpload}
+                                />
+                            </div>
+                            {csvPreview.length > 0 && (
+                                <div>
+                                    <h4 className="font-medium mb-2">Preview ({csvPreview.length} rows)</h4>
+                                    <div className="max-h-60 overflow-auto border rounded">
+                                        <table className="w-full text-sm">
+                                            <thead className="bg-muted">
+                                                <tr>
+                                                    <th className="p-2 text-left">Order</th>
+                                                    <th className="p-2 text-left">Number</th>
+                                                    <th className="p-2 text-left">Reference</th>
+                                                    <th className="p-2 text-left">Counts For</th>
+                                                    <th className="p-2 text-left">Category</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {csvPreview.slice(0, 10).map((row, i) => (
+                                                    <tr key={i} className="border-t">
+                                                        <td className="p-2">{row.scripture_order}</td>
+                                                        <td className="p-2">{row.scripture_number}</td>
+                                                        <td className="p-2">{row.reference}</td>
+                                                        <td className="p-2">{row.counts_for}</td>
+                                                        <td className="p-2">{row.category}</td>
+                                                    </tr>
+                                                ))}
+                                                {csvPreview.length > 10 && (
+                                                    <tr className="border-t">
+                                                        <td colSpan={5} className="p-2 text-center text-muted-foreground">
+                                                            ... and {csvPreview.length - 10} more rows
+                                                        </td>
+                                                    </tr>
+                                                )}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                        <DialogFooter>
+                            <Button variant="outline" onClick={() => setShowCsvImport(false)}>
+                                Cancel
+                            </Button>
+                            <Button 
+                                onClick={commitCsvImport}
+                                disabled={!csvPreview.length}
+                            >
+                                Import {csvPreview.length} Records
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+
+                {/* JSON Upload Dialog */}
+                <Dialog open={showJsonUpload} onOpenChange={setShowJsonUpload}>
+                    <DialogContent className="max-w-4xl">
+                        <DialogHeader>
+                            <DialogTitle>JSON Text Upload</DialogTitle>
+                            <DialogDescription>
+                                Upload scripture texts (NIV/KJV/NIV-ES) in JSON format
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <Label htmlFor="json-file">Select JSON File</Label>
+                                    <Input
+                                        id="json-file"
+                                        type="file"
+                                        accept=".json"
+                                        onChange={handleJsonUpload}
+                                    />
+                                </div>
+                                <div>
+                                    <Label htmlFor="json-mode">Import Mode</Label>
+                                    <Select value={jsonMode} onValueChange={(value: 'merge' | 'overwrite') => setJsonMode(value)}>
+                                        <SelectTrigger id="json-mode">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="merge">Merge (keep existing texts)</SelectItem>
+                                            <SelectItem value="overwrite">Overwrite (replace all texts)</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
+                            {jsonPreview && (
+                                <div>
+                                    <h4 className="font-medium mb-2">
+                                        Preview - {jsonPreview.updated + jsonPreview.created} scriptures affected
+                                    </h4>
+                                    <div className="grid grid-cols-2 gap-4 mb-4">
+                                        <div className="text-sm">
+                                            <strong>Will Update:</strong> {jsonPreview.updated} existing scriptures
+                                        </div>
+                                        <div className="text-sm">
+                                            <strong>Will Create:</strong> {jsonPreview.created} new scriptures
+                                        </div>
+                                    </div>
+                                    {jsonPreview.preview && (
+                                        <div className="max-h-60 overflow-auto border rounded">
+                                            <table className="w-full text-sm">
+                                                <thead className="bg-muted">
+                                                    <tr>
+                                                        <th className="p-2 text-left">Reference</th>
+                                                        <th className="p-2 text-left">Action</th>
+                                                        <th className="p-2 text-left">Translations</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {jsonPreview.preview.slice(0, 10).map((item: any, i: number) => (
+                                                        <tr key={i} className="border-t">
+                                                            <td className="p-2">{item.reference}</td>
+                                                            <td className="p-2">
+                                                                <Badge variant={item.action === 'create' ? 'default' : 'secondary'}>
+                                                                    {item.action}
+                                                                </Badge>
+                                                            </td>
+                                                            <td className="p-2">{item.texts.join(', ')}</td>
+                                                        </tr>
+                                                    ))}
+                                                    {jsonPreview.preview.length > 10 && (
+                                                        <tr className="border-t">
+                                                            <td colSpan={3} className="p-2 text-center text-muted-foreground">
+                                                                ... and {jsonPreview.preview.length - 10} more
+                                                            </td>
+                                                        </tr>
+                                                    )}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                        <DialogFooter>
+                            <Button variant="outline" onClick={() => setShowJsonUpload(false)}>
+                                Cancel
+                            </Button>
+                            <Button 
+                                onClick={commitJsonUpload}
+                                disabled={!jsonPreview}
+                            >
+                                Upload Texts
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+
+                {/* Scripture Creation/Edit Form */}
+                {isCreating && (
+                    <form onSubmit={handleSubmit} className="space-y-4 p-4 border rounded-lg">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                                <Label htmlFor="scripture-number">Scripture Number</Label>
+                                <Input
+                                    id="scripture-number"
+                                    placeholder="e.g., 1-2"
+                                    value={formData.scripture_number}
+                                    onChange={(e) => setFormData({...formData, scripture_number: e.target.value})}
+                                    required
+                                />
+                            </div>
+                            <div>
+                                <Label htmlFor="scripture-order">Scripture Order</Label>
+                                <Input
+                                    id="scripture-order"
+                                    type="number"
+                                    min="1"
+                                    value={formData.scripture_order}
+                                    onChange={(e) => setFormData({...formData, scripture_order: parseInt(e.target.value) || 1})}
+                                    required
+                                />
+                            </div>
+                            <div>
+                                <Label htmlFor="counts-for">Counts For</Label>
+                                <Input
+                                    id="counts-for"
+                                    type="number"
+                                    min="1"
+                                    value={formData.counts_for}
+                                    onChange={(e) => setFormData({...formData, counts_for: parseInt(e.target.value) || 1})}
+                                    required
+                                />
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <Label htmlFor="reference">Reference</Label>
+                                <Input
+                                    id="reference"
+                                    placeholder="e.g., Exodus 20:2-3"
+                                    value={formData.reference}
+                                    onChange={(e) => setFormData({...formData, reference: e.target.value})}
+                                    required
+                                />
+                            </div>
+                            <div>
+                                <Label htmlFor="category">Category</Label>
+                                <Input
+                                    id="category"
+                                    placeholder="e.g., Primary Minimum, Competition"
+                                    value={formData.category}
+                                    onChange={(e) => setFormData({...formData, category: e.target.value})}
+                                />
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <Label htmlFor="translation">Translation</Label>
+                                <Select
+                                    value={formData.translation}
+                                    onValueChange={(value) => setFormData({...formData, translation: value})}
+                                >
+                                    <SelectTrigger id="translation">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="NIV">NIV</SelectItem>
+                                        <SelectItem value="KJV">KJV</SelectItem>
+                                        <SelectItem value="NIV-ES">NIV-ES</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div>
+                                <Label htmlFor="text">Text (Optional)</Label>
+                                <Input
+                                    id="text"
+                                    placeholder="Scripture text (or use JSON upload)"
+                                    value={formData.text}
+                                    onChange={(e) => setFormData({...formData, text: e.target.value})}
+                                />
+                            </div>
+                        </div>
+                        <div className="flex gap-2">
+                            <Button type="submit">
+                                {editingScripture ? 'Update' : 'Create'}
+                            </Button>
+                            <Button 
+                                type="button" 
+                                variant="outline"
+                                onClick={() => {
+                                    setIsCreating(false);
+                                    setEditingScripture(null);
+                                    setFormData({
+                                        scripture_number: '',
+                                        scripture_order: 1,
+                                        counts_for: 1,
+                                        reference: '',
+                                        category: '',
+                                        text: '',
+                                        translation: 'NIV'
+                                    });
+                                    setError(null);
+                                }}
+                            >
+                                Cancel
+                            </Button>
+                        </div>
+                    </form>
+                )}
+
+                {/* Scriptures List */}
+                {scriptures && scriptures.length > 0 ? (
+                    <div className="space-y-2">
+                        {scriptures
+                            .sort((a, b) => (a.scripture_order || 0) - (b.scripture_order || 0))
+                            .map(scripture => (
+                            <div key={scripture.id} className="flex items-center justify-between p-3 border rounded-lg">
+                                <div className="space-y-1">
+                                    <h3 className="font-medium">
+                                        #{scripture.scripture_number} - {scripture.reference}
+                                    </h3>
+                                    <div className="text-sm text-muted-foreground space-y-1">
+                                        <div>Order: {scripture.scripture_order}, Counts For: {scripture.counts_for}</div>
+                                        {scripture.category && <div>Category: {scripture.category}</div>}
+                                        {scripture.translation && <div>Translation: {scripture.translation}</div>}
+                                        {scripture.texts && Object.keys(scripture.texts).length > 0 && (
+                                            <div>Available Texts: {Object.keys(scripture.texts).join(', ')}</div>
+                                        )}
+                                    </div>
+                                </div>
+                                <div className="flex gap-2">
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => startEdit(scripture)}
+                                    >
+                                        <Edit2 className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => handleDelete(scripture)}
+                                    >
+                                        <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <div className="text-center py-8 text-muted-foreground">
+                        No scriptures created yet
+                    </div>
+                )}
             </CardContent>
         </Card>
     );
@@ -629,16 +1206,213 @@ function EssayManagement({ yearId, yearLabel, essayPrompts, divisions }: {
     essayPrompts: any[];
     divisions: any[];
 }) {
+    const { toast } = useToast();
+    const [isCreating, setIsCreating] = useState(false);
+    const [editingEssay, setEditingEssay] = useState<any>(null);
+    const [formData, setFormData] = useState({
+        division_name: '',
+        prompt_text: '',
+        due_date: ''
+    });
+    const [error, setError] = useState<string | null>(null);
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setError(null);
+        try {
+            const essayData = {
+                ...formData,
+                year_id: yearId,
+                due_date: formData.due_date || new Date().toISOString().split('T')[0] // Default to today if not provided
+            };
+
+            if (editingEssay) {
+                await updateEssayPrompt(editingEssay.id, essayData);
+                toast({
+                    title: 'Essay Prompt Updated',
+                    description: 'Essay prompt has been successfully updated.',
+                });
+                setEditingEssay(null);
+                setIsCreating(false);
+            } else {
+                await createEssayPrompt(essayData);
+                toast({
+                    title: 'Essay Prompt Created',
+                    description: 'Essay prompt has been successfully created.',
+                });
+                setIsCreating(false);
+            }
+            setFormData({
+                division_name: '',
+                prompt_text: '',
+                due_date: ''
+            });
+        } catch (error: any) {
+            console.error('Error saving essay prompt:', error);
+            setError(error.message || 'Error saving essay prompt');
+        }
+    };
+
+    const handleDelete = async (essay: any) => {
+        if (confirm(`Delete essay prompt for ${essay.division_name || 'All Divisions'}?`)) {
+            try {
+                await deleteEssayPrompt(essay.id);
+                toast({
+                    title: 'Essay Prompt Deleted',
+                    description: 'Essay prompt has been successfully deleted.',
+                });
+            } catch (error: any) {
+                console.error('Error deleting essay prompt:', error);
+                setError(error.message || 'Error deleting essay prompt');
+            }
+        }
+    };
+
+    const startEdit = (essay: any) => {
+        setEditingEssay(essay);
+        setFormData({
+            division_name: essay.division_name || '',
+            prompt_text: essay.prompt_text || '',
+            due_date: essay.due_date || ''
+        });
+        setIsCreating(true);
+        setError(null);
+    };
+
     return (
         <Card>
             <CardHeader>
-                <CardTitle>Essay Prompts - {yearLabel}</CardTitle>
-                <CardDescription>Manage essay prompts for different divisions</CardDescription>
-            </CardHeader>
-            <CardContent>
-                <div className="text-center py-8 text-muted-foreground">
-                    Essay management coming in Phase 4
+                <div className="flex items-center justify-between">
+                    <div>
+                        <CardTitle>Essay Prompts - {yearLabel}</CardTitle>
+                        <CardDescription>Manage essay prompts for different divisions</CardDescription>
+                    </div>
+                    <Button 
+                        onClick={() => setIsCreating(true)}
+                        disabled={isCreating}
+                    >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Essay Prompt
+                    </Button>
                 </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                {error && (
+                    <Alert variant="destructive">
+                        <AlertTriangle className="h-4 w-4" />
+                        <AlertTitle>Error</AlertTitle>
+                        <AlertDescription>{error}</AlertDescription>
+                    </Alert>
+                )}
+
+                {isCreating && (
+                    <form onSubmit={handleSubmit} className="space-y-4 p-4 border rounded-lg">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <Label htmlFor="division-name">Division (Optional)</Label>
+                                <Select
+                                    value={formData.division_name}
+                                    onValueChange={(value) => setFormData({...formData, division_name: value})}
+                                >
+                                    <SelectTrigger id="division-name">
+                                        <SelectValue placeholder="All Divisions" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="">All Divisions</SelectItem>
+                                        {divisions.map(division => (
+                                            <SelectItem key={division.id} value={division.name}>
+                                                {division.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div>
+                                <Label htmlFor="due-date">Due Date (Optional)</Label>
+                                <Input
+                                    id="due-date"
+                                    type="date"
+                                    value={formData.due_date}
+                                    onChange={(e) => setFormData({...formData, due_date: e.target.value})}
+                                />
+                            </div>
+                        </div>
+                        <div>
+                            <Label htmlFor="prompt-text">Essay Prompt</Label>
+                            <Textarea
+                                id="prompt-text"
+                                placeholder="Enter the essay prompt text..."
+                                value={formData.prompt_text}
+                                onChange={(e) => setFormData({...formData, prompt_text: e.target.value})}
+                                required
+                                rows={4}
+                            />
+                        </div>
+                        <div className="flex gap-2">
+                            <Button type="submit">
+                                {editingEssay ? 'Update' : 'Create'}
+                            </Button>
+                            <Button 
+                                type="button" 
+                                variant="outline"
+                                onClick={() => {
+                                    setIsCreating(false);
+                                    setEditingEssay(null);
+                                    setFormData({
+                                        division_name: '',
+                                        prompt_text: '',
+                                        due_date: ''
+                                    });
+                                    setError(null);
+                                }}
+                            >
+                                Cancel
+                            </Button>
+                        </div>
+                    </form>
+                )}
+
+                {essayPrompts && essayPrompts.length > 0 ? (
+                    <div className="space-y-2">
+                        {essayPrompts.map(essay => (
+                            <div key={essay.id} className="flex items-start justify-between p-3 border rounded-lg">
+                                <div className="space-y-1 flex-1">
+                                    <h3 className="font-medium">
+                                        {essay.division_name || 'All Divisions'}
+                                    </h3>
+                                    <p className="text-sm text-muted-foreground">
+                                        {essay.prompt_text}
+                                    </p>
+                                    {essay.due_date && (
+                                        <div className="text-sm text-muted-foreground">
+                                            Due: {new Date(essay.due_date).toLocaleDateString()}
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="flex gap-2">
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => startEdit(essay)}
+                                    >
+                                        <Edit2 className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => handleDelete(essay)}
+                                    >
+                                        <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <div className="text-center py-8 text-muted-foreground">
+                        No essay prompts created yet
+                    </div>
+                )}
             </CardContent>
         </Card>
     );
@@ -649,16 +1423,183 @@ function EnrollmentManagement({ yearId, yearLabel, divisions }: {
     yearLabel: string;
     divisions: any[];
 }) {
+    const { toast } = useToast();
+    const [preview, setPreview] = useState<any>(null);
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    const loadPreview = async () => {
+        setIsLoading(true);
+        setError(null);
+        try {
+            const previewData = await previewAutoEnrollment(yearId);
+            setPreview(previewData);
+        } catch (error: any) {
+            console.error('Error loading preview:', error);
+            setError(error.message || 'Error loading enrollment preview');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleCommit = async () => {
+        if (!preview) return;
+        
+        setIsLoading(true);
+        setError(null);
+        try {
+            const result = await commitAutoEnrollment(yearId);
+            toast({
+                title: 'Auto-Enrollment Complete',
+                description: `Enrolled ${result.enrolled} children, applied ${result.overrides_applied} overrides.`,
+            });
+            if (result.errors.length > 0) {
+                setError('Some enrollments failed: ' + result.errors.join(', '));
+            }
+            // Refresh preview
+            await loadPreview();
+        } catch (error: any) {
+            console.error('Error committing enrollment:', error);
+            setError(error.message || 'Error committing enrollment');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    // Load preview on mount
+    React.useEffect(() => {
+        if (yearId) {
+            loadPreview();
+        }
+    }, [yearId]);
+
+    const getStatusBadge = (status: string) => {
+        switch (status) {
+            case 'proposed':
+                return <Badge variant="default">Proposed</Badge>;
+            case 'override':
+                return <Badge variant="secondary">Override</Badge>;
+            case 'unassigned':
+                return <Badge variant="destructive">Unassigned</Badge>;
+            case 'unknown_grade':
+                return <Badge variant="outline">Unknown Grade</Badge>;
+            default:
+                return <Badge variant="outline">{status}</Badge>;
+        }
+    };
+
     return (
         <Card>
             <CardHeader>
-                <CardTitle>Auto-Enrollment - {yearLabel}</CardTitle>
-                <CardDescription>Preview and commit automatic enrollment based on grade ranges</CardDescription>
-            </CardHeader>
-            <CardContent>
-                <div className="text-center py-8 text-muted-foreground">
-                    Auto-enrollment management coming in Phase 4
+                <div className="flex items-center justify-between">
+                    <div>
+                        <CardTitle>Auto-Enrollment - {yearLabel}</CardTitle>
+                        <CardDescription>Preview and commit automatic enrollment based on grade ranges</CardDescription>
+                    </div>
+                    <div className="flex gap-2">
+                        <Button 
+                            variant="outline"
+                            onClick={loadPreview}
+                            disabled={isLoading}
+                        >
+                            <Users className="h-4 w-4 mr-2" />
+                            Refresh Preview
+                        </Button>
+                        <Button 
+                            onClick={handleCommit}
+                            disabled={isLoading || !preview || preview.counts.proposed === 0}
+                        >
+                            <CheckCircle className="h-4 w-4 mr-2" />
+                            Commit Enrollment
+                        </Button>
+                    </div>
                 </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                {error && (
+                    <Alert variant="destructive">
+                        <AlertTriangle className="h-4 w-4" />
+                        <AlertTitle>Error</AlertTitle>
+                        <AlertDescription>{error}</AlertDescription>
+                    </Alert>
+                )}
+
+                {isLoading && (
+                    <div className="text-center py-8 text-muted-foreground">
+                        Loading enrollment preview...
+                    </div>
+                )}
+
+                {preview && !isLoading && (
+                    <div className="space-y-4">
+                        {/* Summary Cards */}
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <Card>
+                                <CardContent className="p-4 text-center">
+                                    <div className="text-2xl font-bold text-green-600">{preview.counts.proposed}</div>
+                                    <div className="text-sm text-muted-foreground">Proposed</div>
+                                </CardContent>
+                            </Card>
+                            <Card>
+                                <CardContent className="p-4 text-center">
+                                    <div className="text-2xl font-bold text-blue-600">{preview.counts.overrides}</div>
+                                    <div className="text-sm text-muted-foreground">Overrides</div>
+                                </CardContent>
+                            </Card>
+                            <Card>
+                                <CardContent className="p-4 text-center">
+                                    <div className="text-2xl font-bold text-red-600">{preview.counts.unassigned}</div>
+                                    <div className="text-sm text-muted-foreground">Unassigned</div>
+                                </CardContent>
+                            </Card>
+                            <Card>
+                                <CardContent className="p-4 text-center">
+                                    <div className="text-2xl font-bold text-yellow-600">{preview.counts.unknown_grade}</div>
+                                    <div className="text-sm text-muted-foreground">Unknown Grade</div>
+                                </CardContent>
+                            </Card>
+                        </div>
+
+                        {/* Detailed Preview */}
+                        <div>
+                            <h4 className="font-medium mb-2">Enrollment Preview ({preview.previews.length} children)</h4>
+                            <div className="max-h-96 overflow-auto border rounded">
+                                <table className="w-full text-sm">
+                                    <thead className="bg-muted sticky top-0">
+                                        <tr>
+                                            <th className="p-2 text-left">Child Name</th>
+                                            <th className="p-2 text-left">Grade</th>
+                                            <th className="p-2 text-left">Status</th>
+                                            <th className="p-2 text-left">Assigned Division</th>
+                                            <th className="p-2 text-left">Notes</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {preview.previews.map((child: any) => (
+                                            <tr key={child.child_id} className="border-t">
+                                                <td className="p-2 font-medium">{child.child_name}</td>
+                                                <td className="p-2">{child.grade_text}</td>
+                                                <td className="p-2">{getStatusBadge(child.status)}</td>
+                                                <td className="p-2">
+                                                    {child.override_division?.name || child.proposed_division?.name || '-'}
+                                                </td>
+                                                <td className="p-2 text-muted-foreground">
+                                                    {child.override_division?.reason || ''}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {!preview && !isLoading && (
+                    <div className="text-center py-8 text-muted-foreground">
+                        Click "Refresh Preview" to see enrollment preview
+                    </div>
+                )}
             </CardContent>
         </Card>
     );
@@ -669,16 +1610,305 @@ function OverrideManagement({ yearId, yearLabel, divisions }: {
     yearLabel: string;
     divisions: any[];
 }) {
+    const { toast } = useToast();
+    const [isCreating, setIsCreating] = useState(false);
+    const [editingOverride, setEditingOverride] = useState<any>(null);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [selectedChild, setSelectedChild] = useState<any>(null);
+    const [formData, setFormData] = useState({
+        division_id: '',
+        reason: ''
+    });
+    const [error, setError] = useState<string | null>(null);
+
+    // Load data
+    const children = useLiveQuery(async () => 
+        await db.children.where('is_active').equals(1).toArray(), 
+        []
+    );
+
+    const overrides = useLiveQuery(async () => 
+        await db.enrollment_overrides.where('year_id').equals(yearId).toArray(), 
+        [yearId]
+    );
+
+    // Get child details for overrides
+    const enrichedOverrides = React.useMemo(() => {
+        if (!overrides || !children) return [];
+        
+        return overrides.map(override => {
+            const child = children.find(c => c.child_id === override.child_id);
+            const division = divisions.find(d => d.id === override.division_id);
+            return {
+                ...override,
+                child_name: child ? `${child.first_name} ${child.last_name}` : 'Unknown Child',
+                child_grade: child?.grade || '',
+                division_name: division?.name || 'Unknown Division'
+            };
+        });
+    }, [overrides, children, divisions]);
+
+    // Filter children for search
+    const filteredChildren = React.useMemo(() => {
+        if (!children || !searchTerm) return [];
+        
+        const term = searchTerm.toLowerCase();
+        return children.filter(child => 
+            `${child.first_name} ${child.last_name}`.toLowerCase().includes(term) ||
+            child.first_name.toLowerCase().includes(term) ||
+            child.last_name.toLowerCase().includes(term)
+        );
+    }, [children, searchTerm]);
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!selectedChild) return;
+        
+        setError(null);
+        try {
+            const overrideData = {
+                year_id: yearId,
+                child_id: selectedChild.child_id,
+                division_id: formData.division_id,
+                reason: formData.reason,
+                created_by: 'admin' // TODO: Get from auth context
+            };
+
+            if (editingOverride) {
+                await updateEnrollmentOverride(editingOverride.id, overrideData);
+                toast({
+                    title: 'Override Updated',
+                    description: `Override for ${selectedChild.first_name} ${selectedChild.last_name} has been updated.`,
+                });
+            } else {
+                // Delete existing override first (if any)
+                await deleteEnrollmentOverrideByChild(yearId, selectedChild.child_id);
+                // Create new override
+                await createEnrollmentOverride(overrideData);
+                toast({
+                    title: 'Override Created',
+                    description: `Override for ${selectedChild.first_name} ${selectedChild.last_name} has been created.`,
+                });
+            }
+            
+            setIsCreating(false);
+            setEditingOverride(null);
+            setSelectedChild(null);
+            setFormData({ division_id: '', reason: '' });
+            setSearchTerm('');
+        } catch (error: any) {
+            console.error('Error saving override:', error);
+            setError(error.message || 'Error saving override');
+        }
+    };
+
+    const handleDelete = async (override: any) => {
+        if (confirm(`Delete override for ${override.child_name}?`)) {
+            try {
+                await deleteEnrollmentOverride(override.id);
+                toast({
+                    title: 'Override Deleted',
+                    description: `Override for ${override.child_name} has been deleted.`,
+                });
+            } catch (error: any) {
+                console.error('Error deleting override:', error);
+                setError(error.message || 'Error deleting override');
+            }
+        }
+    };
+
+    const startEdit = (override: any) => {
+        const child = children?.find(c => c.child_id === override.child_id);
+        setEditingOverride(override);
+        setSelectedChild(child);
+        setFormData({
+            division_id: override.division_id,
+            reason: override.reason || ''
+        });
+        setIsCreating(true);
+        setError(null);
+    };
+
+    const selectChild = (child: any) => {
+        setSelectedChild(child);
+        setSearchTerm(`${child.first_name} ${child.last_name}`);
+    };
+
     return (
         <Card>
             <CardHeader>
-                <CardTitle>Manual Overrides - {yearLabel}</CardTitle>
-                <CardDescription>Manually assign children to specific divisions</CardDescription>
-            </CardHeader>
-            <CardContent>
-                <div className="text-center py-8 text-muted-foreground">
-                    Override management coming in Phase 4
+                <div className="flex items-center justify-between">
+                    <div>
+                        <CardTitle>Manual Overrides - {yearLabel}</CardTitle>
+                        <CardDescription>Manually assign children to specific divisions</CardDescription>
+                    </div>
+                    <Button 
+                        onClick={() => setIsCreating(true)}
+                        disabled={isCreating}
+                    >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Override
+                    </Button>
                 </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                {error && (
+                    <Alert variant="destructive">
+                        <AlertTriangle className="h-4 w-4" />
+                        <AlertTitle>Error</AlertTitle>
+                        <AlertDescription>{error}</AlertDescription>
+                    </Alert>
+                )}
+
+                {isCreating && (
+                    <form onSubmit={handleSubmit} className="space-y-4 p-4 border rounded-lg">
+                        <div>
+                            <Label htmlFor="child-search">Search Child</Label>
+                            <Input
+                                id="child-search"
+                                placeholder="Start typing child's name..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                disabled={!!editingOverride}
+                            />
+                            {searchTerm && !selectedChild && filteredChildren.length > 0 && (
+                                <div className="mt-2 max-h-32 overflow-auto border rounded">
+                                    {filteredChildren.slice(0, 10).map(child => (
+                                        <div 
+                                            key={child.child_id}
+                                            className="p-2 hover:bg-muted cursor-pointer border-b last:border-b-0"
+                                            onClick={() => selectChild(child)}
+                                        >
+                                            <div className="font-medium">{child.first_name} {child.last_name}</div>
+                                            <div className="text-sm text-muted-foreground">Grade: {child.grade || 'Unknown'}</div>
+                                        </div>
+                                    ))}
+                                    {filteredChildren.length > 10 && (
+                                        <div className="p-2 text-center text-muted-foreground text-sm">
+                                            ... and {filteredChildren.length - 10} more matches
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                            {selectedChild && (
+                                <div className="mt-2 p-2 bg-muted rounded flex items-center justify-between">
+                                    <div>
+                                        <div className="font-medium">{selectedChild.first_name} {selectedChild.last_name}</div>
+                                        <div className="text-sm text-muted-foreground">Grade: {selectedChild.grade || 'Unknown'}</div>
+                                    </div>
+                                    {!editingOverride && (
+                                        <Button 
+                                            size="sm" 
+                                            variant="ghost"
+                                            onClick={() => {
+                                                setSelectedChild(null);
+                                                setSearchTerm('');
+                                            }}
+                                        >
+                                            ✕
+                                        </Button>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+
+                        <div>
+                            <Label htmlFor="division-select">Target Division</Label>
+                            <Select
+                                value={formData.division_id}
+                                onValueChange={(value) => setFormData({...formData, division_id: value})}
+                            >
+                                <SelectTrigger id="division-select">
+                                    <SelectValue placeholder="Select division..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {divisions.map(division => (
+                                        <SelectItem key={division.id} value={division.id}>
+                                            {division.name} ({gradeCodeToLabel(division.min_grade)} - {gradeCodeToLabel(division.max_grade)})
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        <div>
+                            <Label htmlFor="reason">Reason (Optional)</Label>
+                            <Textarea
+                                id="reason"
+                                placeholder="Reason for manual override..."
+                                value={formData.reason}
+                                onChange={(e) => setFormData({...formData, reason: e.target.value})}
+                                rows={3}
+                            />
+                        </div>
+
+                        <div className="flex gap-2">
+                            <Button 
+                                type="submit"
+                                disabled={!selectedChild || !formData.division_id}
+                            >
+                                {editingOverride ? 'Update' : 'Create'} Override
+                            </Button>
+                            <Button 
+                                type="button" 
+                                variant="outline"
+                                onClick={() => {
+                                    setIsCreating(false);
+                                    setEditingOverride(null);
+                                    setSelectedChild(null);
+                                    setFormData({ division_id: '', reason: '' });
+                                    setSearchTerm('');
+                                    setError(null);
+                                }}
+                            >
+                                Cancel
+                            </Button>
+                        </div>
+                    </form>
+                )}
+
+                {/* Existing Overrides */}
+                {enrichedOverrides && enrichedOverrides.length > 0 ? (
+                    <div>
+                        <h4 className="font-medium mb-2">Existing Overrides ({enrichedOverrides.length})</h4>
+                        <div className="space-y-2">
+                            {enrichedOverrides.map(override => (
+                                <div key={override.id} className="flex items-start justify-between p-3 border rounded-lg">
+                                    <div className="space-y-1 flex-1">
+                                        <h3 className="font-medium">{override.child_name}</h3>
+                                        <div className="text-sm text-muted-foreground space-y-1">
+                                            <div>Grade: {override.child_grade || 'Unknown'}</div>
+                                            <div>Division: {override.division_name}</div>
+                                            {override.reason && <div>Reason: {override.reason}</div>}
+                                            <div>Created: {new Date(override.created_at).toLocaleDateString()}</div>
+                                            {override.created_by && <div>By: {override.created_by}</div>}
+                                        </div>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => startEdit(override)}
+                                        >
+                                            <Edit2 className="h-4 w-4" />
+                                        </Button>
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => handleDelete(override)}
+                                        >
+                                            <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                ) : (
+                    <div className="text-center py-8 text-muted-foreground">
+                        No manual overrides created yet
+                    </div>
+                )}
             </CardContent>
         </Card>
     );
