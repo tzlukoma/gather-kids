@@ -74,24 +74,62 @@ function AuthCallbackContent() {
           return;
         }
         
-        // Additional debugging for PKCE flow issues with new cross-tab storage
-        const codeVerifier = localStorage.getItem('gatherKids-auth-auth-token-code-verifier');
-        const authStorageKeys = Object.keys(localStorage).filter(key => 
-          key.includes('gatherKids-auth') || key.includes('supabase') || key.includes('auth')
+        // Comprehensive debugging for PKCE flow issues
+        const allLocalStorageKeys = Object.keys(localStorage);
+        const allSessionStorageKeys = Object.keys(sessionStorage);
+        const authKeys = allLocalStorageKeys.filter(key => 
+          key.includes('gatherKids-auth') || key.includes('supabase') || key.includes('auth') || 
+          key.includes('pkce') || key.includes('verifier') || key.includes('token')
+        );
+        const sessionAuthKeys = allSessionStorageKeys.filter(key => 
+          key.includes('gatherKids-auth') || key.includes('supabase') || key.includes('auth') || 
+          key.includes('pkce') || key.includes('verifier') || key.includes('token')
         );
         
-        console.log('PKCE Flow Debug Information:', {
+        // Check for various possible code verifier storage locations
+        // Based on Supabase source: ${storageKey}-code-verifier where storageKey is 'auth-token'
+        const expectedSupabaseKey = 'gatherKids-auth-auth-token-code-verifier';
+        const possibleVerifierKeys = [
+          expectedSupabaseKey,
+          'gatherKids-auth-code-verifier', 
+          'gatherKids-auth-pkce-code-verifier',
+          'auth-token-code-verifier',
+          'supabase.auth.token-code-verifier',
+          'sb-dummy-auth-token-code-verifier'
+        ];
+        
+        const verifierDebug = possibleVerifierKeys.map(key => ({
+          key,
+          localStorage: localStorage.getItem(key),
+          sessionStorage: sessionStorage.getItem(key),
+          length: localStorage.getItem(key)?.length || sessionStorage.getItem(key)?.length || 0
+        }));
+        
+        console.log('Comprehensive PKCE Debug Information:', {
+          // URL parameters
           hasCode: !!code,
           codeLength: code?.length,
           codePreview: code ? `${code.substring(0, 8)}...${code.substring(code.length - 8)}` : 'none',
-          hasStoredVerifier: !!codeVerifier,
-          verifierLength: codeVerifier?.length || 0,
-          authStorageKeys,
+          
+          // Storage analysis
+          totalLocalStorageKeys: allLocalStorageKeys.length,
+          totalSessionStorageKeys: allSessionStorageKeys.length,
+          authRelatedKeysInLocalStorage: authKeys,
+          authRelatedKeysInSessionStorage: sessionAuthKeys,
+          verifierSearchResults: verifierDebug.filter(v => v.localStorage || v.sessionStorage),
+          
+          // Browser context
           userAgent: navigator.userAgent,
           currentOrigin: window.location.origin,
           currentUrl: window.location.href,
-          sessionStorage: !!sessionStorage.getItem('gatherKids-auth-auth-token-code-verifier'),
-          cookieCount: document.cookie.split(';').length
+          referrer: document.referrer,
+          cookieCount: document.cookie.split(';').length,
+          cookiesEnabled: navigator.cookieEnabled,
+          
+          // Timing and source context
+          timestamp: new Date().toISOString(),
+          pageLoadTime: performance.now(),
+          isNewTab: window.opener === null && !document.referrer.includes(window.location.origin)
         });
 
         // Handle auth callback by exchanging code for session
@@ -99,6 +137,21 @@ function AuthCallbackContent() {
         
         if (authError) {
           console.error('Auth callback error from exchangeCodeForSession:', authError);
+          
+          // Before handling the error, check if we have backup magic link data
+          const backupData = localStorage.getItem('gatherKids-magic-link-backup');
+          if (backupData) {
+            try {
+              const backup = JSON.parse(backupData);
+              console.log('Found backup magic link data:', {
+                email: backup.email,
+                requestedAt: backup.requestedAt,
+                age: Math.round((new Date().getTime() - new Date(backup.requestedAt).getTime()) / 1000 / 60) // minutes
+              });
+            } catch (e) {
+              console.warn('Could not parse backup magic link data:', e);
+            }
+          }
           
           // Provide more specific error messages based on Supabase error types
           const errorMessage = authError.message.toLowerCase();

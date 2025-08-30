@@ -1,60 +1,115 @@
 import { createBrowserClient } from '@supabase/ssr';
+import { patchStorageForCrossTabAuth } from './storage-patch';
+
+// Initialize storage patching for cross-tab auth support
+if (typeof window !== 'undefined') {
+  patchStorageForCrossTabAuth();
+}
 
 /**
- * Custom storage adapter that uses localStorage for PKCE data to persist across tabs
- * This ensures magic links work when opened in different browser tabs
+ * Intelligent storage proxy that automatically persists auth data across tabs
+ * This intercepts ALL Supabase storage operations and ensures cross-tab persistence
  */
-class CrossTabStorage implements Storage {
-  private readonly prefix = 'gatherKids-auth-';
+class IntelligentAuthStorage implements Storage {
+  private readonly authPrefix = 'sb-auth-';  // Match Supabase's default prefix
+  private readonly backupPrefix = 'gatherKids-auth-backup-';
 
   get length(): number {
-    return Object.keys(localStorage).filter(key => key.startsWith(this.prefix)).length;
+    return Object.keys(localStorage).length;
   }
 
   key(index: number): string | null {
-    const keys = Object.keys(localStorage).filter(key => key.startsWith(this.prefix));
-    return keys[index] || null;
+    return Object.keys(localStorage)[index] || null;
   }
 
   getItem(key: string): string | null {
-    // Use localStorage for all auth-related data to ensure persistence across tabs
-    return localStorage.getItem(this.prefix + key);
+    // For auth-related keys, always check both localStorage and sessionStorage
+    const isAuthKey = key.includes('auth') || key.includes('token') || key.includes('verifier') || key.includes('pkce');
+    
+    let value: string | null = null;
+    
+    if (isAuthKey) {
+      // Try localStorage first (cross-tab persistence)
+      value = localStorage.getItem(key);
+      
+      // If not in localStorage, try sessionStorage
+      if (!value) {
+        value = sessionStorage.getItem(key);
+        if (value) {
+          // Copy to localStorage for future cross-tab access
+          localStorage.setItem(key, value);
+          console.log('AuthStorage: Promoted sessionStorage to localStorage', { key });
+        }
+      }
+      
+      // Also try our backup storage
+      if (!value) {
+        value = localStorage.getItem(this.backupPrefix + key);
+      }
+    } else {
+      // For non-auth keys, use sessionStorage as default
+      value = sessionStorage.getItem(key);
+    }
+    
+    if (isAuthKey) {
+      console.log('IntelligentAuthStorage.getItem:', {
+        key,
+        hasValue: !!value,
+        valueLength: value?.length || 0,
+        source: value ? (localStorage.getItem(key) ? 'localStorage' : 
+                        sessionStorage.getItem(key) ? 'sessionStorage' : 'backup') : 'none'
+      });
+    }
+    
+    return value;
   }
 
   setItem(key: string, value: string): void {
-    // Store all auth data in localStorage for cross-tab compatibility
-    localStorage.setItem(this.prefix + key, value);
+    const isAuthKey = key.includes('auth') || key.includes('token') || key.includes('verifier') || key.includes('pkce');
     
-    // Enhanced debugging for PKCE flow
-    if (key.includes('code-verifier') || key.includes('pkce')) {
-      console.log('CrossTabStorage: Storing PKCE data', {
-        key: this.prefix + key,
+    if (isAuthKey) {
+      // Store auth data in BOTH localStorage and sessionStorage for maximum reliability
+      localStorage.setItem(key, value);
+      sessionStorage.setItem(key, value);
+      // Also create a backup with our prefix
+      localStorage.setItem(this.backupPrefix + key, value);
+      
+      console.log('IntelligentAuthStorage.setItem (auth):', {
+        key,
         valueLength: value?.length || 0,
-        timestamp: new Date().toISOString(),
-        storageMethod: 'localStorage'
+        storedInAll: true,
+        isPKCE: key.includes('verifier') || key.includes('pkce'),
+        timestamp: new Date().toISOString()
       });
+    } else {
+      // Store non-auth data in sessionStorage only
+      sessionStorage.setItem(key, value);
     }
   }
 
   removeItem(key: string): void {
-    localStorage.removeItem(this.prefix + key);
+    const isAuthKey = key.includes('auth') || key.includes('token') || key.includes('verifier') || key.includes('pkce');
     
-    // Enhanced debugging for PKCE flow
-    if (key.includes('code-verifier') || key.includes('pkce')) {
-      console.log('CrossTabStorage: Removing PKCE data', {
-        key: this.prefix + key,
-        timestamp: new Date().toISOString()
+    // Remove from all storage locations
+    localStorage.removeItem(key);
+    sessionStorage.removeItem(key);
+    if (isAuthKey) {
+      localStorage.removeItem(this.backupPrefix + key);
+    }
+    
+    if (isAuthKey) {
+      console.log('IntelligentAuthStorage.removeItem:', {
+        key,
+        removedFromAll: true
       });
     }
   }
 
   clear(): void {
-    // Only clear items with our prefix to avoid affecting other app data
-    Object.keys(localStorage).forEach(key => {
-      if (key.startsWith(this.prefix)) {
-        localStorage.removeItem(key);
-      }
-    });
+    // Clear both storage types completely (Supabase may call this)
+    localStorage.clear();
+    sessionStorage.clear();
+    console.log('IntelligentAuthStorage.clear: Cleared all storage');
   }
 }
 
@@ -75,8 +130,8 @@ export const supabaseBrowser = () =>
         flowType: 'pkce',
         // Set storage key prefix to avoid conflicts
         storageKey: 'auth-token',
-        // Use custom storage that persists PKCE data across tabs
-        storage: new CrossTabStorage(),
+        // Use intelligent storage that handles all auth data persistence
+        storage: new IntelligentAuthStorage(),
       },
     }
   );

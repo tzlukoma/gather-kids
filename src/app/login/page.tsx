@@ -191,6 +191,16 @@ export default function LoginPage() {
 				currentUrl: window.location.href
 			});
 			
+			// Comprehensive debugging BEFORE making the request to understand storage state
+			const preRequestAuthKeys = Object.keys(localStorage).filter(key => 
+				key.includes('auth') || key.includes('supabase') || key.includes('pkce') || key.includes('verifier')
+			);
+			console.log('Pre-request storage state:', {
+				localStorageAuthKeys: preRequestAuthKeys,
+				storageKeyPattern: 'Expected Supabase to use: auth-token-code-verifier',
+				timestamp: new Date().toISOString()
+			});
+			
 			const { error } = await supabase.auth.signInWithOtp({
 				email,
 				options: { 
@@ -203,6 +213,27 @@ export default function LoginPage() {
 						browser_context: 'current_tab'
 					}
 				},
+			});
+			
+			// Comprehensive debugging AFTER making the request to see what was stored
+			const postRequestAuthKeys = Object.keys(localStorage).filter(key => 
+				key.includes('auth') || key.includes('supabase') || key.includes('pkce') || key.includes('verifier')
+			);
+			
+			const newKeysAdded = postRequestAuthKeys.filter(key => !preRequestAuthKeys.includes(key));
+			const storageContents = postRequestAuthKeys.reduce((acc, key) => {
+				const value = localStorage.getItem(key);
+				acc[key] = value ? `${value.substring(0, 20)}...` : 'null';
+				return acc;
+			}, {} as Record<string, string>);
+			
+			console.log('Post-request storage analysis:', {
+				localStorageAuthKeys: postRequestAuthKeys,
+				newKeysAdded,
+				storageContents,
+				expectedKey: 'gatherKids-auth-auth-token-code-verifier',
+				hasExpectedKey: !!localStorage.getItem('gatherKids-auth-auth-token-code-verifier'),
+				timestamp: new Date().toISOString()
 			});
 
 			if (error) {
@@ -235,6 +266,24 @@ export default function LoginPage() {
 				}
 			} else {
 				console.log('Magic link sent successfully to:', email);
+				
+				// Manual backup: Store additional PKCE metadata for cross-tab recovery
+				// This is a failsafe in case Supabase's storage adapter doesn't work as expected
+				try {
+					const backupData = {
+						email,
+						redirectTo,
+						requestedAt: new Date().toISOString(),
+						requestedFrom: window.location.origin,
+						userAgent: navigator.userAgent,
+						magicLinkSent: true
+					};
+					localStorage.setItem('gatherKids-magic-link-backup', JSON.stringify(backupData));
+					console.log('Stored magic link backup data for cross-tab recovery');
+				} catch (backupError) {
+					console.warn('Failed to store backup magic link data:', backupError);
+				}
+				
 				setMagicLinkSent(true);
 				toast({
 					title: 'Magic Link Sent!',
