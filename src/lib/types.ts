@@ -145,6 +145,7 @@ export interface LeaderProfile {
     email?: string; // nullable, unique if present, lowercase
     phone?: string; // nullable, normalized
     notes?: string; // nullable
+    background_check_complete?: boolean; // nullable, default false
     is_active: boolean; // default true
     created_at: string;
     updated_at: string;

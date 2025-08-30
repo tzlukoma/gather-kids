@@ -31,7 +31,6 @@ import { Switch } from '@/components/ui/switch';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useAuth } from '@/contexts/auth-context';
 import { AuthRole } from '@/lib/auth-types';
-import { getLeaderBibleBeeProgress } from '@/lib/dal';
 import Link from 'next/link';
 import {
 	Select,
@@ -41,7 +40,6 @@ import {
 	SelectItem,
 } from '@/components/ui/select';
 import { db } from '@/lib/db';
-import LeaderBibleBeeProgress from '@/components/gatherKids/bible-bee-progress';
 
 const InfoItem = ({
 	icon,
@@ -92,6 +90,7 @@ export default function LeaderProfilePage() {
 		email: '',
 		phone: '',
 		notes: '',
+		background_check_complete: false,
 	});
 	const [isSavingProfile, setIsSavingProfile] = useState(false);
 
@@ -136,6 +135,7 @@ export default function LeaderProfilePage() {
 					email: profileData.profile.email || '',
 					phone: profileData.profile.phone || '',
 					notes: profileData.profile.notes || '',
+					background_check_complete: profileData.profile.background_check_complete || false,
 				});
 			}
 		}
@@ -172,6 +172,7 @@ export default function LeaderProfilePage() {
 				email: profileForm.email || undefined,
 				phone: profileForm.phone || undefined,
 				notes: profileForm.notes || undefined,
+				background_check_complete: profileForm.background_check_complete,
 				is_active: isActive,
 				created_at: profileData.profile.created_at,
 				updated_at: new Date().toISOString(),
@@ -209,6 +210,7 @@ export default function LeaderProfilePage() {
 				email: profileData.profile.email || '',
 				phone: profileData.profile.phone || '',
 				notes: profileData.profile.notes || '',
+				background_check_complete: profileData.profile.background_check_complete || false,
 			});
 		}
 		setIsEditingProfile(false);
@@ -442,6 +444,18 @@ export default function LeaderProfilePage() {
 										rows={3}
 									/>
 								</div>
+
+								<div className="flex items-center space-x-3 rounded-lg border p-3 shadow-sm">
+									<Checkbox
+										id="background-check"
+										checked={profileForm.background_check_complete}
+										onCheckedChange={(checked) => setProfileForm(prev => ({ ...prev, background_check_complete: !!checked }))}
+										disabled={isSavingProfile}
+									/>
+									<Label htmlFor="background-check" className="font-medium">
+										Background Check Complete
+									</Label>
+								</div>
 							</>
 						) : (
 							<>
@@ -475,7 +489,12 @@ export default function LeaderProfilePage() {
 								<InfoItem
 									icon={<CheckCircle2 size={16} />}
 									label="Background Check"
-									value="N/A"
+									value={
+										<div className="flex items-center gap-2">
+											<div className={`w-2 h-2 rounded-full ${profile.background_check_complete ? 'bg-green-500' : 'bg-gray-300'}`} />
+											{profile.background_check_complete ? 'Complete' : 'Not Complete'}
+										</div>
+									}
 								/>
 							</>
 						)}
@@ -562,25 +581,6 @@ export default function LeaderProfilePage() {
 					</CardContent>
 				</Card>
 			</div>
-
-			<Card>
-				<CardHeader>
-					<CardTitle className="font-headline">Bible Bee Progress</CardTitle>
-					<CardDescription>
-						All children enrolled in Bible Bee for the 2025 cycle. Leaders may
-						upload scriptures if they have upload permissions.
-					</CardDescription>
-				</CardHeader>
-				<CardContent>
-					{profileData.profile?.leader_id ? (
-						<LeaderBibleBeeProgress cycleId={'2025'} canUpload={true} />
-					) : (
-						<div>No Bible Bee data available.</div>
-					)}
-				</CardContent>
-			</Card>
 		</div>
 	);
 }
-// LeaderBibleBeeProgress is now provided by the shared component at
-// src/components/gatherKids/bible-bee-progress.tsx
