@@ -994,24 +994,44 @@ function ScriptureManagement({ yearId, yearLabel }: { yearId: string; yearLabel:
                                                     <HelpCircle className="h-4 w-4" />
                                                 </Button>
                                             </TooltipTrigger>
-                                            <TooltipContent className="max-w-sm">
+                                            <TooltipContent className="max-w-md">
                                                 <div className="text-sm">
                                                     <strong>JSON Format Template:</strong>
-                                                    <pre className="mt-2 text-xs bg-muted p-2 rounded">
+                                                    <pre className="mt-2 text-xs bg-muted p-2 rounded overflow-x-auto">
 {`{
-  "Genesis 1:1": {
-    "NIV": "In the beginning God created...",
-    "KJV": "In the beginning God created...",
-    "NIV-ES": "En el principio Dios creó..."
-  },
-  "Genesis 1:2": {
-    "NIV": "Now the earth was formless...",
-    "KJV": "And the earth was without form..."
-  }
+  "competition_year": "2025-2026",
+  "translations": ["NIV", "KJV", "NIV-ES"],
+  "scriptures": [
+    {
+      "order": 1,
+      "reference": "Genesis 1:1",
+      "texts": {
+        "NIV": "In the beginning God created...",
+        "KJV": "In the beginning God created...",
+        "NIV-ES": "En el principio Dios creó..."
+      }
+    },
+    {
+      "order": 2,
+      "reference": "Genesis 1:2",
+      "texts": {
+        "NIV": "Now the earth was formless...",
+        "KJV": "And the earth was without form..."
+      }
+    }
+  ]
 }`}
                                                     </pre>
                                                     <div className="mt-2">
-                                                        <strong>Structure:</strong> Object with scripture references as keys, translation objects as values. Supports NIV, KJV, NIV-ES.
+                                                        <strong>Required Fields:</strong>
+                                                        <ul className="list-disc list-inside mt-1 text-xs">
+                                                            <li><code>competition_year</code> - String identifier</li>
+                                                            <li><code>translations</code> - Array of supported translations</li>
+                                                            <li><code>scriptures</code> - Array of scripture objects</li>
+                                                        </ul>
+                                                        <div className="mt-1 text-xs">
+                                                            Each scripture needs: <code>order</code> (number), <code>reference</code> (string), <code>texts</code> (object with translation keys)
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </TooltipContent>
