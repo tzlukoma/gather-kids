@@ -48,7 +48,13 @@ export const supabaseBrowser = () => {
   // Use dummy values for testing to avoid the "URL and API key required" error
   const supabaseUrl = isTestEnv ? 'https://test.supabase.co' : process.env.NEXT_PUBLIC_SUPABASE_URL!;
   const supabaseAnonKey = isTestEnv ? 'test-anon-key' : process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+
+  // Check if we're in a Vercel preview environment
+  const isVercelPreview = 
+    typeof window !== 'undefined' && 
+    window.location.hostname.includes('vercel.app');
   
+  // Create the client with appropriate configuration
   return createBrowserClient(
     supabaseUrl,
     supabaseAnonKey,
@@ -59,6 +65,13 @@ export const supabaseBrowser = () => {
         detectSessionInUrl: false, // Only the callback page should parse the URL
         flowType: 'pkce',
         storage: new NextJSStorage(),
+        // Additional error logging for vercel preview environments
+        ...(isVercelPreview && {
+          debug: true,
+          onAuthStateChange: (event: string, session: unknown) => {
+            console.log(`[Vercel Preview] Auth state change: ${event}`, session);
+          }
+        })
       },
     }
   );

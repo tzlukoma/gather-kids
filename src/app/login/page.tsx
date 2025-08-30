@@ -23,7 +23,11 @@ import { FeatureFlagDialog } from '@/components/feature-flag-dialog';
 import { AuthRole } from '@/lib/auth-types';
 import { supabase } from '@/lib/supabaseClient';
 import { getAuthRedirectTo } from '@/lib/authRedirect';
-import { isDemo, isMagicLinkEnabled, isPasswordEnabled } from '@/lib/authGuards';
+import {
+	isDemo,
+	isMagicLinkEnabled,
+	isPasswordEnabled,
+} from '@/lib/authGuards';
 
 const DEMO_USERS = {
 	admin: {
@@ -91,7 +95,7 @@ const DEMO_USERS = {
 		role: AuthRole.GUARDIAN,
 		metadata: {},
 	},
-	// Demo Parent with household access  
+	// Demo Parent with household access
 	parent: {
 		email: 'parent-demo@example.com',
 		password: 'password',
@@ -100,8 +104,8 @@ const DEMO_USERS = {
 		uid: 'user_parent_demo',
 		role: AuthRole.GUARDIAN,
 		metadata: {
-			household_id: 'h_1' // Smith household from seed data
-		}
+			household_id: 'h_1', // Smith household from seed data
+		},
 	},
 	inactiveLeader: {
 		email: 'leader.inactive@example.com',
@@ -127,8 +131,18 @@ export default function LoginPage() {
 	const [passwordLoading, setPasswordLoading] = useState(false);
 	const [magicLinkSent, setMagicLinkSent] = useState(false);
 	const [resendCooldown, setResendCooldown] = useState(0);
+	const [isVercelPreview, setIsVercelPreview] = useState(false);
 
-	// Demo mode login handler (unchanged)
+	// Check for Vercel preview environment
+	useEffect(() => {
+		if (typeof window !== 'undefined') {
+			const hostname = window.location.hostname;
+			// Check if running on a Vercel preview deployment
+			setIsVercelPreview(hostname.includes('vercel.app'));
+		}
+	}, []);
+
+	// Demo mode login handler
 	const handleDemoLogin = async () => {
 		const userToLogin = Object.values(DEMO_USERS).find(
 			(u) => u.email === email && u.password === password
@@ -183,21 +197,25 @@ export default function LoginPage() {
 		setMagicLinkLoading(true);
 		try {
 			const redirectTo = getAuthRedirectTo();
-			
+
 			const { error } = await supabase.auth.signInWithOtp({
 				email,
-				options: { 
-					emailRedirectTo: redirectTo
+				options: {
+					emailRedirectTo: redirectTo,
 				},
 			});
 
 			if (error) {
 				console.error('Magic link request error:', error);
-				
-				if (error.message.includes('too many requests') || error.message.includes('rate limit')) {
+
+				if (
+					error.message.includes('too many requests') ||
+					error.message.includes('rate limit')
+				) {
 					toast({
 						title: 'Too Many Requests',
-						description: 'Please wait 60 seconds before requesting another magic link.',
+						description:
+							'Please wait 60 seconds before requesting another magic link.',
 						variant: 'destructive',
 					});
 					setResendCooldown(60);
@@ -210,10 +228,14 @@ export default function LoginPage() {
 							return prev - 1;
 						});
 					}, 1000);
-				} else if (error.message.includes('signup') || error.message.includes('not allowed')) {
+				} else if (
+					error.message.includes('signup') ||
+					error.message.includes('not allowed')
+				) {
 					toast({
 						title: 'Account Not Found',
-						description: 'No account found with this email. Please register first or contact support.',
+						description:
+							'No account found with this email. Please register first or contact support.',
 						variant: 'destructive',
 					});
 				} else {
@@ -223,7 +245,8 @@ export default function LoginPage() {
 				setMagicLinkSent(true);
 				toast({
 					title: 'Magic Link Sent!',
-					description: 'Check your email and click the link. Links expire after 1 hour.',
+					description:
+						'Check your email and click the link. Links expire after 1 hour.',
 				});
 				setResendCooldown(60);
 				const timer = setInterval(() => {
@@ -240,7 +263,8 @@ export default function LoginPage() {
 			console.error('Unexpected magic link error:', error);
 			toast({
 				title: 'Error',
-				description: error.message || 'Failed to send magic link. Please try again.',
+				description:
+					error.message || 'Failed to send magic link. Please try again.',
 				variant: 'destructive',
 			});
 		} finally {
@@ -340,6 +364,33 @@ export default function LoginPage() {
 						</CardDescription>
 					</CardHeader>
 					<CardContent className="space-y-4">
+						{/* Vercel Preview Environment Notice */}
+						{isVercelPreview && !isDemo() && (
+							<Alert className="border-yellow-600 bg-yellow-50 dark:bg-yellow-900/20">
+								<Info className="h-4 w-4 text-yellow-600" />
+								<AlertTitle className="text-yellow-600">
+									Vercel Preview Environment
+								</AlertTitle>
+								<AlertDescription>
+									<p className="mb-2">
+										Magic links may not work in this preview environment.
+										Please:
+									</p>
+									<ul className="list-disc pl-5 text-sm">
+										<li>Use password authentication instead</li>
+										<li>Or activate demo mode for testing</li>
+										<li>
+											Or add{' '}
+											<code className="bg-yellow-100 px-1 rounded dark:bg-yellow-900/40">
+												*.vercel.app
+											</code>{' '}
+											to your Supabase project's redirect URLs
+										</li>
+									</ul>
+								</AlertDescription>
+							</Alert>
+						)}
+
 						{/* Demo Mode Notice or Supabase Auth UI */}
 						{isDemo() ? (
 							// Demo Mode: Show existing demo UI
@@ -426,7 +477,8 @@ export default function LoginPage() {
 													</button>
 												</li>
 												<li>
-													Password: <code className="font-semibold">password</code>
+													Password:{' '}
+													<code className="font-semibold">password</code>
 												</li>
 											</ul>
 										</AlertDescription>
@@ -453,7 +505,10 @@ export default function LoginPage() {
 										onChange={(e) => setPassword(e.target.value)}
 									/>
 								</div>
-								<Button type="submit" className="w-full" onClick={handleDemoLogin}>
+								<Button
+									type="submit"
+									className="w-full"
+									onClick={handleDemoLogin}>
 									Sign In
 								</Button>
 							</>
@@ -483,28 +538,35 @@ export default function LoginPage() {
 													<AlertTitle>Magic Link Sent!</AlertTitle>
 													<AlertDescription>
 														<div className="space-y-2">
-															<p>Check your email and click the link to sign in.</p>
+															<p>
+																Check your email and click the link to sign in.
+															</p>
 															<div className="bg-blue-50 p-2 rounded text-sm">
-																<p className="font-semibold text-blue-800">📧 Email Tips:</p>
-																<p className="text-blue-700">Magic links work best when opened in any browser tab. Links expire after 1 hour.</p>
+																<p className="font-semibold text-blue-800">
+																	📧 Email Tips:
+																</p>
+																<p className="text-blue-700">
+																	Magic links work best when opened in any
+																	browser tab. Links expire after 1 hour.
+																</p>
 															</div>
 															{resendCooldown > 0 && (
 																<p className="text-sm mt-2">
-																	You can request another link in {resendCooldown} seconds.
+																	You can request another link in{' '}
+																	{resendCooldown} seconds.
 																</p>
 															)}
 														</div>
 													</AlertDescription>
 												</Alert>
 											) : null}
-											
-											<Button 
-												type="button" 
-												className="w-full" 
+
+											<Button
+												type="button"
+												className="w-full"
 												variant="outline"
 												onClick={handleMagicLink}
-												disabled={magicLinkLoading || resendCooldown > 0}
-											>
+												disabled={magicLinkLoading || resendCooldown > 0}>
 												{magicLinkLoading ? (
 													<>
 														<Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -537,7 +599,7 @@ export default function LoginPage() {
 													</div>
 												</div>
 											)}
-											
+
 											<div className="space-y-2">
 												<Label htmlFor="password">Password</Label>
 												<Input
@@ -548,13 +610,12 @@ export default function LoginPage() {
 													onChange={(e) => setPassword(e.target.value)}
 												/>
 											</div>
-											
-											<Button 
-												type="submit" 
-												className="w-full" 
+
+											<Button
+												type="submit"
+												className="w-full"
 												onClick={handlePasswordLogin}
-												disabled={passwordLoading}
-											>
+												disabled={passwordLoading}>
 												{passwordLoading ? (
 													<>
 														<Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -576,7 +637,8 @@ export default function LoginPage() {
 								<Info className="h-4 w-4" />
 								<AlertTitle>Demo Mode Active</AlertTitle>
 								<AlertDescription>
-									Live Auth is disabled in Demo Mode. Switch to "supabase" mode to use live authentication.
+									Live Auth is disabled in Demo Mode. Switch to "supabase" mode
+									to use live authentication.
 								</AlertDescription>
 							</Alert>
 						)}
@@ -586,7 +648,8 @@ export default function LoginPage() {
 			<footer className="py-6 border-t mt-auto">
 				<div className="container mx-auto flex justify-between items-center text-sm text-muted-foreground">
 					<p>
-						&copy; {new Date().getFullYear()} {settings.app_name || 'gatherKids'}. All rights reserved.
+						&copy; {new Date().getFullYear()}{' '}
+						{settings.app_name || 'gatherKids'}. All rights reserved.
 					</p>
 					<Button
 						variant="ghost"

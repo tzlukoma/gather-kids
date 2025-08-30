@@ -94,18 +94,33 @@ function AuthCallbackContent() {
 						authError.message.includes('code verifier should be non-empty') ||
 						authError.message.includes('both auth code and code verifier')
 					) {
+						// Check if this is a Vercel preview deployment
+						const isVercelPreview =
+							window.location.hostname.includes('vercel.app');
+
 						if (authError.status === 400) {
 							setError(`🔧 Configuration Issue
 
-The current domain (${window.location.origin}) is not configured in your Supabase project.
+The current domain (${
+								window.location.origin
+							}) is not configured in your Supabase project.
 
 **To Fix:**
 1. Open your Supabase project dashboard
 2. Go to Authentication → URL Configuration  
 3. Add this domain to "Redirect URLs"
-4. For Vercel previews: add *.vercel.app
+${
+	isVercelPreview
+		? `4. For Vercel previews: add "*.vercel.app" wildcard domain
 
-**Alternative:** Use password authentication for preview deployments.`);
+**Recommended for Preview Environments:** 
+- Use password authentication for preview deployments
+- Or use the demo mode for testing`
+		: `4. Make sure to include the full domain exactly as shown above`
+}
+
+**Need Immediate Access?** 
+You can use the password authentication option instead.`);
 						} else {
 							setError(`❌ Magic Link Error
 
