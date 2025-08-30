@@ -185,53 +185,11 @@ export default function LoginPage() {
 			const supabase = supabaseBrowser();
 			const redirectTo = getAuthRedirectTo();
 			
-			console.log('Requesting magic link:', {
-				email,
-				redirectTo,
-				currentUrl: window.location.href
-			});
-			
-			// Comprehensive debugging BEFORE making the request to understand storage state
-			const preRequestAuthKeys = Object.keys(localStorage).filter(key => 
-				key.includes('auth') || key.includes('token') || key.includes('verifier')
-			);
-			console.log('Pre-request storage state:', {
-				localStorageAuthKeys: preRequestAuthKeys,
-				expectedPKCEKey: 'auth-token-code-verifier',
-				timestamp: new Date().toISOString()
-			});
-			
 			const { error } = await supabase.auth.signInWithOtp({
 				email,
 				options: { 
-					emailRedirectTo: redirectTo,
-					// Set explicit data for better error handling
-					data: {
-						requested_at: new Date().toISOString(),
-						requested_from: window.location.origin,
-						user_agent: navigator.userAgent,
-						browser_context: 'current_tab'
-					}
+					emailRedirectTo: redirectTo
 				},
-			});
-			
-			// Comprehensive debugging AFTER making the request to see what was stored
-			const postRequestAuthKeys = Object.keys(localStorage).filter(key => 
-				key.includes('auth') || key.includes('token') || key.includes('verifier')
-			);
-			
-			const exactPKCEKey = 'auth-token-code-verifier';
-			const pkceVerifierStored = localStorage.getItem(exactPKCEKey);
-			const newKeysAdded = postRequestAuthKeys.filter(key => !preRequestAuthKeys.includes(key));
-			
-			console.log('Post-request storage analysis:', {
-				localStorageAuthKeys: postRequestAuthKeys,
-				newKeysAdded,
-				exactPKCEKey,
-				pkceVerifierStored: pkceVerifierStored ? `${pkceVerifierStored.substring(0, 8)}...${pkceVerifierStored.substring(pkceVerifierStored.length - 8)}` : 'NOT FOUND',
-				pkceVerifierLength: pkceVerifierStored?.length || 0,
-				storageWorking: !!pkceVerifierStored,
-				timestamp: new Date().toISOString()
 			});
 
 			if (error) {
@@ -263,29 +221,10 @@ export default function LoginPage() {
 					throw error;
 				}
 			} else {
-				console.log('Magic link sent successfully to:', email);
-				
-				// Manual backup: Store additional PKCE metadata for cross-tab recovery
-				// This is a failsafe in case Supabase's storage adapter doesn't work as expected
-				try {
-					const backupData = {
-						email,
-						redirectTo,
-						requestedAt: new Date().toISOString(),
-						requestedFrom: window.location.origin,
-						userAgent: navigator.userAgent,
-						magicLinkSent: true
-					};
-					localStorage.setItem('gatherKids-magic-link-backup', JSON.stringify(backupData));
-					console.log('Stored magic link backup data for cross-tab recovery');
-				} catch (backupError) {
-					console.warn('Failed to store backup magic link data:', backupError);
-				}
-				
 				setMagicLinkSent(true);
 				toast({
 					title: 'Magic Link Sent!',
-					description: 'Check your email and click the link. Magic links now work across browser tabs! Links expire after 1 hour.',
+					description: 'Check your email and click the link. Links expire after 1 hour.',
 				});
 				setResendCooldown(60);
 				const timer = setInterval(() => {
@@ -547,9 +486,9 @@ export default function LoginPage() {
 													<AlertDescription>
 														<div className="space-y-2">
 															<p>Check your email and click the link to sign in.</p>
-															<div className="bg-green-50 p-2 rounded text-sm">
-																<p className="font-semibold text-green-800">✓ Cross-Tab Support:</p>
-																<p className="text-green-700">Magic links now work reliably when opened in different browser tabs or windows!</p>
+															<div className="bg-blue-50 p-2 rounded text-sm">
+																<p className="font-semibold text-blue-800">📧 Email Tips:</p>
+																<p className="text-blue-700">Magic links work best when opened in any browser tab. Links expire after 1 hour.</p>
 															</div>
 															{resendCooldown > 0 && (
 																<p className="text-sm mt-2">
