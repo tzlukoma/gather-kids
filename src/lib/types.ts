@@ -213,16 +213,43 @@ export interface CompetitionYear {
     updatedAt: string;
 }
 
+// New Bible Bee Year interface (enhanced CompetitionYear)
+export interface BibleBeeYear {
+    id: string;
+    label: string; // e.g., "2025–2026"
+    is_active: boolean;
+    created_at: string;
+}
+
+// New Division interface
+export interface Division {
+    id: string;
+    year_id: string; // FK to bible_bee_years
+    name: string;
+    minimum_required: number;
+    min_last_order?: number; // calculated minimum boundary
+    min_grade: number; // 0-12
+    max_grade: number; // 0-12
+    created_at: string;
+    updated_at: string;
+}
+
 export interface Scripture {
     id: string;
     competitionYearId: string;
+    year_id?: string; // New FK for new system
     reference: string;
     text: string;
     translation?: string;
-    // Flattened map of translation key -> text. Example: { NIV: '...', KJV: '...' }
+    // Enhanced texts field for NIV/KJV/NIV-Spanish
     texts?: { [key: string]: string };
     bookLangAlt?: string;
     sortOrder?: number;
+    // New fields for enhanced scripture system
+    scripture_number?: string; // e.g., "1-2"
+    scripture_order?: number; // controls display & min cut-offs
+    counts_for?: number; // how many this entry counts for
+    category?: string; // e.g., "Primary Minimum", "Competition"
     createdAt: string;
     updatedAt: string;
 }
@@ -238,6 +265,38 @@ export interface GradeRule {
     instructions?: string;
     createdAt: string;
     updatedAt: string;
+}
+
+// New Essay Prompt interface
+export interface EssayPrompt {
+    id: string;
+    year_id: string; // FK to bible_bee_years
+    division_name?: string; // optional, can be per division or general
+    prompt_text: string;
+    due_date: string; // ISO date
+    created_at: string;
+    updated_at: string;
+}
+
+// New Enrollment interface (join table)
+export interface Enrollment {
+    id: string;
+    year_id: string; // FK to bible_bee_years
+    child_id: string; // FK to children
+    division_id: string; // FK to divisions
+    auto_enrolled: boolean;
+    enrolled_at: string;
+}
+
+// New Enrollment Override interface
+export interface EnrollmentOverride {
+    id: string;
+    year_id: string; // FK to bible_bee_years
+    child_id: string; // FK to children
+    division_id: string; // FK to divisions
+    reason?: string;
+    created_by?: string; // admin user id/email
+    created_at: string;
 }
 
 export interface StudentScripture {

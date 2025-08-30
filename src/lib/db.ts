@@ -1,6 +1,6 @@
 
 import Dexie, { type EntityTable } from 'dexie';
-import type { Household, Guardian, EmergencyContact, Child, RegistrationCycle, ChildYearProfile, Registration, Ministry, MinistryEnrollment, LeaderAssignment, User, Event, Attendance, Incident, AuditLog, CompetitionYear, Scripture, GradeRule, StudentScripture, StudentEssay, BrandingSettings } from './types';
+import type { Household, Guardian, EmergencyContact, Child, RegistrationCycle, ChildYearProfile, Registration, Ministry, MinistryEnrollment, LeaderAssignment, User, Event, Attendance, Incident, AuditLog, CompetitionYear, Scripture, GradeRule, StudentScripture, StudentEssay, BrandingSettings, BibleBeeYear, Division, EssayPrompt, Enrollment, EnrollmentOverride } from './types';
 
 // prettier-ignore
 class GatherKidsDB extends Dexie {
@@ -19,18 +19,24 @@ class GatherKidsDB extends Dexie {
     attendance!: EntityTable<Attendance, 'attendance_id'>;
     incidents!: EntityTable<Incident, 'incident_id'>;
     audit_logs!: EntityTable<AuditLog, 'log_id'>;
-    // Bible Bee stores
+    // Bible Bee stores (original)
     competitionYears!: EntityTable<CompetitionYear, 'id'>;
     scriptures!: EntityTable<Scripture, 'id'>;
     gradeRules!: EntityTable<GradeRule, 'id'>;
     studentScriptures!: EntityTable<StudentScripture, 'id'>;
     studentEssays!: EntityTable<StudentEssay, 'id'>;
+    // New Bible Bee stores
+    bible_bee_years!: EntityTable<BibleBeeYear, 'id'>;
+    divisions!: EntityTable<Division, 'id'>;
+    essay_prompts!: EntityTable<EssayPrompt, 'id'>;
+    enrollments!: EntityTable<Enrollment, 'id'>;
+    enrollment_overrides!: EntityTable<EnrollmentOverride, 'id'>;
     // Branding settings
     branding_settings!: EntityTable<BrandingSettings, 'setting_id'>;
 
     constructor() {
         super('gatherKidsDB');
-        this.version(11).stores({
+        this.version(12).stores({
             households: 'household_id, created_at, [city+state+zip]',
             guardians: 'guardian_id, household_id, mobile_phone, email',
             emergency_contacts: 'contact_id, household_id, mobile_phone',
@@ -46,12 +52,18 @@ class GatherKidsDB extends Dexie {
             attendance: 'attendance_id, date, [event_id+date], [child_id+date]',
             incidents: 'incident_id, child_id, admin_acknowledged_at, timestamp, leader_id',
             audit_logs: 'log_id, [actor_user_id+timestamp], target_id',
-            // Bible Bee
+            // Bible Bee (original)
             competitionYears: 'id, year',
-            scriptures: 'id, competitionYearId, sortOrder',
+            scriptures: 'id, competitionYearId, sortOrder, year_id, scripture_order, scripture_number',
             gradeRules: 'id, competitionYearId, [competitionYearId+minGrade+maxGrade], type',
             studentScriptures: 'id, childId, competitionYearId, scriptureId, status',
             studentEssays: 'id, childId, competitionYearId, status',
+            // New Bible Bee stores
+            bible_bee_years: 'id, label, is_active',
+            divisions: 'id, year_id, [year_id+name], [year_id+min_grade+max_grade]',
+            essay_prompts: 'id, year_id, [year_id+division_name]',
+            enrollments: 'id, [year_id+child_id], year_id, child_id, division_id',
+            enrollment_overrides: 'id, [year_id+child_id], year_id, child_id, division_id',
             // Branding settings
             branding_settings: 'setting_id, org_id, created_at, updated_at',
         });
