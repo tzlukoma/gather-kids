@@ -83,10 +83,43 @@ export default function BibleBeeManage({ className }: BibleBeeManageProps) {
     const [activeTab, setActiveTab] = useState('years');
     const [selectedYearId, setSelectedYearId] = useState<string | null>(null);
 
-    // Load data
+    // Load new schema Bible Bee years
     const bibleBeeYears = useLiveQuery(() => 
         db.bible_bee_years.orderBy('label').toArray(), []
     );
+    
+    // Load old schema competition years as fallback
+    const competitionYears = useLiveQuery(() => 
+        db.competitionYears.orderBy('year').reverse().toArray(), []
+    );
+    
+    // Create combined years list (new schema first, then bridge old schema)
+    const allYears = React.useMemo(() => {
+        const years: any[] = [];
+        
+        // Add new schema years
+        if (bibleBeeYears) {
+            years.push(...bibleBeeYears);
+        }
+        
+        // Add old schema years as bridge data if no new schema years exist
+        if (competitionYears && years.length === 0) {
+            const bridgeYears = competitionYears.map(cy => ({
+                id: cy.id,
+                label: `${cy.name || cy.year} (Legacy)`,
+                description: cy.description || `Legacy competition year ${cy.year}`,
+                start_date: cy.opensAt,
+                end_date: cy.closesAt,
+                is_active: cy.year === 2025, // Make 2025 active by default
+                created_at: cy.createdAt,
+                updated_at: cy.updatedAt,
+                _isLegacy: true // Flag to identify bridged data
+            }));
+            years.push(...bridgeYears);
+        }
+        
+        return years;
+    }, [bibleBeeYears, competitionYears]);
     
     const divisions = useLiveQuery(async () => 
         selectedYearId 
@@ -104,13 +137,13 @@ export default function BibleBeeManage({ className }: BibleBeeManageProps) {
 
     // Get the active year for default selection
     React.useEffect(() => {
-        if (bibleBeeYears && bibleBeeYears.length > 0 && !selectedYearId) {
-            const activeYear = bibleBeeYears.find(y => y.is_active) || bibleBeeYears[0];
+        if (allYears && allYears.length > 0 && !selectedYearId) {
+            const activeYear = allYears.find(y => y.is_active) || allYears[0];
             setSelectedYearId(activeYear.id);
         }
-    }, [bibleBeeYears, selectedYearId]);
+    }, [allYears, selectedYearId]);
 
-    const selectedYear = bibleBeeYears?.find(y => y.id === selectedYearId);
+    const selectedYear = allYears?.find(y => y.id === selectedYearId);
 
     return (
         <TooltipProvider>
@@ -131,7 +164,7 @@ export default function BibleBeeManage({ className }: BibleBeeManageProps) {
                             <SelectValue placeholder="Select year..." />
                         </SelectTrigger>
                         <SelectContent>
-                            {bibleBeeYears?.map(year => (
+                            {allYears?.map(year => (
                                 <SelectItem key={year.id} value={year.id}>
                                     {year.label} {year.is_active && '(Active)'}
                                 </SelectItem>
@@ -152,7 +185,7 @@ export default function BibleBeeManage({ className }: BibleBeeManageProps) {
                 </TabsList>
 
                 <TabsContent value="years">
-                    <YearManagement />
+                    <YearManagement allYears={allYears} />
                 </TabsContent>
 
                 <TabsContent value="divisions">
@@ -231,7 +264,7 @@ export default function BibleBeeManage({ className }: BibleBeeManageProps) {
 }
 
 // Year Management Component
-function YearManagement() {
+function YearManagement({ allYears }: { allYears: any[] }) {
     const [isCreating, setIsCreating] = useState(false);
     const [editingYear, setEditingYear] = useState<any>(null);
     const [formData, setFormData] = useState({
@@ -239,9 +272,7 @@ function YearManagement() {
         is_active: false
     });
 
-    const bibleBeeYears = useLiveQuery(() => 
-        db.bible_bee_years.orderBy('label').toArray(), []
-    );
+    // Remove individual bibleBeeYears query since we get data from props
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -339,38 +370,50 @@ function YearManagement() {
                     </form>
                 )}
 
-                {bibleBeeYears && bibleBeeYears.length > 0 ? (
+                {allYears && allYears.length > 0 ? (
                     <div className="space-y-2">
-                        {bibleBeeYears.map(year => (
+                        {allYears.map(year => (
                             <div key={year.id} className="flex items-center justify-between p-3 border rounded-lg">
                                 <div>
                                     <h3 className="font-medium">{year.label}</h3>
                                     {year.is_active && (
                                         <Badge variant="default" className="mt-1">Active</Badge>
                                     )}
+                                    {year._isLegacy && (
+                                        <Badge variant="outline" className="mt-1 ml-2">Legacy</Badge>
+                                    )}
                                 </div>
                                 <div className="flex gap-2">
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => startEdit(year)}
-                                    >
-                                        <Edit2 className="h-4 w-4" />
-                                    </Button>
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => handleDelete(year)}
-                                    >
-                                        <Trash2 className="h-4 w-4" />
-                                    </Button>
+                                    {!year._isLegacy && (
+                                        <>
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => startEdit(year)}
+                                            >
+                                                <Edit2 className="h-4 w-4" />
+                                            </Button>
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => handleDelete(year)}
+                                            >
+                                                <Trash2 className="h-4 w-4" />
+                                            </Button>
+                                        </>
+                                    )}
+                                    {year._isLegacy && (
+                                        <Badge variant="secondary" className="text-xs">
+                                            Read-only
+                                        </Badge>
+                                    )}
                                 </div>
                             </div>
                         ))}
                     </div>
                 ) : (
                     <div className="text-center py-8 text-muted-foreground">
-                        No Bible Bee years created yet
+                        No Bible Bee years or legacy competition years found
                     </div>
                 )}
             </CardContent>
