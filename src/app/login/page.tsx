@@ -193,11 +193,11 @@ export default function LoginPage() {
 			
 			// Comprehensive debugging BEFORE making the request to understand storage state
 			const preRequestAuthKeys = Object.keys(localStorage).filter(key => 
-				key.includes('auth') || key.includes('supabase') || key.includes('pkce') || key.includes('verifier')
+				key.includes('auth') || key.includes('token') || key.includes('verifier')
 			);
 			console.log('Pre-request storage state:', {
 				localStorageAuthKeys: preRequestAuthKeys,
-				storageKeyPattern: 'Expected Supabase to use: auth-token-code-verifier',
+				expectedPKCEKey: 'auth-token-code-verifier',
 				timestamp: new Date().toISOString()
 			});
 			
@@ -217,22 +217,20 @@ export default function LoginPage() {
 			
 			// Comprehensive debugging AFTER making the request to see what was stored
 			const postRequestAuthKeys = Object.keys(localStorage).filter(key => 
-				key.includes('auth') || key.includes('supabase') || key.includes('pkce') || key.includes('verifier')
+				key.includes('auth') || key.includes('token') || key.includes('verifier')
 			);
 			
+			const exactPKCEKey = 'auth-token-code-verifier';
+			const pkceVerifierStored = localStorage.getItem(exactPKCEKey);
 			const newKeysAdded = postRequestAuthKeys.filter(key => !preRequestAuthKeys.includes(key));
-			const storageContents = postRequestAuthKeys.reduce((acc, key) => {
-				const value = localStorage.getItem(key);
-				acc[key] = value ? `${value.substring(0, 20)}...` : 'null';
-				return acc;
-			}, {} as Record<string, string>);
 			
 			console.log('Post-request storage analysis:', {
 				localStorageAuthKeys: postRequestAuthKeys,
 				newKeysAdded,
-				storageContents,
-				expectedKey: 'gatherKids-auth-auth-token-code-verifier',
-				hasExpectedKey: !!localStorage.getItem('gatherKids-auth-auth-token-code-verifier'),
+				exactPKCEKey,
+				pkceVerifierStored: pkceVerifierStored ? `${pkceVerifierStored.substring(0, 8)}...${pkceVerifierStored.substring(pkceVerifierStored.length - 8)}` : 'NOT FOUND',
+				pkceVerifierLength: pkceVerifierStored?.length || 0,
+				storageWorking: !!pkceVerifierStored,
 				timestamp: new Date().toISOString()
 			});
 
