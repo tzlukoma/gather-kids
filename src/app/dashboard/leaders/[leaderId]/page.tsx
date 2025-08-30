@@ -3,9 +3,9 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useParams, useRouter } from 'next/navigation';
 import {
-	getLeaderProfile,
-	saveLeaderAssignments,
-	updateLeaderStatus,
+	getLeaderProfileWithMemberships,
+	saveLeaderMemberships,
+	updateLeaderProfileStatus,
 	saveLeaderProfile,
 } from '@/lib/dal';
 import {
@@ -26,7 +26,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { useEffect, useState, useMemo } from 'react';
-import type { LeaderAssignment, LeaderProfile, User as LeaderUser } from '@/lib/types';
+import type { LeaderAssignment, LeaderProfile, User as LeaderUser, MinistryLeaderMembership } from '@/lib/types';
 import { Switch } from '@/components/ui/switch';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useAuth } from '@/contexts/auth-context';
@@ -78,7 +78,7 @@ export default function LeaderProfilePage() {
 	const { toast } = useToast();
 
 	const profileData = useLiveQuery(
-		() => getLeaderProfile(leaderId, '2025'),
+		() => getLeaderProfileWithMemberships(leaderId),
 		[leaderId]
 	);
 
@@ -117,25 +117,25 @@ export default function LeaderProfilePage() {
 		if (profileData) {
 			const initialAssignments: AssignmentState = {};
 			profileData.allMinistries.forEach((m) => {
-				const existingAssignment = profileData.assignments.find(
-					(a) => a.ministry_id === m.ministry_id
+				const existingMembership = profileData.memberships.find(
+					(membership) => membership.ministry_id === m.ministry_id && membership.is_active
 				);
 				initialAssignments[m.ministry_id] = {
-					assigned: !!existingAssignment,
-					role: existingAssignment?.role || 'Volunteer',
+					assigned: !!existingMembership,
+					role: existingMembership?.role_type === 'PRIMARY' ? 'Primary' : 'Volunteer',
 				};
 			});
 			setAssignments(initialAssignments);
-			setIsActive(profileData.leader?.is_active ?? false);
+			setIsActive(profileData.profile?.is_active ?? false);
 
 			// Initialize profile form with current leader data
-			if (profileData.leader) {
+			if (profileData.profile) {
 				setProfileForm({
-					first_name: profileData.leader.first_name || '',
-					last_name: profileData.leader.last_name || '',
-					email: profileData.leader.email || '',
-					phone: profileData.leader.mobile_phone || '',
-					notes: profileData.leader.notes || '',
+					first_name: profileData.profile.first_name || '',
+					last_name: profileData.profile.last_name || '',
+					email: profileData.profile.email || '',
+					phone: profileData.profile.phone || '',
+					notes: profileData.profile.notes || '',
 				});
 			}
 		}
@@ -161,11 +161,11 @@ export default function LeaderProfilePage() {
 	};
 
 	const handleSaveProfile = async () => {
-		if (!profileData?.leader) return;
+		if (!profileData?.profile) return;
 		
 		setIsSavingProfile(true);
 		try {
-			const updatedProfile: Partial<LeaderProfile> = {
+			const updatedProfile: LeaderProfile = {
 				leader_id: leaderId,
 				first_name: profileForm.first_name,
 				last_name: profileForm.last_name,
@@ -173,7 +173,8 @@ export default function LeaderProfilePage() {
 				phone: profileForm.phone || undefined,
 				notes: profileForm.notes || undefined,
 				is_active: isActive,
-				created_at: profileData.leader.created_at,
+				created_at: profileData.profile.created_at,
+				updated_at: new Date().toISOString(),
 			};
 
 			await saveLeaderProfile(updatedProfile);
@@ -201,13 +202,13 @@ export default function LeaderProfilePage() {
 	};
 
 	const handleCancelEdit = () => {
-		if (profileData?.leader) {
+		if (profileData?.profile) {
 			setProfileForm({
-				first_name: profileData.leader.first_name || '',
-				last_name: profileData.leader.last_name || '',
-				email: profileData.leader.email || '',
-				phone: profileData.leader.mobile_phone || '',
-				notes: profileData.leader.notes || '',
+				first_name: profileData.profile.first_name || '',
+				last_name: profileData.profile.last_name || '',
+				email: profileData.profile.email || '',
+				phone: profileData.profile.phone || '',
+				notes: profileData.profile.notes || '',
 			});
 		}
 		setIsEditingProfile(false);
@@ -216,16 +217,17 @@ export default function LeaderProfilePage() {
 	const handleSaveChanges = async () => {
 		setIsSaving(true);
 		try {
-			const finalAssignments: Omit<LeaderAssignment, 'assignment_id'>[] =
+			const finalMemberships: Omit<MinistryLeaderMembership, 'membership_id' | 'created_at' | 'updated_at'>[] =
 				Object.entries(assignments)
 					.filter(([, val]) => val.assigned)
 					.map(([ministryId, val]) => ({
 						leader_id: leaderId,
 						ministry_id: ministryId,
-						cycle_id: '2025',
-						role: val.role,
+						role_type: val.role === 'Primary' ? 'PRIMARY' : 'VOLUNTEER',
+						is_active: true,
+						notes: undefined,
 					}));
-			await saveLeaderAssignments(leaderId, '2025', finalAssignments);
+			await saveLeaderMemberships(leaderId, finalMemberships);
 
 			toast({
 				title: 'Assignments Saved',
@@ -233,7 +235,7 @@ export default function LeaderProfilePage() {
 			});
 
 			// If user had set leader to active but there are no assignments, show guidance
-			if (finalAssignments.length === 0 && isActive) {
+			if (finalMemberships.length === 0 && isActive) {
 				toast({
 					title: 'Status Update Recommended',
 					description: 'Consider setting the leader to inactive since they have no ministry assignments.',
@@ -255,7 +257,7 @@ export default function LeaderProfilePage() {
 	const handleStatusChange = async (newStatus: boolean) => {
 		setIsActive(newStatus);
 		try {
-			await updateLeaderStatus(leaderId, newStatus);
+			await updateLeaderProfileStatus(leaderId, newStatus);
 			toast({
 				title: 'Status Updated',
 				description: `Leader has been set to ${
@@ -276,13 +278,14 @@ export default function LeaderProfilePage() {
 
 	const assignedMinistries = useMemo(() => {
 		if (!profileData) return [];
-		return profileData.assignments
-			.map((assignment) => {
+		return profileData.memberships
+			.filter((membership) => membership.is_active)
+			.map((membership) => {
 				const ministry = profileData.allMinistries.find(
-					(m) => m.ministry_id === assignment.ministry_id
+					(m) => m.ministry_id === membership.ministry_id
 				);
 				return {
-					...assignment,
+					...membership,
 					ministryName: ministry?.name || 'Unknown',
 				};
 			})
@@ -293,10 +296,10 @@ export default function LeaderProfilePage() {
 		return <div>Loading leader profile...</div>;
 	}
 
-	const { leader, allMinistries } = profileData;
+	const { profile, allMinistries } = profileData;
 
-	if (!leader) {
-		return <div>Leader not found.</div>;
+	if (!profile) {
+		return <div>Leader profile not found.</div>;
 	}
 
 	return (
@@ -305,7 +308,7 @@ export default function LeaderProfilePage() {
 				<h1 className="text-3xl font-bold font-headline">
 					{isEditingProfile && profileForm.first_name && profileForm.last_name 
 						? `${profileForm.first_name} ${profileForm.last_name}`
-						: leader.name
+						: `${profile.first_name} ${profile.last_name}`
 					}
 				</h1>
 				<div className="flex items-center gap-2 mt-2 flex-wrap">
@@ -315,7 +318,7 @@ export default function LeaderProfilePage() {
 						{isActive ? 'Active' : 'Inactive'}
 					</Badge>
 					{assignedMinistries.map((a) => (
-						<Badge key={a.assignment_id} variant="outline">
+						<Badge key={a.membership_id} variant="outline">
 							{a.ministryName}
 						</Badge>
 					))}
@@ -445,26 +448,26 @@ export default function LeaderProfilePage() {
 								<InfoItem
 									icon={<User size={16} />}
 									label="Name"
-									value={`${leader.first_name} ${leader.last_name}`}
+									value={`${profile.first_name} ${profile.last_name}`}
 								/>
 								<InfoItem
 									icon={<Mail size={16} />}
 									label="Email"
-									value={leader.email || 'No email provided'}
+									value={profile.email || 'No email provided'}
 								/>
 								<InfoItem
 									icon={<Phone size={16} />}
 									label="Phone"
-									value={leader.mobile_phone || 'No phone provided'}
+									value={profile.phone || 'No phone provided'}
 								/>
-								{leader.notes && (
+								{profile.notes && (
 									<div className="flex items-start gap-3">
 										<div className="text-muted-foreground mt-1">
 											<CheckCircle2 size={16} />
 										</div>
 										<div>
 											<p className="text-sm text-muted-foreground">Notes</p>
-											<p className="font-medium">{leader.notes}</p>
+											<p className="font-medium">{profile.notes}</p>
 										</div>
 									</div>
 								)}
@@ -472,7 +475,7 @@ export default function LeaderProfilePage() {
 								<InfoItem
 									icon={<CheckCircle2 size={16} />}
 									label="Background Check"
-									value={leader.background_check_status || 'N/A'}
+									value="N/A"
 								/>
 							</>
 						)}
@@ -569,7 +572,7 @@ export default function LeaderProfilePage() {
 					</CardDescription>
 				</CardHeader>
 				<CardContent>
-					{typeof leader.user_id === 'string' ? (
+					{profileData.profile?.leader_id ? (
 						<LeaderBibleBeeProgress cycleId={'2025'} canUpload={true} />
 					) : (
 						<div>No Bible Bee data available.</div>
