@@ -73,6 +73,33 @@ export default function BibleBeePage() {
 	);
 	const [availableVersions, setAvailableVersions] = useState<string[]>([]);
 	const [canManage, setCanManage] = useState(false);
+	const [scriptureRefreshTrigger, setScriptureRefreshTrigger] = useState(0);
+
+	// Compute the proper year label for display
+	const yearLabel = React.useMemo(() => {
+		// First check Bible Bee years for new schema
+		if (bibleBeeYears) {
+			const bibleBeeYear = bibleBeeYears.find(
+				(y: any) => y.label.includes(selectedCycle) || y.id === selectedCycle
+			);
+			if (bibleBeeYear) {
+				return bibleBeeYear.label;
+			}
+		}
+		
+		// Fall back to competition years for legacy schema
+		if (competitionYears) {
+			const yearObj = competitionYears.find(
+				(y: any) => String(y.year) === String(selectedCycle)
+			);
+			if (yearObj) {
+				return yearObj.name ?? `Bible Bee ${yearObj.year}`;
+			}
+		}
+		
+		// Default fallback
+		return `Bible Bee ${selectedCycle}`;
+	}, [selectedCycle, competitionYears, bibleBeeYears]);
 
 	// leader list removed — Admin no longer filters by leader
 
@@ -147,7 +174,7 @@ export default function BibleBeePage() {
 		return () => {
 			mounted = false;
 		};
-	}, [selectedCycle, competitionYears, bibleBeeYears]);
+	}, [selectedCycle, competitionYears, bibleBeeYears, scriptureRefreshTrigger]);
 
 	useEffect(() => {
 		// determine manage permission: Admins can manage; Ministry leaders with Primary assignment can manage
@@ -187,7 +214,16 @@ export default function BibleBeePage() {
 				</p>
 			</div>
 
-			<Tabs value={activeTab} onValueChange={setActiveTab}>
+			<Tabs 
+				value={activeTab} 
+				onValueChange={(tab) => {
+					setActiveTab(tab);
+					// Force refresh scriptures when switching to scriptures tab
+					if (tab === 'scriptures') {
+						setScriptureRefreshTrigger(prev => prev + 1);
+					}
+				}}
+			>
 				{/* make tabs only as wide as their content */}
 				<TabsList className="inline-flex items-center gap-2">
 					<TabsTrigger value="students">Students</TabsTrigger>
@@ -212,7 +248,7 @@ export default function BibleBeePage() {
 				<TabsContent value="scriptures">
 					<Card>
 						<CardHeader>
-							<CardTitle>Scriptures for {selectedCycle}</CardTitle>
+							<CardTitle>Scriptures for {yearLabel}</CardTitle>
 							<CardDescription>
 								Scriptures assigned for the selected competition year.
 							</CardDescription>

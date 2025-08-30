@@ -41,9 +41,11 @@ export default function ScriptureCard({
 		const found = norm[String(requestedVersion).toUpperCase()];
 		if (found) verseHtml = found;
 	}
-	const idVal =
-		assignment.scripture?.id ?? assignment.scriptureId ?? String(index + 1);
-	const seq = `#${idVal}`;
+	const scriptureNumber =
+		assignment.scripture?.scripture_number ?? 
+		assignment.scripture?.order ?? 
+		String(index + 1);
+	const seq = `#${scriptureNumber}`;
 	let translation =
 		assignment.displayTranslation ??
 		assignment.scripture?.translation ??
