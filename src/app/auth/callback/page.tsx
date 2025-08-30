@@ -44,28 +44,65 @@ function AuthCallbackContent() {
         }
 
         const supabase = supabaseBrowser();
+        const code = searchParams?.get('code') || '';
+        const error_code = searchParams?.get('error_code') || '';
+        const error_description = searchParams?.get('error_description') || '';
+        
+        // Log debugging information
+        console.log('Auth callback - URL parameters:', {
+          code: code ? code.substring(0, 8) + '...' : 'none',
+          error_code,
+          error_description,
+          full_url: window.location.href
+        });
+        
+        // Check for error parameters in URL (Supabase sends these on auth failures)
+        if (error_code || error_description) {
+          console.error('Auth callback error from URL:', { error_code, error_description });
+          if (error_code === 'otp_expired' || error_description?.includes('expired')) {
+            setError('The authentication link has expired or is invalid.');
+          } else if (error_code === 'access_denied' || error_description?.includes('access_denied')) {
+            setError('Access was denied. Please try requesting a new magic link.');
+          } else {
+            setError(error_description || `Authentication failed (${error_code})`);
+          }
+          return;
+        }
+        
+        if (!code) {
+          setError('No authentication code found in the URL. The link may be invalid.');
+          return;
+        }
         
         // Handle auth callback by exchanging code for session
-        const { data, error: authError } = await supabase.auth.exchangeCodeForSession(
-          searchParams?.get('code') || ''
-        );
+        const { data, error: authError } = await supabase.auth.exchangeCodeForSession(code);
         
         if (authError) {
-          console.error('Auth callback error:', authError);
-          if (authError.message.includes('expired') || authError.message.includes('invalid')) {
+          console.error('Auth callback error from exchangeCodeForSession:', authError);
+          
+          // Provide more specific error messages based on Supabase error types
+          const errorMessage = authError.message.toLowerCase();
+          if (errorMessage.includes('expired') || errorMessage.includes('invalid_code') || 
+              errorMessage.includes('otp_expired') || errorMessage.includes('token_expired')) {
             setError('The authentication link has expired or is invalid.');
+          } else if (errorMessage.includes('invalid_request') || errorMessage.includes('bad_code')) {
+            setError('The authentication link is invalid. Please request a new one.');
+          } else if (errorMessage.includes('used') || errorMessage.includes('consumed')) {
+            setError('This authentication link has already been used. Please request a new one.');
           } else {
-            setError(authError.message);
+            setError(`Authentication failed: ${authError.message}`);
           }
         } else if (data.session) {
+          console.log('Auth callback success - session established');
           setSuccess(true);
           // Redirect to onboarding to check if user needs password setup
           setTimeout(() => router.push('/onboarding'), 1500);
         } else {
+          console.warn('Auth callback - no session returned despite no error');
           setError('No session found. The link may have expired or been used already.');
         }
       } catch (err) {
-        console.error('Unexpected error:', err);
+        console.error('Unexpected error in auth callback:', err);
         setError(err instanceof Error ? err.message : 'An unexpected error occurred.');
       } finally {
         setLoading(false);

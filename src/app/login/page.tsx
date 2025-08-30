@@ -183,15 +183,30 @@ export default function LoginPage() {
 		setMagicLinkLoading(true);
 		try {
 			const supabase = supabaseBrowser();
+			const redirectTo = getAuthRedirectTo();
+			
+			console.log('Requesting magic link:', {
+				email,
+				redirectTo,
+				currentUrl: window.location.href
+			});
+			
 			const { error } = await supabase.auth.signInWithOtp({
 				email,
 				options: { 
-					emailRedirectTo: getAuthRedirectTo() 
+					emailRedirectTo: redirectTo,
+					// Set explicit data for better error handling
+					data: {
+						requested_at: new Date().toISOString(),
+						requested_from: window.location.origin
+					}
 				},
 			});
 
 			if (error) {
-				if (error.message.includes('too many requests')) {
+				console.error('Magic link request error:', error);
+				
+				if (error.message.includes('too many requests') || error.message.includes('rate limit')) {
 					toast({
 						title: 'Too Many Requests',
 						description: 'Please wait 60 seconds before requesting another magic link.',
@@ -207,14 +222,21 @@ export default function LoginPage() {
 							return prev - 1;
 						});
 					}, 1000);
+				} else if (error.message.includes('signup') || error.message.includes('not allowed')) {
+					toast({
+						title: 'Account Not Found',
+						description: 'No account found with this email. Please register first or contact support.',
+						variant: 'destructive',
+					});
 				} else {
 					throw error;
 				}
 			} else {
+				console.log('Magic link sent successfully to:', email);
 				setMagicLinkSent(true);
 				toast({
 					title: 'Magic Link Sent!',
-					description: 'Check your email and click the link to sign in.',
+					description: 'Check your email and click the link to sign in. Links expire after 1 hour.',
 				});
 				setResendCooldown(60);
 				const timer = setInterval(() => {
@@ -228,7 +250,7 @@ export default function LoginPage() {
 				}, 1000);
 			}
 		} catch (error: any) {
-			console.error('Magic link error:', error);
+			console.error('Unexpected magic link error:', error);
 			toast({
 				title: 'Error',
 				description: error.message || 'Failed to send magic link. Please try again.',
