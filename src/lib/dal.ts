@@ -989,7 +989,7 @@ export async function getLeaderMemberships(leaderId: string) {
 
 // Save leader memberships (replaces all memberships for the leader)
 export async function saveLeaderMemberships(leaderId: string, memberships: Omit<MinistryLeaderMembership, 'membership_id' | 'created_at' | 'updated_at'>[]) {
-    return db.transaction('rw', [db.ministry_leader_memberships], async () => {
+    return db.transaction('rw', [db.ministry_leader_memberships, db.leader_profiles], async () => {
         // Delete existing memberships for this leader
         await db.ministry_leader_memberships.where('leader_id').equals(leaderId).delete();
 
