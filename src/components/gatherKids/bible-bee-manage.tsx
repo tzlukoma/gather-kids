@@ -633,8 +633,11 @@ function ScriptureManagement({ yearId, yearLabel }: { yearId: string; yearLabel:
         counts_for: 1,
         reference: '',
         category: '',
-        text: '', // For backward compatibility
-        translation: 'NIV'
+        texts: {
+            NIV: '',
+            KJV: '',
+            'NIV-ES': ''
+        }
     });
     const [error, setError] = useState<string | null>(null);
     const [csvFile, setCsvFile] = useState<File | null>(null);
@@ -645,7 +648,7 @@ function ScriptureManagement({ yearId, yearLabel }: { yearId: string; yearLabel:
 
     // Load scriptures for this year
     const scriptures = useLiveQuery(async () => 
-        await db.scriptures.where('year_id').equals(yearId).toArray(), 
+        await db.scriptures.where('year_id').equals(yearId).sortBy('scripture_order'), 
         [yearId]
     );
 
@@ -658,6 +661,13 @@ function ScriptureManagement({ yearId, yearLabel }: { yearId: string; yearLabel:
                 year_id: yearId,
                 scripture_order: Number(formData.scripture_order),
                 counts_for: Number(formData.counts_for),
+                // Store texts object with non-empty translations
+                texts: Object.fromEntries(
+                    Object.entries(formData.texts).filter(([_, text]) => text.trim() !== '')
+                ),
+                // Legacy fields for backward compatibility
+                text: formData.texts.NIV || formData.texts.KJV || formData.texts['NIV-ES'] || '',
+                translation: 'NIV',
                 competitionYearId: '', // Legacy field
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString()
@@ -688,8 +698,11 @@ function ScriptureManagement({ yearId, yearLabel }: { yearId: string; yearLabel:
                 counts_for: 1,
                 reference: '',
                 category: '',
-                text: '',
-                translation: 'NIV'
+                texts: {
+                    NIV: '',
+                    KJV: '',
+                    'NIV-ES': ''
+                }
             });
         } catch (error: any) {
             console.error('Error saving scripture:', error);
@@ -720,8 +733,11 @@ function ScriptureManagement({ yearId, yearLabel }: { yearId: string; yearLabel:
             counts_for: scripture.counts_for || 1,
             reference: scripture.reference || '',
             category: scripture.category || '',
-            text: scripture.text || '',
-            translation: scripture.translation || 'NIV'
+            texts: {
+                NIV: scripture.texts?.NIV || '',
+                KJV: scripture.texts?.KJV || '',
+                'NIV-ES': scripture.texts?.['NIV-ES'] || ''
+            }
         });
         setIsCreating(true);
         setError(null);
@@ -1178,31 +1194,29 @@ function ScriptureManagement({ yearId, yearLabel }: { yearId: string; yearLabel:
                                 />
                             </div>
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <Label htmlFor="translation">Translation</Label>
-                                <Select
-                                    value={formData.translation}
-                                    onValueChange={(value) => setFormData({...formData, translation: value})}
-                                >
-                                    <SelectTrigger id="translation">
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="NIV">NIV</SelectItem>
-                                        <SelectItem value="KJV">KJV</SelectItem>
-                                        <SelectItem value="NIV-ES">NIV-ES</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div>
-                                <Label htmlFor="text">Text (Optional)</Label>
-                                <Input
-                                    id="text"
-                                    placeholder="Scripture text (or use JSON upload)"
-                                    value={formData.text}
-                                    onChange={(e) => setFormData({...formData, text: e.target.value})}
-                                />
+                        <div className="space-y-4">
+                            <h4 className="font-medium">Scripture Texts by Translation</h4>
+                            <div className="grid grid-cols-1 gap-4">
+                                {Object.entries(formData.texts).map(([translation, text]) => (
+                                    <div key={translation}>
+                                        <Label htmlFor={`text-${translation}`}>
+                                            {translation} Text (Optional)
+                                        </Label>
+                                        <Textarea
+                                            id={`text-${translation}`}
+                                            placeholder={`Scripture text in ${translation}...`}
+                                            value={text}
+                                            onChange={(e) => setFormData({
+                                                ...formData, 
+                                                texts: { 
+                                                    ...formData.texts, 
+                                                    [translation]: e.target.value 
+                                                }
+                                            })}
+                                            rows={3}
+                                        />
+                                    </div>
+                                ))}
                             </div>
                         </div>
                         <div className="flex gap-2">
@@ -1221,8 +1235,11 @@ function ScriptureManagement({ yearId, yearLabel }: { yearId: string; yearLabel:
                                         counts_for: 1,
                                         reference: '',
                                         category: '',
-                                        text: '',
-                                        translation: 'NIV'
+                                        texts: {
+                                            NIV: '',
+                                            KJV: '',
+                                            'NIV-ES': ''
+                                        }
                                     });
                                     setError(null);
                                 }}
@@ -1236,9 +1253,7 @@ function ScriptureManagement({ yearId, yearLabel }: { yearId: string; yearLabel:
                 {/* Scriptures List */}
                 {scriptures && scriptures.length > 0 ? (
                     <div className="space-y-2">
-                        {scriptures
-                            .sort((a, b) => (a.scripture_order || 0) - (b.scripture_order || 0))
-                            .map(scripture => (
+                        {scriptures.map(scripture => (
                             <div key={scripture.id} className="flex items-center justify-between p-3 border rounded-lg">
                                 <div className="space-y-1">
                                     <h3 className="font-medium">
@@ -1247,7 +1262,6 @@ function ScriptureManagement({ yearId, yearLabel }: { yearId: string; yearLabel:
                                     <div className="text-sm text-muted-foreground space-y-1">
                                         <div>Order: {scripture.scripture_order}, Counts For: {scripture.counts_for}</div>
                                         {scripture.category && <div>Category: {scripture.category}</div>}
-                                        {scripture.translation && <div>Translation: {scripture.translation}</div>}
                                         {scripture.texts && Object.keys(scripture.texts).length > 0 && (
                                             <div>Available Texts: {Object.keys(scripture.texts).join(', ')}</div>
                                         )}

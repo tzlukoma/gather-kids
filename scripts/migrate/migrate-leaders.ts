@@ -147,7 +147,7 @@ export async function migrateLeaders(): Promise<MigrationReport> {
     }
 
     // 6. Create ministry accounts for all active ministries
-    const ministries = await db.ministries.where('is_active').equals(true).toArray();
+    const ministries = await db.ministries.where('is_active').equals(1).toArray();
     
     for (const ministry of ministries) {
       try {
