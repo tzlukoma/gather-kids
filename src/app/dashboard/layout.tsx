@@ -107,7 +107,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 									<img
 										src={settings.logo_url}
 										alt={`${settings.app_name || 'gatherKids'} Logo`}
-										className="min-h-3 w-auto max-w-[50%] object-contain"
+										className="h-8 md:h-10 w-auto max-w-[50%] object-contain"
 									/>
 									{!settings.use_logo_only && (
 										<div className="font-headline text-2xl font-bold">
