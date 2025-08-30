@@ -214,7 +214,10 @@ export default function BibleBeeManage({ className }: BibleBeeManageProps) {
                 </TabsList>
 
                 <TabsContent value="years">
-                    <YearManagement allYears={allYears} />
+                    <YearManagement 
+                        allYears={allYears} 
+                        onYearCreated={(yearId: string) => setSelectedYearId(yearId)}
+                    />
                 </TabsContent>
 
                 <TabsContent value="divisions">
@@ -293,7 +296,7 @@ export default function BibleBeeManage({ className }: BibleBeeManageProps) {
 }
 
 // Year Management Component
-function YearManagement({ allYears }: { allYears: any[] }) {
+function YearManagement({ allYears, onYearCreated }: { allYears: any[]; onYearCreated?: (yearId: string) => void }) {
     const [isCreating, setIsCreating] = useState(false);
     const [editingYear, setEditingYear] = useState<any>(null);
     const [formData, setFormData] = useState({
@@ -306,13 +309,21 @@ function YearManagement({ allYears }: { allYears: any[] }) {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
+            let createdYear;
             if (editingYear) {
                 await updateBibleBeeYear(editingYear.id, formData);
                 setEditingYear(null);
             } else {
-                await createBibleBeeYear(formData);
+                createdYear = await createBibleBeeYear(formData);
                 setIsCreating(false);
             }
+            
+            // If we created a new active year, automatically select it
+            // Pass the created year up to the parent component
+            if (createdYear && formData.is_active && onYearCreated) {
+                onYearCreated(createdYear.id);
+            }
+            
             setFormData({ label: '', is_active: false });
         } catch (error) {
             console.error('Error saving year:', error);

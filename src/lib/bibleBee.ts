@@ -174,9 +174,11 @@ export async function createBibleBeeYear(payload: Omit<BibleBeeYear, 'id' | 'cre
     
     // If setting this year as active, deactivate all other years first
     if (payload.is_active) {
-        // Deactivate all existing Bible Bee years
+        // Deactivate all existing Bible Bee years - check both boolean and numeric values
         const existingActiveYears = await db.bible_bee_years.where('is_active').equals(1).toArray();
-        for (const year of existingActiveYears) {
+        const existingActiveYearsBoolean = await db.bible_bee_years.where('is_active').equals(true as any).toArray();
+        
+        for (const year of [...existingActiveYears, ...existingActiveYearsBoolean]) {
             await db.bible_bee_years.update(year.id, { is_active: false });
         }
         
@@ -203,9 +205,11 @@ export async function updateBibleBeeYear(id: string, updates: Partial<Omit<Bible
     
     // If setting this year as active, deactivate all other years first
     if (updates.is_active === true) {
-        // Deactivate all existing Bible Bee years except this one
+        // Deactivate all existing Bible Bee years except this one - check both boolean and numeric values
         const existingActiveYears = await db.bible_bee_years.where('is_active').equals(1).toArray();
-        for (const year of existingActiveYears) {
+        const existingActiveYearsBoolean = await db.bible_bee_years.where('is_active').equals(true as any).toArray();
+        
+        for (const year of [...existingActiveYears, ...existingActiveYearsBoolean]) {
             if (year.id !== id) {
                 await db.bible_bee_years.update(year.id, { is_active: false });
             }
@@ -394,25 +398,41 @@ export async function previewAutoEnrollment(yearId: string): Promise<{
     
     // Validate that we have valid IDs for the compound key
     if (!currentCycle?.cycle_id || !bibleBeeMinistry?.ministry_id) {
-        const errorMsg = `Invalid IDs for query: cycle_id=${currentCycle?.cycle_id}, ministry_id=${bibleBeeMinistry?.ministry_id}`;
+        const errorMsg = `Invalid IDs for ministry enrollment query: cycle_id=${currentCycle?.cycle_id}, ministry_id=${bibleBeeMinistry?.ministry_id}. Both values must be non-null for IndexedDB compound key query.`;
         console.error(errorMsg);
         throw new Error(errorMsg);
     }
     
-    console.log('Compound key values:', [bibleBeeMinistry.ministry_id, currentCycle.cycle_id]);
+    // Double-check that values are not undefined, null, or empty strings
+    const cycleId = currentCycle.cycle_id;
+    const ministryId = bibleBeeMinistry.ministry_id;
+    
+    if (typeof cycleId !== 'string' || cycleId.trim() === '' || typeof ministryId !== 'string' || ministryId.trim() === '') {
+        const errorMsg = `Invalid key types for IndexedDB compound key: cycle_id="${cycleId}" (${typeof cycleId}), ministry_id="${ministryId}" (${typeof ministryId}). Both must be non-empty strings.`;
+        console.error(errorMsg);
+        throw new Error(errorMsg);
+    }
+    
+    console.log('Compound key values:', [ministryId, cycleId]);
     
     // Note: The compound index is [ministry_id+cycle_id], not [cycle_id+ministry_id]
     let bibleBeeEnrollments: MinistryEnrollment[] = [];
     try {
         bibleBeeEnrollments = await db.ministry_enrollments
             .where('[ministry_id+cycle_id]')
-            .equals([bibleBeeMinistry.ministry_id, currentCycle.cycle_id])
+            .equals([ministryId, cycleId])
             .and((e: MinistryEnrollment) => e.status === 'enrolled')
             .toArray();
         
         console.log('Bible Bee enrollments found:', bibleBeeEnrollments.length);
     } catch (error) {
-        console.error('Error querying ministry_enrollments:', error);
+        console.error('Error querying ministry_enrollments with compound key:', error);
+        console.error('Failed compound key query details:', {
+            index: '[ministry_id+cycle_id]',
+            keyValues: [ministryId, cycleId],
+            ministryId,
+            cycleId
+        });
         throw error;
     }
     
