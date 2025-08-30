@@ -2,6 +2,7 @@
 
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
 import {
 	Table,
 	TableBody,
@@ -17,20 +18,36 @@ import {
 	CardHeader,
 	CardTitle,
 } from '@/components/ui/card';
-import { queryLeaders } from '@/lib/dal';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { queryLeaderProfiles, searchLeaderProfiles, migrateLeadersIfNeeded } from '@/lib/dal';
 import { Badge } from '@/components/ui/badge';
-import { ChevronRight } from 'lucide-react';
-import type { User } from '@/lib/types';
+import { ChevronRight, Plus, Search, UserPlus } from 'lucide-react';
+import type { LeaderProfile } from '@/lib/types';
 import { useAuth } from '@/contexts/auth-context';
-import { useEffect, useState } from 'react';
 import { AuthRole } from '@/lib/auth-types';
+import { LeaderProfileDialog } from './leader-profile-dialog';
+import { useToast } from '@/hooks/use-toast';
 
 export default function LeadersPage() {
 	const router = useRouter();
 	const { user, loading } = useAuth();
+	const { toast } = useToast();
 	const [isAuthorized, setIsAuthorized] = useState(false);
+	const [searchTerm, setSearchTerm] = useState('');
+	const [isDialogOpen, setIsDialogOpen] = useState(false);
+	const [selectedLeader, setSelectedLeader] = useState<LeaderProfile | null>(null);
+	const [isMigrationComplete, setIsMigrationComplete] = useState(false);
 
-	const leaders = useLiveQuery(() => queryLeaders(), []);
+	// Get all leaders if no search term, otherwise search
+	const allLeaders = useLiveQuery(() => queryLeaderProfiles(), []);
+	const searchResults = useLiveQuery(() => 
+		searchTerm.trim() ? searchLeaderProfiles(searchTerm.trim()) : null, 
+		[searchTerm]
+	);
+
+	// Use search results if available, otherwise all leaders
+	const leaders = searchResults || allLeaders || [];
 
 	useEffect(() => {
 		if (!loading && user) {
@@ -46,46 +63,104 @@ export default function LeadersPage() {
 		}
 	}, [user, loading, router]);
 
+	// Run migration check when authorized
+	useEffect(() => {
+		if (isAuthorized && !isMigrationComplete) {
+			migrateLeadersIfNeeded()
+				.then((migrated) => {
+					if (migrated) {
+						toast({
+							title: "Leaders Migrated",
+							description: "Existing leaders have been migrated to the new system.",
+						});
+					}
+					setIsMigrationComplete(true);
+				})
+				.catch((error) => {
+					console.error('Migration failed:', error);
+					setIsMigrationComplete(true); // Don't block UI
+				});
+		}
+	}, [isAuthorized, isMigrationComplete, toast]);
+
 	const handleRowClick = (leaderId: string) => {
 		router.push(`/dashboard/leaders/${leaderId}`);
 	};
 
-	if (loading || !isAuthorized || leaders === undefined) {
+	const handleCreateNew = () => {
+		setSelectedLeader(null);
+		setIsDialogOpen(true);
+	};
+
+	const handleEditProfile = (leader: LeaderProfile, event: React.MouseEvent) => {
+		event.stopPropagation(); // Prevent row click
+		setSelectedLeader(leader);
+		setIsDialogOpen(true);
+	};
+
+	if (loading || !isAuthorized) {
 		return <div>Loading leaders...</div>;
 	}
 
 	return (
 		<div className="flex flex-col gap-8">
-			<div>
-				<h1 className="text-3xl font-bold font-headline">Leaders</h1>
-				<p className="text-muted-foreground">
-					Manage ministry leaders and their assignments.
-				</p>
+			<div className="flex justify-between items-start">
+				<div>
+					<h1 className="text-3xl font-bold font-headline">Leaders</h1>
+					<p className="text-muted-foreground">
+						Manage leader profiles and their ministry memberships.
+					</p>
+				</div>
+				<Button onClick={handleCreateNew} className="flex items-center gap-2">
+					<UserPlus className="h-4 w-4" />
+					Add Leader
+				</Button>
 			</div>
+
 			<Card>
 				<CardHeader>
-					<CardTitle className="font-headline">All Leaders</CardTitle>
-					<CardDescription>
-						Click on a leader to view their profile and assign ministries.
-					</CardDescription>
+					<div className="flex justify-between items-center">
+						<div>
+							<CardTitle className="font-headline">All Leader Profiles</CardTitle>
+							<CardDescription>
+								Search and manage leader profiles. Click a row to edit memberships.
+							</CardDescription>
+						</div>
+						<div className="flex items-center gap-2 w-80">
+							<Search className="h-4 w-4 text-muted-foreground" />
+							<Input
+								placeholder="Search by name or email..."
+								value={searchTerm}
+								onChange={(e) => setSearchTerm(e.target.value)}
+								className="flex-1"
+							/>
+						</div>
+					</div>
 				</CardHeader>
 				<CardContent>
 					<Table>
 						<TableHeader>
 							<TableRow>
 								<TableHead>Name</TableHead>
+								<TableHead>Email</TableHead>
+								<TableHead>Phone</TableHead>
 								<TableHead>Status</TableHead>
-								<TableHead>Assigned Ministries</TableHead>
+								<TableHead>Ministries</TableHead>
+								<TableHead>Actions</TableHead>
 								<TableHead className="w-[50px]"></TableHead>
 							</TableRow>
 						</TableHeader>
 						<TableBody>
 							{leaders.map((leader) => (
 								<TableRow
-									key={leader.user_id}
-									onClick={() => handleRowClick(leader.user_id)}
+									key={leader.leader_id}
+									onClick={() => handleRowClick(leader.leader_id)}
 									className="cursor-pointer">
-									<TableCell className="font-medium">{leader.name}</TableCell>
+									<TableCell className="font-medium">
+										{leader.first_name} {leader.last_name}
+									</TableCell>
+									<TableCell>{leader.email || '—'}</TableCell>
+									<TableCell>{leader.phone || '—'}</TableCell>
 									<TableCell>
 										<Badge
 											variant={leader.is_active ? 'default' : 'secondary'}
@@ -94,17 +169,20 @@ export default function LeadersPage() {
 										</Badge>
 									</TableCell>
 									<TableCell>
-										{leader.assignments.length > 0 ? (
+										<div className="flex items-center gap-2">
 											<span className="text-sm text-muted-foreground">
-												{leader.assignments
-													.map((a) => a.ministryName)
-													.join(', ')}
+												{leader.ministryCount} {leader.ministryCount === 1 ? 'ministry' : 'ministries'}
 											</span>
-										) : (
-											<span className="text-sm text-muted-foreground">
-												No assignments
-											</span>
-										)}
+										</div>
+									</TableCell>
+									<TableCell>
+										<Button
+											variant="outline"
+											size="sm"
+											onClick={(e) => handleEditProfile(leader, e)}
+											className="h-8 px-2">
+											Edit Profile
+										</Button>
 									</TableCell>
 									<TableCell>
 										<ChevronRight className="h-4 w-4 text-muted-foreground" />
@@ -114,9 +192,9 @@ export default function LeadersPage() {
 							{leaders.length === 0 && (
 								<TableRow>
 									<TableCell
-										colSpan={4}
+										colSpan={7}
 										className="text-center h-24 text-muted-foreground">
-										No leaders found.
+										{searchTerm.trim() ? 'No leaders found matching your search.' : 'No leader profiles found.'}
 									</TableCell>
 								</TableRow>
 							)}
@@ -124,6 +202,12 @@ export default function LeadersPage() {
 					</Table>
 				</CardContent>
 			</Card>
+
+			<LeaderProfileDialog 
+				leader={selectedLeader}
+				open={isDialogOpen}
+				onOpenChange={setIsDialogOpen}
+			/>
 		</div>
 	);
 }

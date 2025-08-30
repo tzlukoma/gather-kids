@@ -20,18 +20,13 @@ import {
 	CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { FileDown, ArrowUpDown, Edit, Camera, Plus, UserPlus } from 'lucide-react';
+import { FileDown, ArrowUpDown, Edit, Camera } from 'lucide-react';
 import { format, parseISO, differenceInYears } from 'date-fns';
 import {
 	getTodayIsoDate,
 	recordCheckIn,
 	recordCheckOut,
 	exportRosterCSV,
-	getMinistryRoster,
-	queryLeaderProfiles,
-	saveLeaderMemberships,
-	saveLeaderProfile,
 } from '@/lib/dal';
 import { useMemo, useState } from 'react';
 import type {
@@ -42,8 +37,6 @@ import type {
 	EmergencyContact,
 	Ministry,
 	Incident,
-	LeaderProfile,
-	MinistryLeaderMembership,
 } from '@/lib/types';
 import { CheckoutDialog } from '@/components/gatherKids/checkout-dialog';
 import { useToast } from '@/hooks/use-toast';
@@ -73,10 +66,6 @@ import { PhotoViewerDialog } from '@/components/gatherKids/photo-viewer-dialog';
 import { ChildCard } from '@/components/gatherKids/child-card';
 import { IncidentDetailsDialog } from '@/components/gatherKids/incident-details-dialog';
 import { PhotoCaptureDialog } from '@/components/gatherKids/photo-capture-dialog';
-import { AddExistingLeaderDialog } from '@/components/gatherKids/add-existing-leader-dialog';
-import { CreateNewLeaderDialog } from '@/components/gatherKids/create-new-leader-dialog';
-import { EditLeaderMembershipDialog } from '@/components/gatherKids/edit-leader-membership-dialog';
-import { v4 as uuidv4 } from 'uuid';
 
 export interface RosterChild extends EnrichedChild {}
 
@@ -153,15 +142,6 @@ export default function RostersPage() {
 	);
 	const [selectedChildForPhoto, setSelectedChildForPhoto] =
 		useState<Child | null>(null);
-	
-	// Leader roster state
-	const [activeTab, setActiveTab] = useState<'children' | 'leaders'>('children');
-	const [isAddLeaderDialogOpen, setIsAddLeaderDialogOpen] = useState(false);
-	const [isCreateLeaderDialogOpen, setIsCreateLeaderDialogOpen] = useState(false);
-	const [selectedLeaderForEdit, setSelectedLeaderForEdit] = useState<{
-		membership: MinistryLeaderMembership & { profile: LeaderProfile };
-		ministryId: string;
-	} | null>(null);
 
 	const allMinistryEnrollments = useLiveQuery(
 		() => db.ministry_enrollments.where({ cycle_id: '2025' }).toArray(),
@@ -204,14 +184,6 @@ export default function RostersPage() {
 		[]
 	);
 	const allMinistries = useLiveQuery(() => db.ministries.toArray(), []);
-
-	// Leader roster data
-	const ministryRoster = useLiveQuery(
-		() => selectedMinistryFilter === 'all' ? Promise.resolve([]) : getMinistryRoster(selectedMinistryFilter),
-		[selectedMinistryFilter]
-	);
-	
-	const allLeaderProfiles = useLiveQuery(() => queryLeaderProfiles(), []);
 
 	const currentEventName = useMemo(() => {
 		return (
@@ -510,119 +482,6 @@ export default function RostersPage() {
 		});
 	};
 
-	// Leader management functions
-	const handleAddExistingLeader = async (leaderId: string, roleType: 'PRIMARY' | 'VOLUNTEER') => {
-		if (selectedMinistryFilter === 'all') return;
-		
-		try {
-			const existingMemberships = await db.ministry_leader_memberships
-				.where('leader_id').equals(leaderId).toArray();
-			
-			const newMembership: Omit<MinistryLeaderMembership, 'membership_id' | 'created_at' | 'updated_at'> = {
-				ministry_id: selectedMinistryFilter,
-				leader_id: leaderId,
-				role_type: roleType,
-				is_active: true,
-				notes: undefined,
-			};
-			
-			await saveLeaderMemberships(leaderId, [...existingMemberships, newMembership]);
-			
-			toast({
-				title: 'Leader Added',
-				description: 'Leader has been added to the ministry successfully.',
-			});
-		} catch (error) {
-			console.error('Failed to add leader to ministry', error);
-			toast({
-				title: 'Add Failed',
-				description: 'Could not add leader to ministry. Please try again.',
-				variant: 'destructive',
-			});
-		}
-	};
-
-	const handleCreateAndAssignLeader = async (
-		profileData: Omit<LeaderProfile, 'leader_id' | 'created_at' | 'updated_at'>,
-		roleType: 'PRIMARY' | 'VOLUNTEER'
-	) => {
-		if (selectedMinistryFilter === 'all') return;
-		
-		try {
-			const leaderId = uuidv4();
-			const profileWithId = {
-				...profileData,
-				leader_id: leaderId,
-			};
-			
-			await saveLeaderProfile(profileWithId);
-			
-			const membership: Omit<MinistryLeaderMembership, 'membership_id' | 'created_at' | 'updated_at'> = {
-				ministry_id: selectedMinistryFilter,
-				leader_id: leaderId,
-				role_type: roleType,
-				is_active: true,
-				notes: undefined,
-			};
-			
-			await saveLeaderMemberships(leaderId, [membership]);
-			
-			toast({
-				title: 'Leader Created',
-				description: 'New leader profile created and assigned to ministry.',
-			});
-		} catch (error) {
-			console.error('Failed to create and assign leader', error);
-			toast({
-				title: 'Creation Failed',
-				description: 'Could not create leader profile. Please try again.',
-				variant: 'destructive',
-			});
-		}
-	};
-
-	const handleUpdateLeaderMembership = async (
-		membershipId: string,
-		updates: { role_type?: 'PRIMARY' | 'VOLUNTEER'; is_active?: boolean; notes?: string }
-	) => {
-		try {
-			await db.ministry_leader_memberships.update(membershipId, {
-				...updates,
-				updated_at: new Date().toISOString(),
-			});
-			
-			toast({
-				title: 'Membership Updated',
-				description: 'Leader membership has been updated successfully.',
-			});
-		} catch (error) {
-			console.error('Failed to update membership', error);
-			toast({
-				title: 'Update Failed',
-				description: 'Could not update membership. Please try again.',
-				variant: 'destructive',
-			});
-		}
-	};
-
-	const handleRemoveLeaderMembership = async (membershipId: string) => {
-		try {
-			await db.ministry_leader_memberships.delete(membershipId);
-			
-			toast({
-				title: 'Leader Removed',
-				description: 'Leader has been removed from the ministry.',
-			});
-		} catch (error) {
-			console.error('Failed to remove leader membership', error);
-			toast({
-				title: 'Remove Failed',
-				description: 'Could not remove leader from ministry. Please try again.',
-				variant: 'destructive',
-			});
-		}
-	};
-
 	if (loading || !isAuthorized || !childrenWithDetails) {
 		return <div>Loading rosters...</div>;
 	}
@@ -887,66 +746,6 @@ export default function RostersPage() {
 		</div>
 	);
 
-	const renderLeaderTable = () => (
-		<Table>
-			<TableHeader>
-				<TableRow>
-					<TableHead>Name</TableHead>
-					<TableHead>Email</TableHead>
-					<TableHead>Phone</TableHead>
-					<TableHead>Role</TableHead>
-					<TableHead>Status</TableHead>
-					<TableHead>Actions</TableHead>
-				</TableRow>
-			</TableHeader>
-			<TableBody>
-				{ministryRoster && ministryRoster.map((membership) => (
-					<TableRow key={membership.membership_id}>
-						<TableCell className="font-medium">
-							{membership.profile?.first_name} {membership.profile?.last_name}
-						</TableCell>
-						<TableCell>{membership.profile?.email || '—'}</TableCell>
-						<TableCell>{membership.profile?.phone || '—'}</TableCell>
-						<TableCell>
-							<Badge variant={membership.role_type === 'PRIMARY' ? 'default' : 'secondary'}>
-								{membership.role_type}
-							</Badge>
-						</TableCell>
-						<TableCell>
-							<Badge
-								variant={membership.is_active && membership.profile?.is_active ? 'default' : 'secondary'}
-								className={membership.is_active && membership.profile?.is_active ? 'bg-green-500' : ''}>
-								{membership.is_active && membership.profile?.is_active ? 'Active' : 'Inactive'}
-							</Badge>
-						</TableCell>
-						<TableCell>
-							{user?.metadata?.role === AuthRole.ADMIN && (
-								<Button
-									variant="outline"
-									size="sm"
-									onClick={() => setSelectedLeaderForEdit({
-										membership: membership as MinistryLeaderMembership & { profile: LeaderProfile },
-										ministryId: selectedMinistryFilter
-									})}>
-									Edit
-								</Button>
-							)}
-						</TableCell>
-					</TableRow>
-				))}
-				{(!ministryRoster || ministryRoster.length === 0) && (
-					<TableRow>
-						<TableCell colSpan={6} className="text-center h-24 text-muted-foreground">
-							{selectedMinistryFilter === 'all' ? 
-								'Please select a specific ministry to view its leaders.' :
-								'No leaders assigned to this ministry.'}
-						</TableCell>
-					</TableRow>
-				)}
-			</TableBody>
-		</Table>
-	);
-
 	return (
 		<>
 			<div className="flex flex-col gap-8">
@@ -955,222 +754,148 @@ export default function RostersPage() {
 						<h1 className="text-xl font-bold font-headline text-muted-foreground">
 							Ministry Rosters
 						</h1>
-						{activeTab === 'children' && (
-							<Dialog
-								open={isEventDialogOpen}
-								onOpenChange={setIsEventDialogOpen}>
-								<DialogTrigger asChild>
-									<Button
-										variant="link"
-										className="text-3xl font-bold font-headline p-0 h-auto">
-										Check-in: {currentEventName}
-										<Edit className="ml-2 h-5 w-5" />
-									</Button>
-								</DialogTrigger>
-								<DialogContent>
-									<DialogHeader>
-										<DialogTitle>Change Check-in Event</DialogTitle>
-										<DialogDescription>
-											Select the event you want to check children into or out of.
-										</DialogDescription>
-									</DialogHeader>
-									<RadioGroup
-										value={selectedEvent}
-										onValueChange={(value) => {
-											setSelectedEvent(value);
-											setIsEventDialogOpen(false);
-										}}
-										className="space-y-2">
-										{eventOptions.map((event) => (
-											<Label
-												key={event.id}
-												htmlFor={event.id}
-												className="flex items-center gap-4 p-4 border rounded-md cursor-pointer hover:bg-muted/50 has-[input:checked]:bg-muted has-[input:checked]:border-primary">
-												<RadioGroupItem value={event.id} id={event.id} />
-												<span>{event.name}</span>
-											</Label>
-										))}
-									</RadioGroup>
-								</DialogContent>
-							</Dialog>
-						)}
-						{activeTab === 'leaders' && (
-							<h2 className="text-3xl font-bold font-headline">
-								Ministry Leaders
-							</h2>
-						)}
+						<Dialog
+							open={isEventDialogOpen}
+							onOpenChange={setIsEventDialogOpen}>
+							<DialogTrigger asChild>
+								<Button
+									variant="link"
+									className="text-3xl font-bold font-headline p-0 h-auto">
+									Check-in: {currentEventName}
+									<Edit className="ml-2 h-5 w-5" />
+								</Button>
+							</DialogTrigger>
+							<DialogContent>
+								<DialogHeader>
+									<DialogTitle>Change Check-in Event</DialogTitle>
+									<DialogDescription>
+										Select the event you want to check children into or out of.
+									</DialogDescription>
+								</DialogHeader>
+								<RadioGroup
+									value={selectedEvent}
+									onValueChange={(value) => {
+										setSelectedEvent(value);
+										setIsEventDialogOpen(false);
+									}}
+									className="space-y-2">
+									{eventOptions.map((event) => (
+										<Label
+											key={event.id}
+											htmlFor={event.id}
+											className="flex items-center gap-4 p-4 border rounded-md cursor-pointer hover:bg-muted/50 has-[input:checked]:bg-muted has-[input:checked]:border-primary">
+											<RadioGroupItem value={event.id} id={event.id} />
+											<span>{event.name}</span>
+										</Label>
+									))}
+								</RadioGroup>
+							</DialogContent>
+						</Dialog>
 					</div>
 				</div>
 
-				<Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'children' | 'leaders')}>
-					<TabsList className="grid w-[200px] grid-cols-2">
-						<TabsTrigger value="children">Children</TabsTrigger>
-						<TabsTrigger value="leaders">Leaders</TabsTrigger>
-					</TabsList>
-					
-					<TabsContent value="children">
-						<Card>
-							<CardHeader className="p-0">
-								<div className="p-6 bg-muted/25 border-b">
-									<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-										<div>
-											<CardTitle className="font-headline">All Children</CardTitle>
-											<CardDescription>
-												A complete list of all children registered.
-											</CardDescription>
+				<Card>
+					<CardHeader className="p-0">
+						<div className="p-6 bg-muted/25 border-b">
+							<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+								<div>
+									<CardTitle className="font-headline">All Children</CardTitle>
+									<CardDescription>
+										A complete list of all children registered.
+									</CardDescription>
+								</div>
+								<Button variant="outline" onClick={handleExport}>
+									<FileDown className="mr-2 h-4 w-4" />
+									Export CSV
+								</Button>
+							</div>
+						</div>
+						<div className="p-6 space-y-4">
+							<div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+								<div className="flex flex-col sm:flex-row items-start sm:items-center gap-x-4 gap-y-2">
+									{user?.metadata?.role === AuthRole.ADMIN && (
+										<div className="flex items-center space-x-2">
+											<Checkbox
+												id="group-by-grade"
+												checked={groupByGrade}
+												onCheckedChange={(checked) =>
+													setGroupByGrade(!!checked)
+												}
+											/>
+											<Label htmlFor="group-by-grade">Group by Grade</Label>
 										</div>
-										<Button variant="outline" onClick={handleExport}>
-											<FileDown className="mr-2 h-4 w-4" />
-											Export CSV
-										</Button>
+									)}
+									<div className="flex items-center space-x-2">
+										<Checkbox
+											id="show-checked-in"
+											checked={showCheckedIn}
+											onCheckedChange={(checked) => setShowCheckedIn(!!checked)}
+										/>
+										<Label htmlFor="show-checked-in">Checked-In</Label>
+									</div>
+									<div className="flex items-center space-x-2">
+										<Checkbox
+											id="show-checked-out"
+											checked={showCheckedOut}
+											onCheckedChange={(checked) =>
+												setShowCheckedOut(!!checked)
+											}
+										/>
+										<Label htmlFor="show-checked-out">Checked-Out</Label>
 									</div>
 								</div>
-								<div className="p-6 space-y-4">
-									<div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-										<div className="flex flex-col sm:flex-row items-start sm:items-center gap-x-4 gap-y-2">
-											{user?.metadata?.role === AuthRole.ADMIN && (
-												<div className="flex items-center space-x-2">
-													<Checkbox
-														id="group-by-grade"
-														checked={groupByGrade}
-														onCheckedChange={(checked) =>
-															setGroupByGrade(!!checked)
-														}
-													/>
-													<Label htmlFor="group-by-grade">Group by Grade</Label>
-												</div>
+								<div className="flex items-center">
+									<Select
+										value={selectedMinistryFilter}
+										onValueChange={setSelectedMinistryFilter}>
+										<SelectTrigger className="w-full sm:w-[250px]">
+											<SelectValue placeholder="Filter by Ministry" />
+										</SelectTrigger>
+										<SelectContent>
+											{(user?.metadata?.role === AuthRole.ADMIN ||
+												(user?.metadata?.role === AuthRole.MINISTRY_LEADER &&
+													user.assignedMinistryIds &&
+													user.assignedMinistryIds.length > 1)) && (
+												<SelectItem value="all">All Ministries</SelectItem>
 											)}
-											<div className="flex items-center space-x-2">
-												<Checkbox
-													id="show-checked-in"
-													checked={showCheckedIn}
-													onCheckedChange={(checked) => setShowCheckedIn(!!checked)}
-												/>
-												<Label htmlFor="show-checked-in">Checked-In</Label>
-											</div>
-											<div className="flex items-center space-x-2">
-												<Checkbox
-													id="show-checked-out"
-													checked={showCheckedOut}
-													onCheckedChange={(checked) =>
-														setShowCheckedOut(!!checked)
-													}
-												/>
-												<Label htmlFor="show-checked-out">Checked-Out</Label>
-											</div>
-										</div>
-										<div className="flex items-center">
-											<Select
-												value={selectedMinistryFilter}
-												onValueChange={setSelectedMinistryFilter}>
-												<SelectTrigger className="w-full sm:w-[250px]">
-													<SelectValue placeholder="Filter by Ministry" />
-												</SelectTrigger>
-												<SelectContent>
-													{(user?.metadata?.role === AuthRole.ADMIN ||
-														(user?.metadata?.role === AuthRole.MINISTRY_LEADER &&
-															user.assignedMinistryIds &&
-															user.assignedMinistryIds.length > 1)) && (
-														<SelectItem value="all">All Ministries</SelectItem>
-													)}
-													{ministryFilterOptions.map((m) => (
-														<SelectItem key={m.ministry_id} value={m.ministry_id}>
-															{m.name}
-														</SelectItem>
-													))}
-												</SelectContent>
-											</Select>
-										</div>
-									</div>
+											{ministryFilterOptions.map((m) => (
+												<SelectItem key={m.ministry_id} value={m.ministry_id}>
+													{m.name}
+												</SelectItem>
+											))}
+										</SelectContent>
+									</Select>
 								</div>
-							</CardHeader>
-							<CardContent>
-								{showBulkActions && (
-									<div className="border-b mb-4 pb-4 flex items-center justify-between">
-										<div>
-											<p className="text-sm text-muted-foreground">
-												{selectedChildren.size} children selected
-											</p>
-											<Button
-												variant="link"
-												size="sm"
-												className="p-0 h-auto"
-												onClick={toggleSelectAll}>
-												{selectedChildren.size === displayChildren.length
-													? 'Deselect All'
-													: 'Select All'}
-											</Button>
-										</div>
-										<Button
-											onClick={handleBulkAction}
-											disabled={selectedChildren.size === 0}>
-											{showCheckedOut ? 'Bulk Check-In' : 'Bulk Check-Out'}
-										</Button>
-									</div>
-								)}
-								{isMobile ? renderCards() : renderTable()}
-							</CardContent>
-						</Card>
-					</TabsContent>
-					
-					<TabsContent value="leaders">
-						<Card>
-							<CardHeader className="p-0">
-								<div className="p-6 bg-muted/25 border-b">
-									<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-										<div>
-											<CardTitle className="font-headline">Ministry Leaders</CardTitle>
-											<CardDescription>
-												View and manage leaders assigned to ministries.
-											</CardDescription>
-										</div>
-										{user?.metadata?.role === AuthRole.ADMIN && selectedMinistryFilter !== 'all' && (
-											<div className="flex gap-2">
-												<Button 
-													variant="outline" 
-													onClick={() => setIsAddLeaderDialogOpen(true)}
-													className="flex items-center gap-2">
-													<Plus className="h-4 w-4" />
-													Add Existing
-												</Button>
-												<Button 
-													onClick={() => setIsCreateLeaderDialogOpen(true)}
-													className="flex items-center gap-2">
-													<UserPlus className="h-4 w-4" />
-													Create New
-												</Button>
-											</div>
-										)}
-									</div>
+							</div>
+						</div>
+					</CardHeader>
+					<CardContent>
+						{showBulkActions && (
+							<div className="border-b mb-4 pb-4 flex items-center justify-between">
+								<div>
+									<p className="text-sm text-muted-foreground">
+										{selectedChildren.size} children selected
+									</p>
+									<Button
+										variant="link"
+										size="sm"
+										className="p-0 h-auto"
+										onClick={toggleSelectAll}>
+										{selectedChildren.size === displayChildren.length
+											? 'Deselect All'
+											: 'Select All'}
+									</Button>
 								</div>
-								<div className="p-6 space-y-4">
-									<div className="flex items-center">
-										<Select
-											value={selectedMinistryFilter}
-											onValueChange={setSelectedMinistryFilter}>
-											<SelectTrigger className="w-full sm:w-[250px]">
-												<SelectValue placeholder="Select Ministry" />
-											</SelectTrigger>
-											<SelectContent>
-												{user?.metadata?.role === AuthRole.ADMIN && (
-													<SelectItem value="all">All Ministries</SelectItem>
-												)}
-												{ministryFilterOptions.map((m) => (
-													<SelectItem key={m.ministry_id} value={m.ministry_id}>
-														{m.name}
-													</SelectItem>
-												))}
-											</SelectContent>
-										</Select>
-									</div>
-								</div>
-							</CardHeader>
-							<CardContent>
-								{renderLeaderTable()}
-							</CardContent>
-						</Card>
-					</TabsContent>
-				</Tabs>
+								<Button
+									onClick={handleBulkAction}
+									disabled={selectedChildren.size === 0}>
+									{showCheckedOut ? 'Bulk Check-In' : 'Bulk Check-Out'}
+								</Button>
+							</div>
+						)}
+						{isMobile ? renderCards() : renderTable()}
+					</CardContent>
+				</Card>
 			</div>
 			<CheckoutDialog
 				child={childToCheckout}
@@ -1188,37 +913,6 @@ export default function RostersPage() {
 			<PhotoCaptureDialog
 				child={selectedChildForPhoto}
 				onClose={() => setSelectedChildForPhoto(null)}
-			/>
-			
-			<AddExistingLeaderDialog
-				open={isAddLeaderDialogOpen}
-				onOpenChange={setIsAddLeaderDialogOpen}
-				allLeaders={allLeaderProfiles || []}
-				existingLeaderIds={ministryRoster?.map(m => m.leader_id) || []}
-				onAddLeader={handleAddExistingLeader}
-				ministryName={
-					ministryFilterOptions.find(m => m.ministry_id === selectedMinistryFilter)?.name || 'Ministry'
-				}
-			/>
-			
-			<CreateNewLeaderDialog
-				open={isCreateLeaderDialogOpen}
-				onOpenChange={setIsCreateLeaderDialogOpen}
-				onCreateLeader={handleCreateAndAssignLeader}
-				ministryName={
-					ministryFilterOptions.find(m => m.ministry_id === selectedMinistryFilter)?.name || 'Ministry'
-				}
-			/>
-			
-			<EditLeaderMembershipDialog
-				open={!!selectedLeaderForEdit}
-				onOpenChange={(open) => !open && setSelectedLeaderForEdit(null)}
-				membership={selectedLeaderForEdit?.membership || null}
-				ministryName={
-					ministryFilterOptions.find(m => m.ministry_id === selectedLeaderForEdit?.ministryId)?.name || 'Ministry'
-				}
-				onUpdateMembership={handleUpdateLeaderMembership}
-				onRemoveMembership={handleRemoveLeaderMembership}
 			/>
 		</>
 	);

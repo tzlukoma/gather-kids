@@ -1124,3 +1124,30 @@ export async function getDefaultBrandingSettings(): Promise<Partial<BrandingSett
         instagram_url: undefined,
     };
 }
+
+// Check if leader migration is needed and run it if so
+export async function migrateLeadersIfNeeded(): Promise<boolean> {
+    try {
+        // Check if we have any leader profiles already
+        const existingProfiles = await db.leader_profiles.limit(1).toArray();
+        if (existingProfiles.length > 0) {
+            return false; // Migration already done
+        }
+
+        // Check if we have any old ministry leaders to migrate
+        const oldLeaders = await db.users.where('role').equals(AuthRole.MINISTRY_LEADER).limit(1).toArray();
+        if (oldLeaders.length === 0) {
+            return false; // No leaders to migrate
+        }
+
+        // Run the migration
+        const { migrateLeaders } = await import('../../scripts/migrate/migrate-leaders');
+        const report = await migrateLeaders();
+        
+        console.log('Migration completed:', report);
+        return true;
+    } catch (error) {
+        console.error('Migration failed:', error);
+        throw error;
+    }
+}
