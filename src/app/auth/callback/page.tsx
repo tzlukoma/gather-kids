@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { supabaseBrowser } from '@/lib/supabaseClient';
 import { isDemo } from '@/lib/authGuards';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,13 +9,23 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
 
-export default function AuthCallbackPage() {
+function AuthCallbackContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    // Set mounted state to prevent hydration mismatch
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    // Only run after component is mounted to avoid SSR issues
+    if (!mounted) return;
+
     // If we're in demo mode, redirect away from this page
     if (isDemo()) {
       router.replace('/login');
@@ -24,12 +34,29 @@ export default function AuthCallbackPage() {
 
     const handleAuthCallback = async () => {
       try {
-        const supabase = supabaseBrowser();
-        const { data, error } = await supabase.auth.getSession();
+        // Ensure we have required environment variables
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+        const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
         
-        if (error) {
-          console.error('Auth callback error:', error);
-          setError(error.message);
+        if (!supabaseUrl || !supabaseAnonKey || supabaseUrl.includes('dummy')) {
+          setError('Supabase is not properly configured for this environment.');
+          return;
+        }
+
+        const supabase = supabaseBrowser();
+        
+        // Handle auth callback by exchanging code for session
+        const { data, error: authError } = await supabase.auth.exchangeCodeForSession(
+          searchParams?.get('code') || ''
+        );
+        
+        if (authError) {
+          console.error('Auth callback error:', authError);
+          if (authError.message.includes('expired') || authError.message.includes('invalid')) {
+            setError('The authentication link has expired or is invalid.');
+          } else {
+            setError(authError.message);
+          }
         } else if (data.session) {
           setSuccess(true);
           // Redirect to onboarding to check if user needs password setup
@@ -39,14 +66,30 @@ export default function AuthCallbackPage() {
         }
       } catch (err) {
         console.error('Unexpected error:', err);
-        setError('An unexpected error occurred.');
+        setError(err instanceof Error ? err.message : 'An unexpected error occurred.');
       } finally {
         setLoading(false);
       }
     };
 
     handleAuthCallback();
-  }, [router]);
+  }, [router, mounted, searchParams]);
+
+  // Prevent hydration mismatch by not rendering until mounted
+  if (!mounted) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-muted/50 p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <CardTitle className="flex items-center justify-center gap-2">
+              <Loader2 className="h-5 w-5 animate-spin" />
+              Loading...
+            </CardTitle>
+          </CardHeader>
+        </Card>
+      </div>
+    );
+  }
 
   // Show demo mode notice
   if (isDemo()) {
@@ -122,5 +165,24 @@ export default function AuthCallbackPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function AuthCallbackPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex min-h-screen items-center justify-center bg-muted/50 p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <CardTitle className="flex items-center justify-center gap-2">
+              <Loader2 className="h-5 w-5 animate-spin" />
+              Loading...
+            </CardTitle>
+          </CardHeader>
+        </Card>
+      </div>
+    }>
+      <AuthCallbackContent />
+    </Suspense>
   );
 }
