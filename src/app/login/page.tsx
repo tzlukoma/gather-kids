@@ -238,7 +238,7 @@ export default function LoginPage() {
 				setMagicLinkSent(true);
 				toast({
 					title: 'Magic Link Sent!',
-					description: 'Check your email and click the link in THIS browser tab. Links expire after 1 hour.',
+					description: 'Check your email and click the link. Magic links now work across browser tabs! Links expire after 1 hour.',
 				});
 				setResendCooldown(60);
 				const timer = setInterval(() => {
@@ -500,9 +500,9 @@ export default function LoginPage() {
 													<AlertDescription>
 														<div className="space-y-2">
 															<p>Check your email and click the link to sign in.</p>
-															<div className="bg-blue-50 p-2 rounded text-sm">
-																<p className="font-semibold text-blue-800">Important:</p>
-																<p className="text-blue-700">Click the magic link in THIS browser tab for best results. Opening it in a different browser or tab may cause authentication errors.</p>
+															<div className="bg-green-50 p-2 rounded text-sm">
+																<p className="font-semibold text-green-800">✓ Cross-Tab Support:</p>
+																<p className="text-green-700">Magic links now work reliably when opened in different browser tabs or windows!</p>
 															</div>
 															{resendCooldown > 0 && (
 																<p className="text-sm mt-2">

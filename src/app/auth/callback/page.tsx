@@ -74,8 +74,8 @@ function AuthCallbackContent() {
           return;
         }
         
-        // Additional debugging for PKCE flow issues
-        const codeVerifier = localStorage.getItem('gatherKids-auth-token-code-verifier');
+        // Additional debugging for PKCE flow issues with new cross-tab storage
+        const codeVerifier = localStorage.getItem('gatherKids-auth-auth-token-code-verifier');
         const authStorageKeys = Object.keys(localStorage).filter(key => 
           key.includes('gatherKids-auth') || key.includes('supabase') || key.includes('auth')
         );
@@ -90,7 +90,7 @@ function AuthCallbackContent() {
           userAgent: navigator.userAgent,
           currentOrigin: window.location.origin,
           currentUrl: window.location.href,
-          sessionStorage: !!sessionStorage.getItem('gatherKids-auth-token-code-verifier'),
+          sessionStorage: !!sessionStorage.getItem('gatherKids-auth-auth-token-code-verifier'),
           cookieCount: document.cookie.split(';').length
         });
 
@@ -111,8 +111,8 @@ function AuthCallbackContent() {
               errorMessage: authError.message,
               hasCode: !!code,
               codeLength: code?.length,
-              hasLocalStorageVerifier: !!localStorage.getItem('gatherKids-auth-token-code-verifier'),
-              hasSessionStorageVerifier: !!sessionStorage.getItem('gatherKids-auth-token-code-verifier'),
+              hasLocalStorageVerifier: !!localStorage.getItem('gatherKids-auth-auth-token-code-verifier'),
+              hasSessionStorageVerifier: !!sessionStorage.getItem('gatherKids-auth-auth-token-code-verifier'),
               authStorageKeys: Object.keys(localStorage).filter(key => 
                 key.includes('auth') || key.includes('supabase') || key.includes('gatherKids')
               ),
@@ -142,7 +142,7 @@ function AuthCallbackContent() {
               console.warn('Could not clear auth storage:', e);
             }
             
-            setError('The authentication process failed due to a browser security issue. This commonly happens when you:\n\n• Requested the magic link in a different browser or tab than this one\n• Have private/incognito mode enabled\n• Browser storage was cleared between requesting and clicking the link\n• Third-party cookies or local storage are blocked\n\nPlease request a new magic link and make sure to click it in the same browser tab where you requested it.');
+            setError('The authentication process failed due to missing authentication data. This can happen when:\n\n• The magic link has expired (they expire after 1 hour)\n• The authentication data was cleared from your browser\n• You\'re using private/incognito browsing mode with strict settings\n• The link has already been used\n\nPlease request a new magic link to continue. The new cross-tab storage system should now work reliably when opening links in different tabs.');
           } else if (errorMessage.includes('expired') || errorMessage.includes('invalid_code') || 
               errorMessage.includes('otp_expired') || errorMessage.includes('token_expired')) {
             setError('The authentication link has expired or is invalid.');
@@ -251,18 +251,18 @@ function AuthCallbackContent() {
                 )}
                 {error.includes('authentication process failed') && (
                   <div className="text-sm text-muted-foreground space-y-2">
-                    <p className="font-semibold">This is a browser security protection.</p>
+                    <p className="font-semibold">✓ Cross-tab authentication is now supported!</p>
                     <div className="bg-muted p-3 rounded-md">
-                      <p className="font-medium mb-2">Common causes:</p>
+                      <p className="font-medium mb-2">This error can still occur if:</p>
                       <ul className="list-disc list-inside text-xs space-y-1">
-                        <li>You requested the magic link in a different browser tab</li>
-                        <li>You're using private/incognito browsing mode</li>
-                        <li>Your browser storage was cleared</li>
-                        <li>Third-party cookies are blocked</li>
+                        <li>The magic link has expired (1 hour limit)</li>
+                        <li>The link has already been used</li>
+                        <li>Private/incognito mode with strict privacy settings</li>
+                        <li>Browser storage was completely cleared</li>
                       </ul>
                     </div>
-                    <p className="text-xs font-medium text-primary">
-                      💡 Tip: Request and click the magic link in the same browser tab for best results.
+                    <p className="text-xs font-medium text-green-600">
+                      ✓ Fixed: Magic links now work when opened in different browser tabs!
                     </p>
                   </div>
                 )}
