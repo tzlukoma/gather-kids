@@ -26,9 +26,17 @@ export default function GuardianHouseholdPage() {
 	useEffect(() => {
 		// Check if this is a first-time user who hasn't dismissed onboarding
 		if (user && !user.metadata?.onboarding_dismissed) {
-			// For demo purposes, show onboarding for the demo parent on first visit
-			if (user.uid === 'user_parent_demo') {
-				setShowOnboarding(true);
+			// Check if onboarding has already been shown in this session
+			const sessionKey = `onboarding_shown_${user.uid}`;
+			const alreadyShownThisSession = sessionStorage.getItem(sessionKey);
+			
+			if (!alreadyShownThisSession) {
+				// For demo purposes, show onboarding for the demo parent on first login of session
+				if (user.uid === 'user_parent_demo') {
+					setShowOnboarding(true);
+					// Mark as shown for this session
+					sessionStorage.setItem(sessionKey, 'true');
+				}
 			}
 		}
 	}, [user]);

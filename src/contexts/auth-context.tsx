@@ -125,6 +125,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 			setUser(null);
 			setUserRole(null);
 			localStorage.removeItem('gatherkids-user');
+			// Clear all session storage to reset onboarding state
+			sessionStorage.clear();
 		} finally {
 			setLoading(false);
 		}
