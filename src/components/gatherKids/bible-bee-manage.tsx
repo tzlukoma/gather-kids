@@ -61,6 +61,7 @@ import {
     CheckCircle 
 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { useToast } from '@/hooks/use-toast';
 
 interface BibleBeeManageProps {
     className?: string;
@@ -369,6 +370,7 @@ function DivisionManagement({ yearId, yearLabel, divisions }: {
     yearLabel: string;
     divisions: any[];
 }) {
+    const { toast } = useToast();
     const [isCreating, setIsCreating] = useState(false);
     const [editingDivision, setEditingDivision] = useState<any>(null);
     const [formData, setFormData] = useState({
@@ -385,7 +387,12 @@ function DivisionManagement({ yearId, yearLabel, divisions }: {
         try {
             if (editingDivision) {
                 await updateDivision(editingDivision.id, formData);
+                toast({
+                    title: `${formData.name} Division Updated`,
+                    description: 'Division information has been successfully updated.',
+                });
                 setEditingDivision(null);
+                setIsCreating(false);
             } else {
                 await createDivision({ ...formData, year_id: yearId });
                 setIsCreating(false);
