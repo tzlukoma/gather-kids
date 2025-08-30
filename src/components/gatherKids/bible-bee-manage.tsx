@@ -102,6 +102,9 @@ export default function BibleBeeManage({ className }: BibleBeeManageProps) {
             years.push(...bibleBeeYears);
         }
         
+        // Check if there are any active new schema years
+        const hasActiveNewYear = bibleBeeYears?.some(y => y.is_active) || false;
+        
         // Always add old schema years as bridge data (not just when no new years exist)
         if (competitionYears) {
             const bridgeYears = competitionYears.map(cy => ({
@@ -110,7 +113,8 @@ export default function BibleBeeManage({ className }: BibleBeeManageProps) {
                 description: cy.description || `Legacy competition year ${cy.year}`,
                 start_date: cy.opensAt,
                 end_date: cy.closesAt,
-                is_active: cy.year === 2025, // Make 2025 active by default
+                // Only make legacy year active if no new schema years are active
+                is_active: !hasActiveNewYear && cy.year === 2025,
                 created_at: cy.createdAt,
                 updated_at: cy.updatedAt,
                 _isLegacy: true // Flag to identify bridged data

@@ -171,6 +171,22 @@ export async function commitCsvRowsToYear(rows: CsvRow[], competitionYearId: str
 export async function createBibleBeeYear(payload: Omit<BibleBeeYear, 'id' | 'created_at'> & { id?: string }) {
     const now = new Date().toISOString();
     const id = payload.id ?? crypto.randomUUID();
+    
+    // If setting this year as active, deactivate all other years first
+    if (payload.is_active) {
+        // Deactivate all existing Bible Bee years
+        const existingActiveYears = await db.bible_bee_years.where('is_active').equals(1).toArray();
+        for (const year of existingActiveYears) {
+            await db.bible_bee_years.update(year.id, { is_active: false });
+        }
+        
+        // Also handle legacy competition years - set them as inactive
+        const legacyActiveYears = await db.competitionYears.toArray();
+        // We can't directly update the legacy years' active status as they don't have that field,
+        // but the bridge logic in the component sets 2025 as active by default.
+        // The UI logic will need to handle this by only showing one active at a time.
+    }
+    
     const item: BibleBeeYear = {
         id,
         label: payload.label,
@@ -184,6 +200,17 @@ export async function createBibleBeeYear(payload: Omit<BibleBeeYear, 'id' | 'cre
 export async function updateBibleBeeYear(id: string, updates: Partial<Omit<BibleBeeYear, 'id' | 'created_at'>>) {
     const existing = await db.bible_bee_years.get(id);
     if (!existing) throw new Error(`BibleBeeYear ${id} not found`);
+    
+    // If setting this year as active, deactivate all other years first
+    if (updates.is_active === true) {
+        // Deactivate all existing Bible Bee years except this one
+        const existingActiveYears = await db.bible_bee_years.where('is_active').equals(1).toArray();
+        for (const year of existingActiveYears) {
+            if (year.id !== id) {
+                await db.bible_bee_years.update(year.id, { is_active: false });
+            }
+        }
+    }
     
     const updated = { ...existing, ...updates };
     await db.bible_bee_years.put(updated);
@@ -362,6 +389,14 @@ export async function previewAutoEnrollment(yearId: string): Promise<{
     }
     
     // Get children enrolled in Bible Bee for the current registration cycle
+    console.log('Current cycle:', currentCycle);
+    console.log('Bible Bee ministry:', bibleBeeMinistry);
+    
+    // Validate that we have valid IDs for the compound key
+    if (!currentCycle.cycle_id || !bibleBeeMinistry.ministry_id) {
+        throw new Error(`Invalid IDs for query: cycle_id=${currentCycle.cycle_id}, ministry_id=${bibleBeeMinistry.ministry_id}`);
+    }
+    
     const bibleBeeEnrollments = await db.ministry_enrollments
         .where('[cycle_id+ministry_id]')
         .equals([currentCycle.cycle_id, bibleBeeMinistry.ministry_id])
