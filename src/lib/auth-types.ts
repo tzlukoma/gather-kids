@@ -17,6 +17,7 @@ export interface BaseUser {
     metadata: {
         role: AuthRole;
         household_id?: string;
+        onboarding_dismissed?: boolean;
     };
     is_active: boolean;
     assignedMinistryIds?: string[];

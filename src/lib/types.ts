@@ -128,12 +128,49 @@ export interface MinistryEnrollment {
     notes?: string;
 }
 
+// Legacy - keeping for backward compatibility during migration
 export interface LeaderAssignment {
     assignment_id: string; // PK
     leader_id: string; // FK to users
     ministry_id: string; // FK
     cycle_id: string; // FK
     role: 'Primary' | 'Volunteer';
+}
+
+// NEW: Leader Profiles (non-user records)
+export interface LeaderProfile {
+    leader_id: string; // PK (cuid/uuid)
+    first_name: string;
+    last_name: string;
+    email?: string; // nullable, unique if present, lowercase
+    phone?: string; // nullable, normalized
+    notes?: string; // nullable
+    background_check_complete?: boolean; // nullable, default false
+    is_active: boolean; // default true
+    created_at: string;
+    updated_at: string;
+}
+
+// NEW: Ministry Leader Memberships (many-to-many with role)
+export interface MinistryLeaderMembership {
+    membership_id: string; // PK
+    ministry_id: string; // FK → ministries
+    leader_id: string; // FK → leader_profiles
+    role_type: 'PRIMARY' | 'VOLUNTEER';
+    is_active: boolean; // default true
+    notes?: string; // nullable
+    created_at: string;
+    updated_at: string;
+}
+
+// NEW: Ministry Accounts (one per ministry for RBAC)
+export interface MinistryAccount {
+    ministry_id: string; // FK, unique
+    email: string; // unique, lowercase
+    display_name: string;
+    is_active: boolean;
+    created_at: string;
+    updated_at: string;
 }
 
 export interface User {

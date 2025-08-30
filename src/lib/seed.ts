@@ -3,7 +3,7 @@
 import { db } from './db';
 import { v4 as uuidv4 } from 'uuid';
 import { seedBibleBeeDemo } from './seedBibleBee';
-import type { Household, Guardian, EmergencyContact, Child, RegistrationCycle, Registration, Ministry, MinistryEnrollment, User, Event, Attendance, Incident, LeaderAssignment } from './types';
+import type { Household, Guardian, EmergencyContact, Child, RegistrationCycle, Registration, Ministry, MinistryEnrollment, MinistryAccount, User, Event, Attendance, Incident, LeaderAssignment } from './types';
 import { subYears, formatISO, differenceInYears, parseISO } from 'date-fns';
 
 const USER_IDS: { [key: string]: string } = {};
@@ -174,7 +174,7 @@ export const seedDB = async () => {
     leaders.forEach(l => USER_IDS[l.name.split(' ')[0]] = l.user_id);
 
 
-    await (db as any).transaction('rw', db.users, db.registration_cycles, db.ministries, db.events, db.households, db.children, db.guardians, db.emergency_contacts, db.registrations, db.ministry_enrollments, db.leader_assignments, db.attendance, db.incidents,
+    await (db as any).transaction('rw', db.users, db.registration_cycles, db.ministries, db.ministry_accounts, db.events, db.households, db.children, db.guardians, db.emergency_contacts, db.registrations, db.ministry_enrollments, db.leader_assignments, db.attendance, db.incidents,
         // Bible Bee stores
         db.competitionYears, db.scriptures, db.gradeRules, db.studentScriptures, db.studentEssays,
         async () => {
@@ -215,6 +215,43 @@ export const seedDB = async () => {
                 return fullM;
             });
             await db.ministries.bulkPut(fullMinistries);
+
+            // Create demo ministry accounts with emails that match the demo leader accounts
+            const demoMinistryAccounts: MinistryAccount[] = [
+                {
+                    ministry_id: MINISTRY_IDS['mentoring-boys'], // "Mentoring Ministry-Boys (Khalfani)"
+                    email: 'leader.khalfani@example.com',
+                    display_name: 'Mentoring Ministry-Boys (Khalfani)',
+                    is_active: true,
+                    created_at: now,
+                    updated_at: now,
+                },
+                {
+                    ministry_id: MINISTRY_IDS['choir-joy-bells'], // "Youth Choirs- Joy Bells (Ages 4-8)"
+                    email: 'leader.joybells@example.com',
+                    display_name: 'Youth Choirs- Joy Bells (Ages 4-8)',
+                    is_active: true,
+                    created_at: now,
+                    updated_at: now,
+                },
+                {
+                    ministry_id: MINISTRY_IDS['bible-bee'], // "Bible Bee"
+                    email: 'leader.biblebee@example.com',
+                    display_name: 'Bible Bee',
+                    is_active: true,
+                    created_at: now,
+                    updated_at: now,
+                },
+                {
+                    ministry_id: MINISTRY_IDS['min_sunday_school'], // "Sunday School" 
+                    email: 'leader.sundayschool@example.com',
+                    display_name: 'Sunday School',
+                    is_active: true,
+                    created_at: now,
+                    updated_at: now,
+                },
+            ];
+            await db.ministry_accounts.bulkPut(demoMinistryAccounts);
 
             await db.events.bulkPut([
                 { event_id: EVENT_IDS.sundaySchool, name: 'Sunday School', timeslots: [{ id: 'ts_0900', start_local: '09:00', end_local: '10:30' }] },

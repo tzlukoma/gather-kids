@@ -65,6 +65,7 @@ function MinistryTable({
 						<TableRow>
 							<TableHead>Name</TableHead>
 							<TableHead>Code</TableHead>
+							<TableHead>Email</TableHead>
 							<TableHead>Status</TableHead>
 							<TableHead>Eligibility</TableHead>
 							<TableHead className="text-right">Actions</TableHead>
@@ -76,6 +77,9 @@ function MinistryTable({
 								<TableCell className="font-medium">{m.name}</TableCell>
 								<TableCell>
 									<Badge variant="outline">{m.code}</Badge>
+								</TableCell>
+								<TableCell className="text-muted-foreground">
+									{(m as any).email || '—'}
 								</TableCell>
 								<TableCell>
 									<Badge
@@ -126,7 +130,7 @@ function MinistryTable({
 						{ministries.length === 0 && (
 							<TableRow>
 								<TableCell
-									colSpan={5}
+									colSpan={6}
 									className="text-center h-24 text-muted-foreground">
 									No ministries of this type found.
 								</TableCell>
@@ -145,6 +149,7 @@ export default function ConfigurationPage() {
 	const [isAuthorized, setIsAuthorized] = useState(false);
 
 	const allMinistries = useLiveQuery(() => db.ministries.toArray(), []);
+	const allMinistryAccounts = useLiveQuery(() => db.ministry_accounts.toArray(), []);
 	const { toast } = useToast();
 
 	const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -165,18 +170,28 @@ export default function ConfigurationPage() {
 	}, [user, loading, router]);
 
 	const { enrolledPrograms, interestPrograms } = useMemo(() => {
-		if (!allMinistries) return { enrolledPrograms: [], interestPrograms: [] };
-		const enrolled = allMinistries
+		if (!allMinistries || !allMinistryAccounts) return { enrolledPrograms: [], interestPrograms: [] };
+		
+		// Create a map of ministry_id to email from ministry accounts
+		const emailMap = new Map(allMinistryAccounts.map(account => [account.ministry_id, account.email]));
+		
+		// Add email to ministries
+		const ministriesWithEmail = allMinistries.map(m => ({
+			...m,
+			email: emailMap.get(m.ministry_id) || null
+		}));
+		
+		const enrolled = ministriesWithEmail
 			.filter(
 				(m) =>
 					m.enrollment_type === 'enrolled' && !m.code.startsWith('min_sunday')
 			)
 			.sort((a, b) => a.name.localeCompare(b.name));
-		const interest = allMinistries
+		const interest = ministriesWithEmail
 			.filter((m) => m.enrollment_type === 'expressed_interest')
 			.sort((a, b) => a.name.localeCompare(b.name));
 		return { enrolledPrograms: enrolled, interestPrograms: interest };
-	}, [allMinistries]);
+	}, [allMinistries, allMinistryAccounts]);
 
 	const handleAddNew = () => {
 		setEditingMinistry(null);
@@ -191,6 +206,13 @@ export default function ConfigurationPage() {
 	const handleDelete = async (ministryId: string) => {
 		try {
 			await deleteMinistry(ministryId);
+			// Also clean up the ministry account if it exists
+			try {
+				await db.ministry_accounts.delete(ministryId);
+			} catch (e) {
+				// Ignore if account doesn't exist
+				console.warn('No ministry account to delete for:', ministryId);
+			}
 			toast({
 				title: 'Ministry Deleted',
 				description: 'The ministry has been successfully deleted.',
@@ -205,7 +227,7 @@ export default function ConfigurationPage() {
 		}
 	};
 
-	if (loading || !isAuthorized || !allMinistries) {
+	if (loading || !isAuthorized || !allMinistries || !allMinistryAccounts) {
 		return <div>Loading configuration...</div>;
 	}
 
@@ -213,7 +235,7 @@ export default function ConfigurationPage() {
 		<div className="flex flex-col gap-8">
 			<div className="flex items-center justify-between">
 				<div>
-					<h1 className="text-3xl font-bold font-headline">Configuration</h1>
+					<h1 className="text-3xl font-bold font-headline">Ministries</h1>
 					<p className="text-muted-foreground">
 						Manage the ministries and activities available for registration.
 					</p>

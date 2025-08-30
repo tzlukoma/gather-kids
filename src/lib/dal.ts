@@ -15,7 +15,7 @@
 import { db } from './db';
 import { getApplicableGradeRule } from './bibleBee';
 import { AuthRole } from './auth-types';
-import type { Attendance, Child, Guardian, Household, Incident, IncidentSeverity, Ministry, MinistryEnrollment, Registration, User, EmergencyContact, LeaderAssignment, BrandingSettings } from './types';
+import type { Attendance, Child, Guardian, Household, Incident, IncidentSeverity, Ministry, MinistryEnrollment, Registration, User, EmergencyContact, LeaderAssignment, LeaderProfile, MinistryLeaderMembership, MinistryAccount, BrandingSettings  } from './types';
 import { differenceInYears, isAfter, isBefore, parseISO, isValid } from 'date-fns';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -886,6 +886,227 @@ export async function updateLeaderStatus(leaderId: string, isActive: boolean): P
     return db.users.update(leaderId, { is_active: isActive });
 }
 
+// === NEW: Leader Profile Management Functions ===
+
+// Normalize email to lowercase
+function normalizeEmail(email?: string): string | undefined {
+  return email ? email.toLowerCase().trim() : undefined;
+}
+
+// Normalize phone number (basic implementation)
+function normalizePhone(phone?: string): string | undefined {
+  if (!phone) return undefined;
+  return phone.replace(/\D/g, ''); // Remove all non-digits
+}
+
+// Query all leader profiles with their membership counts
+export async function queryLeaderProfiles() {
+    const profiles = await db.leader_profiles.toArray();
+    const memberships = await db.ministry_leader_memberships.toArray();
+    
+    // Sort by last name, then first name
+    profiles.sort((a, b) => {
+        const lastNameCompare = a.last_name.localeCompare(b.last_name);
+        if (lastNameCompare !== 0) return lastNameCompare;
+        return a.first_name.localeCompare(b.first_name);
+    });
+    
+    // Create a map of leader_id to ministry count (only active memberships)
+    const membershipCounts = memberships.reduce((acc, m) => {
+        if (m.is_active) {
+            acc[m.leader_id] = (acc[m.leader_id] || 0) + 1;
+        }
+        return acc;
+    }, {} as Record<string, number>);
+    
+    return profiles.map(profile => ({
+        ...profile,
+        ministryCount: membershipCounts[profile.leader_id] || 0,
+        is_active: profile.is_active && (membershipCounts[profile.leader_id] || 0) > 0
+    }));
+}
+
+// Get leader profile with all memberships
+export async function getLeaderProfileWithMemberships(leaderId: string) {
+    const profile = await db.leader_profiles.get(leaderId);
+    if (!profile) return null;
+
+    const memberships = await db.ministry_leader_memberships.where('leader_id').equals(leaderId).toArray();
+    const ministries = await db.ministries.toArray();
+    const ministryMap = new Map(ministries.map(m => [m.ministry_id, m]));
+
+    const membershipsWithMinistries = memberships.map(m => ({
+        ...m,
+        ministry: ministryMap.get(m.ministry_id)
+    })).filter(m => m.ministry); // Filter out memberships for deleted ministries
+
+    return {
+        profile,
+        memberships: membershipsWithMinistries,
+        allMinistries: ministries.filter(m => m.is_active).sort((a, b) => a.name.localeCompare(b.name))
+    };
+}
+
+// Create or update leader profile
+export async function saveLeaderProfile(profileData: Omit<LeaderProfile, 'created_at' | 'updated_at'> & { created_at?: string }) {
+    const now = new Date().toISOString();
+    
+    // Normalize email and phone
+    const normalizedProfile: LeaderProfile = {
+        ...profileData,
+        email: normalizeEmail(profileData.email),
+        phone: normalizePhone(profileData.phone),
+        created_at: profileData.created_at || now,
+        updated_at: now
+    };
+
+    // Check for duplicate email (if provided)
+    if (normalizedProfile.email) {
+        const existingByEmail = await db.leader_profiles
+            .where('email').equals(normalizedProfile.email)
+            .and(p => p.leader_id !== normalizedProfile.leader_id)
+            .first();
+        
+        if (existingByEmail) {
+            throw new Error(`A leader profile with email ${normalizedProfile.email} already exists`);
+        }
+    }
+
+    return db.leader_profiles.put(normalizedProfile);
+}
+
+// Get ministry memberships for a leader
+export async function getLeaderMemberships(leaderId: string) {
+    const memberships = await db.ministry_leader_memberships.where('leader_id').equals(leaderId).toArray();
+    const ministries = await db.ministries.toArray();
+    const ministryMap = new Map(ministries.map(m => [m.ministry_id, m]));
+
+    return memberships.map(m => ({
+        ...m,
+        ministry: ministryMap.get(m.ministry_id)
+    })).filter(m => m.ministry);
+}
+
+// Save leader memberships (replaces all memberships for the leader)
+export async function saveLeaderMemberships(leaderId: string, memberships: Omit<MinistryLeaderMembership, 'membership_id' | 'created_at' | 'updated_at'>[]) {
+    return db.transaction('rw', [db.ministry_leader_memberships, db.leader_profiles], async () => {
+        // Delete existing memberships for this leader
+        await db.ministry_leader_memberships.where('leader_id').equals(leaderId).delete();
+
+        // Add new memberships
+        if (memberships.length > 0) {
+            const now = new Date().toISOString();
+            const membershipRecords: MinistryLeaderMembership[] = memberships.map(m => ({
+                ...m,
+                membership_id: uuidv4(),
+                created_at: now,
+                updated_at: now
+            }));
+
+            await db.ministry_leader_memberships.bulkAdd(membershipRecords);
+        }
+
+        // Update leader profile activity status
+        await updateLeaderProfileStatus(leaderId, memberships.some(m => m.is_active));
+    });
+}
+
+// Update leader profile active status
+export async function updateLeaderProfileStatus(leaderId: string, isActive: boolean) {
+    const now = new Date().toISOString();
+    return db.leader_profiles.update(leaderId, { is_active: isActive, updated_at: now });
+}
+
+// Get ministry roster (memberships for a ministry)
+export async function getMinistryRoster(ministryId: string) {
+    const memberships = await db.ministry_leader_memberships.where('ministry_id').equals(ministryId).toArray();
+    const leaderIds = memberships.map(m => m.leader_id);
+    
+    if (leaderIds.length === 0) return [];
+    
+    const profiles = await db.leader_profiles.where('leader_id').anyOf(leaderIds).toArray();
+    const profileMap = new Map(profiles.map(p => [p.leader_id, p]));
+
+    return memberships.map(m => ({
+        ...m,
+        profile: profileMap.get(m.leader_id)
+    })).filter(m => m.profile);
+}
+
+// Search leader profiles by name or email
+export async function searchLeaderProfiles(searchTerm: string) {
+    const lowerSearchTerm = searchTerm.toLowerCase();
+    
+    const profiles = await db.leader_profiles
+        .filter(profile => {
+            const fullName = `${profile.first_name} ${profile.last_name}`.toLowerCase();
+            const email = profile.email?.toLowerCase() || '';
+            
+            return fullName.includes(lowerSearchTerm) || email.includes(lowerSearchTerm);
+        })
+        .toArray();
+    
+    // Sort by last name, then first name
+    profiles.sort((a, b) => {
+        const lastNameCompare = a.last_name.localeCompare(b.last_name);
+        if (lastNameCompare !== 0) return lastNameCompare;
+        return a.first_name.localeCompare(b.first_name);
+    });
+    
+    // Get all memberships to calculate counts
+    const memberships = await db.ministry_leader_memberships.toArray();
+    
+    // Create a map of leader_id to ministry count (only active memberships)
+    const membershipCounts = memberships.reduce((acc, m) => {
+        if (m.is_active) {
+            acc[m.leader_id] = (acc[m.leader_id] || 0) + 1;
+        }
+        return acc;
+    }, {} as Record<string, number>);
+    
+    return profiles.map(profile => ({
+        ...profile,
+        ministryCount: membershipCounts[profile.leader_id] || 0,
+        is_active: profile.is_active && (membershipCounts[profile.leader_id] || 0) > 0
+    }));
+}
+
+// Get ministry accounts
+export async function getMinistryAccounts() {
+    const accounts = await db.ministry_accounts.toArray();
+    const ministries = await db.ministries.toArray();
+    const ministryMap = new Map(ministries.map(m => [m.ministry_id, m]));
+
+    return accounts.map(account => ({
+        ...account,
+        ministry: ministryMap.get(account.ministry_id)
+    })).filter(a => a.ministry);
+}
+
+// Create or update ministry account
+export async function saveMinistryAccount(accountData: Omit<MinistryAccount, 'created_at' | 'updated_at'> & { created_at?: string }) {
+    const now = new Date().toISOString();
+    
+    const normalizedAccount: MinistryAccount = {
+        ...accountData,
+        email: normalizeEmail(accountData.email) || '',
+        created_at: accountData.created_at || now,
+        updated_at: now
+    };
+
+    // Check for duplicate email
+    const existingByEmail = await db.ministry_accounts
+        .where('email').equals(normalizedAccount.email)
+        .and(a => a.ministry_id !== normalizedAccount.ministry_id)
+        .first();
+    
+    if (existingByEmail) {
+        throw new Error(`A ministry account with email ${normalizedAccount.email} already exists`);
+    }
+
+    return db.ministry_accounts.put(normalizedAccount);
+}
+
 export async function updateChildPhoto(childId: string, photoDataUrl: string): Promise<number> {
     return db.children.update(childId, { photo_url: photoDataUrl });
 }
@@ -933,4 +1154,31 @@ export async function getDefaultBrandingSettings(): Promise<Partial<BrandingSett
         youtube_url: undefined,
         instagram_url: undefined,
     };
+}
+
+// Check if leader migration is needed and run it if so
+export async function migrateLeadersIfNeeded(): Promise<boolean> {
+    try {
+        // Check if we have any leader profiles already
+        const existingProfiles = await db.leader_profiles.limit(1).toArray();
+        if (existingProfiles.length > 0) {
+            return false; // Migration already done
+        }
+
+        // Check if we have any old ministry leaders to migrate
+        const oldLeaders = await db.users.where('role').equals(AuthRole.MINISTRY_LEADER).limit(1).toArray();
+        if (oldLeaders.length === 0) {
+            return false; // No leaders to migrate
+        }
+
+        // Run the migration
+        const { migrateLeaders } = await import('../../scripts/migrate/migrate-leaders');
+        const report = await migrateLeaders();
+        
+        console.log('Migration completed:', report);
+        return true;
+    } catch (error) {
+        console.error('Migration failed:', error);
+        throw error;
+    }
 }

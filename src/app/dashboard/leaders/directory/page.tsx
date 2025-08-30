@@ -2,7 +2,7 @@
 
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useRouter } from 'next/navigation';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import {
 	Table,
 	TableBody,
@@ -20,24 +20,22 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { queryLeaderProfiles, searchLeaderProfiles, migrateLeadersIfNeeded } from '@/lib/dal';
+import { queryLeaderProfiles, searchLeaderProfiles } from '@/lib/dal';
 import { Badge } from '@/components/ui/badge';
-import { ChevronRight, Plus, Search, UserPlus, User } from 'lucide-react';
+import { ChevronRight, Plus, Search, UserPlus } from 'lucide-react';
 import type { LeaderProfile } from '@/lib/types';
 import { useAuth } from '@/contexts/auth-context';
+import { useEffect } from 'react';
 import { AuthRole } from '@/lib/auth-types';
 import { LeaderProfileDialog } from './leader-profile-dialog';
-import { useToast } from '@/hooks/use-toast';
 
-export default function LeadersPage() {
+export default function LeaderDirectoryPage() {
 	const router = useRouter();
 	const { user, loading } = useAuth();
-	const { toast } = useToast();
 	const [isAuthorized, setIsAuthorized] = useState(false);
 	const [searchTerm, setSearchTerm] = useState('');
 	const [isDialogOpen, setIsDialogOpen] = useState(false);
 	const [selectedLeader, setSelectedLeader] = useState<LeaderProfile | null>(null);
-	const [isMigrationComplete, setIsMigrationComplete] = useState(false);
 
 	// Get all leaders if no search term, otherwise search
 	const allLeaders = useLiveQuery(() => queryLeaderProfiles(), []);
@@ -63,32 +61,18 @@ export default function LeadersPage() {
 		}
 	}, [user, loading, router]);
 
-	// Run migration check when authorized
-	useEffect(() => {
-		if (isAuthorized && !isMigrationComplete) {
-			migrateLeadersIfNeeded()
-				.then((migrated) => {
-					if (migrated) {
-						toast({
-							title: "Leaders Migrated",
-							description: "Existing leaders have been migrated to the new system.",
-						});
-					}
-					setIsMigrationComplete(true);
-				})
-				.catch((error) => {
-					console.error('Migration failed:', error);
-					setIsMigrationComplete(true); // Don't block UI
-				});
-		}
-	}, [isAuthorized, isMigrationComplete, toast]);
-
-	const handleEditProfile = (leaderId: string) => {
+	const handleRowClick = (leaderId: string) => {
 		router.push(`/dashboard/leaders/${leaderId}`);
 	};
 
 	const handleCreateNew = () => {
 		setSelectedLeader(null);
+		setIsDialogOpen(true);
+	};
+
+	const handleEditProfile = (leader: LeaderProfile, event: React.MouseEvent) => {
+		event.stopPropagation(); // Prevent row click
+		setSelectedLeader(leader);
 		setIsDialogOpen(true);
 	};
 
@@ -100,7 +84,7 @@ export default function LeadersPage() {
 		<div className="flex flex-col gap-8">
 			<div className="flex justify-between items-start">
 				<div>
-					<h1 className="text-3xl font-bold font-headline">Leaders</h1>
+					<h1 className="text-3xl font-bold font-headline">Leader Directory</h1>
 					<p className="text-muted-foreground">
 						Manage leader profiles and their ministry memberships.
 					</p>
@@ -117,7 +101,7 @@ export default function LeadersPage() {
 						<div>
 							<CardTitle className="font-headline">All Leader Profiles</CardTitle>
 							<CardDescription>
-								Search and manage leader profiles. Click a row or button to edit profile and ministry assignments.
+								Search and manage leader profiles. Click a row to edit memberships.
 							</CardDescription>
 						</div>
 						<div className="flex items-center gap-2 w-80">
@@ -141,14 +125,15 @@ export default function LeadersPage() {
 								<TableHead>Status</TableHead>
 								<TableHead>Ministries</TableHead>
 								<TableHead>Actions</TableHead>
+								<TableHead className="w-[50px]"></TableHead>
 							</TableRow>
 						</TableHeader>
 						<TableBody>
 							{leaders.map((leader) => (
 								<TableRow
 									key={leader.leader_id}
-									className="hover:bg-muted/50 cursor-pointer"
-									onClick={() => handleEditProfile(leader.leader_id)}>
+									onClick={() => handleRowClick(leader.leader_id)}
+									className="cursor-pointer">
 									<TableCell className="font-medium">
 										{leader.first_name} {leader.last_name}
 									</TableCell>
@@ -172,21 +157,20 @@ export default function LeadersPage() {
 										<Button
 											variant="outline"
 											size="sm"
-											onClick={(e) => {
-												e.stopPropagation();
-												handleEditProfile(leader.leader_id);
-											}}
-											className="h-8 px-3 flex items-center gap-1">
-											<User className="h-3 w-3" />
+											onClick={(e) => handleEditProfile(leader, e)}
+											className="h-8 px-2">
 											Edit Profile
 										</Button>
+									</TableCell>
+									<TableCell>
+										<ChevronRight className="h-4 w-4 text-muted-foreground" />
 									</TableCell>
 								</TableRow>
 							))}
 							{leaders.length === 0 && (
 								<TableRow>
 									<TableCell
-										colSpan={6}
+										colSpan={7}
 										className="text-center h-24 text-muted-foreground">
 										{searchTerm.trim() ? 'No leaders found matching your search.' : 'No leader profiles found.'}
 									</TableCell>
