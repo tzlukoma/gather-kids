@@ -6,6 +6,7 @@ import {
 	getLeaderProfile,
 	saveLeaderAssignments,
 	updateLeaderStatus,
+	saveLeaderProfile,
 } from '@/lib/dal';
 import {
 	Card,
@@ -16,14 +17,16 @@ import {
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Mail, Phone, User, CheckCircle2, ShieldQuestion } from 'lucide-react';
+import { Mail, Phone, User, CheckCircle2, ShieldQuestion, Edit3, Save, X } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { useEffect, useState, useMemo } from 'react';
-import type { LeaderAssignment, User as LeaderUser } from '@/lib/types';
+import type { LeaderAssignment, LeaderProfile, User as LeaderUser } from '@/lib/types';
 import { Switch } from '@/components/ui/switch';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useAuth } from '@/contexts/auth-context';
@@ -82,6 +85,15 @@ export default function LeaderProfilePage() {
 	const [assignments, setAssignments] = useState<AssignmentState>({});
 	const [isSaving, setIsSaving] = useState(false);
 	const [isActive, setIsActive] = useState(true);
+	const [isEditingProfile, setIsEditingProfile] = useState(false);
+	const [profileForm, setProfileForm] = useState({
+		first_name: '',
+		last_name: '',
+		email: '',
+		phone: '',
+		notes: '',
+	});
+	const [isSavingProfile, setIsSavingProfile] = useState(false);
 
 	const hasAssignments = useMemo(() => {
 		return Object.values(assignments).some((a) => a.assigned);
@@ -115,6 +127,17 @@ export default function LeaderProfilePage() {
 			});
 			setAssignments(initialAssignments);
 			setIsActive(profileData.leader?.is_active ?? false);
+
+			// Initialize profile form with current leader data
+			if (profileData.leader) {
+				setProfileForm({
+					first_name: profileData.leader.first_name || '',
+					last_name: profileData.leader.last_name || '',
+					email: profileData.leader.email || '',
+					phone: profileData.leader.mobile_phone || '',
+					notes: profileData.leader.notes || '',
+				});
+			}
 		}
 	}, [profileData]);
 
@@ -141,6 +164,54 @@ export default function LeaderProfilePage() {
 			...prev,
 			[ministryId]: { ...prev[ministryId], role },
 		}));
+	};
+
+	const handleSaveProfile = async () => {
+		if (!profileData?.leader) return;
+		
+		setIsSavingProfile(true);
+		try {
+			const updatedProfile: Partial<LeaderProfile> = {
+				leader_id: leaderId,
+				first_name: profileForm.first_name,
+				last_name: profileForm.last_name,
+				email: profileForm.email || undefined,
+				phone: profileForm.phone || undefined,
+				notes: profileForm.notes || undefined,
+				is_active: isActive,
+				created_at: profileData.leader.created_at,
+			};
+
+			await saveLeaderProfile(updatedProfile);
+			setIsEditingProfile(false);
+
+			toast({
+				title: 'Profile Updated',
+				description: `Profile for ${profileForm.first_name} ${profileForm.last_name} has been updated.`,
+			});
+		} catch (error) {
+			console.error('Failed to save profile:', error);
+			toast({
+				title: 'Save Failed',
+				description: 'Could not save the profile. Please try again.',
+				variant: 'destructive',
+			});
+		} finally {
+			setIsSavingProfile(false);
+		}
+	};
+
+	const handleCancelEdit = () => {
+		if (profileData?.leader) {
+			setProfileForm({
+				first_name: profileData.leader.first_name || '',
+				last_name: profileData.leader.last_name || '',
+				email: profileData.leader.email || '',
+				phone: profileData.leader.mobile_phone || '',
+				notes: profileData.leader.notes || '',
+			});
+		}
+		setIsEditingProfile(false);
 	};
 
 	const handleSaveChanges = async () => {
@@ -233,7 +304,12 @@ export default function LeaderProfilePage() {
 	return (
 		<div className="flex flex-col gap-8">
 			<div>
-				<h1 className="text-3xl font-bold font-headline">{leader.name}</h1>
+				<h1 className="text-3xl font-bold font-headline">
+					{isEditingProfile && profileForm.first_name && profileForm.last_name 
+						? `${profileForm.first_name} ${profileForm.last_name}`
+						: leader.name
+					}
+				</h1>
 				<div className="flex items-center gap-2 mt-2 flex-wrap">
 					<Badge
 						variant={isActive ? 'default' : 'secondary'}
@@ -251,9 +327,41 @@ export default function LeaderProfilePage() {
 			<div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 				<Card className="lg:col-span-1 h-fit">
 					<CardHeader>
-						<CardTitle className="font-headline flex items-center gap-2">
-							<User /> Leader Information
-						</CardTitle>
+						<div className="flex items-center justify-between">
+							<CardTitle className="font-headline flex items-center gap-2">
+								<User /> Leader Information
+							</CardTitle>
+							{!isEditingProfile ? (
+								<Button
+									variant="outline"
+									size="sm"
+									onClick={() => setIsEditingProfile(true)}
+									className="h-8 px-2">
+									<Edit3 className="h-3 w-3 mr-1" />
+									Edit
+								</Button>
+							) : (
+								<div className="flex gap-1">
+									<Button
+										variant="outline"
+										size="sm"
+										onClick={handleSaveProfile}
+										disabled={isSavingProfile}
+										className="h-8 px-2">
+										<Save className="h-3 w-3 mr-1" />
+										{isSavingProfile ? 'Saving...' : 'Save'}
+									</Button>
+									<Button
+										variant="outline"
+										size="sm"
+										onClick={handleCancelEdit}
+										disabled={isSavingProfile}
+										className="h-8 px-2">
+										<X className="h-3 w-3" />
+									</Button>
+								</div>
+							)}
+						</div>
 					</CardHeader>
 					<CardContent className="space-y-4">
 						<div className="flex items-center justify-between rounded-lg border p-3 shadow-sm">
@@ -272,22 +380,100 @@ export default function LeaderProfilePage() {
 								disabled={!hasAssignments && !isActive}
 							/>
 						</div>
-						<InfoItem
-							icon={<Mail size={16} />}
-							label="Email"
-							value={leader.email}
-						/>
-						<InfoItem
-							icon={<Phone size={16} />}
-							label="Phone"
-							value={leader.mobile_phone || 'N/A'}
-						/>
-						<Separator />
-						<InfoItem
-							icon={<CheckCircle2 size={16} />}
-							label="Background Check"
-							value={leader.background_check_status || 'N/A'}
-						/>
+
+						{isEditingProfile ? (
+							<>
+								<div className="space-y-2">
+									<Label htmlFor="first_name">First Name</Label>
+									<Input
+										id="first_name"
+										value={profileForm.first_name}
+										onChange={(e) => setProfileForm(prev => ({ ...prev, first_name: e.target.value }))}
+										disabled={isSavingProfile}
+									/>
+								</div>
+								
+								<div className="space-y-2">
+									<Label htmlFor="last_name">Last Name</Label>
+									<Input
+										id="last_name"
+										value={profileForm.last_name}
+										onChange={(e) => setProfileForm(prev => ({ ...prev, last_name: e.target.value }))}
+										disabled={isSavingProfile}
+									/>
+								</div>
+
+								<div className="space-y-2">
+									<Label htmlFor="email">Email</Label>
+									<Input
+										id="email"
+										type="email"
+										value={profileForm.email}
+										onChange={(e) => setProfileForm(prev => ({ ...prev, email: e.target.value }))}
+										disabled={isSavingProfile}
+										placeholder="leader@example.com"
+									/>
+								</div>
+
+								<div className="space-y-2">
+									<Label htmlFor="phone">Phone</Label>
+									<Input
+										id="phone"
+										value={profileForm.phone}
+										onChange={(e) => setProfileForm(prev => ({ ...prev, phone: e.target.value }))}
+										disabled={isSavingProfile}
+										placeholder="(555) 123-4567"
+									/>
+								</div>
+
+								<div className="space-y-2">
+									<Label htmlFor="notes">Notes</Label>
+									<Textarea
+										id="notes"
+										value={profileForm.notes}
+										onChange={(e) => setProfileForm(prev => ({ ...prev, notes: e.target.value }))}
+										disabled={isSavingProfile}
+										placeholder="Additional notes about this leader..."
+										rows={3}
+									/>
+								</div>
+							</>
+						) : (
+							<>
+								<InfoItem
+									icon={<User size={16} />}
+									label="Name"
+									value={`${leader.first_name} ${leader.last_name}`}
+								/>
+								<InfoItem
+									icon={<Mail size={16} />}
+									label="Email"
+									value={leader.email || 'No email provided'}
+								/>
+								<InfoItem
+									icon={<Phone size={16} />}
+									label="Phone"
+									value={leader.mobile_phone || 'No phone provided'}
+								/>
+								{leader.notes && (
+									<div className="flex items-start gap-3">
+										<div className="text-muted-foreground mt-1">
+											<CheckCircle2 size={16} />
+										</div>
+										<div>
+											<p className="text-sm text-muted-foreground">Notes</p>
+											<p className="font-medium">{leader.notes}</p>
+										</div>
+									</div>
+								)}
+								<Separator />
+								<InfoItem
+									icon={<CheckCircle2 size={16} />}
+									label="Background Check"
+									value={leader.background_check_status || 'N/A'}
+								/>
+							</>
+						)}
 					</CardContent>
 				</Card>
 
