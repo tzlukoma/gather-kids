@@ -92,6 +92,7 @@ describe('Branding DAL Functions', () => {
                 logo_url: undefined,
                 youtube_url: undefined,
                 instagram_url: undefined,
+                use_logo_only: false,
             });
         });
     });
