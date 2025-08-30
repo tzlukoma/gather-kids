@@ -19,29 +19,23 @@ function AuthCallbackContent() {
   const hasRun = useRef(false); // Prevent infinite loops
 
   useEffect(() => {
-    // Set mounted state to prevent hydration mismatch
     setMounted(true);
   }, []);
 
   useEffect(() => {
-    // Only run after component is mounted to avoid SSR issues
-    if (!mounted) return;
+    if (!mounted || hasRun.current || error || success) return;
 
-    // If we're in demo mode, redirect away from this page
+    // Demo mode redirect
     if (isDemo()) {
       router.replace('/login');
       return;
     }
 
-    // Prevent infinite loops by ensuring this only runs once
-    if (hasRun.current || error || success) {
-      return;
-    }
     hasRun.current = true;
 
     const handleAuthCallback = async () => {
       try {
-        // Ensure we have required environment variables
+        // Validate environment
         const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
         const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
         
@@ -55,158 +49,72 @@ function AuthCallbackContent() {
         const error_code = searchParams?.get('error_code') || '';
         const error_description = searchParams?.get('error_description') || '';
         
-        // Log basic debugging information
-        console.log('Auth callback start:', {
-          hasCode: !!code,
-          codeLength: code?.length,
-          error_code,
-          error_description,
-          url: window.location.href
-        });
-        
-        // Check for error parameters in URL
+        // Handle URL errors
         if (error_code || error_description) {
-          console.error('Auth error in URL:', { error_code, error_description });
-          setError(error_description || `Authentication failed (${error_code})`);
+          let userMessage = 'Authentication failed';
+          
+          if (error_code === 'access_denied') {
+            userMessage = 'Magic link access was denied. Please request a new one.';
+          } else if (error_description?.includes('expired')) {
+            userMessage = 'The magic link has expired. Please request a new one.';
+          } else if (error_description) {
+            userMessage = error_description;
+          }
+          
+          setError(userMessage);
           return;
         }
         
         if (!code) {
-          setError('No authentication code found in the URL. The link may be invalid.');
+          setError('No authentication code found. The magic link may be invalid or expired.');
           return;
         }
         
-        // Check for PKCE verifier - this is critical for magic link authentication
-        const pkceKey = 'auth-token-code-verifier';
-        const pkceVerifier = localStorage.getItem(pkceKey) || sessionStorage.getItem(pkceKey);
-        
-        console.log('PKCE verification check:', {
-          hasCode: !!code,
-          hasVerifier: !!pkceVerifier,
-          verifierLength: pkceVerifier?.length || 0,
-          storageStatus: {
-            localStorage: !!localStorage.getItem(pkceKey),
-            sessionStorage: !!sessionStorage.getItem(pkceKey)
-          }
-        });
-        
-        if (!pkceVerifier) {
-          console.error('❌ PKCE verifier missing - authentication will fail');
-          
-          // Try to recover from backup
-          let recovered = false;
-          try {
-            const backupData = localStorage.getItem('gatherKids-pkce-backup');
-            if (backupData) {
-              const backup = JSON.parse(backupData);
-              const age = new Date().getTime() - new Date(backup.storedAt).getTime();
-              if (age < 55 * 60 * 1000) { // 55 minutes
-                localStorage.setItem(pkceKey, backup.verifier);
-                sessionStorage.setItem(pkceKey, backup.verifier);
-                console.log('✅ Recovered PKCE verifier from backup');
-                recovered = true;
-              }
-            }
-          } catch (e) {
-            console.warn('Failed to recover PKCE from backup:', e);
-          }
-          
-          if (!recovered) {
-            setError(`❌ Authentication Error: Missing Verification Data
-
-The magic link authentication failed because the required verification code is missing from browser storage.
-
-**What this means:**
-• Authentication code from email: ✅ Present  
-• PKCE verifier in browser storage: ❌ Missing
-• This causes Supabase to reject the authentication request
-
-**Why this happens:**
-• Magic link opened in different browser than where it was requested
-• Browser storage was cleared or blocked between request and click
-• Private browsing mode with strict security settings
-• Browser extensions blocking storage access
-
-**Solutions (try in order):**
-
-1. **Same-Tab Method** (Most Reliable)
-   • Request a new magic link 
-   • Keep the login tab open
-   • Click the magic link in the SAME tab
-
-2. **Password Login** (Alternative)
-   • Use password authentication instead
-   • More reliable for cross-device access
-
-3. **Browser Reset** (If issues persist)
-   • Clear all browser data and cookies
-   • Disable privacy extensions temporarily
-   • Try in normal (non-private) browser mode
-
-**For Developers:**
-Enhanced cross-tab storage is active, but PKCE data was not found. Check browser console for detailed debugging information.`);
-            return;
-          }
-        }
-
-        // Attempt authentication
-        console.log('Attempting to exchange code for session...');
+        // Attempt authentication with enhanced error handling
         const { data, error: authError } = await supabase.auth.exchangeCodeForSession(code);
         
         if (authError) {
-          console.error('Authentication error:', authError);
+          console.error('Auth error:', authError);
           
-          // Handle specific error types
           if (authError.message.includes('code verifier should be non-empty') || 
               authError.message.includes('both auth code and code verifier')) {
             
-            console.error('PKCE Error - Final Analysis:', {
-              status: authError.status,
-              message: authError.message,
-              domain: window.location.origin,
-              isVercelPreview: window.location.hostname.includes('vercel.app')
-            });
-            
             if (authError.status === 400) {
-              setError(`🔧 Configuration Error (HTTP 400)
+              setError(`🔧 Configuration Issue
 
-This Vercel preview URL is not configured in your Supabase project.
-
-**Current Domain:** ${window.location.origin}
+The current domain (${window.location.origin}) is not configured in your Supabase project.
 
 **To Fix:**
 1. Open your Supabase project dashboard
 2. Go to Authentication → URL Configuration  
 3. Add this domain to "Redirect URLs"
-4. For all Vercel previews, add: *.vercel.app
+4. For Vercel previews: add *.vercel.app
 
-**Why:** Supabase rejects requests from unconfigured domains with HTTP 400 errors.
-
-**Alternative:** Use password login for preview deployments.`);
+**Alternative:** Use password authentication for preview deployments.`);
             } else {
-              setError(`❌ PKCE Authentication Failed
+              setError(`❌ Magic Link Error
 
-The verification data required for secure authentication was not found.
+The verification code required for magic links was not found. This happens when:
 
-**Error:** ${authError.message}
+• Magic link opened in a different browser than where it was requested
+• Browser storage was cleared between request and click
+• Private browsing mode is blocking storage
+• The link has already been used
 
 **Solutions:**
-1. Request a new magic link in this same browser tab
-2. Try password authentication instead  
-3. Clear browser data and retry
-4. Contact support if this persists`);
+1. Request a new magic link in the same browser tab
+2. Use password authentication instead
+3. Try in a normal (non-private) browser window`);
             }
           } else if (authError.message.includes('expired')) {
-            setError('The authentication link has expired. Magic links are valid for 1 hour.');
+            setError('The magic link has expired. Magic links are valid for 1 hour. Please request a new one.');
           } else if (authError.message.includes('invalid') || authError.message.includes('bad_code')) {
-            setError('The authentication link is invalid. Please request a new one.');
+            setError('The magic link is invalid or has already been used. Please request a new one.');
           } else {
             setError(`Authentication failed: ${authError.message}`);
           }
         } else if (data.session) {
-          console.log('✅ Authentication successful');
           setSuccess(true);
-          // Redirect to onboarding
           setTimeout(() => router.push('/onboarding'), 1500);
         } else {
           setError('Authentication completed but no session was created. Please try again.');
@@ -220,9 +128,9 @@ The verification data required for secure authentication was not found.
     };
 
     handleAuthCallback();
-  }, [router, mounted, searchParams]);
+  }, [router, mounted, searchParams, error, success]);
 
-  // Prevent hydration mismatch by not rendering until mounted
+  // Prevent hydration mismatch
   if (!mounted) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-muted/50 p-4">
@@ -238,7 +146,7 @@ The verification data required for secure authentication was not found.
     );
   }
 
-  // Show demo mode notice
+  // Demo mode redirect
   if (isDemo()) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-muted/50 p-4">
