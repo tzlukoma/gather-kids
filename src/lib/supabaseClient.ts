@@ -58,5 +58,12 @@ export const supabaseBrowser = () =>
     }
   );
 
-// Export a shared instance to prevent multiple client creation
-export const supabase = supabaseBrowser();
+// Lazily create the browser client. Avoid instantiating at module load time
+// (which can happen during SSR) because the server-created client may not
+// include browser-only helpers like `getSessionFromUrl`.
+let _supabase: ReturnType<typeof supabaseBrowser> | null = null;
+export const supabase = (() => {
+  if (typeof window === 'undefined') return null as any;
+  if (!_supabase) _supabase = supabaseBrowser();
+  return _supabase;
+})();

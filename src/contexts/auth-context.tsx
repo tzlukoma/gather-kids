@@ -34,7 +34,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 	useEffect(() => {
 		const initializeAuth = async () => {
 			setLoading(true);
-			
+
 			try {
 				// In demo mode, use localStorage as before
 				if (isDemo()) {
@@ -73,16 +73,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 					}
 				} else {
 					// Production mode: use Supabase session as primary source
-					const { data: { session } } = await supabase.auth.getSession();
-					
+					const {
+						data: { session },
+					} = await supabase.auth.getSession();
+
 					if (session?.user) {
 						// Convert Supabase user to BaseUser format
 						const supabaseUser = session.user;
 						const userRole = supabaseUser.user_metadata?.role || AuthRole.ADMIN;
-						
+
 						let finalUser: BaseUser = {
 							uid: supabaseUser.id,
-							displayName: supabaseUser.user_metadata?.full_name || supabaseUser.email?.split('@')[0] || 'User',
+							displayName:
+								supabaseUser.user_metadata?.full_name ||
+								supabaseUser.email?.split('@')[0] ||
+								'User',
 							email: supabaseUser.email || '',
 							is_active: true,
 							metadata: {
@@ -93,13 +98,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 						};
 
 						if (finalUser.metadata.role === AuthRole.MINISTRY_LEADER) {
-							const leaderId = finalUser.uid || finalUser.id || (finalUser as any).user_id;
+							const leaderId =
+								finalUser.uid || finalUser.id || (finalUser as any).user_id;
 							if (typeof leaderId === 'string' && leaderId.length > 0) {
 								const assignments = await getLeaderAssignmentsForCycle(
 									leaderId,
 									'2025'
 								);
-								finalUser.assignedMinistryIds = assignments.map((a) => a.ministry_id);
+								finalUser.assignedMinistryIds = assignments.map(
+									(a) => a.ministry_id
+								);
 							}
 						}
 
@@ -122,45 +130,51 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 		// Subscribe to Supabase auth changes (only in production mode)
 		if (!isDemo()) {
-				const { data: { subscription } } = supabase.auth.onAuthStateChange(
-				async (event: any, session: any) => {
-					console.log('Supabase auth state change:', event, session?.user?.id);
-					
-					if (event === 'SIGNED_IN' && session?.user) {
-						const supabaseUser = session.user;
-						const userRole = supabaseUser.user_metadata?.role || AuthRole.ADMIN;
-						
-						let finalUser: BaseUser = {
-							uid: supabaseUser.id,
-							displayName: supabaseUser.user_metadata?.full_name || supabaseUser.email?.split('@')[0] || 'User',
-							email: supabaseUser.email || '',
-							is_active: true,
-							metadata: {
-								role: userRole,
-								...supabaseUser.user_metadata,
-							},
-							assignedMinistryIds: [],
-						};
+			const {
+				data: { subscription },
+			} = supabase.auth.onAuthStateChange(async (event: any, session: any) => {
+				console.log('Supabase auth state change:', event, session?.user?.id);
 
-						if (finalUser.metadata.role === AuthRole.MINISTRY_LEADER) {
-							const leaderId = finalUser.uid || finalUser.id || (finalUser as any).user_id;
-							if (typeof leaderId === 'string' && leaderId.length > 0) {
-								const assignments = await getLeaderAssignmentsForCycle(
-									leaderId,
-									'2025'
-								);
-								finalUser.assignedMinistryIds = assignments.map((a) => a.ministry_id);
-							}
+				if (event === 'SIGNED_IN' && session?.user) {
+					const supabaseUser = session.user;
+					const userRole = supabaseUser.user_metadata?.role || AuthRole.ADMIN;
+
+					let finalUser: BaseUser = {
+						uid: supabaseUser.id,
+						displayName:
+							supabaseUser.user_metadata?.full_name ||
+							supabaseUser.email?.split('@')[0] ||
+							'User',
+						email: supabaseUser.email || '',
+						is_active: true,
+						metadata: {
+							role: userRole,
+							...supabaseUser.user_metadata,
+						},
+						assignedMinistryIds: [],
+					};
+
+					if (finalUser.metadata.role === AuthRole.MINISTRY_LEADER) {
+						const leaderId =
+							finalUser.uid || finalUser.id || (finalUser as any).user_id;
+						if (typeof leaderId === 'string' && leaderId.length > 0) {
+							const assignments = await getLeaderAssignmentsForCycle(
+								leaderId,
+								'2025'
+							);
+							finalUser.assignedMinistryIds = assignments.map(
+								(a) => a.ministry_id
+							);
 						}
-
-						setUser(finalUser);
-						setUserRole(finalUser.metadata.role);
-					} else if (event === 'SIGNED_OUT') {
-						setUser(null);
-						setUserRole(null);
 					}
+
+					setUser(finalUser);
+					setUserRole(finalUser.metadata.role);
+				} else if (event === 'SIGNED_OUT') {
+					setUser(null);
+					setUserRole(null);
 				}
-			);
+			});
 
 			return () => {
 				subscription.unsubscribe();
@@ -206,7 +220,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 				console.log('Storing user with role:', finalUser.metadata.role);
 				localStorage.setItem('gatherkids-user', JSON.stringify(finalUser));
 			}
-			
+
 			setUser(finalUser);
 			console.log('Setting userRole to:', finalUser.metadata.role);
 			setUserRole(finalUser.metadata.role);
@@ -220,7 +234,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 		try {
 			setUser(null);
 			setUserRole(null);
-			
+
 			// In demo mode, clear localStorage
 			if (isDemo()) {
 				localStorage.removeItem('gatherkids-user');

@@ -49,7 +49,7 @@ export function DashboardNav({ children }: DashboardNavProps) {
 				console.error('Error signing out from Supabase:', error);
 			}
 		}
-		
+
 		// Always call the context logout to clear local state
 		logout();
 		router.replace('/login');
