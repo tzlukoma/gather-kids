@@ -32,7 +32,7 @@ import {
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import type { Ministry } from '@/lib/types';
-import { createMinistry, updateMinistry } from '@/lib/dal';
+import { createMinistry, updateMinistry, saveMinistryAccount } from '@/lib/dal';
 import { useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { PlusCircle, Trash2 } from 'lucide-react';
@@ -56,6 +56,7 @@ const ministryFormSchema = z.object({
 			/^[a-z0-9-]+$/,
 			'Code can only contain lowercase letters, numbers, and hyphens.'
 		),
+	email: z.string().email('Please enter a valid email address').optional().or(z.literal('')),
 	enrollment_type: z.enum(['enrolled', 'expressed_interest']),
 	is_active: z.boolean().default(true),
 	open_at: z.string().optional(),
@@ -85,6 +86,7 @@ export function MinistryFormDialog({
 		defaultValues: {
 			name: '',
 			code: '',
+			email: '',
 			enrollment_type: 'enrolled',
 			is_active: true,
 			open_at: undefined,
@@ -101,35 +103,50 @@ export function MinistryFormDialog({
 	});
 
 	useEffect(() => {
-		if (ministry) {
-			form.reset({
-				name: ministry.name,
-				code: ministry.code,
-				enrollment_type: ministry.enrollment_type,
-				is_active: ministry.is_active ?? true,
-				open_at: ministry.open_at || undefined,
-				close_at: ministry.close_at || undefined,
-				description: ministry.description,
-				details: ministry.details,
-				custom_questions:
-					ministry.custom_questions?.map((q) => ({
-						...q,
-						options: q.options || [],
-					})) || [],
-			});
-		} else {
-			form.reset({
-				name: '',
-				code: '',
-				enrollment_type: 'enrolled',
-				is_active: true,
-				open_at: undefined,
-				close_at: undefined,
-				description: '',
-				details: '',
-				custom_questions: [],
-			});
-		}
+		const loadMinistryData = async () => {
+			if (ministry) {
+				// Load the email from ministry_accounts table
+				let email = '';
+				try {
+					const account = await db.ministry_accounts.get(ministry.ministry_id);
+					email = account?.email || '';
+				} catch (e) {
+					console.warn('Could not load ministry account email:', e);
+				}
+				
+				form.reset({
+					name: ministry.name,
+					code: ministry.code,
+					email: email,
+					enrollment_type: ministry.enrollment_type,
+					is_active: ministry.is_active ?? true,
+					open_at: ministry.open_at || undefined,
+					close_at: ministry.close_at || undefined,
+					description: ministry.description,
+					details: ministry.details,
+					custom_questions:
+						ministry.custom_questions?.map((q) => ({
+							...q,
+							options: q.options || [],
+						})) || [],
+				});
+			} else {
+				form.reset({
+					name: '',
+					code: '',
+					email: '',
+					enrollment_type: 'enrolled',
+					is_active: true,
+					open_at: undefined,
+					close_at: undefined,
+					description: '',
+					details: '',
+					custom_questions: [],
+				});
+			}
+		};
+		
+		loadMinistryData();
 	}, [ministry, form, isOpen]);
 
 	const onSubmit = async (data: MinistryFormValues) => {
@@ -151,14 +168,38 @@ export function MinistryFormDialog({
 				return;
 			}
 
+			const { email, ...ministryData } = data;
+			
 			if (ministry) {
-				await updateMinistry(ministry.ministry_id, data as any);
+				await updateMinistry(ministry.ministry_id, ministryData as any);
+				
+				// Handle ministry account email
+				if (email && email.trim()) {
+					await saveMinistryAccount({
+						ministry_id: ministry.ministry_id,
+						email: email.trim(),
+						display_name: data.name,
+						is_active: true,
+					});
+				}
+				
 				toast({
 					title: 'Ministry Updated',
 					description: 'The ministry has been successfully updated.',
 				});
 			} else {
-				await createMinistry(data as any);
+				const ministryId = await createMinistry(ministryData as any);
+				
+				// Handle ministry account email for new ministry
+				if (email && email.trim()) {
+					await saveMinistryAccount({
+						ministry_id: ministryId,
+						email: email.trim(),
+						display_name: data.name,
+						is_active: true,
+					});
+				}
+				
 				toast({
 					title: 'Ministry Created',
 					description: 'The new ministry has been created.',
@@ -224,6 +265,22 @@ export function MinistryFormDialog({
 								)}
 							/>
 						</div>
+						<FormField
+							control={form.control}
+							name="email"
+							render={({ field }) => (
+								<FormItem>
+									<FormLabel>Ministry Email</FormLabel>
+									<FormControl>
+										<Input type="email" placeholder="ministry@example.com" {...field} />
+									</FormControl>
+									<FormDescription>
+										Email address for this ministry account (optional).
+									</FormDescription>
+									<FormMessage />
+								</FormItem>
+							)}
+						/>
 						<div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
 							<FormField
 								control={form.control}
