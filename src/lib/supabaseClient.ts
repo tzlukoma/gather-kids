@@ -41,10 +41,17 @@ class NextJSStorage implements Storage {
  * Uses localStorage-based storage for cross-tab magic link compatibility
  * Based on Supabase Next.js documentation patterns
  */
-export const supabaseBrowser = () =>
-  createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+export const supabaseBrowser = () => {
+  // Check if we're in a test environment
+  const isTestEnv = process.env.NODE_ENV === 'test';
+  
+  // Use dummy values for testing to avoid the "URL and API key required" error
+  const supabaseUrl = isTestEnv ? 'https://test.supabase.co' : process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const supabaseAnonKey = isTestEnv ? 'test-anon-key' : process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+  
+  return createBrowserClient(
+    supabaseUrl,
+    supabaseAnonKey,
     {
       auth: {
         persistSession: true,
@@ -55,13 +62,17 @@ export const supabaseBrowser = () =>
       },
     }
   );
+};
 
 // Lazily create the browser client. Avoid instantiating at module load time
 // (which can happen during SSR) because the server-created client may not
 // include browser-only helpers like `getSessionFromUrl`.
 let _supabase: ReturnType<typeof supabaseBrowser> | null = null;
 export const supabase = (() => {
-  if (typeof window === 'undefined') return null as any;
+  // In test environment, we want to create a client even if window is undefined
+  const isTestEnv = process.env.NODE_ENV === 'test';
+  
+  if (typeof window === 'undefined' && !isTestEnv) return null as any;
   if (!_supabase) _supabase = supabaseBrowser();
   return _supabase;
 })();

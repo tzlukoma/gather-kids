@@ -188,6 +188,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 			console.log('Auth Context - Login - Input userData:', userData);
 			const finalUser: BaseUser = {
 				...userData,
+				// Ensure we have both uid and id properties for compatibility
+				uid: userData.uid || userData.id || (userData as any).user_id,
+				id: userData.id || userData.uid || (userData as any).user_id,
 				// preserve is_active if provided by userData (seed/login), default to true
 				is_active:
 					typeof userData.is_active === 'boolean' ? userData.is_active : true,
