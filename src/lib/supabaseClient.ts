@@ -1,20 +1,11 @@
 import { createBrowserClient } from '@supabase/ssr';
-import { patchStorageForCrossTabAuth } from './storage-patch';
-import { monitorAndPersistPKCE } from './pkce-monitor';
-
-// Initialize comprehensive PKCE monitoring and storage patching
-if (typeof window !== 'undefined') {
-  patchStorageForCrossTabAuth();
-  monitorAndPersistPKCE();
-}
 
 /**
- * Cross-tab PKCE storage adapter specifically designed for Supabase's exact key patterns
- * This ensures PKCE code verifiers persist across browser tabs by using localStorage
+ * Simple cross-tab PKCE storage adapter
+ * Uses localStorage for PKCE verifiers to enable cross-tab magic links
  */
-class CrossTabPKCEStorage implements Storage {
-  private readonly storageKey = 'auth-token'; // Must match the storageKey in Supabase config
-  private readonly codeVerifierKey = `${this.storageKey}-code-verifier`; // Exact Supabase pattern
+class CrossTabStorage implements Storage {
+  private readonly pkceKey = 'auth-token-code-verifier';
   
   get length(): number {
     return sessionStorage.length;
@@ -25,103 +16,75 @@ class CrossTabPKCEStorage implements Storage {
   }
 
   getItem(key: string): string | null {
-    // For the PKCE code verifier, ALWAYS use localStorage for cross-tab persistence
-    if (key === this.codeVerifierKey) {
-      const value = localStorage.getItem(key);
-      console.log('CrossTabPKCEStorage.getItem (PKCE):', {
-        key,
-        hasValue: !!value,
-        valueLength: value?.length || 0,
-        source: 'localStorage (cross-tab safe)'
-      });
-      return value;
-    }
-    
-    // For all other auth data, check both storages but prefer localStorage for auth keys
-    if (key.includes('auth') || key.includes('token')) {
-      let value = localStorage.getItem(key);
-      if (!value) {
-        value = sessionStorage.getItem(key);
-        if (value) {
-          // Promote to localStorage for cross-tab access
-          localStorage.setItem(key, value);
-          console.log('CrossTabPKCEStorage: Promoted auth data to localStorage', { key });
-        }
+    // For PKCE verifier, check localStorage first for cross-tab support
+    if (key === this.pkceKey) {
+      const value = localStorage.getItem(key) || sessionStorage.getItem(key);
+      
+      // Only log once per session to avoid spam
+      if (!(window as any).gatherKidsPKCELogged) {
+        console.log('CrossTabStorage: PKCE verifier check', {
+          key,
+          hasValue: !!value,
+          source: value ? (localStorage.getItem(key) ? 'localStorage' : 'sessionStorage') : 'none'
+        });
+        (window as any).gatherKidsPKCELogged = true;
       }
       
-      console.log('CrossTabPKCEStorage.getItem (auth):', {
-        key,
-        hasValue: !!value,
-        source: localStorage.getItem(key) ? 'localStorage' : 'sessionStorage'
-      });
-      
       return value;
     }
     
-    // For non-auth data, use sessionStorage as normal
+    // For other data, use sessionStorage normally
     return sessionStorage.getItem(key);
   }
 
   setItem(key: string, value: string): void {
-    // For PKCE code verifier, store in localStorage for cross-tab persistence
-    if (key === this.codeVerifierKey) {
+    // For PKCE verifier, store in both localStorage and sessionStorage
+    if (key === this.pkceKey) {
       localStorage.setItem(key, value);
-      // Also store in sessionStorage for immediate access
       sessionStorage.setItem(key, value);
       
-      console.log('CrossTabPKCEStorage.setItem (PKCE):', {
+      console.log('CrossTabStorage: Stored PKCE verifier in both storages', {
         key,
         valueLength: value?.length || 0,
-        storedInBoth: true,
-        isPKCEVerifier: true,
         timestamp: new Date().toISOString()
       });
-      return;
-    }
-    
-    // For other auth data, store in both locations
-    if (key.includes('auth') || key.includes('token')) {
-      localStorage.setItem(key, value);
-      sessionStorage.setItem(key, value);
       
-      console.log('CrossTabPKCEStorage.setItem (auth):', {
-        key,
-        valueLength: value?.length || 0,
-        storedInBoth: true
-      });
+      // Store backup metadata for debugging
+      try {
+        const backup = {
+          verifier: value,
+          storedAt: new Date().toISOString(),
+          url: window.location.href
+        };
+        localStorage.setItem('gatherKids-pkce-backup', JSON.stringify(backup));
+      } catch (e) {
+        console.warn('Failed to store PKCE backup:', e);
+      }
+      
       return;
     }
     
-    // For non-auth data, use sessionStorage only
+    // For other data, use sessionStorage
     sessionStorage.setItem(key, value);
   }
 
   removeItem(key: string): void {
-    // Remove from both storages for auth data
-    if (key === this.codeVerifierKey || key.includes('auth') || key.includes('token')) {
+    if (key === this.pkceKey) {
       localStorage.removeItem(key);
       sessionStorage.removeItem(key);
-      
-      console.log('CrossTabPKCEStorage.removeItem:', {
-        key,
-        removedFromBoth: true,
-        isPKCEVerifier: key === this.codeVerifierKey
-      });
+      localStorage.removeItem('gatherKids-pkce-backup');
     } else {
       sessionStorage.removeItem(key);
     }
   }
 
   clear(): void {
-    // Don't clear localStorage completely as it may have other app data
-    // Instead, only clear auth-related items
+    // Clear auth-related items from localStorage
     const authKeys = Object.keys(localStorage).filter(k => 
-      k.includes('auth') || k.includes('token') || k === this.codeVerifierKey
+      k.includes('auth') || k.includes('token') || k === this.pkceKey
     );
     authKeys.forEach(key => localStorage.removeItem(key));
-    
     sessionStorage.clear();
-    console.log('CrossTabPKCEStorage.clear: Cleared auth data from both storages');
   }
 }
 
@@ -142,8 +105,8 @@ export const supabaseBrowser = () =>
         flowType: 'pkce',
         // Set storage key prefix to avoid conflicts
         storageKey: 'auth-token',
-        // Use cross-tab compatible storage that handles PKCE verifiers correctly
-        storage: new CrossTabPKCEStorage(),
+        // Use simplified cross-tab storage that handles PKCE verifiers correctly
+        storage: new CrossTabStorage(),
       },
     }
   );

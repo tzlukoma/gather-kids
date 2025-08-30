@@ -1,10 +1,9 @@
 'use client';
 
-import { useEffect, useState, Suspense } from 'react';
+import { useEffect, useState, Suspense, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabaseBrowser } from '@/lib/supabaseClient';
 import { isDemo } from '@/lib/authGuards';
-import { ensurePKCEVerifierExists, cleanupExpiredPKCE } from '@/lib/pkce-monitor';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
@@ -17,6 +16,7 @@ function AuthCallbackContent() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const hasRun = useRef(false); // Prevent infinite loops
 
   useEffect(() => {
     // Set mounted state to prevent hydration mismatch
@@ -33,11 +33,14 @@ function AuthCallbackContent() {
       return;
     }
 
+    // Prevent infinite loops by ensuring this only runs once
+    if (hasRun.current || error || success) {
+      return;
+    }
+    hasRun.current = true;
+
     const handleAuthCallback = async () => {
       try {
-        // Clean up any expired PKCE data first
-        cleanupExpiredPKCE();
-        
         // Ensure we have required environment variables
         const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
         const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -52,24 +55,19 @@ function AuthCallbackContent() {
         const error_code = searchParams?.get('error_code') || '';
         const error_description = searchParams?.get('error_description') || '';
         
-        // Log debugging information
-        console.log('Auth callback - URL parameters:', {
-          code: code ? code.substring(0, 8) + '...' : 'none',
+        // Log basic debugging information
+        console.log('Auth callback start:', {
+          hasCode: !!code,
+          codeLength: code?.length,
           error_code,
           error_description,
-          full_url: window.location.href
+          url: window.location.href
         });
         
-        // Check for error parameters in URL (Supabase sends these on auth failures)
+        // Check for error parameters in URL
         if (error_code || error_description) {
-          console.error('Auth callback error from URL:', { error_code, error_description });
-          if (error_code === 'otp_expired' || error_description?.includes('expired')) {
-            setError('The authentication link has expired or is invalid.');
-          } else if (error_code === 'access_denied' || error_description?.includes('access_denied')) {
-            setError('Access was denied. Please try requesting a new magic link.');
-          } else {
-            setError(error_description || `Authentication failed (${error_code})`);
-          }
+          console.error('Auth error in URL:', { error_code, error_description });
+          setError(error_description || `Authentication failed (${error_code})`);
           return;
         }
         
@@ -78,226 +76,140 @@ function AuthCallbackContent() {
           return;
         }
         
-        // CRITICAL: Ensure PKCE verifier exists before attempting auth
-        const pkceExists = ensurePKCEVerifierExists();
-        console.log('PKCE verifier check before auth:', { exists: pkceExists });
+        // Check for PKCE verifier - this is critical for magic link authentication
+        const pkceKey = 'auth-token-code-verifier';
+        const pkceVerifier = localStorage.getItem(pkceKey) || sessionStorage.getItem(pkceKey);
         
-        if (!pkceExists) {
-          console.error('CRITICAL: No PKCE verifier found despite all recovery attempts');
-          setError('Authentication verification data is missing. This can happen when:\n\n• The magic link was opened in a different browser\n• Browser data was cleared between request and click\n• Private browsing mode with strict settings\n\nPlease request a new magic link in the same browser tab you plan to use for clicking it.');
-          return;
-        }
-        
-        // Comprehensive debugging for PKCE flow issues
-        // Based on Supabase source: ${storageKey}-code-verifier where storageKey is 'auth-token'
-        const exactPKCEKey = 'auth-token-code-verifier'; // This is the EXACT key Supabase uses
-        const allAuthKeys = Object.keys(localStorage).filter(key => 
-          key.includes('auth') || key.includes('token') || key.includes('verifier') || key.includes('pkce')
-        );
-        const sessionAuthKeys = Object.keys(sessionStorage).filter(key => 
-          key.includes('auth') || key.includes('token') || key.includes('verifier') || key.includes('pkce')
-        );
-        
-        // Check the exact PKCE key that Supabase expects
-        const pkceVerifierInLocalStorage = localStorage.getItem(exactPKCEKey);
-        const pkceVerifierInSessionStorage = sessionStorage.getItem(exactPKCEKey);
-        
-        console.log('Comprehensive PKCE Debug Information:', {
-          // URL parameters
+        console.log('PKCE verification check:', {
           hasCode: !!code,
-          codeLength: code?.length,
-          codePreview: code ? `${code.substring(0, 8)}...${code.substring(code.length - 8)}` : 'none',
-          
-          // PKCE-specific debugging
-          exactPKCEKey,
-          pkceVerifierInLocalStorage: pkceVerifierInLocalStorage ? `${pkceVerifierInLocalStorage.substring(0, 8)}...` : 'MISSING',
-          pkceVerifierInSessionStorage: pkceVerifierInSessionStorage ? `${pkceVerifierInSessionStorage.substring(0, 8)}...` : 'MISSING',
-          pkceVerifierExists: !!(pkceVerifierInLocalStorage || pkceVerifierInSessionStorage),
-          
-          // Storage analysis
-          totalLocalStorageKeys: Object.keys(localStorage).length,
-          totalSessionStorageKeys: Object.keys(sessionStorage).length,
-          authRelatedKeysInLocalStorage: allAuthKeys,
-          authRelatedKeysInSessionStorage: sessionAuthKeys,
-          
-          // Browser context
-          userAgent: navigator.userAgent,
-          currentOrigin: window.location.origin,
-          currentUrl: window.location.href,
-          referrer: document.referrer,
-          cookiesEnabled: navigator.cookieEnabled,
-          
-          // Timing and source context
-          timestamp: new Date().toISOString(),
-          pageLoadTime: performance.now(),
-          isNewTab: window.opener === null && !document.referrer.includes(window.location.origin),
-          
-          // Network debugging
-          networkStatus: navigator.onLine ? 'online' : 'offline'
-        });
-
-        // Handle auth callback by exchanging code for session
-        console.log('Attempting to exchange auth code for session...');
-        
-        // Final check - ensure PKCE verifier is available right before the exchange
-        const finalPKCECheck = localStorage.getItem('auth-token-code-verifier') || sessionStorage.getItem('auth-token-code-verifier');
-        console.log('Final PKCE check before exchange:', {
-          hasVerifier: !!finalPKCECheck,
-          verifierLength: finalPKCECheck?.length || 0,
-          verifierPreview: finalPKCECheck ? `${finalPKCECheck.substring(0, 8)}...` : 'none',
-          requestDetails: {
-            domain: window.location.origin,
-            isVercel: window.location.hostname.includes('vercel.app'),
-            codeLength: code.length,
-            timestamp: new Date().toISOString()
+          hasVerifier: !!pkceVerifier,
+          verifierLength: pkceVerifier?.length || 0,
+          storageStatus: {
+            localStorage: !!localStorage.getItem(pkceKey),
+            sessionStorage: !!sessionStorage.getItem(pkceKey)
           }
         });
         
-        // Try to capture network request details
-        console.log('About to call exchangeCodeForSession with:', {
-          codePresent: !!code,
-          codeLength: code.length,
-          expectedEndpoint: `${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/token`,
-          currentOrigin: window.location.origin
-        });
-        
+        if (!pkceVerifier) {
+          console.error('❌ PKCE verifier missing - authentication will fail');
+          
+          // Try to recover from backup
+          let recovered = false;
+          try {
+            const backupData = localStorage.getItem('gatherKids-pkce-backup');
+            if (backupData) {
+              const backup = JSON.parse(backupData);
+              const age = new Date().getTime() - new Date(backup.storedAt).getTime();
+              if (age < 55 * 60 * 1000) { // 55 minutes
+                localStorage.setItem(pkceKey, backup.verifier);
+                sessionStorage.setItem(pkceKey, backup.verifier);
+                console.log('✅ Recovered PKCE verifier from backup');
+                recovered = true;
+              }
+            }
+          } catch (e) {
+            console.warn('Failed to recover PKCE from backup:', e);
+          }
+          
+          if (!recovered) {
+            setError(`❌ Authentication Error: Missing Verification Data
+
+The magic link authentication failed because the required verification code is missing from browser storage.
+
+**What this means:**
+• Authentication code from email: ✅ Present  
+• PKCE verifier in browser storage: ❌ Missing
+• This causes Supabase to reject the authentication request
+
+**Why this happens:**
+• Magic link opened in different browser than where it was requested
+• Browser storage was cleared or blocked between request and click
+• Private browsing mode with strict security settings
+• Browser extensions blocking storage access
+
+**Solutions (try in order):**
+
+1. **Same-Tab Method** (Most Reliable)
+   • Request a new magic link 
+   • Keep the login tab open
+   • Click the magic link in the SAME tab
+
+2. **Password Login** (Alternative)
+   • Use password authentication instead
+   • More reliable for cross-device access
+
+3. **Browser Reset** (If issues persist)
+   • Clear all browser data and cookies
+   • Disable privacy extensions temporarily
+   • Try in normal (non-private) browser mode
+
+**For Developers:**
+Enhanced cross-tab storage is active, but PKCE data was not found. Check browser console for detailed debugging information.`);
+            return;
+          }
+        }
+
+        // Attempt authentication
+        console.log('Attempting to exchange code for session...');
         const { data, error: authError } = await supabase.auth.exchangeCodeForSession(code);
         
         if (authError) {
-          console.error('Auth callback error from exchangeCodeForSession:', authError);
+          console.error('Authentication error:', authError);
           
-          // Log the full error details for debugging
-          console.error('Full Supabase error details:', {
-            name: authError.name,
-            message: authError.message,
-            status: authError.status,
-            statusCode: authError.status,
-            stack: authError.stack
-          });
-          
-          // Check if this is a 400 error (Bad Request) which suggests configuration issues
-          if (authError.status === 400) {
-            console.error('400 Bad Request Error Analysis:', {
-              likelyCause: 'Supabase project configuration issue',
-              currentDomain: window.location.origin,
-              vercelPreview: window.location.hostname.includes('vercel.app'),
-              redirectUrlUsed: new URLSearchParams(window.location.search).get('redirect_to') || 'default',
-              suggestions: [
-                'Add current domain to Supabase project redirect URLs',
-                'Check if Vercel preview URLs are allowed in Supabase settings',
-                'Verify PKCE flow is enabled in Supabase auth settings',
-                'Ensure auth flow type matches project configuration'
-              ]
+          // Handle specific error types
+          if (authError.message.includes('code verifier should be non-empty') || 
+              authError.message.includes('both auth code and code verifier')) {
+            
+            console.error('PKCE Error - Final Analysis:', {
+              status: authError.status,
+              message: authError.message,
+              domain: window.location.origin,
+              isVercelPreview: window.location.hostname.includes('vercel.app')
             });
-          }
-          
-          // Before handling the error, check if we have backup magic link data
-          const backupData = localStorage.getItem('gatherKids-magic-link-backup');
-          if (backupData) {
-            try {
-              const backup = JSON.parse(backupData);
-              console.log('Found backup magic link data:', {
-                email: backup.email,
-                requestedAt: backup.requestedAt,
-                age: Math.round((new Date().getTime() - new Date(backup.requestedAt).getTime()) / 1000 / 60) // minutes
-              });
-            } catch (e) {
-              console.warn('Could not parse backup magic link data:', e);
-            }
-          }
-          
-          // Provide more specific error messages based on Supabase error types
-          const errorMessage = authError.message.toLowerCase();
-          
-          // Handle the specific "code verifier" error
-          if (errorMessage.includes('code verifier should be non-empty') || 
-              errorMessage.includes('both auth code and code verifier')) {
-            console.error('PKCE flow error - code verifier missing or invalid');
-            
-            // Check the exact PKCE key Supabase uses
-            const exactPKCEKey = 'auth-token-code-verifier';
-            const pkceVerifierInLocalStorage = localStorage.getItem(exactPKCEKey);
-            const pkceVerifierInSessionStorage = sessionStorage.getItem(exactPKCEKey);
-            
-            console.error('Detailed PKCE error analysis:', {
-              errorMessage: authError.message,
-              errorStatus: authError.status,
-              hasCode: !!code,
-              codeLength: code?.length,
-              codeFormat: code ? (code.length > 20 ? 'looks_valid' : 'too_short') : 'missing',
-              exactPKCEKey,
-              pkceVerifierInLocalStorage: pkceVerifierInLocalStorage ? `${pkceVerifierInLocalStorage.substring(0, 8)}...` : 'MISSING',
-              pkceVerifierInSessionStorage: pkceVerifierInSessionStorage ? `${pkceVerifierInSessionStorage.substring(0, 8)}...` : 'MISSING',
-              hasAnyPKCEVerifier: !!(pkceVerifierInLocalStorage || pkceVerifierInSessionStorage),
-              allAuthKeys: Object.keys(localStorage).filter(key => 
-                key.includes('auth') || key.includes('token') || key.includes('verifier')
-              ),
-              currentDomain: window.location.origin,
-              isVercelPreview: window.location.hostname.includes('vercel.app'),
-              possibleCauses: authError.status === 400 ? [
-                'Vercel preview URL not configured in Supabase redirect URLs (MOST LIKELY)',
-                'PKCE code verifier missing from browser storage',
-                'Auth code format invalid or expired',
-                'Supabase project PKCE settings misconfigured'
-              ] : [
-                'PKCE code verifier not found in storage',
-                'Browser storage cleared between request and click',
-                'Cross-tab storage access blocked by browser',
-                'Network connectivity issues during authentication'
-              ],
-              nextSteps: authError.status === 400 ? [
-                'Add current domain to Supabase Auth settings > URL Configuration',
-                'Check Supabase project redirect URLs allow Vercel preview domains',
-                'Verify auth flow type is set to PKCE in Supabase',
-                'Request new magic link after fixing configuration'
-              ] : [
-                'Check browser console for PKCE storage debugging',
-                'Request new magic link in the same browser tab',
-                'Try using password login as alternative',
-                'Clear browser data and try again'
-              ]
-            });
-            
-            // Clear any stale auth storage to prevent future issues
-            try {
-              const authKeys = Object.keys(localStorage).filter(key => 
-                key.includes('auth') || key.includes('token') || key.includes('verifier')
-              );
-              const sessionAuthKeys = Object.keys(sessionStorage).filter(key => 
-                key.includes('auth') || key.includes('token') || key.includes('verifier')
-              );
-              
-              authKeys.forEach(key => localStorage.removeItem(key));
-              sessionAuthKeys.forEach(key => sessionStorage.removeItem(key));
-              
-              console.log('Cleared stale auth storage:', { localStorage: authKeys, sessionStorage: sessionAuthKeys });
-            } catch (e) {
-              console.warn('Could not clear auth storage:', e);
-            }
             
             if (authError.status === 400) {
-              setError(`🔧 Configuration Error (HTTP 400)\n\nThe magic link authentication failed because this Vercel preview URL is not configured in your Supabase project.\n\n🎯 Current Domain: ${window.location.origin}\n\n✅ To Fix:\n1. Go to your Supabase project dashboard\n2. Navigate to Authentication > URL Configuration\n3. Add the current domain to the redirect URLs list\n4. Or add a wildcard: *.vercel.app for all preview deployments\n\n🔍 Technical Details:\n• HTTP Status: 400 (Bad Request)\n• Error: ${authError.message}\n• The PKCE code verifier was ${!!(pkceVerifierInLocalStorage || pkceVerifierInSessionStorage) ? 'found' : 'missing'} in storage\n\n💡 Alternative: Use password login instead of magic links for preview deployments.`);
+              setError(`🔧 Configuration Error (HTTP 400)
+
+This Vercel preview URL is not configured in your Supabase project.
+
+**Current Domain:** ${window.location.origin}
+
+**To Fix:**
+1. Open your Supabase project dashboard
+2. Go to Authentication → URL Configuration  
+3. Add this domain to "Redirect URLs"
+4. For all Vercel previews, add: *.vercel.app
+
+**Why:** Supabase rejects requests from unconfigured domains with HTTP 400 errors.
+
+**Alternative:** Use password login for preview deployments.`);
             } else {
-              setError('PKCE Authentication Error: The verification code is missing from browser storage.\n\n🔍 Detailed Analysis:\n• Auth code: ' + (code ? 'Present' : 'Missing') + '\n• PKCE verifier: ' + (pkceVerifierInLocalStorage || pkceVerifierInSessionStorage ? 'Present' : 'MISSING') + '\n• Network status: ' + (navigator.onLine ? 'Online' : 'Offline') + '\n\n💡 This suggests:\n• The magic link was opened in a different browser/device\n• Browser storage settings are blocking cross-tab access\n• The Vercel preview URL may not be configured in your Supabase project\n\n🚀 Next Steps:\n1. Check browser console for detailed PKCE debugging logs\n2. Verify redirect URLs are configured in Supabase dashboard\n3. Try requesting a new magic link and clicking it immediately\n\n🔧 Technical Details: Check browser console for comprehensive PKCE flow analysis.');
+              setError(`❌ PKCE Authentication Failed
+
+The verification data required for secure authentication was not found.
+
+**Error:** ${authError.message}
+
+**Solutions:**
+1. Request a new magic link in this same browser tab
+2. Try password authentication instead  
+3. Clear browser data and retry
+4. Contact support if this persists`);
             }
-          } else if (errorMessage.includes('expired') || errorMessage.includes('invalid_code') || 
-              errorMessage.includes('otp_expired') || errorMessage.includes('token_expired')) {
-            setError('The authentication link has expired or is invalid.');
-          } else if (errorMessage.includes('invalid_request') || errorMessage.includes('bad_code')) {
+          } else if (authError.message.includes('expired')) {
+            setError('The authentication link has expired. Magic links are valid for 1 hour.');
+          } else if (authError.message.includes('invalid') || authError.message.includes('bad_code')) {
             setError('The authentication link is invalid. Please request a new one.');
-          } else if (errorMessage.includes('used') || errorMessage.includes('consumed')) {
-            setError('This authentication link has already been used. Please request a new one.');
           } else {
             setError(`Authentication failed: ${authError.message}`);
           }
         } else if (data.session) {
-          console.log('Auth callback success - session established');
+          console.log('✅ Authentication successful');
           setSuccess(true);
-          // Redirect to onboarding to check if user needs password setup
+          // Redirect to onboarding
           setTimeout(() => router.push('/onboarding'), 1500);
         } else {
-          console.warn('Auth callback - no session returned despite no error');
-          setError('No session found. The link may have expired or been used already.');
+          setError('Authentication completed but no session was created. Please try again.');
         }
       } catch (err) {
         console.error('Unexpected error in auth callback:', err);
@@ -379,43 +291,16 @@ function AuthCallbackContent() {
           
           {error && (
             <div className="space-y-4">
-              <p className="text-red-600">{error}</p>
-              <div className="space-y-2">
-                {error.includes('expired') && (
-                  <p className="text-sm text-muted-foreground">
-                    Magic links expire after 1 hour. Please request a new one.
-                  </p>
-                )}
-                {error.includes('authentication process failed') && (
-                  <div className="text-sm text-muted-foreground space-y-2">
-                    <p className="font-semibold">✓ Enhanced Cross-Tab Magic Link Support</p>
-                    <div className="bg-muted p-3 rounded-md">
-                      <p className="font-medium mb-2">Triple-layer protection implemented:</p>
-                      <ul className="list-disc list-inside text-xs space-y-1">
-                        <li>Custom storage adapter for cross-tab persistence</li>
-                        <li>Global storage patching for complete coverage</li>
-                        <li>Backup storage mechanisms for maximum reliability</li>
-                      </ul>
-                      <p className="font-medium mt-2 mb-1">If still experiencing issues:</p>
-                      <ul className="list-disc list-inside text-xs space-y-1">
-                        <li>Check browser console for detailed PKCE debugging logs</li>
-                        <li>Verify the magic link hasn't expired (1 hour limit)</li>
-                        <li>Ensure the link hasn't been used already</li>
-                      </ul>
-                    </div>
-                    <p className="text-xs font-medium text-green-600">
-                      🔍 Enhanced debugging now shows exactly what's happening in the auth flow
-                    </p>
-                  </div>
-                )}
-                <div className="flex flex-col gap-2">
-                  <Button asChild>
-                    <Link href="/login">Request New Magic Link</Link>
-                  </Button>
-                  <Button variant="outline" asChild>
-                    <Link href="/">Return Home</Link>
-                  </Button>
-                </div>
+              <div className="text-red-600 whitespace-pre-line text-sm">
+                {error}
+              </div>
+              <div className="flex flex-col gap-2">
+                <Button asChild>
+                  <Link href="/login">Request New Magic Link</Link>
+                </Button>
+                <Button variant="outline" asChild>
+                  <Link href="/">Return Home</Link>
+                </Button>
               </div>
             </div>
           )}

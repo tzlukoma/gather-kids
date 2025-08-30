@@ -5,6 +5,12 @@
  */
 
 /**
+ * Enhanced PKCE verifier persistence for cross-tab magic link support
+ * This module provides aggressive PKCE storage management to ensure code verifiers
+ * are available when magic links are clicked in different browser tabs
+ */
+
+/**
  * Aggressively monitor and persist PKCE code verifiers across all storage methods
  */
 export function monitorAndPersistPKCE(): void {
@@ -22,7 +28,7 @@ export function monitorAndPersistPKCE(): void {
       clearInterval(monitoringInterval);
     }
     
-    // Monitor every 100ms for PKCE data and ensure it's in localStorage
+    // Monitor every 50ms for PKCE data and ensure it's in localStorage
     monitoringInterval = setInterval(() => {
       // Check if PKCE verifier exists in sessionStorage but not localStorage
       const sessionVerifier = sessionStorage.getItem(PKCE_KEY);
@@ -31,10 +37,12 @@ export function monitorAndPersistPKCE(): void {
       if (sessionVerifier && !localVerifier) {
         // Copy to localStorage for cross-tab access
         localStorage.setItem(PKCE_KEY, sessionVerifier);
+        localStorage.setItem(`cross-tab-${PKCE_KEY}`, sessionVerifier);
         console.log('PKCE Monitor: Detected verifier in sessionStorage, copied to localStorage', {
           key: PKCE_KEY,
           verifierLength: sessionVerifier.length,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
+          action: 'session->local_promotion'
         });
         
         // Also create a timestamped backup
@@ -42,7 +50,8 @@ export function monitorAndPersistPKCE(): void {
           verifier: sessionVerifier,
           timestamp: new Date().toISOString(),
           url: window.location.href,
-          userAgent: navigator.userAgent
+          userAgent: navigator.userAgent,
+          source: 'monitor_detected'
         };
         localStorage.setItem(BACKUP_KEY, JSON.stringify(backup));
       }
@@ -59,9 +68,11 @@ export function monitorAndPersistPKCE(): void {
             if (backupAge < maxAge) {
               localStorage.setItem(PKCE_KEY, backup.verifier);
               sessionStorage.setItem(PKCE_KEY, backup.verifier);
+              localStorage.setItem(`cross-tab-${PKCE_KEY}`, backup.verifier);
               console.log('PKCE Monitor: Restored verifier from backup', {
                 backupAge: Math.round(backupAge / 1000 / 60),
-                verifierLength: backup.verifier.length
+                verifierLength: backup.verifier.length,
+                source: backup.source || 'unknown'
               });
             } else {
               localStorage.removeItem(BACKUP_KEY);
@@ -72,7 +83,31 @@ export function monitorAndPersistPKCE(): void {
           console.warn('PKCE Monitor: Failed to restore from backup:', e);
         }
       }
-    }, 100);
+      
+      // Also check if Supabase stored the verifier with a different pattern
+      const allAuthKeys = Object.keys(sessionStorage).filter(key => 
+        key.includes('verifier') || (key.includes('auth') && key.includes('token'))
+      );
+      
+      allAuthKeys.forEach(authKey => {
+        if (authKey !== PKCE_KEY) {
+          const authValue = sessionStorage.getItem(authKey);
+          if (authValue && authValue.length > 40) { // PKCE verifiers are typically 43+ chars
+            console.log('PKCE Monitor: Found potential PKCE verifier with different key pattern', {
+              key: authKey,
+              expectedKey: PKCE_KEY,
+              valueLength: authValue.length,
+              promoting: true
+            });
+            
+            // Store it under the expected key
+            localStorage.setItem(PKCE_KEY, authValue);
+            localStorage.setItem(`cross-tab-${PKCE_KEY}`, authValue);
+            sessionStorage.setItem(PKCE_KEY, authValue);
+          }
+        }
+      });
+    }, 50); // More frequent monitoring
     
     console.log('PKCE monitoring started - will ensure verifiers persist across tabs');
   };
@@ -93,6 +128,24 @@ export function monitorAndPersistPKCE(): void {
     console.log('PKCE Monitor: Window focused, ensuring PKCE data is available');
     startMonitoring();
   });
+  
+  // Monitor storage events across tabs
+  window.addEventListener('storage', (e) => {
+    if (e.key === PKCE_KEY || e.key === `cross-tab-${PKCE_KEY}`) {
+      console.log('PKCE Monitor: Storage event detected for PKCE key', {
+        key: e.key,
+        newValue: e.newValue ? `${e.newValue.substring(0, 8)}...` : null,
+        oldValue: e.oldValue ? `${e.oldValue.substring(0, 8)}...` : null,
+        storageType: 'cross-tab-event'
+      });
+      
+      if (e.newValue && e.key === `cross-tab-${PKCE_KEY}`) {
+        // Sync to the main PKCE key
+        localStorage.setItem(PKCE_KEY, e.newValue);
+        sessionStorage.setItem(PKCE_KEY, e.newValue);
+      }
+    }
+  });
 }
 
 /**
@@ -104,7 +157,7 @@ export function ensurePKCEVerifierExists(): boolean {
   const PKCE_KEY = 'auth-token-code-verifier';
   const BACKUP_KEY = 'gatherKids-pkce-backup';
   
-  let verifier = localStorage.getItem(PKCE_KEY) || sessionStorage.getItem(PKCE_KEY);
+  let verifier: string | null = localStorage.getItem(PKCE_KEY) || sessionStorage.getItem(PKCE_KEY);
   
   if (!verifier) {
     // Try to restore from backup
@@ -115,14 +168,15 @@ export function ensurePKCEVerifierExists(): boolean {
         const backupAge = new Date().getTime() - new Date(backup.timestamp).getTime();
         const maxAge = 55 * 60 * 1000; // 55 minutes
         
-        if (backupAge < maxAge) {
-          verifier = backup.verifier;
-          localStorage.setItem(PKCE_KEY, verifier);
-          sessionStorage.setItem(PKCE_KEY, verifier);
+        if (backupAge < maxAge && backup.verifier) {
+          const restoredVerifier = backup.verifier;
+          verifier = restoredVerifier;
+          localStorage.setItem(PKCE_KEY, restoredVerifier);
+          sessionStorage.setItem(PKCE_KEY, restoredVerifier);
           
           console.log('ensurePKCEVerifierExists: Restored verifier from backup', {
             backupAge: Math.round(backupAge / 1000 / 60),
-            verifierLength: verifier.length
+            verifierLength: restoredVerifier.length
           });
         }
       }
