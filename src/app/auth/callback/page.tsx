@@ -195,7 +195,7 @@ function AuthCallbackContent() {
               console.warn('Could not clear auth storage:', e);
             }
             
-            setError('The authentication process failed due to missing authentication data. This can happen when:\n\n• The magic link has expired (they expire after 1 hour)\n• The authentication data was cleared from your browser\n• You\'re using private/incognito browsing mode with strict settings\n• The link has already been used\n\nPlease request a new magic link to continue. The new cross-tab storage system should now work reliably when opening links in different tabs.');
+            setError('The authentication process failed due to missing authentication data. This can happen when:\n\n• The magic link has expired (they expire after 1 hour)\n• The authentication data was cleared from your browser\n• You\'re using private/incognito browsing mode with strict settings\n• The link has already been used\n\nPlease request a new magic link to continue. The enhanced cross-tab storage system with triple-layer protection should now work reliably.\n\n🔍 Debugging: Check the browser console for detailed PKCE flow analysis to identify the specific cause.');
           } else if (errorMessage.includes('expired') || errorMessage.includes('invalid_code') || 
               errorMessage.includes('otp_expired') || errorMessage.includes('token_expired')) {
             setError('The authentication link has expired or is invalid.');
@@ -304,18 +304,23 @@ function AuthCallbackContent() {
                 )}
                 {error.includes('authentication process failed') && (
                   <div className="text-sm text-muted-foreground space-y-2">
-                    <p className="font-semibold">✓ Cross-tab authentication is now supported!</p>
+                    <p className="font-semibold">✓ Enhanced Cross-Tab Magic Link Support</p>
                     <div className="bg-muted p-3 rounded-md">
-                      <p className="font-medium mb-2">This error can still occur if:</p>
+                      <p className="font-medium mb-2">Triple-layer protection implemented:</p>
                       <ul className="list-disc list-inside text-xs space-y-1">
-                        <li>The magic link has expired (1 hour limit)</li>
-                        <li>The link has already been used</li>
-                        <li>Private/incognito mode with strict privacy settings</li>
-                        <li>Browser storage was completely cleared</li>
+                        <li>Custom storage adapter for cross-tab persistence</li>
+                        <li>Global storage patching for complete coverage</li>
+                        <li>Backup storage mechanisms for maximum reliability</li>
+                      </ul>
+                      <p className="font-medium mt-2 mb-1">If still experiencing issues:</p>
+                      <ul className="list-disc list-inside text-xs space-y-1">
+                        <li>Check browser console for detailed PKCE debugging logs</li>
+                        <li>Verify the magic link hasn't expired (1 hour limit)</li>
+                        <li>Ensure the link hasn't been used already</li>
                       </ul>
                     </div>
                     <p className="text-xs font-medium text-green-600">
-                      ✓ Fixed: Magic links now work when opened in different browser tabs!
+                      🔍 Enhanced debugging now shows exactly what's happening in the auth flow
                     </p>
                   </div>
                 )}
