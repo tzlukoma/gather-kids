@@ -102,8 +102,8 @@ export default function BibleBeeManage({ className }: BibleBeeManageProps) {
             years.push(...bibleBeeYears);
         }
         
-        // Add old schema years as bridge data if no new schema years exist
-        if (competitionYears && years.length === 0) {
+        // Always add old schema years as bridge data (not just when no new years exist)
+        if (competitionYears) {
             const bridgeYears = competitionYears.map(cy => ({
                 id: cy.id,
                 label: `${cy.name || cy.year} (Legacy)`,
