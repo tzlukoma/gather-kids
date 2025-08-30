@@ -16,7 +16,7 @@ _Volunteers and staff who manage daily operations, check-ins, and incident repor
 
 ### 3. **Parent/Guardian**
 
-_Families registering children and managing household information_
+_Families registering children and managing household information through a dedicated Parent Portal with full access to their children's program details and progress_
 
 ---
 
@@ -254,6 +254,38 @@ Comprehensive data management system with sample data for demonstration and test
 
 ## Epic 11: Feature Flags & Configuration
 
+## Epic 11: Parent Portal & Guardian Dashboard
+
+### Epic Description
+
+Comprehensive parent portal providing guardians with secure access to their household information, children's profiles, and program progress through an intuitive left navigation interface.
+
+### User Stories
+
+#### As a Parent/Guardian
+
+- **US-11.1**: I want to access a dedicated parent portal so that I can manage my household and children's information securely
+- **US-11.2**: I want to see a professional left navigation interface so that I can easily access different sections of my family's information
+- **US-11.3**: I want to view my complete household profile so that I can see all family members, contact information, and program enrollments in one place
+- **US-11.4**: I want to see my children's Bible Bee progress so that I can track their scripture completion and essay submissions
+- **US-11.5**: I want to mark my children's scriptures as completed so that I can help manage their Bible Bee progress
+- **US-11.6**: I want to mark essay assignments as submitted so that I can track my children's writing progress
+- **US-11.7**: I want to view all assigned scriptures with different Bible versions so that I can help my children study effectively
+- **US-11.8**: I want to see Bible Bee navigation only when my children are enrolled so that I only see relevant sections
+- **US-11.9**: I want progress cards showing detailed scripture counts and percentages so that I can monitor my children's advancement
+- **US-11.10**: I want to select different competition years so that I can view historical or current program data
+- **US-11.11**: I want an onboarding experience for first-time login so that I understand how to set up my account and use the portal
+
+#### As an Administrator
+
+- **US-11.12**: I want parents to have access to the same detailed progress views as leaders so that they can effectively support their children
+- **US-11.13**: I want reusable components for Bible Bee progress so that the interface is consistent between admin and parent views
+- **US-11.14**: I want automatic filtering of parent views to show only their household data so that privacy is maintained
+
+---
+
+## Epic 10: Feature Flags & Configuration
+
 ### Epic Description
 
 Flexible feature management system allowing administrators to control feature availability.
@@ -318,6 +350,7 @@ Comprehensive white-label customization system allowing organizations to fully b
 - ✅ Leader profile migration from user-based system
 - ✅ Real-time leader profile search and filtering
 - ✅ Role-based access control (Admin/Leader)
+- ✅ Role-based access control (Admin/Leader/Guardian)
 - ✅ Family registration with multi-child support
 - ✅ Real-time check-in/out with guardian verification
 - ✅ Incident logging with severity tracking
@@ -332,6 +365,13 @@ Comprehensive white-label customization system allowing organizations to fully b
 - ✅ Consent management (liability, photo release)
 - ✅ Age and grade-based ministry eligibility
 - ✅ Custom ministry questions and data collection
+- ✅ Parent Portal with left navigation interface
+- ✅ Bible Bee progress tracking for parents
+- ✅ Household profile management for guardians
+- ✅ Scripture completion tracking by parents\*\*
+- ✅ Reusable Bible Bee components across admin/parent views
+- ✅ Conditional navigation based on program enrollment\*\*
+- ✅ Parent onboarding experience with setup options\*\*
 - ✅ Private label & branding customization
 - ✅ Custom logo upload with validation
 - ✅ Dynamic app name and description

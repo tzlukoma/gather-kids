@@ -5205,6 +5205,14 @@
         "role": "MINISTRY_LEADER",
         "is_active": false,
         "background_check_status": "clear"
+      },
+      {
+        "user_id": "user_parent_demo",
+        "name": "Demo Parent",
+        "email": "parent-demo@example.com",
+        "role": "GUARDIAN",
+        "is_active": true,
+        "household_id": "h_1"
       }
     ]
   }
