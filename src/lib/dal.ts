@@ -901,8 +901,15 @@ function normalizePhone(phone?: string): string | undefined {
 
 // Query all leader profiles with their membership counts
 export async function queryLeaderProfiles() {
-    const profiles = await db.leader_profiles.orderBy('[first_name+last_name]').toArray();
+    const profiles = await db.leader_profiles.toArray();
     const memberships = await db.ministry_leader_memberships.toArray();
+    
+    // Sort by last name, then first name
+    profiles.sort((a, b) => {
+        const lastNameCompare = a.last_name.localeCompare(b.last_name);
+        if (lastNameCompare !== 0) return lastNameCompare;
+        return a.first_name.localeCompare(b.first_name);
+    });
     
     // Create a map of leader_id to ministry count (only active memberships)
     const membershipCounts = memberships.reduce((acc, m) => {
@@ -1030,7 +1037,7 @@ export async function getMinistryRoster(ministryId: string) {
 export async function searchLeaderProfiles(searchTerm: string) {
     const lowerSearchTerm = searchTerm.toLowerCase();
     
-    return db.leader_profiles
+    const profiles = await db.leader_profiles
         .filter(profile => {
             const fullName = `${profile.first_name} ${profile.last_name}`.toLowerCase();
             const email = profile.email?.toLowerCase() || '';
@@ -1038,6 +1045,30 @@ export async function searchLeaderProfiles(searchTerm: string) {
             return fullName.includes(lowerSearchTerm) || email.includes(lowerSearchTerm);
         })
         .toArray();
+    
+    // Sort by last name, then first name
+    profiles.sort((a, b) => {
+        const lastNameCompare = a.last_name.localeCompare(b.last_name);
+        if (lastNameCompare !== 0) return lastNameCompare;
+        return a.first_name.localeCompare(b.first_name);
+    });
+    
+    // Get all memberships to calculate counts
+    const memberships = await db.ministry_leader_memberships.toArray();
+    
+    // Create a map of leader_id to ministry count (only active memberships)
+    const membershipCounts = memberships.reduce((acc, m) => {
+        if (m.is_active) {
+            acc[m.leader_id] = (acc[m.leader_id] || 0) + 1;
+        }
+        return acc;
+    }, {} as Record<string, number>);
+    
+    return profiles.map(profile => ({
+        ...profile,
+        ministryCount: membershipCounts[profile.leader_id] || 0,
+        is_active: profile.is_active && (membershipCounts[profile.leader_id] || 0) > 0
+    }));
 }
 
 // Get ministry accounts

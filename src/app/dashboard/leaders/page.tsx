@@ -22,7 +22,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { queryLeaderProfiles, searchLeaderProfiles, migrateLeadersIfNeeded } from '@/lib/dal';
 import { Badge } from '@/components/ui/badge';
-import { ChevronRight, Plus, Search, UserPlus } from 'lucide-react';
+import { ChevronRight, Plus, Search, UserPlus, Users } from 'lucide-react';
 import type { LeaderProfile } from '@/lib/types';
 import { useAuth } from '@/contexts/auth-context';
 import { AuthRole } from '@/lib/auth-types';
@@ -147,15 +147,14 @@ export default function LeadersPage() {
 								<TableHead>Status</TableHead>
 								<TableHead>Ministries</TableHead>
 								<TableHead>Actions</TableHead>
-								<TableHead className="w-[50px]"></TableHead>
+								<TableHead>Memberships</TableHead>
 							</TableRow>
 						</TableHeader>
 						<TableBody>
 							{leaders.map((leader) => (
 								<TableRow
 									key={leader.leader_id}
-									onClick={() => handleRowClick(leader.leader_id)}
-									className="cursor-pointer">
+									className="hover:bg-muted/50">
 									<TableCell className="font-medium">
 										{leader.first_name} {leader.last_name}
 									</TableCell>
@@ -185,7 +184,14 @@ export default function LeadersPage() {
 										</Button>
 									</TableCell>
 									<TableCell>
-										<ChevronRight className="h-4 w-4 text-muted-foreground" />
+										<Button
+											variant="outline"
+											size="sm"
+											onClick={() => handleRowClick(leader.leader_id)}
+											className="h-8 px-2 flex items-center gap-1">
+											<Users className="h-3 w-3" />
+											Edit Ministries
+										</Button>
 									</TableCell>
 								</TableRow>
 							))}

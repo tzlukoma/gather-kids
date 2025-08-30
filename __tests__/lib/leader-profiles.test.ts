@@ -18,6 +18,9 @@ jest.mock('../../src/lib/db', () => {
                 get: jest.fn().mockImplementation((id: string) => {
                     return Promise.resolve(leaderProfiles.get(id) || null);
                 }),
+                toArray: jest.fn().mockImplementation(() => {
+                    return Promise.resolve(Array.from(leaderProfiles.values()));
+                }),
                 orderBy: jest.fn().mockReturnValue({
                     toArray: jest.fn().mockImplementation(() => {
                         return Promise.resolve(Array.from(leaderProfiles.values()));
