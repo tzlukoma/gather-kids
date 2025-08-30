@@ -54,6 +54,12 @@ import {
     DialogTrigger,
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { 
     Plus, 
     Edit2, 
@@ -63,7 +69,8 @@ import {
     Upload,
     Calculator,
     AlertTriangle,
-    CheckCircle 
+    CheckCircle,
+    HelpCircle
 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
@@ -106,7 +113,8 @@ export default function BibleBeeManage({ className }: BibleBeeManageProps) {
     const selectedYear = bibleBeeYears?.find(y => y.id === selectedYearId);
 
     return (
-        <div className={className}>
+        <TooltipProvider>
+            <div className={className}>
             <div className="flex items-center justify-between mb-6">
                 <div>
                     <h1 className="text-2xl font-bold">Bible Bee Management</h1>
@@ -218,6 +226,7 @@ export default function BibleBeeManage({ className }: BibleBeeManageProps) {
                 </TabsContent>
             </Tabs>
         </div>
+        </TooltipProvider>
     );
 }
 
@@ -883,7 +892,30 @@ function ScriptureManagement({ yearId, yearLabel }: { yearId: string; yearLabel:
                         </DialogHeader>
                         <div className="space-y-4">
                             <div>
-                                <Label htmlFor="csv-file">Select CSV File</Label>
+                                <div className="flex items-center gap-2 mb-2">
+                                    <Label htmlFor="csv-file">Select CSV File</Label>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Button variant="ghost" size="sm" className="h-5 w-5 p-0">
+                                                <HelpCircle className="h-4 w-4" />
+                                            </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent className="max-w-sm">
+                                            <div className="text-sm">
+                                                <strong>CSV Format Template:</strong>
+                                                <pre className="mt-2 text-xs bg-muted p-2 rounded">
+{`scripture_order,scripture_number,counts_for,reference,category
+1,"1-1",1,"Genesis 1:1","Primary"
+2,"1-2",1,"Genesis 1:2","Primary"
+3,"2-1",2,"Exodus 20:2-3","Primary Minimum"`}
+                                                </pre>
+                                                <div className="mt-2">
+                                                    <strong>Required columns:</strong> scripture_order (int), scripture_number (string), counts_for (int), reference (string). <strong>Optional:</strong> category (string)
+                                                </div>
+                                            </div>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </div>
                                 <Input
                                     id="csv-file"
                                     type="file"
@@ -954,7 +986,37 @@ function ScriptureManagement({ yearId, yearLabel }: { yearId: string; yearLabel:
                         <div className="space-y-4">
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <Label htmlFor="json-file">Select JSON File</Label>
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <Label htmlFor="json-file">Select JSON File</Label>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <Button variant="ghost" size="sm" className="h-5 w-5 p-0">
+                                                    <HelpCircle className="h-4 w-4" />
+                                                </Button>
+                                            </TooltipTrigger>
+                                            <TooltipContent className="max-w-sm">
+                                                <div className="text-sm">
+                                                    <strong>JSON Format Template:</strong>
+                                                    <pre className="mt-2 text-xs bg-muted p-2 rounded">
+{`{
+  "Genesis 1:1": {
+    "NIV": "In the beginning God created...",
+    "KJV": "In the beginning God created...",
+    "NIV-ES": "En el principio Dios creó..."
+  },
+  "Genesis 1:2": {
+    "NIV": "Now the earth was formless...",
+    "KJV": "And the earth was without form..."
+  }
+}`}
+                                                    </pre>
+                                                    <div className="mt-2">
+                                                        <strong>Structure:</strong> Object with scripture references as keys, translation objects as values. Supports NIV, KJV, NIV-ES.
+                                                    </div>
+                                                </div>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </div>
                                     <Input
                                         id="json-file"
                                         type="file"
