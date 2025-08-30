@@ -1,3 +1,4 @@
+import React from 'react';
 import { ReactNode, ComponentType } from 'react';
 import {
 	LayoutDashboard,
@@ -9,6 +10,7 @@ import {
 	Contact,
 	Settings,
 	Book,
+	Palette,
 } from 'lucide-react';
 import { AuthRole } from './auth-types';
 
@@ -98,6 +100,12 @@ export const MENU_ITEMS: MenuItem[] = [
 		href: '/dashboard/configuration',
 		icon: Settings,
 		label: 'Configuration',
+		roles: [AuthRole.ADMIN],
+	},
+	{
+		href: '/dashboard/branding',
+		icon: Palette,
+		label: 'Branding',
 		roles: [AuthRole.ADMIN],
 	},
 	// Guardian menu items

@@ -8,6 +8,7 @@ import {
     Home,
     Shield,
     Users,
+    Palette,
 } from 'lucide-react';
 import { ComponentType } from 'react';
 
@@ -80,6 +81,12 @@ export const MENU_ITEMS: MenuItem[] = [
         label: 'Configuration',
         href: '/dashboard/configuration',
         icon: Shield,
+        roles: [AuthRole.ADMIN],
+    },
+    {
+        label: 'Branding',
+        href: '/dashboard/branding',
+        icon: Palette,
         roles: [AuthRole.ADMIN],
     },
 ];

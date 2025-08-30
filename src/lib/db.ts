@@ -1,6 +1,6 @@
 
 import Dexie, { type EntityTable } from 'dexie';
-import type { Household, Guardian, EmergencyContact, Child, RegistrationCycle, ChildYearProfile, Registration, Ministry, MinistryEnrollment, LeaderAssignment, LeaderProfile, MinistryLeaderMembership, MinistryAccount, User, Event, Attendance, Incident, AuditLog, CompetitionYear, Scripture, GradeRule, StudentScripture, StudentEssay } from './types';
+import type { Household, Guardian, EmergencyContact, Child, RegistrationCycle, ChildYearProfile, Registration, Ministry, MinistryEnrollment, LeaderAssignment, LeaderProfile, MinistryLeaderMembership, MinistryAccount, User, Event, Attendance, Incident, AuditLog, CompetitionYear, Scripture, GradeRule, StudentScripture, StudentEssay, BrandingSettings } from './types';
 
 // prettier-ignore
 class GatherKidsDB extends Dexie {
@@ -29,6 +29,8 @@ class GatherKidsDB extends Dexie {
     gradeRules!: EntityTable<GradeRule, 'id'>;
     studentScriptures!: EntityTable<StudentScripture, 'id'>;
     studentEssays!: EntityTable<StudentEssay, 'id'>;
+    // Branding settings
+    branding_settings!: EntityTable<BrandingSettings, 'setting_id'>;
 
     constructor() {
         super('gatherKidsDB');
@@ -58,6 +60,8 @@ class GatherKidsDB extends Dexie {
             gradeRules: 'id, competitionYearId, [competitionYearId+minGrade+maxGrade], type',
             studentScriptures: 'id, childId, competitionYearId, scriptureId, status',
             studentEssays: 'id, childId, competitionYearId, status',
+            // Branding settings
+            branding_settings: 'setting_id, org_id, created_at, updated_at',
         });
     }
 }
