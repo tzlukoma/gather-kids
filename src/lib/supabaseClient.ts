@@ -13,6 +13,10 @@ export const supabaseBrowser = () =>
         persistSession: true,
         autoRefreshToken: true,
         detectSessionInUrl: true,
+        // Explicitly set flow type to ensure PKCE is used
+        flowType: 'pkce',
+        // Set storage key prefix to avoid conflicts
+        storageKey: 'gatherKids-auth-token'
       },
     }
   );

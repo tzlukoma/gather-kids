@@ -74,6 +74,16 @@ function AuthCallbackContent() {
           return;
         }
         
+        // Additional debugging for PKCE flow issues
+        console.log('Before exchangeCodeForSession:', {
+          hasCode: !!code,
+          codeLength: code?.length,
+          hasStoredVerifier: !!localStorage.getItem('gatherKids-auth-token-code-verifier'),
+          storageKeys: Object.keys(localStorage).filter(key => 
+            key.includes('gatherKids-auth') || key.includes('supabase') || key.includes('auth')
+          )
+        });
+
         // Handle auth callback by exchanging code for session
         const { data, error: authError } = await supabase.auth.exchangeCodeForSession(code);
         
@@ -82,7 +92,23 @@ function AuthCallbackContent() {
           
           // Provide more specific error messages based on Supabase error types
           const errorMessage = authError.message.toLowerCase();
-          if (errorMessage.includes('expired') || errorMessage.includes('invalid_code') || 
+          
+          // Handle the specific "code verifier" error
+          if (errorMessage.includes('code verifier should be non-empty') || 
+              errorMessage.includes('both auth code and code verifier')) {
+            console.error('PKCE flow error - code verifier missing or invalid');
+            // Clear any stale auth storage to prevent future issues
+            try {
+              const authKeys = Object.keys(localStorage).filter(key => 
+                key.includes('gatherKids-auth') || (key.includes('supabase') && key.includes('auth'))
+              );
+              authKeys.forEach(key => localStorage.removeItem(key));
+              console.log('Cleared stale auth storage:', authKeys);
+            } catch (e) {
+              console.warn('Could not clear auth storage:', e);
+            }
+            setError('The authentication process failed. This can happen if you requested the magic link in a different browser or if your browser data was cleared. Please request a new magic link.');
+          } else if (errorMessage.includes('expired') || errorMessage.includes('invalid_code') || 
               errorMessage.includes('otp_expired') || errorMessage.includes('token_expired')) {
             setError('The authentication link has expired or is invalid.');
           } else if (errorMessage.includes('invalid_request') || errorMessage.includes('bad_code')) {
@@ -187,6 +213,16 @@ function AuthCallbackContent() {
                   <p className="text-sm text-muted-foreground">
                     Magic links expire after 1 hour. Please request a new one.
                   </p>
+                )}
+                {error.includes('authentication process failed') && (
+                  <div className="text-sm text-muted-foreground space-y-1">
+                    <p>This can happen when:</p>
+                    <ul className="list-disc list-inside text-xs space-y-1 ml-2">
+                      <li>You requested the magic link in a different browser or device</li>
+                      <li>Your browser's storage was cleared or you're in private/incognito mode</li>
+                      <li>You opened the link in a different browser tab than where you requested it</li>
+                    </ul>
+                  </div>
                 )}
                 <div className="flex flex-col gap-2">
                   <Button asChild>
