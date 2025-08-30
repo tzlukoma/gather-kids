@@ -1,5 +1,5 @@
 import { db } from './db';
-import type { CompetitionYear, Scripture, GradeRule, StudentScripture, StudentEssay, Child, BibleBeeYear, Division, EssayPrompt, Enrollment, EnrollmentOverride } from './types';
+import type { CompetitionYear, Scripture, GradeRule, StudentScripture, StudentEssay, Child, BibleBeeYear, Division, EssayPrompt, Enrollment, EnrollmentOverride, RegistrationCycle, Ministry, MinistryEnrollment } from './types';
 import { gradeToCode, doGradeRangesOverlap } from './gradeUtils';
 
 export async function createCompetitionYear(payload: Omit<CompetitionYear, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }) {
@@ -345,8 +345,27 @@ export async function previewAutoEnrollment(yearId: string): Promise<{
         unknown_grade: number;
     };
 }> {
-    // Get active children
-    const children = await db.children.where('is_active').equals(1).toArray();
+    // Get the current registration cycle/year
+    const currentCycle = await db.registration_cycles.where('is_active').equals(1).first();
+    if (!currentCycle) {
+        throw new Error('No active registration cycle found');
+    }
+    
+    // Get Bible Bee ministry
+    const bibleBeeMinistry = await db.ministries.where('code').equals('bible-bee').first();
+    if (!bibleBeeMinistry) {
+        throw new Error('Bible Bee ministry not found');
+    }
+    
+    // Get children enrolled in Bible Bee for the current registration cycle
+    const bibleBeeEnrollments = await db.ministry_enrollments
+        .where('[cycle_id+ministry_id]')
+        .equals([currentCycle.cycle_id, bibleBeeMinistry.ministry_id])
+        .and((e: MinistryEnrollment) => e.status === 'enrolled')
+        .toArray();
+    
+    const childIds = bibleBeeEnrollments.map((e: MinistryEnrollment) => e.child_id);
+    const children = await db.children.where('child_id').anyOf(childIds).toArray();
     
     // Get divisions for this year
     const divisions = await db.divisions.where('year_id').equals(yearId).toArray();
