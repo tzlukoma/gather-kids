@@ -23,6 +23,7 @@ import {
 } from '@/components/ui/card';
 import Link from 'next/link';
 import ScriptureCard from '@/components/gatherKids/scripture-card';
+import BibleBeeManage from '@/components/gatherKids/bible-bee-manage';
 
 function AuthLoader({ user, setAllowed }: any) {
 	useEffect(() => {
@@ -248,17 +249,7 @@ export default function BibleBeePage() {
 
 				{canManage && (
 					<TabsContent value="manage">
-						<Card>
-							<CardHeader>
-								<CardTitle>Manage Competition Years</CardTitle>
-								<CardDescription>
-									Manage competition years and scriptures.
-								</CardDescription>
-							</CardHeader>
-							<CardContent>
-								<YearList />
-							</CardContent>
-						</Card>
+						<BibleBeeManage />
 					</TabsContent>
 				)}
 			</Tabs>
