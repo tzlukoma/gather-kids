@@ -97,9 +97,9 @@ export const MENU_ITEMS: MenuItem[] = [
 		roles: [AuthRole.ADMIN],
 	},
 	{
-		href: '/dashboard/configuration',
+		href: '/dashboard/ministries',
 		icon: Settings,
-		label: 'Configuration',
+		label: 'Ministries',
 		roles: [AuthRole.ADMIN],
 	},
 	{
