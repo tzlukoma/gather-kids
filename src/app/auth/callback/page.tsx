@@ -75,13 +75,23 @@ function AuthCallbackContent() {
         }
         
         // Additional debugging for PKCE flow issues
-        console.log('Before exchangeCodeForSession:', {
+        const codeVerifier = localStorage.getItem('gatherKids-auth-token-code-verifier');
+        const authStorageKeys = Object.keys(localStorage).filter(key => 
+          key.includes('gatherKids-auth') || key.includes('supabase') || key.includes('auth')
+        );
+        
+        console.log('PKCE Flow Debug Information:', {
           hasCode: !!code,
           codeLength: code?.length,
-          hasStoredVerifier: !!localStorage.getItem('gatherKids-auth-token-code-verifier'),
-          storageKeys: Object.keys(localStorage).filter(key => 
-            key.includes('gatherKids-auth') || key.includes('supabase') || key.includes('auth')
-          )
+          codePreview: code ? `${code.substring(0, 8)}...${code.substring(code.length - 8)}` : 'none',
+          hasStoredVerifier: !!codeVerifier,
+          verifierLength: codeVerifier?.length || 0,
+          authStorageKeys,
+          userAgent: navigator.userAgent,
+          currentOrigin: window.location.origin,
+          currentUrl: window.location.href,
+          sessionStorage: !!sessionStorage.getItem('gatherKids-auth-token-code-verifier'),
+          cookieCount: document.cookie.split(';').length
         });
 
         // Handle auth callback by exchanging code for session
@@ -97,17 +107,42 @@ function AuthCallbackContent() {
           if (errorMessage.includes('code verifier should be non-empty') || 
               errorMessage.includes('both auth code and code verifier')) {
             console.error('PKCE flow error - code verifier missing or invalid');
+            console.error('Detailed PKCE error analysis:', {
+              errorMessage: authError.message,
+              hasCode: !!code,
+              codeLength: code?.length,
+              hasLocalStorageVerifier: !!localStorage.getItem('gatherKids-auth-token-code-verifier'),
+              hasSessionStorageVerifier: !!sessionStorage.getItem('gatherKids-auth-token-code-verifier'),
+              authStorageKeys: Object.keys(localStorage).filter(key => 
+                key.includes('auth') || key.includes('supabase') || key.includes('gatherKids')
+              ),
+              possibleCauses: [
+                'Different browser/tab than where magic link was requested',
+                'Browser storage cleared between request and click',
+                'Private/incognito mode',
+                'Third-party cookies blocked',
+                'Browser security settings preventing storage access'
+              ]
+            });
+            
             // Clear any stale auth storage to prevent future issues
             try {
               const authKeys = Object.keys(localStorage).filter(key => 
                 key.includes('gatherKids-auth') || (key.includes('supabase') && key.includes('auth'))
               );
+              const sessionAuthKeys = Object.keys(sessionStorage).filter(key => 
+                key.includes('gatherKids-auth') || (key.includes('supabase') && key.includes('auth'))
+              );
+              
               authKeys.forEach(key => localStorage.removeItem(key));
-              console.log('Cleared stale auth storage:', authKeys);
+              sessionAuthKeys.forEach(key => sessionStorage.removeItem(key));
+              
+              console.log('Cleared stale auth storage:', { localStorage: authKeys, sessionStorage: sessionAuthKeys });
             } catch (e) {
               console.warn('Could not clear auth storage:', e);
             }
-            setError('The authentication process failed. This can happen if you requested the magic link in a different browser or if your browser data was cleared. Please request a new magic link.');
+            
+            setError('The authentication process failed due to a browser security issue. This commonly happens when you:\n\n• Requested the magic link in a different browser or tab than this one\n• Have private/incognito mode enabled\n• Browser storage was cleared between requesting and clicking the link\n• Third-party cookies or local storage are blocked\n\nPlease request a new magic link and make sure to click it in the same browser tab where you requested it.');
           } else if (errorMessage.includes('expired') || errorMessage.includes('invalid_code') || 
               errorMessage.includes('otp_expired') || errorMessage.includes('token_expired')) {
             setError('The authentication link has expired or is invalid.');
@@ -215,13 +250,20 @@ function AuthCallbackContent() {
                   </p>
                 )}
                 {error.includes('authentication process failed') && (
-                  <div className="text-sm text-muted-foreground space-y-1">
-                    <p>This can happen when:</p>
-                    <ul className="list-disc list-inside text-xs space-y-1 ml-2">
-                      <li>You requested the magic link in a different browser or device</li>
-                      <li>Your browser's storage was cleared or you're in private/incognito mode</li>
-                      <li>You opened the link in a different browser tab than where you requested it</li>
-                    </ul>
+                  <div className="text-sm text-muted-foreground space-y-2">
+                    <p className="font-semibold">This is a browser security protection.</p>
+                    <div className="bg-muted p-3 rounded-md">
+                      <p className="font-medium mb-2">Common causes:</p>
+                      <ul className="list-disc list-inside text-xs space-y-1">
+                        <li>You requested the magic link in a different browser tab</li>
+                        <li>You're using private/incognito browsing mode</li>
+                        <li>Your browser storage was cleared</li>
+                        <li>Third-party cookies are blocked</li>
+                      </ul>
+                    </div>
+                    <p className="text-xs font-medium text-primary">
+                      💡 Tip: Request and click the magic link in the same browser tab for best results.
+                    </p>
                   </div>
                 )}
                 <div className="flex flex-col gap-2">

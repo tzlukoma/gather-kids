@@ -198,7 +198,9 @@ export default function LoginPage() {
 					// Set explicit data for better error handling
 					data: {
 						requested_at: new Date().toISOString(),
-						requested_from: window.location.origin
+						requested_from: window.location.origin,
+						user_agent: navigator.userAgent,
+						browser_context: 'current_tab'
 					}
 				},
 			});
@@ -236,7 +238,7 @@ export default function LoginPage() {
 				setMagicLinkSent(true);
 				toast({
 					title: 'Magic Link Sent!',
-					description: 'Check your email and click the link to sign in. Links expire after 1 hour.',
+					description: 'Check your email and click the link in THIS browser tab. Links expire after 1 hour.',
 				});
 				setResendCooldown(60);
 				const timer = setInterval(() => {
@@ -496,12 +498,18 @@ export default function LoginPage() {
 													<Mail className="h-4 w-4" />
 													<AlertTitle>Magic Link Sent!</AlertTitle>
 													<AlertDescription>
-														Check your email and click the link to sign in.
-														{resendCooldown > 0 && (
-															<p className="text-sm mt-2">
-																You can request another link in {resendCooldown} seconds.
-															</p>
-														)}
+														<div className="space-y-2">
+															<p>Check your email and click the link to sign in.</p>
+															<div className="bg-blue-50 p-2 rounded text-sm">
+																<p className="font-semibold text-blue-800">Important:</p>
+																<p className="text-blue-700">Click the magic link in THIS browser tab for best results. Opening it in a different browser or tab may cause authentication errors.</p>
+															</div>
+															{resendCooldown > 0 && (
+																<p className="text-sm mt-2">
+																	You can request another link in {resendCooldown} seconds.
+																</p>
+															)}
+														</div>
 													</AlertDescription>
 												</Alert>
 											) : null}
