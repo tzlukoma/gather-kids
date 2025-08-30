@@ -346,7 +346,11 @@ export async function previewAutoEnrollment(yearId: string): Promise<{
     };
 }> {
     // Get the current registration cycle/year
-    const currentCycle = await db.registration_cycles.where('is_active').equals(1).first();
+    let currentCycle = await db.registration_cycles.where('is_active').equals(1).first();
+    if (!currentCycle) {
+        // Try with boolean value as fallback
+        currentCycle = await db.registration_cycles.where('is_active').equals(true as any).first();
+    }
     if (!currentCycle) {
         throw new Error('No active registration cycle found');
     }

@@ -1608,12 +1608,35 @@ function EnrollmentManagement({ yearId, yearLabel, divisions }: {
             console.log('Loading auto-enrollment preview for year:', yearId);
             console.log('Available divisions:', divisions.length);
             
-            // Check prerequisites
-            const childrenCount = await db.children.where('is_active').equals(1).count();
-            console.log('Active children count:', childrenCount);
+            // Check prerequisites - children enrolled in Bible Bee ministry
+            let currentCycle = await db.registration_cycles.where('is_active').equals(1).first();
+            if (!currentCycle) {
+                // Try with boolean value as fallback
+                currentCycle = await db.registration_cycles.where('is_active').equals(true as any).first();
+            }
+            if (!currentCycle) {
+                setError('No active registration cycle found. Please contact an administrator.');
+                setIsLoading(false);
+                return;
+            }
             
-            if (childrenCount === 0) {
-                setError('No active children found in the database. Please ensure children are marked as active.');
+            const bibleBeeMinistry = await db.ministries.where('code').equals('bible-bee').first();
+            if (!bibleBeeMinistry) {
+                setError('Bible Bee ministry not found. Please contact an administrator.');
+                setIsLoading(false);
+                return;
+            }
+            
+            const bibleBeeEnrollments = await db.ministry_enrollments
+                .where('[cycle_id+ministry_id]')
+                .equals([currentCycle.cycle_id, bibleBeeMinistry.ministry_id])
+                .and((e: any) => e.status === 'enrolled')
+                .count();
+            
+            console.log('Children enrolled in Bible Bee:', bibleBeeEnrollments);
+            
+            if (bibleBeeEnrollments === 0) {
+                setError('No children enrolled in Bible Bee ministry for the current registration cycle. Please ensure children are enrolled in Bible Bee ministry.');
                 setIsLoading(false);
                 return;
             }
