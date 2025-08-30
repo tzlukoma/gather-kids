@@ -126,7 +126,7 @@ export default function BibleBeeManage({ className }: BibleBeeManageProps) {
                 {/* Year Selector */}
                 <div className="flex items-center gap-4">
                     <Label htmlFor="year-select">Active Year:</Label>
-                    <Select value={selectedYearId || ''} onValueChange={setSelectedYearId}>
+                    <Select value={selectedYearId || undefined} onValueChange={setSelectedYearId}>
                         <SelectTrigger className="w-48" id="year-select">
                             <SelectValue placeholder="Select year..." />
                         </SelectTrigger>
@@ -1394,7 +1394,7 @@ function EssayManagement({ yearId, yearLabel, essayPrompts, divisions }: {
                             <div>
                                 <Label htmlFor="division-name">Division (Optional)</Label>
                                 <Select
-                                    value={formData.division_name}
+                                    value={formData.division_name || 'all'}
                                     onValueChange={(value) => setFormData({...formData, division_name: value})}
                                 >
                                     <SelectTrigger id="division-name">
@@ -1898,7 +1898,7 @@ function OverrideManagement({ yearId, yearLabel, divisions }: {
                         <div>
                             <Label htmlFor="division-select">Target Division</Label>
                             <Select
-                                value={formData.division_id}
+                                value={formData.division_id || undefined}
                                 onValueChange={(value) => setFormData({...formData, division_id: value})}
                             >
                                 <SelectTrigger id="division-select">
