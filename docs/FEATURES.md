@@ -252,6 +252,8 @@ Comprehensive data management system with sample data for demonstration and test
 
 ---
 
+---
+
 ## Epic 11: Parent Portal & Guardian Dashboard
 
 ### Epic Description
@@ -347,7 +349,6 @@ Comprehensive white-label customization system allowing organizations to fully b
 - ✅ Ministry-scoped RBAC with separate ministry accounts
 - ✅ Leader profile migration from user-based system
 - ✅ Real-time leader profile search and filtering
-- ✅ Role-based access control (Admin/Leader)
 - ✅ Role-based access control (Admin/Leader/Guardian)
 - ✅ Family registration with multi-child support
 - ✅ Real-time check-in/out with guardian verification
