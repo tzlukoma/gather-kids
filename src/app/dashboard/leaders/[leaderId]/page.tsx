@@ -141,13 +141,7 @@ export default function LeaderProfilePage() {
 		}
 	}, [profileData]);
 
-	// Effect to enforce inactive status if no assignments exist
-	useEffect(() => {
-		if (!hasAssignments && isActive) {
-			setIsActive(false);
-			handleStatusChange(false);
-		}
-	}, [hasAssignments, isActive]);
+	// Note: Removed automatic status enforcement to allow user control
 
 	const handleAssignmentChange = (ministryId: string, checked: boolean) => {
 		setAssignments((prev) => ({
@@ -185,9 +179,14 @@ export default function LeaderProfilePage() {
 			await saveLeaderProfile(updatedProfile);
 			setIsEditingProfile(false);
 
+			// Use fallback for display name in case of empty fields
+			const displayName = profileForm.first_name && profileForm.last_name 
+				? `${profileForm.first_name} ${profileForm.last_name}`
+				: 'the leader';
+
 			toast({
 				title: 'Profile Updated',
-				description: `Profile for ${profileForm.first_name} ${profileForm.last_name} has been updated.`,
+				description: `Profile for ${displayName} has been updated.`,
 			});
 		} catch (error) {
 			console.error('Failed to save profile:', error);
@@ -228,18 +227,17 @@ export default function LeaderProfilePage() {
 					}));
 			await saveLeaderAssignments(leaderId, '2025', finalAssignments);
 
-			// If assignments were updated and there are none, force inactive
+			toast({
+				title: 'Assignments Saved',
+				description: "The leader's ministry assignments have been updated.",
+			});
+
+			// If user had set leader to active but there are no assignments, show guidance
 			if (finalAssignments.length === 0 && isActive) {
-				await handleStatusChange(false);
 				toast({
-					title: 'Assignments Saved & Status Updated',
-					description:
-						"The leader's assignments have been updated and status set to inactive.",
-				});
-			} else {
-				toast({
-					title: 'Assignments Saved',
-					description: "The leader's ministry assignments have been updated.",
+					title: 'Status Update Recommended',
+					description: 'Consider setting the leader to inactive since they have no ministry assignments.',
+					variant: 'default',
 				});
 			}
 		} catch (error) {
@@ -371,13 +369,17 @@ export default function LeaderProfilePage() {
 								</Label>
 								<p className="text-xs text-muted-foreground">
 									{isActive ? 'Active leader' : 'Inactive leader'}
+									{!hasAssignments && (
+										<span className="block mt-1 text-amber-600 font-medium">
+											⚠️ Save ministry assignments before activating
+										</span>
+									)}
 								</p>
 							</div>
 							<Switch
 								id="leader-status"
 								checked={isActive}
 								onCheckedChange={handleStatusChange}
-								disabled={!hasAssignments && !isActive}
 							/>
 						</div>
 
