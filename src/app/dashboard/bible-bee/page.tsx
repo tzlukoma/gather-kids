@@ -60,6 +60,12 @@ export default function BibleBeePage() {
 		() => db.competitionYears.orderBy('year').reverse().toArray(),
 		[]
 	);
+
+	// Also load Bible Bee years for new schema support
+	const bibleBeeYears = useLiveQuery(
+		() => db.bible_bee_years.orderBy('label').toArray(),
+		[]
+	);
 	const [activeTab, setActiveTab] = useState<string>('students');
 	const [scriptures, setScriptures] = useState<any[] | null>(null);
 	const [displayVersion, setDisplayVersion] = useState<string | undefined>(
@@ -74,25 +80,53 @@ export default function BibleBeePage() {
 		// load scriptures for selected cycle
 		let mounted = true;
 		const load = async () => {
-			if (!competitionYears) return;
-			const yearObj = competitionYears.find(
-				(y: any) => String(y.year) === String(selectedCycle)
-			);
-			if (!yearObj) {
-				setScriptures([]);
-				return;
-			}
-			const s = await db.scriptures
-				.where('competitionYearId')
-				.equals(yearObj.id)
-				.toArray();
-			if (mounted) {
-				const sorted = s.sort(
-					(a: any, b: any) =>
-						Number(a.order ?? a.sortOrder ?? 0) -
-						Number(b.order ?? b.sortOrder ?? 0)
+			console.log('Loading scriptures for cycle:', selectedCycle);
+			console.log('Available competition years:', competitionYears);
+			console.log('Available Bible Bee years:', bibleBeeYears);
+
+			let scriptures: any[] = [];
+			
+			// First try the new Bible Bee year system
+			if (bibleBeeYears) {
+				const bibleBeeYear = bibleBeeYears.find(
+					(y: any) => y.label.includes(selectedCycle) || y.id === selectedCycle
 				);
+				
+				if (bibleBeeYear) {
+					console.log('Found Bible Bee year:', bibleBeeYear);
+					scriptures = await db.scriptures
+						.where('year_id')
+						.equals(bibleBeeYear.id)
+						.toArray();
+					console.log('Loaded scriptures from Bible Bee year:', scriptures.length);
+				}
+			}
+			
+			// If no scriptures found, try the old competition year system
+			if (scriptures.length === 0 && competitionYears) {
+				const yearObj = competitionYears.find(
+					(y: any) => String(y.year) === String(selectedCycle)
+				);
+				
+				if (yearObj) {
+					console.log('Found competition year:', yearObj);
+					scriptures = await db.scriptures
+						.where('competitionYearId')
+						.equals(yearObj.id)
+						.toArray();
+					console.log('Loaded scriptures from competition year:', scriptures.length);
+				}
+			}
+
+			if (mounted) {
+				const sorted = scriptures.sort(
+					(a: any, b: any) =>
+						Number(a.scripture_order ?? a.order ?? a.sortOrder ?? 0) -
+						Number(b.scripture_order ?? b.order ?? b.sortOrder ?? 0)
+				);
+				console.log('Setting scriptures:', sorted.length, 'scriptures');
 				setScriptures(sorted);
+				
 				// collect available versions from scriptures texts maps and translation fields
 				const versions = new Set<string>();
 				for (const item of sorted) {
@@ -113,7 +147,7 @@ export default function BibleBeePage() {
 		return () => {
 			mounted = false;
 		};
-	}, [selectedCycle, competitionYears]);
+	}, [selectedCycle, competitionYears, bibleBeeYears]);
 
 	useEffect(() => {
 		// determine manage permission: Admins can manage; Ministry leaders with Primary assignment can manage
@@ -233,7 +267,7 @@ export default function BibleBeePage() {
 														scriptureId: s.id,
 														scripture: s,
 														verseText: s.text,
-														competitionYearId: s.competitionYearId,
+														competitionYearId: s.year_id || s.competitionYearId,
 													}}
 													index={idx}
 													readOnly
