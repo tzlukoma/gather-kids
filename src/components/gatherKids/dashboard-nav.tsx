@@ -43,8 +43,7 @@ export function DashboardNav({ children }: DashboardNavProps) {
 		// Handle Supabase logout if not in demo mode
 		if (!isDemo()) {
 			try {
-				const { supabaseBrowser } = await import('@/lib/supabaseClient');
-				const supabase = supabaseBrowser();
+				const { supabase } = await import('@/lib/supabaseClient');
 				await supabase.auth.signOut();
 			} catch (error) {
 				console.error('Error signing out from Supabase:', error);

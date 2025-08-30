@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabaseBrowser } from '@/lib/supabaseClient';
+import { supabase } from '@/lib/supabaseClient';
 import { isDemo } from '@/lib/authGuards';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -34,7 +34,7 @@ export default function OnboardingPage() {
 
     const checkAuthAndOnboarding = async () => {
       try {
-        const supabase = supabaseBrowser();
+  const { supabase } = await import('@/lib/supabaseClient');
         const { data: { session }, error } = await supabase.auth.getSession();
 
         if (error) {
@@ -92,7 +92,7 @@ export default function OnboardingPage() {
 
     setSettingPassword(true);
     try {
-      const supabase = supabaseBrowser();
+  const { supabase } = await import('@/lib/supabaseClient');
       
       // Update user password
       const { error: passwordError } = await supabase.auth.updateUser({
@@ -131,7 +131,7 @@ export default function OnboardingPage() {
 
   const handleNotNow = async () => {
     try {
-      const supabase = supabaseBrowser();
+  const { supabase } = await import('@/lib/supabaseClient');
       
       // Mark onboarding as dismissed
       const { error } = await supabase.auth.updateUser({

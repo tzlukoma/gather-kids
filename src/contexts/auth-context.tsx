@@ -10,7 +10,7 @@ import React, {
 import { getLeaderAssignmentsForCycle } from '@/lib/dal';
 import { AuthRole, BaseUser } from '@/lib/auth-types';
 import { ProtectedRoute } from '@/components/auth/protected-route';
-import { supabaseBrowser } from '@/lib/supabaseClient';
+import { supabase } from '@/lib/supabaseClient';
 import { isDemo } from '@/lib/authGuards';
 
 interface AuthContextType {
@@ -73,7 +73,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 					}
 				} else {
 					// Production mode: use Supabase session as primary source
-					const supabase = supabaseBrowser();
 					const { data: { session } } = await supabase.auth.getSession();
 					
 					if (session?.user) {
@@ -94,11 +93,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 						};
 
 						if (finalUser.metadata.role === AuthRole.MINISTRY_LEADER) {
-							const assignments = await getLeaderAssignmentsForCycle(
-								finalUser.uid,
-								'2025'
-							);
-							finalUser.assignedMinistryIds = assignments.map((a) => a.ministry_id);
+							const leaderId = finalUser.uid || finalUser.id || (finalUser as any).user_id;
+							if (typeof leaderId === 'string' && leaderId.length > 0) {
+								const assignments = await getLeaderAssignmentsForCycle(
+									leaderId,
+									'2025'
+								);
+								finalUser.assignedMinistryIds = assignments.map((a) => a.ministry_id);
+							}
 						}
 
 						setUser(finalUser);
@@ -120,8 +122,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 		// Subscribe to Supabase auth changes (only in production mode)
 		if (!isDemo()) {
-			const supabase = supabaseBrowser();
-			const { data: { subscription } } = supabase.auth.onAuthStateChange(
+				const { data: { subscription } } = supabase.auth.onAuthStateChange(
 				async (event: any, session: any) => {
 					console.log('Supabase auth state change:', event, session?.user?.id);
 					
@@ -142,11 +143,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 						};
 
 						if (finalUser.metadata.role === AuthRole.MINISTRY_LEADER) {
-							const assignments = await getLeaderAssignmentsForCycle(
-								finalUser.uid,
-								'2025'
-							);
-							finalUser.assignedMinistryIds = assignments.map((a) => a.ministry_id);
+							const leaderId = finalUser.uid || finalUser.id || (finalUser as any).user_id;
+							if (typeof leaderId === 'string' && leaderId.length > 0) {
+								const assignments = await getLeaderAssignmentsForCycle(
+									leaderId,
+									'2025'
+								);
+								finalUser.assignedMinistryIds = assignments.map((a) => a.ministry_id);
+							}
 						}
 
 						setUser(finalUser);
@@ -224,7 +228,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 				sessionStorage.clear();
 			} else {
 				// In production mode, sign out from Supabase
-				const supabase = supabaseBrowser();
 				supabase.auth.signOut();
 			}
 		} finally {

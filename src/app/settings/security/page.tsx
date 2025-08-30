@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabaseBrowser } from '@/lib/supabaseClient';
+import { supabase } from '@/lib/supabaseClient';
 import { isDemo } from '@/lib/authGuards';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -37,7 +37,7 @@ export default function SecuritySettingsPage() {
 
     const checkAuth = async () => {
       try {
-        const supabase = supabaseBrowser();
+  const { supabase } = await import('@/lib/supabaseClient');
         const { data: { session }, error } = await supabase.auth.getSession();
 
         if (error) {
@@ -84,7 +84,7 @@ export default function SecuritySettingsPage() {
 
     setUpdatingPassword(true);
     try {
-      const supabase = supabaseBrowser();
+  const { supabase } = await import('@/lib/supabaseClient');
       
       // Update user password
       const { error: passwordError } = await supabase.auth.updateUser({
@@ -128,7 +128,7 @@ export default function SecuritySettingsPage() {
 
     setSendingVerification(true);
     try {
-      const supabase = supabaseBrowser();
+  const { supabase } = await import('@/lib/supabaseClient');
       const { error } = await supabase.auth.resend({
         type: 'signup',
         email: user.email
