@@ -2,7 +2,7 @@
 
 import { useEffect, useState, Suspense, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { supabaseBrowser } from '@/lib/supabaseClient';
+import { supabase } from '@/lib/supabaseClient';
 import { isDemo } from '@/lib/authGuards';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -35,7 +35,6 @@ function AuthCallbackContent() {
 
     const handleAuthCallback = async () => {
       try {
-        // Validate environment
         const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
         const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
         
@@ -44,12 +43,10 @@ function AuthCallbackContent() {
           return;
         }
 
-        const supabase = supabaseBrowser();
-        const code = searchParams?.get('code') || '';
+        // Check for URL error parameters first
         const error_code = searchParams?.get('error_code') || '';
         const error_description = searchParams?.get('error_description') || '';
         
-        // Handle URL errors
         if (error_code || error_description) {
           let userMessage = 'Authentication failed';
           
@@ -64,14 +61,11 @@ function AuthCallbackContent() {
           setError(userMessage);
           return;
         }
-        
-        if (!code) {
-          setError('No authentication code found. The magic link may be invalid or expired.');
-          return;
-        }
-        
-        // Attempt authentication with enhanced error handling
-        const { data, error: authError } = await supabase.auth.exchangeCodeForSession(code);
+
+        // Use the proper Supabase method to parse the URL session
+        const { data, error: authError } = await supabase.auth.getSessionFromUrl({
+          storeSession: true
+        });
         
         if (authError) {
           console.error('Auth error:', authError);

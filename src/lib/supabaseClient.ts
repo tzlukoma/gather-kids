@@ -50,7 +50,7 @@ export const supabaseBrowser = () =>
         // Standard configuration based on Supabase Next.js docs
         persistSession: true,
         autoRefreshToken: true,
-        detectSessionInUrl: true,
+        detectSessionInUrl: false, // Only callback page should parse URL
         flowType: 'pkce',
         // Use localStorage-based storage for cross-tab compatibility
         storage: new NextJSStorage(),
@@ -58,5 +58,5 @@ export const supabaseBrowser = () =>
     }
   );
 
-// Backward compatibility - keep the old export but use the new client
+// Export a shared instance to prevent multiple client creation
 export const supabase = supabaseBrowser();

@@ -10,6 +10,8 @@ import React, {
 import { getLeaderAssignmentsForCycle } from '@/lib/dal';
 import { AuthRole, BaseUser } from '@/lib/auth-types';
 import { ProtectedRoute } from '@/components/auth/protected-route';
+import { supabaseBrowser } from '@/lib/supabaseClient';
+import { isDemo } from '@/lib/authGuards';
 
 interface AuthContextType {
 	user: BaseUser | null;
@@ -30,50 +32,136 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 	const [userRole, setUserRole] = useState<AuthRole | null>(null);
 
 	useEffect(() => {
-		const initializeUser = async () => {
+		const initializeAuth = async () => {
 			setLoading(true);
+			
 			try {
-				const storedUserString = localStorage.getItem('gatherkids-user');
-				if (storedUserString) {
-					const storedUser = JSON.parse(storedUserString);
-					let finalUser: BaseUser = {
-						...storedUser,
-						metadata: {
-							...storedUser.metadata,
-							role: storedUser.metadata?.role || AuthRole.ADMIN,
-						},
-						// preserve is_active from stored data (do not force true)
-						is_active:
-							typeof storedUser.is_active === 'boolean'
-								? storedUser.is_active
-								: true,
-						assignedMinistryIds: [],
-					};
+				// In demo mode, use localStorage as before
+				if (isDemo()) {
+					const storedUserString = localStorage.getItem('gatherkids-user');
+					if (storedUserString) {
+						const storedUser = JSON.parse(storedUserString);
+						let finalUser: BaseUser = {
+							...storedUser,
+							metadata: {
+								...storedUser.metadata,
+								role: storedUser.metadata?.role || AuthRole.ADMIN,
+							},
+							is_active:
+								typeof storedUser.is_active === 'boolean'
+									? storedUser.is_active
+									: true,
+							assignedMinistryIds: [],
+						};
 
-					if (finalUser.metadata.role === AuthRole.MINISTRY_LEADER) {
-						const leaderId = (storedUser.uid ||
-							storedUser.id ||
-							(storedUser as any).user_id) as string | undefined;
-						if (leaderId) {
+						if (finalUser.metadata.role === AuthRole.MINISTRY_LEADER) {
+							const leaderId = (storedUser.uid ||
+								storedUser.id ||
+								(storedUser as any).user_id) as string | undefined;
+							if (leaderId) {
+								const assignments = await getLeaderAssignmentsForCycle(
+									leaderId,
+									'2025'
+								);
+								finalUser.assignedMinistryIds = assignments.map(
+									(a) => a.ministry_id
+								);
+							}
+						}
+						setUser(finalUser);
+						setUserRole(finalUser.metadata.role);
+					}
+				} else {
+					// Production mode: use Supabase session as primary source
+					const supabase = supabaseBrowser();
+					const { data: { session } } = await supabase.auth.getSession();
+					
+					if (session?.user) {
+						// Convert Supabase user to BaseUser format
+						const supabaseUser = session.user;
+						const userRole = supabaseUser.user_metadata?.role || AuthRole.ADMIN;
+						
+						let finalUser: BaseUser = {
+							uid: supabaseUser.id,
+							displayName: supabaseUser.user_metadata?.full_name || supabaseUser.email?.split('@')[0] || 'User',
+							email: supabaseUser.email || '',
+							is_active: true,
+							metadata: {
+								role: userRole,
+								...supabaseUser.user_metadata,
+							},
+							assignedMinistryIds: [],
+						};
+
+						if (finalUser.metadata.role === AuthRole.MINISTRY_LEADER) {
 							const assignments = await getLeaderAssignmentsForCycle(
-								leaderId,
+								finalUser.uid,
 								'2025'
 							);
-							finalUser.assignedMinistryIds = assignments.map(
-								(a) => a.ministry_id
-							);
+							finalUser.assignedMinistryIds = assignments.map((a) => a.ministry_id);
 						}
+
+						setUser(finalUser);
+						setUserRole(finalUser.metadata.role);
 					}
-					setUser(finalUser);
-					setUserRole(finalUser.metadata.role);
 				}
 			} catch (error) {
-				console.error('Failed to parse user from localStorage', error);
-				localStorage.removeItem('gatherkids-user');
+				console.error('Failed to initialize auth state', error);
+				// In demo mode, clear localStorage on error
+				if (isDemo()) {
+					localStorage.removeItem('gatherkids-user');
+				}
+			} finally {
+				setLoading(false);
 			}
-			setLoading(false);
 		};
-		initializeUser();
+
+		initializeAuth();
+
+		// Subscribe to Supabase auth changes (only in production mode)
+		if (!isDemo()) {
+			const supabase = supabaseBrowser();
+			const { data: { subscription } } = supabase.auth.onAuthStateChange(
+				async (event: any, session: any) => {
+					console.log('Supabase auth state change:', event, session?.user?.id);
+					
+					if (event === 'SIGNED_IN' && session?.user) {
+						const supabaseUser = session.user;
+						const userRole = supabaseUser.user_metadata?.role || AuthRole.ADMIN;
+						
+						let finalUser: BaseUser = {
+							uid: supabaseUser.id,
+							displayName: supabaseUser.user_metadata?.full_name || supabaseUser.email?.split('@')[0] || 'User',
+							email: supabaseUser.email || '',
+							is_active: true,
+							metadata: {
+								role: userRole,
+								...supabaseUser.user_metadata,
+							},
+							assignedMinistryIds: [],
+						};
+
+						if (finalUser.metadata.role === AuthRole.MINISTRY_LEADER) {
+							const assignments = await getLeaderAssignmentsForCycle(
+								finalUser.uid,
+								'2025'
+							);
+							finalUser.assignedMinistryIds = assignments.map((a) => a.ministry_id);
+						}
+
+						setUser(finalUser);
+						setUserRole(finalUser.metadata.role);
+					} else if (event === 'SIGNED_OUT') {
+						setUser(null);
+						setUserRole(null);
+					}
+				}
+			);
+
+			return () => {
+				subscription.unsubscribe();
+			};
+		}
 	}, []);
 
 	const login = async (userData: Omit<BaseUser, 'assignedMinistryIds'>) => {
@@ -109,8 +197,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 				}
 			}
 
-			console.log('Storing user with role:', finalUser.metadata.role);
-			localStorage.setItem('gatherkids-user', JSON.stringify(finalUser));
+			// In demo mode, use localStorage as before
+			if (isDemo()) {
+				console.log('Storing user with role:', finalUser.metadata.role);
+				localStorage.setItem('gatherkids-user', JSON.stringify(finalUser));
+			}
+			
 			setUser(finalUser);
 			console.log('Setting userRole to:', finalUser.metadata.role);
 			setUserRole(finalUser.metadata.role);
@@ -124,9 +216,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 		try {
 			setUser(null);
 			setUserRole(null);
-			localStorage.removeItem('gatherkids-user');
-			// Clear all session storage to reset onboarding state
-			sessionStorage.clear();
+			
+			// In demo mode, clear localStorage
+			if (isDemo()) {
+				localStorage.removeItem('gatherkids-user');
+				// Clear all session storage to reset onboarding state
+				sessionStorage.clear();
+			} else {
+				// In production mode, sign out from Supabase
+				const supabase = supabaseBrowser();
+				supabase.auth.signOut();
+			}
 		} finally {
 			setLoading(false);
 		}

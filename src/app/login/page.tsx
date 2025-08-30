@@ -21,7 +21,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useFeatureFlags } from '@/contexts/feature-flag-context';
 import { FeatureFlagDialog } from '@/components/feature-flag-dialog';
 import { AuthRole } from '@/lib/auth-types';
-import { supabaseBrowser } from '@/lib/supabaseClient';
+import { supabase } from '@/lib/supabaseClient';
 import { getAuthRedirectTo } from '@/lib/authRedirect';
 import { isDemo, isMagicLinkEnabled, isPasswordEnabled } from '@/lib/authGuards';
 
@@ -182,7 +182,6 @@ export default function LoginPage() {
 
 		setMagicLinkLoading(true);
 		try {
-			const supabase = supabaseBrowser();
 			const redirectTo = getAuthRedirectTo();
 			
 			const { error } = await supabase.auth.signInWithOtp({
@@ -262,7 +261,6 @@ export default function LoginPage() {
 
 		setPasswordLoading(true);
 		try {
-			const supabase = supabaseBrowser();
 			const { error } = await supabase.auth.signInWithPassword({
 				email,
 				password,
