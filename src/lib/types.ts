@@ -262,3 +262,17 @@ export interface StudentEssay {
     createdAt: string;
     updatedAt: string;
 }
+
+// --- Branding Settings ---
+export interface BrandingSettings {
+    setting_id: string; // PK
+    org_id: string; // Organization identifier (for multi-tenant support)
+    logo_url?: string; // File URL for production, base64 data URL for demo
+    app_name?: string; // Custom app name
+    description?: string; // Custom description/tagline
+    use_logo_only?: boolean; // When true, show only logo in headers (logo required)
+    youtube_url?: string; // YouTube social link
+    instagram_url?: string; // Instagram social link
+    created_at: string;
+    updated_at: string;
+}

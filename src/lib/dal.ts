@@ -15,7 +15,7 @@
 import { db } from './db';
 import { getApplicableGradeRule } from './bibleBee';
 import { AuthRole } from './auth-types';
-import type { Attendance, Child, Guardian, Household, Incident, IncidentSeverity, Ministry, MinistryEnrollment, Registration, User, EmergencyContact, LeaderAssignment } from './types';
+import type { Attendance, Child, Guardian, Household, Incident, IncidentSeverity, Ministry, MinistryEnrollment, Registration, User, EmergencyContact, LeaderAssignment, BrandingSettings } from './types';
 import { differenceInYears, isAfter, isBefore, parseISO, isValid } from 'date-fns';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -888,4 +888,49 @@ export async function updateLeaderStatus(leaderId: string, isActive: boolean): P
 
 export async function updateChildPhoto(childId: string, photoDataUrl: string): Promise<number> {
     return db.children.update(childId, { photo_url: photoDataUrl });
+}
+
+// Branding Settings CRUD
+export async function getBrandingSettings(orgId: string = 'default'): Promise<BrandingSettings | null> {
+    const settings = await db.branding_settings.where({ org_id: orgId }).first();
+    return settings || null;
+}
+
+export async function saveBrandingSettings(
+    orgId: string = 'default', 
+    settings: Omit<BrandingSettings, 'setting_id' | 'org_id' | 'created_at' | 'updated_at'>
+): Promise<string> {
+    const now = new Date().toISOString();
+    const existingSettings = await getBrandingSettings(orgId);
+    
+    if (existingSettings) {
+        // Update existing settings
+        await db.branding_settings.update(existingSettings.setting_id, {
+            ...settings,
+            updated_at: now,
+        });
+        return existingSettings.setting_id;
+    } else {
+        // Create new settings
+        const newSettings: BrandingSettings = {
+            setting_id: uuidv4(),
+            org_id: orgId,
+            ...settings,
+            created_at: now,
+            updated_at: now,
+        };
+        await db.branding_settings.add(newSettings);
+        return newSettings.setting_id;
+    }
+}
+
+export async function getDefaultBrandingSettings(): Promise<Partial<BrandingSettings>> {
+    return {
+        app_name: 'gatherKids',
+        description: "The simple, secure, and smart way to manage your children's ministry. Streamline check-ins, track attendance, and keep your community connected.",
+        logo_url: undefined, // Will use default cross icon
+        use_logo_only: false, // Show app name with logo by default
+        youtube_url: undefined,
+        instagram_url: undefined,
+    };
 }

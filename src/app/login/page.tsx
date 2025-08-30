@@ -13,8 +13,9 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/contexts/auth-context';
+import { useBranding } from '@/contexts/branding-context';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Info, Settings } from 'lucide-react';
+import { Info, Settings, Church } from 'lucide-react';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
 import { useFeatureFlags } from '@/contexts/feature-flag-context';
@@ -113,6 +114,7 @@ const DEMO_USERS = {
 export default function LoginPage() {
 	const router = useRouter();
 	const { login } = useAuth();
+	const { settings } = useBranding();
 	const { toast } = useToast();
 	const { flags } = useFeatureFlags();
 	const [email, setEmail] = useState('');
@@ -170,8 +172,24 @@ export default function LoginPage() {
 				<div className="mb-8">
 					<Link
 						href="/"
-						className="font-headline text-3xl font-bold text-foreground">
-						gatherKids
+						className="flex items-center gap-2 font-headline text-3xl font-bold text-foreground">
+						{settings.logo_url ? (
+							<>
+								<img
+									src={settings.logo_url}
+									alt={`${settings.app_name || 'gatherKids'} Logo`}
+									className="h-24 w-auto max-w-[50%] object-contain"
+								/>
+								{!settings.use_logo_only && (
+									<span>{settings.app_name || 'gatherKids'}</span>
+								)}
+							</>
+						) : (
+							<>
+								<Church className="h-10 w-10 text-primary" />
+								<span>{settings.app_name || 'gatherKids'}</span>
+							</>
+						)}
 					</Link>
 				</div>
 				<Card className="w-full max-w-md">
@@ -305,7 +323,7 @@ export default function LoginPage() {
 			<footer className="py-6 border-t mt-auto">
 				<div className="container mx-auto flex justify-between items-center text-sm text-muted-foreground">
 					<p>
-						&copy; {new Date().getFullYear()} gatherKids. All rights reserved.
+						&copy; {new Date().getFullYear()} {settings.app_name || 'gatherKids'}. All rights reserved.
 					</p>
 					<Button
 						variant="ghost"
