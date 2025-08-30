@@ -54,7 +54,7 @@ export default function BibleBeePage() {
 	const { user, loading } = useAuth();
 	const [allowed, setAllowed] = useState(false);
 	const [selectedLeader, setSelectedLeader] = useState<string | null>(null);
-	const [selectedCycle, setSelectedCycle] = useState<string>('2025');
+	const [selectedCycle, setSelectedCycle] = useState<string>('');
 	const competitionYears = useLiveQuery(
 		() => db.competitionYears.orderBy('year').reverse().toArray(),
 		[]
@@ -68,6 +68,13 @@ export default function BibleBeePage() {
 	const [canManage, setCanManage] = useState(false);
 
 	// leader list removed — Admin no longer filters by leader
+
+	// Initialize selectedCycle with the most recent competition year
+	useEffect(() => {
+		if (competitionYears && competitionYears.length > 0 && !selectedCycle) {
+			setSelectedCycle(String(competitionYears[0].year));
+		}
+	}, [competitionYears, selectedCycle]);
 
 	useEffect(() => {
 		// load scriptures for selected cycle
@@ -145,11 +152,31 @@ export default function BibleBeePage() {
 
 	return (
 		<div className="flex flex-col gap-6">
-			<div>
-				<h1 className="text-3xl font-bold font-headline">Bible Bee</h1>
-				<p className="text-muted-foreground">
-					Progress and scriptures for the selected year.
-				</p>
+			<div className="flex items-center justify-between">
+				<div>
+					<h1 className="text-3xl font-bold font-headline">Bible Bee</h1>
+					<p className="text-muted-foreground">
+						Progress and scriptures for the selected year.
+					</p>
+				</div>
+				<div className="w-48">
+					<Select
+						value={selectedCycle}
+						onValueChange={(v: string) => setSelectedCycle(v)}>
+						<SelectTrigger>
+							<SelectValue placeholder="Select year">
+								{selectedCycle}
+							</SelectValue>
+						</SelectTrigger>
+						<SelectContent>
+							{(competitionYears || []).map((y: any) => (
+								<SelectItem key={y.id} value={String(y.year)}>
+									{String(y.year)} - {y.name || `Competition Year ${y.year}`}
+								</SelectItem>
+							))}
+						</SelectContent>
+					</Select>
+				</div>
 			</div>
 
 			<Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -169,7 +196,10 @@ export default function BibleBeePage() {
 							</CardDescription>
 						</CardHeader>
 						<CardContent>
-							<LeaderBibleBeeProgress cycleId={selectedCycle} />
+							<LeaderBibleBeeProgress 
+								cycleId={selectedCycle}
+								key={selectedCycle} // Force re-render when cycle changes
+							/>
 						</CardContent>
 					</Card>
 				</TabsContent>
