@@ -55,7 +55,8 @@ export default function BibleBeePage() {
 	const { user, loading } = useAuth();
 	const [allowed, setAllowed] = useState(false);
 	const [selectedLeader, setSelectedLeader] = useState<string | null>(null);
-	const [selectedCycle, setSelectedCycle] = useState<string>('2025');
+	// start empty and pick a sensible default once years data is available
+	const [selectedCycle, setSelectedCycle] = useState<string>('');
 	const competitionYears = useLiveQuery(
 		() => db.competitionYears.orderBy('year').reverse().toArray(),
 		[]
@@ -86,7 +87,7 @@ export default function BibleBeePage() {
 				return bibleBeeYear.label;
 			}
 		}
-		
+
 		// Fall back to competition years for legacy schema
 		if (competitionYears) {
 			const yearObj = competitionYears.find(
@@ -96,12 +97,33 @@ export default function BibleBeePage() {
 				return yearObj.name ?? `Bible Bee ${yearObj.year}`;
 			}
 		}
-		
+
 		// Default fallback
 		return `Bible Bee ${selectedCycle}`;
 	}, [selectedCycle, competitionYears, bibleBeeYears]);
 
 	// leader list removed — Admin no longer filters by leader
+
+	useEffect(() => {
+		// set an initial selectedCycle once we have years info; prefer an
+		// explicitly active new-schema bible-bee year when present, otherwise
+		// fall back to the latest competition year.
+		if (selectedCycle) return; // don't override an existing selection
+		if (!competitionYears && !bibleBeeYears) return;
+		const activeBB = (bibleBeeYears || []).find((y: any) => {
+			const val: any = y?.is_active;
+			return val === true || val === 1 || String(val) === '1';
+		});
+		if (activeBB && activeBB.id) {
+			setSelectedCycle(String(activeBB.id));
+			return;
+		}
+		if (competitionYears && competitionYears.length > 0) {
+			// Default to the prior year (second-most-recent) when no new-schema year exists
+			const idx = competitionYears.length > 1 ? 1 : 0;
+			setSelectedCycle(String(competitionYears[idx].year));
+		}
+	}, [competitionYears, bibleBeeYears, selectedCycle]);
 
 	useEffect(() => {
 		// load scriptures for selected cycle
@@ -112,36 +134,42 @@ export default function BibleBeePage() {
 			console.log('Available Bible Bee years:', bibleBeeYears);
 
 			let scriptures: any[] = [];
-			
+
 			// First try the new Bible Bee year system
 			if (bibleBeeYears) {
 				const bibleBeeYear = bibleBeeYears.find(
 					(y: any) => y.label.includes(selectedCycle) || y.id === selectedCycle
 				);
-				
+
 				if (bibleBeeYear) {
 					console.log('Found Bible Bee year:', bibleBeeYear);
 					scriptures = await db.scriptures
 						.where('year_id')
 						.equals(bibleBeeYear.id)
 						.toArray();
-					console.log('Loaded scriptures from Bible Bee year:', scriptures.length);
+					console.log(
+						'Loaded scriptures from Bible Bee year:',
+						scriptures.length
+					);
 				}
 			}
-			
+
 			// If no scriptures found, try the old competition year system
 			if (scriptures.length === 0 && competitionYears) {
 				const yearObj = competitionYears.find(
 					(y: any) => String(y.year) === String(selectedCycle)
 				);
-				
+
 				if (yearObj) {
 					console.log('Found competition year:', yearObj);
 					scriptures = await db.scriptures
 						.where('competitionYearId')
 						.equals(yearObj.id)
 						.toArray();
-					console.log('Loaded scriptures from competition year:', scriptures.length);
+					console.log(
+						'Loaded scriptures from competition year:',
+						scriptures.length
+					);
 				}
 			}
 
@@ -153,7 +181,7 @@ export default function BibleBeePage() {
 				);
 				console.log('Setting scriptures:', sorted.length, 'scriptures');
 				setScriptures(sorted);
-				
+
 				// collect available versions from scriptures texts maps and translation fields
 				const versions = new Set<string>();
 				for (const item of sorted) {
@@ -184,26 +212,73 @@ export default function BibleBeePage() {
 			return;
 		}
 		if (user?.metadata?.role === AuthRole.MINISTRY_LEADER) {
-			// simple check: if user has an assignment as Primary for bible-bee in current cycle
 			(async () => {
 				const uid =
 					(user as any).id ||
 					(user as any).uid ||
 					(user as any).user_id ||
 					(user as any).userId;
+				const email =
+					(user as any).email || (user as any).user_email || (user as any).mail;
 				if (!uid) return;
+				let effectiveCycle = selectedCycle;
+				// If selectedCycle corresponds to a bible-bee-year id, translate to the active registration cycle id (leader_assignments use cycle ids).
+				if (
+					bibleBeeYears &&
+					bibleBeeYears.find((y: any) => String(y.id) === String(selectedCycle))
+				) {
+					const allCycles = await db.registration_cycles.toArray();
+					const active = allCycles.find((c: any) => {
+						const val: any = (c as any)?.is_active;
+						return val === true || val === 1 || String(val) === '1';
+					});
+					if (active && active.cycle_id) effectiveCycle = active.cycle_id;
+				}
+				// Check legacy leader_assignments
 				const assignments = await db.leader_assignments
-					.where({ leader_id: uid, cycle_id: selectedCycle })
+					.where({ leader_id: uid, cycle_id: effectiveCycle })
 					.toArray();
-				const hasPrimary = assignments.some(
+				const hasPrimaryAssignment = assignments.some(
 					(a: any) =>
 						(a as any).ministry_id === 'bible-bee' &&
 						(a as any).role === 'Primary'
 				);
-				setCanManage(hasPrimary);
+				if (hasPrimaryAssignment) {
+					setCanManage(true);
+					return;
+				}
+				// Check ministry_leader_memberships (new management system)
+				const memberships = await db.ministry_leader_memberships
+					.where('leader_id')
+					.equals(uid)
+					.toArray();
+				const hasMembership = memberships.some(
+					(m: any) =>
+						(m.ministry_id === 'bible-bee' || m.ministry_id === 'bible-bee') &&
+						m.is_active
+				);
+				if (hasMembership) {
+					setCanManage(true);
+					return;
+				}
+				// Check ministry_accounts mapping via email (demo seeds ministry_accounts with demo leader emails)
+				if (email) {
+					const accounts = await db.ministry_accounts
+						.where('email')
+						.equals(String(email))
+						.toArray();
+					const hasAccount = accounts.some(
+						(a: any) => a.ministry_id === 'bible-bee'
+					);
+					if (hasAccount) {
+						setCanManage(true);
+						return;
+					}
+				}
+				setCanManage(false);
 			})();
 		}
-	}, [user, selectedCycle]);
+	}, [user, selectedCycle, bibleBeeYears]);
 
 	return (
 		<div className="flex flex-col gap-6">
@@ -214,16 +289,15 @@ export default function BibleBeePage() {
 				</p>
 			</div>
 
-			<Tabs 
-				value={activeTab} 
+			<Tabs
+				value={activeTab}
 				onValueChange={(tab) => {
 					setActiveTab(tab);
 					// Force refresh scriptures when switching to scriptures tab
 					if (tab === 'scriptures') {
-						setScriptureRefreshTrigger(prev => prev + 1);
+						setScriptureRefreshTrigger((prev) => prev + 1);
 					}
-				}}
-			>
+				}}>
 				{/* make tabs only as wide as their content */}
 				<TabsList className="inline-flex items-center gap-2">
 					<TabsTrigger value="students">Students</TabsTrigger>

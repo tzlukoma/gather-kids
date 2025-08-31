@@ -14,14 +14,16 @@ export function gradeToCode(gradeText?: string): number | null {
         return 0;
     }
     
-    // Simple numeric grades 1-12
-    const numMatch = t.match(/^([1-9]|1[0-2])$/);
+    // Simple numeric grades 0-12 (0 maps to Kindergarten)
+    const numMatch = t.match(/^(0|[1-9]|1[0-2])$/);
     if (numMatch) {
         return parseInt(numMatch[1], 10);
     }
     
     // Ordinal patterns (1st, 2nd, etc.)
     const ordinalMap: Record<string, number> = {
+        // include 0-based ordinals for possible stored forms
+        '0th': 0, 'zeroth': 0,
         '1st': 1, 'first': 1,
         '2nd': 2, 'second': 2,
         '3rd': 3, 'third': 3,
@@ -47,13 +49,13 @@ export function gradeToCode(gradeText?: string): number | null {
     }
     
     // Grade + number patterns
-    const gradeNumMatch = t.match(/^grade\s*([1-9]|1[0-2])$/);
+    const gradeNumMatch = t.match(/^grade\s*(0|[1-9]|1[0-2])$/);
     if (gradeNumMatch) {
         return parseInt(gradeNumMatch[1], 10);
     }
     
     // Number + ordinal + grade patterns (e.g., "1st grade", "2nd grade")
-    const ordinalGradeMatch = t.match(/^([1-9]|1[0-2])(st|nd|rd|th)\s*grade$/);
+    const ordinalGradeMatch = t.match(/^(0|[1-9]|1[0-2])(st|nd|rd|th)\s*grade$/);
     if (ordinalGradeMatch) {
         return parseInt(ordinalGradeMatch[1], 10);
     }

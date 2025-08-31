@@ -174,11 +174,14 @@ export async function createBibleBeeYear(payload: Omit<BibleBeeYear, 'id' | 'cre
     
     // If setting this year as active, deactivate all other years first
     if (payload.is_active) {
-        // Deactivate all existing Bible Bee years - check both boolean and numeric values
-        const existingActiveYears = await db.bible_bee_years.where('is_active').equals(1).toArray();
-        const existingActiveYearsBoolean = await db.bible_bee_years.where('is_active').equals(true as any).toArray();
-        
-        for (const year of [...existingActiveYears, ...existingActiveYearsBoolean]) {
+        // Deactivate all existing Bible Bee years. Use a full scan and filter
+        // in JS to avoid passing unexpected values into IDB key-range queries.
+        const allYears = await db.bible_bee_years.toArray();
+        const activeYears = allYears.filter(y => {
+            const val: any = (y as any).is_active;
+            return val === true || val === 1 || val == '1';
+        });
+        for (const year of activeYears) {
             await db.bible_bee_years.update(year.id, { is_active: false });
         }
         
@@ -205,11 +208,13 @@ export async function updateBibleBeeYear(id: string, updates: Partial<Omit<Bible
     
     // If setting this year as active, deactivate all other years first
     if (updates.is_active === true) {
-        // Deactivate all existing Bible Bee years except this one - check both boolean and numeric values
-        const existingActiveYears = await db.bible_bee_years.where('is_active').equals(1).toArray();
-        const existingActiveYearsBoolean = await db.bible_bee_years.where('is_active').equals(true as any).toArray();
-        
-        for (const year of [...existingActiveYears, ...existingActiveYearsBoolean]) {
+        // Deactivate all existing Bible Bee years except this one.
+        const allYears = await db.bible_bee_years.toArray();
+        const activeYears = allYears.filter(y => {
+            const val: any = (y as any).is_active;
+            return val === true || val === 1 || val == '1';
+        });
+        for (const year of activeYears) {
             if (year.id !== id) {
                 await db.bible_bee_years.update(year.id, { is_active: false });
             }
@@ -376,12 +381,11 @@ export async function previewAutoEnrollment(yearId: string): Promise<{
         unknown_grade: number;
     };
 }> {
-    // Get the current registration cycle/year
-    let currentCycle = await db.registration_cycles.where('is_active').equals(1).first();
-    if (!currentCycle) {
-        // Try with boolean value as fallback
-        currentCycle = await db.registration_cycles.where('is_active').equals(true as any).first();
-    }
+    // Get the current registration cycle/year (safe scan to avoid IDB key-range issues)
+    let currentCycle = (await db.registration_cycles.toArray()).find(c => {
+        const val: any = (c as any)?.is_active;
+        return val === true || val === 1 || String(val) === '1';
+    }) ?? null;
     if (!currentCycle) {
         throw new Error('No active registration cycle found');
     }
@@ -416,28 +420,39 @@ export async function previewAutoEnrollment(yearId: string): Promise<{
     console.log('Compound key values:', [ministryId, cycleId]);
     
     // Note: The compound index is [ministry_id+cycle_id], not [cycle_id+ministry_id]
+    // Avoid using a compound .equals(...) query here because historic data may contain
+    // mixed-type keys (numbers/strings/booleans) which can cause IDBKeyRange DataError.
+    // Instead, perform a safe in-JS filter after loading enrollments.
     let bibleBeeEnrollments: MinistryEnrollment[] = [];
     try {
-        bibleBeeEnrollments = await db.ministry_enrollments
-            .where('[ministry_id+cycle_id]')
-            .equals([ministryId, cycleId])
-            .and((e: MinistryEnrollment) => e.status === 'enrolled')
-            .toArray();
-        
-        console.log('Bible Bee enrollments found:', bibleBeeEnrollments.length);
-    } catch (error) {
-        console.error('Error querying ministry_enrollments with compound key:', error);
-        console.error('Failed compound key query details:', {
-            index: '[ministry_id+cycle_id]',
-            keyValues: [ministryId, cycleId],
-            ministryId,
-            cycleId
+        const allEnrollments = await db.ministry_enrollments.toArray();
+        bibleBeeEnrollments = allEnrollments.filter((e: MinistryEnrollment) => {
+            // Compare as strings to be tolerant of mixed stored representations
+            return String((e as any).ministry_id) === String(ministryId)
+                && String((e as any).cycle_id) === String(cycleId)
+                && e.status === 'enrolled';
         });
+
+        console.log('Bible Bee enrollments found (filtered):', bibleBeeEnrollments.length);
+    } catch (error) {
+        console.error('Error scanning ministry_enrollments for Bible Bee enrollments:', error);
         throw error;
     }
-    
-    const childIds = bibleBeeEnrollments.map((e: MinistryEnrollment) => e.child_id);
-    const children = await db.children.where('child_id').anyOf(childIds).toArray();
+
+    const childIds = bibleBeeEnrollments.map((e: MinistryEnrollment) => e.child_id).filter(Boolean);
+    let children: Child[] = [];
+    if (childIds.length > 0) {
+        try {
+            // anyOf can still fail if keys are invalid; attempt it but fall back to a full scan
+            children = await db.children.where('child_id').anyOf(childIds).toArray();
+        } catch (error) {
+            console.warn('anyOf(childIds) failed, falling back to full children scan:', error);
+            const allChildren = await db.children.toArray();
+            children = allChildren.filter(c => childIds.includes(c.child_id));
+        }
+    } else {
+        children = [];
+    }
     
     // Get divisions for this year
     const divisions = await db.divisions.where('year_id').equals(yearId).toArray();
@@ -589,7 +604,13 @@ export async function deleteEnrollmentOverride(id: string) {
 }
 
 export async function deleteEnrollmentOverrideByChild(yearId: string, childId: string) {
-    await db.enrollment_overrides.where('[year_id+child_id]').equals([yearId, childId]).delete();
+    // Avoid using compound .equals([...]) which can throw if stored key types
+    // are mixed. Perform a safe scan and delete matching overrides.
+    const all = await db.enrollment_overrides.toArray();
+    const matches = all.filter(o => String(o.year_id) === String(yearId) && String(o.child_id) === String(childId));
+    for (const m of matches) {
+        await db.enrollment_overrides.delete(m.id);
+    }
 }
 
 // === Minimum Boundary Calculation ===

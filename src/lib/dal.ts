@@ -778,20 +778,57 @@ export async function getLeaderBibleBeeProgress(leaderId: string, cycleId: strin
 }
 
 export async function getBibleBeeProgressForCycle(cycleId: string) {
-    // Find enrollments for the bible-bee ministry for the cycle
-    const enrollments = await db.ministry_enrollments
-        .where('ministry_id').equals('bible-bee')
-        .and(e => e.cycle_id === cycleId)
-        .toArray();
+    // Support both legacy (registration cycle id / numeric year) and new-schema
+    // bible-bee years. If cycleId matches a bible_bee_year id, use the new
+    // `enrollments` table; otherwise fall back to legacy ministry_enrollments.
 
-    const childIds = [...new Set(enrollments.map(e => e.child_id))];
-    if (childIds.length === 0) return [];
+    // First, attempt to treat cycleId as a new-schema bible-bee year id by
+    // checking enrollments for that year. This handles the case where the
+    // bible_bee_year record might not yet exist at the time of the query but
+    // enrollments are present, and avoids accidental mapping to the active
+    // registration cycle which could show prior-year children.
+    let childIds: string[] = [];
+    let children: any[] = [];
+    let compYear: any = null;
 
-    const children = await db.children.where('child_id').anyOf(childIds).toArray();
+    try {
+        const newEnrolls = await db.enrollments.where('year_id').equals(cycleId).toArray();
+        if (newEnrolls && newEnrolls.length > 0) {
+            childIds = [...new Set(newEnrolls.map(e => e.child_id))];
+            children = await db.children.where('child_id').anyOf(childIds).toArray();
+            compYear = null;
+        }
+    } catch (err) {
+        // ignore and fall back to legacy path
+    }
 
-    // Find the competition year matching the numeric cycle year (if present)
-    const yearNum = Number(cycleId);
-    const compYear = await db.competitionYears.where('year').equals(yearNum).first();
+    if (childIds.length === 0) {
+        // No new-schema enrollments found for this id; try legacy path or
+        // resolve via bible_bee_year existence.
+        const bbYear = await db.bible_bee_years.get(cycleId);
+        if (bbYear) {
+            const newEnrolls = await db.enrollments.where('year_id').equals(bbYear.id).toArray();
+            childIds = [...new Set(newEnrolls.map(e => e.child_id))];
+            if (childIds.length === 0) return [];
+            children = await db.children.where('child_id').anyOf(childIds).toArray();
+            compYear = null;
+        } else {
+            // Legacy path: ministry_enrollments keyed by ministry_id + cycle_id
+            const enrollments = await db.ministry_enrollments
+                .where('ministry_id').equals('bible-bee')
+                .and(e => e.cycle_id === cycleId)
+                .toArray();
+
+            childIds = [...new Set(enrollments.map(e => e.child_id))];
+            if (childIds.length === 0) return [];
+
+            children = await db.children.where('child_id').anyOf(childIds).toArray();
+
+            // Find the competition year matching the numeric cycle year (if present)
+            const yearNum = Number(cycleId);
+            compYear = await db.competitionYears.where('year').equals(yearNum).first();
+        }
+    }
 
     const results: any[] = [];
     const allEnrollmentsForChildren = await db.ministry_enrollments.where('child_id').anyOf(childIds).and(e => e.cycle_id === cycleId).toArray();
