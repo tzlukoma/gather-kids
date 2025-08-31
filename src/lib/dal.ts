@@ -984,6 +984,58 @@ export async function getLeaderProfileWithMemberships(leaderId: string) {
     };
 }
 
+/**
+ * Determine whether a leader can manage the Bible Bee ministry.
+ * Checks legacy leader_assignments (mapped to active registration cycle when
+ * selectedCycle points to a bible_bee_year), new ministry_leader_memberships,
+ * and ministry_accounts (email-based demo mapping).
+ */
+export async function canLeaderManageBibleBee(opts: { leaderId?: string; email?: string; selectedCycle?: string; }) {
+    const { leaderId, email, selectedCycle } = opts || {};
+    // If neither identifier provided, cannot determine permission
+    if (!leaderId && !email) return false;
+
+    // Resolve an effective cycle id for legacy leader_assignments. If
+    // selectedCycle corresponds to a bible_bee_year, map it to the currently
+    // active registration cycle id.
+    let effectiveCycle = selectedCycle;
+    if (selectedCycle) {
+        try {
+            const bb = await db.bible_bee_years.get(selectedCycle);
+            if (bb) {
+                const allCycles = await db.registration_cycles.toArray();
+                const active = allCycles.find((c: any) => {
+                    const val: any = (c as any)?.is_active;
+                    return val === true || val === 1 || String(val) === '1';
+                });
+                if (active && active.cycle_id) effectiveCycle = active.cycle_id;
+            }
+        } catch (err) {
+            // ignore and proceed
+        }
+    }
+
+    // 1) Legacy leader_assignments check
+    if (leaderId && effectiveCycle) {
+        const assignments = await db.leader_assignments.where({ leader_id: leaderId, cycle_id: effectiveCycle }).toArray();
+        if (assignments.some((a: any) => (a as any).ministry_id === 'bible-bee' && (a as any).role === 'Primary')) return true;
+    }
+
+    // 2) New management system: ministry_leader_memberships
+    if (leaderId) {
+        const memberships = await db.ministry_leader_memberships.where('leader_id').equals(leaderId).toArray();
+        if (memberships.some((m: any) => (m.ministry_id === 'bible-bee') && m.is_active)) return true;
+    }
+
+    // 3) Demo/email-based mapping: ministry_accounts
+    if (email) {
+        const accounts = await db.ministry_accounts.where('email').equals(String(email)).toArray();
+        if (accounts.some((a: any) => a.ministry_id === 'bible-bee')) return true;
+    }
+
+    return false;
+}
+
 // Create or update leader profile
 export async function saveLeaderProfile(profileData: Omit<LeaderProfile, 'created_at' | 'updated_at'> & { created_at?: string }) {
     const now = new Date().toISOString();

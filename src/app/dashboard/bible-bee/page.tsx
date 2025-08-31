@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { AuthRole } from '@/lib/auth-types';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
+import { canLeaderManageBibleBee } from '@/lib/dal';
 import {
 	Select,
 	SelectTrigger,
@@ -220,62 +221,13 @@ export default function BibleBeePage() {
 					(user as any).userId;
 				const email =
 					(user as any).email || (user as any).user_email || (user as any).mail;
-				if (!uid) return;
-				let effectiveCycle = selectedCycle;
-				// If selectedCycle corresponds to a bible-bee-year id, translate to the active registration cycle id (leader_assignments use cycle ids).
-				if (
-					bibleBeeYears &&
-					bibleBeeYears.find((y: any) => String(y.id) === String(selectedCycle))
-				) {
-					const allCycles = await db.registration_cycles.toArray();
-					const active = allCycles.find((c: any) => {
-						const val: any = (c as any)?.is_active;
-						return val === true || val === 1 || String(val) === '1';
-					});
-					if (active && active.cycle_id) effectiveCycle = active.cycle_id;
-				}
-				// Check legacy leader_assignments
-				const assignments = await db.leader_assignments
-					.where({ leader_id: uid, cycle_id: effectiveCycle })
-					.toArray();
-				const hasPrimaryAssignment = assignments.some(
-					(a: any) =>
-						(a as any).ministry_id === 'bible-bee' &&
-						(a as any).role === 'Primary'
-				);
-				if (hasPrimaryAssignment) {
-					setCanManage(true);
-					return;
-				}
-				// Check ministry_leader_memberships (new management system)
-				const memberships = await db.ministry_leader_memberships
-					.where('leader_id')
-					.equals(uid)
-					.toArray();
-				const hasMembership = memberships.some(
-					(m: any) =>
-						(m.ministry_id === 'bible-bee' || m.ministry_id === 'bible-bee') &&
-						m.is_active
-				);
-				if (hasMembership) {
-					setCanManage(true);
-					return;
-				}
-				// Check ministry_accounts mapping via email (demo seeds ministry_accounts with demo leader emails)
-				if (email) {
-					const accounts = await db.ministry_accounts
-						.where('email')
-						.equals(String(email))
-						.toArray();
-					const hasAccount = accounts.some(
-						(a: any) => a.ministry_id === 'bible-bee'
-					);
-					if (hasAccount) {
-						setCanManage(true);
-						return;
-					}
-				}
-				setCanManage(false);
+				if (!uid && !email) return;
+				const can = await canLeaderManageBibleBee({
+					leaderId: uid,
+					email: email,
+					selectedCycle,
+				});
+				setCanManage(Boolean(can));
 			})();
 		}
 	}, [user, selectedCycle, bibleBeeYears]);
