@@ -6,6 +6,15 @@ import { setupDexieMockIfNeeded } from '@/test-utils/dexie-mock';
 
 setupDexieMockIfNeeded();
 
+// Mock authGuards for testing
+jest.mock('@/lib/authGuards', () => {
+  return {
+    isDemo: () => true, // Always return true in tests to enable localStorage usage
+    isMagicLinkEnabled: () => true,
+    isPasswordEnabled: () => true,
+  };
+});
+
 // Mock ResizeObserver for tests
 global.ResizeObserver = jest.fn().mockImplementation(() => ({
 	observe: jest.fn(),
