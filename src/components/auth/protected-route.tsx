@@ -26,10 +26,56 @@ export const ProtectedRoute = ({
 			if (loading) return;
 
 			if (!user) {
-				setIsNavigating(true);
-				await router.replace('/login');
-				setIsNavigating(false);
-				return;
+				// Check if we might have a valid session in localStorage but the auth context missed it
+				// This helps with Vercel preview environments where the auth flow might be inconsistent
+				const hasSupabaseTokens =
+					typeof window !== 'undefined' &&
+					Object.keys(localStorage).some((key) => key && key.startsWith('sb-'));
+
+				if (hasSupabaseTokens) {
+					console.log(
+						'Protected route: Found auth tokens but no user. Attempting session recovery...'
+					);
+
+					try {
+						// Try to import supabase client dynamically to avoid SSR issues
+						const { supabase } = await import('@/lib/supabaseClient');
+						const { data, error } = await supabase.auth.refreshSession();
+
+						if (data?.session) {
+							console.log(
+								'Protected route: Session recovered! Reloading page...'
+							);
+							// We have a session but the auth context didn't catch it
+							// Force a reload to let the auth context initialize properly
+							window.location.reload();
+							return;
+						} else {
+							console.log('Protected route: Session recovery failed:', error);
+							setIsNavigating(true);
+							await router.replace('/login');
+							setIsNavigating(false);
+							return;
+						}
+					} catch (err) {
+						console.error(
+							'Protected route: Error during session recovery:',
+							err
+						);
+						setIsNavigating(true);
+						await router.replace('/login');
+						setIsNavigating(false);
+						return;
+					}
+				} else {
+					console.log(
+						'Protected route: No user and no tokens found. Redirecting to login...'
+					);
+					setIsNavigating(true);
+					await router.replace('/login');
+					setIsNavigating(false);
+					return;
+				}
 			}
 
 			console.log('ProtectedRoute - Current userRole:', userRole);

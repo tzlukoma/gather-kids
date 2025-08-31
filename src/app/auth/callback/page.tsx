@@ -2,7 +2,7 @@
 
 import { useEffect, useState, Suspense, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { supabase } from '@/lib/supabaseClient';
+import { supabase, handlePKCECodeExchange } from '@/lib/supabaseClient';
 import { isDemo } from '@/lib/authGuards';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -77,8 +77,19 @@ function AuthCallbackContent() {
 						console.error('Auth callback error: No code parameter in URL');
 					} else {
 						console.log('Found code in URL, exchanging for session');
-						// This is the recommended method for PKCE flow in newer Supabase versions
-						const result = await supabase.auth.exchangeCodeForSession(code);
+
+						// Add more diagnostic logging for debugging
+						console.log('Browser storage state:', {
+							hasLocalStorage: typeof localStorage !== 'undefined',
+							hasSessionStorage: typeof sessionStorage !== 'undefined',
+							pkceVerifier: localStorage.getItem(
+								'supabase.auth.token.code_verifier'
+							),
+							origin: window.location.origin,
+						});
+
+						// Use our enhanced helper function for PKCE flow
+						const result = await handlePKCECodeExchange(code);
 						data = result.data;
 						authError = result.error;
 					}
@@ -90,7 +101,55 @@ function AuthCallbackContent() {
 				if (authError) {
 					console.error('Auth error:', authError);
 
-					if (
+					// Enhanced detection of partial success cases
+					// Check for any of these conditions that would indicate the auth actually worked:
+					// 1. We have actual session data despite the error
+					// 2. Supabase created auth tokens in localStorage
+					// 3. We have an access_token or refresh_token in localStorage
+
+					// Check localStorage for Supabase tokens
+					const sbTokens = Object.keys(window.localStorage).filter(
+						(key) => key && key.startsWith('sb-')
+					);
+
+					const hasAccessToken = sbTokens.some((key) =>
+						key.includes('access_token')
+					);
+					const hasRefreshToken = sbTokens.some((key) =>
+						key.includes('refresh_token')
+					);
+					const hasSupabaseTokens = sbTokens.length > 0;
+
+					const isPartialSuccess =
+						!!(data && data.session) || // We have session data
+						hasAccessToken ||
+						hasRefreshToken || // We have specific tokens
+						hasSupabaseTokens; // Any Supabase token exists
+
+					console.log('Auth callback partial success detection:', {
+						hasSessionData: !!(data && data.session),
+						hasSupabaseTokens,
+						hasAccessToken,
+						hasRefreshToken,
+						tokenCount: sbTokens.length,
+					});
+
+					if (isPartialSuccess) {
+						// This indicates the auth succeeded at the Supabase level but something went wrong with our handling
+						setError(`⚠️ Almost there! 
+
+Authentication was successful with Supabase, but there was an issue completing the process.
+
+**Technical details:** 
+${authError.message || 'Error handling the authentication response'}
+
+**You can try:**
+1. Clicking the "Continue to App" button below to proceed
+2. Refreshing this page to see if you're already logged in
+3. Going back to the login page if needed
+
+This typically happens when your authentication worked but there was an issue handling the redirect.`);
+					} else if (
 						authError.message.includes('code verifier should be non-empty') ||
 						authError.message.includes('both auth code and code verifier')
 					) {
@@ -99,28 +158,20 @@ function AuthCallbackContent() {
 							window.location.hostname.includes('vercel.app');
 
 						if (authError.status === 400) {
-							setError(`🔧 Configuration Issue
+							setError(`🔧 Browser Storage Issue
 
-The current domain (${
-								window.location.origin
-							}) is not configured in your Supabase project.
+The authentication process couldn't find required verification data in your browser storage.
+
+**Possible causes:**
+• Using a different browser than where you requested the link
+• Cleared browser storage or cookies between request and login
+• Using private/incognito browsing mode
+• Browser extensions blocking storage access
 
 **To Fix:**
-1. Open your Supabase project dashboard
-2. Go to Authentication → URL Configuration  
-3. Add this domain to "Redirect URLs"
-${
-	isVercelPreview
-		? `4. For Vercel previews: add "*.vercel.app" wildcard domain
-
-**Recommended for Preview Environments:** 
-- Use password authentication for preview deployments
-- Or use the demo mode for testing`
-		: `4. Make sure to include the full domain exactly as shown above`
-}
-
-**Need Immediate Access?** 
-You can use the password authentication option instead.`);
+1. Try requesting a new magic link and clicking it in the same browser tab
+2. Use password authentication instead
+3. Try with private browsing / extensions disabled`);
 						} else {
 							setError(`❌ Magic Link Error
 
@@ -242,16 +293,34 @@ The verification code required for magic links was not found. This happens when:
 
 					{error && (
 						<div className="space-y-4">
-							<div className="text-red-600 whitespace-pre-line text-sm">
+							<div
+								className={`${
+									error.includes('⚠️ Almost there!')
+										? 'text-amber-600'
+										: 'text-red-600'
+								} whitespace-pre-line text-sm`}>
 								{error}
 							</div>
 							<div className="flex flex-col gap-2">
-								<Button asChild>
-									<Link href="/login">Request New Magic Link</Link>
-								</Button>
-								<Button variant="outline" asChild>
-									<Link href="/">Return Home</Link>
-								</Button>
+								{error.includes('⚠️ Almost there!') ? (
+									<>
+										<Button asChild className="bg-amber-600 hover:bg-amber-700">
+											<Link href="/onboarding">Continue to App</Link>
+										</Button>
+										<Button variant="outline" asChild>
+											<Link href="/login">Back to Login</Link>
+										</Button>
+									</>
+								) : (
+									<>
+										<Button asChild>
+											<Link href="/login">Request New Magic Link</Link>
+										</Button>
+										<Button variant="outline" asChild>
+											<Link href="/">Return Home</Link>
+										</Button>
+									</>
+								)}
 							</div>
 						</div>
 					)}

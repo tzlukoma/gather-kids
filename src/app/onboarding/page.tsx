@@ -42,6 +42,42 @@ export default function OnboardingPage() {
 
 				if (error) {
 					console.error('Session error:', error);
+
+					// Check if we still have Supabase tokens despite the error
+					const hasSupabaseTokens = Object.keys(localStorage).some(
+						(key) => key && key.startsWith('sb-')
+					);
+
+					if (hasSupabaseTokens) {
+						console.log(
+							'Found Supabase tokens despite session error - attempting recovery'
+						);
+						// Try to refresh the session
+						const refreshResult = await supabase.auth.refreshSession();
+						if (refreshResult.data?.session) {
+							console.log('Session recovery successful!');
+							const recoveredSession = refreshResult.data.session;
+							setUser(recoveredSession.user);
+
+							// Check if user needs onboarding
+							const hasPassword =
+								recoveredSession.user.user_metadata?.has_password === true;
+							const onboardingDismissed =
+								recoveredSession.user.user_metadata?.onboarding_dismissed ===
+								true;
+
+							if (!hasPassword && !onboardingDismissed) {
+								setShowOnboarding(true);
+								setLoading(false);
+								return;
+							} else {
+								// User doesn't need onboarding, redirect to dashboard
+								router.replace('/dashboard');
+								return;
+							}
+						}
+					}
+
 					router.replace('/login');
 					return;
 				}
@@ -185,12 +221,75 @@ export default function OnboardingPage() {
 		);
 	}
 
+	// Add retry mechanism for session recovery
+	const retrySession = async () => {
+		setLoading(true);
+		try {
+			const { supabase } = await import('@/lib/supabaseClient');
+
+			// Attempt to refresh the session
+			const { data, error } = await supabase.auth.refreshSession();
+
+			if (error) {
+				console.error('Retry session error:', error);
+				toast({
+					title: 'Session Error',
+					description: 'Unable to recover your session. Please sign in again.',
+					variant: 'destructive',
+				});
+				router.replace('/login');
+				return;
+			}
+
+			if (data?.session) {
+				setUser(data.session.user);
+
+				// Check if user needs onboarding
+				const hasPassword =
+					data.session.user.user_metadata?.has_password === true;
+				const onboardingDismissed =
+					data.session.user.user_metadata?.onboarding_dismissed === true;
+
+				if (!hasPassword && !onboardingDismissed) {
+					setShowOnboarding(true);
+				} else {
+					router.replace('/dashboard');
+				}
+
+				toast({
+					title: 'Session Recovered',
+					description: 'Your session has been restored successfully.',
+				});
+			} else {
+				toast({
+					title: 'Session Not Found',
+					description: 'Please sign in again to continue.',
+					variant: 'destructive',
+				});
+				router.replace('/login');
+			}
+		} catch (err) {
+			console.error('Unexpected error in retry:', err);
+			toast({
+				title: 'Unexpected Error',
+				description: 'An error occurred. Please try signing in again.',
+				variant: 'destructive',
+			});
+			router.replace('/login');
+		} finally {
+			setLoading(false);
+		}
+	};
+
 	if (loading) {
 		return (
 			<div className="flex min-h-screen items-center justify-center bg-muted/50 p-4">
 				<Card className="w-full max-w-md">
-					<CardContent className="flex items-center justify-center py-8">
+					<CardContent className="flex flex-col items-center justify-center py-8 space-y-4">
 						<Loader2 className="h-6 w-6 animate-spin" />
+						<p className="text-sm text-muted-foreground">
+							Setting up your account...
+						</p>
 					</CardContent>
 				</Card>
 			</div>
@@ -198,7 +297,30 @@ export default function OnboardingPage() {
 	}
 
 	if (!showOnboarding) {
-		return null; // Will redirect
+		// Show a helpful recovery UI instead of just returning null
+		return (
+			<div className="flex min-h-screen items-center justify-center bg-muted/50 p-4">
+				<Card className="w-full max-w-md">
+					<CardHeader className="text-center">
+						<CardTitle className="text-xl font-headline">
+							Session Issue
+						</CardTitle>
+					</CardHeader>
+					<CardContent className="space-y-4 text-center">
+						<p className="text-muted-foreground">
+							We're having trouble setting up your account. This sometimes
+							happens when authentication was partially successful.
+						</p>
+						<div className="flex flex-col gap-2">
+							<Button onClick={retrySession}>Retry Session</Button>
+							<Button variant="outline" asChild>
+								<Link href="/login">Back to Login</Link>
+							</Button>
+						</div>
+					</CardContent>
+				</Card>
+			</div>
+		);
 	}
 
 	return (

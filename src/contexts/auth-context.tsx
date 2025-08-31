@@ -30,14 +30,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 	const [user, setUser] = useState<BaseUser | null>(null);
 	const [loading, setLoading] = useState<boolean>(true);
 	const [userRole, setUserRole] = useState<AuthRole | null>(null);
+	const [isVercelPreview, setIsVercelPreview] = useState<boolean>(false);
+
+	useEffect(() => {
+		// Check if we're in a Vercel preview environment
+		if (typeof window !== 'undefined') {
+			setIsVercelPreview(window.location.hostname.includes('vercel.app'));
+		}
+	}, []);
 
 	useEffect(() => {
 		const initializeAuth = async () => {
 			setLoading(true);
 
 			try {
-				// In demo mode, use localStorage as before
-				if (isDemo()) {
+				// Check if we should use localStorage (demo mode or Vercel preview)
+				// This will help with preview environments where Supabase auth might have issues
+				if (isDemo() || isVercelPreview) {
 					const storedUserString = localStorage.getItem('gatherkids-user');
 					if (storedUserString) {
 						const storedUser = JSON.parse(storedUserString);
@@ -75,8 +84,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 					// Production mode: use Supabase session as primary source
 					const {
 						data: { session },
+						error: sessionError,
 					} = await supabase.auth.getSession();
 
+					// Check for a session
 					if (session?.user) {
 						// Convert Supabase user to BaseUser format
 						const supabaseUser = session.user;
@@ -113,6 +124,62 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 						setUser(finalUser);
 						setUserRole(finalUser.metadata.role);
+					}
+					// If we don't have a session but do have tokens in localStorage, try to recover
+					else if (typeof window !== 'undefined') {
+						// Check for Supabase auth tokens that would indicate a previous successful auth
+						const hasSupabaseTokens = Object.keys(localStorage).some(
+							(key) => key && key.startsWith('sb-')
+						);
+
+						if (hasSupabaseTokens) {
+							console.log(
+								'Found Supabase tokens but no active session. Attempting session refresh...'
+							);
+
+							// Try to refresh the session using the tokens
+							const refreshResult = await supabase.auth.refreshSession();
+
+							if (refreshResult.data?.session?.user) {
+								console.log('Session refresh successful!');
+								const recoveredUser = refreshResult.data.session.user;
+								const userRole =
+									recoveredUser.user_metadata?.role || AuthRole.ADMIN;
+
+								let finalUser: BaseUser = {
+									uid: recoveredUser.id,
+									displayName:
+										recoveredUser.user_metadata?.full_name ||
+										recoveredUser.email?.split('@')[0] ||
+										'User',
+									email: recoveredUser.email || '',
+									is_active: true,
+									metadata: {
+										role: userRole,
+										...recoveredUser.user_metadata,
+									},
+									assignedMinistryIds: [],
+								};
+
+								if (
+									finalUser.metadata.role === AuthRole.MINISTRY_LEADER &&
+									finalUser.uid
+								) {
+									const assignments = await getLeaderAssignmentsForCycle(
+										finalUser.uid,
+										'2025'
+									);
+									finalUser.assignedMinistryIds = assignments.map(
+										(a) => a.ministry_id
+									);
+								}
+
+								setUser(finalUser);
+								setUserRole(finalUser.metadata.role);
+							} else {
+								console.log('Session refresh failed. Need to re-authenticate.');
+							}
+						}
 					}
 				}
 			} catch (error) {
@@ -218,9 +285,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 				}
 			}
 
-			// In demo mode, use localStorage as before
-			if (isDemo()) {
-				console.log('Storing user with role:', finalUser.metadata.role);
+			// In demo mode or Vercel preview, use localStorage for persistence
+			if (isDemo() || isVercelPreview) {
+				console.log(
+					'Storing user with role:',
+					finalUser.metadata.role,
+					isVercelPreview ? '(Vercel Preview)' : '(Demo Mode)'
+				);
 				localStorage.setItem('gatherkids-user', JSON.stringify(finalUser));
 			}
 
@@ -238,8 +309,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 			setUser(null);
 			setUserRole(null);
 
-			// In demo mode, clear localStorage
-			if (isDemo()) {
+			// In demo mode or Vercel preview, clear localStorage
+			if (isDemo() || isVercelPreview) {
 				localStorage.removeItem('gatherkids-user');
 				// Clear all session storage to reset onboarding state
 				sessionStorage.clear();
