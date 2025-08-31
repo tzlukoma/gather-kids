@@ -20,6 +20,7 @@ import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
 import { useFeatureFlags } from '@/contexts/feature-flag-context';
 import { FeatureFlagDialog } from '@/components/feature-flag-dialog';
+import { ForgotPasswordDialog } from '@/components/auth/forgot-password-dialog';
 import { AuthRole } from '@/lib/auth-types';
 
 const DEMO_USERS = {
@@ -314,6 +315,15 @@ export default function LoginPage() {
 								onChange={(e) => setPassword(e.target.value)}
 							/>
 						</div>
+						
+						<div className="flex justify-end">
+							<ForgotPasswordDialog>
+								<Button variant="link" className="px-0 text-sm">
+									Forgot your password?
+								</Button>
+							</ForgotPasswordDialog>
+						</div>
+						
 						<Button type="submit" className="w-full" onClick={handleLogin}>
 							Sign In
 						</Button>
