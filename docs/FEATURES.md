@@ -71,6 +71,13 @@ Secure access control system with role-based permissions for administrators and 
 
 ---
 
+### Authentication Notes
+
+- Primary authentication uses email magic links with a PKCE-compliant exchange. The app includes client-side helpers to perform the code exchange and recover sessions when storage/redirects behave inconsistently (for example in preview deployments).
+- Password-based sign-in is available as an alternative (users can set a password during onboarding).
+- Demo/test accounts are available from the `/login` page for QA and demos.
+- OAuth/social providers (example: Google) are not enabled in this repository's current configuration.
+
 ## Epic 3: Family Registration & Profile Management
 
 ### Epic Description
@@ -376,6 +383,14 @@ Comprehensive white-label customization system allowing organizations to fully b
 - ✅ Dynamic app name and description
 - ✅ Social media integration
 - ✅ Real-time branding preview
+
+### Authentication / Auth UX
+
+- ✅ Supabase-backed auth with email magic links (PKCE) as the primary flow.
+- ✅ Optional password-based sign-in (users can set a password during onboarding).
+- ✅ Demo/test accounts available on `/login` for QA and demos.
+- ⚠️ OAuth/social sign-in (e.g., Google) is not enabled in this codebase.
+- ✅ Client-side diagnostics and session recovery helpers (see `AuthDebug`, PKCE exchange helpers) to improve reliability in preview/deploy environments where redirects or browser storage may be inconsistent.
 
 ### Data Models
 
