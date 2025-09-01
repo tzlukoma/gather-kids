@@ -848,21 +848,45 @@ export async function getBibleBeeProgressForCycle(cycleId: string) {
         const completedScriptures = scriptures.filter(s => s.status === 'completed').length;
         const essayStatus = essays.length ? essays[0].status : 'none';
 
-        const childEnrolls = allEnrollmentsForChildren.filter(e => e.child_id === child.child_id).map(e => ({ ...e, ministryName: ministryMap.get(e.ministry_id)?.name || 'Unknown' }));
+        // For new-schema enrollments, get ministries from the enrollments table
+        let childEnrolls: any[] = [];
+        if (cycleId && (await db.bible_bee_years.get(cycleId))) {
+            // New schema: Look up actual enrollments for the child in this year
+            try {
+                const enrollments = await db.enrollments.where('child_id').equals(child.child_id).and(e => e.year_id === cycleId).toArray();
+                // Map to Bible Bee ministry
+                childEnrolls = [{ ministry_id: 'bible-bee', ministryName: 'Bible Bee' }];
+            } catch (error) {
+                childEnrolls = [];
+            }
+        } else {
+            // Legacy schema: Use ministry_enrollments
+            childEnrolls = allEnrollmentsForChildren.filter(e => e.child_id === child.child_id).map(e => ({ ...e, ministryName: ministryMap.get(e.ministry_id)?.name || 'Unknown' }));
+        }
 
+        // Use the new division system to get target and division info
         let requiredScriptures: number | null = null;
         let gradeGroup: string | null = null;
         try {
-            const gradeNum = child.grade ? Number(child.grade) : NaN;
-            const rule = !isNaN(gradeNum) && compYear ? await getApplicableGradeRule(compYear.id, gradeNum) : null;
-            requiredScriptures = rule?.targetCount ?? null;
-            if (rule) {
-                if (rule.minGrade === rule.maxGrade) gradeGroup = `Grade ${rule.minGrade}`;
-                else gradeGroup = `Grades ${rule.minGrade}-${rule.maxGrade}`;
-            }
+            // Use the helper function to get division information
+            const divisionInfo = await (await import('./bibleBee')).getChildDivisionInfo(child.child_id, cycleId);
+            requiredScriptures = divisionInfo.target;
+            gradeGroup = divisionInfo.gradeGroup;
         } catch (err) {
-            requiredScriptures = null;
-            gradeGroup = null;
+            console.warn('Error getting division info:', err);
+            // Fall back to legacy system
+            try {
+                const gradeNum = child.grade ? Number(child.grade) : NaN;
+                const rule = !isNaN(gradeNum) && compYear ? await getApplicableGradeRule(compYear.id, gradeNum) : null;
+                requiredScriptures = rule?.targetCount ?? null;
+                if (rule) {
+                    if (rule.minGrade === rule.maxGrade) gradeGroup = `Grade ${rule.minGrade}`;
+                    else gradeGroup = `Grades ${rule.minGrade}-${rule.maxGrade}`;
+                }
+            } catch (legacyErr) {
+                requiredScriptures = null;
+                gradeGroup = null;
+            }
         }
 
         const target = requiredScriptures ?? totalScriptures;

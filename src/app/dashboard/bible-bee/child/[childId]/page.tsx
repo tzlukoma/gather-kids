@@ -100,40 +100,23 @@ export default function DashboardChildBibleBeePage() {
 				const gradeNum = childCore?.grade ? Number(childCore.grade) : NaN;
 				console.log('Computing Bible Bee stats for child grade:', gradeNum, 'competitionYearId:', competitionYearId);
 				
-				if (!isNaN(gradeNum) && competitionYearId) {
-					// First try to find a division for this year that matches the child's grade
-					// Try both new system (year_id) and legacy system (competitionYearId fallback)
-					let divisions = await db.divisions.where('year_id').equals(competitionYearId).toArray();
-					console.log('Found divisions by year_id:', divisions.length, divisions);
+				if (!isNaN(gradeNum) && competitionYearId && childCore) {
+					// Use the helper function to get division information
+					const { getChildDivisionInfo } = await import('@/lib/bibleBee');
+					const divisionInfo = await getChildDivisionInfo(childCore.child_id, competitionYearId);
 					
-					// If no divisions found by year_id, try to find the Bible Bee year that links to this competition year
-					if (divisions.length === 0) {
-						const bibleeBeeYear = await db.bible_bee_years.filter(by => 
-							by.cycle_id === competitionYearId || by.id === competitionYearId
-						).first();
-						if (bibleeBeeYear) {
-							divisions = await db.divisions.where('year_id').equals(bibleeBeeYear.id).toArray();
-							console.log('Found divisions by Bible Bee year lookup:', divisions.length, divisions);
+					console.log('Division info from helper:', divisionInfo);
+					
+					if (divisionInfo.division) {
+						matchingDivision = divisionInfo.division;
+						if (divisionInfo.target) {
+							required = divisionInfo.target;
+							console.log('Using division minimum_required:', required);
 						}
-					}
-					
-					matchingDivision = divisions.find(d => gradeNum >= d.min_grade && gradeNum <= d.max_grade);
-					console.log('Matching division found:', matchingDivision);
-					
-					if (matchingDivision?.minimum_required) {
-						required = matchingDivision.minimum_required;
-						console.log('Using division minimum_required:', required);
-					} else {
-						// Fallback to legacy grade rule system if no division found
-						console.log('No division found, falling back to legacy grade rules');
-						const rule = await getApplicableGradeRule(
-							competitionYearId,
-							gradeNum
-						);
-						if (rule?.targetCount) {
-							required = rule.targetCount;
-							console.log('Using legacy rule targetCount:', required);
-						}
+					} else if (divisionInfo.target) {
+						// Legacy system provided a target
+						required = divisionInfo.target;
+						console.log('Using legacy rule targetCount:', required);
 					}
 				}
 			} catch (e) {

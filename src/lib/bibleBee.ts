@@ -107,6 +107,76 @@ export async function getApplicableGradeRule(competitionYearId: string, gradeNum
     return rules.find(r => gradeNumber >= r.minGrade && gradeNumber <= r.maxGrade) ?? null;
 }
 
+// Helper function to get division information for a child based on their grade and the year
+export async function getChildDivisionInfo(childId: string, yearId: string) {
+    try {
+        const child = await db.children.get(childId);
+        if (!child || !child.grade) {
+            return { division: null, target: null, gradeGroup: 'N/A' };
+        }
+
+        const gradeNum = Number(child.grade);
+        if (isNaN(gradeNum)) {
+            return { division: null, target: null, gradeGroup: 'N/A' };
+        }
+
+        // First try to find divisions for this year (new system)
+        let divisions: any[] = [];
+        try {
+            divisions = await db.divisions.where('year_id').equals(yearId).toArray();
+        } catch (error) {
+            // divisions table might not exist in some test environments
+            divisions = [];
+        }
+
+        if (divisions.length > 0) {
+            // New system: Find matching division by grade range
+            const matchingDivision = divisions.find(d => gradeNum >= d.min_grade && gradeNum <= d.max_grade);
+            if (matchingDivision) {
+                const gradeLabel = (grade: number) => grade === 0 ? 'Kindergarten' : `${grade}th Grade`;
+                const gradeRange = matchingDivision.min_grade === matchingDivision.max_grade 
+                    ? gradeLabel(matchingDivision.min_grade)
+                    : `${gradeLabel(matchingDivision.min_grade)} to ${gradeLabel(matchingDivision.max_grade)}`;
+                
+                return {
+                    division: matchingDivision,
+                    target: matchingDivision.minimum_required || null,
+                    gradeGroup: `${matchingDivision.name} - ${gradeRange}`
+                };
+            }
+        }
+
+        // Fall back to legacy system (grade rules)
+        // First check if yearId is a Bible Bee year that links to a competition year
+        let competitionYearId = yearId;
+        try {
+            const bibleeBeeYear = await db.bible_bee_years.get(yearId);
+            if (bibleeBeeYear && bibleeBeeYear.cycle_id) {
+                competitionYearId = bibleeBeeYear.cycle_id;
+            }
+        } catch (error) {
+            // ignore
+        }
+
+        const rule = await getApplicableGradeRule(competitionYearId, gradeNum);
+        if (rule) {
+            const gradeGroup = rule.minGrade === rule.maxGrade 
+                ? `Grade ${rule.minGrade}` 
+                : `Grades ${rule.minGrade}-${rule.maxGrade}`;
+            return {
+                division: null,
+                target: rule.targetCount || null,
+                gradeGroup: gradeGroup
+            };
+        }
+
+        return { division: null, target: null, gradeGroup: 'N/A' };
+    } catch (error) {
+        console.warn('Error getting child division info:', error);
+        return { division: null, target: null, gradeGroup: 'N/A' };
+    }
+}
+
 // Enrollment helper (idempotent) - supports both new division-based and legacy grade rule systems
 export async function enrollChildInBibleBee(childId: string, competitionYearId: string) {
     const child: Child | undefined = await db.children.get(childId);
