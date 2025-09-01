@@ -267,10 +267,9 @@ export const seedDB = async () => {
             const bibleBeeYear: BibleBeeYear = {
                 id: bibleBeeYearId,
                 label: 'Bible Bee 2025',
-                registration_cycle_id: CYCLE_IDS.current,
+                cycle_id: CYCLE_IDS.current,
                 is_active: true,
                 created_at: now,
-                updated_at: now,
             };
             await db.bible_bee_years.put(bibleBeeYear);
 
@@ -337,6 +336,7 @@ export const seedDB = async () => {
             scriptureData.forEach((data, index) => {
                 sampleScriptures.push({
                     id: uuidv4(),
+                    competitionYearId: bibleBeeYearId, // For legacy compatibility
                     year_id: bibleBeeYearId,
                     reference: data.ref,
                     text: data.text,
@@ -344,8 +344,8 @@ export const seedDB = async () => {
                     texts: data.translations,
                     scripture_number: String(index + 1),
                     scripture_order: index + 1,
-                    created_at: now,
-                    updated_at: now,
+                    createdAt: now,
+                    updatedAt: now,
                 });
             });
             await db.scriptures.bulkPut(sampleScriptures);

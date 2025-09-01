@@ -202,7 +202,7 @@ export default function BibleBeeManage({ className }: BibleBeeManageProps) {
 						const activeCycle = (await db.registration_cycles.toArray()).find(
 							(c) => {
 								const val = c.is_active;
-								return val === true || val === 1 || String(val) === '1';
+								return val === true || Number(val) === 1 || String(val) === '1';
 							}
 						);
 
@@ -257,7 +257,7 @@ export default function BibleBeeManage({ className }: BibleBeeManageProps) {
 											await db.registration_cycles.toArray()
 										).find((c) => {
 											const val = c.is_active;
-											return val === true || val === 1 || String(val) === '1';
+											return val === true || Number(val) === 1 || String(val) === '1';
 										});
 
 										const created = await createBibleBeeYear({
