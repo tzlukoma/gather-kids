@@ -4,14 +4,33 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 import { isDemo } from '@/lib/authGuards';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+	Card,
+	CardContent,
+	CardHeader,
+	CardTitle,
+	CardDescription,
+} from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import Link from 'next/link';
-import { AlertCircle, Eye, EyeOff, Loader2 } from 'lucide-react';
+import {
+	CheckCircle,
+	User,
+	Bell,
+	Shield,
+	ArrowRight,
+	Eye,
+	EyeOff,
+	Loader2,
+	AlertCircle,
+	Info,
+} from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AuthDebug } from '@/components/auth/auth-debug';
+import PasswordSetup from '@/components/gatherKids/password-setup';
 
 export default function OnboardingPage() {
 	const router = useRouter();

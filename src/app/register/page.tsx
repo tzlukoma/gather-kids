@@ -31,9 +31,11 @@ import {
 } from '@/components/ui/accordion';
 import { useToast } from '@/hooks/use-toast';
 import { PlusCircle, Trash2, AlertTriangle, Info } from 'lucide-react';
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Textarea } from '@/components/ui/textarea';
 import { findHouseholdByEmail, registerHousehold } from '@/lib/dal';
+import { supabase } from '@/lib/supabaseClient';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import {
 	AlertDialog,
@@ -441,9 +443,11 @@ const ProgramSection = ({
 	);
 };
 
-export default function RegisterPage() {
+function RegisterPageContent() {
 	const { toast } = useToast();
 	const { flags } = useFeatureFlags();
+	const router = useRouter();
+	const searchParams = useSearchParams();
 	const [verificationStep, setVerificationStep] =
 		useState<VerificationStep>('enter_email');
 	const [verificationEmail, setVerificationEmail] = useState('');
@@ -511,6 +515,145 @@ export default function RegisterPage() {
 	});
 
 	const childrenData = useWatch({ control: form.control, name: 'children' });
+
+	// Handle URL parameters from magic link redirect
+	useEffect(() => {
+		const email = searchParams.get('email');
+		const prefill = searchParams.get('prefill') === 'true';
+		const overwrite = searchParams.get('overwrite') === 'true';
+		const isNew = searchParams.get('new') === 'true';
+
+		if (email) {
+			setVerificationEmail(email);
+			
+			if (isNew) {
+				// New registration from magic link
+				setVerificationStep('form_visible');
+				setIsCurrentYearOverwrite(false);
+				setIsPrefill(false);
+				
+				// Pre-fill email in guardian form
+				form.reset({
+					household: { name: '', address_line1: '' },
+					guardians: [
+						{
+							first_name: '',
+							last_name: '',
+							mobile_phone: '',
+							email: email,
+							relationship: 'Mother',
+							is_primary: true,
+						},
+					],
+					emergencyContact: {
+						first_name: '',
+						last_name: '',
+						mobile_phone: '',
+						relationship: '',
+					},
+					children: [defaultChildValues],
+					consents: {
+						liability: false,
+						photoRelease: false,
+						choir_communications_consent: undefined,
+						custom_consents: {},
+					},
+				});
+				
+			} else if (prefill || overwrite) {
+				// Existing household from magic link
+				setIsCurrentYearOverwrite(overwrite);
+				setIsPrefill(prefill);
+				
+				// Perform household lookup to get data
+				handleMagicLinkLookup(email);
+			}
+		}
+	}, [searchParams]);
+
+	const handleMagicLinkLookup = async (email: string) => {
+		try {
+			const result = await findHouseholdByEmail(email, '2025');
+			if (result) {
+				prefillForm(result.data);
+				setVerificationStep('form_visible');
+			}
+		} catch (error) {
+			console.error('Error looking up household from magic link:', error);
+			toast({
+				title: 'Lookup Error',
+				description: 'There was an error retrieving your household information.',
+				variant: 'destructive',
+			});
+		}
+	};
+
+	const sendMagicLink = async (email: string) => {
+		try {
+			const isDemoMode = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
+			
+			if (isDemoMode) {
+				// Demo mode: simulate magic link sending
+				toast({
+					title: 'Magic Link Sent (Demo)',
+					description: 'Check your email to continue registration. In demo mode, you can directly access the magic link.',
+				});
+				
+				// For demo purposes, provide a direct link
+				const demoMagicLinkUrl = `/auth/magic-link?email=${encodeURIComponent(email)}`;
+				
+				// Show the demo magic link after a delay
+				setTimeout(() => {
+					toast({
+						title: 'Demo Magic Link',
+						description: (
+							<div className="space-y-2">
+								<p>In demo mode, you can access the magic link directly:</p>
+								<Button
+									variant="outline"
+									size="sm"
+									onClick={() => router.push(demoMagicLinkUrl)}
+								>
+									Open Magic Link
+								</Button>
+							</div>
+						),
+					});
+				}, 2000);
+				
+			} else {
+				// Production mode: real Supabase magic link
+				const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:9002';
+				const { error } = await supabase.auth.signInWithOtp({
+					email,
+					options: {
+						emailRedirectTo: `${siteUrl}/auth/magic-link`,
+					},
+				});
+				
+				if (error) {
+					console.error('Magic link error:', error);
+					toast({
+						title: 'Error Sending Magic Link',
+						description: error.message,
+						variant: 'destructive',
+					});
+				} else {
+					toast({
+						title: 'Magic Link Sent!',
+						description: 'Check your email to continue registration.',
+					});
+				}
+			}
+		} catch (error) {
+			console.error('Error sending magic link:', error);
+			toast({
+				title: 'Error',
+				description: 'There was an error sending the magic link. Please try again.',
+				variant: 'destructive',
+			});
+		}
+	};
 
 	const { enrolledPrograms, interestPrograms } = useMemo(() => {
 		if (!allMinistries) return { enrolledPrograms: [], interestPrograms: [] };
@@ -641,12 +784,12 @@ export default function RegisterPage() {
 				title: 'Registration Submitted!',
 				description: "Thank you! Your family's registration has been received.",
 			});
-			form.reset();
-			setVerificationStep('enter_email');
-			setVerificationEmail('');
-			setOpenAccordionItems([]);
-			setIsCurrentYearOverwrite(false);
-			setIsPrefill(false);
+			
+			// Redirect to onboarding instead of resetting form
+			setTimeout(() => {
+				router.push('/onboarding');
+			}, 1500);
+			
 		} catch (e) {
 			console.error(e);
 			toast({
@@ -706,6 +849,28 @@ export default function RegisterPage() {
 							/>
 							<Button onClick={handleEmailLookup}>Continue</Button>
 						</div>
+						
+						{/* Magic Link Option */}
+						<div className="relative">
+							<div className="absolute inset-0 flex items-center">
+								<span className="w-full border-t" />
+							</div>
+							<div className="relative flex justify-center text-xs uppercase">
+								<span className="bg-background px-2 text-muted-foreground">
+									Or
+								</span>
+							</div>
+						</div>
+						
+						<Button 
+							variant="outline" 
+							onClick={() => sendMagicLink(verificationEmail)}
+							disabled={!verificationEmail}
+							className="w-full"
+						>
+							Send Magic Link
+						</Button>
+						
 						{flags.showDemoFeatures && (
 							<Alert>
 								<Info className="h-4 w-4" />
@@ -1639,4 +1804,16 @@ export default function RegisterPage() {
 			)}
 		</div>
 	);
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-muted/50 flex items-center justify-center">
+        <div className="text-center">Loading registration form...</div>
+      </div>
+    }>
+      <RegisterPageContent />
+    </Suspense>
+  );
 }
