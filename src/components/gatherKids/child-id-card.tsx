@@ -109,7 +109,7 @@ export function ChildIdCard({
 				</CardHeader>
 				<CardContent className="px-4 pb-4 sm:px-6 sm:pb-6 pt-0">
 					<div className="text-sm text-muted-foreground">
-						<div className="font-semibold">Guardians</div>
+						<div className="font-semibold">Guardian:</div>
 						{child.guardians?.length ? (
 							<ul className="list-disc pl-5">
 								{child.guardians.map((g) => (

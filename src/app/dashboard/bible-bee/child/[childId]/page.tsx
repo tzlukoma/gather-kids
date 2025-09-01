@@ -92,11 +92,20 @@ export default function DashboardChildBibleBeePage() {
 			try {
 				const gradeNum = childCore?.grade ? Number(childCore.grade) : NaN;
 				if (!isNaN(gradeNum) && competitionYearId) {
-					const rule = await getApplicableGradeRule(
-						competitionYearId,
-						gradeNum
-					);
-					if (rule?.targetCount) required = rule.targetCount;
+					// First try to find a division for this year that matches the child's grade
+					const divisions = await db.divisions.where('year_id').equals(competitionYearId).toArray();
+					const matchingDivision = divisions.find(d => gradeNum >= d.min_grade && gradeNum <= d.max_grade);
+					
+					if (matchingDivision?.minimum_required) {
+						required = matchingDivision.minimum_required;
+					} else {
+						// Fallback to legacy grade rule system if no division found
+						const rule = await getApplicableGradeRule(
+							competitionYearId,
+							gradeNum
+						);
+						if (rule?.targetCount) required = rule.targetCount;
+					}
 				}
 			} catch (e) {
 				// ignore and fallback to total scriptures

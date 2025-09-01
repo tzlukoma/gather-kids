@@ -336,12 +336,12 @@ export function BibleBeeProgressList({
 									<SelectTrigger>
 										<SelectValue>
 											{filterGradeGroup === 'all'
-												? 'All Grade Groups'
+												? 'All Divisions'
 												: filterGradeGroup}
 										</SelectValue>
 									</SelectTrigger>
 									<SelectContent>
-										<SelectItem value={'all'}>All Grade Groups</SelectItem>
+										<SelectItem value={'all'}>All Divisions</SelectItem>
 										{availableGradeGroups.map((g) => (
 											<SelectItem key={g} value={g}>
 												{g}

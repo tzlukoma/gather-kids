@@ -57,6 +57,19 @@ export default function ScriptureCard({
 		if (found) verseHtml = found;
 	}
 
+	// Debug logging to help troubleshoot missing scripture text
+	if (!verseHtml) {
+		console.warn('ScriptureCard: No verse text found for:', {
+			reference: normalizedReference,
+			assignmentVerseText: assignment.verseText,
+			scriptureText: scripture.text,
+			textsMap: textsMap,
+			requestedVersion: requestedVersion,
+			assignment: assignment,
+			scripture: scripture
+		});
+	}
+
 	// Use scripture_order as the primary field for display purposes, not for matching
 	// Explicitly ignore any legacy 'order' field
 	const scriptureNumber =
