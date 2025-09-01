@@ -128,7 +128,13 @@ export async function getChildDivisionInfo(childId: string, yearId: string) {
         let divisions: any[] = [];
         try {
             divisions = await db.divisions.where('year_id').equals(yearId).toArray();
-            console.log(`getChildDivisionInfo: Found ${divisions.length} divisions for year ${yearId}`, divisions);
+            console.log(`getChildDivisionInfo: Found ${divisions.length} divisions for year ${yearId}`, divisions.map(d => ({
+                name: d.name,
+                min_grade: d.min_grade,
+                max_grade: d.max_grade,
+                minimum_required: d.minimum_required,
+                year_id: d.year_id
+            })));
         } catch (error) {
             // divisions table might not exist in some test environments
             console.warn('getChildDivisionInfo: Error accessing divisions table:', error);
@@ -138,7 +144,12 @@ export async function getChildDivisionInfo(childId: string, yearId: string) {
         if (divisions.length > 0) {
             // New system: Find matching division by grade range
             const matchingDivision = divisions.find(d => gradeNum >= d.min_grade && gradeNum <= d.max_grade);
-            console.log(`getChildDivisionInfo: Matching division for grade ${gradeNum}:`, matchingDivision);
+            console.log(`getChildDivisionInfo: Checking grade ${gradeNum} against divisions:`);
+            divisions.forEach(d => {
+                const matches = gradeNum >= d.min_grade && gradeNum <= d.max_grade;
+                console.log(`  - ${d.name} (${d.min_grade}-${d.max_grade}): ${matches ? 'MATCHES' : 'no match'}`);
+            });
+            console.log(`getChildDivisionInfo: Final matching division:`, matchingDivision);
             
             if (matchingDivision) {
                 const gradeLabel = (grade: number) => grade === 0 ? 'Kindergarten' : `${grade}th Grade`;
@@ -170,6 +181,7 @@ export async function getChildDivisionInfo(childId: string, yearId: string) {
             const bibleeBeeYear = await db.bible_bee_years.get(yearId);
             if (bibleeBeeYear && bibleeBeeYear.cycle_id) {
                 competitionYearId = bibleeBeeYear.cycle_id;
+                console.log(`getChildDivisionInfo: Found Bible Bee year linking to competition year: ${competitionYearId}`);
             }
         } catch (error) {
             // ignore
