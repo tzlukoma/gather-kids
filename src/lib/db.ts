@@ -1,6 +1,6 @@
 
 import Dexie, { type EntityTable } from 'dexie';
-import type { Household, Guardian, EmergencyContact, Child, RegistrationCycle, ChildYearProfile, Registration, Ministry, MinistryEnrollment, LeaderAssignment, LeaderProfile, MinistryLeaderMembership, MinistryAccount, User, Event, Attendance, Incident, AuditLog, CompetitionYear, Scripture, GradeRule, StudentScripture, StudentEssay, BrandingSettings, BibleBeeYear, Division, EssayPrompt, Enrollment, EnrollmentOverride } from './types';
+import type { Household, Guardian, EmergencyContact, Child, RegistrationCycle, ChildYearProfile, Registration, Ministry, MinistryEnrollment, LeaderAssignment, LeaderProfile, MinistryLeaderMembership, MinistryAccount, User, Event, Attendance, Incident, AuditLog, CompetitionYear, Scripture, GradeRule, StudentScripture, StudentEssay, BrandingSettings, BibleBeeYear, Division, EssayPrompt, Enrollment, EnrollmentOverride, UserHousehold } from './types';
 
 // prettier-ignore
 class GatherKidsDB extends Dexie {
@@ -37,10 +37,12 @@ class GatherKidsDB extends Dexie {
     enrollment_overrides!: EntityTable<EnrollmentOverride, 'id'>;
     // Branding settings
     branding_settings!: EntityTable<BrandingSettings, 'setting_id'>;
+    // User household mappings for Supabase auth
+    user_households!: EntityTable<UserHousehold, 'user_household_id'>;
 
     constructor() {
         super('gatherKidsDB');
-        this.version(13).stores({
+        this.version(14).stores({
             households: 'household_id, created_at, [city+state+zip]',
             guardians: 'guardian_id, household_id, mobile_phone, email',
             emergency_contacts: 'contact_id, household_id, mobile_phone',
@@ -74,6 +76,8 @@ class GatherKidsDB extends Dexie {
             enrollment_overrides: 'id, [year_id+child_id], year_id, child_id, division_id',
             // Branding settings
             branding_settings: 'setting_id, org_id, created_at, updated_at',
+            // User household mappings for Supabase auth
+            user_households: 'user_household_id, [auth_user_id+household_id], auth_user_id, household_id',
         });
     }
 }

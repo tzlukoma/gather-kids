@@ -373,3 +373,10 @@ export interface BrandingSettings {
     created_at: string;
     updated_at: string;
 }
+
+export interface UserHousehold {
+    user_household_id: string; // PK
+    auth_user_id: string; // Supabase auth user ID
+    household_id: string; // FK to households
+    created_at: string;
+}

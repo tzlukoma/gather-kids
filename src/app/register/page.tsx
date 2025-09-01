@@ -1,6 +1,7 @@
 'use client';
 
 import { useForm, useFieldArray, useWatch } from 'react-hook-form';
+import { useRouter } from 'next/navigation';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
@@ -444,6 +445,7 @@ const ProgramSection = ({
 export default function RegisterPage() {
 	const { toast } = useToast();
 	const { flags } = useFeatureFlags();
+	const router = useRouter();
 	const [verificationStep, setVerificationStep] =
 		useState<VerificationStep>('enter_email');
 	const [verificationEmail, setVerificationEmail] = useState('');
@@ -641,6 +643,22 @@ export default function RegisterPage() {
 				title: 'Registration Submitted!',
 				description: "Thank you! Your family's registration has been received.",
 			});
+			
+			// Check if user is authenticated in non-demo mode
+			if (!flags.isDemoMode) {
+				// Import here to avoid circular dependency
+				const { supabase } = await import('@/lib/supabaseClient');
+				if (supabase) {
+					const { data: { session } } = await supabase.auth.getSession();
+					if (session?.user) {
+						// Redirect authenticated parent to household page
+						router.push('/household');
+						return;
+					}
+				}
+			}
+			
+			// Default behavior for demo mode or unauthenticated users
 			form.reset();
 			setVerificationStep('enter_email');
 			setVerificationEmail('');

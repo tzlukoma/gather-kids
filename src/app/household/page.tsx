@@ -3,6 +3,7 @@
 import { useAuth } from '@/contexts/auth-context';
 import { HouseholdProfile } from '@/components/gatherKids/household-profile';
 import { OnboardingModal } from '@/components/gatherKids/onboarding-modal';
+import AuthDebug from '@/components/AuthDebug';
 import { useEffect, useState } from 'react';
 import { getHouseholdProfile } from '@/lib/dal';
 import type { HouseholdProfileData } from '@/lib/dal';
@@ -46,6 +47,8 @@ export default function GuardianHouseholdPage() {
 	return (
 		<div>
 			<HouseholdProfile profileData={profileData} />
+			
+			<AuthDebug className="mt-4" />
 			
 			<OnboardingModal 
 				isOpen={showOnboarding} 

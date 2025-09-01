@@ -1,7 +1,5 @@
 'use client';
 
-'use client';
-
 import React, {
 	createContext,
 	useContext,
@@ -9,9 +7,15 @@ import React, {
 	useEffect,
 	ReactNode,
 } from 'react';
+import { getFlag, isDemo } from '@/lib/featureFlags';
 
 interface FeatureFlags {
 	showDemoFeatures: boolean;
+	// Environment-based flags (read-only)
+	loginMagicEnabled: boolean;
+	loginPasswordEnabled: boolean;
+	loginGoogleEnabled: boolean;
+	isDemoMode: boolean;
 }
 
 interface FeatureFlagContextType {
@@ -27,7 +31,13 @@ const FeatureFlagContext = createContext<FeatureFlagContextType | undefined>(
 const FEATURE_FLAGS_KEY = 'gatherkids-feature-flags';
 
 export function FeatureFlagProvider({ children }: { children: ReactNode }) {
-	const [flags, setFlags] = useState<FeatureFlags>({ showDemoFeatures: true });
+	const [flags, setFlags] = useState<FeatureFlags>({ 
+		showDemoFeatures: true,
+		loginMagicEnabled: getFlag("LOGIN_MAGIC_ENABLED") as boolean,
+		loginPasswordEnabled: getFlag("LOGIN_PASSWORD_ENABLED") as boolean,
+		loginGoogleEnabled: getFlag("LOGIN_GOOGLE_ENABLED") as boolean,
+		isDemoMode: isDemo(),
+	});
 	const [loading, setLoading] = useState(true);
 
 	useEffect(() => {
@@ -35,7 +45,11 @@ export function FeatureFlagProvider({ children }: { children: ReactNode }) {
 			const storedFlagsString = localStorage.getItem(FEATURE_FLAGS_KEY);
 			if (storedFlagsString) {
 				const storedFlags = JSON.parse(storedFlagsString);
-				setFlags((prevFlags) => ({ ...prevFlags, ...storedFlags }));
+				// Only apply stored flags to localStorage-managed flags, not environment flags
+				setFlags((prevFlags) => ({ 
+					...prevFlags, 
+					showDemoFeatures: storedFlags.showDemoFeatures ?? prevFlags.showDemoFeatures,
+				}));
 			}
 		} catch (error) {
 			console.error('Failed to parse feature flags from localStorage', error);
@@ -46,9 +60,15 @@ export function FeatureFlagProvider({ children }: { children: ReactNode }) {
 	}, []);
 
 	const setFlag = (flag: keyof FeatureFlags, value: boolean) => {
-		const newFlags = { ...flags, [flag]: value };
-		setFlags(newFlags);
-		localStorage.setItem(FEATURE_FLAGS_KEY, JSON.stringify(newFlags));
+		// Only allow setting localStorage-managed flags
+		if (flag === 'showDemoFeatures') {
+			const newFlags = { ...flags, [flag]: value };
+			setFlags(newFlags);
+			// Only store the localStorage-managed flags
+			localStorage.setItem(FEATURE_FLAGS_KEY, JSON.stringify({ showDemoFeatures: value }));
+		} else {
+			console.warn(`Flag ${flag} is environment-controlled and cannot be changed at runtime`);
+		}
 	};
 
 	const value = { flags, setFlag, loading };
