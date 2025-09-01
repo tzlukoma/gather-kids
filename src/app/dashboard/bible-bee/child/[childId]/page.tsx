@@ -220,39 +220,45 @@ export default function DashboardChildBibleBeePage() {
 			/>
 
 			{/* Show different content based on whether the child's division has essays assigned */}
-			{bbStats?.essayAssigned && data.essays && data.essays.length > 0 ? (
+			{bbStats?.essayAssigned ? (
 				<>
 					{/* Show essays content */}
 					<div>
 						<h2 className="font-semibold text-2xl mb-3">Essays</h2>
-						<div className="space-y-2">
-							{data.essays.map((e: any) => (
-								<Card key={e.id}>
-									<CardHeader>
-										<CardTitle>Essay for {e.year?.year}</CardTitle>
-										<CardDescription>{e.promptText}</CardDescription>
-									</CardHeader>
-									<CardContent>
-										<div className="flex items-center gap-4">
-											<div className="text-sm text-muted-foreground">
-												Status: {e.status}
+						{data.essays && data.essays.length > 0 ? (
+							<div className="space-y-2">
+								{data.essays.map((e: any) => (
+									<Card key={e.id}>
+										<CardHeader>
+											<CardTitle>Essay for {e.year?.year}</CardTitle>
+											<CardDescription>{e.promptText}</CardDescription>
+										</CardHeader>
+										<CardContent>
+											<div className="flex items-center gap-4">
+												<div className="text-sm text-muted-foreground">
+													Status: {e.status}
+												</div>
+												{e.status !== 'submitted' && (
+													<Button
+														onClick={() =>
+															essayMutation.mutate({
+																competitionYearId: e.competitionYearId,
+															})
+														}
+														size="sm">
+														Mark Submitted
+													</Button>
+												)}
 											</div>
-											{e.status !== 'submitted' && (
-												<Button
-													onClick={() =>
-														essayMutation.mutate({
-															competitionYearId: e.competitionYearId,
-														})
-													}
-													size="sm">
-													Mark Submitted
-												</Button>
-											)}
-										</div>
-									</CardContent>
-								</Card>
-							))}
-						</div>
+										</CardContent>
+									</Card>
+								))}
+							</div>
+						) : (
+							<div className="text-center text-muted-foreground py-8">
+								Essays are assigned to this division. Essays will appear here when they become available.
+							</div>
+						)}
 					</div>
 				</>
 			) : (
