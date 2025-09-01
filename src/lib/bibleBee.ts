@@ -36,11 +36,13 @@ export async function upsertScripture(payload: Omit<Scripture, 'id' | 'createdAt
     // First try to find an existing scripture by reference in the same competition year
     let existingItem: any = null;
     if (normalizedRef && payload.competitionYearId) {
-        existingItem = await db.scriptures
+        // Get all scriptures for the competition year, then filter in JS
+        const yearScriptures = await db.scriptures
             .where('competitionYearId')
             .equals(payload.competitionYearId)
-            .filter(s => normalizeReference(s.reference) === normalizedRef)
-            .first();
+            .toArray();
+        
+        existingItem = yearScriptures.find(s => normalizeReference(s.reference) === normalizedRef) || null;
     }
     
     // Use existing id if found by reference match, otherwise create new

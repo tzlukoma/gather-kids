@@ -1,36 +1,54 @@
-import { previewCsvJsonMatches, type CsvRow, type JsonTextUpload, validateJsonTextUpload } from '@/lib/bibleBee';
+import { previewCsvJsonMatches, type CsvRow, type JsonTextUpload, validateJsonTextUpload, commitCsvRowsToYear } from '@/lib/bibleBee';
+
+// Mock scriptures array that will be shared between the mock and test
+const mockScriptures: any[] = [];
 
 // Mock the database operations
 jest.mock('@/lib/db', () => {
-  const mockScriptures = [];
   return {
     db: {
       scriptures: {
-        clear: jest.fn(() => Promise.resolve()),
+        clear: jest.fn(() => {
+          mockScriptures.length = 0; // Clear the array
+          return Promise.resolve();
+        }),
         put: jest.fn((item) => {
           const existingIndex = mockScriptures.findIndex(s => s.id === item.id);
           if (existingIndex >= 0) {
-            mockScriptures[existingIndex] = item;
+            // Update existing item
+            mockScriptures[existingIndex] = { ...mockScriptures[existingIndex], ...item };
           } else {
+            // Add new item
             mockScriptures.push(item);
           }
           return Promise.resolve(item.id);
         }),
-        where: jest.fn(() => ({
-          equals: jest.fn(() => ({
-            or: jest.fn(() => ({
-              equals: jest.fn(() => ({
-                toArray: jest.fn(() => Promise.resolve(mockScriptures))
+        where: jest.fn((field) => ({
+          equals: jest.fn((value) => ({
+            or: jest.fn((altField) => ({
+              equals: jest.fn((altValue) => ({
+                toArray: jest.fn(() => Promise.resolve([...mockScriptures]))
               }))
             })),
-            toArray: jest.fn(() => Promise.resolve(mockScriptures))
+            toArray: jest.fn(() => {
+              // Filter scriptures based on field and value
+              if (field === 'competitionYearId' || field === 'year_id') {
+                return Promise.resolve(mockScriptures.filter(s => 
+                  s.competitionYearId === value || s.year_id === value
+                ));
+              }
+              return Promise.resolve([...mockScriptures]);
+            })
           })),
-          toArray: jest.fn(() => Promise.resolve(mockScriptures))
+          toArray: jest.fn(() => Promise.resolve([...mockScriptures]))
         }))
       }
     }
   };
 });
+
+// Import the mocked db for use in tests
+const { db } = require('@/lib/db');
 
 // Mock commitCsvRowsToYear to avoid database operations
 jest.mock('@/lib/bibleBee', () => {
@@ -38,7 +56,20 @@ jest.mock('@/lib/bibleBee', () => {
   return {
     ...originalModule,
     commitCsvRowsToYear: jest.fn(async (rows, yearId) => {
-      // Simple mock implementation that simulates adding rows to the database
+      // Simulate adding rows to the database by adding them to our mock array
+      for (const row of rows) {
+        const scriptureItem = {
+          id: crypto.randomUUID(),
+          competitionYearId: yearId,
+          reference: row.reference,
+          text: row.text,
+          translation: row.translation,
+          scripture_order: row.scripture_order,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+        mockScriptures.push(scriptureItem);
+      }
       return { inserted: rows.length, updated: 0 };
     })
   };
@@ -125,9 +156,9 @@ describe('CSV and JSON Integration Tests', () => {
     expect(scriptures.length).toBe(3); // All three CSV entries should be added
     
     // Step 4: Find the specific entries
-    const jamesVerse = scriptures.find(s => s.reference?.includes('James 2:17'));
-    const romansVerse = scriptures.find(s => s.reference?.includes('Romans 12:2'));
-    const proverbsVerse = scriptures.find(s => s.reference?.includes('Proverbs 3:5-6'));
+    const jamesVerse = scriptures.find((s: any) => s.reference?.includes('James 2:17'));
+    const romansVerse = scriptures.find((s: any) => s.reference?.includes('Romans 12:2'));
+    const proverbsVerse = scriptures.find((s: any) => s.reference?.includes('Proverbs 3:5-6'));
     
     // Step 5: Verify scripture_order matches the original CSV values
     expect(jamesVerse?.scripture_order).toBe(1);
@@ -153,14 +184,15 @@ describe('CSV and JSON Integration Tests', () => {
           (s ?? '')
             .toString()
             .trim()
-            .replace(/\\s+/g, ' ')
-            .replace(/[^\\w\\d\\s:\\-]/g, '')
+            .replace(/\s+/g, ' ')
+            .replace(/[^\w\d\s:\-]/g, '')
             .toLowerCase();
             
         const normalizedRef = normalizeReference(item.reference);
-        const existing = scriptures.find(s => 
-          normalizeReference(s.reference) === normalizedRef
-        );
+        const existing = scriptures.find((s: any) => {
+          const existingNormalized = normalizeReference(s.reference);
+          return existingNormalized === normalizedRef;
+        });
         
         if (existing) {
           // Update with texts
@@ -183,9 +215,9 @@ describe('CSV and JSON Integration Tests', () => {
       .toArray();
       
     // Step 10: Check that texts were added only to matching references
-    const updatedRomans = updatedScriptures.find(s => s.reference?.includes('Romans 12:2'));
-    const updatedProverbs = updatedScriptures.find(s => s.reference?.includes('Proverbs 3:5-6'));
-    const updatedJames = updatedScriptures.find(s => s.reference?.includes('James 2:17'));
+    const updatedRomans = updatedScriptures.find((s: any) => s.reference?.includes('Romans 12:2'));
+    const updatedProverbs = updatedScriptures.find((s: any) => s.reference?.includes('Proverbs 3:5-6'));
+    const updatedJames = updatedScriptures.find((s: any) => s.reference?.includes('James 2:17'));
     
     // Romans and Proverbs should have texts
     expect(updatedRomans?.texts).toBeDefined();
