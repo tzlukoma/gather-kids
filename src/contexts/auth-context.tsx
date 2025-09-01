@@ -10,6 +10,8 @@ import React, {
 import { getLeaderAssignmentsForCycle } from '@/lib/dal';
 import { AuthRole, BaseUser } from '@/lib/auth-types';
 import { ProtectedRoute } from '@/components/auth/protected-route';
+import { supabase } from '@/lib/supabaseClient';
+import { isDemo } from '@/lib/authGuards';
 
 interface AuthContextType {
 	user: BaseUser | null;
@@ -28,33 +30,201 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 	const [user, setUser] = useState<BaseUser | null>(null);
 	const [loading, setLoading] = useState<boolean>(true);
 	const [userRole, setUserRole] = useState<AuthRole | null>(null);
+	const [isVercelPreview, setIsVercelPreview] = useState<boolean>(false);
 
 	useEffect(() => {
-		const initializeUser = async () => {
+		// Check if we're in a Vercel preview environment
+		if (typeof window !== 'undefined') {
+			setIsVercelPreview(window.location.hostname.includes('vercel.app'));
+		}
+	}, []);
+
+	useEffect(() => {
+		const initializeAuth = async () => {
 			setLoading(true);
+
 			try {
-				const storedUserString = localStorage.getItem('gatherkids-user');
-				if (storedUserString) {
-					const storedUser = JSON.parse(storedUserString);
+				// Check if we should use localStorage (demo mode or Vercel preview)
+				// This will help with preview environments where Supabase auth might have issues
+				if (isDemo() || isVercelPreview) {
+					const storedUserString = localStorage.getItem('gatherkids-user');
+					if (storedUserString) {
+						const storedUser = JSON.parse(storedUserString);
+						let finalUser: BaseUser = {
+							...storedUser,
+							metadata: {
+								...storedUser.metadata,
+								role: storedUser.metadata?.role || AuthRole.ADMIN,
+							},
+							is_active:
+								typeof storedUser.is_active === 'boolean'
+									? storedUser.is_active
+									: true,
+							assignedMinistryIds: [],
+						};
+
+						if (finalUser.metadata.role === AuthRole.MINISTRY_LEADER) {
+							const leaderId = (storedUser.uid ||
+								storedUser.id ||
+								(storedUser as any).user_id) as string | undefined;
+							if (leaderId) {
+								const assignments = await getLeaderAssignmentsForCycle(
+									leaderId,
+									'2025'
+								);
+								finalUser.assignedMinistryIds = assignments.map(
+									(a) => a.ministry_id
+								);
+							}
+						}
+						setUser(finalUser);
+						setUserRole(finalUser.metadata.role);
+					}
+				} else {
+					// Production mode: use Supabase session as primary source
+					const {
+						data: { session },
+						error: sessionError,
+					} = await supabase.auth.getSession();
+
+					// Check for a session
+					if (session?.user) {
+						// Convert Supabase user to BaseUser format
+						const supabaseUser = session.user;
+						const userRole = supabaseUser.user_metadata?.role || AuthRole.ADMIN;
+
+						let finalUser: BaseUser = {
+							uid: supabaseUser.id,
+							displayName:
+								supabaseUser.user_metadata?.full_name ||
+								supabaseUser.email?.split('@')[0] ||
+								'User',
+							email: supabaseUser.email || '',
+							is_active: true,
+							metadata: {
+								role: userRole,
+								...supabaseUser.user_metadata,
+							},
+							assignedMinistryIds: [],
+						};
+
+						if (finalUser.metadata.role === AuthRole.MINISTRY_LEADER) {
+							const leaderId =
+								finalUser.uid || finalUser.id || (finalUser as any).user_id;
+							if (typeof leaderId === 'string' && leaderId.length > 0) {
+								const assignments = await getLeaderAssignmentsForCycle(
+									leaderId,
+									'2025'
+								);
+								finalUser.assignedMinistryIds = assignments.map(
+									(a) => a.ministry_id
+								);
+							}
+						}
+
+						setUser(finalUser);
+						setUserRole(finalUser.metadata.role);
+					}
+					// If we don't have a session but do have tokens in localStorage, try to recover
+					else if (typeof window !== 'undefined') {
+						// Check for Supabase auth tokens that would indicate a previous successful auth
+						const hasSupabaseTokens = Object.keys(localStorage).some(
+							(key) => key && key.startsWith('sb-')
+						);
+
+						if (hasSupabaseTokens) {
+							console.log(
+								'Found Supabase tokens but no active session. Attempting session refresh...'
+							);
+
+							// Try to refresh the session using the tokens
+							const refreshResult = await supabase.auth.refreshSession();
+
+							if (refreshResult.data?.session?.user) {
+								console.log('Session refresh successful!');
+								const recoveredUser = refreshResult.data.session.user;
+								const userRole =
+									recoveredUser.user_metadata?.role || AuthRole.ADMIN;
+
+								let finalUser: BaseUser = {
+									uid: recoveredUser.id,
+									displayName:
+										recoveredUser.user_metadata?.full_name ||
+										recoveredUser.email?.split('@')[0] ||
+										'User',
+									email: recoveredUser.email || '',
+									is_active: true,
+									metadata: {
+										role: userRole,
+										...recoveredUser.user_metadata,
+									},
+									assignedMinistryIds: [],
+								};
+
+								if (
+									finalUser.metadata.role === AuthRole.MINISTRY_LEADER &&
+									finalUser.uid
+								) {
+									const assignments = await getLeaderAssignmentsForCycle(
+										finalUser.uid,
+										'2025'
+									);
+									finalUser.assignedMinistryIds = assignments.map(
+										(a) => a.ministry_id
+									);
+								}
+
+								setUser(finalUser);
+								setUserRole(finalUser.metadata.role);
+							} else {
+								console.log('Session refresh failed. Need to re-authenticate.');
+							}
+						}
+					}
+				}
+			} catch (error) {
+				console.error('Failed to initialize auth state', error);
+				// In demo mode, clear localStorage on error
+				if (isDemo()) {
+					localStorage.removeItem('gatherkids-user');
+				}
+			} finally {
+				setLoading(false);
+			}
+		};
+
+		initializeAuth();
+
+		// Subscribe to Supabase auth changes (only in production mode)
+		if (!isDemo()) {
+			const {
+				data: { subscription },
+			} = supabase.auth.onAuthStateChange(async (event: any, session: any) => {
+				console.log('Supabase auth state change:', event, session?.user?.id);
+
+				if (event === 'SIGNED_IN' && session?.user) {
+					const supabaseUser = session.user;
+					const userRole = supabaseUser.user_metadata?.role || AuthRole.ADMIN;
+
 					let finalUser: BaseUser = {
-						...storedUser,
+						uid: supabaseUser.id,
+						displayName:
+							supabaseUser.user_metadata?.full_name ||
+							supabaseUser.email?.split('@')[0] ||
+							'User',
+						email: supabaseUser.email || '',
+						is_active: true,
 						metadata: {
-							...storedUser.metadata,
-							role: storedUser.metadata?.role || AuthRole.ADMIN,
+							role: userRole,
+							...supabaseUser.user_metadata,
 						},
-						// preserve is_active from stored data (do not force true)
-						is_active:
-							typeof storedUser.is_active === 'boolean'
-								? storedUser.is_active
-								: true,
 						assignedMinistryIds: [],
 					};
 
 					if (finalUser.metadata.role === AuthRole.MINISTRY_LEADER) {
-						const leaderId = (storedUser.uid ||
-							storedUser.id ||
-							(storedUser as any).user_id) as string | undefined;
-						if (leaderId) {
+						const leaderId =
+							finalUser.uid || finalUser.id || (finalUser as any).user_id;
+						if (typeof leaderId === 'string' && leaderId.length > 0) {
 							const assignments = await getLeaderAssignmentsForCycle(
 								leaderId,
 								'2025'
@@ -64,16 +234,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 							);
 						}
 					}
+
 					setUser(finalUser);
 					setUserRole(finalUser.metadata.role);
+				} else if (event === 'SIGNED_OUT') {
+					setUser(null);
+					setUserRole(null);
 				}
-			} catch (error) {
-				console.error('Failed to parse user from localStorage', error);
-				localStorage.removeItem('gatherkids-user');
-			}
-			setLoading(false);
-		};
-		initializeUser();
+			});
+
+			return () => {
+				subscription.unsubscribe();
+			};
+		}
 	}, []);
 
 	const login = async (userData: Omit<BaseUser, 'assignedMinistryIds'>) => {
@@ -82,6 +255,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 			console.log('Auth Context - Login - Input userData:', userData);
 			const finalUser: BaseUser = {
 				...userData,
+				// Ensure we have both uid and id properties for compatibility
+				uid: userData.uid || userData.id || (userData as any).user_id,
+				id: userData.id || userData.uid || (userData as any).user_id,
 				// preserve is_active if provided by userData (seed/login), default to true
 				is_active:
 					typeof userData.is_active === 'boolean' ? userData.is_active : true,
@@ -109,8 +285,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 				}
 			}
 
-			console.log('Storing user with role:', finalUser.metadata.role);
-			localStorage.setItem('gatherkids-user', JSON.stringify(finalUser));
+			// In demo mode or Vercel preview, use localStorage for persistence
+			if (isDemo() || isVercelPreview) {
+				console.log(
+					'Storing user with role:',
+					finalUser.metadata.role,
+					isVercelPreview ? '(Vercel Preview)' : '(Demo Mode)'
+				);
+				localStorage.setItem('gatherkids-user', JSON.stringify(finalUser));
+			}
+
 			setUser(finalUser);
 			console.log('Setting userRole to:', finalUser.metadata.role);
 			setUserRole(finalUser.metadata.role);
@@ -124,9 +308,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 		try {
 			setUser(null);
 			setUserRole(null);
-			localStorage.removeItem('gatherkids-user');
-			// Clear all session storage to reset onboarding state
-			sessionStorage.clear();
+
+			// In demo mode or Vercel preview, clear localStorage
+			if (isDemo() || isVercelPreview) {
+				localStorage.removeItem('gatherkids-user');
+				// Clear all session storage to reset onboarding state
+				sessionStorage.clear();
+			} else {
+				// In production mode, sign out from Supabase
+				supabase.auth.signOut();
+			}
 		} finally {
 			setLoading(false);
 		}
