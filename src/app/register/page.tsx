@@ -57,7 +57,7 @@ import { TeenFellowshipForm } from '@/components/gatherKids/teen-fellowship-form
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
-import type { Ministry, Household, CustomQuestion } from '@/lib/types';
+import type { Ministry, Household, CustomQuestion, RegistrationCycle } from '@/lib/types';
 import { useFeatureFlags } from '@/contexts/feature-flag-context';
 
 const MOCK_EMAILS = {
@@ -439,6 +439,15 @@ export default function RegisterPage() {
 	const [isPrefill, setIsPrefill] = useState(false);
 
 	const allMinistries = useLiveQuery(() => db.ministries.toArray(), []);
+	
+	// Get the active registration cycle to use for enrollments
+	const activeRegistrationCycle = useLiveQuery(async () => {
+		const cycles = await db.registration_cycles.toArray();
+		return cycles.find(c => {
+			const val: any = (c as any)?.is_active;
+			return val === true || val === 1 || String(val) === '1';
+		});
+	}, []);
 
 	const form = useForm<RegistrationFormValues>({
 		resolver: zodResolver(registrationSchema),
@@ -611,7 +620,10 @@ export default function RegisterPage() {
 
 	async function onSubmit(data: RegistrationFormValues) {
 		try {
-			await registerHousehold(data, '2025', isPrefill);
+			// Use the active registration cycle instead of hardcoded '2025'
+			const cycleId = activeRegistrationCycle?.cycle_id || '2025'; // fallback to '2025' if no active cycle found
+			console.log('DEBUG: Registering household for cycle:', cycleId);
+			await registerHousehold(data, cycleId, isPrefill);
 			toast({
 				title: 'Registration Submitted!',
 				description: "Thank you! Your family's registration has been received.",
@@ -756,7 +768,7 @@ export default function RegisterPage() {
 								<AlertTriangle className="h-4 w-4" />
 								<AlertTitle>Existing Registration Found</AlertTitle>
 								<AlertDescription>
-									A registration for the 2025 cycle already exists for this
+									A registration for the {activeRegistrationCycle?.cycle_id || 'current'} cycle already exists for this
 									household. Review the information below and make any necessary
 									changes. Submitting this form will{' '}
 									<span className="font-semibold">overwrite</span> the previous
