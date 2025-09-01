@@ -169,3 +169,8 @@ gather-kids/
 - **Supabase integration**: Available for production environments
 - **Multiple adapters**: Unified DAL (Data Access Layer) supports multiple backends
 - **Migrations**: Prisma-based migrations in supabase/migrations/
+- 
+
+### Managing Issue Information
+- Always include the reference to the original issue in the Pull Request (e.g. Fixes issue #4)
+- Provide major status updates in the body of the issue but don't override previous updates so that the progression is clear
