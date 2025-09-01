@@ -119,7 +119,9 @@ export function ChildIdCard({
 							</div>
 							{bibleBeeStats?.division && (
 								<div className="text-sm text-muted-foreground">
-									Division: {bibleBeeStats.division.name} - {getGradeLabel(bibleBeeStats.division.min_grade)} to {getGradeLabel(bibleBeeStats.division.max_grade)}
+									Division: {bibleBeeStats.division.name} -{' '}
+									{getGradeLabel(bibleBeeStats.division.min_grade)} to{' '}
+									{getGradeLabel(bibleBeeStats.division.max_grade)}
 								</div>
 							)}
 						</div>
