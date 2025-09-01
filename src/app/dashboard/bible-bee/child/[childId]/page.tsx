@@ -215,60 +215,72 @@ export default function DashboardChildBibleBeePage() {
 				child={enrichedChild}
 				onUpdatePhoto={handleUpdatePhoto}
 				onViewPhoto={handleViewPhoto}
-				bibleBeeStats={bbStats}
-				essaySummary={essaySummary}
+				bibleBeeStats={bbStats?.essayAssigned ? null : bbStats} // Hide scripture stats when essays are assigned
+				essaySummary={bbStats?.essayAssigned ? essaySummary : null} // Show essay summary only when essays are assigned
 			/>
 
-			{/* Show scriptures if present, otherwise show essays. Child can't have both. */}
-			{data.scriptures && data.scriptures.length > 0 ? (
-				<div>
-					<h2 className="font-semibold text-2xl mb-3">Scriptures</h2>
-					<div className="grid gap-2">
-						{data.scriptures.map((s: any, idx: number) => (
-							<ScriptureCard
-								key={s.id}
-								assignment={s}
-								index={idx}
-								onToggleAction={(id, next) =>
-									toggleMutation.mutate({ id, complete: next })
-								}
-							/>
-						))}
-					</div>
-				</div>
-			) : data.essays && data.essays.length > 0 ? (
-				<div>
-					<h2 className="font-semibold text-2xl mb-3">Essays</h2>
-					<div className="space-y-2">
-						{data.essays.map((e: any) => (
-							<Card key={e.id}>
-								<CardHeader>
-									<CardTitle>Essay for {e.year?.year}</CardTitle>
-									<CardDescription>{e.promptText}</CardDescription>
-								</CardHeader>
-								<CardContent>
-									<div className="flex items-center gap-4">
-										<div className="text-sm text-muted-foreground">
-											Status: {e.status}
+			{/* Show different content based on whether the child's division has essays assigned */}
+			{bbStats?.essayAssigned && data.essays && data.essays.length > 0 ? (
+				<>
+					{/* Show essays content */}
+					<div>
+						<h2 className="font-semibold text-2xl mb-3">Essays</h2>
+						<div className="space-y-2">
+							{data.essays.map((e: any) => (
+								<Card key={e.id}>
+									<CardHeader>
+										<CardTitle>Essay for {e.year?.year}</CardTitle>
+										<CardDescription>{e.promptText}</CardDescription>
+									</CardHeader>
+									<CardContent>
+										<div className="flex items-center gap-4">
+											<div className="text-sm text-muted-foreground">
+												Status: {e.status}
+											</div>
+											{e.status !== 'submitted' && (
+												<Button
+													onClick={() =>
+														essayMutation.mutate({
+															competitionYearId: e.competitionYearId,
+														})
+													}
+													size="sm">
+													Mark Submitted
+												</Button>
+											)}
 										</div>
-										{e.status !== 'submitted' && (
-											<Button
-												onClick={() =>
-													essayMutation.mutate({
-														competitionYearId: e.competitionYearId,
-													})
-												}
-												size="sm">
-												Mark Submitted
-											</Button>
-										)}
-									</div>
-								</CardContent>
-							</Card>
-						))}
+									</CardContent>
+								</Card>
+							))}
+						</div>
 					</div>
-				</div>
-			) : null}
+				</>
+			) : (
+				<>
+					{/* Show scriptures content */}
+					{data.scriptures && data.scriptures.length > 0 ? (
+						<div>
+							<h2 className="font-semibold text-2xl mb-3">Scriptures</h2>
+							<div className="grid gap-2">
+								{data.scriptures.map((s: any, idx: number) => (
+									<ScriptureCard
+										key={s.id}
+										assignment={s}
+										index={idx}
+										onToggleAction={(id, next) =>
+											toggleMutation.mutate({ id, complete: next })
+										}
+									/>
+								))}
+							</div>
+						</div>
+					) : (
+						<div className="text-center text-muted-foreground py-8">
+							No scriptures assigned yet.
+						</div>
+					)}
+				</>
+			)}
 
 			{/* duplicate essays block removed; page shows either Scriptures or Essays above */}
 		</div>
