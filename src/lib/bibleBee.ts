@@ -836,6 +836,42 @@ export async function previewAutoEnrollment(yearId: string): Promise<{
     return { previews, counts };
 }
 
+// Helper function to sync scriptures for children who are enrolled but missing scriptures
+export async function syncScripturesForEnrolledChildren(yearId: string): Promise<{
+    synced: number;
+    errors: string[];
+}> {
+    const errors: string[] = [];
+    let synced = 0;
+    
+    try {
+        // Get all enrollments for this year
+        const enrollments = await db.enrollments.where('year_id').equals(yearId).toArray();
+        
+        for (const enrollment of enrollments) {
+            try {
+                // Check if child already has scriptures assigned
+                const existingScriptures = await db.studentScriptures
+                    .where({ childId: enrollment.child_id, competitionYearId: yearId })
+                    .toArray();
+                
+                if (existingScriptures.length === 0) {
+                    // Child is enrolled but has no scriptures - assign them
+                    await enrollChildInBibleBee(enrollment.child_id, yearId);
+                    synced++;
+                    console.log(`Synced scriptures for child ${enrollment.child_id} in year ${yearId}`);
+                }
+            } catch (error) {
+                errors.push(`Error syncing scriptures for child ${enrollment.child_id}: ${error}`);
+            }
+        }
+    } catch (error) {
+        errors.push(`Error syncing scriptures: ${error}`);
+    }
+    
+    return { synced, errors };
+}
+
 export async function commitAutoEnrollment(yearId: string): Promise<{
     enrolled: number;
     overrides_applied: number;
@@ -860,6 +896,15 @@ export async function commitAutoEnrollment(yearId: string): Promise<{
                     auto_enrolled: false,
                     enrolled_at: now,
                 });
+                
+                // Also assign scriptures for the child using the legacy system
+                try {
+                    await enrollChildInBibleBee(p.child_id, yearId);
+                } catch (scriptureError) {
+                    console.warn(`Warning: Failed to assign scriptures for child ${p.child_name}:`, scriptureError);
+                    // Don't add to errors array since enrollment succeeded
+                }
+                
                 overrides_applied++;
             }
             // Apply proposed auto-enrollments
@@ -872,6 +917,15 @@ export async function commitAutoEnrollment(yearId: string): Promise<{
                     auto_enrolled: true,
                     enrolled_at: now,
                 });
+                
+                // Also assign scriptures for the child using the legacy system
+                try {
+                    await enrollChildInBibleBee(p.child_id, yearId);
+                } catch (scriptureError) {
+                    console.warn(`Warning: Failed to assign scriptures for child ${p.child_name}:`, scriptureError);
+                    // Don't add to errors array since enrollment succeeded
+                }
+                
                 enrolled++;
             }
             // Skip unassigned and unknown_grade children

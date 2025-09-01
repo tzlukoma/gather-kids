@@ -101,6 +101,31 @@ export async function createGradeRule(payload: Omit<GradeRule, 'id' | 'createdAt
 export function useStudentAssignmentsQuery(childId: string) {
     const key = ['studentAssignments', childId];
     return useQuery(key, async () => {
+        // First, check if child is enrolled in any Bible Bee years but missing scriptures
+        try {
+            const enrollments = await db.enrollments.where({ child_id: childId }).toArray();
+            
+            for (const enrollment of enrollments) {
+                // Check if child has scriptures for this year
+                const existingScriptures = await db.studentScriptures
+                    .where({ childId, competitionYearId: enrollment.year_id })
+                    .toArray();
+                
+                if (existingScriptures.length === 0) {
+                    // Child is enrolled but missing scriptures - assign them
+                    try {
+                        const { enrollChildInBibleBee } = await import('@/lib/bibleBee');
+                        await enrollChildInBibleBee(childId, enrollment.year_id);
+                        console.log(`Auto-assigned scriptures for child ${childId} in year ${enrollment.year_id}`);
+                    } catch (error) {
+                        console.warn(`Failed to auto-assign scriptures for child ${childId}:`, error);
+                    }
+                }
+            }
+        } catch (error) {
+            console.warn('Error checking for missing scripture assignments:', error);
+        }
+        
         // Fetch student scriptures and essays and enrich with scripture data
         const scriptures = await db.studentScriptures.where({ childId }).toArray();
         const essays = await db.studentEssays.where({ childId }).toArray();
