@@ -143,11 +143,19 @@ export async function getChildDivisionInfo(childId: string, yearId: string) {
 
         if (divisions.length > 0) {
             // New system: Find matching division by grade range
-            const matchingDivision = divisions.find(d => gradeNum >= d.min_grade && gradeNum <= d.max_grade);
-            console.log(`getChildDivisionInfo: Checking grade ${gradeNum} against divisions:`);
+            console.log(`getChildDivisionInfo: Checking grade ${gradeNum} (type: ${typeof gradeNum}) against divisions:`);
             divisions.forEach(d => {
-                const matches = gradeNum >= d.min_grade && gradeNum <= d.max_grade;
-                console.log(`  - ${d.name} (${d.min_grade}-${d.max_grade}): ${matches ? 'MATCHES' : 'no match'}`);
+                const minGrade = Number(d.min_grade);
+                const maxGrade = Number(d.max_grade);
+                const matches = !isNaN(minGrade) && !isNaN(maxGrade) && gradeNum >= minGrade && gradeNum <= maxGrade;
+                console.log(`  - ${d.name} (${d.min_grade}-${d.max_grade}, types: ${typeof d.min_grade}-${typeof d.max_grade}): ${matches ? 'MATCHES' : 'no match'}`);
+                console.log(`    → Grade check: ${gradeNum} >= ${minGrade} (${gradeNum >= minGrade}) && ${gradeNum} <= ${maxGrade} (${gradeNum <= maxGrade})`);
+            });
+            
+            const matchingDivision = divisions.find(d => {
+                const minGrade = Number(d.min_grade);
+                const maxGrade = Number(d.max_grade);
+                return !isNaN(minGrade) && !isNaN(maxGrade) && gradeNum >= minGrade && gradeNum <= maxGrade;
             });
             console.log(`getChildDivisionInfo: Final matching division:`, matchingDivision);
             
