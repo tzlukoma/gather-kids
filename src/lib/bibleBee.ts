@@ -21,22 +21,62 @@ export async function createCompetitionYear(payload: Omit<CompetitionYear, 'id' 
 
 export async function upsertScripture(payload: Omit<Scripture, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }) {
     const now = new Date().toISOString();
-    const id = payload.id ?? crypto.randomUUID();
+    
+    // Normalize reference for consistent matching
+    const normalizeReference = (s?: string | null) =>
+        (s ?? '')
+            .toString()
+            .trim()
+            .replace(/\s+/g, ' ')
+            .replace(/[^\w\d\s:\-]/g, '')
+            .toLowerCase();
+    
+    const normalizedRef = normalizeReference(payload.reference);
+    
+    // First try to find an existing scripture by reference in the same competition year
+    let existingItem: any = null;
+    if (normalizedRef && payload.competitionYearId) {
+        existingItem = await db.scriptures
+            .where('competitionYearId')
+            .equals(payload.competitionYearId)
+            .filter(s => normalizeReference(s.reference) === normalizedRef)
+            .first();
+    }
+    
+    // Use existing id if found by reference match, otherwise create new
+    const id = existingItem?.id ?? payload.id ?? crypto.randomUUID();
+    
     // support legacy payload.alternateTexts but prefer payload.texts
     const textsMap = (payload as any).texts ?? (payload as any).alternateTexts ?? undefined;
-
+    
+    // Use scripture_order as the unified sort field
+    // If updating an existing item, preserve its scripture_order unless explicitly provided
+    const scriptureOrder = (payload as any).scripture_order !== undefined
+        ? (payload as any).scripture_order
+        : (payload as any).sortOrder !== undefined
+            ? (payload as any).sortOrder
+            : existingItem?.scripture_order ?? existingItem?.sortOrder ?? 0;
+    
     const item: Scripture = {
         id,
         competitionYearId: payload.competitionYearId,
         reference: payload.reference,
-        text: payload.text,
-        translation: payload.translation,
-        texts: textsMap,
-        bookLangAlt: payload.bookLangAlt,
-        sortOrder: payload.sortOrder ?? 0,
-        createdAt: now,
+        text: payload.text || existingItem?.text,
+        translation: payload.translation || existingItem?.translation,
+        texts: textsMap || existingItem?.texts || existingItem?.alternateTexts,
+        bookLangAlt: payload.bookLangAlt || existingItem?.bookLangAlt,
+        scripture_order: scriptureOrder,
+        sortOrder: scriptureOrder, // Keep sortOrder in sync for backward compatibility
+        createdAt: existingItem?.createdAt || now,
         updatedAt: now,
     };
+    
+    // Remove any 'order' field if it exists to avoid confusion
+    const typedItem = item as any;
+    if (typedItem.order !== undefined) {
+        delete typedItem.order;
+    }
+    
     await db.scriptures.put(item);
     return item;
 }
@@ -75,7 +115,11 @@ export async function enrollChildInBibleBee(childId: string, competitionYearId: 
 
     if (rule.type === 'scripture') {
         const scriptures = (await db.scriptures.where('competitionYearId').equals(competitionYearId).toArray())
-            .sort((a: any, b: any) => Number(a.order ?? a.sortOrder ?? 0) - Number(b.order ?? b.sortOrder ?? 0));
+            .sort((a: any, b: any) => {
+                // Prefer scripture_order as the primary field, then fall back to sortOrder
+                // Explicitly ignore any 'order' field
+                return Number(a.scripture_order ?? a.sortOrder ?? 0) - Number(b.scripture_order ?? b.sortOrder ?? 0);
+            });
         const existing = await db.studentScriptures.where({ childId, competitionYearId }).toArray();
         const existingKeys = new Set(existing.map(s => s.scriptureId));
         const toInsert = scriptures
@@ -132,7 +176,7 @@ export async function submitEssay(childId: string, competitionYearId: string) {
 }
 
 // CSV parsing & validation (browser-only). Return preview rows and errors.
-export type CsvRow = { reference?: string; text?: string; translation?: string; sortOrder?: number };
+export type CsvRow = { reference?: string; text?: string; translation?: string; scripture_order?: number; sortOrder?: number };
 export function validateCsvRows(rows: CsvRow[]) {
     const errors: { row: number; message: string }[] = [];
     const refs = new Set<string>();
@@ -148,22 +192,187 @@ export function validateCsvRows(rows: CsvRow[]) {
     return { valid: errors.length === 0, errors };
 }
 
+/**
+ * Compare CSV rows and JSON scripture objects by normalized reference and
+ * return a preview of matches and unmatched items in both directions.
+ * 
+ * This function ONLY matches by reference text, ignoring order/sortOrder fields.
+ *
+ * rows: parsed CSV rows (CsvRow[])
+ * jsonItems: array of scripture-like objects loaded from JSON seed (each should have a `reference` field)
+ *
+ * Returns: { matches, csvOnly, jsonOnly, stats }
+ */
+export function previewCsvJsonMatches(rows: CsvRow[], jsonItems: any[]) {
+    const normalizeReference = (s?: string | null) =>
+        (s ?? '')
+            .toString()
+            .trim()
+            .replace(/\s+/g, ' ')
+            .replace(/[^\w\d\s:\-]/g, '')
+            .toLowerCase();
+
+    const csvMap = new Map<string, { row: CsvRow; index: number }>();
+    rows.forEach((r, i) => {
+        const ref = normalizeReference(r.reference);
+        if (ref) csvMap.set(ref, { row: r, index: i });
+    });
+
+    const jsonMap = new Map<string, { item: any; index: number }>();
+    // Match strictly on the JSON `reference` field only, ignoring order fields completely.
+    // If a JSON object does not include `reference`, we do not attempt fallbacks; 
+    // it will be treated as json-only without a normalized key.
+    (jsonItems || []).forEach((j, i) => {
+        // Explicitly ignore any 'order' field in JSON if present
+        if (j && j.order !== undefined) {
+            delete j.order; // Remove order field to avoid confusion
+        }
+        
+        const rawRef = j?.reference ?? '';
+        const ref = normalizeReference(rawRef);
+        if (ref) {
+            jsonMap.set(ref, { item: j, index: i });
+        }
+    });
+
+    const matches: Array<{ reference: string; csv: { row: CsvRow; index: number } | null; json: { item: any; index: number } | null }> = [];
+    const csvOnly: Array<{ reference: string; row: CsvRow; index: number }> = [];
+    const jsonOnly: Array<{ reference: string | null; item: any; index: number }> = [];
+
+    // union of keys
+    const seen = new Set<string>();
+    for (const key of csvMap.keys()) seen.add(key);
+    for (const key of jsonMap.keys()) seen.add(key);
+
+    for (const key of Array.from(seen)) {
+        const c = csvMap.get(key) ?? null;
+        const j = jsonMap.get(key) ?? null;
+        if (c && j) {
+            matches.push({ reference: key, csv: c, json: j });
+        } else if (c && !j) {
+            csvOnly.push({ reference: key, row: c.row, index: c.index });
+        } else if (j && !c) {
+            jsonOnly.push({ reference: key, item: j.item, index: j.index });
+        }
+    }
+
+    // Include any JSON items that did not have a reference field at all so they are
+    // explicitly shown as unmatched.
+    (jsonItems || []).forEach((j, i) => {
+        const rawRef = j?.reference ?? '';
+        const ref = normalizeReference(rawRef);
+        if (!ref) {
+            jsonOnly.push({ reference: null, item: j, index: i });
+        }
+    });
+
+    const stats = {
+        csvCount: rows.length,
+        jsonCount: (jsonItems || []).length,
+        matches: matches.length,
+        csvOnly: csvOnly.length,
+        jsonOnly: jsonOnly.length,
+    };
+
+    return { matches, csvOnly, jsonOnly, stats };
+}
+
 export async function commitCsvRowsToYear(rows: CsvRow[], competitionYearId: string) {
     const now = new Date().toISOString();
-    const toUpsert = rows.map(r => ({
-        id: crypto.randomUUID(),
-        competitionYearId,
-        reference: r.reference ?? '',
-        text: r.text ?? '',
-        translation: r.translation,
-        // CSV rows may include a flattened texts object (e.g. as JSON) or legacy alternateTexts
-        texts: (r as any).texts ?? (r as any).alternateTexts,
-        sortOrder: r.sortOrder ?? 0,
-        createdAt: now,
-        updatedAt: now,
-    }));
-    for (const s of toUpsert) await db.scriptures.put(s);
-    return { inserted: toUpsert.length };
+    let inserted = 0;
+    let updated = 0;
+
+    // Normalize reference helper for consistent matching
+    const normalizeReference = (s?: string | null) =>
+        (s ?? '')
+            .toString()
+            .trim()
+            .replace(/\s+/g, ' ')
+            .replace(/[^\w\d\s:\-]/g, '')
+            .toLowerCase();
+    
+    // Get all existing scriptures for this year once
+    const allExistingScriptures = await db.scriptures
+        .where('competitionYearId')
+        .equals(competitionYearId)
+        .toArray();
+        
+    // Create a map of normalized references to existing scriptures for faster lookup
+    const existingScriptureMap = new Map();
+    allExistingScriptures.forEach(s => {
+        const normalizedRef = normalizeReference(s.reference);
+        if (normalizedRef) {
+            existingScriptureMap.set(normalizedRef, s);
+        }
+    });
+
+    // Process rows one-by-one with precise reference matching
+    for (const r of rows) {
+        const ref = (r.reference ?? '').trim();
+        if (!ref) continue; // validation should have caught this, but be defensive
+
+        // Use our robust normalizeReference helper
+        const normalizedRef = normalizeReference(ref);
+        
+        // Look up existing scripture by normalized reference
+        const existing = existingScriptureMap.get(normalizedRef);
+
+        const textsMap = (r as any).texts ?? (r as any).alternateTexts ?? undefined;
+        // Use scripture_order as the unified field for sort order
+        // Extract from CSV row if available
+        const scriptureOrder = (r as any).scripture_order ?? (r as any).sortOrder;
+
+        if (existing) {
+            // When updating, preserve the CSV row's scripture_order if provided,
+            // otherwise keep the existing scripture_order
+            const resolvedOrder = scriptureOrder !== undefined 
+                ? scriptureOrder 
+                : existing.scripture_order ?? existing.sortOrder ?? 0;
+                
+            const updatedItem = {
+                ...existing,
+                reference: ref,
+                text: r.text ?? existing.text,
+                translation: r.translation ?? existing.translation,
+                texts: textsMap ?? existing.texts,
+                // Use scripture_order as the primary field, but keep sortOrder for compatibility
+                scripture_order: resolvedOrder,
+                sortOrder: resolvedOrder,
+                updatedAt: now,
+            } as any;
+            // Ensure we don't keep stale 'order' field at all
+            if (updatedItem.order !== undefined) {
+                delete updatedItem.order; // Remove order field completely
+            }
+            await db.scriptures.put(updatedItem);
+            updated++;
+        } else {
+            // For new entries, use CSV row's scripture_order if available, or calculate based on position
+            const newOrder = scriptureOrder !== undefined ? scriptureOrder : inserted + updated;
+            const newItem = {
+                id: crypto.randomUUID(),
+                competitionYearId,
+                reference: ref,
+                text: r.text ?? '',
+                translation: r.translation,
+                texts: textsMap,
+                scripture_order: newOrder,
+                sortOrder: newOrder, // Keep sortOrder for compatibility
+                createdAt: now,
+                updatedAt: now,
+            } as any;
+            
+            // Ensure we never store an 'order' field
+            if (newItem.order !== undefined) {
+                delete newItem.order;
+            }
+            
+            await db.scriptures.put(newItem);
+            inserted++;
+        }
+    }
+
+    return { inserted, updated };
 }
 
 // === New Bible Bee Year Management ===
@@ -617,7 +826,11 @@ export async function deleteEnrollmentOverrideByChild(yearId: string, childId: s
 
 export async function recalculateMinimumBoundaries(yearId: string) {
     const divisions = await db.divisions.where('year_id').equals(yearId).toArray();
-    const scriptures = await db.scriptures.where('year_id').equals(yearId).sortBy('scripture_order');
+    // Try both field names for backward compatibility
+    const scriptures = await db.scriptures
+        .where('competitionYearId').equals(yearId)
+        .or('year_id').equals(yearId)
+        .sortBy('scripture_order');
     
     for (const division of divisions) {
         let accumulatedCount = 0;
@@ -693,10 +906,31 @@ export async function commitEnhancedCsvRowsToYear(rows: EnhancedCsvRow[], yearId
     
     const now = new Date().toISOString();
     
+    // Normalize reference helper for consistent matching
+    const normalizeReference = (s?: string | null) =>
+        (s ?? '')
+            .toString()
+            .trim()
+            .replace(/\s+/g, ' ')
+            .replace(/[^\w\d\s:\-]/g, '')
+            .toLowerCase();
+            
+    // Get all existing scriptures for this year once - try both field names
+    // for backward compatibility
+    const existingScriptures = await db.scriptures
+        .where('competitionYearId').equals(yearId)
+        .or('year_id').equals(yearId)
+        .toArray();
+    
     for (const row of rows) {
-        // Query by year_id and scripture_number - need to query separately since compound index might not work as expected
-        const existingScriptures = await db.scriptures.where('year_id').equals(yearId).toArray();
-        const existing = existingScriptures.find(s => s.scripture_number === row.scripture_number);
+        // Match by normalized reference first, then fall back to scripture_number if needed
+        const normalizedRef = normalizeReference(row.reference);
+        let existing = existingScriptures.find(s => normalizeReference(s.reference) === normalizedRef);
+        
+        // Fall back to scripture_number only if reference match fails
+        if (!existing) {
+            existing = existingScriptures.find(s => s.scripture_number === row.scripture_number);
+        }
         
         const scriptureData: Partial<Scripture> = {
             year_id: yearId,
@@ -716,7 +950,7 @@ export async function commitEnhancedCsvRowsToYear(rows: EnhancedCsvRow[], yearId
         } else {
             await db.scriptures.put({
                 id: crypto.randomUUID(),
-                competitionYearId: '', // Legacy field
+                competitionYearId: yearId, // Use the same yearId for both fields
                 createdAt: now,
                 ...scriptureData,
             } as Scripture);
@@ -733,7 +967,7 @@ export interface JsonTextUpload {
     competition_year: string;
     translations: string[];
     scriptures: Array<{
-        order: number;
+        // No order field at all - we completely match by reference text only
         reference: string;
         texts: { [key: string]: string };
     }>;
@@ -754,9 +988,7 @@ export function validateJsonTextUpload(data: JsonTextUpload): { isValid: boolean
         errors.push('scriptures array is required');
     } else {
         data.scriptures.forEach((scripture, index) => {
-            if (typeof scripture.order !== 'number') {
-                errors.push(`Scripture ${index + 1}: order must be a number`);
-            }
+            // No order field check - completely removed from type definition
             if (!scripture.reference) {
                 errors.push(`Scripture ${index + 1}: reference is required`);
             }
@@ -790,12 +1022,44 @@ export async function uploadJsonTexts(
     const errors: string[] = [];
     const preview: Array<{ reference: string; action: 'create' | 'update'; texts: string[] }> = [];
     
+    // Normalize reference helper for consistent matching
+    const normalizeReference = (s?: string | null) =>
+        (s ?? '')
+            .toString()
+            .trim()
+            .replace(/\s+/g, ' ')
+            .replace(/[^\w\d\s:\-]/g, '')
+            .toLowerCase();
+            
     for (const scriptureData of data.scriptures) {
         try {
-            const existing = await db.scriptures
-                .where('year_id').equals(yearId)
-                .and(s => s.scripture_order === scriptureData.order)
-                .first();
+            // Match by normalized reference text, not by order field
+            const normalizedRef = normalizeReference(scriptureData.reference);
+            
+            // Try both field names to be compatible with older data
+            const allScriptures = await db.scriptures
+                .where('competitionYearId').equals(yearId)
+                .or('year_id').equals(yearId)
+                .toArray();
+            
+            // Debug log for James 2:17 and Ruth 1:16
+            if (scriptureData.reference && 
+                (scriptureData.reference.includes('James 2:17') || 
+                 scriptureData.reference.includes('Ruth 1:16'))) {
+                console.log('DEBUG uploadJsonTexts - Processing:', {
+                    reference: scriptureData.reference,
+                    normalizedRef,
+                    allScriptures: allScriptures.map(s => ({
+                        id: s.id,
+                        ref: s.reference,
+                        normalizedExistingRef: normalizeReference(s.reference)
+                    }))
+                });
+            }
+                
+            const existing = allScriptures.find(s => 
+                normalizeReference(s.reference) === normalizedRef
+            );
             
             const action = existing ? 'update' : 'create';
             const existingTexts = existing?.texts || {};
@@ -818,12 +1082,23 @@ export async function uploadJsonTexts(
                     });
                     updated++;
                 } else {
+                    // Calculate the next available scripture_order
+                    // Try both field names to be compatible with older data
+                    const allScriptures = await db.scriptures
+                        .where('competitionYearId').equals(yearId)
+                        .or('year_id').equals(yearId)
+                        .toArray();
+                        
+                    const maxOrder = Math.max(0, ...allScriptures.map(s => s.scripture_order || s.sortOrder || 0));
+                    const nextOrder = maxOrder + 1;
+                    
                     await db.scriptures.put({
                         id: crypto.randomUUID(),
-                        year_id: yearId,
-                        competitionYearId: '', // Legacy
+                        year_id: yearId, // For backward compatibility
+                        competitionYearId: yearId, // Primary field
                         reference: scriptureData.reference,
-                        scripture_order: scriptureData.order,
+                        scripture_order: nextOrder, // Use next available order, not from JSON
+                        sortOrder: nextOrder, // Keep sortOrder in sync
                         text: '', // Legacy
                         texts: newTexts,
                         createdAt: new Date().toISOString(),

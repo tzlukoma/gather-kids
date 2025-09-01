@@ -177,8 +177,8 @@ export default function BibleBeePage() {
 			if (mounted) {
 				const sorted = scriptures.sort(
 					(a: any, b: any) =>
-						Number(a.scripture_order ?? a.order ?? a.sortOrder ?? 0) -
-						Number(b.scripture_order ?? b.order ?? b.sortOrder ?? 0)
+						Number(a.sortOrder ?? a.scripture_order ?? 0) -
+						Number(b.sortOrder ?? b.scripture_order ?? 0)
 				);
 				console.log('Setting scriptures:', sorted.length, 'scriptures');
 				setScriptures(sorted);

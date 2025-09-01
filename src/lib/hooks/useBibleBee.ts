@@ -18,11 +18,36 @@ export function useScripturesForYear(yearId: string) {
     const [scriptures, setScriptures] = useState<Scripture[]>([]);
     useEffect(() => {
         let mounted = true;
-        const sortByOrder = (a: any, b: any) => (Number(a.order ?? a.sortOrder ?? 0) - Number(b.order ?? b.sortOrder ?? 0));
-        db.scriptures.where('competitionYearId').equals(yearId).toArray().then(s => { if (mounted) setScriptures(s.sort(sortByOrder)); });
+        // Always prioritize scripture_order as the unified sort field
+        const sortByOrder = (a: any, b: any) => {
+            // Prioritize scripture_order, then fall back to sortOrder if needed
+            // Explicitly ignore any 'order' field
+            const aOrder = Number(a.scripture_order ?? a.sortOrder ?? 0);
+            const bOrder = Number(b.scripture_order ?? b.sortOrder ?? 0);
+            return aOrder - bOrder;
+        };
+        
+        db.scriptures.where('competitionYearId').equals(yearId).toArray()
+            .then(s => { 
+                if (mounted) setScriptures(s.sort(sortByOrder)); 
+            });
         return () => { mounted = false };
     }, [yearId]);
-    return { scriptures, refresh: async () => { const s = await db.scriptures.where('competitionYearId').equals(yearId).toArray(); setScriptures(s.sort((a: any, b: any) => (Number(a.order ?? a.sortOrder ?? 0) - Number(b.order ?? b.sortOrder ?? 0)))); } };
+    
+    return { 
+        scriptures, 
+        refresh: async () => { 
+            const s = await db.scriptures.where('competitionYearId').equals(yearId).toArray();
+            // Use the same sorting logic consistently
+            setScriptures(s.sort((a: any, b: any) => {
+                // Prioritize scripture_order, then fall back to sortOrder if needed
+                // Explicitly ignore any 'order' field
+                const aOrder = Number(a.scripture_order ?? a.sortOrder ?? 0);
+                const bOrder = Number(b.scripture_order ?? b.sortOrder ?? 0);
+                return aOrder - bOrder;
+            }));
+        } 
+    };
 }
 
 // React Query version: returns query data and mutation with optimistic updates
@@ -30,8 +55,17 @@ export function useScripturesForYearQuery(yearId: string) {
     const qc = useQueryClient();
     const key = ['scriptures', yearId];
     const query = useQuery(key, async () => {
+        // Get all scriptures for this year
         const s = await db.scriptures.where('competitionYearId').equals(yearId).toArray();
-        return s.sort((a: any, b: any) => Number(a.order ?? a.sortOrder ?? 0) - Number(b.order ?? b.sortOrder ?? 0));
+        
+        // Sort by scripture_order as the unified sort field
+        return s.sort((a: any, b: any) => {
+            // Prioritize scripture_order, then fall back to sortOrder if needed
+            // Explicitly ignore any 'order' field
+            const aOrder = Number(a.scripture_order ?? a.sortOrder ?? 0);
+            const bOrder = Number(b.scripture_order ?? b.sortOrder ?? 0);
+            return aOrder - bOrder;
+        });
     });
 
     const mutation = useMutation(async (payload: any) => upsertScripture(payload), {

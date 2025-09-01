@@ -1010,6 +1010,75 @@ function ScriptureManagement({
 
 			setCsvFile(file);
 			setCsvPreview(preview);
+
+			// Check if there are existing texts for the references in this CSV
+			// This helps identify if there will be references without text content
+			const normalizeReference = (s?: string | null) =>
+				(s ?? '')
+					.toString()
+					.trim()
+					.replace(/\s+/g, ' ')
+					.replace(/[^\w\d\s:\-]/g, '')
+					.toLowerCase();
+
+			// Get all existing scriptures for this year
+			const existingScriptures = await db.scriptures
+				.where('year_id')
+				.equals(yearId)
+				.toArray();
+
+			// Track references with missing texts and their details
+			const referencesWithoutTexts = preview.filter((row) => {
+				const normalizedRef = normalizeReference(row.reference);
+				const matchingScripture = existingScriptures.find(
+					(s) => normalizeReference(s.reference) === normalizedRef
+				);
+
+				// Debug log for James 2:17 specifically to help track down the issue
+				if (row.reference && row.reference.includes('James 2:17')) {
+					console.log('DEBUG James 2:17:', {
+						row,
+						normalizedRef,
+						foundMatch: matchingScripture ? true : false,
+						matchDetails: matchingScripture
+							? {
+									id: matchingScripture.id,
+									ref: matchingScripture.reference,
+									normalizedMatchRef: normalizeReference(
+										matchingScripture.reference
+									),
+									hasTexts: !!matchingScripture.texts,
+									hasText: !!matchingScripture.text,
+							  }
+							: null,
+					});
+				}
+
+				// Check if there's no matching scripture or the scripture has no texts
+				return (
+					!matchingScripture ||
+					(!matchingScripture.texts && !matchingScripture.text)
+				);
+			});
+
+			if (referencesWithoutTexts.length > 0) {
+				// Show the actual references that are missing texts (limit to first 5 for readability)
+				const missingRefs = referencesWithoutTexts
+					.map((r) => r.reference)
+					.slice(0, 5)
+					.join(', ');
+
+				const moreCount =
+					referencesWithoutTexts.length > 5
+						? ` and ${referencesWithoutTexts.length - 5} more`
+						: '';
+
+				setError(
+					`Warning: ${referencesWithoutTexts.length} references do not have corresponding text content: ${missingRefs}${moreCount}. Consider uploading JSON text data first or these will be imported without text content.`
+				);
+			} else {
+				setError(null);
+			}
 		} catch (error: any) {
 			setError('Error reading CSV file: ' + error.message);
 		}
@@ -1067,6 +1136,30 @@ function ScriptureManagement({
 				setError('Invalid JSON format: ' + validation.errors.join(', '));
 				return;
 			}
+
+			// Debug log for James 2:17/Ruth 1:16 specifically
+			const normalizeReference = (s?: string | null) =>
+				(s ?? '')
+					.toString()
+					.trim()
+					.replace(/\s+/g, ' ')
+					.replace(/[^\w\d\s:\-]/g, '')
+					.toLowerCase();
+
+			// Check for any items with references to James 2:17 or Ruth 1:16
+			data.scriptures.forEach((item: any) => {
+				if (
+					item.reference &&
+					(item.reference.includes('James 2:17') ||
+						item.reference.includes('Ruth 1:16'))
+				) {
+					console.log('DEBUG JSON Upload - Found:', {
+						reference: item.reference,
+						normalizedRef: normalizeReference(item.reference),
+						texts: Object.keys(item.texts || {}),
+					});
+				}
+			});
 
 			setJsonFile(file);
 
@@ -1282,7 +1375,6 @@ function ScriptureManagement({
   "translations": ["NIV", "KJV", "NIV-ES"],
   "scriptures": [
     {
-      "order": 1,
       "reference": "Genesis 1:1",
       "texts": {
         "NIV": "In the beginning God created...",
@@ -1291,7 +1383,6 @@ function ScriptureManagement({
       }
     },
     {
-      "order": 2,
       "reference": "Genesis 1:2",
       "texts": {
         "NIV": "Now the earth was formless...",
@@ -1318,9 +1409,10 @@ function ScriptureManagement({
 															</li>
 														</ul>
 														<div className="mt-1 text-xs">
-															Each scripture needs: <code>order</code> (number),{' '}
-															<code>reference</code> (string),{' '}
-															<code>texts</code> (object with translation keys)
+															Each scripture needs: <code>reference</code>{' '}
+															(string), <code>texts</code> (object with
+															translation keys). No order field is needed -
+															references are matched by text.
 														</div>
 													</div>
 												</div>
