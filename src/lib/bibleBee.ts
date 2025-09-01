@@ -107,21 +107,61 @@ export async function getApplicableGradeRule(competitionYearId: string, gradeNum
     return rules.find(r => gradeNumber >= r.minGrade && gradeNumber <= r.maxGrade) ?? null;
 }
 
-// Enrollment helper (idempotent)
+// Enrollment helper (idempotent) - supports both new division-based and legacy grade rule systems
 export async function enrollChildInBibleBee(childId: string, competitionYearId: string) {
     const child: Child | undefined = await db.children.get(childId);
     const gradeNum = child?.grade ? Number(child.grade) : NaN;
-    const rule = isNaN(gradeNum) ? null : await getApplicableGradeRule(competitionYearId, gradeNum);
-    if (!rule) return null;
     const now = new Date().toISOString();
 
-    if (rule.type === 'scripture') {
-        const scriptures = (await db.scriptures.where('competitionYearId').equals(competitionYearId).toArray())
-            .sort((a: any, b: any) => {
-                // Prefer scripture_order as the primary field, then fall back to sortOrder
-                // Explicitly ignore any 'order' field
-                return Number(a.scripture_order ?? a.sortOrder ?? 0) - Number(b.scripture_order ?? b.sortOrder ?? 0);
-            });
+    // Check if this is a new system year (has divisions) or legacy system (has grade rules)
+    let divisions: any[] = [];
+    let hasNewSystem = false;
+    
+    try {
+        divisions = await db.divisions.where('year_id').equals(competitionYearId).toArray();
+        hasNewSystem = divisions.length > 0;
+    } catch (error) {
+        // divisions table might not exist in some test environments
+        console.log('Divisions table not available, using legacy system');
+        divisions = [];
+        hasNewSystem = false;
+    }
+    
+    console.log(`enrollChildInBibleBee: Processing child ${childId} for year ${competitionYearId}`);
+    console.log(`System type: ${hasNewSystem ? 'new (divisions)' : 'legacy (grade rules)'}`);
+    console.log(`Found ${divisions.length} divisions for this year`);
+
+    if (hasNewSystem) {
+        // New system: Use divisions - just assign all scriptures for the year
+        // The division assignment is handled separately in the enrollments table
+        console.log('Using new division-based system, assigning all scriptures for the year');
+        
+        // Get scriptures for this year - try both field names for compatibility
+        let scriptures: any[] = [];
+        try {
+            // Try new schema first (year_id)
+            scriptures = await db.scriptures.where('year_id').equals(competitionYearId).toArray();
+            if (scriptures.length === 0) {
+                // Fall back to legacy schema (competitionYearId)
+                scriptures = await db.scriptures.where('competitionYearId').equals(competitionYearId).toArray();
+            }
+        } catch (error) {
+            console.warn('Error fetching scriptures, trying legacy field:', error);
+            scriptures = await db.scriptures.where('competitionYearId').equals(competitionYearId).toArray();
+        }
+        
+        console.log(`Found ${scriptures.length} scriptures to assign`);
+        
+        if (scriptures.length === 0) {
+            console.warn(`No scriptures found for year ${competitionYearId}`);
+            return { assigned: 0, error: 'No scriptures found for this year' };
+        }
+        
+        scriptures = scriptures.sort((a: any, b: any) => {
+            // Prefer scripture_order as the primary field, then fall back to sortOrder
+            return Number(a.scripture_order ?? a.sortOrder ?? 0) - Number(b.scripture_order ?? b.sortOrder ?? 0);
+        });
+        
         const existing = await db.studentScriptures.where({ childId, competitionYearId }).toArray();
         const existingKeys = new Set(existing.map(s => s.scriptureId));
         const toInsert = scriptures
@@ -135,24 +175,63 @@ export async function enrollChildInBibleBee(childId: string, competitionYearId: 
                 createdAt: now,
                 updatedAt: now,
             }));
-        if (toInsert.length) await db.studentScriptures.bulkAdd(toInsert);
+            
+        if (toInsert.length) {
+            await db.studentScriptures.bulkAdd(toInsert);
+            console.log(`Successfully assigned ${toInsert.length} scriptures to child ${childId}`);
+        } else {
+            console.log(`Child ${childId} already has all scriptures assigned`);
+        }
+        
         return { assigned: toInsert.length };
     } else {
-        const existingEssay = await db.studentEssays.where({ childId, competitionYearId }).toArray();
-        if (existingEssay.length === 0) {
-            await db.studentEssays.add({
-                id: crypto.randomUUID(),
-                childId,
-                competitionYearId,
-                status: 'assigned',
-                promptText: rule.promptText ?? '',
-                instructions: rule.instructions,
-                createdAt: now,
-                updatedAt: now,
-            });
-            return { assignedEssay: true };
+        // Legacy system: Use grade rules
+        console.log('Using legacy grade rule system');
+        const rule = isNaN(gradeNum) ? null : await getApplicableGradeRule(competitionYearId, gradeNum);
+        if (!rule) {
+            console.warn(`No applicable grade rule found for child ${childId} with grade ${child?.grade}`);
+            return null;
         }
-        return { assignedEssay: false };
+
+        if (rule.type === 'scripture') {
+            const scriptures = (await db.scriptures.where('competitionYearId').equals(competitionYearId).toArray())
+                .sort((a: any, b: any) => {
+                    // Prefer scripture_order as the primary field, then fall back to sortOrder
+                    // Explicitly ignore any 'order' field
+                    return Number(a.scripture_order ?? a.sortOrder ?? 0) - Number(b.scripture_order ?? b.sortOrder ?? 0);
+                });
+            const existing = await db.studentScriptures.where({ childId, competitionYearId }).toArray();
+            const existingKeys = new Set(existing.map(s => s.scriptureId));
+            const toInsert = scriptures
+                .filter(s => !existingKeys.has(s.id))
+                .map(s => ({
+                    id: crypto.randomUUID(),
+                    childId,
+                    competitionYearId,
+                    scriptureId: s.id,
+                    status: 'assigned' as const,
+                    createdAt: now,
+                    updatedAt: now,
+                }));
+            if (toInsert.length) await db.studentScriptures.bulkAdd(toInsert);
+            return { assigned: toInsert.length };
+        } else {
+            const existingEssay = await db.studentEssays.where({ childId, competitionYearId }).toArray();
+            if (existingEssay.length === 0) {
+                await db.studentEssays.add({
+                    id: crypto.randomUUID(),
+                    childId,
+                    competitionYearId,
+                    status: 'assigned',
+                    promptText: rule.promptText ?? '',
+                    instructions: rule.instructions,
+                    createdAt: now,
+                    updatedAt: now,
+                });
+                return { assignedEssay: true };
+            }
+            return { assignedEssay: false };
+        }
     }
 }
 
