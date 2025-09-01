@@ -14,6 +14,7 @@
 
 import { db } from './db';
 import { getApplicableGradeRule } from './bibleBee';
+import { gradeToCode } from './gradeUtils';
 import { AuthRole } from './auth-types';
 import type { Attendance, Child, Guardian, Household, Incident, IncidentSeverity, Ministry, MinistryEnrollment, Registration, User, EmergencyContact, LeaderAssignment, LeaderProfile, MinistryLeaderMembership, MinistryAccount, BrandingSettings  } from './types';
 import { differenceInYears, isAfter, isBefore, parseISO, isValid } from 'date-fns';
@@ -405,6 +406,7 @@ export async function registerHousehold(data: any, cycle_id: string, isPrefill: 
             household_id: householdId,
             name: data.household.name || `${data.guardians[0].last_name} Household`,
             address_line1: data.household.address_line1,
+            preferredScriptureTranslation: data.household.preferredScriptureTranslation,
             created_at: isUpdate ? (await db.households.get(householdId))!.created_at : now,
             updated_at: now,
         };
@@ -735,8 +737,8 @@ export async function getLeaderBibleBeeProgress(leaderId: string, cycleId: strin
         let requiredScriptures: number | null = null;
         let gradeGroup: string | null = null;
         try {
-            const gradeNum = child.grade ? Number(child.grade) : NaN;
-            const rule = !isNaN(gradeNum) && compYear ? await getApplicableGradeRule(compYear.id, gradeNum) : null;
+            const gradeNum = child.grade ? gradeToCode(child.grade) : null;
+            const rule = gradeNum !== null && compYear ? await getApplicableGradeRule(compYear.id, gradeNum) : null;
             requiredScriptures = rule?.targetCount ?? null;
             if (rule) {
                 if (rule.minGrade === rule.maxGrade) gradeGroup = `Grade ${rule.minGrade}`;
@@ -778,20 +780,57 @@ export async function getLeaderBibleBeeProgress(leaderId: string, cycleId: strin
 }
 
 export async function getBibleBeeProgressForCycle(cycleId: string) {
-    // Find enrollments for the bible-bee ministry for the cycle
-    const enrollments = await db.ministry_enrollments
-        .where('ministry_id').equals('bible-bee')
-        .and(e => e.cycle_id === cycleId)
-        .toArray();
+    // Support both legacy (registration cycle id / numeric year) and new-schema
+    // bible-bee years. If cycleId matches a bible_bee_year id, use the new
+    // `enrollments` table; otherwise fall back to legacy ministry_enrollments.
 
-    const childIds = [...new Set(enrollments.map(e => e.child_id))];
-    if (childIds.length === 0) return [];
+    // First, attempt to treat cycleId as a new-schema bible-bee year id by
+    // checking enrollments for that year. This handles the case where the
+    // bible_bee_year record might not yet exist at the time of the query but
+    // enrollments are present, and avoids accidental mapping to the active
+    // registration cycle which could show prior-year children.
+    let childIds: string[] = [];
+    let children: any[] = [];
+    let compYear: any = null;
 
-    const children = await db.children.where('child_id').anyOf(childIds).toArray();
+    try {
+        const newEnrolls = await db.enrollments.where('year_id').equals(cycleId).toArray();
+        if (newEnrolls && newEnrolls.length > 0) {
+            childIds = [...new Set(newEnrolls.map(e => e.child_id))];
+            children = await db.children.where('child_id').anyOf(childIds).toArray();
+            compYear = null;
+        }
+    } catch (err) {
+        // ignore and fall back to legacy path
+    }
 
-    // Find the competition year matching the numeric cycle year (if present)
-    const yearNum = Number(cycleId);
-    const compYear = await db.competitionYears.where('year').equals(yearNum).first();
+    if (childIds.length === 0) {
+        // No new-schema enrollments found for this id; try legacy path or
+        // resolve via bible_bee_year existence.
+        const bbYear = await db.bible_bee_years.get(cycleId);
+        if (bbYear) {
+            const newEnrolls = await db.enrollments.where('year_id').equals(bbYear.id).toArray();
+            childIds = [...new Set(newEnrolls.map(e => e.child_id))];
+            if (childIds.length === 0) return [];
+            children = await db.children.where('child_id').anyOf(childIds).toArray();
+            compYear = null;
+        } else {
+            // Legacy path: ministry_enrollments keyed by ministry_id + cycle_id
+            const enrollments = await db.ministry_enrollments
+                .where('ministry_id').equals('bible-bee')
+                .and(e => e.cycle_id === cycleId)
+                .toArray();
+
+            childIds = [...new Set(enrollments.map(e => e.child_id))];
+            if (childIds.length === 0) return [];
+
+            children = await db.children.where('child_id').anyOf(childIds).toArray();
+
+            // Find the competition year matching the numeric cycle year (if present)
+            const yearNum = Number(cycleId);
+            compYear = await db.competitionYears.where('year').equals(yearNum).first();
+        }
+    }
 
     const results: any[] = [];
     const allEnrollmentsForChildren = await db.ministry_enrollments.where('child_id').anyOf(childIds).and(e => e.cycle_id === cycleId).toArray();
@@ -808,23 +847,69 @@ export async function getBibleBeeProgressForCycle(cycleId: string) {
 
         const totalScriptures = scriptures.length;
         const completedScriptures = scriptures.filter(s => s.status === 'completed').length;
-        const essayStatus = essays.length ? essays[0].status : 'none';
+        
+        // Check essay status - look for essay prompts assigned to the child's division
+        let essayStatus = 'none';
+        if (essays.length > 0) {
+            essayStatus = essays[0].status;
+        } else {
+            // Check if there's an essay prompt assigned to this child's division
+            try {
+                const divisionInfo = await (await import('./bibleBee')).getChildDivisionInfo(child.child_id, cycleId);
+                if (divisionInfo.division) {
+                    const essayPrompts = await db.essay_prompts
+                        .where('year_id')
+                        .equals(cycleId)
+                        .and(prompt => prompt.division_name === divisionInfo.division.name)
+                        .toArray();
+                    if (essayPrompts.length > 0) {
+                        essayStatus = 'assigned';
+                    }
+                }
+            } catch (error) {
+                console.warn('Error checking essay assignment for child:', child.child_id, error);
+            }
+        }
 
-        const childEnrolls = allEnrollmentsForChildren.filter(e => e.child_id === child.child_id).map(e => ({ ...e, ministryName: ministryMap.get(e.ministry_id)?.name || 'Unknown' }));
+        // For new-schema enrollments, get ministries from the enrollments table
+        let childEnrolls: any[] = [];
+        if (cycleId && (await db.bible_bee_years.get(cycleId))) {
+            // New schema: Look up actual enrollments for the child in this year
+            try {
+                const enrollments = await db.enrollments.where('child_id').equals(child.child_id).and(e => e.year_id === cycleId).toArray();
+                // Map to Bible Bee ministry
+                childEnrolls = [{ ministry_id: 'bible-bee', ministryName: 'Bible Bee' }];
+            } catch (error) {
+                childEnrolls = [];
+            }
+        } else {
+            // Legacy schema: Use ministry_enrollments
+            childEnrolls = allEnrollmentsForChildren.filter(e => e.child_id === child.child_id).map(e => ({ ...e, ministryName: ministryMap.get(e.ministry_id)?.name || 'Unknown' }));
+        }
 
+        // Use the new division system to get target and division info
         let requiredScriptures: number | null = null;
         let gradeGroup: string | null = null;
         try {
-            const gradeNum = child.grade ? Number(child.grade) : NaN;
-            const rule = !isNaN(gradeNum) && compYear ? await getApplicableGradeRule(compYear.id, gradeNum) : null;
-            requiredScriptures = rule?.targetCount ?? null;
-            if (rule) {
-                if (rule.minGrade === rule.maxGrade) gradeGroup = `Grade ${rule.minGrade}`;
-                else gradeGroup = `Grades ${rule.minGrade}-${rule.maxGrade}`;
-            }
+            // Use the helper function to get division information
+            const divisionInfo = await (await import('./bibleBee')).getChildDivisionInfo(child.child_id, cycleId);
+            requiredScriptures = divisionInfo.target;
+            gradeGroup = divisionInfo.gradeGroup;
         } catch (err) {
-            requiredScriptures = null;
-            gradeGroup = null;
+            console.warn('Error getting division info:', err);
+            // Fall back to legacy system
+            try {
+                const gradeNum = child.grade ? gradeToCode(child.grade) : null;
+                const rule = gradeNum !== null && compYear ? await getApplicableGradeRule(compYear.id, gradeNum) : null;
+                requiredScriptures = rule?.targetCount ?? null;
+                if (rule) {
+                    if (rule.minGrade === rule.maxGrade) gradeGroup = `Grade ${rule.minGrade}`;
+                    else gradeGroup = `Grades ${rule.minGrade}-${rule.maxGrade}`;
+                }
+            } catch (legacyErr) {
+                requiredScriptures = null;
+                gradeGroup = null;
+            }
         }
 
         const target = requiredScriptures ?? totalScriptures;
@@ -945,6 +1030,58 @@ export async function getLeaderProfileWithMemberships(leaderId: string) {
         memberships: membershipsWithMinistries,
         allMinistries: ministries.filter(m => m.is_active).sort((a, b) => a.name.localeCompare(b.name))
     };
+}
+
+/**
+ * Determine whether a leader can manage the Bible Bee ministry.
+ * Checks legacy leader_assignments (mapped to active registration cycle when
+ * selectedCycle points to a bible_bee_year), new ministry_leader_memberships,
+ * and ministry_accounts (email-based demo mapping).
+ */
+export async function canLeaderManageBibleBee(opts: { leaderId?: string; email?: string; selectedCycle?: string; }) {
+    const { leaderId, email, selectedCycle } = opts || {};
+    // If neither identifier provided, cannot determine permission
+    if (!leaderId && !email) return false;
+
+    // Resolve an effective cycle id for legacy leader_assignments. If
+    // selectedCycle corresponds to a bible_bee_year, map it to the currently
+    // active registration cycle id.
+    let effectiveCycle = selectedCycle;
+    if (selectedCycle) {
+        try {
+            const bb = await db.bible_bee_years.get(selectedCycle);
+            if (bb) {
+                const allCycles = await db.registration_cycles.toArray();
+                const active = allCycles.find((c: any) => {
+                    const val: any = (c as any)?.is_active;
+                    return val === true || val === 1 || String(val) === '1';
+                });
+                if (active && active.cycle_id) effectiveCycle = active.cycle_id;
+            }
+        } catch (err) {
+            // ignore and proceed
+        }
+    }
+
+    // 1) Legacy leader_assignments check
+    if (leaderId && effectiveCycle) {
+        const assignments = await db.leader_assignments.where({ leader_id: leaderId, cycle_id: effectiveCycle }).toArray();
+        if (assignments.some((a: any) => (a as any).ministry_id === 'bible-bee' && (a as any).role === 'Primary')) return true;
+    }
+
+    // 2) New management system: ministry_leader_memberships
+    if (leaderId) {
+        const memberships = await db.ministry_leader_memberships.where('leader_id').equals(leaderId).toArray();
+        if (memberships.some((m: any) => (m.ministry_id === 'bible-bee') && m.is_active)) return true;
+    }
+
+    // 3) Demo/email-based mapping: ministry_accounts
+    if (email) {
+        const accounts = await db.ministry_accounts.where('email').equals(String(email)).toArray();
+        if (accounts.some((a: any) => a.ministry_id === 'bible-bee')) return true;
+    }
+
+    return false;
 }
 
 // Create or update leader profile

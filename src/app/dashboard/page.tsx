@@ -50,22 +50,37 @@ export default function DashboardPage() {
 	);
 
 	const registrationStats = useLiveQuery(async () => {
-		const registrations = await db.registrations
-			.where({ cycle_id: '2025' })
-			.toArray();
-		if (registrations.length === 0) {
+		try {
+			// Get the active registration cycle dynamically
+			const activeCycle = await db.registration_cycles
+				.filter(cycle => cycle.is_active === true || Number(cycle.is_active) === 1)
+				.first();
+			
+			if (!activeCycle) {
+				return { householdCount: 0, childCount: 0 };
+			}
+			
+			const registrations = await db.registrations
+				.where({ cycle_id: activeCycle.cycle_id })
+				.toArray();
+				
+			if (registrations.length === 0) {
+				return { householdCount: 0, childCount: 0 };
+			}
+			const childIds = registrations.map((r: any) => r.child_id);
+			const children = await db.children
+				.where('child_id')
+				.anyOf(childIds)
+				.toArray();
+			const householdIds = new Set(children.map((c) => c.household_id));
+			return {
+				householdCount: householdIds.size,
+				childCount: registrations.length,
+			};
+		} catch (error) {
+			console.warn('Error fetching registration stats:', error);
 			return { householdCount: 0, childCount: 0 };
 		}
-		const childIds = registrations.map((r) => r.child_id);
-		const children = await db.children
-			.where('child_id')
-			.anyOf(childIds)
-			.toArray();
-		const householdIds = new Set(children.map((c) => c.household_id));
-		return {
-			householdCount: householdIds.size,
-			childCount: registrations.length,
-		};
 	}, []);
 
 	useEffect(() => {

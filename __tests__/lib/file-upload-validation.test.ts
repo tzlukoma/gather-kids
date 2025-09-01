@@ -6,11 +6,19 @@ import React from 'react';
 describe('File Upload Validation', () => {
     // Mock FileReader for testing file operations
     beforeEach(() => {
-        global.FileReader = jest.fn().mockImplementation(() => ({
-            readAsDataURL: jest.fn(),
-            onload: null,
-            result: null,
-        }));
+        const MockFileReader = function() {
+            return {
+                readAsDataURL: jest.fn(),
+                onload: null,
+                result: null,
+            };
+        } as any;
+        MockFileReader.EMPTY = 0;
+        MockFileReader.LOADING = 1;
+        MockFileReader.DONE = 2;
+        MockFileReader.prototype = FileReader.prototype;
+        
+        (global as any).FileReader = MockFileReader;
     });
 
     afterEach(() => {
@@ -85,13 +93,11 @@ describe('File Upload Validation', () => {
 
     describe('FileReader Integration', () => {
         it('should properly setup FileReader for base64 conversion', () => {
-            const mockFileReader = FileReader as jest.MockedClass<typeof FileReader>;
             const file = new File(['test content'], 'test.png', { type: 'image/png' });
 
             const reader = new FileReader();
             reader.readAsDataURL(file);
 
-            expect(mockFileReader).toHaveBeenCalled();
             expect(reader.readAsDataURL).toHaveBeenCalledWith(file);
         });
 
@@ -103,7 +109,12 @@ describe('File Upload Validation', () => {
             const reader = new FileReader();
             const onLoadHandler = jest.fn();
             reader.onload = onLoadHandler;
-            reader.result = expectedResult;
+            
+            // Mock the result property
+            Object.defineProperty(reader, 'result', {
+                value: expectedResult,
+                writable: true
+            });
 
             // Simulate onload event
             if (reader.onload) {

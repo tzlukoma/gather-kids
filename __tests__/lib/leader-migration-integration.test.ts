@@ -33,7 +33,7 @@ describe('Leader Migration Integration Tests', () => {
       data_profile: 'Basic',
       created_at: '2025-01-01T00:00:00Z',
       updated_at: '2025-01-01T00:00:00Z',
-      is_active: true
+      is_active: 1 as any // Use number for IndexedDB compatibility
     },
     {
       ministry_id: 'bible-bee',
@@ -43,7 +43,7 @@ describe('Leader Migration Integration Tests', () => {
       data_profile: 'Basic',
       created_at: '2025-01-01T00:00:00Z',
       updated_at: '2025-01-01T00:00:00Z',
-      is_active: true
+      is_active: 1 as any // Use number for IndexedDB compatibility
     }
   ];
 

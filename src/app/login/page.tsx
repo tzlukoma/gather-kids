@@ -70,15 +70,7 @@ const DEMO_USERS = {
 		metadata: {},
 	},
 	// Bible Bee Volunteer Leader
-	bibleBeeVolunteer: {
-		email: 'leader.biblebeevolunteer@example.com',
-		password: 'password',
-		is_active: true,
-		name: 'Bible Bee Volunteer',
-		uid: 'user_leader_15',
-		role: AuthRole.MINISTRY_LEADER,
-		metadata: {},
-	},
+
 	guardian: {
 		email: 'guardian@example.com',
 		password: 'password',
@@ -88,7 +80,7 @@ const DEMO_USERS = {
 		role: AuthRole.GUARDIAN,
 		metadata: {},
 	},
-	// Demo Parent with household access  
+	// Demo Parent with household access
 	parent: {
 		email: 'parent-demo@example.com',
 		password: 'password',
@@ -97,8 +89,8 @@ const DEMO_USERS = {
 		uid: 'user_parent_demo',
 		role: AuthRole.GUARDIAN,
 		metadata: {
-			household_id: 'h_1' // Smith household from seed data
-		}
+			household_id: 'h_1', // Smith household from seed data
+		},
 	},
 	inactiveLeader: {
 		email: 'leader.inactive@example.com',
@@ -258,16 +250,7 @@ export default function LoginPage() {
 												{DEMO_USERS.bibleBeeLeader.email}
 											</button>
 										</li>
-										<li>
-											Leader (Bible Bee Volunteer):{' '}
-											<button
-												className="text-left font-semibold underline"
-												onClick={() =>
-													prefillDemoCredentials('bibleBeeVolunteer')
-												}>
-												{DEMO_USERS.bibleBeeVolunteer.email}
-											</button>
-										</li>
+
 										<li>
 											Leader (Inactive):{' '}
 											<button
@@ -323,7 +306,8 @@ export default function LoginPage() {
 			<footer className="py-6 border-t mt-auto">
 				<div className="container mx-auto flex justify-between items-center text-sm text-muted-foreground">
 					<p>
-						&copy; {new Date().getFullYear()} {settings.app_name || 'gatherKids'}. All rights reserved.
+						&copy; {new Date().getFullYear()}{' '}
+						{settings.app_name || 'gatherKids'}. All rights reserved.
 					</p>
 					<Button
 						variant="ghost"
