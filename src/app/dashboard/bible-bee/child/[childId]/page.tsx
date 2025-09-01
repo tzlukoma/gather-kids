@@ -93,18 +93,24 @@ export default function DashboardChildBibleBeePage() {
 				setBbStats(null);
 				return;
 			}
-			const competitionYearId = scriptures[0].competitionYearId;
+			// Get the year ID for division lookup - from scripture assignments it should be in competitionYearId
+			const yearId = scriptures[0].competitionYearId;
 			let required = scriptures.length;
 			let matchingDivision = null;
 			
+			console.log('Computing Bible Bee stats for child:', childCore?.child_id);
+			console.log('Child grade:', childCore?.grade);
+			console.log('Scripture year ID (competitionYearId):', yearId);
+			console.log('First scripture assignment:', scriptures[0]);
+			
 			try {
 				const gradeNum = childCore?.grade ? Number(childCore.grade) : NaN;
-				console.log('Computing Bible Bee stats for child grade:', gradeNum, 'competitionYearId:', competitionYearId);
+				console.log('Parsed grade number:', gradeNum);
 				
-				if (!isNaN(gradeNum) && competitionYearId && childCore) {
+				if (!isNaN(gradeNum) && yearId && childCore) {
 					// Use the helper function to get division information
 					const { getChildDivisionInfo } = await import('@/lib/bibleBee');
-					const divisionInfo = await getChildDivisionInfo(childCore.child_id, competitionYearId);
+					const divisionInfo = await getChildDivisionInfo(childCore.child_id, yearId);
 					
 					console.log('Division info from helper:', divisionInfo);
 					
@@ -122,7 +128,11 @@ export default function DashboardChildBibleBeePage() {
 						// Legacy system provided a target
 						required = divisionInfo.target;
 						console.log('Using legacy rule targetCount:', required);
+					} else {
+						console.log('No division or target found, using scripture count as fallback:', required);
 					}
+				} else {
+					console.log('Missing required data for division lookup:', { gradeNum, yearId, hasChild: !!childCore });
 				}
 			} catch (e) {
 				console.warn('Error computing Bible Bee stats:', e);
@@ -137,15 +147,15 @@ export default function DashboardChildBibleBeePage() {
 			
 			// Check if there's an essay assigned to the division
 			let essayAssigned = false;
-			if (matchingDivision && competitionYearId) {
+			if (matchingDivision && yearId) {
 				try {
 					const essayPrompts = await db.essay_prompts
 						.where('year_id')
-						.equals(competitionYearId)
+						.equals(yearId)
 						.and(prompt => prompt.division_name === matchingDivision.name)
 						.toArray();
 					essayAssigned = essayPrompts.length > 0;
-					console.log('Essay prompts for division:', matchingDivision.name, essayPrompts);
+					console.log('Essay prompts for division:', matchingDivision.name, 'yearId:', yearId, essayPrompts);
 				} catch (error) {
 					console.warn('Error checking essay prompts:', error);
 					essayAssigned = false;
