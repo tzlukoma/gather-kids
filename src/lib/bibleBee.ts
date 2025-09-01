@@ -112,39 +112,56 @@ export async function getChildDivisionInfo(childId: string, yearId: string) {
     try {
         const child = await db.children.get(childId);
         if (!child || !child.grade) {
+            console.log(`getChildDivisionInfo: Child ${childId} not found or has no grade`);
             return { division: null, target: null, gradeGroup: 'N/A' };
         }
 
         const gradeNum = Number(child.grade);
         if (isNaN(gradeNum)) {
+            console.log(`getChildDivisionInfo: Invalid grade for child ${childId}: ${child.grade}`);
             return { division: null, target: null, gradeGroup: 'N/A' };
         }
+
+        console.log(`getChildDivisionInfo: Processing child ${childId} with grade ${gradeNum} for year ${yearId}`);
 
         // First try to find divisions for this year (new system)
         let divisions: any[] = [];
         try {
             divisions = await db.divisions.where('year_id').equals(yearId).toArray();
+            console.log(`getChildDivisionInfo: Found ${divisions.length} divisions for year ${yearId}`, divisions);
         } catch (error) {
             // divisions table might not exist in some test environments
+            console.warn('getChildDivisionInfo: Error accessing divisions table:', error);
             divisions = [];
         }
 
         if (divisions.length > 0) {
             // New system: Find matching division by grade range
             const matchingDivision = divisions.find(d => gradeNum >= d.min_grade && gradeNum <= d.max_grade);
+            console.log(`getChildDivisionInfo: Matching division for grade ${gradeNum}:`, matchingDivision);
+            
             if (matchingDivision) {
                 const gradeLabel = (grade: number) => grade === 0 ? 'Kindergarten' : `${grade}th Grade`;
                 const gradeRange = matchingDivision.min_grade === matchingDivision.max_grade 
                     ? gradeLabel(matchingDivision.min_grade)
                     : `${gradeLabel(matchingDivision.min_grade)} to ${gradeLabel(matchingDivision.max_grade)}`;
                 
-                return {
-                    division: matchingDivision,
+                const result = {
+                    division: {
+                        name: matchingDivision.name,
+                        min_grade: matchingDivision.min_grade,
+                        max_grade: matchingDivision.max_grade,
+                        minimum_required: matchingDivision.minimum_required
+                    },
                     target: matchingDivision.minimum_required || null,
                     gradeGroup: `${matchingDivision.name} - ${gradeRange}`
                 };
+                console.log(`getChildDivisionInfo: Returning division result:`, result);
+                return result;
             }
         }
+
+        console.log(`getChildDivisionInfo: No divisions found, falling back to legacy system`);
 
         // Fall back to legacy system (grade rules)
         // First check if yearId is a Bible Bee year that links to a competition year
@@ -163,13 +180,16 @@ export async function getChildDivisionInfo(childId: string, yearId: string) {
             const gradeGroup = rule.minGrade === rule.maxGrade 
                 ? `Grade ${rule.minGrade}` 
                 : `Grades ${rule.minGrade}-${rule.maxGrade}`;
-            return {
+            const result = {
                 division: null,
                 target: rule.targetCount || null,
                 gradeGroup: gradeGroup
             };
+            console.log(`getChildDivisionInfo: Returning legacy result:`, result);
+            return result;
         }
 
+        console.log(`getChildDivisionInfo: No matching division or rule found`);
         return { division: null, target: null, gradeGroup: 'N/A' };
     } catch (error) {
         console.warn('Error getting child division info:', error);

@@ -34,6 +34,7 @@ interface ChildIdCardProps {
 			min_grade: number;
 			max_grade: number;
 		};
+		essayAssigned?: boolean;
 	} | null;
 	essaySummary?: {
 		count: number;

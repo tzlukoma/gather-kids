@@ -54,6 +54,7 @@ export default function DashboardChildBibleBeePage() {
 			min_grade: number;
 			max_grade: number;
 		};
+		essayAssigned?: boolean;
 	} | null>(null);
 
 	const [essaySummary, setEssaySummary] = useState<{
@@ -108,11 +109,15 @@ export default function DashboardChildBibleBeePage() {
 					console.log('Division info from helper:', divisionInfo);
 					
 					if (divisionInfo.division) {
-						matchingDivision = divisionInfo.division;
-						if (divisionInfo.target) {
-							required = divisionInfo.target;
-							console.log('Using division minimum_required:', required);
-						}
+						// New system: Use division information
+						matchingDivision = {
+							name: divisionInfo.division.name,
+							min_grade: divisionInfo.division.min_grade,
+							max_grade: divisionInfo.division.max_grade,
+						};
+						// Use the minimum_required from the division
+						required = divisionInfo.division.minimum_required || scriptures.length;
+						console.log('Using division minimum_required:', required, 'from division:', divisionInfo.division.name);
 					} else if (divisionInfo.target) {
 						// Legacy system provided a target
 						required = divisionInfo.target;
@@ -129,6 +134,24 @@ export default function DashboardChildBibleBeePage() {
 			).length;
 			const percent = required > 0 ? (completed / required) * 100 : 0;
 			const bonus = Math.max(0, completed - required);
+			
+			// Check if there's an essay assigned to the division
+			let essayAssigned = false;
+			if (matchingDivision && competitionYearId) {
+				try {
+					const essayPrompts = await db.essay_prompts
+						.where('year_id')
+						.equals(competitionYearId)
+						.and(prompt => prompt.division_name === matchingDivision.name)
+						.toArray();
+					essayAssigned = essayPrompts.length > 0;
+					console.log('Essay prompts for division:', matchingDivision.name, essayPrompts);
+				} catch (error) {
+					console.warn('Error checking essay prompts:', error);
+					essayAssigned = false;
+				}
+			}
+			
 			setBbStats({
 				requiredScriptures: required,
 				completedScriptures: completed,
@@ -139,6 +162,7 @@ export default function DashboardChildBibleBeePage() {
 					min_grade: matchingDivision.min_grade,
 					max_grade: matchingDivision.max_grade,
 				} : undefined,
+				essayAssigned
 			});
 		};
 		compute();

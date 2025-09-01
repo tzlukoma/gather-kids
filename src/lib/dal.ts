@@ -846,7 +846,29 @@ export async function getBibleBeeProgressForCycle(cycleId: string) {
 
         const totalScriptures = scriptures.length;
         const completedScriptures = scriptures.filter(s => s.status === 'completed').length;
-        const essayStatus = essays.length ? essays[0].status : 'none';
+        
+        // Check essay status - look for essay prompts assigned to the child's division
+        let essayStatus = 'none';
+        if (essays.length > 0) {
+            essayStatus = essays[0].status;
+        } else {
+            // Check if there's an essay prompt assigned to this child's division
+            try {
+                const divisionInfo = await (await import('./bibleBee')).getChildDivisionInfo(child.child_id, cycleId);
+                if (divisionInfo.division) {
+                    const essayPrompts = await db.essay_prompts
+                        .where('year_id')
+                        .equals(cycleId)
+                        .and(prompt => prompt.division_name === divisionInfo.division.name)
+                        .toArray();
+                    if (essayPrompts.length > 0) {
+                        essayStatus = 'assigned';
+                    }
+                }
+            } catch (error) {
+                console.warn('Error checking essay assignment for child:', child.child_id, error);
+            }
+        }
 
         // For new-schema enrollments, get ministries from the enrollments table
         let childEnrolls: any[] = [];
