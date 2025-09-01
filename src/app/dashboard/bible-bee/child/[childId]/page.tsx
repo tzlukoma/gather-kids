@@ -13,6 +13,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
 import { Button } from '@/components/ui/button';
 import { getApplicableGradeRule } from '@/lib/bibleBee';
+import { gradeToCode } from '@/lib/gradeUtils';
 import { useMemo } from 'react';
 import {
 	Card,
@@ -104,10 +105,10 @@ export default function DashboardChildBibleBeePage() {
 			console.log('First scripture assignment:', scriptures[0]);
 			
 			try {
-				const gradeNum = childCore?.grade ? Number(childCore.grade) : NaN;
+				const gradeNum = childCore?.grade ? gradeToCode(childCore.grade) : null;
 				console.log('Parsed grade number:', gradeNum);
 				
-				if (!isNaN(gradeNum) && yearId && childCore) {
+				if (gradeNum !== null && yearId && childCore) {
 					// Use the helper function to get division information
 					const { getChildDivisionInfo } = await import('@/lib/bibleBee');
 					const divisionInfo = await getChildDivisionInfo(childCore.child_id, yearId);

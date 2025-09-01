@@ -2,6 +2,7 @@
 
 import { db } from './db';
 import { v4 as uuidv4 } from 'uuid';
+import { gradeToCode } from './gradeUtils';
 import type { Household, Guardian, EmergencyContact, Child, RegistrationCycle, Registration, Ministry, MinistryEnrollment, MinistryAccount, User, Event, Attendance, Incident, LeaderAssignment, BibleBeeYear, Division, Enrollment, Scripture } from './types';
 import { subYears, formatISO, differenceInYears, parseISO } from 'date-fns';
 
@@ -420,7 +421,7 @@ export const seedDB = async () => {
                 if (bibleBeeCount >= 20) break;
                 
                 // Determine appropriate division for this child
-                const gradeNum = Number(child.grade) || 0;
+                const gradeNum = gradeToCode(child.grade) ?? 0;
                 const appropriateDivision = divisions.find(d => gradeNum >= d.min_grade && gradeNum <= d.max_grade);
                 
                 if (appropriateDivision) {
@@ -444,7 +445,7 @@ export const seedDB = async () => {
             for (let i = 0; i < bibleBeeEnrollments.length; i++) {
                 const enrollment = bibleBeeEnrollments[i];
                 const child = children.find(c => c.child_id === enrollment.child_id)!;
-                const gradeNum = Number(child.grade) || 0;
+                const gradeNum = gradeToCode(child.grade) ?? 0;
                 
                 // Assign scriptures based on progress simulation
                 const isComplete = i < 6; // first 6 are complete

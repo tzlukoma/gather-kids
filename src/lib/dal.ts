@@ -14,6 +14,7 @@
 
 import { db } from './db';
 import { getApplicableGradeRule } from './bibleBee';
+import { gradeToCode } from './gradeUtils';
 import { AuthRole } from './auth-types';
 import type { Attendance, Child, Guardian, Household, Incident, IncidentSeverity, Ministry, MinistryEnrollment, Registration, User, EmergencyContact, LeaderAssignment, LeaderProfile, MinistryLeaderMembership, MinistryAccount, BrandingSettings  } from './types';
 import { differenceInYears, isAfter, isBefore, parseISO, isValid } from 'date-fns';
@@ -736,8 +737,8 @@ export async function getLeaderBibleBeeProgress(leaderId: string, cycleId: strin
         let requiredScriptures: number | null = null;
         let gradeGroup: string | null = null;
         try {
-            const gradeNum = child.grade ? Number(child.grade) : NaN;
-            const rule = !isNaN(gradeNum) && compYear ? await getApplicableGradeRule(compYear.id, gradeNum) : null;
+            const gradeNum = child.grade ? gradeToCode(child.grade) : null;
+            const rule = gradeNum !== null && compYear ? await getApplicableGradeRule(compYear.id, gradeNum) : null;
             requiredScriptures = rule?.targetCount ?? null;
             if (rule) {
                 if (rule.minGrade === rule.maxGrade) gradeGroup = `Grade ${rule.minGrade}`;
@@ -898,8 +899,8 @@ export async function getBibleBeeProgressForCycle(cycleId: string) {
             console.warn('Error getting division info:', err);
             // Fall back to legacy system
             try {
-                const gradeNum = child.grade ? Number(child.grade) : NaN;
-                const rule = !isNaN(gradeNum) && compYear ? await getApplicableGradeRule(compYear.id, gradeNum) : null;
+                const gradeNum = child.grade ? gradeToCode(child.grade) : null;
+                const rule = gradeNum !== null && compYear ? await getApplicableGradeRule(compYear.id, gradeNum) : null;
                 requiredScriptures = rule?.targetCount ?? null;
                 if (rule) {
                     if (rule.minGrade === rule.maxGrade) gradeGroup = `Grade ${rule.minGrade}`;

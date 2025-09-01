@@ -116,9 +116,18 @@ export async function getChildDivisionInfo(childId: string, yearId: string) {
             return { division: null, target: null, gradeGroup: 'N/A' };
         }
 
-        const gradeNum = Number(child.grade);
-        if (isNaN(gradeNum)) {
+        const gradeNum = gradeToCode(child.grade);
+        console.log(`Parsed grade number: ${gradeNum}`);
+        if (gradeNum === null) {
             console.log(`getChildDivisionInfo: Invalid grade for child ${childId}: ${child.grade}`);
+            console.log('Missing required data for division lookup:', { 
+                gradeNum, 
+                yearId, 
+                hasChild: !!child,
+                childGrade: child.grade,
+                gradeTypeofInput: typeof child.grade,
+                gradeToCodeResult: gradeToCode(child.grade)
+            });
             return { division: null, target: null, gradeGroup: 'N/A' };
         }
 
@@ -220,7 +229,7 @@ export async function getChildDivisionInfo(childId: string, yearId: string) {
 // Enrollment helper (idempotent) - supports both new division-based and legacy grade rule systems
 export async function enrollChildInBibleBee(childId: string, competitionYearId: string) {
     const child: Child | undefined = await db.children.get(childId);
-    const gradeNum = child?.grade ? Number(child.grade) : NaN;
+    const gradeNum = child?.grade ? gradeToCode(child.grade) : null;
     const now = new Date().toISOString();
 
     // Check if this is a new system year (has divisions) or legacy system (has grade rules)
@@ -297,7 +306,7 @@ export async function enrollChildInBibleBee(childId: string, competitionYearId: 
     } else {
         // Legacy system: Use grade rules
         console.log('Using legacy grade rule system');
-        const rule = isNaN(gradeNum) ? null : await getApplicableGradeRule(competitionYearId, gradeNum);
+        const rule = gradeNum === null ? null : await getApplicableGradeRule(competitionYearId, gradeNum);
         if (!rule) {
             console.warn(`No applicable grade rule found for child ${childId} with grade ${child?.grade}`);
             return null;
