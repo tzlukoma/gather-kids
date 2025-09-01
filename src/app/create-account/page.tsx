@@ -72,9 +72,13 @@ export default function CreateAccountPage() {
 				throw new Error('Supabase client not available');
 			}
 
+			const baseUrl = window.location.origin;
 			const { data, error } = await supabase.auth.signUp({
 				email,
 				password,
+				options: {
+					emailRedirectTo: `${baseUrl}/auth/callback`,
+				},
 			});
 
 			if (error) {
@@ -125,9 +129,13 @@ export default function CreateAccountPage() {
 				throw new Error('Supabase client not available');
 			}
 
+			const baseUrl = window.location.origin;
 			const { error } = await supabase.auth.resend({
 				type: 'signup',
 				email,
+				options: {
+					emailRedirectTo: `${baseUrl}/auth/callback`,
+				},
 			});
 
 			if (error) {
