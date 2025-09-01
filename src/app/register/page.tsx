@@ -57,7 +57,12 @@ import { TeenFellowshipForm } from '@/components/gatherKids/teen-fellowship-form
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
-import type { Ministry, Household, CustomQuestion, RegistrationCycle } from '@/lib/types';
+import type {
+	Ministry,
+	Household,
+	CustomQuestion,
+	RegistrationCycle,
+} from '@/lib/types';
 import { useFeatureFlags } from '@/contexts/feature-flag-context';
 
 const MOCK_EMAILS = {
@@ -439,11 +444,11 @@ export default function RegisterPage() {
 	const [isPrefill, setIsPrefill] = useState(false);
 
 	const allMinistries = useLiveQuery(() => db.ministries.toArray(), []);
-	
+
 	// Get the active registration cycle to use for enrollments
 	const activeRegistrationCycle = useLiveQuery(async () => {
 		const cycles = await db.registration_cycles.toArray();
-		return cycles.find(c => {
+		return cycles.find((c) => {
 			const val: any = (c as any)?.is_active;
 			return val === true || val === 1 || String(val) === '1';
 		});
@@ -768,9 +773,10 @@ export default function RegisterPage() {
 								<AlertTriangle className="h-4 w-4" />
 								<AlertTitle>Existing Registration Found</AlertTitle>
 								<AlertDescription>
-									A registration for the {activeRegistrationCycle?.cycle_id || 'current'} cycle already exists for this
-									household. Review the information below and make any necessary
-									changes. Submitting this form will{' '}
+									A registration for the{' '}
+									{activeRegistrationCycle?.cycle_id || 'current'} cycle already
+									exists for this household. Review the information below and
+									make any necessary changes. Submitting this form will{' '}
 									<span className="font-semibold">overwrite</span> the previous
 									submission for this year.
 								</AlertDescription>
@@ -1106,7 +1112,7 @@ export default function RegisterPage() {
 															name={`children.${index}.grade`}
 															render={({ field }) => (
 																<FormItem>
-																	<FormLabel>Grade (Fall 2024)</FormLabel>
+																	<FormLabel>Grade</FormLabel>
 																	<FormControl>
 																		<Input {...field} />
 																	</FormControl>
