@@ -174,3 +174,4 @@ gather-kids/
 ### Managing Issue Information
 - Always include the reference to the original issue in the Pull Request (e.g. Fixes issue #4)
 - Provide major status updates in the body of the issue but don't override previous updates so that the progression is clear
+- Keep the original title of the PR intact for traceability (i.e. do not rename it as you provide updates)
