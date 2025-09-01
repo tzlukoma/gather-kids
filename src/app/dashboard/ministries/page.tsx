@@ -2,7 +2,7 @@
 
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
-import type { Ministry } from '@/lib/types';
+import type { Ministry, RegistrationCycle } from '@/lib/types';
 import {
 	Card,
 	CardContent,
@@ -10,6 +10,7 @@ import {
 	CardHeader,
 	CardTitle,
 } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
 	Table,
 	TableBody,
@@ -21,10 +22,15 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { useMemo, useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, Edit, Trash2 } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Calendar } from 'lucide-react';
 import { MinistryFormDialog } from '@/components/gatherKids/ministry-form-dialog';
+import RegistrationCycles from '@/components/gatherKids/registration-cycles';
 import { deleteMinistry } from '@/lib/dal';
 import { useToast } from '@/hooks/use-toast';
+import { format } from 'date-fns';
+import { Switch } from '@/components/ui/switch';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -143,13 +149,18 @@ function MinistryTable({
 	);
 }
 
-export default function ConfigurationPage() {
+export default function MinistryPage() {
 	const router = useRouter();
 	const { user, loading } = useAuth();
 	const [isAuthorized, setIsAuthorized] = useState(false);
+	const [isAdmin, setIsAdmin] = useState(false);
+	const [activeTab, setActiveTab] = useState<string>('ministries');
 
 	const allMinistries = useLiveQuery(() => db.ministries.toArray(), []);
-	const allMinistryAccounts = useLiveQuery(() => db.ministry_accounts.toArray(), []);
+	const allMinistryAccounts = useLiveQuery(
+		() => db.ministry_accounts.toArray(),
+		[]
+	);
 	const { toast } = useToast();
 
 	const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -165,22 +176,26 @@ export default function ConfigurationPage() {
 				}
 			} else {
 				setIsAuthorized(true);
+				setIsAdmin(true);
 			}
 		}
 	}, [user, loading, router]);
 
 	const { enrolledPrograms, interestPrograms } = useMemo(() => {
-		if (!allMinistries || !allMinistryAccounts) return { enrolledPrograms: [], interestPrograms: [] };
-		
+		if (!allMinistries || !allMinistryAccounts)
+			return { enrolledPrograms: [], interestPrograms: [] };
+
 		// Create a map of ministry_id to email from ministry accounts
-		const emailMap = new Map(allMinistryAccounts.map(account => [account.ministry_id, account.email]));
-		
+		const emailMap = new Map(
+			allMinistryAccounts.map((account) => [account.ministry_id, account.email])
+		);
+
 		// Add email to ministries
-		const ministriesWithEmail = allMinistries.map(m => ({
+		const ministriesWithEmail = allMinistries.map((m) => ({
 			...m,
-			email: emailMap.get(m.ministry_id) || null
+			email: emailMap.get(m.ministry_id) || null,
 		}));
-		
+
 		const enrolled = ministriesWithEmail
 			.filter(
 				(m) =>
@@ -240,27 +255,54 @@ export default function ConfigurationPage() {
 						Manage the ministries and activities available for registration.
 					</p>
 				</div>
-				<Button onClick={handleAddNew}>
-					<PlusCircle className="mr-2" />
-					Add New Program
-				</Button>
+				{activeTab === 'ministries' && (
+					<Button onClick={handleAddNew}>
+						<PlusCircle className="mr-2" />
+						Add New Program
+					</Button>
+				)}
 			</div>
 
-			<MinistryTable
-				title="Ministry Programs"
-				description="These are programs children can be officially enrolled in."
-				ministries={enrolledPrograms}
-				onEdit={handleEdit}
-				onDelete={handleDelete}
-			/>
+			<Tabs value={activeTab} onValueChange={setActiveTab}>
+				<TabsList className="inline-flex items-center gap-2">
+					<TabsTrigger value="ministries">Ministries</TabsTrigger>
+					{isAdmin && <TabsTrigger value="registration-cycles">Registration Cycles</TabsTrigger>}
+				</TabsList>
 
-			<MinistryTable
-				title="Expressed Interest Activities"
-				description="These are activities to gauge interest, but do not create an official enrollment."
-				ministries={interestPrograms}
-				onEdit={handleEdit}
-				onDelete={handleDelete}
-			/>
+				<TabsContent value="ministries" className="space-y-8 mt-6">
+					<MinistryTable
+						title="Ministry Programs"
+						description="These are programs children can be officially enrolled in."
+						ministries={enrolledPrograms}
+						onEdit={handleEdit}
+						onDelete={handleDelete}
+					/>
+
+					<MinistryTable
+						title="Expressed Interest Activities"
+						description="These are activities to gauge interest, but do not create an official enrollment."
+						ministries={interestPrograms}
+						onEdit={handleEdit}
+						onDelete={handleDelete}
+					/>
+				</TabsContent>
+
+				{isAdmin && (
+					<TabsContent value="registration-cycles" className="mt-6">
+						<Card>
+							<CardHeader>
+								<CardTitle>Registration Cycles</CardTitle>
+								<CardDescription>
+									Manage registration cycles for ministries and activities
+								</CardDescription>
+							</CardHeader>
+							<CardContent>
+								<RegistrationCycles />
+							</CardContent>
+						</Card>
+					</TabsContent>
+				)}
+			</Tabs>
 
 			<MinistryFormDialog
 				isOpen={isDialogOpen}
