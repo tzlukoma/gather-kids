@@ -55,6 +55,13 @@ import {
 import { DanceMinistryForm } from '@/components/gatherKids/dance-ministry-form';
 import { TeenFellowshipForm } from '@/components/gatherKids/teen-fellowship-form';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from '@/components/ui/select';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
 import type {
@@ -124,6 +131,7 @@ const registrationSchema = z
 			name: z.string().optional(),
 			address_line1: z.string().min(1, 'Address is required.'),
 			household_id: z.string().optional(), // To track for overwrites
+			preferredScriptureTranslation: z.string().optional(),
 		}),
 		guardians: z
 			.array(guardianSchema)
@@ -457,7 +465,7 @@ export default function RegisterPage() {
 	const form = useForm<RegistrationFormValues>({
 		resolver: zodResolver(registrationSchema),
 		defaultValues: {
-			household: { name: '', address_line1: '' },
+			household: { name: '', address_line1: '', preferredScriptureTranslation: 'NIV' },
 			guardians: [
 				{
 					first_name: '',
@@ -817,6 +825,33 @@ export default function RegisterPage() {
 													{...field}
 												/>
 											</FormControl>
+											<FormMessage />
+										</FormItem>
+									)}
+								/>
+								<FormField
+									control={form.control}
+									name="household.preferredScriptureTranslation"
+									render={({ field }) => (
+										<FormItem>
+											<FormLabel>Preferred Bible Translation</FormLabel>
+											<FormDescription>
+												Select the Bible translation your family prefers for scripture memorization.
+											</FormDescription>
+											<Select onValueChange={field.onChange} defaultValue={field.value}>
+												<FormControl>
+													<SelectTrigger>
+														<SelectValue placeholder="Select a Bible translation" />
+													</SelectTrigger>
+												</FormControl>
+												<SelectContent>
+													<SelectItem value="NIV">NIV - New International Version</SelectItem>
+													<SelectItem value="KJV">KJV - King James Version</SelectItem>
+													<SelectItem value="ESV">ESV - English Standard Version</SelectItem>
+													<SelectItem value="NASB">NASB - New American Standard Bible</SelectItem>
+													<SelectItem value="NLT">NLT - New Living Translation</SelectItem>
+												</SelectContent>
+											</Select>
 											<FormMessage />
 										</FormItem>
 									)}

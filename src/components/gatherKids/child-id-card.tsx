@@ -13,6 +13,13 @@ import { User, Camera, Cake } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import type { EnrichedChild } from './check-in-view';
 
+// Helper function to convert grade numbers to readable labels
+function getGradeLabel(grade: number): string {
+	if (grade === 0) return 'Kindergarten';
+	if (grade <= 12) return `${grade}th Grade`;
+	return `Grade ${grade}`;
+}
+
 interface ChildIdCardProps {
 	child: EnrichedChild | null;
 	onUpdatePhoto?: (child: any) => void;
@@ -22,6 +29,11 @@ interface ChildIdCardProps {
 		completedScriptures: number;
 		percentDone: number;
 		bonus: number;
+		division?: {
+			name: string;
+			min_grade: number;
+			max_grade: number;
+		};
 	} | null;
 	essaySummary?: {
 		count: number;
@@ -104,6 +116,11 @@ export function ChildIdCard({
 							<div className="text-sm text-muted-foreground">
 								Age: {child.age ?? 'N/A'}
 							</div>
+							{bibleBeeStats?.division && (
+								<div className="text-sm text-muted-foreground">
+									Division: {bibleBeeStats.division.name} - {getGradeLabel(bibleBeeStats.division.min_grade)} to {getGradeLabel(bibleBeeStats.division.max_grade)}
+								</div>
+							)}
 						</div>
 					</div>
 				</CardHeader>

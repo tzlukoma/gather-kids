@@ -152,6 +152,13 @@ export function useStudentAssignmentsQuery(childId: string) {
             })
         );
 
+        // Sort scriptures by scripture_order for consistent display
+        enrichedScriptures.sort((a, b) => {
+            const aOrder = Number(a.scripture?.scripture_order ?? a.scripture?.sortOrder ?? 0);
+            const bOrder = Number(b.scripture?.scripture_order ?? b.scripture?.sortOrder ?? 0);
+            return aOrder - bOrder;
+        });
+
         const enrichedEssays = await Promise.all(
             essays.map(async (e) => {
                 const year = await db.competitionYears.get(e.competitionYearId);

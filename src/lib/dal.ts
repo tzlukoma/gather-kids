@@ -405,6 +405,7 @@ export async function registerHousehold(data: any, cycle_id: string, isPrefill: 
             household_id: householdId,
             name: data.household.name || `${data.guardians[0].last_name} Household`,
             address_line1: data.household.address_line1,
+            preferredScriptureTranslation: data.household.preferredScriptureTranslation,
             created_at: isUpdate ? (await db.households.get(householdId))!.created_at : now,
             updated_at: now,
         };

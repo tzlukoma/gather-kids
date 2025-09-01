@@ -49,6 +49,11 @@ export default function DashboardChildBibleBeePage() {
 		completedScriptures: number;
 		percentDone: number;
 		bonus: number;
+		division?: {
+			name: string;
+			min_grade: number;
+			max_grade: number;
+		};
 	} | null>(null);
 
 	const [essaySummary, setEssaySummary] = useState<{
@@ -89,12 +94,14 @@ export default function DashboardChildBibleBeePage() {
 			}
 			const competitionYearId = scriptures[0].competitionYearId;
 			let required = scriptures.length;
+			let matchingDivision = null;
+			
 			try {
 				const gradeNum = childCore?.grade ? Number(childCore.grade) : NaN;
 				if (!isNaN(gradeNum) && competitionYearId) {
 					// First try to find a division for this year that matches the child's grade
 					const divisions = await db.divisions.where('year_id').equals(competitionYearId).toArray();
-					const matchingDivision = divisions.find(d => gradeNum >= d.min_grade && gradeNum <= d.max_grade);
+					matchingDivision = divisions.find(d => gradeNum >= d.min_grade && gradeNum <= d.max_grade);
 					
 					if (matchingDivision?.minimum_required) {
 						required = matchingDivision.minimum_required;
@@ -108,6 +115,7 @@ export default function DashboardChildBibleBeePage() {
 					}
 				}
 			} catch (e) {
+				console.warn('Error computing Bible Bee stats:', e);
 				// ignore and fallback to total scriptures
 			}
 
@@ -121,6 +129,11 @@ export default function DashboardChildBibleBeePage() {
 				completedScriptures: completed,
 				percentDone: percent,
 				bonus,
+				division: matchingDivision ? {
+					name: matchingDivision.name,
+					min_grade: matchingDivision.min_grade,
+					max_grade: matchingDivision.max_grade,
+				} : undefined,
 			});
 		};
 		compute();
