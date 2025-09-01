@@ -72,8 +72,8 @@ export default function HouseholdBibleBeePage() {
 			if (mounted) {
 				const sorted = s.sort(
 					(a: any, b: any) =>
-						Number(a.order ?? a.sortOrder ?? 0) -
-						Number(b.order ?? b.sortOrder ?? 0)
+						Number(a.sortOrder ?? a.scripture_order ?? 0) -
+						Number(b.sortOrder ?? b.scripture_order ?? 0)
 				);
 				setScriptures(sorted);
 				// collect available versions from scriptures texts maps and translation fields
@@ -104,7 +104,9 @@ export default function HouseholdBibleBeePage() {
 		return (
 			<div className="text-center py-8">
 				<BookOpen className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-				<p className="text-muted-foreground">No children found in your household.</p>
+				<p className="text-muted-foreground">
+					No children found in your household.
+				</p>
 			</div>
 		);
 	}
@@ -147,7 +149,8 @@ export default function HouseholdBibleBeePage() {
 						<CardHeader>
 							<CardTitle>Your Children's Progress</CardTitle>
 							<CardDescription>
-								Progress for your children enrolled in Bible Bee for {selectedCycle}.
+								Progress for your children enrolled in Bible Bee for{' '}
+								{selectedCycle}.
 							</CardDescription>
 						</CardHeader>
 						<CardContent>

@@ -55,9 +55,21 @@ import {
 import { DanceMinistryForm } from '@/components/gatherKids/dance-ministry-form';
 import { TeenFellowshipForm } from '@/components/gatherKids/teen-fellowship-form';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from '@/components/ui/select';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
-import type { Ministry, Household, CustomQuestion } from '@/lib/types';
+import type {
+	Ministry,
+	Household,
+	CustomQuestion,
+	RegistrationCycle,
+} from '@/lib/types';
 import { useFeatureFlags } from '@/contexts/feature-flag-context';
 
 const MOCK_EMAILS = {
@@ -119,6 +131,7 @@ const registrationSchema = z
 			name: z.string().optional(),
 			address_line1: z.string().min(1, 'Address is required.'),
 			household_id: z.string().optional(), // To track for overwrites
+			preferredScriptureTranslation: z.string().optional(),
 		}),
 		guardians: z
 			.array(guardianSchema)
@@ -440,10 +453,19 @@ export default function RegisterPage() {
 
 	const allMinistries = useLiveQuery(() => db.ministries.toArray(), []);
 
+	// Get the active registration cycle to use for enrollments
+	const activeRegistrationCycle = useLiveQuery(async () => {
+		const cycles = await db.registration_cycles.toArray();
+		return cycles.find((c) => {
+			const val: any = (c as any)?.is_active;
+			return val === true || val === 1 || String(val) === '1';
+		});
+	}, []);
+
 	const form = useForm<RegistrationFormValues>({
 		resolver: zodResolver(registrationSchema),
 		defaultValues: {
-			household: { name: '', address_line1: '' },
+			household: { name: '', address_line1: '', preferredScriptureTranslation: 'NIV' },
 			guardians: [
 				{
 					first_name: '',
@@ -611,7 +633,10 @@ export default function RegisterPage() {
 
 	async function onSubmit(data: RegistrationFormValues) {
 		try {
-			await registerHousehold(data, '2025', isPrefill);
+			// Use the active registration cycle instead of hardcoded '2025'
+			const cycleId = activeRegistrationCycle?.cycle_id || '2025'; // fallback to '2025' if no active cycle found
+			console.log('DEBUG: Registering household for cycle:', cycleId);
+			await registerHousehold(data, cycleId, isPrefill);
 			toast({
 				title: 'Registration Submitted!',
 				description: "Thank you! Your family's registration has been received.",
@@ -756,9 +781,10 @@ export default function RegisterPage() {
 								<AlertTriangle className="h-4 w-4" />
 								<AlertTitle>Existing Registration Found</AlertTitle>
 								<AlertDescription>
-									A registration for the 2025 cycle already exists for this
-									household. Review the information below and make any necessary
-									changes. Submitting this form will{' '}
+									A registration for the{' '}
+									{activeRegistrationCycle?.cycle_id || 'current'} cycle already
+									exists for this household. Review the information below and
+									make any necessary changes. Submitting this form will{' '}
 									<span className="font-semibold">overwrite</span> the previous
 									submission for this year.
 								</AlertDescription>
@@ -799,6 +825,33 @@ export default function RegisterPage() {
 													{...field}
 												/>
 											</FormControl>
+											<FormMessage />
+										</FormItem>
+									)}
+								/>
+								<FormField
+									control={form.control}
+									name="household.preferredScriptureTranslation"
+									render={({ field }) => (
+										<FormItem>
+											<FormLabel>Preferred Bible Translation</FormLabel>
+											<FormDescription>
+												Select the Bible translation your family prefers for scripture memorization.
+											</FormDescription>
+											<Select onValueChange={field.onChange} defaultValue={field.value}>
+												<FormControl>
+													<SelectTrigger>
+														<SelectValue placeholder="Select a Bible translation" />
+													</SelectTrigger>
+												</FormControl>
+												<SelectContent>
+													<SelectItem value="NIV">NIV - New International Version</SelectItem>
+													<SelectItem value="KJV">KJV - King James Version</SelectItem>
+													<SelectItem value="ESV">ESV - English Standard Version</SelectItem>
+													<SelectItem value="NASB">NASB - New American Standard Bible</SelectItem>
+													<SelectItem value="NLT">NLT - New Living Translation</SelectItem>
+												</SelectContent>
+											</Select>
 											<FormMessage />
 										</FormItem>
 									)}
@@ -1094,7 +1147,7 @@ export default function RegisterPage() {
 															name={`children.${index}.grade`}
 															render={({ field }) => (
 																<FormItem>
-																	<FormLabel>Grade (Fall 2024)</FormLabel>
+																	<FormLabel>Grade</FormLabel>
 																	<FormControl>
 																		<Input {...field} />
 																	</FormControl>
