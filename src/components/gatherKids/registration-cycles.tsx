@@ -118,7 +118,7 @@ export default function RegistrationCycles() {
             }
 
             // Set the selected cycle's active status
-            await db.registration_cycles.update(cycleId, { is_active });
+            await db.registration_cycles.update(cycleId, { is_active: isActive });
 
             toast({
                 title: 'Success',
