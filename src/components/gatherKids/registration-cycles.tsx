@@ -33,7 +33,6 @@ import {
 import { CalendarIcon } from 'lucide-react';
 
 export default function RegistrationCycles() {
-    const [cycles, setCycles] = useState<RegistrationCycle[]>([]);
     const [newCycle, setNewCycle] = useState<Partial<RegistrationCycle>>({
         cycle_id: '',
         start_date: '',
@@ -45,18 +44,12 @@ export default function RegistrationCycles() {
     const { toast } = useToast();
 
     // Use Dexie Live Query to automatically update when data changes
-    const registrationCycles = useLiveQuery(
-        () => db.registration_cycles.toArray(),
+    const cycles = useLiveQuery(
+        () => db.registration_cycles
+            .toArray()
+            .then(data => data.sort((a, b) => a.start_date.localeCompare(b.start_date))),
         []
-    );
-
-    useEffect(() => {
-        if (registrationCycles) {
-            setCycles(
-                registrationCycles.sort((a, b) => a.start_date.localeCompare(b.start_date))
-            );
-        }
-    }, [registrationCycles]);
+    ) || [];
 
     const handleCreateCycle = async () => {
         if (!newCycle.cycle_id || !newCycle.start_date || !newCycle.end_date) {
@@ -98,6 +91,8 @@ export default function RegistrationCycles() {
                 end_date: '',
                 is_active: false,
             });
+            
+            // No need to fetch cycles - useLiveQuery will automatically update
         } catch (err: any) {
             setError(`Failed to create registration cycle: ${err.message}`);
         } finally {
@@ -131,6 +126,8 @@ export default function RegistrationCycles() {
                     ? `Registration cycle ${cycleId} is now active`
                     : `Registration cycle ${cycleId} is now inactive`,
             });
+            
+            // No need to fetch cycles - useLiveQuery will automatically update
         } catch (err: any) {
             setError(`Failed to update cycle status: ${err.message}`);
         } finally {

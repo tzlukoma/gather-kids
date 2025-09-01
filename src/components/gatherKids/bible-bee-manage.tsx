@@ -38,6 +38,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
 import {
 	Select,
 	SelectContent,
@@ -54,7 +55,6 @@ import {
 	DialogTitle,
 	DialogTrigger,
 } from '@/components/ui/dialog';
-import { Badge } from '@/components/ui/badge';
 import {
 	Tooltip,
 	TooltipContent,
@@ -198,9 +198,18 @@ export default function BibleBeeManage({ className }: BibleBeeManageProps) {
 				(async () => {
 					try {
 						console.log('Auto-repro: creating active Bible Bee year...');
+						// Get the active cycle to link to this Bible Bee year
+						const activeCycle = (await db.registration_cycles.toArray()).find(
+							(c) => {
+								const val = c.is_active;
+								return val === true || val === 1 || String(val) === '1';
+							}
+						);
+
 						const created = await createBibleBeeYear({
 							label: 'Auto Repro Year',
 							is_active: true,
+							cycle_id: activeCycle?.cycle_id || '', // Use active cycle if available
 						});
 						setSelectedYearId(created.id);
 						setActiveTab('enrollment');
@@ -243,9 +252,18 @@ export default function BibleBeeManage({ className }: BibleBeeManageProps) {
 										console.log(
 											'Repro helper: creating active Bible Bee year...'
 										);
+										// Get the active cycle to link to this Bible Bee year
+										const activeCycle = (
+											await db.registration_cycles.toArray()
+										).find((c) => {
+											const val = c.is_active;
+											return val === true || val === 1 || String(val) === '1';
+										});
+
 										const created = await createBibleBeeYear({
 											label: 'Repro Test Year',
 											is_active: true,
+											cycle_id: activeCycle?.cycle_id || '', // Use active cycle if available
 										});
 										setSelectedYearId(created.id);
 										setActiveTab('enrollment');
@@ -392,7 +410,19 @@ function YearManagement({
 	const [formData, setFormData] = useState({
 		label: '',
 		is_active: false,
+		cycle_id: '',
 	});
+
+	// Query registration cycles for the dropdown
+	const registrationCycles = useLiveQuery(
+		() =>
+			db.registration_cycles
+				.toArray()
+				.then((data) =>
+					data.sort((a, b) => a.cycle_id.localeCompare(b.cycle_id))
+				),
+		[]
+	);
 
 	// Remove individual bibleBeeYears query since we get data from props
 
@@ -414,7 +444,7 @@ function YearManagement({
 				onYearCreated(createdYear.id);
 			}
 
-			setFormData({ label: '', is_active: false });
+			setFormData({ label: '', is_active: false, cycle_id: '' });
 		} catch (error) {
 			console.error('Error saving year:', error);
 			alert('Error saving year: ' + error);
@@ -441,6 +471,7 @@ function YearManagement({
 		setFormData({
 			label: year.label,
 			is_active: year.is_active,
+			cycle_id: year.cycle_id || '',
 		});
 		setIsCreating(true);
 	};
@@ -476,6 +507,29 @@ function YearManagement({
 								required
 							/>
 						</div>
+						<div className="space-y-2">
+							<Label htmlFor="cycle-id">Registration Cycle</Label>
+							<select
+								id="cycle-id"
+								className="w-full px-3 py-2 border rounded-md"
+								value={formData.cycle_id}
+								onChange={(e) =>
+									setFormData({ ...formData, cycle_id: e.target.value })
+								}
+								required>
+								<option value="">Select a registration cycle</option>
+								{registrationCycles?.map((cycle) => (
+									<option key={cycle.cycle_id} value={cycle.cycle_id}>
+										{cycle.cycle_id} ({cycle.is_active ? 'Active' : 'Inactive'})
+									</option>
+								))}
+							</select>
+							{!registrationCycles?.length && (
+								<p className="text-sm text-yellow-600">
+									No registration cycles found. Please create one first.
+								</p>
+							)}
+						</div>
 						<div className="flex items-center space-x-2">
 							<input
 								type="checkbox"
@@ -496,7 +550,7 @@ function YearManagement({
 								onClick={() => {
 									setIsCreating(false);
 									setEditingYear(null);
-									setFormData({ label: '', is_active: false });
+									setFormData({ label: '', is_active: false, cycle_id: '' });
 								}}>
 								Cancel
 							</Button>
@@ -512,16 +566,22 @@ function YearManagement({
 								className="flex items-center justify-between p-3 border rounded-lg">
 								<div>
 									<h3 className="font-medium">{year.label}</h3>
-									{year.is_active && (
-										<Badge variant="default" className="mt-1">
-											Active
-										</Badge>
-									)}
-									{year._isLegacy && (
-										<Badge variant="outline" className="mt-1 ml-2">
-											Legacy
-										</Badge>
-									)}
+									<div className="flex flex-wrap gap-1 mt-1">
+										{year.is_active && <Badge variant="default">Active</Badge>}
+										{year._isLegacy && <Badge variant="outline">Legacy</Badge>}
+										{year.cycle_id && (
+											<Badge variant="outline" className="bg-blue-50">
+												Cycle: {year.cycle_id}
+											</Badge>
+										)}
+										{!year._isLegacy && !year.cycle_id && (
+											<Badge
+												variant="outline"
+												className="bg-yellow-50 text-yellow-800">
+												No Cycle Linked
+											</Badge>
+										)}
+									</div>
 								</div>
 								<div className="flex gap-2">
 									{!year._isLegacy && (

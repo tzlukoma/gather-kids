@@ -266,7 +266,11 @@ export default function MinistryPage() {
 			<Tabs value={activeTab} onValueChange={setActiveTab}>
 				<TabsList className="inline-flex items-center gap-2">
 					<TabsTrigger value="ministries">Ministries</TabsTrigger>
-					{isAdmin && <TabsTrigger value="registration-cycles">Registration Cycles</TabsTrigger>}
+					{isAdmin && (
+						<TabsTrigger value="registration-cycles">
+							Registration Cycles
+						</TabsTrigger>
+					)}
 				</TabsList>
 
 				<TabsContent value="ministries" className="space-y-8 mt-6">

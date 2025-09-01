@@ -5,19 +5,28 @@
  */
 
 export function gradeToCode(gradeText?: string): number | null {
-    if (!gradeText) return null;
+    console.log(`DEBUG: gradeToCode called with: "${gradeText}"`);
+    
+    if (!gradeText) {
+        console.log('DEBUG: gradeToCode - no grade text provided');
+        return null;
+    }
     
     const t = gradeText.toLowerCase().trim();
+    console.log(`DEBUG: gradeToCode - normalized grade text: "${t}"`);
     
     // Direct kindergarten matches
     if (['k', 'kg', 'kinder', 'kindergarten'].includes(t)) {
+        console.log('DEBUG: gradeToCode - matched kindergarten pattern');
         return 0;
     }
     
     // Simple numeric grades 0-12 (0 maps to Kindergarten)
     const numMatch = t.match(/^(0|[1-9]|1[0-2])$/);
     if (numMatch) {
-        return parseInt(numMatch[1], 10);
+        const result = parseInt(numMatch[1], 10);
+        console.log(`DEBUG: gradeToCode - matched simple numeric pattern: ${result}`);
+        return result;
     }
     
     // Ordinal patterns (1st, 2nd, etc.)
@@ -39,27 +48,40 @@ export function gradeToCode(gradeText?: string): number | null {
     };
     
     if (ordinalMap[t] !== undefined) {
-        return ordinalMap[t];
+        const result = ordinalMap[t];
+        console.log(`DEBUG: gradeToCode - matched ordinal text: ${result}`);
+        return result;
     }
     
     // Grade + kindergarten patterns
     const gradeKMatch = t.match(/^grade\s*(k|kindergarten)$/);
     if (gradeKMatch) {
+        console.log('DEBUG: gradeToCode - matched grade+kindergarten pattern');
         return 0;
     }
     
     // Grade + number patterns
     const gradeNumMatch = t.match(/^grade\s*(0|[1-9]|1[0-2])$/);
     if (gradeNumMatch) {
-        return parseInt(gradeNumMatch[1], 10);
+        const result = parseInt(gradeNumMatch[1], 10);
+        console.log(`DEBUG: gradeToCode - matched grade+number pattern: ${result}`);
+        return result;
     }
     
     // Number + ordinal + grade patterns (e.g., "1st grade", "2nd grade")
     const ordinalGradeMatch = t.match(/^(0|[1-9]|1[0-2])(st|nd|rd|th)\s*grade$/);
     if (ordinalGradeMatch) {
-        return parseInt(ordinalGradeMatch[1], 10);
+        const result = parseInt(ordinalGradeMatch[1], 10);
+        console.log(`DEBUG: gradeToCode - matched ordinal+grade pattern: ${result}`);
+        return result;
     }
     
+    // Special case for grade 9
+    if (t === '9' || t === '9th' || t === 'ninth' || t === 'grade 9' || t === '9th grade') {
+        console.log('DEBUG: gradeToCode - SPECIAL ATTENTION for grade 9: 9');
+    }
+    
+    console.log(`DEBUG: gradeToCode - all parsing methods failed for "${gradeText}"`);
     return null;
 }
 

@@ -404,6 +404,7 @@ export async function createBibleBeeYear(payload: Omit<BibleBeeYear, 'id' | 'cre
     const item: BibleBeeYear = {
         id,
         label: payload.label,
+        cycle_id: payload.cycle_id,
         is_active: payload.is_active,
         created_at: now,
     };
@@ -590,13 +591,38 @@ export async function previewAutoEnrollment(yearId: string): Promise<{
         unknown_grade: number;
     };
 }> {
-    // Get the current registration cycle/year (safe scan to avoid IDB key-range issues)
-    let currentCycle = (await db.registration_cycles.toArray()).find(c => {
-        const val: any = (c as any)?.is_active;
-        return val === true || val === 1 || String(val) === '1';
-    }) ?? null;
-    if (!currentCycle) {
-        throw new Error('No active registration cycle found');
+    // Get the Bible Bee year to determine which registration cycle to use
+    const bibleYear = await db.bible_bee_years.get(yearId);
+    if (!bibleYear) {
+        throw new Error(`Bible Bee year ${yearId} not found`);
+    }
+    
+    // If the Bible Bee year has a cycle_id, use that specific cycle
+    // Otherwise fall back to the active cycle (legacy behavior)
+    let currentCycle = null;
+    
+    console.log('DEBUG: Bible Bee year being processed:', bibleYear);
+    
+    if (bibleYear.cycle_id) {
+        console.log('DEBUG: Using Bible Bee year linked cycle_id:', bibleYear.cycle_id);
+        currentCycle = await db.registration_cycles.get(bibleYear.cycle_id);
+        if (!currentCycle) {
+            console.error(`DEBUG: Registration cycle ${bibleYear.cycle_id} linked to Bible Bee year not found`);
+            throw new Error(`Registration cycle ${bibleYear.cycle_id} linked to Bible Bee year not found`);
+        }
+        console.log('DEBUG: Found linked registration cycle:', currentCycle);
+    } else {
+        console.log('DEBUG: No cycle_id found on Bible Bee year, falling back to active cycle');
+        // Fall back to active cycle for backward compatibility
+        currentCycle = (await db.registration_cycles.toArray()).find(c => {
+            const val: any = (c as any)?.is_active;
+            return val === true || val === 1 || String(val) === '1';
+        }) ?? null;
+        if (!currentCycle) {
+            console.error('DEBUG: No active registration cycle found and Bible Bee year has no linked cycle');
+            throw new Error('No active registration cycle found and Bible Bee year has no linked cycle');
+        }
+        console.log('DEBUG: Using active registration cycle as fallback:', currentCycle);
     }
     
     // Get Bible Bee ministry
@@ -635,40 +661,102 @@ export async function previewAutoEnrollment(yearId: string): Promise<{
     let bibleBeeEnrollments: MinistryEnrollment[] = [];
     try {
         const allEnrollments = await db.ministry_enrollments.toArray();
+        console.log(`DEBUG: Total ministry enrollments in database: ${allEnrollments.length}`);
+        
+        // Log a sample of enrollments to check their structure
+        if (allEnrollments.length > 0) {
+            console.log('DEBUG: Sample ministry enrollment:', allEnrollments[0]);
+        }
+        
         bibleBeeEnrollments = allEnrollments.filter((e: MinistryEnrollment) => {
             // Compare as strings to be tolerant of mixed stored representations
-            return String((e as any).ministry_id) === String(ministryId)
-                && String((e as any).cycle_id) === String(cycleId)
-                && e.status === 'enrolled';
+            const matchesMinistry = String((e as any).ministry_id) === String(ministryId);
+            const matchesCycle = String((e as any).cycle_id) === String(cycleId);
+            const isEnrolled = e.status === 'enrolled';
+            
+            const matches = matchesMinistry && matchesCycle && isEnrolled;
+            
+            // Debug output for enrollments that match ministry but not cycle
+            if (matchesMinistry && !matchesCycle && isEnrolled) {
+                console.log(`DEBUG: Found enrollment for Bible Bee ministry but wrong cycle. Expected: ${cycleId}, Found: ${(e as any).cycle_id}`, e);
+            }
+            
+            return matches;
         });
 
-        console.log('Bible Bee enrollments found (filtered):', bibleBeeEnrollments.length);
+        console.log(`DEBUG: Bible Bee enrollments found (filtered): ${bibleBeeEnrollments.length} out of ${allEnrollments.length} total enrollments`);
+        
+        // If no enrollments were found, check what cycles are being used in ministry_enrollments
+        if (bibleBeeEnrollments.length === 0) {
+            const uniqueCycles = [...new Set(allEnrollments.map(e => e.cycle_id))];
+            console.log('DEBUG: Unique cycle_ids in ministry_enrollments:', uniqueCycles);
+            
+            // Check enrollments specifically for Bible Bee ministry regardless of cycle
+            const bibleBeeMinistryEnrollments = allEnrollments.filter(e => 
+                String((e as any).ministry_id) === String(ministryId) && 
+                e.status === 'enrolled'
+            );
+            console.log(`DEBUG: Bible Bee ministry enrollments (any cycle): ${bibleBeeMinistryEnrollments.length}`);
+            
+            if (bibleBeeMinistryEnrollments.length > 0) {
+                const cyclesWithBibleBeeEnrollments = [...new Set(bibleBeeMinistryEnrollments.map(e => e.cycle_id))];
+                console.log('DEBUG: Cycles with Bible Bee enrollments:', cyclesWithBibleBeeEnrollments);
+            }
+        }
     } catch (error) {
         console.error('Error scanning ministry_enrollments for Bible Bee enrollments:', error);
         throw error;
     }
 
     const childIds = bibleBeeEnrollments.map((e: MinistryEnrollment) => e.child_id).filter(Boolean);
+    console.log(`DEBUG: Child IDs from Bible Bee enrollments: ${childIds.length}`, childIds);
+    
     let children: Child[] = [];
     if (childIds.length > 0) {
         try {
             // anyOf can still fail if keys are invalid; attempt it but fall back to a full scan
             children = await db.children.where('child_id').anyOf(childIds).toArray();
+            console.log(`DEBUG: Children retrieved: ${children.length} out of ${childIds.length} child IDs`);
+            
+            // Log any missing children
+            if (children.length < childIds.length) {
+                const foundIds = children.map(c => c.child_id);
+                const missingIds = childIds.filter(id => !foundIds.includes(id));
+                console.log(`DEBUG: Missing children IDs: ${missingIds.length}`, missingIds);
+            }
+            
+            // Log grades of found children
+            const grades = children.map(c => c.grade);
+            console.log('DEBUG: Grades of children found:', grades);
+            
+            // Check if any children are in grade 9 specifically
+            const grade9Children = children.filter(c => String(c.grade) === '9');
+            console.log(`DEBUG: Children in grade 9: ${grade9Children.length}`, grade9Children);
+            
         } catch (error) {
             console.warn('anyOf(childIds) failed, falling back to full children scan:', error);
             const allChildren = await db.children.toArray();
+            console.log(`DEBUG: Total children in database: ${allChildren.length}`);
             children = allChildren.filter(c => childIds.includes(c.child_id));
+            console.log(`DEBUG: Children filtered from full scan: ${children.length}`);
         }
     } else {
+        console.log('DEBUG: No child IDs found in Bible Bee enrollments');
         children = [];
     }
     
     // Get divisions for this year
     const divisions = await db.divisions.where('year_id').equals(yearId).toArray();
+    console.log(`DEBUG: Divisions for this year: ${divisions.length}`, divisions);
+    
+    // Check if any divisions cover grade 9
+    const grade9Divisions = divisions.filter(d => d.min_grade <= 9 && d.max_grade >= 9);
+    console.log(`DEBUG: Divisions that include grade 9: ${grade9Divisions.length}`, grade9Divisions);
     
     // Get existing overrides
     const overrides = await db.enrollment_overrides.where('year_id').equals(yearId).toArray();
     const overrideMap = new Map(overrides.map(o => [o.child_id, o]));
+    console.log(`DEBUG: Enrollment overrides: ${overrides.length}`, overrides);
     
     const previews: AutoEnrollmentPreview[] = [];
     const counts = { proposed: 0, overrides: 0, unassigned: 0, unknown_grade: 0 };
@@ -702,18 +790,27 @@ export async function previewAutoEnrollment(yearId: string): Promise<{
         
         // Handle unknown grade
         if (gradeCode === null) {
+            console.log(`DEBUG: Child ${child.child_id} has unknown grade code`);
             preview.status = 'unknown_grade';
             counts.unknown_grade++;
             previews.push(preview);
             continue;
         }
         
+        console.log(`DEBUG: Processing child: ${child.first_name} ${child.last_name}, grade: ${child.grade}, grade code: ${gradeCode}`);
+        
         // Find matching divisions
-        const matchingDivisions = divisions.filter(d => 
-            gradeCode >= d.min_grade && gradeCode <= d.max_grade
-        );
+        const matchingDivisions = divisions.filter(d => {
+            const matches = gradeCode >= d.min_grade && gradeCode <= d.max_grade;
+            console.log(`DEBUG: Division ${d.name} (grades ${d.min_grade}-${d.max_grade}) matches child grade ${gradeCode}: ${matches}`);
+            return matches;
+        });
+        
+        console.log(`DEBUG: Matching divisions for child ${child.child_id}: ${matchingDivisions.length}`, 
+            matchingDivisions.map(d => `${d.name} (${d.min_grade}-${d.max_grade})`));
         
         if (matchingDivisions.length === 0) {
+            console.log(`DEBUG: No matching division for child ${child.child_id} with grade ${child.grade} (code: ${gradeCode})`);
             preview.status = 'unassigned';
             counts.unassigned++;
         } else if (matchingDivisions.length === 1) {
@@ -723,8 +820,10 @@ export async function previewAutoEnrollment(yearId: string): Promise<{
             };
             preview.status = 'proposed';
             counts.proposed++;
+            console.log(`DEBUG: Child ${child.child_id} matched to division ${matchingDivisions[0].name}`);
         } else {
             // Multiple matches shouldn't happen due to non-overlap constraint
+            console.log(`DEBUG: Child ${child.child_id} matched multiple divisions: ${matchingDivisions.map(d => d.name).join(', ')}`);
             preview.status = 'multiple_matches';
             counts.unassigned++;
         }
