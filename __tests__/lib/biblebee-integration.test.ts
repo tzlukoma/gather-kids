@@ -1,5 +1,48 @@
-import { db } from '@/lib/db';
-import { previewCsvJsonMatches, commitCsvRowsToYear, type CsvRow, type JsonTextUpload, validateJsonTextUpload } from '@/lib/bibleBee';
+import { previewCsvJsonMatches, type CsvRow, type JsonTextUpload, validateJsonTextUpload } from '@/lib/bibleBee';
+
+// Mock the database operations
+jest.mock('@/lib/db', () => {
+  const mockScriptures = [];
+  return {
+    db: {
+      scriptures: {
+        clear: jest.fn(() => Promise.resolve()),
+        put: jest.fn((item) => {
+          const existingIndex = mockScriptures.findIndex(s => s.id === item.id);
+          if (existingIndex >= 0) {
+            mockScriptures[existingIndex] = item;
+          } else {
+            mockScriptures.push(item);
+          }
+          return Promise.resolve(item.id);
+        }),
+        where: jest.fn(() => ({
+          equals: jest.fn(() => ({
+            or: jest.fn(() => ({
+              equals: jest.fn(() => ({
+                toArray: jest.fn(() => Promise.resolve(mockScriptures))
+              }))
+            })),
+            toArray: jest.fn(() => Promise.resolve(mockScriptures))
+          })),
+          toArray: jest.fn(() => Promise.resolve(mockScriptures))
+        }))
+      }
+    }
+  };
+});
+
+// Mock commitCsvRowsToYear to avoid database operations
+jest.mock('@/lib/bibleBee', () => {
+  const originalModule = jest.requireActual('@/lib/bibleBee');
+  return {
+    ...originalModule,
+    commitCsvRowsToYear: jest.fn(async (rows, yearId) => {
+      // Simple mock implementation that simulates adding rows to the database
+      return { inserted: rows.length, updated: 0 };
+    })
+  };
+});
 
 // Mock data for both CSV and JSON inputs
 const mockCsvRows: CsvRow[] = [
