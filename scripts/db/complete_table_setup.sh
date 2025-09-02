@@ -239,15 +239,36 @@ echo "Running SQL to create all tables directly..."
 # Execute each CREATE TABLE statement separately for better reliability
 echo "Creating tables..."
 
+# Get Supabase CLI version to adapt our commands
+CLI_VERSION=$($HOME/.bin/supabase --version | head -n 1 | awk '{print $3}' || echo "unknown")
+echo "Detected Supabase CLI version: $CLI_VERSION"
+
+# Helper function to execute SQL
+execute_sql() {
+  local sql="$1"
+  local description="$2"
+  
+  # Try using the db execute command (without --linked flag)
+  if $HOME/.bin/supabase db execute <<< "$sql" 2>/dev/null; then
+    echo "✓ $description"
+    return 0
+  fi
+  
+  # If that fails, try using psql directly
+  echo "Using psql fallback for: $description"
+  if [[ -n "$DB_PASSWORD" ]]; then
+    PGPASSWORD="$DB_PASSWORD" psql -h "db.$PROJECT_ID.supabase.co" -U "postgres" -d "postgres" -c "$sql" && echo "✓ $description" && return 0
+  fi
+  
+  echo "❌ Failed: $description"
+  return 1
+}
+
 # Create extension first
-$HOME/.bin/supabase db execute --linked <<SQL
-CREATE EXTENSION IF NOT EXISTS pgcrypto;
-SQL
-echo "✓ Created extension pgcrypto"
+execute_sql "CREATE EXTENSION IF NOT EXISTS pgcrypto;" "Created extension pgcrypto"
 
 # Create households table
-$HOME/.bin/supabase db execute --linked <<SQL
-CREATE TABLE IF NOT EXISTS households (
+execute_sql "CREATE TABLE IF NOT EXISTS households (
   household_id text PRIMARY KEY,
   external_id text,
   created_at timestamptz DEFAULT now(),
@@ -259,13 +280,10 @@ CREATE TABLE IF NOT EXISTS households (
   primary_phone text,
   email text,
   preferred_scripture_translation text
-);
-SQL
-echo "✓ Created households table"
+);" "Created households table"
 
 # Create guardians table
-$HOME/.bin/supabase db execute --linked <<SQL
-CREATE TABLE IF NOT EXISTS guardians (
+execute_sql "CREATE TABLE IF NOT EXISTS guardians (
   guardian_id text PRIMARY KEY,
   household_id text,
   external_id text,
@@ -274,13 +292,10 @@ CREATE TABLE IF NOT EXISTS guardians (
   mobile_phone text,
   email text,
   created_at timestamptz DEFAULT now()
-);
-SQL
-echo "✓ Created guardians table"
+);" "Created guardians table"
 
 # Create children table
-$HOME/.bin/supabase db execute --linked <<SQL
-CREATE TABLE IF NOT EXISTS children (
+execute_sql "CREATE TABLE IF NOT EXISTS children (
   child_id text PRIMARY KEY,
   household_id text,
   external_id text,
@@ -293,13 +308,10 @@ CREATE TABLE IF NOT EXISTS children (
   notes text,
   created_at timestamptz DEFAULT now(),
   updated_at timestamptz
-);
-SQL
-echo "✓ Created children table"
+);" "Created children table"
 
 # Create scriptures table
-$HOME/.bin/supabase db execute --linked <<SQL
-CREATE TABLE IF NOT EXISTS scriptures (
+execute_sql "CREATE TABLE IF NOT EXISTS scriptures (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   competition_year_id uuid,
   "order" integer,
@@ -307,37 +319,28 @@ CREATE TABLE IF NOT EXISTS scriptures (
   texts jsonb,
   created_at timestamptz DEFAULT now(),
   external_id text
-);
-SQL
-echo "✓ Created scriptures table"
+);" "Created scriptures table"
 
 # Create events table
-$HOME/.bin/supabase db execute --linked <<SQL
-CREATE TABLE IF NOT EXISTS events (
+execute_sql "CREATE TABLE IF NOT EXISTS events (
   event_id text PRIMARY KEY,
   name text,
   description text,
   created_at timestamptz DEFAULT now()
-);
-SQL
-echo "✓ Created events table"
+);" "Created events table"
 
 # Create timeslots table
-$HOME/.bin/supabase db execute --linked <<SQL
-CREATE TABLE IF NOT EXISTS timeslots (
+execute_sql "CREATE TABLE IF NOT EXISTS timeslots (
   timeslot_id text PRIMARY KEY,
   event_id text,
   start_time time,
   end_time time,
   description text,
   created_at timestamptz DEFAULT now()
-);
-SQL
-echo "✓ Created timeslots table"
+);" "Created timeslots table"
 
 # Create attendance table
-$HOME/.bin/supabase db execute --linked <<SQL
-CREATE TABLE IF NOT EXISTS attendance (
+execute_sql "CREATE TABLE IF NOT EXISTS attendance (
   attendance_id text PRIMARY KEY,
   event_id text,
   child_id text,
@@ -346,61 +349,46 @@ CREATE TABLE IF NOT EXISTS attendance (
   check_in_at timestamptz,
   checked_in_by text,
   created_at timestamptz DEFAULT now()
-);
-SQL
-echo "✓ Created attendance table"
+);" "Created attendance table"
 
 # Create emergency_contacts table
-$HOME/.bin/supabase db execute --linked <<SQL
-CREATE TABLE IF NOT EXISTS emergency_contacts (
+execute_sql "CREATE TABLE IF NOT EXISTS emergency_contacts (
   contact_id text PRIMARY KEY,
   household_id text,
   name text,
   relationship text,
   phone text,
   created_at timestamptz DEFAULT now()
-);
-SQL
-echo "✓ Created emergency_contacts table"
+);" "Created emergency_contacts table"
 
 # Create users table
-$HOME/.bin/supabase db execute --linked <<SQL
-CREATE TABLE IF NOT EXISTS users (
+execute_sql "CREATE TABLE IF NOT EXISTS users (
   user_id text PRIMARY KEY,
   email text UNIQUE,
   created_at timestamptz DEFAULT now(),
   first_name text,
   last_name text,
   role text
-);
-SQL
-echo "✓ Created users table"
+);" "Created users table"
 
 # Create ministries table
-$HOME/.bin/supabase db execute --linked <<SQL
-CREATE TABLE IF NOT EXISTS ministries (
+execute_sql "CREATE TABLE IF NOT EXISTS ministries (
   ministry_id text PRIMARY KEY,
   name text,
   description text,
   created_at timestamptz DEFAULT now()
-);
-SQL
-echo "✓ Created ministries table"
+);" "Created ministries table"
 
 # Create ministry_leaders table
-$HOME/.bin/supabase db execute --linked <<SQL
-CREATE TABLE IF NOT EXISTS ministry_leaders (
+execute_sql "CREATE TABLE IF NOT EXISTS ministry_leaders (
   leader_id text PRIMARY KEY,
   ministry_id text,
   user_id text,
   created_at timestamptz DEFAULT now()
-);
-SQL
-echo "✓ Created ministry_leaders table"
+);" "Created ministry_leaders table"
 
 # Create ministry_enrollments table
-$HOME/.bin/supabase db execute --linked <<SQL
-CREATE TABLE IF NOT EXISTS ministry_enrollments (
+execute_sql "CREATE TABLE IF NOT EXISTS ministry_enrollments (
   enrollment_id text PRIMARY KEY,
   ministry_id text,
   child_id text,
@@ -408,26 +396,20 @@ CREATE TABLE IF NOT EXISTS ministry_enrollments (
   status text,
   notes text,
   custom_fields jsonb
-);
-SQL
-echo "✓ Created ministry_enrollments table"
+);" "Created ministry_enrollments table"
 
 # Create grade_rules table
-$HOME/.bin/supabase db execute --linked <<SQL
-CREATE TABLE IF NOT EXISTS grade_rules (
+execute_sql "CREATE TABLE IF NOT EXISTS grade_rules (
   rule_id text PRIMARY KEY,
   ministry_id text,
   min_birth_date date,
   max_birth_date date,
   grade_label text,
   created_at timestamptz DEFAULT now()
-);
-SQL
-echo "✓ Created grade_rules table"
+);" "Created grade_rules table"
 
 # Create student_scriptures table
-$HOME/.bin/supabase db execute --linked <<SQL
-CREATE TABLE IF NOT EXISTS student_scriptures (
+execute_sql "CREATE TABLE IF NOT EXISTS student_scriptures (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   enrollment_id text,
   scripture_id uuid,
@@ -436,13 +418,10 @@ CREATE TABLE IF NOT EXISTS student_scriptures (
   notes text,
   updated_at timestamptz,
   created_at timestamptz DEFAULT now()
-);
-SQL
-echo "✓ Created student_scriptures table"
+);" "Created student_scriptures table"
 
 # Create student_essays table
-$HOME/.bin/supabase db execute --linked <<SQL
-CREATE TABLE IF NOT EXISTS student_essays (
+execute_sql "CREATE TABLE IF NOT EXISTS student_essays (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   enrollment_id text,
   status text,
@@ -450,14 +429,11 @@ CREATE TABLE IF NOT EXISTS student_essays (
   notes text,
   updated_at timestamptz,
   created_at timestamptz DEFAULT now()
-);
-SQL
-echo "✓ Created student_essays table"
+);" "Created student_essays table"
 
 # Add foreign key constraints
 echo "Adding foreign key constraints..."
-$HOME/.bin/supabase db execute --linked <<SQL
-DO $$
+execute_sql "DO $$
 BEGIN
   -- guardians -> households
   IF NOT EXISTS (
@@ -486,11 +462,15 @@ BEGIN
       RAISE NOTICE 'Error adding FK constraint children_household_id_fkey: %', SQLERRM;
     END;
   END IF;
-END $$;
-SQL
-echo "✓ Added foreign key constraints"
+END $$;" "Added foreign key constraints"
 
 echo "Verifying database setup..."
-$HOME/.bin/supabase migration status || true
+# Try to check table counts
+TABLE_COUNT_SQL="SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public';"
+execute_sql "$TABLE_COUNT_SQL" "Counted public tables"
+
+# Try to list tables
+TABLE_LIST_SQL="SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name;"
+execute_sql "$TABLE_LIST_SQL" "Listed all tables"
 
 echo "✅ All tables have been created. Please verify database structure in the Supabase dashboard."
