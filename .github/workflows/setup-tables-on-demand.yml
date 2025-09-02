@@ -14,6 +14,15 @@ on:
         options:
           - production
           - staging
+      method:
+        description: 'Table creation method'
+        required: true
+        default: 'script'
+        type: choice
+        options:
+          - script
+          - direct-sql
+          - manual
       dryRun:
         description: 'Dry run (verify without making changes)'
         required: false
@@ -61,13 +70,12 @@ jobs:
           PROJECT_ID=$(echo $SUPABASE_URL | sed -E 's/https:\/\/([^.]+)\.supabase\.co.*/\1/')
           echo "PROJECT_ID=$PROJECT_ID" >> $GITHUB_ENV
 
-      - name: Make complete table setup script executable
-        run: chmod +x scripts/db/complete_table_setup.sh
+      - name: Make scripts executable
+        run: |
+          chmod +x scripts/db/complete_table_setup.sh
+          chmod +x scripts/db/create_simple_sql.sh
 
-      - name: Run table setup script
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      - name: Run table setup using selected method
         run: |
           # Explicitly export the access token
           export SUPABASE_ACCESS_TOKEN="${{ secrets.SUPABASE_ACCESS_TOKEN }}"
@@ -76,54 +84,80 @@ jobs:
           # Show what would be executed if dry run is enabled
           if [[ "${{ inputs.dryRun }}" == "true" ]]; then
             echo "DRY RUN MODE - No changes will be made"
-            
-            # Show SQL statements that would be executed
-            echo "Tables that would be created:"
-            grep -A 3 "CREATE TABLE IF NOT EXISTS" scripts/db/complete_table_setup.sh | grep -v "^--" | sed 's/^/  /'
-            
-            echo "Script would execute but no changes will be made"
             echo "✅ Dry run completed successfully"
-          else
+            exit 0
+          fi
+
+          # Choose method based on input
+          if [[ "${{ inputs.method }}" == "script" ]]; then
             echo "Running complete table setup script for ${{ inputs.environment }}..."
             scripts/db/complete_table_setup.sh "$PROJECT_ID" "$SUPABASE_ACCESS_TOKEN" "$SUPABASE_DB_PASSWORD"
+            
+          elif [[ "${{ inputs.method }}" == "direct-sql" ]]; then
+            # Generate a simple SQL file
+            echo "Generating simplified SQL file..."
+            scripts/db/create_simple_sql.sh
+            
+            # Execute it directly with psql
+            echo "Executing SQL directly with psql..."
+            PGPASSWORD="$SUPABASE_DB_PASSWORD" psql -h "db.$PROJECT_ID.supabase.co" -U "postgres" -d "postgres" -f "/tmp/simplified_table_setup.sql"
+            
+            echo "Direct SQL execution completed"
+            
+          elif [[ "${{ inputs.method }}" == "manual" ]]; then
+            # Generate the SQL file but don't execute it
+            echo "Generating SQL file for manual execution..."
+            scripts/db/create_simple_sql.sh
+            
+            echo "SQL file generated at /tmp/simplified_table_setup.sql"
+            echo "Content:"
+            cat /tmp/simplified_table_setup.sql
+            
+            echo "Manual execution selected - no automatic table creation performed"
+            echo "Copy the SQL above and execute it in the Supabase dashboard SQL editor"
           fi
 
       - name: Verify database tables
         if: inputs.dryRun == false
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         run: |
+          # Export the access token and password again
           export SUPABASE_ACCESS_TOKEN="${{ secrets.SUPABASE_ACCESS_TOKEN }}"
           export SUPABASE_DB_PASSWORD="${{ secrets.SUPABASE_DB_PASSWORD }}"
 
           echo "Verifying database tables in ${{ inputs.environment }}..."
 
-          # Create a verification script
-          cat > verify_tables.sql << 'EOF'
-          SELECT table_name, 
-                 (SELECT COUNT(*) FROM information_schema.columns WHERE table_name = t.table_name) AS column_count
-          FROM information_schema.tables t
-          WHERE table_schema = 'public'
-            AND table_type = 'BASE TABLE'
-          ORDER BY table_name;
-          EOF
-
-          # Link to project
-          echo "Linking to project..."
-          $HOME/.bin/supabase link --project-ref "$PROJECT_ID" --password "$SUPABASE_DB_PASSWORD"
-
-          # Run verification
-          echo "Table inventory in the database:"
-          $HOME/.bin/supabase db execute --file verify_tables.sql --linked || echo "Unable to run table verification query"
+          # Try direct psql connection first (most reliable)
+          if command -v psql &> /dev/null; then
+            echo "Using direct psql connection for verification..."
+            PGPASSWORD="$SUPABASE_DB_PASSWORD" psql -h "db.$PROJECT_ID.supabase.co" -U "postgres" -d "postgres" -c "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name;"
+          else
+            # Fall back to CLI methods
+            echo "Linking to project for verification..."
+            $HOME/.bin/supabase link --project-ref "$PROJECT_ID" --password "$SUPABASE_DB_PASSWORD"
+            
+            # Create a verification script
+            cat > verify_tables.sql << 'EOF'
+            SELECT table_name, 
+                  (SELECT COUNT(*) FROM information_schema.columns WHERE table_name = t.table_name) AS column_count
+            FROM information_schema.tables t
+            WHERE table_schema = 'public'
+              AND table_type = 'BASE TABLE'
+            ORDER BY table_name;
+            EOF
+            
+            # Run verification using multiple methods
+            echo "Table inventory in the database:"
+            $HOME/.bin/supabase db execute < verify_tables.sql || 
+            $HOME/.bin/supabase db query < verify_tables.sql || 
+            echo "Unable to run table verification query"
+          fi
 
       - name: Create database snapshot
         if: inputs.dryRun == false
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         run: |
+          # Export the access token and password again
           export SUPABASE_ACCESS_TOKEN="${{ secrets.SUPABASE_ACCESS_TOKEN }}"
+          export SUPABASE_DB_PASSWORD="${{ secrets.SUPABASE_DB_PASSWORD }}"
 
           # Create snapshots directory
           mkdir -p snapshots
@@ -132,10 +166,19 @@ jobs:
           # Link project with DB password
           $HOME/.bin/supabase link --project-ref "$PROJECT_ID" --password "$SUPABASE_DB_PASSWORD"
 
-          # Run dump command
-          $HOME/.bin/supabase db dump -f "$SNAPSHOT" --linked
-
-          echo "✅ Schema snapshot created at $SNAPSHOT"
+          # Try different dump methods
+          echo "Creating database snapshot..."
+          if $HOME/.bin/supabase db dump -f "$SNAPSHOT" --linked 2>/dev/null; then
+            echo "✅ Schema snapshot created at $SNAPSHOT using --linked flag"
+          elif $HOME/.bin/supabase db dump -f "$SNAPSHOT" 2>/dev/null; then
+            echo "✅ Schema snapshot created at $SNAPSHOT without flags"
+          elif command -v pg_dump &> /dev/null; then
+            echo "Using direct pg_dump for snapshot..."
+            PGPASSWORD="$SUPABASE_DB_PASSWORD" pg_dump -h "db.$PROJECT_ID.supabase.co" -U "postgres" -d "postgres" -s > "$SNAPSHOT"
+            echo "✅ Schema snapshot created at $SNAPSHOT using pg_dump"
+          else
+            echo "❌ Could not create schema snapshot"
+          fi
 
       - name: Upload schema snapshot
         if: inputs.dryRun == false

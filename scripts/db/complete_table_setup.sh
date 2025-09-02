@@ -243,24 +243,54 @@ echo "Creating tables..."
 CLI_VERSION=$($HOME/.bin/supabase --version | head -n 1 | awk '{print $3}' || echo "unknown")
 echo "Detected Supabase CLI version: $CLI_VERSION"
 
-# Helper function to execute SQL
+# Helper function to execute SQL - creates a temporary file for better multi-line SQL handling
 execute_sql() {
   local sql="$1"
   local description="$2"
+  local temp_file
   
-  # Try using the db execute command (without --linked flag)
-  if $HOME/.bin/supabase db execute <<< "$sql" 2>/dev/null; then
+  # Create a temporary file with the SQL command
+  temp_file=$(mktemp)
+  echo "$sql" > "$temp_file"
+  
+  echo "Executing: $description"
+  
+  # Try using the db execute command without flags
+  if $HOME/.bin/supabase db execute < "$temp_file" 2>/dev/null; then
+    rm "$temp_file"
     echo "✓ $description"
     return 0
   fi
   
-  # If that fails, try using psql directly
-  echo "Using psql fallback for: $description"
-  if [[ -n "$DB_PASSWORD" ]]; then
-    PGPASSWORD="$DB_PASSWORD" psql -h "db.$PROJECT_ID.supabase.co" -U "postgres" -d "postgres" -c "$sql" && echo "✓ $description" && return 0
+  # Try using the db query command (older versions)
+  if $HOME/.bin/supabase db query < "$temp_file" 2>/dev/null; then
+    rm "$temp_file"
+    echo "✓ $description"
+    return 0
   fi
   
-  echo "❌ Failed: $description"
+  # If that fails, try direct SQL execution
+  echo "Trying direct SQL execution for: $description"
+  
+  # Try running SQL directly through psql
+  if command -v psql &> /dev/null && [[ -n "$DB_PASSWORD" ]]; then
+    PGPASSWORD="$DB_PASSWORD" psql -h "db.$PROJECT_ID.supabase.co" -U "postgres" -d "postgres" -f "$temp_file" 2>/dev/null
+    result=$?
+    rm "$temp_file"
+    
+    if [[ $result -eq 0 ]]; then
+      echo "✓ $description (via direct psql)"
+      return 0
+    fi
+  fi
+  
+  # Last resort: print the SQL command so it can be run manually
+  echo "❌ Failed to execute: $description"
+  echo "Manual SQL command (for reference):"
+  echo "------------------------------------"
+  cat "$temp_file"
+  echo "------------------------------------"
+  rm "$temp_file"
   return 1
 }
 
