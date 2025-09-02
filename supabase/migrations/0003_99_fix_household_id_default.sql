@@ -15,20 +15,23 @@ CREATE TABLE IF NOT EXISTS children (
 );
 
 -- Create a helper function to check if a column has a default
+-- Using different quote styles to avoid nesting issues
+CREATE OR REPLACE FUNCTION has_default(p_table text, p_column text) RETURNS boolean AS $func$
+DECLARE
+  has_default boolean;
+BEGIN
+  SELECT column_default IS NOT NULL INTO has_default
+  FROM information_schema.columns
+  WHERE table_name = p_table
+  AND column_name = p_column;
+  
+  RETURN COALESCE(has_default, false);
+END;
+$func$ LANGUAGE plpgsql;
+
+-- Check if the column has a default value
 DO $$
 BEGIN
-  CREATE OR REPLACE FUNCTION has_default(p_table text, p_column text) RETURNS boolean AS $$
-  DECLARE
-    has_default boolean;
-  BEGIN
-    SELECT column_default IS NOT NULL INTO has_default
-    FROM information_schema.columns
-    WHERE table_name = p_table
-    AND column_name = p_column;
-    
-    RETURN COALESCE(has_default, false);
-  END;
-  $$ LANGUAGE plpgsql;
 
   -- Safely drop the default if it exists
   IF has_default('children', 'household_id') THEN
@@ -38,8 +41,9 @@ BEGIN
     RAISE NOTICE 'No default found on children.household_id, nothing to drop';
   END IF;
 
-  -- Clean up
-  DROP FUNCTION IF EXISTS has_default;
 END$$;
+
+-- Clean up
+DROP FUNCTION IF EXISTS has_default;
 
 COMMIT;
