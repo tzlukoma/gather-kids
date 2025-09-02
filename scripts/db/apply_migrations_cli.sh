@@ -40,9 +40,9 @@ else
 fi
 
 echo "Pushing migrations..."
-# Use --no-verify-migrations to avoid interactive confirmation
-$HOME/.bin/supabase db push --no-verify-migrations --dry-run
+# Do a dry run first to check for errors
+$HOME/.bin/supabase db push --dry-run --yes
 echo "Dry run successful. Applying migrations..."
-$HOME/.bin/supabase db push --no-verify-migrations
+$HOME/.bin/supabase db push --yes
 
 echo "✅ Migrations applied successfully."
