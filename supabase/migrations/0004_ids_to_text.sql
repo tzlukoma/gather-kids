@@ -1,9 +1,10 @@
 -- Migration: convert id columns to text to accept client-generated string IDs
 
--- First drop the foreign key constraints
+-- First drop all foreign key constraints
 ALTER TABLE IF EXISTS guardians DROP CONSTRAINT IF EXISTS guardians_household_id_fkey;
 ALTER TABLE IF EXISTS children DROP CONSTRAINT IF EXISTS children_household_id_fkey;
 ALTER TABLE IF EXISTS emergency_contacts DROP CONSTRAINT IF EXISTS fk_emergency_contacts_household;
+ALTER TABLE IF EXISTS guardians DROP CONSTRAINT IF EXISTS fk_guardians_household;
 
 -- Drop UUID defaults (if any)
 ALTER TABLE IF EXISTS guardians ALTER COLUMN household_id DROP DEFAULT;
@@ -34,9 +35,10 @@ ALTER TABLE IF EXISTS guardians ADD CONSTRAINT guardians_household_id_fkey
 ALTER TABLE IF EXISTS children ADD CONSTRAINT children_household_id_fkey 
     FOREIGN KEY (household_id) REFERENCES households(household_id);
     
--- Handle the emergency_contacts table if it exists
+-- Handle the emergency_contacts and guardians tables if they exist
 DO $$
 BEGIN
+    -- Handle emergency_contacts table
     IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'emergency_contacts') THEN
         -- Handle the emergency_contacts.household_id_uuid column if it exists
         IF EXISTS (SELECT 1 FROM information_schema.columns 
@@ -47,6 +49,21 @@ BEGIN
             -- Re-add the constraint if all values are non-null
             ALTER TABLE IF EXISTS emergency_contacts 
             ADD CONSTRAINT fk_emergency_contacts_household 
+            FOREIGN KEY (household_id_uuid) REFERENCES households(household_id);
+        END IF;
+    END IF;
+    
+    -- Handle guardians table household_id_uuid column
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'guardians') THEN
+        -- Handle the guardians.household_id_uuid column if it exists
+        IF EXISTS (SELECT 1 FROM information_schema.columns 
+                  WHERE table_name = 'guardians' AND column_name = 'household_id_uuid') THEN
+            -- Convert household_id_uuid to text
+            ALTER TABLE guardians ALTER COLUMN household_id_uuid TYPE text USING household_id_uuid::text;
+            
+            -- Re-add the constraint if all values are non-null
+            ALTER TABLE IF EXISTS guardians 
+            ADD CONSTRAINT fk_guardians_household 
             FOREIGN KEY (household_id_uuid) REFERENCES households(household_id);
         END IF;
     END IF;
