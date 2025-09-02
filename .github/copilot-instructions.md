@@ -51,6 +51,14 @@ Always reference these instructions first and fallback to search or bash command
 - Generate Prisma client: `npx prisma generate`
 - Database migrations: `npx prisma migrate dev --name <change>`
 
+### Type Generation (CRITICAL after schema changes)
+- **ALWAYS regenerate types after any schema change**: Ensures TypeScript interfaces match database schema
+- Local development: `npm run gen:types` -- generates types from local Supabase instance
+- Production/remote: `npm run gen:types:prod` -- requires SUPABASE_PROJECT_ID environment variable
+- **Automatic fallback**: Script creates fallback types if Supabase CLI is not available
+- **Post-migration workflow**: After running migrations, always run `npm run gen:types` before continuing development
+- **File location**: Generated types are saved to `src/lib/database/supabase-types.ts`
+
 ## Validation
 
 ### **CRITICAL Manual Testing Scenarios**
@@ -73,10 +81,11 @@ Always reference these instructions first and fallback to search or bash command
 
 ### Pre-commit Validation
 - **ALWAYS run before committing changes:**
-  1. `npm run typecheck` -- must pass (exit code 0)
-  2. `npm run build` -- must succeed (exit code 0)
-  3. `npm test` -- must pass (exit code 0)
-  4. **Manual login test** as described above (MANDATORY)
+  1. `npm run gen:types` -- regenerate types if schema changed (exit code 0)
+  2. `npm run typecheck` -- must pass (exit code 0)
+  3. `npm run build` -- must succeed (exit code 0)
+  4. `npm test` -- must pass (exit code 0)
+  5. **Manual login test** as described above (MANDATORY)
 
 ## Common Tasks
 
@@ -92,6 +101,8 @@ Always reference these instructions first and fallback to search or bash command
 - Seed scriptures: `npm run seed:scriptures` -- requires proper .env.local with database config
 - Import Dexie data: `npm run import:dexie` -- requires .env.local config
 - Dry run import: `npm run import:dexie:dry` -- preview import without changes
+- Generate types: `npm run gen:types` -- local development type generation
+- Generate types (prod): `npm run gen:types:prod` -- production type generation
 
 ### AI Development Features
 - Genkit development: `npm run genkit:dev` -- AI development server (if AI features enabled)
