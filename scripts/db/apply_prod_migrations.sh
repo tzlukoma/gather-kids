@@ -44,11 +44,9 @@ $HOME/.bin/supabase migration status || true
 
 echo "Creating any missing base tables and fixes using Supabase SQL functions..."
 
-# Create a temporary SQL file
-TMP_SQL_FILE=$(mktemp)
-
-# Write the SQL to the temporary file
-cat << 'EOF' > "$TMP_SQL_FILE"
+# Execute the SQL directly using a heredoc to pipe into the CLI command
+echo "Running SQL via Supabase CLI..."
+$HOME/.bin/supabase db execute --connected << 'EOSQL'
 -- Create the base tables if they don't exist
 CREATE TABLE IF NOT EXISTS households (
   household_id text PRIMARY KEY,
@@ -96,21 +94,13 @@ BEGIN
     END;
   END IF;
 END $$;
-EOF
-
-# Execute the SQL using the Supabase CLI's db execute command
-echo "Running SQL via Supabase CLI..."
-$HOME/.bin/supabase db execute --file "$TMP_SQL_FILE" --connected
-
-# Clean up the temporary file
-rm -f "$TMP_SQL_FILE"
+EOSQL
 
 echo "Creating direct migration to fix the household_id issue..."
-# Create another temporary SQL file
-TMP_FIX_SQL=$(mktemp)
 
-# Write the direct fix SQL
-cat << 'EOF' > "$TMP_FIX_SQL"
+# Execute the SQL directly using a heredoc
+echo "Running direct fix via Supabase CLI..."
+$HOME/.bin/supabase db execute --connected << 'EOSQL'
 -- Direct fix for specific issues
 DO $$
 DECLARE
@@ -140,14 +130,7 @@ BEGIN
     END;
   END IF;
 END $$;
-EOF
-
-# Execute the fix SQL using the Supabase CLI
-echo "Running direct fix via Supabase CLI..."
-$HOME/.bin/supabase db execute --file "$TMP_FIX_SQL" --connected
-
-# Clean up
-rm -f "$TMP_FIX_SQL"
+EOSQL
 
 echo "Pushing migrations..."
 # Try three approaches in sequence, continuing if one fails
