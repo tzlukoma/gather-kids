@@ -33,18 +33,33 @@ jobs:
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: |
+          # Create bin directory in home if it doesn't exist
+          mkdir -p "$HOME/.bin"
+
+          # Download the latest version for Linux
+          curl -s -L https://github.com/supabase/cli/releases/latest/download/supabase_linux_amd64.tar.gz | tar -xz -C "$HOME/.bin"
+
+          # Make it executable
+          chmod +x "$HOME/.bin/supabase"
+
+          # Add to PATH
+          export PATH="$HOME/.bin:$PATH"
+
+          # Create snapshots directory
           mkdir -p snapshots
           SNAPSHOT="snapshots/schema-prod-$(date +'%Y%m%d-%H%M%S').sql"
-          supabase db dump -f "$SNAPSHOT" --linked
+
+          # Run dump command
+          $HOME/.bin/supabase db dump -f "$SNAPSHOT" --linked
       - name: Upload schema snapshot
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         with:
           name: prod-schema-snapshot
           path: snapshots/
           retention-days: 30
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v3
         with:
           node-version: '18'
           cache: 'npm'
@@ -53,7 +68,19 @@ jobs:
         run: npm ci
 
       - name: Install Supabase CLI
-        run: npm install -g supabase
+        run: |
+          # Create bin directory in home if it doesn't exist
+          mkdir -p "$HOME/.bin"
+
+          # Download the latest version for Linux
+          curl -s -L https://github.com/supabase/cli/releases/latest/download/supabase_linux_amd64.tar.gz | tar -xz -C "$HOME/.bin"
+
+          # Make it executable
+          chmod +x "$HOME/.bin/supabase"
+
+          # Add to PATH
+          export PATH="$HOME/.bin:$PATH"
+          echo "$HOME/.bin" >> $GITHUB_PATH
 
       - name: Extract Project ID from Production URL
         run: |

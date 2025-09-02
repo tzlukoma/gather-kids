@@ -26,11 +26,20 @@ const projectId = process.env.SUPABASE_PROJECT_ID;
 
 // Check if Supabase CLI is available
 function isSupabaseCLIAvailable() {
+	// First try the bin directory where we installed it in the workflow
 	try {
-		execSync('supabase --version', { stdio: 'ignore' });
-		return true;
+		execSync(`${process.env.HOME}/.bin/supabase --version`, {
+			stdio: 'ignore',
+		});
+		return 'bin';
 	} catch (error) {
-		return false;
+		// Try the global command
+		try {
+			execSync('supabase --version', { stdio: 'ignore' });
+			return 'global';
+		} catch (error2) {
+			return false;
+		}
 	}
 }
 
@@ -85,20 +94,25 @@ export type SupabaseJson = any;
 function main() {
 	try {
 		// Check if Supabase CLI is available
-		if (!isSupabaseCLIAvailable()) {
+		const cliLocation = isSupabaseCLIAvailable();
+		if (!cliLocation) {
 			createFallbackTypes();
 			return;
 		}
 
+		// Use the correct path to the Supabase CLI
+		const supabasePath =
+			cliLocation === 'bin' ? `${process.env.HOME}/.bin/supabase` : 'supabase';
+
 		let command;
 		if (useLocal) {
 			console.log('📦 Generating types from local Supabase instance...');
-			command = 'supabase gen types typescript --local';
+			command = `${supabasePath} gen types typescript --local`;
 		} else if (projectId) {
 			console.log(
 				`📦 Generating types from remote Supabase project (${projectId})...`
 			);
-			command = `supabase gen types typescript --project-id "${projectId}" --schema public`;
+			command = `${supabasePath} gen types typescript --project-id "${projectId}" --schema public`;
 		} else {
 			console.error(
 				'❌ No project ID provided and --local not specified. Set SUPABASE_PROJECT_ID or use --local flag.'
