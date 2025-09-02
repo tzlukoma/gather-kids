@@ -22,9 +22,21 @@ BEGIN
   END IF;
 END$$;
 
--- 4) Add the FK constraint referencing households(household_id)
-ALTER TABLE guardians
-  ADD CONSTRAINT fk_guardians_household
-  FOREIGN KEY (household_id_uuid) REFERENCES households(household_id);
+-- 4) Add the FK constraint referencing households(household_id) if it doesn't already exist
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint 
+    WHERE conname = 'fk_guardians_household' 
+    AND conrelid = 'guardians'::regclass
+  ) THEN
+    ALTER TABLE guardians
+      ADD CONSTRAINT fk_guardians_household
+      FOREIGN KEY (household_id_uuid) REFERENCES households(household_id);
+  ELSE
+    RAISE NOTICE 'Constraint fk_guardians_household already exists, skipping.';
+  END IF;
+END
+$$;
 
 COMMIT;
