@@ -3,9 +3,10 @@ set -euo pipefail
 
 PROJECT_ID="${1:-}"
 ACCESS_TOKEN="${2:-}"
+DB_PASSWORD="${3:-}"
 
 if [[ -z "$PROJECT_ID" || -z "$ACCESS_TOKEN" ]]; then
-  echo "Usage: $0 <PROJECT_ID> <ACCESS_TOKEN>"
+  echo "Usage: $0 <PROJECT_ID> <ACCESS_TOKEN> [DB_PASSWORD]"
   exit 2
 fi
 
@@ -28,10 +29,15 @@ fi
 
 # Export the access token for Supabase CLI
 export SUPABASE_ACCESS_TOKEN="$ACCESS_TOKEN"
+export SUPABASE_DB_PASSWORD="$DB_PASSWORD"
 
 echo "Linking project..."
-# Link project non-interactively (using ACCESS_TOKEN for auth)
-$HOME/.bin/supabase link --project-ref "$PROJECT_ID"
+# Link project with DB password if provided
+if [[ -n "$DB_PASSWORD" ]]; then
+  $HOME/.bin/supabase link --project-ref "$PROJECT_ID" --password "$DB_PASSWORD"
+else
+  $HOME/.bin/supabase link --project-ref "$PROJECT_ID"
+fi
 
 echo "Pushing migrations..."
 # Use --no-verify-migrations to avoid interactive confirmation
