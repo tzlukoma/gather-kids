@@ -28,8 +28,8 @@ import type {
 export class SupabaseAdapter implements DatabaseAdapter {
 	private client: SupabaseClient;
 
-	constructor(supabaseUrl: string, supabaseAnonKey: string) {
-		this.client = createClient(supabaseUrl, supabaseAnonKey);
+	constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: SupabaseClient) {
+		this.client = customClient || createClient(supabaseUrl, supabaseAnonKey);
 	}
 
 	// Households
