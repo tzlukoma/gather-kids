@@ -3,7 +3,7 @@ name: PROD deploy (manual approval)
 on:
   workflow_dispatch: {}
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   deploy:
@@ -43,3 +43,36 @@ jobs:
           name: prod-schema-snapshot
           path: snapshots/
           retention-days: 30
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Supabase CLI
+        run: npm install -g supabase
+
+      - name: Extract Project ID from Production URL
+        run: |
+          # Extract project ID from PROD_SUPABASE_URL (format: https://<project-id>.supabase.co)
+          SUPABASE_URL="${{ secrets.PROD_SUPABASE_URL }}"
+          PROJECT_ID=$(echo $SUPABASE_URL | sed -E 's/https:\/\/([^.]+)\.supabase\.co.*/\1/')
+          echo "PROJECT_ID=$PROJECT_ID" >> $GITHUB_ENV
+
+      - name: Generate types from production schema
+        env:
+          SUPABASE_PROJECT_ID: ${{ env.PROJECT_ID }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: node scripts/gen-types.cjs
+
+      - name: Commit and push if there are changes
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add src/lib/database/supabase-types.ts
+          git diff --quiet && git diff --staged --quiet || git commit -m "[auto] Update Supabase type definitions from Production"
+          git push

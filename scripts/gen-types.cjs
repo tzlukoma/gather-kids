@@ -36,7 +36,9 @@ function isSupabaseCLIAvailable() {
 
 // Create a fallback types file if CLI is not available
 function createFallbackTypes() {
-	const fallbackTypes = HEADER + `// Supabase CLI not available - using fallback types
+	const fallbackTypes =
+		HEADER +
+		`// Supabase CLI not available - using fallback types
 // Install Supabase CLI to generate actual types from schema
 
 export interface Database {
@@ -68,10 +70,16 @@ export type SupabaseJson = any;
 `;
 
 	fs.writeFileSync(TYPES_FILE, fallbackTypes);
-	console.log(`⚠️  Supabase CLI not available. Created fallback types: ${TYPES_FILE}`);
+	console.log(
+		`⚠️  Supabase CLI not available. Created fallback types: ${TYPES_FILE}`
+	);
 	console.log('📖 To generate actual types, install Supabase CLI:');
-	console.log('   - Using Docker: curl -fsSL https://get.docker.com -o get-docker.sh && sudo sh get-docker.sh');
-	console.log('   - Or download from: https://github.com/supabase/cli/releases');
+	console.log(
+		'   - Using Docker: curl -fsSL https://get.docker.com -o get-docker.sh && sudo sh get-docker.sh'
+	);
+	console.log(
+		'   - Or download from: https://github.com/supabase/cli/releases'
+	);
 }
 
 function main() {
@@ -108,12 +116,12 @@ function main() {
 				// Add any custom processing here if needed
 				.replace(/export type Json/, 'export type SupabaseJson');
 		// Add more replacements as needed
-		
+
 		fs.writeFileSync(TYPES_FILE, processedTypes);
 		console.log(`✅ Types generated successfully: ${TYPES_FILE}`);
 	} catch (error) {
 		console.error('❌ Failed to generate types:', error.message);
-		
+
 		// Create fallback types on error
 		console.log('📦 Creating fallback types...');
 		createFallbackTypes();
