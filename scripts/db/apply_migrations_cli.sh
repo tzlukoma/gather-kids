@@ -41,8 +41,8 @@ fi
 
 echo "Pushing migrations..."
 # Do a dry run first to check for errors
-$HOME/.bin/supabase db push --dry-run --yes
+$HOME/.bin/supabase db push --dry-run --include-all --yes
 echo "Dry run successful. Applying migrations..."
-$HOME/.bin/supabase db push --yes
+$HOME/.bin/supabase db push --include-all --yes
 
 echo "✅ Migrations applied successfully."
