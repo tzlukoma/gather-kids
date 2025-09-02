@@ -69,6 +69,7 @@ jobs:
         with:
           name: uat-schema-snapshot
           path: snapshots/
+          retention-days: 14
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -120,4 +121,3 @@ jobs:
           git add src/lib/database/supabase-types.ts
           git diff --quiet && git diff --staged --quiet || git commit -m "[auto] Update Supabase type definitions from UAT"
           git push
-          retention-days: 14
