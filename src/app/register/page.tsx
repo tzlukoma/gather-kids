@@ -1,6 +1,7 @@
 'use client';
 
 import { useForm, useFieldArray, useWatch } from 'react-hook-form';
+import { useRouter } from 'next/navigation';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
@@ -55,10 +56,23 @@ import {
 import { DanceMinistryForm } from '@/components/gatherKids/dance-ministry-form';
 import { TeenFellowshipForm } from '@/components/gatherKids/teen-fellowship-form';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from '@/components/ui/select';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
-import type { Ministry, Household, CustomQuestion } from '@/lib/types';
+import type {
+	Ministry,
+	Household,
+	CustomQuestion,
+	RegistrationCycle,
+} from '@/lib/types';
 import { useFeatureFlags } from '@/contexts/feature-flag-context';
+import { useAuth } from '@/contexts/auth-context';
 
 const MOCK_EMAILS = {
 	PREFILL_OVERWRITE: 'reg.overwrite@example.com',
@@ -119,6 +133,7 @@ const registrationSchema = z
 			name: z.string().optional(),
 			address_line1: z.string().min(1, 'Address is required.'),
 			household_id: z.string().optional(), // To track for overwrites
+			preferredScriptureTranslation: z.string().optional(),
 		}),
 		guardians: z
 			.array(guardianSchema)
@@ -431,19 +446,31 @@ const ProgramSection = ({
 export default function RegisterPage() {
 	const { toast } = useToast();
 	const { flags } = useFeatureFlags();
+	const { user } = useAuth();
+	const router = useRouter();
 	const [verificationStep, setVerificationStep] =
 		useState<VerificationStep>('enter_email');
 	const [verificationEmail, setVerificationEmail] = useState('');
 	const [openAccordionItems, setOpenAccordionItems] = useState<string[]>([]);
 	const [isCurrentYearOverwrite, setIsCurrentYearOverwrite] = useState(false);
 	const [isPrefill, setIsPrefill] = useState(false);
+	const [isAuthenticatedUser, setIsAuthenticatedUser] = useState(false);
 
 	const allMinistries = useLiveQuery(() => db.ministries.toArray(), []);
+
+	// Get the active registration cycle to use for enrollments
+	const activeRegistrationCycle = useLiveQuery(async () => {
+		const cycles = await db.registration_cycles.toArray();
+		return cycles.find((c) => {
+			const val: any = (c as any)?.is_active;
+			return val === true || val === 1 || String(val) === '1';
+		});
+	}, []);
 
 	const form = useForm<RegistrationFormValues>({
 		resolver: zodResolver(registrationSchema),
 		defaultValues: {
-			household: { name: '', address_line1: '' },
+			household: { name: '', address_line1: '', preferredScriptureTranslation: 'NIV' },
 			guardians: [
 				{
 					first_name: '',
@@ -597,6 +624,88 @@ export default function RegisterPage() {
 	};
 
 	useEffect(() => {
+		// Check if user is authenticated and skip email lookup if so
+		// For live mode: check for authenticated users with email
+		// For demo mode: check for authenticated users with GUARDIAN role (parents)
+		const shouldSkipEmailLookup = 
+			(!flags.isDemoMode && user?.email) || 
+			(flags.isDemoMode && user?.email && user?.metadata?.role === 'GUARDIAN');
+			
+		if (shouldSkipEmailLookup) {
+			setVerificationEmail(user.email);
+			setIsAuthenticatedUser(true);
+			
+			// Check if they have existing household data
+			const checkExistingData = async () => {
+				const result = await findHouseholdByEmail(user.email, '2025');
+				
+				if (result) {
+					toast({
+						title: 'Household Found!',
+						description: 'Your information has been pre-filled for you to review.',
+					});
+					prefillForm(result.data);
+					setIsCurrentYearOverwrite(result.isCurrentYear);
+					setIsPrefill(result.isPrefill || false);
+				} else {
+					// New registration with authenticated email
+					toast({
+						title: 'Complete Your Registration',
+						description: 'Please complete the form below to register your family.',
+					});
+					setIsCurrentYearOverwrite(false);
+					setIsPrefill(false);
+					form.reset({
+						household: { name: '', address_line1: '', preferredScriptureTranslation: 'NIV' },
+						guardians: [
+							{
+								first_name: '',
+								last_name: '',
+								mobile_phone: '',
+								email: user.email, // Pre-fill with authenticated user's email
+								relationship: 'Mother',
+								is_primary: true,
+							},
+						],
+						emergencyContact: {
+							first_name: '',
+							last_name: '',
+							mobile_phone: '',
+							relationship: '',
+						},
+						children: [defaultChildValues],
+						consents: {
+							liability: false,
+							photoRelease: false,
+							custom_consents: {},
+						},
+					});
+					setOpenAccordionItems(['item-0']);
+				}
+				
+				setVerificationStep('form_visible');
+			};
+			
+			checkExistingData();
+		}
+	}, [user, flags.isDemoMode, toast, form]);
+
+	// Focus on the first field when the form becomes visible for authenticated users
+	useEffect(() => {
+		if (verificationStep === 'form_visible' && isAuthenticatedUser) {
+			// Use a small delay to ensure the form has rendered
+			const timer = setTimeout(() => {
+				const firstField = document.querySelector('input[name="household.address_line1"]') as HTMLInputElement;
+				if (firstField) {
+					firstField.focus();
+				}
+			}, 100);
+			
+			return () => clearTimeout(timer);
+		}
+	}, [verificationStep, isAuthenticatedUser]);
+
+	useEffect(() => {
 		const handleEnterPress = (event: KeyboardEvent) => {
 			if (event.key === 'Enter' && verificationStep === 'enter_email') {
 				handleEmailLookup();
@@ -611,11 +720,31 @@ export default function RegisterPage() {
 
 	async function onSubmit(data: RegistrationFormValues) {
 		try {
-			await registerHousehold(data, '2025', isPrefill);
+			// Use the active registration cycle instead of hardcoded '2025'
+			const cycleId = activeRegistrationCycle?.cycle_id || '2025'; // fallback to '2025' if no active cycle found
+			console.log('DEBUG: Registering household for cycle:', cycleId);
+			const result = await registerHousehold(data, cycleId, isPrefill);
 			toast({
 				title: 'Registration Submitted!',
 				description: "Thank you! Your family's registration has been received.",
 			});
+			
+			// Check if user is authenticated in non-demo mode
+			if (!flags.isDemoMode) {
+				// Import here to avoid circular dependency
+				const { supabase } = await import('@/lib/supabaseClient');
+				if (supabase) {
+					const { data: { session } } = await supabase.auth.getSession();
+					if (session?.user) {
+						// Redirect authenticated parent to household page
+						// The household page will now handle users who don't have GUARDIAN role
+						router.push('/household');
+						return;
+					}
+				}
+			}
+			
+			// Default behavior for demo mode or unauthenticated users
 			form.reset();
 			setVerificationStep('enter_email');
 			setVerificationEmail('');
@@ -756,9 +885,10 @@ export default function RegisterPage() {
 								<AlertTriangle className="h-4 w-4" />
 								<AlertTitle>Existing Registration Found</AlertTitle>
 								<AlertDescription>
-									A registration for the 2025 cycle already exists for this
-									household. Review the information below and make any necessary
-									changes. Submitting this form will{' '}
+									A registration for the{' '}
+									{activeRegistrationCycle?.cycle_id || 'current'} cycle already
+									exists for this household. Review the information below and
+									make any necessary changes. Submitting this form will{' '}
 									<span className="font-semibold">overwrite</span> the previous
 									submission for this year.
 								</AlertDescription>
@@ -775,15 +905,22 @@ export default function RegisterPage() {
 									parents, guardians, or other adults who are authorized to pick
 									up your children.
 									<br />
-									<Button
-										variant="link"
-										className="p-0 h-auto"
-										onClick={() => {
-											setVerificationStep('enter_email');
-											setIsCurrentYearOverwrite(false);
-										}}>
-										Change lookup email ({verificationEmail})
-									</Button>
+									{!isAuthenticatedUser && (
+										<Button
+											variant="link"
+											className="p-0 h-auto"
+											onClick={() => {
+												setVerificationStep('enter_email');
+												setIsCurrentYearOverwrite(false);
+											}}>
+											Change lookup email ({verificationEmail})
+										</Button>
+									)}
+									{isAuthenticatedUser && (
+										<span className="text-sm text-muted-foreground">
+											You are signed in as: {verificationEmail}
+										</span>
+									)}
 								</CardDescription>
 							</CardHeader>
 							<CardContent className="space-y-6">
@@ -799,6 +936,33 @@ export default function RegisterPage() {
 													{...field}
 												/>
 											</FormControl>
+											<FormMessage />
+										</FormItem>
+									)}
+								/>
+								<FormField
+									control={form.control}
+									name="household.preferredScriptureTranslation"
+									render={({ field }) => (
+										<FormItem>
+											<FormLabel>Preferred Bible Translation</FormLabel>
+											<FormDescription>
+												Select the Bible translation your family prefers for scripture memorization.
+											</FormDescription>
+											<Select onValueChange={field.onChange} defaultValue={field.value}>
+												<FormControl>
+													<SelectTrigger>
+														<SelectValue placeholder="Select a Bible translation" />
+													</SelectTrigger>
+												</FormControl>
+												<SelectContent>
+													<SelectItem value="NIV">NIV - New International Version</SelectItem>
+													<SelectItem value="KJV">KJV - King James Version</SelectItem>
+													<SelectItem value="ESV">ESV - English Standard Version</SelectItem>
+													<SelectItem value="NASB">NASB - New American Standard Bible</SelectItem>
+													<SelectItem value="NLT">NLT - New Living Translation</SelectItem>
+												</SelectContent>
+											</Select>
 											<FormMessage />
 										</FormItem>
 									)}
@@ -858,8 +1022,18 @@ export default function RegisterPage() {
 													<FormItem>
 														<FormLabel>Email</FormLabel>
 														<FormControl>
-															<Input type="email" {...field} />
+															<Input 
+																type="email" 
+																{...field} 
+																readOnly={index === 0 && isAuthenticatedUser}
+																className={index === 0 && isAuthenticatedUser ? "bg-muted" : ""}
+															/>
 														</FormControl>
+														{index === 0 && isAuthenticatedUser && (
+															<FormDescription>
+																This email is from your authenticated account and cannot be changed.
+															</FormDescription>
+														)}
 														<FormMessage />
 													</FormItem>
 												)}
@@ -1094,7 +1268,7 @@ export default function RegisterPage() {
 															name={`children.${index}.grade`}
 															render={({ field }) => (
 																<FormItem>
-																	<FormLabel>Grade (Fall 2024)</FormLabel>
+																	<FormLabel>Grade</FormLabel>
 																	<FormControl>
 																		<Input {...field} />
 																	</FormControl>

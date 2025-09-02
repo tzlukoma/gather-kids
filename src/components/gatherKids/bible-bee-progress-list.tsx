@@ -37,13 +37,20 @@ export function BibleBeeProgressList({
 	showFilters = true,
 	title,
 	description,
-	showYearSelection = true
+	showYearSelection = true,
 }: BibleBeeProgressListProps) {
 	const STORAGE_KEY = 'bb_progress_filters_v1';
 	const [rows, setRows] = useState<any[] | null>(null);
-	const [availableGradeGroups, setAvailableGradeGroups] = useState<string[]>([]);
+	const [availableGradeGroups, setAvailableGradeGroups] = useState<string[]>(
+		[]
+	);
 	const competitionYears = useLiveQuery(
 		() => db.competitionYears.orderBy('year').reverse().toArray(),
+		[]
+	);
+	// Also support new-schema Bible Bee years
+	const bibleBeeYears = useLiveQuery(
+		() => db.bible_bee_years.orderBy('label').toArray(),
 		[]
 	);
 
@@ -63,6 +70,9 @@ export function BibleBeeProgressList({
 
 	const [selectedCycle, setSelectedCycle] = useState<string>(
 		initial?.selectedCycle ?? initialCycle ?? '2025'
+	);
+	const [displayCycleLabel, setDisplayCycleLabel] = useState<string | null>(
+		null
 	);
 	const [filterGradeGroup, setFilterGradeGroup] = useState<string | 'all'>(
 		initial?.filterGradeGroup ?? 'all'
@@ -85,19 +95,50 @@ export function BibleBeeProgressList({
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [competitionYears]);
 
+	// Prefer an active new-schema Bible Bee year when present (only if no
+	// selection was pre-populated via storage or props).
+	useEffect(() => {
+		if (bibleBeeYears && bibleBeeYears.length > 0) {
+			if (!initial?.selectedCycle && !initialCycle) {
+				// only default to a bible-bee-year when one is explicitly marked active
+				const active = bibleBeeYears.find((y: any) => {
+					const val: any = y?.is_active;
+					return val === true || val === 1 || String(val) === '1';
+				});
+				if (active && active.id) {
+					setSelectedCycle(String(active.id));
+				}
+			}
+		}
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [bibleBeeYears]);
+
 	useEffect(() => {
 		let mounted = true;
 		const load = async () => {
-			const res = await getBibleBeeProgressForCycle(selectedCycle);
+			// Determine effective cycle id to pass into DAL. If selectedCycle
+			// matches a new-schema Bible Bee year id, pass that id through so the
+			// DAL can use the `enrollments` table. Otherwise pass the legacy
+			// selectedCycle through (which represents a competition year / cycle id).
+			let effectiveCycle = selectedCycle;
+			if (
+				bibleBeeYears &&
+				bibleBeeYears.find((y: any) => String(y.id) === String(selectedCycle))
+			) {
+				effectiveCycle = String(selectedCycle);
+			}
+			const res = await getBibleBeeProgressForCycle(effectiveCycle);
 			if (mounted) {
 				// Filter to specific children if provided
-				const filteredRes = filterChildIds 
+				const filteredRes = filterChildIds
 					? res.filter((r: any) => filterChildIds.includes(r.childId))
 					: res;
 
 				// Prefetch guardians for rows' households to ensure primary guardian is available
 				const householdIds = Array.from(
-					new Set(filteredRes.map((r: any) => r.child?.household_id).filter(Boolean))
+					new Set(
+						filteredRes.map((r: any) => r.child?.household_id).filter(Boolean)
+					)
 				);
 				let guardianMap = new Map<string, any>();
 				if (householdIds.length > 0) {
@@ -145,6 +186,35 @@ export function BibleBeeProgressList({
 			mounted = false;
 		};
 	}, [selectedCycle, filterChildIds]);
+
+	// Resolve a friendly label for the selected cycle when bibleBeeYears
+	// isn't yet available (prevents showing UUID on first load).
+	useEffect(() => {
+		let mounted = true;
+		const resolveLabel = async () => {
+			setDisplayCycleLabel(null);
+			if (!selectedCycle) return;
+			// Prefer the live query value if available
+			const bbFromLive = (bibleBeeYears || []).find(
+				(y: any) => String(y.id) === String(selectedCycle)
+			);
+			if (bbFromLive) {
+				if (mounted) setDisplayCycleLabel(bbFromLive.label);
+				return;
+			}
+			// Otherwise try a DB lookup (async) to resolve label for UUIDs
+			try {
+				const maybe = await db.bible_bee_years.get(String(selectedCycle));
+				if (mounted && maybe && maybe.label) setDisplayCycleLabel(maybe.label);
+			} catch (e) {
+				// ignore
+			}
+		};
+		resolveLabel();
+		return () => {
+			mounted = false;
+		};
+	}, [selectedCycle, bibleBeeYears]);
 
 	// persist filter state so switching tabs (which may unmount) preserves selections
 	useEffect(() => {
@@ -221,11 +291,34 @@ export function BibleBeeProgressList({
 								value={selectedCycle}
 								onValueChange={(v: any) => setSelectedCycle(String(v))}>
 								<SelectTrigger>
-									<SelectValue>{selectedCycle}</SelectValue>
+									<SelectValue>
+										{(() => {
+											if (displayCycleLabel) return displayCycleLabel;
+											const bb = (bibleBeeYears || []).find(
+												(y: any) => String(y.id) === String(selectedCycle)
+											);
+											if (bb) return bb.label;
+											// If we don't have a label yet but the selectedCycle looks like a UUID,
+											// show a friendly placeholder instead of the raw id.
+											if (
+												selectedCycle &&
+												/^[0-9a-fA-F-]{36}$/.test(String(selectedCycle))
+											)
+												return 'Selected year...';
+											return selectedCycle;
+										})()}
+									</SelectValue>
 								</SelectTrigger>
 								<SelectContent>
+									{/* New schema years first */}
+									{(bibleBeeYears || []).map((y: any) => (
+										<SelectItem key={`bb-${y.id}`} value={y.id}>
+											{y.label}
+										</SelectItem>
+									))}
+									{/* Legacy competition years */}
 									{(competitionYears || []).map((y: any) => (
-										<SelectItem key={y.id} value={String(y.year)}>
+										<SelectItem key={`cy-${y.id}`} value={String(y.year)}>
 											{String(y.year)}
 										</SelectItem>
 									))}
@@ -243,12 +336,12 @@ export function BibleBeeProgressList({
 									<SelectTrigger>
 										<SelectValue>
 											{filterGradeGroup === 'all'
-												? 'All Grade Groups'
+												? 'All Divisions'
 												: filterGradeGroup}
 										</SelectValue>
 									</SelectTrigger>
 									<SelectContent>
-										<SelectItem value={'all'}>All Grade Groups</SelectItem>
+										<SelectItem value={'all'}>All Divisions</SelectItem>
 										{availableGradeGroups.map((g) => (
 											<SelectItem key={g} value={g}>
 												{g}
@@ -335,20 +428,42 @@ export function BibleBeeProgressList({
 			)}
 
 			{/* show prior-year hint if viewing a non-latest year */}
-			{competitionYears &&
-				competitionYears.length > 0 &&
-				String(competitionYears[0].year) !== String(selectedCycle) && (
-					<div className="p-2 bg-yellow-50 border-l-4 border-yellow-300 text-sm text-yellow-800">
-						Viewing prior year — edits disabled
-					</div>
-				)}
+			{/* show prior-year hint if viewing a non-latest year. For new-schema
+			    bible-bee years, treat an active bible-bee-year as current. */}
+			{(() => {
+				if (!competitionYears || competitionYears.length === 0) return null;
+				const latestYearStr = String(competitionYears[0].year);
+				// If selectedCycle corresponds to a new-schema year id, check its is_active
+				const bb = (bibleBeeYears || []).find(
+					(y: any) => String(y.id) === String(selectedCycle)
+				);
+				let isPrior = false;
+				if (bb) {
+					const val: any = (bb as any)?.is_active;
+					const bbActive =
+						val === true ||
+						val === 1 ||
+						String(val) === '1' ||
+						String(val) === 'true';
+					isPrior = !bbActive;
+				} else {
+					isPrior = latestYearStr !== String(selectedCycle);
+				}
+				if (isPrior) {
+					return (
+						<div className="p-2 bg-yellow-50 border-l-4 border-yellow-300 text-sm text-yellow-800">
+							Viewing prior year — edits disabled
+						</div>
+					);
+				}
+				return null;
+			})()}
 
 			{sorted.length === 0 ? (
 				<div className="p-3 text-muted-foreground">
-					{filterChildIds 
-						? "No children enrolled in Bible Bee for this cycle."
-						: "No children match the current filters."
-					}
+					{filterChildIds
+						? 'No children enrolled in Bible Bee for this cycle.'
+						: 'No children match the current filters.'}
 				</div>
 			) : (
 				<div className="space-y-2">

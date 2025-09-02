@@ -2,8 +2,8 @@
 
 import { db } from './db';
 import { v4 as uuidv4 } from 'uuid';
-import { seedBibleBeeDemo } from './seedBibleBee';
-import type { Household, Guardian, EmergencyContact, Child, RegistrationCycle, Registration, Ministry, MinistryEnrollment, MinistryAccount, User, Event, Attendance, Incident, LeaderAssignment } from './types';
+import { gradeToCode } from './gradeUtils';
+import type { Household, Guardian, EmergencyContact, Child, RegistrationCycle, Registration, Ministry, MinistryEnrollment, MinistryAccount, User, Event, Attendance, Incident, LeaderAssignment, BibleBeeYear, Division, Enrollment, Scripture } from './types';
 import { subYears, formatISO, differenceInYears, parseISO } from 'date-fns';
 
 const USER_IDS: { [key: string]: string } = {};
@@ -166,17 +166,15 @@ export const seedDB = async () => {
         { user_id: 'user_leader_11', name: 'Chris Evans', email: 'leader.khalfani@example.com', role: 'MINISTRY_LEADER', is_active: true, background_check_status: 'clear' },
         { user_id: 'user_leader_12', name: 'Megan Young', email: 'leader.joybells@example.com', role: 'MINISTRY_LEADER', is_active: true, background_check_status: 'clear' },
         { user_id: 'user_leader_13', name: 'Tom Allen', email: 'leader.inactive@example.com', role: 'MINISTRY_LEADER', is_active: false, background_check_status: 'clear' },
-        // Bible Bee Primary Leader
-        { user_id: 'user_leader_14', name: 'Alex Pastor', email: 'leader.biblebee@example.com', role: 'MINISTRY_LEADER', is_active: true, background_check_status: 'clear' },
-        // Bible Bee Volunteer Leader (demo)
-        { user_id: 'user_leader_15', name: 'Bible Bee Volunteer', email: 'leader.biblebeevolunteer@example.com', role: 'MINISTRY_LEADER', is_active: true, background_check_status: 'clear' },
+    // Bible Bee Primary Leader
+    { user_id: 'user_leader_14', name: 'Alex Pastor', email: 'leader.biblebee@example.com', role: 'MINISTRY_LEADER', is_active: true, background_check_status: 'clear' },
     ];
     leaders.forEach(l => USER_IDS[l.name.split(' ')[0]] = l.user_id);
 
 
     await (db as any).transaction('rw', db.users, db.registration_cycles, db.ministries, db.ministry_accounts, db.events, db.households, db.children, db.guardians, db.emergency_contacts, db.registrations, db.ministry_enrollments, db.leader_assignments, db.attendance, db.incidents,
-        // Bible Bee stores
-        db.competitionYears, db.scriptures, db.gradeRules, db.studentScriptures, db.studentEssays,
+        // New Bible Bee stores
+        db.bible_bee_years, db.divisions, db.enrollments, db.scriptures, db.studentScriptures,
         async () => {
 
             await db.users.bulkPut(leaders);
@@ -264,48 +262,94 @@ export const seedDB = async () => {
             await db.guardians.bulkPut(guardians);
             await db.emergency_contacts.bulkPut(emergencyContacts);
 
-            // --- BIBLE BEE COMPETITION YEARS, GRADE RULES, SCRIPTURES ---
-            const compYearPriorId = crypto.randomUUID();
-            const compYearCurrentId = crypto.randomUUID();
-            const nowIso = new Date().toISOString();
-            await db.competitionYears.bulkPut([
-                { id: compYearPriorId, year: Number(CYCLE_IDS.prior), name: `${CYCLE_IDS.prior} Bible Bee`, description: 'Prior year Bible Bee', opensAt: '2024-01-01', closesAt: '2024-10-01', createdAt: nowIso, updatedAt: nowIso },
-                { id: compYearCurrentId, year: Number(CYCLE_IDS.current), name: `${CYCLE_IDS.current} Bible Bee`, description: 'Current year Bible Bee', opensAt: '2025-01-01', closesAt: '2025-10-08', createdAt: nowIso, updatedAt: nowIso },
-            ]);
+            // --- MODERN BIBLE BEE SYSTEM (New Schema Only) ---
+            // Create a Bible Bee year for the current registration cycle
+            const bibleBeeYearId = uuidv4();
+            const bibleBeeYear: BibleBeeYear = {
+                id: bibleBeeYearId,
+                label: 'Bible Bee 2025',
+                cycle_id: CYCLE_IDS.current,
+                is_active: true,
+                created_at: now,
+            };
+            await db.bible_bee_years.put(bibleBeeYear);
 
-            // Grade groups
-            // Kindergarten - 4th grade => minGrade 0, maxGrade 4 (scripture)
-            // 5th - 8th grade => minGrade 5, maxGrade 8 (scripture)
-            // 9th Grade - 12th Grade => minGrade 9, maxGrade 12 (essay)
-            // Use small target counts so seeded progress can reach Complete for tests
-            const ruleKto4 = { id: crypto.randomUUID(), competitionYearId: compYearCurrentId, minGrade: 0, maxGrade: 4, type: 'scripture' as const, targetCount: 4, promptText: undefined as any, instructions: undefined as any, createdAt: nowIso, updatedAt: nowIso };
-            const rule5to8 = { id: crypto.randomUUID(), competitionYearId: compYearCurrentId, minGrade: 5, maxGrade: 8, type: 'scripture' as const, targetCount: 6, promptText: undefined as any, instructions: undefined as any, createdAt: nowIso, updatedAt: nowIso };
-            const rule9up = { id: crypto.randomUUID(), competitionYearId: compYearCurrentId, minGrade: 9, maxGrade: 12, type: 'essay' as const, targetCount: undefined as any, promptText: 'Write a 500-word reflection on the role of scripture in daily life.', instructions: 'Submit a 500-word essay.', createdAt: nowIso, updatedAt: nowIso };
-            await db.gradeRules.bulkPut([ruleKto4, rule5to8, rule9up]);
+            // Create divisions for the Bible Bee year
+            const divisions: Division[] = [
+                {
+                    id: uuidv4(),
+                    year_id: bibleBeeYearId,
+                    name: 'Primary (Kindergarten - 3rd)',
+                    minimum_required: 15,
+                    min_grade: 0,
+                    max_grade: 3,
+                    created_at: now,
+                    updated_at: now,
+                },
+                {
+                    id: uuidv4(),
+                    year_id: bibleBeeYearId,
+                    name: 'Elementary (4th - 6th)',
+                    minimum_required: 25,
+                    min_grade: 4,
+                    max_grade: 6,
+                    created_at: now,
+                    updated_at: now,
+                },
+                {
+                    id: uuidv4(),
+                    year_id: bibleBeeYearId,
+                    name: 'Middle School (7th - 9th)',
+                    minimum_required: 35,
+                    min_grade: 7,
+                    max_grade: 9,
+                    created_at: now,
+                    updated_at: now,
+                },
+                {
+                    id: uuidv4(),
+                    year_id: bibleBeeYearId,
+                    name: 'High School (10th - 12th)',
+                    minimum_required: 35,
+                    min_grade: 10,
+                    max_grade: 12,
+                    created_at: now,
+                    updated_at: now,
+                },
+            ];
+            await db.divisions.bulkPut(divisions);
 
-            // Fix any previously-seeded grade rules that used 99 as an open-ended max and cap at 12
-            const existingRules = await db.gradeRules.toArray();
-            const rulesToUpdate: any[] = [];
-            for (const r of existingRules) {
-                if (typeof r.maxGrade === 'number' && r.maxGrade >= 99 && r.minGrade >= 9) {
-                    rulesToUpdate.push({ ...r, maxGrade: 12, updatedAt: nowIso });
-                }
-            }
-            if (rulesToUpdate.length) await db.gradeRules.bulkPut(rulesToUpdate);
+            // Create sample scriptures for the Bible Bee year
+            const sampleScriptures: Scripture[] = [];
+            const scriptureData = [
+                { ref: 'Philippians 4:4-5', text: '<sup>4</sup> Rejoice in the Lord always. I will say it again: Rejoice! <sup>5</sup> Let your gentleness be evident to all. The Lord is near.', translations: { NIV: '<sup>4</sup> Rejoice in the Lord always. I will say it again: Rejoice! <sup>5</sup> Let your gentleness be evident to all. The Lord is near.', KJV: '<sup>4</sup> Rejoice in the Lord alway: and again I say, Rejoice. <sup>5</sup> Let your moderation be known unto all men. The Lord is at hand.' }},
+                { ref: 'Philippians 4:6', text: '<sup>6</sup> Do not be anxious about anything, but in every situation, by prayer and petition, with thanksgiving, present your requests to God.', translations: { NIV: '<sup>6</sup> Do not be anxious about anything, but in every situation, by prayer and petition, with thanksgiving, present your requests to God.', KJV: '<sup>6</sup> Be careful for nothing; but in every thing by prayer and supplication with thanksgiving let your requests be made known unto God.' }},
+                { ref: 'Philippians 4:7', text: '<sup>7</sup> And the peace of God, which transcends all understanding, will guard your hearts and your minds in Christ Jesus.', translations: { NIV: '<sup>7</sup> And the peace of God, which transcends all understanding, will guard your hearts and your minds in Christ Jesus.', KJV: '<sup>7</sup> And the peace of God, which passeth all understanding, shall keep your hearts and minds through Christ Jesus.' }},
+                { ref: 'Philippians 4:8', text: '<sup>8</sup> Finally, brothers and sisters, whatever is true, whatever is noble, whatever is right, whatever is pure, whatever is lovely, whatever is admirable—if anything is excellent or praiseworthy—think about such things.', translations: { NIV: '<sup>8</sup> Finally, brothers and sisters, whatever is true, whatever is noble, whatever is right, whatever is pure, whatever is lovely, whatever is admirable—if anything is excellent or praiseworthy—think about such things.', KJV: '<sup>8</sup> Finally, brethren, whatsoever things are true, whatsoever things are honest, whatsoever things are just, whatsoever things are pure, whatsoever things are lovely, whatsoever things are of good report; if there be any virtue, and if there be any praise, think on these things.' }},
+                { ref: 'Philippians 4:9', text: '<sup>9</sup> Whatever you have learned or received or heard from me, or seen in me—put it into practice. And the God of peace will be with you.', translations: { NIV: '<sup>9</sup> Whatever you have learned or received or heard from me, or seen in me—put it into practice. And the God of peace will be with you.', KJV: '<sup>9</sup> Those things, which ye have both learned, and received, and heard, and seen in me, do: and the God of peace shall be with you.' }},
+                { ref: 'Philippians 4:12-13', text: '<sup>12</sup> I know what it is to be in need, and I know what it is to have plenty. I have learned the secret of being content in any and every situation, whether well fed or hungry, whether living in plenty or in want. <sup>13</sup> I can do all this through him who gives me strength.', translations: { NIV: '<sup>12</sup> I know what it is to be in need, and I know what it is to have plenty. I have learned the secret of being content in any and every situation, whether well fed or hungry, whether living in plenty or in want. <sup>13</sup> I can do all this through him who gives me strength.', KJV: '<sup>12</sup> I know both how to be abased, and I know how to abound: every where and in all things I am instructed both to be full and to be hungry, both to abound and to suffer need. <sup>13</sup> I can do all things through Christ which strengtheneth me.' }},
+                { ref: 'Philippians 4:19', text: '<sup>19</sup> And my God will meet all your needs according to the riches of his glory in Christ Jesus.', translations: { NIV: '<sup>19</sup> And my God will meet all your needs according to the riches of his glory in Christ Jesus.', KJV: '<sup>19</sup> But my God shall supply all your need according to his riches in glory by Christ Jesus.' }},
+                { ref: 'Lamentations 3:22', text: '<sup>22</sup> Because of the Lord\'s great love we are not consumed, for his compassions never fail.', translations: { NIV: '<sup>22</sup> Because of the Lord\'s great love we are not consumed, for his compassions never fail.', KJV: '<sup>22</sup> It is of the Lord\'s mercies that we are not consumed, because his compassions fail not.' }},
+                { ref: 'Matthew 7:1-2', text: '<sup>1</sup> Do not judge, or you too will be judged. <sup>2</sup> For in the same way you judge others, you will be judged, and with the measure you use, it will be measured to you.', translations: { NIV: '<sup>1</sup> Do not judge, or you too will be judged. <sup>2</sup> For in the same way you judge others, you will be judged, and with the measure you use, it will be measured to you.', KJV: '<sup>1</sup> Judge not, that ye be not judged. <sup>2</sup> For with what judgment ye judge, ye shall be judged: and with what measure ye mete, it shall be measured to you again.' }},
+                { ref: 'Matthew 7:7-8', text: '<sup>7</sup> Ask and it will be given to you; seek and you will find; knock and the door will be opened to you. <sup>8</sup> For everyone who asks receives; the one who seeks finds; and to the one who knocks, the door will be opened.', translations: { NIV: '<sup>7</sup> Ask and it will be given to you; seek and you will find; knock and the door will be opened to you. <sup>8</sup> For everyone who asks receives; the one who seeks finds; and to the one who knocks, the door will be opened.', KJV: '<sup>7</sup> Ask, and it shall be given you; seek, and ye shall find; knock, and it shall be opened unto you: <sup>8</sup> For every one that asketh receiveth; and he that seeketh findeth; and to him that knocketh it shall be opened.' }},
+            ];
 
-            // Run the Bible Bee specific seed which creates curated competition years, scriptures, and grade rules.
-            // Scriptures will come exclusively from that seeded data.
-            try {
-                await seedBibleBeeDemo({ priorId: compYearPriorId, currentId: compYearCurrentId });
-            } catch (err) {
-                console.error('Failed to seed Bible Bee demo data:', err);
-            }
-
-            // Load scripture records for the current competition year (seeded above) to assign to students.
-            const scriptureRecords: any[] = await db.scriptures
-                .where('competitionYearId')
-                .equals(compYearCurrentId)
-                .sortBy('sortOrder');
+            scriptureData.forEach((data, index) => {
+                sampleScriptures.push({
+                    id: uuidv4(),
+                    competitionYearId: bibleBeeYearId, // For legacy compatibility
+                    year_id: bibleBeeYearId,
+                    reference: data.ref,
+                    text: data.text,
+                    translation: 'NIV',
+                    texts: data.translations,
+                    scripture_number: String(index + 1),
+                    scripture_order: index + 1,
+                    createdAt: now,
+                    updatedAt: now,
+                });
+            });
+            await db.scriptures.bulkPut(sampleScriptures);
 
             const registrations: Registration[] = [];
             const enrollments: MinistryEnrollment[] = [];
@@ -372,66 +416,66 @@ export const seedDB = async () => {
 
             // Ensure at least 20 kids are enrolled in Bible Bee for the current cycle
             let bibleBeeCount = 0;
+            const bibleBeeEnrollments: Enrollment[] = [];
             for (const child of activeChildrenForCurrentCycle) {
                 if (bibleBeeCount >= 20) break;
-                enrollments.push({ enrollment_id: uuidv4(), child_id: child.child_id, cycle_id: CYCLE_IDS.current, ministry_id: MINISTRY_IDS['bible-bee'], status: 'enrolled' });
-                bibleBeeCount++;
-            }
-
-            // Create student scripture/essay records for the bible bee kids across current and prior years
-            const bibleBeeChildren = enrollments.filter(e => e.ministry_id === MINISTRY_IDS['bible-bee'] && e.cycle_id === CYCLE_IDS.current).map(e => e.child_id);
-            const uniqueBibleBeeChildren = Array.from(new Set(bibleBeeChildren)).slice(0, 20);
-
-            const studentScripturesToInsert: any[] = [];
-            const studentEssaysToInsert: any[] = [];
-
-            // simple helper to get grade number from child's grade field
-            const gradeNumber = (g: any) => {
-                const n = Number(g);
-                return isNaN(n) ? 0 : n;
-            };
-
-            // distribute progress: first 6 complete, next 8 in-progress, rest not started
-            for (let i = 0; i < uniqueBibleBeeChildren.length; i++) {
-                const childId = uniqueBibleBeeChildren[i];
-                const child = children.find(c => c.child_id === childId)!;
-                const gnum = gradeNumber(child.grade);
-
-                if (gnum >= 9) {
-                    // essay participant
-                    // Current year: some essays submitted to simulate Complete
-                    const essayStatusCurrent = i % 5 === 0 ? 'submitted' : 'assigned';
-                    studentEssaysToInsert.push({ id: uuidv4(), childId, competitionYearId: compYearCurrentId, status: essayStatusCurrent, promptText: rule9up.promptText, instructions: rule9up.instructions, createdAt: nowIso, updatedAt: nowIso });
-                    // prior year: mark as completed/submitted for history
-                    studentEssaysToInsert.push({ id: uuidv4(), childId, competitionYearId: compYearPriorId, status: 'submitted', promptText: rule9up.promptText, instructions: rule9up.instructions, createdAt: nowIso, updatedAt: nowIso });
-                } else if (gnum >= 5) {
-                    // 5-8 => 15 scriptures; assign 5 sample scriptures as entries for simplicity
-                    const assignedScriptures = scriptureRecords.slice(0, Math.min(scriptureRecords.length, rule5to8.targetCount || scriptureRecords.length));
-                    // Determine progress state
-                    const isComplete = i < 6; // first 6 overall marked complete
-                    const isInProgress = i >= 6 && i < 14; // next 8 in-progress
-                    for (let idx = 0; idx < assignedScriptures.length; idx++) {
-                        const s = assignedScriptures[idx];
-                        const statusCurrent = isComplete ? 'completed' : isInProgress && idx === 0 ? 'completed' : 'assigned';
-                        studentScripturesToInsert.push({ id: uuidv4(), childId, competitionYearId: compYearCurrentId, scriptureId: s.id, status: statusCurrent, createdAt: nowIso, updatedAt: nowIso });
-                        studentScripturesToInsert.push({ id: uuidv4(), childId, competitionYearId: compYearPriorId, scriptureId: s.id, status: 'completed', createdAt: nowIso, updatedAt: nowIso });
-                    }
-                } else {
-                    // K-4 => 10 scriptures; assign 3-4 sample scriptures
-                    const assignedScriptures = scriptureRecords.slice(0, Math.min(scriptureRecords.length, ruleKto4.targetCount || scriptureRecords.length));
-                    const isComplete = i < 6; // mirror distribution
-                    const isInProgress = i >= 6 && i < 14;
-                    for (let idx = 0; idx < assignedScriptures.length; idx++) {
-                        const s = assignedScriptures[idx];
-                        const statusCurrent = isComplete ? 'completed' : isInProgress && idx === 0 ? 'completed' : 'assigned';
-                        studentScripturesToInsert.push({ id: uuidv4(), childId, competitionYearId: compYearCurrentId, scriptureId: s.id, status: statusCurrent, createdAt: nowIso, updatedAt: nowIso });
-                        studentScripturesToInsert.push({ id: uuidv4(), childId, competitionYearId: compYearPriorId, scriptureId: s.id, status: 'completed', createdAt: nowIso, updatedAt: nowIso });
-                    }
+                
+                // Determine appropriate division for this child
+                const gradeNum = gradeToCode(child.grade) ?? 0;
+                const appropriateDivision = divisions.find(d => gradeNum >= d.min_grade && gradeNum <= d.max_grade);
+                
+                if (appropriateDivision) {
+                    bibleBeeEnrollments.push({
+                        id: uuidv4(),
+                        child_id: child.child_id,
+                        year_id: bibleBeeYearId,
+                        division_id: appropriateDivision.id,
+                        auto_enrolled: false,
+                        enrolled_at: now,
+                    });
+                    
+                    bibleBeeCount++;
                 }
             }
+            await db.enrollments.bulkPut(bibleBeeEnrollments);
 
-            if (studentScripturesToInsert.length) await db.studentScriptures.bulkPut(studentScripturesToInsert);
-            if (studentEssaysToInsert.length) await db.studentEssays.bulkPut(studentEssaysToInsert);
+            // Create student scripture assignments for the Bible Bee enrolled children
+            const studentScripturesToInsert: any[] = [];
+            
+            for (let i = 0; i < bibleBeeEnrollments.length; i++) {
+                const enrollment = bibleBeeEnrollments[i];
+                const child = children.find(c => c.child_id === enrollment.child_id)!;
+                const gradeNum = gradeToCode(child.grade) ?? 0;
+                
+                // Assign scriptures based on progress simulation
+                const isComplete = i < 6; // first 6 are complete
+                const isInProgress = i >= 6 && i < 14; // next 8 are in-progress
+                
+                for (let scriptureIndex = 0; scriptureIndex < sampleScriptures.length; scriptureIndex++) {
+                    const scripture = sampleScriptures[scriptureIndex];
+                    let status = 'assigned';
+                    
+                    if (isComplete) {
+                        status = 'completed';
+                    } else if (isInProgress && scriptureIndex < 3) {
+                        status = 'completed'; // partial completion for in-progress
+                    }
+                    
+                    studentScripturesToInsert.push({
+                        id: uuidv4(),
+                        childId: enrollment.child_id,
+                        competitionYearId: bibleBeeYearId, // Use the Bible Bee year ID
+                        scriptureId: scripture.id,
+                        status,
+                        createdAt: now,
+                        updatedAt: now,
+                    });
+                }
+            }
+            
+            if (studentScripturesToInsert.length) {
+                await db.studentScriptures.bulkPut(studentScripturesToInsert);
+            }
 
             await db.registrations.bulkPut(registrations);
             await db.ministry_enrollments.bulkPut(enrollments);
@@ -448,8 +492,7 @@ export const seedDB = async () => {
                 { assignment_id: uuidv4(), leader_id: 'user_leader_13', ministry_id: MINISTRY_IDS['acolyte'], cycle_id: CYCLE_IDS.prior, role: 'Primary' },
                 // user_leader_14 -> Bible Bee Primary
                 { assignment_id: uuidv4(), leader_id: 'user_leader_14', ministry_id: MINISTRY_IDS['bible-bee'], cycle_id: CYCLE_IDS.current, role: 'Primary' },
-                // user_leader_15 -> Bible Bee Volunteer
-                { assignment_id: uuidv4(), leader_id: 'user_leader_15', ministry_id: MINISTRY_IDS['bible-bee'], cycle_id: CYCLE_IDS.current, role: 'Volunteer' },
+                // volunteer slot intentionally left empty for demo (no volunteer account)
             ];
             await db.leader_assignments.bulkPut(leaderAssignments);
 

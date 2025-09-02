@@ -64,7 +64,7 @@ describe('Bible Bee filters persistence', () => {
 		expect(yearSelect).toBeInTheDocument();
 
 		// change grade group to first available
-		const gradeButton = await screen.findByText('All Grade Groups');
+		const gradeButton = await screen.findByText('All Divisions');
 		expect(gradeButton).toBeInTheDocument();
 
 		// simulate user picking K-4 by writing to localStorage (simpler than interacting Radix select)
