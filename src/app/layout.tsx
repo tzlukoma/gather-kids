@@ -7,6 +7,7 @@ import { BrandingProvider } from '@/contexts/branding-context';
 import { ReactQueryProvider } from '@/lib/queryClient';
 import VercelAnalytics from '@/components/VercelAnalytics';
 import { DynamicMetadata } from '@/components/DynamicMetadata';
+import { AuthDebug } from '@/components/auth/auth-debug';
 
 export const metadata: Metadata = {
 	title: 'gatherKids',
@@ -38,6 +39,7 @@ export default function RootLayout({
 						<DynamicMetadata />
 						<AuthProvider>
 							<ReactQueryProvider>{children}</ReactQueryProvider>
+							{process.env.NODE_ENV !== 'production' && <AuthDebug />}
 						</AuthProvider>
 					</BrandingProvider>
 				</FeatureFlagProvider>

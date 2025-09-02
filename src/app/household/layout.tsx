@@ -92,6 +92,11 @@ function HouseholdLayoutContent({ children }: { children: React.ReactNode }) {
 			href: '/household/bible-bee',
 			icon: Book,
 		}] : []),
+		{
+			label: 'Profile',
+			href: '/household/profile',
+			icon: User,
+		},
 	];
 
 	if (!user) return null;

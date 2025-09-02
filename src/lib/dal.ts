@@ -13,12 +13,18 @@
 
 
 import { db } from './db';
+import { db as dbAdapter } from './database/factory';
 import { getApplicableGradeRule } from './bibleBee';
 import { gradeToCode } from './gradeUtils';
 import { AuthRole } from './auth-types';
 import type { Attendance, Child, Guardian, Household, Incident, IncidentSeverity, Ministry, MinistryEnrollment, Registration, User, EmergencyContact, LeaderAssignment, LeaderProfile, MinistryLeaderMembership, MinistryAccount, BrandingSettings  } from './types';
 import { differenceInYears, isAfter, isBefore, parseISO, isValid } from 'date-fns';
 import { v4 as uuidv4 } from 'uuid';
+
+// Export both the legacy Dexie interface (db) and the new adapter interface (dbAdapter)
+// Legacy DAL functions continue to use the Dexie interface for backward compatibility
+// New code should use dbAdapter for consistent behavior across demo/Supabase modes
+export { dbAdapter };
 
 // Utility Functions
 export const getTodayIsoDate = () => new Date().toISOString().split('T')[0];
