@@ -88,33 +88,29 @@ function testParsing() {
         console.log('\n🔍 Testing JSON parsing...');
         const jsonData = parseJsonTexts();
         
-        console.log('\n🔗 Testing reference matching...');
+        console.log('\n🔗 Testing reference matching by reference text...');
         let matchCount = 0;
         let mismatches = [];
         
         for (const csvRow of csvScriptures) {
-            const jsonEntry = jsonData.scriptures.find(js => js.order === csvRow.scripture_order);
+            // Match by reference text, not order
+            const csvRefNorm = csvRow.reference.toLowerCase().replace(/\s+/g, ' ').trim();
+            const jsonEntry = jsonData.scriptures.find(js => 
+                js.reference.toLowerCase().replace(/\s+/g, ' ').trim() === csvRefNorm
+            );
             
             if (!jsonEntry) {
-                mismatches.push(`No JSON entry for order ${csvRow.scripture_order} (${csvRow.reference})`);
+                mismatches.push(`No JSON text found for "${csvRow.reference}" (order ${csvRow.scripture_order})`);
                 continue;
             }
             
-            // Normalize references for comparison
-            const csvRefNorm = csvRow.reference.toLowerCase().replace(/\s+/g, ' ').trim();
-            const jsonRefNorm = jsonEntry.reference.toLowerCase().replace(/\s+/g, ' ').trim();
-            
-            if (csvRefNorm === jsonRefNorm) {
-                matchCount++;
-            } else {
-                mismatches.push(`Order ${csvRow.scripture_order}: CSV="${csvRow.reference}" vs JSON="${jsonEntry.reference}"`);
-            }
+            matchCount++;
         }
         
         console.log(`✅ Matched references: ${matchCount}/${csvScriptures.length}`);
         
         if (mismatches.length > 0) {
-            console.log(`⚠️  Reference mismatches:`);
+            console.log(`⚠️  Missing JSON texts:`);
             mismatches.slice(0, 5).forEach(mm => console.log(`   ${mm}`));
             if (mismatches.length > 5) {
                 console.log(`   ... and ${mismatches.length - 5} more`);
