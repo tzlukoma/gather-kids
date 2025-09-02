@@ -564,6 +564,20 @@ export async function registerHousehold(data: any, cycle_id: string, isPrefill: 
                         await db.user_households.add(userHousehold);
                         console.log('Created user_households relationship:', userHousehold);
                     }
+
+                    // Assign GUARDIAN role to the authenticated user
+                    const { error: roleError } = await supabase.auth.updateUser({
+                        data: {
+                            role: 'GUARDIAN',
+                            household_id: householdId,
+                        },
+                    });
+
+                    if (roleError) {
+                        console.warn('Could not assign GUARDIAN role:', roleError);
+                    } else {
+                        console.log('Assigned GUARDIAN role to user:', session.user.id);
+                    }
                 }
             }
         } catch (error) {
