@@ -2,6 +2,42 @@
 // IndexedDB is not available. Provides basic table operations used in tests.
 type RecordObj = { [k: string]: any };
 
+function createCollection(store: Map<string, RecordObj>, initialFilter?: (item: any) => boolean) {
+    return {
+        and: (predicate: (item: any) => boolean) => {
+            const combinedFilter = initialFilter 
+                ? (item: any) => initialFilter(item) && predicate(item)
+                : predicate;
+            return createCollection(store, combinedFilter);
+        },
+        offset: (n: number) => {
+            const currentFilter = initialFilter || (() => true);
+            return {
+                limit: (count: number) => ({
+                    toArray: async () => {
+                        const filtered = Array.from(store.values()).filter(currentFilter);
+                        return filtered.slice(n, n + count);
+                    }
+                }),
+                toArray: async () => {
+                    const filtered = Array.from(store.values()).filter(currentFilter);
+                    return filtered.slice(n);
+                }
+            };
+        },
+        limit: (count: number) => ({
+            toArray: async () => {
+                const filtered = Array.from(store.values()).filter(initialFilter || (() => true));
+                return filtered.slice(0, count);
+            }
+        }),
+        toArray: async () => {
+            const filtered = Array.from(store.values()).filter(initialFilter || (() => true));
+            return filtered;
+        }
+    };
+}
+
 function createTable(primaryKey: string) {
     const store = new Map<string, RecordObj>();
 
@@ -78,25 +114,29 @@ function createTable(primaryKey: string) {
                 }
 
                 return {
-                    equals: (val: any) => ({
-                        toArray: async () => {
-                            const res: any[] = [];
-                            for (const v of store.values()) {
-                                if (v[index] === val) res.push(v);
+                    equals: (val: any) => {
+                        const filteredPredicate = (v: any) => v[index] === val;
+                        return {
+                            ...createCollection(store, filteredPredicate),
+                            toArray: async () => {
+                                const res: any[] = [];
+                                for (const v of store.values()) {
+                                    if (v[index] === val) res.push(v);
+                                }
+                                return res;
+                            },
+                            sortBy: async (key: string) => {
+                                const res: any[] = [];
+                                for (const v of store.values()) {
+                                    if (v[index] === val) res.push(v);
+                                }
+                                return res.sort((a, b) => {
+                                    const av = a[key]; const bv = b[key];
+                                    if (av === bv) return 0; return (av ?? 0) < (bv ?? 0) ? -1 : 1;
+                                });
                             }
-                            return res;
-                        },
-                        sortBy: async (key: string) => {
-                            const res: any[] = [];
-                            for (const v of store.values()) {
-                                if (v[index] === val) res.push(v);
-                            }
-                            return res.sort((a, b) => {
-                                const av = a[key]; const bv = b[key];
-                                if (av === bv) return 0; return (av ?? 0) < (bv ?? 0) ? -1 : 1;
-                            });
-                        }
-                    }),
+                        };
+                    },
                     anyOf: (vals: any[]) => ({
                         toArray: async () => {
                             const res: any[] = [];
@@ -181,6 +221,15 @@ function createTable(primaryKey: string) {
             }
         }),
         toArray: async () => Array.from(store.values()),
+        toCollection: () => createCollection(store),
+        delete: async (id: string) => {
+            const exists = store.has(String(id));
+            store.delete(String(id));
+            return exists ? 1 : 0;
+        },
+        filter: (predicate: (item: any) => boolean) => ({
+            toArray: async () => Array.from(store.values()).filter(predicate)
+        }),
         _internalStore: store,
     };
     return table;
@@ -213,6 +262,14 @@ export function createInMemoryDB() {
         studentScriptures: createTable('id'),
         studentEssays: createTable('id'),
         audit_logs: createTable('log_id'),
+        // Additional Bible Bee tables needed by IndexedDBAdapter
+        bible_bee_years: createTable('year_id'),
+        divisions: createTable('division_id'),
+        essay_prompts: createTable('prompt_id'),
+        enrollments: createTable('id'),
+        enrollment_overrides: createTable('override_id'),
+        // Branding settings
+        branding_settings: createTable('setting_id'),
         // Transaction support for tests
         transaction: async (mode: any, tables: any, callback: () => Promise<any>) => {
             return await callback();
