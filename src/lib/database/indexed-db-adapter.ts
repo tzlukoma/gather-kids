@@ -26,9 +26,14 @@ import type {
 } from '../types';
 
 export class IndexedDBAdapter implements DatabaseAdapter {
+	private db: any;
+
+	constructor(customDb?: any) {
+		this.db = customDb || this.db;
+	}
 	// Households
 	async getHousehold(id: string): Promise<Household | null> {
-		const result = await dexieDb.households.get(id);
+		const result = await this.db.households.get(id);
 		return result || null;
 	}
 
@@ -41,7 +46,7 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 			created_at: new Date().toISOString(),
 			updated_at: new Date().toISOString(),
 		};
-		await dexieDb.households.add(household);
+		await this.db.households.add(household);
 		return household;
 	}
 
@@ -50,27 +55,27 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 			...data,
 			updated_at: new Date().toISOString(),
 		};
-		await dexieDb.households.update(id, updated);
-		const result = await dexieDb.households.get(id);
+		await this.db.households.update(id, updated);
+		const result = await this.db.households.get(id);
 		if (!result) throw new Error(`Household ${id} not found after update`);
 		return result;
 	}
 
 	async listHouseholds(filters?: HouseholdFilters): Promise<Household[]> {
-		let collection = dexieDb.households.toCollection();
+		let collection = this.db.households.toCollection();
 
 		if (filters?.city) {
-			collection = dexieDb.households.where('city').equals(filters.city);
+			collection = this.db.households.where('city').equals(filters.city);
 		}
 		if (filters?.state) {
-			collection = collection.and(h => h.state === filters.state);
+			collection = collection.and((h: any) => h.state === filters.state);
 		}
 		if (filters?.zip) {
-			collection = collection.and(h => h.zip === filters.zip);
+			collection = collection.and((h: any) => h.zip === filters.zip);
 		}
 		if (filters?.search) {
 			const searchLower = filters.search.toLowerCase();
-			collection = collection.and(h => 
+			collection = collection.and((h: any) => 
 				(h.address_line1?.toLowerCase().includes(searchLower) || false) ||
 				(h.city?.toLowerCase().includes(searchLower) || false)
 			);
@@ -87,12 +92,12 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 	}
 
 	async deleteHousehold(id: string): Promise<void> {
-		await dexieDb.households.delete(id);
+		await this.db.households.delete(id);
 	}
 
 	// Children
 	async getChild(id: string): Promise<Child | null> {
-		const result = await dexieDb.children.get(id);
+		const result = await this.db.children.get(id);
 		return result || null;
 	}
 
@@ -105,7 +110,7 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 			created_at: new Date().toISOString(),
 			updated_at: new Date().toISOString(),
 		};
-		await dexieDb.children.add(child);
+		await this.db.children.add(child);
 		return child;
 	}
 
@@ -114,24 +119,24 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 			...data,
 			updated_at: new Date().toISOString(),
 		};
-		await dexieDb.children.update(id, updated);
-		const result = await dexieDb.children.get(id);
+		await this.db.children.update(id, updated);
+		const result = await this.db.children.get(id);
 		if (!result) throw new Error(`Child ${id} not found after update`);
 		return result;
 	}
 
 	async listChildren(filters?: ChildFilters): Promise<Child[]> {
-		let collection = dexieDb.children.toCollection();
+		let collection = this.db.children.toCollection();
 
 		if (filters?.householdId) {
-			collection = dexieDb.children.where('household_id').equals(filters.householdId);
+			collection = this.db.children.where('household_id').equals(filters.householdId);
 		}
 		if (filters?.isActive !== undefined) {
-			collection = collection.and(c => c.is_active === filters.isActive);
+			collection = collection.and((c: any) => c.is_active === filters.isActive);
 		}
 		if (filters?.search) {
 			const searchLower = filters.search.toLowerCase();
-			collection = collection.and(c => 
+			collection = collection.and((c: any) => 
 				c.first_name?.toLowerCase().includes(searchLower) ||
 				c.last_name?.toLowerCase().includes(searchLower)
 			);
@@ -148,12 +153,12 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 	}
 
 	async deleteChild(id: string): Promise<void> {
-		await dexieDb.children.delete(id);
+		await this.db.children.delete(id);
 	}
 
 	// Guardians
 	async getGuardian(id: string): Promise<Guardian | null> {
-		const result = await dexieDb.guardians.get(id);
+		const result = await this.db.guardians.get(id);
 		return result || null;
 	}
 
@@ -166,7 +171,7 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 			created_at: new Date().toISOString(),
 			updated_at: new Date().toISOString(),
 		};
-		await dexieDb.guardians.add(guardian);
+		await this.db.guardians.add(guardian);
 		return guardian;
 	}
 
@@ -175,23 +180,23 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 			...data,
 			updated_at: new Date().toISOString(),
 		};
-		await dexieDb.guardians.update(id, updated);
-		const result = await dexieDb.guardians.get(id);
+		await this.db.guardians.update(id, updated);
+		const result = await this.db.guardians.get(id);
 		if (!result) throw new Error(`Guardian ${id} not found after update`);
 		return result;
 	}
 
 	async listGuardians(householdId: string): Promise<Guardian[]> {
-		return dexieDb.guardians.where('household_id').equals(householdId).toArray();
+		return this.db.guardians.where('household_id').equals(householdId).toArray();
 	}
 
 	async deleteGuardian(id: string): Promise<void> {
-		await dexieDb.guardians.delete(id);
+		await this.db.guardians.delete(id);
 	}
 
 	// Emergency Contacts
 	async getEmergencyContact(id: string): Promise<EmergencyContact | null> {
-		const result = await dexieDb.emergency_contacts.get(id);
+		const result = await this.db.emergency_contacts.get(id);
 		return result || null;
 	}
 
@@ -202,7 +207,7 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 			...data,
 			contact_id: uuidv4(),
 		};
-		await dexieDb.emergency_contacts.add(contact);
+		await this.db.emergency_contacts.add(contact);
 		return contact;
 	}
 
@@ -210,23 +215,23 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 		id: string,
 		data: Partial<EmergencyContact>
 	): Promise<EmergencyContact> {
-		await dexieDb.emergency_contacts.update(id, data);
-		const result = await dexieDb.emergency_contacts.get(id);
+		await this.db.emergency_contacts.update(id, data);
+		const result = await this.db.emergency_contacts.get(id);
 		if (!result) throw new Error(`Emergency contact ${id} not found after update`);
 		return result;
 	}
 
 	async listEmergencyContacts(householdId: string): Promise<EmergencyContact[]> {
-		return dexieDb.emergency_contacts.where('household_id').equals(householdId).toArray();
+		return this.db.emergency_contacts.where('household_id').equals(householdId).toArray();
 	}
 
 	async deleteEmergencyContact(id: string): Promise<void> {
-		await dexieDb.emergency_contacts.delete(id);
+		await this.db.emergency_contacts.delete(id);
 	}
 
 	// Registration Cycles
 	async getRegistrationCycle(id: string): Promise<RegistrationCycle | null> {
-		const result = await dexieDb.registration_cycles.get(id);
+		const result = await this.db.registration_cycles.get(id);
 		return result || null;
 	}
 
@@ -237,7 +242,7 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 			...data,
 			cycle_id: uuidv4(),
 		};
-		await dexieDb.registration_cycles.add(cycle);
+		await this.db.registration_cycles.add(cycle);
 		return cycle;
 	}
 
@@ -245,26 +250,26 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 		id: string,
 		data: Partial<RegistrationCycle>
 	): Promise<RegistrationCycle> {
-		await dexieDb.registration_cycles.update(id, data);
-		const result = await dexieDb.registration_cycles.get(id);
+		await this.db.registration_cycles.update(id, data);
+		const result = await this.db.registration_cycles.get(id);
 		if (!result) throw new Error(`Registration cycle ${id} not found after update`);
 		return result;
 	}
 
 	async listRegistrationCycles(isActive?: boolean): Promise<RegistrationCycle[]> {
 		if (isActive !== undefined) {
-			return dexieDb.registration_cycles.filter(cycle => cycle.is_active === isActive).toArray();
+			return this.db.registration_cycles.filter((cycle: any) => cycle.is_active === isActive).toArray();
 		}
-		return dexieDb.registration_cycles.toArray();
+		return this.db.registration_cycles.toArray();
 	}
 
 	async deleteRegistrationCycle(id: string): Promise<void> {
-		await dexieDb.registration_cycles.delete(id);
+		await this.db.registration_cycles.delete(id);
 	}
 
 	// Registrations
 	async getRegistration(id: string): Promise<Registration | null> {
-		const result = await dexieDb.registrations.get(id);
+		const result = await this.db.registrations.get(id);
 		return result || null;
 	}
 
@@ -275,7 +280,7 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 			...data,
 			registration_id: uuidv4(),
 		};
-		await dexieDb.registrations.add(registration);
+		await this.db.registrations.add(registration);
 		return registration;
 	}
 
@@ -283,23 +288,23 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 		id: string,
 		data: Partial<Registration>
 	): Promise<Registration> {
-		await dexieDb.registrations.update(id, data);
-		const result = await dexieDb.registrations.get(id);
+		await this.db.registrations.update(id, data);
+		const result = await this.db.registrations.get(id);
 		if (!result) throw new Error(`Registration ${id} not found after update`);
 		return result;
 	}
 
 	async listRegistrations(filters?: RegistrationFilters): Promise<Registration[]> {
-		let collection = dexieDb.registrations.toCollection();
+		let collection = this.db.registrations.toCollection();
 
 		if (filters?.childId) {
-			collection = dexieDb.registrations.where('child_id').equals(filters.childId);
+			collection = this.db.registrations.where('child_id').equals(filters.childId);
 		}
 		if (filters?.cycleId) {
-			collection = collection.and(r => r.cycle_id === filters.cycleId);
+			collection = collection.and((r: any) => r.cycle_id === filters.cycleId);
 		}
 		if (filters?.status) {
-			collection = collection.and(r => r.status === filters.status);
+			collection = collection.and((r: any) => r.status === filters.status);
 		}
 
 		if (filters?.offset) {
@@ -313,12 +318,12 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 	}
 
 	async deleteRegistration(id: string): Promise<void> {
-		await dexieDb.registrations.delete(id);
+		await this.db.registrations.delete(id);
 	}
 
 	// Ministries
 	async getMinistry(id: string): Promise<Ministry | null> {
-		const result = await dexieDb.ministries.get(id);
+		const result = await this.db.ministries.get(id);
 		return result || null;
 	}
 
@@ -331,7 +336,7 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 			created_at: new Date().toISOString(),
 			updated_at: new Date().toISOString(),
 		};
-		await dexieDb.ministries.add(ministry);
+		await this.db.ministries.add(ministry);
 		return ministry;
 	}
 
@@ -340,26 +345,26 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 			...data,
 			updated_at: new Date().toISOString(),
 		};
-		await dexieDb.ministries.update(id, updated);
-		const result = await dexieDb.ministries.get(id);
+		await this.db.ministries.update(id, updated);
+		const result = await this.db.ministries.get(id);
 		if (!result) throw new Error(`Ministry ${id} not found after update`);
 		return result;
 	}
 
 	async listMinistries(isActive?: boolean): Promise<Ministry[]> {
 		if (isActive !== undefined) {
-			return dexieDb.ministries.filter(ministry => ministry.is_active === isActive).toArray();
+			return this.db.ministries.filter((ministry: any) => ministry.is_active === isActive).toArray();
 		}
-		return dexieDb.ministries.toArray();
+		return this.db.ministries.toArray();
 	}
 
 	async deleteMinistry(id: string): Promise<void> {
-		await dexieDb.ministries.delete(id);
+		await this.db.ministries.delete(id);
 	}
 
 	// Ministry Enrollments
 	async getMinistryEnrollment(id: string): Promise<MinistryEnrollment | null> {
-		const result = await dexieDb.ministry_enrollments.get(id);
+		const result = await this.db.ministry_enrollments.get(id);
 		return result || null;
 	}
 
@@ -370,7 +375,7 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 			...data,
 			enrollment_id: uuidv4(),
 		};
-		await dexieDb.ministry_enrollments.add(enrollment);
+		await this.db.ministry_enrollments.add(enrollment);
 		return enrollment;
 	}
 
@@ -382,8 +387,8 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 			...data,
 			updated_at: new Date().toISOString(),
 		};
-		await dexieDb.ministry_enrollments.update(id, updated);
-		const result = await dexieDb.ministry_enrollments.get(id);
+		await this.db.ministry_enrollments.update(id, updated);
+		const result = await this.db.ministry_enrollments.get(id);
 		if (!result) throw new Error(`Ministry enrollment ${id} not found after update`);
 		return result;
 	}
@@ -393,28 +398,28 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 		ministryId?: string,
 		cycleId?: string
 	): Promise<MinistryEnrollment[]> {
-		let collection = dexieDb.ministry_enrollments.toCollection();
+		let collection = this.db.ministry_enrollments.toCollection();
 
 		if (childId) {
-			collection = dexieDb.ministry_enrollments.where('child_id').equals(childId);
+			collection = this.db.ministry_enrollments.where('child_id').equals(childId);
 		}
 		if (ministryId) {
-			collection = collection.and(e => e.ministry_id === ministryId);
+			collection = collection.and((e: any) => e.ministry_id === ministryId);
 		}
 		if (cycleId) {
-			collection = collection.and(e => e.cycle_id === cycleId);
+			collection = collection.and((e: any) => e.cycle_id === cycleId);
 		}
 
 		return collection.toArray();
 	}
 
 	async deleteMinistryEnrollment(id: string): Promise<void> {
-		await dexieDb.ministry_enrollments.delete(id);
+		await this.db.ministry_enrollments.delete(id);
 	}
 
 	// Attendance
 	async getAttendance(id: string): Promise<Attendance | null> {
-		const result = await dexieDb.attendance.get(id);
+		const result = await this.db.attendance.get(id);
 		return result || null;
 	}
 
@@ -425,28 +430,28 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 			...data,
 			attendance_id: uuidv4(),
 		};
-		await dexieDb.attendance.add(attendance);
+		await this.db.attendance.add(attendance);
 		return attendance;
 	}
 
 	async updateAttendance(id: string, data: Partial<Attendance>): Promise<Attendance> {
-		await dexieDb.attendance.update(id, data);
-		const result = await dexieDb.attendance.get(id);
+		await this.db.attendance.update(id, data);
+		const result = await this.db.attendance.get(id);
 		if (!result) throw new Error(`Attendance ${id} not found after update`);
 		return result;
 	}
 
 	async listAttendance(filters?: AttendanceFilters): Promise<Attendance[]> {
-		let collection = dexieDb.attendance.toCollection();
+		let collection = this.db.attendance.toCollection();
 
 		if (filters?.childId) {
-			collection = dexieDb.attendance.where('child_id').equals(filters.childId);
+			collection = this.db.attendance.where('child_id').equals(filters.childId);
 		}
 		if (filters?.eventId) {
-			collection = collection.and(a => a.event_id === filters.eventId);
+			collection = collection.and((a: any) => a.event_id === filters.eventId);
 		}
 		if (filters?.date) {
-			collection = collection.and(a => a.date === filters.date);
+			collection = collection.and((a: any) => a.date === filters.date);
 		}
 
 		if (filters?.offset) {
@@ -460,12 +465,12 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 	}
 
 	async deleteAttendance(id: string): Promise<void> {
-		await dexieDb.attendance.delete(id);
+		await this.db.attendance.delete(id);
 	}
 
 	// Incidents
 	async getIncident(id: string): Promise<Incident | null> {
-		const result = await dexieDb.incidents.get(id);
+		const result = await this.db.incidents.get(id);
 		return result || null;
 	}
 
@@ -476,7 +481,7 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 			...data,
 			incident_id: uuidv4(),
 		};
-		await dexieDb.incidents.add(incident);
+		await this.db.incidents.add(incident);
 		return incident;
 	}
 
@@ -485,20 +490,20 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 			...data,
 			updated_at: new Date().toISOString(),
 		};
-		await dexieDb.incidents.update(id, updated);
-		const result = await dexieDb.incidents.get(id);
+		await this.db.incidents.update(id, updated);
+		const result = await this.db.incidents.get(id);
 		if (!result) throw new Error(`Incident ${id} not found after update`);
 		return result;
 	}
 
 	async listIncidents(filters?: IncidentFilters): Promise<Incident[]> {
-		let collection = dexieDb.incidents.toCollection();
+		let collection = this.db.incidents.toCollection();
 
 		if (filters?.childId) {
-			collection = dexieDb.incidents.where('child_id').equals(filters.childId);
+			collection = this.db.incidents.where('child_id').equals(filters.childId);
 		}
 		if (filters?.resolved !== undefined) {
-			collection = collection.and(i => 
+			collection = collection.and((i: any) => 
 				filters.resolved ? (i.admin_acknowledged_at != null) : (i.admin_acknowledged_at == null)
 			);
 		}
@@ -514,12 +519,12 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 	}
 
 	async deleteIncident(id: string): Promise<void> {
-		await dexieDb.incidents.delete(id);
+		await this.db.incidents.delete(id);
 	}
 
 	// Events
 	async getEvent(id: string): Promise<Event | null> {
-		const result = await dexieDb.events.get(id);
+		const result = await this.db.events.get(id);
 		return result || null;
 	}
 
@@ -530,28 +535,28 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 			...data,
 			event_id: uuidv4(),
 		};
-		await dexieDb.events.add(event);
+		await this.db.events.add(event);
 		return event;
 	}
 
 	async updateEvent(id: string, data: Partial<Event>): Promise<Event> {
-		await dexieDb.events.update(id, data);
-		const result = await dexieDb.events.get(id);
+		await this.db.events.update(id, data);
+		const result = await this.db.events.get(id);
 		if (!result) throw new Error(`Event ${id} not found after update`);
 		return result;
 	}
 
 	async listEvents(): Promise<Event[]> {
-		return dexieDb.events.toArray();
+		return this.db.events.toArray();
 	}
 
 	async deleteEvent(id: string): Promise<void> {
-		await dexieDb.events.delete(id);
+		await this.db.events.delete(id);
 	}
 
 	// Users
 	async getUser(id: string): Promise<User | null> {
-		const result = await dexieDb.users.get(id);
+		const result = await this.db.users.get(id);
 		return result || null;
 	}
 
@@ -562,28 +567,28 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 			...data,
 			user_id: uuidv4(),
 		};
-		await dexieDb.users.add(user);
+		await this.db.users.add(user);
 		return user;
 	}
 
 	async updateUser(id: string, data: Partial<User>): Promise<User> {
-		await dexieDb.users.update(id, data);
-		const result = await dexieDb.users.get(id);
+		await this.db.users.update(id, data);
+		const result = await this.db.users.get(id);
 		if (!result) throw new Error(`User ${id} not found after update`);
 		return result;
 	}
 
 	async listUsers(): Promise<User[]> {
-		return dexieDb.users.toArray();
+		return this.db.users.toArray();
 	}
 
 	async deleteUser(id: string): Promise<void> {
-		await dexieDb.users.delete(id);
+		await this.db.users.delete(id);
 	}
 
 	// Leader Profiles
 	async getLeaderProfile(id: string): Promise<LeaderProfile | null> {
-		const result = await dexieDb.leader_profiles.get(id);
+		const result = await this.db.leader_profiles.get(id);
 		return result || null;
 	}
 
@@ -596,7 +601,7 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 			created_at: new Date().toISOString(),
 			updated_at: new Date().toISOString(),
 		};
-		await dexieDb.leader_profiles.add(leader);
+		await this.db.leader_profiles.add(leader);
 		return leader;
 	}
 
@@ -608,28 +613,28 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 			...data,
 			updated_at: new Date().toISOString(),
 		};
-		await dexieDb.leader_profiles.update(id, updated);
-		const result = await dexieDb.leader_profiles.get(id);
+		await this.db.leader_profiles.update(id, updated);
+		const result = await this.db.leader_profiles.get(id);
 		if (!result) throw new Error(`Leader profile ${id} not found after update`);
 		return result;
 	}
 
 	async listLeaderProfiles(isActive?: boolean): Promise<LeaderProfile[]> {
 		if (isActive !== undefined) {
-			return dexieDb.leader_profiles.filter(profile => profile.is_active === isActive).toArray();
+			return this.db.leader_profiles.filter((profile: any) => profile.is_active === isActive).toArray();
 		}
-		return dexieDb.leader_profiles.toArray();
+		return this.db.leader_profiles.toArray();
 	}
 
 	async deleteLeaderProfile(id: string): Promise<void> {
-		await dexieDb.leader_profiles.delete(id);
+		await this.db.leader_profiles.delete(id);
 	}
 
 	// Ministry Leader Memberships
 	async getMinistryLeaderMembership(
 		id: string
 	): Promise<MinistryLeaderMembership | null> {
-		const result = await dexieDb.ministry_leader_memberships.get(id);
+		const result = await this.db.ministry_leader_memberships.get(id);
 		return result || null;
 	}
 
@@ -642,7 +647,7 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 			created_at: new Date().toISOString(),
 			updated_at: new Date().toISOString(),
 		};
-		await dexieDb.ministry_leader_memberships.add(membership);
+		await this.db.ministry_leader_memberships.add(membership);
 		return membership;
 	}
 
@@ -654,8 +659,8 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 			...data,
 			updated_at: new Date().toISOString(),
 		};
-		await dexieDb.ministry_leader_memberships.update(id, updated);
-		const result = await dexieDb.ministry_leader_memberships.get(id);
+		await this.db.ministry_leader_memberships.update(id, updated);
+		const result = await this.db.ministry_leader_memberships.get(id);
 		if (!result) throw new Error(`Ministry leader membership ${id} not found after update`);
 		return result;
 	}
@@ -664,25 +669,25 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 		ministryId?: string,
 		leaderId?: string
 	): Promise<MinistryLeaderMembership[]> {
-		let collection = dexieDb.ministry_leader_memberships.toCollection();
+		let collection = this.db.ministry_leader_memberships.toCollection();
 
 		if (ministryId) {
-			collection = dexieDb.ministry_leader_memberships.where('ministry_id').equals(ministryId);
+			collection = this.db.ministry_leader_memberships.where('ministry_id').equals(ministryId);
 		}
 		if (leaderId) {
-			collection = collection.and(m => m.leader_id === leaderId);
+			collection = collection.and((m: any) => m.leader_id === leaderId);
 		}
 
 		return collection.toArray();
 	}
 
 	async deleteMinistryLeaderMembership(id: string): Promise<void> {
-		await dexieDb.ministry_leader_memberships.delete(id);
+		await this.db.ministry_leader_memberships.delete(id);
 	}
 
 	// Ministry Accounts
 	async getMinistryAccount(id: string): Promise<MinistryAccount | null> {
-		const result = await dexieDb.ministry_accounts.get(id);
+		const result = await this.db.ministry_accounts.get(id);
 		return result || null;
 	}
 
@@ -694,7 +699,7 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 			created_at: new Date().toISOString(),
 			updated_at: new Date().toISOString(),
 		};
-		await dexieDb.ministry_accounts.add(account);
+		await this.db.ministry_accounts.add(account);
 		return account;
 	}
 
@@ -706,23 +711,23 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 			...data,
 			updated_at: new Date().toISOString(),
 		};
-		await dexieDb.ministry_accounts.update(id, updated);
-		const result = await dexieDb.ministry_accounts.get(id);
+		await this.db.ministry_accounts.update(id, updated);
+		const result = await this.db.ministry_accounts.get(id);
 		if (!result) throw new Error(`Ministry account ${id} not found after update`);
 		return result;
 	}
 
 	async listMinistryAccounts(): Promise<MinistryAccount[]> {
-		return dexieDb.ministry_accounts.toArray();
+		return this.db.ministry_accounts.toArray();
 	}
 
 	async deleteMinistryAccount(id: string): Promise<void> {
-		await dexieDb.ministry_accounts.delete(id);
+		await this.db.ministry_accounts.delete(id);
 	}
 
 	// Branding Settings
 	async getBrandingSettings(settingId: string): Promise<BrandingSettings | null> {
-		const result = await dexieDb.branding_settings.get(settingId);
+		const result = await this.db.branding_settings.get(settingId);
 		return result || null;
 	}
 
@@ -735,7 +740,7 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 			created_at: new Date().toISOString(),
 			updated_at: new Date().toISOString(),
 		};
-		await dexieDb.branding_settings.add(settings);
+		await this.db.branding_settings.add(settings);
 		return settings;
 	}
 
@@ -747,23 +752,23 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 			...data,
 			updated_at: new Date().toISOString(),
 		};
-		await dexieDb.branding_settings.update(settingId, updated);
-		const result = await dexieDb.branding_settings.get(settingId);
+		await this.db.branding_settings.update(settingId, updated);
+		const result = await this.db.branding_settings.get(settingId);
 		if (!result) throw new Error(`Branding settings ${settingId} not found after update`);
 		return result;
 	}
 
 	async listBrandingSettings(): Promise<BrandingSettings[]> {
-		return dexieDb.branding_settings.toArray();
+		return this.db.branding_settings.toArray();
 	}
 
 	async deleteBrandingSettings(settingId: string): Promise<void> {
-		await dexieDb.branding_settings.delete(settingId);
+		await this.db.branding_settings.delete(settingId);
 	}
 
 	// Bible Bee entities (simplified implementations)
 	async getBibleBeeYear(id: string): Promise<BibleBeeYear | null> {
-		const result = await dexieDb.bible_bee_years.get(id);
+		const result = await this.db.bible_bee_years.get(id);
 		return result || null;
 	}
 
@@ -774,7 +779,7 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 			...data,
 			created_at: new Date().toISOString(),
 		};
-		await dexieDb.bible_bee_years.add(year);
+		await this.db.bible_bee_years.add(year);
 		return year;
 	}
 
@@ -782,22 +787,22 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 		id: string,
 		data: Partial<BibleBeeYear>
 	): Promise<BibleBeeYear> {
-		await dexieDb.bible_bee_years.update(id, data);
-		const result = await dexieDb.bible_bee_years.get(id);
+		await this.db.bible_bee_years.update(id, data);
+		const result = await this.db.bible_bee_years.get(id);
 		if (!result) throw new Error(`Bible Bee year ${id} not found after update`);
 		return result;
 	}
 
 	async listBibleBeeYears(): Promise<BibleBeeYear[]> {
-		return dexieDb.bible_bee_years.toArray();
+		return this.db.bible_bee_years.toArray();
 	}
 
 	async deleteBibleBeeYear(id: string): Promise<void> {
-		await dexieDb.bible_bee_years.delete(id);
+		await this.db.bible_bee_years.delete(id);
 	}
 
 	async getDivision(id: string): Promise<Division | null> {
-		const result = await dexieDb.divisions.get(id);
+		const result = await this.db.divisions.get(id);
 		return result || null;
 	}
 
@@ -809,7 +814,7 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 			created_at: new Date().toISOString(),
 			updated_at: new Date().toISOString(),
 		};
-		await dexieDb.divisions.add(division);
+		await this.db.divisions.add(division);
 		return division;
 	}
 
@@ -818,25 +823,25 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 			...data,
 			updated_at: new Date().toISOString(),
 		};
-		await dexieDb.divisions.update(id, updated);
-		const result = await dexieDb.divisions.get(id);
+		await this.db.divisions.update(id, updated);
+		const result = await this.db.divisions.get(id);
 		if (!result) throw new Error(`Division ${id} not found after update`);
 		return result;
 	}
 
 	async listDivisions(bibleBeeYearId?: string): Promise<Division[]> {
 		if (bibleBeeYearId) {
-			return dexieDb.divisions.where('bible_bee_year_id').equals(bibleBeeYearId).toArray();
+			return this.db.divisions.where('bible_bee_year_id').equals(bibleBeeYearId).toArray();
 		}
-		return dexieDb.divisions.toArray();
+		return this.db.divisions.toArray();
 	}
 
 	async deleteDivision(id: string): Promise<void> {
-		await dexieDb.divisions.delete(id);
+		await this.db.divisions.delete(id);
 	}
 
 	async getEssayPrompt(id: string): Promise<EssayPrompt | null> {
-		const result = await dexieDb.essay_prompts.get(id);
+		const result = await this.db.essay_prompts.get(id);
 		return result || null;
 	}
 
@@ -848,7 +853,7 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 			created_at: new Date().toISOString(),
 			updated_at: new Date().toISOString(),
 		};
-		await dexieDb.essay_prompts.add(prompt);
+		await this.db.essay_prompts.add(prompt);
 		return prompt;
 	}
 
@@ -860,25 +865,25 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 			...data,
 			updated_at: new Date().toISOString(),
 		};
-		await dexieDb.essay_prompts.update(id, updated);
-		const result = await dexieDb.essay_prompts.get(id);
+		await this.db.essay_prompts.update(id, updated);
+		const result = await this.db.essay_prompts.get(id);
 		if (!result) throw new Error(`Essay prompt ${id} not found after update`);
 		return result;
 	}
 
 	async listEssayPrompts(divisionId?: string): Promise<EssayPrompt[]> {
 		if (divisionId) {
-			return dexieDb.essay_prompts.where('division_id').equals(divisionId).toArray();
+			return this.db.essay_prompts.where('division_id').equals(divisionId).toArray();
 		}
-		return dexieDb.essay_prompts.toArray();
+		return this.db.essay_prompts.toArray();
 	}
 
 	async deleteEssayPrompt(id: string): Promise<void> {
-		await dexieDb.essay_prompts.delete(id);
+		await this.db.essay_prompts.delete(id);
 	}
 
 	async getEnrollment(id: string): Promise<Enrollment | null> {
-		const result = await dexieDb.enrollments.get(id);
+		const result = await this.db.enrollments.get(id);
 		return result || null;
 	}
 
@@ -889,13 +894,13 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 			...data,
 			id: uuidv4(),
 		};
-		await dexieDb.enrollments.add(enrollment);
+		await this.db.enrollments.add(enrollment);
 		return enrollment;
 	}
 
 	async updateEnrollment(id: string, data: Partial<Enrollment>): Promise<Enrollment> {
-		await dexieDb.enrollments.update(id, data);
-		const result = await dexieDb.enrollments.get(id);
+		await this.db.enrollments.update(id, data);
+		const result = await this.db.enrollments.get(id);
 		if (!result) throw new Error(`Enrollment ${id} not found after update`);
 		return result;
 	}
@@ -904,24 +909,24 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 		childId?: string,
 		bibleBeeYearId?: string
 	): Promise<Enrollment[]> {
-		let collection = dexieDb.enrollments.toCollection();
+		let collection = this.db.enrollments.toCollection();
 
 		if (childId) {
-			collection = dexieDb.enrollments.where('child_id').equals(childId);
+			collection = this.db.enrollments.where('child_id').equals(childId);
 		}
 		if (bibleBeeYearId) {
-			collection = collection.and(e => e.year_id === bibleBeeYearId);
+			collection = collection.and((e: any) => e.year_id === bibleBeeYearId);
 		}
 
 		return collection.toArray();
 	}
 
 	async deleteEnrollment(id: string): Promise<void> {
-		await dexieDb.enrollments.delete(id);
+		await this.db.enrollments.delete(id);
 	}
 
 	async getEnrollmentOverride(id: string): Promise<EnrollmentOverride | null> {
-		const result = await dexieDb.enrollment_overrides.get(id);
+		const result = await this.db.enrollment_overrides.get(id);
 		return result || null;
 	}
 
@@ -932,7 +937,7 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 			...data,
 			created_at: new Date().toISOString(),
 		};
-		await dexieDb.enrollment_overrides.add(override);
+		await this.db.enrollment_overrides.add(override);
 		return override;
 	}
 
@@ -940,21 +945,21 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 		id: string,
 		data: Partial<EnrollmentOverride>
 	): Promise<EnrollmentOverride> {
-		await dexieDb.enrollment_overrides.update(id, data);
-		const result = await dexieDb.enrollment_overrides.get(id);
+		await this.db.enrollment_overrides.update(id, data);
+		const result = await this.db.enrollment_overrides.get(id);
 		if (!result) throw new Error(`Enrollment override ${id} not found after update`);
 		return result;
 	}
 
 	async listEnrollmentOverrides(enrollmentId?: string): Promise<EnrollmentOverride[]> {
 		if (enrollmentId) {
-			return dexieDb.enrollment_overrides.where('enrollment_id').equals(enrollmentId).toArray();
+			return this.db.enrollment_overrides.where('enrollment_id').equals(enrollmentId).toArray();
 		}
-		return dexieDb.enrollment_overrides.toArray();
+		return this.db.enrollment_overrides.toArray();
 	}
 
 	async deleteEnrollmentOverride(id: string): Promise<void> {
-		await dexieDb.enrollment_overrides.delete(id);
+		await this.db.enrollment_overrides.delete(id);
 	}
 
 	// No-op for realtime subscriptions in demo mode
@@ -965,30 +970,30 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 
 	// Implement transaction support using Dexie
 	async transaction<T>(callback: () => Promise<T>): Promise<T> {
-		return dexieDb.transaction(
+		return this.db.transaction(
 			'rw',
 			[
-				dexieDb.households,
-				dexieDb.children,
-				dexieDb.guardians,
-				dexieDb.emergency_contacts,
-				dexieDb.registration_cycles,
-				dexieDb.registrations,
-				dexieDb.ministries,
-				dexieDb.ministry_enrollments,
-				dexieDb.attendance,
-				dexieDb.incidents,
-				dexieDb.events,
-				dexieDb.users,
-				dexieDb.leader_profiles,
-				dexieDb.ministry_leader_memberships,
-				dexieDb.ministry_accounts,
-				dexieDb.branding_settings,
-				dexieDb.bible_bee_years,
-				dexieDb.divisions,
-				dexieDb.essay_prompts,
-				dexieDb.enrollments,
-				dexieDb.enrollment_overrides,
+				this.db.households,
+				this.db.children,
+				this.db.guardians,
+				this.db.emergency_contacts,
+				this.db.registration_cycles,
+				this.db.registrations,
+				this.db.ministries,
+				this.db.ministry_enrollments,
+				this.db.attendance,
+				this.db.incidents,
+				this.db.events,
+				this.db.users,
+				this.db.leader_profiles,
+				this.db.ministry_leader_memberships,
+				this.db.ministry_accounts,
+				this.db.branding_settings,
+				this.db.bible_bee_years,
+				this.db.divisions,
+				this.db.essay_prompts,
+				this.db.enrollments,
+				this.db.enrollment_overrides,
 			],
 			async () => {
 				return callback();
