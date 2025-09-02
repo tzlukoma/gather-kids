@@ -52,14 +52,14 @@ jobs:
           # Run dump command
           $HOME/.bin/supabase db dump -f "$SNAPSHOT" --linked
       - name: Upload schema snapshot
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: prod-schema-snapshot
           path: snapshots/
           retention-days: 30
 
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: '18'
           cache: 'npm'
