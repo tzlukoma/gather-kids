@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
@@ -36,8 +36,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { ProtectedRoute } from '@/components/auth/protected-route';
 import { ROLES } from '@/lib/constants/roles';
 import { GuardianSkeleton } from '@/components/skeletons/guardian-skeleton';
-import { useEffect, useState } from 'react';
-import { getHouseholdProfile } from '@/lib/dal';
+import { getHouseholdProfile, getHouseholdForUser } from '@/lib/dal';
 import type { HouseholdProfileData } from '@/lib/dal';
 
 function HouseholdLayoutContent({ children }: { children: React.ReactNode }) {
@@ -48,10 +47,21 @@ function HouseholdLayoutContent({ children }: { children: React.ReactNode }) {
 
 	useEffect(() => {
 		const checkBibleBeeEnrollment = async () => {
-			if (!user?.metadata?.household_id) return;
+			if (!user) return;
+			
+			// Try to get household_id from user metadata first
+			let targetHouseholdId = user.metadata?.household_id;
+			
+			// If not available, try to find it using user_households table
+			if (!targetHouseholdId && user.uid) {
+				const { getHouseholdForUser } = await import('@/lib/dal');
+				targetHouseholdId = await getHouseholdForUser(user.uid);
+			}
+			
+			if (!targetHouseholdId) return;
 			
 			try {
-				const profileData = await getHouseholdProfile(user.metadata.household_id);
+				const profileData = await getHouseholdProfile(targetHouseholdId);
 				const hasEnrollment = profileData.children.some(child => 
 					Object.values(child.enrollmentsByCycle).some(enrollments =>
 						enrollments.some(enrollment => enrollment.ministry_id === 'bible-bee')
@@ -82,6 +92,11 @@ function HouseholdLayoutContent({ children }: { children: React.ReactNode }) {
 			href: '/household/bible-bee',
 			icon: Book,
 		}] : []),
+		{
+			label: 'Profile',
+			href: '/household/profile',
+			icon: User,
+		},
 	];
 
 	if (!user) return null;
@@ -181,16 +196,66 @@ function HouseholdLayoutContent({ children }: { children: React.ReactNode }) {
 	);
 }
 
+function HouseholdProtectedRoute({ children }: { children: React.ReactNode }) {
+	const { user, loading } = useAuth();
+	const [hasHouseholdAccess, setHasHouseholdAccess] = useState<boolean | null>(null);
+	const router = useRouter();
+
+	useEffect(() => {
+		const checkHouseholdAccess = async () => {
+			if (loading) return;
+			
+			if (!user) {
+				router.push('/login');
+				return;
+			}
+
+			// Check if user has GUARDIAN role OR has household data
+			if (user.metadata?.role === ROLES.GUARDIAN) {
+				setHasHouseholdAccess(true);
+				return;
+			}
+
+			// Check if user has household data via user_households table
+			if (user.uid) {
+				try {
+					const householdId = await getHouseholdForUser(user.uid);
+					if (householdId) {
+						setHasHouseholdAccess(true);
+						return;
+					}
+				} catch (error) {
+					console.warn('Could not check household access:', error);
+				}
+			}
+
+			// No household access found
+			setHasHouseholdAccess(false);
+			router.push('/register'); // Redirect to registration if no household found
+		};
+
+		checkHouseholdAccess();
+	}, [user, loading, router]);
+
+	if (loading || hasHouseholdAccess === null) {
+		return <GuardianSkeleton />;
+	}
+
+	if (!hasHouseholdAccess) {
+		return null; // Will redirect
+	}
+
+	return <>{children}</>;
+}
+
 interface GuardianLayoutProps {
 	children: React.ReactNode;
 }
 
 export default function GuardianLayout({ children }: GuardianLayoutProps) {
 	return (
-		<ProtectedRoute
-			allowedRoles={[ROLES.GUARDIAN]}
-			loadingComponent={<GuardianSkeleton />}>
+		<HouseholdProtectedRoute>
 			<HouseholdLayoutContent>{children}</HouseholdLayoutContent>
-		</ProtectedRoute>
+		</HouseholdProtectedRoute>
 	);
 }
