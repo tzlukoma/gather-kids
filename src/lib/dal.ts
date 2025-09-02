@@ -1388,3 +1388,48 @@ export async function migrateLeadersIfNeeded(): Promise<boolean> {
         throw error;
     }
 }
+
+// Avatar Management Functions
+import { AvatarService } from './avatar/avatar-service';
+
+/**
+ * Get avatar URL for a child
+ */
+export async function getChildAvatarUrl(
+	childId: string
+): Promise<string | null> {
+	return AvatarService.getAvatarUrl('children', childId);
+}
+
+/**
+ * Get avatar URL for a guardian
+ */
+export async function getGuardianAvatarUrl(
+	guardianId: string
+): Promise<string | null> {
+	return AvatarService.getAvatarUrl('guardians', guardianId);
+}
+
+/**
+ * Get avatar URL for a leader
+ */
+export async function getLeaderAvatarUrl(
+	leaderId: string
+): Promise<string | null> {
+	return AvatarService.getAvatarUrl('leaders', leaderId);
+}
+
+/**
+ * Get child profile data including avatar
+ */
+export async function getChildWithAvatar(childId: string) {
+	const child = await db.children.get(childId);
+	if (!child) return null;
+
+	const avatarUrl = await getChildAvatarUrl(childId);
+
+	return {
+		...child,
+		avatarUrl,
+	};
+}
