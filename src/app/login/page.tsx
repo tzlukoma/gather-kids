@@ -20,6 +20,7 @@ import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
 import { useFeatureFlags } from '@/contexts/feature-flag-context';
 import { FeatureFlagDialog } from '@/components/feature-flag-dialog';
+import { ForgotPasswordDialog } from '@/components/auth/forgot-password-dialog';
 import { AuthRole } from '@/lib/auth-types';
 import { supabase } from '@/lib/supabaseClient';
 
@@ -114,7 +115,6 @@ export default function LoginPage() {
 	const [password, setPassword] = useState('');
 	const [isFlagDialogOpen, setIsFlagDialogOpen] = useState(false);
 	const [loading, setLoading] = useState(false);
-	const [showForgotPassword, setShowForgotPassword] = useState(false);
 
 	// Handle both demo and Supabase authentication
 	const handleLogin = async () => {
@@ -195,58 +195,6 @@ export default function LoginPage() {
 			toast({
 				title: 'Login Failed',
 				description: error.message || 'Unable to sign in. Please check your credentials.',
-				variant: 'destructive',
-			});
-		} finally {
-			setLoading(false);
-		}
-	};
-
-	const handleForgotPassword = async () => {
-		if (!email) {
-			toast({
-				title: 'Email Required',
-				description: 'Please enter your email address.',
-				variant: 'destructive',
-			});
-			return;
-		}
-
-		if (flags.isDemoMode) {
-			toast({
-				title: 'Demo Mode',
-				description: 'Password reset is not available in demo mode.',
-				variant: 'destructive',
-			});
-			return;
-		}
-
-		setLoading(true);
-
-		try {
-			if (!supabase) {
-				throw new Error('Supabase client not available');
-			}
-
-			const baseUrl = window.location.origin;
-			const { error } = await supabase.auth.resetPasswordForEmail(email, {
-				redirectTo: `${baseUrl}/auth/callback`,
-			});
-
-			if (error) {
-				throw error;
-			}
-
-			toast({
-				title: 'Reset Email Sent',
-				description: 'Please check your inbox for password reset instructions.',
-			});
-			setShowForgotPassword(false);
-		} catch (error: any) {
-			console.error('Password reset error:', error);
-			toast({
-				title: 'Reset Failed',
-				description: error.message || 'Unable to send reset email.',
 				variant: 'destructive',
 			});
 		} finally {
@@ -433,45 +381,23 @@ export default function LoginPage() {
 									/>
 								</div>
 								
-								{showForgotPassword && !flags.isDemoMode && (
-									<div className="space-y-2">
-										<Button
-											onClick={handleForgotPassword}
-											disabled={loading}
-											variant="outline"
-											className="w-full">
-											{loading ? 'Sending...' : 'Send Reset Email'}
-										</Button>
-										<Button
-											onClick={() => setShowForgotPassword(false)}
-											variant="ghost"
-											className="w-full text-sm">
-											Cancel
-										</Button>
+								<Button 
+									type="submit" 
+									className="w-full" 
+									onClick={handleLogin}
+									disabled={loading || (!flags.loginPasswordEnabled && !flags.isDemoMode)}
+								>
+									{loading ? 'Signing In...' : 'Sign In'}
+								</Button>
+								
+								{flags.loginPasswordEnabled && !flags.isDemoMode && (
+									<div className="flex justify-end">
+										<ForgotPasswordDialog>
+											<Button variant="link" className="px-0 text-sm">
+												Forgot your password?
+											</Button>
+										</ForgotPasswordDialog>
 									</div>
-								)}
-
-								{!showForgotPassword && (
-									<>
-										<Button 
-											type="submit" 
-											className="w-full" 
-											onClick={handleLogin}
-											disabled={loading || (!flags.loginPasswordEnabled && !flags.isDemoMode)}
-										>
-											{loading ? 'Signing In...' : 'Sign In'}
-										</Button>
-										
-										{flags.loginPasswordEnabled && !flags.isDemoMode && (
-											<div className="text-center">
-												<button
-													onClick={() => setShowForgotPassword(true)}
-													className="text-sm text-muted-foreground underline">
-													Forgot your password?
-												</button>
-											</div>
-										)}
-									</>
 								)}
 							</>
 						)}
