@@ -109,9 +109,11 @@ jobs:
         run: |
           # Link project with DB password
           $HOME/.bin/supabase link --project-ref "$PROJECT_ID" --password "$SUPABASE_DB_PASSWORD"
-          
+
           # Generate types
-          node scripts/gen-types.cjs      - name: Commit and push if there are changes
+          node scripts/gen-types.cjs
+
+      - name: Commit and push if there are changes
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
