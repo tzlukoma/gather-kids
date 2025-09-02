@@ -13,6 +13,8 @@
     "typecheck": "tsc --noEmit",
     "test": "jest",
     "test:watch": "jest --watch",
+    "gen:types": "node scripts/gen-types.cjs --local",
+    "gen:types:prod": "node scripts/gen-types.cjs",
     "seed:scriptures": "DOTENV_CONFIG_PATH=.env.local node -r dotenv/config scripts/seed/seedScriptures.js",
     "import:grab-dexie": "node scripts/import/grabDexieExport.mjs",
     "import:dexie": "DOTENV_CONFIG_PATH=.env.local node -r dotenv/config scripts/import/importDexie.js",
@@ -91,6 +93,7 @@
     "jest-environment-jsdom": "^30.0.5",
     "jsdom": "^26.1.0",
     "postcss": "^8",
+    "supabase": "^1.77.9",
     "tailwindcss": "^3.4.1",
     "ts-jest": "^29.4.1",
     "typescript": "5.9.2"

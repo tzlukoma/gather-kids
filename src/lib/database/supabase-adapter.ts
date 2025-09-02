@@ -1,6 +1,7 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { v4 as uuidv4 } from 'uuid';
 import type { DatabaseAdapter, HouseholdFilters, ChildFilters, RegistrationFilters, AttendanceFilters, IncidentFilters } from './types';
+import type { Database } from './supabase-types';
 import type {
 	Household,
 	Guardian,
@@ -26,11 +27,12 @@ import type {
 } from '../types';
 
 export class SupabaseAdapter implements DatabaseAdapter {
-	private client: SupabaseClient;
+	private client: SupabaseClient<Database>;
 
-	constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: SupabaseClient) {
-		this.client = customClient || createClient(supabaseUrl, supabaseAnonKey);
-	}
+
+constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: SupabaseClient<Database>) {
+	this.client = customClient || createClient<Database>(supabaseUrl, supabaseAnonKey);
+}
 
 	// Households
 	async getHousehold(id: string): Promise<Household | null> {
