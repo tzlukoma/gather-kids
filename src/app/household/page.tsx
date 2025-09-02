@@ -14,11 +14,25 @@ export default function GuardianHouseholdPage() {
 		null
 	);
 	const [showOnboarding, setShowOnboarding] = useState(false);
+	const [householdId, setHouseholdId] = useState<string | null>(null);
 
 	useEffect(() => {
 		const load = async () => {
-			if (!user?.metadata?.household_id) return;
-			const data = await getHouseholdProfile(user.metadata.household_id);
+			if (!user) return;
+			
+			// First try to get household_id from user metadata
+			let targetHouseholdId = user.metadata?.household_id;
+			
+			// If not available, try to find it using user_households table
+			if (!targetHouseholdId && user.uid) {
+				const { getHouseholdForUser } = await import('@/lib/dal');
+				targetHouseholdId = await getHouseholdForUser(user.uid);
+			}
+			
+			if (!targetHouseholdId) return;
+			
+			setHouseholdId(targetHouseholdId);
+			const data = await getHouseholdProfile(targetHouseholdId);
 			setProfileData(data);
 		};
 		load();

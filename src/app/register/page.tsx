@@ -723,7 +723,7 @@ export default function RegisterPage() {
 			// Use the active registration cycle instead of hardcoded '2025'
 			const cycleId = activeRegistrationCycle?.cycle_id || '2025'; // fallback to '2025' if no active cycle found
 			console.log('DEBUG: Registering household for cycle:', cycleId);
-			await registerHousehold(data, cycleId, isPrefill);
+			const result = await registerHousehold(data, cycleId, isPrefill);
 			toast({
 				title: 'Registration Submitted!',
 				description: "Thank you! Your family's registration has been received.",
@@ -737,6 +737,7 @@ export default function RegisterPage() {
 					const { data: { session } } = await supabase.auth.getSession();
 					if (session?.user) {
 						// Redirect authenticated parent to household page
+						// The household page will now handle users who don't have GUARDIAN role
 						router.push('/household');
 						return;
 					}

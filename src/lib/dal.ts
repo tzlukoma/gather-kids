@@ -378,6 +378,20 @@ export async function findHouseholdByEmail(email: string, currentCycleId: string
 }
 
 
+export async function getHouseholdForUser(authUserId: string): Promise<string | null> {
+    try {
+        const userHousehold = await db.user_households
+            .where('auth_user_id')
+            .equals(authUserId)
+            .first();
+        
+        return userHousehold?.household_id || null;
+    } catch (error) {
+        console.warn('Could not get household for user (likely demo mode):', error);
+        return null;
+    }
+}
+
 // Registration Logic
 export async function registerHousehold(data: any, cycle_id: string, isPrefill: boolean) {
     const householdId = data.household.household_id || uuidv4();
@@ -556,6 +570,9 @@ export async function registerHousehold(data: any, cycle_id: string, isPrefill: 
             console.warn('Could not create user_households relationship (likely demo mode):', error);
         }
     }
+    
+    // Return the household_id for the calling code
+    return { household_id: householdId };
 }
 
 // CSV Export Functions
