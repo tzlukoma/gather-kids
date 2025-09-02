@@ -29,9 +29,10 @@ import type {
 export class SupabaseAdapter implements DatabaseAdapter {
 	private client: SupabaseClient<Database>;
 
-	constructor(supabaseUrl: string, supabaseAnonKey: string) {
-		this.client = createClient<Database>(supabaseUrl, supabaseAnonKey);
-	}
+
+constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: SupabaseClient<Database>) {
+	this.client = customClient || createClient<Database>(supabaseUrl, supabaseAnonKey);
+}
 
 	// Households
 	async getHousehold(id: string): Promise<Household | null> {
