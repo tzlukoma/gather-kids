@@ -28,14 +28,18 @@ jobs:
           PROJECT_ID=$(echo $SUPABASE_URL | sed -E 's/https:\/\/([^.]+)\.supabase\.co.*/\1/')
           echo "PROJECT_ID=$PROJECT_ID" >> $GITHUB_ENV
 
-          # Use our simplified production migration script (compatible with older CLI versions)
+          # Make both scripts executable
           chmod +x scripts/db/simple_prod_migrations.sh
+          chmod +x scripts/db/complete_table_setup.sh
 
           # Explicitly export the access token
           export SUPABASE_ACCESS_TOKEN="${{ secrets.SUPABASE_ACCESS_TOKEN }}"
           export SUPABASE_DB_PASSWORD="${{ secrets.SUPABASE_DB_PASSWORD }}"
 
-          echo "Applying migrations to production with minimal flag usage for compatibility..."
+          echo "First, directly create all required tables to ensure they exist..."
+          scripts/db/complete_table_setup.sh "$PROJECT_ID" "$SUPABASE_ACCESS_TOKEN" "$SUPABASE_DB_PASSWORD"
+
+          echo "Now applying migrations to production to handle any schema changes..."
           scripts/db/simple_prod_migrations.sh "$PROJECT_ID" "$SUPABASE_ACCESS_TOKEN" "$SUPABASE_DB_PASSWORD"
       - name: Snapshot schema using Supabase CLI
         env:

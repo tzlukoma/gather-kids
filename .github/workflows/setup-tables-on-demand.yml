@@ -1,0 +1,146 @@
+name: Setup All Tables (On-Demand)
+
+# This workflow creates all required database tables in Supabase
+# It can be triggered manually when needed to ensure schema completeness
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - staging
+      dryRun:
+        description: 'Dry run (verify without making changes)'
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  setup-tables:
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ inputs.environment }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Install PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Setup Supabase CLI
+        run: |
+          # Create bin directory in home if it doesn't exist
+          mkdir -p "$HOME/.bin"
+
+          # Download the latest version for Linux
+          curl -s -L https://github.com/supabase/cli/releases/latest/download/supabase_linux_amd64.tar.gz | tar -xz -C "$HOME/.bin"
+
+          # Make it executable
+          chmod +x "$HOME/.bin/supabase"
+
+          # Add to PATH
+          export PATH="$HOME/.bin:$PATH"
+          echo "$HOME/.bin" >> $GITHUB_PATH
+
+      - name: Get Project ID from Supabase URL
+        run: |
+          # Use correct URL based on environment
+          if [[ "${{ inputs.environment }}" == "production" ]]; then
+            SUPABASE_URL="${{ secrets.PROD_SUPABASE_URL }}"
+          else
+            SUPABASE_URL="${{ secrets.STAGING_SUPABASE_URL }}"
+          fi
+
+          # Extract project ID from URL (format: https://<project-id>.supabase.co)
+          PROJECT_ID=$(echo $SUPABASE_URL | sed -E 's/https:\/\/([^.]+)\.supabase\.co.*/\1/')
+          echo "PROJECT_ID=$PROJECT_ID" >> $GITHUB_ENV
+
+      - name: Make complete table setup script executable
+        run: chmod +x scripts/db/complete_table_setup.sh
+
+      - name: Run table setup script
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: |
+          # Explicitly export the access token
+          export SUPABASE_ACCESS_TOKEN="${{ secrets.SUPABASE_ACCESS_TOKEN }}"
+          export SUPABASE_DB_PASSWORD="${{ secrets.SUPABASE_DB_PASSWORD }}"
+
+          # Show what would be executed if dry run is enabled
+          if [[ "${{ inputs.dryRun }}" == "true" ]]; then
+            echo "DRY RUN MODE - No changes will be made"
+            
+            # Show SQL statements that would be executed
+            echo "Tables that would be created:"
+            grep -A 3 "CREATE TABLE IF NOT EXISTS" scripts/db/complete_table_setup.sh | grep -v "^--" | sed 's/^/  /'
+            
+            echo "Script would execute but no changes will be made"
+            echo "✅ Dry run completed successfully"
+          else
+            echo "Running complete table setup script for ${{ inputs.environment }}..."
+            scripts/db/complete_table_setup.sh "$PROJECT_ID" "$SUPABASE_ACCESS_TOKEN" "$SUPABASE_DB_PASSWORD"
+          fi
+
+      - name: Verify database tables
+        if: inputs.dryRun == false
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: |
+          export SUPABASE_ACCESS_TOKEN="${{ secrets.SUPABASE_ACCESS_TOKEN }}"
+          export SUPABASE_DB_PASSWORD="${{ secrets.SUPABASE_DB_PASSWORD }}"
+
+          echo "Verifying database tables in ${{ inputs.environment }}..."
+
+          # Create a verification script
+          cat > verify_tables.sql << 'EOF'
+          SELECT table_name, 
+                 (SELECT COUNT(*) FROM information_schema.columns WHERE table_name = t.table_name) AS column_count
+          FROM information_schema.tables t
+          WHERE table_schema = 'public'
+            AND table_type = 'BASE TABLE'
+          ORDER BY table_name;
+          EOF
+
+          # Link to project
+          echo "Linking to project..."
+          $HOME/.bin/supabase link --project-ref "$PROJECT_ID" --password "$SUPABASE_DB_PASSWORD"
+
+          # Run verification
+          echo "Table inventory in the database:"
+          $HOME/.bin/supabase db execute --file verify_tables.sql --linked || echo "Unable to run table verification query"
+
+      - name: Create database snapshot
+        if: inputs.dryRun == false
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: |
+          export SUPABASE_ACCESS_TOKEN="${{ secrets.SUPABASE_ACCESS_TOKEN }}"
+
+          # Create snapshots directory
+          mkdir -p snapshots
+          SNAPSHOT="snapshots/schema-${{ inputs.environment }}-$(date +'%Y%m%d-%H%M%S').sql"
+
+          # Link project with DB password
+          $HOME/.bin/supabase link --project-ref "$PROJECT_ID" --password "$SUPABASE_DB_PASSWORD"
+
+          # Run dump command
+          $HOME/.bin/supabase db dump -f "$SNAPSHOT" --linked
+
+          echo "✅ Schema snapshot created at $SNAPSHOT"
+
+      - name: Upload schema snapshot
+        if: inputs.dryRun == false
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ inputs.environment }}-schema-snapshot
+          path: snapshots/
+          retention-days: 30
