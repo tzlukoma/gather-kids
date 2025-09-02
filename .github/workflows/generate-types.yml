@@ -14,15 +14,30 @@ jobs:
   generate-types:
     runs-on: ubuntu-latest
     environment: production
+
     steps:
       - uses: actions/checkout@v4
 
-      - name: Debug - List available secrets
+      - name: Validate secrets are available
         run: |
-          echo "Debugging secret availability..."
-          echo "SUPABASE_ACCESS_TOKEN length: ${#SUPABASE_ACCESS_TOKEN}"
-          echo "All environment variables with SUPABASE:"
-          env | grep SUPABASE || echo "No SUPABASE variables found"
+          echo "Checking if secrets are properly loaded..."
+
+          if [ ${#SUPABASE_ACCESS_TOKEN} -eq 0 ]; then
+            echo "ERROR: SUPABASE_ACCESS_TOKEN is empty or not set"
+            exit 1
+          fi
+
+          if [ ${#PROD_SUPABASE_URL} -eq 0 ]; then
+            echo "ERROR: PROD_SUPABASE_URL is empty or not set"
+            exit 1
+          fi
+
+          if [ ${#SUPABASE_DB_PASSWORD} -eq 0 ]; then
+            echo "ERROR: SUPABASE_DB_PASSWORD is empty or not set"
+            exit 1
+          fi
+
+          echo "All required secrets are available"
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           PROD_SUPABASE_URL: ${{ secrets.PROD_SUPABASE_URL }}
@@ -44,42 +59,25 @@ jobs:
           chmod +x "$HOME/.bin/supabase"
           echo "$HOME/.bin" >> $GITHUB_PATH
 
-      - name: Extract Project ID from Production URL
-        if: github.ref == 'refs/heads/main'
-        env:
-          PROD_SUPABASE_URL: ${{ secrets.PROD_SUPABASE_URL }}
-        run: |
-          SUPABASE_URL="$PROD_SUPABASE_URL"
-          PROJECT_ID=$(echo $SUPABASE_URL | sed -E 's/https:\/\/([^.]+)\.supabase\.co.*/\1/')
-          echo "PROJECT_ID=$PROJECT_ID" >> $GITHUB_ENV
-          echo "Extracted PROJECT_ID: $PROJECT_ID"
-
-      - name: Generate types from production schema
+      - name: Extract Project ID and Generate Types
         if: github.ref == 'refs/heads/main'
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          PROD_SUPABASE_URL: ${{ secrets.PROD_SUPABASE_URL }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         run: |
-          echo "Final check of environment variables..."
-          echo "PROJECT_ID = $PROJECT_ID"
-          echo "SUPABASE_ACCESS_TOKEN length: ${#SUPABASE_ACCESS_TOKEN}"
+          # Extract project ID
+          PROJECT_ID=$(echo "$PROD_SUPABASE_URL" | sed -E 's/https:\/\/([^.]+)\.supabase\.co.*/\1/')
+          echo "Project ID: $PROJECT_ID"
 
-          if [ -z "$SUPABASE_ACCESS_TOKEN" ]; then
-            echo "ERROR: SUPABASE_ACCESS_TOKEN is not set!"
-            echo "Available environment variables:"
-            env | grep -E "(SUPABASE|PROJECT)" || echo "No matching variables found"
-            exit 1
-          fi
-
-          if [ -z "$PROJECT_ID" ]; then
-            echo "ERROR: PROJECT_ID is not set!"
-            exit 1
-          fi
-
+          # Link to Supabase project
           echo "Linking to Supabase project..."
           $HOME/.bin/supabase link --project-ref "$PROJECT_ID" --password "$SUPABASE_DB_PASSWORD"
 
+          # Generate types with all required environment variables
           echo "Generating types..."
+          SUPABASE_PROJECT_ID="$PROJECT_ID" \
+          SUPABASE_ACCESS_TOKEN="$SUPABASE_ACCESS_TOKEN" \
           node scripts/gen-types.cjs
 
       - name: Commit and push if there are changes
@@ -89,4 +87,4 @@ jobs:
           git config --local user.name "GitHub Action"
           git add src/lib/database/supabase-types.ts
           git diff --quiet && git diff --staged --quiet || git commit -m "[auto] Update Supabase type definitions"
-          git pushs
+          git push
