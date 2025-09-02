@@ -690,6 +690,21 @@ export default function RegisterPage() {
 		}
 	}, [user, flags.isDemoMode, toast, form]);
 
+	// Focus on the first field when the form becomes visible for authenticated users
+	useEffect(() => {
+		if (verificationStep === 'form_visible' && isAuthenticatedUser) {
+			// Use a small delay to ensure the form has rendered
+			const timer = setTimeout(() => {
+				const firstField = document.querySelector('input[name="household.address_line1"]') as HTMLInputElement;
+				if (firstField) {
+					firstField.focus();
+				}
+			}, 100);
+			
+			return () => clearTimeout(timer);
+		}
+	}, [verificationStep, isAuthenticatedUser]);
+
 	useEffect(() => {
 		const handleEnterPress = (event: KeyboardEvent) => {
 			if (event.key === 'Enter' && verificationStep === 'enter_email') {
