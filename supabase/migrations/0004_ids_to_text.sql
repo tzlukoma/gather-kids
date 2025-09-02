@@ -3,6 +3,7 @@
 -- First drop the foreign key constraints
 ALTER TABLE IF EXISTS guardians DROP CONSTRAINT IF EXISTS guardians_household_id_fkey;
 ALTER TABLE IF EXISTS children DROP CONSTRAINT IF EXISTS children_household_id_fkey;
+ALTER TABLE IF EXISTS emergency_contacts DROP CONSTRAINT IF EXISTS fk_emergency_contacts_household;
 
 -- Drop UUID defaults (if any)
 ALTER TABLE IF EXISTS guardians ALTER COLUMN household_id DROP DEFAULT;
@@ -32,3 +33,22 @@ ALTER TABLE IF EXISTS guardians ADD CONSTRAINT guardians_household_id_fkey
     FOREIGN KEY (household_id) REFERENCES households(household_id);
 ALTER TABLE IF EXISTS children ADD CONSTRAINT children_household_id_fkey 
     FOREIGN KEY (household_id) REFERENCES households(household_id);
+    
+-- Handle the emergency_contacts table if it exists
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'emergency_contacts') THEN
+        -- Handle the emergency_contacts.household_id_uuid column if it exists
+        IF EXISTS (SELECT 1 FROM information_schema.columns 
+                  WHERE table_name = 'emergency_contacts' AND column_name = 'household_id_uuid') THEN
+            -- Convert household_id_uuid to text
+            ALTER TABLE emergency_contacts ALTER COLUMN household_id_uuid TYPE text USING household_id_uuid::text;
+            
+            -- Re-add the constraint if all values are non-null
+            ALTER TABLE IF EXISTS emergency_contacts 
+            ADD CONSTRAINT fk_emergency_contacts_household 
+            FOREIGN KEY (household_id_uuid) REFERENCES households(household_id);
+        END IF;
+    END IF;
+END
+$$;
