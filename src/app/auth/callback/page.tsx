@@ -203,7 +203,7 @@ The verification code required for magic links was not found. This happens when:
 					}
 				} else if (data.session) {
 					setSuccess(true);
-					setTimeout(() => router.push('/onboarding'), 1500);
+					setTimeout(() => router.push('/register'), 1500);
 				} else {
 					setError(
 						'Authentication completed but no session was created. Please try again.'
@@ -305,7 +305,7 @@ The verification code required for magic links was not found. This happens when:
 								{error.includes('⚠️ Almost there!') ? (
 									<>
 										<Button asChild className="bg-amber-600 hover:bg-amber-700">
-											<Link href="/onboarding">Continue to App</Link>
+											<Link href="/register">Continue to App</Link>
 										</Button>
 										<Button variant="outline" asChild>
 											<Link href="/login">Back to Login</Link>

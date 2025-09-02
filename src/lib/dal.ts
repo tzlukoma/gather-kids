@@ -378,6 +378,20 @@ export async function findHouseholdByEmail(email: string, currentCycleId: string
 }
 
 
+export async function getHouseholdForUser(authUserId: string): Promise<string | null> {
+    try {
+        const userHousehold = await db.user_households
+            .where('auth_user_id')
+            .equals(authUserId)
+            .first();
+        
+        return userHousehold?.household_id || null;
+    } catch (error) {
+        console.warn('Could not get household for user (likely demo mode):', error);
+        return null;
+    }
+}
+
 // Registration Logic
 export async function registerHousehold(data: any, cycle_id: string, isPrefill: boolean) {
     const householdId = data.household.household_id || uuidv4();
@@ -524,6 +538,55 @@ export async function registerHousehold(data: any, cycle_id: string, isPrefill: 
             }
         }
     });
+
+    // Create user_households relationship for Supabase auth
+    // Handle this separately to avoid transaction conflicts with external async operations
+    if (!isPrefill) { // Only create the relationship on final registration, not prefill
+        try {
+            // Import here to avoid circular dependency issues
+            const { supabase } = await import('@/lib/supabaseClient');
+            if (supabase) {
+                const { data: { session } } = await supabase.auth.getSession();
+                if (session?.user) {
+                    // Check if relationship already exists
+                    const existingRelation = await db.user_households
+                        .where('[auth_user_id+household_id]')
+                        .equals([session.user.id, householdId])
+                        .first();
+
+                    if (!existingRelation) {
+                        const userHousehold = {
+                            user_household_id: uuidv4(),
+                            auth_user_id: session.user.id,
+                            household_id: householdId,
+                            created_at: now,
+                        };
+                        await db.user_households.add(userHousehold);
+                        console.log('Created user_households relationship:', userHousehold);
+                    }
+
+                    // Assign GUARDIAN role to the authenticated user
+                    const { error: roleError } = await supabase.auth.updateUser({
+                        data: {
+                            role: 'GUARDIAN',
+                            household_id: householdId,
+                        },
+                    });
+
+                    if (roleError) {
+                        console.warn('Could not assign GUARDIAN role:', roleError);
+                    } else {
+                        console.log('Assigned GUARDIAN role to user:', session.user.id);
+                    }
+                }
+            }
+        } catch (error) {
+            console.warn('Could not create user_households relationship (likely demo mode):', error);
+        }
+    }
+    
+    // Return the household_id for the calling code
+    return { household_id: householdId };
 }
 
 // CSV Export Functions
