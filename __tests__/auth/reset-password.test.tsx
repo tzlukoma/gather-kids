@@ -13,19 +13,26 @@ jest.mock('next/navigation', () => ({
 
 // Mock the toast hook
 jest.mock('@/hooks/use-toast');
+
+// Mock the auth guards
+jest.mock('@/lib/authGuards', () => ({
+	isDemo: jest.fn(),
+}));
+
 const mockToast = jest.fn();
 const mockPush = jest.fn();
+const mockIsDemo = jest.fn();
 
 (useToast as jest.Mock).mockReturnValue({ toast: mockToast });
 (useRouter as jest.Mock).mockReturnValue({ push: mockPush });
 
-// Mock environment variables
-const originalEnv = process.env;
+// Import the mocked function
+import { isDemo } from '@/lib/authGuards';
+(isDemo as jest.Mock).mockImplementation(mockIsDemo);
 
 describe('ResetPasswordPage', () => {
 	beforeEach(() => {
 		jest.clearAllMocks();
-		process.env = { ...originalEnv };
 		
 		// Mock searchParams default
 		(useSearchParams as jest.Mock).mockReturnValue({
@@ -33,12 +40,8 @@ describe('ResetPasswordPage', () => {
 		});
 	});
 
-	afterEach(() => {
-		process.env = originalEnv;
-	});
-
 	it('shows invalid token state when no token provided in live mode', async () => {
-		process.env.NEXT_PUBLIC_DEMO_MODE = 'false';
+		mockIsDemo.mockReturnValue(false);
 		
 		render(<ResetPasswordPage />);
 
@@ -50,7 +53,7 @@ describe('ResetPasswordPage', () => {
 	});
 
 	it('shows reset form in demo mode', async () => {
-		process.env.NEXT_PUBLIC_DEMO_MODE = 'true';
+		mockIsDemo.mockReturnValue(true);
 		
 		render(<ResetPasswordPage />);
 
@@ -64,7 +67,7 @@ describe('ResetPasswordPage', () => {
 	});
 
 	it('validates password requirements', async () => {
-		process.env.NEXT_PUBLIC_DEMO_MODE = 'true';
+		mockIsDemo.mockReturnValue(true);
 		const user = userEvent.setup();
 		
 		render(<ResetPasswordPage />);
@@ -95,7 +98,7 @@ describe('ResetPasswordPage', () => {
 	});
 
 	it('validates password confirmation match', async () => {
-		process.env.NEXT_PUBLIC_DEMO_MODE = 'true';
+		mockIsDemo.mockReturnValue(true);
 		const user = userEvent.setup();
 		
 		render(<ResetPasswordPage />);
@@ -118,7 +121,7 @@ describe('ResetPasswordPage', () => {
 	});
 
 	it('successfully resets password in demo mode', async () => {
-		process.env.NEXT_PUBLIC_DEMO_MODE = 'true';
+		mockIsDemo.mockReturnValue(true);
 		const user = userEvent.setup();
 		
 		render(<ResetPasswordPage />);
@@ -147,7 +150,7 @@ describe('ResetPasswordPage', () => {
 	});
 
 	it('toggles password visibility', async () => {
-		process.env.NEXT_PUBLIC_DEMO_MODE = 'true';
+		mockIsDemo.mockReturnValue(true);
 		const user = userEvent.setup();
 		
 		render(<ResetPasswordPage />);
@@ -176,7 +179,7 @@ describe('ResetPasswordPage', () => {
 	});
 
 	it('shows valid token form when token provided in live mode', async () => {
-		process.env.NEXT_PUBLIC_DEMO_MODE = 'false';
+		mockIsDemo.mockReturnValue(false);
 		
 		// Mock searchParams to return a token
 		(useSearchParams as jest.Mock).mockReturnValue({

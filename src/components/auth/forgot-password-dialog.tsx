@@ -16,6 +16,7 @@ import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { Mail, AlertCircle } from 'lucide-react';
+import { isDemo } from '@/lib/authGuards';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -44,7 +45,7 @@ export function ForgotPasswordDialog({ children }: ForgotPasswordDialogProps) {
 	const [emailSent, setEmailSent] = useState(false);
 	const { toast } = useToast();
 
-	const isDemoMode = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
+	const isDemoMode = isDemo();
 	const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:9002';
 
 	const form = useForm<ForgotPasswordFormData>({

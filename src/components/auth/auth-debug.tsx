@@ -33,7 +33,7 @@ export function AuthDebug({ children, showInProduction = false, inline = false }
 	const { user, userRole } = useAuth();
 	const [open, setOpen] = useState(false);
 	
-	const isDemoMode = process.env.NEXT_PUBLIC_DEMO_MODE === 'true' || isDemo();
+	const isDemoMode = isDemo();
 	const nodeEnv = process.env.NODE_ENV;
 	const isProduction = nodeEnv === 'production';
 	
