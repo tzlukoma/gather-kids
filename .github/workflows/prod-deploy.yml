@@ -18,25 +18,24 @@ jobs:
         run: |
           if [[ "${{ secrets.PROD_DATABASE_URL }}" != *"sslmode="* ]]; then
             echo "ERROR: PROD_DATABASE_URL must include sslmode=require."; exit 1; fi
-      - name: List unapplied migrations (dry-run)
+      - name: Apply migrations to Production using Supabase CLI
         env:
-          DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: |
-          chmod +x scripts/db/list_unapplied_migrations.sh
-          scripts/db/list_unapplied_migrations.sh "$DATABASE_URL" "supabase/migrations"
-      - name: Apply migrations
+          # Extract project ID from PROD_SUPABASE_URL (format: https://<project-id>.supabase.co)
+          SUPABASE_URL="${{ secrets.PROD_SUPABASE_URL }}"
+          PROJECT_ID=$(echo $SUPABASE_URL | sed -E 's/https:\/\/([^.]+)\.supabase\.co.*/\1/')
+          echo "PROJECT_ID=$PROJECT_ID" >> $GITHUB_ENV
+
+          chmod +x scripts/db/apply_migrations_cli.sh
+          scripts/db/apply_migrations_cli.sh "$PROJECT_ID" "$SUPABASE_ACCESS_TOKEN"
+      - name: Snapshot schema using Supabase CLI
         env:
-          DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
-        run: |
-          chmod +x scripts/db/apply_migrations_safe.sh
-          scripts/db/apply_migrations_safe.sh "$DATABASE_URL" "supabase/migrations"
-      - name: Snapshot schema (pg_dump -s)
-        env:
-          DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: |
           mkdir -p snapshots
           SNAPSHOT="snapshots/schema-prod-$(date +'%Y%m%d-%H%M%S').sql"
-          pg_dump --schema-only --no-owner --no-privileges --dbname="$DATABASE_URL" > "$SNAPSHOT"
+          supabase db dump -f "$SNAPSHOT" --linked
       - name: Upload schema snapshot
         uses: actions/upload-artifact@v4
         with:
