@@ -1,0 +1,86 @@
+# .github/workflows/uat-seed.yml
+name: UAT Seed Data
+
+on:
+  workflow_dispatch:
+    inputs:
+      reset_mode:
+        description: 'Reset mode - delete existing data and re-seed'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+
+permissions:
+  contents: read
+
+jobs:
+  seed-uat:
+    runs-on: ubuntu-latest
+    environment:
+      name: uat
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install TypeScript and ts-node
+        run: npm install -g typescript ts-node
+
+      - name: Verify UAT environment variables
+        run: |
+          if [ -z "${{ secrets.UAT_SUPABASE_URL }}" ]; then
+            echo "ERROR: UAT_SUPABASE_URL secret is not set!"
+            exit 1
+          fi
+          if [ -z "${{ secrets.UAT_SERVICE_ROLE_KEY }}" ]; then
+            echo "ERROR: UAT_SERVICE_ROLE_KEY secret is not set!"
+            exit 1
+          fi
+          echo "✅ UAT environment variables verified"
+
+      - name: Run UAT seed script
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.UAT_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.UAT_SERVICE_ROLE_KEY }}
+          RESET: ${{ inputs.reset_mode }}
+        run: |
+          echo "🌱 Starting UAT seed script..."
+          echo "📊 Reset mode: ${{ inputs.reset_mode }}"
+          echo "🔗 Supabase URL: ${{ secrets.UAT_SUPABASE_URL }}"
+          
+          if [ "${{ inputs.reset_mode }}" = "true" ]; then
+            echo "⚠️  Running in RESET mode - existing data will be deleted!"
+            npm run seed:uat:reset
+          else
+            echo "🔄 Running in IDEMPOTENT mode - safe to re-run"
+            npm run seed:uat
+          fi
+          
+          echo "✅ UAT seed script completed successfully!"
+
+      - name: Summary
+        run: |
+          echo "## 🎉 UAT Seed Completed!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Mode:** ${{ inputs.reset_mode == 'true' && 'Reset (delete and re-seed)' || 'Idempotent (upsert)' }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Seeded Data:**" >> $GITHUB_STEP_SUMMARY
+          echo "- 📚 Bible Bee 2025-2026 year with 3 divisions" >> $GITHUB_STEP_SUMMARY
+          echo "- 📖 31 scriptures with NIV, KJV, and Spanish translations" >> $GITHUB_STEP_SUMMARY
+          echo "- ✍️ Senior Division essay prompt" >> $GITHUB_STEP_SUMMARY
+          echo "- 🏠 12 households with 33 children" >> $GITHUB_STEP_SUMMARY
+          echo "- ⛪ Ministry enrollments and leaders" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "The UAT database has been successfully populated with test data!" >> $GITHUB_STEP_SUMMARY
