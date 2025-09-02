@@ -1,0 +1,66 @@
+name: UAT deploy
+
+on:
+  push:
+    branches: [uat]
+    paths:
+      - 'supabase/migrations/**'
+      - 'scripts/db/**'
+      - '.github/workflows/uat-deploy.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  migrate-uat:
+    runs-on: ubuntu-latest
+    environment:
+      name: uat
+      url: ${{ secrets.UAT_APP_URL }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Postgres client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Verify DB URL (sslmode)
+        run: |
+          if [[ "${{ secrets.UAT_DATABASE_URL }}" != *"sslmode="* ]]; then
+            echo "ERROR: UAT_DATABASE_URL must include sslmode=require."
+            exit 1
+          fi
+
+      - name: List unapplied migrations (dry-run)
+        env:
+          DATABASE_URL: ${{ secrets.UAT_DATABASE_URL }}
+        run: |
+          chmod +x scripts/db/list_unapplied_migrations.sh
+          scripts/db/list_unapplied_migrations.sh "$DATABASE_URL" "supabase/migrations"
+
+      - name: Apply migrations to UAT
+        env:
+          DATABASE_URL: ${{ secrets.UAT_DATABASE_URL }}
+        run: |
+          chmod +x scripts/db/apply_migrations_safe.sh
+          scripts/db/apply_migrations_safe.sh "$DATABASE_URL" "supabase/migrations"
+
+      - name: Snapshot schema (pg_dump -s)
+        env:
+          DATABASE_URL: ${{ secrets.UAT_DATABASE_URL }}
+        run: |
+          mkdir -p snapshots
+          SNAPSHOT_FILE="snapshots/schema-uat-$(date +'%Y%m%d-%H%M%S').sql"
+          echo "Dumping schema to $SNAPSHOT_FILE"
+          pg_dump --schema-only --no-owner --no-privileges \
+            --dbname="$DATABASE_URL" > "$SNAPSHOT_FILE"
+          ls -lh snapshots/
+
+      - name: Upload schema snapshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: uat-schema-snapshot
+          path: snapshots/
+          retention-days: 14

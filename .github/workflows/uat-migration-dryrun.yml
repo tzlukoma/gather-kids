@@ -1,0 +1,28 @@
+# .github/workflows/uat-migration-dryrun.yml
+name: UAT migration dry-run
+
+on:
+  pull_request:
+    branches: [uat]
+    paths:
+      - 'supabase/migrations/**'
+      - 'scripts/db/**'
+
+permissions:
+  contents: read
+
+jobs:
+  dryrun:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install psql client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+      - name: List unapplied migrations (UAT)
+        env:
+          DATABASE_URL: ${{ secrets.UAT_DATABASE_URL }}
+        run: |
+          chmod +x scripts/db/list_unapplied_migrations.sh
+          scripts/db/list_unapplied_migrations.sh "$DATABASE_URL" "supabase/migrations"
