@@ -66,7 +66,7 @@ CREATE TABLE IF NOT EXISTS essay_prompts (
 -- enrollment_overrides table (for manual division placements)
 CREATE TABLE IF NOT EXISTS enrollment_overrides (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  child_id uuid REFERENCES children(child_id),
+  child_id text REFERENCES children(child_id),  -- Changed from uuid to text to match the referenced column
   bible_bee_year_id uuid REFERENCES bible_bee_years(id),
   division_id uuid REFERENCES divisions(id),
   reason text,
