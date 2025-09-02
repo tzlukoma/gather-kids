@@ -316,6 +316,7 @@ export class TestDatabaseFactory {
 				relationship: 'Parent',
 				is_primary: true,
 				email: 'test@example.com',
+				mobile_phone: '555-123-4567',
 			});
 			
 			const retrievedGuardian = await adapter.getGuardian(guardian.guardian_id);
