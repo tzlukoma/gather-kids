@@ -81,14 +81,14 @@ jobs:
           # Explicitly export the access token
           export SUPABASE_ACCESS_TOKEN="${{ secrets.SUPABASE_ACCESS_TOKEN }}"
           export SUPABASE_DB_PASSWORD="${{ secrets.SUPABASE_DB_PASSWORD }}"
-
+          
           # Show what would be executed if dry run is enabled
           if [[ "${{ inputs.dryRun }}" == "true" ]]; then
             echo "DRY RUN MODE - No changes will be made"
             echo "✅ Dry run completed successfully"
             exit 0
           fi
-
+          
           # Choose method based on input
           if [[ "${{ inputs.method }}" == "script" ]]; then
             echo "Running complete table setup script for ${{ inputs.environment }}..."
@@ -124,9 +124,9 @@ jobs:
           # Export the access token and password again
           export SUPABASE_ACCESS_TOKEN="${{ secrets.SUPABASE_ACCESS_TOKEN }}"
           export SUPABASE_DB_PASSWORD="${{ secrets.SUPABASE_DB_PASSWORD }}"
-
+          
           echo "Verifying database tables in ${{ inputs.environment }}..."
-
+          
           # Create a verification script
           cat > /tmp/verify_tables.sql << 'EOF'
           SELECT table_name, 
@@ -136,7 +136,7 @@ jobs:
             AND table_type = 'BASE TABLE'
           ORDER BY table_name;
           EOF
-
+          
           # Use our reliable SQL executor for verification
           echo "Running verification..."
           scripts/db/execute_sql_reliable.sh "$PROJECT_ID" "$SUPABASE_ACCESS_TOKEN" "$SUPABASE_DB_PASSWORD" "/tmp/verify_tables.sql"
@@ -154,10 +154,10 @@ jobs:
 
           # Try different dump methods
           echo "Creating database snapshot..."
-
+          
           # Try linking first
           $HOME/.bin/supabase link --project-ref "$PROJECT_ID" --password "$SUPABASE_DB_PASSWORD" || true
-
+          
           if $HOME/.bin/supabase db dump -f "$SNAPSHOT" --linked 2>/dev/null; then
             echo "✅ Schema snapshot created at $SNAPSHOT using --linked flag"
           elif $HOME/.bin/supabase db dump -f "$SNAPSHOT" 2>/dev/null; then
