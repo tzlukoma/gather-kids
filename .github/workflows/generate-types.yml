@@ -53,7 +53,12 @@ jobs:
         env:
           SUPABASE_PROJECT_ID: ${{ env.PROJECT_ID }}
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-        run: node scripts/gen-types.cjs
+        run: |
+          # Link project with no password
+          $HOME/.bin/supabase link --project-ref "$PROJECT_ID" --no-password
+
+          # Generate types
+          node scripts/gen-types.cjs
 
       - name: Commit and push if there are changes
         if: github.ref == 'refs/heads/main'

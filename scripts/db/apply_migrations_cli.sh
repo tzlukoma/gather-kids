@@ -30,9 +30,13 @@ fi
 export SUPABASE_ACCESS_TOKEN="$ACCESS_TOKEN"
 
 echo "Linking project..."
-$HOME/.bin/supabase link --project-ref "$PROJECT_ID"
+# Use --no-interactive to avoid password prompts
+$HOME/.bin/supabase link --project-ref "$PROJECT_ID" --no-password
 
 echo "Pushing migrations..."
-$HOME/.bin/supabase db push
+# Use --no-verify-migrations to avoid interactive confirmation
+$HOME/.bin/supabase db push --no-verify-migrations --dry-run
+echo "Dry run successful. Applying migrations..."
+$HOME/.bin/supabase db push --no-verify-migrations
 
 echo "✅ Migrations applied successfully."
