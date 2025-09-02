@@ -18,6 +18,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/auth-context';
 import { Eye, EyeOff, User, Lock, AlertCircle } from 'lucide-react';
 import { isDemo } from '@/lib/authGuards';
+import { supabase } from '@/lib/supabaseClient';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -87,11 +88,31 @@ export default function ProfilePage() {
 				form.reset();
 			} else {
 				// Live mode: implement Supabase password update with re-authentication
-				// TODO: Implement actual Supabase password update
-				// 1. Re-authenticate with current password
-				// 2. Update password if re-auth succeeds
-				// const { error } = await supabase.auth.updateUser({ password: data.newPassword });
-				// if (error) throw error;
+				if (!user?.email) {
+					throw new Error('User email not available');
+				}
+				
+				// Step 1: Re-authenticate with current password to verify identity
+				const { error: reAuthError } = await supabase.auth.signInWithPassword({
+					email: user.email,
+					password: data.currentPassword,
+				});
+				
+				if (reAuthError) {
+					if (reAuthError.message?.includes('Invalid login credentials')) {
+						throw new Error('Current password is incorrect');
+					}
+					throw reAuthError;
+				}
+				
+				// Step 2: Update password if re-authentication succeeds
+				const { error: updateError } = await supabase.auth.updateUser({ 
+					password: data.newPassword 
+				});
+				
+				if (updateError) {
+					throw updateError;
+				}
 				
 				toast({
 					title: 'Password Updated Successfully',
