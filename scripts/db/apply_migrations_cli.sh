@@ -30,8 +30,8 @@ fi
 export SUPABASE_ACCESS_TOKEN="$ACCESS_TOKEN"
 
 echo "Linking project..."
-# Use --no-interactive to avoid password prompts
-$HOME/.bin/supabase link --project-ref "$PROJECT_ID" --no-password
+# Link project non-interactively (using ACCESS_TOKEN for auth)
+$HOME/.bin/supabase link --project-ref "$PROJECT_ID"
 
 echo "Pushing migrations..."
 # Use --no-verify-migrations to avoid interactive confirmation

@@ -54,8 +54,8 @@ jobs:
           SUPABASE_PROJECT_ID: ${{ env.PROJECT_ID }}
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: |
-          # Link project with no password
-          $HOME/.bin/supabase link --project-ref "$PROJECT_ID" --no-password
+          # Link project non-interactively (using ACCESS_TOKEN for auth)
+          $HOME/.bin/supabase link --project-ref "$PROJECT_ID"
 
           # Generate types
           node scripts/gen-types.cjs
