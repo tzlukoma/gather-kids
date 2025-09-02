@@ -384,7 +384,7 @@ export async function registerHousehold(data: any, cycle_id: string, isPrefill: 
     const isUpdate = !!data.household.household_id;
     const now = new Date().toISOString();
 
-    await (db as any).transaction('rw', db.households, db.guardians, db.emergency_contacts, db.children, db.registrations, db.ministry_enrollments, db.ministries, db.user_households, async () => {
+    await (db as any).transaction('rw', db.households, db.guardians, db.emergency_contacts, db.children, db.registrations, db.ministry_enrollments, db.ministries, async () => {
 
         // This block handles overwriting an existing registration for the *current* cycle.
         // It should NOT run for a pre-fill from a previous year.
@@ -523,39 +523,39 @@ export async function registerHousehold(data: any, cycle_id: string, isPrefill: 
                 }
             }
         }
+    });
 
-        // Create user_households relationship for Supabase auth
-        // This will only work in non-demo mode when there's an authenticated user
-        if (!isPrefill) { // Only create the relationship on final registration, not prefill
-            try {
-                // Import here to avoid circular dependency issues
-                const { supabase } = await import('@/lib/supabaseClient');
-                if (supabase) {
-                    const { data: { session } } = await supabase.auth.getSession();
-                    if (session?.user) {
-                        // Check if relationship already exists
-                        const existingRelation = await db.user_households
-                            .where('[auth_user_id+household_id]')
-                            .equals([session.user.id, householdId])
-                            .first();
+    // Create user_households relationship for Supabase auth
+    // Handle this separately to avoid transaction conflicts with external async operations
+    if (!isPrefill) { // Only create the relationship on final registration, not prefill
+        try {
+            // Import here to avoid circular dependency issues
+            const { supabase } = await import('@/lib/supabaseClient');
+            if (supabase) {
+                const { data: { session } } = await supabase.auth.getSession();
+                if (session?.user) {
+                    // Check if relationship already exists
+                    const existingRelation = await db.user_households
+                        .where('[auth_user_id+household_id]')
+                        .equals([session.user.id, householdId])
+                        .first();
 
-                        if (!existingRelation) {
-                            const userHousehold = {
-                                user_household_id: uuidv4(),
-                                auth_user_id: session.user.id,
-                                household_id: householdId,
-                                created_at: now,
-                            };
-                            await db.user_households.add(userHousehold);
-                            console.log('Created user_households relationship:', userHousehold);
-                        }
+                    if (!existingRelation) {
+                        const userHousehold = {
+                            user_household_id: uuidv4(),
+                            auth_user_id: session.user.id,
+                            household_id: householdId,
+                            created_at: now,
+                        };
+                        await db.user_households.add(userHousehold);
+                        console.log('Created user_households relationship:', userHousehold);
                     }
                 }
-            } catch (error) {
-                console.warn('Could not create user_households relationship (likely demo mode):', error);
             }
+        } catch (error) {
+            console.warn('Could not create user_households relationship (likely demo mode):', error);
         }
-    });
+    }
 }
 
 // CSV Export Functions
