@@ -24,6 +24,7 @@ import {
 } from '@/components/ui/card';
 import { CheckCircle } from 'lucide-react';
 import ScriptureCard from '@/components/gatherKids/scripture-card';
+import EssayCard from '@/components/gatherKids/essay-card';
 
 export default function DashboardChildBibleBeePage() {
 	const params = useParams();
@@ -63,6 +64,8 @@ export default function DashboardChildBibleBeePage() {
 		submitted: number;
 		pending: number;
 	} | null>(null);
+
+	const [divisionEssayPrompts, setDivisionEssayPrompts] = useState<any[]>([]);
 
 	useEffect(() => {
 		const compute = async () => {
@@ -156,11 +159,15 @@ export default function DashboardChildBibleBeePage() {
 						.and(prompt => prompt.division_name === matchingDivision.name)
 						.toArray();
 					essayAssigned = essayPrompts.length > 0;
+					setDivisionEssayPrompts(essayPrompts);
 					console.log('Essay prompts for division:', matchingDivision.name, 'yearId:', yearId, essayPrompts);
 				} catch (error) {
 					console.warn('Error checking essay prompts:', error);
 					essayAssigned = false;
+					setDivisionEssayPrompts([]);
 				}
+			} else {
+				setDivisionEssayPrompts([]);
 			}
 			
 			setBbStats({
@@ -225,34 +232,44 @@ export default function DashboardChildBibleBeePage() {
 					{/* Show essays content */}
 					<div>
 						<h2 className="font-semibold text-2xl mb-3">Essays</h2>
-						{data.essays && data.essays.length > 0 ? (
+						{divisionEssayPrompts && divisionEssayPrompts.length > 0 ? (
 							<div className="space-y-2">
-								{data.essays.map((e: any) => (
-									<Card key={e.id}>
-										<CardHeader>
-											<CardTitle>Essay for {e.year?.year}</CardTitle>
-											<CardDescription>{e.promptText}</CardDescription>
-										</CardHeader>
-										<CardContent>
-											<div className="flex items-center gap-4">
-												<div className="text-sm text-muted-foreground">
-													Status: {e.status}
-												</div>
-												{e.status !== 'submitted' && (
-													<Button
-														onClick={() =>
-															essayMutation.mutate({
-																competitionYearId: e.competitionYearId,
-															})
-														}
-														size="sm">
-														Mark Submitted
-													</Button>
-												)}
-											</div>
-										</CardContent>
-									</Card>
+								{divisionEssayPrompts.map((prompt: any) => (
+									<EssayCard key={prompt.id} essayPrompt={prompt} />
 								))}
+								
+								{/* Show existing essay submissions if any */}
+								{data.essays && data.essays.length > 0 && (
+									<div className="mt-4">
+										<h3 className="font-medium text-lg mb-2">Your Submissions</h3>
+										{data.essays.map((e: any) => (
+											<Card key={e.id}>
+												<CardHeader>
+													<CardTitle>Essay for {e.year?.year}</CardTitle>
+													<CardDescription>{e.promptText}</CardDescription>
+												</CardHeader>
+												<CardContent>
+													<div className="flex items-center gap-4">
+														<div className="text-sm text-muted-foreground">
+															Status: {e.status}
+														</div>
+														{e.status !== 'submitted' && (
+															<Button
+																onClick={() =>
+																	essayMutation.mutate({
+																		competitionYearId: e.competitionYearId,
+																	})
+																}
+																size="sm">
+																Mark Submitted
+															</Button>
+														)}
+													</div>
+												</CardContent>
+											</Card>
+										))}
+									</div>
+								)}
 							</div>
 						) : (
 							<div className="text-center text-muted-foreground py-8">
