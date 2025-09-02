@@ -33,7 +33,7 @@ const resetPasswordSchema = z
 			.string()
 			.min(8, 'Password must be at least 8 characters')
 			.regex(
-				/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/,
+				/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*+=_-])[A-Za-z\d!@#$%^&*+=_-]+$/,
 				'Password must contain uppercase, lowercase, number, and special character'
 			),
 		confirmPassword: z.string(),
