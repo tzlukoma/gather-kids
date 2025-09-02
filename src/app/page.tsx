@@ -65,7 +65,7 @@ export default function Home() {
 						}
 					</p>
 					<div className="flex flex-col sm:flex-row gap-4 justify-center">
-						<Link href="/register">
+						<Link href={flags.loginMagicEnabled ? "/register" : "/create-account"}>
 							<Button size="lg">
 								Register Your Family
 								<ArrowRight className="ml-2" />

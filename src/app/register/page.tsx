@@ -1,6 +1,7 @@
 'use client';
 
 import { useForm, useFieldArray, useWatch } from 'react-hook-form';
+import { useRouter } from 'next/navigation';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
@@ -71,6 +72,7 @@ import type {
 	RegistrationCycle,
 } from '@/lib/types';
 import { useFeatureFlags } from '@/contexts/feature-flag-context';
+import { useAuth } from '@/contexts/auth-context';
 
 const MOCK_EMAILS = {
 	PREFILL_OVERWRITE: 'reg.overwrite@example.com',
@@ -444,12 +446,15 @@ const ProgramSection = ({
 export default function RegisterPage() {
 	const { toast } = useToast();
 	const { flags } = useFeatureFlags();
+	const { user } = useAuth();
+	const router = useRouter();
 	const [verificationStep, setVerificationStep] =
 		useState<VerificationStep>('enter_email');
 	const [verificationEmail, setVerificationEmail] = useState('');
 	const [openAccordionItems, setOpenAccordionItems] = useState<string[]>([]);
 	const [isCurrentYearOverwrite, setIsCurrentYearOverwrite] = useState(false);
 	const [isPrefill, setIsPrefill] = useState(false);
+	const [isAuthenticatedUser, setIsAuthenticatedUser] = useState(false);
 
 	const allMinistries = useLiveQuery(() => db.ministries.toArray(), []);
 
@@ -619,6 +624,88 @@ export default function RegisterPage() {
 	};
 
 	useEffect(() => {
+		// Check if user is authenticated and skip email lookup if so
+		// For live mode: check for authenticated users with email
+		// For demo mode: check for authenticated users with GUARDIAN role (parents)
+		const shouldSkipEmailLookup = 
+			(!flags.isDemoMode && user?.email) || 
+			(flags.isDemoMode && user?.email && user?.metadata?.role === 'GUARDIAN');
+			
+		if (shouldSkipEmailLookup) {
+			setVerificationEmail(user.email);
+			setIsAuthenticatedUser(true);
+			
+			// Check if they have existing household data
+			const checkExistingData = async () => {
+				const result = await findHouseholdByEmail(user.email, '2025');
+				
+				if (result) {
+					toast({
+						title: 'Household Found!',
+						description: 'Your information has been pre-filled for you to review.',
+					});
+					prefillForm(result.data);
+					setIsCurrentYearOverwrite(result.isCurrentYear);
+					setIsPrefill(result.isPrefill || false);
+				} else {
+					// New registration with authenticated email
+					toast({
+						title: 'Complete Your Registration',
+						description: 'Please complete the form below to register your family.',
+					});
+					setIsCurrentYearOverwrite(false);
+					setIsPrefill(false);
+					form.reset({
+						household: { name: '', address_line1: '', preferredScriptureTranslation: 'NIV' },
+						guardians: [
+							{
+								first_name: '',
+								last_name: '',
+								mobile_phone: '',
+								email: user.email, // Pre-fill with authenticated user's email
+								relationship: 'Mother',
+								is_primary: true,
+							},
+						],
+						emergencyContact: {
+							first_name: '',
+							last_name: '',
+							mobile_phone: '',
+							relationship: '',
+						},
+						children: [defaultChildValues],
+						consents: {
+							liability: false,
+							photoRelease: false,
+							custom_consents: {},
+						},
+					});
+					setOpenAccordionItems(['item-0']);
+				}
+				
+				setVerificationStep('form_visible');
+			};
+			
+			checkExistingData();
+		}
+	}, [user, flags.isDemoMode, toast, form]);
+
+	// Focus on the first field when the form becomes visible for authenticated users
+	useEffect(() => {
+		if (verificationStep === 'form_visible' && isAuthenticatedUser) {
+			// Use a small delay to ensure the form has rendered
+			const timer = setTimeout(() => {
+				const firstField = document.querySelector('input[name="household.address_line1"]') as HTMLInputElement;
+				if (firstField) {
+					firstField.focus();
+				}
+			}, 100);
+			
+			return () => clearTimeout(timer);
+		}
+	}, [verificationStep, isAuthenticatedUser]);
+
+	useEffect(() => {
 		const handleEnterPress = (event: KeyboardEvent) => {
 			if (event.key === 'Enter' && verificationStep === 'enter_email') {
 				handleEmailLookup();
@@ -636,11 +723,28 @@ export default function RegisterPage() {
 			// Use the active registration cycle instead of hardcoded '2025'
 			const cycleId = activeRegistrationCycle?.cycle_id || '2025'; // fallback to '2025' if no active cycle found
 			console.log('DEBUG: Registering household for cycle:', cycleId);
-			await registerHousehold(data, cycleId, isPrefill);
+			const result = await registerHousehold(data, cycleId, isPrefill);
 			toast({
 				title: 'Registration Submitted!',
 				description: "Thank you! Your family's registration has been received.",
 			});
+			
+			// Check if user is authenticated in non-demo mode
+			if (!flags.isDemoMode) {
+				// Import here to avoid circular dependency
+				const { supabase } = await import('@/lib/supabaseClient');
+				if (supabase) {
+					const { data: { session } } = await supabase.auth.getSession();
+					if (session?.user) {
+						// Redirect authenticated parent to household page
+						// The household page will now handle users who don't have GUARDIAN role
+						router.push('/household');
+						return;
+					}
+				}
+			}
+			
+			// Default behavior for demo mode or unauthenticated users
 			form.reset();
 			setVerificationStep('enter_email');
 			setVerificationEmail('');
@@ -801,15 +905,22 @@ export default function RegisterPage() {
 									parents, guardians, or other adults who are authorized to pick
 									up your children.
 									<br />
-									<Button
-										variant="link"
-										className="p-0 h-auto"
-										onClick={() => {
-											setVerificationStep('enter_email');
-											setIsCurrentYearOverwrite(false);
-										}}>
-										Change lookup email ({verificationEmail})
-									</Button>
+									{!isAuthenticatedUser && (
+										<Button
+											variant="link"
+											className="p-0 h-auto"
+											onClick={() => {
+												setVerificationStep('enter_email');
+												setIsCurrentYearOverwrite(false);
+											}}>
+											Change lookup email ({verificationEmail})
+										</Button>
+									)}
+									{isAuthenticatedUser && (
+										<span className="text-sm text-muted-foreground">
+											You are signed in as: {verificationEmail}
+										</span>
+									)}
 								</CardDescription>
 							</CardHeader>
 							<CardContent className="space-y-6">
@@ -911,8 +1022,18 @@ export default function RegisterPage() {
 													<FormItem>
 														<FormLabel>Email</FormLabel>
 														<FormControl>
-															<Input type="email" {...field} />
+															<Input 
+																type="email" 
+																{...field} 
+																readOnly={index === 0 && isAuthenticatedUser}
+																className={index === 0 && isAuthenticatedUser ? "bg-muted" : ""}
+															/>
 														</FormControl>
+														{index === 0 && isAuthenticatedUser && (
+															<FormDescription>
+																This email is from your authenticated account and cannot be changed.
+															</FormDescription>
+														)}
 														<FormMessage />
 													</FormItem>
 												)}
