@@ -1,7 +1,7 @@
 /**
  * This file contains types generated from the Supabase schema.
  * DO NOT EDIT MANUALLY. This file is auto-generated.
- * Generated on: 2025-09-03T01:48:55.163Z
+ * Generated on: 2025-09-03T01:51:58.467Z
  */
 
 export type SupabaseJson =
@@ -304,10 +304,10 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "fk_emergency_contacts_household"
-            columns: ["household_id"]
+            columns: ["household_id_uuid"]
             isOneToOne: false
             referencedRelation: "households"
-            referencedColumns: ["household_id"]
+            referencedColumns: ["household_uuid"]
           },
         ]
       }
