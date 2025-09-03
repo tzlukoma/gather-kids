@@ -13,7 +13,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Info, Church, AlertTriangle } from 'lucide-react';
+import { Info, Church } from 'lucide-react';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
 import { useFeatureFlags } from '@/contexts/feature-flag-context';
@@ -269,16 +269,6 @@ export default function CreateAccountPage() {
 						</CardDescription>
 					</CardHeader>
 					<CardContent className="space-y-4">
-						{!flags.isDemoMode && (
-							<Alert>
-								<AlertTriangle className="h-4 w-4" />
-								<AlertTitle>Live Authentication Mode</AlertTitle>
-								<AlertDescription>
-									You are creating a real account. Make sure you have access to
-									the email address you provide.
-								</AlertDescription>
-							</Alert>
-						)}
 						<div className="space-y-2">
 							<Label htmlFor="email">Email</Label>
 							<Input
