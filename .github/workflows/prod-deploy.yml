@@ -55,9 +55,13 @@ jobs:
           export SUPABASE_ACCESS_TOKEN="${{ secrets.SUPABASE_ACCESS_TOKEN }}"
           export SUPABASE_DB_PASSWORD="${{ secrets.SUPABASE_DB_PASSWORD }}"
 
-          echo "First, apply the migration that ensures safe household structure..."
-          cp supabase/migrations/20250902000010_safe_household_structure.sql /tmp/safe_household_fix.sql
-          "$HOME/.bin/supabase" db query -f /tmp/safe_household_fix.sql
+          echo "First, ensure project is linked and apply safe household migration via db push..."
+          # Ensure the project is linked so db push targets the correct remote
+          "$HOME/.bin/supabase" link --project-ref "$PROJECT_ID" --password "$SUPABASE_DB_PASSWORD"
+
+          # Apply migrations (includes the safe_household structure migration present in the repo)
+          # We use db push --include-all so any migrations not yet applied on remote are sent.
+          "$HOME/.bin/supabase" db push --include-all --linked || { echo "supabase db push failed"; exit 1; }
 
           echo "Now applying remaining migrations with our safer script..."
           # Modify script execution to ensure it uses the correct Supabase CLI path

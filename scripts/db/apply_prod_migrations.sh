@@ -44,9 +44,11 @@ $HOME/.bin/supabase migration status || true
 
 echo "Creating any missing base tables and fixes using Supabase SQL functions..."
 
-# Execute the SQL directly using a heredoc to pipe into the CLI command
-echo "Running SQL via Supabase CLI..."
-$HOME/.bin/supabase db execute --connected << 'EOSQL'
+# Create a temporary workdir and add migrations for the base tables and fixes
+TEMP_WORKDIR=$(mktemp -d)
+mkdir -p "$TEMP_WORKDIR/supabase/migrations"
+
+cat > "$TEMP_WORKDIR/supabase/migrations/$(date +%Y%m%d%H%M%S)_create_base_tables.sql" <<'EOSQL'
 -- Create the base tables if they don't exist
 CREATE TABLE IF NOT EXISTS households (
   household_id text PRIMARY KEY,
@@ -96,11 +98,7 @@ BEGIN
 END $$;
 EOSQL
 
-echo "Creating direct migration to fix the household_id issue..."
-
-# Execute the SQL directly using a heredoc
-echo "Running direct fix via Supabase CLI..."
-$HOME/.bin/supabase db execute --connected << 'EOSQL'
+cat > "$TEMP_WORKDIR/supabase/migrations/$(date +%Y%m%d%H%M%S)_fix_household_column.sql" <<'EOSQL'
 -- Direct fix for specific issues
 DO $$
 DECLARE
@@ -132,6 +130,13 @@ BEGIN
 END $$;
 EOSQL
 
+echo "Applying temporary migrations via supabase db push..."
+if $HOME/.bin/supabase db push --workdir "$TEMP_WORKDIR" --include-all --linked; then
+  echo "Temporary migrations applied successfully"
+else
+  echo "Warning: Temporary migration push failed. Continuing with remaining steps."
+fi
+
 echo "Pushing migrations..."
 # Try three approaches in sequence, continuing if one fails
 (
@@ -158,29 +163,23 @@ echo "Pushing migrations..."
   fi
 )
 
-# Create a success flag based on whether the tables exist
-$HOME/.bin/supabase db execute --connected << 'EOF' > /dev/null 2>&1 || true
-DO $$
-BEGIN
-  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'children') AND 
-     EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'households') THEN
-    RAISE NOTICE 'SUCCESS: Essential tables exist';
-  ELSE
-    RAISE EXCEPTION 'FAILURE: Essential tables do not exist';
-  END IF;
-END $$;
-EOF
+# Final verification using a dump and grep for table names
+echo "Verifying essential tables existence by dumping schema..."
+DUMP_FILE=$(mktemp)
+$HOME/.bin/supabase db dump -f "$DUMP_FILE" --linked || true
 
-# Final verification using a select statement
-echo "Verifying essential tables existence..."
-TABLES_EXIST=$($HOME/.bin/supabase db execute --connected << 'EOF' || echo "false")
-SELECT COUNT(*) AS table_count FROM information_schema.tables 
-WHERE table_name IN ('children', 'households');
-EOF
-
-if [[ "$TABLES_EXIST" =~ [1-9][0-9]* ]]; then
-  echo "✅ Migrations applied successfully - essential tables verified."
+if grep -q "CREATE TABLE .*households" "$DUMP_FILE" || grep -q "table_name.*households" "$DUMP_FILE" ; then
+  echo "Found households table in dump"
 else
-  echo "⚠️ Migration process completed, but table verification couldn't be confirmed."
-  echo "Please check the database structure manually."
+  echo "Could not find households table in dump"
 fi
+
+if grep -q "CREATE TABLE .*children" "$DUMP_FILE" || grep -q "table_name.*children" "$DUMP_FILE" ; then
+  echo "Found children table in dump"
+else
+  echo "Could not find children table in dump"
+fi
+
+rm -f "$DUMP_FILE"
+
+echo "✅ Migration script finished. Please inspect the logs for potential warnings or failures."

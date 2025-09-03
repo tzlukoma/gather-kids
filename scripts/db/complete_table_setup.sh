@@ -254,38 +254,41 @@ execute_sql() {
   # Create a temporary file with the SQL command
   temp_file=$(mktemp)
   echo "$sql" > "$temp_file"
-  
+
   echo "Executing: $description"
-  
-  # Try using the db execute command without flags
-  if "$SUPABASE" db execute < "$temp_file" 2>/dev/null; then
+
+  # Create a temporary supabase workdir containing this SQL as a migration
+  TEMP_WORKDIR=$(mktemp -d)
+  mkdir -p "$TEMP_WORKDIR/supabase/migrations"
+  TIMESTAMP=$(date +%Y%m%d%H%M%S)
+  MIGRATION_FILE="$TEMP_WORKDIR/supabase/migrations/${TIMESTAMP}_complete_table_setup.sql"
+  cp "$temp_file" "$MIGRATION_FILE"
+
+  # Try to apply the migration via supabase db push using the temporary workdir
+  if "$SUPABASE" db push --workdir "$TEMP_WORKDIR" --include-all --linked 2>/dev/null; then
     rm "$temp_file"
-    echo "✓ $description"
+    rm -rf "$TEMP_WORKDIR"
+    echo "✓ $description (applied via db push)"
     return 0
   fi
-  
-  # Try using the db query command (older versions)
-  if "$SUPABASE" db query < "$temp_file" 2>/dev/null; then
-    rm "$temp_file"
-    echo "✓ $description"
-    return 0
-  fi
-  
-  # If that fails, try direct SQL execution
+
+  # If db push fails, try direct SQL execution with psql (best-effort)
   echo "Trying direct SQL execution for: $description"
-  
-  # Try running SQL directly through psql
   if command -v psql &> /dev/null && [[ -n "$DB_PASSWORD" ]]; then
     PGPASSWORD="$DB_PASSWORD" psql -h "db.$PROJECT_ID.supabase.co" -U "postgres" -d "postgres" -f "$temp_file" 2>/dev/null
     result=$?
     rm "$temp_file"
-    
+    rm -rf "$TEMP_WORKDIR"
+
     if [[ $result -eq 0 ]]; then
       echo "✓ $description (via direct psql)"
       return 0
     fi
+  else
+    rm "$temp_file"
+    rm -rf "$TEMP_WORKDIR"
   fi
-  
+
   # Last resort: print the SQL command so it can be run manually
   echo "❌ Failed to execute: $description"
   echo "Manual SQL command (for reference):"
