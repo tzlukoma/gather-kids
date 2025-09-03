@@ -1,7 +1,7 @@
 /**
  * This file contains types generated from the Supabase schema.
  * DO NOT EDIT MANUALLY. This file is auto-generated.
- * Generated on: 2025-09-03T00:58:07.647Z
+ * Generated on: 2025-09-03T00:59:37.508Z
  */
 
 export type SupabaseJson =
@@ -148,7 +148,10 @@ export type Database = {
       children: {
         Row: {
           created_at: string
+          external_household_id: string | null
+          external_id: string | null
           grade: string | null
+          household_uuid: string | null
           id: number
           is_active: boolean | null
           mobile_phone: string | null
@@ -157,7 +160,10 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          external_household_id?: string | null
+          external_id?: string | null
           grade?: string | null
+          household_uuid?: string | null
           id?: number
           is_active?: boolean | null
           mobile_phone?: string | null
@@ -166,14 +172,25 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          external_household_id?: string | null
+          external_id?: string | null
           grade?: string | null
+          household_uuid?: string | null
           id?: number
           is_active?: boolean | null
           mobile_phone?: string | null
           special_needs?: boolean | null
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "children_household_uuid_fkey"
+            columns: ["household_uuid"]
+            isOneToOne: false
+            referencedRelation: "households"
+            referencedColumns: ["household_uuid"]
+          },
+        ]
       }
       competition_years: {
         Row: {
@@ -364,9 +381,12 @@ export type Database = {
         Row: {
           created_at: string | null
           email: string | null
+          external_household_id: string | null
+          external_id: string | null
           first_name: string | null
           guardian_id: string
           household_id: string | null
+          household_uuid: string | null
           is_primary: boolean | null
           last_name: string | null
           mobile_phone: string | null
@@ -376,9 +396,12 @@ export type Database = {
         Insert: {
           created_at?: string | null
           email?: string | null
+          external_household_id?: string | null
+          external_id?: string | null
           first_name?: string | null
           guardian_id: string
           household_id?: string | null
+          household_uuid?: string | null
           is_primary?: boolean | null
           last_name?: string | null
           mobile_phone?: string | null
@@ -388,9 +411,12 @@ export type Database = {
         Update: {
           created_at?: string | null
           email?: string | null
+          external_household_id?: string | null
+          external_id?: string | null
           first_name?: string | null
           guardian_id?: string
           household_id?: string | null
+          household_uuid?: string | null
           is_primary?: boolean | null
           last_name?: string | null
           mobile_phone?: string | null
@@ -405,6 +431,13 @@ export type Database = {
             referencedRelation: "households"
             referencedColumns: ["household_id"]
           },
+          {
+            foreignKeyName: "guardians_household_uuid_fkey"
+            columns: ["household_uuid"]
+            isOneToOne: false
+            referencedRelation: "households"
+            referencedColumns: ["household_uuid"]
+          },
         ]
       }
       households: {
@@ -413,8 +446,10 @@ export type Database = {
           city: string | null
           created_at: string | null
           email: string | null
+          external_id: string | null
           household_id: string
           household_name: string | null
+          household_uuid: string
           preferred_scripture_translation: string | null
           primary_phone: string | null
           state: string | null
@@ -426,8 +461,10 @@ export type Database = {
           city?: string | null
           created_at?: string | null
           email?: string | null
+          external_id?: string | null
           household_id: string
           household_name?: string | null
+          household_uuid?: string
           preferred_scripture_translation?: string | null
           primary_phone?: string | null
           state?: string | null
@@ -439,8 +476,10 @@ export type Database = {
           city?: string | null
           created_at?: string | null
           email?: string | null
+          external_id?: string | null
           household_id?: string
           household_name?: string | null
+          household_uuid?: string
           preferred_scripture_translation?: string | null
           primary_phone?: string | null
           state?: string | null
