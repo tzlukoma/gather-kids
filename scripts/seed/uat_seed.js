@@ -405,7 +405,7 @@ async function createMinistries() {
     for (const ministryData of ministriesData) {
         const { data: existing, error: checkError } = await supabase
             .from('ministries')
-            .select('id')
+            .select('ministry_id')
             .eq('external_id', ministryData.external_id)
             .single();
 
@@ -436,7 +436,7 @@ async function createMinistryLeaders() {
     // Get ministry IDs
     const { data: ministries, error: ministryError } = await supabase
         .from('ministries')
-        .select('id, external_id')
+        .select('ministry_id, external_id')
         .like('external_id', `${EXTERNAL_ID_PREFIX}%`);
 
     if (ministryError) {
@@ -445,7 +445,7 @@ async function createMinistryLeaders() {
 
     const ministryMap = new Map();
     for (const ministry of ministries) {
-        ministryMap.set(ministry.external_id, ministry.id);
+        ministryMap.set(ministry.external_id, ministry.ministry_id);
     }
 
     const leadersData = [
@@ -480,7 +480,7 @@ async function createMinistryLeaders() {
 
         const { data: existing, error: checkError } = await supabase
             .from('ministry_leaders')
-            .select('id')
+            .select('leader_id')
             .eq('external_id', leaderData.external_id)
             .single();
 
@@ -538,7 +538,7 @@ async function createHouseholdsAndFamilies() {
     for (const householdData of householdsData) {
         const { data: existing, error: checkError } = await supabase
             .from('households')
-            .select('id')
+            .select('household_id')
             .eq('external_id', householdData.external_id)
             .single();
 
@@ -554,7 +554,7 @@ async function createHouseholdsAndFamilies() {
             const { data: newHousehold, error: insertError } = await supabase
                 .from('households')
                 .insert(householdData)
-                .select('id')
+                .select('household_id')
                 .single();
 
             if (insertError) {
@@ -615,7 +615,7 @@ async function createHouseholdsAndFamilies() {
     for (const guardianData of guardiansData) {
         const { data: existing, error: checkError } = await supabase
             .from('guardians')
-            .select('id')
+            .select('guardian_id')
             .eq('external_id', guardianData.external_id)
             .single();
 
@@ -685,7 +685,7 @@ async function createHouseholdsAndFamilies() {
     for (const childData of childrenData) {
         const { data: existing, error: checkError } = await supabase
             .from('children')
-            .select('id')
+            .select('child_id')
             .eq('external_id', childData.external_id)
             .single();
 
@@ -716,7 +716,7 @@ async function createMinistryEnrollments() {
     // Get children and ministries
     const { data: children, error: childrenError } = await supabase
         .from('children')
-        .select('id, external_id, first_name, last_name')
+        .select('child_id, external_id, first_name, last_name')
         .like('external_id', `${EXTERNAL_ID_PREFIX}%`);
 
     if (childrenError) {
@@ -725,7 +725,7 @@ async function createMinistryEnrollments() {
 
     const { data: ministries, error: ministryError } = await supabase
         .from('ministries')
-        .select('id, external_id, name')
+        .select('ministry_id, external_id, name')
         .like('external_id', `${EXTERNAL_ID_PREFIX}%`);
 
     if (ministryError) {
@@ -734,7 +734,7 @@ async function createMinistryEnrollments() {
 
     const ministryMap = new Map();
     for (const ministry of ministries) {
-        ministryMap.set(ministry.external_id, ministry.id);
+        ministryMap.set(ministry.external_id, ministry.ministry_id);
     }
 
     // Enroll children in ministries
@@ -742,7 +742,7 @@ async function createMinistryEnrollments() {
         // All children in Sunday School
         ...children.map(child => ({
             external_id: `${EXTERNAL_ID_PREFIX}enrollment_${child.external_id.split('_')[2]}_ss`,
-            child_id: child.id,
+            child_id: child.child_id,
             ministry_id: ministryMap.get(`${EXTERNAL_ID_PREFIX}sunday_school`),
             enrollment_date: '2025-01-01',
             is_active: true,
@@ -750,14 +750,14 @@ async function createMinistryEnrollments() {
         // Some children in Bible Bee (ages 8+)
         {
             external_id: `${EXTERNAL_ID_PREFIX}enrollment_1_bb`,
-            child_id: children.find(c => c.external_id === `${EXTERNAL_ID_PREFIX}child_1`)?.id,
+            child_id: children.find(c => c.external_id === `${EXTERNAL_ID_PREFIX}child_1`)?.child_id,
             ministry_id: ministryMap.get(`${EXTERNAL_ID_PREFIX}bible_bee`),
             enrollment_date: '2025-01-01',
             is_active: true,
         },
         {
             external_id: `${EXTERNAL_ID_PREFIX}enrollment_3_bb`,
-            child_id: children.find(c => c.external_id === `${EXTERNAL_ID_PREFIX}child_3`)?.id,
+            child_id: children.find(c => c.external_id === `${EXTERNAL_ID_PREFIX}child_3`)?.child_id,
             ministry_id: ministryMap.get(`${EXTERNAL_ID_PREFIX}bible_bee`),
             enrollment_date: '2025-01-01',
             is_active: true,
@@ -772,7 +772,7 @@ async function createMinistryEnrollments() {
 
         const { data: existing, error: checkError } = await supabase
             .from('ministry_enrollments')
-            .select('id')
+            .select('enrollment_id')
             .eq('external_id', enrollmentData.external_id)
             .single();
 
