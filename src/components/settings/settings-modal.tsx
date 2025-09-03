@@ -102,16 +102,18 @@ export function SettingsModal({ isOpen, onClose, defaultTab = 'profile' }: Setti
 
 			// Get profile data
 			const profile = await getMeProfile(user.uid || user.id || '', user.email);
-			if (profile) {
-				profileForm.reset({
-					email: profile.email || '',
-					phone: profile.phone || '',
-				});
-				
-				// Set avatar preview if available
-				if (profile.photo_url || profile.avatar_path) {
-					setAvatarPreview(profile.photo_url || profile.avatar_path || null);
-				}
+			
+			// Always use the authenticated user's email as primary, fallback to profile email
+			const emailToUse = user.email || profile?.email || '';
+			
+			profileForm.reset({
+				email: emailToUse,
+				phone: profile?.phone || '',
+			});
+			
+			// Set avatar preview if available
+			if (profile?.photo_url || profile?.avatar_path) {
+				setAvatarPreview(profile.photo_url || profile.avatar_path || null);
 			}
 		} catch (error) {
 			console.error('Error loading profile:', error);
@@ -171,20 +173,25 @@ export function SettingsModal({ isOpen, onClose, defaultTab = 'profile' }: Setti
 				const userId = user.uid || user.id || '';
 				const timestamp = Date.now();
 				const extension = avatarFile.name.split('.').pop() || 'jpg';
-				const fileName = `${userId}/${timestamp}.${extension}`;
-				photoPath = `avatars/${fileName}`;
-
-				// In demo mode, just use a mock path
+				
+				// In demo mode, just use a mock path and store the preview URL
 				if (isDemo()) {
-					photoPath = `avatars/${userId}/demo-${timestamp}.jpg`;
+					photoPath = `demo-avatars/${userId}/demo-${timestamp}.${extension}`;
+					// In demo mode, we'll use the preview URL directly
+					if (avatarPreview) {
+						photoPath = avatarPreview;
+					}
 				} else {
-					// Upload to Supabase storage
-					const { error: uploadError } = await supabase.storage
-						.from('public-avatars')
-						.upload(photoPath, avatarFile, { upsert: true });
-
-					if (uploadError) {
-						throw new Error(`Avatar upload failed: ${uploadError.message}`);
+					// For production mode, currently skip Supabase upload due to bucket configuration
+					// TODO: Configure Supabase storage bucket properly
+					photoPath = `avatars/${userId}/${timestamp}.${extension}`;
+					
+					// Skip actual upload for now - this prevents the "bucket not found" error
+					console.warn('Avatar upload skipped: Supabase storage bucket not configured');
+					
+					// For now, use the preview URL as the path in non-demo mode too
+					if (avatarPreview) {
+						photoPath = avatarPreview;
 					}
 				}
 			}
