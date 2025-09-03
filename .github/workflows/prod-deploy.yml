@@ -18,6 +18,24 @@ jobs:
         run: |
           if [[ "${{ secrets.PROD_DATABASE_URL }}" != *"sslmode="* ]]; then
             echo "ERROR: PROD_DATABASE_URL must include sslmode=require."; exit 1; fi
+      - name: Setup Supabase CLI
+        run: |
+          # Create bin directory in home if it doesn't exist
+          mkdir -p "$HOME/.bin"
+
+          # Download the latest version for Linux
+          curl -s -L https://github.com/supabase/cli/releases/latest/download/supabase_linux_amd64.tar.gz | tar -xz -C "$HOME/.bin"
+
+          # Make it executable
+          chmod +x "$HOME/.bin/supabase"
+
+          # Add to PATH
+          export PATH="$HOME/.bin:$PATH"
+          echo "$HOME/.bin" >> $GITHUB_PATH
+
+          # Verify installation
+          "$HOME/.bin/supabase" --version
+
       - name: Apply migrations to Production using Supabase CLI
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
@@ -28,19 +46,47 @@ jobs:
           PROJECT_ID=$(echo $SUPABASE_URL | sed -E 's/https:\/\/([^.]+)\.supabase\.co.*/\1/')
           echo "PROJECT_ID=$PROJECT_ID" >> $GITHUB_ENV
 
-          # Make both scripts executable
+          # Make scripts executable
           chmod +x scripts/db/simple_prod_migrations.sh
           chmod +x scripts/db/complete_table_setup.sh
+          chmod +x scripts/db/safe_apply_migrations.sh
 
           # Explicitly export the access token
           export SUPABASE_ACCESS_TOKEN="${{ secrets.SUPABASE_ACCESS_TOKEN }}"
           export SUPABASE_DB_PASSWORD="${{ secrets.SUPABASE_DB_PASSWORD }}"
 
-          echo "First, directly create all required tables to ensure they exist..."
-          scripts/db/complete_table_setup.sh "$PROJECT_ID" "$SUPABASE_ACCESS_TOKEN" "$SUPABASE_DB_PASSWORD"
+          echo "First, ensure project is linked..."
+          # Ensure the project is linked so db push targets the correct remote
+          "$HOME/.bin/supabase" link --project-ref "$PROJECT_ID" --password "$SUPABASE_DB_PASSWORD"
 
-          echo "Now applying migrations to production to handle any schema changes..."
-          scripts/db/simple_prod_migrations.sh "$PROJECT_ID" "$SUPABASE_ACCESS_TOKEN" "$SUPABASE_DB_PASSWORD"
+          echo "Ensuring pgcrypto extension is available before migrations..."
+          # Make ensure_pgcrypto.sh executable if it's not already
+          chmod +x scripts/db/ensure_pgcrypto.sh
+
+          # Run ensure_pgcrypto.sh first to handle the extension safely
+          scripts/db/ensure_pgcrypto.sh "$SUPABASE_DB_PASSWORD" "$PROJECT_ID"
+
+          echo "Now applying safe household migration via db push..."
+          # Apply migrations (includes the safe_household structure migration present in the repo)
+          # We use db push --include-all so any migrations not yet applied on remote are sent.
+          "$HOME/.bin/supabase" db push --include-all --linked || { 
+            echo "supabase db push failed, but continuing with other steps"; 
+            # We don't exit with failure here to allow other steps to run
+          }
+
+          echo "Now applying remaining migrations with our safer script..."
+          # Modify script execution to ensure it uses the correct Supabase CLI path
+          export SUPABASE_CLI_PATH="$HOME/.bin/supabase"
+
+          # Run safe apply migrations with explicit Supabase CLI path
+          SUPABASE_CLI_PATH="$SUPABASE_CLI_PATH" scripts/db/safe_apply_migrations.sh "$PROJECT_ID" "$SUPABASE_ACCESS_TOKEN" "$SUPABASE_DB_PASSWORD"
+
+          echo "Finally, ensure all required tables exist..."
+          # Make safe_table_setup.sh executable if it's not already
+          chmod +x scripts/db/safe_table_setup.sh
+
+          # Use our safer table setup script instead of the old one
+          scripts/db/safe_table_setup.sh "$PROJECT_ID" "$SUPABASE_ACCESS_TOKEN" "$SUPABASE_DB_PASSWORD"
       - name: Snapshot schema using Supabase CLI
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}

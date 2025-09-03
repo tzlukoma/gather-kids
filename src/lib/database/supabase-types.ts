@@ -1,7 +1,7 @@
 /**
  * This file contains types generated from the Supabase schema.
  * DO NOT EDIT MANUALLY. This file is auto-generated.
- * Generated on: 2025-09-03T00:04:11.521Z
+ * Generated on: 2025-09-03T02:05:22.592Z
  */
 
 export type SupabaseJson =
@@ -100,6 +100,25 @@ export type Database = {
           registration_open_date?: string | null
           updated_at?: string | null
           year?: number
+          created_at: string | null
+          description: string | null
+          name: string | null
+          year: number
+          year_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          name?: string | null
+          year: number
+          year_id: string
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          name?: string | null
+          year?: number
+          year_id?: string
         }
         Relationships: []
       }
@@ -110,6 +129,9 @@ export type Database = {
           font_family: string | null
           logo_url: string | null
           organization_name: string | null
+          font_family: string | null
+          logo_url: string | null
+          ministry_id: string | null
           primary_color: string | null
           secondary_color: string | null
           setting_id: string
@@ -121,6 +143,9 @@ export type Database = {
           font_family?: string | null
           logo_url?: string | null
           organization_name?: string | null
+          font_family?: string | null
+          logo_url?: string | null
+          ministry_id?: string | null
           primary_color?: string | null
           secondary_color?: string | null
           setting_id?: string
@@ -132,6 +157,9 @@ export type Database = {
           font_family?: string | null
           logo_url?: string | null
           organization_name?: string | null
+          font_family?: string | null
+          logo_url?: string | null
+          ministry_id?: string | null
           primary_color?: string | null
           secondary_color?: string | null
           setting_id?: string
@@ -147,6 +175,10 @@ export type Database = {
           grade: string | null
           notes: string | null
           profile_id: string
+          division_id: string | null
+          grade: string | null
+          profile_id: string
+          year_id: string | null
         }
         Insert: {
           child_id?: string | null
@@ -155,6 +187,10 @@ export type Database = {
           grade?: string | null
           notes?: string | null
           profile_id: string
+          division_id?: string | null
+          grade?: string | null
+          profile_id?: string
+          year_id?: string | null
         }
         Update: {
           child_id?: string | null
@@ -163,6 +199,10 @@ export type Database = {
           grade?: string | null
           notes?: string | null
           profile_id?: string
+          division_id?: string | null
+          grade?: string | null
+          profile_id?: string
+          year_id?: string | null
         }
         Relationships: []
       }
@@ -180,6 +220,14 @@ export type Database = {
           grade: string | null
           household_id: string | null
           household_uuid: string | null
+          child_mobile: string | null
+          created_at: string
+          external_household_id: string | null
+          external_id: string | null
+          grade: string | null
+          household_id: string | null
+          household_uuid: string | null
+          id: number
           is_active: boolean | null
           last_name: string | null
           mobile_phone: string | null
@@ -200,6 +248,14 @@ export type Database = {
           grade?: string | null
           household_id?: string | null
           household_uuid?: string | null
+          child_mobile?: string | null
+          created_at?: string
+          external_household_id?: string | null
+          external_id?: string | null
+          grade?: string | null
+          household_id?: string | null
+          household_uuid?: string | null
+          id?: number
           is_active?: boolean | null
           last_name?: string | null
           mobile_phone?: string | null
@@ -220,6 +276,14 @@ export type Database = {
           grade?: string | null
           household_id?: string | null
           household_uuid?: string | null
+          child_mobile?: string | null
+          created_at?: string
+          external_household_id?: string | null
+          external_id?: string | null
+          grade?: string | null
+          household_id?: string | null
+          household_uuid?: string | null
+          id?: number
           is_active?: boolean | null
           last_name?: string | null
           mobile_phone?: string | null
@@ -228,6 +292,13 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "children_household_id_fkey"
+            columns: ["household_id"]
+            isOneToOne: false
+            referencedRelation: "households"
+            referencedColumns: ["household_id"]
+          },
           {
             foreignKeyName: "children_household_uuid_fkey"
             columns: ["household_uuid"]
@@ -316,6 +387,65 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+          active: boolean | null
+          created_at: string | null
+          division_id: string | null
+          id: string
+          name: string | null
+          year_id: string | null
+        }
+        Insert: {
+          active?: boolean | null
+          created_at?: string | null
+          division_id?: string | null
+          id?: string
+          name?: string | null
+          year_id?: string | null
+        }
+        Update: {
+          active?: boolean | null
+          created_at?: string | null
+          division_id?: string | null
+          id?: string
+          name?: string | null
+          year_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "competition_years_year_id_fkey"
+            columns: ["year_id"]
+            isOneToOne: false
+            referencedRelation: "bible_bee_years"
+            referencedColumns: ["year_id"]
+          },
+        ]
+      }
+      divisions: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          division_id: string
+          max_age: number | null
+          min_age: number | null
+          name: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          division_id: string
+          max_age?: number | null
+          min_age?: number | null
+          name?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          division_id?: string
+          max_age?: number | null
+          min_age?: number | null
+          name?: string | null
+        }
+        Relationships: []
       }
       emergency_contacts: {
         Row: {
@@ -328,6 +458,11 @@ export type Database = {
           mobile_phone: string | null
           relationship: string | null
           updated_at: string | null
+          household_id: string | null
+          household_id_uuid: string | null
+          name: string | null
+          phone: string | null
+          relationship: string | null
         }
         Insert: {
           contact_id: string
@@ -339,6 +474,11 @@ export type Database = {
           mobile_phone?: string | null
           relationship?: string | null
           updated_at?: string | null
+          household_id?: string | null
+          household_id_uuid?: string | null
+          name?: string | null
+          phone?: string | null
+          relationship?: string | null
         }
         Update: {
           contact_id?: string
@@ -451,6 +591,69 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+          household_id?: string | null
+          household_id_uuid?: string | null
+          name?: string | null
+          phone?: string | null
+          relationship?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_emergency_contacts_household"
+            columns: ["household_id_uuid"]
+            isOneToOne: false
+            referencedRelation: "households"
+            referencedColumns: ["household_uuid"]
+          },
+        ]
+      }
+      enrollment_overrides: {
+        Row: {
+          child_id: string | null
+          created_at: string | null
+          division_id: string | null
+          override_id: string
+          reason: string | null
+          year_id: string | null
+        }
+        Insert: {
+          child_id?: string | null
+          created_at?: string | null
+          division_id?: string | null
+          override_id: string
+          reason?: string | null
+          year_id?: string | null
+        }
+        Update: {
+          child_id?: string | null
+          created_at?: string | null
+          division_id?: string | null
+          override_id?: string
+          reason?: string | null
+          year_id?: string | null
+        }
+        Relationships: []
+      }
+      essay_prompts: {
+        Row: {
+          competition_year_id: string | null
+          created_at: string | null
+          prompt_id: string
+          prompt_text: string | null
+        }
+        Insert: {
+          competition_year_id?: string | null
+          created_at?: string | null
+          prompt_id: string
+          prompt_text?: string | null
+        }
+        Update: {
+          competition_year_id?: string | null
+          created_at?: string | null
+          prompt_id?: string
+          prompt_text?: string | null
+        }
+        Relationships: []
       }
       events: {
         Row: {
@@ -512,6 +715,28 @@ export type Database = {
           target_count?: number | null
           type?: string | null
           updated_at?: string | null
+          created_at: string | null
+          grade_label: string | null
+          max_birth_date: string | null
+          min_birth_date: string | null
+          ministry_id: string | null
+          rule_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          grade_label?: string | null
+          max_birth_date?: string | null
+          min_birth_date?: string | null
+          ministry_id?: string | null
+          rule_id: string
+        }
+        Update: {
+          created_at?: string | null
+          grade_label?: string | null
+          max_birth_date?: string | null
+          min_birth_date?: string | null
+          ministry_id?: string | null
+          rule_id?: string
         }
         Relationships: []
       }
@@ -565,6 +790,13 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "guardians_household_uuid_fkey"
+            columns: ["household_uuid"]
+            isOneToOne: false
+            referencedRelation: "households"
+            referencedColumns: ["household_uuid"]
+          },
           {
             foreignKeyName: "guardians_household_uuid_fkey"
             columns: ["household_uuid"]
@@ -658,6 +890,40 @@ export type Database = {
           leader_id?: string | null
           severity?: string | null
           timestamp?: string | null
+          child_id: string | null
+          created_at: string | null
+          description: string | null
+          incident_id: string
+          reported_at: string | null
+          reported_by: string | null
+          resolution: string | null
+          resolved_at: string | null
+          severity: string | null
+          status: string | null
+        }
+        Insert: {
+          child_id?: string | null
+          created_at?: string | null
+          description?: string | null
+          incident_id: string
+          reported_at?: string | null
+          reported_by?: string | null
+          resolution?: string | null
+          resolved_at?: string | null
+          severity?: string | null
+          status?: string | null
+        }
+        Update: {
+          child_id?: string | null
+          created_at?: string | null
+          description?: string | null
+          incident_id?: string
+          reported_at?: string | null
+          reported_by?: string | null
+          resolution?: string | null
+          resolved_at?: string | null
+          severity?: string | null
+          status?: string | null
         }
         Relationships: []
       }
@@ -745,6 +1011,22 @@ export type Database = {
           open_at?: string | null
           optional_consent_text?: string | null
           updated_at?: string | null
+          created_at: string | null
+          description: string | null
+          ministry_id: string
+          name: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          ministry_id: string
+          name?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          ministry_id?: string
+          name?: string | null
         }
         Relationships: []
       }
@@ -756,6 +1038,9 @@ export type Database = {
           cycle_id: string | null
           enrollment_id: string
           ministry_id: string | null
+          enrollment_id: string
+          ministry_id: string | null
+          notes: string | null
           status: string | null
         }
         Insert: {
@@ -765,6 +1050,9 @@ export type Database = {
           cycle_id?: string | null
           enrollment_id: string
           ministry_id?: string | null
+          enrollment_id: string
+          ministry_id?: string | null
+          notes?: string | null
           status?: string | null
         }
         Update: {
@@ -785,6 +1073,12 @@ export type Database = {
             referencedColumns: ["ministry_id"]
           },
         ]
+          enrollment_id?: string
+          ministry_id?: string | null
+          notes?: string | null
+          status?: string | null
+        }
+        Relationships: []
       }
       ministry_leaders: {
         Row: {
@@ -792,6 +1086,8 @@ export type Database = {
           id: string
           ministry_id: string | null
           role: string | null
+          leader_id: string
+          ministry_id: string | null
           user_id: string | null
         }
         Insert: {
@@ -799,6 +1095,8 @@ export type Database = {
           id?: string
           ministry_id?: string | null
           role?: string | null
+          leader_id: string
+          ministry_id?: string | null
           user_id?: string | null
         }
         Update: {
@@ -806,6 +1104,8 @@ export type Database = {
           id?: string
           ministry_id?: string | null
           role?: string | null
+          leader_id?: string
+          ministry_id?: string | null
           user_id?: string | null
         }
         Relationships: []
@@ -843,6 +1143,25 @@ export type Database = {
           status?: string | null
           submitted_at?: string | null
           submitted_via?: string | null
+          created_at: string | null
+          household_id: string | null
+          notes: string | null
+          registration_id: string
+          status: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          household_id?: string | null
+          notes?: string | null
+          registration_id: string
+          status?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          household_id?: string | null
+          notes?: string | null
+          registration_id?: string
+          status?: string | null
         }
         Relationships: []
       }
@@ -887,6 +1206,11 @@ export type Database = {
           id: string
           instructions: string | null
           prompt_text: string | null
+          created_at: string | null
+          enrollment_id: string | null
+          id: string
+          notes: string | null
+          score: number | null
           status: string | null
           updated_at: string | null
         }
@@ -897,6 +1221,11 @@ export type Database = {
           id: string
           instructions?: string | null
           prompt_text?: string | null
+          created_at?: string | null
+          enrollment_id?: string | null
+          id?: string
+          notes?: string | null
+          score?: number | null
           status?: string | null
           updated_at?: string | null
         }
@@ -907,6 +1236,11 @@ export type Database = {
           id?: string
           instructions?: string | null
           prompt_text?: string | null
+          created_at?: string | null
+          enrollment_id?: string | null
+          id?: string
+          notes?: string | null
+          score?: number | null
           status?: string | null
           updated_at?: string | null
         }
@@ -918,6 +1252,11 @@ export type Database = {
           competition_year_id: string | null
           created_at: string | null
           id: string
+          created_at: string | null
+          enrollment_id: string | null
+          id: string
+          notes: string | null
+          score: number | null
           scripture_id: string | null
           scripture_id_uuid: string | null
           status: string | null
@@ -928,6 +1267,11 @@ export type Database = {
           competition_year_id?: string | null
           created_at?: string | null
           id: string
+          created_at?: string | null
+          enrollment_id?: string | null
+          id?: string
+          notes?: string | null
+          score?: number | null
           scripture_id?: string | null
           scripture_id_uuid?: string | null
           status?: string | null
@@ -938,6 +1282,11 @@ export type Database = {
           competition_year_id?: string | null
           created_at?: string | null
           id?: string
+          created_at?: string | null
+          enrollment_id?: string | null
+          id?: string
+          notes?: string | null
+          score?: number | null
           scripture_id?: string | null
           scripture_id_uuid?: string | null
           status?: string | null
@@ -1009,6 +1358,27 @@ export type Database = {
           name?: string | null
           role?: string | null
           updated_at?: string | null
+          created_at: string | null
+          email: string | null
+          first_name: string | null
+          last_name: string | null
+          role: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          email?: string | null
+          first_name?: string | null
+          last_name?: string | null
+          role?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          email?: string | null
+          first_name?: string | null
+          last_name?: string | null
+          role?: string | null
           user_id?: string
         }
         Relationships: []

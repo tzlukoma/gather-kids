@@ -23,17 +23,44 @@ ALTER TABLE IF EXISTS households ALTER COLUMN household_uuid SET NOT NULL;
 
 -- 2) Add surrogate columns to referencing tables and populate them
 ALTER TABLE IF EXISTS guardians ADD COLUMN IF NOT EXISTS household_uuid uuid;
-UPDATE guardians g SET household_uuid = h.household_uuid FROM households h WHERE g.household_id = h.household_id;
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='guardians' AND column_name='household_id')
+     AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='households' AND column_name='household_id')
+  THEN
+    UPDATE guardians g SET household_uuid = h.household_uuid FROM households h WHERE g.household_id = h.household_id;
+  ELSE
+    RAISE NOTICE 'Skipping guardians household_uuid population: guardians.household_id or households.household_id missing';
+  END IF;
+END$$;
 ALTER TABLE IF EXISTS children ADD COLUMN IF NOT EXISTS household_uuid uuid;
-UPDATE children c SET household_uuid = h.household_uuid FROM households h WHERE c.household_id = h.household_id;
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='children' AND column_name='household_id')
+     AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='households' AND column_name='household_id')
+  THEN
+    UPDATE children c SET household_uuid = h.household_uuid FROM households h WHERE c.household_id = h.household_id;
+  ELSE
+    RAISE NOTICE 'Skipping children household_uuid population: children.household_id or households.household_id missing';
+  END IF;
+END$$;
 
 -- 3) Add indexes / FK constraints (do not drop old FKs)
 DO $$
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'guardians_household_uuid_fkey') THEN
+  -- Add guardians household_uuid FK if columns/tables exist and constraint is not present
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='guardians' AND column_name='household_uuid')
+     AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='households' AND column_name='household_uuid')
+     AND NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'guardians_household_uuid_fkey')
+  THEN
     ALTER TABLE guardians ADD CONSTRAINT guardians_household_uuid_fkey FOREIGN KEY (household_uuid) REFERENCES households(household_uuid) ON DELETE CASCADE;
   END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'children_household_uuid_fkey') THEN
+
+  -- Add children household_uuid FK if columns/tables exist and constraint is not present
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='children' AND column_name='household_uuid')
+     AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='households' AND column_name='household_uuid')
+     AND NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'children_household_uuid_fkey')
+  THEN
     ALTER TABLE children ADD CONSTRAINT children_household_uuid_fkey FOREIGN KEY (household_uuid) REFERENCES households(household_uuid) ON DELETE SET NULL;
   END IF;
 END$$;

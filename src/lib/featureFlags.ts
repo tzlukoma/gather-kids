@@ -2,7 +2,8 @@ type FlagName =
   | "LOGIN_MAGIC_ENABLED"
   | "LOGIN_PASSWORD_ENABLED"
   | "LOGIN_GOOGLE_ENABLED"
-  | "DATABASE_MODE"; // demo | supabase
+  | "DATABASE_MODE" // demo | supabase
+  | "SHOW_DEMO_FEATURES";
 
 export function getFlag(name: FlagName): boolean | string {
   switch (name) {
@@ -12,7 +13,13 @@ export function getFlag(name: FlagName): boolean | string {
       return process.env.NEXT_PUBLIC_LOGIN_PASSWORD_ENABLED === "true";
     case "LOGIN_GOOGLE_ENABLED":
       return process.env.NEXT_PUBLIC_LOGIN_GOOGLE_ENABLED === "true";
+    case "SHOW_DEMO_FEATURES":
+      return process.env.NEXT_PUBLIC_SHOW_DEMO_FEATURES === "true";
     case "DATABASE_MODE":
+      // Force supabase mode when demo features are disabled
+      if (process.env.NEXT_PUBLIC_SHOW_DEMO_FEATURES === "false") {
+        return "supabase";
+      }
       return process.env.NEXT_PUBLIC_DATABASE_MODE ?? "demo";
     default:
       return false;

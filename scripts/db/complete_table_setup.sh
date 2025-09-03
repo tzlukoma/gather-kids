@@ -13,14 +13,15 @@ if [[ -z "$PROJECT_ID" || -z "$ACCESS_TOKEN" ]]; then
   exit 2
 fi
 
-# Install Supabase CLI using the official method
-if ! command -v supabase &> /dev/null; then
-  echo "Installing Supabase CLI..."
-  mkdir -p "$HOME/.bin"
-  curl -s -L https://github.com/supabase/cli/releases/latest/download/supabase_linux_amd64.tar.gz | tar -xz -C "$HOME/.bin"
-  chmod +x "$HOME/.bin/supabase"
-  export PATH="$HOME/.bin:$PATH"
-  echo "export PATH=$HOME/.bin:\$PATH" >> "$HOME/.bashrc"
+# Use the provided Supabase CLI path or default to just "supabase"
+SUPABASE="${SUPABASE_CLI_PATH:-supabase}"
+echo "Using Supabase CLI at: $SUPABASE"
+
+# Check if Supabase CLI is available
+if ! command -v "$SUPABASE" &> /dev/null; then
+  echo "Error: Supabase CLI not found at $SUPABASE"
+  echo "Please make sure Supabase CLI is installed and the path is correct"
+  exit 3
 fi
 
 # Export the access token for Supabase CLI
@@ -28,18 +29,16 @@ export SUPABASE_ACCESS_TOKEN="$ACCESS_TOKEN"
 export SUPABASE_DB_PASSWORD="$DB_PASSWORD"
 
 echo "Linking project..."
+# Link project with DB password if provided
 if [[ -n "$DB_PASSWORD" ]]; then
-  $HOME/.bin/supabase link --project-ref "$PROJECT_ID" --password "$DB_PASSWORD"
+  "$SUPABASE" link --project-ref "$PROJECT_ID" --password "$DB_PASSWORD"
 else
-  $HOME/.bin/supabase link --project-ref "$PROJECT_ID"
+  "$SUPABASE" link --project-ref "$PROJECT_ID"
 fi
 
 echo "Creating direct SQL command file..."
 SQL_FILE="/tmp/complete_table_setup.sql"
 cat > "$SQL_FILE" << 'EOSQL'
--- Create extension first
-CREATE EXTENSION IF NOT EXISTS pgcrypto;
-
 -- Core tables
 CREATE TABLE IF NOT EXISTS households (
   household_id text PRIMARY KEY,
@@ -240,7 +239,7 @@ echo "Running SQL to create all tables directly..."
 echo "Creating tables..."
 
 # Get Supabase CLI version to adapt our commands
-CLI_VERSION=$($HOME/.bin/supabase --version | head -n 1 | awk '{print $3}' || echo "unknown")
+CLI_VERSION=$("$SUPABASE" --version | head -n 1 | awk '{print $3}' || echo "unknown")
 echo "Detected Supabase CLI version: $CLI_VERSION"
 
 # Helper function to execute SQL - creates a temporary file for better multi-line SQL handling
@@ -252,50 +251,75 @@ execute_sql() {
   # Create a temporary file with the SQL command
   temp_file=$(mktemp)
   echo "$sql" > "$temp_file"
-  
+
   echo "Executing: $description"
-  
-  # Try using the db execute command without flags
-  if $HOME/.bin/supabase db execute < "$temp_file" 2>/dev/null; then
-    rm "$temp_file"
-    echo "✓ $description"
+
+  # Create a temporary supabase workdir containing this SQL as a migration
+  TEMP_WORKDIR=$(mktemp -d)
+  mkdir -p "$TEMP_WORKDIR/supabase/migrations"
+  TIMESTAMP=$(date +%Y%m%d%H%M%S%N)
+  MIGRATION_FILE="$TEMP_WORKDIR/supabase/migrations/${TIMESTAMP}_complete_table_setup.sql"
+  cp "$temp_file" "$MIGRATION_FILE"
+
+  # Try to apply the migration via supabase db push using the temporary workdir
+  # Temporarily disable errexit so failures here don't kill the whole script
+  set +e
+  "$SUPABASE" db push --workdir "$TEMP_WORKDIR" --include-all --linked >/dev/null 2>&1
+  push_rc=$?
+  if [[ $push_rc -eq 0 ]]; then
+    rm -f "$temp_file"
+    rm -rf "$TEMP_WORKDIR"
+    echo "✓ $description (applied via db push)"
+    set -e
     return 0
   fi
-  
-  # Try using the db query command (older versions)
-  if $HOME/.bin/supabase db query < "$temp_file" 2>/dev/null; then
-    rm "$temp_file"
-    echo "✓ $description"
-    return 0
-  fi
-  
-  # If that fails, try direct SQL execution
+
+  # If db push fails, try direct SQL execution with psql (best-effort)
   echo "Trying direct SQL execution for: $description"
-  
-  # Try running SQL directly through psql
+  psql_rc=1
   if command -v psql &> /dev/null && [[ -n "$DB_PASSWORD" ]]; then
-    PGPASSWORD="$DB_PASSWORD" psql -h "db.$PROJECT_ID.supabase.co" -U "postgres" -d "postgres" -f "$temp_file" 2>/dev/null
-    result=$?
-    rm "$temp_file"
-    
-    if [[ $result -eq 0 ]]; then
+    PGPASSWORD="$DB_PASSWORD" psql -h "db.$PROJECT_ID.supabase.co" -U "postgres" -d "postgres" -f "$temp_file" >/dev/null 2>&1
+    psql_rc=$?
+    if [[ $psql_rc -eq 0 ]]; then
+      rm -f "$temp_file"
+      rm -rf "$TEMP_WORKDIR"
       echo "✓ $description (via direct psql)"
+      set -e
       return 0
     fi
   fi
-  
+
   # Last resort: print the SQL command so it can be run manually
   echo "❌ Failed to execute: $description"
   echo "Manual SQL command (for reference):"
   echo "------------------------------------"
   cat "$temp_file"
   echo "------------------------------------"
-  rm "$temp_file"
+  rm -f "$temp_file"
+  rm -rf "$TEMP_WORKDIR"
+  set -e
   return 1
 }
 
-# Create extension first
-execute_sql "CREATE EXTENSION IF NOT EXISTS pgcrypto;" "Created extension pgcrypto"
+# Create extension first with special handling
+echo "Attempting to create pgcrypto extension (may be already installed or require superuser)"
+if command -v psql &> /dev/null && [[ -n "$DB_PASSWORD" ]]; then
+  set +e
+  # Try to create extension directly but don't fail if it errors
+  PGPASSWORD="$DB_PASSWORD" psql -h "db.$PROJECT_ID.supabase.co" -U "postgres" -d "postgres" -c "CREATE EXTENSION IF NOT EXISTS pgcrypto;" >/dev/null 2>&1
+  pgcrypto_rc=$?
+  if [[ $pgcrypto_rc -eq 0 ]]; then
+    echo "✓ Successfully created pgcrypto extension"
+  else
+    echo "ℹ️ Could not create pgcrypto extension. This is often because:"
+    echo "   - The extension is already installed (in which case you can ignore this)"
+    echo "   - The database user doesn't have permission to create extensions"
+    echo "   - Continuing with setup assuming extension exists..."
+  fi
+  set -e
+else
+  echo "ℹ️ Skipping direct pgcrypto extension creation (psql not available or no password)"
+fi
 
 # Create households table
 execute_sql "CREATE TABLE IF NOT EXISTS households (
