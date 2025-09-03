@@ -36,9 +36,16 @@ BEGIN
     -- Verify there are no nulls first to avoid failing the migration
     PERFORM 1 FROM emergency_contacts WHERE household_id_uuid IS NULL LIMIT 1;
     IF NOT FOUND THEN
-      ALTER TABLE emergency_contacts
-        ADD CONSTRAINT fk_emergency_contacts_household FOREIGN KEY (household_id_uuid)
-          REFERENCES households(household_id);
+      -- Only add FK if the uuid columns exist and constraint is absent
+      IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='emergency_contacts' AND column_name='household_id_uuid')
+         AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='households' AND column_name='household_uuid')
+      THEN
+        ALTER TABLE emergency_contacts
+          ADD CONSTRAINT fk_emergency_contacts_household FOREIGN KEY (household_id_uuid)
+            REFERENCES households(household_uuid);
+      ELSE
+        RAISE NOTICE 'Skipping FK creation for emergency_contacts.household_id_uuid: required columns missing';
+      END IF;
     ELSE
       RAISE NOTICE 'Skipping FK creation: household_id_uuid contains NULL values.';
     END IF;
