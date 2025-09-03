@@ -11,11 +11,23 @@ ALTER TABLE IF EXISTS emergency_contacts
   ADD COLUMN IF NOT EXISTS household_id_uuid uuid;
 
 -- 2) Populate from households.external_id where available
-UPDATE emergency_contacts e
-SET household_id_uuid = h.household_id
-FROM households h
-WHERE e.household_id = h.external_id
-  AND (e.household_id IS NOT NULL);
+DO $$
+BEGIN
+  -- Only run if the expected columns exist and households has a uuid surrogate
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='emergency_contacts' AND column_name='household_id')
+     AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='households' AND column_name='external_id')
+     AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='households' AND column_name='household_uuid')
+  THEN
+    -- Use the households.household_uuid (uuid) rather than household_id (text)
+    UPDATE emergency_contacts e
+    SET household_id_uuid = h.household_uuid
+    FROM households h
+    WHERE e.household_id = h.external_id
+      AND (e.household_id IS NOT NULL);
+  ELSE
+    RAISE NOTICE 'Skipping emergency_contacts.household_id_uuid population: required columns missing';
+  END IF;
+END$$;
 
 -- 3) Add FK constraint only if it does not already exist and there are no nulls
 DO $$
