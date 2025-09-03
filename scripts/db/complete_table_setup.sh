@@ -265,28 +265,31 @@ execute_sql() {
   cp "$temp_file" "$MIGRATION_FILE"
 
   # Try to apply the migration via supabase db push using the temporary workdir
-  if "$SUPABASE" db push --workdir "$TEMP_WORKDIR" --include-all --linked 2>/dev/null; then
-    rm "$temp_file"
+  # Temporarily disable errexit so failures here don't kill the whole script
+  set +e
+  "$SUPABASE" db push --workdir "$TEMP_WORKDIR" --include-all --linked >/dev/null 2>&1
+  push_rc=$?
+  if [[ $push_rc -eq 0 ]]; then
+    rm -f "$temp_file"
     rm -rf "$TEMP_WORKDIR"
     echo "✓ $description (applied via db push)"
+    set -e
     return 0
   fi
 
   # If db push fails, try direct SQL execution with psql (best-effort)
   echo "Trying direct SQL execution for: $description"
+  psql_rc=1
   if command -v psql &> /dev/null && [[ -n "$DB_PASSWORD" ]]; then
-    PGPASSWORD="$DB_PASSWORD" psql -h "db.$PROJECT_ID.supabase.co" -U "postgres" -d "postgres" -f "$temp_file" 2>/dev/null
-    result=$?
-    rm "$temp_file"
-    rm -rf "$TEMP_WORKDIR"
-
-    if [[ $result -eq 0 ]]; then
+    PGPASSWORD="$DB_PASSWORD" psql -h "db.$PROJECT_ID.supabase.co" -U "postgres" -d "postgres" -f "$temp_file" >/dev/null 2>&1
+    psql_rc=$?
+    if [[ $psql_rc -eq 0 ]]; then
+      rm -f "$temp_file"
+      rm -rf "$TEMP_WORKDIR"
       echo "✓ $description (via direct psql)"
+      set -e
       return 0
     fi
-  else
-    rm "$temp_file"
-    rm -rf "$TEMP_WORKDIR"
   fi
 
   # Last resort: print the SQL command so it can be run manually
@@ -295,7 +298,9 @@ execute_sql() {
   echo "------------------------------------"
   cat "$temp_file"
   echo "------------------------------------"
-  rm "$temp_file"
+  rm -f "$temp_file"
+  rm -rf "$TEMP_WORKDIR"
+  set -e
   return 1
 }
 
