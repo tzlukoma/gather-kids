@@ -1,7 +1,7 @@
 /**
  * This file contains types generated from the Supabase schema.
  * DO NOT EDIT MANUALLY. This file is auto-generated.
- * Generated on: 2025-09-03T00:45:31.052Z
+ * Generated on: 2025-09-03T00:58:07.647Z
  */
 
 export type SupabaseJson =
@@ -377,7 +377,7 @@ export type Database = {
           created_at?: string | null
           email?: string | null
           first_name?: string | null
-          guardian_id?: string
+          guardian_id: string
           household_id?: string | null
           is_primary?: boolean | null
           last_name?: string | null
@@ -426,7 +426,7 @@ export type Database = {
           city?: string | null
           created_at?: string | null
           email?: string | null
-          household_id?: string
+          household_id: string
           household_name?: string | null
           preferred_scripture_translation?: string | null
           primary_phone?: string | null
