@@ -13,14 +13,15 @@ if [[ -z "$PROJECT_ID" || -z "$ACCESS_TOKEN" ]]; then
   exit 2
 fi
 
-# Install Supabase CLI using the official method
-if ! command -v supabase &> /dev/null; then
-  echo "Installing Supabase CLI..."
-  mkdir -p "$HOME/.bin"
-  curl -s -L https://github.com/supabase/cli/releases/latest/download/supabase_linux_amd64.tar.gz | tar -xz -C "$HOME/.bin"
-  chmod +x "$HOME/.bin/supabase"
-  export PATH="$HOME/.bin:$PATH"
-  echo "export PATH=$HOME/.bin:\$PATH" >> "$HOME/.bashrc"
+# Use the provided Supabase CLI path or default to just "supabase"
+SUPABASE="${SUPABASE_CLI_PATH:-supabase}"
+echo "Using Supabase CLI at: $SUPABASE"
+
+# Check if Supabase CLI is available
+if ! command -v "$SUPABASE" &> /dev/null; then
+  echo "Error: Supabase CLI not found at $SUPABASE"
+  echo "Please make sure Supabase CLI is installed and the path is correct"
+  exit 3
 fi
 
 # Export the access token for Supabase CLI
@@ -28,10 +29,11 @@ export SUPABASE_ACCESS_TOKEN="$ACCESS_TOKEN"
 export SUPABASE_DB_PASSWORD="$DB_PASSWORD"
 
 echo "Linking project..."
+# Link project with DB password if provided
 if [[ -n "$DB_PASSWORD" ]]; then
-  $HOME/.bin/supabase link --project-ref "$PROJECT_ID" --password "$DB_PASSWORD"
+  "$SUPABASE" link --project-ref "$PROJECT_ID" --password "$DB_PASSWORD"
 else
-  $HOME/.bin/supabase link --project-ref "$PROJECT_ID"
+  "$SUPABASE" link --project-ref "$PROJECT_ID"
 fi
 
 echo "Creating direct SQL command file..."
@@ -240,7 +242,7 @@ echo "Running SQL to create all tables directly..."
 echo "Creating tables..."
 
 # Get Supabase CLI version to adapt our commands
-CLI_VERSION=$($HOME/.bin/supabase --version | head -n 1 | awk '{print $3}' || echo "unknown")
+CLI_VERSION=$("$SUPABASE" --version | head -n 1 | awk '{print $3}' || echo "unknown")
 echo "Detected Supabase CLI version: $CLI_VERSION"
 
 # Helper function to execute SQL - creates a temporary file for better multi-line SQL handling
@@ -256,14 +258,14 @@ execute_sql() {
   echo "Executing: $description"
   
   # Try using the db execute command without flags
-  if $HOME/.bin/supabase db execute < "$temp_file" 2>/dev/null; then
+  if "$SUPABASE" db execute < "$temp_file" 2>/dev/null; then
     rm "$temp_file"
     echo "✓ $description"
     return 0
   fi
   
   # Try using the db query command (older versions)
-  if $HOME/.bin/supabase db query < "$temp_file" 2>/dev/null; then
+  if "$SUPABASE" db query < "$temp_file" 2>/dev/null; then
     rm "$temp_file"
     echo "✓ $description"
     return 0

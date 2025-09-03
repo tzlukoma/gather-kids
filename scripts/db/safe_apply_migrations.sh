@@ -13,15 +13,26 @@ if [[ -z "$PROJECT_ID" || -z "$ACCESS_TOKEN" ]]; then
   exit 2
 fi
 
+# Use the provided Supabase CLI path or default to just "supabase"
+SUPABASE="${SUPABASE_CLI_PATH:-supabase}"
+echo "Using Supabase CLI at: $SUPABASE"
+
+# Check if Supabase CLI is available
+if ! command -v "$SUPABASE" &> /dev/null; then
+  echo "Error: Supabase CLI not found at $SUPABASE"
+  echo "Please make sure Supabase CLI is installed and the path is correct"
+  exit 3
+fi
+
 # Export the access token for Supabase CLI
 export SUPABASE_ACCESS_TOKEN="$ACCESS_TOKEN"
 export SUPABASE_DB_PASSWORD="$DB_PASSWORD"
 
 # Link project with DB password if provided
 if [[ -n "$DB_PASSWORD" ]]; then
-  supabase link --project-ref "$PROJECT_ID" --password "$DB_PASSWORD"
+  "$SUPABASE" link --project-ref "$PROJECT_ID" --password "$DB_PASSWORD"
 else
-  supabase link --project-ref "$PROJECT_ID"
+  "$SUPABASE" link --project-ref "$PROJECT_ID"
 fi
 
 echo "Running pre-checks to ensure database structure integrity..."
@@ -81,19 +92,19 @@ END $$;
 EOSQL
 
 echo "Executing pre-check SQL..."
-supabase db query -f "$PRE_CHECK_SQL" || {
+"$SUPABASE" db query -f "$PRE_CHECK_SQL" || {
   echo "Warning: Pre-check encountered issues but we'll continue."
 }
 
 echo "Running database push with --include-all flag..."
-if supabase db push --dry-run --include-all; then
+if "$SUPABASE" db push --dry-run --include-all; then
   echo "Dry run successful. Applying migrations..."
-  supabase db push --include-all
+  "$SUPABASE" db push --include-all
 else
   echo "Dry run failed with --include-all flag, trying standard push..."
-  if supabase db push --dry-run; then
+  if "$SUPABASE" db push --dry-run; then
     echo "Dry run successful. Applying migrations..."
-    supabase db push
+    "$SUPABASE" db push
   else
     echo "All dry runs failed. Attempting migration one by one..."
     
@@ -105,7 +116,7 @@ else
     # Try to apply migrations one by one
     for file in $MIGRATION_FILES; do
       echo "Applying migration from $file..."
-      if supabase db query -f "$file"; then
+      if "$SUPABASE" db query -f "$file"; then
         echo "✓ Successfully applied migration from $file"
       else
         echo "✗ Failed to apply migration from $file, continuing with next..."
@@ -129,6 +140,6 @@ ORDER BY table_name;
 EOSQL
 
 echo "Executing post-check SQL..."
-supabase db query -f "$POST_CHECK_SQL" || true
+"$SUPABASE" db query -f "$POST_CHECK_SQL" || true
 
 echo "✅ Migration process completed. Please verify database structure in the Supabase dashboard."
