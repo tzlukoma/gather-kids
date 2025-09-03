@@ -1,7 +1,7 @@
 /**
  * This file contains types generated from the Supabase schema.
  * DO NOT EDIT MANUALLY. This file is auto-generated.
- * Generated on: 2025-09-03T01:02:20.651Z
+ * Generated on: 2025-09-03T01:05:27.562Z
  */
 
 export type SupabaseJson =
@@ -268,6 +268,7 @@ export type Database = {
           contact_id: string
           created_at: string | null
           household_id: string | null
+          household_id_uuid: string | null
           name: string | null
           phone: string | null
           relationship: string | null
@@ -276,6 +277,7 @@ export type Database = {
           contact_id: string
           created_at?: string | null
           household_id?: string | null
+          household_id_uuid?: string | null
           name?: string | null
           phone?: string | null
           relationship?: string | null
@@ -284,11 +286,20 @@ export type Database = {
           contact_id?: string
           created_at?: string | null
           household_id?: string | null
+          household_id_uuid?: string | null
           name?: string | null
           phone?: string | null
           relationship?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fk_emergency_contacts_household"
+            columns: ["household_id_uuid"]
+            isOneToOne: false
+            referencedRelation: "households"
+            referencedColumns: ["household_uuid"]
+          },
+        ]
       }
       enrollment_overrides: {
         Row: {
