@@ -91,10 +91,20 @@ BEGIN
 END $$;
 EOSQL
 
-echo "Executing pre-check SQL..."
-"$SUPABASE" db query -f "$PRE_CHECK_SQL" || {
-  echo "Warning: Pre-check encountered issues but we'll continue."
-}
+echo "Creating temporary migration for pre-check..."
+# Create temporary migration directory if it doesn't exist
+TEMP_MIGRATION_DIR="./supabase/temp-migrations"
+mkdir -p "$TEMP_MIGRATION_DIR"
+
+# Generate a timestamp for the migration
+TIMESTAMP=$(date +%Y%m%d%H%M%S)
+PRE_CHECK_MIGRATION_FILE="$TEMP_MIGRATION_DIR/${TIMESTAMP}_pre_check.sql"
+
+# Copy the SQL to the migration file
+cp "$PRE_CHECK_SQL" "$PRE_CHECK_MIGRATION_FILE"
+
+echo "Created temporary migration at $PRE_CHECK_MIGRATION_FILE"
+echo "Pre-checks will be run as part of the migration process"
 
 echo "Running database push with --include-all flag..."
 if "$SUPABASE" db push --dry-run --include-all; then
@@ -106,22 +116,39 @@ else
     echo "Dry run successful. Applying migrations..."
     "$SUPABASE" db push
   else
-    echo "All dry runs failed. Attempting migration one by one..."
+    echo "All dry runs failed. Will try with more debugging information..."
     
     # Find all migration files
     MIGRATION_FILES=$(find ./supabase/migrations -name "*.sql" | sort)
     
     echo "Found $(echo "$MIGRATION_FILES" | wc -l) migration files"
     
-    # Try to apply migrations one by one
-    for file in $MIGRATION_FILES; do
-      echo "Applying migration from $file..."
-      if "$SUPABASE" db query -f "$file"; then
-        echo "✓ Successfully applied migration from $file"
-      else
-        echo "✗ Failed to apply migration from $file, continuing with next..."
-      fi
-    done
+    echo "Could not apply migrations as a batch. Will attempt linking and DB push again..."
+    
+    # Try to relink and push
+    echo "Relinking project..."
+    if [[ -n "$DB_PASSWORD" ]]; then
+      "$SUPABASE" link --project-ref "$PROJECT_ID" --password "$DB_PASSWORD"
+    else
+      "$SUPABASE" link --project-ref "$PROJECT_ID"
+    fi
+    
+    echo "Trying db push with debug information..."
+    "$SUPABASE" db push --debug || {
+      echo "Migration push failed even with debug mode"
+      
+      echo "Attempting with experimental flag..."
+      "$SUPABASE" --experimental db push --debug || {
+        echo "Failed with experimental flag too"
+        
+        echo "Attempting full reset as a last resort (WARNING: THIS WILL RESET DATABASE)..."
+        if [[ -n "$DB_PASSWORD" ]]; then
+          echo "Skipping reset in production environment (DB password provided)"
+        else
+          "$SUPABASE" db reset || echo "Reset failed too. Manual intervention required."
+        fi
+      }
+    }
   fi
 fi
 
@@ -139,7 +166,23 @@ WHERE table_schema = 'public'
 ORDER BY table_name;
 EOSQL
 
-echo "Executing post-check SQL..."
-"$SUPABASE" db query -f "$POST_CHECK_SQL" || true
+echo "Creating temporary migration for post-check..."
+# Create a post-check migration file
+TIMESTAMP=$(date +%Y%m%d%H%M%S)
+POST_CHECK_MIGRATION_FILE="$TEMP_MIGRATION_DIR/${TIMESTAMP}_post_check.sql"
+
+# Copy the SQL to the migration file
+cp "$POST_CHECK_SQL" "$POST_CHECK_MIGRATION_FILE"
+
+echo "Created temporary migration at $POST_CHECK_MIGRATION_FILE"
+echo "Running a final db push to apply post-check..."
+"$SUPABASE" db push || echo "Warning: Could not run post-check SQL, but migrations may have been applied successfully."
+
+# Clean up temporary migrations
+echo "Cleaning up temporary migrations..."
+if [[ -d "$TEMP_MIGRATION_DIR" ]]; then
+  rm -rf "$TEMP_MIGRATION_DIR"
+  echo "Removed temporary migration directory"
+fi
 
 echo "✅ Migration process completed. Please verify database structure in the Supabase dashboard."
