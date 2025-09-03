@@ -17,6 +17,7 @@ import { db as dbAdapter } from './database/factory';
 import { getApplicableGradeRule } from './bibleBee';
 import { gradeToCode } from './gradeUtils';
 import { AuthRole } from './auth-types';
+import { isDemo } from './featureFlags';
 import type { Attendance, Child, Guardian, Household, Incident, IncidentSeverity, Ministry, MinistryEnrollment, Registration, User, EmergencyContact, LeaderAssignment, LeaderProfile, MinistryLeaderMembership, MinistryAccount, BrandingSettings  } from './types';
 import { differenceInYears, isAfter, isBefore, parseISO, isValid } from 'date-fns';
 import { v4 as uuidv4 } from 'uuid';
@@ -25,6 +26,11 @@ import { v4 as uuidv4 } from 'uuid';
 // Legacy DAL functions continue to use the Dexie interface for backward compatibility
 // New code should use dbAdapter for consistent behavior across demo/Supabase modes
 export { dbAdapter };
+
+// Utility to determine if we should use the adapter interface for write operations
+function shouldUseAdapter(): boolean {
+    return !isDemo(); // Use adapter (Supabase) when not in demo mode
+}
 
 // Utility Functions
 export const getTodayIsoDate = () => new Date().toISOString().split('T')[0];
@@ -243,56 +249,124 @@ export async function getHouseholdProfile(householdId: string): Promise<Househol
 export async function recordCheckIn(childId: string, eventId: string, timeslotId?: string, userId?: string): Promise<string> {
     const today = getTodayIsoDate();
 
-    // Find if the child has any active check-in record for today.
-    const activeCheckIn = await db.attendance
-        .where({ child_id: childId, date: today })
-        .filter(rec => !rec.check_out_at)
-        .first();
+    if (shouldUseAdapter()) {
+        // Use Supabase adapter for live mode
+        // First check for active check-ins
+        const activeCheckIns = await dbAdapter.listAttendance({
+            childId: childId,
+            date: today
+        });
+        
+        const activeCheckIn = activeCheckIns.find(rec => !rec.check_out_at);
+        if (activeCheckIn) {
+            throw new Error("This child is already checked in to another event.");
+        }
 
-    if (activeCheckIn) {
-        throw new Error("This child is already checked in to another event.");
+        // Create new attendance record
+        const attendanceRecord = await dbAdapter.createAttendance({
+            event_id: eventId,
+            child_id: childId,
+            date: today,
+            timeslot_id: timeslotId,
+            check_in_at: new Date().toISOString(),
+            checked_in_by: userId,
+        });
+        
+        return attendanceRecord.attendance_id;
+    } else {
+        // Use legacy Dexie interface for demo mode
+        // Find if the child has any active check-in record for today.
+        const activeCheckIn = await db.attendance
+            .where({ child_id: childId, date: today })
+            .filter(rec => !rec.check_out_at)
+            .first();
+
+        if (activeCheckIn) {
+            throw new Error("This child is already checked in to another event.");
+        }
+
+        // No active record, create a new one.
+        const attendanceRecord: Attendance = {
+            attendance_id: uuidv4(),
+            event_id: eventId,
+            child_id: childId,
+            date: today,
+            timeslot_id: timeslotId,
+            check_in_at: new Date().toISOString(),
+            checked_in_by: userId,
+        };
+        return db.attendance.add(attendanceRecord);
     }
-
-    // No active record, create a new one.
-    const attendanceRecord: Attendance = {
-        attendance_id: uuidv4(),
-        event_id: eventId,
-        child_id: childId,
-        date: today,
-        timeslot_id: timeslotId,
-        check_in_at: new Date().toISOString(),
-        checked_in_by: userId,
-    };
-    return db.attendance.add(attendanceRecord);
 }
 
 export async function recordCheckOut(attendanceId: string, verifier: { method: "PIN" | "other", value: string }, userId?: string): Promise<string> {
-    const attendanceRecord = await db.attendance.get(attendanceId);
-    if (!attendanceRecord) throw new Error("Attendance record not found");
+    if (shouldUseAdapter()) {
+        // Use Supabase adapter for live mode
+        const attendanceRecord = await dbAdapter.getAttendance(attendanceId);
+        if (!attendanceRecord) throw new Error("Attendance record not found");
 
-    const updatedRecord: Attendance = {
-        ...attendanceRecord,
-        check_out_at: new Date().toISOString(),
-        checked_out_by: userId,
-        pickup_method: verifier.method,
-        picked_up_by: verifier.method === 'other' ? verifier.value : undefined,
-    };
-    // Using put to ensure live queries are triggered correctly.
-    return db.attendance.put(updatedRecord);
-}
+        const updatedRecord = await dbAdapter.updateAttendance(attendanceId, {
+            check_out_at: new Date().toISOString(),
+            checked_out_by: userId,
+            pickup_method: verifier.method,
+            picked_up_by: verifier.method === 'other' ? verifier.value : undefined,
+        });
+        
+        return updatedRecord.attendance_id;
+    } else {
+        // Use legacy Dexie interface for demo mode
+        const attendanceRecord = await db.attendance.get(attendanceId);
+        if (!attendanceRecord) throw new Error("Attendance record not found");
 
-export function acknowledgeIncident(incidentId: string): Promise<number> {
-    return db.incidents.update(incidentId, { admin_acknowledged_at: new Date().toISOString() });
-}
-
-export async function logIncident(data: { child_id: string, child_name: string, description: string, severity: IncidentSeverity, leader_id: string, event_id?: string }) {
-    const incident: Incident = {
-        incident_id: uuidv4(),
-        ...data,
-        timestamp: new Date().toISOString(),
-        admin_acknowledged_at: null,
+        const updatedRecord: Attendance = {
+            ...attendanceRecord,
+            check_out_at: new Date().toISOString(),
+            checked_out_by: userId,
+            pickup_method: verifier.method,
+            picked_up_by: verifier.method === 'other' ? verifier.value : undefined,
+        };
+        // Using put to ensure live queries are triggered correctly.
+        return db.attendance.put(updatedRecord);
     }
-    return db.incidents.add(incident);
+}
+
+export async function acknowledgeIncident(incidentId: string): Promise<number | string> {
+    if (shouldUseAdapter()) {
+        // Use Supabase adapter for live mode
+        const updatedIncident = await dbAdapter.updateIncident(incidentId, { 
+            admin_acknowledged_at: new Date().toISOString() 
+        });
+        return updatedIncident.incident_id;
+    } else {
+        // Use legacy Dexie interface for demo mode
+        return db.incidents.update(incidentId, { admin_acknowledged_at: new Date().toISOString() });
+    }
+}
+
+export async function logIncident(data: { child_id: string, child_name: string, description: string, severity: IncidentSeverity, leader_id: string, event_id?: string }): Promise<string> {
+    if (shouldUseAdapter()) {
+        // Use Supabase adapter for live mode
+        const incident = await dbAdapter.createIncident({
+            child_id: data.child_id,
+            child_name: data.child_name,
+            description: data.description,
+            severity: data.severity,
+            leader_id: data.leader_id,
+            event_id: data.event_id,
+            timestamp: new Date().toISOString(),
+            admin_acknowledged_at: null,
+        });
+        return incident.incident_id;
+    } else {
+        // Use legacy Dexie interface for demo mode
+        const incident: Incident = {
+            incident_id: uuidv4(),
+            ...data,
+            timestamp: new Date().toISOString(),
+            admin_acknowledged_at: null,
+        }
+        return db.incidents.add(incident);
+    }
 }
 
 const fetchFullHouseholdData = async (householdId: string, cycleId: string) => {
@@ -559,7 +633,7 @@ export async function registerHousehold(data: any, cycle_id: string, isPrefill: 
                                         .toArray();
                                     
                                     const appropriateDivision = divisions.find(d => 
-                                        gradeNum >= d.min_grade && gradeNum <= d.max_grade
+                                        gradeNum !== null && gradeNum >= d.min_grade && gradeNum <= d.max_grade
                                     );
                                     
                                     if (appropriateDivision) {
@@ -1358,14 +1432,28 @@ export async function saveMinistryAccount(accountData: Omit<MinistryAccount, 'cr
     return db.ministry_accounts.put(normalizedAccount);
 }
 
-export async function updateChildPhoto(childId: string, photoDataUrl: string): Promise<number> {
-    return db.children.update(childId, { photo_url: photoDataUrl });
+export async function updateChildPhoto(childId: string, photoDataUrl: string): Promise<number | string> {
+    if (shouldUseAdapter()) {
+        // Use Supabase adapter for live mode
+        const updatedChild = await dbAdapter.updateChild(childId, { photo_url: photoDataUrl });
+        return updatedChild.child_id;
+    } else {
+        // Use legacy Dexie interface for demo mode
+        return db.children.update(childId, { photo_url: photoDataUrl });
+    }
 }
 
 // Branding Settings CRUD
 export async function getBrandingSettings(orgId: string = 'default'): Promise<BrandingSettings | null> {
-    const settings = await db.branding_settings.where({ org_id: orgId }).first();
-    return settings || null;
+    if (shouldUseAdapter()) {
+        // Use Supabase adapter for live mode
+        const settings = await dbAdapter.listBrandingSettings();
+        return settings.find(s => s.org_id === orgId) || null;
+    } else {
+        // Use legacy Dexie interface for demo mode
+        const settings = await db.branding_settings.where({ org_id: orgId }).first();
+        return settings || null;
+    }
 }
 
 export async function saveBrandingSettings(
@@ -1375,24 +1463,43 @@ export async function saveBrandingSettings(
     const now = new Date().toISOString();
     const existingSettings = await getBrandingSettings(orgId);
     
-    if (existingSettings) {
-        // Update existing settings
-        await db.branding_settings.update(existingSettings.setting_id, {
-            ...settings,
-            updated_at: now,
-        });
-        return existingSettings.setting_id;
+    if (shouldUseAdapter()) {
+        // Use Supabase adapter for live mode
+        if (existingSettings) {
+            // Update existing settings
+            const updatedSettings = await dbAdapter.updateBrandingSettings(existingSettings.setting_id, {
+                ...settings,
+            });
+            return updatedSettings.setting_id;
+        } else {
+            // Create new settings
+            const newSettings = await dbAdapter.createBrandingSettings({
+                org_id: orgId,
+                ...settings,
+            });
+            return newSettings.setting_id;
+        }
     } else {
-        // Create new settings
-        const newSettings: BrandingSettings = {
-            setting_id: uuidv4(),
-            org_id: orgId,
-            ...settings,
-            created_at: now,
-            updated_at: now,
-        };
-        await db.branding_settings.add(newSettings);
-        return newSettings.setting_id;
+        // Use legacy Dexie interface for demo mode
+        if (existingSettings) {
+            // Update existing settings
+            await db.branding_settings.update(existingSettings.setting_id, {
+                ...settings,
+                updated_at: now,
+            });
+            return existingSettings.setting_id;
+        } else {
+            // Create new settings
+            const newSettings: BrandingSettings = {
+                setting_id: uuidv4(),
+                org_id: orgId,
+                ...settings,
+                created_at: now,
+                updated_at: now,
+            };
+            await db.branding_settings.add(newSettings);
+            return newSettings.setting_id;
+        }
     }
 }
 
