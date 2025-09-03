@@ -31,6 +31,6 @@ export default defineConfig({
     },
   ],
   // Global setup for email tests
-  globalSetup: require.resolve('./tests/playwright/email/global-setup.ts'),
-  globalTeardown: require.resolve('./tests/playwright/email/global-teardown.ts'),
+  globalSetup: './tests/playwright/email/global-setup.ts',
+  globalTeardown: './tests/playwright/email/global-teardown.ts',
 });
