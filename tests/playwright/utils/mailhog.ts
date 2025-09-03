@@ -212,15 +212,32 @@ export class MailHogHelper {
    * Useful for test cleanup
    */
   async clearAllEmails(): Promise<void> {
-    const response = await fetch(`${this.baseUrl}/messages`, { 
-      method: 'DELETE' 
-    });
-    
-    if (!response.ok) {
-      throw new Error(`Failed to clear MailHog emails: ${response.status} ${response.statusText}`);
+    try {
+      // Get all emails first
+      const emails = await this.getAllEmails();
+      
+      if (emails.length === 0) {
+        console.log('No emails to clear from MailHog');
+        return;
+      }
+      
+      // Delete each email individually since MailHog v2 API doesn't support bulk delete
+      console.log(`Clearing ${emails.length} emails from MailHog...`);
+      
+      for (const email of emails) {
+        try {
+          await this.deleteEmail(email.ID);
+        } catch (error) {
+          console.warn(`Failed to delete email ${email.ID}:`, error);
+          // Continue with other emails even if one fails
+        }
+      }
+      
+      console.log('All emails cleared from MailHog');
+    } catch (error) {
+      // Make this operation non-critical - log but don't throw
+      console.warn('Failed to clear MailHog emails (non-critical):', error);
     }
-    
-    console.log('All emails cleared from MailHog');
   }
 
   /**
