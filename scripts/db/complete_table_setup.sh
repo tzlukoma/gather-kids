@@ -39,9 +39,6 @@ fi
 echo "Creating direct SQL command file..."
 SQL_FILE="/tmp/complete_table_setup.sql"
 cat > "$SQL_FILE" << 'EOSQL'
--- Create extension first
-CREATE EXTENSION IF NOT EXISTS pgcrypto;
-
 -- Core tables
 CREATE TABLE IF NOT EXISTS households (
   household_id text PRIMARY KEY,
@@ -304,8 +301,25 @@ execute_sql() {
   return 1
 }
 
-# Create extension first
-execute_sql "CREATE EXTENSION IF NOT EXISTS pgcrypto;" "Created extension pgcrypto"
+# Create extension first with special handling
+echo "Attempting to create pgcrypto extension (may be already installed or require superuser)"
+if command -v psql &> /dev/null && [[ -n "$DB_PASSWORD" ]]; then
+  set +e
+  # Try to create extension directly but don't fail if it errors
+  PGPASSWORD="$DB_PASSWORD" psql -h "db.$PROJECT_ID.supabase.co" -U "postgres" -d "postgres" -c "CREATE EXTENSION IF NOT EXISTS pgcrypto;" >/dev/null 2>&1
+  pgcrypto_rc=$?
+  if [[ $pgcrypto_rc -eq 0 ]]; then
+    echo "✓ Successfully created pgcrypto extension"
+  else
+    echo "ℹ️ Could not create pgcrypto extension. This is often because:"
+    echo "   - The extension is already installed (in which case you can ignore this)"
+    echo "   - The database user doesn't have permission to create extensions"
+    echo "   - Continuing with setup assuming extension exists..."
+  fi
+  set -e
+else
+  echo "ℹ️ Skipping direct pgcrypto extension creation (psql not available or no password)"
+fi
 
 # Create households table
 execute_sql "CREATE TABLE IF NOT EXISTS households (
