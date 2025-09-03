@@ -1664,10 +1664,8 @@ export async function saveLeaderMemberships(leaderId: string, memberships: Omit<
             // Add new memberships
             if (memberships.length > 0) {
                 for (const membershipData of memberships) {
-                    await dbAdapter.createMinistryLeaderMembership({
-                        ...membershipData,
-                        leader_id: leaderId,
-                    });
+                    // The membershipData already includes leader_id, just pass it to the adapter
+                    await dbAdapter.createMinistryLeaderMembership(membershipData);
                 }
             }
 
