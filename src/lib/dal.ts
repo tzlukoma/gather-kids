@@ -559,7 +559,7 @@ export async function registerHousehold(data: any, cycle_id: string, isPrefill: 
                                         .toArray();
                                     
                                     const appropriateDivision = divisions.find(d => 
-                                        gradeNum >= d.min_grade && gradeNum <= d.max_grade
+                                        gradeNum !== null && gradeNum >= d.min_grade && gradeNum <= d.max_grade
                                     );
                                     
                                     if (appropriateDivision) {
@@ -1462,6 +1462,146 @@ export async function getLeaderAvatarUrl(
 	leaderId: string
 ): Promise<string | null> {
 	return AvatarService.getAvatarUrl('leaders', leaderId);
+}
+
+// === NEW: User Profile Management Functions ===
+
+export interface ActiveProfileTarget {
+	target_table: 'ministry_leaders' | 'households';
+	target_id: string;
+}
+
+/**
+ * Determine which profile table to update for a user.
+ * Priority: ministry_leaders > households (if both exist).
+ * Returns the target table and ID for profile updates.
+ */
+export async function getActiveProfileTarget(user_id: string): Promise<ActiveProfileTarget | null> {
+	try {
+		// First check if user has a ministry leader profile
+		const leaderProfiles = await db.leader_profiles.toArray();
+		const leaderProfile = leaderProfiles.find(profile => 
+			profile.leader_id === user_id || 
+			profile.email === user_id // In case user_id is actually an email
+		);
+		
+		if (leaderProfile) {
+			return {
+				target_table: 'ministry_leaders',
+				target_id: leaderProfile.leader_id
+			};
+		}
+
+		// Check for household association through user_households or guardians
+		const userHouseholds = await db.user_households?.where({ auth_user_id: user_id }).toArray() || [];
+		if (userHouseholds.length > 0) {
+			return {
+				target_table: 'households',
+				target_id: userHouseholds[0].household_id
+			};
+		}
+
+		// Fallback: check guardians table for email match
+		const guardians = await db.guardians.toArray();
+		const guardian = guardians.find(g => g.email === user_id);
+		if (guardian) {
+			return {
+				target_table: 'households',
+				target_id: guardian.household_id
+			};
+		}
+
+		return null;
+	} catch (error) {
+		console.error('Error determining active profile target:', error);
+		return null;
+	}
+}
+
+/**
+ * Get merged profile data from both auth and domain tables
+ */
+export async function getMeProfile(user_id: string, auth_email?: string) {
+	const target = await getActiveProfileTarget(user_id);
+	if (!target) return null;
+
+	try {
+		if (target.target_table === 'ministry_leaders') {
+			const profile = await db.leader_profiles.get(target.target_id);
+			return {
+				target_table: target.target_table,
+				target_id: target.target_id,
+				first_name: profile?.first_name,
+				last_name: profile?.last_name,
+				email: auth_email || profile?.email, // Prefer auth email
+				phone: profile?.phone,
+				photo_url: profile?.photo_url,
+				avatar_path: profile?.avatar_path,
+			};
+		} else {
+			const household = await db.households.get(target.target_id);
+			return {
+				target_table: target.target_table,
+				target_id: target.target_id,
+				email: auth_email || household?.primary_email, // Prefer auth email
+				phone: household?.primary_phone,
+				photo_url: household?.photo_url,
+				avatar_path: household?.avatar_path,
+			};
+		}
+	} catch (error) {
+		console.error('Error getting profile data:', error);
+		return null;
+	}
+}
+
+/**
+ * Save profile data to the appropriate domain table
+ */
+export async function saveProfile(user_id: string, profileData: { 
+	email?: string;
+	phone?: string;
+	photoPath?: string;
+}) {
+	const target = await getActiveProfileTarget(user_id);
+	if (!target) {
+		throw new Error('No profile target found for user');
+	}
+
+	const now = new Date().toISOString();
+
+	try {
+		if (target.target_table === 'ministry_leaders') {
+			const updateData: Partial<LeaderProfile> = {
+				updated_at: now
+			};
+			
+			if (profileData.email !== undefined) updateData.email = profileData.email.toLowerCase();
+			if (profileData.phone !== undefined) updateData.phone = normalizePhone(profileData.phone);
+			if (profileData.photoPath !== undefined) {
+				updateData.photo_url = profileData.photoPath;
+				updateData.avatar_path = profileData.photoPath;
+			}
+
+			await db.leader_profiles.update(target.target_id, updateData);
+		} else {
+			const updateData: Partial<Household> = {
+				updated_at: now
+			};
+			
+			if (profileData.email !== undefined) updateData.primary_email = profileData.email.toLowerCase();
+			if (profileData.phone !== undefined) updateData.primary_phone = normalizePhone(profileData.phone);
+			if (profileData.photoPath !== undefined) {
+				updateData.photo_url = profileData.photoPath;
+				updateData.avatar_path = profileData.photoPath;
+			}
+
+			await db.households.update(target.target_id, updateData);
+		}
+	} catch (error) {
+		console.error('Error saving profile:', error);
+		throw error;
+	}
 }
 
 /**
