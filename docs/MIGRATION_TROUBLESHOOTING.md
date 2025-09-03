@@ -4,7 +4,7 @@ This guide helps troubleshoot and fix common issues with Supabas### 4. Fresh Lin
 
 This script safely converts UUID columns to TEXT type:
 
-```bash
+````bash
 ./scripts/db/fix_uuid_to_text.sh "postgresql://postgres:your_password@localhost:54322/postgres"
 ```his script creates a clean setup for linking and pushing to a Supabase project:
 
@@ -18,15 +18,19 @@ This script safely converts UUID columns to TEXT type:
 
 This error occurs when GitHub Actions workflow tries to create tables that already exist with different structures:
 
-```
+````
+
 Executing: Created households table
 Trying direct SQL execution for: Created households table
 ❌ Failed to execute: Created households table
 Manual SQL command (for reference):
-------------------------------------
-CREATE TABLE IF NOT EXISTS households (...)
-------------------------------------
+
+---
+
+## CREATE TABLE IF NOT EXISTS households (...)
+
 Error: Process completed with exit code 1.
+
 ```
 
 This happens because:
@@ -39,14 +43,18 @@ This happens because:
 This error occurs when the GitHub workflow or Supabase CLI tries to create the pgcrypto extension but the database user doesn't have sufficient privileges:
 
 ```
+
 Executing: Created extension pgcrypto
 Trying direct SQL execution for: Created extension pgcrypto
 ❌ Failed to execute: Created extension pgcrypto
 Manual SQL command (for reference):
-------------------------------------
-CREATE EXTENSION IF NOT EXISTS pgcrypto;
-------------------------------------
+
+---
+
+## CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
 Error: Process completed with exit code 1.
+
 ```
 
 This happens because:
@@ -60,8 +68,10 @@ This happens because:
 This error typically occurs when trying to alter column types, particularly when converting UUID columns to TEXT. The error might look like:
 
 ```
+
 Error: Failed to run migration: ALTER TABLE "profiles" ALTER COLUMN "id" TYPE text;
-```
+
+````
 
 This happens because:
 
@@ -78,9 +88,10 @@ This script safely checks and creates tables, handling existing table structures
 
 ```bash
 ./scripts/db/safe_table_setup.sh "your_project_id" "your_access_token" "your_db_password"
-```
+````
 
 It will:
+
 - Check if each table already exists before attempting to create it
 - Skip table creation if the table is already present
 - Continue even if certain tables fail to be created

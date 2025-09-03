@@ -84,7 +84,7 @@ jobs:
           echo "Finally, ensure all required tables exist..."
           # Make safe_table_setup.sh executable if it's not already
           chmod +x scripts/db/safe_table_setup.sh
-          
+
           # Use our safer table setup script instead of the old one
           scripts/db/safe_table_setup.sh "$PROJECT_ID" "$SUPABASE_ACCESS_TOKEN" "$SUPABASE_DB_PASSWORD"
       - name: Snapshot schema using Supabase CLI
