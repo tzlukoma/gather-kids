@@ -86,20 +86,43 @@ CREATE TABLE IF NOT EXISTS children (
   updated_at timestamptz
 );
 
--- Special fix for the household_id error
+-- More comprehensive fix for household-related tables
 DO $$
+DECLARE
+  column_exists boolean;
+  has_default boolean;
 BEGIN
-  -- If the column exists, try to drop its default
-  IF EXISTS (
+  -- Check if children table and household_id column exist
+  SELECT EXISTS (
     SELECT 1 FROM information_schema.columns 
     WHERE table_name = 'children' AND column_name = 'household_id'
-  ) THEN
-    -- Try to drop the default
+  ) INTO column_exists;
+  
+  IF column_exists THEN
+    -- Check if it has a default
+    SELECT column_default IS NOT NULL INTO has_default
+    FROM information_schema.columns
+    WHERE table_name = 'children' AND column_name = 'household_id';
+    
+    IF has_default THEN
+      -- Try to drop the default
+      BEGIN
+        ALTER TABLE children ALTER COLUMN household_id DROP DEFAULT;
+        RAISE NOTICE 'Successfully dropped default from children.household_id';
+      EXCEPTION WHEN OTHERS THEN
+        RAISE NOTICE 'Could not drop default from children.household_id: %', SQLERRM;
+      END;
+    ELSE
+      RAISE NOTICE 'No default found on children.household_id, nothing to drop';
+    END IF;
+  ELSE
+    RAISE NOTICE 'Column children.household_id does not exist, skipping default removal';
+    -- Optionally add the column
     BEGIN
-      ALTER TABLE children ALTER COLUMN household_id DROP DEFAULT;
-      RAISE NOTICE 'Successfully dropped default from children.household_id';
+      ALTER TABLE children ADD COLUMN household_id text;
+      RAISE NOTICE 'Added missing household_id column to children table';
     EXCEPTION WHEN OTHERS THEN
-      RAISE NOTICE 'Could not drop default from children.household_id: %', SQLERRM;
+      RAISE NOTICE 'Could not add household_id column: %', SQLERRM;
     END;
   END IF;
 END $$;
