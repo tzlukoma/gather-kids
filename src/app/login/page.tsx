@@ -104,6 +104,16 @@ const DEMO_USERS = {
 		role: AuthRole.MINISTRY_LEADER,
 		metadata: {},
 	},
+	// Test user without role - should be redirected to /register
+	newUser: {
+		email: 'newuser@example.com',
+		password: 'password',
+		is_active: true,
+		name: 'New User',
+		uid: 'user_new_no_role',
+		role: null, // No role assigned
+		metadata: {},
+	},
 };
 
 export default function LoginPage() {
@@ -136,7 +146,7 @@ export default function LoginPage() {
 						email: userToLogin.email,
 						is_active: userToLogin.is_active,
 						metadata: {
-							role: userToLogin.role as AuthRole,
+							role: userToLogin.role as AuthRole, // This could be null for new users
 							...(userToLogin.metadata || {}),
 						},
 					};
@@ -147,9 +157,10 @@ export default function LoginPage() {
 						description: `Welcome, ${userToLogin.name}!`,
 					});
 
-					// Redirect based on role priority
+					// Redirect based on role priority (or lack of role)
 					const role = userToLogin.role as AuthRole;
 					const target = getPostLoginRoute(role);
+					console.log('Redirecting to:', target, 'for role:', role);
 					router.push(target);
 				} else {
 					toast({
@@ -348,6 +359,15 @@ export default function LoginPage() {
 												onClick={() => prefillDemoCredentials('parent')}>
 												{DEMO_USERS.parent.email}
 											</button>
+										</li>
+										<li>
+											<strong>New User (No Role):</strong>{' '}
+											<button
+												className="text-left font-semibold underline"
+												onClick={() => prefillDemoCredentials('newUser')}>
+												{DEMO_USERS.newUser.email}
+											</button>{' '}
+											<em className="text-muted-foreground">(should redirect to /register)</em>
 										</li>
 										<li>
 											Password: <code className="font-semibold">password</code>
