@@ -1,7 +1,7 @@
 /**
  * This file contains types generated from the Supabase schema.
  * DO NOT EDIT MANUALLY. This file is auto-generated.
- * Generated on: 2025-09-03T01:05:27.562Z
+ * Generated on: 2025-09-03T01:07:09.873Z
  */
 
 export type SupabaseJson =
@@ -153,6 +153,7 @@ export type Database = {
           external_household_id: string | null
           external_id: string | null
           grade: string | null
+          household_id: string | null
           household_uuid: string | null
           id: number
           is_active: boolean | null
@@ -168,6 +169,7 @@ export type Database = {
           external_household_id?: string | null
           external_id?: string | null
           grade?: string | null
+          household_id?: string | null
           household_uuid?: string | null
           id?: number
           is_active?: boolean | null
@@ -183,6 +185,7 @@ export type Database = {
           external_household_id?: string | null
           external_id?: string | null
           grade?: string | null
+          household_id?: string | null
           household_uuid?: string | null
           id?: number
           is_active?: boolean | null
@@ -192,6 +195,13 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "children_household_id_fkey"
+            columns: ["household_id"]
+            isOneToOne: false
+            referencedRelation: "households"
+            referencedColumns: ["household_id"]
+          },
           {
             foreignKeyName: "children_household_uuid_fkey"
             columns: ["household_uuid"]
@@ -294,10 +304,10 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "fk_emergency_contacts_household"
-            columns: ["household_id_uuid"]
+            columns: ["household_id"]
             isOneToOne: false
             referencedRelation: "households"
-            referencedColumns: ["household_uuid"]
+            referencedColumns: ["household_id"]
           },
         ]
       }
@@ -409,6 +419,7 @@ export type Database = {
           first_name: string | null
           guardian_id: string
           household_id: string | null
+          household_id_uuid: string | null
           household_uuid: string | null
           is_primary: boolean | null
           last_name: string | null
@@ -424,6 +435,7 @@ export type Database = {
           first_name?: string | null
           guardian_id: string
           household_id?: string | null
+          household_id_uuid?: string | null
           household_uuid?: string | null
           is_primary?: boolean | null
           last_name?: string | null
@@ -439,6 +451,7 @@ export type Database = {
           first_name?: string | null
           guardian_id?: string
           household_id?: string | null
+          household_id_uuid?: string | null
           household_uuid?: string | null
           is_primary?: boolean | null
           last_name?: string | null
@@ -741,6 +754,7 @@ export type Database = {
           notes: string | null
           score: number | null
           scripture_id: string | null
+          scripture_id_uuid: string | null
           status: string | null
           updated_at: string | null
         }
@@ -751,6 +765,7 @@ export type Database = {
           notes?: string | null
           score?: number | null
           scripture_id?: string | null
+          scripture_id_uuid?: string | null
           status?: string | null
           updated_at?: string | null
         }
@@ -761,10 +776,19 @@ export type Database = {
           notes?: string | null
           score?: number | null
           scripture_id?: string | null
+          scripture_id_uuid?: string | null
           status?: string | null
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fk_student_scriptures_scripture"
+            columns: ["scripture_id_uuid"]
+            isOneToOne: false
+            referencedRelation: "scriptures"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       timeslots: {
         Row: {
@@ -859,10 +883,6 @@ export type Database = {
           p_type: string
           p_using_expr?: string
         }
-        Returns: undefined
-      }
-      safe_drop_constraint: {
-        Args: { p_constraint_name: string; p_table_name: string }
         Returns: undefined
       }
     }
