@@ -72,10 +72,26 @@ BEGIN
 END$$;
 
 -- Re-create the foreign key constraints
-ALTER TABLE IF EXISTS guardians ADD CONSTRAINT guardians_household_id_fkey 
-    FOREIGN KEY (household_id) REFERENCES households(household_id);
-ALTER TABLE IF EXISTS children ADD CONSTRAINT children_household_id_fkey 
-    FOREIGN KEY (household_id) REFERENCES households(household_id);
+DO $$
+BEGIN
+    -- Add guardians.household_id foreign key if the column and referenced table exist and the constraint isn't present
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'guardians' AND column_name = 'household_id')
+       AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'households' AND column_name = 'household_id')
+       AND NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'guardians_household_id_fkey')
+    THEN
+        ALTER TABLE IF EXISTS guardians ADD CONSTRAINT guardians_household_id_fkey
+            FOREIGN KEY (household_id) REFERENCES households(household_id);
+    END IF;
+
+    -- Add children.household_id foreign key if the column and referenced table exist and the constraint isn't present
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'children' AND column_name = 'household_id')
+       AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'households' AND column_name = 'household_id')
+       AND NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'children_household_id_fkey')
+    THEN
+        ALTER TABLE IF EXISTS children ADD CONSTRAINT children_household_id_fkey
+            FOREIGN KEY (household_id) REFERENCES households(household_id);
+    END IF;
+END$$;
     
 -- Handle the emergency_contacts and guardians tables if they exist
 DO $$
