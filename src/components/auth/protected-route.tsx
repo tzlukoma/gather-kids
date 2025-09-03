@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import { AuthRole } from '@/lib/auth-types';
 import { DefaultLoadingSpinner } from '@/components/ui/spinner';
+import { isDemo } from '@/lib/authGuards';
 
 interface ProtectedRouteProps {
 	children: ReactNode;
@@ -23,16 +24,38 @@ export const ProtectedRoute = ({
 
 	useEffect(() => {
 		const handleNavigation = async () => {
-			if (loading) return;
+			// Always wait for the auth context to finish loading before making navigation decisions
+			if (loading) {
+				console.log('ProtectedRoute: Auth context still loading, waiting...');
+				return;
+			}
+
+			console.log('ProtectedRoute: Auth context loaded, checking auth state...', {
+				user: !!user,
+				userRole,
+				allowedRoles,
+				isDemo: isDemo()
+			});
 
 			if (!user) {
-				// Check if we might have a valid session in localStorage but the auth context missed it
-				// This helps with Vercel preview environments where the auth flow might be inconsistent
+				// Check if we might have a valid session but the auth context missed it
+				// This helps with both demo mode and Vercel preview environments
+				const hasDemoUser = 
+					typeof window !== 'undefined' && 
+					localStorage.getItem('gatherkids-user');
+				
 				const hasSupabaseTokens =
 					typeof window !== 'undefined' &&
 					Object.keys(localStorage).some((key) => key && key.startsWith('sb-'));
 
-				if (hasSupabaseTokens) {
+				if (isDemo() && hasDemoUser) {
+					console.log(
+						'Protected route: Found demo user in localStorage but auth context missed it. Reloading...'
+					);
+					// Force a reload to let the auth context initialize properly
+					window.location.reload();
+					return;
+				} else if (hasSupabaseTokens) {
 					console.log(
 						'Protected route: Found auth tokens but no user. Attempting session recovery...'
 					);
