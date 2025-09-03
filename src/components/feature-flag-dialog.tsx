@@ -41,13 +41,16 @@ export function FeatureFlagDialog({ isOpen, onClose }: FeatureFlagDialogProps) {
                 <div className="space-y-0.5">
                     <Label htmlFor="show-demo-features" className="font-medium">Show Demo Features</Label>
                     <p className="text-xs text-muted-foreground">
-                        Display seeding buttons and helper text.
+                        {process.env.NEXT_PUBLIC_SHOW_DEMO_FEATURES === "false" 
+                            ? "Demo features are disabled by environment configuration."
+                            : "Display seeding buttons and helper text."}
                     </p>
                 </div>
                 <Switch
                     id="show-demo-features"
                     checked={flags.showDemoFeatures}
                     onCheckedChange={(checked) => setFlag('showDemoFeatures', checked)}
+                    disabled={process.env.NEXT_PUBLIC_SHOW_DEMO_FEATURES === "false"}
                 />
             </div>
         </div>
