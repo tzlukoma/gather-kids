@@ -58,7 +58,7 @@ jobs:
           echo "First, ensure project is linked..."
           # Ensure the project is linked so db push targets the correct remote
           "$HOME/.bin/supabase" link --project-ref "$PROJECT_ID" --password "$SUPABASE_DB_PASSWORD"
-          
+
           echo "Ensuring pgcrypto extension is available before migrations..."
           # Make ensure_pgcrypto.sh executable if it's not already
           chmod +x scripts/db/ensure_pgcrypto.sh
