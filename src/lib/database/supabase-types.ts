@@ -1,7 +1,7 @@
 /**
  * This file contains types generated from the Supabase schema.
  * DO NOT EDIT MANUALLY. This file is auto-generated.
- * Generated on: 2025-09-03T00:59:37.508Z
+ * Generated on: 2025-09-03T01:00:53.326Z
  */
 
 export type SupabaseJson =
@@ -147,6 +147,8 @@ export type Database = {
       }
       children: {
         Row: {
+          allergies: string | null
+          child_mobile: string | null
           created_at: string
           external_household_id: string | null
           external_id: string | null
@@ -155,10 +157,13 @@ export type Database = {
           id: number
           is_active: boolean | null
           mobile_phone: string | null
+          notes: string | null
           special_needs: boolean | null
           updated_at: string | null
         }
         Insert: {
+          allergies?: string | null
+          child_mobile?: string | null
           created_at?: string
           external_household_id?: string | null
           external_id?: string | null
@@ -167,10 +172,13 @@ export type Database = {
           id?: number
           is_active?: boolean | null
           mobile_phone?: string | null
+          notes?: string | null
           special_needs?: boolean | null
           updated_at?: string | null
         }
         Update: {
+          allergies?: string | null
+          child_mobile?: string | null
           created_at?: string
           external_household_id?: string | null
           external_id?: string | null
@@ -179,6 +187,7 @@ export type Database = {
           id?: number
           is_active?: boolean | null
           mobile_phone?: string | null
+          notes?: string | null
           special_needs?: boolean | null
           updated_at?: string | null
         }
@@ -335,18 +344,21 @@ export type Database = {
           description: string | null
           event_id: string
           name: string | null
+          timeslots: Json | null
         }
         Insert: {
           created_at?: string | null
           description?: string | null
           event_id: string
           name?: string | null
+          timeslots?: Json | null
         }
         Update: {
           created_at?: string | null
           description?: string | null
           event_id?: string
           name?: string | null
+          timeslots?: Json | null
         }
         Relationships: []
       }
@@ -651,26 +663,32 @@ export type Database = {
         Row: {
           competition_year_id: string
           created_at: string | null
+          external_id: string | null
           id: string
           order: number
           reference: string
           texts: Json
+          updated_at: string | null
         }
         Insert: {
           competition_year_id: string
           created_at?: string | null
+          external_id?: string | null
           id?: string
           order: number
           reference: string
           texts: Json
+          updated_at?: string | null
         }
         Update: {
           competition_year_id?: string
           created_at?: string | null
+          external_id?: string | null
           id?: string
           order?: number
           reference?: string
           texts?: Json
+          updated_at?: string | null
         }
         Relationships: []
       }
