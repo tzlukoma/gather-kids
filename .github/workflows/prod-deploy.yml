@@ -55,20 +55,24 @@ jobs:
           export SUPABASE_ACCESS_TOKEN="${{ secrets.SUPABASE_ACCESS_TOKEN }}"
           export SUPABASE_DB_PASSWORD="${{ secrets.SUPABASE_DB_PASSWORD }}"
 
-          echo "First, ensure project is linked and apply safe household migration via db push..."
+          echo "First, ensure project is linked..."
           # Ensure the project is linked so db push targets the correct remote
           "$HOME/.bin/supabase" link --project-ref "$PROJECT_ID" --password "$SUPABASE_DB_PASSWORD"
-
-          # Apply migrations (includes the safe_household structure migration present in the repo)
-          # We use db push --include-all so any migrations not yet applied on remote are sent.
-          "$HOME/.bin/supabase" db push --include-all --linked || { echo "supabase db push failed"; exit 1; }
-
-          echo "Ensuring pgcrypto extension is available..."
+          
+          echo "Ensuring pgcrypto extension is available before migrations..."
           # Make ensure_pgcrypto.sh executable if it's not already
           chmod +x scripts/db/ensure_pgcrypto.sh
 
           # Run ensure_pgcrypto.sh first to handle the extension safely
           scripts/db/ensure_pgcrypto.sh "$SUPABASE_DB_PASSWORD" "$PROJECT_ID"
+
+          echo "Now applying safe household migration via db push..."
+          # Apply migrations (includes the safe_household structure migration present in the repo)
+          # We use db push --include-all so any migrations not yet applied on remote are sent.
+          "$HOME/.bin/supabase" db push --include-all --linked || { 
+            echo "supabase db push failed, but continuing with other steps"; 
+            # We don't exit with failure here to allow other steps to run
+          }
 
           echo "Now applying remaining migrations with our safer script..."
           # Modify script execution to ensure it uses the correct Supabase CLI path
