@@ -28,19 +28,24 @@ jobs:
           PROJECT_ID=$(echo $SUPABASE_URL | sed -E 's/https:\/\/([^.]+)\.supabase\.co.*/\1/')
           echo "PROJECT_ID=$PROJECT_ID" >> $GITHUB_ENV
 
-          # Make both scripts executable
+          # Make scripts executable
           chmod +x scripts/db/simple_prod_migrations.sh
           chmod +x scripts/db/complete_table_setup.sh
+          chmod +x scripts/db/safe_apply_migrations.sh
 
           # Explicitly export the access token
           export SUPABASE_ACCESS_TOKEN="${{ secrets.SUPABASE_ACCESS_TOKEN }}"
           export SUPABASE_DB_PASSWORD="${{ secrets.SUPABASE_DB_PASSWORD }}"
 
-          echo "First, directly create all required tables to ensure they exist..."
-          scripts/db/complete_table_setup.sh "$PROJECT_ID" "$SUPABASE_ACCESS_TOKEN" "$SUPABASE_DB_PASSWORD"
+          echo "First, apply the migration that ensures safe household structure..."
+          cp supabase/migrations/20250902000010_safe_household_structure.sql /tmp/safe_household_fix.sql
+          supabase db query -f /tmp/safe_household_fix.sql
 
-          echo "Now applying migrations to production to handle any schema changes..."
-          scripts/db/simple_prod_migrations.sh "$PROJECT_ID" "$SUPABASE_ACCESS_TOKEN" "$SUPABASE_DB_PASSWORD"
+          echo "Now applying remaining migrations with our safer script..."
+          scripts/db/safe_apply_migrations.sh "$PROJECT_ID" "$SUPABASE_ACCESS_TOKEN" "$SUPABASE_DB_PASSWORD"
+
+          echo "Finally, ensure all required tables exist..."
+          scripts/db/complete_table_setup.sh "$PROJECT_ID" "$SUPABASE_ACCESS_TOKEN" "$SUPABASE_DB_PASSWORD"
       - name: Snapshot schema using Supabase CLI
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
