@@ -729,8 +729,15 @@ export default function RegisterPage() {
 				description: "Thank you! Your family's registration has been received.",
 			});
 			
-			// Reset the form to allow for another registration
-			// Family registration should not trigger authentication flows
+			// Check if user is authenticated and should be redirected to household page
+			if (isAuthenticatedUser && user?.email) {
+				// For authenticated users, redirect to household page after successful registration
+				// The registerHousehold function will have assigned the GUARDIAN role
+				router.push('/household');
+				return;
+			}
+			
+			// For non-authenticated users (demo mode, etc.), reset form for another registration
 			form.reset();
 			setVerificationStep('enter_email');
 			setVerificationEmail('');
