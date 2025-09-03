@@ -729,22 +729,8 @@ export default function RegisterPage() {
 				description: "Thank you! Your family's registration has been received.",
 			});
 			
-			// Check if user is authenticated in non-demo mode
-			if (!flags.isDemoMode) {
-				// Import here to avoid circular dependency
-				const { supabase } = await import('@/lib/supabaseClient');
-				if (supabase) {
-					const { data: { session } } = await supabase.auth.getSession();
-					if (session?.user) {
-						// Redirect authenticated parent to household page
-						// The household page will now handle users who don't have GUARDIAN role
-						router.push('/household');
-						return;
-					}
-				}
-			}
-			
-			// Default behavior for demo mode or unauthenticated users
+			// Reset the form to allow for another registration
+			// Family registration should not trigger authentication flows
 			form.reset();
 			setVerificationStep('enter_email');
 			setVerificationEmail('');
