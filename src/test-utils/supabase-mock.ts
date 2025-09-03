@@ -43,48 +43,149 @@ export function createSupabaseMock() {
 			}
 			const table = storage.get(tableName)!;
 
-			// Create a query builder
-			return {
-				select: (columns = '*') => ({
-					eq: (column: string, value: any) => ({
-						single: () => ({
-							then: async (callback: any) => {
-								const items = Array.from(table.values());
-								const filtered = items.filter(item => item[column] === value);
-								const data = filtered[0] || null;
+			// Create a query builder that supports chaining
+			const createQueryBuilder = (filters: Array<{type: string, column?: string, value?: any, condition?: string}> = []) => {
+				const queryBuilder = {
+					eq: (column: string, value: any) => {
+						return createQueryBuilder([...filters, {type: 'eq', column, value}]);
+					},
+					or: (condition: string) => {
+						return createQueryBuilder([...filters, {type: 'or', condition}]);
+					},
+					limit: (count: number) => {
+						return createQueryBuilder([...filters, {type: 'limit', value: count}]);
+					},
+					range: (from: number, to: number) => {
+						return createQueryBuilder([...filters, {type: 'range', value: {from, to}}]);
+					},
+					single: () => ({
+						then: (callback: any) => {
+							return new Promise((resolve) => {
+								let items = Array.from(table.values());
 								
-								if (!data) {
-									return callback({
-										data: null,
-										error: { message: 'No rows returned', code: 'PGRST116' }
-									});
+								// Apply filters
+								for (const filter of filters) {
+									if (filter.type === 'eq' && filter.column) {
+										items = items.filter(item => item[filter.column!] === filter.value);
+									} else if (filter.type === 'or' && filter.condition) {
+										// Simple OR condition parsing for testing
+										const conditions = filter.condition.split(',');
+										items = items.filter(item => {
+											return conditions.some(condition => {
+												const match = condition.match(/(\w+)\.ilike\.%(.+)%/);
+												if (match) {
+													const [, field, searchTerm] = match;
+													return item[field]?.toLowerCase?.().includes(searchTerm.toLowerCase());
+												}
+												return false;
+											});
+										});
+									}
 								}
 								
-								return callback({ data, error: null });
-							}
-						})
+								const data = items[0] || null;
+								
+								if (!data) {
+									resolve(callback({
+										data: null,
+										error: { message: 'No rows returned', code: 'PGRST116' }
+									}));
+								} else {
+									resolve(callback({ data, error: null }));
+								}
+							});
+						}
 					}),
-					then: async (callback: any) => {
-						const items = Array.from(table.values());
-						return callback({ data: items, error: null });
+					then: (callback: any) => {
+						return new Promise((resolve) => {
+							let items = Array.from(table.values());
+							
+							// Apply filters
+							for (const filter of filters) {
+								if (filter.type === 'eq' && filter.column) {
+									items = items.filter(item => item[filter.column!] === filter.value);
+								} else if (filter.type === 'or' && filter.condition) {
+									// Simple OR condition parsing for testing
+									const conditions = filter.condition.split(',');
+									items = items.filter(item => {
+										return conditions.some(condition => {
+											const match = condition.match(/(\w+)\.ilike\.%(.+)%/);
+											if (match) {
+												const [, field, searchTerm] = match;
+												return item[field]?.toLowerCase?.().includes(searchTerm.toLowerCase());
+											}
+											return false;
+										});
+									});
+								} else if (filter.type === 'limit') {
+									items = items.slice(0, filter.value);
+								} else if (filter.type === 'range') {
+									const {from, to} = filter.value;
+									items = items.slice(from, to + 1);
+								}
+							}
+							
+							resolve(callback({ data: items, error: null }));
+						});
 					}
-				}),
+				};
+				
+				return queryBuilder;
+			};
+
+			// Create a query builder
+			return {
+				select: (columns = '*') => createQueryBuilder(),
 				insert: (data: any) => ({
 					select: () => ({
 						single: () => ({
-							then: async (callback: any) => {
-								const item = Array.isArray(data) ? data[0] : data;
-								const idColumn = Object.keys(item).find(key => key.endsWith('_id')) || 'id';
-								
-								const timestamp = new Date().toISOString();
-								const finalItem = {
-									...item,
-									created_at: item.created_at || timestamp,
-									updated_at: item.updated_at || timestamp,
-								};
-								
-								table.set(item[idColumn], finalItem);
-								return callback({ data: finalItem, error: null });
+							then: (callback: any) => {
+								return new Promise((resolve) => {
+									const item = Array.isArray(data) ? data[0] : data;
+									
+									// Simulate database constraint errors for testing
+									if (item.address_line1 === 'Test') {
+										resolve(callback({
+											data: null,
+											error: { message: 'Database error', code: 'DATABASE_ERROR' }
+										}));
+										return;
+									}
+									
+									// Find the primary key column for this table
+									let idColumn = 'id'; // default fallback
+									if (tableName === 'households') idColumn = 'household_id';
+									else if (tableName === 'children') idColumn = 'child_id';
+									else if (tableName === 'guardians') idColumn = 'guardian_id';
+									else if (tableName === 'emergency_contacts') idColumn = 'contact_id';
+									else if (tableName === 'registration_cycles') idColumn = 'cycle_id';
+									else if (tableName === 'registrations') idColumn = 'registration_id';
+									else if (tableName === 'ministries') idColumn = 'ministry_id';
+									else if (tableName === 'ministry_enrollments') idColumn = 'enrollment_id';
+									else if (tableName === 'events') idColumn = 'event_id';
+									else if (tableName === 'attendance') idColumn = 'attendance_id';
+									else if (tableName === 'incidents') idColumn = 'incident_id';
+									else if (tableName === 'users') idColumn = 'user_id';
+									else if (tableName === 'leader_profiles') idColumn = 'profile_id';
+									else if (tableName === 'ministry_leader_memberships') idColumn = 'membership_id';
+									else if (tableName === 'ministry_accounts') idColumn = 'account_id';
+									else if (tableName === 'branding_settings') idColumn = 'setting_id';
+									else if (tableName === 'biblebee_years') idColumn = 'year_id';
+									else if (tableName === 'divisions') idColumn = 'division_id';
+									else if (tableName === 'essay_prompts') idColumn = 'prompt_id';
+									else if (tableName === 'enrollments') idColumn = 'enrollment_id';
+									else if (tableName === 'enrollment_overrides') idColumn = 'override_id';
+									
+									const timestamp = new Date().toISOString();
+									const finalItem = {
+										...item,
+										created_at: item.created_at || timestamp,
+										updated_at: item.updated_at || timestamp,
+									};
+									
+									table.set(item[idColumn], finalItem);
+									resolve(callback({ data: finalItem, error: null }));
+								});
 							}
 						})
 					})
@@ -93,26 +194,51 @@ export function createSupabaseMock() {
 					eq: (column: string, value: any) => ({
 						select: () => ({
 							single: () => ({
-								then: async (callback: any) => {
-									const items = Array.from(table.values());
-									const item = items.find(item => item[column] === value);
-									
-									if (!item) {
-										return callback({
-											data: null,
-											error: { message: 'No rows found', code: 'PGRST116' }
-										});
-									}
-									
-									const idColumn = Object.keys(item).find(key => key.endsWith('_id')) || 'id';
-									const updated = {
-										...item,
-										...data,
-										updated_at: new Date().toISOString()
-									};
-									
-									table.set(item[idColumn], updated);
-									return callback({ data: updated, error: null });
+								then: (callback: any) => {
+									return new Promise((resolve) => {
+										const items = Array.from(table.values());
+										const item = items.find(item => item[column] === value);
+										
+										if (!item) {
+											resolve(callback({
+												data: null,
+												error: { message: 'No rows found', code: 'PGRST116' }
+											}));
+											return;
+										}
+										
+										// Find the primary key column for this table
+										let idColumn = 'id'; // default fallback  
+										if (tableName === 'households') idColumn = 'household_id';
+										else if (tableName === 'children') idColumn = 'child_id';
+										else if (tableName === 'guardians') idColumn = 'guardian_id';
+										else if (tableName === 'emergency_contacts') idColumn = 'contact_id';
+										else if (tableName === 'registration_cycles') idColumn = 'cycle_id';
+										else if (tableName === 'registrations') idColumn = 'registration_id';
+										else if (tableName === 'ministries') idColumn = 'ministry_id';
+										else if (tableName === 'ministry_enrollments') idColumn = 'enrollment_id';
+										else if (tableName === 'events') idColumn = 'event_id';
+										else if (tableName === 'attendance') idColumn = 'attendance_id';
+										else if (tableName === 'incidents') idColumn = 'incident_id';
+										else if (tableName === 'users') idColumn = 'user_id';
+										else if (tableName === 'leader_profiles') idColumn = 'profile_id';
+										else if (tableName === 'ministry_leader_memberships') idColumn = 'membership_id';
+										else if (tableName === 'ministry_accounts') idColumn = 'account_id';
+										else if (tableName === 'branding_settings') idColumn = 'setting_id';
+										else if (tableName === 'biblebee_years') idColumn = 'year_id';
+										else if (tableName === 'divisions') idColumn = 'division_id';
+										else if (tableName === 'essay_prompts') idColumn = 'prompt_id';
+										else if (tableName === 'enrollments') idColumn = 'enrollment_id';
+										else if (tableName === 'enrollment_overrides') idColumn = 'override_id';
+										const updated = {
+											...item,
+											...data,
+											updated_at: new Date().toISOString()
+										};
+										
+										table.set(item[idColumn], updated);
+										resolve(callback({ data: updated, error: null }));
+									});
 								}
 							})
 						})
@@ -120,15 +246,17 @@ export function createSupabaseMock() {
 				}),
 				delete: () => ({
 					eq: (column: string, value: any) => ({
-						then: async (callback: any) => {
-							const items = Array.from(table.entries());
-							const toDelete = items.filter(([_, item]) => item[column] === value);
-							
-							for (const [key] of toDelete) {
-								table.delete(key);
-							}
-							
-							return callback({ data: null, error: null });
+						then: (callback: any) => {
+							return new Promise((resolve) => {
+								const items = Array.from(table.entries());
+								const toDelete = items.filter(([_, item]) => item[column] === value);
+								
+								for (const [key] of toDelete) {
+									table.delete(key);
+								}
+								
+								resolve(callback({ data: null, error: null }));
+							});
 						}
 					})
 				})

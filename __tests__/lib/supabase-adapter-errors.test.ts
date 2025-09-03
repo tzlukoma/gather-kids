@@ -45,30 +45,14 @@ describe('Supabase Adapter Error Handling', () => {
 	});
 
 	test('createHousehold handles database errors', async () => {
-		// Create a mock that returns an error for insert operations
-		const errorMockClient = {
-			from: () => ({
-				insert: () => ({
-					select: () => ({
-						single: () => ({
-							then: async (callback: any) => {
-								return callback({
-									data: null,
-									error: { message: 'Database error', code: 'DB_ERROR' }
-								});
-							}
-						})
-					})
-				})
-			})
-		};
-
+		const mockClient = createSupabaseMock();
 		const adapter = new SupabaseAdapter(
 			'https://mock-url.supabase.co',
 			'mock-key',
-			errorMockClient as any
+			mockClient as any
 		);
 
+		// The mock should simulate an error for this specific input
 		await expect(
 			adapter.createHousehold({ address_line1: 'Test' })
 		).rejects.toThrow('Database error');
