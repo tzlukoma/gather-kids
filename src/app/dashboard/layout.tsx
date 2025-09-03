@@ -151,10 +151,12 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 								{userRole === ROLES.ADMIN && flags.showDemoFeatures && (
 									<SeedDataButton asChild />
 								)}
-								<DropdownMenuItem onSelect={() => setIsFlagDialogOpen(true)}>
-									<Settings className="mr-2" />
-									<span>App Settings</span>
-								</DropdownMenuItem>
+								{flags.showDemoFeatures && (
+									<DropdownMenuItem onSelect={() => setIsFlagDialogOpen(true)}>
+										<Settings className="mr-2" />
+										<span>App Settings</span>
+									</DropdownMenuItem>
+								)}
 								<DropdownMenuSeparator />
 								<DropdownMenuItem onSelect={handleLogout}>
 									<LogOut className="mr-2" />
@@ -205,10 +207,12 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 					</SidebarInset>
 				</div>
 			</div>
-			<FeatureFlagDialog
-				isOpen={isFlagDialogOpen}
-				onClose={() => setIsFlagDialogOpen(false)}
-			/>
+			{flags.showDemoFeatures && (
+				<FeatureFlagDialog
+					isOpen={isFlagDialogOpen}
+					onClose={() => setIsFlagDialogOpen(false)}
+				/>
+			)}
 		</SidebarProvider>
 	);
 }

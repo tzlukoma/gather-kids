@@ -5,6 +5,7 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Settings } from 'lucide-react';
 import { FeatureFlagDialog } from '@/components/feature-flag-dialog';
+import { useFeatureFlags } from '@/contexts/feature-flag-context';
 
 export default function RegisterLayout({
   children,
@@ -12,6 +13,7 @@ export default function RegisterLayout({
   children: React.ReactNode;
 }) {
   const [isFlagDialogOpen, setIsFlagDialogOpen] = useState(false);
+  const { flags } = useFeatureFlags();
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
@@ -26,13 +28,17 @@ export default function RegisterLayout({
       <footer className="py-6 border-t mt-auto">
         <div className="container mx-auto flex justify-between items-center text-sm text-muted-foreground">
             <p>&copy; {new Date().getFullYear()} gatherKids. All rights reserved.</p>
-            <Button variant="ghost" size="icon" onClick={() => setIsFlagDialogOpen(true)}>
-                <Settings className="h-4 w-4" />
-                <span className="sr-only">Open Feature Flags</span>
-            </Button>
+            {flags.showDemoFeatures && (
+                <Button variant="ghost" size="icon" onClick={() => setIsFlagDialogOpen(true)}>
+                    <Settings className="h-4 w-4" />
+                    <span className="sr-only">Open Feature Flags</span>
+                </Button>
+            )}
         </div>
       </footer>
-      <FeatureFlagDialog isOpen={isFlagDialogOpen} onClose={() => setIsFlagDialogOpen(false)} />
+      {flags.showDemoFeatures && (
+          <FeatureFlagDialog isOpen={isFlagDialogOpen} onClose={() => setIsFlagDialogOpen(false)} />
+      )}
     </div>
   );
 }
