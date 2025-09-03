@@ -41,14 +41,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 	useEffect(() => {
 		const initializeAuth = async () => {
+			console.log('AuthProvider: Starting initialization...', {
+				isDemo: isDemo(),
+				isVercelPreview
+			});
 			setLoading(true);
 
 			try {
 				// Check if we should use localStorage (demo mode or Vercel preview)
 				// This will help with preview environments where Supabase auth might have issues
 				if (isDemo() || isVercelPreview) {
+					console.log('AuthProvider: Using localStorage auth mode');
 					const storedUserString = localStorage.getItem('gatherkids-user');
 					if (storedUserString) {
+						console.log('AuthProvider: Found stored user in localStorage');
 						const storedUser = JSON.parse(storedUserString);
 						let finalUser: BaseUser = {
 							...storedUser,
@@ -77,10 +83,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 								);
 							}
 						}
+						console.log('AuthProvider: Setting user from localStorage', {
+							uid: finalUser.uid,
+							role: finalUser.metadata.role
+						});
 						setUser(finalUser);
 						setUserRole(finalUser.metadata.role);
+					} else {
+						console.log('AuthProvider: No stored user found in localStorage');
 					}
 				} else {
+					console.log('AuthProvider: Using Supabase auth mode');
 					// Production mode: use Supabase session as primary source
 					const {
 						data: { session },
@@ -89,6 +102,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 					// Check for a session
 					if (session?.user) {
+						console.log('AuthProvider: Found active Supabase session');
 						// Convert Supabase user to BaseUser format
 						const supabaseUser = session.user;
 						const userRole = supabaseUser.user_metadata?.role || AuthRole.ADMIN;
@@ -122,6 +136,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 							}
 						}
 
+						console.log('AuthProvider: Setting user from Supabase session', {
+							uid: finalUser.uid,
+							role: finalUser.metadata.role
+						});
 						setUser(finalUser);
 						setUserRole(finalUser.metadata.role);
 					}
@@ -134,14 +152,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 						if (hasSupabaseTokens) {
 							console.log(
-								'Found Supabase tokens but no active session. Attempting session refresh...'
+								'AuthProvider: Found Supabase tokens but no active session. Attempting session refresh...'
 							);
 
 							// Try to refresh the session using the tokens
 							const refreshResult = await supabase.auth.refreshSession();
 
 							if (refreshResult.data?.session?.user) {
-								console.log('Session refresh successful!');
+								console.log('AuthProvider: Session refresh successful!');
 								const recoveredUser = refreshResult.data.session.user;
 								const userRole =
 									recoveredUser.user_metadata?.role || AuthRole.ADMIN;
@@ -174,21 +192,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 									);
 								}
 
+								console.log('AuthProvider: Setting user from recovered session', {
+									uid: finalUser.uid,
+									role: finalUser.metadata.role
+								});
 								setUser(finalUser);
 								setUserRole(finalUser.metadata.role);
 							} else {
-								console.log('Session refresh failed. Need to re-authenticate.');
+								console.log('AuthProvider: Session refresh failed. Need to re-authenticate.');
 							}
+						} else {
+							console.log('AuthProvider: No session or tokens found');
 						}
 					}
 				}
 			} catch (error) {
-				console.error('Failed to initialize auth state', error);
+				console.error('AuthProvider: Failed to initialize auth state', error);
 				// In demo mode, clear localStorage on error
 				if (isDemo()) {
 					localStorage.removeItem('gatherkids-user');
 				}
 			} finally {
+				console.log('AuthProvider: Initialization complete');
 				setLoading(false);
 			}
 		};
@@ -250,6 +275,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 	}, []);
 
 	const login = async (userData: Omit<BaseUser, 'assignedMinistryIds'>) => {
+		console.log('AuthProvider: Login called with userData:', userData);
 		setLoading(true);
 		try {
 			console.log('Auth Context - Login - Input userData:', userData);
@@ -295,9 +321,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 				localStorage.setItem('gatherkids-user', JSON.stringify(finalUser));
 			}
 
+			console.log('AuthProvider: Setting user state...', {
+				uid: finalUser.uid,
+				role: finalUser.metadata.role
+			});
 			setUser(finalUser);
 			console.log('Setting userRole to:', finalUser.metadata.role);
 			setUserRole(finalUser.metadata.role);
+			console.log('AuthProvider: Login completed successfully');
 		} finally {
 			setLoading(false);
 		}
