@@ -58,44 +58,42 @@ export function createSupabaseMock() {
 					range: (from: number, to: number) => {
 						return createQueryBuilder([...filters, {type: 'range', value: {from, to}}]);
 					},
-					single: () => ({
-						then: (callback: any) => {
-							return new Promise((resolve) => {
-								let items = Array.from(table.values());
-								
-								// Apply filters
-								for (const filter of filters) {
-									if (filter.type === 'eq' && filter.column) {
-										items = items.filter(item => item[filter.column!] === filter.value);
-									} else if (filter.type === 'or' && filter.condition) {
-										// Simple OR condition parsing for testing
-										const conditions = filter.condition.split(',');
-										items = items.filter(item => {
-											return conditions.some(condition => {
-												const match = condition.match(/(\w+)\.ilike\.%(.+)%/);
-												if (match) {
-													const [, field, searchTerm] = match;
-													return item[field]?.toLowerCase?.().includes(searchTerm.toLowerCase());
-												}
-												return false;
-											});
+					single: () => {
+						return new Promise((resolve) => {
+							let items = Array.from(table.values());
+							
+							// Apply filters
+							for (const filter of filters) {
+								if (filter.type === 'eq' && filter.column) {
+									items = items.filter(item => item[filter.column!] === filter.value);
+								} else if (filter.type === 'or' && filter.condition) {
+									// Simple OR condition parsing for testing
+									const conditions = filter.condition.split(',');
+									items = items.filter(item => {
+										return conditions.some(condition => {
+											const match = condition.match(/(\w+)\.ilike\.%(.+)%/);
+											if (match) {
+												const [, field, searchTerm] = match;
+												return item[field]?.toLowerCase?.().includes(searchTerm.toLowerCase());
+											}
+											return false;
 										});
-									}
+									});
 								}
-								
-								const data = items[0] || null;
-								
-								if (!data) {
-									resolve(callback({
-										data: null,
-										error: { message: 'No rows returned', code: 'PGRST116' }
-									}));
-								} else {
-									resolve(callback({ data, error: null }));
-								}
-							});
-						}
-					}),
+							}
+							
+							const data = items[0] || null;
+							
+							if (!data) {
+								resolve({
+									data: null,
+									error: { message: 'No rows returned', code: 'PGRST116' }
+								});
+							} else {
+								resolve({ data, error: null });
+							}
+						});
+					},
 					then: (callback: any) => {
 						return new Promise((resolve) => {
 							let items = Array.from(table.values());
@@ -125,7 +123,7 @@ export function createSupabaseMock() {
 								}
 							}
 							
-							resolve(callback({ data: items, error: null }));
+							resolve({ data: items, error: null });
 						});
 					}
 				};
@@ -138,22 +136,74 @@ export function createSupabaseMock() {
 				select: (columns = '*') => createQueryBuilder(),
 				insert: (data: any) => ({
 					select: () => ({
-						single: () => ({
-							then: (callback: any) => {
+						single: () => {
+							return new Promise((resolve) => {
+								const item = Array.isArray(data) ? data[0] : data;
+								
+								// Simulate database constraint errors for testing
+								if (item.address_line1 === 'Test') {
+									resolve({
+										data: null,
+										error: { message: 'Database error', code: 'DATABASE_ERROR' }
+									});
+									return;
+								}
+								
+								// Find the primary key column for this table
+								let idColumn = 'id'; // default fallback
+								if (tableName === 'households') idColumn = 'household_id';
+								else if (tableName === 'children') idColumn = 'child_id';
+								else if (tableName === 'guardians') idColumn = 'guardian_id';
+								else if (tableName === 'emergency_contacts') idColumn = 'contact_id';
+								else if (tableName === 'registration_cycles') idColumn = 'cycle_id';
+								else if (tableName === 'registrations') idColumn = 'registration_id';
+								else if (tableName === 'ministries') idColumn = 'ministry_id';
+								else if (tableName === 'ministry_enrollments') idColumn = 'enrollment_id';
+								else if (tableName === 'events') idColumn = 'event_id';
+								else if (tableName === 'attendance') idColumn = 'attendance_id';
+								else if (tableName === 'incidents') idColumn = 'incident_id';
+								else if (tableName === 'users') idColumn = 'user_id';
+								else if (tableName === 'leader_profiles') idColumn = 'profile_id';
+								else if (tableName === 'ministry_leader_memberships') idColumn = 'membership_id';
+								else if (tableName === 'ministry_accounts') idColumn = 'account_id';
+								else if (tableName === 'branding_settings') idColumn = 'setting_id';
+								else if (tableName === 'biblebee_years') idColumn = 'year_id';
+								else if (tableName === 'divisions') idColumn = 'division_id';
+								else if (tableName === 'essay_prompts') idColumn = 'prompt_id';
+								else if (tableName === 'enrollments') idColumn = 'enrollment_id';
+								else if (tableName === 'enrollment_overrides') idColumn = 'override_id';
+								
+								const timestamp = new Date().toISOString();
+								const finalItem = {
+									...item,
+									created_at: item.created_at || timestamp,
+									updated_at: item.updated_at || timestamp,
+								};
+								
+								table.set(item[idColumn], finalItem);
+								resolve({ data: finalItem, error: null });
+							});
+						}
+					})
+				}),
+				update: (data: any) => ({
+					eq: (column: string, value: any) => ({
+						select: () => ({
+							single: () => {
 								return new Promise((resolve) => {
-									const item = Array.isArray(data) ? data[0] : data;
+									const items = Array.from(table.values());
+									const item = items.find(item => item[column] === value);
 									
-									// Simulate database constraint errors for testing
-									if (item.address_line1 === 'Test') {
-										resolve(callback({
+									if (!item) {
+										resolve({
 											data: null,
-											error: { message: 'Database error', code: 'DATABASE_ERROR' }
-										}));
+											error: { message: 'No rows found', code: 'PGRST116' }
+										});
 										return;
 									}
 									
 									// Find the primary key column for this table
-									let idColumn = 'id'; // default fallback
+									let idColumn = 'id'; // default fallback  
 									if (tableName === 'households') idColumn = 'household_id';
 									else if (tableName === 'children') idColumn = 'child_id';
 									else if (tableName === 'guardians') idColumn = 'guardian_id';
@@ -175,90 +225,32 @@ export function createSupabaseMock() {
 									else if (tableName === 'essay_prompts') idColumn = 'prompt_id';
 									else if (tableName === 'enrollments') idColumn = 'enrollment_id';
 									else if (tableName === 'enrollment_overrides') idColumn = 'override_id';
-									
-									const timestamp = new Date().toISOString();
-									const finalItem = {
+									const updated = {
 										...item,
-										created_at: item.created_at || timestamp,
-										updated_at: item.updated_at || timestamp,
+										...data,
+										updated_at: new Date().toISOString()
 									};
 									
-									table.set(item[idColumn], finalItem);
-									resolve(callback({ data: finalItem, error: null }));
+									table.set(item[idColumn], updated);
+									resolve({ data: updated, error: null });
 								});
 							}
 						})
 					})
 				}),
-				update: (data: any) => ({
-					eq: (column: string, value: any) => ({
-						select: () => ({
-							single: () => ({
-								then: (callback: any) => {
-									return new Promise((resolve) => {
-										const items = Array.from(table.values());
-										const item = items.find(item => item[column] === value);
-										
-										if (!item) {
-											resolve(callback({
-												data: null,
-												error: { message: 'No rows found', code: 'PGRST116' }
-											}));
-											return;
-										}
-										
-										// Find the primary key column for this table
-										let idColumn = 'id'; // default fallback  
-										if (tableName === 'households') idColumn = 'household_id';
-										else if (tableName === 'children') idColumn = 'child_id';
-										else if (tableName === 'guardians') idColumn = 'guardian_id';
-										else if (tableName === 'emergency_contacts') idColumn = 'contact_id';
-										else if (tableName === 'registration_cycles') idColumn = 'cycle_id';
-										else if (tableName === 'registrations') idColumn = 'registration_id';
-										else if (tableName === 'ministries') idColumn = 'ministry_id';
-										else if (tableName === 'ministry_enrollments') idColumn = 'enrollment_id';
-										else if (tableName === 'events') idColumn = 'event_id';
-										else if (tableName === 'attendance') idColumn = 'attendance_id';
-										else if (tableName === 'incidents') idColumn = 'incident_id';
-										else if (tableName === 'users') idColumn = 'user_id';
-										else if (tableName === 'leader_profiles') idColumn = 'profile_id';
-										else if (tableName === 'ministry_leader_memberships') idColumn = 'membership_id';
-										else if (tableName === 'ministry_accounts') idColumn = 'account_id';
-										else if (tableName === 'branding_settings') idColumn = 'setting_id';
-										else if (tableName === 'biblebee_years') idColumn = 'year_id';
-										else if (tableName === 'divisions') idColumn = 'division_id';
-										else if (tableName === 'essay_prompts') idColumn = 'prompt_id';
-										else if (tableName === 'enrollments') idColumn = 'enrollment_id';
-										else if (tableName === 'enrollment_overrides') idColumn = 'override_id';
-										const updated = {
-											...item,
-											...data,
-											updated_at: new Date().toISOString()
-										};
-										
-										table.set(item[idColumn], updated);
-										resolve(callback({ data: updated, error: null }));
-									});
-								}
-							})
-						})
-					})
-				}),
 				delete: () => ({
-					eq: (column: string, value: any) => ({
-						then: (callback: any) => {
-							return new Promise((resolve) => {
-								const items = Array.from(table.entries());
-								const toDelete = items.filter(([_, item]) => item[column] === value);
-								
-								for (const [key] of toDelete) {
-									table.delete(key);
-								}
-								
-								resolve(callback({ data: null, error: null }));
-							});
-						}
-					})
+					eq: (column: string, value: any) => {
+						return new Promise((resolve) => {
+							const items = Array.from(table.entries());
+							const toDelete = items.filter(([_, item]) => item[column] === value);
+							
+							for (const [key] of toDelete) {
+								table.delete(key);
+							}
+							
+							resolve({ data: null, error: null });
+						});
+					}
 				})
 			};
 		},
