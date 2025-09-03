@@ -217,8 +217,15 @@ describe('Supabase Adapter Performance', () => {
 
 		console.log(`Transaction time: ${transactionTime}ms, Individual time: ${individualTime}ms`);
 
-		// Transaction overhead should be reasonable (< 50% overhead)
-		expect(transactionTime).toBeLessThan(individualTime * 1.5);
+		// Transaction overhead should be reasonable
+		// If individual time is 0ms, we can't meaningfully compare overhead
+		if (individualTime === 0) {
+			// Just check that transaction time is reasonable (< 50ms for these simple operations)
+			expect(transactionTime).toBeLessThan(50);
+		} else {
+			// Otherwise check that transaction overhead is < 50%
+			expect(transactionTime).toBeLessThan(individualTime * 1.5);
+		}
 	});
 
 	test('handles large result sets efficiently', async () => {
