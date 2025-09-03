@@ -104,6 +104,16 @@ const DEMO_USERS = {
 		role: AuthRole.MINISTRY_LEADER,
 		metadata: {},
 	},
+	// Test user with no role for registration flow
+	noRole: {
+		email: 'norole@example.com',
+		password: 'password',
+		is_active: true,
+		name: 'No Role User',
+		uid: 'user_no_role',
+		role: null as any, // User with no role assigned
+		metadata: {},
+	},
 };
 
 export default function LoginPage() {
@@ -347,6 +357,14 @@ export default function LoginPage() {
 												className="text-left font-semibold underline"
 												onClick={() => prefillDemoCredentials('parent')}>
 												{DEMO_USERS.parent.email}
+											</button>
+										</li>
+										<li>
+											No Role User (Test):{' '}
+											<button
+												className="text-left font-semibold underline"
+												onClick={() => prefillDemoCredentials('noRole')}>
+												{DEMO_USERS.noRole.email}
 											</button>
 										</li>
 										<li>
