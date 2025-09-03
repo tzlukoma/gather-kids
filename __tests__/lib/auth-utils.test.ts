@@ -50,10 +50,10 @@ describe('auth-utils', () => {
   });
 
   describe('getPostLoginRoute', () => {
-    it('returns default route for null/undefined roles', () => {
-      expect(getPostLoginRoute(null)).toBe(DEFAULT_ROUTE);
-      expect(getPostLoginRoute(undefined)).toBe(DEFAULT_ROUTE);
-      expect(getPostLoginRoute([])).toBe(DEFAULT_ROUTE);
+    it('returns register route for null/undefined roles (users without roles)', () => {
+      expect(getPostLoginRoute(null)).toBe('/register');
+      expect(getPostLoginRoute(undefined)).toBe('/register');
+      expect(getPostLoginRoute([])).toBe('/register');
     });
 
     it('returns correct route for each role', () => {
@@ -95,12 +95,12 @@ describe('auth-utils', () => {
   });
 
   describe('getPostLoginRouteFromUser', () => {
-    it('returns default route for null user', () => {
-      expect(getPostLoginRouteFromUser(null)).toBe(DEFAULT_ROUTE);
+    it('returns register route for null user (no role assigned)', () => {
+      expect(getPostLoginRouteFromUser(null)).toBe('/register');
     });
 
-    it('returns default route for user without role', () => {
-      expect(getPostLoginRouteFromUser({})).toBe(DEFAULT_ROUTE);
+    it('returns register route for user without role (no role assigned)', () => {
+      expect(getPostLoginRouteFromUser({})).toBe('/register');
     });
 
     it('returns correct route based on user role', () => {
