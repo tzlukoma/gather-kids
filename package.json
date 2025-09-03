@@ -16,8 +16,8 @@
     "gen:types": "node scripts/gen-types.cjs --local",
     "gen:types:prod": "node scripts/gen-types.cjs",
     "seed:scriptures": "DOTENV_CONFIG_PATH=.env.local node -r dotenv/config scripts/seed/seedScriptures.js",
-    "seed:uat": "DOTENV_CONFIG_PATH=.env.local node -r dotenv/config -r ts-node/register scripts/seed/uat_seed.ts",
-    "seed:uat:reset": "DOTENV_CONFIG_PATH=.env.local RESET=true node -r dotenv/config -r ts-node/register scripts/seed/uat_seed.ts",
+    "seed:uat": "DOTENV_CONFIG_PATH=.env.local node -r dotenv/config scripts/seed/uat_seed.js",
+    "seed:uat:reset": "DOTENV_CONFIG_PATH=.env.local RESET=true node -r dotenv/config scripts/seed/uat_seed.js",
     "import:grab-dexie": "node scripts/import/grabDexieExport.mjs",
     "import:dexie": "DOTENV_CONFIG_PATH=.env.local node -r dotenv/config scripts/import/importDexie.js",
     "import:dexie:dry": "DOTENV_CONFIG_PATH=.env.local node -r dotenv/config scripts/import/importDexie.js --dry-run"
