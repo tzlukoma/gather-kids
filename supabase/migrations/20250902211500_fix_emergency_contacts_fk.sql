@@ -40,6 +40,8 @@ END$$;
 
 -- 3. Try to match by external_id for records with NULL household_id_uuid
 DO $$
+DECLARE
+  update_count INTEGER;
 BEGIN
   IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='emergency_contacts' AND column_name='household_id')
      AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='households' AND column_name='external_id')
@@ -56,9 +58,9 @@ BEGIN
         AND e.household_id_uuid IS NULL
       RETURNING 1
     )
-    SELECT COUNT(*) INTO STRICT "count" FROM updated_rows;
+    SELECT COUNT(*) INTO update_count FROM updated_rows;
     
-    RAISE NOTICE 'Updated % emergency contacts with matching external IDs', "count";
+    RAISE NOTICE 'Updated % emergency contacts with matching external IDs', update_count;
   ELSE
     RAISE NOTICE 'Skipping emergency_contacts matching by external_id: required columns missing';
   END IF;
