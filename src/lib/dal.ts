@@ -539,6 +539,51 @@ export async function registerHousehold(data: any, cycle_id: string, isPrefill: 
                             custom_fields: Object.keys(custom_fields).length > 0 ? custom_fields : undefined,
                         };
                         await db.ministry_enrollments.add(enrollment);
+
+                        // CRITICAL FIX: For Bible Bee, also create entry in new enrollments table
+                        if (ministry.code === 'bible-bee') {
+                            try {
+                                // Find the active Bible Bee year for this cycle
+                                const bibleBeeYear = await db.bible_bee_years
+                                    .where('cycle_id')
+                                    .equals(cycle_id)
+                                    .and(year => year.is_active)
+                                    .first();
+                                
+                                if (bibleBeeYear) {
+                                    // Get the child's grade to determine appropriate division
+                                    const gradeNum = child.grade ? gradeToCode(child.grade) : 0;
+                                    const divisions = await db.divisions
+                                        .where('year_id')
+                                        .equals(bibleBeeYear.id)
+                                        .toArray();
+                                    
+                                    const appropriateDivision = divisions.find(d => 
+                                        gradeNum >= d.min_grade && gradeNum <= d.max_grade
+                                    );
+                                    
+                                    if (appropriateDivision) {
+                                        const bibleBeeEnrollment = {
+                                            id: uuidv4(),
+                                            child_id: child.child_id,
+                                            year_id: bibleBeeYear.id,
+                                            division_id: appropriateDivision.id,
+                                            auto_enrolled: false,
+                                            enrolled_at: now,
+                                        };
+                                        await db.enrollments.add(bibleBeeEnrollment);
+                                        console.log(`Created Bible Bee enrollment for child ${child.first_name} in division ${appropriateDivision.name}`);
+                                    } else {
+                                        console.warn(`No appropriate Bible Bee division found for child ${child.first_name} in grade ${child.grade}`);
+                                    }
+                                } else {
+                                    console.warn(`No active Bible Bee year found for cycle ${cycle_id}`);
+                                }
+                            } catch (error) {
+                                console.error('Error creating Bible Bee enrollment:', error);
+                                // Don't fail the entire registration if Bible Bee enrollment fails
+                            }
+                        }
                     }
                 }
             }

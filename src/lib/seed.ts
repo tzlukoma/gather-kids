@@ -434,6 +434,16 @@ export const seedDB = async () => {
                         enrolled_at: now,
                     });
                     
+                    // CRITICAL FIX: Also create traditional ministry enrollment for backward compatibility
+                    // This ensures Bible Bee enrollments show up in Rosters page and other legacy views
+                    enrollments.push({ 
+                        enrollment_id: uuidv4(), 
+                        child_id: child.child_id, 
+                        cycle_id: CYCLE_IDS.current, 
+                        ministry_id: MINISTRY_IDS['bible-bee'], 
+                        status: 'enrolled' 
+                    });
+                    
                     bibleBeeCount++;
                 }
             }
