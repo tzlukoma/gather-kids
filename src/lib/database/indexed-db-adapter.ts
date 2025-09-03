@@ -29,7 +29,7 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 	private db: any;
 
 	constructor(customDb?: any) {
-		this.db = customDb || this.db;
+		this.db = customDb || dexieDb;
 	}
 	// Households
 	async getHousehold(id: string): Promise<Household | null> {
