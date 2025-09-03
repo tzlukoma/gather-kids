@@ -23,6 +23,7 @@ import { FeatureFlagDialog } from '@/components/feature-flag-dialog';
 import { ForgotPasswordDialog } from '@/components/auth/forgot-password-dialog';
 import { AuthRole } from '@/lib/auth-types';
 import { supabase } from '@/lib/supabaseClient';
+import { getPostLoginRoute } from '@/lib/auth-utils';
 
 const DEMO_USERS = {
 	admin: {
@@ -146,12 +147,9 @@ export default function LoginPage() {
 						description: `Welcome, ${userToLogin.name}!`,
 					});
 
-					// Redirect based on role: admin -> dashboard, leader -> rosters, guardian -> household
+					// Redirect based on role priority
 					const role = userToLogin.role as AuthRole;
-					let target = '/';
-					if (role === AuthRole.ADMIN) target = '/dashboard';
-					else if (role === AuthRole.MINISTRY_LEADER) target = '/dashboard/rosters';
-					else if (role === AuthRole.GUARDIAN) target = '/household';
+					const target = getPostLoginRoute(role);
 					router.push(target);
 				} else {
 					toast({
@@ -180,8 +178,10 @@ export default function LoginPage() {
 						title: 'Login Successful',
 						description: `Welcome back!`,
 					});
-					// Redirect will be handled by auth context
-					router.push('/household'); // Default redirect for parents
+					// Use the same role-based redirect logic
+					const userRole = data.session.user?.user_metadata?.role as AuthRole;
+					const target = getPostLoginRoute(userRole);
+					router.push(target);
 				}
 			} else {
 				toast({
