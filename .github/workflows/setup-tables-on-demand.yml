@@ -140,19 +140,9 @@ jobs:
 
           echo "Verifying database tables in ${{ inputs.environment }}..."
 
-          # Create a verification script
-          cat > /tmp/verify_tables.sql << 'EOF'
-          SELECT table_name, 
-                (SELECT COUNT(*) FROM information_schema.columns WHERE table_name = t.table_name) AS column_count
-          FROM information_schema.tables t
-          WHERE table_schema = 'public'
-            AND table_type = 'BASE TABLE'
-          ORDER BY table_name;
-          EOF
-
-          # Use our reliable SQL executor for verification
+          # Use our comprehensive verification script
           echo "Running verification..."
-          scripts/db/execute_sql_reliable.sh "$PROJECT_ID" "$SUPABASE_ACCESS_TOKEN" "$SUPABASE_DB_PASSWORD" "/tmp/verify_tables.sql"
+          scripts/db/execute_sql_reliable.sh "$PROJECT_ID" "$SUPABASE_ACCESS_TOKEN" "$SUPABASE_DB_PASSWORD" "scripts/db/verify_tables.sql"
 
       - name: Create database snapshot
         if: inputs.dryRun == false
