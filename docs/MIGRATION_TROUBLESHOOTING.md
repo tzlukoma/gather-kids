@@ -1,8 +1,38 @@
 # Supabase Migration Troubleshooting Guide
 
-This guide helps troubleshoot and fix common issues with Supabase migrations, including pgcrypto extension problems and UUID to TEXT conversion issues.
+This guide helps troubleshoot and fix common issues with Supabas### 4. Fresh Link and ### 5. Fix UUID to TEXT Conversion
+
+This script safely converts UUID columns to TEXT type:
+
+```bash
+./scripts/db/fix_uuid_to_text.sh "postgresql://postgres:your_password@localhost:54322/postgres"
+```his script creates a clean setup for linking and pushing to a Supabase project:
+
+```bash
+./scripts/db/fresh_link_and_push.sh "your-project-ref" "your-db-password"
+```tions, including pgcrypto extension problems and UUID to TEXT conversion issues.
 
 ## Common Issues
+
+### "Failed to execute: CREATE TABLE" Error
+
+This error occurs when GitHub Actions workflow tries to create tables that already exist with different structures:
+
+```
+Executing: Created households table
+Trying direct SQL execution for: Created households table
+❌ Failed to execute: Created households table
+Manual SQL command (for reference):
+------------------------------------
+CREATE TABLE IF NOT EXISTS households (...)
+------------------------------------
+Error: Process completed with exit code 1.
+```
+
+This happens because:
+1. The database already contains tables with the same names but different structures
+2. There may be permission issues with the database user
+3. There could be dependencies (like foreign keys) that are missing
 
 ### "Failed to execute: CREATE EXTENSION pgcrypto" Error
 
@@ -42,7 +72,21 @@ This happens because:
 
 We've created several helper scripts to diagnose and fix these issues:
 
-### 1. Ensure pgcrypto Extension
+### 1. Safe Table Setup
+
+This script safely checks and creates tables, handling existing table structures gracefully:
+
+```bash
+./scripts/db/safe_table_setup.sh "your_project_id" "your_access_token" "your_db_password"
+```
+
+It will:
+- Check if each table already exists before attempting to create it
+- Skip table creation if the table is already present
+- Continue even if certain tables fail to be created
+- Provide a summary of which tables exist at the end
+
+### 2. Ensure pgcrypto Extension
 
 This script safely handles pgcrypto extension creation, even without superuser privileges:
 
@@ -57,7 +101,7 @@ It will:
 - Continue even if it fails (with appropriate warnings)
 - Verify that essential functions like `gen_random_uuid()` are available
 
-### 2. Diagnose Migrations
+### 3. Diagnose Migrations
 
 This script checks the current state of your database schema and migrations:
 
