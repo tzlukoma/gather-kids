@@ -20,6 +20,7 @@ Error: Process completed with exit code 1.
 ```
 
 This happens because:
+
 1. The database user doesn't have superuser privileges required to create extensions
 2. The extension may be installed in a different schema
 3. PostgreSQL version might not support the extension
@@ -33,6 +34,7 @@ Error: Failed to run migration: ALTER TABLE "profiles" ALTER COLUMN "id" TYPE te
 ```
 
 This happens because:
+
 1. There are foreign key constraints referencing the column
 2. The migration attempts to change the type directly without handling the constraints
 
@@ -49,6 +51,7 @@ This script safely handles pgcrypto extension creation, even without superuser p
 ```
 
 It will:
+
 - Check if the pgcrypto extension already exists
 - Try to create it if it doesn't, with proper error handling
 - Continue even if it fails (with appropriate warnings)
@@ -63,6 +66,7 @@ This script checks the current state of your database schema and migrations:
 ```
 
 It will:
+
 - Check if tables mentioned in migrations exist
 - Show column types for ID columns
 - List foreign key constraints
@@ -77,6 +81,7 @@ This script creates a clean setup for linking and pushing to a Supabase project:
 ```
 
 It will:
+
 - Create fresh temp directories
 - Run a full Supabase link command
 - Check and clean the project-ref file
@@ -92,6 +97,7 @@ This script safely converts UUID columns to TEXT type:
 ```
 
 It will:
+
 - Check each relevant table and column
 - Safely convert UUID columns to TEXT by:
   - Creating a temporary TEXT column
@@ -104,6 +110,7 @@ It will:
 ### For pgcrypto Extension Issues:
 
 1. **Use our safe pgcrypto script**:
+
    ```bash
    ./scripts/db/ensure_pgcrypto.sh "your-db-password" "your-project-id"
    ```
@@ -119,16 +126,19 @@ It will:
 ### For UUID to TEXT Conversion Issues:
 
 1. **Diagnose the issue**:
+
    ```bash
    ./scripts/db/diagnose_migrations.sh "your-connection-string"
    ```
 
 2. **Fix UUID columns manually**:
+
    ```bash
    ./scripts/db/fix_uuid_to_text.sh "your-connection-string"
    ```
 
 3. **Retry the migration**:
+
    ```bash
    supabase db push
    ```
