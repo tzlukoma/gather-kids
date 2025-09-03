@@ -100,7 +100,9 @@ CREATE TABLE IF NOT EXISTS ministries (
   open_at date,
   close_at date,
   created_at timestamptz,
-  updated_at timestamptz
+  updated_at timestamptz,
+  external_id text,
+  allows_checkin boolean DEFAULT true
 );
 
 CREATE TABLE IF NOT EXISTS registrations (
