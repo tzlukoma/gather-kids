@@ -94,7 +94,7 @@ export function createSupabaseMock() {
 							}
 						});
 					},
-					then: (callback: any) => {
+					then: (callback?: any) => {
 						return new Promise((resolve) => {
 							let items = Array.from(table.values());
 							
@@ -123,7 +123,12 @@ export function createSupabaseMock() {
 								}
 							}
 							
-							resolve({ data: items, error: null });
+							const result = { data: items, error: null };
+							if (callback) {
+								resolve(callback(result));
+							} else {
+								resolve(result);
+							}
 						});
 					}
 				};
@@ -131,61 +136,71 @@ export function createSupabaseMock() {
 				return queryBuilder;
 			};
 
+			let insertData: any = null;
+			
 			// Create a query builder
 			return {
 				select: (columns = '*') => createQueryBuilder(),
-				insert: (data: any) => ({
-					select: () => ({
-						single: () => {
-							return new Promise((resolve) => {
-								const item = Array.isArray(data) ? data[0] : data;
-								
-								// Simulate database constraint errors for testing
-								if (item.address_line1 === 'Test') {
-									resolve({
-										data: null,
-										error: { message: 'Database error', code: 'DATABASE_ERROR' }
-									});
-									return;
-								}
-								
-								// Find the primary key column for this table
-								let idColumn = 'id'; // default fallback
-								if (tableName === 'households') idColumn = 'household_id';
-								else if (tableName === 'children') idColumn = 'child_id';
-								else if (tableName === 'guardians') idColumn = 'guardian_id';
-								else if (tableName === 'emergency_contacts') idColumn = 'contact_id';
-								else if (tableName === 'registration_cycles') idColumn = 'cycle_id';
-								else if (tableName === 'registrations') idColumn = 'registration_id';
-								else if (tableName === 'ministries') idColumn = 'ministry_id';
-								else if (tableName === 'ministry_enrollments') idColumn = 'enrollment_id';
-								else if (tableName === 'events') idColumn = 'event_id';
-								else if (tableName === 'attendance') idColumn = 'attendance_id';
-								else if (tableName === 'incidents') idColumn = 'incident_id';
-								else if (tableName === 'users') idColumn = 'user_id';
-								else if (tableName === 'leader_profiles') idColumn = 'profile_id';
-								else if (tableName === 'ministry_leader_memberships') idColumn = 'membership_id';
-								else if (tableName === 'ministry_accounts') idColumn = 'account_id';
-								else if (tableName === 'branding_settings') idColumn = 'setting_id';
-								else if (tableName === 'biblebee_years') idColumn = 'year_id';
-								else if (tableName === 'divisions') idColumn = 'division_id';
-								else if (tableName === 'essay_prompts') idColumn = 'prompt_id';
-								else if (tableName === 'enrollments') idColumn = 'enrollment_id';
-								else if (tableName === 'enrollment_overrides') idColumn = 'override_id';
-								
-								const timestamp = new Date().toISOString();
-								const finalItem = {
-									...item,
-									created_at: item.created_at || timestamp,
-									updated_at: item.updated_at || timestamp,
-								};
-								
-								table.set(item[idColumn], finalItem);
-								resolve({ data: finalItem, error: null });
-							});
-						}
-					})
-				}),
+				insert: (data: any) => {
+					insertData = data;
+					return {
+						select: () => ({
+							single: () => {
+								return new Promise((resolve) => {
+									const item = Array.isArray(insertData) ? insertData[0] : insertData;
+									
+									// Simulate database constraint errors for testing
+									if (item.address_line1 === 'Test') {
+										resolve({
+											data: null,
+											error: { message: 'Database error', code: 'DATABASE_ERROR' }
+										});
+										return;
+									}
+									
+									// Find the primary key column for this table
+									let idColumn = 'id'; // default fallback
+									if (tableName === 'households') idColumn = 'household_id';
+									else if (tableName === 'children') idColumn = 'child_id';
+									else if (tableName === 'guardians') idColumn = 'guardian_id';
+									else if (tableName === 'emergency_contacts') idColumn = 'contact_id';
+									else if (tableName === 'registration_cycles') idColumn = 'cycle_id';
+									else if (tableName === 'registrations') idColumn = 'registration_id';
+									else if (tableName === 'ministries') idColumn = 'ministry_id';
+									else if (tableName === 'ministry_enrollments') idColumn = 'enrollment_id';
+									else if (tableName === 'events') idColumn = 'event_id';
+									else if (tableName === 'attendance') idColumn = 'attendance_id';
+									else if (tableName === 'incidents') idColumn = 'incident_id';
+									else if (tableName === 'users') idColumn = 'user_id';
+									else if (tableName === 'leader_profiles') idColumn = 'profile_id';
+									else if (tableName === 'ministry_leader_memberships') idColumn = 'membership_id';
+									else if (tableName === 'ministry_accounts') idColumn = 'account_id';
+									else if (tableName === 'branding_settings') idColumn = 'setting_id';
+									else if (tableName === 'biblebee_years') idColumn = 'year_id';
+									else if (tableName === 'divisions') idColumn = 'division_id';
+									else if (tableName === 'essay_prompts') idColumn = 'prompt_id';
+									else if (tableName === 'enrollments') idColumn = 'enrollment_id';
+									else if (tableName === 'enrollment_overrides') idColumn = 'override_id';
+									
+									const timestamp = new Date().toISOString();
+									const finalItem = {
+										...item,
+										created_at: item.created_at || timestamp,
+										updated_at: item.updated_at || timestamp,
+									};
+									
+									// Ensure the finalItem has an ID if it doesn't exist
+									if (!finalItem[idColumn]) {
+										finalItem[idColumn] = `test-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+									}
+									
+									table.set(finalItem[idColumn], finalItem);
+									resolve({ data: finalItem, error: null });
+								});
+							}
+						})
+					};
+				},
 				update: (data: any) => ({
 					eq: (column: string, value: any) => ({
 						select: () => ({
