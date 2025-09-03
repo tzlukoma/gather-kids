@@ -15,6 +15,8 @@
     "test:watch": "jest --watch",
     "test:email": "playwright test --config=playwright-email.config.ts",
     "test:email:ui": "playwright test --config=playwright-email.config.ts --ui",
+    "test:email:magic": "playwright test --config=playwright-email.config.ts registration-auth-flow.spec.ts",
+    "test:email:password": "playwright test --config=playwright-email.config.ts email-password-verification.spec.ts",
     "gen:types": "node scripts/gen-types.cjs --local",
     "gen:types:prod": "node scripts/gen-types.cjs",
     "seed:scriptures": "DOTENV_CONFIG_PATH=.env.local node -r dotenv/config scripts/seed/seedScriptures.js",

@@ -143,6 +143,56 @@ export class MailHogHelper {
   }
 
   /**
+   * Extract verification link from email content
+   * Looks for email verification links (different from magic auth links)
+   * @param email MailHog email message
+   * @returns Extracted verification link URL
+   */
+  async extractVerificationLink(email: MailHogMessage): Promise<string> {
+    const htmlContent = email.Content.Body;
+    
+    // Try multiple regex patterns for verification links
+    const linkPatterns = [
+      // Pattern for verification URLs
+      /href="([^"]*verify[^"]*)"/gi,
+      // Pattern for confirmation URLs
+      /href="([^"]*confirm[^"]*)"/gi,
+      // Pattern for email verification URLs
+      /href="([^"]*email.*verify[^"]*)"/gi,
+      // Pattern for auth URLs with verification tokens
+      /href="([^"]*auth.*verify[^"]*)"/gi,
+      // Pattern for any URL with verification tokens
+      /href="([^"]*[?&](?:verification|token|confirm)=[^"]*)"/gi,
+      // Generic pattern for localhost verification URLs
+      /href="(http:\/\/localhost:[0-9]+\/[^"]*(?:verify|confirm)[^"]*)"/gi,
+    ];
+    
+    for (const pattern of linkPatterns) {
+      const matches = Array.from(htmlContent.matchAll(pattern));
+      if (matches.length > 0) {
+        const link = matches[0][1];
+        // Decode HTML entities
+        const decodedLink = link
+          .replace(/&amp;/g, '&')
+          .replace(/&lt;/g, '<')
+          .replace(/&gt;/g, '>')
+          .replace(/&quot;/g, '"')
+          .replace(/&#39;/g, "'");
+        
+        console.log(`Extracted verification link: ${decodedLink}`);
+        return decodedLink;
+      }
+    }
+    
+    // If no pattern matches, log the email content for debugging
+    console.error('Verification link not found in email content');
+    console.error('Email subject:', email.Content.Headers.Subject?.[0] || 'No subject');
+    console.error('Email body preview:', htmlContent.substring(0, 500));
+    
+    throw new Error('Verification link not found in email content');
+  }
+
+  /**
    * Get all emails from MailHog
    * @returns Array of all email messages
    */
