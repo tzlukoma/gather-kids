@@ -17,11 +17,12 @@ on:
       method:
         description: 'Table creation method'
         required: true
-        default: 'direct-sql'
+        default: 'missing-tables'
         type: choice
         options:
           - script
           - direct-sql
+          - missing-tables
           - manual
       dryRun:
         description: 'Dry run (verify without making changes)'
@@ -37,7 +38,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
 
       - name: Install PostgreSQL client
         run: sudo apt-get update && sudo apt-get install -y postgresql-client
@@ -75,6 +76,7 @@ jobs:
           chmod +x scripts/db/complete_table_setup.sh
           chmod +x scripts/db/create_simple_sql.sh
           chmod +x scripts/db/execute_sql_reliable.sh
+          chmod +x scripts/db/create_missing_tables.sh
 
       - name: Run table setup using selected method
         run: |
@@ -104,6 +106,17 @@ jobs:
             scripts/db/execute_sql_reliable.sh "$PROJECT_ID" "$SUPABASE_ACCESS_TOKEN" "$SUPABASE_DB_PASSWORD" "/tmp/simplified_table_setup.sql"
             
             echo "Direct SQL execution completed"
+
+          elif [[ "${{ inputs.method }}" == "missing-tables" ]]; then
+            # Generate SQL specifically for missing tables
+            echo "Generating missing tables SQL file..."
+            scripts/db/create_missing_tables.sh
+            
+            # Use our reliable SQL executor script
+            echo "Executing missing tables SQL using reliable executor..."
+            scripts/db/execute_sql_reliable.sh "$PROJECT_ID" "$SUPABASE_ACCESS_TOKEN" "$SUPABASE_DB_PASSWORD" "/tmp/missing_tables_setup.sql"
+            
+            echo "Missing tables SQL execution completed"
             
           elif [[ "${{ inputs.method }}" == "manual" ]]; then
             # Generate the SQL file but don't execute it
@@ -170,7 +183,7 @@ jobs:
 
       - name: Upload schema snapshot
         if: inputs.dryRun == false
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         with:
           name: ${{ inputs.environment }}-schema-snapshot
           path: snapshots/
