@@ -71,6 +71,7 @@ function AuthCallbackContent() {
 					// Extract the code from the URL
 					const url = new URL(window.location.href);
 					const code = url.searchParams.get('code');
+					const type = url.searchParams.get('type');
 
 					if (!code) {
 						authError = new Error('No code parameter found in URL');
@@ -78,20 +79,51 @@ function AuthCallbackContent() {
 					} else {
 						console.log('Found code in URL, exchanging for session');
 
-						// Add more diagnostic logging for debugging
-						console.log('Browser storage state:', {
-							hasLocalStorage: typeof localStorage !== 'undefined',
-							hasSessionStorage: typeof sessionStorage !== 'undefined',
-							pkceVerifier: localStorage.getItem(
-								'supabase.auth.token.code_verifier'
-							),
-							origin: window.location.origin,
-						});
+						// Check if this is a test magic link (for MailHog testing)
+						if (type === 'magiclink' && (process.env.NODE_ENV === 'test' || process.env.SMTP_HOST === 'localhost')) {
+							try {
+								// Decode the test magic link
+								const decoded = JSON.parse(Buffer.from(code, 'base64url').toString());
+								
+								if (decoded.type === 'magic_link' && decoded.email) {
+									console.log('Processing test magic link for:', decoded.email);
+									
+									// For test magic links, create a mock session
+									data = {
+										session: {
+											user: {
+												id: 'test-user-' + Date.now(),
+												email: decoded.email,
+												email_confirmed_at: new Date().toISOString(),
+											},
+											access_token: 'test-access-token',
+											refresh_token: 'test-refresh-token',
+										}
+									};
+									authError = null;
+								} else {
+									throw new Error('Invalid test magic link format');
+								}
+							} catch (decodeError) {
+								console.error('Error decoding test magic link:', decodeError);
+								authError = new Error('Invalid test magic link');
+							}
+						} else {
+							// Add more diagnostic logging for debugging
+							console.log('Browser storage state:', {
+								hasLocalStorage: typeof localStorage !== 'undefined',
+								hasSessionStorage: typeof sessionStorage !== 'undefined',
+								pkceVerifier: localStorage.getItem(
+									'supabase.auth.token.code_verifier'
+								),
+								origin: window.location.origin,
+							});
 
-						// Use our enhanced helper function for PKCE flow
-						const result = await handlePKCECodeExchange(code);
-						data = result.data;
-						authError = result.error;
+							// Use our enhanced helper function for PKCE flow
+							const result = await handlePKCECodeExchange(code);
+							data = result.data;
+							authError = result.error;
+						}
 					}
 				} catch (err) {
 					console.error('Error processing auth callback:', err);

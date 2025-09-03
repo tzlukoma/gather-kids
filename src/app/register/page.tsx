@@ -182,7 +182,7 @@ const registrationSchema = z
 type RegistrationFormValues = z.infer<typeof registrationSchema>;
 type VerificationFormValues = z.infer<typeof verificationSchema>;
 
-type VerificationStep = 'enter_email' | 'verify_identity' | 'form_visible';
+type VerificationStep = 'enter_email' | 'verify_identity' | 'email_verification_sent' | 'form_visible';
 
 function VerificationStepTwoForm({
 	onVerifySuccess,
@@ -586,41 +586,77 @@ export default function RegisterPage() {
 		} else if (verificationEmail === MOCK_EMAILS.VERIFY) {
 			setVerificationStep('verify_identity');
 		} else {
-			// New registration
-			toast({
-				title: 'New Registration',
-				description: 'Please complete the form below to register your family.',
-			});
-			setIsCurrentYearOverwrite(false);
-			setIsPrefill(false);
-			form.reset({
-				household: { name: '', address_line1: '' },
-				guardians: [
-					{
-						first_name: '',
-						last_name: '',
-						mobile_phone: '',
-						email: verificationEmail,
-						relationship: 'Mother',
-						is_primary: true,
-					},
-				],
-				emergencyContact: {
+			// New registration - check if magic link verification is enabled
+			const isMagicEnabled = flags.loginMagicEnabled && !flags.isDemoMode;
+			
+			if (isMagicEnabled) {
+				// Send magic link for email verification
+				try {
+					const response = await fetch('/api/auth/magic-link', {
+						method: 'POST',
+						headers: {
+							'Content-Type': 'application/json',
+						},
+						body: JSON.stringify({ email: verificationEmail }),
+					});
+
+					if (response.ok) {
+						toast({
+							title: 'Verification Email Sent',
+							description: 'Please check your email and click the verification link to continue with your registration.',
+						});
+						setVerificationStep('email_verification_sent');
+					} else {
+						// Fall back to direct registration if email fails
+						console.warn('Magic link sending failed, proceeding with direct registration');
+						proceedToRegistrationForm();
+					}
+				} catch (error) {
+					console.error('Error sending magic link:', error);
+					// Fall back to direct registration if email fails
+					proceedToRegistrationForm();
+				}
+			} else {
+				// Proceed directly to registration form
+				proceedToRegistrationForm();
+			}
+		}
+	};
+
+	const proceedToRegistrationForm = () => {
+		toast({
+			title: 'New Registration',
+			description: 'Please complete the form below to register your family.',
+		});
+		setIsCurrentYearOverwrite(false);
+		setIsPrefill(false);
+		form.reset({
+			household: { name: '', address_line1: '' },
+			guardians: [
+				{
 					first_name: '',
 					last_name: '',
 					mobile_phone: '',
-					relationship: '',
+					email: verificationEmail,
+					relationship: 'Mother',
+					is_primary: true,
 				},
-				children: [defaultChildValues],
-				consents: {
-					liability: false,
-					photoRelease: false,
-					custom_consents: {},
-				},
-			});
-			setOpenAccordionItems(['item-0']);
-			setVerificationStep('form_visible');
-		}
+			],
+			emergencyContact: {
+				first_name: '',
+				last_name: '',
+				mobile_phone: '',
+				relationship: '',
+			},
+			children: [defaultChildValues],
+			consents: {
+				liability: false,
+				photoRelease: false,
+				custom_consents: {},
+			},
+		});
+		setOpenAccordionItems(['item-0']);
+		setVerificationStep('form_visible');
 	};
 
 	useEffect(() => {
@@ -868,6 +904,93 @@ export default function RegisterPage() {
 					}}
 					onGoBack={() => setVerificationStep('enter_email')}
 				/>
+			)}
+
+			{verificationStep === 'email_verification_sent' && (
+				<Card>
+					<CardHeader>
+						<CardTitle className="font-headline">Check Your Email</CardTitle>
+						<CardDescription>
+							We've sent a verification link to your email address.
+						</CardDescription>
+					</CardHeader>
+					<CardContent className="space-y-4">
+						<Alert>
+							<Info className="h-4 w-4" />
+							<AlertTitle>Verification Email Sent</AlertTitle>
+							<AlertDescription>
+								<p>We've sent a magic link to <strong>{verificationEmail}</strong></p>
+								<p className="mt-2">
+									Please check your email and click the verification link to continue 
+									with your registration. The link will expire in 1 hour.
+								</p>
+							</AlertDescription>
+						</Alert>
+						
+						<div className="flex flex-col gap-2">
+							<Button
+								variant="outline"
+								onClick={() => setVerificationStep('enter_email')}
+							>
+								Use Different Email
+							</Button>
+							<Button
+								variant="link"
+								onClick={async () => {
+									// Resend verification email
+									try {
+										const response = await fetch('/api/auth/magic-link', {
+											method: 'POST',
+											headers: {
+												'Content-Type': 'application/json',
+											},
+											body: JSON.stringify({ email: verificationEmail }),
+										});
+
+										if (response.ok) {
+											toast({
+												title: 'Email Resent',
+												description: 'We\'ve sent another verification email to your address.',
+											});
+										} else {
+											toast({
+												title: 'Resend Failed',
+												description: 'Could not resend verification email. Please try again.',
+												variant: 'destructive',
+											});
+										}
+									} catch (error) {
+										toast({
+											title: 'Resend Failed',
+											description: 'Could not resend verification email. Please try again.',
+											variant: 'destructive',
+										});
+									}
+								}}
+							>
+								Resend Email
+							</Button>
+						</div>
+
+						{flags.showDemoFeatures && (
+							<Alert>
+								<Info className="h-4 w-4" />
+								<AlertTitle>For Testing</AlertTitle>
+								<AlertDescription>
+									<p>In demo mode, you can skip email verification:</p>
+									<Button
+										variant="outline"
+										size="sm"
+										className="mt-2"
+										onClick={() => proceedToRegistrationForm()}
+									>
+										Skip Email Verification
+									</Button>
+								</AlertDescription>
+							</Alert>
+						)}
+					</CardContent>
+				</Card>
 			)}
 
 			{verificationStep === 'form_visible' && (
