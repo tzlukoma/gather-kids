@@ -48,6 +48,7 @@ import { ProtectedRoute } from '@/components/auth/protected-route';
 import { ROLES } from '@/lib/constants/roles';
 import { AdminSkeleton } from '@/components/skeletons/admin-skeleton';
 import { useBranding } from '@/contexts/branding-context';
+import { SettingsModal } from '@/components/settings/settings-modal';
 
 import { getAuthorizedMenuItems } from '@/lib/navigation';
 
@@ -58,6 +59,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 	const { flags } = useFeatureFlags();
 	const { settings } = useBranding();
 	const [isFlagDialogOpen, setIsFlagDialogOpen] = React.useState(false);
+	const [isSettingsModalOpen, setIsSettingsModalOpen] = React.useState(false);
 
 	const getMenuItems = () => {
 		return getAuthorizedMenuItems(
@@ -148,6 +150,10 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 									</div>
 								</DropdownMenuLabel>
 								<DropdownMenuSeparator />
+								<DropdownMenuItem onSelect={() => setIsSettingsModalOpen(true)}>
+									<Settings className="mr-2" />
+									<span>Settings</span>
+								</DropdownMenuItem>
 								{userRole === ROLES.ADMIN && flags.showDemoFeatures && (
 									<SeedDataButton asChild />
 								)}
@@ -213,6 +219,10 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 					onClose={() => setIsFlagDialogOpen(false)}
 				/>
 			)}
+			<SettingsModal
+				isOpen={isSettingsModalOpen}
+				onClose={() => setIsSettingsModalOpen(false)}
+			/>
 		</SidebarProvider>
 	);
 }

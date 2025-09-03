@@ -38,12 +38,14 @@ import { ROLES } from '@/lib/constants/roles';
 import { GuardianSkeleton } from '@/components/skeletons/guardian-skeleton';
 import { getHouseholdProfile, getHouseholdForUser } from '@/lib/dal';
 import type { HouseholdProfileData } from '@/lib/dal';
+import { SettingsModal } from '@/components/settings/settings-modal';
 
 function HouseholdLayoutContent({ children }: { children: React.ReactNode }) {
 	const pathname = usePathname();
 	const router = useRouter();
 	const { user, logout } = useAuth();
 	const [hasBibleBeeEnrollment, setHasBibleBeeEnrollment] = useState(false);
+	const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
 
 	useEffect(() => {
 		const checkBibleBeeEnrollment = async () => {
@@ -92,11 +94,6 @@ function HouseholdLayoutContent({ children }: { children: React.ReactNode }) {
 			href: '/household/bible-bee',
 			icon: Book,
 		}] : []),
-		{
-			label: 'Profile',
-			href: '/household/profile',
-			icon: User,
-		},
 	];
 
 	if (!user) return null;
@@ -139,7 +136,7 @@ function HouseholdLayoutContent({ children }: { children: React.ReactNode }) {
 									</div>
 								</DropdownMenuLabel>
 								<DropdownMenuSeparator />
-								<DropdownMenuItem onSelect={() => {}}>
+								<DropdownMenuItem onSelect={() => setIsSettingsModalOpen(true)}>
 									<Settings className="mr-2" />
 									<span>Settings</span>
 								</DropdownMenuItem>
@@ -192,6 +189,10 @@ function HouseholdLayoutContent({ children }: { children: React.ReactNode }) {
 					</SidebarInset>
 				</div>
 			</div>
+			<SettingsModal
+				isOpen={isSettingsModalOpen}
+				onClose={() => setIsSettingsModalOpen(false)}
+			/>
 		</SidebarProvider>
 	);
 }
