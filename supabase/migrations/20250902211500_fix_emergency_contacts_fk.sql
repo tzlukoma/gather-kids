@@ -14,22 +14,22 @@ BEGIN
   IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='emergency_contacts' AND column_name='household_id_uuid')
      AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='households' AND column_name='household_uuid')
   THEN
-    -- Count invalid references
+    -- Count invalid references with type casting
     SELECT COUNT(*) INTO invalid_count
     FROM emergency_contacts e
-    LEFT JOIN households h ON e.household_id_uuid = h.household_uuid
+    LEFT JOIN households h ON (e.household_id_uuid::text = h.household_uuid::text)
     WHERE e.household_id_uuid IS NOT NULL 
       AND h.household_uuid IS NULL;
     
     RAISE NOTICE 'Found % emergency contacts with invalid household references', invalid_count;
     
-    -- Set invalid references to NULL
+    -- Set invalid references to NULL with type casting
     UPDATE emergency_contacts e
     SET household_id_uuid = NULL
     WHERE household_id_uuid IS NOT NULL
       AND NOT EXISTS (
         SELECT 1 FROM households h
-        WHERE e.household_id_uuid = h.household_uuid
+        WHERE e.household_id_uuid::text = h.household_uuid::text
       );
     
     RAISE NOTICE 'Set % invalid references to NULL', invalid_count;
@@ -49,9 +49,10 @@ BEGIN
      AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='households' AND column_name='household_uuid')
   THEN
     -- Update emergency_contacts where household_id matches households.external_id
+    -- Using explicit type casting to avoid type mismatch issues
     WITH updated_rows AS (
       UPDATE emergency_contacts e
-      SET household_id_uuid = h.household_uuid
+      SET household_id_uuid = h.household_uuid::text::uuid
       FROM households h
       WHERE e.household_id = h.external_id
         AND e.household_id IS NOT NULL
@@ -67,6 +68,19 @@ BEGIN
 END$$;
 
 -- 4. Add the constraint back but only for non-null values
+-- First make sure the types match
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 
+    FROM information_schema.columns 
+    WHERE table_name = 'emergency_contacts' AND column_name = 'household_id_uuid'
+  ) THEN
+    EXECUTE 'ALTER TABLE emergency_contacts ALTER COLUMN household_id_uuid TYPE uuid USING household_id_uuid::uuid';
+    RAISE NOTICE 'Converted household_id_uuid to UUID type';
+  END IF;
+END$$;
+
 ALTER TABLE IF EXISTS emergency_contacts
 ADD CONSTRAINT fk_emergency_contacts_household
 FOREIGN KEY (household_id_uuid) REFERENCES households(household_uuid)
