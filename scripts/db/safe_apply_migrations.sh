@@ -97,7 +97,7 @@ TEMP_MIGRATION_DIR="./supabase/temp-migrations"
 mkdir -p "$TEMP_MIGRATION_DIR"
 
 # Generate a timestamp for the migration
-TIMESTAMP=$(date +%Y%m%d%H%M%S)
+TIMESTAMP=$(date +%Y%m%d%H%M%S%N)
 PRE_CHECK_MIGRATION_FILE="$TEMP_MIGRATION_DIR/${TIMESTAMP}_pre_check.sql"
 
 # Copy the SQL to the migration file
@@ -168,8 +168,8 @@ EOSQL
 
 echo "Creating temporary migration for post-check..."
 # Create a post-check migration file
-TIMESTAMP=$(date +%Y%m%d%H%M%S)
-POST_CHECK_MIGRATION_FILE="$TEMP_MIGRATION_DIR/${TIMESTAMP}_post_check.sql"
+TIMESTAMP2=$(date +%Y%m%d%H%M%S%N)
+POST_CHECK_MIGRATION_FILE="$TEMP_MIGRATION_DIR/${TIMESTAMP2}_post_check.sql"
 
 # Copy the SQL to the migration file
 cp "$POST_CHECK_SQL" "$POST_CHECK_MIGRATION_FILE"

@@ -32,7 +32,7 @@ TEMP_WORKDIR=$(mktemp -d)
 mkdir -p "$TEMP_WORKDIR/supabase/migrations"
 
 # Create a timestamped migration filename
-TIMESTAMP=$(date +%Y%m%d%H%M%S)
+TIMESTAMP=$(date +%Y%m%d%H%M%S%N)
 MIGRATION_FILE="$TEMP_WORKDIR/supabase/migrations/${TIMESTAMP}_ad_hoc.sql"
 cp "$SQL_FILE" "$MIGRATION_FILE"
 

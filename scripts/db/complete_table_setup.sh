@@ -260,7 +260,7 @@ execute_sql() {
   # Create a temporary supabase workdir containing this SQL as a migration
   TEMP_WORKDIR=$(mktemp -d)
   mkdir -p "$TEMP_WORKDIR/supabase/migrations"
-  TIMESTAMP=$(date +%Y%m%d%H%M%S)
+  TIMESTAMP=$(date +%Y%m%d%H%M%S%N)
   MIGRATION_FILE="$TEMP_WORKDIR/supabase/migrations/${TIMESTAMP}_complete_table_setup.sql"
   cp "$temp_file" "$MIGRATION_FILE"
 

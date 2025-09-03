@@ -48,7 +48,8 @@ echo "Creating any missing base tables and fixes using Supabase SQL functions...
 TEMP_WORKDIR=$(mktemp -d)
 mkdir -p "$TEMP_WORKDIR/supabase/migrations"
 
-cat > "$TEMP_WORKDIR/supabase/migrations/$(date +%Y%m%d%H%M%S)_create_base_tables.sql" <<'EOSQL'
+TS=$(date +%Y%m%d%H%M%S%N)
+cat > "$TEMP_WORKDIR/supabase/migrations/${TS}_create_base_tables.sql" <<'EOSQL'
 -- Create the base tables if they don't exist
 CREATE TABLE IF NOT EXISTS households (
   household_id text PRIMARY KEY,
@@ -98,7 +99,8 @@ BEGIN
 END $$;
 EOSQL
 
-cat > "$TEMP_WORKDIR/supabase/migrations/$(date +%Y%m%d%H%M%S)_fix_household_column.sql" <<'EOSQL'
+TS2=$(date +%Y%m%d%H%M%S%N)
+cat > "$TEMP_WORKDIR/supabase/migrations/${TS2}_fix_household_column.sql" <<'EOSQL'
 -- Direct fix for specific issues
 DO $$
 DECLARE
