@@ -28,15 +28,34 @@ BEGIN
 END$$;
 
 -- Convert primary key columns first
-ALTER TABLE IF EXISTS households ALTER COLUMN household_id TYPE text USING household_id::text;
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='households' AND column_name='household_id') THEN
+        ALTER TABLE IF EXISTS households ALTER COLUMN household_id TYPE text USING household_id::text;
+    END IF;
+END$$;
 
 -- Convert foreign key columns next
-ALTER TABLE IF EXISTS guardians ALTER COLUMN household_id TYPE text USING household_id::text;
-ALTER TABLE IF EXISTS children ALTER COLUMN household_id TYPE text USING household_id::text;
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='guardians' AND column_name='household_id') THEN
+        ALTER TABLE IF EXISTS guardians ALTER COLUMN household_id TYPE text USING household_id::text;
+    END IF;
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='children' AND column_name='household_id') THEN
+        ALTER TABLE IF EXISTS children ALTER COLUMN household_id TYPE text USING household_id::text;
+    END IF;
+END$$;
 
 -- Convert other ID columns
-ALTER TABLE IF EXISTS guardians ALTER COLUMN guardian_id TYPE text USING guardian_id::text;
-ALTER TABLE IF EXISTS children ALTER COLUMN child_id TYPE text USING child_id::text;
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='guardians' AND column_name='guardian_id') THEN
+        ALTER TABLE IF EXISTS guardians ALTER COLUMN guardian_id TYPE text USING guardian_id::text;
+    END IF;
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='children' AND column_name='child_id') THEN
+        ALTER TABLE IF EXISTS children ALTER COLUMN child_id TYPE text USING child_id::text;
+    END IF;
+END$$;
 
 -- Remove any default functions tied to UUID generation
 DO $$
