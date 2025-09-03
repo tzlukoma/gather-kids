@@ -16,6 +16,10 @@ export interface Household {
     city?: string;
     state?: string;
     zip?: string;
+    primary_email?: string; // For settings profile management
+    primary_phone?: string; // For settings profile management
+    photo_url?: string; // Avatar path for settings profile management
+    avatar_path?: string; // Alternative avatar field name
     created_at: string;
     updated_at: string;
 }
@@ -144,6 +148,8 @@ export interface LeaderProfile {
     last_name: string;
     email?: string; // nullable, unique if present, lowercase
     phone?: string; // nullable, normalized
+    photo_url?: string; // Avatar path for settings profile management
+    avatar_path?: string; // Alternative avatar field name
     notes?: string; // nullable
     background_check_complete?: boolean; // nullable, default false
     is_active: boolean; // default true
