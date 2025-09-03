@@ -1604,10 +1604,9 @@ export async function saveLeaderProfile(profileData: Omit<LeaderProfile, 'create
             const updatedProfile = await dbAdapter.updateLeaderProfile(normalizedProfile.leader_id, normalizedProfile);
             return updatedProfile.leader_id;
         } else {
-            const newProfile = await dbAdapter.createLeaderProfile({
-                ...normalizedProfile,
-                leader_id: normalizedProfile.leader_id,
-            });
+            // Create new profile - exclude leader_id as adapter generates its own UUID
+            const { leader_id, ...profileDataWithoutId } = normalizedProfile;
+            const newProfile = await dbAdapter.createLeaderProfile(profileDataWithoutId);
             return newProfile.leader_id;
         }
     } else {
