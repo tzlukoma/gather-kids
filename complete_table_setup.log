@@ -1,0 +1,68 @@
+Using Supabase CLI at: supabase
+Linking project...
+Connecting to remote database...
+Finished supabase link.
+Creating direct SQL command file...
+Running SQL to create all tables directly...
+Creating tables...
+Detected Supabase CLI version: 
+Executing: Created extension pgcrypto
+Trying direct SQL execution for: Created extension pgcrypto
+✓ Created extension pgcrypto (via direct psql)
+Executing: Created households table
+Trying direct SQL execution for: Created households table
+✓ Created households table (via direct psql)
+Executing: Created guardians table
+Trying direct SQL execution for: Created guardians table
+✓ Created guardians table (via direct psql)
+Executing: Created children table
+Trying direct SQL execution for: Created children table
+✓ Created children table (via direct psql)
+Executing: Created scriptures table
+Trying direct SQL execution for: Created scriptures table
+✓ Created scriptures table (via direct psql)
+Executing: Created events table
+Trying direct SQL execution for: Created events table
+✓ Created events table (via direct psql)
+Executing: Created timeslots table
+Trying direct SQL execution for: Created timeslots table
+✓ Created timeslots table (via direct psql)
+Executing: Created attendance table
+Trying direct SQL execution for: Created attendance table
+✓ Created attendance table (via direct psql)
+Executing: Created emergency_contacts table
+Trying direct SQL execution for: Created emergency_contacts table
+✓ Created emergency_contacts table (via direct psql)
+Executing: Created users table
+Trying direct SQL execution for: Created users table
+✓ Created users table (via direct psql)
+Executing: Created ministries table
+Trying direct SQL execution for: Created ministries table
+✓ Created ministries table (via direct psql)
+Executing: Created ministry_leaders table
+Trying direct SQL execution for: Created ministry_leaders table
+✓ Created ministry_leaders table (via direct psql)
+Executing: Created ministry_enrollments table
+Trying direct SQL execution for: Created ministry_enrollments table
+✓ Created ministry_enrollments table (via direct psql)
+Executing: Created grade_rules table
+Trying direct SQL execution for: Created grade_rules table
+✓ Created grade_rules table (via direct psql)
+Executing: Created student_scriptures table
+Trying direct SQL execution for: Created student_scriptures table
+✓ Created student_scriptures table (via direct psql)
+Executing: Created student_essays table
+Trying direct SQL execution for: Created student_essays table
+✓ Created student_essays table (via direct psql)
+Adding foreign key constraints...
+Executing: Added foreign key constraints
+Trying direct SQL execution for: Added foreign key constraints
+✓ Added foreign key constraints (via direct psql)
+Verifying database setup...
+Executing: Counted public tables
+Trying direct SQL execution for: Counted public tables
+✓ Counted public tables (via direct psql)
+Executing: Listed all tables
+Trying direct SQL execution for: Listed all tables
+✓ Listed all tables (via direct psql)
+✅ All tables have been created. Please verify database structure in the Supabase dashboard.
