@@ -1,10 +1,11 @@
 import { SupabaseAdapter } from './supabase-adapter';
 import { IndexedDBAdapter } from './indexed-db-adapter';
 import type { DatabaseAdapter } from './types';
+import { getFlag } from '../featureFlags';
 
 export function createDatabaseAdapter(): DatabaseAdapter {
-	// Determine which adapter to use based on environment
-	const mode = process.env.NEXT_PUBLIC_DATABASE_MODE || 'demo';
+	// Use feature flag system to determine database mode
+	const mode = getFlag('DATABASE_MODE');
 
 	if (mode === 'supabase') {
 		const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -18,10 +19,12 @@ export function createDatabaseAdapter(): DatabaseAdapter {
 			return new IndexedDBAdapter();
 		}
 
+		console.log('Creating Supabase adapter for live mode');
 		return new SupabaseAdapter(supabaseUrl, supabaseKey);
 	}
 
 	// Default to IndexedDB for demo mode
+	console.log('Creating IndexedDB adapter for demo mode');
 	return new IndexedDBAdapter();
 }
 
