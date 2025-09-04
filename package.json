@@ -20,7 +20,11 @@
     "seed:uat:reset": "DOTENV_CONFIG_PATH=.env.local RESET=true node -r dotenv/config scripts/seed/uat_seed.js",
     "import:grab-dexie": "node scripts/import/grabDexieExport.mjs",
     "import:dexie": "DOTENV_CONFIG_PATH=.env.local node -r dotenv/config scripts/import/importDexie.js",
-    "import:dexie:dry": "DOTENV_CONFIG_PATH=.env.local node -r dotenv/config scripts/import/importDexie.js --dry-run"
+    "import:dexie:dry": "DOTENV_CONFIG_PATH=.env.local node -r dotenv/config scripts/import/importDexie.js --dry-run",
+    "docs:validate": "bash scripts/validate-docs.sh",
+    "docs:dev": "cd doc-site && npm start",
+    "docs:build": "cd doc-site && npm run build",
+    "docs:serve": "cd doc-site && npm run serve"
   },
   "dependencies": {
     "@genkit-ai/googleai": "^1.14.1",
