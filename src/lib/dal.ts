@@ -18,7 +18,7 @@ import { getApplicableGradeRule } from './bibleBee';
 import { gradeToCode } from './gradeUtils';
 import { AuthRole } from './auth-types';
 import { isDemo } from './featureFlags';
-import type { Attendance, Child, Guardian, Household, Incident, IncidentSeverity, Ministry, MinistryEnrollment, Registration, User, EmergencyContact, LeaderAssignment, LeaderProfile, MinistryLeaderMembership, MinistryAccount, BrandingSettings  } from './types';
+import type { Attendance, Child, Guardian, Household, Incident, IncidentSeverity, Ministry, MinistryEnrollment, Registration, User, EmergencyContact, LeaderAssignment, LeaderProfile, MinistryLeaderMembership, MinistryAccount, BrandingSettings, BibleBeeYear  } from './types';
 import { differenceInYears, isAfter, isBefore, parseISO, isValid } from 'date-fns';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -2129,4 +2129,142 @@ export async function getChildWithAvatar(childId: string) {
 		...child,
 		avatarUrl,
 	};
+}
+
+// === NEW: Dashboard Data Functions ===
+
+/**
+ * Get unacknowledged incidents for dashboard
+ */
+export async function getUnacknowledgedIncidents(): Promise<Incident[]> {
+	if (shouldUseAdapter()) {
+		// Use Supabase adapter for live mode
+		const incidents = await dbAdapter.listIncidents();
+		return incidents.filter(incident => !incident.admin_acknowledged_at);
+	} else {
+		// Use legacy Dexie interface for demo mode
+		return db.incidents.filter(incident => !incident.admin_acknowledged_at).toArray();
+	}
+}
+
+/**
+ * Get checked-in children count for a specific date
+ */
+export async function getCheckedInCount(dateISO: string): Promise<number> {
+	if (shouldUseAdapter()) {
+		// Use Supabase adapter for live mode
+		const attendance = await dbAdapter.listAttendance({ date: dateISO });
+		return attendance.filter(a => !a.check_out_at).length;
+	} else {
+		// Use legacy Dexie interface for demo mode
+		try {
+			return await db.attendance
+				.where({ date: dateISO })
+				.filter((a) => !a.check_out_at)
+				.count();
+		} catch (error) {
+			console.warn('Error getting checked-in count:', error);
+			return 0;
+		}
+	}
+}
+
+/**
+ * Get registration statistics for dashboard
+ */
+export async function getRegistrationStats(): Promise<{ householdCount: number; childCount: number }> {
+	try {
+		if (shouldUseAdapter()) {
+			// Use Supabase adapter for live mode
+			// Get the active registration cycle
+			const cycles = await dbAdapter.listRegistrationCycles();
+			const activeCycle = cycles.find(cycle => cycle.is_active === true || Number(cycle.is_active) === 1);
+			
+			if (!activeCycle) {
+				return { householdCount: 0, childCount: 0 };
+			}
+			
+			const registrations = await dbAdapter.listRegistrations({ cycleId: activeCycle.cycle_id });
+			
+			if (registrations.length === 0) {
+				return { householdCount: 0, childCount: 0 };
+			}
+			
+			const childIds = registrations.map(r => r.child_id);
+			const children = await dbAdapter.listChildren();
+			const relevantChildren = children.filter(c => childIds.includes(c.child_id));
+			const householdIds = new Set(relevantChildren.map(c => c.household_id));
+			
+			return {
+				householdCount: householdIds.size,
+				childCount: registrations.length,
+			};
+		} else {
+			// Use legacy Dexie interface for demo mode
+			try {
+				const activeCycle = await db.registration_cycles
+					.filter((cycle: any) => cycle.is_active === true || Number(cycle.is_active) === 1)
+					.first();
+				
+				if (!activeCycle) {
+					return { householdCount: 0, childCount: 0 };
+				}
+				
+				const registrations = await db.registrations
+					.where({ cycle_id: activeCycle.cycle_id })
+					.toArray();
+					
+				if (registrations.length === 0) {
+					return { householdCount: 0, childCount: 0 };
+				}
+				
+				const childIds = registrations.map((r: any) => r.child_id);
+				const children = await db.children
+					.where('child_id')
+					.anyOf(childIds)
+					.toArray();
+				const householdIds = new Set(children.map((c: any) => c.household_id));
+				
+				return {
+					householdCount: householdIds.size,
+					childCount: registrations.length,
+				};
+			} catch (dexieError) {
+				console.warn('Error fetching registration stats in demo mode:', dexieError);
+				return { householdCount: 0, childCount: 0 };
+			}
+		}
+	} catch (error) {
+		console.warn('Error fetching registration stats:', error);
+		return { householdCount: 0, childCount: 0 };
+	}
+}
+
+/**
+ * Get Bible Bee years for ministry management
+ */
+export async function getBibleBeeYears(): Promise<BibleBeeYear[]> {
+	if (shouldUseAdapter()) {
+		// Use Supabase adapter for live mode
+		return dbAdapter.listBibleBeeYears();
+	} else {
+		// Use legacy Dexie interface for demo mode
+		return db.bible_bee_years.toArray();
+	}
+}
+
+/**
+ * Get ministries for ministry management
+ */
+export async function getMinistries(isActive?: boolean): Promise<Ministry[]> {
+	if (shouldUseAdapter()) {
+		// Use Supabase adapter for live mode
+		return dbAdapter.listMinistries(isActive);
+	} else {
+		// Use legacy Dexie interface for demo mode
+		if (isActive !== undefined) {
+			return db.ministries.filter(m => m.is_active === isActive).toArray();
+		}
+		return db.ministries.toArray();
+	}
 }
