@@ -453,250 +453,274 @@ async function createRegistrationCycle() {
 /**
  * Create Bible Bee competition year
  */
-async function createCompetitionYear() {
-	// Generate a proper UUID for the competition year
-	// Generate a UUID v4
-	const uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(
-		/[xy]/g,
-		function (c) {
-			const r = (Math.random() * 16) | 0,
-				v = c == 'x' ? r : (r & 0x3) | 0x8;
-			return v.toString(16);
-		}
-	);
+/**
+ * Generate a simple UUID v4
+ */
+function generateUUID() {
+	return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+		const r = (Math.random() * 16) | 0,
+			v = c == 'x' ? r : (r & 0x3) | 0x8;
+		return v.toString(16);
+	});
+}
 
-	// When running in dry-run mode, we'll use a mock UUID, otherwise use our generated UUID
-	const competitionYearUUID = DRY_RUN
-		? '00000000-0000-0000-0000-000000000000' // Mock UUID for dry run
-		: uuid; // Use our generated UUID in real mode
-
-	// Check if we already have a registration cycle we can use
+/**
+ * Create or get Bible Bee year following proper business flow:
+ * Registration Cycle → Bible Bee Year → Divisions
+ */
+async function createBibleBeeYear() {
+	console.log('📅 Creating Bible Bee Year following proper business flow...');
+	
+	// Step 1: Create or get the registration cycle (foundation)
 	let registrationCycleId;
-
-	// First check if we have an active registration cycle
-	const { data: existingCycles, error: cycleError } = await supabase
-		.from('registration_cycles')
-		.select('cycle_id')
-		.eq('is_active', true)
-		.limit(1);
-
-	if (cycleError) {
-		console.warn(
-			`⚠️ Error checking for existing registration cycles: ${cycleError.message}`
-		);
-	}
-
-	if (existingCycles && existingCycles.length > 0) {
-		registrationCycleId = existingCycles[0].cycle_id;
-		console.log(
-			`✅ Using existing active registration cycle: ${registrationCycleId}`
-		);
-	} else {
-		// Create a new registration cycle if no active one exists
-		console.log(`ℹ️ No active registration cycle found, creating a new one...`);
+	try {
 		registrationCycleId = await createRegistrationCycle();
+		console.log(`✅ Registration cycle ready: ${registrationCycleId}`);
+	} catch (cycleError) {
+		console.warn(`⚠️ Could not create registration cycle: ${cycleError.message}`);
+		console.log('⚙️ Using a fallback registration cycle ID');
+		registrationCycleId = `${EXTERNAL_ID_PREFIX}cycle_${Date.now()}`;
 	}
 
-	const yearData = {
-		id: competitionYearUUID, // Only used in dry-run mode
-		name: 'Bible Bee 2025-2026',
-		year: 2025, // Integer based on schema
-		description: '2025-2026 Competition Year',
-		registrationCycleId: registrationCycleId, // Link to the registration cycle - using camelCase based on schema
+	// Step 2: Create Bible Bee Year linked to registration cycle  
+	const bibleBeeYearId = DRY_RUN ? 'test-bible-bee-year-uuid' : generateUUID();
+	
+	const bibleBeeYearData = {
+		id: bibleBeeYearId,
+		year: 2025,
+		name: '2025-2026',
+		description: '2025-2026 Bible Bee Competition Year',
+		is_active: true,
+		registration_open_date: '2025-01-01',
+		registration_close_date: '2025-10-08',
+		competition_start_date: '2025-11-01',
+		competition_end_date: '2026-04-30'
 	};
 
-	console.log(
-		'📅 Creating competition year with fields:',
-		Object.keys(yearData).join(', ')
-	);
-
-	let yearId;
-
-	if (DRY_RUN) {
-		// In dry run mode, just return our mock UUID
-		yearId = competitionYearUUID;
-		console.log(`✅ [DRY RUN] Using competition year UUID: ${yearId}`);
-	} else {
-		// In real mode, check if year exists and get its UUID
-		const { data: existing, error: checkError } = await supabase
-			.from('competition_years')
+	// Check if Bible Bee year already exists
+	if (!DRY_RUN) {
+		const { data: existingYear, error: checkError } = await supabase
+			.from('bible_bee_years')
 			.select('id, name')
-			.eq('name', yearData.name)
+			.eq('name', bibleBeeYearData.name)
 			.single();
 
 		if (checkError && checkError.code !== 'PGRST116') {
-			throw new Error(`Error checking competition year: ${checkError.message}`);
+			throw new Error(`Error checking Bible Bee year: ${checkError.message}`);
 		}
 
-		if (existing) {
-			yearId = existing.id;
-			console.log(`✅ Competition year already exists: ${yearData.name}`);
-			console.log(
-				`📊 DEBUG - Found existing year, ID: ${yearId}, type: ${typeof yearId}`
-			);
-
-			// If we got a string that doesn't look like a UUID, this is probably a problem from previous seeding
-			// We need to delete and recreate with a proper UUID
-			if (
-				typeof yearId === 'string' &&
-				!yearId.match(
-					/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-				)
-			) {
-				console.log(
-					'⚠️  Existing year ID is not a valid UUID. Deleting and recreating with proper UUID format...'
-				);
-
-				// Delete the existing record with invalid ID
-				const { error: deleteError } = await supabase
-					.from('competition_years')
-					.delete()
-					.eq('id', yearId);
-
-				if (deleteError) {
-					console.log(
-						`❌ Error deleting competition year: ${deleteError.message}`
-					);
-					// Continue anyway as we'll try to create a new one
-				} else {
-					console.log('✅ Deleted competition year with invalid UUID');
-				}
-
-				// Create a new one with a proper UUID (we need to generate it)
-				// Generate a UUID v4
-				const uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(
-					/[xy]/g,
-					function (c) {
-						const r = (Math.random() * 16) | 0,
-							v = c == 'x' ? r : (r & 0x3) | 0x8;
-						return v.toString(16);
-					}
-				);
-				yearData.id = uuid;
-				console.log(`Generated UUID: ${uuid}`);
-
-				const { data: newYear, error: insertError } = await supabase
-					.from('competition_years')
-					.insert(yearData)
-					.select('id')
-					.single();
-
-				if (insertError) {
-					throw new Error(
-						`Failed to recreate competition year: ${insertError.message}`
-					);
-				}
-
-				yearId = newYear.id;
-				console.log(`✅ Recreated competition year with valid UUID: ${yearId}`);
-			}
-		} else {
-			const { data: newYear, error: insertError } = await supabase
-				.from('competition_years')
-				.insert(yearData)
-				.select('id')
-				.single();
-
-			if (insertError) {
-				throw new Error(
-					`Failed to create competition year: ${insertError.message}`
-				);
-			}
-
-			yearId = newYear.id;
-			console.log(`✅ Created competition year: ${yearData.name}`);
-			console.log(
-				`📊 DEBUG - Created new year, ID: ${yearId}, type: ${typeof yearId}`
-			);
+		if (existingYear) {
+			console.log(`✅ Bible Bee year already exists: ${bibleBeeYearData.name}`);
+			return existingYear.id;
 		}
 	}
 
-	// Debug - log the actual ID before returning
-	console.log(
-		`📊 DEBUG - Returning yearId from createCompetitionYear: ${yearId}, type: ${typeof yearId}`
-	);
+	// Create new Bible Bee year
+	if (DRY_RUN) {
+		console.log(`[DRY RUN] Would create Bible Bee year:`, bibleBeeYearData);
+		return bibleBeeYearId;
+	} else {
+		const { data: newYear, error: insertError } = await supabase
+			.from('bible_bee_years')
+			.insert(bibleBeeYearData)
+			.select('id')
+			.single();
 
-	// Return the year ID (UUID) for use with scriptures
-	return yearId;
+		if (insertError) {
+			throw new Error(`Failed to create Bible Bee year: ${insertError.message}`);
+		}
 
-	return yearId;
+		console.log(`✅ Created Bible Bee year: ${bibleBeeYearData.name}`);
+		return newYear.id;
+	}
+}
+
+/**
+ * Legacy function for compatibility - now calls the proper Bible Bee workflow
+ * @deprecated Use createBibleBeeYear() instead
+ */
+async function createCompetitionYear() {
+	console.log('⚠️ createCompetitionYear() is deprecated. Using createBibleBeeYear() instead.');
+	return await createBibleBeeYear();
 }
 
 /**
  * Create scriptures from CSV data
  */
-async function createScriptures(yearId) {
-	const scCount = 32;
-	console.log(
-		`📖 Creating ${scCount} scriptures for competition year ${yearId}...`
-	);
-
-	// Debug: Check the yearId type and value
-	console.log(`📊 DEBUG - yearId: ${yearId}, type: ${typeof yearId}`);
-	if (!yearId) {
-		console.warn(
-			'⚠️ yearId is undefined or null. Check createCompetitionYear.'
-		);
+/**
+ * Parse CSV scripture metadata from the data file
+ */
+function parseScriptureMetadata() {
+	const csvPath = path.join(__dirname, '../data/bible_bee_corrected.csv');
+	
+	if (!fs.existsSync(csvPath)) {
+		throw new Error(`Scripture metadata file not found: ${csvPath}`);
 	}
-
-	// Let's create mock scriptures with different translations
-	for (let i = 1; i <= scCount; i++) {
-		const book = i % 5 === 0 ? 'Psalms' : i % 3 === 0 ? 'John' : 'Romans';
-		const chapter = Math.floor(i / 3) + 1;
-		const verseStart = (i % 10) + 1;
-		const verseEnd = (i % 10) + 3;
-
-		// Based on the actual schema in migrations/20250828174806_0001_init.sql
-		// Note: competition_year_id should be a UUID
-		const scriptureData = {
-			external_id: `${EXTERNAL_ID_PREFIX}scripture_${i}`,
-			order: i, // Use order instead of points
-			reference: `${book} ${chapter}:${verseStart}-${verseEnd}`,
-			texts: JSON.stringify({
-				NIV: `This is the NIV text for ${book} ${chapter}:${verseStart}-${verseEnd}.`,
-				KJV: `This is the KJV text for ${book} ${chapter}:${verseStart}-${verseEnd}.`,
-				NVI: `Este es el texto NVI para ${book} ${chapter}:${verseStart}-${verseEnd}.`,
-			}),
-		};
-
-		// Set the competition_year_id with UUID from createCompetitionYear
-		if (yearId) {
-			scriptureData.competition_year_id = yearId; // This should be a UUID
-		} else {
-			console.log(`⚠️ Warning: Missing competition_year_id. Using NULL.`);
+	
+	const csvContent = fs.readFileSync(csvPath, 'utf8');
+	const lines = csvContent.trim().split('\n');
+	const headers = lines[0].split(',').map(h => h.trim());
+	
+	const scriptures = [];
+	for (let i = 1; i < lines.length; i++) {
+		const values = lines[i].split(',').map(v => v.trim());
+		if (values.length === headers.length) {
+			const scripture = {};
+			headers.forEach((header, index) => {
+				scripture[header] = values[index];
+			});
+			scriptures.push(scripture);
 		}
+	}
+	
+	console.log(`📋 Parsed ${scriptures.length} scripture metadata entries from CSV`);
+	return scriptures;
+}
 
-		const { data: existing, error: checkError } = await supabase
-			.from('scriptures')
-			.select('id')
-			.eq('external_id', scriptureData.external_id)
-			.single();
+/**
+ * Parse JSON scripture texts from the data file
+ */
+function parseScriptureTexts() {
+	const jsonPath = path.join(__dirname, '../data/bible-bee-2025-scriptures2.json');
+	
+	if (!fs.existsSync(jsonPath)) {
+		throw new Error(`Scripture texts file not found: ${jsonPath}`);
+	}
+	
+	const jsonContent = fs.readFileSync(jsonPath, 'utf8');
+	const data = JSON.parse(jsonContent);
+	
+	console.log(`📖 Parsed ${data.scriptures.length} scripture text entries from JSON`);
+	return data;
+}
 
-		if (checkError && checkError.code !== 'PGRST116') {
-			throw new Error(
-				`Error checking scripture ${scriptureData.title}: ${checkError.message}`
-			);
-		}
+/**
+ * Normalize reference text for matching between CSV and JSON
+ */
+function normalizeReference(ref) {
+	return ref.replace(/\s+/g, ' ').trim().toLowerCase();
+}
 
-		if (existing) {
-			console.log(`✅ Scripture already exists: ${scriptureData.reference}`);
-		} else {
-			const { error: insertError } = await supabase
-				.from('scriptures')
-				.insert(scriptureData);
-
-			if (insertError) {
-				throw new Error(
-					`Failed to create scripture ${scriptureData.reference}: ${insertError.message}`
+/**
+ * Create scriptures from actual data files using reference-based matching
+ */
+async function createScriptures(yearId) {
+	console.log(`📖 Loading scriptures from data files for Bible Bee year ${yearId}...`);
+	
+	if (!yearId) {
+		throw new Error('yearId is required for scripture creation');
+	}
+	
+	try {
+		// Load the metadata from CSV and texts from JSON
+		const csvScriptures = parseScriptureMetadata();
+		const jsonData = parseScriptureTexts();
+		
+		console.log(`🔗 Matching ${csvScriptures.length} CSV entries with ${jsonData.scriptures.length} JSON entries...`);
+		
+		let createdCount = 0;
+		let existingCount = 0;
+		let errorCount = 0;
+		
+		// Process each scripture from the CSV metadata
+		for (const csvRow of csvScriptures) {
+			try {
+				// Find matching text data in JSON by reference
+				const normalizedCsvRef = normalizeReference(csvRow.reference);
+				const matchingJsonEntry = jsonData.scriptures.find(js => 
+					normalizeReference(js.reference) === normalizedCsvRef
 				);
+				
+				if (!matchingJsonEntry) {
+					console.warn(`⚠️ No matching text found for reference: ${csvRow.reference}`);
+					errorCount++;
+					continue;
+				}
+				
+				// Build the scripture data combining CSV metadata with JSON texts
+				const scriptureData = {
+					external_id: `${EXTERNAL_ID_PREFIX}scripture_${parseInt(csvRow.scripture_order)}`,
+					competition_year_id: yearId,
+					order: parseInt(csvRow.scripture_order), // Use order from CSV
+					reference: csvRow.reference,
+					texts: JSON.stringify({
+						NIV: matchingJsonEntry.texts.NIV || '',
+						KJV: matchingJsonEntry.texts.KJV || '',
+						'NIV-Spanish': matchingJsonEntry.texts.NVI || '' // Map NVI to NIV-Spanish
+					})
+				};
+				
+				// Add metadata fields from CSV
+				if (csvRow.scripture_number) {
+					scriptureData.scripture_number = csvRow.scripture_number;
+				}
+				if (csvRow.counts_for) {
+					scriptureData.counts_for = parseInt(csvRow.counts_for);
+				}
+				if (csvRow.category) {
+					scriptureData.category = csvRow.category;
+				}
+				
+				// Check if scripture already exists
+				if (!DRY_RUN) {
+					const { data: existing, error: checkError } = await supabase
+						.from('scriptures')
+						.select('id')
+						.eq('external_id', scriptureData.external_id)
+						.single();
+
+					if (checkError && checkError.code !== 'PGRST116') {
+						console.warn(`⚠️ Error checking scripture ${scriptureData.reference}: ${checkError.message}`);
+						errorCount++;
+						continue;
+					}
+
+					if (existing) {
+						console.log(`✅ Scripture already exists: ${scriptureData.reference}`);
+						existingCount++;
+						continue;
+					}
+				}
+
+				// Create the scripture
+				if (DRY_RUN) {
+					console.log(`[DRY RUN] Would create scripture: ${scriptureData.reference}`);
+					createdCount++;
+				} else {
+					const { error: insertError } = await supabase
+						.from('scriptures')
+						.insert(scriptureData);
+
+					if (insertError) {
+						console.warn(`⚠️ Failed to create scripture ${scriptureData.reference}: ${insertError.message}`);
+						errorCount++;
+						continue;
+					}
+
+					console.log(`✅ Created scripture: ${scriptureData.reference} (${csvRow.category})`);
+					createdCount++;
+				}
+				
+			} catch (rowError) {
+				console.warn(`⚠️ Error processing scripture row ${csvRow.reference}: ${rowError.message}`);
+				errorCount++;
 			}
-
-			console.log(`✅ Created scripture: ${scriptureData.reference}`);
 		}
-
-		// In the updated schema, texts are embedded in the scripture record as a JSONB
-		// So we don't need to create separate scripture_texts records
-		console.log(`✅ Scripture texts included in JSON format`);
+		
+		// Summary
+		console.log(`📊 Scripture loading complete:`);
+		console.log(`   - Created: ${createdCount}`);
+		console.log(`   - Already existed: ${existingCount}`);
+		console.log(`   - Errors: ${errorCount}`);
+		console.log(`   - Total processed: ${createdCount + existingCount + errorCount}`);
+		
+		if (errorCount > 0) {
+			console.warn(`⚠️ ${errorCount} scriptures had errors during processing`);
+		}
+		
+	} catch (error) {
+		console.error(`❌ Error loading scriptures from data files: ${error.message}`);
+		throw error;
 	}
 }
 
@@ -776,10 +800,10 @@ async function createDivisions(yearId) {
 				divisionId = existingDivision.id;
 				console.log(`✅ Division already exists: ${divisionData.name}`);
 			} else {
-				// Format division data according to schema (snake_case fields)
+				// Format division data according to schema (camelCase fields for Bible Bee tables)
 				const insertData = {
 					name: divisionData.name,
-					competition_year_id: yearId,
+					competitionYearId: yearId, // camelCase as per 20250903110000_add_bible_bee_tables.sql
 					min_grade: divisionData.min_grade,
 					max_grade: divisionData.max_grade,
 					minimum_required: 0, // Default value
@@ -844,39 +868,42 @@ async function createGradeRules(yearId, divisionMap) {
 
 		const gradeRulesData = [
 			{
-				rule_id: `${EXTERNAL_ID_PREFIX}primary_grade_rule`,
-				ministry_id: ministryId,
-				min_birth_date: '2016-09-01', // For 2025-2026 school year, Kindergarten through 3rd grade
-				max_birth_date: '2020-08-31',
-				grade_label: 'Primary (K-3)',
+				id: `${EXTERNAL_ID_PREFIX}primary_grade_rule`,
+				competition_year_id: yearId, // Link to the Bible Bee year
+				min_grade: 0, // Kindergarten
+				max_grade: 2, // 2nd grade  
+				type: 'scripture', // Type of rule
+				target_count: 10, // Target scripture count for Primary
 				created_at: new Date().toISOString(),
 			},
 			{
-				rule_id: `${EXTERNAL_ID_PREFIX}junior_grade_rule`,
-				ministry_id: ministryId,
-				min_birth_date: '2011-09-01', // For 2025-2026 school year, 4th through 8th grade
-				max_birth_date: '2016-08-31',
-				grade_label: 'Junior (4-8)',
+				id: `${EXTERNAL_ID_PREFIX}junior_grade_rule`,
+				competition_year_id: yearId,
+				min_grade: 3, // 3rd grade
+				max_grade: 7, // 7th grade
+				type: 'scripture',
+				target_count: 15, // Target scripture count for Junior
 				created_at: new Date().toISOString(),
 			},
 			{
-				rule_id: `${EXTERNAL_ID_PREFIX}senior_grade_rule`,
-				ministry_id: ministryId,
-				min_birth_date: '2007-09-01', // For 2025-2026 school year, 9th through 12th grade
-				max_birth_date: '2011-08-31',
-				grade_label: 'Senior (9-12)',
+				id: `${EXTERNAL_ID_PREFIX}senior_grade_rule`,
+				competition_year_id: yearId,
+				min_grade: 8, // 8th grade
+				max_grade: 12, // 12th grade
+				type: 'essay', // Senior division uses essays
+				target_count: null, // No target count for essays
+				prompt_text: 'Write a 500-word essay on the importance of scripture memorization in modern Christian life.',
 				created_at: new Date().toISOString(),
 			},
 		];
 
 		// Create or update grade rules
 		for (const ruleData of gradeRulesData) {
-			// Check if rule already exists
+			// Check if rule already exists by ID
 			const { data: existingRule, error: checkError } = await supabase
 				.from('grade_rules')
 				.select('*')
-				.eq('grade_label', ruleData.grade_label)
-				.eq('ministry_id', ministryId)
+				.eq('id', ruleData.id)
 				.single();
 
 			if (checkError && checkError.code !== 'PGRST116') {
@@ -885,7 +912,7 @@ async function createGradeRules(yearId, divisionMap) {
 			}
 
 			if (existingRule) {
-				console.log(`✅ Grade rule already exists: ${ruleData.grade_label}`);
+				console.log(`✅ Grade rule already exists: ${ruleData.type} for grades ${ruleData.min_grade}-${ruleData.max_grade}`);
 			} else {
 				const { error: insertError } = await supabase
 					.from('grade_rules')
@@ -896,7 +923,7 @@ async function createGradeRules(yearId, divisionMap) {
 					continue;
 				}
 
-				console.log(`✅ Created grade rule: ${ruleData.grade_label}`);
+				console.log(`✅ Created grade rule: ${ruleData.type} for grades ${ruleData.min_grade}-${ruleData.max_grade}`);
 			}
 		}
 	} catch (error) {
@@ -1352,13 +1379,28 @@ async function createMinistryLeaders() {
 		}
 
 		// Get ministry IDs
-		const { data: ministries, error: ministryError } = await supabase
-			.from('ministries')
-			.select('ministry_id, name')
-			.like('ministry_id', `${EXTERNAL_ID_PREFIX}%`);
+		let ministries;
+		if (DRY_RUN) {
+			// In dry run mode, create mock ministry data
+			ministries = [
+				{ ministry_id: 'uat_sunday_school', name: 'Sunday School' },
+				{ ministry_id: 'uat_bible_bee', name: 'Bible Bee' },
+				{ ministry_id: 'uat_mentoring_boys', name: 'Mentoring Ministry-Boys (Khalfani)' },
+				{ ministry_id: 'uat_joy_bells', name: 'Joy Bells Children\'s Choir' },
+				{ ministry_id: 'uat_mentoring_girls', name: 'Mentoring Ministry-Girls (Nailah)' }
+			];
+			console.log('[DRY RUN] Using mock ministry data for leader assignments');
+		} else {
+			const { data, error: ministryError } = await supabase
+				.from('ministries')
+				.select('ministry_id, name')
+				.like('ministry_id', `${EXTERNAL_ID_PREFIX}%`);
 
-		if (ministryError) {
-			throw new Error(`Error fetching ministries: ${ministryError.message}`);
+			if (ministryError) {
+				throw new Error(`Error fetching ministries: ${ministryError.message}`);
+			}
+			
+			ministries = data;
 		}
 
 		console.log('🔗 Creating leader assignments...');
@@ -2333,89 +2375,144 @@ async function createHouseholdRegistrations() {
 }
 
 /**
+ * Verify that a table has been properly cleared of UAT data
+ */
+async function verifyTableCleared(tableName, filterCondition) {
+	if (DRY_RUN) {
+		console.log(`[DRY RUN] Would verify ${tableName} is cleared`);
+		return true;
+	}
+
+	let query = supabase.from(tableName).select('*', { count: 'exact', head: true });
+	
+	// Apply the same filter used for deletion
+	if (filterCondition.type === 'external_id') {
+		query = query.like('external_id', `${EXTERNAL_ID_PREFIX}%`);
+	} else if (filterCondition.type === 'contact_id') {
+		query = query.like('contact_id', `${EXTERNAL_ID_PREFIX}%`);
+	} else if (filterCondition.type === 'cycle_id') {
+		query = query.like('cycle_id', `${EXTERNAL_ID_PREFIX}%`);
+	} else if (filterCondition.type === 'all_records') {
+		// For UAT-only tables, check if any records remain
+		query = query.gte('created_at', '1900-01-01');
+	}
+
+	const { count, error } = await query;
+	
+	if (error) {
+		console.warn(`⚠️ Could not verify ${tableName} clearing: ${error.message}`);
+		return false;
+	}
+
+	if (count > 0) {
+		console.warn(`⚠️ ${tableName} still contains ${count} UAT records after deletion`);
+		return false;
+	}
+
+	console.log(`✅ Verified ${tableName} is cleared`);
+	return true;
+}
+
+/**
  * Reset UAT data (delete existing seeded data)
  */
 async function resetUATData() {
 	console.log('🗑️  Resetting UAT data...');
 
-	// Delete in reverse dependency order - only from tables that exist and have external_id
-	const tables = [
-		'bible_bee_enrollments', // Has no external_id but is UAT data
-		'enrollment_overrides', // Has no external_id but is UAT data
-		'ministry_enrollments', // Note: no external_id column, but has UAT data
-		'registrations', // Note: no external_id column, but has UAT data
-		'essay_prompts', // Has no external_id but is UAT data
-		'grade_rules', // Has no external_id but is UAT data
-		'divisions', // Has no external_id but is UAT data
-		'competition_years', // Has no external_id but is UAT data
-		'registration_cycles', // Has cycle_id but is UAT data
-		'children', // Has external_id
-		'emergency_contacts', // Has contact_id (same as external_id)
-		'guardians', // Has external_id
-		'households', // Has external_id
-		'ministry_leaders', // Has no external_id but is UAT data
-		'scriptures', // Has external_id
-		'ministries', // Has external_id
+	// Delete in proper foreign key dependency order
+	// Child tables first, then parent tables
+	const deletionPlan = [
+		// Level 1: Tables with no dependencies (child tables)
+		{ table: 'bible_bee_enrollments', filter: { type: 'all_records' } },
+		{ table: 'enrollment_overrides', filter: { type: 'all_records' } },
+		{ table: 'ministry_enrollments', filter: { type: 'all_records' } },
+		{ table: 'registrations', filter: { type: 'all_records' } },
+		
+		// Level 2: Bible Bee structure tables
+		{ table: 'essay_prompts', filter: { type: 'all_records' } },
+		{ table: 'grade_rules', filter: { type: 'all_records' } },
+		{ table: 'divisions', filter: { type: 'all_records' } },
+		{ table: 'scriptures', filter: { type: 'external_id' } },
+		
+		// Level 3: Competition/cycle tables
+		{ table: 'competition_years', filter: { type: 'all_records' } },
+		{ table: 'registration_cycles', filter: { type: 'cycle_id' } },
+		
+		// Level 4: People tables (children before guardians before households)
+		{ table: 'children', filter: { type: 'external_id' } },
+		{ table: 'emergency_contacts', filter: { type: 'contact_id' } },
+		{ table: 'guardians', filter: { type: 'external_id' } },
+		{ table: 'households', filter: { type: 'external_id' } },
+		
+		// Level 5: Ministry structure
+		{ table: 'ministry_leaders', filter: { type: 'all_records' } },
+		{ table: 'ministries', filter: { type: 'external_id' } }
 	];
 
-	for (const table of tables) {
-		let error;
+	let deletionErrors = [];
 
-		if (
-			[
-				'ministry_enrollments',
-				'registrations',
-				'bible_bee_enrollments',
-				'enrollment_overrides',
-				'essay_prompts',
-				'grade_rules',
-				'divisions',
-				'competition_years',
-				'ministry_leaders',
-			].includes(table)
-		) {
-			// These tables don't have external_id but are test-only data in UAT context
-			// Delete all records since this is UAT environment
-			console.log(`🗑️  Deleting all records from ${table}...`);
-			const result = await supabase
-				.from(table)
-				.delete()
-				.gte('created_at', '1900-01-01');
-			error = result.error;
-		} else if (table === 'emergency_contacts') {
-			// Emergency contacts use contact_id instead of external_id
-			console.log(`🗑️  Deleting emergency_contacts with UAT prefix...`);
-			const result = await supabase
-				.from(table)
-				.delete()
-				.like('contact_id', `${EXTERNAL_ID_PREFIX}%`);
-			error = result.error;
-		} else if (table === 'registration_cycles') {
-			// Registration cycles use cycle_id
-			console.log(`🗑️  Deleting registration_cycles with UAT prefix...`);
-			const result = await supabase
-				.from(table)
-				.delete()
-				.like('cycle_id', `${EXTERNAL_ID_PREFIX}%`);
-			error = result.error;
-		} else {
-			// These tables have external_id, so filter by UAT prefix
-			console.log(`🗑️  Deleting ${table} with UAT prefix...`);
-			const result = await supabase
-				.from(table)
-				.delete()
-				.like('external_id', `${EXTERNAL_ID_PREFIX}%`);
-			error = result.error;
-		}
+	for (const { table, filter } of deletionPlan) {
+		console.log(`🗑️  Deleting ${table}...`);
+		
+		try {
+			let result;
+			
+			if (DRY_RUN) {
+				console.log(`[DRY RUN] Would delete from ${table} with filter:`, filter);
+				result = { error: null };
+			} else {
+				// Apply the appropriate deletion filter
+				if (filter.type === 'external_id') {
+					result = await supabase
+						.from(table)
+						.delete()
+						.like('external_id', `${EXTERNAL_ID_PREFIX}%`);
+				} else if (filter.type === 'contact_id') {
+					result = await supabase
+						.from(table)
+						.delete()
+						.like('contact_id', `${EXTERNAL_ID_PREFIX}%`);
+				} else if (filter.type === 'cycle_id') {
+					result = await supabase
+						.from(table)
+						.delete()
+						.like('cycle_id', `${EXTERNAL_ID_PREFIX}%`);
+				} else if (filter.type === 'all_records') {
+					// For UAT-only tables, delete all records
+					result = await supabase
+						.from(table)
+						.delete()
+						.gte('created_at', '1900-01-01');
+				}
+			}
 
-		if (error) {
-			console.warn(`Warning: Could not reset ${table}:`, error.message);
-		} else {
-			console.log(`🗑️  Cleared ${table}`);
+			if (result.error) {
+				console.warn(`⚠️ Could not reset ${table}: ${result.error.message}`);
+				deletionErrors.push({ table, error: result.error.message });
+			} else {
+				console.log(`✅ Cleared ${table}`);
+				
+				// Verify the table is actually cleared
+				const verified = await verifyTableCleared(table, filter);
+				if (!verified) {
+					deletionErrors.push({ table, error: 'Verification failed - records still exist' });
+				}
+			}
+		} catch (error) {
+			console.warn(`⚠️ Exception while clearing ${table}: ${error.message}`);
+			deletionErrors.push({ table, error: error.message });
 		}
 	}
 
-	console.log('✅ Reset complete');
+	if (deletionErrors.length > 0) {
+		console.log('\n❌ Reset completed with errors:');
+		deletionErrors.forEach(({ table, error }) => {
+			console.log(`   - ${table}: ${error}`);
+		});
+		throw new Error(`Failed to completely reset UAT data. ${deletionErrors.length} tables had issues.`);
+	}
+
+	console.log('✅ Reset complete - all UAT data cleared and verified');
 }
 
 /**
@@ -2433,38 +2530,23 @@ async function seedUATData() {
 		await createMinistries();
 		await createMinistryLeaders();
 
-		// Create a registration cycle for the next 6 months
-		let registrationCycleId;
-		try {
-			registrationCycleId = await createRegistrationCycle();
-			console.log(
-				`✅ Registration cycle created/found with ID: ${registrationCycleId}`
-			);
-		} catch (cycleError) {
-			console.warn(
-				`⚠️ Could not create registration cycle: ${cycleError.message}`
-			);
-			console.log('⚙️ Using a fallback registration cycle ID');
-			registrationCycleId = `fallback_cycle_${new Date()
-				.toISOString()
-				.replace(/[^0-9]/g, '')
-				.substring(0, 14)}`;
-		}
+		// Follow proper Bible Bee business workflow:
+		// Registration Cycle → Bible Bee Year → Divisions → Grade Rules → Scriptures → Essay Prompts
+		
+		// Step 1: Bible Bee Year (includes registration cycle creation)
+		const bibleBeeYearId = await createBibleBeeYear();
 
-		// Create competition year and link it to the registration cycle
-		const yearId = await createCompetitionYear();
+		// Step 2: Create divisions linked to Bible Bee year
+		const divisionMap = await createDivisions(bibleBeeYearId);
 
-		// Create Bible Bee divisions
-		const divisionMap = await createDivisions(yearId);
+		// Step 3: Create grade rules linked to Bible Bee year
+		await createGradeRules(bibleBeeYearId, divisionMap);
 
-		// Create grade rules for scriptures and essays
-		await createGradeRules(yearId, divisionMap);
+		// Step 4: Load scriptures from actual data files
+		await createScriptures(bibleBeeYearId);
 
-		// Create scriptures with text data
-		await createScriptures(yearId);
-
-		// Create essay prompt for Senior division
-		await createEssayPrompt(yearId, divisionMap);
+		// Step 5: Create essay prompt for Senior division
+		await createEssayPrompt(bibleBeeYearId, divisionMap);
 
 		// Create households, guardians, and children
 		await createHouseholdsAndFamilies();
@@ -2476,28 +2558,20 @@ async function seedUATData() {
 		await createHouseholdRegistrations();
 
 		// Recalculate division boundaries
-		await recalculateMinimumBoundaries(yearId);
+		await recalculateMinimumBoundaries(bibleBeeYearId);
 
 		console.log('🎉 UAT seeding completed successfully!');
 		console.log('📊 Summary:');
 		console.log('- Active registration cycle for the next 6 months');
 		console.log('- 20 ministries with 5 ministry leaders assigned');
-		console.log(
-			'- Competition year 2025-2026 with 3 divisions: Primary, Junior, Senior'
-		);
-		console.log('- Bible Bee year linked to the active registration cycle');
-		console.log(
-			'- Grade rules for scripture memorization and Senior division essay'
-		);
-		console.log('- Scriptures with NIV, KJV, and Spanish texts');
-		console.log('- Essay prompt for Senior division');
+		console.log('- Bible Bee year 2025-2026 with 3 divisions: Primary, Junior, Senior');
+		console.log('- Registration cycle properly linked to Bible Bee year');
+		console.log('- Grade rules for scripture memorization and Senior division essay');
+		console.log('- Scriptures loaded from data files with NIV, KJV, and NIV-Spanish texts');
+		console.log('- Essay prompt created for Senior division');
 		console.log('- 3 households with guardians and children');
-		console.log(
-			'- 10 children enrolled in Bible Bee ministry ready for division assignment'
-		);
-		console.log(
-			'- 3 household registrations with 5+ ministries per child (linked to active cycle)'
-		);
+		console.log('- 10 children enrolled in Bible Bee ministry ready for division assignment');
+		console.log('- 3 household registrations with 5+ ministries per child (linked to active cycle)');
 		console.log('- Ministry enrollments for children');
 	} catch (error) {
 		console.error('❌ Seeding failed:', error.message);
