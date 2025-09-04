@@ -154,23 +154,22 @@ function parseJsonTexts() {
 }
 
 /**
- * Create Bible Bee year and divisions
+ * Create Bible Bee competition year (simplified)
  */
-async function createBibleBeeYear() {
+async function createCompetitionYear() {
     const yearData = {
-        external_id: `${EXTERNAL_ID_PREFIX}bible_bee_2025`,
+        id: `${EXTERNAL_ID_PREFIX}bible_bee_2025`,
         name: 'Bible Bee 2025-2026',
         year: 2025,
-        competition_name: 'Bible Bee',
-        start_date: '2025-01-01',
-        end_date: '2025-12-31',
-        is_active: true,
+        description: 'Bible Bee competition year 2025-2026',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
     };
 
     const { data: existingYear, error: checkError } = await supabase
-        .from('bible_bee_years')
+        .from('competition_years')
         .select('id')
-        .eq('external_id', yearData.external_id)
+        .eq('id', yearData.id)
         .single();
 
     if (checkError && checkError.code !== 'PGRST116') {
@@ -179,69 +178,21 @@ async function createBibleBeeYear() {
 
     let yearId;
     if (existingYear) {
-        console.log(`✅ Bible Bee year already exists: ${yearData.name}`);
+        console.log(`✅ Competition year already exists: ${yearData.name}`);
         yearId = existingYear.id;
     } else {
         const { data: newYear, error: insertError } = await supabase
-            .from('bible_bee_years')
+            .from('competition_years')
             .insert(yearData)
             .select('id')
             .single();
 
         if (insertError) {
-            throw new Error(`Failed to create Bible Bee year: ${insertError.message}`);
+            throw new Error(`Failed to create competition year: ${insertError.message}`);
         }
         
-        console.log(`✅ Created Bible Bee year: ${yearData.name}`);
+        console.log(`✅ Created competition year: ${yearData.name}`);
         yearId = newYear.id;
-    }
-
-    // Create divisions
-    const divisionsData = [
-        {
-            external_id: `${EXTERNAL_ID_PREFIX}primary_2025`,
-            name: 'Primary Division',
-            minimum_required: 52,
-            bible_bee_year_id: yearId,
-        },
-        {
-            external_id: `${EXTERNAL_ID_PREFIX}junior_2025`,
-            name: 'Junior Division', 
-            minimum_required: 208,
-            bible_bee_year_id: yearId,
-        },
-        {
-            external_id: `${EXTERNAL_ID_PREFIX}senior_2025`,
-            name: 'Senior Division',
-            minimum_required: 447,
-            bible_bee_year_id: yearId,
-        },
-    ];
-
-    for (const divisionData of divisionsData) {
-        const { data: existingDiv, error: checkDivError } = await supabase
-            .from('divisions')
-            .select('id')
-            .eq('external_id', divisionData.external_id)
-            .single();
-
-        if (checkDivError && checkDivError.code !== 'PGRST116') {
-            throw new Error(`Error checking for existing division: ${checkDivError.message}`);
-        }
-
-        if (!existingDiv) {
-            const { error: insertDivError } = await supabase
-                .from('divisions')
-                .insert(divisionData);
-
-            if (insertDivError) {
-                throw new Error(`Failed to create division ${divisionData.name}: ${insertDivError.message}`);
-            }
-            
-            console.log(`✅ Created division: ${divisionData.name}`);
-        } else {
-            console.log(`✅ Division already exists: ${divisionData.name}`);
-        }
     }
 
     return yearId;
@@ -283,12 +234,11 @@ async function createScriptures(yearId) {
         const scriptureData = {
             external_id: `${EXTERNAL_ID_PREFIX}scripture_${csvScripture.scripture_order}`,
             reference: csvScripture.reference,
-            scripture_order: csvScripture.scripture_order,
-            order: csvScripture.scripture_order, // Alias for compatibility
-            counts_for: csvScripture.counts_for,
-            category: csvScripture.category,
+            order: csvScripture.scripture_order,
             texts: texts,
-            year_id: yearId,
+            competition_year_id: yearId,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
         };
 
         scripturesData.push(scriptureData);
@@ -337,41 +287,11 @@ async function createScriptures(yearId) {
 }
 
 /**
- * Create essay prompt for Senior Division
+ * Create essay prompt for Senior Division (DISABLED - table doesn't exist)
  */
 async function createEssayPrompt() {
-    const promptData = {
-        external_id: `${EXTERNAL_ID_PREFIX}senior_essay_2025`,
-        title: 'Senior Division Essay Prompt 2025',
-        prompt: 'Write a 500-word essay on the theme of faith and perseverance based on the Bible Bee 2025 scriptures.',
-        max_words: 500,
-        due_date: '2025-11-01',
-        is_active: true,
-    };
-
-    const { data: existing, error: checkError } = await supabase
-        .from('essay_prompts')
-        .select('id')
-        .eq('external_id', promptData.external_id)
-        .single();
-
-    if (checkError && checkError.code !== 'PGRST116') {
-        throw new Error(`Error checking essay prompt: ${checkError.message}`);
-    }
-
-    if (existing) {
-        console.log(`✅ Essay prompt already exists: ${promptData.title}`);
-    } else {
-        const { error: insertError } = await supabase
-            .from('essay_prompts')
-            .insert(promptData);
-
-        if (insertError) {
-            throw new Error(`Failed to create essay prompt: ${insertError.message}`);
-        }
-        
-        console.log(`✅ Created essay prompt: ${promptData.title}`);
-    }
+    console.log('⚠️  Skipping essay prompt creation - essay_prompts table not implemented yet');
+    return;
 }
 
 /**
@@ -380,6 +300,7 @@ async function createEssayPrompt() {
 async function createMinistries() {
     const ministriesData = [
         {
+            ministry_id: 'sunday_school',
             external_id: `${EXTERNAL_ID_PREFIX}sunday_school`,
             name: 'Sunday School',
             description: 'Children\'s Sunday School ministry',
@@ -387,6 +308,7 @@ async function createMinistries() {
             allows_checkin: true,
         },
         {
+            ministry_id: 'bible_bee',
             external_id: `${EXTERNAL_ID_PREFIX}bible_bee`,
             name: 'Bible Bee Training',
             description: 'Bible memorization and competition training',
@@ -394,6 +316,7 @@ async function createMinistries() {
             allows_checkin: true,
         },
         {
+            ministry_id: 'khalfani',
             external_id: `${EXTERNAL_ID_PREFIX}khalfani`,
             name: 'Khalfani Kids',
             description: 'Khalfani children\'s ministry',
@@ -430,78 +353,11 @@ async function createMinistries() {
 }
 
 /**
- * Create ministry leaders
+ * Create ministry leaders (DISABLED - table doesn't exist)
  */
 async function createMinistryLeaders() {
-    // Get ministry IDs
-    const { data: ministries, error: ministryError } = await supabase
-        .from('ministries')
-        .select('ministry_id, external_id')
-        .like('external_id', `${EXTERNAL_ID_PREFIX}%`);
-
-    if (ministryError) {
-        throw new Error(`Failed to fetch ministries: ${ministryError.message}`);
-    }
-
-    const ministryMap = new Map();
-    for (const ministry of ministries) {
-        ministryMap.set(ministry.external_id, ministry.ministry_id);
-    }
-
-    const leadersData = [
-        {
-            external_id: `${EXTERNAL_ID_PREFIX}leader_sunday_school`,
-            name: 'Sarah Johnson',
-            email: 'leader.sundayschool@example.com',
-            ministry_id: ministryMap.get(`${EXTERNAL_ID_PREFIX}sunday_school`),
-            is_active: true,
-        },
-        {
-            external_id: `${EXTERNAL_ID_PREFIX}leader_bible_bee`,
-            name: 'Michael Chen',
-            email: 'leader.biblebee@example.com',
-            ministry_id: ministryMap.get(`${EXTERNAL_ID_PREFIX}bible_bee`),
-            is_active: true,
-        },
-        {
-            external_id: `${EXTERNAL_ID_PREFIX}leader_khalfani`,
-            name: 'Amara Williams',
-            email: 'leader.khalfani@example.com',
-            ministry_id: ministryMap.get(`${EXTERNAL_ID_PREFIX}khalfani`),
-            is_active: true,
-        },
-    ];
-
-    for (const leaderData of leadersData) {
-        if (!leaderData.ministry_id) {
-            console.warn(`⚠️  Skipping leader ${leaderData.name}: ministry not found`);
-            continue;
-        }
-
-        const { data: existing, error: checkError } = await supabase
-            .from('ministry_leaders')
-            .select('leader_id')
-            .eq('external_id', leaderData.external_id)
-            .single();
-
-        if (checkError && checkError.code !== 'PGRST116') {
-            throw new Error(`Error checking leader ${leaderData.name}: ${checkError.message}`);
-        }
-
-        if (existing) {
-            console.log(`✅ Leader already exists: ${leaderData.name}`);
-        } else {
-            const { error: insertError } = await supabase
-                .from('ministry_leaders')
-                .insert(leaderData);
-
-            if (insertError) {
-                throw new Error(`Failed to create leader ${leaderData.name}: ${insertError.message}`);
-            }
-            
-            console.log(`✅ Created leader: ${leaderData.name}`);
-        }
-    }
+    console.log('⚠️  Skipping ministry leaders creation - ministry_leaders table not implemented yet');
+    return;
 }
 
 /**
@@ -802,26 +658,30 @@ async function createMinistryEnrollments() {
 async function resetUATData() {
     console.log('🗑️  Resetting UAT data...');
     
-    // Delete in reverse dependency order
+    // Delete in reverse dependency order - only from tables that exist and have external_id
     const tables = [
-        'ministry_enrollments',
-        'registrations', 
-        'children',
-        'guardians',
-        'households',
-        'essay_prompts',
-        'scriptures',
-        'divisions',
-        'bible_bee_years',
-        'ministry_leaders',
-        'ministries',
+        'ministry_enrollments',  // Note: no external_id column, but has UAT data
+        'registrations',         // Note: no external_id column, but has UAT data  
+        'children',              // Has external_id
+        'guardians',             // Has external_id
+        'households',            // Has external_id
+        'scriptures',            // Has external_id
+        'ministries',            // Has external_id
     ];
     
     for (const table of tables) {
-        const { error } = await supabase
-            .from(table)
-            .delete()
-            .like('external_id', `${EXTERNAL_ID_PREFIX}%`);
+        let error;
+        
+        if (['ministry_enrollments', 'registrations'].includes(table)) {
+            // These tables don't have external_id but are test-only data in UAT context
+            // Delete all records since this is UAT environment
+            const result = await supabase.from(table).delete().gte('created_at', '1900-01-01');
+            error = result.error;
+        } else {
+            // These tables have external_id, so filter by UAT prefix
+            const result = await supabase.from(table).delete().like('external_id', `${EXTERNAL_ID_PREFIX}%`);
+            error = result.error;
+        }
             
         if (error) {
             console.warn(`Warning: Could not reset ${table}:`, error.message);
@@ -834,53 +694,11 @@ async function resetUATData() {
 }
 
 /**
- * Recalculate minimum boundaries for divisions based on scripture data
+ * Recalculate minimum boundaries for divisions (DISABLED - divisions table doesn't exist)
  */
 async function recalculateMinimumBoundaries(yearId) {
-    console.log('🔢 Recalculating division minimum boundaries...');
-    
-    // Get divisions for this year
-    const { data: divisions, error: divisionError } = await supabase
-        .from('divisions')
-        .select('id, name, minimum_required')
-        .eq('bible_bee_year_id', yearId)
-        .order('minimum_required');
-        
-    if (divisionError) {
-        throw new Error(`Failed to fetch divisions: ${divisionError.message}`);
-    }
-    
-    // Get all scriptures for this year, ordered by scripture_order
-    const { data: scriptures, error: scriptureError } = await supabase
-        .from('scriptures')
-        .select('scripture_order')
-        .eq('year_id', yearId)
-        .order('scripture_order');
-        
-    if (scriptureError) {
-        throw new Error(`Failed to fetch scriptures for boundary calculation: ${scriptureError.message}`);
-    }
-    
-    for (const division of divisions) {
-        if (division.minimum_required && scriptures.length >= division.minimum_required) {
-            const minLastOrder = scriptures[division.minimum_required - 1]?.scripture_order;
-            
-            if (minLastOrder) {
-                const { error: updateError } = await supabase
-                    .from('divisions')
-                    .update({ min_last_order: minLastOrder })
-                    .eq('id', division.id);
-                    
-                if (updateError) {
-                    console.warn(`Warning: Could not update min_last_order for division ${division.id}: ${updateError.message}`);
-                } else {
-                    console.log(`✅ Set min_last_order to ${minLastOrder} for division ${division.id}`);
-                }
-            }
-        }
-    }
-    
-    console.log(`✅ Recalculated minimum boundaries for ${divisions.length} divisions`);
+    console.log('⚠️  Skipping division boundaries recalculation - divisions table not implemented yet');
+    return;
 }
 
 /**
@@ -898,8 +716,8 @@ async function seedUATData() {
         await createMinistries();
         await createMinistryLeaders();
         
-        // Create Bible Bee year and divisions
-        const yearId = await createBibleBeeYear();
+        // Create competition year
+        const yearId = await createCompetitionYear();
         
         // Create scriptures with text data
         await createScriptures(yearId);
@@ -918,10 +736,10 @@ async function seedUATData() {
         
         console.log('🎉 UAT seeding completed successfully!');
         console.log('📊 Summary:');
-        console.log('- 3 ministries with leaders');
-        console.log('- Bible Bee 2025-2026 year with divisions');
+        console.log('- 3 ministries (ministry leaders disabled - table not implemented)');
+        console.log('- Competition year 2025-2026 (divisions disabled - table not implemented)');
         console.log('- Scriptures with NIV, KJV, and Spanish texts');
-        console.log('- Senior Division essay prompt');
+        console.log('- Essay prompt disabled - table not implemented');
         console.log('- 3 households with guardians and children');
         console.log('- Ministry enrollments for children');
         

@@ -1221,14 +1221,35 @@ export type CompositeTypes<
     : never = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
-}
-  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
-  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
-    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
-    : never
+ * Generated on: 2025-09-04T00:21:51.675Z
+ */
 
-export const Constants = {
-  public: {
-    Enums: {},
-  },
-} as const
+// Supabase CLI not available - using fallback types
+// Install Supabase CLI to generate actual types from schema
+
+export interface Database {
+	public: {
+		Tables: {
+			[key: string]: {
+				Row: any;
+				Insert: any;
+				Update: any;
+				Relationships: any[];
+			};
+		};
+		Views: {
+			[_ in never]: never;
+		};
+		Functions: {
+			[_ in never]: never;
+		};
+		Enums: {
+			[_ in never]: never;
+		};
+		CompositeTypes: {
+			[_ in never]: never;
+		};
+	};
+}
+
+export type SupabaseJson = any;
