@@ -40,6 +40,27 @@ const RESET_MODE = process.env.RESET === 'true';
 const DRY_RUN = process.env.DRY_RUN === 'true';
 const EXTERNAL_ID_PREFIX = 'uat_';
 
+// Global counters for tracking what was actually created
+const counters = {
+	ministries: 0,
+	leader_profiles: 0,
+	leader_assignments: 0,
+	ministry_accounts: 0,
+	bible_bee_years: 0,
+	competition_years: 0,
+	registration_cycles: 0,
+	divisions: 0,
+	grade_rules: 0,
+	scriptures: 0,
+	essay_prompts: 0,
+	households: 0,
+	emergency_contacts: 0,
+	guardians: 0,
+	children: 0,
+	ministry_enrollments: 0,
+	registrations: 0
+};
+
 // Supabase client setup
 const supabaseUrl =
 	process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_UAT_URL;
@@ -453,6 +474,7 @@ async function createRegistrationCycle() {
 			console.log(
 				`✅ Created registration cycle: ${cycleName} (${startDateString} to ${endDateString})`
 			);
+			counters.registration_cycles++;
 			return newCycle.cycle_id;
 		} catch (error) {
 			console.error(`❌ Error creating registration cycle: ${error.message}`);
@@ -534,6 +556,7 @@ async function createBibleBeeYear() {
 	// Create new Bible Bee year
 	if (DRY_RUN) {
 		console.log(`[DRY RUN] Would create Bible Bee year:`, bibleBeeYearData);
+		counters.bible_bee_years++;
 		return bibleBeeYearId;
 	} else {
 		const { data: newYear, error: insertError } = await supabase
@@ -547,6 +570,7 @@ async function createBibleBeeYear() {
 		}
 
 		console.log(`✅ Created Bible Bee year: ${bibleBeeYearData.name}`);
+		counters.bible_bee_years++;
 		return newYear.id;
 	}
 }
@@ -587,6 +611,7 @@ async function createCompetitionYear(bibleBeeYearId) {
 	// Create new competition year
 	if (DRY_RUN) {
 		console.log(`[DRY RUN] Would create competition year:`, competitionYearData);
+		counters.competition_years++;
 		return competitionYearData.id;
 	} else {
 		const { data: newYear, error: insertError } = await supabase
@@ -600,6 +625,7 @@ async function createCompetitionYear(bibleBeeYearId) {
 		}
 
 		console.log(`✅ Created competition year: ${competitionYearData.name}`);
+		counters.competition_years++;
 		return newYear.id;
 	}
 }
@@ -767,6 +793,9 @@ async function createScriptures(yearId) {
 		console.log(`   - Errors: ${errorCount}`);
 		console.log(`   - Total processed: ${createdCount + existingCount + errorCount}`);
 		
+		// Update global counter
+		counters.scriptures += createdCount;
+		
 		if (errorCount > 0) {
 			console.warn(`⚠️ ${errorCount} scriptures had errors during processing`);
 		}
@@ -883,6 +912,7 @@ async function createDivisions(yearId) {
 
 				divisionId = newDivision.id;
 				console.log(`✅ Created division: ${divisionData.name}`);
+				counters.divisions++;
 			}
 
 			// Store division ID in map
@@ -977,6 +1007,7 @@ async function createGradeRules(yearId, divisionMap) {
 				}
 
 				console.log(`✅ Created grade rule: ${ruleData.type} for grades ${ruleData.min_grade}-${ruleData.max_grade}`);
+				counters.grade_rules++;
 			}
 		}
 	} catch (error) {
@@ -1039,6 +1070,7 @@ async function createEssayPrompt(yearId, divisionMap) {
 			}
 
 			console.log(`✅ Created essay prompt for Senior Division`);
+			counters.essay_prompts++;
 		}
 	} catch (error) {
 		console.log(`❌ Error creating essay prompt: ${error.message}`);
@@ -1288,6 +1320,7 @@ async function createMinistries() {
 					)}`
 				);
 				console.log(`✅ Created ministry: ${ministryData.name}`);
+				counters.ministries++;
 				continue;
 			}
 
@@ -1317,6 +1350,7 @@ async function createMinistries() {
 					);
 				} else {
 					console.log(`✅ Created ministry: ${ministryData.name}`);
+					counters.ministries++;
 				}
 			}
 		} catch (error) {
@@ -1429,6 +1463,7 @@ async function createMinistryLeaders() {
 				console.log(
 					`✅ Created leader profile: ${profileData.first_name} ${profileData.last_name}`
 				);
+				counters.leader_profiles++;
 			}
 
 			// Store leader ID in map
@@ -1546,6 +1581,7 @@ async function createMinistryLeaders() {
 					);
 				} else {
 					console.log(`✅ Created leader assignment`);
+					counters.leader_assignments++;
 				}
 			}
 		}
@@ -1630,6 +1666,7 @@ async function createMinistryLeaders() {
 					console.log(
 						`✅ Created ministry account for ${accountData.display_name}`
 					);
+					counters.ministry_accounts++;
 				}
 			}
 		}
@@ -1723,6 +1760,7 @@ async function createHouseholdsAndFamilies() {
 			console.log(
 				`✅ [DRY RUN] Created household: ${householdData.household_name}`
 			);
+			counters.households++;
 			householdIds.push(mockId);
 			continue;
 		}
@@ -1793,6 +1831,7 @@ async function createHouseholdsAndFamilies() {
 
 				householdId = newHousehold.household_id;
 				console.log(`✅ Recreated household with valid UUID: ${householdId}`);
+				counters.households++;
 			}
 		} else {
 			// Create a new household with a proper UUID
@@ -1814,6 +1853,7 @@ async function createHouseholdsAndFamilies() {
 			householdId = newHousehold.household_id;
 			console.log(`✅ Created household: ${householdData.household_name}`);
 			console.log(`📊 DEBUG - Created household with UUID: ${householdId}`);
+			counters.households++;
 		}
 
 		householdIds.push(householdId);
@@ -1861,6 +1901,7 @@ async function createHouseholdsAndFamilies() {
 			console.log(
 				`✅ Created emergency contact: ${contactData.first_name} ${contactData.last_name}`
 			);
+			counters.emergency_contacts++;
 		}
 	}
 
@@ -1972,6 +2013,7 @@ async function createHouseholdsAndFamilies() {
 			console.log(
 				`✅ Created guardian: ${guardianData.first_name} ${guardianData.last_name}`
 			);
+			counters.guardians++;
 		}
 	}
 
@@ -2024,6 +2066,7 @@ async function createHouseholdsAndFamilies() {
 				console.log(
 					`✅ Created child: ${childData.first_name} ${childData.last_name}`
 				);
+				counters.children++;
 			}
 		}
 	}
@@ -2241,6 +2284,7 @@ async function createMinistryEnrollments() {
 			}
 
 			console.log(`✅ Created enrollment: ${enrollmentData.enrollment_id}`);
+			counters.ministry_enrollments++;
 		}
 	}
 }
@@ -2350,9 +2394,11 @@ async function createHouseholdRegistrations() {
 					`Failed to create registration for household ${household.external_id}: ${insertRegError.message}`
 				);
 				continue;
+			} else {
 				console.log(
 					`✅ Created registration for household ${household.external_id}`
 				);
+				counters.registrations++;
 			}
 
 			// Now enroll each child in at least 5 random ministries
@@ -2416,6 +2462,7 @@ async function createHouseholdRegistrations() {
 						console.log(
 							`✅ Created enrollment: ${enrollmentData.enrollment_id}`
 						);
+						counters.ministry_enrollments++;
 					}
 				}
 
@@ -2475,6 +2522,196 @@ async function verifyTableCleared(tableName, filterCondition) {
 
 	console.log(`✅ Verified ${tableName} is cleared`);
 	return true;
+}
+
+/**
+ * Display summary of what was actually created and provide SQL verification query
+ */
+function displaySeedingSummary() {
+	console.log('\n📊 SEEDING SUMMARY - Actual Records Created:');
+	console.log('============================================');
+	
+	console.log(`Ministries: ${counters.ministries}`);
+	console.log(`Leader Profiles: ${counters.leader_profiles}`);
+	console.log(`Leader Assignments: ${counters.leader_assignments}`);
+	console.log(`Ministry Accounts: ${counters.ministry_accounts}`);
+	console.log(`Bible Bee Years: ${counters.bible_bee_years}`);
+	console.log(`Competition Years: ${counters.competition_years}`);
+	console.log(`Registration Cycles: ${counters.registration_cycles}`);
+	console.log(`Divisions: ${counters.divisions}`);
+	console.log(`Grade Rules: ${counters.grade_rules}`);
+	console.log(`Scriptures: ${counters.scriptures}`);
+	console.log(`Essay Prompts: ${counters.essay_prompts}`);
+	console.log(`Households: ${counters.households}`);
+	console.log(`Emergency Contacts: ${counters.emergency_contacts}`);
+	console.log(`Guardians: ${counters.guardians}`);
+	console.log(`Children: ${counters.children}`);
+	console.log(`Ministry Enrollments: ${counters.ministry_enrollments}`);
+	console.log(`Registrations: ${counters.registrations}`);
+	
+	const totalRecords = Object.values(counters).reduce((sum, count) => sum + count, 0);
+	console.log(`\nTOTAL RECORDS CREATED: ${totalRecords}`);
+	
+	console.log('\n🗄️ SQL VERIFICATION QUERY:');
+	console.log('Run this query to verify actual database counts:');
+	console.log('=================================================');
+	console.log(`
+-- UAT Data Verification Query
+-- Run this to check actual counts in database
+
+SELECT 
+    'ministries' as table_name,
+    COUNT(*) as actual_count,
+    ${counters.ministries} as expected_count
+FROM ministries 
+WHERE ministry_id LIKE '${EXTERNAL_ID_PREFIX}%'
+
+UNION ALL
+
+SELECT 
+    'leader_profiles' as table_name,
+    COUNT(*) as actual_count,
+    ${counters.leader_profiles} as expected_count
+FROM leader_profiles 
+WHERE created_at >= '2025-01-01'
+
+UNION ALL
+
+SELECT 
+    'leader_assignments' as table_name,
+    COUNT(*) as actual_count,
+    ${counters.leader_assignments} as expected_count
+FROM leader_assignments 
+WHERE created_at >= '2025-01-01'
+
+UNION ALL
+
+SELECT 
+    'ministry_accounts' as table_name,
+    COUNT(*) as actual_count,
+    ${counters.ministry_accounts} as expected_count
+FROM ministry_accounts 
+WHERE ministry_id LIKE '${EXTERNAL_ID_PREFIX}%'
+
+UNION ALL
+
+SELECT 
+    'bible_bee_years' as table_name,
+    COUNT(*) as actual_count,
+    ${counters.bible_bee_years} as expected_count
+FROM bible_bee_years 
+WHERE name LIKE '%2025%'
+
+UNION ALL
+
+SELECT 
+    'competition_years' as table_name,
+    COUNT(*) as actual_count,
+    ${counters.competition_years} as expected_count
+FROM competition_years 
+WHERE name LIKE '%2025%'
+
+UNION ALL
+
+SELECT 
+    'registration_cycles' as table_name,
+    COUNT(*) as actual_count,
+    ${counters.registration_cycles} as expected_count
+FROM registration_cycles 
+WHERE cycle_id LIKE '${EXTERNAL_ID_PREFIX}%'
+
+UNION ALL
+
+SELECT 
+    'divisions' as table_name,
+    COUNT(*) as actual_count,
+    ${counters.divisions} as expected_count
+FROM divisions 
+WHERE created_at >= '2025-01-01'
+
+UNION ALL
+
+SELECT 
+    'grade_rules' as table_name,
+    COUNT(*) as actual_count,
+    ${counters.grade_rules} as expected_count
+FROM grade_rules 
+WHERE id LIKE '${EXTERNAL_ID_PREFIX}%'
+
+UNION ALL
+
+SELECT 
+    'scriptures' as table_name,
+    COUNT(*) as actual_count,
+    ${counters.scriptures} as expected_count
+FROM scriptures 
+WHERE external_id LIKE '${EXTERNAL_ID_PREFIX}%'
+
+UNION ALL
+
+SELECT 
+    'essay_prompts' as table_name,
+    COUNT(*) as actual_count,
+    ${counters.essay_prompts} as expected_count
+FROM essay_prompts 
+WHERE id LIKE '${EXTERNAL_ID_PREFIX}%'
+
+UNION ALL
+
+SELECT 
+    'households' as table_name,
+    COUNT(*) as actual_count,
+    ${counters.households} as expected_count
+FROM households 
+WHERE external_id LIKE '${EXTERNAL_ID_PREFIX}%'
+
+UNION ALL
+
+SELECT 
+    'emergency_contacts' as table_name,
+    COUNT(*) as actual_count,
+    ${counters.emergency_contacts} as expected_count
+FROM emergency_contacts 
+WHERE contact_id LIKE '${EXTERNAL_ID_PREFIX}%'
+
+UNION ALL
+
+SELECT 
+    'guardians' as table_name,
+    COUNT(*) as actual_count,
+    ${counters.guardians} as expected_count
+FROM guardians 
+WHERE external_id LIKE '${EXTERNAL_ID_PREFIX}%'
+
+UNION ALL
+
+SELECT 
+    'children' as table_name,
+    COUNT(*) as actual_count,
+    ${counters.children} as expected_count
+FROM children 
+WHERE external_id LIKE '${EXTERNAL_ID_PREFIX}%'
+
+UNION ALL
+
+SELECT 
+    'ministry_enrollments' as table_name,
+    COUNT(*) as actual_count,
+    ${counters.ministry_enrollments} as expected_count
+FROM ministry_enrollments 
+WHERE enrollment_id LIKE '${EXTERNAL_ID_PREFIX}%'
+
+UNION ALL
+
+SELECT 
+    'registrations' as table_name,
+    COUNT(*) as actual_count,
+    ${counters.registrations} as expected_count
+FROM registrations 
+WHERE registration_id LIKE '${EXTERNAL_ID_PREFIX}%'
+
+ORDER BY table_name;
+`);
 }
 
 /**
@@ -2638,6 +2875,10 @@ async function seedUATData() {
 		await recalculateMinimumBoundaries(bibleBeeYearId);
 
 		console.log('🎉 UAT seeding completed successfully!');
+		
+		// Display actual counts and verification query
+		displaySeedingSummary();
+		
 		console.log('📊 Summary:');
 		console.log('- Active registration cycle for the next 6 months');
 		console.log('- 20 ministries with 5 ministry leaders assigned');
