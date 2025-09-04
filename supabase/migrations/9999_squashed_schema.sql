@@ -152,6 +152,12 @@ CREATE TABLE IF NOT EXISTS attendance (
   timeslot_id text,
   check_in_at timestamptz,
   checked_in_by text,
+  check_out_at timestamptz,
+  checked_out_by text,
+  picked_up_by text,
+  pickup_method text CHECK (pickup_method IS NULL OR pickup_method IN ('name_last4', 'PIN', 'other')),
+  notes text,
+  first_time_flag boolean DEFAULT false,
   created_at timestamptz
 );
 
