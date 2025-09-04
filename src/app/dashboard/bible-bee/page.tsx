@@ -25,6 +25,7 @@ import {
 import Link from 'next/link';
 import ScriptureCard from '@/components/gatherKids/scripture-card';
 import BibleBeeManage from '@/components/gatherKids/bible-bee-manage';
+import BibleBeeDebugger from '@/components/gatherKids/bible-bee-debugger';
 
 function AuthLoader({ user, setAllowed }: any) {
 	useEffect(() => {
@@ -56,6 +57,8 @@ export default function BibleBeePage() {
 	const { user, loading } = useAuth();
 	const [allowed, setAllowed] = useState(false);
 	const [selectedLeader, setSelectedLeader] = useState<string | null>(null);
+	
+	// Add the debugger component to help troubleshoot
 	// start empty and pick a sensible default once years data is available
 	const [selectedCycle, setSelectedCycle] = useState<string>('');
 	const competitionYears = useLiveQuery(
@@ -350,7 +353,10 @@ export default function BibleBeePage() {
 				)}
 			</Tabs>
 
+						)}
+
 			{!loading && user && <AuthLoader user={user} setAllowed={setAllowed} />}
+			<BibleBeeDebugger />
 		</div>
 	);
 }

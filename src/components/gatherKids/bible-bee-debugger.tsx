@@ -1,0 +1,72 @@
+'use client';
+
+import { useEffect } from 'react';
+import { useAuth } from '@/contexts/auth-context';
+import { db } from '@/lib/db';
+import { getFlag } from '@/lib/featureFlags';
+
+export default function BibleBeeDebugger() {
+	const { user } = useAuth();
+
+	useEffect(() => {
+		console.group('🔍 Bible Bee Debug Information');
+
+		// Check database mode
+		console.log('📊 Database Configuration:');
+		console.log('- DATABASE_MODE flag:', getFlag('DATABASE_MODE'));
+		console.log('- DB Adapter Type:', db.constructor.name);
+
+		// Check auth status
+		console.log('👤 Auth Status:');
+		console.log('- User logged in:', user ? '✅ Yes' : '❌ No');
+		if (user) {
+			console.log('- User ID:', user.uid);
+			console.log('- User Role:', user.metadata?.role);
+			console.log('- Assigned Ministries:', user.assignedMinistryIds);
+		}
+
+		// Check localStorage
+		console.log('🔐 Local Storage:');
+		console.log(
+			'- gatherkids-user:',
+			localStorage.getItem('gatherkids-user') ? '✅ Present' : '❌ Missing'
+		);
+
+		// Check for Supabase tokens
+		const supabaseTokens = Object.keys(localStorage).filter((key) =>
+			key.startsWith('sb-')
+		);
+		console.log(
+			'- Supabase tokens:',
+			supabaseTokens.length > 0 ? '✅ Present' : '❌ Missing'
+		);
+
+		// Check Bible Bee data availability
+		console.log('📚 Bible Bee Data Check:');
+		db.bible_bee_years.count().then((count) => {
+			console.log(`- Bible Bee Years in DB: ${count}`);
+		});
+		db.ministries.toArray().then((ministries) => {
+			const bibleBee = ministries.find(
+				(m) =>
+					m.name?.toLowerCase().includes('bible bee') ||
+					m.code?.toLowerCase().includes('bible-bee') ||
+					(m.ministry_id && m.ministry_id.toLowerCase().includes('bible_bee'))
+			);
+			console.log(
+				'- Bible Bee Ministry:',
+				bibleBee ? '✅ Found' : '❌ Not Found'
+			);
+			if (bibleBee) {
+				console.log('  - ID:', bibleBee.ministry_id);
+				console.log('  - Name:', bibleBee.name);
+				console.log('  - Code:', bibleBee.code);
+			}
+		});
+
+		console.groupEnd();
+	}, [user]);
+
+	// This component doesn't render anything visible
+	return null;
+}
