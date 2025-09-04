@@ -733,12 +733,13 @@ async function createScriptures(yearId) {
 						NIV: matchingJsonEntry.texts.NIV || '',
 						KJV: matchingJsonEntry.texts.KJV || '',
 						'NIV-Spanish': matchingJsonEntry.texts.NVI || '' // Map NVI to NIV-Spanish
-					})
+					}),
+					// Enhanced scripture fields from CSV
+					scripture_number: csvRow.scripture_number,
+					scripture_order: parseInt(csvRow.scripture_order),
+					counts_for: parseInt(csvRow.counts_for),
+					category: csvRow.category
 				};
-				
-				// Note: Additional CSV fields (scripture_number, counts_for, category) are not part of the 
-				// scriptures schema, so we skip them. The scriptures table only supports:
-				// competition_year_id, created_at, external_id, id, order, reference, texts, updated_at
 				
 				// Check if scripture already exists
 				if (!DRY_RUN) {
