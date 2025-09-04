@@ -1604,10 +1604,9 @@ export async function saveLeaderProfile(profileData: Omit<LeaderProfile, 'create
             const updatedProfile = await dbAdapter.updateLeaderProfile(normalizedProfile.leader_id, normalizedProfile);
             return updatedProfile.leader_id;
         } else {
-            const newProfile = await dbAdapter.createLeaderProfile({
-                ...normalizedProfile,
-                leader_id: normalizedProfile.leader_id,
-            });
+            // Create new profile - exclude leader_id as adapter generates its own UUID
+            const { leader_id, ...profileDataWithoutId } = normalizedProfile;
+            const newProfile = await dbAdapter.createLeaderProfile(profileDataWithoutId);
             return newProfile.leader_id;
         }
     } else {
@@ -1665,10 +1664,8 @@ export async function saveLeaderMemberships(leaderId: string, memberships: Omit<
             // Add new memberships
             if (memberships.length > 0) {
                 for (const membershipData of memberships) {
-                    await dbAdapter.createMinistryLeaderMembership({
-                        ...membershipData,
-                        leader_id: leaderId,
-                    });
+                    // The membershipData already includes leader_id, just pass it to the adapter
+                    await dbAdapter.createMinistryLeaderMembership(membershipData);
                 }
             }
 
