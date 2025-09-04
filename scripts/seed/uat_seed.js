@@ -235,7 +235,9 @@ function parseScripturesCSV(csvContent) {
  */
 async function createRegistrationCycle() {
 	try {
-		console.log('📅 Creating registration cycle for the next 6 months...');
+		console.log(
+			'📅 Creating a new registration cycle for the next 6 months...'
+		);
 
 		// First, check if the registration_cycles table exists
 		try {
@@ -370,32 +372,32 @@ async function createRegistrationCycle() {
 			created_at: new Date().toISOString(),
 		};
 
-		// Check if a cycle with this name already exists
-		const { data: existingCycle, error: checkError } = await supabase
-			.from('registration_cycles')
-			.select('cycle_id, name')
-			.eq('name', cycleName)
-			.single();
+		// Force create a new cycle with a unique name by appending a timestamp
+		const timestamp = new Date()
+			.toISOString()
+			.replace(/[^0-9]/g, '')
+			.substring(0, 14);
+		const uniqueCycleName = `${cycleName} (${timestamp})`;
+		const uniqueCycleId = `${cycleId}_${timestamp}`;
 
-		if (checkError && checkError.code !== 'PGRST116') {
-			throw new Error(
-				`Error checking registration cycle: ${checkError.message}`
-			);
-		}
+		console.log(
+			`🔄 Creating a new unique registration cycle: ${uniqueCycleName}`
+		);
 
-		if (existingCycle) {
-			console.log(`✅ Registration cycle already exists: ${cycleName}`);
-			return existingCycle.cycle_id;
-		} else {
-			// Before inserting, make sure no other cycles are active
+		// Update the cycle data with the unique name and ID
+		cycleData.cycle_id = uniqueCycleId;
+		cycleData.name = uniqueCycleName;
+
+		// Before inserting, make sure no other cycles are active
+		try {
 			const { data: activeCycles, error: activeCheckError } = await supabase
 				.from('registration_cycles')
 				.select('cycle_id')
 				.eq('is_active', true);
 
-			if (activeCheckError) {
+			if (activeCheckError && activeCheckError.code !== 'PGRST116') {
 				throw new Error(
-					`Error checking active cycles: ${activeCheckError.message}`
+					`Error checking active registration cycles: ${activeCheckError.message}`
 				);
 			}
 
@@ -436,10 +438,15 @@ async function createRegistrationCycle() {
 				`✅ Created registration cycle: ${cycleName} (${startDateString} to ${endDateString})`
 			);
 			return newCycle.cycle_id;
+		} catch (error) {
+			console.error(`❌ Error creating registration cycle: ${error.message}`);
+			throw error;
 		}
-	} catch (error) {
-		console.error(`❌ Error creating registration cycle: ${error.message}`);
-		throw error;
+	} catch (outerError) {
+		console.error(
+			`❌ Unexpected error in registration cycle creation: ${outerError.message}`
+		);
+		throw outerError;
 	}
 }
 
@@ -463,15 +470,39 @@ async function createCompetitionYear() {
 		? '00000000-0000-0000-0000-000000000000' // Mock UUID for dry run
 		: uuid; // Use our generated UUID in real mode
 
-	// Create or get the registration cycle ID first
-	const registrationCycleId = await createRegistrationCycle();
+	// Check if we already have a registration cycle we can use
+	let registrationCycleId;
+
+	// First check if we have an active registration cycle
+	const { data: existingCycles, error: cycleError } = await supabase
+		.from('registration_cycles')
+		.select('cycle_id')
+		.eq('is_active', true)
+		.limit(1);
+
+	if (cycleError) {
+		console.warn(
+			`⚠️ Error checking for existing registration cycles: ${cycleError.message}`
+		);
+	}
+
+	if (existingCycles && existingCycles.length > 0) {
+		registrationCycleId = existingCycles[0].cycle_id;
+		console.log(
+			`✅ Using existing active registration cycle: ${registrationCycleId}`
+		);
+	} else {
+		// Create a new registration cycle if no active one exists
+		console.log(`ℹ️ No active registration cycle found, creating a new one...`);
+		registrationCycleId = await createRegistrationCycle();
+	}
 
 	const yearData = {
 		id: competitionYearUUID, // Only used in dry-run mode
 		name: 'Bible Bee 2025-2026',
 		year: 2025, // Integer based on schema
 		description: '2025-2026 Competition Year',
-		registration_cycle_id: registrationCycleId, // Link to the registration cycle
+		registrationCycleId: registrationCycleId, // Link to the registration cycle - using camelCase based on schema
 	};
 
 	console.log(
@@ -728,7 +759,7 @@ async function createDivisions(yearId) {
 			// Check if division already exists
 			const { data: existingDivision, error: checkError } = await supabase
 				.from('divisions')
-				.select('*')
+				.select('id, name')
 				.eq('name', divisionData.name)
 				.single();
 
@@ -742,13 +773,28 @@ async function createDivisions(yearId) {
 			let divisionId;
 
 			if (existingDivision) {
-				divisionId = existingDivision.division_id;
+				divisionId = existingDivision.id;
 				console.log(`✅ Division already exists: ${divisionData.name}`);
 			} else {
+				// Format division data according to schema (snake_case fields)
+				const insertData = {
+					name: divisionData.name,
+					competition_year_id: yearId,
+					min_grade: divisionData.min_grade,
+					max_grade: divisionData.max_grade,
+					minimum_required: 0, // Default value
+				};
+
+				console.log(
+					`📊 DEBUG - Inserting division with data: ${JSON.stringify(
+						insertData
+					)}`
+				);
+
 				const { data: newDivision, error: insertError } = await supabase
 					.from('divisions')
-					.insert(divisionData)
-					.select('division_id')
+					.insert(insertData)
+					.select('id')
 					.single();
 
 				if (insertError) {
@@ -758,7 +804,7 @@ async function createDivisions(yearId) {
 					continue;
 				}
 
-				divisionId = newDivision.division_id;
+				divisionId = newDivision.id;
 				console.log(`✅ Created division: ${divisionData.name}`);
 			}
 
@@ -2183,37 +2229,28 @@ async function createHouseholdRegistrations() {
 				cycle_id: activeCycleId,
 				status: 'approved',
 				created_at: new Date().toISOString(),
-				approved_at: new Date().toISOString(),
+				// Remove approved_at field as it doesn't exist in the schema
 			};
 
-			// Check if registration already exists
-			const { data: existingReg, error: checkRegError } = await supabase
+			// Make registration ID unique for this cycle to ensure new registrations
+			const timestamp = new Date().getTime().toString().substring(6, 13);
+			registrationData.registration_id = `${registrationData.registration_id}_${timestamp}`;
+
+			// Always create a new registration for the new cycle
+			console.log(
+				`🔄 Creating new registration for household ${household.external_id} in cycle ${activeCycleId}`
+			);
+
+			// Insert the new registration
+			const { error: insertRegError } = await supabase
 				.from('registrations')
-				.select('registration_id')
-				.eq('registration_id', registrationData.registration_id)
-				.single();
+				.insert(registrationData);
 
-			if (checkRegError && checkRegError.code !== 'PGRST116') {
-				console.error(`Error checking registration: ${checkRegError.message}`);
-				continue;
-			}
-
-			if (existingReg) {
-				console.log(
-					`✅ Registration already exists for household ${household.external_id}`
+			if (insertRegError) {
+				console.error(
+					`Failed to create registration for household ${household.external_id}: ${insertRegError.message}`
 				);
-			} else {
-				const { error: insertRegError } = await supabase
-					.from('registrations')
-					.insert(registrationData);
-
-				if (insertRegError) {
-					console.error(
-						`Failed to create registration for household ${household.external_id}: ${insertRegError.message}`
-					);
-					continue;
-				}
-
+				continue;
 				console.log(
 					`✅ Created registration for household ${household.external_id}`
 				);
@@ -2303,12 +2340,20 @@ async function resetUATData() {
 
 	// Delete in reverse dependency order - only from tables that exist and have external_id
 	const tables = [
+		'bible_bee_enrollments', // Has no external_id but is UAT data
+		'enrollment_overrides', // Has no external_id but is UAT data
 		'ministry_enrollments', // Note: no external_id column, but has UAT data
 		'registrations', // Note: no external_id column, but has UAT data
+		'essay_prompts', // Has no external_id but is UAT data
+		'grade_rules', // Has no external_id but is UAT data
+		'divisions', // Has no external_id but is UAT data
+		'competition_years', // Has no external_id but is UAT data
+		'registration_cycles', // Has cycle_id but is UAT data
 		'children', // Has external_id
 		'emergency_contacts', // Has contact_id (same as external_id)
 		'guardians', // Has external_id
 		'households', // Has external_id
+		'ministry_leaders', // Has no external_id but is UAT data
 		'scriptures', // Has external_id
 		'ministries', // Has external_id
 	];
@@ -2316,9 +2361,22 @@ async function resetUATData() {
 	for (const table of tables) {
 		let error;
 
-		if (['ministry_enrollments', 'registrations'].includes(table)) {
+		if (
+			[
+				'ministry_enrollments',
+				'registrations',
+				'bible_bee_enrollments',
+				'enrollment_overrides',
+				'essay_prompts',
+				'grade_rules',
+				'divisions',
+				'competition_years',
+				'ministry_leaders',
+			].includes(table)
+		) {
 			// These tables don't have external_id but are test-only data in UAT context
 			// Delete all records since this is UAT environment
+			console.log(`🗑️  Deleting all records from ${table}...`);
 			const result = await supabase
 				.from(table)
 				.delete()
@@ -2326,13 +2384,23 @@ async function resetUATData() {
 			error = result.error;
 		} else if (table === 'emergency_contacts') {
 			// Emergency contacts use contact_id instead of external_id
+			console.log(`🗑️  Deleting emergency_contacts with UAT prefix...`);
 			const result = await supabase
 				.from(table)
 				.delete()
 				.like('contact_id', `${EXTERNAL_ID_PREFIX}%`);
 			error = result.error;
+		} else if (table === 'registration_cycles') {
+			// Registration cycles use cycle_id
+			console.log(`🗑️  Deleting registration_cycles with UAT prefix...`);
+			const result = await supabase
+				.from(table)
+				.delete()
+				.like('cycle_id', `${EXTERNAL_ID_PREFIX}%`);
+			error = result.error;
 		} else {
 			// These tables have external_id, so filter by UAT prefix
+			console.log(`🗑️  Deleting ${table} with UAT prefix...`);
 			const result = await supabase
 				.from(table)
 				.delete()
@@ -2424,7 +2492,9 @@ async function seedUATData() {
 		console.log('- Scriptures with NIV, KJV, and Spanish texts');
 		console.log('- Essay prompt for Senior division');
 		console.log('- 3 households with guardians and children');
-		console.log('- 10 Bible Bee enrollments with children in all divisions');
+		console.log(
+			'- 10 children enrolled in Bible Bee ministry ready for division assignment'
+		);
 		console.log(
 			'- 3 household registrations with 5+ ministries per child (linked to active cycle)'
 		);
