@@ -1,8 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '@/lib/db';
+import React, { useState, useEffect } from 'react';
+import { getBibleBeeYears, getCompetitionYears, getAllChildren } from '@/lib/dal';
 import type { Division, GradeRule } from '@/lib/types';
 import {
 	createBibleBeeYear,
@@ -83,18 +82,33 @@ interface BibleBeeManageProps {
 export default function BibleBeeManage({ className }: BibleBeeManageProps) {
 	const [activeTab, setActiveTab] = useState('years');
 	const [selectedYearId, setSelectedYearId] = useState<string | null>(null);
+	
+	// Data states
+	const [bibleBeeYears, setBibleBeeYears] = useState<any[]>([]);
+	const [competitionYears, setCompetitionYears] = useState<any[]>([]);
+	const [loading, setLoading] = useState(true);
 
-	// Load new schema Bible Bee years
-	const bibleBeeYears = useLiveQuery(
-		() => db.bible_bee_years.orderBy('label').toArray(),
-		[]
-	);
+	// Load Bible Bee years and competition years
+	useEffect(() => {
+		const loadYears = async () => {
+			try {
+				const [bibleYears, compYears] = await Promise.all([
+					getBibleBeeYears(),
+					getCompetitionYears()
+				]);
+				setBibleBeeYears(bibleYears);
+				setCompetitionYears(compYears);
+			} catch (error) {
+				console.error('Error loading Bible Bee years:', error);
+				setBibleBeeYears([]);
+				setCompetitionYears([]);
+			} finally {
+				setLoading(false);
+			}
+		};
 
-	// Load old schema competition years as fallback
-	const competitionYears = useLiveQuery(
-		() => db.competitionYears.orderBy('year').reverse().toArray(),
-		[]
-	);
+		loadYears();
+	}, []);
 
 	// Create combined years list (new schema first, then bridge old schema)
 	const allYears = React.useMemo(() => {

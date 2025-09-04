@@ -14,9 +14,7 @@ import type {
 import { useToast } from '@/hooks/use-toast';
 import { Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '@/lib/db';
-import { getTodayIsoDate, recordCheckIn, recordCheckOut } from '@/lib/dal';
+import { getTodayIsoDate, recordCheckIn, recordCheckOut, getAttendanceForDate, getIncidentsForDate, getAllGuardians, getAllHouseholds, getAllEmergencyContacts } from '@/lib/dal';
 import type { StatusFilter } from '@/app/dashboard/check-in/page';
 import { IncidentDetailsDialog } from './incident-details-dialog';
 import { PhotoCaptureDialog } from './photo-capture-dialog';
@@ -75,21 +73,40 @@ export function CheckInView({
 		name: string;
 		url: string;
 	} | null>(null);
+	
+	// State for attendance and incidents data
+	const [todaysAttendance, setTodaysAttendance] = useState<Attendance[]>([]);
+	const [todaysIncidents, setTodaysIncidents] = useState<Incident[]>([]);
+	const [enrichedDataLoading, setEnrichedDataLoading] = useState(true);
 
 	const today = getTodayIsoDate();
-	const todaysAttendance = useLiveQuery(
-		() => db.attendance.where({ date: today }).toArray(),
-		[today]
-	);
 
-	const todaysIncidents = useLiveQuery(
-		() => db.incidents.filter((i) => i.timestamp.startsWith(today)).toArray(),
-		[today]
-	);
+	// Load attendance and incidents data using DAL functions
+	useEffect(() => {
+		const loadAttendanceAndIncidents = async () => {
+			try {
+				setEnrichedDataLoading(true);
+				const [attendanceData, incidentsData] = await Promise.all([
+					getAttendanceForDate(today),
+					getIncidentsForDate(today)
+				]);
+				setTodaysAttendance(attendanceData);
+				setTodaysIncidents(incidentsData);
+			} catch (error) {
+				console.error('Error loading attendance and incidents:', error);
+				setTodaysAttendance([]);
+				setTodaysIncidents([]);
+			} finally {
+				setEnrichedDataLoading(false);
+			}
+		};
+
+		loadAttendanceAndIncidents();
+	}, [today]);
 
 	useEffect(() => {
 		const enrichChildren = async () => {
-			if (!todaysAttendance || !todaysIncidents) return;
+			if (!todaysAttendance || !todaysIncidents || enrichedDataLoading) return;
 
 			const attendanceByChild = new Map<string, Attendance[]>();
 			todaysAttendance.forEach((a) => {
@@ -108,21 +125,20 @@ export function CheckInView({
 			});
 
 			const householdIds = initialChildren.map((c) => c.household_id);
-			const allGuardians = await db.guardians
-				.where('household_id')
-				.anyOf(householdIds)
-				.toArray();
-			const allHouseholds = await db.households
-				.where('household_id')
-				.anyOf(householdIds)
-				.toArray();
-			const allEmergencyContacts = await db.emergency_contacts
-				.where('household_id')
-				.anyOf(householdIds)
-				.toArray();
+			// Load additional data using DAL functions
+			const [allGuardians, allHouseholds, allEmergencyContacts] = await Promise.all([
+				getAllGuardians(),
+				getAllHouseholds(),
+				getAllEmergencyContacts()
+			]);
+
+			// Filter to only relevant households for better performance
+			const relevantGuardians = allGuardians.filter((g: Guardian) => householdIds.includes(g.household_id));
+			const relevantHouseholds = allHouseholds.filter((h: Household) => householdIds.includes(h.household_id));
+			const relevantEmergencyContacts = allEmergencyContacts.filter((ec: EmergencyContact) => householdIds.includes(ec.household_id));
 
 			const guardianMap = new Map<string, Guardian[]>();
-			allGuardians.forEach((g) => {
+			relevantGuardians.forEach((g: Guardian) => {
 				if (!guardianMap.has(g.household_id)) {
 					guardianMap.set(g.household_id, []);
 				}
@@ -130,12 +146,12 @@ export function CheckInView({
 			});
 
 			const householdMap = new Map<string, Household>();
-			allHouseholds.forEach((h) => {
+			relevantHouseholds.forEach((h: Household) => {
 				householdMap.set(h.household_id, h);
 			});
 
 			const emergencyContactMap = new Map<string, EmergencyContact>();
-			allEmergencyContacts.forEach((ec) => {
+			relevantEmergencyContacts.forEach((ec: EmergencyContact) => {
 				emergencyContactMap.set(ec.household_id, ec);
 			});
 
@@ -169,7 +185,7 @@ export function CheckInView({
 			setChildren(enriched);
 		};
 		enrichChildren();
-	}, [initialChildren, todaysAttendance, todaysIncidents]);
+	}, [initialChildren, todaysAttendance, todaysIncidents, enrichedDataLoading]);
 
 	const handleCheckIn = async (childId: string) => {
 		try {

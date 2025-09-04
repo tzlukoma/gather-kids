@@ -21,6 +21,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { getTodayIsoDate, getAllChildren, getAttendanceForDate } from '@/lib/dal';
 import type { Child, Attendance } from '@/lib/types';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { normalizeGradeDisplay, getGradeSortOrder } from '@/lib/gradeUtils';
 import {
 	Sheet,
 	SheetContent,
@@ -31,29 +32,6 @@ import {
 	SheetTrigger,
 } from '@/components/ui/sheet';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-
-const gradeSortOrder: { [key: string]: number } = {
-	'Pre-K': 0,
-	Kindergarten: 1,
-	'1st Grade': 2,
-	'2nd Grade': 3,
-	'3rd Grade': 4,
-	'4th Grade': 5,
-	'5th Grade': 6,
-	'6th Grade': 7,
-	'7th Grade': 8,
-	'9th Grade': 9,
-	'10th Grade': 10,
-	'11th Grade': 11,
-	'12th Grade': 12,
-	'13th Grade': 13,
-};
-
-const getGradeValue = (grade?: string): number => {
-	if (!grade) return 99;
-	const value = gradeSortOrder[grade];
-	return value !== undefined ? value : 99;
-};
 
 export type StatusFilter = 'all' | 'checkedIn' | 'checkedOut';
 
@@ -116,10 +94,10 @@ function CheckInContent() {
 	const availableGrades = useMemo(() => {
 		if (!children) return [];
 		const grades = new Set(
-			children.map((c) => c.grade).filter(Boolean) as string[]
+			children.map((c) => normalizeGradeDisplay(c.grade)).filter(Boolean) as string[]
 		);
 		return Array.from(grades).sort(
-			(a, b) => getGradeValue(a) - getGradeValue(b)
+			(a, b) => getGradeSortOrder(a) - getGradeSortOrder(b)
 		);
 	}, [children]);
 

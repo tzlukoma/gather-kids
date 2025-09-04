@@ -688,13 +688,12 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 	}
 
 	async createAttendance(
-		data: Omit<Attendance, 'attendance_id' | 'created_at' | 'updated_at'>
+		data: Omit<Attendance, 'attendance_id'>
 	): Promise<Attendance> {
 		const attendance = {
 			...data,
 			attendance_id: uuidv4(),
-			created_at: new Date().toISOString(),
-			updated_at: new Date().toISOString(),
+			// Only add created_at, not updated_at since attendance table doesn't have updated_at
 		};
 
 		const { data: result, error } = await this.client
@@ -710,10 +709,7 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 	async updateAttendance(id: string, data: Partial<Attendance>): Promise<Attendance> {
 		const { data: result, error } = await this.client
 			.from('attendance')
-			.update({
-				...data,
-				updated_at: new Date().toISOString(),
-			})
+			.update(data) // Remove updated_at since attendance table doesn't have this column
 			.eq('attendance_id', id)
 			.select()
 			.single();
