@@ -116,6 +116,8 @@ Always reference these instructions first and fallback to search or bash command
 ### Data Management Scripts
 
 - Seed scriptures: `npm run seed:scriptures` -- requires proper .env.local with database config
+- Seed UAT data: `npm run seed:uat` -- seeds UAT database with comprehensive test data (idempotent upserts)
+- Reset UAT data: `npm run seed:uat:reset` -- destructively resets and re-seeds UAT database
 - Import Dexie data: `npm run import:dexie` -- requires .env.local config
 - Dry run import: `npm run import:dexie:dry` -- preview import without changes
 - Generate types: `npm run gen:types` -- local development type generation
@@ -170,6 +172,8 @@ gather-kids/
 - `npm test`: ~5 seconds (set timeout to 60+ seconds)
 - `npm run lint`: ESLint setup ~38 seconds first time, then ~5 seconds (set timeout to 2+ minutes)
 - `npm run typecheck`: ~12 seconds (set timeout to 60+ seconds)
+- `npm run seed:uat`: ~10-30 seconds depending on data size (set timeout to 2+ minutes)
+- `npm run seed:uat:reset`: ~15-45 seconds due to deletion operations (set timeout to 2+ minutes)
 - Dev server startup: ~1.1 seconds
 
 ### Development Server Notes
