@@ -31,10 +31,12 @@ export default function CreateAccountPage() {
 	const [loading, setLoading] = useState(false);
 	const [needsVerification, setNeedsVerification] = useState(false);
 
-	// Set page title
+	// Set page title based on verification state
 	useEffect(() => {
-		document.title = 'Create Account - gatherKids';
-	}, []);
+		document.title = needsVerification
+			? 'Check Your Email - gatherKids'
+			: 'Create Account - gatherKids';
+	}, [needsVerification]);
 
 	// Redirect to login if in demo mode or password auth is disabled
 	if (flags.isDemoMode || !flags.loginPasswordEnabled) {
@@ -164,11 +166,6 @@ export default function CreateAccountPage() {
 	};
 
 	if (needsVerification) {
-		// Update title for verification state
-		useEffect(() => {
-			document.title = 'Check Your Email - gatherKids';
-		}, []);
-
 		return (
 			<div className="flex flex-col min-h-screen bg-muted/50">
 				<main className="flex-grow flex flex-col items-center justify-center p-4">
