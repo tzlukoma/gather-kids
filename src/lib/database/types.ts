@@ -87,6 +87,7 @@ export interface DatabaseAdapter {
 	): Promise<Guardian>;
 	updateGuardian(id: string, data: Partial<Guardian>): Promise<Guardian>;
 	listGuardians(householdId: string): Promise<Guardian[]>;
+	listAllGuardians(): Promise<Guardian[]>;
 	deleteGuardian(id: string): Promise<void>;
 
 	// Emergency Contacts
@@ -99,6 +100,7 @@ export interface DatabaseAdapter {
 		data: Partial<EmergencyContact>
 	): Promise<EmergencyContact>;
 	listEmergencyContacts(householdId: string): Promise<EmergencyContact[]>;
+	listAllEmergencyContacts(): Promise<EmergencyContact[]>;
 	deleteEmergencyContact(id: string): Promise<void>;
 
 	// Registration Cycles

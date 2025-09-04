@@ -273,6 +273,15 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 		return data || [];
 	}
 
+	async listAllGuardians(): Promise<Guardian[]> {
+		const { data, error } = await this.client
+			.from('guardians')
+			.select('*');
+
+		if (error) throw error;
+		return data || [];
+	}
+
 	async deleteGuardian(id: string): Promise<void> {
 		const { error } = await this.client
 			.from('guardians')
@@ -340,6 +349,15 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			.from('emergency_contacts')
 			.select('*')
 			.eq('household_id', householdId);
+
+		if (error) throw error;
+		return data || [];
+	}
+
+	async listAllEmergencyContacts(): Promise<EmergencyContact[]> {
+		const { data, error } = await this.client
+			.from('emergency_contacts')
+			.select('*');
 
 		if (error) throw error;
 		return data || [];

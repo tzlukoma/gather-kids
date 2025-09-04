@@ -190,6 +190,10 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 		return this.db.guardians.where('household_id').equals(householdId).toArray();
 	}
 
+	async listAllGuardians(): Promise<Guardian[]> {
+		return this.db.guardians.toArray();
+	}
+
 	async deleteGuardian(id: string): Promise<void> {
 		await this.db.guardians.delete(id);
 	}
@@ -223,6 +227,10 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 
 	async listEmergencyContacts(householdId: string): Promise<EmergencyContact[]> {
 		return this.db.emergency_contacts.where('household_id').equals(householdId).toArray();
+	}
+
+	async listAllEmergencyContacts(): Promise<EmergencyContact[]> {
+		return this.db.emergency_contacts.toArray();
 	}
 
 	async deleteEmergencyContact(id: string): Promise<void> {

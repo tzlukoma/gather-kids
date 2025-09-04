@@ -2457,7 +2457,7 @@ export async function getIncidentsForDate(dateISO: string): Promise<Incident[]> 
 export async function getAllGuardians(): Promise<Guardian[]> {
 	if (shouldUseAdapter()) {
 		// Use Supabase adapter for live mode
-		return dbAdapter.listGuardians(''); // Empty household ID gets all guardians
+		return dbAdapter.listAllGuardians();
 	} else {
 		// Use legacy Dexie interface for demo mode
 		return db.guardians.toArray();
@@ -2483,7 +2483,7 @@ export async function getAllHouseholds(): Promise<Household[]> {
 export async function getAllEmergencyContacts(): Promise<EmergencyContact[]> {
 	if (shouldUseAdapter()) {
 		// Use Supabase adapter for live mode
-		return dbAdapter.listEmergencyContacts(''); // Empty household ID gets all contacts
+		return dbAdapter.listAllEmergencyContacts();
 	} else {
 		// Use legacy Dexie interface for demo mode
 		return db.emergency_contacts.toArray();
