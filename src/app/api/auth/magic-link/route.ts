@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
       const { error } = await supabase.auth.signInWithOtp({
         email: email,
         options: {
-          emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/auth/callback`
+          emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:9002'}/auth/callback`
         }
       });
 
@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Create a mock magic link for testing
-        const baseUrl = process.env.BASE_URL || 'http://localhost:3000';
+        const baseUrl = process.env.BASE_URL || 'http://localhost:9002';
         const code = Buffer.from(JSON.stringify({
           email,
           timestamp: Date.now(),
