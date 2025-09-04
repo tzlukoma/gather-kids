@@ -269,7 +269,7 @@ test.describe('Email/Password Registration to Household Flow', () => {
     const testEmail = generateUniqueEmail('timeout');
     
     // Create account
-    await page.goto('/auth/signup');
+    await page.goto('/create-account');
     await helpers.fillFormField('input[type="email"]', testEmail);
     await helpers.fillFormField('input[type="password"]', TEST_PASSWORD);
     await page.locator('button[type="submit"]').click();
