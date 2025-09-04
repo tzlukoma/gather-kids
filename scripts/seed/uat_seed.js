@@ -379,30 +379,43 @@ async function createEssayPrompt() {
  * Create mock ministries
  */
 async function createMinistries() {
+    // Add prefix to ministry_id to make it unique for UAT
     const ministriesData = [
         {
-            ministry_id: 'sunday_school',
-            external_id: `${EXTERNAL_ID_PREFIX}sunday_school`,
+            ministry_id: `${EXTERNAL_ID_PREFIX}sunday_school`,
             name: 'Sunday School',
             description: 'Children\'s Sunday School ministry',
             is_active: true,
-            allows_checkin: true,
+            code: 'SS',
+            data_profile: 'basic',
+            enrollment_type: 'open',
+            min_age: 3,
+            max_age: 12,
+            communicate_later: false
         },
         {
-            ministry_id: 'bible_bee',
-            external_id: `${EXTERNAL_ID_PREFIX}bible_bee`,
+            ministry_id: `${EXTERNAL_ID_PREFIX}bible_bee`,
             name: 'Bible Bee Training',
             description: 'Bible memorization and competition training',
             is_active: true,
-            allows_checkin: true,
+            code: 'BB',
+            data_profile: 'basic',
+            enrollment_type: 'open',
+            min_age: 5,
+            max_age: 18,
+            communicate_later: false
         },
         {
-            ministry_id: 'khalfani',
-            external_id: `${EXTERNAL_ID_PREFIX}khalfani`,
+            ministry_id: `${EXTERNAL_ID_PREFIX}khalfani`,
             name: 'Khalfani Kids',
             description: 'Khalfani Children\'s Ministry',
             is_active: true,
-            allows_checkin: true,
+            code: 'KK',
+            data_profile: 'basic',
+            enrollment_type: 'open',
+            min_age: 3,
+            max_age: 12,
+            communicate_later: false
         }
     ];
 
@@ -410,7 +423,7 @@ async function createMinistries() {
         const { data: existing, error: checkError } = await supabase
             .from('ministries')
             .select('ministry_id')
-            .eq('external_id', ministryData.external_id)
+            .eq('ministry_id', ministryData.ministry_id)
             .single();
 
         if (checkError && checkError.code !== 'PGRST116') {
@@ -427,7 +440,7 @@ async function createMinistries() {
             if (insertError) {
                 throw new Error(`Failed to create ministry ${ministryData.name}: ${insertError.message}`);
             }
-            
+
             console.log(`✅ Created ministry: ${ministryData.name}`);
         }
     }
@@ -723,17 +736,21 @@ async function createMinistryEnrollments() {
 
     const { data: ministries, error: ministryError } = await supabase
         .from('ministries')
-        .select('ministry_id, external_id, name')
-        .like('external_id', `${EXTERNAL_ID_PREFIX}%`);
+        .select('ministry_id, name')
+        .like('ministry_id', `${EXTERNAL_ID_PREFIX}%`);
 
     if (ministryError) {
-        throw new Error(`Failed to fetch ministries: ${ministryError.message}`);
+        console.log(`⚠️  Skipping ministry enrollments - ${ministryError.message}`);
+        return; // Exit early since we can't create enrollments without ministries
     }
 
-    const ministryMap = new Map();
-    for (const ministry of ministries) {
-        ministryMap.set(ministry.external_id, ministry.ministry_id);
+    if (!ministries || !Array.isArray(ministries) || ministries.length === 0) {
+        console.log('⚠️  Skipping ministry enrollments - no ministries found');
+        return; // Exit early since there are no ministries to enroll in
     }
+
+    // No need for a complex map, we can directly use the ministry_id
+    console.log(`✅ Found ${ministries.length} ministries for enrollments`);
 
     // Enroll children in ministries
     const enrollments = [
@@ -741,7 +758,7 @@ async function createMinistryEnrollments() {
         ...children.map(child => ({
             external_id: `${EXTERNAL_ID_PREFIX}enrollment_${child.external_id.split('_')[2]}_ss`,
             child_id: child.child_id,
-            ministry_id: ministryMap.get(`${EXTERNAL_ID_PREFIX}sunday_school`),
+            ministry_id: `${EXTERNAL_ID_PREFIX}sunday_school`,
             enrollment_date: '2025-01-01',
             is_active: true,
         })),
@@ -749,14 +766,14 @@ async function createMinistryEnrollments() {
         {
             external_id: `${EXTERNAL_ID_PREFIX}enrollment_1_bb`,
             child_id: children.find(c => c.external_id === `${EXTERNAL_ID_PREFIX}child_1`)?.child_id,
-            ministry_id: ministryMap.get(`${EXTERNAL_ID_PREFIX}bible_bee`),
+            ministry_id: `${EXTERNAL_ID_PREFIX}bible_bee`,
             enrollment_date: '2025-01-01',
             is_active: true,
         },
         {
             external_id: `${EXTERNAL_ID_PREFIX}enrollment_3_bb`,
             child_id: children.find(c => c.external_id === `${EXTERNAL_ID_PREFIX}child_3`)?.child_id,
-            ministry_id: ministryMap.get(`${EXTERNAL_ID_PREFIX}bible_bee`),
+            ministry_id: `${EXTERNAL_ID_PREFIX}bible_bee`,
             enrollment_date: '2025-01-01',
             is_active: true,
         },
