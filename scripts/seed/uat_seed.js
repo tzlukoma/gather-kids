@@ -552,12 +552,56 @@ async function createBibleBeeYear() {
 }
 
 /**
- * Legacy function for compatibility - now calls the proper Bible Bee workflow
- * @deprecated Use createBibleBeeYear() instead
+ * Create a competition year that corresponds to the Bible Bee year
+ * This is needed because scriptures and grade_rules tables reference competition_years
  */
-async function createCompetitionYear() {
-	console.log('⚠️ createCompetitionYear() is deprecated. Using createBibleBeeYear() instead.');
-	return await createBibleBeeYear();
+async function createCompetitionYear(bibleBeeYearId) {
+	console.log('📅 Creating Competition Year for scriptures and grade rules...');
+	
+	const competitionYearData = {
+		id: DRY_RUN ? 'test-competition-year-uuid' : generateUUID(),
+		year: 2025,
+		name: '2025-2026 Competition Year',
+		description: 'Competition year corresponding to Bible Bee 2025-2026',
+		created_at: new Date().toISOString(),
+	};
+
+	// Check if competition year already exists
+	if (!DRY_RUN) {
+		const { data: existingYear, error: checkError } = await supabase
+			.from('competition_years')
+			.select('id, name')
+			.eq('name', competitionYearData.name)
+			.single();
+
+		if (checkError && checkError.code !== 'PGRST116') {
+			throw new Error(`Error checking competition year: ${checkError.message}`);
+		}
+
+		if (existingYear) {
+			console.log(`✅ Competition year already exists: ${competitionYearData.name}`);
+			return existingYear.id;
+		}
+	}
+
+	// Create new competition year
+	if (DRY_RUN) {
+		console.log(`[DRY RUN] Would create competition year:`, competitionYearData);
+		return competitionYearData.id;
+	} else {
+		const { data: newYear, error: insertError } = await supabase
+			.from('competition_years')
+			.insert(competitionYearData)
+			.select('id')
+			.single();
+
+		if (insertError) {
+			throw new Error(`Failed to create competition year: ${insertError.message}`);
+		}
+
+		console.log(`✅ Created competition year: ${competitionYearData.name}`);
+		return newYear.id;
+	}
 }
 
 /**
@@ -816,13 +860,13 @@ async function createDivisions(yearId) {
 				divisionId = existingDivision.id;
 				console.log(`✅ Division already exists: ${divisionData.name}`);
 			} else {
-				// Format division data according to schema (camelCase fields for Bible Bee tables)
+				// Format division data according to schema using generated types
 				const insertData = {
 					name: divisionData.name,
-					competitionYearId: yearId, // camelCase as per 20250903110000_add_bible_bee_tables.sql
+					bible_bee_year_id: yearId, // snake_case as per generated types - links to bible_bee_years.id
 					min_grade: divisionData.min_grade,
 					max_grade: divisionData.max_grade,
-					minimum_required: 0, // Default value
+					min_scriptures: 0, // Use min_scriptures field as per generated types
 				};
 
 				console.log(
@@ -966,10 +1010,14 @@ async function createEssayPrompt(yearId, divisionMap) {
 		}
 
 		const essayPromptData = {
-			prompt_id: `${EXTERNAL_ID_PREFIX}senior_essay_prompt`,
-			competition_year_id: yearId,
-			prompt_text:
+			id: `${EXTERNAL_ID_PREFIX}senior_essay_prompt`,
+			division_id: seniorDivisionId, // Use division_id as per generated types
+			title: 'Senior Division Essay',
+			prompt:
 				"Reflecting on Romans chapters 1-11, discuss how Paul's teachings on salvation through faith apply to modern Christian life. Include at least three specific scripture references from the assigned passages to support your analysis.",
+			instructions: 'Write a thoughtful essay of 500-750 words. Be sure to include specific scripture references.',
+			min_words: 500,
+			max_words: 750,
 			created_at: new Date().toISOString(),
 		};
 
@@ -977,7 +1025,7 @@ async function createEssayPrompt(yearId, divisionMap) {
 		const { data: existingPrompt, error: checkError } = await supabase
 			.from('essay_prompts')
 			.select('*')
-			.eq('competition_year_id', yearId)
+			.eq('division_id', seniorDivisionId)
 			.single();
 
 		if (checkError && checkError.code !== 'PGRST116') {
@@ -2547,21 +2595,24 @@ async function seedUATData() {
 		await createMinistryLeaders();
 
 		// Follow proper Bible Bee business workflow:
-		// Registration Cycle → Bible Bee Year → Divisions → Grade Rules → Scriptures → Essay Prompts
+		// Registration Cycle → Bible Bee Year → Competition Year → Divisions → Grade Rules → Scriptures → Essay Prompts
 		
 		// Step 1: Bible Bee Year (includes registration cycle creation)
 		const bibleBeeYearId = await createBibleBeeYear();
 
-		// Step 2: Create divisions linked to Bible Bee year
+		// Step 2: Create corresponding competition year for scriptures and grade rules
+		const competitionYearId = await createCompetitionYear(bibleBeeYearId);
+
+		// Step 3: Create divisions linked to Bible Bee year
 		const divisionMap = await createDivisions(bibleBeeYearId);
 
-		// Step 3: Create grade rules linked to Bible Bee year
-		await createGradeRules(bibleBeeYearId, divisionMap);
+		// Step 4: Create grade rules linked to competition year (per generated types)
+		await createGradeRules(competitionYearId, divisionMap);
 
-		// Step 4: Load scriptures from actual data files
-		await createScriptures(bibleBeeYearId);
+		// Step 5: Load scriptures from actual data files linked to competition year (per generated types)
+		await createScriptures(competitionYearId);
 
-		// Step 5: Create essay prompt for Senior division
+		// Step 6: Create essay prompt for Senior division
 		await createEssayPrompt(bibleBeeYearId, divisionMap);
 
 		// Create households, guardians, and children
