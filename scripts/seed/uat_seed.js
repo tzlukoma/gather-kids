@@ -230,6 +230,127 @@ function parseScripturesCSV(csvContent) {
 }
 
 /**
+ * Creates a registration cycle for the next 6 months starting from the current date
+ * @returns {Promise<string>} The ID of the created/existing registration cycle
+ */
+async function createRegistrationCycle() {
+	try {
+		console.log('📅 Creating registration cycle for the next 6 months...');
+
+		// Create a cycle starting from current date (September 2025) through the next 6 months
+		const currentDate = new Date();
+		const startDate = new Date(currentDate);
+		const endDate = new Date(currentDate);
+		endDate.setMonth(endDate.getMonth() + 6); // 6 months from now
+
+		// Format dates for database
+		const startDateString = startDate.toISOString().split('T')[0]; // YYYY-MM-DD
+		const endDateString = endDate.toISOString().split('T')[0]; // YYYY-MM-DD
+
+		// Create cycle name based on the current year and season
+		const month = currentDate.getMonth();
+		let season;
+		if (month >= 8 && month <= 11) {
+			// Sep-Dec
+			season = 'Fall';
+		} else if (month >= 0 && month <= 2) {
+			// Jan-Mar
+			season = 'Winter';
+		} else if (month >= 3 && month <= 5) {
+			// Apr-Jun
+			season = 'Spring';
+		} else {
+			// Jul-Aug
+			season = 'Summer';
+		}
+
+		const year = currentDate.getFullYear();
+		const cycleName = `${season} ${year}`;
+		const cycleId = `${EXTERNAL_ID_PREFIX}cycle_${year}_${season.toLowerCase()}`;
+
+		const cycleData = {
+			cycle_id: cycleId,
+			name: cycleName,
+			start_date: startDateString,
+			end_date: endDateString,
+			is_active: true, // This is the active cycle
+			created_at: new Date().toISOString(),
+		};
+
+		// Check if a cycle with this name already exists
+		const { data: existingCycle, error: checkError } = await supabase
+			.from('registration_cycles')
+			.select('cycle_id, name')
+			.eq('name', cycleName)
+			.single();
+
+		if (checkError && checkError.code !== 'PGRST116') {
+			throw new Error(
+				`Error checking registration cycle: ${checkError.message}`
+			);
+		}
+
+		if (existingCycle) {
+			console.log(`✅ Registration cycle already exists: ${cycleName}`);
+			return existingCycle.cycle_id;
+		} else {
+			// Before inserting, make sure no other cycles are active
+			const { data: activeCycles, error: activeCheckError } = await supabase
+				.from('registration_cycles')
+				.select('cycle_id')
+				.eq('is_active', true);
+
+			if (activeCheckError) {
+				throw new Error(
+					`Error checking active cycles: ${activeCheckError.message}`
+				);
+			}
+
+			// If there are active cycles, deactivate them
+			if (activeCycles && activeCycles.length > 0) {
+				console.log(
+					`📝 Deactivating ${activeCycles.length} previously active cycle(s)...`
+				);
+
+				for (const cycle of activeCycles) {
+					const { error: updateError } = await supabase
+						.from('registration_cycles')
+						.update({ is_active: false })
+						.eq('cycle_id', cycle.cycle_id);
+
+					if (updateError) {
+						console.warn(
+							`⚠️ Could not deactivate cycle ${cycle.cycle_id}: ${updateError.message}`
+						);
+					}
+				}
+			}
+
+			// Now insert our new active cycle
+			const { data: newCycle, error: insertError } = await supabase
+				.from('registration_cycles')
+				.insert(cycleData)
+				.select()
+				.single();
+
+			if (insertError) {
+				throw new Error(
+					`Failed to create registration cycle: ${insertError.message}`
+				);
+			}
+
+			console.log(
+				`✅ Created registration cycle: ${cycleName} (${startDateString} to ${endDateString})`
+			);
+			return newCycle.cycle_id;
+		}
+	} catch (error) {
+		console.error(`❌ Error creating registration cycle: ${error.message}`);
+		throw error;
+	}
+}
+
+/**
  * Create Bible Bee competition year
  */
 async function createCompetitionYear() {
@@ -249,11 +370,15 @@ async function createCompetitionYear() {
 		? '00000000-0000-0000-0000-000000000000' // Mock UUID for dry run
 		: uuid; // Use our generated UUID in real mode
 
+	// Create or get the registration cycle ID first
+	const registrationCycleId = await createRegistrationCycle();
+
 	const yearData = {
 		id: competitionYearUUID, // Only used in dry-run mode
 		name: 'Bible Bee 2025-2026',
 		year: 2025, // Integer based on schema
 		description: '2025-2026 Competition Year',
+		registration_cycle_id: registrationCycleId, // Link to the registration cycle
 	};
 
 	console.log(
@@ -473,25 +598,31 @@ async function createDivisions(yearId) {
 			{
 				division_id: `${EXTERNAL_ID_PREFIX}primary_division`,
 				name: 'Primary',
-				description: 'Primary Division (Kindergarten - 3rd Grade)',
+				description: 'Primary Division (Kindergarten - 2nd Grade)',
 				min_age: 5, // Approx. Kindergarten age
-				max_age: 9, // Approx. 3rd grade age
+				max_age: 8, // Approx. 2nd grade age
+				min_grade: 0, // Kindergarten
+				max_grade: 2, // 2nd grade
 				created_at: new Date().toISOString(),
 			},
 			{
 				division_id: `${EXTERNAL_ID_PREFIX}junior_division`,
 				name: 'Junior',
-				description: 'Junior Division (4th - 8th Grade)',
-				min_age: 9,
-				max_age: 14,
+				description: 'Junior Division (3rd - 7th Grade)',
+				min_age: 8,
+				max_age: 13,
+				min_grade: 3, // 3rd grade
+				max_grade: 7, // 7th grade
 				created_at: new Date().toISOString(),
 			},
 			{
 				division_id: `${EXTERNAL_ID_PREFIX}senior_division`,
 				name: 'Senior',
-				description: 'Senior Division (9th - 12th Grade)',
-				min_age: 14,
+				description: 'Senior Division (8th - 12th Grade)',
+				min_age: 13,
 				max_age: 18,
+				min_grade: 8, // 8th grade
+				max_grade: 12, // 12th grade
 				created_at: new Date().toISOString(),
 			},
 		];
@@ -1717,7 +1848,9 @@ async function createMinistryEnrollments() {
 			enrollment_date: '2025-01-01',
 			is_active: true,
 		})),
-		// Some children in Bible Bee (ages 8+)
+		// Ten children in Bible Bee with at least 1 in each division
+
+		// Primary division children (K-2nd grade, ages 5-8)
 		{
 			external_id: `${EXTERNAL_ID_PREFIX}enrollment_1_bb`,
 			child_id: children.find(
@@ -1726,6 +1859,17 @@ async function createMinistryEnrollments() {
 			ministry_id: `${EXTERNAL_ID_PREFIX}bible_bee`,
 			enrollment_date: '2025-01-01',
 			is_active: true,
+			division: 'primary', // K-2nd grade
+		},
+		{
+			external_id: `${EXTERNAL_ID_PREFIX}enrollment_2_bb`,
+			child_id: children.find(
+				(c) => c.external_id === `${EXTERNAL_ID_PREFIX}child_2`
+			)?.child_id,
+			ministry_id: `${EXTERNAL_ID_PREFIX}bible_bee`,
+			enrollment_date: '2025-01-01',
+			is_active: true,
+			division: 'primary', // K-2nd grade
 		},
 		{
 			external_id: `${EXTERNAL_ID_PREFIX}enrollment_3_bb`,
@@ -1735,6 +1879,81 @@ async function createMinistryEnrollments() {
 			ministry_id: `${EXTERNAL_ID_PREFIX}bible_bee`,
 			enrollment_date: '2025-01-01',
 			is_active: true,
+			division: 'primary', // K-2nd grade
+		},
+
+		// Junior division children (3rd-7th grade, ages 8-13)
+		{
+			external_id: `${EXTERNAL_ID_PREFIX}enrollment_5_bb`,
+			child_id: children.find(
+				(c) => c.external_id === `${EXTERNAL_ID_PREFIX}child_5`
+			)?.child_id,
+			ministry_id: `${EXTERNAL_ID_PREFIX}bible_bee`,
+			enrollment_date: '2025-01-01',
+			is_active: true,
+			division: 'junior', // 3rd-7th grade
+		},
+		{
+			external_id: `${EXTERNAL_ID_PREFIX}enrollment_6_bb`,
+			child_id: children.find(
+				(c) => c.external_id === `${EXTERNAL_ID_PREFIX}child_6`
+			)?.child_id,
+			ministry_id: `${EXTERNAL_ID_PREFIX}bible_bee`,
+			enrollment_date: '2025-01-01',
+			is_active: true,
+			division: 'junior', // 3rd-7th grade
+		},
+		{
+			external_id: `${EXTERNAL_ID_PREFIX}enrollment_7_bb`,
+			child_id: children.find(
+				(c) => c.external_id === `${EXTERNAL_ID_PREFIX}child_7`
+			)?.child_id,
+			ministry_id: `${EXTERNAL_ID_PREFIX}bible_bee`,
+			enrollment_date: '2025-01-01',
+			is_active: true,
+			division: 'junior', // 3rd-7th grade
+		},
+
+		// Senior division children (8th-12th grade, ages 13-18)
+		{
+			external_id: `${EXTERNAL_ID_PREFIX}enrollment_9_bb`,
+			child_id: children.find(
+				(c) => c.external_id === `${EXTERNAL_ID_PREFIX}child_9`
+			)?.child_id,
+			ministry_id: `${EXTERNAL_ID_PREFIX}bible_bee`,
+			enrollment_date: '2025-01-01',
+			is_active: true,
+			division: 'senior', // 8th-12th grade
+		},
+		{
+			external_id: `${EXTERNAL_ID_PREFIX}enrollment_10_bb`,
+			child_id: children.find(
+				(c) => c.external_id === `${EXTERNAL_ID_PREFIX}child_10`
+			)?.child_id,
+			ministry_id: `${EXTERNAL_ID_PREFIX}bible_bee`,
+			enrollment_date: '2025-01-01',
+			is_active: true,
+			division: 'senior', // 8th-12th grade
+		},
+		{
+			external_id: `${EXTERNAL_ID_PREFIX}enrollment_11_bb`,
+			child_id: children.find(
+				(c) => c.external_id === `${EXTERNAL_ID_PREFIX}child_11`
+			)?.child_id,
+			ministry_id: `${EXTERNAL_ID_PREFIX}bible_bee`,
+			enrollment_date: '2025-01-01',
+			is_active: true,
+			division: 'senior', // 8th-12th grade
+		},
+		{
+			external_id: `${EXTERNAL_ID_PREFIX}enrollment_12_bb`,
+			child_id: children.find(
+				(c) => c.external_id === `${EXTERNAL_ID_PREFIX}child_12`
+			)?.child_id,
+			ministry_id: `${EXTERNAL_ID_PREFIX}bible_bee`,
+			enrollment_date: '2025-01-01',
+			is_active: true,
+			division: 'senior', // 8th-12th grade
 		},
 	];
 
@@ -1785,6 +2004,201 @@ async function createMinistryEnrollments() {
 
 			console.log(`✅ Created enrollment: ${enrollmentData.enrollment_id}`);
 		}
+	}
+}
+
+/**
+ * Create household registrations with multiple ministry enrollments
+ */
+async function createHouseholdRegistrations() {
+	try {
+		console.log(
+			'📋 Creating household registrations with ministry enrollments...'
+		);
+
+		// Get households
+		const { data: households, error: householdsError } = await supabase
+			.from('households')
+			.select('household_id, external_id')
+			.like('external_id', `${EXTERNAL_ID_PREFIX}%`)
+			.limit(10); // Get first 10 households
+
+		if (householdsError) {
+			throw new Error(`Failed to fetch households: ${householdsError.message}`);
+		}
+
+		if (!households || !households.length) {
+			console.log('⚠️ No households found, skipping registrations');
+			return;
+		}
+
+		console.log(`✅ Found ${households.length} households for registrations`);
+
+		// Get all children from these households
+		const { data: householdChildren, error: childrenError } = await supabase
+			.from('children')
+			.select('child_id, household_id, external_id, first_name, last_name')
+			.in(
+				'household_id',
+				households.map((h) => h.household_id)
+			);
+
+		if (childrenError) {
+			throw new Error(`Failed to fetch children: ${childrenError.message}`);
+		}
+
+		// Get all ministries
+		const { data: ministries, error: ministryError } = await supabase
+			.from('ministries')
+			.select('ministry_id, name, code')
+			.like('ministry_id', `${EXTERNAL_ID_PREFIX}%`);
+
+		if (ministryError) {
+			throw new Error(`Failed to fetch ministries: ${ministryError.message}`);
+		}
+
+		if (!ministries || ministries.length < 5) {
+			console.log('⚠️ Not enough ministries found, need at least 5');
+			return;
+		}
+
+		// Create or get the registration cycle
+		const activeCycleId = await createRegistrationCycle();
+
+		// Create registrations for each household
+		for (const household of households) {
+			const householdId = household.household_id;
+
+			// Get children for this household
+			const children = householdChildren.filter(
+				(c) => c.household_id === householdId
+			);
+
+			if (!children || children.length === 0) {
+				console.log(
+					`⚠️ No children found for household ${household.external_id}, skipping registration`
+				);
+				continue;
+			}
+
+			// Create a registration
+			const registrationData = {
+				registration_id: `${EXTERNAL_ID_PREFIX}reg_${
+					household.external_id.split('_')[2]
+				}`,
+				household_id: householdId,
+				cycle_id: activeCycleId,
+				status: 'approved',
+				created_at: new Date().toISOString(),
+				approved_at: new Date().toISOString(),
+			};
+
+			// Check if registration already exists
+			const { data: existingReg, error: checkRegError } = await supabase
+				.from('registrations')
+				.select('registration_id')
+				.eq('registration_id', registrationData.registration_id)
+				.single();
+
+			if (checkRegError && checkRegError.code !== 'PGRST116') {
+				console.error(`Error checking registration: ${checkRegError.message}`);
+				continue;
+			}
+
+			if (existingReg) {
+				console.log(
+					`✅ Registration already exists for household ${household.external_id}`
+				);
+			} else {
+				const { error: insertRegError } = await supabase
+					.from('registrations')
+					.insert(registrationData);
+
+				if (insertRegError) {
+					console.error(
+						`Failed to create registration for household ${household.external_id}: ${insertRegError.message}`
+					);
+					continue;
+				}
+
+				console.log(
+					`✅ Created registration for household ${household.external_id}`
+				);
+			}
+
+			// Now enroll each child in at least 5 random ministries
+			for (const child of children) {
+				// Shuffle ministries and take first 5
+				const shuffledMinistries = [...ministries]
+					.sort(() => 0.5 - Math.random())
+					.slice(0, 5);
+
+				// Skip if we don't have enough ministries
+				if (shuffledMinistries.length < 5) {
+					console.log(
+						`⚠️ Not enough ministries for child ${child.external_id}, need 5`
+					);
+					continue;
+				}
+
+				// Create enrollments for each ministry
+				for (const ministry of shuffledMinistries) {
+					const enrollmentData = {
+						enrollment_id: `${EXTERNAL_ID_PREFIX}enroll_${
+							child.external_id.split('_')[2]
+						}_${ministry.code || ministry.ministry_id.split('_').pop()}`,
+						child_id: child.child_id,
+						ministry_id: ministry.ministry_id,
+						status: 'active',
+						created_at: new Date().toISOString(),
+					};
+
+					// Check if enrollment already exists
+					const { data: existingEnroll, error: checkEnrollError } =
+						await supabase
+							.from('ministry_enrollments')
+							.select('enrollment_id')
+							.eq('enrollment_id', enrollmentData.enrollment_id)
+							.single();
+
+					if (checkEnrollError && checkEnrollError.code !== 'PGRST116') {
+						console.error(
+							`Error checking enrollment: ${checkEnrollError.message}`
+						);
+						continue;
+					}
+
+					if (existingEnroll) {
+						console.log(
+							`✅ Enrollment already exists: ${enrollmentData.enrollment_id}`
+						);
+					} else {
+						const { error: insertEnrollError } = await supabase
+							.from('ministry_enrollments')
+							.insert(enrollmentData);
+
+						if (insertEnrollError) {
+							console.error(
+								`Failed to create enrollment ${enrollmentData.enrollment_id}: ${insertEnrollError.message}`
+							);
+							continue;
+						}
+
+						console.log(
+							`✅ Created enrollment: ${enrollmentData.enrollment_id}`
+						);
+					}
+				}
+
+				console.log(
+					`✅ Enrolled child ${child.first_name} ${child.last_name} in 5 ministries`
+				);
+			}
+		}
+
+		console.log('✅ Household registrations created successfully');
+	} catch (error) {
+		console.error('❌ Error creating household registrations:', error);
 	}
 }
 
@@ -1858,7 +2272,13 @@ async function seedUATData() {
 		await createMinistries();
 		await createMinistryLeaders();
 
-		// Create competition year
+		// Create a registration cycle for the next 6 months
+		const registrationCycleId = await createRegistrationCycle();
+		console.log(
+			`✅ Registration cycle created/found with ID: ${registrationCycleId}`
+		);
+
+		// Create competition year and link it to the registration cycle
 		const yearId = await createCompetitionYear();
 
 		// Create Bible Bee divisions
@@ -1879,21 +2299,30 @@ async function seedUATData() {
 		// Create ministry enrollments
 		await createMinistryEnrollments();
 
+		// Create household registrations with multiple ministry enrollments
+		await createHouseholdRegistrations();
+
 		// Recalculate division boundaries
 		await recalculateMinimumBoundaries(yearId);
 
 		console.log('🎉 UAT seeding completed successfully!');
 		console.log('📊 Summary:');
+		console.log('- Active registration cycle for the next 6 months');
 		console.log('- 20 ministries with 5 ministry leaders assigned');
 		console.log(
 			'- Competition year 2025-2026 with 3 divisions: Primary, Junior, Senior'
 		);
+		console.log('- Bible Bee year linked to the active registration cycle');
 		console.log(
 			'- Grade rules for scripture memorization and Senior division essay'
 		);
 		console.log('- Scriptures with NIV, KJV, and Spanish texts');
 		console.log('- Essay prompt for Senior division');
 		console.log('- 3 households with guardians and children');
+		console.log('- 10 Bible Bee enrollments with children in all divisions');
+		console.log(
+			'- 3 household registrations with 5+ ministries per child (linked to active cycle)'
+		);
 		console.log('- Ministry enrollments for children');
 	} catch (error) {
 		console.error('❌ Seeding failed:', error.message);
