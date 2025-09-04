@@ -701,7 +701,7 @@ export async function registerHousehold(data: any, cycle_id: string, isPrefill: 
                             if (ministry.code === 'bible-bee') {
                                 try {
                                     const bibleBeeYears = await dbAdapter.listBibleBeeYears();
-                                    const bibleBeeYear = bibleBeeYears.find(year => year.cycle_id === cycle_id && year.is_active);
+                                    const bibleBeeYear = bibleBeeYears.find(year => year.is_active);
                                     
                                     if (bibleBeeYear) {
                                         const gradeNum = child.grade ? gradeToCode(child.grade) : 0;
@@ -1475,29 +1475,59 @@ function normalizePhone(phone?: string): string | undefined {
 
 // Query all leader profiles with their membership counts
 export async function queryLeaderProfiles() {
-    const profiles = await db.leader_profiles.toArray();
-    const memberships = await db.ministry_leader_memberships.toArray();
-    
-    // Sort by last name, then first name
-    profiles.sort((a, b) => {
-        const lastNameCompare = a.last_name.localeCompare(b.last_name);
-        if (lastNameCompare !== 0) return lastNameCompare;
-        return a.first_name.localeCompare(b.first_name);
-    });
-    
-    // Create a map of leader_id to ministry count (only active memberships)
-    const membershipCounts = memberships.reduce((acc, m) => {
-        if (m.is_active) {
-            acc[m.leader_id] = (acc[m.leader_id] || 0) + 1;
-        }
-        return acc;
-    }, {} as Record<string, number>);
-    
-    return profiles.map(profile => ({
-        ...profile,
-        ministryCount: membershipCounts[profile.leader_id] || 0,
-        is_active: profile.is_active && (membershipCounts[profile.leader_id] || 0) > 0
-    }));
+    if (shouldUseAdapter()) {
+        // Use Supabase adapter for live mode
+        const [profiles, memberships] = await Promise.all([
+            dbAdapter.listLeaderProfiles(),
+            dbAdapter.listMinistryLeaderMemberships()
+        ]);
+        
+        // Sort by last name, then first name
+        profiles.sort((a, b) => {
+            const lastNameCompare = a.last_name.localeCompare(b.last_name);
+            if (lastNameCompare !== 0) return lastNameCompare;
+            return a.first_name.localeCompare(b.first_name);
+        });
+        
+        // Create a map of leader_id to ministry count (only active memberships)
+        const membershipCounts = memberships.reduce((acc, m) => {
+            if (m.is_active) {
+                acc[m.leader_id] = (acc[m.leader_id] || 0) + 1;
+            }
+            return acc;
+        }, {} as Record<string, number>);
+        
+        return profiles.map(profile => ({
+            ...profile,
+            ministryCount: membershipCounts[profile.leader_id] || 0,
+            is_active: profile.is_active && (membershipCounts[profile.leader_id] || 0) > 0
+        }));
+    } else {
+        // Use legacy Dexie interface for demo mode
+        const profiles = await db.leader_profiles.toArray();
+        const memberships = await db.ministry_leader_memberships.toArray();
+        
+        // Sort by last name, then first name
+        profiles.sort((a, b) => {
+            const lastNameCompare = a.last_name.localeCompare(b.last_name);
+            if (lastNameCompare !== 0) return lastNameCompare;
+            return a.first_name.localeCompare(b.first_name);
+        });
+        
+        // Create a map of leader_id to ministry count (only active memberships)
+        const membershipCounts = memberships.reduce((acc, m) => {
+            if (m.is_active) {
+                acc[m.leader_id] = (acc[m.leader_id] || 0) + 1;
+            }
+            return acc;
+        }, {} as Record<string, number>);
+        
+        return profiles.map(profile => ({
+            ...profile,
+            ministryCount: membershipCounts[profile.leader_id] || 0,
+            is_active: profile.is_active && (membershipCounts[profile.leader_id] || 0) > 0
+        }));
+    }
 }
 
 // Get leader profile with all memberships
@@ -1738,38 +1768,75 @@ export async function getMinistryRoster(ministryId: string) {
 export async function searchLeaderProfiles(searchTerm: string) {
     const lowerSearchTerm = searchTerm.toLowerCase();
     
-    const profiles = await db.leader_profiles
-        .filter(profile => {
+    if (shouldUseAdapter()) {
+        // Use Supabase adapter for live mode
+        const [allProfiles, memberships] = await Promise.all([
+            dbAdapter.listLeaderProfiles(),
+            dbAdapter.listMinistryLeaderMemberships()
+        ]);
+        
+        const profiles = allProfiles.filter(profile => {
             const fullName = `${profile.first_name} ${profile.last_name}`.toLowerCase();
             const email = profile.email?.toLowerCase() || '';
             
             return fullName.includes(lowerSearchTerm) || email.includes(lowerSearchTerm);
-        })
-        .toArray();
-    
-    // Sort by last name, then first name
-    profiles.sort((a, b) => {
-        const lastNameCompare = a.last_name.localeCompare(b.last_name);
-        if (lastNameCompare !== 0) return lastNameCompare;
-        return a.first_name.localeCompare(b.first_name);
-    });
-    
-    // Get all memberships to calculate counts
-    const memberships = await db.ministry_leader_memberships.toArray();
-    
-    // Create a map of leader_id to ministry count (only active memberships)
-    const membershipCounts = memberships.reduce((acc, m) => {
-        if (m.is_active) {
-            acc[m.leader_id] = (acc[m.leader_id] || 0) + 1;
-        }
-        return acc;
-    }, {} as Record<string, number>);
-    
-    return profiles.map(profile => ({
-        ...profile,
-        ministryCount: membershipCounts[profile.leader_id] || 0,
-        is_active: profile.is_active && (membershipCounts[profile.leader_id] || 0) > 0
-    }));
+        });
+        
+        // Sort by last name, then first name
+        profiles.sort((a, b) => {
+            const lastNameCompare = a.last_name.localeCompare(b.last_name);
+            if (lastNameCompare !== 0) return lastNameCompare;
+            return a.first_name.localeCompare(b.first_name);
+        });
+        
+        // Create a map of leader_id to ministry count (only active memberships)
+        const membershipCounts = memberships.reduce((acc, m) => {
+            if (m.is_active) {
+                acc[m.leader_id] = (acc[m.leader_id] || 0) + 1;
+            }
+            return acc;
+        }, {} as Record<string, number>);
+        
+        return profiles.map(profile => ({
+            ...profile,
+            ministryCount: membershipCounts[profile.leader_id] || 0,
+            is_active: profile.is_active && (membershipCounts[profile.leader_id] || 0) > 0
+        }));
+    } else {
+        // Use legacy Dexie interface for demo mode
+        const profiles = await db.leader_profiles
+            .filter(profile => {
+                const fullName = `${profile.first_name} ${profile.last_name}`.toLowerCase();
+                const email = profile.email?.toLowerCase() || '';
+                
+                return fullName.includes(lowerSearchTerm) || email.includes(lowerSearchTerm);
+            })
+            .toArray();
+        
+        // Sort by last name, then first name
+        profiles.sort((a, b) => {
+            const lastNameCompare = a.last_name.localeCompare(b.last_name);
+            if (lastNameCompare !== 0) return lastNameCompare;
+            return a.first_name.localeCompare(b.first_name);
+        });
+        
+        // Get all memberships to calculate counts
+        const memberships = await db.ministry_leader_memberships.toArray();
+        
+        // Create a map of leader_id to ministry count (only active memberships)
+        const membershipCounts = memberships.reduce((acc, m) => {
+            if (m.is_active) {
+                acc[m.leader_id] = (acc[m.leader_id] || 0) + 1;
+            }
+            return acc;
+        }, {} as Record<string, number>);
+        
+        return profiles.map(profile => ({
+            ...profile,
+            ministryCount: membershipCounts[profile.leader_id] || 0,
+            is_active: profile.is_active && (membershipCounts[profile.leader_id] || 0) > 0
+        }));
+    }
 }
 
 // Get ministry accounts
