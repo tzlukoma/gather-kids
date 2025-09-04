@@ -32,7 +32,7 @@ import {
 } from '@/components/ui/accordion';
 import { useToast } from '@/hooks/use-toast';
 import { PlusCircle, Trash2, AlertTriangle, Info } from 'lucide-react';
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { Textarea } from '@/components/ui/textarea';
 import { findHouseholdByEmail, registerHousehold } from '@/lib/dal';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -547,7 +547,7 @@ export default function RegisterPage() {
 		return { otherMinistryPrograms: otherMinistries, choirPrograms: choir };
 	}, [enrolledPrograms]);
 
-	const prefillForm = (data: any) => {
+	const prefillForm = useCallback((data: any) => {
 		const householdData = data.household;
 		const registrationData: Partial<RegistrationFormValues> = {
 			household: {
@@ -566,9 +566,45 @@ export default function RegisterPage() {
 				data.children.map((_: any, index: number) => `item-${index}`)
 			);
 		}
-	};
+	}, [form]);
 
-	const handleEmailLookup = async () => {
+	const proceedToRegistrationForm = useCallback(() => {
+		toast({
+			title: 'New Registration',
+			description: 'Please complete the form below to register your family.',
+		});
+		setIsCurrentYearOverwrite(false);
+		setIsPrefill(false);
+		form.reset({
+			household: { name: '', address_line1: '' },
+			guardians: [
+				{
+					first_name: '',
+					last_name: '',
+					mobile_phone: '',
+					email: verificationEmail,
+					relationship: 'Mother',
+					is_primary: true,
+				},
+			],
+			emergencyContact: {
+				first_name: '',
+				last_name: '',
+				mobile_phone: '',
+				relationship: '',
+			},
+			children: [defaultChildValues],
+			consents: {
+				liability: false,
+				photoRelease: false,
+				custom_consents: {},
+			},
+		});
+		setOpenAccordionItems(['item-0']);
+		setVerificationStep('form_visible');
+	}, [toast, verificationEmail, form]);
+
+	const handleEmailLookup = useCallback(async () => {
 		if (!verificationEmail) return;
 
 		// Use current year for lookup
@@ -621,43 +657,7 @@ export default function RegisterPage() {
 				proceedToRegistrationForm();
 			}
 		}
-	};
-
-	const proceedToRegistrationForm = () => {
-		toast({
-			title: 'New Registration',
-			description: 'Please complete the form below to register your family.',
-		});
-		setIsCurrentYearOverwrite(false);
-		setIsPrefill(false);
-		form.reset({
-			household: { name: '', address_line1: '' },
-			guardians: [
-				{
-					first_name: '',
-					last_name: '',
-					mobile_phone: '',
-					email: verificationEmail,
-					relationship: 'Mother',
-					is_primary: true,
-				},
-			],
-			emergencyContact: {
-				first_name: '',
-				last_name: '',
-				mobile_phone: '',
-				relationship: '',
-			},
-			children: [defaultChildValues],
-			consents: {
-				liability: false,
-				photoRelease: false,
-				custom_consents: {},
-			},
-		});
-		setOpenAccordionItems(['item-0']);
-		setVerificationStep('form_visible');
-	};
+	}, [verificationEmail, toast, flags.loginMagicEnabled, flags.isDemoMode, proceedToRegistrationForm, prefillForm]);
 
 	useEffect(() => {
 		// Check if user is authenticated and skip email lookup if so
@@ -673,86 +673,108 @@ export default function RegisterPage() {
 			
 			// Check if they have existing household data
 			const checkExistingData = async () => {
-				const result = await findHouseholdByEmail(user.email, '2025');
-				
-				if (result) {
-					toast({
-						title: 'Household Found!',
-						description: 'Your information has been pre-filled for you to review.',
-					});
-					prefillForm(result.data);
-					setIsCurrentYearOverwrite(result.isCurrentYear);
-					setIsPrefill(result.isPrefill || false);
-				} else {
-					// New registration with authenticated email
+				try {
+					const result = await findHouseholdByEmail(user.email, '2025');
+					
+					if (result) {
+						toast({
+							title: 'Household Found!',
+							description: 'Your information has been pre-filled for you to review.',
+						});
+						prefillForm(result.data);
+						setIsCurrentYearOverwrite(result.isCurrentYear);
+						setIsPrefill(result.isPrefill || false);
+					} else {
+						// New registration with authenticated email
+						toast({
+							title: 'Complete Your Registration',
+							description: 'Please complete the form below to register your family.',
+						});
+						setIsCurrentYearOverwrite(false);
+						setIsPrefill(false);
+						form.reset({
+							household: { name: '', address_line1: '', preferredScriptureTranslation: 'NIV' },
+							guardians: [
+								{
+									first_name: '',
+									last_name: '',
+									mobile_phone: '',
+									email: user.email, // Pre-fill with authenticated user's email
+									relationship: 'Mother',
+									is_primary: true,
+								},
+							],
+							emergencyContact: {
+								first_name: '',
+								last_name: '',
+								mobile_phone: '',
+								relationship: '',
+							},
+							children: [defaultChildValues],
+							consents: {
+								liability: false,
+								photoRelease: false,
+								custom_consents: {},
+							},
+						});
+						setOpenAccordionItems(['item-0']);
+					}
+					
+					setVerificationStep('form_visible');
+				} catch (error) {
+					console.error('Error checking existing household data:', error);
+					// Fallback to new registration form
 					toast({
 						title: 'Complete Your Registration',
 						description: 'Please complete the form below to register your family.',
 					});
 					setIsCurrentYearOverwrite(false);
 					setIsPrefill(false);
-					form.reset({
-						household: { name: '', address_line1: '', preferredScriptureTranslation: 'NIV' },
-						guardians: [
-							{
-								first_name: '',
-								last_name: '',
-								mobile_phone: '',
-								email: user.email, // Pre-fill with authenticated user's email
-								relationship: 'Mother',
-								is_primary: true,
-							},
-						],
-						emergencyContact: {
-							first_name: '',
-							last_name: '',
-							mobile_phone: '',
-							relationship: '',
-						},
-						children: [defaultChildValues],
-						consents: {
-							liability: false,
-							photoRelease: false,
-							custom_consents: {},
-						},
-					});
-					setOpenAccordionItems(['item-0']);
+					setVerificationStep('form_visible');
 				}
-				
-				setVerificationStep('form_visible');
 			};
 			
 			checkExistingData();
 		}
-	}, [user, flags.isDemoMode, toast, form]);
+	}, [user, flags.isDemoMode, toast, form, prefillForm]);
 
 	// Focus on the first field when the form becomes visible for authenticated users
 	useEffect(() => {
+		let timer: NodeJS.Timeout | null = null;
+		
 		if (verificationStep === 'form_visible' && isAuthenticatedUser) {
 			// Use a small delay to ensure the form has rendered
-			const timer = setTimeout(() => {
+			timer = setTimeout(() => {
 				const firstField = document.querySelector('input[name="household.address_line1"]') as HTMLInputElement;
 				if (firstField) {
 					firstField.focus();
 				}
 			}, 100);
-			
-			return () => clearTimeout(timer);
 		}
+		
+		return () => {
+			if (timer) {
+				clearTimeout(timer);
+			}
+		};
 	}, [verificationStep, isAuthenticatedUser]);
 
 	useEffect(() => {
 		const handleEnterPress = (event: KeyboardEvent) => {
 			if (event.key === 'Enter' && verificationStep === 'enter_email') {
+				event.preventDefault();
 				handleEmailLookup();
 			}
 		};
-		window.addEventListener('keydown', handleEnterPress);
+		
+		if (verificationStep === 'enter_email') {
+			window.addEventListener('keydown', handleEnterPress);
+		}
+		
 		return () => {
 			window.removeEventListener('keydown', handleEnterPress);
 		};
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [verificationEmail, verificationStep]);
+	}, [verificationStep, verificationEmail, handleEmailLookup]);
 
 	async function onSubmit(data: RegistrationFormValues) {
 		try {
