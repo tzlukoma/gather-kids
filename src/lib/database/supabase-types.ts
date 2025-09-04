@@ -1,7 +1,7 @@
 /**
  * This file contains types generated from the Supabase schema.
  * DO NOT EDIT MANUALLY. This file is auto-generated.
- * Generated on: 2025-09-04T00:12:58.339Z
+ * Generated on: 2025-09-04T01:21:24.187Z
  */
 
 export type SupabaseJson =
@@ -894,7 +894,7 @@ export type Database = {
       }
       scriptures: {
         Row: {
-          competition_year_id: string
+          competition_year_id: string | null
           created_at: string | null
           external_id: string | null
           id: string
@@ -904,7 +904,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
-          competition_year_id: string
+          competition_year_id?: string | null
           created_at?: string | null
           external_id?: string | null
           id?: string
@@ -914,7 +914,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
-          competition_year_id?: string
+          competition_year_id?: string | null
           created_at?: string | null
           external_id?: string | null
           id?: string
@@ -1221,35 +1221,14 @@ export type CompositeTypes<
     : never = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
- * Generated on: 2025-09-04T00:21:51.675Z
- */
-
-// Supabase CLI not available - using fallback types
-// Install Supabase CLI to generate actual types from schema
-
-export interface Database {
-	public: {
-		Tables: {
-			[key: string]: {
-				Row: any;
-				Insert: any;
-				Update: any;
-				Relationships: any[];
-			};
-		};
-		Views: {
-			[_ in never]: never;
-		};
-		Functions: {
-			[_ in never]: never;
-		};
-		Enums: {
-			[_ in never]: never;
-		};
-		CompositeTypes: {
-			[_ in never]: never;
-		};
-	};
 }
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never
 
-export type SupabaseJson = any;
+export const Constants = {
+  public: {
+    Enums: {},
+  },
+} as const
