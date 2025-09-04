@@ -4,6 +4,8 @@ BEGIN;
 
 -- Check if the scriptures table exists and if competition_year_id column is uuid type
 DO $$
+DECLARE
+  constraint_name TEXT;
 BEGIN
   -- Only proceed if the scriptures table exists
   IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'scriptures') THEN
@@ -19,24 +21,18 @@ BEGIN
       
       RAISE NOTICE 'Converting scriptures.competition_year_id from uuid to text';
       
-      -- Drop the column and recreate it as text to avoid type conversion issues
-      -- First drop any foreign key constraints referencing this column
-      DO $$
-      DECLARE
-        constraint_name TEXT;
-      BEGIN
-        FOR constraint_name IN
-          SELECT tc.constraint_name
-          FROM information_schema.table_constraints tc
-          JOIN information_schema.key_column_usage kcu ON tc.constraint_name = kcu.constraint_name
-          WHERE tc.table_name = 'scriptures'
-          AND kcu.column_name = 'competition_year_id'
-          AND tc.constraint_type = 'FOREIGN KEY'
-        LOOP
-          EXECUTE 'ALTER TABLE scriptures DROP CONSTRAINT ' || constraint_name;
-          RAISE NOTICE 'Dropped foreign key constraint: %', constraint_name;
-        END LOOP;
-      END $$;
+      -- Drop any foreign key constraints referencing this column
+      FOR constraint_name IN
+        SELECT tc.constraint_name
+        FROM information_schema.table_constraints tc
+        JOIN information_schema.key_column_usage kcu ON tc.constraint_name = kcu.constraint_name
+        WHERE tc.table_name = 'scriptures'
+        AND kcu.column_name = 'competition_year_id'
+        AND tc.constraint_type = 'FOREIGN KEY'
+      LOOP
+        EXECUTE 'ALTER TABLE scriptures DROP CONSTRAINT ' || constraint_name;
+        RAISE NOTICE 'Dropped foreign key constraint: %', constraint_name;
+      END LOOP;
       
       -- Drop and recreate the column as text
       ALTER TABLE scriptures DROP COLUMN competition_year_id;
