@@ -71,9 +71,12 @@ jobs:
           echo "✅ UAT seed script completed successfully!"
 
       - name: Run Bible Bee Direct Seed Script
-        # The Bible Bee script uses the same environment variables
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.UAT_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.UAT_SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           echo "🏆 Starting Bible Bee direct seed script..."
+          echo "🔗 Using Supabase URL: ${{ secrets.UAT_SUPABASE_URL }}"
           npm run seed:uat:bible-bee
           echo "✅ Bible Bee seed script completed successfully!"
 

@@ -47,7 +47,33 @@ async function main() {
 	try {
 		console.log('🏆 Bible Bee Direct Seed Starting...');
 
-		// 1. Find Bible Bee Year ID
+		// Verify connection to Supabase
+		try {
+			const { error: healthCheckError } = await supabase
+				.from('ministries')
+				.select('count')
+				.limit(1);
+			if (healthCheckError) {
+				console.error(
+					`❌ FATAL ERROR: Cannot connect to Supabase: ${healthCheckError.message}`
+				);
+				console.error(
+					'Please check your environment variables and network connection.'
+				);
+				process.exit(1);
+			}
+			console.log('✅ Connection to Supabase verified');
+		} catch (err) {
+			console.error(
+				`❌ FATAL ERROR: Cannot connect to Supabase: ${err.message}`
+			);
+			console.error(
+				'Please check your environment variables and network connection.'
+			);
+			process.exit(1);
+		}
+
+		// 1. Find Bible Bee Competition Year...
 		console.log('📅 Finding Bible Bee Competition Year...');
 		const { data: yearData, error: yearError } = await supabase
 			.from('competition_years')
@@ -56,10 +82,12 @@ async function main() {
 			.single();
 
 		if (yearError) {
-			console.log(`❌ Error finding competition year: ${yearError.message}`);
-			return;
+			console.error(`❌ Error finding competition year: ${yearError.message}`);
+			console.error(
+				'Make sure the UAT seed script has been run first to create the competition year.'
+			);
+			process.exit(1);
 		}
-
 		const yearId = yearData.id;
 		console.log(`✅ Found competition year ID: ${yearId}`);
 
@@ -79,21 +107,42 @@ async function main() {
 			updated_at: new Date().toISOString(),
 		};
 
-		const { data: bibleYearResult, error: bibleYearError } = await supabase
+		// First check if Bible Bee Year already exists
+		const { data: existingYear, error: checkYearError } = await supabase
 			.from('bible_bee_years')
-			.insert(bibleYearData)
-			.select()
-			.single();
+			.select('id')
+			.eq('name', 'Bible Bee 2025-2026')
+			.maybeSingle();
 
-		if (bibleYearError) {
-			console.log(
-				`❌ Error creating Bible Bee year: ${bibleYearError.message}`
+		let bibleYearId;
+
+		if (checkYearError) {
+			console.error(
+				`❌ Error checking for existing Bible Bee year: ${checkYearError.message}`
 			);
-			return;
+			process.exit(1);
 		}
 
-		const bibleYearId = bibleYearResult.id;
-		console.log(`✅ Created Bible Bee year ID: ${bibleYearId}`);
+		if (existingYear) {
+			bibleYearId = existingYear.id;
+			console.log(`✅ Bible Bee year already exists with ID: ${bibleYearId}`);
+		} else {
+			const { data: bibleYearResult, error: bibleYearError } = await supabase
+				.from('bible_bee_years')
+				.insert(bibleYearData)
+				.select()
+				.single();
+
+			if (bibleYearError) {
+				console.error(
+					`❌ FATAL ERROR: Failed to create Bible Bee year: ${bibleYearError.message}`
+				);
+				process.exit(1);
+			}
+
+			bibleYearId = bibleYearResult.id;
+			console.log(`✅ Created Bible Bee year ID: ${bibleYearId}`);
+		}
 
 		// 2. Find Bible Bee ministry ID
 		console.log('🏢 Finding Bible Bee Ministry...');
@@ -104,8 +153,13 @@ async function main() {
 			.single();
 
 		if (ministryError) {
-			console.log(`❌ Error finding ministry: ${ministryError.message}`);
-			return;
+			console.error(
+				`❌ FATAL ERROR: Failed to find Bible Bee ministry: ${ministryError.message}`
+			);
+			console.error(
+				'Make sure the UAT seed script has been run first to create the ministry.'
+			);
+			process.exit(1);
 		}
 
 		const ministryId = ministryData.ministry_id;
@@ -159,8 +213,23 @@ async function main() {
 		];
 
 		const divisionMap = {};
+		let divisionCreationFailed = false;
 
 		for (const divisionData of divisionsData) {
+			// Check if division already exists
+			const { data: existingDivision, error: checkError } = await supabase
+				.from('divisions')
+				.select('id')
+				.eq('name', divisionData.name)
+				.eq('bible_bee_year_id', bibleYearId)
+				.maybeSingle();
+
+			if (existingDivision) {
+				console.log(`✅ Division ${divisionData.name} already exists`);
+				divisionMap[divisionData.name] = existingDivision.id;
+				continue;
+			}
+
 			const { data, error } = await supabase
 				.from('divisions')
 				.insert(divisionData)
@@ -168,13 +237,19 @@ async function main() {
 				.single();
 
 			if (error) {
-				console.log(
+				console.error(
 					`❌ Error creating division ${divisionData.name}: ${error.message}`
 				);
+				divisionCreationFailed = true;
 			} else {
 				console.log(`✅ Created division: ${divisionData.name}`);
 				divisionMap[divisionData.name] = data.id;
 			}
+		}
+
+		if (divisionCreationFailed) {
+			console.error('❌ FATAL ERROR: Failed to create one or more divisions');
+			process.exit(1);
 		}
 
 		// 4. Create grade rules
@@ -230,13 +305,30 @@ async function main() {
 			},
 		];
 
+		let gradeRulesFailed = false;
+
 		for (const ruleData of gradeRulesData) {
+			// Check if rule already exists
+			const { data: existingRule, error: checkRuleError } = await supabase
+				.from('grade_rules')
+				.select('id')
+				.eq('id', ruleData.id)
+				.maybeSingle();
+
+			if (existingRule) {
+				console.log(
+					`✅ Grade rule for ${ruleData.type} (grades ${ruleData.min_grade}-${ruleData.max_grade}) already exists`
+				);
+				continue;
+			}
+
 			const { data, error } = await supabase
 				.from('grade_rules')
 				.insert(ruleData);
 
 			if (error) {
-				console.log(`❌ Error creating grade rule: ${error.message}`);
+				console.error(`❌ Error creating grade rule: ${error.message}`);
+				gradeRulesFailed = true;
 			} else {
 				console.log(
 					`✅ Created grade rule for ${ruleData.type} (grades ${ruleData.min_grade}-${ruleData.max_grade})`
@@ -244,15 +336,20 @@ async function main() {
 			}
 		}
 
+		if (gradeRulesFailed) {
+			console.error('❌ FATAL ERROR: Failed to create one or more grade rules');
+			process.exit(1);
+		}
+
 		// 5. Create essay prompt
 		console.log('📝 Creating essay prompt...');
 		const seniorDivisionId = divisionMap?.Senior;
 
 		if (!seniorDivisionId) {
-			console.log(
-				`❌ Senior Division ID not found, skipping essay prompt creation`
+			console.error(
+				`❌ FATAL ERROR: Senior Division ID not found, cannot create essay prompt`
 			);
-			return;
+			process.exit(1);
 		}
 
 		const essayPromptData = {
@@ -269,20 +366,44 @@ async function main() {
 			updated_at: new Date().toISOString(),
 		};
 
-		const { error: promptError } = await supabase
+		// Check if essay prompt already exists
+		const { data: existingPrompt, error: checkPromptError } = await supabase
 			.from('essay_prompts')
-			.insert(essayPromptData);
+			.select('id')
+			.eq('division_id', seniorDivisionId)
+			.maybeSingle();
 
-		if (promptError) {
-			console.log(`❌ Error creating essay prompt: ${promptError.message}`);
+		if (existingPrompt) {
+			console.log(`✅ Essay prompt for Senior Division already exists`);
 		} else {
-			console.log(`✅ Created essay prompt for Senior Division`);
+			const { error: promptError } = await supabase
+				.from('essay_prompts')
+				.insert(essayPromptData);
+
+			if (promptError) {
+				console.error(
+					`❌ FATAL ERROR: Failed to create essay prompt: ${promptError.message}`
+				);
+				process.exit(1);
+			} else {
+				console.log(`✅ Created essay prompt for Senior Division`);
+			}
 		}
 
 		console.log('🎉 Bible Bee Direct Seed Completed Successfully!');
 	} catch (error) {
-		console.log(`❌ An error occurred: ${error.message}`);
+		console.error(
+			`❌ FATAL ERROR: An unexpected error occurred: ${error.message}`
+		);
+		if (error.stack) {
+			console.error(`Stack trace: ${error.stack}`);
+		}
+		process.exit(1);
 	}
 }
 
-main();
+main().catch((error) => {
+	console.error(`❌ Error: ${error.message}`);
+	console.error('❌ Bible Bee seed script failed!');
+	process.exit(1);
+});
