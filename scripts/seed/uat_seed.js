@@ -154,6 +154,35 @@ function parseJsonTexts() {
 }
 
 /**
+ * Verify database schema compatibility
+ */
+async function verifySchemaCompatibility() {
+    console.log('🔍 Verifying database schema compatibility...');
+    
+    // Check if competition_years table exists
+    const { data: compYearSchema, error: compYearError } = await supabase
+        .from('competition_years')
+        .select('id')
+        .limit(1);
+        
+    if (compYearError) {
+        throw new Error(`competition_years table not accessible: ${compYearError.message}`);
+    }
+    
+    // Check scriptures table schema by trying to query it
+    const { data: scripturesSchema, error: scripturesError } = await supabase
+        .from('scriptures')
+        .select('id, competition_year_id')
+        .limit(1);
+        
+    if (scripturesError) {
+        throw new Error(`scriptures table not accessible: ${scripturesError.message}`);
+    }
+    
+    console.log('✅ Database schema compatibility verified');
+}
+
+/**
  * Create Bible Bee competition year (simplified)
  */
 async function createCompetitionYear() {
@@ -250,35 +279,46 @@ async function createScriptures(yearId) {
 
     // Upsert scriptures
     for (const scriptureData of scripturesData) {
-        const { data: existing, error: checkError } = await supabase
-            .from('scriptures')
-            .select('id')
-            .eq('external_id', scriptureData.external_id)
-            .single();
-
-        if (checkError && checkError.code !== 'PGRST116') {
-            throw new Error(`Error checking scripture ${scriptureData.reference}: ${checkError.message}`);
-        }
-
-        if (existing) {
-            // Update existing
-            const { error: updateError } = await supabase
+        try {
+            const { data: existing, error: checkError } = await supabase
                 .from('scriptures')
-                .update(scriptureData)
-                .eq('id', existing.id);
+                .select('id')
+                .eq('external_id', scriptureData.external_id)
+                .single();
 
-            if (updateError) {
-                throw new Error(`Failed to update scripture ${scriptureData.reference}: ${updateError.message}`);
+            if (checkError && checkError.code !== 'PGRST116') {
+                throw new Error(`Error checking scripture ${scriptureData.reference}: ${checkError.message}`);
             }
-        } else {
-            // Insert new
-            const { error: insertError } = await supabase
-                .from('scriptures')
-                .insert(scriptureData);
 
-            if (insertError) {
-                throw new Error(`Failed to insert scripture ${scriptureData.reference}: ${insertError.message}`);
+            if (existing) {
+                // Update existing
+                const { error: updateError } = await supabase
+                    .from('scriptures')
+                    .update(scriptureData)
+                    .eq('id', existing.id);
+
+                if (updateError) {
+                    console.error(`❌ Failed to update scripture ${scriptureData.reference}:`, updateError);
+                    console.error(`Scripture data:`, JSON.stringify(scriptureData, null, 2));
+                    throw new Error(`Failed to update scripture ${scriptureData.reference}: ${updateError.message}`);
+                }
+            } else {
+                // Insert new
+                console.log(`📖 Inserting scripture: ${scriptureData.reference} (competition_year_id: ${scriptureData.competition_year_id})`);
+                const { error: insertError } = await supabase
+                    .from('scriptures')
+                    .insert(scriptureData);
+
+                if (insertError) {
+                    console.error(`❌ Failed to insert scripture ${scriptureData.reference}:`, insertError);
+                    console.error(`Scripture data:`, JSON.stringify(scriptureData, null, 2));
+                    throw new Error(`Failed to insert scripture ${scriptureData.reference}: ${insertError.message}`);
+                }
             }
+        } catch (error) {
+            console.error(`❌ Error processing scripture ${scriptureData.reference}:`, error.message);
+            console.error(`Scripture data:`, JSON.stringify(scriptureData, null, 2));
+            throw error;
         }
     }
 
@@ -707,6 +747,9 @@ async function recalculateMinimumBoundaries(yearId) {
 async function seedUATData() {
     try {
         console.log('🌱 Starting UAT data seeding...');
+        
+        // Verify schema compatibility first
+        await verifySchemaCompatibility();
         
         if (RESET_MODE) {
             await resetUATData();
