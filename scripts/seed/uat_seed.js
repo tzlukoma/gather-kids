@@ -26,6 +26,7 @@ import fs from 'fs';
 import path from 'path';
 import { createClient } from '@supabase/supabase-js';
 import { fileURLToPath } from 'url';
+import crypto from 'crypto';
 
 // ES module equivalent of __dirname
 const __filename = fileURLToPath(import.meta.url);
