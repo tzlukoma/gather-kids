@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: uat
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -59,7 +59,7 @@ jobs:
           echo "🌱 Starting UAT seed script..."
           echo "📊 Reset mode: ${{ inputs.reset_mode }}"
           echo "🔗 Supabase URL: ${{ secrets.UAT_SUPABASE_URL }}"
-          
+
           if [ "${{ inputs.reset_mode }}" = "true" ]; then
             echo "⚠️  Running in RESET mode - existing data will be deleted!"
             npm run seed:uat:reset
@@ -67,8 +67,15 @@ jobs:
             echo "🔄 Running in IDEMPOTENT mode - safe to re-run"
             npm run seed:uat
           fi
-          
+
           echo "✅ UAT seed script completed successfully!"
+
+      - name: Run Bible Bee Direct Seed Script
+        # The Bible Bee script uses the same environment variables
+        run: |
+          echo "🏆 Starting Bible Bee direct seed script..."
+          npm run seed:uat:bible-bee
+          echo "✅ Bible Bee seed script completed successfully!"
 
       - name: Summary
         run: |
@@ -77,7 +84,8 @@ jobs:
           echo "**Mode:** ${{ inputs.reset_mode == 'true' && 'Reset (delete and re-seed)' || 'Idempotent (upsert)' }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Seeded Data:**" >> $GITHUB_STEP_SUMMARY
-          echo "- 📚 Bible Bee 2025-2026 year with 3 divisions" >> $GITHUB_STEP_SUMMARY
+          echo "- 📚 Bible Bee 2025-2026 year with 3 divisions (Primary, Junior, Senior)" >> $GITHUB_STEP_SUMMARY
+          echo "- 📏 Grade rules for Bible Bee divisions" >> $GITHUB_STEP_SUMMARY
           echo "- 📖 31 scriptures with NIV, KJV, and Spanish translations" >> $GITHUB_STEP_SUMMARY
           echo "- ✍️ Senior Division essay prompt" >> $GITHUB_STEP_SUMMARY
           echo "- 🏠 12 households with 33 children" >> $GITHUB_STEP_SUMMARY

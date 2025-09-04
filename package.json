@@ -18,6 +18,7 @@
     "seed:scriptures": "DOTENV_CONFIG_PATH=.env.local node -r dotenv/config scripts/seed/seedScriptures.js",
     "seed:uat": "DOTENV_CONFIG_PATH=.env.local node -r dotenv/config scripts/seed/uat_seed.js",
     "seed:uat:reset": "DOTENV_CONFIG_PATH=.env.local RESET=true node -r dotenv/config scripts/seed/uat_seed.js",
+    "seed:uat:bible-bee": "DOTENV_CONFIG_PATH=.env.local node -r dotenv/config scripts/seed/seed_bible_bee_direct.js",
     "seed:uat:dry": "DOTENV_CONFIG_PATH=.env.local DRY_RUN=true node -r dotenv/config scripts/seed/uat_seed.js",
     "seed:uat:reset:dry": "DOTENV_CONFIG_PATH=.env.local RESET=true DRY_RUN=true node -r dotenv/config scripts/seed/uat_seed.js",
     "import:grab-dexie": "node scripts/import/grabDexieExport.mjs",
