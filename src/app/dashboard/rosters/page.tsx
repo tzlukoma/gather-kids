@@ -43,6 +43,7 @@ import type {
 	Household,
 	EmergencyContact,
 	Ministry,
+	MinistryEnrollment,
 	Incident,
 } from '@/lib/types';
 import { CheckoutDialog } from '@/components/gatherKids/checkout-dialog';
@@ -198,7 +199,7 @@ export default function RostersPage() {
 					getAllGuardians(),
 					getAllHouseholds(),
 					getAllEmergencyContacts(),
-					getMinistries()
+					getMinistries(true) // Only get active ministries
 				]);
 
 				setAllChildren(childrenData);

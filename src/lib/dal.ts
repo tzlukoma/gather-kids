@@ -2251,7 +2251,16 @@ export async function getCheckedInCount(dateISO: string): Promise<number> {
 	if (shouldUseAdapter()) {
 		// Use Supabase adapter for live mode
 		const attendance = await dbAdapter.listAttendance({ date: dateISO });
-		return attendance.filter(a => !a.check_out_at).length;
+		console.log(`DEBUG: Total attendance records for ${dateISO}:`, attendance.length);
+		const checkedIn = attendance.filter(a => !a.check_out_at);
+		console.log(`DEBUG: Checked-in records (no check_out_at):`, checkedIn.length);
+		console.log(`DEBUG: Sample attendance records:`, attendance.slice(0, 3).map(a => ({
+			id: a.attendance_id,
+			child_id: a.child_id,
+			check_in_at: a.check_in_at,
+			check_out_at: a.check_out_at
+		})));
+		return checkedIn.length;
 	} else {
 		// Use legacy Dexie interface for demo mode
 		try {
