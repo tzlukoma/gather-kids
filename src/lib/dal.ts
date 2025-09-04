@@ -1475,35 +1475,50 @@ function normalizePhone(phone?: string): string | undefined {
 
 // Query all leader profiles with their membership counts
 export async function queryLeaderProfiles() {
+    console.log('queryLeaderProfiles called, shouldUseAdapter():', shouldUseAdapter());
+    
     if (shouldUseAdapter()) {
         // Use Supabase adapter for live mode
-        const [profiles, memberships] = await Promise.all([
-            dbAdapter.listLeaderProfiles(),
-            dbAdapter.listMinistryLeaderMemberships()
-        ]);
-        
-        // Sort by last name, then first name
-        profiles.sort((a, b) => {
-            const lastNameCompare = a.last_name.localeCompare(b.last_name);
-            if (lastNameCompare !== 0) return lastNameCompare;
-            return a.first_name.localeCompare(b.first_name);
-        });
-        
-        // Create a map of leader_id to ministry count (only active memberships)
-        const membershipCounts = memberships.reduce((acc, m) => {
-            if (m.is_active) {
-                acc[m.leader_id] = (acc[m.leader_id] || 0) + 1;
-            }
-            return acc;
-        }, {} as Record<string, number>);
-        
-        return profiles.map(profile => ({
-            ...profile,
-            ministryCount: membershipCounts[profile.leader_id] || 0,
-            is_active: profile.is_active && (membershipCounts[profile.leader_id] || 0) > 0
-        }));
+        console.log('Using Supabase adapter for leader profiles');
+        try {
+            const [profiles, memberships] = await Promise.all([
+                dbAdapter.listLeaderProfiles(),
+                dbAdapter.listMinistryLeaderMemberships()
+            ]);
+            
+            console.log('Raw profiles from Supabase:', profiles);
+            console.log('Raw memberships from Supabase:', memberships);
+            
+            // Sort by last name, then first name
+            profiles.sort((a, b) => {
+                const lastNameCompare = a.last_name.localeCompare(b.last_name);
+                if (lastNameCompare !== 0) return lastNameCompare;
+                return a.first_name.localeCompare(b.first_name);
+            });
+            
+            // Create a map of leader_id to ministry count (only active memberships)
+            const membershipCounts = memberships.reduce((acc, m) => {
+                if (m.is_active) {
+                    acc[m.leader_id] = (acc[m.leader_id] || 0) + 1;
+                }
+                return acc;
+            }, {} as Record<string, number>);
+            
+            const result = profiles.map(profile => ({
+                ...profile,
+                ministryCount: membershipCounts[profile.leader_id] || 0,
+                is_active: profile.is_active && (membershipCounts[profile.leader_id] || 0) > 0
+            }));
+            
+            console.log('Final processed leader profiles:', result);
+            return result;
+        } catch (error) {
+            console.error('Error in Supabase leader query:', error);
+            throw error;
+        }
     } else {
         // Use legacy Dexie interface for demo mode
+        console.log('Using Dexie for leader profiles');
         const profiles = await db.leader_profiles.toArray();
         const memberships = await db.ministry_leader_memberships.toArray();
         
@@ -1767,43 +1782,58 @@ export async function getMinistryRoster(ministryId: string) {
 // Search leader profiles by name or email
 export async function searchLeaderProfiles(searchTerm: string) {
     const lowerSearchTerm = searchTerm.toLowerCase();
+    console.log('searchLeaderProfiles called with term:', searchTerm, 'shouldUseAdapter():', shouldUseAdapter());
     
     if (shouldUseAdapter()) {
         // Use Supabase adapter for live mode
-        const [allProfiles, memberships] = await Promise.all([
-            dbAdapter.listLeaderProfiles(),
-            dbAdapter.listMinistryLeaderMemberships()
-        ]);
-        
-        const profiles = allProfiles.filter(profile => {
-            const fullName = `${profile.first_name} ${profile.last_name}`.toLowerCase();
-            const email = profile.email?.toLowerCase() || '';
+        console.log('Using Supabase adapter for leader search');
+        try {
+            const [allProfiles, memberships] = await Promise.all([
+                dbAdapter.listLeaderProfiles(),
+                dbAdapter.listMinistryLeaderMemberships()
+            ]);
             
-            return fullName.includes(lowerSearchTerm) || email.includes(lowerSearchTerm);
-        });
-        
-        // Sort by last name, then first name
-        profiles.sort((a, b) => {
-            const lastNameCompare = a.last_name.localeCompare(b.last_name);
-            if (lastNameCompare !== 0) return lastNameCompare;
-            return a.first_name.localeCompare(b.first_name);
-        });
-        
-        // Create a map of leader_id to ministry count (only active memberships)
-        const membershipCounts = memberships.reduce((acc, m) => {
-            if (m.is_active) {
-                acc[m.leader_id] = (acc[m.leader_id] || 0) + 1;
-            }
-            return acc;
-        }, {} as Record<string, number>);
-        
-        return profiles.map(profile => ({
-            ...profile,
-            ministryCount: membershipCounts[profile.leader_id] || 0,
-            is_active: profile.is_active && (membershipCounts[profile.leader_id] || 0) > 0
-        }));
+            console.log('Raw profiles for search from Supabase:', allProfiles);
+            
+            const profiles = allProfiles.filter(profile => {
+                const fullName = `${profile.first_name} ${profile.last_name}`.toLowerCase();
+                const email = profile.email?.toLowerCase() || '';
+                
+                return fullName.includes(lowerSearchTerm) || email.includes(lowerSearchTerm);
+            });
+            
+            console.log('Filtered profiles:', profiles);
+            
+            // Sort by last name, then first name
+            profiles.sort((a, b) => {
+                const lastNameCompare = a.last_name.localeCompare(b.last_name);
+                if (lastNameCompare !== 0) return lastNameCompare;
+                return a.first_name.localeCompare(b.first_name);
+            });
+            
+            // Create a map of leader_id to ministry count (only active memberships)
+            const membershipCounts = memberships.reduce((acc, m) => {
+                if (m.is_active) {
+                    acc[m.leader_id] = (acc[m.leader_id] || 0) + 1;
+                }
+                return acc;
+            }, {} as Record<string, number>);
+            
+            const result = profiles.map(profile => ({
+                ...profile,
+                ministryCount: membershipCounts[profile.leader_id] || 0,
+                is_active: profile.is_active && (membershipCounts[profile.leader_id] || 0) > 0
+            }));
+            
+            console.log('Final search results:', result);
+            return result;
+        } catch (error) {
+            console.error('Error in Supabase leader search:', error);
+            throw error;
+        }
     } else {
         // Use legacy Dexie interface for demo mode
+        console.log('Using Dexie for leader search');
         const profiles = await db.leader_profiles
             .filter(profile => {
                 const fullName = `${profile.first_name} ${profile.last_name}`.toLowerCase();
