@@ -2458,7 +2458,14 @@ async function verifyTableCleared(tableName, filterCondition) {
 		query = query.like('cycle_id', `${EXTERNAL_ID_PREFIX}%`);
 	} else if (filterCondition.type === 'all_records') {
 		// For UAT-only tables, check if any records remain
-		query = query.gte('created_at', '1900-01-01');
+		// Handle tables with different timestamp column names
+		if (tableName === 'bible_bee_enrollments') {
+			// bible_bee_enrollments uses 'enrolled_at' instead of 'created_at'
+			query = query.gte('enrolled_at', '1900-01-01');
+		} else {
+			// Most tables use 'created_at'
+			query = query.gte('created_at', '1900-01-01');
+		}
 	}
 
 	const { count, error } = await query;
@@ -2543,10 +2550,20 @@ async function resetUATData() {
 						.like('cycle_id', `${EXTERNAL_ID_PREFIX}%`);
 				} else if (filter.type === 'all_records') {
 					// For UAT-only tables, delete all records
-					result = await supabase
-						.from(table)
-						.delete()
-						.gte('created_at', '1900-01-01');
+					// Handle tables with different timestamp column names
+					if (table === 'bible_bee_enrollments') {
+						// bible_bee_enrollments uses 'enrolled_at' instead of 'created_at'
+						result = await supabase
+							.from(table)
+							.delete()
+							.gte('enrolled_at', '1900-01-01');
+					} else {
+						// Most tables use 'created_at'
+						result = await supabase
+							.from(table)
+							.delete()
+							.gte('created_at', '1900-01-01');
+					}
 				}
 			}
 
