@@ -547,7 +547,7 @@ export default function RegisterPage() {
 		return { otherMinistryPrograms: otherMinistries, choirPrograms: choir };
 	}, [enrolledPrograms]);
 
-	const prefillForm = (data: any) => {
+	const prefillForm = useCallback((data: any) => {
 		const householdData = data.household;
 		const registrationData: Partial<RegistrationFormValues> = {
 			household: {
@@ -566,9 +566,9 @@ export default function RegisterPage() {
 				data.children.map((_: any, index: number) => `item-${index}`)
 			);
 		}
-	};
+	}, [form, setOpenAccordionItems]);
 
-	const proceedToRegistrationForm = () => {
+	const proceedToRegistrationForm = useCallback(() => {
 		toast({
 			title: 'New Registration',
 			description: 'Please complete the form below to register your family.',
@@ -602,9 +602,9 @@ export default function RegisterPage() {
 		});
 		setOpenAccordionItems(['item-0']);
 		setVerificationStep('form_visible');
-	};
+	}, [toast, form, verificationEmail, setIsCurrentYearOverwrite, setIsPrefill, setOpenAccordionItems, setVerificationStep]);
 
-	const handleEmailLookup = async () => {
+	const handleEmailLookup = useCallback(async () => {
 		if (!verificationEmail) return;
 
 		// Use current year for lookup
@@ -657,7 +657,7 @@ export default function RegisterPage() {
 				proceedToRegistrationForm();
 			}
 		}
-	};
+	}, [verificationEmail, toast, prefillForm, setIsCurrentYearOverwrite, setIsPrefill, setVerificationStep, flags.loginMagicEnabled, flags.isDemoMode, proceedToRegistrationForm]);
 
 	useEffect(() => {
 		// Check if user is authenticated and skip email lookup if so
@@ -774,7 +774,7 @@ export default function RegisterPage() {
 		return () => {
 			window.removeEventListener('keydown', handleEnterPress);
 		};
-	}, [verificationStep, verificationEmail]);
+	}, [verificationStep, handleEmailLookup]);
 
 	async function onSubmit(data: RegistrationFormValues) {
 		try {
