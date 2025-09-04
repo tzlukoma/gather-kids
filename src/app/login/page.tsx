@@ -104,14 +104,14 @@ const DEMO_USERS = {
 		role: AuthRole.MINISTRY_LEADER,
 		metadata: {},
 	},
-	// Test user with no role for registration flow
-	noRole: {
-		email: 'norole@example.com',
+	// Test user without role - demonstrates registration flow redirection
+	newUser: {
+		email: 'newuser@example.com',
 		password: 'password',
 		is_active: true,
-		name: 'No Role User',
-		uid: 'user_no_role',
-		role: null as any, // User with no role assigned
+		name: 'New User',
+		uid: 'user_new_no_role',
+		role: null, // No role assigned
 		metadata: {},
 	},
 };
@@ -146,7 +146,7 @@ export default function LoginPage() {
 						email: userToLogin.email,
 						is_active: userToLogin.is_active,
 						metadata: {
-							role: userToLogin.role as AuthRole,
+							role: userToLogin.role as AuthRole, // This could be null for new users
 							...(userToLogin.metadata || {}),
 						},
 					};
@@ -157,9 +157,10 @@ export default function LoginPage() {
 						description: `Welcome, ${userToLogin.name}!`,
 					});
 
-					// Redirect based on role priority
+					// Redirect based on role priority (or lack of role)
 					const role = userToLogin.role as AuthRole;
 					const target = getPostLoginRoute(role);
+					console.log('Redirecting to:', target, 'for role:', role);
 					router.push(target);
 				} else {
 					toast({
@@ -204,7 +205,8 @@ export default function LoginPage() {
 			console.error('Login error:', error);
 			toast({
 				title: 'Login Failed',
-				description: error.message || 'Unable to sign in. Please check your credentials.',
+				description:
+					error.message || 'Unable to sign in. Please check your credentials.',
 				variant: 'destructive',
 			});
 		} finally {
@@ -282,7 +284,8 @@ export default function LoginPage() {
 								<AlertTriangle className="h-4 w-4" />
 								<AlertTitle>Authentication Disabled</AlertTitle>
 								<AlertDescription>
-									Password authentication is currently disabled. Please contact an administrator.
+									Password authentication is currently disabled. Please contact
+									an administrator.
 								</AlertDescription>
 							</Alert>
 						)}
@@ -360,12 +363,15 @@ export default function LoginPage() {
 											</button>
 										</li>
 										<li>
-											No Role User (Test):{' '}
+											<strong>New User (No Role):</strong>{' '}
 											<button
 												className="text-left font-semibold underline"
-												onClick={() => prefillDemoCredentials('noRole')}>
-												{DEMO_USERS.noRole.email}
-											</button>
+												onClick={() => prefillDemoCredentials('newUser')}>
+												{DEMO_USERS.newUser.email}
+											</button>{' '}
+											<em className="text-muted-foreground">
+												(should redirect to /register)
+											</em>
 										</li>
 										<li>
 											Password: <code className="font-semibold">password</code>
@@ -398,16 +404,18 @@ export default function LoginPage() {
 										onChange={(e) => setPassword(e.target.value)}
 									/>
 								</div>
-								
-								<Button 
-									type="submit" 
-									className="w-full" 
+
+								<Button
+									type="submit"
+									className="w-full"
 									onClick={handleLogin}
-									disabled={loading || (!flags.loginPasswordEnabled && !flags.isDemoMode)}
-								>
+									disabled={
+										loading ||
+										(!flags.loginPasswordEnabled && !flags.isDemoMode)
+									}>
 									{loading ? 'Signing In...' : 'Sign In'}
 								</Button>
-								
+
 								{flags.loginPasswordEnabled && !flags.isDemoMode && (
 									<div className="flex justify-end">
 										<ForgotPasswordDialog>
@@ -426,7 +434,8 @@ export default function LoginPage() {
 								<Info className="h-4 w-4" />
 								<AlertTitle>Magic Link Available</AlertTitle>
 								<AlertDescription>
-									Magic link authentication would be available here when implemented.
+									Magic link authentication would be available here when
+									implemented.
 								</AlertDescription>
 							</Alert>
 						)}
@@ -436,7 +445,8 @@ export default function LoginPage() {
 								<Info className="h-4 w-4" />
 								<AlertTitle>Google Sign-In Available</AlertTitle>
 								<AlertDescription>
-									Google authentication would be available here when implemented.
+									Google authentication would be available here when
+									implemented.
 								</AlertDescription>
 							</Alert>
 						)}
