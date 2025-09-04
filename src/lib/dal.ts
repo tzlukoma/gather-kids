@@ -18,7 +18,7 @@ import { getApplicableGradeRule } from './bibleBee';
 import { gradeToCode } from './gradeUtils';
 import { AuthRole } from './auth-types';
 import { isDemo } from './featureFlags';
-import type { Attendance, Child, Guardian, Household, Incident, IncidentSeverity, Ministry, MinistryEnrollment, Registration, User, EmergencyContact, LeaderAssignment, LeaderProfile, MinistryLeaderMembership, MinistryAccount, BrandingSettings, BibleBeeYear  } from './types';
+import type { Attendance, Child, Guardian, Household, Incident, IncidentSeverity, Ministry, MinistryEnrollment, Registration, User, EmergencyContact, LeaderAssignment, LeaderProfile, MinistryLeaderMembership, MinistryAccount, BrandingSettings, BibleBeeYear, RegistrationCycle  } from './types';
 import { differenceInYears, isAfter, isBefore, parseISO, isValid } from 'date-fns';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -596,12 +596,14 @@ export async function registerHousehold(data: any, cycle_id: string, isPrefill: 
                 await dbAdapter.createHousehold(household);
             }
 
-            // Create guardians
+            // Create guardians and store their IDs for later reference
+            const createdGuardians: Guardian[] = [];
             for (const guardianData of data.guardians) {
-                await dbAdapter.createGuardian({
+                const createdGuardian = await dbAdapter.createGuardian({
                     household_id: householdId,
                     ...guardianData,
                 });
+                createdGuardians.push(createdGuardian);
             }
 
             // Create emergency contact
@@ -641,15 +643,16 @@ export async function registerHousehold(data: any, cycle_id: string, isPrefill: 
                     }
                 }
 
-                // Create registration
+                // Create registration - Use the first created guardian for consent signatures
+                const primaryGuardian = createdGuardians[0];
                 await dbAdapter.createRegistration({
                     child_id: childId,
                     cycle_id: cycle_id,
                     status: 'active',
                     pre_registered_sunday_school: true,
                     consents: [
-                        { type: 'liability', accepted_at: data.consents.liability ? now : null, signer_id: data.guardians[0].guardian_id || uuidv4(), signer_name: `${data.guardians[0].first_name} ${data.guardians[0].last_name}` },
-                        { type: 'photoRelease', accepted_at: data.consents.photoRelease ? now : null, signer_id: data.guardians[0].guardian_id || uuidv4(), signer_name: `${data.guardians[0].first_name} ${data.guardians[0].last_name}` }
+                        { type: 'liability', accepted_at: data.consents.liability ? now : null, signer_id: primaryGuardian.guardian_id, signer_name: `${primaryGuardian.first_name} ${primaryGuardian.last_name}` },
+                        { type: 'photoRelease', accepted_at: data.consents.photoRelease ? now : null, signer_id: primaryGuardian.guardian_id, signer_name: `${primaryGuardian.first_name} ${primaryGuardian.last_name}` }
                     ],
                     submitted_at: now,
                     submitted_via: 'web',
