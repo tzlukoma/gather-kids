@@ -163,6 +163,12 @@ npm run seed:scriptures    # Seed scripture references
 npm run import:dexie       # Import data from Dexie export
 npm run import:dexie:dry   # Dry run of Dexie import
 
+# Documentation (Docusaurus)
+npm run docs:validate      # Validate documentation build
+npm run docs:dev          # Start local documentation server
+npm run docs:build        # Build documentation for production
+npm run docs:serve        # Serve built documentation locally
+
 # AI Development (Genkit)
 npm run genkit:dev   # Start Genkit AI development server
 npm run genkit:watch # Start Genkit with file watching
@@ -445,14 +451,24 @@ If you need to change CI behavior
 
 ## 📚 Additional Resources
 
+### User Documentation
+- **User Guide**: [https://tzlukoma.github.io/gather-kids/](https://tzlukoma.github.io/gather-kids/) - Complete user documentation
+- **Getting Started Guide**: Step-by-step setup and usage instructions
+- **Release Notes**: Latest features and updates
+- **Documentation Workflow**: See `docs/DOCUMENTATION_WORKFLOW.md` for maintaining user docs
+
+### Developer Documentation
 - **FEATURES.md**: Comprehensive feature documentation
 - **SUPABASE_IMPLEMENTATION_PLAN.md**: Detailed Supabase integration plan
 - **docs/blueprint.md**: Application blueprint and requirements
+
+### External Resources
 - **Tailwind CSS**: [https://tailwindcss.com](https://tailwindcss.com)
 - **Radix UI**: [https://www.radix-ui.com](https://www.radix-ui.com)
 - **Next.js**: [https://nextjs.org](https://nextjs.org)
 - **Prisma**: [https://www.prisma.io](https://www.prisma.io)
 - **Supabase**: [https://supabase.com](https://supabase.com)
+- **Docusaurus**: [https://docusaurus.io](https://docusaurus.io)
 
 ## 🆘 Troubleshooting
 

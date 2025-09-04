@@ -21,6 +21,10 @@
 # production
 /build
 
+# documentation site
+/doc-site/build
+/doc-site/.docusaurus
+
 # misc
 .DS_Store
 *.pem

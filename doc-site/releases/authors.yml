@@ -1,0 +1,10 @@
+gatherKidsTeam:
+  name: gatherKids Team
+  title: Development Team
+  url: https://github.com/tzlukoma/gather-kids
+  image_url: https://github.com/tzlukoma.png
+
+admin:
+  name: Administrator
+  title: System Administrator
+  url: https://github.com/tzlukoma/gather-kids
