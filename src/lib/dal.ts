@@ -2268,3 +2268,204 @@ export async function getMinistries(isActive?: boolean): Promise<Ministry[]> {
 		return db.ministries.toArray();
 	}
 }
+
+/**
+ * Get all children for check-in/out management
+ */
+export async function getAllChildren(): Promise<Child[]> {
+	if (shouldUseAdapter()) {
+		// Use Supabase adapter for live mode
+		return dbAdapter.listChildren();
+	} else {
+		// Use legacy Dexie interface for demo mode
+		return db.children.toArray();
+	}
+}
+
+/**
+ * Get attendance records for a specific date
+ */
+export async function getAttendanceForDate(dateISO: string): Promise<Attendance[]> {
+	if (shouldUseAdapter()) {
+		// Use Supabase adapter for live mode
+		return dbAdapter.listAttendance({ date: dateISO });
+	} else {
+		// Use legacy Dexie interface for demo mode
+		return db.attendance.where({ date: dateISO }).toArray();
+	}
+}
+
+/**
+ * Get all ministry enrollments for a specific cycle
+ */
+export async function getMinistryEnrollmentsByCycle(cycleId: string): Promise<MinistryEnrollment[]> {
+	if (shouldUseAdapter()) {
+		// Use Supabase adapter for live mode
+		return dbAdapter.listMinistryEnrollments(undefined, undefined, cycleId);
+	} else {
+		// Use legacy Dexie interface for demo mode
+		return db.ministry_enrollments.where({ cycle_id: cycleId }).toArray();
+	}
+}
+
+/**
+ * Get children for ministry leader based on their assigned ministries
+ */
+export async function getChildrenForLeader(assignedMinistryIds: string[], cycleId: string): Promise<Child[]> {
+	if (shouldUseAdapter()) {
+		// Use Supabase adapter for live mode
+		const enrollments = await dbAdapter.listMinistryEnrollments();
+		const filteredEnrollments = enrollments.filter(e => 
+			assignedMinistryIds.includes(e.ministry_id) && e.cycle_id === cycleId
+		);
+		const childIds = [...new Set(filteredEnrollments.map(e => e.child_id))];
+		if (childIds.length === 0) return [];
+		
+		const allChildren = await dbAdapter.listChildren();
+		return allChildren.filter(c => childIds.includes(c.child_id));
+	} else {
+		// Use legacy Dexie interface for demo mode
+		const enrollments = await db.ministry_enrollments
+			.where('ministry_id')
+			.anyOf(assignedMinistryIds)
+			.and(e => e.cycle_id === cycleId)
+			.toArray();
+		const childIds = [...new Set(enrollments.map(e => e.child_id))];
+		if (childIds.length === 0) return [];
+		return db.children.where('child_id').anyOf(childIds).toArray();
+	}
+}
+
+/**
+ * Get incidents for a specific date
+ */
+export async function getIncidentsForDate(dateISO: string): Promise<Incident[]> {
+	if (shouldUseAdapter()) {
+		// Use Supabase adapter for live mode
+		const incidents = await dbAdapter.listIncidents();
+		return incidents.filter(i => i.timestamp.startsWith(dateISO));
+	} else {
+		// Use legacy Dexie interface for demo mode
+		return db.incidents.filter(i => i.timestamp.startsWith(dateISO)).toArray();
+	}
+}
+
+/**
+ * Get all guardians
+ */
+export async function getAllGuardians(): Promise<Guardian[]> {
+	if (shouldUseAdapter()) {
+		// Use Supabase adapter for live mode
+		return dbAdapter.listGuardians(''); // Empty household ID gets all guardians
+	} else {
+		// Use legacy Dexie interface for demo mode
+		return db.guardians.toArray();
+	}
+}
+
+/**
+ * Get all households
+ */
+export async function getAllHouseholds(): Promise<Household[]> {
+	if (shouldUseAdapter()) {
+		// Use Supabase adapter for live mode
+		return dbAdapter.listHouseholds();
+	} else {
+		// Use legacy Dexie interface for demo mode
+		return db.households.toArray();
+	}
+}
+
+/**
+ * Get all emergency contacts
+ */
+export async function getAllEmergencyContacts(): Promise<EmergencyContact[]> {
+	if (shouldUseAdapter()) {
+		// Use Supabase adapter for live mode
+		return dbAdapter.listEmergencyContacts(''); // Empty household ID gets all contacts
+	} else {
+		// Use legacy Dexie interface for demo mode
+		return db.emergency_contacts.toArray();
+	}
+}
+
+/**
+ * Get incidents for a user based on their role
+ */
+export async function getIncidentsForUser(user: any): Promise<Incident[]> {
+	if (shouldUseAdapter()) {
+		// Use Supabase adapter for live mode
+		const allIncidents = await dbAdapter.listIncidents();
+		
+		if (user?.metadata?.role === AuthRole.MINISTRY_LEADER) {
+			// Always restrict leaders to incidents they logged
+			const leaderId = (user.uid || user.id || (user as any).user_id) as string;
+			return allIncidents.filter(incident => incident.leader_id === leaderId);
+		}
+		
+		return allIncidents.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+	} else {
+		// Use legacy Dexie interface for demo mode
+		if (user?.metadata?.role === AuthRole.MINISTRY_LEADER) {
+			// Always restrict leaders to incidents they logged
+			const leaderId = (user.uid || user.id || (user as any).user_id) as string;
+			return db.incidents
+				.where('leader_id')
+				.equals(leaderId)
+				.reverse()
+				.sortBy('timestamp');
+		}
+		
+		return db.incidents.orderBy('timestamp').reverse().toArray();
+	}
+}
+
+/**
+ * Get checked-in children for a specific date
+ */
+export async function getCheckedInChildren(dateISO: string): Promise<Child[]> {
+	if (shouldUseAdapter()) {
+		// Use Supabase adapter for live mode
+		const attendance = await dbAdapter.listAttendance({ date: dateISO });
+		const checkedInAttendance = attendance.filter(a => !a.check_out_at);
+		const childIds = checkedInAttendance.map(a => a.child_id);
+		
+		if (childIds.length === 0) return [];
+		
+		const allChildren = await dbAdapter.listChildren();
+		return allChildren.filter(c => childIds.includes(c.child_id));
+	} else {
+		// Use legacy Dexie interface for demo mode
+		const attendance = await db.attendance.where({ date: dateISO }).toArray();
+		const checkedInAttendance = attendance.filter(a => !a.check_out_at);
+		const childIds = checkedInAttendance.map(a => a.child_id);
+		
+		if (childIds.length === 0) return [];
+		
+		return db.children.where('child_id').anyOf(childIds).toArray();
+	}
+}
+
+/**
+ * Get all competition years for Bible Bee
+ */
+export async function getCompetitionYears(): Promise<any[]> {
+	// Note: Competition years are legacy - in new Bible Bee system, use getBibleBeeYears()
+	// This function is maintained for backward compatibility
+	if (shouldUseAdapter()) {
+		// Use Supabase adapter for live mode
+		// Competition years might not exist in the new schema, return empty array or fetch from appropriate table
+		try {
+			// If competition years exist in adapter
+			// return await dbAdapter.listCompetitionYears();
+			console.warn('Competition years not implemented in adapter, using legacy mode');
+			return [];
+		} catch (error) {
+			console.warn('Competition years not available in adapter mode');
+			return [];
+		}
+	} else {
+		// Use legacy Dexie interface for demo mode
+		return db.competitionYears.orderBy('year').reverse().toArray();
+	}
+}

@@ -1,6 +1,5 @@
 'use client';
 
-import { useLiveQuery } from 'dexie-react-hooks';
 import { useRouter } from 'next/navigation';
 import {
 	Table,
@@ -17,37 +16,57 @@ import {
 	CardHeader,
 	CardTitle,
 } from '@/components/ui/card';
-import { queryHouseholdList } from '@/lib/dal';
+import { queryHouseholdList, getMinistries } from '@/lib/dal';
 import { format } from 'date-fns';
 import { ChevronRight, Filter } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
 import { AuthRole } from '@/lib/auth-types';
-import { useState } from 'react';
-import { db } from '@/lib/db';
+import { useState, useEffect } from 'react';
 import { Combobox } from '@/components/ui/combobox';
+import type { Household, Child, Ministry } from '@/lib/types';
 
 export default function RegistrationsPage() {
 	const router = useRouter();
 	const { user } = useAuth();
 	const [ministryFilter, setMinistryFilter] = useState<string | null>(null);
 
+	// State management for data loading
+	const [households, setHouseholds] = useState<(Household & { children: (Child & { age: number | null })[] })[]>([]);
+	const [allMinistries, setAllMinistries] = useState<Ministry[]>([]);
+	const [loading, setLoading] = useState(true);
+
 	// For leaders, pass their assigned ministry IDs to the query
 	const leaderMinistryIds =
 		user?.metadata?.role === AuthRole.MINISTRY_LEADER
 			? user.assignedMinistryIds
 			: undefined;
-	const households = useLiveQuery(
-		() => queryHouseholdList(leaderMinistryIds, ministryFilter ?? undefined),
-		[leaderMinistryIds, ministryFilter]
-	);
 
-	const allMinistries = useLiveQuery(() => db.ministries.toArray(), []);
+	// Load data using DAL functions
+	useEffect(() => {
+		const loadData = async () => {
+			try {
+				setLoading(true);
+				const [householdsData, ministriesData] = await Promise.all([
+					queryHouseholdList(leaderMinistryIds, ministryFilter ?? undefined),
+					getMinistries()
+				]);
+				setHouseholds(householdsData);
+				setAllMinistries(ministriesData);
+			} catch (error) {
+				console.error('Error loading registrations data:', error);
+			} finally {
+				setLoading(false);
+			}
+		};
+
+		loadData();
+	}, [leaderMinistryIds, ministryFilter]);
 
 	const handleRowClick = (householdId: string) => {
 		router.push(`/dashboard/registrations/${householdId}`);
 	};
 
-	if (households === undefined) {
+	if (loading) {
 		return <div>Loading registrations...</div>;
 	}
 

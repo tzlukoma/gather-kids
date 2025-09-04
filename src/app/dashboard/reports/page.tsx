@@ -30,16 +30,16 @@ import {
 	TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '@/lib/db';
 import {
 	exportAttendanceRollupCSV,
 	exportEmergencySnapshotCSV,
 	getTodayIsoDate,
+	getCheckedInChildren,
 } from '@/lib/dal';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/auth-context';
 import { useRouter } from 'next/navigation';
+import type { Child } from '@/lib/types';
 
 export default function ReportsPage() {
 	const router = useRouter();
@@ -54,11 +54,25 @@ export default function ReportsPage() {
 		to: new Date(),
 	});
 
-	const checkedInChildren = useLiveQuery(async () => {
-		const attendance = await db.attendance.where({ date: today }).toArray();
-		if (!attendance.length) return [];
-		const childIds = attendance.map((a) => a.child_id);
-		return db.children.where('child_id').anyOf(childIds).toArray();
+	// State management for data loading
+	const [checkedInChildren, setCheckedInChildren] = useState<Child[]>([]);
+	const [dataLoading, setDataLoading] = useState(true);
+
+	// Load checked-in children
+	useEffect(() => {
+		const loadCheckedInChildren = async () => {
+			try {
+				setDataLoading(true);
+				const children = await getCheckedInChildren(today);
+				setCheckedInChildren(children);
+			} catch (error) {
+				console.error('Error loading checked-in children:', error);
+			} finally {
+				setDataLoading(false);
+			}
+		};
+
+		loadCheckedInChildren();
 	}, [today]);
 
 	useEffect(() => {
@@ -118,7 +132,7 @@ export default function ReportsPage() {
 		});
 	};
 
-	if (loading || !isAuthorized) {
+	if (loading || !isAuthorized || dataLoading) {
 		return <div>Loading reports...</div>;
 	}
 

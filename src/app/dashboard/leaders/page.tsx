@@ -1,6 +1,5 @@
 'use client';
 
-import { useLiveQuery } from 'dexie-react-hooks';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import {
@@ -39,12 +38,33 @@ export default function LeadersPage() {
 	const [selectedLeader, setSelectedLeader] = useState<LeaderProfile | null>(null);
 	const [isMigrationComplete, setIsMigrationComplete] = useState(false);
 
-	// Get all leaders if no search term, otherwise search
-	const allLeaders = useLiveQuery(() => queryLeaderProfiles(), []);
-	const searchResults = useLiveQuery(() => 
-		searchTerm.trim() ? searchLeaderProfiles(searchTerm.trim()) : null, 
-		[searchTerm]
-	);
+	// State management for data loading
+	const [allLeaders, setAllLeaders] = useState<LeaderProfile[]>([]);
+	const [searchResults, setSearchResults] = useState<LeaderProfile[] | null>(null);
+	const [dataLoading, setDataLoading] = useState(true);
+
+	// Load leaders data
+	useEffect(() => {
+		const loadLeaders = async () => {
+			try {
+				setDataLoading(true);
+				if (searchTerm.trim()) {
+					const results = await searchLeaderProfiles(searchTerm.trim());
+					setSearchResults(results);
+				} else {
+					const leaders = await queryLeaderProfiles();
+					setAllLeaders(leaders);
+					setSearchResults(null);
+				}
+			} catch (error) {
+				console.error('Error loading leaders:', error);
+			} finally {
+				setDataLoading(false);
+			}
+		};
+
+		loadLeaders();
+	}, [searchTerm]);
 
 	// Use search results if available, otherwise all leaders
 	const leaders = searchResults || allLeaders || [];
@@ -92,7 +112,7 @@ export default function LeadersPage() {
 		setIsDialogOpen(true);
 	};
 
-	if (loading || !isAuthorized) {
+	if (loading || !isAuthorized || dataLoading) {
 		return <div>Loading leaders...</div>;
 	}
 

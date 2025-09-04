@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { AuthRole } from '@/lib/auth-types';
 import { db } from '@/lib/db';
 import { dbAdapter } from '@/lib/db-utils';
-import { canLeaderManageBibleBee } from '@/lib/dal';
+import { canLeaderManageBibleBee, getCompetitionYears } from '@/lib/dal';
 import {
 	Select,
 	SelectTrigger,
@@ -427,10 +427,7 @@ function YearList() {
 	useEffect(() => {
 		const fetchYears = async () => {
 			try {
-				const data = await db.competitionYears
-					.orderBy('year')
-					.reverse()
-					.toArray();
+				const data = await getCompetitionYears();
 				setYears(data);
 			} catch (error) {
 				console.error('Error loading competition years:', error);
