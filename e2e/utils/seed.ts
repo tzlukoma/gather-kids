@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
-import testData from '../fixtures/test-data.json';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 
 const MIN_MINISTRIES = 5;
 
@@ -13,7 +14,10 @@ export async function seedMinistries() {
   
   const supabase = createClient(url, serviceKey);
 
-  // Use test data from fixtures
+  // Load test data from fixtures
+  const testDataPath = join(process.cwd(), 'e2e', 'fixtures', 'test-data.json');
+  const testDataRaw = readFileSync(testDataPath, 'utf-8');
+  const testData = JSON.parse(testDataRaw);
   const ministries = testData.ministries;
 
   if (ministries.length < MIN_MINISTRIES) {

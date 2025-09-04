@@ -29,5 +29,5 @@ export default defineConfig({
     }
   ],
   // Global setup for seeding if needed
-  globalSetup: require.resolve('./e2e/utils/global-setup.ts'),
+  globalSetup: './e2e/utils/global-setup.ts',
 });
