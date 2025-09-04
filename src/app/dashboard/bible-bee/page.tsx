@@ -113,14 +113,10 @@ export default function BibleBeePage() {
 		// First check Bible Bee years for new schema
 		if (bibleBeeYears && bibleBeeYears.length > 0) {
 			const bibleBeeYear = bibleBeeYears.find(
-				(y: any) =>
-					(y.label &&
-						typeof y.label === 'string' &&
-						y.label.includes(selectedCycle)) ||
-					y.id === selectedCycle
+				(y: any) => y.id === selectedCycle
 			);
-			if (bibleBeeYear && bibleBeeYear.label) {
-				return bibleBeeYear.label;
+			if (bibleBeeYear && bibleBeeYear.name) {
+				return bibleBeeYear.name;
 			}
 		}
 
@@ -174,11 +170,7 @@ export default function BibleBeePage() {
 			// First try the new Bible Bee year system
 			if (bibleBeeYears && bibleBeeYears.length > 0) {
 				const bibleBeeYear = bibleBeeYears.find(
-					(y: any) =>
-						(y.label &&
-							typeof y.label === 'string' &&
-							y.label.includes(selectedCycle)) ||
-						y.id === selectedCycle
+					(y: any) => y.id === selectedCycle
 				);
 
 				if (bibleBeeYear) {
