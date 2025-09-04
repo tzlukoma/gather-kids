@@ -140,6 +140,39 @@ The application includes pre-configured demo accounts for testing:
 - **Joy Bells Leader**: `leader.joybells@example.com` / `password`
 - **Inactive Leader**: `leader.inactive@example.com` / `password`
 
+## 🌱 UAT Data Seeding
+
+For UAT (User Acceptance Testing) environments using Supabase, the application includes a comprehensive seeding script that populates the database with deterministic test data:
+
+### What Gets Seeded
+
+- **3 Ministries**: Sunday School, Bible Bee Training, Khalfani Kids
+- **Competition Year**: Bible Bee 2025-2026 with scripture references  
+- **Scripture Database**: Complete scripture texts in NIV, KJV, and NIV Spanish
+- **Test Families**: 3 households with guardians and children
+- **Ministry Enrollments**: Sample enrollments linking children to ministries
+
+### Seeding Commands
+
+```bash
+# Idempotent seeding (safe to re-run, upserts existing data)
+npm run seed:uat
+
+# Reset mode (destructive - deletes existing UAT data first)
+RESET=true npm run seed:uat
+# or use the shortcut:
+npm run seed:uat:reset
+```
+
+### Prerequisites
+
+- Valid Supabase environment configured in `.env.local`
+- Required environment variables:
+  - `NEXT_PUBLIC_SUPABASE_URL` or `SUPABASE_UAT_URL`
+  - `SUPABASE_SERVICE_ROLE_KEY` or `SUPABASE_UAT_SERVICE_ROLE_KEY`
+
+The script includes schema compatibility verification and detailed error reporting to help diagnose issues.
+
 ## 📱 Available Scripts
 
 ```bash
@@ -160,6 +193,8 @@ npm run gen:types:prod # Generate types from production environment
 
 # Data Management
 npm run seed:scriptures    # Seed scripture references
+npm run seed:uat           # Seed UAT database with test data (idempotent)
+npm run seed:uat:reset     # Reset and re-seed UAT database (destructive)
 npm run import:dexie       # Import data from Dexie export
 npm run import:dexie:dry   # Dry run of Dexie import
 
