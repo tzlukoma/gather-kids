@@ -22,6 +22,32 @@ function AuthCallbackContent() {
 		setMounted(true);
 	}, []);
 
+	// Add a timeout to prevent users from getting stuck indefinitely
+	useEffect(() => {
+		if (!mounted || !loading) return;
+		
+		const timeoutTimer = setTimeout(() => {
+			if (loading && !error && !success) {
+				console.error('Auth callback timeout - user stuck in loading state');
+				setError(`⏰ Authentication Timeout
+
+The authentication process is taking longer than expected. This can happen if:
+
+• There's a network connectivity issue
+• The magic link has expired or been used
+• There's a temporary server issue
+
+**Please try:**
+1. Check your internet connection
+2. Request a new magic link
+3. Contact support if the issue persists`);
+				setLoading(false);
+			}
+		}, 15000); // 15 second timeout
+
+		return () => clearTimeout(timeoutTimer);
+	}, [mounted, loading, error, success]);
+
 	useEffect(() => {
 		if (!mounted || hasRun.current || error || success) return;
 
@@ -203,7 +229,24 @@ The verification code required for magic links was not found. This happens when:
 					}
 				} else if (data.session) {
 					setSuccess(true);
-					setTimeout(() => router.push('/register'), 1500);
+					console.log('Auth successful! Redirecting to /register in 1.5 seconds...');
+					
+					// Set up redirect with timeout fallback
+					setTimeout(() => {
+						console.log('Executing redirect to /register');
+						router.push('/register');
+					}, 1500);
+					
+					// Fallback timeout in case redirect doesn't work
+					setTimeout(() => {
+						console.error('Redirect may have failed, offering manual navigation');
+						setError(`✅ Authentication Successful!
+
+You've been successfully signed in, but the automatic redirect to the registration form didn't work.
+
+**Please click the button below to continue:**`);
+						setLoading(false);
+					}, 8000);
 				} else {
 					setError(
 						'Authentication completed but no session was created. Please try again.'
@@ -295,20 +338,34 @@ The verification code required for magic links was not found. This happens when:
 						<div className="space-y-4">
 							<div
 								className={`${
-									error.includes('⚠️ Almost there!')
+									error.includes('⚠️ Almost there!') || error.includes('✅ Authentication Successful!')
 										? 'text-amber-600'
+										: error.includes('⏰ Authentication Timeout')
+										? 'text-orange-600'
 										: 'text-red-600'
 								} whitespace-pre-line text-sm`}>
 								{error}
 							</div>
 							<div className="flex flex-col gap-2">
-								{error.includes('⚠️ Almost there!') ? (
+								{error.includes('⚠️ Almost there!') || error.includes('✅ Authentication Successful!') ? (
 									<>
 										<Button asChild className="bg-amber-600 hover:bg-amber-700">
-											<Link href="/register">Continue to App</Link>
+											<Link href="/register">Continue to Registration</Link>
 										</Button>
 										<Button variant="outline" asChild>
 											<Link href="/login">Back to Login</Link>
+										</Button>
+									</>
+								) : error.includes('⏰ Authentication Timeout') ? (
+									<>
+										<Button asChild className="bg-orange-600 hover:bg-orange-700">
+											<Link href="/login">Request New Magic Link</Link>
+										</Button>
+										<Button variant="outline" asChild>
+											<Link href="/register">Try Registration Directly</Link>
+										</Button>
+										<Button variant="outline" asChild>
+											<Link href="/">Return Home</Link>
 										</Button>
 									</>
 								) : (

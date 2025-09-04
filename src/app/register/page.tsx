@@ -626,10 +626,10 @@ export default function RegisterPage() {
 	useEffect(() => {
 		// Check if user is authenticated and skip email lookup if so
 		// For live mode: check for authenticated users with email
-		// For demo mode: check for authenticated users with GUARDIAN role (parents)
+		// For demo mode: check for authenticated users with GUARDIAN role (parents) or null role (new users needing registration)
 		const shouldSkipEmailLookup = 
 			(!flags.isDemoMode && user?.email) || 
-			(flags.isDemoMode && user?.email && user?.metadata?.role === 'GUARDIAN');
+			(flags.isDemoMode && user?.email && (user?.metadata?.role === 'GUARDIAN' || user?.metadata?.role === null));
 			
 		if (shouldSkipEmailLookup) {
 			setVerificationEmail(user.email);

@@ -23,8 +23,9 @@ export const ROLE_ROUTES: Record<AuthRole, string> = {
 
 /**
  * Default fallback route for users with no assigned role
+ * Redirects to register page where authenticated users skip email lookup
  */
-export const DEFAULT_ROUTE = '/';
+export const DEFAULT_ROUTE = '/register';
 
 /**
  * Determines the primary role for a user based on priority rules
