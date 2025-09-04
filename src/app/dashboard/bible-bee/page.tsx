@@ -3,8 +3,8 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { AuthRole } from '@/lib/auth-types';
-import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
+import { dbAdapter } from '@/lib/db-utils';
 import { canLeaderManageBibleBee } from '@/lib/dal';
 import {
 	Select,
@@ -57,20 +57,48 @@ export default function BibleBeePage() {
 	const { user, loading } = useAuth();
 	const [allowed, setAllowed] = useState(false);
 	const [selectedLeader, setSelectedLeader] = useState<string | null>(null);
-	
+
 	// Add the debugger component to help troubleshoot
 	// start empty and pick a sensible default once years data is available
 	const [selectedCycle, setSelectedCycle] = useState<string>('');
-	const competitionYears = useLiveQuery(
-		() => db.competitionYears.orderBy('year').reverse().toArray(),
-		[]
-	);
+	const [competitionYears, setCompetitionYears] = useState<any[]>([]);
+	const [bibleBeeYears, setBibleBeeYears] = useState<any[]>([]);
 
-	// Also load Bible Bee years for new schema support
-	const bibleBeeYears = useLiveQuery(
-		() => db.bible_bee_years.orderBy('label').toArray(),
-		[]
-	);
+	// Load data on component mount
+	useEffect(() => {
+		const fetchData = async () => {
+			try {
+				// Get Bible Bee years from adapter
+				const beeYears = await dbAdapter.listBibleBeeYears();
+				setBibleBeeYears(beeYears || []);
+
+				// For competition years, we'll need to use direct DB access
+				// as there's no adapter method for this legacy schema
+				try {
+					// Check if the db object has the competitionYears property
+					// This will work with IndexedDB but may not with Supabase
+					if (db && 'competitionYears' in db) {
+						console.log('Using direct DB access for competition years');
+						// Using direct Dexie access for legacy data
+						const years = (await (db as any).competitionYears?.toArray()) || [];
+						setCompetitionYears(years.sort((a, b) => b.year - a.year));
+					} else {
+						console.log(
+							'No competition years table available in this database mode'
+						);
+						setCompetitionYears([]);
+					}
+				} catch (err) {
+					console.error('Failed to load competition years:', err);
+					setCompetitionYears([]);
+				}
+			} catch (error) {
+				console.error('Failed to load Bible Bee data:', error);
+			}
+		};
+
+		fetchData();
+	}, []);
 	const [activeTab, setActiveTab] = useState<string>('students');
 	const [scriptures, setScriptures] = useState<any[] | null>(null);
 	const [displayVersion, setDisplayVersion] = useState<string | undefined>(
@@ -83,11 +111,15 @@ export default function BibleBeePage() {
 	// Compute the proper year label for display
 	const yearLabel = React.useMemo(() => {
 		// First check Bible Bee years for new schema
-		if (bibleBeeYears) {
+		if (bibleBeeYears && bibleBeeYears.length > 0) {
 			const bibleBeeYear = bibleBeeYears.find(
-				(y: any) => y.label.includes(selectedCycle) || y.id === selectedCycle
+				(y: any) =>
+					(y.label &&
+						typeof y.label === 'string' &&
+						y.label.includes(selectedCycle)) ||
+					y.id === selectedCycle
 			);
-			if (bibleBeeYear) {
+			if (bibleBeeYear && bibleBeeYear.label) {
 				return bibleBeeYear.label;
 			}
 		}
@@ -140,21 +172,38 @@ export default function BibleBeePage() {
 			let scriptures: any[] = [];
 
 			// First try the new Bible Bee year system
-			if (bibleBeeYears) {
+			if (bibleBeeYears && bibleBeeYears.length > 0) {
 				const bibleBeeYear = bibleBeeYears.find(
-					(y: any) => y.label.includes(selectedCycle) || y.id === selectedCycle
+					(y: any) =>
+						(y.label &&
+							typeof y.label === 'string' &&
+							y.label.includes(selectedCycle)) ||
+						y.id === selectedCycle
 				);
 
 				if (bibleBeeYear) {
 					console.log('Found Bible Bee year:', bibleBeeYear);
-					scriptures = await db.scriptures
-						.where('year_id')
-						.equals(bibleBeeYear.id)
-						.toArray();
-					console.log(
-						'Loaded scriptures from Bible Bee year:',
-						scriptures.length
-					);
+					try {
+						// Check if db has scriptures table
+						if (db && 'scriptures' in db) {
+							// Use direct Dexie query for scriptures as adapter doesn't have this method
+							scriptures =
+								(await (db as any).scriptures
+									?.where('year_id')
+									?.equals(bibleBeeYear.id)
+									?.toArray()) || [];
+						} else {
+							console.log(
+								'No scriptures table available in this database mode'
+							);
+						}
+						console.log(
+							'Loaded scriptures from Bible Bee year:',
+							scriptures.length
+						);
+					} catch (error) {
+						console.error('Error loading scriptures:', error);
+					}
 				}
 			}
 
@@ -166,14 +215,27 @@ export default function BibleBeePage() {
 
 				if (yearObj) {
 					console.log('Found competition year:', yearObj);
-					scriptures = await db.scriptures
-						.where('competitionYearId')
-						.equals(yearObj.id)
-						.toArray();
-					console.log(
-						'Loaded scriptures from competition year:',
-						scriptures.length
-					);
+					try {
+						// Check if db has scriptures table
+						if (db && 'scriptures' in db) {
+							// Use direct DB access for legacy competition year scriptures
+							scriptures =
+								(await (db as any).scriptures
+									?.where('competitionYearId')
+									?.equals(yearObj.id)
+									?.toArray()) || [];
+							console.log(
+								'Loaded scriptures from competition year:',
+								scriptures.length
+							);
+						} else {
+							console.log(
+								'No scriptures table available in this database mode'
+							);
+						}
+					} catch (error) {
+						console.error('Error loading legacy scriptures:', error);
+					}
 				}
 			}
 
@@ -353,8 +415,6 @@ export default function BibleBeePage() {
 				)}
 			</Tabs>
 
-						)}
-
 			{!loading && user && <AuthLoader user={user} setAllowed={setAllowed} />}
 			<BibleBeeDebugger />
 		</div>
@@ -362,10 +422,22 @@ export default function BibleBeePage() {
 }
 
 function YearList() {
-	const years = useLiveQuery(
-		() => db.competitionYears.orderBy('year').reverse().toArray(),
-		[]
-	);
+	const [years, setYears] = useState<any[]>([]);
+
+	useEffect(() => {
+		const fetchYears = async () => {
+			try {
+				const data = await db.competitionYears
+					.orderBy('year')
+					.reverse()
+					.toArray();
+				setYears(data);
+			} catch (error) {
+				console.error('Error loading competition years:', error);
+			}
+		};
+		fetchYears();
+	}, []);
 	if (!years) return <div>Loading years...</div>;
 	if (years.length === 0) return <div>No competition years defined.</div>;
 	return (

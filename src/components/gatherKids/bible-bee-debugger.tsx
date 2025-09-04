@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { db } from '@/lib/db';
+import { dbAdapter, isSupabase, getDatabaseMode } from '@/lib/db-utils';
 import { getFlag } from '@/lib/featureFlags';
 
 export default function BibleBeeDebugger() {
@@ -14,7 +15,9 @@ export default function BibleBeeDebugger() {
 		// Check database mode
 		console.log('📊 Database Configuration:');
 		console.log('- DATABASE_MODE flag:', getFlag('DATABASE_MODE'));
-		console.log('- DB Adapter Type:', db.constructor.name);
+		console.log('- Detected Mode:', getDatabaseMode());
+		console.log('- Using Supabase:', isSupabase() ? '✅ Yes' : '❌ No');
+		console.log('- DB Adapter Type:', (dbAdapter as any).constructor.name);
 
 		// Check auth status
 		console.log('👤 Auth Status:');
@@ -41,12 +44,18 @@ export default function BibleBeeDebugger() {
 			supabaseTokens.length > 0 ? '✅ Present' : '❌ Missing'
 		);
 
-		// Check Bible Bee data availability
+		// Check Bible Bee data availability using adapter
 		console.log('📚 Bible Bee Data Check:');
-		db.bible_bee_years.count().then((count) => {
-			console.log(`- Bible Bee Years in DB: ${count}`);
-		});
-		db.ministries.toArray().then((ministries) => {
+		dbAdapter
+			.listBibleBeeYears()
+			.then((years) => {
+				console.log(`- Bible Bee Years in DB: ${years.length}`);
+			})
+			.catch((err) => {
+				console.error('Error fetching Bible Bee years:', err);
+			});
+
+		dbAdapter.listMinistries().then((ministries) => {
 			const bibleBee = ministries.find(
 				(m) =>
 					m.name?.toLowerCase().includes('bible bee') ||
