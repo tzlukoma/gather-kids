@@ -148,8 +148,8 @@ async function main() {
 		console.log('🏢 Finding Bible Bee Ministry...');
 		const { data: ministryData, error: ministryError } = await supabase
 			.from('ministries')
-			.select('ministry_id')
-			.eq('name', 'Bible Bee')
+			.select('code')
+			.eq('name', 'bible-bee')
 			.single();
 
 		if (ministryError) {
