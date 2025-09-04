@@ -43,16 +43,140 @@ if (!supabaseUrl || !serviceRoleKey) {
     process.exit(1);
 }
 
-const supabase = createClient(supabaseUrl, serviceRoleKey, {
+// Initialize the Supabase client
+let realSupabase = createClient(supabaseUrl, serviceRoleKey, {
     auth: { persistSession: false },
 });
 
+// Create a proxy for dry run mode that will log operations instead of executing them
+const supabase = DRY_RUN 
+    ? createDryRunProxy(realSupabase)
+    : realSupabase;
+
+// Function to create a dry run proxy
+function createDryRunProxy(realClient) {
+    const tableOperations = new Set();
+    
+    return new Proxy(realClient, {
+        get(target, prop) {
+            // Special case for from() method which is the entry point for table operations
+            if (prop === 'from') {
+                return function(tableName) {
+                    console.log(`[DRY RUN] Accessing table: ${tableName}`);
+                    tableOperations.add(tableName);
+                    
+                    // Return a mock object that logs operations
+                    return {
+                        select: (columns) => {
+                            console.log(`[DRY RUN] SELECT ${columns || '*'} FROM ${tableName}`);
+                            return {
+                                eq: (column, value) => {
+                                    console.log(`[DRY RUN] WHERE ${column} = ${value}`);
+                                    return {
+                                        single: () => ({ data: null, error: { code: 'PGRST116' } })
+                                    };
+                                },
+                                like: (column, value) => {
+                                    console.log(`[DRY RUN] WHERE ${column} LIKE ${value}`);
+                                    return {
+                                        single: () => ({ data: null, error: { code: 'PGRST116' } })
+                                    };
+                                },
+                                in: (column, values) => {
+                                    console.log(`[DRY RUN] WHERE ${column} IN (${values.join(', ')})`);
+                                    return {
+                                        single: () => ({ data: null, error: { code: 'PGRST116' } })
+                                    };
+                                }
+                            };
+                        },
+                        insert: (data) => {
+                            console.log(`[DRY RUN] INSERT INTO ${tableName}:`, JSON.stringify(data, null, 2));
+                            return {
+                                select: (columns) => ({
+                                    single: () => {
+                                        // Return mock IDs based on table name
+                                        if (tableName === 'households') {
+                                            return { data: { household_id: 'dry-run-household-id' }, error: null };
+                                        } else if (tableName === 'competition_years') {
+                                            return { data: { id: 'dry-run-year-id' }, error: null };
+                                        } else {
+                                            return { data: { id: 'dry-run-id' }, error: null };
+                                        }
+                                    }
+                                })
+                            };
+                        },
+                        delete: () => {
+                            console.log(`[DRY RUN] DELETE FROM ${tableName}`);
+                            return {
+                                like: (column, value) => {
+                                    console.log(`[DRY RUN] WHERE ${column} LIKE ${value}`);
+                                    return { data: null, error: null };
+                                },
+                                gte: (column, value) => {
+                                    console.log(`[DRY RUN] WHERE ${column} >= ${value}`);
+                                    return { data: null, error: null };
+                                }
+                            };
+                        }
+                    };
+                };
+            }
+            
+            // Pass through other properties
+            if (typeof target[prop] === 'function') {
+                return function(...args) {
+                    console.log(`[DRY RUN] Called ${prop}() method`);
+                    // Return a mock successful response
+                    return Promise.resolve({ data: {}, error: null });
+                };
+            }
+            
+            // For nested objects like auth, storage, etc.
+            if (typeof target[prop] === 'object' && target[prop] !== null) {
+                return new Proxy(target[prop], {
+                    get(obj, method) {
+                        if (typeof obj[method] === 'function') {
+                            return function(...args) {
+                                console.log(`[DRY RUN] Called ${prop}.${method}() method`);
+                                return Promise.resolve({ data: {}, error: null });
+                            };
+                        }
+                        // For deeper nesting
+                        if (typeof obj[method] === 'object' && obj[method] !== null) {
+                            return new Proxy(obj[method], {
+                                get(deepObj, deepMethod) {
+                                    if (typeof deepObj[deepMethod] === 'function') {
+                                        return function(...args) {
+                                            console.log(`[DRY RUN] Called ${prop}.${method}.${deepMethod}() method`);
+                                            return Promise.resolve({ data: {}, error: null });
+                                        };
+                                    }
+                                    return deepObj[deepMethod];
+                                }
+                            });
+                        }
+                        return obj[method];
+                    }
+                });
+            }
+            
+            return target[prop];
+        }
+    });
+}
+
 // Configuration
 const RESET_MODE = process.env.RESET === 'true';
+const DRY_RUN = process.env.DRY_RUN === 'true';
 const EXTERNAL_ID_PREFIX = 'uat_';
 
 console.log(`🌱 UAT Seed Script Starting...`);
 console.log(`📊 Mode: ${RESET_MODE ? 'RESET (delete and re-seed)' : 'IDEMPOTENT (upsert)'}`);
+if (DRY_RUN) {
+    console.log(`🔍 DRY RUN MODE - No database changes will be made`);
+}
 console.log(`🔗 Supabase URL: ${supabaseUrl}`);
 
 /**
@@ -407,24 +531,58 @@ async function createHouseholdsAndFamilies() {
     const householdsData = [
         {
             external_id: `${EXTERNAL_ID_PREFIX}household_1`,
-            name: 'The Smith Family',
-            address: '123 Main St, Anytown, ST 12345',
-            phone: '555-123-4567',
-            emergency_contact: 'Jane Smith - 555-987-6543',
+            household_name: 'The Smith Family',
+            address: '123 Main St',
+            city: 'Anytown',
+            state: 'ST',
+            zip: '12345',
+            primary_phone: '555-123-4567',
+            email: 'smith@example.com',
         },
         {
             external_id: `${EXTERNAL_ID_PREFIX}household_2`,
-            name: 'The Johnson Family',
-            address: '456 Oak Ave, Somewhere, ST 67890',
-            phone: '555-234-5678',
-            emergency_contact: 'Bob Johnson - 555-876-5432',
+            household_name: 'The Johnson Family',
+            address: '456 Oak Ave',
+            city: 'Somewhere',
+            state: 'ST',
+            zip: '67890',
+            primary_phone: '555-234-5678',
+            email: 'johnson@example.com',
         },
         {
             external_id: `${EXTERNAL_ID_PREFIX}household_3`,
-            name: 'The Davis Family',
-            address: '789 Pine Rd, Elsewhere, ST 54321',
-            phone: '555-345-6789',
-            emergency_contact: 'Carol Davis - 555-765-4321',
+            household_name: 'The Davis Family',
+            address: '789 Pine Rd',
+            city: 'Elsewhere',
+            state: 'ST',
+            zip: '54321',
+            primary_phone: '555-345-6789',
+            email: 'davis@example.com',
+        },
+    ];
+    
+    // Emergency contacts data - will be created after households
+    const emergencyContactsData = [
+        {
+            external_id: `${EXTERNAL_ID_PREFIX}emergency_1`,
+            first_name: 'Jane',
+            last_name: 'Smith',
+            mobile_phone: '555-987-6543',
+            relationship: 'Mother',
+        },
+        {
+            external_id: `${EXTERNAL_ID_PREFIX}emergency_2`,
+            first_name: 'Bob',
+            last_name: 'Johnson',
+            mobile_phone: '555-876-5432',
+            relationship: 'Father',
+        },
+        {
+            external_id: `${EXTERNAL_ID_PREFIX}emergency_3`,
+            first_name: 'Carol',
+            last_name: 'Davis',
+            mobile_phone: '555-765-4321',
+            relationship: 'Mother',
         },
     ];
 
@@ -439,13 +597,13 @@ async function createHouseholdsAndFamilies() {
             .single();
 
         if (checkError && checkError.code !== 'PGRST116') {
-            throw new Error(`Error checking household ${householdData.name}: ${checkError.message}`);
+            throw new Error(`Error checking household ${householdData.household_name}: ${checkError.message}`);
         }
 
         let householdId;
         if (existing) {
-            householdId = existing.id;
-            console.log(`✅ Household already exists: ${householdData.name}`);
+            householdId = existing.household_id;
+            console.log(`✅ Household already exists: ${householdData.household_name}`);
         } else {
             const { data: newHousehold, error: insertError } = await supabase
                 .from('households')
@@ -454,14 +612,47 @@ async function createHouseholdsAndFamilies() {
                 .single();
 
             if (insertError) {
-                throw new Error(`Failed to create household ${householdData.name}: ${insertError.message}`);
+                throw new Error(`Failed to create household ${householdData.household_name}: ${insertError.message}`);
             }
             
-            householdId = newHousehold.id;
-            console.log(`✅ Created household: ${householdData.name}`);
+            householdId = newHousehold.household_id;
+            console.log(`✅ Created household: ${householdData.household_name}`);
         }
 
         householdIds.push(householdId);
+    }
+
+    // Create emergency contacts
+    for (let i = 0; i < emergencyContactsData.length; i++) {
+        const contactData = {
+            ...emergencyContactsData[i],
+            household_id: householdIds[i],
+            contact_id: emergencyContactsData[i].external_id,
+        };
+        
+        const { data: existing, error: checkError } = await supabase
+            .from('emergency_contacts')
+            .select('contact_id')
+            .eq('contact_id', contactData.contact_id)
+            .single();
+
+        if (checkError && checkError.code !== 'PGRST116') {
+            throw new Error(`Error checking emergency contact ${contactData.first_name} ${contactData.last_name}: ${checkError.message}`);
+        }
+
+        if (existing) {
+            console.log(`✅ Emergency contact already exists: ${contactData.first_name} ${contactData.last_name}`);
+        } else {
+            const { error: insertError } = await supabase
+                .from('emergency_contacts')
+                .insert(contactData);
+
+            if (insertError) {
+                throw new Error(`Failed to create emergency contact ${contactData.first_name} ${contactData.last_name}: ${insertError.message}`);
+            }
+            
+            console.log(`✅ Created emergency contact: ${contactData.first_name} ${contactData.last_name}`);
+        }
     }
 
     // Create guardians
@@ -703,6 +894,7 @@ async function resetUATData() {
         'ministry_enrollments',  // Note: no external_id column, but has UAT data
         'registrations',         // Note: no external_id column, but has UAT data  
         'children',              // Has external_id
+        'emergency_contacts',    // Has contact_id (same as external_id)
         'guardians',             // Has external_id
         'households',            // Has external_id
         'scriptures',            // Has external_id
@@ -716,6 +908,10 @@ async function resetUATData() {
             // These tables don't have external_id but are test-only data in UAT context
             // Delete all records since this is UAT environment
             const result = await supabase.from(table).delete().gte('created_at', '1900-01-01');
+            error = result.error;
+        } else if (table === 'emergency_contacts') {
+            // Emergency contacts use contact_id instead of external_id
+            const result = await supabase.from(table).delete().like('contact_id', `${EXTERNAL_ID_PREFIX}%`);
             error = result.error;
         } else {
             // These tables have external_id, so filter by UAT prefix
