@@ -212,7 +212,7 @@ function parseScripturesCSV(csvContent) {
  */
 async function createCompetitionYear() {
     const yearData = {
-        external_id: `${EXTERNAL_ID_PREFIX}year_2025_2026`,
+        id: `${EXTERNAL_ID_PREFIX}year_2025_2026`,
         name: 'Bible Bee 2025-2026',
         year: '2025-2026',
         is_active: true,
@@ -226,7 +226,7 @@ async function createCompetitionYear() {
     const { data: existing, error: checkError } = await supabase
         .from('competition_years')
         .select('id')
-        .eq('external_id', yearData.external_id)
+        .eq('id', yearData.id)
         .single();
 
     if (checkError && checkError.code !== 'PGRST116') {
