@@ -547,7 +547,7 @@ export default function RegisterPage() {
 		return { otherMinistryPrograms: otherMinistries, choirPrograms: choir };
 	}, [enrolledPrograms]);
 
-	const prefillForm = useCallback((data: any) => {
+	const prefillForm = (data: any) => {
 		const householdData = data.household;
 		const registrationData: Partial<RegistrationFormValues> = {
 			household: {
@@ -566,9 +566,9 @@ export default function RegisterPage() {
 				data.children.map((_: any, index: number) => `item-${index}`)
 			);
 		}
-	}, [form]);
+	};
 
-	const proceedToRegistrationForm = useCallback(() => {
+	const proceedToRegistrationForm = () => {
 		toast({
 			title: 'New Registration',
 			description: 'Please complete the form below to register your family.',
@@ -602,9 +602,9 @@ export default function RegisterPage() {
 		});
 		setOpenAccordionItems(['item-0']);
 		setVerificationStep('form_visible');
-	}, [toast, verificationEmail, form]);
+	};
 
-	const handleEmailLookup = useCallback(async () => {
+	const handleEmailLookup = async () => {
 		if (!verificationEmail) return;
 
 		// Use current year for lookup
@@ -657,7 +657,7 @@ export default function RegisterPage() {
 				proceedToRegistrationForm();
 			}
 		}
-	}, [verificationEmail, toast, flags.loginMagicEnabled, flags.isDemoMode, proceedToRegistrationForm, prefillForm]);
+	};
 
 	useEffect(() => {
 		// Check if user is authenticated and skip email lookup if so
@@ -736,7 +736,7 @@ export default function RegisterPage() {
 			
 			checkExistingData();
 		}
-	}, [user, flags.isDemoMode, toast, form, prefillForm]);
+	}, [user, flags.isDemoMode, toast, form]);
 
 	// Focus on the first field when the form becomes visible for authenticated users
 	useEffect(() => {
@@ -774,7 +774,7 @@ export default function RegisterPage() {
 		return () => {
 			window.removeEventListener('keydown', handleEnterPress);
 		};
-	}, [verificationStep, verificationEmail, handleEmailLookup]);
+	}, [verificationStep, verificationEmail]);
 
 	async function onSubmit(data: RegistrationFormValues) {
 		try {

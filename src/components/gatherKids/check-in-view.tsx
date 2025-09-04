@@ -22,6 +22,7 @@ import { PhotoViewerDialog } from './photo-viewer-dialog';
 import { parseISO, differenceInYears } from 'date-fns';
 import { ChildCard } from './child-card';
 import { CheckoutDialog } from './checkout-dialog';
+import { normalizeGradeDisplay } from '@/lib/gradeUtils';
 
 interface CheckInViewProps {
 	initialChildren: Child[];
@@ -269,7 +270,7 @@ export function CheckInView({
 
 		if (selectedGrades.length > 0) {
 			results = results.filter(
-				(child) => child.grade && selectedGrades.includes(child.grade)
+				(child) => child.grade && selectedGrades.includes(normalizeGradeDisplay(child.grade))
 			);
 		}
 
