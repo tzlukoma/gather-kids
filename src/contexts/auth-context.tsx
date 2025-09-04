@@ -289,7 +289,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 					typeof userData.is_active === 'boolean' ? userData.is_active : true,
 				metadata: {
 					...userData.metadata,
-					role: userData.metadata?.role || AuthRole.ADMIN,
+					role: userData.metadata?.role || null, // Don't default to ADMIN for users with no role
 				},
 				assignedMinistryIds: [],
 			};
