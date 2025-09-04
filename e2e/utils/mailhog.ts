@@ -1,4 +1,3 @@
-// @ts-ignore
 import fetch from 'node-fetch';
 
 const MAILHOG_API = process.env.MAILHOG_API || 'http://localhost:8025/api/v2';

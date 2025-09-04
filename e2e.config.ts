@@ -17,17 +17,23 @@ export default defineConfig({
   ],
   use: {
     baseURL,
-    trace: 'retain-on-failure',
-    screenshot: 'only-on-failure',
-    video: 'retain-on-failure',
+    trace: 'off', // Disable trace recording
+    screenshot: 'off', // Disable screenshots
+    video: 'off', // Disable video recording
     actionTimeout: 10000,
   },
   projects: [
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] }
+      use: { 
+        ...devices['Desktop Chrome'],
+        // Use system browser instead of downloading
+        launchOptions: {
+          executablePath: '/usr/bin/chromium-browser'
+        }
+      }
     }
   ],
   // Global setup for seeding if needed
-  globalSetup: './e2e/utils/global-setup.ts',
+  // globalSetup: './e2e/utils/global-setup.ts',
 });

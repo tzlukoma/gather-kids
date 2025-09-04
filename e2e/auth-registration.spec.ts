@@ -44,20 +44,15 @@ test.describe('Email/Password Registration to Household Flow', () => {
 
     // Step 1: Create account
     console.log('📝 Step 1: Navigate to signup');
-    await page.goto('/auth/signup');
+    await page.goto('/create-account');
     await helpers.waitForPageLoad();
 
     // Fill signup form
-    await helpers.fillFormField('[data-testid="email-input"], input[type="email"]', testEmail);
-    await helpers.fillFormField('[data-testid="password-input"], input[type="password"]:not([name*="confirm"])', TEST_PASSWORD);
-    
-    // Handle confirm password if present
-    const confirmPasswordField = page.locator('input[type="password"][name*="confirm"], input[type="password"]').last();
-    if (await confirmPasswordField.count() > 0) {
-      await confirmPasswordField.fill(TEST_PASSWORD);
-    }
+    await helpers.fillFormField('#email', testEmail);
+    await helpers.fillFormField('#password', TEST_PASSWORD);
+    await helpers.fillFormField('#confirm-password', TEST_PASSWORD);
 
-    await page.getByTestId('signup-submit').or(page.locator('button[type="submit"], button:has-text("Sign Up"), button:has-text("Create Account")')).first().click();
+    await page.locator('button:has-text("Create Account")').click();
 
     // Verify signup success message
     console.log('📧 Step 2: Verify signup success');
