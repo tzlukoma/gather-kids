@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { AuthRole } from '@/lib/auth-types';
 import { db } from '@/lib/db';
 import { dbAdapter } from '@/lib/db-utils';
-import { canLeaderManageBibleBee, getCompetitionYears } from '@/lib/dal';
+import { canLeaderManageBibleBee, getCompetitionYears, getBibleBeeYears, getScripturesForBibleBeeYear, getScripturesForCompetitionYear } from '@/lib/dal';
 import {
 	Select,
 	SelectTrigger,
@@ -68,32 +68,26 @@ export default function BibleBeePage() {
 	useEffect(() => {
 		const fetchData = async () => {
 			try {
-				// Get Bible Bee years from adapter
-				const beeYears = await dbAdapter.listBibleBeeYears();
+				console.log('Loading Bible Bee data...');
+				
+				// Get Bible Bee years using DAL function with adapter support
+				const beeYears = await getBibleBeeYears();
+				console.log('Bible Bee years loaded:', beeYears);
 				setBibleBeeYears(beeYears || []);
 
-				// For competition years, we'll need to use direct DB access
-				// as there's no adapter method for this legacy schema
+				// For competition years, try to get legacy data when in IndexedDB mode
 				try {
-					// Check if the db object has the competitionYears property
-					// This will work with IndexedDB but may not with Supabase
-					if (db && 'competitionYears' in db) {
-						console.log('Using direct DB access for competition years');
-						// Using direct Dexie access for legacy data
-						const years = (await (db as any).competitionYears?.toArray()) || [];
-						setCompetitionYears(years.sort((a, b) => b.year - a.year));
-					} else {
-						console.log(
-							'No competition years table available in this database mode'
-						);
-						setCompetitionYears([]);
-					}
+					const years = await getCompetitionYears();
+					console.log('Competition years loaded:', years);
+					setCompetitionYears(years || []);
 				} catch (err) {
-					console.error('Failed to load competition years:', err);
+					console.warn('No competition years available (normal in Supabase mode):', err);
 					setCompetitionYears([]);
 				}
 			} catch (error) {
 				console.error('Failed to load Bible Bee data:', error);
+				setBibleBeeYears([]);
+				setCompetitionYears([]);
 			}
 		};
 
@@ -176,19 +170,7 @@ export default function BibleBeePage() {
 				if (bibleBeeYear) {
 					console.log('Found Bible Bee year:', bibleBeeYear);
 					try {
-						// Check if db has scriptures table
-						if (db && 'scriptures' in db) {
-							// Use direct Dexie query for scriptures as adapter doesn't have this method
-							scriptures =
-								(await (db as any).scriptures
-									?.where('year_id')
-									?.equals(bibleBeeYear.id)
-									?.toArray()) || [];
-						} else {
-							console.log(
-								'No scriptures table available in this database mode'
-							);
-						}
+						scriptures = await getScripturesForBibleBeeYear(bibleBeeYear.id);
 						console.log(
 							'Loaded scriptures from Bible Bee year:',
 							scriptures.length
@@ -208,23 +190,11 @@ export default function BibleBeePage() {
 				if (yearObj) {
 					console.log('Found competition year:', yearObj);
 					try {
-						// Check if db has scriptures table
-						if (db && 'scriptures' in db) {
-							// Use direct DB access for legacy competition year scriptures
-							scriptures =
-								(await (db as any).scriptures
-									?.where('competitionYearId')
-									?.equals(yearObj.id)
-									?.toArray()) || [];
-							console.log(
-								'Loaded scriptures from competition year:',
-								scriptures.length
-							);
-						} else {
-							console.log(
-								'No scriptures table available in this database mode'
-							);
-						}
+						scriptures = await getScripturesForCompetitionYear(yearObj.id);
+						console.log(
+							'Loaded scriptures from competition year:',
+							scriptures.length
+						);
 					} catch (error) {
 						console.error('Error loading legacy scriptures:', error);
 					}

@@ -48,23 +48,34 @@ export default function LeadersPage() {
 		const loadLeaders = async () => {
 			try {
 				setDataLoading(true);
+				console.log('Loading leaders data...');
 				if (searchTerm.trim()) {
+					console.log('Searching leaders with term:', searchTerm.trim());
 					const results = await searchLeaderProfiles(searchTerm.trim());
+					console.log('Search results:', results);
 					setSearchResults(results);
 				} else {
+					console.log('Loading all leaders...');
 					const leaders = await queryLeaderProfiles();
+					console.log('All leaders loaded:', leaders);
 					setAllLeaders(leaders);
 					setSearchResults(null);
 				}
 			} catch (error) {
 				console.error('Error loading leaders:', error);
+				// Show error message to user
+				toast({
+					title: 'Failed to Load Leaders',
+					description: 'There was an error loading leader data. Please try refreshing the page.',
+					variant: 'destructive',
+				});
 			} finally {
 				setDataLoading(false);
 			}
 		};
 
 		loadLeaders();
-	}, [searchTerm]);
+	}, [searchTerm, toast]);
 
 	// Use search results if available, otherwise all leaders
 	const leaders = searchResults || allLeaders || [];

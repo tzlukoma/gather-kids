@@ -175,7 +175,7 @@ export function ChildCard({
             </CardHeader>
             <CardContent className="flex-grow space-y-2 px-4 pb-4 sm:px-6 sm:pb-6 pt-0">
               <div className="text-sm text-muted-foreground space-y-2">
-                <p><strong>DOB:</strong> {child.dob ? format(parseISO(child.dob), "MMM d, yyyy") : 'N/A'} ({child.age} yrs)</p>
+                <p><strong>DOB:</strong> {child.dob ? format(parseISO(child.dob), "MMM d, yyyy") : 'N/A'} {child.age !== null ? `(${child.age} yrs)` : ''}</p>
                 <p><strong>Grade:</strong> {normalizeGradeDisplay(child.grade)}</p>
                 {child.medical_notes && <p><strong>Notes:</strong> {child.medical_notes}</p>}
               </div>

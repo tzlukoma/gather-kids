@@ -191,6 +191,11 @@ export function CheckInView({
 		try {
 			await recordCheckIn(childId, selectedEvent, undefined, 'user_admin');
 			const child = children.find((c) => c.child_id === childId);
+			
+			// Refresh attendance data to update UI immediately
+			const refreshedAttendance = await getAttendanceForDate(today);
+			setTodaysAttendance(refreshedAttendance);
+			
 			toast({
 				title: 'Checked In',
 				description: `${child?.first_name} ${
@@ -221,6 +226,11 @@ export function CheckInView({
 				(a) => a.attendance_id === attendanceId
 			);
 			const eventName = getEventName(todaysRecord?.event_id || null);
+			
+			// Refresh attendance data to update UI immediately
+			const refreshedAttendance = await getAttendanceForDate(today);
+			setTodaysAttendance(refreshedAttendance);
+			
 			toast({
 				title: 'Checked Out',
 				description: `${child?.first_name} ${child?.last_name} has been checked out from ${eventName}.`,

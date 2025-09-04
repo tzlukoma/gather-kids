@@ -2321,6 +2321,40 @@ export async function getBibleBeeYears(): Promise<BibleBeeYear[]> {
 }
 
 /**
+ * Get scriptures for a Bible Bee year
+ */
+export async function getScripturesForBibleBeeYear(yearId: string): Promise<any[]> {
+	if (shouldUseAdapter()) {
+		// In Supabase mode, scriptures may not be available yet
+		// Return empty array for now, can be enhanced later when scripture schema is added
+		console.log('Scripture loading not yet implemented in Supabase mode');
+		return [];
+	} else {
+		// Use legacy Dexie interface for demo mode
+		if (db && 'scriptures' in db) {
+			return (db as any).scriptures?.where('year_id')?.equals(yearId)?.toArray() || [];
+		}
+		return [];
+	}
+}
+
+/**
+ * Get scriptures for a competition year (legacy)
+ */
+export async function getScripturesForCompetitionYear(competitionYearId: string): Promise<any[]> {
+	if (shouldUseAdapter()) {
+		// In Supabase mode, legacy competition year scriptures are not available
+		return [];
+	} else {
+		// Use legacy Dexie interface for demo mode
+		if (db && 'scriptures' in db) {
+			return (db as any).scriptures?.where('competitionYearId')?.equals(competitionYearId)?.toArray() || [];
+		}
+		return [];
+	}
+}
+
+/**
  * Get ministries for ministry management
  */
 export async function getMinistries(isActive?: boolean): Promise<Ministry[]> {
