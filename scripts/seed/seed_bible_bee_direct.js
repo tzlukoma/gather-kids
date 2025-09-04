@@ -146,23 +146,88 @@ async function main() {
 
 		// 2. Find Bible Bee ministry ID
 		console.log('🏢 Finding Bible Bee Ministry...');
-		const { data: ministryData, error: ministryError } = await supabase
-			.from('ministries')
-			.select('code')
-			.eq('name', 'bible-bee')
-			.single();
 
-		if (ministryError) {
-			console.error(
-				`❌ FATAL ERROR: Failed to find Bible Bee ministry: ${ministryError.message}`
+		// Try multiple possible ministry names to be flexible
+		const possibleMinistryNames = [
+			'Bible Bee',
+			'bible-bee',
+			'bible_bee',
+			'BibleBee',
+		];
+		let ministryData = null;
+		let ministryError = null;
+
+		for (const ministryName of possibleMinistryNames) {
+			console.log(`  - Trying ministry name: "${ministryName}"...`);
+			const result = await supabase
+				.from('ministries')
+				.select('*') // Select all fields to help debugging
+				.ilike('name', ministryName) // Case insensitive search
+				.maybeSingle();
+
+			if (!result.error && result.data) {
+				ministryData = result.data;
+				console.log(`  - Found ministry with name: "${ministryData.name}"`);
+				break;
+			} else {
+				ministryError = result.error;
+			}
+		}
+
+		// If we still don't have ministry data, try one more attempt with a broader search
+		if (!ministryData) {
+			console.log(
+				'  - Trying broader search for any ministry containing "bee"...'
 			);
+			const result = await supabase
+				.from('ministries')
+				.select('*')
+				.ilike('name', '%bee%') // Case insensitive search with wildcards
+				.maybeSingle();
+
+			if (!result.error && result.data) {
+				ministryData = result.data;
+				console.log(`  - Found ministry with name: "${ministryData.name}"`);
+			} else {
+				// List all ministries to help debug
+				console.log('  - Listing all available ministries for debugging:');
+				const { data: allMinistries } = await supabase
+					.from('ministries')
+					.select('name, id, code, ministry_id');
+
+				if (allMinistries && allMinistries.length > 0) {
+					allMinistries.forEach((min) => {
+						console.log(
+							`    * ${min.name} (id: ${min.id || 'N/A'}, code: ${
+								min.code || 'N/A'
+							}, ministry_id: ${min.ministry_id || 'N/A'})`
+						);
+					});
+				} else {
+					console.log('    * No ministries found in the database');
+				}
+
+				console.error(
+					`❌ FATAL ERROR: Failed to find Bible Bee ministry after multiple attempts`
+				);
+				console.error(
+					'Make sure the UAT seed script has been run first to create the ministry.'
+				);
+				process.exit(1);
+			}
+		}
+
+		// Use ministry_id if available, otherwise fall back to id or code
+		const ministryId =
+			ministryData.ministry_id || ministryData.id || ministryData.code;
+		if (!ministryId) {
 			console.error(
-				'Make sure the UAT seed script has been run first to create the ministry.'
+				'❌ FATAL ERROR: Ministry found but has no ID field (ministry_id, id, or code)'
 			);
+			console.error('Ministry data:', JSON.stringify(ministryData, null, 2));
 			process.exit(1);
 		}
 
-		const ministryId = ministryData.ministry_id;
 		console.log(`✅ Found ministry ID: ${ministryId}`);
 
 		// 3. Create divisions directly
