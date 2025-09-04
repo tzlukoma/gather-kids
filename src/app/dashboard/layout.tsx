@@ -1,6 +1,16 @@
 'use client';
 
 import React from 'react';
+import { Button } from '@/components/ui/button';
+import { DatabaseAdapterBadge } from '@/components/gatherKids/database-adapter-badge';
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuLabel,
+	DropdownMenuSeparator,
+	DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
@@ -15,15 +25,6 @@ import {
 	SidebarTrigger,
 	SidebarInset,
 } from '@/components/ui/sidebar';
-import { Button } from '@/components/ui/button';
-import {
-	DropdownMenu,
-	DropdownMenuContent,
-	DropdownMenuItem,
-	DropdownMenuLabel,
-	DropdownMenuSeparator,
-	DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import {
 	LayoutDashboard,
 	CheckCheck,
@@ -204,8 +205,8 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 								))}
 							</SidebarMenu>
 						</SidebarContent>
-						<SidebarFooter>
-							{/* Footer content can go here if needed in the future */}
+						<SidebarFooter className="p-2 flex justify-center">
+							<DatabaseAdapterBadge />
 						</SidebarFooter>
 					</Sidebar>
 					<SidebarInset>

@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "next dev --turbopack -p 9002",
+    "dev:uat": "./scripts/dev/dev-uat.sh",
     "genkit:dev": "genkit start -- tsx src/ai/dev.ts",
     "genkit:watch": "genkit start -- tsx --watch src/ai/dev.ts",
     "build": "next build",
@@ -18,9 +19,21 @@
     "seed:scriptures": "DOTENV_CONFIG_PATH=.env.local node -r dotenv/config scripts/seed/seedScriptures.js",
     "seed:uat": "DOTENV_CONFIG_PATH=.env.local node -r dotenv/config scripts/seed/uat_seed.js",
     "seed:uat:reset": "DOTENV_CONFIG_PATH=.env.local RESET=true node -r dotenv/config scripts/seed/uat_seed.js",
+    "seed:uat:bible-bee": "DOTENV_CONFIG_PATH=.env.local node -r dotenv/config scripts/seed/seed_bible_bee_direct.js",
+    "seed:uat:full-reset": "npm run seed:uat:reset && npm run seed:uat && npm run seed:uat:bible-bee",
+    "seed:uat:full-reset:script": "./scripts/seed/full_reset_and_seed.sh",
+    "seed:uat:dry": "DOTENV_CONFIG_PATH=.env.local DRY_RUN=true node -r dotenv/config scripts/seed/uat_seed.js",
+    "seed:uat:reset:dry": "DOTENV_CONFIG_PATH=.env.local RESET=true DRY_RUN=true node -r dotenv/config scripts/seed/uat_seed.js",
     "import:grab-dexie": "node scripts/import/grabDexieExport.mjs",
     "import:dexie": "DOTENV_CONFIG_PATH=.env.local node -r dotenv/config scripts/import/importDexie.js",
-    "import:dexie:dry": "DOTENV_CONFIG_PATH=.env.local node -r dotenv/config scripts/import/importDexie.js --dry-run"
+    "import:dexie:dry": "DOTENV_CONFIG_PATH=.env.local node -r dotenv/config scripts/import/importDexie.js --dry-run",
+    "debug:auth": "node scripts/debug/check-auth-config.js",
+    "debug:auth:uat": "source .env.uat && node scripts/debug/check-auth-config.js",
+    "debug:keys": "./scripts/debug/check-supabase-keys.sh",
+    "docs:validate": "bash scripts/validate-docs.sh",
+    "docs:dev": "cd doc-site && npm start",
+    "docs:build": "cd doc-site && npm run build",
+    "docs:serve": "cd doc-site && npm run serve"
   },
   "dependencies": {
     "@genkit-ai/googleai": "^1.14.1",
