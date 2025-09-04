@@ -61,23 +61,10 @@ The authentication process is taking longer than expected. This can happen if:
 
 		const handleAuthCallback = async () => {
 			try {
-				// Extract URL parameters first
-				const url = new URL(window.location.href);
-				const type = url.searchParams.get('type');
-				const code = url.searchParams.get('code');
-				
 				const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 				const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-				// Check if this is a test magic link
-				const isTestMagicLink = type === 'magiclink' && (
-					process.env.NODE_ENV === 'test' || 
-					process.env.SMTP_HOST === 'localhost' ||
-					supabaseUrl?.includes('dummy') // If using dummy Supabase, allow test magic links
-				);
-
-				// Allow test magic links to proceed even with dummy configuration
-				if (!isTestMagicLink && (!supabaseUrl || !supabaseAnonKey || supabaseUrl.includes('dummy'))) {
+				if (!supabaseUrl || !supabaseAnonKey || supabaseUrl.includes('dummy')) {
 					setError('Supabase is not properly configured for this environment.');
 					return;
 				}
@@ -107,46 +94,41 @@ The authentication process is taking longer than expected. This can happen if:
 				let data, authError;
 
 				try {
+					// Extract the code from the URL
+					const url = new URL(window.location.href);
+					const code = url.searchParams.get('code');
+					const type = url.searchParams.get('type');
+
 					if (!code) {
 						authError = new Error('No code parameter found in URL');
 						console.error('Auth callback error: No code parameter in URL');
 					} else {
 						console.log('Found code in URL, exchanging for session');
 
-						// Check if this is a test magic link (for MailHog testing)
-						if (isTestMagicLink) {
+						// Check if this is an email verification link for registration
+						if (type === 'magiclink') {
 							try {
-								// Decode the test magic link using browser-compatible base64url decoding
+								// Decode the verification link using browser-compatible base64url decoding
 								// Convert base64url to base64 by replacing URL-safe characters
 								const base64 = code.replace(/-/g, '+').replace(/_/g, '/');
 								// Add padding if needed
 								const paddedBase64 = base64 + '=='.slice(0, (4 - base64.length % 4) % 4);
-								// Decode using atob
+								// Decode using atob (browser native)
 								const decodedString = atob(paddedBase64);
 								const decoded = JSON.parse(decodedString);
 								
 								if (decoded.type === 'magic_link' && decoded.email) {
-									console.log('Processing test magic link for:', decoded.email);
+									console.log('Processing email verification for registration:', decoded.email);
 									
-									// For test magic links, create a mock session
-									data = {
-										session: {
-											user: {
-												id: 'test-user-' + Date.now(),
-												email: decoded.email,
-												email_confirmed_at: new Date().toISOString(),
-											},
-											access_token: 'test-access-token',
-											refresh_token: 'test-refresh-token',
-										}
-									};
-									authError = null;
+									// Redirect to registration form with verified email
+									router.push(`/register?verified_email=${encodeURIComponent(decoded.email)}`);
+									return;
 								} else {
-									throw new Error('Invalid test magic link format');
+									throw new Error('Invalid email verification link format');
 								}
 							} catch (decodeError) {
-								console.error('Error decoding test magic link:', decodeError);
-								authError = new Error('Invalid test magic link');
+								console.error('Error decoding email verification link:', decodeError);
+								authError = new Error('Invalid email verification link');
 							}
 						} else {
 							// Add more diagnostic logging for debugging

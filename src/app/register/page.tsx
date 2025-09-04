@@ -1,7 +1,7 @@
 'use client';
 
 import { useForm, useFieldArray, useWatch } from 'react-hook-form';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
@@ -32,7 +32,7 @@ import {
 } from '@/components/ui/accordion';
 import { useToast } from '@/hooks/use-toast';
 import { PlusCircle, Trash2, AlertTriangle, Info } from 'lucide-react';
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback, Suspense } from 'react';
 import { Textarea } from '@/components/ui/textarea';
 import { findHouseholdByEmail, registerHousehold } from '@/lib/dal';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -443,11 +443,12 @@ const ProgramSection = ({
 	);
 };
 
-export default function RegisterPage() {
+function RegisterPageContent() {
 	const { toast } = useToast();
 	const { flags } = useFeatureFlags();
 	const { user } = useAuth();
 	const router = useRouter();
+	const searchParams = useSearchParams();
 	const [verificationStep, setVerificationStep] =
 		useState<VerificationStep>('enter_email');
 	const [verificationEmail, setVerificationEmail] = useState('');
@@ -623,7 +624,7 @@ export default function RegisterPage() {
 		}
 	};
 
-	const proceedToRegistrationForm = () => {
+	const proceedToRegistrationForm = useCallback(() => {
 		toast({
 			title: 'New Registration',
 			description: 'Please complete the form below to register your family.',
@@ -657,9 +658,23 @@ export default function RegisterPage() {
 		});
 		setOpenAccordionItems(['item-0']);
 		setVerificationStep('form_visible');
-	};
+	}, [toast, form, verificationEmail]);
 
 	useEffect(() => {
+		// Check for verified email from email verification link
+		const verifiedEmail = searchParams?.get('verified_email');
+		if (verifiedEmail) {
+			setVerificationEmail(verifiedEmail);
+			toast({
+				title: 'Email Verified!',
+				description: 'Your email has been verified. Please complete your registration below.',
+			});
+			
+			// Proceed directly to registration form with verified email
+			proceedToRegistrationForm();
+			return;
+		}
+		
 		// Check if user is authenticated and skip email lookup if so
 		// For live mode: check for authenticated users with email
 		// For demo mode: check for authenticated users with GUARDIAN role (parents) or null role (new users needing registration)
@@ -724,7 +739,7 @@ export default function RegisterPage() {
 			
 			checkExistingData();
 		}
-	}, [user, flags.isDemoMode, toast, form]);
+	}, [user, flags.isDemoMode, toast, form, searchParams, proceedToRegistrationForm]);
 
 	// Focus on the first field when the form becomes visible for authenticated users
 	useEffect(() => {
@@ -1875,5 +1890,13 @@ export default function RegisterPage() {
 				</Form>
 			)}
 		</div>
+	);
+}
+
+export default function RegisterPage() {
+	return (
+		<Suspense fallback={<div>Loading...</div>}>
+			<RegisterPageContent />
+		</Suspense>
 	);
 }
