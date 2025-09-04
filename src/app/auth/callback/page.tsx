@@ -61,10 +61,23 @@ The authentication process is taking longer than expected. This can happen if:
 
 		const handleAuthCallback = async () => {
 			try {
+				// Extract URL parameters first
+				const url = new URL(window.location.href);
+				const type = url.searchParams.get('type');
+				const code = url.searchParams.get('code');
+				
 				const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 				const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-				if (!supabaseUrl || !supabaseAnonKey || supabaseUrl.includes('dummy')) {
+				// Check if this is a test magic link
+				const isTestMagicLink = type === 'magiclink' && (
+					process.env.NODE_ENV === 'test' || 
+					process.env.SMTP_HOST === 'localhost' ||
+					supabaseUrl?.includes('dummy') // If using dummy Supabase, allow test magic links
+				);
+
+				// Allow test magic links to proceed even with dummy configuration
+				if (!isTestMagicLink && (!supabaseUrl || !supabaseAnonKey || supabaseUrl.includes('dummy'))) {
 					setError('Supabase is not properly configured for this environment.');
 					return;
 				}
@@ -94,11 +107,6 @@ The authentication process is taking longer than expected. This can happen if:
 				let data, authError;
 
 				try {
-					// Extract the code from the URL
-					const url = new URL(window.location.href);
-					const code = url.searchParams.get('code');
-					const type = url.searchParams.get('type');
-
 					if (!code) {
 						authError = new Error('No code parameter found in URL');
 						console.error('Auth callback error: No code parameter in URL');
@@ -106,10 +114,16 @@ The authentication process is taking longer than expected. This can happen if:
 						console.log('Found code in URL, exchanging for session');
 
 						// Check if this is a test magic link (for MailHog testing)
-						if (type === 'magiclink' && (process.env.NODE_ENV === 'test' || process.env.SMTP_HOST === 'localhost')) {
+						if (isTestMagicLink) {
 							try {
-								// Decode the test magic link
-								const decoded = JSON.parse(Buffer.from(code, 'base64url').toString());
+								// Decode the test magic link using browser-compatible base64url decoding
+								// Convert base64url to base64 by replacing URL-safe characters
+								const base64 = code.replace(/-/g, '+').replace(/_/g, '/');
+								// Add padding if needed
+								const paddedBase64 = base64 + '=='.slice(0, (4 - base64.length % 4) % 4);
+								// Decode using atob
+								const decodedString = atob(paddedBase64);
+								const decoded = JSON.parse(decodedString);
 								
 								if (decoded.type === 'magic_link' && decoded.email) {
 									console.log('Processing test magic link for:', decoded.email);
