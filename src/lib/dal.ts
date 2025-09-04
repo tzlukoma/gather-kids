@@ -2409,6 +2409,23 @@ export async function getMinistries(isActive?: boolean): Promise<Ministry[]> {
 	}
 }
 
+export async function getRegistrationCycles(isActive?: boolean): Promise<RegistrationCycle[]> {
+	if (shouldUseAdapter()) {
+		// Use Supabase adapter for live mode
+		return dbAdapter.listRegistrationCycles(isActive);
+	} else {
+		// Use legacy Dexie interface for demo mode
+		if (isActive !== undefined) {
+			return db.registration_cycles.filter(c => {
+				const val = (c as any)?.is_active;
+				const isActiveValue = val === true || val === 1 || String(val) === '1';
+				return isActiveValue === isActive;
+			}).toArray();
+		}
+		return db.registration_cycles.toArray();
+	}
+}
+
 /**
  * Get all children for check-in/out management
  */

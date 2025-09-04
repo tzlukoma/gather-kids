@@ -34,7 +34,7 @@ import { useToast } from '@/hooks/use-toast';
 import { PlusCircle, Trash2, AlertTriangle, Info } from 'lucide-react';
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { Textarea } from '@/components/ui/textarea';
-import { findHouseholdByEmail, registerHousehold } from '@/lib/dal';
+import { findHouseholdByEmail, registerHousehold, getMinistries, getRegistrationCycles } from '@/lib/dal';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import {
 	AlertDialog,
@@ -63,8 +63,6 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from '@/components/ui/select';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '@/lib/db';
 import type {
 	Ministry,
 	Household,
@@ -456,16 +454,40 @@ export default function RegisterPage() {
 	const [isPrefill, setIsPrefill] = useState(false);
 	const [isAuthenticatedUser, setIsAuthenticatedUser] = useState(false);
 
-	const allMinistries = useLiveQuery(() => db.ministries.toArray(), []);
+	const [allMinistries, setAllMinistries] = useState<Ministry[]>([]);
+	const [activeRegistrationCycle, setActiveRegistrationCycle] = useState<RegistrationCycle | undefined>();
+	
+	// Load ministries and registration cycles using adapter pattern
+	useEffect(() => {
+		const loadData = async () => {
+			try {
+				console.log('DEBUG: Loading ministries and registration cycles for registration form');
+				const [ministries, cycles] = await Promise.all([
+					getMinistries(),
+					getRegistrationCycles()
+				]);
+				console.log('DEBUG: Loaded', ministries.length, 'ministries and', cycles.length, 'registration cycles');
+				
+				setAllMinistries(ministries);
+				
+				// Find active cycle
+				const activeCycle = cycles.find((c) => {
+					const val: any = (c as any)?.is_active;
+					return val === true || val === 1 || String(val) === '1';
+				});
+				console.log('DEBUG: Active registration cycle:', activeCycle?.cycle_id || 'none found');
+				setActiveRegistrationCycle(activeCycle);
+			} catch (error) {
+				console.error('Error loading data for registration form:', error);
+				setAllMinistries([]);
+				setActiveRegistrationCycle(undefined);
+			}
+		};
+		
+		loadData();
+	}, []);
 
 	// Get the active registration cycle to use for enrollments
-	const activeRegistrationCycle = useLiveQuery(async () => {
-		const cycles = await db.registration_cycles.toArray();
-		return cycles.find((c) => {
-			const val: any = (c as any)?.is_active;
-			return val === true || val === 1 || String(val) === '1';
-		});
-	}, []);
 
 	const form = useForm<RegistrationFormValues>({
 		resolver: zodResolver(registrationSchema),
