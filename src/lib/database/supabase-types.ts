@@ -1,7 +1,7 @@
 /**
  * This file contains types generated from the Supabase schema.
  * DO NOT EDIT MANUALLY. This file is auto-generated.
- * Generated on: 2025-09-04T01:21:24.187Z
+ * Generated on: 2025-09-04T03:49:34.440Z
  */
 
 export type SupabaseJson =
@@ -58,6 +58,55 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "events"
             referencedColumns: ["event_id"]
+          },
+        ]
+      }
+      bible_bee_enrollments: {
+        Row: {
+          auto_enrolled: boolean
+          childId: string
+          competitionYearId: string
+          divisionId: string
+          enrolled_at: string
+          id: string
+        }
+        Insert: {
+          auto_enrolled?: boolean
+          childId: string
+          competitionYearId: string
+          divisionId: string
+          enrolled_at?: string
+          id?: string
+        }
+        Update: {
+          auto_enrolled?: boolean
+          childId?: string
+          competitionYearId?: string
+          divisionId?: string
+          enrolled_at?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bible_bee_enrollments_childId_fkey"
+            columns: ["childId"]
+            isOneToOne: false
+            referencedRelation: "children"
+            referencedColumns: ["child_id"]
+          },
+          {
+            foreignKeyName: "bible_bee_enrollments_competitionYearId_fkey"
+            columns: ["competitionYearId"]
+            isOneToOne: false
+            referencedRelation: "competition_years"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bible_bee_enrollments_divisionId_fkey"
+            columns: ["divisionId"]
+            isOneToOne: false
+            referencedRelation: "divisions"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -728,6 +777,51 @@ export type Database = {
         }
         Relationships: []
       }
+      leader_profiles: {
+        Row: {
+          avatar_path: string | null
+          background_check_complete: boolean | null
+          created_at: string | null
+          email: string | null
+          first_name: string | null
+          is_active: boolean | null
+          last_name: string | null
+          leader_id: string
+          notes: string | null
+          phone: string | null
+          photo_url: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          avatar_path?: string | null
+          background_check_complete?: boolean | null
+          created_at?: string | null
+          email?: string | null
+          first_name?: string | null
+          is_active?: boolean | null
+          last_name?: string | null
+          leader_id?: string
+          notes?: string | null
+          phone?: string | null
+          photo_url?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          avatar_path?: string | null
+          background_check_complete?: boolean | null
+          created_at?: string | null
+          email?: string | null
+          first_name?: string | null
+          is_active?: boolean | null
+          last_name?: string | null
+          leader_id?: string
+          notes?: string | null
+          phone?: string | null
+          photo_url?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       ministries: {
         Row: {
           allows_checkin: boolean | null
@@ -793,6 +887,44 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      ministry_accounts: {
+        Row: {
+          created_at: string | null
+          display_name: string | null
+          email: string | null
+          id: string
+          is_active: boolean | null
+          ministry_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          display_name?: string | null
+          email?: string | null
+          id?: string
+          is_active?: boolean | null
+          ministry_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          display_name?: string | null
+          email?: string | null
+          id?: string
+          is_active?: boolean | null
+          ministry_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ministry_accounts_ministry_id_fkey"
+            columns: ["ministry_id"]
+            isOneToOne: true
+            referencedRelation: "ministries"
+            referencedColumns: ["ministry_id"]
+          },
+        ]
       }
       ministry_enrollments: {
         Row: {
