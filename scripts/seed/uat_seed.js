@@ -77,12 +77,20 @@ function createDryRunProxy(realClient) {
 									console.log(`[DRY RUN] WHERE ${column} = ${value}`);
 									return {
 										single: () => ({ data: null, error: { code: 'PGRST116' } }),
+										limit: (count) => {
+											console.log(`[DRY RUN] LIMIT ${count}`);
+											return ({ data: [], error: null });
+										}
 									};
 								},
 								like: (column, value) => {
 									console.log(`[DRY RUN] WHERE ${column} LIKE ${value}`);
 									return {
 										single: () => ({ data: null, error: { code: 'PGRST116' } }),
+										limit: (count) => {
+											console.log(`[DRY RUN] LIMIT ${count}`);
+											return ({ data: [], error: null });
+										}
 									};
 								},
 								in: (column, values) => {
@@ -91,8 +99,16 @@ function createDryRunProxy(realClient) {
 									);
 									return {
 										single: () => ({ data: null, error: { code: 'PGRST116' } }),
+										limit: (count) => {
+											console.log(`[DRY RUN] LIMIT ${count}`);
+											return ({ data: [], error: null });
+										}
 									};
 								},
+								limit: (count) => {
+									console.log(`[DRY RUN] LIMIT ${count}`);
+									return ({ data: [], error: null });
+								}
 							};
 						},
 						insert: (data) => {
