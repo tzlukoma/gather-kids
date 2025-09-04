@@ -526,7 +526,7 @@ async function createBibleBeeYear() {
 		}
 
 		if (existingYear) {
-			console.log(`✅ Bible Bee year already exists: ${bibleBeeYearData.name}`);
+			// console.log(`✅ Bible Bee year already exists: ${bibleBeeYearData.name}`);
 			return existingYear.id;
 		}
 	}
@@ -579,7 +579,7 @@ async function createCompetitionYear(bibleBeeYearId) {
 		}
 
 		if (existingYear) {
-			console.log(`✅ Competition year already exists: ${competitionYearData.name}`);
+			// console.log(`✅ Competition year already exists: ${competitionYearData.name}`);
 			return existingYear.id;
 		}
 	}
@@ -717,9 +717,10 @@ async function createScriptures(yearId) {
 				if (csvRow.counts_for) {
 					scriptureData.counts_for = parseInt(csvRow.counts_for);
 				}
-				if (csvRow.category) {
-					scriptureData.category = csvRow.category;
-				}
+				// Note: category field is not part of the scriptures schema, so we skip it
+				// if (csvRow.category) {
+				//     scriptureData.category = csvRow.category;
+				// }
 				
 				// Check if scripture already exists
 				if (!DRY_RUN) {
@@ -757,7 +758,7 @@ async function createScriptures(yearId) {
 						continue;
 					}
 
-					console.log(`✅ Created scripture: ${scriptureData.reference} (${csvRow.category})`);
+					console.log(`✅ Created scripture: ${scriptureData.reference}`);
 					createdCount++;
 				}
 				
@@ -1312,7 +1313,7 @@ async function createMinistries() {
 			}
 
 			if (existing) {
-				console.log(`✅ Ministry already exists: ${ministryData.name}`);
+				// console.log(`✅ Ministry already exists: ${ministryData.name}`);
 			} else {
 				const { error: insertError } = await supabase
 					.from('ministries')
@@ -1416,9 +1417,9 @@ async function createMinistryLeaders() {
 
 			if (existing) {
 				leaderId = existing.leader_id;
-				console.log(
-					`✅ Leader profile already exists: ${profileData.first_name} ${profileData.last_name}`
-				);
+				// console.log(
+				// 	`✅ Leader profile already exists: ${profileData.first_name} ${profileData.last_name}`
+				// );
 			} else {
 				const { data: newLeader, error: insertError } = await supabase
 					.from('leader_profiles')
