@@ -1,7 +1,5 @@
 'use client';
-import React, { useEffect } from 'react';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '@/lib/db';
+import React, { useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { AuthRole } from '@/lib/auth-types';
 import {
@@ -27,8 +25,17 @@ import {
 	recordCheckIn,
 	recordCheckOut,
 	exportRosterCSV,
+	getAllChildren,
+	getChildrenForLeader,
+	getAttendanceForDate,
+	getIncidentsForDate,
+	getAllGuardians,
+	getAllHouseholds,
+	getAllEmergencyContacts,
+	getMinistries,
+	getMinistryEnrollmentsByCycle,
 } from '@/lib/dal';
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import type {
 	Child,
 	Guardian,
@@ -36,6 +43,7 @@ import type {
 	Household,
 	EmergencyContact,
 	Ministry,
+	MinistryEnrollment,
 	Incident,
 } from '@/lib/types';
 import { CheckoutDialog } from '@/components/gatherKids/checkout-dialog';
@@ -143,47 +151,74 @@ export default function RostersPage() {
 	const [selectedChildForPhoto, setSelectedChildForPhoto] =
 		useState<Child | null>(null);
 
-	const allMinistryEnrollments = useLiveQuery(
-		() => db.ministry_enrollments.where({ cycle_id: '2025' }).toArray(),
-		[]
-	);
+	// State management for data loading
+	const [allMinistryEnrollments, setAllMinistryEnrollments] = useState<MinistryEnrollment[]>([]);
+	const [allChildren, setAllChildren] = useState<Child[]>([]);
+	const [todaysAttendance, setTodaysAttendance] = useState<Attendance[]>([]);
+	const [todaysIncidents, setTodaysIncidents] = useState<Incident[]>([]);
+	const [allGuardians, setAllGuardians] = useState<Guardian[]>([]);
+	const [allHouseholds, setAllHouseholds] = useState<Household[]>([]);
+	const [allEmergencyContacts, setAllEmergencyContacts] = useState<EmergencyContact[]>([]);
+	const [allMinistries, setAllMinistries] = useState<Ministry[]>([]);
+	const [dataLoading, setDataLoading] = useState(true);
 
-	const allChildrenQuery = useLiveQuery(async () => {
-		if (user?.metadata?.role === AuthRole.MINISTRY_LEADER) {
-			if (
-				!user.is_active ||
-				!user.assignedMinistryIds ||
-				user.assignedMinistryIds.length === 0
-			)
-				return [];
-			const enrollments = await db.ministry_enrollments
-				.where('ministry_id')
-				.anyOf(user.assignedMinistryIds)
-				.and((e) => e.cycle_id === '2025')
-				.toArray();
-			const childIds = [...new Set(enrollments.map((e) => e.child_id))];
-			if (childIds.length === 0) return [];
-			return db.children.where('child_id').anyOf(childIds).toArray();
-		}
-		return db.children.toArray();
+	// Load data using DAL functions
+	useEffect(() => {
+		const loadData = async () => {
+			if (!user) return;
+			
+			try {
+				setDataLoading(true);
+				const today = getTodayIsoDate();
+				
+				// Load children based on user role
+				let childrenData: Child[];
+				if (user?.metadata?.role === AuthRole.MINISTRY_LEADER) {
+					if (!user.is_active || !user.assignedMinistryIds || user.assignedMinistryIds.length === 0) {
+						childrenData = [];
+					} else {
+						childrenData = await getChildrenForLeader(user.assignedMinistryIds, '2025');
+					}
+				} else {
+					childrenData = await getAllChildren();
+				}
+
+				// Load all other data in parallel
+				const [
+					enrollments,
+					attendance,
+					incidents,
+					guardians,
+					households,
+					emergencyContacts,
+					ministries
+				] = await Promise.all([
+					getMinistryEnrollmentsByCycle('2025'),
+					getAttendanceForDate(today),
+					getIncidentsForDate(today),
+					getAllGuardians(),
+					getAllHouseholds(),
+					getAllEmergencyContacts(),
+					getMinistries(true) // Only get active ministries
+				]);
+
+				setAllChildren(childrenData);
+				setAllMinistryEnrollments(enrollments);
+				setTodaysAttendance(attendance);
+				setTodaysIncidents(incidents);
+				setAllGuardians(guardians);
+				setAllHouseholds(households);
+				setAllEmergencyContacts(emergencyContacts);
+				setAllMinistries(ministries);
+			} catch (error) {
+				console.error('Error loading roster data:', error);
+			} finally {
+				setDataLoading(false);
+			}
+		};
+
+		loadData();
 	}, [user]);
-
-	const todaysAttendance = useLiveQuery(
-		() => db.attendance.where({ date: today }).toArray(),
-		[today]
-	);
-	const todaysIncidents = useLiveQuery(
-		() => db.incidents.filter((i) => i.timestamp.startsWith(today)).toArray(),
-		[today]
-	);
-
-	const allGuardians = useLiveQuery(() => db.guardians.toArray(), []);
-	const allHouseholds = useLiveQuery(() => db.households.toArray(), []);
-	const allEmergencyContacts = useLiveQuery(
-		() => db.emergency_contacts.toArray(),
-		[]
-	);
-	const allMinistries = useLiveQuery(() => db.ministries.toArray(), []);
 
 	const currentEventName = useMemo(() => {
 		return (
@@ -224,15 +259,7 @@ export default function RostersPage() {
 	}, [user]);
 
 	const childrenWithDetails: RosterChild[] = useMemo(() => {
-		if (
-			!allChildrenQuery ||
-			!todaysAttendance ||
-			!allGuardians ||
-			!allHouseholds ||
-			!allEmergencyContacts ||
-			!todaysIncidents
-		)
-			return [];
+		if (dataLoading) return [];
 
 		const activeAttendance = todaysAttendance.filter((a) => !a.check_out_at);
 		const attendanceMap = new Map(activeAttendance.map((a) => [a.child_id, a]));
@@ -254,7 +281,7 @@ export default function RostersPage() {
 			incidentsByChild.get(i.child_id)!.push(i);
 		});
 
-		return allChildrenQuery.map((child) => ({
+		return allChildren.map((child) => ({
 			...child,
 			activeAttendance: attendanceMap.get(child.child_id) || null,
 			guardians: guardianMap.get(child.household_id) || [],
@@ -269,7 +296,7 @@ export default function RostersPage() {
 				: null,
 		}));
 	}, [
-		allChildrenQuery,
+		allChildren,
 		todaysAttendance,
 		allGuardians,
 		allHouseholds,
@@ -278,8 +305,7 @@ export default function RostersPage() {
 	]);
 
 	const ministryFilterOptions = useMemo(() => {
-		if (!allChildrenQuery || !allMinistryEnrollments || !allMinistries)
-			return [];
+		if (dataLoading) return [];
 
 		let relevantMinistryIds: Set<string>;
 
@@ -289,7 +315,7 @@ export default function RostersPage() {
 		) {
 			relevantMinistryIds = new Set(user.assignedMinistryIds);
 		} else {
-			const childIdsInView = new Set(allChildrenQuery.map((c) => c.child_id));
+			const childIdsInView = new Set(allChildren.map((c) => c.child_id));
 			relevantMinistryIds = new Set(
 				allMinistryEnrollments
 					.filter((e) => childIdsInView.has(e.child_id))
@@ -300,7 +326,7 @@ export default function RostersPage() {
 		return allMinistries
 			.filter((m) => relevantMinistryIds.has(m.ministry_id))
 			.sort((a, b) => a.name.localeCompare(b.name));
-	}, [allChildrenQuery, allMinistryEnrollments, allMinistries, user]);
+	}, [allChildren, allMinistryEnrollments, allMinistries, user]);
 
 	const displayChildren = useMemo(() => {
 		let filtered = childrenWithDetails;
@@ -482,7 +508,7 @@ export default function RostersPage() {
 		});
 	};
 
-	if (loading || !isAuthorized || !childrenWithDetails) {
+	if (loading || !isAuthorized || dataLoading) {
 		return <div>Loading rosters...</div>;
 	}
 

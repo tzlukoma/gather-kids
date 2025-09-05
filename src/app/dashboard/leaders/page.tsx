@@ -1,6 +1,5 @@
 'use client';
 
-import { useLiveQuery } from 'dexie-react-hooks';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import {
@@ -39,12 +38,44 @@ export default function LeadersPage() {
 	const [selectedLeader, setSelectedLeader] = useState<LeaderProfile | null>(null);
 	const [isMigrationComplete, setIsMigrationComplete] = useState(false);
 
-	// Get all leaders if no search term, otherwise search
-	const allLeaders = useLiveQuery(() => queryLeaderProfiles(), []);
-	const searchResults = useLiveQuery(() => 
-		searchTerm.trim() ? searchLeaderProfiles(searchTerm.trim()) : null, 
-		[searchTerm]
-	);
+	// State management for data loading
+	const [allLeaders, setAllLeaders] = useState<LeaderProfile[]>([]);
+	const [searchResults, setSearchResults] = useState<LeaderProfile[] | null>(null);
+	const [dataLoading, setDataLoading] = useState(true);
+
+	// Load leaders data
+	useEffect(() => {
+		const loadLeaders = async () => {
+			try {
+				setDataLoading(true);
+				console.log('Loading leaders data...');
+				if (searchTerm.trim()) {
+					console.log('Searching leaders with term:', searchTerm.trim());
+					const results = await searchLeaderProfiles(searchTerm.trim());
+					console.log('Search results:', results);
+					setSearchResults(results);
+				} else {
+					console.log('Loading all leaders...');
+					const leaders = await queryLeaderProfiles();
+					console.log('All leaders loaded:', leaders);
+					setAllLeaders(leaders);
+					setSearchResults(null);
+				}
+			} catch (error) {
+				console.error('Error loading leaders:', error);
+				// Show error message to user
+				toast({
+					title: 'Failed to Load Leaders',
+					description: 'There was an error loading leader data. Please try refreshing the page.',
+					variant: 'destructive',
+				});
+			} finally {
+				setDataLoading(false);
+			}
+		};
+
+		loadLeaders();
+	}, [searchTerm, toast]);
 
 	// Use search results if available, otherwise all leaders
 	const leaders = searchResults || allLeaders || [];
@@ -92,7 +123,7 @@ export default function LeadersPage() {
 		setIsDialogOpen(true);
 	};
 
-	if (loading || !isAuthorized) {
+	if (loading || !isAuthorized || dataLoading) {
 		return <div>Loading leaders...</div>;
 	}
 

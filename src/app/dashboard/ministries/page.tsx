@@ -1,8 +1,6 @@
 'use client';
 
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '@/lib/db';
-import type { Ministry, RegistrationCycle } from '@/lib/types';
+import type { Ministry, RegistrationCycle, MinistryAccount } from '@/lib/types';
 import {
 	Card,
 	CardContent,
@@ -25,7 +23,8 @@ import { Button } from '@/components/ui/button';
 import { PlusCircle, Edit, Trash2, Calendar } from 'lucide-react';
 import { MinistryFormDialog } from '@/components/gatherKids/ministry-form-dialog';
 import RegistrationCycles from '@/components/gatherKids/registration-cycles';
-import { deleteMinistry } from '@/lib/dal';
+import { deleteMinistry, getMinistries } from '@/lib/dal';
+import { dbAdapter } from '@/lib/db-utils';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { Switch } from '@/components/ui/switch';
@@ -155,16 +154,40 @@ export default function MinistryPage() {
 	const [isAuthorized, setIsAuthorized] = useState(false);
 	const [isAdmin, setIsAdmin] = useState(false);
 	const [activeTab, setActiveTab] = useState<string>('ministries');
-
-	const allMinistries = useLiveQuery(() => db.ministries.toArray(), []);
-	const allMinistryAccounts = useLiveQuery(
-		() => db.ministry_accounts.toArray(),
-		[]
-	);
+	const [allMinistries, setAllMinistries] = useState<Ministry[]>([]);
+	const [allMinistryAccounts, setAllMinistryAccounts] = useState<MinistryAccount[]>([]);
+	const [isLoadingData, setIsLoadingData] = useState(true);
 	const { toast } = useToast();
 
 	const [isDialogOpen, setIsDialogOpen] = useState(false);
 	const [editingMinistry, setEditingMinistry] = useState<Ministry | null>(null);
+
+	// Load data when authorized
+	useEffect(() => {
+		if (isAuthorized) {
+			const loadData = async () => {
+				try {
+					const [ministries, accounts] = await Promise.all([
+						getMinistries(),
+						dbAdapter.listMinistryAccounts()
+					]);
+					setAllMinistries(ministries);
+					setAllMinistryAccounts(accounts);
+				} catch (error) {
+					console.error('Error loading ministry data:', error);
+					toast({
+						title: 'Error',
+						description: 'Failed to load ministry data',
+						variant: 'destructive',
+					});
+				} finally {
+					setIsLoadingData(false);
+				}
+			};
+
+			loadData();
+		}
+	}, [isAuthorized, toast]);
 
 	useEffect(() => {
 		if (!loading && user) {
@@ -223,7 +246,7 @@ export default function MinistryPage() {
 			await deleteMinistry(ministryId);
 			// Also clean up the ministry account if it exists
 			try {
-				await db.ministry_accounts.delete(ministryId);
+				await dbAdapter.deleteMinistryAccount(ministryId);
 			} catch (e) {
 				// Ignore if account doesn't exist
 				console.warn('No ministry account to delete for:', ministryId);
@@ -232,6 +255,14 @@ export default function MinistryPage() {
 				title: 'Ministry Deleted',
 				description: 'The ministry has been successfully deleted.',
 			});
+			
+			// Reload data
+			const [ministries, accounts] = await Promise.all([
+				getMinistries(),
+				dbAdapter.listMinistryAccounts()
+			]);
+			setAllMinistries(ministries);
+			setAllMinistryAccounts(accounts);
 		} catch (error) {
 			console.error('Failed to delete ministry', error);
 			toast({
@@ -242,7 +273,7 @@ export default function MinistryPage() {
 		}
 	};
 
-	if (loading || !isAuthorized || !allMinistries || !allMinistryAccounts) {
+	if (loading || !isAuthorized || isLoadingData) {
 		return <div>Loading configuration...</div>;
 	}
 

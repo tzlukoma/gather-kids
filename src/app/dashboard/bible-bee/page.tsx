@@ -3,9 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { AuthRole } from '@/lib/auth-types';
-import { db } from '@/lib/db';
-import { dbAdapter } from '@/lib/db-utils';
-import { canLeaderManageBibleBee } from '@/lib/dal';
+import { canLeaderManageBibleBee, getBibleBeeYears, getScripturesForBibleBeeYear } from '@/lib/dal';
 import {
 	Select,
 	SelectTrigger,
@@ -61,39 +59,21 @@ export default function BibleBeePage() {
 	// Add the debugger component to help troubleshoot
 	// start empty and pick a sensible default once years data is available
 	const [selectedCycle, setSelectedCycle] = useState<string>('');
-	const [competitionYears, setCompetitionYears] = useState<any[]>([]);
 	const [bibleBeeYears, setBibleBeeYears] = useState<any[]>([]);
 
 	// Load data on component mount
 	useEffect(() => {
 		const fetchData = async () => {
 			try {
-				// Get Bible Bee years from adapter
-				const beeYears = await dbAdapter.listBibleBeeYears();
+				console.log('Loading Bible Bee data...');
+				
+				// Get Bible Bee years using DAL function with adapter support
+				const beeYears = await getBibleBeeYears();
+				console.log('Bible Bee years loaded:', beeYears);
 				setBibleBeeYears(beeYears || []);
-
-				// For competition years, we'll need to use direct DB access
-				// as there's no adapter method for this legacy schema
-				try {
-					// Check if the db object has the competitionYears property
-					// This will work with IndexedDB but may not with Supabase
-					if (db && 'competitionYears' in db) {
-						console.log('Using direct DB access for competition years');
-						// Using direct Dexie access for legacy data
-						const years = (await (db as any).competitionYears?.toArray()) || [];
-						setCompetitionYears(years.sort((a, b) => b.year - a.year));
-					} else {
-						console.log(
-							'No competition years table available in this database mode'
-						);
-						setCompetitionYears([]);
-					}
-				} catch (err) {
-					console.error('Failed to load competition years:', err);
-					setCompetitionYears([]);
-				}
 			} catch (error) {
 				console.error('Failed to load Bible Bee data:', error);
+				setBibleBeeYears([]);
 			}
 		};
 
@@ -110,42 +90,27 @@ export default function BibleBeePage() {
 
 	// Compute the proper year label for display
 	const yearLabel = React.useMemo(() => {
-		// First check Bible Bee years for new schema
+		// Use Bible Bee years for new schema
 		if (bibleBeeYears && bibleBeeYears.length > 0) {
 			const bibleBeeYear = bibleBeeYears.find(
-				(y: any) =>
-					(y.label &&
-						typeof y.label === 'string' &&
-						y.label.includes(selectedCycle)) ||
-					y.id === selectedCycle
+				(y: any) => y.id === selectedCycle
 			);
-			if (bibleBeeYear && bibleBeeYear.label) {
-				return bibleBeeYear.label;
-			}
-		}
-
-		// Fall back to competition years for legacy schema
-		if (competitionYears) {
-			const yearObj = competitionYears.find(
-				(y: any) => String(y.year) === String(selectedCycle)
-			);
-			if (yearObj) {
-				return yearObj.name ?? `Bible Bee ${yearObj.year}`;
+			if (bibleBeeYear && bibleBeeYear.name) {
+				return bibleBeeYear.name;
 			}
 		}
 
 		// Default fallback
 		return `Bible Bee ${selectedCycle}`;
-	}, [selectedCycle, competitionYears, bibleBeeYears]);
+	}, [selectedCycle, bibleBeeYears]);
 
 	// leader list removed — Admin no longer filters by leader
 
 	useEffect(() => {
 		// set an initial selectedCycle once we have years info; prefer an
-		// explicitly active new-schema bible-bee year when present, otherwise
-		// fall back to the latest competition year.
+		// explicitly active Bible Bee year when present
 		if (selectedCycle) return; // don't override an existing selection
-		if (!competitionYears && !bibleBeeYears) return;
+		if (!bibleBeeYears) return;
 		const activeBB = (bibleBeeYears || []).find((y: any) => {
 			const val: any = y?.is_active;
 			return val === true || val === 1 || String(val) === '1';
@@ -154,19 +119,17 @@ export default function BibleBeePage() {
 			setSelectedCycle(String(activeBB.id));
 			return;
 		}
-		if (competitionYears && competitionYears.length > 0) {
-			// Default to the prior year (second-most-recent) when no new-schema year exists
-			const idx = competitionYears.length > 1 ? 1 : 0;
-			setSelectedCycle(String(competitionYears[idx].year));
+		// If no active year, use the first available year
+		if (bibleBeeYears.length > 0) {
+			setSelectedCycle(String(bibleBeeYears[0].id));
 		}
-	}, [competitionYears, bibleBeeYears, selectedCycle]);
+	}, [bibleBeeYears, selectedCycle]);
 
 	useEffect(() => {
 		// load scriptures for selected cycle
 		let mounted = true;
 		const load = async () => {
 			console.log('Loading scriptures for cycle:', selectedCycle);
-			console.log('Available competition years:', competitionYears);
 			console.log('Available Bible Bee years:', bibleBeeYears);
 
 			let scriptures: any[] = [];
@@ -174,67 +137,19 @@ export default function BibleBeePage() {
 			// First try the new Bible Bee year system
 			if (bibleBeeYears && bibleBeeYears.length > 0) {
 				const bibleBeeYear = bibleBeeYears.find(
-					(y: any) =>
-						(y.label &&
-							typeof y.label === 'string' &&
-							y.label.includes(selectedCycle)) ||
-						y.id === selectedCycle
+					(y: any) => y.id === selectedCycle
 				);
 
 				if (bibleBeeYear) {
 					console.log('Found Bible Bee year:', bibleBeeYear);
 					try {
-						// Check if db has scriptures table
-						if (db && 'scriptures' in db) {
-							// Use direct Dexie query for scriptures as adapter doesn't have this method
-							scriptures =
-								(await (db as any).scriptures
-									?.where('year_id')
-									?.equals(bibleBeeYear.id)
-									?.toArray()) || [];
-						} else {
-							console.log(
-								'No scriptures table available in this database mode'
-							);
-						}
+						scriptures = await getScripturesForBibleBeeYear(bibleBeeYear.id);
 						console.log(
 							'Loaded scriptures from Bible Bee year:',
 							scriptures.length
 						);
 					} catch (error) {
 						console.error('Error loading scriptures:', error);
-					}
-				}
-			}
-
-			// If no scriptures found, try the old competition year system
-			if (scriptures.length === 0 && competitionYears) {
-				const yearObj = competitionYears.find(
-					(y: any) => String(y.year) === String(selectedCycle)
-				);
-
-				if (yearObj) {
-					console.log('Found competition year:', yearObj);
-					try {
-						// Check if db has scriptures table
-						if (db && 'scriptures' in db) {
-							// Use direct DB access for legacy competition year scriptures
-							scriptures =
-								(await (db as any).scriptures
-									?.where('competitionYearId')
-									?.equals(yearObj.id)
-									?.toArray()) || [];
-							console.log(
-								'Loaded scriptures from competition year:',
-								scriptures.length
-							);
-						} else {
-							console.log(
-								'No scriptures table available in this database mode'
-							);
-						}
-					} catch (error) {
-						console.error('Error loading legacy scriptures:', error);
 					}
 				}
 			}
@@ -268,7 +183,7 @@ export default function BibleBeePage() {
 		return () => {
 			mounted = false;
 		};
-	}, [selectedCycle, competitionYears, bibleBeeYears, scriptureRefreshTrigger]);
+	}, [selectedCycle, bibleBeeYears, scriptureRefreshTrigger]);
 
 	useEffect(() => {
 		// determine manage permission: Admins can manage; Ministry leaders with Primary assignment can manage
@@ -427,19 +342,16 @@ function YearList() {
 	useEffect(() => {
 		const fetchYears = async () => {
 			try {
-				const data = await db.competitionYears
-					.orderBy('year')
-					.reverse()
-					.toArray();
+				const data = await getBibleBeeYears();
 				setYears(data);
 			} catch (error) {
-				console.error('Error loading competition years:', error);
+				console.error('Error loading Bible Bee years:', error);
 			}
 		};
 		fetchYears();
 	}, []);
 	if (!years) return <div>Loading years...</div>;
-	if (years.length === 0) return <div>No competition years defined.</div>;
+	if (years.length === 0) return <div>No Bible Bee years defined.</div>;
 	return (
 		<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 			{years.map((y: any) => (

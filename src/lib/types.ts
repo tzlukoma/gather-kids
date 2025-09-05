@@ -259,10 +259,16 @@ export interface CompetitionYear {
 // New Bible Bee Year interface (enhanced CompetitionYear)
 export interface BibleBeeYear {
     id: string;
-    label: string; // e.g., "2025–2026" - for display purposes only
-    cycle_id: string; // FK to registration_cycles
+    year: number;
+    name: string; // The human-readable name for the Bible Bee year
+    description?: string;
     is_active: boolean;
+    registration_open_date?: string;
+    registration_close_date?: string;
+    competition_start_date?: string;
+    competition_end_date?: string;
     created_at: string;
+    updated_at?: string;
 }
 
 // New Division interface

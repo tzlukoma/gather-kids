@@ -90,11 +90,105 @@ export function gradeToCode(gradeText?: string): number | null {
  */
 export function gradeCodeToLabel(gradeCode: number): string {
     if (gradeCode === 0) return 'Kindergarten';
-    if (gradeCode === 1) return '1st grade';
-    if (gradeCode === 2) return '2nd grade';
-    if (gradeCode === 3) return '3rd grade';
-    if (gradeCode >= 4 && gradeCode <= 12) return `${gradeCode}th grade`;
+    if (gradeCode === 1) return '1st Grade';
+    if (gradeCode === 2) return '2nd Grade';
+    if (gradeCode === 3) return '3rd Grade';
+    if (gradeCode >= 4 && gradeCode <= 12) return `${gradeCode}th Grade`;
     return `Grade ${gradeCode}`;
+}
+
+/**
+ * Convert any grade format to a consistent UI-friendly display
+ */
+export function normalizeGradeDisplay(gradeText?: string | number): string {
+    if (!gradeText && gradeText !== 0) return 'Unknown';
+    
+    // If it's already a number, convert using gradeCodeToLabel
+    if (typeof gradeText === 'number') {
+        return gradeCodeToLabel(gradeText);
+    }
+    
+    // If it's a string, try to parse it first
+    const gradeCode = gradeToCode(gradeText);
+    if (gradeCode !== null) {
+        return gradeCodeToLabel(gradeCode);
+    }
+    
+    // If parsing fails, try to normalize common variations
+    const normalized = gradeText.toString().trim();
+    
+    // Handle common variations
+    const gradeMap: Record<string, string> = {
+        'pre-k': 'Pre-K',
+        'prek': 'Pre-K',
+        'preK': 'Pre-K',
+        'k': 'Kindergarten',
+        'kg': 'Kindergarten',
+        'kinder': 'Kindergarten',
+        'kindergarten': 'Kindergarten',
+        '0': 'Kindergarten',
+        '1': '1st Grade',
+        '2': '2nd Grade', 
+        '3': '3rd Grade',
+        '4': '4th Grade',
+        '5': '5th Grade',
+        '6': '6th Grade',
+        '7': '7th Grade',
+        '8': '8th Grade',
+        '9': '9th Grade',
+        '10': '10th Grade',
+        '11': '11th Grade',
+        '12': '12th Grade',
+    };
+    
+    const key = normalized.toLowerCase();
+    return gradeMap[key] || normalized; // Return original if no mapping found
+}
+
+/**
+ * Get sort order for a grade string
+ */
+export function getGradeSortOrder(gradeText?: string | number): number {
+    if (!gradeText && gradeText !== 0) return 99;
+    
+    // Try to get numeric grade code first
+    let gradeCode: number | null = null;
+    
+    if (typeof gradeText === 'number') {
+        gradeCode = gradeText;
+    } else {
+        gradeCode = gradeToCode(gradeText);
+    }
+    
+    if (gradeCode !== null) {
+        // Special handling for Pre-K
+        if (gradeCode === -1) return -1; 
+        return gradeCode;
+    }
+    
+    // Fallback for common grade variations
+    const normalized = gradeText.toString().toLowerCase().trim();
+    const fallbackOrder: Record<string, number> = {
+        'pre-k': -1,
+        'prek': -1,
+        'kindergarten': 0,
+        'k': 0,
+        'kg': 0,
+        '1st grade': 1,
+        '2nd grade': 2,
+        '3rd grade': 3,
+        '4th grade': 4,
+        '5th grade': 5,
+        '6th grade': 6,
+        '7th grade': 7,
+        '8th grade': 8,
+        '9th grade': 9,
+        '10th grade': 10,
+        '11th grade': 11,
+        '12th grade': 12,
+    };
+    
+    return fallbackOrder[normalized] ?? 99;
 }
 
 /**
