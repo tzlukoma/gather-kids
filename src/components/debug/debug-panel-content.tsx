@@ -130,20 +130,34 @@ export function DebugPanelContent() {
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex flex-wrap gap-2">
-            {dataSources.map(source => (
-              <Badge 
-                key={source.name}
-                variant={source.active ? 'default' : 'secondary'}
-                className="flex items-center gap-1"
-              >
-                {source.name}
-                {source.active && (
-                  <span className="text-xs bg-background/20 px-1 rounded">
-                    {source.count}
-                  </span>
-                )}
-              </Badge>
-            ))}
+            {dataSources.map(source => {
+              // Determine badge colors based on source name
+              let badgeClassName = "flex items-center gap-1";
+              if (source.active) {
+                if (source.name === 'dbAdapter') {
+                  // Green for dbAdapter
+                  badgeClassName += " bg-green-500 text-white hover:bg-green-600 border-transparent";
+                } else {
+                  // Orange for IndexedDB and Direct DB
+                  badgeClassName += " bg-orange-500 text-white hover:bg-orange-600 border-transparent";
+                }
+              }
+              
+              return (
+                <Badge 
+                  key={source.name}
+                  variant={source.active ? 'default' : 'secondary'}
+                  className={badgeClassName}
+                >
+                  {source.name}
+                  {source.active && (
+                    <span className="text-xs bg-background/20 px-1 rounded">
+                      {source.count}
+                    </span>
+                  )}
+                </Badge>
+              );
+            })}
           </div>
         </CardContent>
       </Card>
