@@ -1,17 +1,205 @@
 import type * as DexieTypes from '../types';
 import type * as SupabaseTypes from './supabase-types';
+import type * as CanonicalDtos from './canonical-dtos';
 
 /**
- * Maps between Dexie types and Supabase generated types
+ * Maps between Dexie types, Supabase generated types, and canonical snake_case DTOs
  * This ensures consistent typing regardless of which adapter is used
+ * 
+ * The canonical DTOs represent the "fresh start" data shapes that the DAL should
+ * expose to the UI with consistent snake_case naming.
  */
 
 // Type mapper utility types
 type OmitSystemFields<T> = Omit<T, 'created_at' | 'updated_at'>;
-type WithOptionalId<T, K extends string> = Omit<T, K> & Partial<Pick<T, K>>;
+type WithOptionalId<T, K extends keyof T> = Omit<T, K> & Partial<Pick<T, K>>;
 
 // =====================================
-// Household Mappings
+// Canonical DTO Conversions
+// =====================================
+
+/**
+ * Convert from legacy/mixed naming to canonical snake_case DTOs
+ * These functions handle the "fresh start" conversion to standardized shapes
+ */
+
+// Household: Legacy -> Canonical
+export function householdToCanonical(household: DexieTypes.Household): CanonicalDtos.HouseholdRead {
+	return {
+		household_id: household.household_id,
+		name: household.name,
+		address_line1: household.address_line1,
+		address_line2: household.address_line2,
+		city: household.city,
+		state: household.state,
+		zip: household.zip,
+		preferred_scripture_translation: household.preferredScriptureTranslation, // camelCase -> snake_case
+		primary_email: household.primary_email,
+		primary_phone: household.primary_phone,
+		photo_url: household.photo_url,
+		created_at: household.created_at,
+		updated_at: household.updated_at,
+	};
+}
+
+// Household: Canonical -> Legacy (for backward compatibility)
+export function canonicalToHousehold(canonical: CanonicalDtos.HouseholdWrite, id?: string): DexieTypes.Household {
+	const now = new Date().toISOString();
+	return {
+		household_id: canonical.household_id || id || '',
+		name: canonical.name,
+		address_line1: canonical.address_line1,
+		address_line2: canonical.address_line2,
+		city: canonical.city,
+		state: canonical.state,
+		zip: canonical.zip,
+		preferredScriptureTranslation: canonical.preferred_scripture_translation, // snake_case -> camelCase
+		primary_email: canonical.primary_email,
+		primary_phone: canonical.primary_phone,
+		photo_url: canonical.photo_url,
+		created_at: now,
+		updated_at: now,
+	};
+}
+
+// Guardian: Legacy -> Canonical
+export function guardianToCanonical(guardian: DexieTypes.Guardian): CanonicalDtos.GuardianRead {
+	return {
+		guardian_id: guardian.guardian_id,
+		household_id: guardian.household_id,
+		first_name: guardian.first_name,
+		last_name: guardian.last_name,
+		mobile_phone: guardian.mobile_phone,
+		email: guardian.email,
+		relationship: guardian.relationship,
+		is_primary: guardian.is_primary,
+		created_at: guardian.created_at,
+		updated_at: guardian.updated_at,
+	};
+}
+
+// Guardian: Canonical -> Legacy
+export function canonicalToGuardian(canonical: CanonicalDtos.GuardianWrite, id?: string): DexieTypes.Guardian {
+	const now = new Date().toISOString();
+	return {
+		guardian_id: canonical.guardian_id || id || '',
+		household_id: canonical.household_id,
+		first_name: canonical.first_name,
+		last_name: canonical.last_name,
+		mobile_phone: canonical.mobile_phone,
+		email: canonical.email,
+		relationship: canonical.relationship,
+		is_primary: canonical.is_primary,
+		created_at: now,
+		updated_at: now,
+	};
+}
+
+// Emergency Contact: Legacy -> Canonical
+export function emergencyContactToCanonical(contact: DexieTypes.EmergencyContact): CanonicalDtos.EmergencyContactRead {
+	return {
+		contact_id: contact.contact_id,
+		household_id: contact.household_id,
+		first_name: contact.first_name,
+		last_name: contact.last_name,
+		mobile_phone: contact.mobile_phone,
+		relationship: contact.relationship,
+		created_at: new Date().toISOString(), // Legacy types don't have timestamps
+		updated_at: new Date().toISOString(),
+	};
+}
+
+// Emergency Contact: Canonical -> Legacy
+export function canonicalToEmergencyContact(canonical: CanonicalDtos.EmergencyContactWrite, id?: string): DexieTypes.EmergencyContact {
+	return {
+		contact_id: canonical.contact_id || id || '',
+		household_id: canonical.household_id,
+		first_name: canonical.first_name,
+		last_name: canonical.last_name,
+		mobile_phone: canonical.mobile_phone,
+		relationship: canonical.relationship,
+	};
+}
+
+// Child: Legacy -> Canonical
+export function childToCanonical(child: DexieTypes.Child): CanonicalDtos.ChildRead {
+	return {
+		child_id: child.child_id,
+		household_id: child.household_id,
+		first_name: child.first_name,
+		last_name: child.last_name,
+		dob: child.dob,
+		grade: child.grade,
+		child_mobile: child.child_mobile,
+		allergies: child.allergies,
+		medical_notes: child.medical_notes,
+		special_needs: child.special_needs,
+		special_needs_notes: child.special_needs_notes,
+		is_active: child.is_active,
+		photo_url: child.photo_url,
+		created_at: child.created_at,
+		updated_at: child.updated_at,
+	};
+}
+
+// Child: Canonical -> Legacy
+export function canonicalToChild(canonical: CanonicalDtos.ChildWrite, id?: string): DexieTypes.Child {
+	const now = new Date().toISOString();
+	return {
+		child_id: canonical.child_id || id || '',
+		household_id: canonical.household_id,
+		first_name: canonical.first_name,
+		last_name: canonical.last_name,
+		dob: canonical.dob,
+		grade: canonical.grade,
+		child_mobile: canonical.child_mobile,
+		allergies: canonical.allergies,
+		medical_notes: canonical.medical_notes,
+		special_needs: canonical.special_needs,
+		special_needs_notes: canonical.special_needs_notes,
+		is_active: canonical.is_active !== undefined ? canonical.is_active : true,
+		photo_url: canonical.photo_url,
+		created_at: now,
+		updated_at: now,
+	};
+}
+
+// Registration: Legacy -> Canonical (with consent normalization)
+export function registrationToCanonical(registration: DexieTypes.Registration): CanonicalDtos.RegistrationRead {
+	return {
+		registration_id: registration.registration_id,
+		child_id: registration.child_id,
+		cycle_id: registration.cycle_id,
+		status: registration.status,
+		pre_registered_sunday_school: registration.pre_registered_sunday_school,
+		consents: registration.consents.map(consent => ({
+			...consent,
+			type: consent.type === 'photoRelease' ? 'photo_release' : consent.type as any, // Convert to snake_case
+		})),
+		submitted_via: registration.submitted_via,
+		submitted_at: registration.submitted_at,
+	};
+}
+
+// Registration: Canonical -> Legacy (with consent normalization)
+export function canonicalToRegistration(canonical: CanonicalDtos.RegistrationWrite, id?: string): DexieTypes.Registration {
+	return {
+		registration_id: canonical.registration_id || id || '',
+		child_id: canonical.child_id,
+		cycle_id: canonical.cycle_id,
+		status: canonical.status || 'active',
+		pre_registered_sunday_school: canonical.pre_registered_sunday_school !== undefined ? canonical.pre_registered_sunday_school : true,
+		consents: canonical.consents.map(consent => ({
+			...consent,
+			type: consent.type === 'photo_release' ? 'photoRelease' : consent.type as any, // Convert to camelCase for legacy
+		})),
+		submitted_via: canonical.submitted_via || 'web',
+		submitted_at: new Date().toISOString(),
+	};
+}
+
+// =====================================
+// Legacy Household Mappings (keep for compatibility)
 // =====================================
 
 export type CreateHouseholdDTO = OmitSystemFields<
