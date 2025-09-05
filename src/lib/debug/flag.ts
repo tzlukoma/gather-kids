@@ -60,3 +60,31 @@ export function onDebugFlagChange(callback: (enabled: boolean) => void): () => v
 export function toggleDebugFlag(): void {
   setDebugFlag(!isDebugOn());
 }
+
+/**
+ * Auto-detect localStorage changes and trigger flag change events
+ * This helps when localStorage is set directly (e.g., in browser console)
+ */
+export function startAutoFlagDetection(): (() => void) | void {
+  if (typeof window === 'undefined') return;
+
+  let lastState = isDebugOn();
+  
+  // Check for changes every 1 second
+  const interval = setInterval(() => {
+    const currentState = isDebugOn();
+    if (currentState !== lastState) {
+      console.log(`🔧 Debug flag: Auto-detected localStorage change: ${lastState} -> ${currentState}`);
+      lastState = currentState;
+      // Trigger the flag change event
+      window.dispatchEvent(new CustomEvent('gk:debug-flag-change', { 
+        detail: { enabled: currentState } 
+      }));
+    }
+  }, 1000);
+
+  // Return cleanup function
+  return () => {
+    clearInterval(interval);
+  };
+}

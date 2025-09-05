@@ -37,6 +37,36 @@ export interface DebugEventPageSummary extends DebugEvent {
 export type AnyDebugEvent = DebugEventDALCall | DebugEventIDBOp | DebugEventFetch | DebugEventPageSummary;
 
 /**
+ * Global event store for persistent event storage
+ */
+class DebugEventStore {
+  private events: AnyDebugEvent[] = [];
+  private maxEvents = 100;
+
+  addEvent(event: AnyDebugEvent) {
+    this.events.unshift(event); // Add to beginning (newest first)
+    if (this.events.length > this.maxEvents) {
+      this.events = this.events.slice(0, this.maxEvents);
+    }
+  }
+
+  getEvents(): AnyDebugEvent[] {
+    return [...this.events]; // Return copy
+  }
+
+  clearEvents() {
+    this.events = [];
+  }
+
+  getEventCount(): number {
+    return this.events.length;
+  }
+}
+
+// Global store instance
+const globalEventStore = new DebugEventStore();
+
+/**
  * Emit a debug event
  */
 export function emitDebugEvent(event: Omit<AnyDebugEvent, 'timestamp' | 'route'>): void {
@@ -47,6 +77,9 @@ export function emitDebugEvent(event: Omit<AnyDebugEvent, 'timestamp' | 'route'>
     timestamp: Date.now(),
     route: window.location.pathname,
   } as AnyDebugEvent;
+  
+  // Store event globally for persistence
+  globalEventStore.addEvent(fullEvent);
   
   // Always log to console for real-time debugging (console will be visible in both local and deployed)
   const timestamp = new Date(fullEvent.timestamp).toLocaleTimeString();
@@ -92,6 +125,27 @@ export function onDebugEvent(callback: (event: AnyDebugEvent) => void): () => vo
     console.log('🔍 onDebugEvent: Removing event listener for gk:debug');
     window.removeEventListener('gk:debug', handler as EventListener);
   };
+}
+
+/**
+ * Get all stored debug events
+ */
+export function getAllDebugEvents(): AnyDebugEvent[] {
+  return globalEventStore.getEvents();
+}
+
+/**
+ * Clear all stored debug events
+ */
+export function clearAllDebugEvents(): void {
+  globalEventStore.clearEvents();
+}
+
+/**
+ * Get current event count
+ */
+export function getDebugEventCount(): number {
+  return globalEventStore.getEventCount();
 }
 
 /**

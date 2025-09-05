@@ -5,13 +5,13 @@
 
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Database, Activity, Clock, Settings } from 'lucide-react';
-import { onDebugEvent, type AnyDebugEvent } from '@/lib/debug/bus';
+import { onDebugEvent, getAllDebugEvents, clearAllDebugEvents, type AnyDebugEvent } from '@/lib/debug/bus';
 import { DEBUG_LS_KEY } from '@/lib/debug/flag';
 
 interface DataSource {
@@ -28,6 +28,7 @@ export function DebugPanelContent() {
     { name: 'Direct DB', active: false, count: 0 },
   ]);
   const [currentRoute, setCurrentRoute] = useState('');
+  const subscriptionRef = useRef<(() => void) | null>(null);
 
   // Update current route
   useEffect(() => {
@@ -36,78 +37,78 @@ export function DebugPanelContent() {
     }
   }, []);
 
-  // Handle new debug events
-  const handleDebugEvent = useCallback((event: AnyDebugEvent) => {
-    console.log('🔍 Debug Panel: Received event:', event);
+  // Load existing events from global store and calculate data sources
+  const loadEventsFromStore = useCallback(() => {
+    const storedEvents = getAllDebugEvents();
+    console.log('🔍 Debug Panel: Loading events from global store, count:', storedEvents.length);
     
-    // Add event to history (keep last 100)
-    setEvents(prev => {
-      const newEvents = [event, ...prev].slice(0, 100);
-      console.log('🔍 Debug Panel: Updated events count:', newEvents.length);
-      return newEvents;
-    });
+    setEvents(storedEvents);
 
-    // Update data source tracking
-    setDataSources(prev => prev.map(source => {
-      let shouldActivate = false;
-      let countIncrement = 0;
+    // Calculate data source states from all events
+    const newDataSources = [
+      { name: 'dbAdapter', active: false, count: 0 },
+      { name: 'IndexedDB', active: false, count: 0 },
+      { name: 'Direct DB', active: false, count: 0 },
+    ];
 
+    storedEvents.forEach(event => {
       switch (event.type) {
         case 'dal:call':
-          if (source.name === 'dbAdapter') {
-            shouldActivate = true;
-            countIncrement = 1;
-            console.log('🔍 Debug Panel: Activating dbAdapter source');
-          }
+          newDataSources[0].active = true;
+          newDataSources[0].count++;
           break;
         case 'idb:op':
-          if (source.name === 'IndexedDB') {
-            shouldActivate = true;
-            countIncrement = 1;
-            console.log('🔍 Debug Panel: Activating IndexedDB source');
-          }
+          newDataSources[1].active = true;
+          newDataSources[1].count++;
           break;
         case 'fetch:direct':
-          if (source.name === 'Direct DB') {
-            shouldActivate = true;
-            countIncrement = 1;
-            console.log('🔍 Debug Panel: Activating Direct DB source');
-          }
+          newDataSources[2].active = true;
+          newDataSources[2].count++;
           break;
-        // fetch:dal counts as dbAdapter usage since it's via DAL
         case 'fetch:dal':
-          if (source.name === 'dbAdapter') {
-            shouldActivate = true;
-            countIncrement = 1;
-            console.log('🔍 Debug Panel: Activating dbAdapter source (via fetch:dal)');
-          }
+          // fetch:dal counts as dbAdapter usage since it's via DAL
+          newDataSources[0].active = true;
+          newDataSources[0].count++;
           break;
       }
+    });
 
-      const newSource = {
-        ...source,
-        active: source.active || shouldActivate,
-        count: source.count + countIncrement,
-      };
-      
-      if (shouldActivate) {
-        console.log(`🔍 Debug Panel: Updated ${source.name} source:`, newSource);
-      }
-      
-      return newSource;
-    }));
+    setDataSources(newDataSources);
+    console.log('🔍 Debug Panel: Updated data sources from stored events:', newDataSources);
   }, []);
 
-  // Subscribe to debug events
+  // Handle new debug events
+  const handleDebugEvent = useCallback((event: AnyDebugEvent) => {
+    console.log('🔍 Debug Panel: Received real-time event:', event);
+    
+    // Reload all events from store to ensure consistency
+    loadEventsFromStore();
+  }, [loadEventsFromStore]);
+
+  // Set up event subscription once and keep it stable
   useEffect(() => {
-    console.log('🔍 Debug Panel: Setting up event subscription...');
-    const unsubscribe = onDebugEvent(handleDebugEvent);
-    console.log('🔍 Debug Panel: Event subscription active');
+    console.log('🔍 Debug Panel: Setting up debug panel...');
+    
+    // Load existing events first
+    loadEventsFromStore();
+    
+    // Set up event subscription if not already done
+    if (!subscriptionRef.current) {
+      console.log('🔍 Debug Panel: Setting up event subscription...');
+      const unsubscribe = onDebugEvent(handleDebugEvent);
+      subscriptionRef.current = unsubscribe;
+      console.log('🔍 Debug Panel: Event subscription active');
+    }
+
+    // Cleanup subscription only on unmount
     return () => {
       console.log('🔍 Debug Panel: Cleaning up event subscription');
-      unsubscribe();
+      if (subscriptionRef.current) {
+        subscriptionRef.current();
+        subscriptionRef.current = null;
+      }
     };
-  }, [handleDebugEvent]);
+  }, []); // Empty dependency array to run only once
 
   // Format timestamp
   const formatTime = (timestamp: number) => {
@@ -116,12 +117,14 @@ export function DebugPanelContent() {
 
   // Clear events
   const clearEvents = () => {
+    clearAllDebugEvents();
     setEvents([]);
     setDataSources(prev => prev.map(source => ({ 
       ...source, 
       active: false, 
       count: 0 
     })));
+    console.log('🔍 Debug Panel: Cleared all events');
   };
 
   // Copy debug info to clipboard
