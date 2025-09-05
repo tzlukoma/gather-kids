@@ -44,12 +44,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Get the current request URL to construct the redirectTo URL
+    // This supports Vercel preview deployments, production, and local development
+    const requestUrl = new URL(request.url);
+    const baseUrl = `${requestUrl.protocol}//${requestUrl.host}`;
+    const redirectToUrl = `${baseUrl}/auth/callback`;
+
+    console.log('Constructing magic link with redirectTo:', redirectToUrl);
+
     if (isSupabaseConfigured) {
       // Use Supabase's built-in magic link functionality
       const { error } = await supabase.auth.signInWithOtp({
         email: email,
         options: {
-          emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:9002'}/auth/callback`
+          emailRedirectTo: redirectToUrl
         }
       });
 
@@ -61,7 +69,7 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      console.log('Magic link sent via Supabase to:', email);
+      console.log('Magic link sent via Supabase to:', email, 'with redirectTo:', redirectToUrl);
     } else if (isTestMode) {
       // For testing with MailHog, send a mock magic link
       try {
@@ -73,15 +81,14 @@ export async function POST(request: NextRequest) {
           throw new Error('Email service not available');
         }
 
-        // Create a mock magic link for testing
-        const baseUrl = process.env.BASE_URL || 'http://localhost:9002';
+        // Create a mock magic link for testing using the current request URL
         const code = Buffer.from(JSON.stringify({
           email,
           timestamp: Date.now(),
           type: 'magic_link'
         })).toString('base64url');
 
-        const magicLink = `${baseUrl}/auth/callback?code=${code}&type=magiclink`;
+        const magicLink = `${redirectToUrl}?code=${code}&type=magiclink`;
 
         await emailService.sendMagicLinkEmail({
           to: email,
@@ -89,7 +96,7 @@ export async function POST(request: NextRequest) {
           appName: process.env.NEXT_PUBLIC_APP_NAME || 'gatherKids'
         });
 
-        console.log('Test magic link sent via MailHog to:', email);
+        console.log('Test magic link sent via MailHog to:', email, 'with URL:', magicLink);
       } catch (emailError) {
         console.error('MailHog email error:', emailError);
         return NextResponse.json(
