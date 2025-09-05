@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { Database, Activity, Clock, Settings } from 'lucide-react';
+import { Database, Activity, Clock, Settings, MapPin } from 'lucide-react';
 import { onDebugEvent, getAllDebugEvents, clearAllDebugEvents, type AnyDebugEvent } from '@/lib/debug/bus';
 import { DEBUG_LS_KEY } from '@/lib/debug/flag';
 
@@ -22,12 +22,18 @@ interface DataSource {
 
 export function DebugPanelContent() {
   const [events, setEvents] = useState<AnyDebugEvent[]>([]);
-  const [dataSources, setDataSources] = useState<DataSource[]>([
+  const [allDataSources, setAllDataSources] = useState<DataSource[]>([
+    { name: 'dbAdapter', active: false, count: 0 },
+    { name: 'IndexedDB', active: false, count: 0 },
+    { name: 'Direct DB', active: false, count: 0 },
+  ]);
+  const [routeDataSources, setRouteDataSources] = useState<DataSource[]>([
     { name: 'dbAdapter', active: false, count: 0 },
     { name: 'IndexedDB', active: false, count: 0 },
     { name: 'Direct DB', active: false, count: 0 },
   ]);
   const [currentRoute, setCurrentRoute] = useState('');
+  const [routeEvents, setRouteEvents] = useState<AnyDebugEvent[]>([]);
   const subscriptionRef = useRef<(() => void) | null>(null);
 
   // Update current route
@@ -35,6 +41,39 @@ export function DebugPanelContent() {
     if (typeof window !== 'undefined') {
       setCurrentRoute(window.location.pathname);
     }
+  }, []);
+
+  // Calculate data source counts from events
+  const calculateDataSources = useCallback((eventsToAnalyze: AnyDebugEvent[]) => {
+    const sources = [
+      { name: 'dbAdapter', active: false, count: 0 },
+      { name: 'IndexedDB', active: false, count: 0 },
+      { name: 'Direct DB', active: false, count: 0 },
+    ];
+
+    eventsToAnalyze.forEach(event => {
+      switch (event.type) {
+        case 'dal:call':
+          sources[0].active = true;
+          sources[0].count++;
+          break;
+        case 'idb:op':
+          sources[1].active = true;
+          sources[1].count++;
+          break;
+        case 'fetch:direct':
+          sources[2].active = true;
+          sources[2].count++;
+          break;
+        case 'fetch:dal':
+          // fetch:dal counts as dbAdapter usage since it's via DAL
+          sources[0].active = true;
+          sources[0].count++;
+          break;
+      }
+    });
+
+    return sources;
   }, []);
 
   // Load existing events from global store and calculate data sources
@@ -45,37 +84,18 @@ export function DebugPanelContent() {
     setEvents(storedEvents);
 
     // Calculate data source states from all events
-    const newDataSources = [
-      { name: 'dbAdapter', active: false, count: 0 },
-      { name: 'IndexedDB', active: false, count: 0 },
-      { name: 'Direct DB', active: false, count: 0 },
-    ];
+    const newAllDataSources = calculateDataSources(storedEvents);
+    setAllDataSources(newAllDataSources);
 
-    storedEvents.forEach(event => {
-      switch (event.type) {
-        case 'dal:call':
-          newDataSources[0].active = true;
-          newDataSources[0].count++;
-          break;
-        case 'idb:op':
-          newDataSources[1].active = true;
-          newDataSources[1].count++;
-          break;
-        case 'fetch:direct':
-          newDataSources[2].active = true;
-          newDataSources[2].count++;
-          break;
-        case 'fetch:dal':
-          // fetch:dal counts as dbAdapter usage since it's via DAL
-          newDataSources[0].active = true;
-          newDataSources[0].count++;
-          break;
-      }
-    });
+    // Filter events for current route and calculate route-specific data sources
+    const currentRouteEvents = storedEvents.filter(event => event.route === currentRoute);
+    setRouteEvents(currentRouteEvents);
+    
+    const newRouteDataSources = calculateDataSources(currentRouteEvents);
+    setRouteDataSources(newRouteDataSources);
 
-    setDataSources(newDataSources);
-    console.log('🔍 Debug Panel: Updated data sources from stored events:', newDataSources);
-  }, []);
+    console.log('🔍 Debug Panel: Updated data sources - All:', newAllDataSources, 'Route:', newRouteDataSources);
+  }, [currentRoute, calculateDataSources]);
 
   // Handle new debug events
   const handleDebugEvent = useCallback((event: AnyDebugEvent) => {
@@ -110,6 +130,11 @@ export function DebugPanelContent() {
     };
   }, []); // Empty dependency array to run only once
 
+  // Re-calculate route-specific data when route or events change
+  useEffect(() => {
+    loadEventsFromStore();
+  }, [currentRoute, loadEventsFromStore]);
+
   // Format timestamp
   const formatTime = (timestamp: number) => {
     return new Date(timestamp).toLocaleTimeString();
@@ -119,7 +144,13 @@ export function DebugPanelContent() {
   const clearEvents = () => {
     clearAllDebugEvents();
     setEvents([]);
-    setDataSources(prev => prev.map(source => ({ 
+    setRouteEvents([]);
+    setAllDataSources(prev => prev.map(source => ({ 
+      ...source, 
+      active: false, 
+      count: 0 
+    })));
+    setRouteDataSources(prev => prev.map(source => ({ 
       ...source, 
       active: false, 
       count: 0 
@@ -131,92 +162,154 @@ export function DebugPanelContent() {
   const copyDebugInfo = () => {
     const debugInfo = {
       route: currentRoute,
-      dataSources: dataSources.filter(s => s.active),
-      eventCount: events.length,
-      events: events.slice(0, 10), // Last 10 events
+      routeDataSources: routeDataSources.filter(s => s.active),
+      allDataSources: allDataSources.filter(s => s.active),
+      routeEventCount: routeEvents.length,
+      totalEventCount: events.length,
+      routeEvents: routeEvents.slice(0, 10),
+      allEvents: events.slice(0, 10),
       timestamp: new Date().toISOString(),
     };
     navigator.clipboard?.writeText(JSON.stringify(debugInfo, null, 2));
   };
 
+  // Render data source badges
+  const renderDataSourceBadges = (dataSources: DataSource[]) => {
+    return dataSources.map(source => {
+      // Determine badge colors based on source name
+      let badgeClassName = "flex items-center gap-1";
+      if (source.active) {
+        if (source.name === 'dbAdapter') {
+          // Green for dbAdapter
+          badgeClassName += " bg-green-500 text-white hover:bg-green-600 border-transparent";
+        } else {
+          // Orange for IndexedDB and Direct DB
+          badgeClassName += " bg-orange-500 text-white hover:bg-orange-600 border-transparent";
+        }
+      }
+      
+      return (
+        <Badge 
+          key={source.name}
+          variant={source.active ? 'default' : 'secondary'}
+          className={badgeClassName}
+        >
+          {source.name}
+          {source.active && (
+            <span className="text-xs bg-background/20 px-1 rounded">
+              {source.count}
+            </span>
+          )}
+        </Badge>
+      );
+    });
+  };
+
+  // Render operation list
+  const renderOperations = (operationEvents: AnyDebugEvent[], maxHeight = 'max-h-40') => {
+    if (operationEvents.length === 0) {
+      return (
+        <div className="text-center text-muted-foreground py-4">
+          No operations recorded for this route yet.
+        </div>
+      );
+    }
+
+    return (
+      <div className={`space-y-2 ${maxHeight} overflow-y-auto`}>
+        {operationEvents.map((event, index) => (
+          <div key={`${event.timestamp}-${index}`} className="flex items-center justify-between text-sm p-2 bg-muted/50 rounded">
+            <div className="flex items-center gap-2">
+              <Clock className="h-3 w-3 text-muted-foreground" />
+              <code className="text-xs">{formatTime(event.timestamp)}</code>
+              <span className="font-mono">{event.name}</span>
+            </div>
+            <Badge variant="outline" className="text-xs">
+              {event.route}
+            </Badge>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-6">
-      {/* Current Route & Data Sources */}
+      {/* Current Route Data Sources - Route Specific */}
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
-            <Database className="h-4 w-4" />
-            Data Sources
+            <MapPin className="h-4 w-4" />
+            Current Route Data Sources
           </CardTitle>
           <CardDescription>
-            Current route: <code className="text-sm bg-muted px-1 rounded">{currentRoute}</code>
+            Data sources used on: <code className="text-sm bg-muted px-1 rounded">{currentRoute}</code>
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-3">
+        <CardContent>
           <div className="flex flex-wrap gap-2">
-            {dataSources.map(source => {
-              // Determine badge colors based on source name
-              let badgeClassName = "flex items-center gap-1";
-              if (source.active) {
-                if (source.name === 'dbAdapter') {
-                  // Green for dbAdapter
-                  badgeClassName += " bg-green-500 text-white hover:bg-green-600 border-transparent";
-                } else {
-                  // Orange for IndexedDB and Direct DB
-                  badgeClassName += " bg-orange-500 text-white hover:bg-orange-600 border-transparent";
-                }
-              }
-              
-              return (
-                <Badge 
-                  key={source.name}
-                  variant={source.active ? 'default' : 'secondary'}
-                  className={badgeClassName}
-                >
-                  {source.name}
-                  {source.active && (
-                    <span className="text-xs bg-background/20 px-1 rounded">
-                      {source.count}
-                    </span>
-                  )}
-                </Badge>
-              );
-            })}
+            {renderDataSourceBadges(routeDataSources)}
           </div>
+          {routeDataSources.every(s => !s.active) && (
+            <div className="text-center text-muted-foreground py-2 text-sm">
+              No data sources active on this route yet.
+            </div>
+          )}
         </CardContent>
       </Card>
 
-      {/* Event History */}
+      {/* Route Operations */}
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
             <Activity className="h-4 w-4" />
-            Operation History
+            Operations @ {currentRoute}
           </CardTitle>
           <CardDescription>
-            Recent operations (newest first) - {events.length} total
+            Operations performed on this route - {routeEvents.length} total
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-2">
+        <CardContent>
+          {renderOperations(routeEvents, 'max-h-48')}
+        </CardContent>
+      </Card>
+
+      {/* Global Data Sources */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Database className="h-4 w-4" />
+            All Data Sources
+          </CardTitle>
+          <CardDescription>
+            Data sources used across all routes
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap gap-2">
+            {renderDataSourceBadges(allDataSources)}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Full Operation History */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Activity className="h-4 w-4" />
+            Full Operation History
+          </CardTitle>
+          <CardDescription>
+            All operations across routes (newest first) - {events.length} total
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
           {events.length === 0 ? (
             <div className="text-center text-muted-foreground py-4">
               No operations recorded yet. Navigate around the app to see debug events.
             </div>
           ) : (
-            <div className="space-y-2 max-h-64 overflow-y-auto">
-              {events.slice(0, 50).map((event, index) => (
-                <div key={`${event.timestamp}-${index}`} className="flex items-center justify-between text-sm p-2 bg-muted/50 rounded">
-                  <div className="flex items-center gap-2">
-                    <Clock className="h-3 w-3 text-muted-foreground" />
-                    <code className="text-xs">{formatTime(event.timestamp)}</code>
-                    <span className="font-mono">{event.name}</span>
-                  </div>
-                  <Badge variant="outline" className="text-xs">
-                    {event.route}
-                  </Badge>
-                </div>
-              ))}
-            </div>
+            renderOperations(events.slice(0, 50), 'max-h-64')
           )}
         </CardContent>
       </Card>
@@ -240,7 +333,7 @@ export function DebugPanelContent() {
             <Button 
               size="sm" 
               variant="outline" 
-              onClick={() => console.log('Debug Events:', events)}
+              onClick={() => console.log('Debug Events:', { routeEvents, allEvents: events })}
             >
               Log to Console
             </Button>
