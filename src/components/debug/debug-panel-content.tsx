@@ -38,8 +38,14 @@ export function DebugPanelContent() {
 
   // Handle new debug events
   const handleDebugEvent = useCallback((event: AnyDebugEvent) => {
+    console.log('🔍 Debug Panel: Received event:', event);
+    
     // Add event to history (keep last 100)
-    setEvents(prev => [event, ...prev].slice(0, 100));
+    setEvents(prev => {
+      const newEvents = [event, ...prev].slice(0, 100);
+      console.log('🔍 Debug Panel: Updated events count:', newEvents.length);
+      return newEvents;
+    });
 
     // Update data source tracking
     setDataSources(prev => prev.map(source => {
@@ -51,18 +57,21 @@ export function DebugPanelContent() {
           if (source.name === 'dbAdapter') {
             shouldActivate = true;
             countIncrement = 1;
+            console.log('🔍 Debug Panel: Activating dbAdapter source');
           }
           break;
         case 'idb:op':
           if (source.name === 'IndexedDB') {
             shouldActivate = true;
             countIncrement = 1;
+            console.log('🔍 Debug Panel: Activating IndexedDB source');
           }
           break;
         case 'fetch:direct':
           if (source.name === 'Direct DB') {
             shouldActivate = true;
             countIncrement = 1;
+            console.log('🔍 Debug Panel: Activating Direct DB source');
           }
           break;
         // fetch:dal counts as dbAdapter usage since it's via DAL
@@ -70,22 +79,34 @@ export function DebugPanelContent() {
           if (source.name === 'dbAdapter') {
             shouldActivate = true;
             countIncrement = 1;
+            console.log('🔍 Debug Panel: Activating dbAdapter source (via fetch:dal)');
           }
           break;
       }
 
-      return {
+      const newSource = {
         ...source,
         active: source.active || shouldActivate,
         count: source.count + countIncrement,
       };
+      
+      if (shouldActivate) {
+        console.log(`🔍 Debug Panel: Updated ${source.name} source:`, newSource);
+      }
+      
+      return newSource;
     }));
   }, []);
 
   // Subscribe to debug events
   useEffect(() => {
+    console.log('🔍 Debug Panel: Setting up event subscription...');
     const unsubscribe = onDebugEvent(handleDebugEvent);
-    return unsubscribe;
+    console.log('🔍 Debug Panel: Event subscription active');
+    return () => {
+      console.log('🔍 Debug Panel: Cleaning up event subscription');
+      unsubscribe();
+    };
   }, [handleDebugEvent]);
 
   // Format timestamp

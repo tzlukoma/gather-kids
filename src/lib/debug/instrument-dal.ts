@@ -24,16 +24,24 @@ export function instrumentDAL(): (() => void) | void {
       return;
     }
 
+    console.log('🔧 Debug: Starting DAL instrumentation attempt...');
+
     // Wait a bit for the adapter to be available
     const tryInstrument = () => {
+      console.log('🔧 Debug: Checking for global adapter on window...');
       const globalAdapter = (window as any).gatherKidsDbAdapter;
       if (!globalAdapter) {
-        console.warn('🔧 Debug: dbAdapter not yet available, retrying...');
+        console.warn('🔧 Debug: dbAdapter not yet available, retrying in 100ms...');
+        console.log('🔧 Debug: Available on window:', Object.keys(window).filter(k => k.includes('gather')));
         setTimeout(tryInstrument, 100);
         return;
       }
 
-      console.log('🔧 Debug: Found dbAdapter, proceeding with instrumentation...', globalAdapter);
+      console.log('🔧 Debug: Found dbAdapter, proceeding with instrumentation...', {
+        type: typeof globalAdapter,
+        constructor: globalAdapter.constructor?.name,
+        keys: Object.keys(globalAdapter)
+      });
 
       // Check if we can instrument this adapter
       if (typeof globalAdapter !== 'object' || globalAdapter === null) {
@@ -54,8 +62,10 @@ export function instrumentDAL(): (() => void) | void {
 
       // Remove duplicates
       const uniqueMethods = [...new Set(methods)];
+      console.log('🔧 Debug: Found methods to instrument:', uniqueMethods);
 
       // Store original methods and wrap them
+      let instrumentedCount = 0;
       uniqueMethods.forEach(methodName => {
         const originalMethod = (globalAdapter as any)[methodName];
         if (typeof originalMethod === 'function' && !originalMethods.has(methodName)) {
@@ -65,6 +75,8 @@ export function instrumentDAL(): (() => void) | void {
           (globalAdapter as any)[methodName] = function(this: any, ...args: any[]) {
             // Increment scope counter
             debugScope.inDal++;
+
+            console.log(`🔧 Debug: DAL method called: ${methodName}`);
 
             // Emit debug event
             emitDebugEvent({
@@ -91,10 +103,11 @@ export function instrumentDAL(): (() => void) | void {
               throw error;
             }
           };
+          instrumentedCount++;
         }
       });
 
-      console.log(`🔧 Debug: DAL instrumentation installed (${uniqueMethods.length} methods wrapped)`);
+      console.log(`🔧 Debug: DAL instrumentation installed (${instrumentedCount}/${uniqueMethods.length} methods wrapped)`);
     };
 
     // Start trying to instrument

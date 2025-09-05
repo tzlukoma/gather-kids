@@ -40,19 +40,30 @@ export function DebugInstaller() {
   }, []);
 
   useEffect(() => {
+    console.log('🔧 Debug installer: Initializing...');
+    
     // Install patches if debug is already enabled
-    if (isDebugOn()) {
+    const currentlyEnabled = isDebugOn();
+    console.log('🔧 Debug installer: Current debug state:', currentlyEnabled);
+    
+    if (currentlyEnabled) {
+      console.log('🔧 Debug installer: Debug is already enabled, installing patches...');
       handleDebugFlagChange(true);
+    } else {
+      console.log('🔧 Debug installer: Debug is disabled. Enable with localStorage["gk:debug-panel"]="1" or Ctrl+Shift+D');
     }
 
     // Subscribe to flag changes
+    console.log('🔧 Debug installer: Setting up flag change subscription...');
     const unsubscribe = onDebugFlagChange(handleDebugFlagChange);
 
     // Add hotkey listener
+    console.log('🔧 Debug installer: Setting up hotkey listener (Ctrl+Shift+D)...');
     window.addEventListener('keydown', handleKeyDown);
 
     // Cleanup on unmount
     return () => {
+      console.log('🔧 Debug installer: Cleaning up...');
       unsubscribe();
       window.removeEventListener('keydown', handleKeyDown);
       uninstallDebugPatches();

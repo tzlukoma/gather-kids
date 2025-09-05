@@ -11,10 +11,13 @@ import { safelyPatch } from './patch-manager';
  */
 export function instrumentIndexedDB(): (() => void) | void {
   if (typeof window === 'undefined' || !window.indexedDB) {
+    console.warn('🔧 Debug: IndexedDB not available, skipping instrumentation');
     return;
   }
 
   try {
+    console.log('🔧 Debug: Installing IndexedDB instrumentation...');
+
     // Store original methods for cleanup
     const originalOpen = window.indexedDB.open;
     const originalDeleteDatabase = window.indexedDB.deleteDatabase;
@@ -22,6 +25,7 @@ export function instrumentIndexedDB(): (() => void) | void {
 
     // Patch indexedDB.open
     window.indexedDB.open = function (this: any, name: string, version?: number) {
+      console.log(`🔧 Debug: IndexedDB open called: ${name}`);
       emitDebugEvent({
         type: 'idb:op',
         name: `IDB: open(${name})`,
@@ -34,6 +38,7 @@ export function instrumentIndexedDB(): (() => void) | void {
 
     // Patch indexedDB.deleteDatabase
     window.indexedDB.deleteDatabase = function (this: any, name: string) {
+      console.log(`🔧 Debug: IndexedDB deleteDatabase called: ${name}`);
       emitDebugEvent({
         type: 'idb:op',
         name: `IDB: deleteDatabase(${name})`,
@@ -51,6 +56,7 @@ export function instrumentIndexedDB(): (() => void) | void {
       mode?: IDBTransactionMode
     ) {
       const stores = Array.isArray(storeNames) ? storeNames.join(', ') : storeNames;
+      console.log(`🔧 Debug: IndexedDB transaction called: ${stores}`);
       
       emitDebugEvent({
         type: 'idb:op',

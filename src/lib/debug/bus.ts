@@ -48,7 +48,7 @@ export function emitDebugEvent(event: Omit<AnyDebugEvent, 'timestamp' | 'route'>
     route: window.location.pathname,
   } as AnyDebugEvent;
   
-  // Log event to console for real-time debugging
+  // Always log to console for real-time debugging (console will be visible in both local and deployed)
   const timestamp = new Date(fullEvent.timestamp).toLocaleTimeString();
   console.log(`🔍 Debug Event [${timestamp}]:`, {
     type: fullEvent.type,
@@ -57,25 +57,39 @@ export function emitDebugEvent(event: Omit<AnyDebugEvent, 'timestamp' | 'route'>
     ...(fullEvent.details && { details: fullEvent.details })
   });
   
-  window.dispatchEvent(new CustomEvent('gk:debug', { 
-    detail: fullEvent 
-  }));
+  // Dispatch event for debug panel UI
+  try {
+    window.dispatchEvent(new CustomEvent('gk:debug', { 
+      detail: fullEvent 
+    }));
+    console.log(`🔍 Debug Event dispatched:`, fullEvent.type, fullEvent.name);
+  } catch (error) {
+    console.error('🔍 Debug Event dispatch failed:', error);
+  }
 }
 
 /**
  * Subscribe to debug events
  */
 export function onDebugEvent(callback: (event: AnyDebugEvent) => void): () => void {
-  if (typeof window === 'undefined') return () => {};
+  if (typeof window === 'undefined') {
+    console.warn('🔍 onDebugEvent: Server-side environment, returning no-op cleanup');
+    return () => {};
+  }
+  
+  console.log('🔍 onDebugEvent: Setting up event listener for gk:debug events');
   
   const handler = (event: CustomEvent<AnyDebugEvent>) => {
+    console.log('🔍 onDebugEvent: Received gk:debug event:', event.detail);
     callback(event.detail);
   };
   
   window.addEventListener('gk:debug', handler as EventListener);
+  console.log('🔍 onDebugEvent: Event listener added for gk:debug');
   
   // Return cleanup function
   return () => {
+    console.log('🔍 onDebugEvent: Removing event listener for gk:debug');
     window.removeEventListener('gk:debug', handler as EventListener);
   };
 }
