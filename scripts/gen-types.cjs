@@ -26,17 +26,28 @@ const projectId = process.env.SUPABASE_PROJECT_ID;
 
 // Check if Supabase CLI is available
 function isSupabaseCLIAvailable() {
-	// First try the bin directory where we installed it in the workflow
+	// If caller provided explicit SUPABASE_CLI, prefer that
+	if (process.env.SUPABASE_CLI) {
+		try {
+			execSync(`${process.env.SUPABASE_CLI} --version`, { stdio: 'ignore' });
+			return { type: 'explicit', path: process.env.SUPABASE_CLI };
+		} catch (err) {
+			console.warn(
+				`Supplied SUPABASE_CLI (${process.env.SUPABASE_CLI}) is not executable or not found.`
+			);
+		}
+	}
+
+	// First try the bin directory where some workflows install it
 	try {
-		execSync(`${process.env.HOME}/.bin/supabase --version`, {
-			stdio: 'ignore',
-		});
-		return 'bin';
+		const binPath = `${process.env.HOME}/.bin/supabase`;
+		execSync(`${binPath} --version`, { stdio: 'ignore' });
+		return { type: 'bin', path: binPath };
 	} catch (error) {
 		// Try the global command
 		try {
 			execSync('supabase --version', { stdio: 'ignore' });
-			return 'global';
+			return { type: 'global', path: 'supabase' };
 		} catch (error2) {
 			return false;
 		}
@@ -100,9 +111,11 @@ function main() {
 			return;
 		}
 
-		// Use the correct path to the Supabase CLI
-		const supabasePath =
-			cliLocation === 'bin' ? `${process.env.HOME}/.bin/supabase` : 'supabase';
+		// Use the correct path to the Supabase CLI and log it for determinism
+		const supabasePath = cliLocation.path;
+		console.log(
+			`🔎 Using Supabase CLI at: ${supabasePath} (detected: ${cliLocation.type})`
+		);
 
 		let command;
 		if (useLocal) {
@@ -121,7 +134,10 @@ function main() {
 		}
 
 		// Execute type generation
-		const types = execSync(command).toString();
+		console.log(`▶️  Executing: ${command}`);
+		const types = execSync(command, {
+			stdio: ['ignore', 'pipe', 'pipe'],
+		}).toString();
 
 		// Post-process the types
 		const processedTypes =
