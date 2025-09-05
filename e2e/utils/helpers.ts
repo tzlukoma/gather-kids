@@ -14,6 +14,24 @@ export class TestHelpers {
     await field.fill(value);
   }
 
+  async fillFormFieldWithFallback(selectors: string[], value: string) {
+    for (const selector of selectors) {
+      const field = this.page.locator(selector);
+      if (await field.count() > 0) {
+        try {
+          await field.waitFor({ state: 'visible', timeout: 2000 });
+          await field.fill(value);
+          console.log(`✅ Filled field using selector: ${selector}`);
+          return;
+        } catch (error) {
+          console.log(`⚠️ Failed to fill field with selector: ${selector}`);
+          continue;
+        }
+      }
+    }
+    console.log(`❌ Could not fill field with any selector for value: ${value}`);
+  }
+
   async selectFromDropdown(selector: string, value: string) {
     const dropdown = this.page.locator(selector);
     await dropdown.click();

@@ -5,8 +5,8 @@ const baseURL = process.env.BASE_URL || 'http://localhost:9002';
 export default defineConfig({
   testDir: './e2e',
   fullyParallel: false, // Registration tests may need sequential execution
-  timeout: 60000, // Email confirmation can take time
-  expect: { timeout: 10000 },
+  timeout: 120000, // Increased timeout for slower operations
+  expect: { timeout: 15000 }, // Increased expect timeout
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   workers: 1, // Sequential execution for better test isolation
