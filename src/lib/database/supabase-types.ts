@@ -1,8 +1,7 @@
 /**
  * This file contains types generated from the Supabase schema.
  * DO NOT EDIT MANUALLY. This file is auto-generated.
- * Generated on: 2025-09-05T00:43:18.481Z
- * Generated on: 2025-09-05T00:57:21.740Z
+ * Generated on: 2025-09-05T01:51:55.319Z
  */
 
 export type SupabaseJson =
@@ -259,6 +258,7 @@ export type Database = {
           child_id: string
           child_mobile: string | null
           created_at: string | null
+          dob: string | null
           external_household_id: string | null
           external_id: string | null
           first_name: string | null
@@ -268,9 +268,11 @@ export type Database = {
           household_uuid: string | null
           is_active: boolean | null
           last_name: string | null
+          medical_notes: string | null
           mobile_phone: string | null
           notes: string | null
           special_needs: boolean | null
+          special_needs_notes: string | null
           updated_at: string | null
         }
         Insert: {
@@ -279,6 +281,7 @@ export type Database = {
           child_id: string
           child_mobile?: string | null
           created_at?: string | null
+          dob?: string | null
           external_household_id?: string | null
           external_id?: string | null
           first_name?: string | null
@@ -288,9 +291,11 @@ export type Database = {
           household_uuid?: string | null
           is_active?: boolean | null
           last_name?: string | null
+          medical_notes?: string | null
           mobile_phone?: string | null
           notes?: string | null
           special_needs?: boolean | null
+          special_needs_notes?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -299,6 +304,7 @@ export type Database = {
           child_id?: string
           child_mobile?: string | null
           created_at?: string | null
+          dob?: string | null
           external_household_id?: string | null
           external_id?: string | null
           first_name?: string | null
@@ -308,9 +314,11 @@ export type Database = {
           household_uuid?: string | null
           is_active?: boolean | null
           last_name?: string | null
+          medical_notes?: string | null
           mobile_phone?: string | null
           notes?: string | null
           special_needs?: boolean | null
+          special_needs_notes?: string | null
           updated_at?: string | null
         }
         Relationships: [
@@ -416,18 +424,16 @@ export type Database = {
           created_at: string | null
           first_name: string | null
           household_id: string | null
-          household_id_uuid: string | null
           last_name: string | null
           mobile_phone: string | null
           relationship: string | null
           updated_at: string | null
         }
         Insert: {
-          contact_id: string
+          contact_id?: string
           created_at?: string | null
           first_name?: string | null
           household_id?: string | null
-          household_id_uuid?: string | null
           last_name?: string | null
           mobile_phone?: string | null
           relationship?: string | null
@@ -438,21 +444,12 @@ export type Database = {
           created_at?: string | null
           first_name?: string | null
           household_id?: string | null
-          household_id_uuid?: string | null
           last_name?: string | null
           mobile_phone?: string | null
           relationship?: string | null
           updated_at?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "fk_emergency_contacts_household"
-            columns: ["household_id_uuid"]
-            isOneToOne: false
-            referencedRelation: "households"
-            referencedColumns: ["household_uuid"]
-          },
-        ]
+        Relationships: []
       }
       enrollment_overrides: {
         Row: {
@@ -694,7 +691,9 @@ export type Database = {
           household_id: string
           household_name: string | null
           household_uuid: string
+          name: string | null
           preferred_scripture_translation: string | null
+          preferredScriptureTranslation: string | null
           primary_phone: string | null
           state: string | null
           updated_at: string | null
@@ -711,7 +710,9 @@ export type Database = {
           household_id: string
           household_name?: string | null
           household_uuid?: string
+          name?: string | null
           preferred_scripture_translation?: string | null
+          preferredScriptureTranslation?: string | null
           primary_phone?: string | null
           state?: string | null
           updated_at?: string | null
@@ -728,7 +729,9 @@ export type Database = {
           household_id?: string
           household_name?: string | null
           household_uuid?: string
+          name?: string | null
           preferred_scripture_translation?: string | null
+          preferredScriptureTranslation?: string | null
           primary_phone?: string | null
           state?: string | null
           updated_at?: string | null
@@ -1440,4 +1443,3 @@ export const Constants = {
     Enums: {},
   },
 } as const
-export type SupabaseJson = any;
