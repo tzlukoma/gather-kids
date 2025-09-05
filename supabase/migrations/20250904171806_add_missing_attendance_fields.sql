@@ -11,9 +11,20 @@ ADD COLUMN IF NOT EXISTS notes text,
 ADD COLUMN IF NOT EXISTS first_time_flag boolean DEFAULT false;
 
 -- Add check constraint for pickup_method to ensure valid values
-ALTER TABLE attendance 
-ADD CONSTRAINT IF NOT EXISTS attendance_pickup_method_check 
-CHECK (pickup_method IS NULL OR pickup_method IN ('name_last4', 'PIN', 'other'));
+-- Create check constraint for pickup_method in an idempotent way
+DO $$
+BEGIN
+	IF NOT EXISTS (
+		SELECT 1
+		FROM pg_constraint c
+		JOIN pg_class t ON c.conrelid = t.oid
+		WHERE t.relname = 'attendance' AND c.conname = 'attendance_pickup_method_check'
+	) THEN
+		ALTER TABLE attendance
+		ADD CONSTRAINT attendance_pickup_method_check
+		CHECK (pickup_method IS NULL OR pickup_method IN ('name_last4', 'PIN', 'other'));
+	END IF;
+END$$;
 
 -- Add comments for documentation
 COMMENT ON COLUMN attendance.check_out_at IS 'Timestamp when child was checked out';
