@@ -2,6 +2,7 @@
  * This file contains types generated from the Supabase schema.
  * DO NOT EDIT MANUALLY. This file is auto-generated.
  * Generated on: 2025-09-05T00:43:18.481Z
+ * Generated on: 2025-09-05T00:57:21.740Z
  */
 
 export type SupabaseJson =
@@ -1439,3 +1440,4 @@ export const Constants = {
     Enums: {},
   },
 } as const
+export type SupabaseJson = any;

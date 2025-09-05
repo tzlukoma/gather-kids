@@ -1,0 +1,44 @@
+{
+  "ministries": [
+    {
+      "ministry_id": "test_ministry_1",
+      "name": "Sunday School Elementary",
+      "description": "Sunday School program for elementary age children",
+      "is_active": true,
+      "min_age": 5,
+      "max_age": 10
+    },
+    {
+      "ministry_id": "test_ministry_2", 
+      "name": "Children's Choir",
+      "description": "Musical ministry for young children",
+      "is_active": true,
+      "min_age": 4,
+      "max_age": 12
+    },
+    {
+      "ministry_id": "test_ministry_3",
+      "name": "Kids Club",
+      "description": "Weekly program for children's activities",
+      "is_active": true,
+      "min_age": 6,
+      "max_age": 14
+    },
+    {
+      "ministry_id": "test_ministry_4",
+      "name": "Bible Bee",
+      "description": "Scripture memorization program",
+      "is_active": true,
+      "min_age": 5,
+      "max_age": 18
+    },
+    {
+      "ministry_id": "test_ministry_5",
+      "name": "Youth Group",
+      "description": "Youth ministry for teenagers",
+      "is_active": true,
+      "min_age": 13,
+      "max_age": 18
+    }
+  ]
+}

@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS households (
   external_id text,
   created_at timestamptz DEFAULT now(),
   household_name text,
+  name text,
   address text,
   address_line1 text,
   address_line2 text,
@@ -18,7 +19,8 @@ CREATE TABLE IF NOT EXISTS households (
   zip text,
   primary_phone text,
   email text,
-  preferred_scripture_translation text
+  preferred_scripture_translation text,
+  "preferredScriptureTranslation" text
 );
 
 -- guardians
@@ -31,6 +33,7 @@ CREATE TABLE IF NOT EXISTS guardians (
   last_name text,
   mobile_phone text,
   email text,
+  relationship text,
   is_primary boolean,
   created_at timestamptz DEFAULT now(),
   updated_at timestamptz
@@ -45,24 +48,30 @@ CREATE TABLE IF NOT EXISTS children (
   first_name text,
   last_name text,
   birth_date date,
+  dob date,
+  grade text,
   gender text,
   mobile_phone text,
+  child_mobile text,
   allergies text,
   notes text,
+  medical_notes text,
+  special_needs boolean DEFAULT false,
+  special_needs_notes text,
   created_at timestamptz DEFAULT now(),
   updated_at timestamptz
 );
 
 -- other tables (lightweight)
 CREATE TABLE IF NOT EXISTS emergency_contacts (
-  contact_id text PRIMARY KEY,
-  household_id text,
+  contact_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  household_id uuid REFERENCES households(household_id) ON DELETE CASCADE,
   first_name text,
   last_name text,
   mobile_phone text,
   relationship text,
-  created_at timestamptz,
-  updated_at timestamptz
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
 );
 
 CREATE TABLE IF NOT EXISTS users (

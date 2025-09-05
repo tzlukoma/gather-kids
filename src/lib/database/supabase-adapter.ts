@@ -52,11 +52,27 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 	async createHousehold(
 		data: Omit<Household, 'household_id' | 'created_at' | 'updated_at'>
 	): Promise<Household> {
+		// Map frontend field names to database column names
 		const household = {
-			...data,
 			household_id: uuidv4(),
 			created_at: new Date().toISOString(),
 			updated_at: new Date().toISOString(),
+			// Map name to both fields for compatibility during migration
+			name: data.name,
+			household_name: data.name,
+			// Map preferredScriptureTranslation to both fields for compatibility during migration  
+			preferredScriptureTranslation: data.preferredScriptureTranslation,
+			preferred_scripture_translation: data.preferredScriptureTranslation,
+			// Direct field mappings
+			address_line1: data.address_line1,
+			address_line2: data.address_line2,
+			city: data.city,
+			state: data.state,
+			zip: data.zip,
+			primary_email: data.primary_email,
+			primary_phone: data.primary_phone,
+			photo_url: data.photo_url,
+			avatar_path: data.avatar_path,
 		};
 
 		const { data: result, error } = await this.client
@@ -70,12 +86,33 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 	}
 
 	async updateHousehold(id: string, data: Partial<Household>): Promise<Household> {
+		// Map frontend field names to database column names  
+		const updateData: any = {
+			updated_at: new Date().toISOString(),
+		};
+		
+		// Map fields with proper database column names
+		if (data.name !== undefined) {
+			updateData.name = data.name;
+			updateData.household_name = data.name;
+		}
+		if (data.preferredScriptureTranslation !== undefined) {
+			updateData.preferredScriptureTranslation = data.preferredScriptureTranslation;
+			updateData.preferred_scripture_translation = data.preferredScriptureTranslation;
+		}
+		if (data.address_line1 !== undefined) updateData.address_line1 = data.address_line1;
+		if (data.address_line2 !== undefined) updateData.address_line2 = data.address_line2;
+		if (data.city !== undefined) updateData.city = data.city;
+		if (data.state !== undefined) updateData.state = data.state;
+		if (data.zip !== undefined) updateData.zip = data.zip;
+		if (data.primary_email !== undefined) updateData.primary_email = data.primary_email;
+		if (data.primary_phone !== undefined) updateData.primary_phone = data.primary_phone;
+		if (data.photo_url !== undefined) updateData.photo_url = data.photo_url;
+		if (data.avatar_path !== undefined) updateData.avatar_path = data.avatar_path;
+
 		const { data: result, error } = await this.client
 			.from('households')
-			.update({
-				...data,
-				updated_at: new Date().toISOString(),
-			})
+			.update(updateData)
 			.eq('household_id', id)
 			.select()
 			.single();
@@ -143,11 +180,31 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 	async createChild(
 		data: Omit<Child, 'child_id' | 'created_at' | 'updated_at'>
 	): Promise<Child> {
+		// Map frontend field names to database column names
 		const child = {
-			...data,
 			child_id: uuidv4(),
 			created_at: new Date().toISOString(),
 			updated_at: new Date().toISOString(),
+			// Direct mappings
+			household_id: data.household_id,
+			first_name: data.first_name,
+			last_name: data.last_name,
+			is_active: data.is_active,
+			photo_url: data.photo_url,
+			allergies: data.allergies,
+			// Map dob to both fields for compatibility during migration
+			dob: data.dob,
+			birth_date: data.dob,
+			// Map child_mobile to both fields for compatibility  
+			child_mobile: data.child_mobile,
+			mobile_phone: data.child_mobile,
+			// Map grade and other new fields
+			grade: data.grade,
+			special_needs: data.special_needs,
+			special_needs_notes: data.special_needs_notes,
+			medical_notes: data.medical_notes,
+			// Legacy field mapping
+			notes: data.medical_notes || '',
 		};
 
 		const { data: result, error } = await this.client
@@ -161,12 +218,43 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 	}
 
 	async updateChild(id: string, data: Partial<Child>): Promise<Child> {
+		// Map frontend field names to database column names
+		const updateData: any = {
+			updated_at: new Date().toISOString(),
+		};
+		
+		// Map fields with proper database column names
+		if (data.household_id !== undefined) updateData.household_id = data.household_id;
+		if (data.first_name !== undefined) updateData.first_name = data.first_name;
+		if (data.last_name !== undefined) updateData.last_name = data.last_name;
+		if (data.is_active !== undefined) updateData.is_active = data.is_active;
+		if (data.photo_url !== undefined) updateData.photo_url = data.photo_url;
+		if (data.allergies !== undefined) updateData.allergies = data.allergies;
+		
+		// Map dob to both fields for compatibility
+		if (data.dob !== undefined) {
+			updateData.dob = data.dob;
+			updateData.birth_date = data.dob;
+		}
+		
+		// Map child_mobile to both fields for compatibility  
+		if (data.child_mobile !== undefined) {
+			updateData.child_mobile = data.child_mobile;
+			updateData.mobile_phone = data.child_mobile;
+		}
+		
+		// Map grade and other new fields
+		if (data.grade !== undefined) updateData.grade = data.grade;
+		if (data.special_needs !== undefined) updateData.special_needs = data.special_needs;
+		if (data.special_needs_notes !== undefined) updateData.special_needs_notes = data.special_needs_notes;
+		if (data.medical_notes !== undefined) {
+			updateData.medical_notes = data.medical_notes;
+			updateData.notes = data.medical_notes; // Legacy field mapping
+		}
+
 		const { data: result, error } = await this.client
 			.from('children')
-			.update({
-				...data,
-				updated_at: new Date().toISOString(),
-			})
+			.update(updateData)
 			.eq('child_id', id)
 			.select()
 			.single();
@@ -310,8 +398,12 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 		data: Omit<EmergencyContact, 'contact_id' | 'created_at' | 'updated_at'>
 	): Promise<EmergencyContact> {
 		const contact = {
-			...data,
 			contact_id: uuidv4(),
+			household_id: data.household_id, // Now expecting UUID type
+			first_name: data.first_name,
+			last_name: data.last_name,
+			mobile_phone: data.mobile_phone,
+			relationship: data.relationship,
 			created_at: new Date().toISOString(),
 			updated_at: new Date().toISOString(),
 		};
