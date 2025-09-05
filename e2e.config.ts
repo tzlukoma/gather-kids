@@ -27,13 +27,23 @@ export default defineConfig({
       name: 'chromium',
       use: { 
         ...devices['Desktop Chrome'],
-        // Use system browser instead of downloading
-        launchOptions: {
-          executablePath: '/usr/bin/chromium-browser'
-        }
+        // Prefer Playwright's bundled Chromium. If you need to use a
+        // system-installed browser, set CHROMIUM_EXECUTABLE in the
+        // environment to a valid path (useful for some CI images).
+        launchOptions: process.env.CHROMIUM_EXECUTABLE
+          ? { executablePath: process.env.CHROMIUM_EXECUTABLE }
+          : undefined
       }
     }
   ],
+  webServer: {
+    command: 'npm run dev',
+    url: baseURL,
+    // Wait up to 90s for the server to start in slower environments
+    timeout: 90_000,
+    // In CI we always start a fresh server; locally reuse existing to speed up dev
+    reuseExistingServer: !process.env.CI,
+  },
   // Global setup for seeding if needed
   // globalSetup: './e2e/utils/global-setup.ts',
 });
