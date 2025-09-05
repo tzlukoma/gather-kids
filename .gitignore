@@ -47,6 +47,11 @@ next-env.d.ts
 .env.uat.example
 !.env.uat.example
 
+# E2E environment files (keep examples, ignore actual configs with real keys)
+.env.e2e.local
+.env.e2e.ci
+!.env.e2e.*.example
+
 # firebase
 firebase-debug.log
 firestore-debug.log
