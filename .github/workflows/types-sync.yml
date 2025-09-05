@@ -1,0 +1,37 @@
+name: types-sync
+on: [pull_request]
+jobs:
+  supabase-types:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: 
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - name: Install Supabase CLI
+        run: |
+          mkdir -p ~/.bin
+          curl -fsSL https://github.com/supabase/cli/releases/latest/download/supabase_linux_amd64.tar.gz | tar -xz -C ~/.bin
+          echo "$HOME/.bin" >> $GITHUB_PATH
+      - name: Check Supabase types are up to date
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          if [[ -n "$DATABASE_URL" ]]; then
+            npx supabase gen types typescript --db-url "$DATABASE_URL" > src/lib/database/supabase-types.ts.new
+            if ! diff -q src/lib/database/supabase-types.ts src/lib/database/supabase-types.ts.new >/dev/null 2>&1; then
+              echo "❌ Supabase types are out of sync!"
+              echo "   Run 'npm run gen:types' and commit the changes."
+              echo ""
+              echo "Differences found:"
+              diff src/lib/database/supabase-types.ts src/lib/database/supabase-types.ts.new || true
+              exit 1
+            else
+              echo "✅ Supabase types are up to date"
+            fi
+          else
+            echo "⚠️ DATABASE_URL not set, skipping types sync check"
+            echo "   Types sync check requires a database connection"
+          fi
