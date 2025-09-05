@@ -33,6 +33,8 @@ export function instrumentDAL(): (() => void) | void {
         return;
       }
 
+      console.log('🔧 Debug: Found dbAdapter, proceeding with instrumentation...', globalAdapter);
+
       // Check if we can instrument this adapter
       if (typeof globalAdapter !== 'object' || globalAdapter === null) {
         console.warn('🔧 Debug: dbAdapter is not an object, skipping DAL instrumentation');

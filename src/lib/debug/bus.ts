@@ -48,6 +48,15 @@ export function emitDebugEvent(event: Omit<AnyDebugEvent, 'timestamp' | 'route'>
     route: window.location.pathname,
   } as AnyDebugEvent;
   
+  // Log event to console for real-time debugging
+  const timestamp = new Date(fullEvent.timestamp).toLocaleTimeString();
+  console.log(`🔍 Debug Event [${timestamp}]:`, {
+    type: fullEvent.type,
+    name: fullEvent.name,
+    route: fullEvent.route,
+    ...(fullEvent.details && { details: fullEvent.details })
+  });
+  
   window.dispatchEvent(new CustomEvent('gk:debug', { 
     detail: fullEvent 
   }));

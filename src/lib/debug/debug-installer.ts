@@ -15,14 +15,19 @@ import { instrumentFetch } from './instrument-fetch';
 export function DebugInstaller() {
   // Install/uninstall patches based on debug flag
   const handleDebugFlagChange = useCallback((enabled: boolean) => {
+    console.log(`🔧 Debug installer: Debug panel ${enabled ? 'ENABLED' : 'DISABLED'}`);
     if (enabled) {
+      console.log('🔧 Debug installer: Installing debug patches...');
       installDebugPatches([
         instrumentDAL,
         instrumentIndexedDB, 
         instrumentFetch,
       ]);
+      console.log('🔧 Debug installer: All patches installed successfully');
     } else {
+      console.log('🔧 Debug installer: Uninstalling debug patches...');
       uninstallDebugPatches();
+      console.log('🔧 Debug installer: All patches uninstalled');
     }
   }, []);
 
