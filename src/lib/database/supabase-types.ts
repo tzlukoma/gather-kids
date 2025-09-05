@@ -4,13 +4,15 @@
  * Generated on: 2025-09-05T03:46:24.227Z
  */
 
-export type SupabaseJson =
+export type Json =
   | string
   | number
   | boolean
   | null
   | { [key: string]: Json | undefined }
   | Json[]
+
+export type SupabaseJson = Json
 
 export type Database = {
   graphql_public: {
@@ -274,10 +276,9 @@ export type Database = {
       children: {
         Row: {
           allergies: string | null
-          birth_date: string | null
           child_id: string
           child_mobile: string | null
-          created_at: string | null
+          created_at: string
           dob: string | null
           external_household_id: string | null
           external_id: string | null
@@ -286,21 +287,19 @@ export type Database = {
           grade: string | null
           household_id: string | null
           household_uuid: string | null
-          is_active: boolean | null
+          is_active: boolean
           last_name: string | null
           medical_notes: string | null
-          mobile_phone: string | null
           notes: string | null
           special_needs: boolean | null
           special_needs_notes: string | null
-          updated_at: string | null
+          updated_at: string
         }
         Insert: {
           allergies?: string | null
-          birth_date?: string | null
           child_id: string
           child_mobile?: string | null
-          created_at?: string | null
+          created_at?: string
           dob?: string | null
           external_household_id?: string | null
           external_id?: string | null
@@ -309,21 +308,19 @@ export type Database = {
           grade?: string | null
           household_id?: string | null
           household_uuid?: string | null
-          is_active?: boolean | null
+          is_active?: boolean
           last_name?: string | null
           medical_notes?: string | null
-          mobile_phone?: string | null
           notes?: string | null
           special_needs?: boolean | null
           special_needs_notes?: string | null
-          updated_at?: string | null
+          updated_at?: string
         }
         Update: {
           allergies?: string | null
-          birth_date?: string | null
           child_id?: string
           child_mobile?: string | null
-          created_at?: string | null
+          created_at?: string
           dob?: string | null
           external_household_id?: string | null
           external_id?: string | null
@@ -332,14 +329,13 @@ export type Database = {
           grade?: string | null
           household_id?: string | null
           household_uuid?: string | null
-          is_active?: boolean | null
+          is_active?: boolean
           last_name?: string | null
           medical_notes?: string | null
-          mobile_phone?: string | null
           notes?: string | null
           special_needs?: boolean | null
           special_needs_notes?: string | null
-          updated_at?: string | null
+          updated_at?: string
         }
         Relationships: [
           {
@@ -441,33 +437,33 @@ export type Database = {
       emergency_contacts: {
         Row: {
           contact_id: string
-          created_at: string | null
+          created_at: string
           first_name: string | null
           household_id: string | null
           last_name: string | null
           mobile_phone: string | null
           relationship: string | null
-          updated_at: string | null
+          updated_at: string
         }
         Insert: {
           contact_id?: string
-          created_at?: string | null
+          created_at?: string
           first_name?: string | null
           household_id?: string | null
           last_name?: string | null
           mobile_phone?: string | null
           relationship?: string | null
-          updated_at?: string | null
+          updated_at?: string
         }
         Update: {
           contact_id?: string
-          created_at?: string | null
+          created_at?: string
           first_name?: string | null
           household_id?: string | null
           last_name?: string | null
           mobile_phone?: string | null
           relationship?: string | null
-          updated_at?: string | null
+          updated_at?: string
         }
         Relationships: []
       }
@@ -635,7 +631,7 @@ export type Database = {
       }
       guardians: {
         Row: {
-          created_at: string | null
+          created_at: string
           email: string | null
           external_household_id: string | null
           external_id: string | null
@@ -648,10 +644,10 @@ export type Database = {
           last_name: string | null
           mobile_phone: string | null
           relationship: string | null
-          updated_at: string | null
+          updated_at: string
         }
         Insert: {
-          created_at?: string | null
+          created_at?: string
           email?: string | null
           external_household_id?: string | null
           external_id?: string | null
@@ -664,10 +660,10 @@ export type Database = {
           last_name?: string | null
           mobile_phone?: string | null
           relationship?: string | null
-          updated_at?: string | null
+          updated_at?: string
         }
         Update: {
-          created_at?: string | null
+          created_at?: string
           email?: string | null
           external_household_id?: string | null
           external_id?: string | null
@@ -680,7 +676,7 @@ export type Database = {
           last_name?: string | null
           mobile_phone?: string | null
           relationship?: string | null
-          updated_at?: string | null
+          updated_at?: string
         }
         Relationships: [
           {
@@ -703,7 +699,7 @@ export type Database = {
         Row: {
           address: string | null
           city: string | null
-          created_at: string | null
+          created_at: string
           email: string | null
           external_id: string | null
           household_id: string
@@ -711,16 +707,15 @@ export type Database = {
           household_uuid: string
           name: string | null
           preferred_scripture_translation: string | null
-          preferredScriptureTranslation: string | null
           primary_phone: string | null
           state: string | null
-          updated_at: string | null
+          updated_at: string
           zip: string | null
         }
         Insert: {
           address?: string | null
           city?: string | null
-          created_at?: string | null
+          created_at?: string
           email?: string | null
           external_id?: string | null
           household_id: string
@@ -728,16 +723,15 @@ export type Database = {
           household_uuid?: string
           name?: string | null
           preferred_scripture_translation?: string | null
-          preferredScriptureTranslation?: string | null
           primary_phone?: string | null
           state?: string | null
-          updated_at?: string | null
+          updated_at?: string
           zip?: string | null
         }
         Update: {
           address?: string | null
           city?: string | null
-          created_at?: string | null
+          created_at?: string
           email?: string | null
           external_id?: string | null
           household_id?: string
@@ -745,10 +739,9 @@ export type Database = {
           household_uuid?: string
           name?: string | null
           preferred_scripture_translation?: string | null
-          preferredScriptureTranslation?: string | null
           primary_phone?: string | null
           state?: string | null
-          updated_at?: string | null
+          updated_at?: string
           zip?: string | null
         }
         Relationships: []
@@ -1010,7 +1003,7 @@ export type Database = {
         Row: {
           child_id: string | null
           consents: Json | null
-          created_at: string | null
+          created_at: string
           cycle_id: string | null
           pre_registered_sunday_school: boolean | null
           registration_id: string
@@ -1021,7 +1014,7 @@ export type Database = {
         Insert: {
           child_id?: string | null
           consents?: Json | null
-          created_at?: string | null
+          created_at?: string
           cycle_id?: string | null
           pre_registered_sunday_school?: boolean | null
           registration_id: string
@@ -1032,7 +1025,7 @@ export type Database = {
         Update: {
           child_id?: string | null
           consents?: Json | null
-          created_at?: string | null
+          created_at?: string
           cycle_id?: string | null
           pre_registered_sunday_school?: boolean | null
           registration_id?: string

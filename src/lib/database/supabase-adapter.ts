@@ -60,8 +60,7 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			// Map name to both fields for compatibility during migration
 			name: data.name,
 			household_name: data.name,
-			// Map preferredScriptureTranslation to both fields for compatibility during migration  
-			preferredScriptureTranslation: data.preferredScriptureTranslation,
+			// Use canonical snake_case field only (legacy preferredScriptureTranslation removed)
 			preferred_scripture_translation: data.preferredScriptureTranslation,
 			// Direct field mappings
 			address_line1: data.address_line1,
@@ -97,7 +96,6 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			updateData.household_name = data.name;
 		}
 		if (data.preferredScriptureTranslation !== undefined) {
-			updateData.preferredScriptureTranslation = data.preferredScriptureTranslation;
 			updateData.preferred_scripture_translation = data.preferredScriptureTranslation;
 		}
 		if (data.address_line1 !== undefined) updateData.address_line1 = data.address_line1;
