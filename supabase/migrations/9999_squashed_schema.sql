@@ -11,6 +11,8 @@ CREATE TABLE IF NOT EXISTS households (
   created_at timestamptz DEFAULT now(),
   household_name text,
   address text,
+  address_line1 text,
+  address_line2 text,
   city text,
   state text,
   zip text,
