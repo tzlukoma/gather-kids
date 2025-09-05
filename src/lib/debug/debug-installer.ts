@@ -6,7 +6,7 @@
 'use client';
 
 import { useEffect, useCallback } from 'react';
-import { isDebugOn, onDebugFlagChange, setDebugFlag, startAutoFlagDetection } from './flag';
+import { isDebugOn, onDebugFlagChange, setDebugFlag, syncDebugFlag } from './flag';
 import { installDebugPatches, uninstallDebugPatches } from './patch-manager';
 import { instrumentDAL } from './instrument-dal';
 import { instrumentIndexedDB } from './instrument-indexeddb';
@@ -42,6 +42,11 @@ export function DebugInstaller() {
   useEffect(() => {
     console.log('🔧 Debug installer: Initializing...');
     
+    // Expose sync function globally for convenience when using browser console
+    if (typeof window !== 'undefined') {
+      (window as any).syncDebugFlag = syncDebugFlag;
+    }
+    
     // Install patches if debug is already enabled
     const currentlyEnabled = isDebugOn();
     console.log('🔧 Debug installer: Current debug state:', currentlyEnabled);
@@ -51,15 +56,12 @@ export function DebugInstaller() {
       handleDebugFlagChange(true);
     } else {
       console.log('🔧 Debug installer: Debug is disabled. Enable with localStorage["gk:debug-panel"]="1" or Ctrl+Shift+D');
+      console.log('🔧 Debug installer: If you set localStorage directly, call syncDebugFlag() or refresh the page');
     }
 
     // Subscribe to flag changes
     console.log('🔧 Debug installer: Setting up flag change subscription...');
     const unsubscribe = onDebugFlagChange(handleDebugFlagChange);
-
-    // Start auto-detection for localStorage changes
-    console.log('🔧 Debug installer: Starting auto flag detection...');
-    const stopAutoDetection = startAutoFlagDetection();
 
     // Add hotkey listener
     console.log('🔧 Debug installer: Setting up hotkey listener (Ctrl+Shift+D)...');
@@ -69,9 +71,13 @@ export function DebugInstaller() {
     return () => {
       console.log('🔧 Debug installer: Cleaning up...');
       unsubscribe();
-      if (stopAutoDetection) stopAutoDetection();
       window.removeEventListener('keydown', handleKeyDown);
       uninstallDebugPatches();
+      
+      // Clean up global function
+      if (typeof window !== 'undefined') {
+        delete (window as any).syncDebugFlag;
+      }
     };
   }, [handleDebugFlagChange, handleKeyDown]);
 
