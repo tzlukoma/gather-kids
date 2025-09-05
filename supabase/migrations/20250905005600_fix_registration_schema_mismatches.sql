@@ -39,51 +39,81 @@ SET child_mobile = mobile_phone
 WHERE child_mobile IS NULL AND mobile_phone IS NOT NULL;
 
 -- 3. Fix emergency_contacts table data type mismatches
--- Create new table with correct schema and migrate data
-CREATE TABLE IF NOT EXISTS emergency_contacts_new (
-    contact_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    household_id uuid REFERENCES households(household_id) ON DELETE CASCADE,
-    first_name text,
-    last_name text,
-    mobile_phone text,
-    relationship text,
-    created_at timestamptz DEFAULT now(),
-    updated_at timestamptz DEFAULT now()
-);
-
--- Migrate existing data if the old table exists and has data
+-- 3. Fix emergency_contacts table data type mismatches
+-- Create new table with a household_id column type that matches the households table
 DO $$
+DECLARE
+    ref_type text;
 BEGIN
+    -- Determine the data type of households.household_id
+    SELECT data_type INTO ref_type
+    FROM information_schema.columns
+    WHERE table_name = 'households' AND column_name = 'household_id'
+    LIMIT 1;
+
+    -- If households.household_id is uuid, create a linked table with a uuid FK.
+    -- Otherwise create a table with household_id as text and migrate data without FK.
+    IF ref_type = 'uuid' THEN
+        EXECUTE $sql$
+        CREATE TABLE IF NOT EXISTS emergency_contacts_new (
+            contact_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+            household_id uuid REFERENCES households(household_id) ON DELETE CASCADE,
+            first_name text,
+            last_name text,
+            mobile_phone text,
+            relationship text,
+            created_at timestamptz DEFAULT now(),
+            updated_at timestamptz DEFAULT now()
+        );
+        $sql$;
+    ELSE
+        EXECUTE $sql$
+        CREATE TABLE IF NOT EXISTS emergency_contacts_new (
+            contact_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+            household_id text,
+            first_name text,
+            last_name text,
+            mobile_phone text,
+            relationship text,
+            created_at timestamptz DEFAULT now(),
+            updated_at timestamptz DEFAULT now()
+        );
+        $sql$;
+    END IF;
+
+    -- Migrate existing data if the old table exists and has data
     IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'emergency_contacts') THEN
-        -- Copy data, converting household_id to UUID if possible
-        INSERT INTO emergency_contacts_new (contact_id, household_id, first_name, last_name, mobile_phone, relationship, created_at, updated_at)
-        SELECT 
-            CASE 
-                WHEN contact_id ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' 
-                THEN contact_id::uuid 
-                ELSE gen_random_uuid() 
-            END as contact_id,
-            CASE 
-                WHEN household_id ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' 
-                THEN household_id::uuid 
-                ELSE NULL 
-            END as household_id,
-            first_name,
-            last_name,
-            mobile_phone,
-            relationship,
-            COALESCE(created_at, now()),
-            COALESCE(updated_at, now())
-        FROM emergency_contacts
-        ON CONFLICT (contact_id) DO NOTHING;
-        
-        -- Drop old table and rename new one
-        DROP TABLE emergency_contacts;
+        IF ref_type = 'uuid' THEN
+            -- Convert textual UUIDs when possible, otherwise set NULL for household_id
+            EXECUTE $sql$
+            INSERT INTO emergency_contacts_new (contact_id, household_id, first_name, last_name, mobile_phone, relationship, created_at, updated_at)
+            SELECT
+                CASE WHEN contact_id ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' THEN contact_id::uuid ELSE gen_random_uuid() END,
+                CASE WHEN household_id ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' THEN household_id::uuid ELSE NULL END,
+                first_name, last_name, mobile_phone, relationship, COALESCE(created_at, now()), COALESCE(updated_at, now())
+            FROM emergency_contacts
+            ON CONFLICT (contact_id) DO NOTHING;
+            $sql$;
+        ELSE
+            -- Keep household_id as text if households keys are text
+            EXECUTE $sql$
+            INSERT INTO emergency_contacts_new (contact_id, household_id, first_name, last_name, mobile_phone, relationship, created_at, updated_at)
+            SELECT
+                CASE WHEN contact_id ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' THEN contact_id::uuid ELSE gen_random_uuid() END,
+                household_id,
+                first_name, last_name, mobile_phone, relationship, COALESCE(created_at, now()), COALESCE(updated_at, now())
+            FROM emergency_contacts
+            ON CONFLICT (contact_id) DO NOTHING;
+            $sql$;
+        END IF;
+
+        -- Drop old table now that data is migrated
+        EXECUTE 'DROP TABLE emergency_contacts';
     END IF;
 END $$;
 
 -- Rename the new table to the correct name
-ALTER TABLE emergency_contacts_new RENAME TO emergency_contacts;
+ALTER TABLE IF EXISTS emergency_contacts_new RENAME TO emergency_contacts;
 
 -- 4. Fix guardians table missing relationship field
 ALTER TABLE guardians ADD COLUMN IF NOT EXISTS relationship text;
