@@ -178,6 +178,7 @@ jobs:
 
       - name: Configure rclone remote (gdrive)
         run: |
+          set -euo pipefail
           rclone config create gdrive drive \
             scope=drive.file \
             root_folder_id="$GDRIVE_FOLDER_ID" \
@@ -197,10 +198,20 @@ jobs:
           rclone delete gdrive: --min-age 180d --log-level NOTICE || true
           echo "Prune complete."
 
-      - name: Upload archive to Google Drive
+      - name: Upload archive to Google Drive (debug)
         run: |
+          set -euo pipefail
+          echo "Running rclone copy..."
+          # Run rclone with DEBUG logging and capture exit code
           rclone copy "${{ env.ARCHIVE }}" gdrive: \
             --transfers=1 --checkers=4 \
-            --log-file=/tmp/rclone.log --log-level=INFO
+            --log-file=/tmp/rclone.log --log-level=DEBUG || RC=$? && true
+          RC=${RC:-0}
+          echo "rclone exit code: $RC"
+          if [ "$RC" -ne 0 ]; then
+            echo "rclone failed; printing last 200 lines of /tmp/rclone.log"
+            tail -n 200 /tmp/rclone.log || true
+            exit $RC
+          fi
           echo "Uploaded to Google Drive folder ID: $GDRIVE_FOLDER_ID"
-          tail -n 50 /tmp/rclone.log
+          tail -n 50 /tmp/rclone.log || true
