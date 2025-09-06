@@ -4,22 +4,22 @@ on:
   workflow_dispatch:
     inputs:
       environment:
-        description: "Which environment to back up?"
+        description: 'Which environment to back up?'
         required: true
         type: choice
         options: [UAT, PROD]
         default: UAT
       label:
-        description: "Optional label for the filename (e.g. pre-release)"
+        description: 'Optional label for the filename (e.g. pre-release)'
         required: false
-        default: ""
+        default: ''
       encrypt:
-        description: "Encrypt backup with GPG before upload?"
+        description: 'Encrypt backup with GPG before upload?'
         type: boolean
         required: true
         default: false
       skip_prune:
-        description: "Skip pruning (deleting) Drive backups older than 6 months?"
+        description: 'Skip pruning (deleting) Drive backups older than 6 months?'
         type: boolean
         required: true
         default: false
@@ -62,7 +62,7 @@ jobs:
           set -euo pipefail
           TS="$(date -u +%Y%m%dT%H%M%SZ)"
           LABEL="${{ github.event.inputs.label }}"
-          SAFE_LABEL="$(echo "$LABEL" | tr -cd '[:alnum:]_-.')"
+          SAFE_LABEL="$(echo "$LABEL" | tr -cd '[:alnum:]_.-')"
           ENV="${{ github.event.inputs.environment }}"
 
           BASE="supabase-${ENV,,}-backup-${TS}"
