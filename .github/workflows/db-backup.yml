@@ -13,16 +13,16 @@ on:
         description: 'Optional label for the filename (e.g. pre-release)'
         required: false
         default: ''
-      encrypt:
-        description: 'Encrypt backup with GPG before upload?'
-        type: boolean
-        required: true
-        default: false
-      skip_prune:
-        description: 'Skip pruning (deleting) Drive backups older than 6 months?'
-        type: boolean
-        required: true
-        default: false
+      # encrypt:
+      #   description: 'Encrypt backup with GPG before upload?'
+      #   type: boolean
+      #   required: true
+      #   default: false
+      # skip_prune:
+      #   description: 'Skip pruning (deleting) Drive backups older than 6 months?'
+      #   type: boolean
+      #   required: true
+      #   default: false
 
 jobs:
   backup:
@@ -166,52 +166,54 @@ jobs:
           path: ${{ env.ARCHIVE }}
           retention-days: 30
 
-      # -------- Google Drive: optional prune + upload --------
-      - name: Install rclone
-        run: |
-          curl -fsSL https://rclone.org/install.sh | sudo bash
-
-      - name: Write Service Account JSON
-        run: |
-          echo '${{ secrets.GDRIVE_SA_JSON }}' > /tmp/gdrive-sa.json
-          chmod 600 /tmp/gdrive-sa.json
-
-      - name: Configure rclone remote (gdrive)
-        run: |
-          set -euo pipefail
-          rclone config create gdrive drive \
-            scope=drive.file \
-            root_folder_id="$GDRIVE_FOLDER_ID" \
-            service_account_file=/tmp/gdrive-sa.json \
-            --non-interactive
-
-      - name: Prune Google Drive backups older than 6 months (dry run)
-        if: ${{ !inputs.skip_prune }}
-        run: |
-          echo "Dry-run: which files would be deleted (older than 180 days)?"
-          rclone delete gdrive: --min-age 180d --dry-run --log-level NOTICE || true
-
-      - name: Prune Google Drive backups older than 6 months (apply)
-        if: ${{ !inputs.skip_prune }}
-        run: |
-          echo "Deleting files older than 180 days..."
-          rclone delete gdrive: --min-age 180d --log-level NOTICE || true
-          echo "Prune complete."
-
-      - name: Upload archive to Google Drive (debug)
-        run: |
-          set -euo pipefail
-          echo "Running rclone copy..."
-          # Run rclone with DEBUG logging and capture exit code
-          rclone copy "${{ env.ARCHIVE }}" gdrive: \
-            --transfers=1 --checkers=4 \
-            --log-file=/tmp/rclone.log --log-level=DEBUG || RC=$? && true
-          RC=${RC:-0}
-          echo "rclone exit code: $RC"
-          if [ "$RC" -ne 0 ]; then
-            echo "rclone failed; printing last 200 lines of /tmp/rclone.log"
-            tail -n 200 /tmp/rclone.log || true
-            exit $RC
-          fi
-          echo "Uploaded to Google Drive folder ID: $GDRIVE_FOLDER_ID"
-          tail -n 50 /tmp/rclone.log || true
+  # -------- Google Drive: optional prune + upload --------
+  # The Google Drive upload steps are commented out for now. To re-enable,
+  # uncomment the following steps and ensure `GDRIVE_SA_JSON` and
+  # `GDRIVE_FOLDER_ID` secrets are configured.
+  # - name: Install rclone
+  #   run: |
+  #     curl -fsSL https://rclone.org/install.sh | sudo bash
+  #
+  # - name: Write Service Account JSON
+  #   run: |
+  #     echo '${{ secrets.GDRIVE_SA_JSON }}' > /tmp/gdrive-sa.json
+  #     chmod 600 /tmp/gdrive-sa.json
+  #
+  # - name: Configure rclone remote (gdrive)
+  #   run: |
+  #     set -euo pipefail
+  #     rclone config create gdrive drive \
+  #       scope=drive.file \
+  #       root_folder_id="$GDRIVE_FOLDER_ID" \
+  #       service_account_file=/tmp/gdrive-sa.json \
+  #       --non-interactive
+  #
+  # - name: Prune Google Drive backups older than 6 months (dry run)
+  #   if: ${{ !inputs.skip_prune }}
+  #   run: |
+  #     echo "Dry-run: which files would be deleted (older than 180 days)?"
+  #     rclone delete gdrive: --min-age 180d --dry-run --log-level NOTICE || true
+  #
+  # - name: Prune Google Drive backups older than 6 months (apply)
+  #   if: ${{ !inputs.skip_prune }}
+  #   run: |
+  #     echo "Deleting files older than 180 days..."
+  #     rclone delete gdrive: --min-age 180d --log-level NOTICE || true
+  #     echo "Prune complete."
+  #
+  # - name: Upload archive to Google Drive (debug)
+  #   run: |
+  #     set -euo pipefail
+  #     echo "Running rclone copy..."
+  #     rclone copy "${{ env.ARCHIVE }}" gdrive: \
+  #       --transfers=1 --checkers=4 \
+  #       --log-file=/tmp/rclone.log --log-level=DEBUG || RC=$? && true
+  #     RC=${RC:-0}
+  #     echo "rclone exit code: $RC"
+  #     if [ "$RC" -ne 0 ]; then
+  #       echo "rclone failed; printing last 200 lines of /tmp/rclone.log"
+  #       tail -n 200 /tmp/rclone.log || true
+  #       exit $RC
+  #     fi
+  #     echo "Uploaded to Google Drive folder ID: $GDRIVE_FOLDER_ID"
+  #     tail -n 50 /tmp/rclone.log || true
