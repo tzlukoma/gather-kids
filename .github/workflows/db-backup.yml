@@ -64,11 +64,13 @@ jobs:
             echo "SUPABASE_DB_URL=$PROD_DATABASE_URL" >> $GITHUB_ENV
             echo "SUPABASE_URL=${{ secrets.PROD_SUPABASE_URL }}" >> $GITHUB_ENV
             echo "SUPABASE_DB_PASSWORD=${{ secrets.SUPABASE_DB_PASSWORD }}" >> $GITHUB_ENV
+            echo "SUPABASE_ACCESS_TOKEN=${{ secrets.SUPABASE_ACCESS_TOKEN }}" >> $GITHUB_ENV
             echo "GDRIVE_FOLDER_ID=$GDRIVE_FOLDER_ID_PROD" >> $GITHUB_ENV
           else
             echo "SUPABASE_DB_URL=$UAT_DATABASE_URL" >> $GITHUB_ENV
             echo "SUPABASE_URL=${{ secrets.UAT_SUPABASE_URL }}" >> $GITHUB_ENV
             echo "SUPABASE_DB_PASSWORD=${{ secrets.SUPABASE_DB_PASSWORD }}" >> $GITHUB_ENV
+            echo "SUPABASE_ACCESS_TOKEN=${{ secrets.SUPABASE_ACCESS_TOKEN }}" >> $GITHUB_ENV
             echo "GDRIVE_FOLDER_ID=$GDRIVE_FOLDER_ID_UAT" >> $GITHUB_ENV
           fi
 
@@ -76,6 +78,9 @@ jobs:
         run: mkdir -p dumps
 
       - name: Dump roles, schema, and data
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ env.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ env.SUPABASE_DB_PASSWORD }}
         run: |
           set -euo pipefail
           TS="$(date -u +%Y%m%dT%H%M%SZ)"
