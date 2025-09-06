@@ -87,17 +87,17 @@ jobs:
           echo "Supabase version (if available):"
           $HOME/.bin/supabase --version || true
           echo "Checking if secrets are available:"
-          
+
           if [ ${#SUPABASE_ACCESS_TOKEN} -eq 0 ]; then
             echo "ERROR: SUPABASE_ACCESS_TOKEN is empty or not set"
             exit 1
           fi
-          
+
           if [ ${#SUPABASE_DB_PASSWORD} -eq 0 ]; then
             echo "ERROR: SUPABASE_DB_PASSWORD is empty or not set"
             exit 1
           fi
-          
+
           echo "SUPABASE_ACCESS_TOKEN length: ${#SUPABASE_ACCESS_TOKEN}"
           echo "SUPABASE_DB_PASSWORD length: ${#SUPABASE_DB_PASSWORD}"
           echo "All required secrets are available"
@@ -128,9 +128,9 @@ jobs:
           "$HOME/.bin/supabase" link --project-ref "$PROJECT_ID" --password "$SUPABASE_DB_PASSWORD"
 
           echo "Dumping roles/schema/data via supabase CLI"
-          "$HOME/.bin/supabase" db dump --role-only --linked --out "dumps/${BASE}-roles.sql"
-          "$HOME/.bin/supabase" db dump --schema-only --linked --out "dumps/${BASE}-schema.sql"
-          "$HOME/.bin/supabase" db dump --data-only --linked --out "dumps/${BASE}-data.sql"
+          "$HOME/.bin/supabase" db dump --role-only --linked -f "dumps/${BASE}-roles.sql"
+          "$HOME/.bin/supabase" db dump --schema-only --linked -f "dumps/${BASE}-schema.sql"
+          "$HOME/.bin/supabase" db dump --data-only --linked -f "dumps/${BASE}-data.sql"
 
           tar -czf "dumps/${BASE}.tar.gz" -C dumps "${BASE}-roles.sql" "${BASE}-schema.sql" "${BASE}-data.sql"
           echo "ARCHIVE_UNENC=dumps/${BASE}.tar.gz" >> $GITHUB_ENV
