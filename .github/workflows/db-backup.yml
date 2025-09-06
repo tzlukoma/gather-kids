@@ -76,14 +76,39 @@ jobs:
           [ -n "$SAFE_LABEL" ] && BASE="${BASE}-${SAFE_LABEL}"
 
           echo "Creating logical dumps with pg_dump/pg_dumpall..."
-          # Dump roles/cluster-wide objects (requires superuser for some objects)
-          pg_dumpall --roles-only --dbname="$SUPABASE_DB_URL" > "dumps/${BASE}-roles.sql" || true
 
-          # Schema-only dump for the specific database
-          pg_dump --schema-only --dbname="$SUPABASE_DB_URL" -f "dumps/${BASE}-schema.sql"
+          # Parse SUPABASE_DB_URL (format: postgres://user:pass@host:port/dbname?...)
+          URL="$SUPABASE_DB_URL"
+          HOST=$(echo "$URL" | sed -E 's|^[^@]*@||; s|.*://||; s|[:/].*$||')
+          PORT=$(echo "$URL" | sed -E 's|.*:([0-9]+)/.*|\1|; t; s|.*:([0-9]+)$|\1|; t; echo ""')
+          PORT=${PORT:-5432}
+          USERPASS=$(echo "$URL" | sed -E 's|.*//([^@]+)@.*|\1|; t; echo ""')
+          PGUSER=$(echo "$USERPASS" | cut -d: -f1)
+          PGPASSWORD=$(echo "$USERPASS" | cut -d: -f2-)
+          PGDATABASE=$(echo "$URL" | sed -E 's|.*/([^/?]+).*|\1|; t; echo ""')
 
-          # Data-only dump for the specific database
-          pg_dump --data-only --column-inserts --dbname="$SUPABASE_DB_URL" -f "dumps/${BASE}-data.sql"
+          # Prefer IPv4 address if available
+          IPV4=$(getent ahosts "$HOST" 2>/dev/null | awk '$1 ~ /^[0-9]+(\.[0-9]+){3}$/ {print $1; exit}') || true
+          if [ -n "$IPV4" ]; then
+            export PGHOST="$IPV4"
+          else
+            export PGHOST="$HOST"
+          fi
+          export PGPORT="$PORT"
+          [ -n "$PGUSER" ] && export PGUSER
+          [ -n "$PGPASSWORD" ] && export PGPASSWORD
+          [ -n "$PGDATABASE" ] && export PGDATABASE
+
+          echo "Using PGHOST=$PGHOST PGPORT=$PGPORT PGDATABASE=$PGDATABASE"
+
+          # Dump roles (pg_dumpall reads PG* env vars)
+          pg_dumpall --roles-only > "dumps/${BASE}-roles.sql" || true
+
+          # Schema-only dump
+          pg_dump --schema-only -f "dumps/${BASE}-schema.sql"
+
+          # Data-only dump (column-inserts for portability)
+          pg_dump --data-only --column-inserts -f "dumps/${BASE}-data.sql"
 
           tar -czf "dumps/${BASE}.tar.gz" -C dumps "${BASE}-roles.sql" "${BASE}-schema.sql" "${BASE}-data.sql"
           echo "ARCHIVE_UNENC=dumps/${BASE}.tar.gz" >> $GITHUB_ENV
