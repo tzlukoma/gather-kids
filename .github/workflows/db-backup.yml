@@ -27,13 +27,12 @@ on:
 jobs:
   backup:
     runs-on: ubuntu-latest
+    environment: production
     env:
       PROD_DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
       UAT_DATABASE_URL: ${{ secrets.UAT_DATABASE_URL }}
       GDRIVE_FOLDER_ID_PROD: ${{ secrets.GDRIVE_FOLDER_ID_PROD }}
       GDRIVE_FOLDER_ID_UAT: ${{ secrets.GDRIVE_FOLDER_ID_UAT }}
-      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
 
     steps:
       - name: Checkout
@@ -76,6 +75,9 @@ jobs:
         run: mkdir -p dumps
 
       - name: 'Debug: verify supabase binary and secrets'
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         run: |
           set -euo pipefail
           echo "Which supabase binary:"
@@ -83,10 +85,25 @@ jobs:
           echo "Supabase version (if available):"
           $HOME/.bin/supabase --version || true
           echo "Checking if secrets are available:"
+          
+          if [ ${#SUPABASE_ACCESS_TOKEN} -eq 0 ]; then
+            echo "ERROR: SUPABASE_ACCESS_TOKEN is empty or not set"
+            exit 1
+          fi
+          
+          if [ ${#SUPABASE_DB_PASSWORD} -eq 0 ]; then
+            echo "ERROR: SUPABASE_DB_PASSWORD is empty or not set"
+            exit 1
+          fi
+          
           echo "SUPABASE_ACCESS_TOKEN length: ${#SUPABASE_ACCESS_TOKEN}"
           echo "SUPABASE_DB_PASSWORD length: ${#SUPABASE_DB_PASSWORD}"
+          echo "All required secrets are available"
 
       - name: Dump roles, schema, and data
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         run: |
           set -euo pipefail
 
