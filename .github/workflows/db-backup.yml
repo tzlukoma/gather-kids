@@ -83,11 +83,15 @@ jobs:
           echo "SUPABASE_ACCESS_TOKEN will be provided in the dump step"
 
       - name: Dump roles, schema, and data
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         run: |
           set -euo pipefail
+
+          # Explicitly set environment variables
+          export SUPABASE_ACCESS_TOKEN="${{ secrets.SUPABASE_ACCESS_TOKEN }}"
+          export SUPABASE_DB_PASSWORD="${{ secrets.SUPABASE_DB_PASSWORD }}"
+
+          # Debug: verify the token is set
+          echo "SUPABASE_ACCESS_TOKEN length: ${#SUPABASE_ACCESS_TOKEN}"
 
           TS="$(date -u +%Y%m%dT%H%M%SZ)"
           LABEL="${{ github.event.inputs.label }}"
