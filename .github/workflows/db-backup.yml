@@ -1,4 +1,4 @@
-name: On-Demand Supabase Backup → Artifacts + Google Drive (with optional GPG)
+name: On-Demand Supabase Backup → Artifacts
 
 on:
   workflow_dispatch:
@@ -13,23 +13,26 @@ on:
         description: 'Optional label for the filename (e.g. pre-release)'
         required: false
         default: ''
-      encrypt:
-        description: 'Encrypt backup with GPG before upload?'
-        type: boolean
-        required: true
-        default: false
-      skip_prune:
-        description: 'Skip pruning (deleting) Drive backups older than 6 months?'
-        type: boolean
-        required: true
-        default: false
+      # encrypt:
+      #   description: 'Encrypt backup with GPG before upload?'
+      #   type: boolean
+      #   required: true
+      #   default: false
+      # skip_prune:
+      #   description: 'Skip pruning (deleting) Drive backups older than 6 months?'
+      #   type: boolean
+      #   required: true
+      #   default: false
 
 jobs:
   backup:
     runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment == 'PROD' && 'production' || 'uat' }}
     env:
       PROD_DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
       UAT_DATABASE_URL: ${{ secrets.UAT_DATABASE_URL }}
+      PROD_SUPABASE_URL: ${{ secrets.PROD_SUPABASE_URL }}
+      UAT_SUPABASE_URL: ${{ secrets.UAT_SUPABASE_URL }}
       GDRIVE_FOLDER_ID_PROD: ${{ secrets.GDRIVE_FOLDER_ID_PROD }}
       GDRIVE_FOLDER_ID_UAT: ${{ secrets.GDRIVE_FOLDER_ID_UAT }}
 
@@ -62,11 +65,11 @@ jobs:
 
           if [ "$ENV" = "PROD" ]; then
             echo "SUPABASE_DB_URL=$PROD_DATABASE_URL" >> $GITHUB_ENV
-            echo "SUPABASE_URL=${{ secrets.PROD_SUPABASE_URL }}" >> $GITHUB_ENV
+            echo "SUPABASE_URL=$PROD_SUPABASE_URL" >> $GITHUB_ENV
             echo "GDRIVE_FOLDER_ID=$GDRIVE_FOLDER_ID_PROD" >> $GITHUB_ENV
           else
             echo "SUPABASE_DB_URL=$UAT_DATABASE_URL" >> $GITHUB_ENV
-            echo "SUPABASE_URL=${{ secrets.UAT_SUPABASE_URL }}" >> $GITHUB_ENV
+            echo "SUPABASE_URL=$UAT_SUPABASE_URL" >> $GITHUB_ENV
             echo "GDRIVE_FOLDER_ID=$GDRIVE_FOLDER_ID_UAT" >> $GITHUB_ENV
           fi
 
@@ -74,6 +77,9 @@ jobs:
         run: mkdir -p dumps
 
       - name: 'Debug: verify supabase binary and secrets'
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         run: |
           set -euo pipefail
           echo "Which supabase binary:"
@@ -81,10 +87,25 @@ jobs:
           echo "Supabase version (if available):"
           $HOME/.bin/supabase --version || true
           echo "Checking if secrets are available:"
-          echo "SUPABASE_ACCESS_TOKEN length from secrets: ${#'${{ secrets.SUPABASE_ACCESS_TOKEN }}'}"
-          echo "SUPABASE_DB_PASSWORD length from secrets: ${#'${{ secrets.SUPABASE_DB_PASSWORD }}'}"
+
+          if [ ${#SUPABASE_ACCESS_TOKEN} -eq 0 ]; then
+            echo "ERROR: SUPABASE_ACCESS_TOKEN is empty or not set"
+            exit 1
+          fi
+
+          if [ ${#SUPABASE_DB_PASSWORD} -eq 0 ]; then
+            echo "ERROR: SUPABASE_DB_PASSWORD is empty or not set"
+            exit 1
+          fi
+
+          echo "SUPABASE_ACCESS_TOKEN length: ${#SUPABASE_ACCESS_TOKEN}"
+          echo "SUPABASE_DB_PASSWORD length: ${#SUPABASE_DB_PASSWORD}"
+          echo "All required secrets are available"
 
       - name: Dump roles, schema, and data
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         run: |
           set -euo pipefail
 
@@ -104,12 +125,12 @@ jobs:
           PROJECT_ID=$(echo "$SUPABASE_URL" | sed -E 's/https:\/\/([^.]+)\.supabase\.co.*/\1/')
 
           echo "Linking supabase project: $PROJECT_ID"
-          "$HOME/.bin/supabase" link --project-ref "$PROJECT_ID" --password "${{ secrets.SUPABASE_DB_PASSWORD }}"
+          "$HOME/.bin/supabase" link --project-ref "$PROJECT_ID" --password "$SUPABASE_DB_PASSWORD"
 
           echo "Dumping roles/schema/data via supabase CLI"
-          "$HOME/.bin/supabase" db dump --role-only --linked --out "dumps/${BASE}-roles.sql"
-          "$HOME/.bin/supabase" db dump --schema-only --linked --out "dumps/${BASE}-schema.sql"
-          "$HOME/.bin/supabase" db dump --data-only --linked --out "dumps/${BASE}-data.sql"
+          "$HOME/.bin/supabase" db dump --role-only --linked -f "dumps/${BASE}-roles.sql"
+          "$HOME/.bin/supabase" db dump --linked -f "dumps/${BASE}-schema.sql"
+          "$HOME/.bin/supabase" db dump --data-only --linked -f "dumps/${BASE}-data.sql"
 
           tar -czf "dumps/${BASE}.tar.gz" -C dumps "${BASE}-roles.sql" "${BASE}-schema.sql" "${BASE}-data.sql"
           echo "ARCHIVE_UNENC=dumps/${BASE}.tar.gz" >> $GITHUB_ENV
@@ -145,41 +166,54 @@ jobs:
           path: ${{ env.ARCHIVE }}
           retention-days: 30
 
-      # -------- Google Drive: optional prune + upload --------
-      - name: Install rclone
-        run: |
-          curl -fsSL https://rclone.org/install.sh | sudo bash
-
-      - name: Write Service Account JSON
-        run: |
-          echo '${{ secrets.GDRIVE_SA_JSON }}' > /tmp/gdrive-sa.json
-          chmod 600 /tmp/gdrive-sa.json
-
-      - name: Configure rclone remote (gdrive)
-        run: |
-          rclone config create gdrive drive \
-            scope=drive.file \
-            root_folder_id="$GDRIVE_FOLDER_ID" \
-            service_account_file=/tmp/gdrive-sa.json \
-            --non-interactive
-
-      - name: Prune Google Drive backups older than 6 months (dry run)
-        if: ${{ !inputs.skip_prune }}
-        run: |
-          echo "Dry-run: which files would be deleted (older than 180 days)?"
-          rclone delete gdrive: --min-age 180d --dry-run --log-level NOTICE || true
-
-      - name: Prune Google Drive backups older than 6 months (apply)
-        if: ${{ !inputs.skip_prune }}
-        run: |
-          echo "Deleting files older than 180 days..."
-          rclone delete gdrive: --min-age 180d --log-level NOTICE || true
-          echo "Prune complete."
-
-      - name: Upload archive to Google Drive
-        run: |
-          rclone copy "${{ env.ARCHIVE }}" gdrive: \
-            --transfers=1 --checkers=4 \
-            --log-file=/tmp/rclone.log --log-level=INFO
-          echo "Uploaded to Google Drive folder ID: $GDRIVE_FOLDER_ID"
-          tail -n 50 /tmp/rclone.log
+  # -------- Google Drive: optional prune + upload --------
+  # The Google Drive upload steps are commented out for now. To re-enable,
+  # uncomment the following steps and ensure `GDRIVE_SA_JSON` and
+  # `GDRIVE_FOLDER_ID` secrets are configured.
+  # - name: Install rclone
+  #   run: |
+  #     curl -fsSL https://rclone.org/install.sh | sudo bash
+  #
+  # - name: Write Service Account JSON
+  #   run: |
+  #     echo '${{ secrets.GDRIVE_SA_JSON }}' > /tmp/gdrive-sa.json
+  #     chmod 600 /tmp/gdrive-sa.json
+  #
+  # - name: Configure rclone remote (gdrive)
+  #   run: |
+  #     set -euo pipefail
+  #     rclone config create gdrive drive \
+  #       scope=drive.file \
+  #       root_folder_id="$GDRIVE_FOLDER_ID" \
+  #       service_account_file=/tmp/gdrive-sa.json \
+  #       --non-interactive
+  #
+  # - name: Prune Google Drive backups older than 6 months (dry run)
+  #   if: ${{ !inputs.skip_prune }}
+  #   run: |
+  #     echo "Dry-run: which files would be deleted (older than 180 days)?"
+  #     rclone delete gdrive: --min-age 180d --dry-run --log-level NOTICE || true
+  #
+  # - name: Prune Google Drive backups older than 6 months (apply)
+  #   if: ${{ !inputs.skip_prune }}
+  #   run: |
+  #     echo "Deleting files older than 180 days..."
+  #     rclone delete gdrive: --min-age 180d --log-level NOTICE || true
+  #     echo "Prune complete."
+  #
+  # - name: Upload archive to Google Drive (debug)
+  #   run: |
+  #     set -euo pipefail
+  #     echo "Running rclone copy..."
+  #     rclone copy "${{ env.ARCHIVE }}" gdrive: \
+  #       --transfers=1 --checkers=4 \
+  #       --log-file=/tmp/rclone.log --log-level=DEBUG || RC=$? && true
+  #     RC=${RC:-0}
+  #     echo "rclone exit code: $RC"
+  #     if [ "$RC" -ne 0 ]; then
+  #       echo "rclone failed; printing last 200 lines of /tmp/rclone.log"
+  #       tail -n 200 /tmp/rclone.log || true
+  #       exit $RC
+  #     fi
+  #     echo "Uploaded to Google Drive folder ID: $GDRIVE_FOLDER_ID"
+  #     tail -n 50 /tmp/rclone.log || true
