@@ -28,10 +28,11 @@ jobs:
   backup:
     runs-on: ubuntu-latest
     env:
-      PROD_DATABASE_URL: ${{ secrets.SUPABASE_DB_URL_PROD }}
-      UAT_DATABASE_URL: ${{ secrets.SUPABASE_DB_URL_UAT }}
+      PROD_DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
+      UAT_DATABASE_URL: ${{ secrets.UAT_DATABASE_URL }}
       GDRIVE_FOLDER_ID_PROD: ${{ secrets.GDRIVE_FOLDER_ID_PROD }}
       GDRIVE_FOLDER_ID_UAT: ${{ secrets.GDRIVE_FOLDER_ID_UAT }}
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -46,10 +47,10 @@ jobs:
           echo "Selected environment: $ENV"
 
           if [ "$ENV" = "PROD" ]; then
-            echo "SUPABASE_DB_URL=$DB_URL_PROD" >> $GITHUB_ENV
+            echo "SUPABASE_DB_URL=$PROD_DATABASE_URL" >> $GITHUB_ENV
             echo "GDRIVE_FOLDER_ID=$GDRIVE_FOLDER_ID_PROD" >> $GITHUB_ENV
           else
-            echo "SUPABASE_DB_URL=$DB_URL_UAT" >> $GITHUB_ENV
+            echo "SUPABASE_DB_URL=$UAT_DATABASE_URL" >> $GITHUB_ENV
             echo "GDRIVE_FOLDER_ID=$GDRIVE_FOLDER_ID_UAT" >> $GITHUB_ENV
           fi
 
@@ -83,6 +84,7 @@ jobs:
           echo "${{ secrets.GPG_PUBLIC_KEY }}" > /tmp/pubkey.asc
           gpg --batch --import /tmp/pubkey.asc
           echo "GPG keys imported."
+
       - name: Encrypt archive with GPG (recipient public key)
         if: ${{ inputs.encrypt }}
         run: |
