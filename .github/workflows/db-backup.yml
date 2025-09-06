@@ -39,9 +39,27 @@ jobs:
 
       - name: Install Supabase CLI
         run: |
+          set -euo pipefail
           curl -fsSL https://get.supabase.com/cli/install | sh
-          # Add Supabase CLI installed location to runner PATH for later steps
-          echo "$HOME/.supabase/bin" >> $GITHUB_PATH
+          # Add common Supabase install locations to runner PATH for later steps
+          echo "$HOME/.supabase/bin" >> $GITHUB_PATH || true
+          echo "$HOME/.local/bin" >> $GITHUB_PATH || true
+
+          # Diagnostics to help identify where the binary landed
+          echo '--- supabase install diagnostics ---'
+          ls -la "$HOME" || true
+          ls -la "$HOME/.supabase" || true
+          ls -la "$HOME/.local" || true
+          which supabase || true
+          command -v supabase || true
+
+          # Fallback: create a symlink into /usr/local/bin so later steps can find it
+          if [ -f "$HOME/.supabase/bin/supabase" ]; then
+            sudo ln -sf "$HOME/.supabase/bin/supabase" /usr/local/bin/supabase || true
+          elif [ -f "$HOME/.local/bin/supabase" ]; then
+            sudo ln -sf "$HOME/.local/bin/supabase" /usr/local/bin/supabase || true
+          fi
+          echo '--- end diagnostics ---'
 
       - name: Select Environment (DB URL + Drive Folder)
         run: |
