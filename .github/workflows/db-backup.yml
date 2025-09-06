@@ -1,4 +1,4 @@
-name: On-Demand Supabase Backup → Artifacts + Google Drive (with optional GPG)
+name: On-Demand Supabase Backup → Artifacts
 
 on:
   workflow_dispatch:
