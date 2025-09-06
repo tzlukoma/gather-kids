@@ -5,11 +5,11 @@
 ## A. Safety + Setup
 
 - [x] **Backup** production/staging DB (timestamped `pg_dump`).
-- [ ] **Dry-run locally**: `./scripts/test-db-setup.sh && supabase migration up` against a **fresh test DB**.
+- [x] **Dry-run locally**: `./scripts/test-db-setup.sh && supabase migration up` against a **fresh test DB**.
 
-## B. Run migrations on a throwaway DB and verify
+-## B. Run migrations on a throwaway DB and verify
 
-- [ ] **Apply migrations in order** (normalize → backfill → FK harden → drops).
+- [x] **Apply migrations in order** (normalize → backfill → FK harden → drops).
 - [ ] **Types regen** (expect a non-empty diff):
 
   ```bash
