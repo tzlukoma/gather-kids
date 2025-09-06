@@ -13,6 +13,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
 import { Button } from '@/components/ui/button';
 import { getApplicableGradeRule } from '@/lib/bibleBee';
+import { gradeToCode } from '@/lib/gradeUtils';
 import { useMemo } from 'react';
 import {
 	Card,
@@ -23,6 +24,7 @@ import {
 } from '@/components/ui/card';
 import { CheckCircle } from 'lucide-react';
 import ScriptureCard from '@/components/gatherKids/scripture-card';
+import EssayCard from '@/components/gatherKids/essay-card';
 
 export default function DashboardChildBibleBeePage() {
 	const params = useParams();
@@ -49,6 +51,12 @@ export default function DashboardChildBibleBeePage() {
 		completedScriptures: number;
 		percentDone: number;
 		bonus: number;
+		division?: {
+			name: string;
+			min_grade: number;
+			max_grade: number;
+		};
+		essayAssigned?: boolean;
 	} | null>(null);
 
 	const [essaySummary, setEssaySummary] = useState<{
@@ -56,6 +64,8 @@ export default function DashboardChildBibleBeePage() {
 		submitted: number;
 		pending: number;
 	} | null>(null);
+
+	const [divisionEssayPrompts, setDivisionEssayPrompts] = useState<any[]>([]);
 
 	useEffect(() => {
 		const compute = async () => {
@@ -87,18 +97,49 @@ export default function DashboardChildBibleBeePage() {
 				setBbStats(null);
 				return;
 			}
-			const competitionYearId = scriptures[0].competitionYearId;
+			// Get the year ID for division lookup - from scripture assignments it should be in competitionYearId
+			const yearId = scriptures[0].competitionYearId;
 			let required = scriptures.length;
+			let matchingDivision = null;
+			
+			console.log('Computing Bible Bee stats for child:', childCore?.child_id);
+			console.log('Child grade:', childCore?.grade);
+			console.log('Scripture year ID (competitionYearId):', yearId);
+			console.log('First scripture assignment:', scriptures[0]);
+			
 			try {
-				const gradeNum = childCore?.grade ? Number(childCore.grade) : NaN;
-				if (!isNaN(gradeNum) && competitionYearId) {
-					const rule = await getApplicableGradeRule(
-						competitionYearId,
-						gradeNum
-					);
-					if (rule?.targetCount) required = rule.targetCount;
+				const gradeNum = childCore?.grade ? gradeToCode(childCore.grade) : null;
+				console.log('Parsed grade number:', gradeNum);
+				
+				if (gradeNum !== null && yearId && childCore) {
+					// Use the helper function to get division information
+					const { getChildDivisionInfo } = await import('@/lib/bibleBee');
+					const divisionInfo = await getChildDivisionInfo(childCore.child_id, yearId);
+					
+					console.log('Division info from helper:', divisionInfo);
+					
+					if (divisionInfo.division) {
+						// New system: Use division information
+						matchingDivision = {
+							name: divisionInfo.division.name,
+							min_grade: divisionInfo.division.min_grade,
+							max_grade: divisionInfo.division.max_grade,
+						};
+						// Use the minimum_required from the division
+						required = divisionInfo.division.minimum_required || scriptures.length;
+						console.log('Using division minimum_required:', required, 'from division:', divisionInfo.division.name);
+					} else if (divisionInfo.target) {
+						// Legacy system provided a target
+						required = divisionInfo.target;
+						console.log('Using legacy rule targetCount:', required);
+					} else {
+						console.log('No division or target found, using scripture count as fallback:', required);
+					}
+				} else {
+					console.log('Missing required data for division lookup:', { gradeNum, yearId, hasChild: !!childCore });
 				}
 			} catch (e) {
+				console.warn('Error computing Bible Bee stats:', e);
 				// ignore and fallback to total scriptures
 			}
 
@@ -107,11 +148,39 @@ export default function DashboardChildBibleBeePage() {
 			).length;
 			const percent = required > 0 ? (completed / required) * 100 : 0;
 			const bonus = Math.max(0, completed - required);
+			
+			// Check if there's an essay assigned to the division
+			let essayAssigned = false;
+			if (matchingDivision && yearId) {
+				try {
+					const essayPrompts = await db.essay_prompts
+						.where('year_id')
+						.equals(yearId)
+						.and(prompt => prompt.division_name === matchingDivision.name)
+						.toArray();
+					essayAssigned = essayPrompts.length > 0;
+					setDivisionEssayPrompts(essayPrompts);
+					console.log('Essay prompts for division:', matchingDivision.name, 'yearId:', yearId, essayPrompts);
+				} catch (error) {
+					console.warn('Error checking essay prompts:', error);
+					essayAssigned = false;
+					setDivisionEssayPrompts([]);
+				}
+			} else {
+				setDivisionEssayPrompts([]);
+			}
+			
 			setBbStats({
 				requiredScriptures: required,
 				completedScriptures: completed,
 				percentDone: percent,
 				bonus,
+				division: matchingDivision ? {
+					name: matchingDivision.name,
+					min_grade: matchingDivision.min_grade,
+					max_grade: matchingDivision.max_grade,
+				} : undefined,
+				essayAssigned
 			});
 		};
 		compute();
@@ -153,60 +222,88 @@ export default function DashboardChildBibleBeePage() {
 				child={enrichedChild}
 				onUpdatePhoto={handleUpdatePhoto}
 				onViewPhoto={handleViewPhoto}
-				bibleBeeStats={bbStats}
-				essaySummary={essaySummary}
+				bibleBeeStats={bbStats?.essayAssigned ? null : bbStats} // Hide scripture stats when essays are assigned
+				essaySummary={bbStats?.essayAssigned ? essaySummary : null} // Show essay summary only when essays are assigned
 			/>
 
-			{/* Show scriptures if present, otherwise show essays. Child can't have both. */}
-			{data.scriptures && data.scriptures.length > 0 ? (
-				<div>
-					<h2 className="font-semibold text-2xl mb-3">Scriptures</h2>
-					<div className="grid gap-2">
-						{data.scriptures.map((s: any, idx: number) => (
-							<ScriptureCard
-								key={s.id}
-								assignment={s}
-								index={idx}
-								onToggleAction={(id, next) =>
-									toggleMutation.mutate({ id, complete: next })
-								}
-							/>
-						))}
-					</div>
-				</div>
-			) : data.essays && data.essays.length > 0 ? (
-				<div>
-					<h2 className="font-semibold text-2xl mb-3">Essays</h2>
-					<div className="space-y-2">
-						{data.essays.map((e: any) => (
-							<Card key={e.id}>
-								<CardHeader>
-									<CardTitle>Essay for {e.year?.year}</CardTitle>
-									<CardDescription>{e.promptText}</CardDescription>
-								</CardHeader>
-								<CardContent>
-									<div className="flex items-center gap-4">
-										<div className="text-sm text-muted-foreground">
-											Status: {e.status}
-										</div>
-										{e.status !== 'submitted' && (
-											<Button
-												onClick={() =>
-													essayMutation.mutate({
-														competitionYearId: e.competitionYearId,
-													})
-												}
-												size="sm">
-												Mark Submitted
-											</Button>
-										)}
+			{/* Show different content based on whether the child's division has essays assigned */}
+			{bbStats?.essayAssigned ? (
+				<>
+					{/* Show essays content */}
+					<div>
+						<h2 className="font-semibold text-2xl mb-3">Essays</h2>
+						{divisionEssayPrompts && divisionEssayPrompts.length > 0 ? (
+							<div className="space-y-2">
+								{divisionEssayPrompts.map((prompt: any) => (
+									<EssayCard key={prompt.id} essayPrompt={prompt} />
+								))}
+								
+								{/* Show existing essay submissions if any */}
+								{data.essays && data.essays.length > 0 && (
+									<div className="mt-4">
+										<h3 className="font-medium text-lg mb-2">Your Submissions</h3>
+										{data.essays.map((e: any) => (
+											<Card key={e.id}>
+												<CardHeader>
+													<CardTitle>Essay for {e.year?.year}</CardTitle>
+													<CardDescription>{e.promptText}</CardDescription>
+												</CardHeader>
+												<CardContent>
+													<div className="flex items-center gap-4">
+														<div className="text-sm text-muted-foreground">
+															Status: {e.status}
+														</div>
+														{e.status !== 'submitted' && (
+															<Button
+																onClick={() =>
+																	essayMutation.mutate({
+																		competitionYearId: e.competitionYearId,
+																	})
+																}
+																size="sm">
+																Mark Submitted
+															</Button>
+														)}
+													</div>
+												</CardContent>
+											</Card>
+										))}
 									</div>
-								</CardContent>
-							</Card>
-						))}
+								)}
+							</div>
+						) : (
+							<div className="text-center text-muted-foreground py-8">
+								Essays are assigned to this division. Essays will appear here when they become available.
+							</div>
+						)}
 					</div>
-				</div>
-			) : null}
+				</>
+			) : (
+				<>
+					{/* Show scriptures content */}
+					{data.scriptures && data.scriptures.length > 0 ? (
+						<div>
+							<h2 className="font-semibold text-2xl mb-3">Scriptures</h2>
+							<div className="grid gap-2">
+								{data.scriptures.map((s: any, idx: number) => (
+									<ScriptureCard
+										key={s.id}
+										assignment={s}
+										index={idx}
+										onToggleAction={(id, next) =>
+											toggleMutation.mutate({ id, complete: next })
+										}
+									/>
+								))}
+							</div>
+						</div>
+					) : (
+						<div className="text-center text-muted-foreground py-8">
+							No scriptures assigned yet.
+						</div>
+					)}
+				</>
+			)}
 
 			{/* duplicate essays block removed; page shows either Scriptures or Essays above */}
 		</div>

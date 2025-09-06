@@ -68,7 +68,7 @@ export function BibleBeeProgressCard({
 				</div>
 
 				<div className="text-xs text-muted-foreground mt-1">
-					Grade Group: {gradeGroup || 'N/A'} • Ministries:{' '}
+					Division: {gradeGroup || 'N/A'} • Ministries:{' '}
 					{ministries
 						.map((m: any) => m.ministryName)
 						.join(', ')}
@@ -76,7 +76,7 @@ export function BibleBeeProgressCard({
 
 				{showGuardianInfo && primaryGuardian && (
 					<div className="text-sm text-muted-foreground mt-1">
-						{primaryGuardian.first_name} {primaryGuardian.last_name}{' '}
+						Guardian: {primaryGuardian.first_name} {primaryGuardian.last_name}{' '}
 						• {primaryGuardian.mobile_phone || 'no phone'}
 					</div>
 				)}

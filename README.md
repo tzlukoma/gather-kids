@@ -51,28 +51,62 @@ yarn install
 
 ### 3. Environment Setup
 
-The application uses environment variables for configuration. Create a `.env.local` file in the root directory:
+The application supports multiple database modes and environment configurations:
 
-```bash
-# Copy the example environment file
-cp .env.example .env.local
-# or create manually
-touch .env.local
-```
+- **Demo Mode** (default): Uses IndexedDB with browser-based storage, no external dependencies
+- **Supabase Mode**: Uses Supabase for cloud PostgreSQL with full authentication and real-time features
 
-Add the following environment variables to `.env.local`:
+#### Quick Start (Demo Mode)
+
+Create a `.env.local` file for basic local development:
 
 ```env
 # Application Configuration
 NEXT_PUBLIC_APP_NAME=gatherKids
 NEXT_PUBLIC_APP_VERSION=1.0.0
 
-# Feature Flags
+# Feature Flags  
 NEXT_PUBLIC_SHOW_DEMO_FEATURES=true
 NEXT_PUBLIC_ENABLE_AI_FEATURES=false
 
 # Development Settings
 NODE_ENV=development
+
+# Database Mode (demo = IndexedDB, supabase = cloud PostgreSQL)
+NEXT_PUBLIC_DATABASE_MODE=demo
+```
+
+#### Full Supabase Development Setup
+
+For development with live Supabase integration, see the comprehensive **[DATABASE_ENV_SETUP_GUIDE.md](./DATABASE_ENV_SETUP_GUIDE.md)** which covers:
+
+- Setting up separate Supabase projects for UAT and production
+- Configuring GitHub Actions environments and secrets  
+- Setting up Vercel environment variables
+- Database migration strategies using raw SQL
+- Security best practices and troubleshooting
+
+Basic Supabase `.env.local` configuration:
+
+```env
+# Application Configuration
+NEXT_PUBLIC_APP_NAME=gatherKids
+NEXT_PUBLIC_APP_VERSION=1.0.0
+NODE_ENV=development
+
+# Database Configuration
+NEXT_PUBLIC_DATABASE_MODE=supabase
+NEXT_PUBLIC_LOGIN_MAGIC_ENABLED=false
+NEXT_PUBLIC_LOGIN_PASSWORD_ENABLED=true
+NEXT_PUBLIC_LOGIN_GOOGLE_ENABLED=false
+
+# Supabase Configuration (point to UAT project for development)
+NEXT_PUBLIC_SUPABASE_URL=https://<your-uat-ref>.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<your-uat-anon-key>
+SUPABASE_SERVICE_ROLE_KEY=<your-uat-service-role-key>
+
+# Local Development
+NEXT_PUBLIC_SITE_URL=http://localhost:9002
 ```
 
 ### 4. Start the Development Server
@@ -106,6 +140,39 @@ The application includes pre-configured demo accounts for testing:
 - **Joy Bells Leader**: `leader.joybells@example.com` / `password`
 - **Inactive Leader**: `leader.inactive@example.com` / `password`
 
+## 🌱 UAT Data Seeding
+
+For UAT (User Acceptance Testing) environments using Supabase, the application includes a comprehensive seeding script that populates the database with deterministic test data:
+
+### What Gets Seeded
+
+- **3 Ministries**: Sunday School, Bible Bee Training, Khalfani Kids
+- **Competition Year**: Bible Bee 2025-2026 with scripture references  
+- **Scripture Database**: Complete scripture texts in NIV, KJV, and NIV Spanish
+- **Test Families**: 3 households with guardians and children
+- **Ministry Enrollments**: Sample enrollments linking children to ministries
+
+### Seeding Commands
+
+```bash
+# Idempotent seeding (safe to re-run, upserts existing data)
+npm run seed:uat
+
+# Reset mode (destructive - deletes existing UAT data first)
+RESET=true npm run seed:uat
+# or use the shortcut:
+npm run seed:uat:reset
+```
+
+### Prerequisites
+
+- Valid Supabase environment configured in `.env.local`
+- Required environment variables:
+  - `NEXT_PUBLIC_SUPABASE_URL` or `SUPABASE_UAT_URL`
+  - `SUPABASE_SERVICE_ROLE_KEY` or `SUPABASE_UAT_SERVICE_ROLE_KEY`
+
+The script includes schema compatibility verification and detailed error reporting to help diagnose issues.
+
 ## 📱 Available Scripts
 
 ```bash
@@ -116,13 +183,26 @@ npm run start        # Start production server
 npm run lint         # Run ESLint
 npm run typecheck    # Run TypeScript type checking
 
-# Database Management
-npm run db:generate  # Generate Prisma client
-npm run db:push      # Push Prisma schema to database
-npm run db:migrate   # Run Prisma migrations
-npm run db:seed      # Seed database with sample data
-npm run db:studio    # Open Prisma Studio
-npm run db:reset     # Reset database and reseed
+# Testing
+npm test             # Run Jest test suite
+npm run test:watch   # Run tests in watch mode
+
+# Database & Type Generation  
+npm run gen:types    # Generate TypeScript types from Supabase schema
+npm run gen:types:prod # Generate types from production environment
+
+# Data Management
+npm run seed:scriptures    # Seed scripture references
+npm run seed:uat           # Seed UAT database with test data (idempotent)
+npm run seed:uat:reset     # Reset and re-seed UAT database (destructive)
+npm run import:dexie       # Import data from Dexie export
+npm run import:dexie:dry   # Dry run of Dexie import
+
+# Documentation (Docusaurus)
+npm run docs:validate      # Validate documentation build
+npm run docs:dev          # Start local documentation server
+npm run docs:build        # Build documentation for production
+npm run docs:serve        # Serve built documentation locally
 
 # AI Development (Genkit)
 npm run genkit:dev   # Start Genkit AI development server
@@ -222,34 +302,47 @@ The application uses Tailwind CSS with a custom design system:
 
 ### 2. Database Development
 
-1. **Local Development**: Use Prisma with SQLite for local development
+#### Database Architecture
 
-   ```bash
-   npm run db:generate  # Generate Prisma client
-   npm run db:push      # Push schema changes
-   npm run db:seed      # Seed with sample data
-   npm run db:studio    # Visual database explorer
-   ```
+gatherKids uses a flexible database adapter system supporting multiple backends:
 
-2. **Schema Changes**: Update `prisma/schema.prisma` and run migrations
+- **IndexedDB Adapter**: Browser-based storage using Dexie.js (demo mode)
+- **Supabase Adapter**: Cloud PostgreSQL with authentication and real-time features
 
-   ```bash
-   npm run db:migrate   # Create and apply migrations
-   npm run db:push      # Push changes directly (development)
-   ```
+Database mode is controlled by the `NEXT_PUBLIC_DATABASE_MODE` environment variable.
 
-3. **Testing**: Test with different database modes using environment variables
+#### Schema Management
 
-   ```bash
-   # Demo mode (IndexedDB)
-   NEXT_PUBLIC_DATABASE_MODE=demo npm run dev
+The application uses **raw SQL migrations** stored in `supabase/migrations/` for database schema management:
 
-   # Prisma mode (SQLite)
-   NEXT_PUBLIC_DATABASE_MODE=prisma npm run dev
+```bash
+# Apply migrations locally (requires database connection)
+scripts/db/apply_migrations_safe.sh "$DATABASE_URL"
 
-   # Supabase mode (Production)
-   NEXT_PUBLIC_DATABASE_MODE=supabase npm run dev
-   ```
+# List unapplied migrations
+scripts/db/list_unapplied_migrations.sh "$DATABASE_URL"
+
+# Generate TypeScript types from schema
+npm run gen:types
+```
+
+#### Migration Strategy
+
+1. **Development**: Create and test SQL migrations locally
+2. **UAT**: Auto-deploy via GitHub Actions on push to `uat` branch  
+3. **Production**: Manual deployment via GitHub Actions with approval
+
+#### Environment-Specific Development
+
+```bash
+# Demo mode (IndexedDB, no external dependencies)
+NEXT_PUBLIC_DATABASE_MODE=demo npm run dev
+
+# Supabase mode (cloud PostgreSQL)
+NEXT_PUBLIC_DATABASE_MODE=supabase npm run dev
+```
+
+For detailed Supabase setup instructions, see **[DATABASE_ENV_SETUP_GUIDE.md](./DATABASE_ENV_SETUP_GUIDE.md)**.
 
 ### 3. Component Guidelines
 
@@ -263,64 +356,95 @@ The application uses Tailwind CSS with a custom design system:
 ### 4. Testing
 
 ```bash
-# Run type checking
+# Type checking
 npm run typecheck
 
-# Run linting
+# Code linting  
 npm run lint
+
+# Test suite
+npm test
 
 # Build verification
 npm run build
-
-# Database testing
-npm run db:seed      # Seed test data
-npm run db:studio    # Inspect database state
 ```
 
 ## 🚀 Deployment
 
-### Local Development Setup
+gatherKids uses a multi-environment deployment strategy with strong isolation between development, UAT (preview), and production environments.
 
-1. **Install Prisma Dependencies**
+### Environment Configuration Overview
 
+- **Local Development**: Demo mode (IndexedDB) or connected to UAT Supabase project
+- **UAT/Preview**: Dedicated Supabase project, auto-deployed via GitHub Actions
+- **Production**: Dedicated Supabase project, manual deployment with approval
+
+### Quick Local Setup
+
+1. **Basic Demo Mode** (no external dependencies):
    ```bash
-   npm install prisma @prisma/client
-   npm install -D prisma
-   ```
-
-2. **Initialize Database**
-
-   ```bash
-   npx prisma generate
-   npx prisma db push
-   npm run db:seed
-   ```
-
-3. **Start Development Server**
-   ```bash
+   npm install
    npm run dev
    ```
+   Access at `http://localhost:9002`
 
-### Build for Production
+2. **Full Supabase Development**:
+   - Follow **[DATABASE_ENV_SETUP_GUIDE.md](./DATABASE_ENV_SETUP_GUIDE.md)**
+   - Configure `.env.local` with Supabase credentials  
+   - Run `npm run gen:types` to generate TypeScript types
+
+### Deployment Environments
+
+#### UAT/Preview Deployment
+- **Trigger**: Push to `uat` branch
+- **Database**: Dedicated UAT Supabase project
+- **Migrations**: Applied automatically via `.github/workflows/uat-deploy.yml`
+- **Access**: Preview URLs from Vercel
+
+#### Production Deployment  
+- **Trigger**: Manual workflow dispatch (requires approval)
+- **Database**: Dedicated production Supabase project
+- **Migrations**: Applied via `.github/workflows/prod-deploy.yml`
+- **Security**: Protected environment with required reviewers
+
+### Database Migrations
+
+Migrations use raw PostgreSQL SQL files in `supabase/migrations/`:
 
 ```bash
-npm run build
-npm run start
+# UAT (automatic on branch push)
+git push origin uat
+
+# Production (manual with approval)
+# Trigger via GitHub Actions > Workflows > "PROD deploy"
 ```
 
-### Environment Variables for Production
+### Environment Variables
 
-Ensure all required environment variables are set in your production environment:
+Required environment variables for each deployment target:
 
+#### Local Development (.env.local)
 ```env
-NODE_ENV=production
-NEXT_PUBLIC_APP_NAME=gatherKids
-NEXT_PUBLIC_APP_VERSION=1.0.0
-NEXT_PUBLIC_DATABASE_MODE=supabase
-NEXT_PUBLIC_SHOW_DEMO_FEATURES=false
-NEXT_PUBLIC_ENABLE_SUPABASE_MODE=true
-NEXT_PUBLIC_ENABLE_PRISMA_MODE=false
+NEXT_PUBLIC_DATABASE_MODE=demo  # or supabase for full features
+NEXT_PUBLIC_SUPABASE_URL=https://<uat-ref>.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<uat-anon-key>
+SUPABASE_SERVICE_ROLE_KEY=<uat-service-role-key>
+NEXT_PUBLIC_SITE_URL=http://localhost:9002
 ```
+
+#### Production (Vercel)
+```env
+NEXT_PUBLIC_DATABASE_MODE=supabase
+NEXT_PUBLIC_LOGIN_MAGIC_ENABLED=true
+NEXT_PUBLIC_LOGIN_PASSWORD_ENABLED=true
+NEXT_PUBLIC_LOGIN_GOOGLE_ENABLED=true
+NEXT_PUBLIC_SUPABASE_URL=https://<prod-ref>.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<prod-anon-key>
+SUPABASE_SERVICE_ROLE_KEY=<prod-service-role-key>
+NEXT_PUBLIC_SITE_URL=https://your-production-domain.com
+```
+
+For complete setup instructions including Supabase project creation, GitHub environment configuration, and Vercel deployment settings, see **[DATABASE_ENV_SETUP_GUIDE.md](./DATABASE_ENV_SETUP_GUIDE.md)**.
 
 ## CI, Pull Requests & Deployments
 
@@ -362,14 +486,24 @@ If you need to change CI behavior
 
 ## 📚 Additional Resources
 
+### User Documentation
+- **User Guide**: [https://tzlukoma.github.io/gather-kids/](https://tzlukoma.github.io/gather-kids/) - Complete user documentation
+- **Getting Started Guide**: Step-by-step setup and usage instructions
+- **Release Notes**: Latest features and updates
+- **Documentation Workflow**: See `docs/DOCUMENTATION_WORKFLOW.md` for maintaining user docs
+
+### Developer Documentation
 - **FEATURES.md**: Comprehensive feature documentation
 - **SUPABASE_IMPLEMENTATION_PLAN.md**: Detailed Supabase integration plan
 - **docs/blueprint.md**: Application blueprint and requirements
+
+### External Resources
 - **Tailwind CSS**: [https://tailwindcss.com](https://tailwindcss.com)
 - **Radix UI**: [https://www.radix-ui.com](https://www.radix-ui.com)
 - **Next.js**: [https://nextjs.org](https://nextjs.org)
 - **Prisma**: [https://www.prisma.io](https://www.prisma.io)
 - **Supabase**: [https://supabase.com](https://supabase.com)
+- **Docusaurus**: [https://docusaurus.io](https://docusaurus.io)
 
 ## 🆘 Troubleshooting
 

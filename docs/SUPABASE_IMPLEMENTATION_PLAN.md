@@ -12,9 +12,9 @@ We will run **Supabase locally via the Supabase CLI** (which manages Docker for 
 2. **Seamless Switching**: Feature-flagged database mode
 3. **Unified API**: Single DAL regardless of backend
 4. **Environment Mgmt**: DEV (local CLI), UAT, PROD (hosted)
-5. **Migrations**: Prisma migrations applied identically across all envs
+5. **Migrations**: PostgreSQL migrations applied identically across all envs
 6. **Realtime & Perf**: Subscriptions (Supabase Realtime) + indexed queries
-7. **Type Safety**: Prisma Client types
+7. **Type Safety**: TypeScript types + Supabase type generation
 8. **Avatars (NEW)**: Base64 in Demo; Supabase Storage in DEV/UAT/PROD
 
 ---
@@ -40,7 +40,7 @@ We will run **Supabase locally via the Supabase CLI** (which manages Docker for 
 
 ---
 
-## 🔧 Phase 1: Supabase CLI & Prisma Setup
+## 🔧 Phase 1: Supabase CLI Setup
 
 ### 1.1 Supabase CLI (local DEV)
 
@@ -53,24 +53,32 @@ supabase start            # spins up local Postgres/Auth/Realtime/Storage
 # Common ports: DB 54322, Studio 54323, API 54321
 ```
 
-### 1.2 Prisma (Postgres provider)
+### 1.2 TypeScript Types (Supabase Type Generation)
 
 ```bash
-npm install prisma @prisma/client
-npx prisma init
+npm install @supabase/supabase-js
+npm install --save-dev supabase@latest
 ```
 
-**`prisma/schema.prisma` (datasource)**
+Configure type generation in your project:
 
-```prisma
-generator client {
-  provider = "prisma-client-js"
-}
+**`supabase/config.toml`** (add or update)
 
-datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
-}
+```toml
+[generate_types]
+typescript = true
+```
+
+Then generate types from your schema:
+
+```bash
+supabase gen types typescript --project-id <project-id> --schema public > src/lib/database/supabase-types.ts
+```
+
+For local development, you can generate types from your local instance:
+
+```bash
+supabase gen types typescript --local > src/lib/database/supabase-types.ts
 ```
 
 ### 1.3 Environment Variables
@@ -112,14 +120,25 @@ SUPABASE_SERVICE_ROLE_KEY="<prod-service-role>"
 
 ---
 
-## 🔧 Phase 2: Migrations & RLS as Code
+## 🔧 Phase 2: SQL Migrations & RLS as Code
 
-### 2.1 Generate & Apply Prisma Migrations (DEV)
+### 2.1 Create & Apply PostgreSQL Migrations (DEV)
+
+Create numbered migration files in `supabase/migrations` directory:
 
 ```bash
-npx prisma migrate dev --name init
-# Reset & reseed locally
-npx prisma db seed
+# Example naming convention
+supabase/migrations/0001_init.sql
+supabase/migrations/0002_add_households_children.sql
+supabase/migrations/0003_add_rls_policies.sql
+```
+
+Apply migrations locally:
+
+```bash
+supabase db reset
+# or for just migrations without seed data
+supabase migration up
 ```
 
 ### 2.2 Apply to UAT/PROD
@@ -127,20 +146,19 @@ npx prisma db seed
 ```bash
 # Link to UAT
 supabase link --project-ref <UAT_REF>
-# Ensure DATABASE_URL points to UAT (CI secret)
-npx prisma migrate deploy
+supabase db push
 
 # Link to PROD
 supabase link --project-ref <PROD_REF>
-npx prisma migrate deploy
+supabase db push
 ```
 
 ### 2.3 RLS Policies (SQL migration)
 
-Put RLS in a SQL migration file (Prisma supports raw SQL):
+Put RLS in a dedicated SQL migration file:
 
 ```sql
--- prisma/migrations/xxxx_add_rls/steps.sql
+-- supabase/migrations/0003_add_rls_policies.sql
 alter table households enable row level security;
 -- repeat for relevant tables...
 
@@ -344,18 +362,29 @@ export const db = createDatabaseAdapter();
 
 ## 🔧 Phase 5: Seeding & Data Tools
 
-### 5.1 Prisma Seed (DEV)
+### 5.1 Supabase Seed Scripts (DEV)
+
+Create seed scripts in the `supabase/seed` directory:
 
 ```bash
-npx prisma db seed
+# Create a seed file
+touch supabase/seed.sql
+
+# Apply seed data after migrations
+supabase db reset
 ```
 
 - Populate ministries (incl. choirs, Bible Bee), households, guardians, children, registrations, enrollments, sample attendance, incidents.
 - **(NEW)** Optionally upload a few sample avatars to the `avatars` bucket and insert matching `child_avatars` rows.
 
-### 5.2 Supabase Seed (UAT/PROD as needed)
+### 5.2 Supabase Data Import (UAT/PROD as needed)
 
-Use a separate script with **service role key** for UAT only (never PROD live data unless intended).
+Use a separate script with **service role key** for UAT only (never PROD live data unless intended):
+
+```bash
+# Custom script for data import
+node scripts/import/importToSupabase.js --env=uat
+```
 
 ---
 
@@ -366,13 +395,13 @@ Use a separate script with **service role key** for UAT only (never PROD live da
 - **UAT**: On tag `uat-*`
 
   - `supabase link <UAT_REF>`
-  - `prisma migrate deploy`
+  - `supabase db push`
   - Deploy frontend with `--mode=uat`.
 
 - **PROD**: On tag `prod-*`
 
   - `supabase link <PROD_REF>`
-  - `prisma migrate deploy`
+  - `supabase db push`
   - Deploy frontend with `--mode=production`.
 
 Keep keys as CI secrets. Never log service keys.
@@ -383,6 +412,7 @@ Keep keys as CI secrets. Never log service keys.
 
 - **Domain tests** (no DB) for rules: age/eligibility, Bible Bee windows, auto-enroll SS.
 - **Adapter contract tests**: same suite runs against Demo (IndexedDB) and Supabase adapters.
+- **Migration tests**: Verify migrations apply cleanly against a fresh database.
 - **E2E** (happy paths): registration submit, SS auto-enroll, choir validation, Bible Bee enrollment.
 
 ---
@@ -416,18 +446,20 @@ supabase start
 
 # Reset local DB (apply migrations + seed)
 supabase db reset
-npx prisma db seed
 
-# Generate Prisma client after schema changes
-npx prisma generate
-npx prisma migrate dev --name <change>
+# Create a new migration
+touch supabase/migrations/$(date +%s)_add_new_feature.sql
+# Then edit the file with your SQL changes
+
+# Generate TypeScript types
+supabase gen types typescript --local > src/lib/database/supabase-types.ts
 
 # Link and deploy migrations to UAT/PROD
 supabase link --project-ref <UAT_REF>
-npx prisma migrate deploy
+supabase db push
 
 supabase link --project-ref <PROD_REF>
-npx prisma migrate deploy
+supabase db push
 
 # Stop local services
 supabase stop
@@ -445,11 +477,54 @@ supabase stop
 
 ---
 
+## � Outstanding Implementation Tasks
+
+Based on analysis of the current codebase, the following tasks remain to fully implement the Supabase integration plan:
+
+1. **Database Adapter Implementation**
+
+   - Create `src/lib/database` directory structure
+   - Implement `src/lib/database/types.ts` with the `DatabaseAdapter` interface
+   - Implement `src/lib/database/supabase-adapter.ts` to interact with Supabase
+   - Create `src/lib/database/factory.ts` to switch between demo and Supabase modes
+
+2. **Type Generation**
+
+   - Configure Supabase CLI type generation
+   - Generate types from the database schema
+   - Create mapping between Dexie types and Supabase generated types
+
+3. **Environment Configuration**
+
+   - Complete `.env.local` setup for different environments
+   - Ensure proper feature flag configuration for database mode switching
+
+4. **Avatar Storage Implementation**
+
+   - Create Supabase Storage bucket for avatars
+   - Implement avatar upload/download functionality
+   - Add avatar reference table in database schema
+
+5. **Authentication Integration**
+
+   - Refine the existing Supabase auth implementation
+   - Implement role-based access control with Supabase Auth
+
+6. **Migration and Testing**
+
+   - Validate existing SQL migrations against a fresh database
+   - Create adapter contract tests
+   - Implement data migration scripts for moving from IndexedDB to Supabase
+
+7. **Documentation and Training**
+   - Document the database adapter usage patterns
+   - Create developer guides for local Supabase development
+
 ## 📚 References
 
-- Prisma Migrate (Postgres)
 - Supabase JS Client (Auth/Realtime/Storage)
 - Supabase CLI (local dev, linking, db push/reset)
+- PostgreSQL migrations
 - **(NEW)** Supabase Storage (upload, public URL, signed URLs)
 
 ## UAT quick note
@@ -458,7 +533,7 @@ For UAT verification, use the Supabase CLI to link to your UAT project and deplo
 
 ```bash
 supabase link --project-ref <UAT_REF>
-npx prisma migrate deploy
+supabase db push
 ```
 
 Addendum: Load your `.env.uat` before running commands, for example:

@@ -1,0 +1,177 @@
+name: Setup All Tables (On-Demand)
+
+# This workflow creates all required database tables in Supabase
+# It can be triggered manually when needed to ensure schema completeness
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - staging
+      method:
+        description: 'Table creation method'
+        required: true
+        default: 'direct-sql'
+        type: choice
+        options:
+          - script
+          - direct-sql
+          - manual
+      dryRun:
+        description: 'Dry run (verify without making changes)'
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  setup-tables:
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ inputs.environment }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Setup Supabase CLI
+        run: |
+          # Create bin directory in home if it doesn't exist
+          mkdir -p "$HOME/.bin"
+
+          # Download the latest version for Linux
+          curl -s -L https://github.com/supabase/cli/releases/latest/download/supabase_linux_amd64.tar.gz | tar -xz -C "$HOME/.bin"
+
+          # Make it executable
+          chmod +x "$HOME/.bin/supabase"
+
+          # Add to PATH
+          export PATH="$HOME/.bin:$PATH"
+          echo "$HOME/.bin" >> $GITHUB_PATH
+
+      - name: Get Project ID from Supabase URL
+        run: |
+          # Use correct URL based on environment
+          if [[ "${{ inputs.environment }}" == "production" ]]; then
+            SUPABASE_URL="${{ secrets.PROD_SUPABASE_URL }}"
+          else
+            SUPABASE_URL="${{ secrets.STAGING_SUPABASE_URL }}"
+          fi
+
+          # Extract project ID from URL (format: https://<project-id>.supabase.co)
+          PROJECT_ID=$(echo $SUPABASE_URL | sed -E 's/https:\/\/([^.]+)\.supabase\.co.*/\1/')
+          echo "PROJECT_ID=$PROJECT_ID" >> $GITHUB_ENV
+
+      - name: Make scripts executable
+        run: |
+          chmod +x scripts/db/complete_table_setup.sh
+          chmod +x scripts/db/create_simple_sql.sh
+          chmod +x scripts/db/execute_sql_reliable.sh
+
+      - name: Run table setup using selected method
+        run: |
+          # Explicitly export the access token
+          export SUPABASE_ACCESS_TOKEN="${{ secrets.SUPABASE_ACCESS_TOKEN }}"
+          export SUPABASE_DB_PASSWORD="${{ secrets.SUPABASE_DB_PASSWORD }}"
+          
+          # Show what would be executed if dry run is enabled
+          if [[ "${{ inputs.dryRun }}" == "true" ]]; then
+            echo "DRY RUN MODE - No changes will be made"
+            echo "✅ Dry run completed successfully"
+            exit 0
+          fi
+          
+          # Choose method based on input
+          if [[ "${{ inputs.method }}" == "script" ]]; then
+            echo "Running complete table setup script for ${{ inputs.environment }}..."
+            scripts/db/complete_table_setup.sh "$PROJECT_ID" "$SUPABASE_ACCESS_TOKEN" "$SUPABASE_DB_PASSWORD"
+            
+          elif [[ "${{ inputs.method }}" == "direct-sql" ]]; then
+            # Generate a simple SQL file
+            echo "Generating simplified SQL file..."
+            scripts/db/create_simple_sql.sh
+            
+            # Use our reliable SQL executor script
+            echo "Executing SQL using reliable executor..."
+            scripts/db/execute_sql_reliable.sh "$PROJECT_ID" "$SUPABASE_ACCESS_TOKEN" "$SUPABASE_DB_PASSWORD" "/tmp/simplified_table_setup.sql"
+            
+            echo "Direct SQL execution completed"
+            
+          elif [[ "${{ inputs.method }}" == "manual" ]]; then
+            # Generate the SQL file but don't execute it
+            echo "Generating SQL file for manual execution..."
+            scripts/db/create_simple_sql.sh
+            
+            echo "SQL file generated at /tmp/simplified_table_setup.sql"
+            echo "Content:"
+            cat /tmp/simplified_table_setup.sql
+            
+            echo "Manual execution selected - no automatic table creation performed"
+            echo "Copy the SQL above and execute it in the Supabase dashboard SQL editor"
+          fi
+
+      - name: Verify database tables
+        if: inputs.dryRun == false
+        run: |
+          # Export the access token and password again
+          export SUPABASE_ACCESS_TOKEN="${{ secrets.SUPABASE_ACCESS_TOKEN }}"
+          export SUPABASE_DB_PASSWORD="${{ secrets.SUPABASE_DB_PASSWORD }}"
+          
+          echo "Verifying database tables in ${{ inputs.environment }}..."
+          
+          # Create a verification script
+          cat > /tmp/verify_tables.sql << 'EOF'
+          SELECT table_name, 
+                (SELECT COUNT(*) FROM information_schema.columns WHERE table_name = t.table_name) AS column_count
+          FROM information_schema.tables t
+          WHERE table_schema = 'public'
+            AND table_type = 'BASE TABLE'
+          ORDER BY table_name;
+          EOF
+          
+          # Use our reliable SQL executor for verification
+          echo "Running verification..."
+          scripts/db/execute_sql_reliable.sh "$PROJECT_ID" "$SUPABASE_ACCESS_TOKEN" "$SUPABASE_DB_PASSWORD" "/tmp/verify_tables.sql"
+
+      - name: Create database snapshot
+        if: inputs.dryRun == false
+        run: |
+          # Export the access token and password again
+          export SUPABASE_ACCESS_TOKEN="${{ secrets.SUPABASE_ACCESS_TOKEN }}"
+          export SUPABASE_DB_PASSWORD="${{ secrets.SUPABASE_DB_PASSWORD }}"
+
+          # Create snapshots directory
+          mkdir -p snapshots
+          SNAPSHOT="snapshots/schema-${{ inputs.environment }}-$(date +'%Y%m%d-%H%M%S').sql"
+
+          # Try different dump methods
+          echo "Creating database snapshot..."
+          
+          # Try linking first
+          $HOME/.bin/supabase link --project-ref "$PROJECT_ID" --password "$SUPABASE_DB_PASSWORD" || true
+          
+          if $HOME/.bin/supabase db dump -f "$SNAPSHOT" --linked 2>/dev/null; then
+            echo "✅ Schema snapshot created at $SNAPSHOT using --linked flag"
+          elif $HOME/.bin/supabase db dump -f "$SNAPSHOT" 2>/dev/null; then
+            echo "✅ Schema snapshot created at $SNAPSHOT without flags"
+          else
+            echo "Could not create schema snapshot using Supabase CLI"
+            # We won't try direct pg_dump as it might have network issues
+            echo "Please check tables in the Supabase dashboard instead"
+          fi
+
+      - name: Upload schema snapshot
+        if: inputs.dryRun == false
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.environment }}-schema-snapshot
+          path: snapshots/
+          retention-days: 30

@@ -78,8 +78,8 @@ export const MENU_ITEMS: MenuItem[] = [
         ministryCheck: (ids: string[]) => ids.includes('bible-bee'),
     },
     {
-        label: 'Configuration',
-        href: '/dashboard/configuration',
+        label: 'Ministries',
+        href: '/dashboard/ministries',
         icon: Shield,
         roles: [AuthRole.ADMIN],
     },

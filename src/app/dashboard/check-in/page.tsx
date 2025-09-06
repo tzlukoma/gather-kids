@@ -13,15 +13,15 @@ import {
 	DialogDescription,
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '@/lib/db';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/auth-context';
 import { useSearchParams } from 'next/navigation';
 import { Users, Filter, Edit } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { getTodayIsoDate } from '@/lib/dal';
+import { getTodayIsoDate, getAllChildren, getAttendanceForDate } from '@/lib/dal';
+import type { Child, Attendance } from '@/lib/types';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { normalizeGradeDisplay, getGradeSortOrder } from '@/lib/gradeUtils';
 import {
 	Sheet,
 	SheetContent,
@@ -32,29 +32,6 @@ import {
 	SheetTrigger,
 } from '@/components/ui/sheet';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-
-const gradeSortOrder: { [key: string]: number } = {
-	'Pre-K': 0,
-	Kindergarten: 1,
-	'1st Grade': 2,
-	'2nd Grade': 3,
-	'3rd Grade': 4,
-	'4th Grade': 5,
-	'5th Grade': 6,
-	'6th Grade': 7,
-	'7th Grade': 8,
-	'9th Grade': 9,
-	'10th Grade': 10,
-	'11th Grade': 11,
-	'12th Grade': 12,
-	'13th Grade': 13,
-};
-
-const getGradeValue = (grade?: string): number => {
-	if (!grade) return 99;
-	const value = gradeSortOrder[grade];
-	return value !== undefined ? value : 99;
-};
 
 export type StatusFilter = 'all' | 'checkedIn' | 'checkedOut';
 
@@ -74,12 +51,34 @@ function CheckInContent() {
 	const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
 	const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
 	const [isEventDialogOpen, setIsEventDialogOpen] = useState(false);
-	const children = useLiveQuery(() => db.children.toArray(), []);
+	
+	// State management for data loading
+	const [children, setChildren] = useState<Child[]>([]);
+	const [todaysAttendance, setTodaysAttendance] = useState<Attendance[]>([]);
+	const [loading, setLoading] = useState(true);
+
 	const today = getTodayIsoDate();
-	const todaysAttendance = useLiveQuery(
-		() => db.attendance.where({ date: today }).toArray(),
-		[today]
-	);
+
+	// Load data using DAL functions
+	useEffect(() => {
+		const loadData = async () => {
+			try {
+				setLoading(true);
+				const [childrenData, attendanceData] = await Promise.all([
+					getAllChildren(),
+					getAttendanceForDate(today)
+				]);
+				setChildren(childrenData);
+				setTodaysAttendance(attendanceData);
+			} catch (error) {
+				console.error('Error loading check-in data:', error);
+			} finally {
+				setLoading(false);
+			}
+		};
+
+		loadData();
+	}, [today]);
 
 	const checkedInCount = useMemo(() => {
 		if (!todaysAttendance) return 0;
@@ -95,10 +94,10 @@ function CheckInContent() {
 	const availableGrades = useMemo(() => {
 		if (!children) return [];
 		const grades = new Set(
-			children.map((c) => c.grade).filter(Boolean) as string[]
+			children.map((c) => normalizeGradeDisplay(c.grade)).filter(Boolean) as string[]
 		);
 		return Array.from(grades).sort(
-			(a, b) => getGradeValue(a) - getGradeValue(b)
+			(a, b) => getGradeSortOrder(a) - getGradeSortOrder(b)
 		);
 	}, [children]);
 
@@ -178,7 +177,7 @@ function CheckInContent() {
 		</div>
 	);
 
-	if (!children || !todaysAttendance) {
+	if (loading) {
 		return (
 			<div className="flex flex-col items-center justify-center h-64">
 				<p className="text-muted-foreground mb-4">Loading children's data...</p>

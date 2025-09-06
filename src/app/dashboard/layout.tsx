@@ -1,6 +1,16 @@
 'use client';
 
 import React from 'react';
+import { Button } from '@/components/ui/button';
+import { DatabaseAdapterBadge } from '@/components/gatherKids/database-adapter-badge';
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuLabel,
+	DropdownMenuSeparator,
+	DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
@@ -15,15 +25,6 @@ import {
 	SidebarTrigger,
 	SidebarInset,
 } from '@/components/ui/sidebar';
-import { Button } from '@/components/ui/button';
-import {
-	DropdownMenu,
-	DropdownMenuContent,
-	DropdownMenuItem,
-	DropdownMenuLabel,
-	DropdownMenuSeparator,
-	DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import {
 	LayoutDashboard,
 	CheckCheck,
@@ -48,6 +49,7 @@ import { ProtectedRoute } from '@/components/auth/protected-route';
 import { ROLES } from '@/lib/constants/roles';
 import { AdminSkeleton } from '@/components/skeletons/admin-skeleton';
 import { useBranding } from '@/contexts/branding-context';
+import { SettingsModal } from '@/components/settings/settings-modal';
 
 import { getAuthorizedMenuItems } from '@/lib/navigation';
 
@@ -58,6 +60,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 	const { flags } = useFeatureFlags();
 	const { settings } = useBranding();
 	const [isFlagDialogOpen, setIsFlagDialogOpen] = React.useState(false);
+	const [isSettingsModalOpen, setIsSettingsModalOpen] = React.useState(false);
 
 	const getMenuItems = () => {
 		return getAuthorizedMenuItems(
@@ -148,13 +151,19 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 									</div>
 								</DropdownMenuLabel>
 								<DropdownMenuSeparator />
+								<DropdownMenuItem onSelect={() => setIsSettingsModalOpen(true)}>
+									<Settings className="mr-2" />
+									<span>Settings</span>
+								</DropdownMenuItem>
 								{userRole === ROLES.ADMIN && flags.showDemoFeatures && (
 									<SeedDataButton asChild />
 								)}
-								<DropdownMenuItem onSelect={() => setIsFlagDialogOpen(true)}>
-									<Settings className="mr-2" />
-									<span>App Settings</span>
-								</DropdownMenuItem>
+								{flags.showDemoFeatures && (
+									<DropdownMenuItem onSelect={() => setIsFlagDialogOpen(true)}>
+										<Settings className="mr-2" />
+										<span>App Settings</span>
+									</DropdownMenuItem>
+								)}
 								<DropdownMenuSeparator />
 								<DropdownMenuItem onSelect={handleLogout}>
 									<LogOut className="mr-2" />
@@ -196,8 +205,8 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 								))}
 							</SidebarMenu>
 						</SidebarContent>
-						<SidebarFooter>
-							{/* Footer content can go here if needed in the future */}
+						<SidebarFooter className="p-2 flex justify-center">
+							<DatabaseAdapterBadge />
 						</SidebarFooter>
 					</Sidebar>
 					<SidebarInset>
@@ -205,9 +214,15 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 					</SidebarInset>
 				</div>
 			</div>
-			<FeatureFlagDialog
-				isOpen={isFlagDialogOpen}
-				onClose={() => setIsFlagDialogOpen(false)}
+			{flags.showDemoFeatures && (
+				<FeatureFlagDialog
+					isOpen={isFlagDialogOpen}
+					onClose={() => setIsFlagDialogOpen(false)}
+				/>
+			)}
+			<SettingsModal
+				isOpen={isSettingsModalOpen}
+				onClose={() => setIsSettingsModalOpen(false)}
 			/>
 		</SidebarProvider>
 	);

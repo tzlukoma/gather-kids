@@ -16,6 +16,35 @@ const config = {
 	moduleNameMapper: {
 		'^@/(.*)$': '<rootDir>/src/$1',
 	},
+	// Exclude Playwright tests from Jest
+	testPathIgnorePatterns: [
+		'<rootDir>/.next/',
+		'<rootDir>/node_modules/',
+		'<rootDir>/tests/playwright/',
+		'<rootDir>/playwright-tests/'
+	],
+	testMatch: [
+		'<rootDir>/__tests__/**/*.(test|spec).(js|jsx|ts|tsx)',
+		'<rootDir>/src/**/*.(test|spec).(js|jsx|ts|tsx)'
+	],
+	// Enable coverage reporting
+	collectCoverage: false, // Set to true when you want coverage reports
+	collectCoverageFrom: [
+		'src/lib/database/**/*.ts',
+		'src/test-utils/**/*.ts',
+		'!src/lib/database/supabase-types.ts',
+		'!**/*.d.ts',
+	],
+	coverageDirectory: 'coverage',
+	coverageReporters: ['text', 'lcov', 'clover'],
+	coverageThreshold: {
+		global: {
+			branches: 60,
+			functions: 70,
+			lines: 70,
+			statements: 70
+		}
+	}
 };
 
 // createJestConfig is exported this way to ensure that next/jest can load the Next.js config which is async

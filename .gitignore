@@ -12,6 +12,7 @@
 
 # testing
 /coverage
+/test-results
 
 # next.js
 /.next/
@@ -19,6 +20,10 @@
 
 # production
 /build
+
+# documentation site
+/doc-site/build
+/doc-site/.docusaurus
 
 # misc
 .DS_Store
@@ -41,6 +46,11 @@ next-env.d.ts
 .env*
 .env.uat.example
 !.env.uat.example
+
+# E2E environment files (keep examples, ignore actual configs with real keys)
+.env.e2e.local
+.env.e2e.ci
+!.env.e2e.*.example
 
 # firebase
 firebase-debug.log

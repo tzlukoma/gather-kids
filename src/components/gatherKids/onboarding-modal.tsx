@@ -28,14 +28,6 @@ export function OnboardingModal({ isOpen, onClose }: OnboardingModalProps) {
 		onClose();
 	};
 
-	const handleConnectGoogle = () => {
-		// In a real implementation, this would initiate Google OAuth flow
-		console.log('Connect Google clicked');
-		// For demo, just close the modal and mark as dismissed
-		markOnboardingDismissed();
-		onClose();
-	};
-
 	const handleNotNow = () => {
 		markOnboardingDismissed();
 		onClose();
@@ -50,7 +42,7 @@ export function OnboardingModal({ isOpen, onClose }: OnboardingModalProps) {
 				metadata: {
 					...user.metadata,
 					onboarding_dismissed: true,
-				}
+				},
 			};
 			localStorage.setItem('gatherkids-user', JSON.stringify(updatedUser));
 		}
@@ -64,20 +56,21 @@ export function OnboardingModal({ isOpen, onClose }: OnboardingModalProps) {
 						Make future sign-ins faster
 					</DialogTitle>
 					<DialogDescription className="text-base">
-						You're all set with magic link. Prefer a password or Google next time? 
-						You can still use a magic link anytime.
+						You're all set with magic link. Prefer a password next time? You can
+						still use a magic link anytime.
 					</DialogDescription>
 				</DialogHeader>
 				<DialogFooter className="flex-col sm:flex-row gap-2">
-					<Button variant="outline" onClick={handleNotNow} className="order-3 sm:order-1">
+					<Button
+						variant="outline"
+						onClick={handleNotNow}
+						className="order-3 sm:order-1">
 						Not now
 					</Button>
 					<Button onClick={handleSetPassword} className="order-1 sm:order-2">
 						Set Password
 					</Button>
-					<Button onClick={handleConnectGoogle} className="order-2 sm:order-3">
-						Connect Google
-					</Button>
+					{/* Google sign-in is not enabled in this build */}
 				</DialogFooter>
 			</DialogContent>
 		</Dialog>
