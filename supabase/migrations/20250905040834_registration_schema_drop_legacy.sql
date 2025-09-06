@@ -11,9 +11,13 @@ BEGIN;
 DO $$
 DECLARE
   legacy_consents INTEGER;
-  empty_snake_case INTEGER;
-  empty_canonical_dob INTEGER;
-  empty_canonical_mobile INTEGER;
+  empty_snake_case INTEGER := 0;
+  empty_canonical_dob INTEGER := 0;
+  empty_canonical_mobile INTEGER := 0;
+  has_legacy_household BOOLEAN := FALSE;
+  has_birth_date BOOLEAN := FALSE;
+  has_mobile_phone BOOLEAN := FALSE;
+  legacy_colname TEXT := NULL; -- actual legacy column name (preserve case if quoted)
 BEGIN
   -- Check for remaining legacy photoRelease consent types
   SELECT COUNT(*) INTO legacy_consents
@@ -21,21 +25,80 @@ BEGIN
        jsonb_array_elements(r.consents) e
   WHERE e->>'type' = 'photoRelease';
 
-  -- Check for households with NULL preferred_scripture_translation but non-NULL camelCase
-  SELECT COUNT(*) INTO empty_snake_case
-  FROM public.households
-  WHERE preferred_scripture_translation IS NULL 
-    AND preferredScriptureTranslation IS NOT NULL;
+  -- Detect presence of legacy household camelCase column
+  SELECT EXISTS(
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema='public' AND table_name='households' AND lower(column_name)=lower('preferredScriptureTranslation')
+  ) INTO has_legacy_household;
 
-  -- Check for children with NULL dob but non-NULL birth_date
-  SELECT COUNT(*) INTO empty_canonical_dob
-  FROM public.children  
-  WHERE dob IS NULL AND birth_date IS NOT NULL;
+  IF has_legacy_household THEN
+    -- Find the actual legacy column name (preserves case if it was created quoted)
+    SELECT column_name INTO legacy_colname
+    FROM information_schema.columns
+    WHERE table_schema='public' AND table_name='households' AND lower(column_name)=lower('preferredScriptureTranslation')
+    LIMIT 1;
 
-  -- Check for children with NULL child_mobile but non-NULL mobile_phone
-  SELECT COUNT(*) INTO empty_canonical_mobile
-  FROM public.children
-  WHERE child_mobile IS NULL AND mobile_phone IS NOT NULL;
+    IF legacy_colname IS NOT NULL THEN
+      -- Use dynamic SQL and quote_ident to safely reference the legacy column regardless of its exact casing
+      EXECUTE format(
+        'SELECT COUNT(*) FROM public.households WHERE preferred_scripture_translation IS NULL AND %s IS NOT NULL',
+        quote_ident(legacy_colname)
+      ) INTO empty_snake_case;
+    ELSE
+      empty_snake_case := 0;
+    END IF;
+  ELSE
+    empty_snake_case := 0;
+  END IF;
+
+  -- Detect legacy children columns and count if present (use dynamic lookup to preserve quoting)
+  SELECT EXISTS(
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema='public' AND table_name='children' AND lower(column_name)=lower('birth_date')
+  ) INTO has_birth_date;
+
+  IF has_birth_date THEN
+    -- find actual column name (preserve case if quoted)
+    SELECT column_name INTO legacy_colname
+    FROM information_schema.columns
+    WHERE table_schema='public' AND table_name='children' AND lower(column_name)=lower('birth_date')
+    LIMIT 1;
+
+    IF legacy_colname IS NOT NULL THEN
+      EXECUTE format(
+        'SELECT COUNT(*) FROM public.children WHERE dob IS NULL AND %s IS NOT NULL',
+        quote_ident(legacy_colname)
+      ) INTO empty_canonical_dob;
+    ELSE
+      empty_canonical_dob := 0;
+    END IF;
+  ELSE
+    empty_canonical_dob := 0;
+  END IF;
+
+  SELECT EXISTS(
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema='public' AND table_name='children' AND lower(column_name)=lower('mobile_phone')
+  ) INTO has_mobile_phone;
+
+  IF has_mobile_phone THEN
+    -- find actual column name for mobile_phone
+    SELECT column_name INTO legacy_colname
+    FROM information_schema.columns
+    WHERE table_schema='public' AND table_name='children' AND lower(column_name)=lower('mobile_phone')
+    LIMIT 1;
+
+    IF legacy_colname IS NOT NULL THEN
+      EXECUTE format(
+        'SELECT COUNT(*) FROM public.children WHERE child_mobile IS NULL AND %s IS NOT NULL',
+        quote_ident(legacy_colname)
+      ) INTO empty_canonical_mobile;
+    ELSE
+      empty_canonical_mobile := 0;
+    END IF;
+  ELSE
+    empty_canonical_mobile := 0;
+  END IF;
 
   -- Abort if backfill is incomplete
   IF legacy_consents > 0 THEN

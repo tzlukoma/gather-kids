@@ -10,17 +10,28 @@ BEGIN;
 
 DO $$
 DECLARE
+  legacy_col text;
   update_count INTEGER;
 BEGIN
-  -- Backfill preferred_scripture_translation from preferredScriptureTranslation
-  -- Only update where snake_case is NULL but camelCase has a value
-  UPDATE public.households
-     SET preferred_scripture_translation = preferredScriptureTranslation
-   WHERE preferred_scripture_translation IS NULL
-     AND preferredScriptureTranslation IS NOT NULL;
+  -- Detect legacy camelCase column (case-sensitive names are returned as-is from information_schema)
+  SELECT column_name INTO legacy_col
+    FROM information_schema.columns
+   WHERE table_schema = 'public'
+     AND table_name = 'households'
+     AND lower(column_name) = lower('preferredScriptureTranslation')
+   LIMIT 1;
 
-  GET DIAGNOSTICS update_count = ROW_COUNT;
-  RAISE NOTICE 'Households: Backfilled % rows for preferred_scripture_translation', update_count;
+  IF legacy_col IS NOT NULL THEN
+    -- Use format with %I to quote identifier correctly
+    EXECUTE format(
+      'UPDATE public.households SET preferred_scripture_translation = %I WHERE preferred_scripture_translation IS NULL AND %I IS NOT NULL',
+      legacy_col, legacy_col
+    );
+    GET DIAGNOSTICS update_count = ROW_COUNT;
+    RAISE NOTICE 'Households: Backfilled % rows for preferred_scripture_translation', update_count;
+  ELSE
+    RAISE NOTICE 'Households: legacy camelCase column not found; skipping preferred_scripture_translation backfill';
+  END IF;
 END $$;
 
 -- =====================================
@@ -29,24 +40,34 @@ END $$;
 
 DO $$
 DECLARE
-  dob_count INTEGER;
-  mobile_count INTEGER;
+  dob_count INTEGER := 0;
+  mobile_count INTEGER := 0;
+  has_birth_date BOOLEAN := FALSE;
+  has_mobile_phone BOOLEAN := FALSE;
 BEGIN
-  -- Backfill dob from birth_date (only when dob is NULL)
-  UPDATE public.children
-     SET dob = birth_date
-   WHERE dob IS NULL
-     AND birth_date IS NOT NULL;
-     
-  GET DIAGNOSTICS dob_count = ROW_COUNT;
+  -- Check for legacy columns before attempting backfills
+  SELECT EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='children' AND column_name='birth_date') INTO has_birth_date;
+  SELECT EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='children' AND column_name='mobile_phone') INTO has_mobile_phone;
 
-  -- Backfill child_mobile from mobile_phone (only when child_mobile is NULL)  
-  UPDATE public.children
-     SET child_mobile = mobile_phone
-   WHERE child_mobile IS NULL
-     AND mobile_phone IS NOT NULL;
-     
-  GET DIAGNOSTICS mobile_count = ROW_COUNT;
+  IF has_birth_date THEN
+    UPDATE public.children
+       SET dob = birth_date
+     WHERE dob IS NULL
+       AND birth_date IS NOT NULL;
+    GET DIAGNOSTICS dob_count = ROW_COUNT;
+  ELSE
+    RAISE NOTICE 'Children: legacy column birth_date not found; skipping dob backfill';
+  END IF;
+
+  IF has_mobile_phone THEN
+    UPDATE public.children
+       SET child_mobile = mobile_phone
+     WHERE child_mobile IS NULL
+       AND mobile_phone IS NOT NULL;
+    GET DIAGNOSTICS mobile_count = ROW_COUNT;
+  ELSE
+    RAISE NOTICE 'Children: legacy column mobile_phone not found; skipping child_mobile backfill';
+  END IF;
 
   RAISE NOTICE 'Children: Backfilled % rows for dob, % rows for child_mobile', dob_count, mobile_count;
 END $$;
