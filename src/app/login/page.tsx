@@ -231,7 +231,9 @@ export default function LoginPage() {
 								<img
 									src={settings.logo_url}
 									alt={`${settings.app_name || 'gatherKids'} Logo`}
-									className="h-24 w-auto max-w-[50%] object-contain"
+									className={
+										`h-24 w-auto ${settings.use_logo_only ? '' : 'max-w-[50%]'} object-contain`
+									}
 								/>
 								{!settings.use_logo_only && (
 									<span>{settings.app_name || 'gatherKids'}</span>
