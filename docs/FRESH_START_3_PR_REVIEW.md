@@ -4,7 +4,7 @@
 
 ## A. Safety + Setup
 
-- [ ] **Backup** production/staging DB (timestamped `pg_dump`).
+- [x] **Backup** production/staging DB (timestamped `pg_dump`).
 - [ ] **Dry-run locally**: `./scripts/test-db-setup.sh && supabase migration up` against a **fresh test DB**.
 
 ## B. Run migrations on a throwaway DB and verify
