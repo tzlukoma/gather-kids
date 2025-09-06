@@ -213,5 +213,4 @@ It will:
 ## Relevant Documentation
 
 - [Supabase CLI Reference](https://supabase.com/docs/reference/cli/usage)
-- [Prisma Migrate](https://www.prisma.io/docs/concepts/components/prisma-migrate)
 - [PostgreSQL ALTER TABLE](https://www.postgresql.org/docs/current/sql-altertable.html)

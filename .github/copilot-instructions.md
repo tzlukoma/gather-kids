@@ -53,8 +53,8 @@ Always reference these instructions first and fallback to search or bash command
 - **LIMITATION**: Supabase CLI installation via npm is NOT supported. Use system package manager or direct download.
 - **ALTERNATIVE**: Docker installation works: `curl -fsSL https://get.docker.com -o get-docker.sh && sudo sh get-docker.sh`
 - Local Supabase (if CLI available): `supabase start` -- requires Docker and Supabase CLI
-- Database reset: `supabase db reset` followed by `npx prisma db seed`
-- Generate Prisma client: `npx prisma generate`
+  -- Database reset: `supabase db reset` followed by the project seed scripts (for example `npm run seed:uat:reset`)
+  -- Generate types: `npm run gen:types` (generates TypeScript types from Supabase schema)
 - **Database migrations**:
   - Prefer timestamp-based naming: `YYYYMMDDHHMMSS_name_of_change.sql` (e.g. `20250903123456_add_new_table.sql`)
   - ALWAYS use timestamp format to avoid version conflicts
@@ -209,7 +209,7 @@ gather-kids/
 - **Primary storage**: IndexedDB (Dexie.js) for demo/development mode
 - **Supabase integration**: Available for production environments
 - **Multiple adapters**: Unified DAL (Data Access Layer) supports multiple backends
-- **Migrations**: Prisma-based migrations in supabase/migrations/
+  -- **Migrations**: Raw SQL migrations in `supabase/migrations/` (apply with `supabase migration up` or the repo scripts)
 -
 
 ### Managing Issue Information

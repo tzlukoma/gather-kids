@@ -65,7 +65,7 @@ Create a `.env.local` file for basic local development:
 NEXT_PUBLIC_APP_NAME=gatherKids
 NEXT_PUBLIC_APP_VERSION=1.0.0
 
-# Feature Flags  
+# Feature Flags
 NEXT_PUBLIC_SHOW_DEMO_FEATURES=true
 NEXT_PUBLIC_ENABLE_AI_FEATURES=false
 
@@ -81,7 +81,7 @@ NEXT_PUBLIC_DATABASE_MODE=demo
 For development with live Supabase integration, see the comprehensive **[DATABASE_ENV_SETUP_GUIDE.md](./DATABASE_ENV_SETUP_GUIDE.md)** which covers:
 
 - Setting up separate Supabase projects for UAT and production
-- Configuring GitHub Actions environments and secrets  
+- Configuring GitHub Actions environments and secrets
 - Setting up Vercel environment variables
 - Database migration strategies using raw SQL
 - Security best practices and troubleshooting
@@ -147,7 +147,7 @@ For UAT (User Acceptance Testing) environments using Supabase, the application i
 ### What Gets Seeded
 
 - **3 Ministries**: Sunday School, Bible Bee Training, Khalfani Kids
-- **Competition Year**: Bible Bee 2025-2026 with scripture references  
+- **Competition Year**: Bible Bee 2025-2026 with scripture references
 - **Scripture Database**: Complete scripture texts in NIV, KJV, and NIV Spanish
 - **Test Families**: 3 households with guardians and children
 - **Ministry Enrollments**: Sample enrollments linking children to ministries
@@ -187,7 +187,7 @@ npm run typecheck    # Run TypeScript type checking
 npm test             # Run Jest test suite
 npm run test:watch   # Run tests in watch mode
 
-# Database & Type Generation  
+# Database & Type Generation
 npm run gen:types    # Generate TypeScript types from Supabase schema
 npm run gen:types:prod # Generate types from production environment
 
@@ -239,13 +239,11 @@ gather-kids/
 │   │   │   ├── types.ts      # Database adapter interface
 │   │   │   ├── factory.ts    # Database adapter factory
 │   │   │   ├── indexeddb-adapter.ts
-│   │   │   ├── prisma-adapter.ts
 │   │   │   └── supabase-adapter.ts
 │   │   └── ai/               # AI/Genkit integration
-├── prisma/                    # Prisma schema and migrations
-│   ├── schema.prisma         # Database schema definition
-│   ├── migrations/           # Database migrations
-│   └── seed.ts               # Database seeding script
+├── supabase/                  # Raw SQL migrations and Supabase config
+│   ├── migrations/           # SQL migration files
+│   └── seeds/                # Project seed scripts and SQL
 ├── docs/                      # Documentation
 ├── public/                    # Static assets
 └── tailwind.config.ts         # Tailwind CSS configuration
@@ -256,7 +254,7 @@ gather-kids/
 The application supports multiple database backends based on the environment:
 
 - **Demo Mode**: IndexedDB (via Dexie.js) for client-side data persistence
-- **Local Development**: SQLite (via Prisma) for local development
+  -- **Local Development**: Local Supabase/Postgres via Supabase CLI or a throwaway Postgres instance
 - **Production**: Supabase (PostgreSQL) for production environments
 
 ### Database Modes
@@ -264,8 +262,7 @@ The application supports multiple database backends based on the environment:
 The database mode is controlled by the `NEXT_PUBLIC_DATABASE_MODE` environment variable:
 
 - `demo`: Uses IndexedDB (browser storage)
-- `prisma`: Uses SQLite with Prisma ORM
-- `supabase`: Uses Supabase cloud database
+  -- `supabase`: Uses Supabase cloud database
 
 ### Key Data Models
 
@@ -277,9 +274,11 @@ The database mode is controlled by the `NEXT_PUBLIC_DATABASE_MODE` environment v
 - **Attendance**: Check-in/out tracking
 - **Incident**: Safety and behavior reporting
 
-### Prisma Schema
+### Database Schema
 
-The application includes a comprehensive Prisma schema that defines all data models with proper relationships and constraints. Run `npm run db:studio` to explore the database structure visually.
+The database schema is managed as raw PostgreSQL SQL migrations stored in `supabase/migrations/`. Use the Supabase CLI or the repo helper scripts to apply migrations and generate TypeScript types.
+
+Run `npm run gen:types` to generate TypeScript types from the Supabase schema.
 
 ## 🎨 Styling
 
@@ -329,7 +328,7 @@ npm run gen:types
 #### Migration Strategy
 
 1. **Development**: Create and test SQL migrations locally
-2. **UAT**: Auto-deploy via GitHub Actions on push to `uat` branch  
+2. **UAT**: Auto-deploy via GitHub Actions on push to `uat` branch
 3. **Production**: Manual deployment via GitHub Actions with approval
 
 #### Environment-Specific Development
@@ -359,7 +358,7 @@ For detailed Supabase setup instructions, see **[DATABASE_ENV_SETUP_GUIDE.md](./
 # Type checking
 npm run typecheck
 
-# Code linting  
+# Code linting
 npm run lint
 
 # Test suite
@@ -382,26 +381,30 @@ gatherKids uses a multi-environment deployment strategy with strong isolation be
 ### Quick Local Setup
 
 1. **Basic Demo Mode** (no external dependencies):
+
    ```bash
    npm install
    npm run dev
    ```
+
    Access at `http://localhost:9002`
 
 2. **Full Supabase Development**:
    - Follow **[DATABASE_ENV_SETUP_GUIDE.md](./DATABASE_ENV_SETUP_GUIDE.md)**
-   - Configure `.env.local` with Supabase credentials  
+   - Configure `.env.local` with Supabase credentials
    - Run `npm run gen:types` to generate TypeScript types
 
 ### Deployment Environments
 
 #### UAT/Preview Deployment
+
 - **Trigger**: Push to `uat` branch
 - **Database**: Dedicated UAT Supabase project
 - **Migrations**: Applied automatically via `.github/workflows/uat-deploy.yml`
 - **Access**: Preview URLs from Vercel
 
-#### Production Deployment  
+#### Production Deployment
+
 - **Trigger**: Manual workflow dispatch (requires approval)
 - **Database**: Dedicated production Supabase project
 - **Migrations**: Applied via `.github/workflows/prod-deploy.yml`
@@ -424,6 +427,7 @@ git push origin uat
 Required environment variables for each deployment target:
 
 #### Local Development (.env.local)
+
 ```env
 NEXT_PUBLIC_DATABASE_MODE=demo  # or supabase for full features
 NEXT_PUBLIC_SUPABASE_URL=https://<uat-ref>.supabase.co
@@ -433,6 +437,7 @@ NEXT_PUBLIC_SITE_URL=http://localhost:9002
 ```
 
 #### Production (Vercel)
+
 ```env
 NEXT_PUBLIC_DATABASE_MODE=supabase
 NEXT_PUBLIC_LOGIN_MAGIC_ENABLED=true
@@ -487,22 +492,24 @@ If you need to change CI behavior
 ## 📚 Additional Resources
 
 ### User Documentation
+
 - **User Guide**: [https://tzlukoma.github.io/gather-kids/](https://tzlukoma.github.io/gather-kids/) - Complete user documentation
 - **Getting Started Guide**: Step-by-step setup and usage instructions
 - **Release Notes**: Latest features and updates
 - **Documentation Workflow**: See `docs/DOCUMENTATION_WORKFLOW.md` for maintaining user docs
 
 ### Developer Documentation
+
 - **FEATURES.md**: Comprehensive feature documentation
 - **SUPABASE_IMPLEMENTATION_PLAN.md**: Detailed Supabase integration plan
 - **docs/blueprint.md**: Application blueprint and requirements
 
 ### External Resources
+
 - **Tailwind CSS**: [https://tailwindcss.com](https://tailwindcss.com)
 - **Radix UI**: [https://www.radix-ui.com](https://www.radix-ui.com)
 - **Next.js**: [https://nextjs.org](https://nextjs.org)
-- **Prisma**: [https://www.prisma.io](https://www.prisma.io)
-- **Supabase**: [https://supabase.com](https://supabase.com)
+  - **Supabase**: [https://supabase.com](https://supabase.com)
 - **Docusaurus**: [https://docusaurus.io](https://docusaurus.io)
 
 ## 🆘 Troubleshooting
@@ -514,12 +521,8 @@ If you need to change CI behavior
 3. **Type Errors**: Run `npm run typecheck` to identify TypeScript issues
 4. **Database Issues**:
    - **IndexedDB**: Clear browser storage if data becomes corrupted
-   - **Prisma**: Run `npm run db:reset` to reset and reseed the database
+   - **Supabase**: Use `supabase db reset` (local) and the repo seed scripts to reset and reseed
    - **Supabase**: Check connection and authentication settings
-5. **Prisma Issues**:
-   - Run `npm run db:generate` after schema changes
-   - Ensure `DATABASE_URL` is set correctly in `.env.local`
-   - Use `npm run db:studio` to inspect database state
 
 ### Getting Help
 
@@ -528,8 +531,7 @@ If you need to change CI behavior
 - Ensure you're using the correct Node.js version
 - Check that all dependencies are properly installed
 - **Database Mode Issues**: Verify `NEXT_PUBLIC_DATABASE_MODE` is set correctly
-- **Prisma Issues**: Check `prisma/schema.prisma` and run `npm run db:generate`
-- **Supabase Issues**: Verify project URL and API keys in environment variables
+  - **Supabase Issues**: Verify project URL and API keys in environment variables
 
 ## 📄 License
 

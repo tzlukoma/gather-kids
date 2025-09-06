@@ -91,11 +91,14 @@ WHERE constraint_type = 'FOREIGN KEY';
 # Check migrations table
 echo ""
 echo "Step 4: Checking migrations status..."
-if psql "$DB_URL" -t -c "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = '_prisma_migrations')" | grep -q "t"; then
-    echo "Migrations table exists. Showing applied migrations:"
-    psql "$DB_URL" -c "SELECT id, checksum, finished_at, migration_name FROM _prisma_migrations ORDER BY finished_at DESC;"
+# Check for migration-related tables and advise on Supabase CLI commands
+if psql "$DB_URL" -t -c "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'migrations' OR table_name LIKE '%migration%')" | grep -q "t"; then
+    echo "Found migration-related tables (listing matching table names):"
+    psql "$DB_URL" -c "SELECT table_name FROM information_schema.tables WHERE table_schema='public' AND (table_name='migrations' OR table_name LIKE '%migration%') ORDER BY table_name;"
+    echo "If you use Supabase CLI, run: 'supabase migration status' or 'supabase migration up' to inspect/apply migrations."
 else
-    echo "No migrations table found. This may be a fresh database."
+    echo "No standard migration table found. This may be a fresh database or migrations are managed externally (raw SQL in supabase/migrations/)."
+    echo "Run 'supabase migration up' or the repo helper script to apply migrations."
 fi
 
 echo ""
