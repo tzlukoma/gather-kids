@@ -129,7 +129,7 @@ jobs:
 
           echo "Dumping roles/schema/data via supabase CLI"
           "$HOME/.bin/supabase" db dump --role-only --linked -f "dumps/${BASE}-roles.sql"
-          "$HOME/.bin/supabase" db dump --schema-only --linked -f "dumps/${BASE}-schema.sql"
+          "$HOME/.bin/supabase" db dump --linked -f "dumps/${BASE}-schema.sql"
           "$HOME/.bin/supabase" db dump --data-only --linked -f "dumps/${BASE}-data.sql"
 
           tar -czf "dumps/${BASE}.tar.gz" -C dumps "${BASE}-roles.sql" "${BASE}-schema.sql" "${BASE}-data.sql"
