@@ -27,10 +27,12 @@ on:
 jobs:
   backup:
     runs-on: ubuntu-latest
-    environment: production
+    environment: ${{ github.event.inputs.environment == 'PROD' && 'production' || 'uat' }}
     env:
       PROD_DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
       UAT_DATABASE_URL: ${{ secrets.UAT_DATABASE_URL }}
+      PROD_SUPABASE_URL: ${{ secrets.PROD_SUPABASE_URL }}
+      UAT_SUPABASE_URL: ${{ secrets.UAT_SUPABASE_URL }}
       GDRIVE_FOLDER_ID_PROD: ${{ secrets.GDRIVE_FOLDER_ID_PROD }}
       GDRIVE_FOLDER_ID_UAT: ${{ secrets.GDRIVE_FOLDER_ID_UAT }}
 
@@ -63,11 +65,11 @@ jobs:
 
           if [ "$ENV" = "PROD" ]; then
             echo "SUPABASE_DB_URL=$PROD_DATABASE_URL" >> $GITHUB_ENV
-            echo "SUPABASE_URL=${{ secrets.PROD_SUPABASE_URL }}" >> $GITHUB_ENV
+            echo "SUPABASE_URL=$PROD_SUPABASE_URL" >> $GITHUB_ENV
             echo "GDRIVE_FOLDER_ID=$GDRIVE_FOLDER_ID_PROD" >> $GITHUB_ENV
           else
             echo "SUPABASE_DB_URL=$UAT_DATABASE_URL" >> $GITHUB_ENV
-            echo "SUPABASE_URL=${{ secrets.UAT_SUPABASE_URL }}" >> $GITHUB_ENV
+            echo "SUPABASE_URL=$UAT_SUPABASE_URL" >> $GITHUB_ENV
             echo "GDRIVE_FOLDER_ID=$GDRIVE_FOLDER_ID_UAT" >> $GITHUB_ENV
           fi
 
