@@ -1,0 +1,145 @@
+name: On-Demand Supabase Backup → Artifacts + Google Drive (with optional GPG)
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Which environment to back up?"
+        required: true
+        type: choice
+        options: [UAT, PROD]
+        default: UAT
+      label:
+        description: "Optional label for the filename (e.g. pre-release)"
+        required: false
+        default: ""
+      encrypt:
+        description: "Encrypt backup with GPG before upload?"
+        type: boolean
+        required: true
+        default: false
+      skip_prune:
+        description: "Skip pruning (deleting) Drive backups older than 6 months?"
+        type: boolean
+        required: true
+        default: false
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    env:
+      DB_URL_PROD: ${{ secrets.SUPABASE_DB_URL_PROD }}
+      DB_URL_UAT: ${{ secrets.SUPABASE_DB_URL_UAT }}
+      GDRIVE_FOLDER_ID_PROD: ${{ secrets.GDRIVE_FOLDER_ID_PROD }}
+      GDRIVE_FOLDER_ID_UAT: ${{ secrets.GDRIVE_FOLDER_ID_UAT }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Supabase CLI
+        run: curl -fsSL https://get.supabase.com/cli/install | sh
+
+      - name: Select Environment (DB URL + Drive Folder)
+        run: |
+          set -euo pipefail
+          ENV="${{ github.event.inputs.environment }}"
+          echo "Selected environment: $ENV"
+
+          if [ "$ENV" = "PROD" ]; then
+            echo "SUPABASE_DB_URL=$DB_URL_PROD" >> $GITHUB_ENV
+            echo "GDRIVE_FOLDER_ID=$GDRIVE_FOLDER_ID_PROD" >> $GITHUB_ENV
+          else
+            echo "SUPABASE_DB_URL=$DB_URL_UAT" >> $GITHUB_ENV
+            echo "GDRIVE_FOLDER_ID=$GDRIVE_FOLDER_ID_UAT" >> $GITHUB_ENV
+          fi
+
+      - name: Make dump directory
+        run: mkdir -p dumps
+
+      - name: Dump roles, schema, and data
+        run: |
+          set -euo pipefail
+          TS="$(date -u +%Y%m%dT%H%M%SZ)"
+          LABEL="${{ github.event.inputs.label }}"
+          SAFE_LABEL="$(echo "$LABEL" | tr -cd '[:alnum:]_-.')"
+          ENV="${{ github.event.inputs.environment }}"
+
+          BASE="supabase-${ENV,,}-backup-${TS}"
+          [ -n "$SAFE_LABEL" ] && BASE="${BASE}-${SAFE_LABEL}"
+
+          echo "Creating logical dumps with Supabase CLI..."
+          supabase db dump --db-url "$SUPABASE_DB_URL" --role-only   --out "dumps/${BASE}-roles.sql"
+          supabase db dump --db-url "$SUPABASE_DB_URL" --schema-only --out "dumps/${BASE}-schema.sql"
+          supabase db dump --db-url "$SUPABASE_DB_URL" --data-only   --out "dumps/${BASE}-data.sql"
+
+          tar -czf "dumps/${BASE}.tar.gz" -C dumps "${BASE}-roles.sql" "${BASE}-schema.sql" "${BASE}-data.sql"
+          echo "ARCHIVE_UNENC=dumps/${BASE}.tar.gz" >> $GITHUB_ENV
+          echo "ARCHIVE_BASENAME_UNENC=${BASE}.tar.gz" >> $GITHUB_ENV
+
+      # ---------- Optional GPG encryption ----------
+      - name: Import GPG public key
+        if: ${{ inputs.encrypt }}
+        run: |
+          echo "${{ secrets.GPG_PUBLIC_KEY }}" > /tmp/pubkey.asc
+          gpg --batch --import /tmp/pubkey.asc
+          echo "GPG keys imported."
+      - name: Encrypt archive with GPG (recipient public key)
+        if: ${{ inputs.encrypt }}
+        run: |
+          set -euo pipefail
+          ENC_PATH="${ARCHIVE_UNENC}.gpg"
+          gpg --batch --yes --trust-model always -r "${{ secrets.GPG_RECIPIENT }}" -o "$ENC_PATH" --encrypt "${ARCHIVE_UNENC}"
+          echo "ARCHIVE=$ENC_PATH" >> $GITHUB_ENV
+          echo "ARCHIVE_BASENAME=$(basename "$ENC_PATH")" >> $GITHUB_ENV
+
+      - name: Use unencrypted archive (if encryption disabled)
+        if: ${{ !inputs.encrypt }}
+        run: |
+          echo "ARCHIVE=${ARCHIVE_UNENC}" >> $GITHUB_ENV
+          echo "ARCHIVE_BASENAME=${ARCHIVE_BASENAME_UNENC}" >> $GITHUB_ENV
+
+      - name: Upload as GitHub Artifact (short-term retention)
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.ARCHIVE_BASENAME }}
+          path: ${{ env.ARCHIVE }}
+          retention-days: 30
+
+      # -------- Google Drive: optional prune + upload --------
+      - name: Install rclone
+        run: |
+          curl -fsSL https://rclone.org/install.sh | sudo bash
+
+      - name: Write Service Account JSON
+        run: |
+          echo '${{ secrets.GDRIVE_SA_JSON }}' > /tmp/gdrive-sa.json
+          chmod 600 /tmp/gdrive-sa.json
+
+      - name: Configure rclone remote (gdrive)
+        run: |
+          rclone config create gdrive drive \
+            scope=drive.file \
+            root_folder_id="$GDRIVE_FOLDER_ID" \
+            service_account_file=/tmp/gdrive-sa.json \
+            --non-interactive
+
+      - name: Prune Google Drive backups older than 6 months (dry run)
+        if: ${{ !inputs.skip_prune }}
+        run: |
+          echo "Dry-run: which files would be deleted (older than 180 days)?"
+          rclone delete gdrive: --min-age 180d --dry-run --log-level NOTICE || true
+
+      - name: Prune Google Drive backups older than 6 months (apply)
+        if: ${{ !inputs.skip_prune }}
+        run: |
+          echo "Deleting files older than 180 days..."
+          rclone delete gdrive: --min-age 180d --log-level NOTICE || true
+          echo "Prune complete."
+
+      - name: Upload archive to Google Drive
+        run: |
+          rclone copy "${{ env.ARCHIVE }}" gdrive: \
+            --transfers=1 --checkers=4 \
+            --log-file=/tmp/rclone.log --log-level=INFO
+          echo "Uploaded to Google Drive folder ID: $GDRIVE_FOLDER_ID"
+          tail -n 50 /tmp/rclone.log
