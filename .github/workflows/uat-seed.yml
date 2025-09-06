@@ -1,0 +1,126 @@
+# .github/workflows/uat-seed.yml
+name: UAT Seed Data
+
+on:
+  workflow_dispatch:
+    inputs:
+      reset_mode:
+        description: 'Full Reset Mode - delete ALL existing data and re-seed with fresh data'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+
+permissions:
+  contents: read
+
+jobs:
+  seed-uat:
+    runs-on: ubuntu-latest
+    environment:
+      name: uat
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install TypeScript and ts-node
+        run: npm install -g typescript ts-node
+
+      - name: Verify UAT environment variables
+        run: |
+          if [ -z "${{ secrets.UAT_SUPABASE_URL }}" ]; then
+            echo "ERROR: UAT_SUPABASE_URL secret is not set!"
+            exit 1
+          fi
+          if [ -z "${{ secrets.UAT_SUPABASE_SERVICE_ROLE_KEY }}" ]; then
+            echo "ERROR: UAT_SUPABASE_SERVICE_ROLE_KEY secret is not set!"
+            exit 1
+          fi
+          echo "✅ UAT environment variables verified"
+
+      - name: Run seed scripts
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.UAT_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.UAT_SUPABASE_SERVICE_ROLE_KEY }}
+          RESET: ${{ inputs.reset_mode }}
+        run: |
+          echo "🌱 Starting UAT seeding process..."
+          echo "📊 Reset mode: ${{ inputs.reset_mode }}"
+          echo "🔗 Supabase URL: ${{ secrets.UAT_SUPABASE_URL }}"
+
+          if [ "${{ inputs.reset_mode }}" = "true" ]; then
+            echo "⚠️ Running in FULL RESET mode - all existing data will be deleted!"
+            echo "==============================================="
+            echo "     [1/3] Resetting all UAT data..."
+            echo "==============================================="
+            npm run seed:uat:reset
+            
+            echo "==============================================="
+            echo "     [2/3] Seeding core UAT data..."
+            echo "==============================================="
+            npm run seed:uat
+            
+            echo "==============================================="
+            echo "     [3/3] Seeding Bible Bee data..."
+            echo "==============================================="
+            npm run seed:uat:bible-bee
+          else
+            echo "🔄 Running in IDEMPOTENT mode - safe to re-run"
+            echo "==============================================="
+            echo "     [1/2] Seeding core UAT data..."
+            echo "==============================================="
+            npm run seed:uat
+            
+            echo "==============================================="
+            echo "     [2/2] Seeding Bible Bee data..."
+            echo "==============================================="
+            npm run seed:uat:bible-bee
+          fi
+
+          echo "✅ UAT seed process completed successfully!"
+
+      - name: Summary
+        run: |
+          echo "## 🎉 UAT Seed Completed!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ inputs.reset_mode }}" = "true" ]; then
+            echo "**Mode:** ♻️ **Full Reset and Fresh Seed** (deleted all existing data and re-seeded everything)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "**Mode:** 🔄 Idempotent (upsert - preserved existing data)" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Seeding Process:**" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ inputs.reset_mode }}" = "true" ]; then
+            echo "1. ✅ Reset all UAT data (deleted existing records)" >> $GITHUB_STEP_SUMMARY
+            echo "2. ✅ Seeded core UAT data (ministries, scriptures, households, etc.)" >> $GITHUB_STEP_SUMMARY
+            echo "3. ✅ Seeded Bible Bee specific data (year, divisions, grade rules)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "1. ✅ Seeded core UAT data (ministries, scriptures, households, etc.)" >> $GITHUB_STEP_SUMMARY
+            echo "2. ✅ Seeded Bible Bee specific data (year, divisions, grade rules)" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Seeded Data:**" >> $GITHUB_STEP_SUMMARY
+          echo "- 📚 Bible Bee 2025-2026 year with 3 divisions (Primary, Junior, Senior)" >> $GITHUB_STEP_SUMMARY
+          echo "- 📏 Grade rules for Bible Bee divisions" >> $GITHUB_STEP_SUMMARY
+          echo "- 📖 31 scriptures with NIV, KJV, and Spanish translations" >> $GITHUB_STEP_SUMMARY
+          echo "- ✍️ Senior Division essay prompt" >> $GITHUB_STEP_SUMMARY
+          echo "- 🏠 12 households with 33 children" >> $GITHUB_STEP_SUMMARY
+          echo "- ⛪ Ministry enrollments and leaders" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "The UAT database has been successfully populated with fresh test data!" >> $GITHUB_STEP_SUMMARY

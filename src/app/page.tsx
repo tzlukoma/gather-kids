@@ -65,7 +65,7 @@ export default function Home() {
 						}
 					</p>
 					<div className="flex flex-col sm:flex-row gap-4 justify-center">
-						<Link href="/register">
+						<Link href={flags.loginMagicEnabled ? "/register" : "/create-account"}>
 							<Button size="lg">
 								Register Your Family
 								<ArrowRight className="ml-2" />
@@ -118,19 +118,23 @@ export default function Home() {
 					<p>
 						&copy; {new Date().getFullYear()} {settings.app_name || 'gatherKids'}. All rights reserved.
 					</p>
-					<Button
-						variant="ghost"
-						size="icon"
-						onClick={() => setIsFlagDialogOpen(true)}>
-						<Settings className="h-4 w-4" />
-						<span className="sr-only">Open Feature Flags</span>
-					</Button>
+					{flags.showDemoFeatures && (
+						<Button
+							variant="ghost"
+							size="icon"
+							onClick={() => setIsFlagDialogOpen(true)}>
+							<Settings className="h-4 w-4" />
+							<span className="sr-only">Open Feature Flags</span>
+						</Button>
+					)}
 				</div>
 			</footer>
-			<FeatureFlagDialog
-				isOpen={isFlagDialogOpen}
-				onClose={() => setIsFlagDialogOpen(false)}
-			/>
+			{flags.showDemoFeatures && (
+				<FeatureFlagDialog
+					isOpen={isFlagDialogOpen}
+					onClose={() => setIsFlagDialogOpen(false)}
+				/>
+			)}
 		</div>
 	);
 }

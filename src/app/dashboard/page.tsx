@@ -19,54 +19,48 @@ import {
 } from '@/components/ui/table';
 import { AlertTriangle, Users, CheckCircle2, Home } from 'lucide-react';
 import { format } from 'date-fns';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '@/lib/db';
-import { getTodayIsoDate } from '@/lib/dal';
+import { getTodayIsoDate, getUnacknowledgedIncidents, getCheckedInCount, getRegistrationStats } from '@/lib/dal';
 import { useAuth } from '@/contexts/auth-context';
 import { useRouter } from 'next/navigation';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AuthRole } from '@/lib/auth-types';
+import type { Incident } from '@/lib/types';
 
 export default function DashboardPage() {
 	const router = useRouter();
 	const { user, loading } = useAuth();
 	const [isAuthorized, setIsAuthorized] = useState(false);
+	const [unacknowledgedIncidents, setUnacknowledgedIncidents] = useState<Incident[]>([]);
+	const [checkedInCount, setCheckedInCount] = useState(0);
+	const [registrationStats, setRegistrationStats] = useState({ householdCount: 0, childCount: 0 });
+	const [isLoading, setIsLoading] = useState(true);
 
 	const today = getTodayIsoDate();
 
-	const unacknowledgedIncidents = useLiveQuery(
-		() =>
-			db.incidents.filter((i) => i.admin_acknowledged_at === null).toArray(),
-		[]
-	);
+	// Load dashboard data
+	useEffect(() => {
+		if (!loading && user && isAuthorized) {
+			const loadDashboardData = async () => {
+				try {
+					const [incidents, count, stats] = await Promise.all([
+						getUnacknowledgedIncidents(),
+						getCheckedInCount(today),
+						getRegistrationStats()
+					]);
+					
+					setUnacknowledgedIncidents(incidents);
+					setCheckedInCount(count);
+					setRegistrationStats(stats);
+				} catch (error) {
+					console.warn('Error loading dashboard data:', error);
+				} finally {
+					setIsLoading(false);
+				}
+			};
 
-	const checkedInCount = useLiveQuery(
-		() =>
-			db.attendance
-				.where({ date: today })
-				.filter((a) => !a.check_out_at)
-				.count(),
-		[today]
-	);
-
-	const registrationStats = useLiveQuery(async () => {
-		const registrations = await db.registrations
-			.where({ cycle_id: '2025' })
-			.toArray();
-		if (registrations.length === 0) {
-			return { householdCount: 0, childCount: 0 };
+			loadDashboardData();
 		}
-		const childIds = registrations.map((r) => r.child_id);
-		const children = await db.children
-			.where('child_id')
-			.anyOf(childIds)
-			.toArray();
-		const householdIds = new Set(children.map((c) => c.household_id));
-		return {
-			householdCount: householdIds.size,
-			childCount: registrations.length,
-		};
-	}, []);
+	}, [user, loading, isAuthorized, today]);
 
 	useEffect(() => {
 		if (!loading && user) {
@@ -81,13 +75,7 @@ export default function DashboardPage() {
 		}
 	}, [user, loading, router]);
 
-	if (
-		loading ||
-		!isAuthorized ||
-		unacknowledgedIncidents === undefined ||
-		checkedInCount === undefined ||
-		registrationStats === undefined
-	) {
+	if (loading || !isAuthorized || isLoading) {
 		return <div>Loading dashboard data...</div>;
 	}
 

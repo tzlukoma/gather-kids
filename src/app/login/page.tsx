@@ -15,12 +15,15 @@ import { Label } from '@/components/ui/label';
 import { useAuth } from '@/contexts/auth-context';
 import { useBranding } from '@/contexts/branding-context';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Info, Settings, Church } from 'lucide-react';
+import { Info, Settings, Church, AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
 import { useFeatureFlags } from '@/contexts/feature-flag-context';
 import { FeatureFlagDialog } from '@/components/feature-flag-dialog';
+import { ForgotPasswordDialog } from '@/components/auth/forgot-password-dialog';
 import { AuthRole } from '@/lib/auth-types';
+import { supabase } from '@/lib/supabaseClient';
+import { getPostLoginRoute } from '@/lib/auth-utils';
 
 const DEMO_USERS = {
 	admin: {
@@ -70,15 +73,7 @@ const DEMO_USERS = {
 		metadata: {},
 	},
 	// Bible Bee Volunteer Leader
-	bibleBeeVolunteer: {
-		email: 'leader.biblebeevolunteer@example.com',
-		password: 'password',
-		is_active: true,
-		name: 'Bible Bee Volunteer',
-		uid: 'user_leader_15',
-		role: AuthRole.MINISTRY_LEADER,
-		metadata: {},
-	},
+
 	guardian: {
 		email: 'guardian@example.com',
 		password: 'password',
@@ -88,7 +83,7 @@ const DEMO_USERS = {
 		role: AuthRole.GUARDIAN,
 		metadata: {},
 	},
-	// Demo Parent with household access  
+	// Demo Parent with household access
 	parent: {
 		email: 'parent-demo@example.com',
 		password: 'password',
@@ -97,8 +92,8 @@ const DEMO_USERS = {
 		uid: 'user_parent_demo',
 		role: AuthRole.GUARDIAN,
 		metadata: {
-			household_id: 'h_1' // Smith household from seed data
-		}
+			household_id: 'h_1', // Smith household from seed data
+		},
 	},
 	inactiveLeader: {
 		email: 'leader.inactive@example.com',
@@ -107,6 +102,16 @@ const DEMO_USERS = {
 		name: 'Tom Allen',
 		uid: 'user_leader_13',
 		role: AuthRole.MINISTRY_LEADER,
+		metadata: {},
+	},
+	// Test user without role - demonstrates registration flow redirection
+	newUser: {
+		email: 'newuser@example.com',
+		password: 'password',
+		is_active: true,
+		name: 'New User',
+		uid: 'user_new_no_role',
+		role: null, // No role assigned
 		metadata: {},
 	},
 };
@@ -120,44 +125,92 @@ export default function LoginPage() {
 	const [email, setEmail] = useState('');
 	const [password, setPassword] = useState('');
 	const [isFlagDialogOpen, setIsFlagDialogOpen] = useState(false);
+	const [loading, setLoading] = useState(false);
 
+	// Handle both demo and Supabase authentication
 	const handleLogin = async () => {
-		const userToLogin = Object.values(DEMO_USERS).find(
-			(u) => u.email === email && u.password === password
-		);
+		setLoading(true);
 
-		if (userToLogin) {
-			console.log('Login - User found:', userToLogin);
-			const loginData = {
-				uid: userToLogin.uid,
-				displayName: userToLogin.name,
-				email: userToLogin.email,
-				is_active: userToLogin.is_active,
-				metadata: {
-					role: userToLogin.role as AuthRole,
-					...(userToLogin.metadata || {}),
-				},
-			};
-			console.log('Login - Calling login with data:', loginData);
-			await login(loginData);
-			toast({
-				title: 'Login Successful',
-				description: `Welcome, ${userToLogin.name}!`,
-			});
+		try {
+			if (flags.isDemoMode) {
+				// Demo mode - use existing demo user logic
+				const userToLogin = Object.values(DEMO_USERS).find(
+					(u) => u.email === email && u.password === password
+				);
 
-			// Redirect based on role: admin -> dashboard, leader -> rosters, guardian -> household
-			const role = userToLogin.role as AuthRole;
-			let target = '/';
-			if (role === AuthRole.ADMIN) target = '/dashboard';
-			else if (role === AuthRole.MINISTRY_LEADER) target = '/dashboard/rosters';
-			else if (role === AuthRole.GUARDIAN) target = '/household';
-			router.push(target);
-		} else {
+				if (userToLogin) {
+					console.log('Login - User found:', userToLogin);
+					const loginData = {
+						uid: userToLogin.uid,
+						displayName: userToLogin.name,
+						email: userToLogin.email,
+						is_active: userToLogin.is_active,
+						metadata: {
+							role: userToLogin.role as AuthRole, // This could be null for new users
+							...(userToLogin.metadata || {}),
+						},
+					};
+					console.log('Login - Calling login with data:', loginData);
+					await login(loginData);
+					toast({
+						title: 'Login Successful',
+						description: `Welcome, ${userToLogin.name}!`,
+					});
+
+					// Redirect based on role priority (or lack of role)
+					const role = userToLogin.role as AuthRole;
+					const target = getPostLoginRoute(role);
+					console.log('Redirecting to:', target, 'for role:', role);
+					router.push(target);
+				} else {
+					toast({
+						title: 'Invalid Credentials',
+						description: 'Please use one of the demo accounts.',
+						variant: 'destructive',
+					});
+				}
+			} else if (flags.loginPasswordEnabled) {
+				// Live mode - use Supabase auth
+				if (!supabase) {
+					throw new Error('Supabase client not available');
+				}
+
+				const { data, error } = await supabase.auth.signInWithPassword({
+					email,
+					password,
+				});
+
+				if (error) {
+					throw error;
+				}
+
+				if (data.session) {
+					toast({
+						title: 'Login Successful',
+						description: `Welcome back!`,
+					});
+					// Use the same role-based redirect logic
+					const userRole = data.session.user?.user_metadata?.role as AuthRole;
+					const target = getPostLoginRoute(userRole);
+					router.push(target);
+				}
+			} else {
+				toast({
+					title: 'Authentication Disabled',
+					description: 'Password authentication is not enabled.',
+					variant: 'destructive',
+				});
+			}
+		} catch (error: any) {
+			console.error('Login error:', error);
 			toast({
-				title: 'Invalid Credentials',
-				description: 'Please use one of the demo accounts.',
+				title: 'Login Failed',
+				description:
+					error.message || 'Unable to sign in. Please check your credentials.',
 				variant: 'destructive',
 			});
+		} finally {
+			setLoading(false);
 		}
 	};
 
@@ -198,14 +251,46 @@ export default function LoginPage() {
 							Sign In
 						</CardTitle>
 						<CardDescription>
-							Don't have an account?{' '}
-							<Link href="/register" className="underline">
-								Register your family
-							</Link>
+							{flags.loginPasswordEnabled && !flags.isDemoMode ? (
+								<>
+									Don't have an account?{' '}
+									<Link href="/create-account" className="underline">
+										Create account
+									</Link>
+								</>
+							) : (
+								<>
+									Don't have an account?{' '}
+									<Link href="/register" className="underline">
+										Register your family
+									</Link>
+								</>
+							)}
 						</CardDescription>
 					</CardHeader>
 					<CardContent className="space-y-4">
-						{flags.showDemoFeatures && (
+						{flags.isDemoMode && (
+							<Alert>
+								<Info className="h-4 w-4" />
+								<AlertTitle>Demo Mode</AlertTitle>
+								<AlertDescription>
+									Live authentication is disabled. Use demo accounts below.
+								</AlertDescription>
+							</Alert>
+						)}
+
+						{!flags.isDemoMode && !flags.loginPasswordEnabled && (
+							<Alert>
+								<AlertTriangle className="h-4 w-4" />
+								<AlertTitle>Authentication Disabled</AlertTitle>
+								<AlertDescription>
+									Password authentication is currently disabled. Please contact
+									an administrator.
+								</AlertDescription>
+							</Alert>
+						)}
+
+						{flags.showDemoFeatures && flags.isDemoMode && (
 							<Alert>
 								<Info className="h-4 w-4" />
 								<AlertTitle>For Prototype Demo</AlertTitle>
@@ -258,16 +343,7 @@ export default function LoginPage() {
 												{DEMO_USERS.bibleBeeLeader.email}
 											</button>
 										</li>
-										<li>
-											Leader (Bible Bee Volunteer):{' '}
-											<button
-												className="text-left font-semibold underline"
-												onClick={() =>
-													prefillDemoCredentials('bibleBeeVolunteer')
-												}>
-												{DEMO_USERS.bibleBeeVolunteer.email}
-											</button>
-										</li>
+
 										<li>
 											Leader (Inactive):{' '}
 											<button
@@ -287,57 +363,119 @@ export default function LoginPage() {
 											</button>
 										</li>
 										<li>
+											<strong>New User (No Role):</strong>{' '}
+											<button
+												className="text-left font-semibold underline"
+												onClick={() => prefillDemoCredentials('newUser')}>
+												{DEMO_USERS.newUser.email}
+											</button>{' '}
+											<em className="text-muted-foreground">
+												(should redirect to /register)
+											</em>
+										</li>
+										<li>
 											Password: <code className="font-semibold">password</code>
 										</li>
 									</ul>
 								</AlertDescription>
 							</Alert>
 						)}
-						<div className="space-y-2">
-							<Label htmlFor="email">Email</Label>
-							<Input
-								id="email"
-								type="email"
-								placeholder="m@example.com"
-								required
-								value={email}
-								onChange={(e) => setEmail(e.target.value)}
-							/>
-						</div>
-						<div className="space-y-2">
-							<Label htmlFor="password">Password</Label>
-							<Input
-								id="password"
-								type="password"
-								required
-								value={password}
-								onChange={(e) => setPassword(e.target.value)}
-							/>
-						</div>
-						<Button type="submit" className="w-full" onClick={handleLogin}>
-							Sign In
-						</Button>
+
+						{(flags.loginPasswordEnabled || flags.isDemoMode) && (
+							<>
+								<div className="space-y-2">
+									<Label htmlFor="email">Email</Label>
+									<Input
+										id="email"
+										type="email"
+										placeholder="m@example.com"
+										required
+										value={email}
+										onChange={(e) => setEmail(e.target.value)}
+									/>
+								</div>
+								<div className="space-y-2">
+									<Label htmlFor="password">Password</Label>
+									<Input
+										id="password"
+										type="password"
+										required
+										value={password}
+										onChange={(e) => setPassword(e.target.value)}
+									/>
+								</div>
+
+								<Button
+									type="submit"
+									className="w-full"
+									onClick={handleLogin}
+									disabled={
+										loading ||
+										(!flags.loginPasswordEnabled && !flags.isDemoMode)
+									}>
+									{loading ? 'Signing In...' : 'Sign In'}
+								</Button>
+
+								{flags.loginPasswordEnabled && !flags.isDemoMode && (
+									<div className="flex justify-end">
+										<ForgotPasswordDialog>
+											<Button variant="link" className="px-0 text-sm">
+												Forgot your password?
+											</Button>
+										</ForgotPasswordDialog>
+									</div>
+								)}
+							</>
+						)}
+
+						{/* Hidden magic link and Google auth sections based on flags */}
+						{flags.loginMagicEnabled && !flags.isDemoMode && (
+							<Alert>
+								<Info className="h-4 w-4" />
+								<AlertTitle>Magic Link Available</AlertTitle>
+								<AlertDescription>
+									Magic link authentication would be available here when
+									implemented.
+								</AlertDescription>
+							</Alert>
+						)}
+
+						{flags.loginGoogleEnabled && !flags.isDemoMode && (
+							<Alert>
+								<Info className="h-4 w-4" />
+								<AlertTitle>Google Sign-In Available</AlertTitle>
+								<AlertDescription>
+									Google authentication would be available here when
+									implemented.
+								</AlertDescription>
+							</Alert>
+						)}
 					</CardContent>
 				</Card>
 			</main>
 			<footer className="py-6 border-t mt-auto">
 				<div className="container mx-auto flex justify-between items-center text-sm text-muted-foreground">
 					<p>
-						&copy; {new Date().getFullYear()} {settings.app_name || 'gatherKids'}. All rights reserved.
+						&copy; {new Date().getFullYear()}{' '}
+						{settings.app_name || 'gatherKids'}. All rights reserved.
 					</p>
-					<Button
-						variant="ghost"
-						size="icon"
-						onClick={() => setIsFlagDialogOpen(true)}>
-						<Settings className="h-4 w-4" />
-						<span className="sr-only">Open Feature Flags</span>
-					</Button>
+					{flags.showDemoFeatures && (
+						<Button
+							variant="ghost"
+							size="icon"
+							onClick={() => setIsFlagDialogOpen(true)}>
+							<Settings className="h-4 w-4" />
+							<span className="sr-only">Open Feature Flags</span>
+						</Button>
+					)}
 				</div>
 			</footer>
-			<FeatureFlagDialog
-				isOpen={isFlagDialogOpen}
-				onClose={() => setIsFlagDialogOpen(false)}
-			/>
+			{flags.showDemoFeatures && (
+				<FeatureFlagDialog
+					isOpen={isFlagDialogOpen}
+					onClose={() => setIsFlagDialogOpen(false)}
+				/>
+			)}
 		</div>
 	);
 }

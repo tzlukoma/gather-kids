@@ -27,9 +27,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import type { Incident } from '@/lib/types';
 import { format } from 'date-fns';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '@/lib/db';
-import { acknowledgeIncident } from '@/lib/dal';
+import { acknowledgeIncident, getIncidentsForUser } from '@/lib/dal';
 import { useAuth } from '@/contexts/auth-context';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Info } from 'lucide-react';
@@ -41,22 +39,27 @@ export default function IncidentsPage() {
 	const [activeTab, setActiveTab] = useState('log');
 	const [showPendingOnly, setShowPendingOnly] = useState(false);
 
-	const incidentsQuery = useLiveQuery(async () => {
-		if (!user) return [];
+	// State management for data loading
+	const [incidents, setIncidents] = useState<Incident[]>([]);
+	const [loading, setLoading] = useState(true);
 
-		if (user?.metadata?.role === AuthRole.MINISTRY_LEADER) {
-			// Always restrict leaders to incidents they logged
-			const leaderId = (user.uid || user.id || (user as any).user_id) as
-				| string
-				| undefined;
-			if (!leaderId) return [];
-			return db.incidents
-				.where('leader_id')
-				.equals(leaderId)
-				.reverse()
-				.sortBy('timestamp');
-		}
-		return db.incidents.orderBy('timestamp').reverse().toArray();
+	// Load incidents using DAL function
+	useEffect(() => {
+		const loadIncidents = async () => {
+			if (!user) return;
+			
+			try {
+				setLoading(true);
+				const incidentsData = await getIncidentsForUser(user);
+				setIncidents(incidentsData);
+			} catch (error) {
+				console.error('Error loading incidents:', error);
+			} finally {
+				setLoading(false);
+			}
+		};
+
+		loadIncidents();
 	}, [user]);
 
 	useEffect(() => {
@@ -71,18 +74,23 @@ export default function IncidentsPage() {
 	}, [searchParams]);
 
 	const displayedIncidents = useMemo(() => {
-		if (!incidentsQuery) return [];
+		if (loading) return [];
 		if (showPendingOnly) {
-			return incidentsQuery.filter(
+			return incidents.filter(
 				(incident) => !incident.admin_acknowledged_at
 			);
 		}
-		return incidentsQuery;
-	}, [incidentsQuery, showPendingOnly]);
+		return incidents;
+	}, [incidents, showPendingOnly, loading]);
 
 	const handleAcknowledge = async (incidentId: string) => {
 		try {
 			await acknowledgeIncident(incidentId);
+			
+			// Refresh incidents after acknowledging
+			const updatedIncidents = await getIncidentsForUser(user);
+			setIncidents(updatedIncidents);
+			
 			toast({
 				title: 'Incident Acknowledged',
 				description: 'The incident has been marked as acknowledged.',
@@ -97,7 +105,7 @@ export default function IncidentsPage() {
 		}
 	};
 
-	if (!incidentsQuery) return <div>Loading incidents...</div>;
+	if (loading) return <div>Loading incidents...</div>;
 
 	if (user?.metadata?.role === AuthRole.MINISTRY_LEADER && !user.is_active) {
 		return (

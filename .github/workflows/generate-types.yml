@@ -1,0 +1,90 @@
+name: Generate Supabase Types
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/migrations/**'
+  pull_request:
+    paths:
+      - 'supabase/migrations/**'
+  workflow_dispatch:
+
+jobs:
+  generate-types:
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate secrets are available
+        run: |
+          echo "Checking if secrets are properly loaded..."
+
+          if [ ${#SUPABASE_ACCESS_TOKEN} -eq 0 ]; then
+            echo "ERROR: SUPABASE_ACCESS_TOKEN is empty or not set"
+            exit 1
+          fi
+
+          if [ ${#PROD_SUPABASE_URL} -eq 0 ]; then
+            echo "ERROR: PROD_SUPABASE_URL is empty or not set"
+            exit 1
+          fi
+
+          if [ ${#SUPABASE_DB_PASSWORD} -eq 0 ]; then
+            echo "ERROR: SUPABASE_DB_PASSWORD is empty or not set"
+            exit 1
+          fi
+
+          echo "All required secrets are available"
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          PROD_SUPABASE_URL: ${{ secrets.PROD_SUPABASE_URL }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Supabase CLI
+        run: |
+          mkdir -p "$HOME/.bin"
+          curl -s -L https://github.com/supabase/cli/releases/latest/download/supabase_linux_amd64.tar.gz | tar -xz -C "$HOME/.bin"
+          chmod +x "$HOME/.bin/supabase"
+          echo "$HOME/.bin" >> $GITHUB_PATH
+
+      - name: Extract Project ID and Generate Types
+        if: github.ref == 'refs/heads/main'
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          PROD_SUPABASE_URL: ${{ secrets.PROD_SUPABASE_URL }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: |
+          # Extract project ID
+          PROJECT_ID=$(echo "$PROD_SUPABASE_URL" | sed -E 's/https:\/\/([^.]+)\.supabase\.co.*/\1/')
+          echo "Project ID: $PROJECT_ID"
+
+          # Link to Supabase project
+          echo "Linking to Supabase project..."
+          $HOME/.bin/supabase link --project-ref "$PROJECT_ID" --password "$SUPABASE_DB_PASSWORD"
+
+          # Generate types with all required environment variables
+          echo "Generating types..."
+          SUPABASE_PROJECT_ID="$PROJECT_ID" \
+          SUPABASE_ACCESS_TOKEN="$SUPABASE_ACCESS_TOKEN" \
+          node scripts/gen-types.cjs
+
+      - name: Commit and push if there are changes
+        if: github.ref == 'refs/heads/main'
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add src/lib/database/supabase-types.ts
+          git diff --quiet && git diff --staged --quiet || git commit -m "[auto] Update Supabase type definitions"
+          git push

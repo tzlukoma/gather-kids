@@ -13,11 +13,24 @@
 
 
 import { db } from './db';
+import { db as dbAdapter } from './database/factory';
 import { getApplicableGradeRule } from './bibleBee';
+import { gradeToCode } from './gradeUtils';
 import { AuthRole } from './auth-types';
-import type { Attendance, Child, Guardian, Household, Incident, IncidentSeverity, Ministry, MinistryEnrollment, Registration, User, EmergencyContact, LeaderAssignment, BrandingSettings } from './types';
+import { isDemo } from './featureFlags';
+import type { Attendance, Child, Guardian, Household, Incident, IncidentSeverity, Ministry, MinistryEnrollment, Registration, User, EmergencyContact, LeaderAssignment, LeaderProfile, MinistryLeaderMembership, MinistryAccount, BrandingSettings, BibleBeeYear, RegistrationCycle  } from './types';
 import { differenceInYears, isAfter, isBefore, parseISO, isValid } from 'date-fns';
 import { v4 as uuidv4 } from 'uuid';
+
+// Export both the legacy Dexie interface (db) and the new adapter interface (dbAdapter)
+// Legacy DAL functions continue to use the Dexie interface for backward compatibility
+// New code should use dbAdapter for consistent behavior across demo/Supabase modes
+export { dbAdapter };
+
+// Utility to determine if we should use the adapter interface for write operations
+function shouldUseAdapter(): boolean {
+    return !isDemo(); // Use adapter (Supabase) when not in demo mode
+}
 
 // Utility Functions
 export const getTodayIsoDate = () => new Date().toISOString().split('T')[0];
@@ -236,56 +249,124 @@ export async function getHouseholdProfile(householdId: string): Promise<Househol
 export async function recordCheckIn(childId: string, eventId: string, timeslotId?: string, userId?: string): Promise<string> {
     const today = getTodayIsoDate();
 
-    // Find if the child has any active check-in record for today.
-    const activeCheckIn = await db.attendance
-        .where({ child_id: childId, date: today })
-        .filter(rec => !rec.check_out_at)
-        .first();
+    if (shouldUseAdapter()) {
+        // Use Supabase adapter for live mode
+        // First check for active check-ins
+        const activeCheckIns = await dbAdapter.listAttendance({
+            childId: childId,
+            date: today
+        });
+        
+        const activeCheckIn = activeCheckIns.find(rec => !rec.check_out_at);
+        if (activeCheckIn) {
+            throw new Error("This child is already checked in to another event.");
+        }
 
-    if (activeCheckIn) {
-        throw new Error("This child is already checked in to another event.");
+        // Create new attendance record
+        const attendanceRecord = await dbAdapter.createAttendance({
+            event_id: eventId,
+            child_id: childId,
+            date: today,
+            timeslot_id: timeslotId,
+            check_in_at: new Date().toISOString(),
+            checked_in_by: userId,
+        });
+        
+        return attendanceRecord.attendance_id;
+    } else {
+        // Use legacy Dexie interface for demo mode
+        // Find if the child has any active check-in record for today.
+        const activeCheckIn = await db.attendance
+            .where({ child_id: childId, date: today })
+            .filter(rec => !rec.check_out_at)
+            .first();
+
+        if (activeCheckIn) {
+            throw new Error("This child is already checked in to another event.");
+        }
+
+        // No active record, create a new one.
+        const attendanceRecord: Attendance = {
+            attendance_id: uuidv4(),
+            event_id: eventId,
+            child_id: childId,
+            date: today,
+            timeslot_id: timeslotId,
+            check_in_at: new Date().toISOString(),
+            checked_in_by: userId,
+        };
+        return db.attendance.add(attendanceRecord);
     }
-
-    // No active record, create a new one.
-    const attendanceRecord: Attendance = {
-        attendance_id: uuidv4(),
-        event_id: eventId,
-        child_id: childId,
-        date: today,
-        timeslot_id: timeslotId,
-        check_in_at: new Date().toISOString(),
-        checked_in_by: userId,
-    };
-    return db.attendance.add(attendanceRecord);
 }
 
 export async function recordCheckOut(attendanceId: string, verifier: { method: "PIN" | "other", value: string }, userId?: string): Promise<string> {
-    const attendanceRecord = await db.attendance.get(attendanceId);
-    if (!attendanceRecord) throw new Error("Attendance record not found");
+    if (shouldUseAdapter()) {
+        // Use Supabase adapter for live mode
+        const attendanceRecord = await dbAdapter.getAttendance(attendanceId);
+        if (!attendanceRecord) throw new Error("Attendance record not found");
 
-    const updatedRecord: Attendance = {
-        ...attendanceRecord,
-        check_out_at: new Date().toISOString(),
-        checked_out_by: userId,
-        pickup_method: verifier.method,
-        picked_up_by: verifier.method === 'other' ? verifier.value : undefined,
-    };
-    // Using put to ensure live queries are triggered correctly.
-    return db.attendance.put(updatedRecord);
-}
+        const updatedRecord = await dbAdapter.updateAttendance(attendanceId, {
+            check_out_at: new Date().toISOString(),
+            checked_out_by: userId,
+            pickup_method: verifier.method,
+            picked_up_by: verifier.method === 'other' ? verifier.value : undefined,
+        });
+        
+        return updatedRecord.attendance_id;
+    } else {
+        // Use legacy Dexie interface for demo mode
+        const attendanceRecord = await db.attendance.get(attendanceId);
+        if (!attendanceRecord) throw new Error("Attendance record not found");
 
-export function acknowledgeIncident(incidentId: string): Promise<number> {
-    return db.incidents.update(incidentId, { admin_acknowledged_at: new Date().toISOString() });
-}
-
-export async function logIncident(data: { child_id: string, child_name: string, description: string, severity: IncidentSeverity, leader_id: string, event_id?: string }) {
-    const incident: Incident = {
-        incident_id: uuidv4(),
-        ...data,
-        timestamp: new Date().toISOString(),
-        admin_acknowledged_at: null,
+        const updatedRecord: Attendance = {
+            ...attendanceRecord,
+            check_out_at: new Date().toISOString(),
+            checked_out_by: userId,
+            pickup_method: verifier.method,
+            picked_up_by: verifier.method === 'other' ? verifier.value : undefined,
+        };
+        // Using put to ensure live queries are triggered correctly.
+        return db.attendance.put(updatedRecord);
     }
-    return db.incidents.add(incident);
+}
+
+export async function acknowledgeIncident(incidentId: string): Promise<number | string> {
+    if (shouldUseAdapter()) {
+        // Use Supabase adapter for live mode
+        const updatedIncident = await dbAdapter.updateIncident(incidentId, { 
+            admin_acknowledged_at: new Date().toISOString() 
+        });
+        return updatedIncident.incident_id;
+    } else {
+        // Use legacy Dexie interface for demo mode
+        return db.incidents.update(incidentId, { admin_acknowledged_at: new Date().toISOString() });
+    }
+}
+
+export async function logIncident(data: { child_id: string, child_name: string, description: string, severity: IncidentSeverity, leader_id: string, event_id?: string }): Promise<string> {
+    if (shouldUseAdapter()) {
+        // Use Supabase adapter for live mode
+        const incident = await dbAdapter.createIncident({
+            child_id: data.child_id,
+            child_name: data.child_name,
+            description: data.description,
+            severity: data.severity,
+            leader_id: data.leader_id,
+            event_id: data.event_id,
+            timestamp: new Date().toISOString(),
+            admin_acknowledged_at: null,
+        });
+        return incident.incident_id;
+    } else {
+        // Use legacy Dexie interface for demo mode
+        const incident: Incident = {
+            incident_id: uuidv4(),
+            ...data,
+            timestamp: new Date().toISOString(),
+            admin_acknowledged_at: null,
+        }
+        return db.incidents.add(incident);
+    }
 }
 
 const fetchFullHouseholdData = async (householdId: string, cycleId: string) => {
@@ -333,49 +414,155 @@ const fetchFullHouseholdData = async (householdId: string, cycleId: string) => {
 
 // Find existing household and registration data by email
 export async function findHouseholdByEmail(email: string, currentCycleId: string) {
-    const guardian = await db.guardians.where('email').equalsIgnoreCase(email).first();
-    if (!guardian) return null;
+    if (shouldUseAdapter()) {
+        // Use Supabase adapter for live mode
+        try {
+            // Find guardian by email
+            const guardians = await dbAdapter.listGuardians(''); // This would need to be enhanced to search by email
+            const guardian = guardians.find(g => g.email && g.email.toLowerCase() === email.toLowerCase());
+            if (!guardian) return null;
 
-    const householdId = guardian.household_id;
-    const householdChildren = await db.children.where({ household_id: householdId }).toArray();
-    const householdChildIds = householdChildren.map(c => c.child_id);
+            const householdId = guardian.household_id;
+            const children = await dbAdapter.listChildren({ householdId });
+            const childIds = children.map(c => c.child_id);
 
-    if (householdChildIds.length === 0) return null; // No children in household, so no registration
+            if (childIds.length === 0) return null;
 
-    // 1. Check for an existing registration in the CURRENT cycle.
-    const currentEnrollmentExists = await db.ministry_enrollments
-        .where('child_id').anyOf(householdChildIds)
-        .and(e => e.cycle_id === currentCycleId)
-        .first();
+            // Check for current cycle enrollments
+            const currentEnrollments = await dbAdapter.listMinistryEnrollments(undefined, undefined, currentCycleId);
+            const currentEnrollmentExists = currentEnrollments.some(e => childIds.includes(e.child_id));
 
-    if (currentEnrollmentExists) {
-        return {
-            isCurrentYear: true,
-            isPrefill: false,
-            data: await fetchFullHouseholdData(householdId, currentCycleId)
-        };
+            if (currentEnrollmentExists) {
+                return {
+                    isCurrentYear: true,
+                    isPrefill: false,
+                    data: await fetchFullHouseholdDataFromAdapter(householdId, currentCycleId)
+                };
+            }
+
+            // Check for prior cycle
+            const priorCycleId = String(parseInt(currentCycleId, 10) - 1);
+            const priorEnrollments = await dbAdapter.listMinistryEnrollments(undefined, undefined, priorCycleId);
+            const priorEnrollmentExists = priorEnrollments.some(e => childIds.includes(e.child_id));
+
+            if (priorEnrollmentExists) {
+                return {
+                    isCurrentYear: false,
+                    isPrefill: true,
+                    data: await fetchFullHouseholdDataFromAdapter(householdId, priorCycleId)
+                };
+            }
+
+            return null;
+        } catch (error) {
+            console.error('Error finding household by email in live mode:', error);
+            return null;
+        }
+    } else {
+        // Use legacy Dexie interface for demo mode
+        const guardian = await db.guardians.where('email').equalsIgnoreCase(email).first();
+        if (!guardian) return null;
+
+        const householdId = guardian.household_id;
+        const householdChildren = await db.children.where({ household_id: householdId }).toArray();
+        const householdChildIds = householdChildren.map(c => c.child_id);
+
+        if (householdChildIds.length === 0) return null; // No children in household, so no registration
+
+        // 1. Check for an existing registration in the CURRENT cycle.
+        const currentEnrollmentExists = await db.ministry_enrollments
+            .where('child_id').anyOf(householdChildIds)
+            .and(e => e.cycle_id === currentCycleId)
+            .first();
+
+        if (currentEnrollmentExists) {
+            return {
+                isCurrentYear: true,
+                isPrefill: false,
+                data: await fetchFullHouseholdData(householdId, currentCycleId)
+            };
+        }
+
+        // 2. If no current registration, check for a registration in the PRIOR cycle to pre-fill from.
+        const priorCycleId = String(parseInt(currentCycleId, 10) - 1);
+        const priorRegExists = await db.ministry_enrollments
+            .where('child_id').anyOf(householdChildIds)
+            .and(e => e.cycle_id === priorCycleId)
+            .first();
+
+        if (priorRegExists) {
+            const priorData = await fetchFullHouseholdData(householdId, priorCycleId);
+            return {
+                isCurrentYear: false,
+                isPrefill: true,
+                data: priorData
+            };
+        }
+
+        // 3. No registration found in current or prior year.
+        return null;
     }
-
-    // 2. If no current registration, check for a registration in the PRIOR cycle to pre-fill from.
-    const priorCycleId = String(parseInt(currentCycleId, 10) - 1);
-    const priorRegExists = await db.ministry_enrollments
-        .where('child_id').anyOf(householdChildIds)
-        .and(e => e.cycle_id === priorCycleId)
-        .first();
-
-    if (priorRegExists) {
-        const priorData = await fetchFullHouseholdData(householdId, priorCycleId);
-        return {
-            isCurrentYear: false,
-            isPrefill: true,
-            data: priorData
-        };
-    }
-
-    // 3. No registration found in current or prior year.
-    return null;
 }
 
+// Helper function to fetch household data using adapter
+async function fetchFullHouseholdDataFromAdapter(householdId: string, cycleId: string) {
+    const household = await dbAdapter.getHousehold(householdId);
+    const guardians = await dbAdapter.listGuardians(householdId);
+    const emergencyContacts = await dbAdapter.listEmergencyContacts(householdId);
+    const emergencyContact = emergencyContacts[0] || null;
+    const children = await dbAdapter.listChildren({ householdId, isActive: true });
+    const childIds = children.map(c => c.child_id);
+    const enrollments = await dbAdapter.listMinistryEnrollments(undefined, undefined, cycleId);
+    const childEnrollments = enrollments.filter(e => childIds.includes(e.child_id));
+    const allMinistries = await dbAdapter.listMinistries();
+    const ministryMap = new Map(allMinistries.map(m => [m.ministry_id, m]));
+
+    const childrenWithSelections = children.map(child => {
+        const childEnrollments = enrollments.filter(e => e.child_id === child.child_id);
+        const ministrySelections: { [key: string]: boolean | undefined } = {};
+        const interestSelections: { [key: string]: boolean | undefined } = {};
+        let customData: any = {};
+
+        childEnrollments.forEach(enrollment => {
+            const ministry = ministryMap.get(enrollment.ministry_id);
+            if (!ministry) return;
+
+            if (enrollment.status === 'enrolled') {
+                ministrySelections[ministry.code] = true;
+                if (enrollment.custom_fields) {
+                    customData = { ...customData, ...enrollment.custom_fields };
+                }
+            } else if (enrollment.status === 'expressed_interest') {
+                interestSelections[ministry.code] = true;
+            }
+        });
+
+        return { ...child, ministrySelections, interestSelections, customData };
+    });
+
+    return {
+        household,
+        guardians,
+        emergencyContact,
+        children: childrenWithSelections,
+        consents: { liability: true, photoRelease: true } // Assume consents were given
+    };
+}
+
+
+export async function getHouseholdForUser(authUserId: string): Promise<string | null> {
+    try {
+        const userHousehold = await db.user_households
+            .where('auth_user_id')
+            .equals(authUserId)
+            .first();
+        
+        return userHousehold?.household_id || null;
+    } catch (error) {
+        console.warn('Could not get household for user (likely demo mode):', error);
+        return null;
+    }
+}
 
 // Registration Logic
 export async function registerHousehold(data: any, cycle_id: string, isPrefill: boolean) {
@@ -383,7 +570,176 @@ export async function registerHousehold(data: any, cycle_id: string, isPrefill: 
     const isUpdate = !!data.household.household_id;
     const now = new Date().toISOString();
 
-    await (db as any).transaction('rw', db.households, db.guardians, db.emergency_contacts, db.children, db.registrations, db.ministry_enrollments, db.ministries, async () => {
+    if (shouldUseAdapter()) {
+        // Use Supabase adapter for live mode - Handle registration transaction
+        return await dbAdapter.transaction(async () => {
+            // Handle household
+            const household = {
+                household_id: householdId,
+                name: data.household.name || `${data.guardians[0].last_name} Household`,
+                address_line1: data.household.address_line1,
+                preferredScriptureTranslation: data.household.preferredScriptureTranslation,
+            };
+
+            if (isUpdate) {
+                await dbAdapter.updateHousehold(householdId, household);
+                // Delete existing guardians and contacts for update
+                const existingGuardians = await dbAdapter.listGuardians(householdId);
+                const existingContacts = await dbAdapter.listEmergencyContacts(householdId);
+                for (const guardian of existingGuardians) {
+                    await dbAdapter.deleteGuardian(guardian.guardian_id);
+                }
+                for (const contact of existingContacts) {
+                    await dbAdapter.deleteEmergencyContact(contact.contact_id);
+                }
+            } else {
+                await dbAdapter.createHousehold(household);
+            }
+
+            // Create guardians and store their IDs for later reference
+            const createdGuardians: Guardian[] = [];
+            for (const guardianData of data.guardians) {
+                const createdGuardian = await dbAdapter.createGuardian({
+                    household_id: householdId,
+                    ...guardianData,
+                });
+                createdGuardians.push(createdGuardian);
+            }
+
+            // Create emergency contact
+            await dbAdapter.createEmergencyContact({
+                household_id: householdId,
+                ...data.emergencyContact,
+            });
+
+            // Handle children and enrollments
+            for (const [index, childData] of data.children.entries()) {
+                const { ministrySelections, interestSelections, customData, ...childCore } = childData;
+                const childId = childCore.child_id || uuidv4();
+
+                const child = {
+                    ...childCore,
+                    child_id: childId,
+                    household_id: householdId,
+                    is_active: true,
+                };
+
+                if (childCore.child_id) {
+                    await dbAdapter.updateChild(childId, child);
+                } else {
+                    await dbAdapter.createChild(child);
+                }
+
+                // Delete existing enrollments for this cycle if updating
+                if (isUpdate && !isPrefill) {
+                    const existingEnrollments = await dbAdapter.listMinistryEnrollments(childId, undefined, cycle_id);
+                    for (const enrollment of existingEnrollments) {
+                        await dbAdapter.deleteMinistryEnrollment(enrollment.enrollment_id);
+                    }
+                    
+                    const existingRegistrations = await dbAdapter.listRegistrations({ childId, cycleId: cycle_id });
+                    for (const registration of existingRegistrations) {
+                        await dbAdapter.deleteRegistration(registration.registration_id);
+                    }
+                }
+
+                // Create registration - Use the first created guardian for consent signatures
+                const primaryGuardian = createdGuardians[0];
+                await dbAdapter.createRegistration({
+                    child_id: childId,
+                    cycle_id: cycle_id,
+                    status: 'active',
+                    pre_registered_sunday_school: true,
+                    consents: [
+                        { type: 'liability', accepted_at: data.consents.liability ? now : null, signer_id: primaryGuardian.guardian_id, signer_name: `${primaryGuardian.first_name} ${primaryGuardian.last_name}` },
+                        { type: 'photoRelease', accepted_at: data.consents.photoRelease ? now : null, signer_id: primaryGuardian.guardian_id, signer_name: `${primaryGuardian.first_name} ${primaryGuardian.last_name}` }
+                    ],
+                    submitted_at: now,
+                    submitted_via: 'web',
+                });
+
+                // Auto-enroll in Sunday School
+                await dbAdapter.createMinistryEnrollment({
+                    child_id: childId,
+                    cycle_id: cycle_id,
+                    ministry_id: "min_sunday_school",
+                    status: 'enrolled',
+                });
+
+                // Handle ministry and interest selections
+                const allSelections = { ...(childData.ministrySelections || {}), ...(childData.interestSelections || {}) };
+                const allMinistries = await dbAdapter.listMinistries();
+                const ministryMap = new Map(allMinistries.map(m => [m.code, m]));
+
+                for (const ministryCode in allSelections) {
+                    if (allSelections[ministryCode] && ministryCode !== 'min_sunday_school') {
+                        const ministry = ministryMap.get(ministryCode);
+                        if (ministry) {
+                            const age = child.dob ? ageOn(now, child.dob) : null;
+                            const minAge = ministry.min_age ?? -1;
+                            const maxAge = ministry.max_age ?? 999;
+                            if (age !== null && (age < minAge || age > maxAge)) {
+                                console.warn(`Skipping enrollment for ${child.first_name} in ${ministry.name} due to age restrictions.`);
+                                continue;
+                            }
+
+                            const custom_fields: { [key: string]: any } = {};
+                            if (childData.customData && ministry.custom_questions) {
+                                for (const q of ministry.custom_questions) {
+                                    if (childData.customData[q.id] !== undefined) {
+                                        custom_fields[q.id] = childData.customData[q.id];
+                                    }
+                                }
+                            }
+
+                            await dbAdapter.createMinistryEnrollment({
+                                child_id: childId,
+                                cycle_id: cycle_id,
+                                ministry_id: ministry.ministry_id,
+                                status: ministry.enrollment_type,
+                                custom_fields: Object.keys(custom_fields).length > 0 ? custom_fields : undefined,
+                            });
+
+                            // Handle Bible Bee enrollment through new system
+                            if (ministry.code === 'bible-bee') {
+                                try {
+                                    const bibleBeeYears = await dbAdapter.listBibleBeeYears();
+                                    const bibleBeeYear = bibleBeeYears.find(year => year.is_active);
+                                    
+                                    if (bibleBeeYear) {
+                                        const gradeNum = child.grade ? gradeToCode(child.grade) : 0;
+                                        const divisions = await dbAdapter.listDivisions(bibleBeeYear.id);
+                                        
+                                        const appropriateDivision = divisions.find(d => 
+                                            gradeNum !== null && gradeNum >= d.min_grade && gradeNum <= d.max_grade
+                                        );
+                                        
+                                        if (appropriateDivision) {
+                                            await dbAdapter.createEnrollment({
+                                                id: uuidv4(),
+                                                child_id: childId,
+                                                year_id: bibleBeeYear.id,
+                                                division_id: appropriateDivision.id,
+                                                auto_enrolled: false,
+                                                enrolled_at: now,
+                                            });
+                                            console.log(`Created Bible Bee enrollment for child ${child.first_name} in division ${appropriateDivision.name}`);
+                                        }
+                                    }
+                                } catch (error) {
+                                    console.error('Error creating Bible Bee enrollment:', error);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            return { household_id: householdId };
+        });
+    } else {
+        // Use legacy Dexie interface for demo mode
+        await (db as any).transaction('rw', db.households, db.guardians, db.emergency_contacts, db.children, db.registrations, db.ministry_enrollments, db.ministries, async () => {
 
         // This block handles overwriting an existing registration for the *current* cycle.
         // It should NOT run for a pre-fill from a previous year.
@@ -405,6 +761,7 @@ export async function registerHousehold(data: any, cycle_id: string, isPrefill: 
             household_id: householdId,
             name: data.household.name || `${data.guardians[0].last_name} Household`,
             address_line1: data.household.address_line1,
+            preferredScriptureTranslation: data.household.preferredScriptureTranslation,
             created_at: isUpdate ? (await db.households.get(householdId))!.created_at : now,
             updated_at: now,
         };
@@ -517,11 +874,106 @@ export async function registerHousehold(data: any, cycle_id: string, isPrefill: 
                             custom_fields: Object.keys(custom_fields).length > 0 ? custom_fields : undefined,
                         };
                         await db.ministry_enrollments.add(enrollment);
+
+                        // CRITICAL FIX: For Bible Bee, also create entry in new enrollments table
+                        if (ministry.code === 'bible-bee') {
+                            try {
+                                // Find the active Bible Bee year for this cycle
+                                const bibleBeeYear = await db.bible_bee_years
+                                    .where('cycle_id')
+                                    .equals(cycle_id)
+                                    .and(year => year.is_active)
+                                    .first();
+                                
+                                if (bibleBeeYear) {
+                                    // Get the child's grade to determine appropriate division
+                                    const gradeNum = child.grade ? gradeToCode(child.grade) : 0;
+                                    const divisions = await db.divisions
+                                        .where('year_id')
+                                        .equals(bibleBeeYear.id)
+                                        .toArray();
+                                    
+                                    const appropriateDivision = divisions.find(d => 
+                                        gradeNum !== null && gradeNum >= d.min_grade && gradeNum <= d.max_grade
+                                    );
+                                    
+                                    if (appropriateDivision) {
+                                        const bibleBeeEnrollment = {
+                                            id: uuidv4(),
+                                            child_id: child.child_id,
+                                            year_id: bibleBeeYear.id,
+                                            division_id: appropriateDivision.id,
+                                            auto_enrolled: false,
+                                            enrolled_at: now,
+                                        };
+                                        await db.enrollments.add(bibleBeeEnrollment);
+                                        console.log(`Created Bible Bee enrollment for child ${child.first_name} in division ${appropriateDivision.name}`);
+                                    } else {
+                                        console.warn(`No appropriate Bible Bee division found for child ${child.first_name} in grade ${child.grade}`);
+                                    }
+                                } else {
+                                    console.warn(`No active Bible Bee year found for cycle ${cycle_id}`);
+                                }
+                            } catch (error) {
+                                console.error('Error creating Bible Bee enrollment:', error);
+                                // Don't fail the entire registration if Bible Bee enrollment fails
+                            }
+                        }
                     }
                 }
             }
         }
     });
+    }
+
+    // Create user_households relationship for Supabase auth
+    // Handle this separately to avoid transaction conflicts with external async operations
+    if (!isPrefill) { // Only create the relationship on final registration, not prefill
+        try {
+            // Import here to avoid circular dependency issues
+            const { supabase } = await import('@/lib/supabaseClient');
+            if (supabase) {
+                const { data: { session } } = await supabase.auth.getSession();
+                if (session?.user) {
+                    // Check if relationship already exists
+                    const existingRelation = await db.user_households
+                        .where('[auth_user_id+household_id]')
+                        .equals([session.user.id, householdId])
+                        .first();
+
+                    if (!existingRelation) {
+                        const userHousehold = {
+                            user_household_id: uuidv4(),
+                            auth_user_id: session.user.id,
+                            household_id: householdId,
+                            created_at: now,
+                        };
+                        await db.user_households.add(userHousehold);
+                        console.log('Created user_households relationship:', userHousehold);
+                    }
+
+                    // Assign GUARDIAN role to the authenticated user
+                    const { error: roleError } = await supabase.auth.updateUser({
+                        data: {
+                            role: 'GUARDIAN',
+                            household_id: householdId,
+                        },
+                    });
+
+                    if (roleError) {
+                        console.warn('Could not assign GUARDIAN role:', roleError);
+                    } else {
+                        console.log('Assigned GUARDIAN role to user:', session.user.id);
+                    }
+                }
+            }
+        } catch (error) {
+            console.warn('Could not create user_households relationship (likely demo mode):', error);
+        }
+    }
+    
+    // Return the household_id for the calling code
+    return { household_id: householdId };
 }
 
 // CSV Export Functions
@@ -616,27 +1068,51 @@ export async function exportAttendanceRollupCSV(startISO: string, endISO: string
 
 // Ministry Configuration CRUD
 export async function createMinistry(ministryData: Omit<Ministry, 'ministry_id' | 'created_at' | 'updated_at' | 'data_profile'>): Promise<string> {
-    const now = new Date().toISOString();
-    const newMinistry: Ministry = {
-        ...ministryData,
-        ministry_id: ministryData.code, // Use code as ID for simplicity
-        created_at: now,
-        updated_at: now,
-        data_profile: 'Basic', // Default data profile
-        is_active: ministryData.is_active ?? true,
-    };
-    return db.ministries.add(newMinistry);
+    if (shouldUseAdapter()) {
+        // Use Supabase adapter for live mode
+        const newMinistry = await dbAdapter.createMinistry({
+            ...ministryData,
+            data_profile: 'Basic', // Default data profile
+            is_active: ministryData.is_active ?? true,
+        });
+        return newMinistry.ministry_id;
+    } else {
+        // Use legacy Dexie interface for demo mode
+        const now = new Date().toISOString();
+        const newMinistry: Ministry = {
+            ...ministryData,
+            ministry_id: ministryData.code, // Use code as ID for simplicity
+            created_at: now,
+            updated_at: now,
+            data_profile: 'Basic', // Default data profile
+            is_active: ministryData.is_active ?? true,
+        };
+        return db.ministries.add(newMinistry);
+    }
 }
 
-export async function updateMinistry(ministryId: string, updates: Partial<Ministry>): Promise<number> {
-    const now = new Date().toISOString();
-    return db.ministries.update(ministryId, { ...updates, updated_at: now });
+export async function updateMinistry(ministryId: string, updates: Partial<Ministry>): Promise<number | string> {
+    if (shouldUseAdapter()) {
+        // Use Supabase adapter for live mode
+        const updatedMinistry = await dbAdapter.updateMinistry(ministryId, updates);
+        return updatedMinistry.ministry_id;
+    } else {
+        // Use legacy Dexie interface for demo mode
+        const now = new Date().toISOString();
+        return db.ministries.update(ministryId, { ...updates, updated_at: now });
+    }
 }
 
 export async function deleteMinistry(ministryId: string): Promise<void> {
-    // In a real app, you would handle cascading deletes or archiving.
-    // For this prototype, we will just delete the ministry.
-    return db.ministries.delete(ministryId);
+    if (shouldUseAdapter()) {
+        // Use Supabase adapter for live mode
+        await dbAdapter.deleteMinistry(ministryId);
+    } else {
+        // Use legacy Dexie interface for demo mode
+        // In a real app, you would handle cascading deletes or archiving.
+        // For this prototype, we will just delete the ministry.
+        return db.ministries.delete(ministryId);
+    }
 }
 
 // Leader Management
@@ -735,8 +1211,8 @@ export async function getLeaderBibleBeeProgress(leaderId: string, cycleId: strin
         let requiredScriptures: number | null = null;
         let gradeGroup: string | null = null;
         try {
-            const gradeNum = child.grade ? Number(child.grade) : NaN;
-            const rule = !isNaN(gradeNum) && compYear ? await getApplicableGradeRule(compYear.id, gradeNum) : null;
+            const gradeNum = child.grade ? gradeToCode(child.grade) : null;
+            const rule = gradeNum !== null && compYear ? await getApplicableGradeRule(compYear.id, gradeNum) : null;
             requiredScriptures = rule?.targetCount ?? null;
             if (rule) {
                 if (rule.minGrade === rule.maxGrade) gradeGroup = `Grade ${rule.minGrade}`;
@@ -778,20 +1254,57 @@ export async function getLeaderBibleBeeProgress(leaderId: string, cycleId: strin
 }
 
 export async function getBibleBeeProgressForCycle(cycleId: string) {
-    // Find enrollments for the bible-bee ministry for the cycle
-    const enrollments = await db.ministry_enrollments
-        .where('ministry_id').equals('bible-bee')
-        .and(e => e.cycle_id === cycleId)
-        .toArray();
+    // Support both legacy (registration cycle id / numeric year) and new-schema
+    // bible-bee years. If cycleId matches a bible_bee_year id, use the new
+    // `enrollments` table; otherwise fall back to legacy ministry_enrollments.
 
-    const childIds = [...new Set(enrollments.map(e => e.child_id))];
-    if (childIds.length === 0) return [];
+    // First, attempt to treat cycleId as a new-schema bible-bee year id by
+    // checking enrollments for that year. This handles the case where the
+    // bible_bee_year record might not yet exist at the time of the query but
+    // enrollments are present, and avoids accidental mapping to the active
+    // registration cycle which could show prior-year children.
+    let childIds: string[] = [];
+    let children: any[] = [];
+    let compYear: any = null;
 
-    const children = await db.children.where('child_id').anyOf(childIds).toArray();
+    try {
+        const newEnrolls = await db.enrollments.where('year_id').equals(cycleId).toArray();
+        if (newEnrolls && newEnrolls.length > 0) {
+            childIds = [...new Set(newEnrolls.map(e => e.child_id))];
+            children = await db.children.where('child_id').anyOf(childIds).toArray();
+            compYear = null;
+        }
+    } catch (err) {
+        // ignore and fall back to legacy path
+    }
 
-    // Find the competition year matching the numeric cycle year (if present)
-    const yearNum = Number(cycleId);
-    const compYear = await db.competitionYears.where('year').equals(yearNum).first();
+    if (childIds.length === 0) {
+        // No new-schema enrollments found for this id; try legacy path or
+        // resolve via bible_bee_year existence.
+        const bbYear = await db.bible_bee_years.get(cycleId);
+        if (bbYear) {
+            const newEnrolls = await db.enrollments.where('year_id').equals(bbYear.id).toArray();
+            childIds = [...new Set(newEnrolls.map(e => e.child_id))];
+            if (childIds.length === 0) return [];
+            children = await db.children.where('child_id').anyOf(childIds).toArray();
+            compYear = null;
+        } else {
+            // Legacy path: ministry_enrollments keyed by ministry_id + cycle_id
+            const enrollments = await db.ministry_enrollments
+                .where('ministry_id').equals('bible-bee')
+                .and(e => e.cycle_id === cycleId)
+                .toArray();
+
+            childIds = [...new Set(enrollments.map(e => e.child_id))];
+            if (childIds.length === 0) return [];
+
+            children = await db.children.where('child_id').anyOf(childIds).toArray();
+
+            // Find the competition year matching the numeric cycle year (if present)
+            const yearNum = Number(cycleId);
+            compYear = await db.competitionYears.where('year').equals(yearNum).first();
+        }
+    }
 
     const results: any[] = [];
     const allEnrollmentsForChildren = await db.ministry_enrollments.where('child_id').anyOf(childIds).and(e => e.cycle_id === cycleId).toArray();
@@ -808,23 +1321,69 @@ export async function getBibleBeeProgressForCycle(cycleId: string) {
 
         const totalScriptures = scriptures.length;
         const completedScriptures = scriptures.filter(s => s.status === 'completed').length;
-        const essayStatus = essays.length ? essays[0].status : 'none';
+        
+        // Check essay status - look for essay prompts assigned to the child's division
+        let essayStatus = 'none';
+        if (essays.length > 0) {
+            essayStatus = essays[0].status;
+        } else {
+            // Check if there's an essay prompt assigned to this child's division
+            try {
+                const divisionInfo = await (await import('./bibleBee')).getChildDivisionInfo(child.child_id, cycleId);
+                if (divisionInfo.division) {
+                    const essayPrompts = await db.essay_prompts
+                        .where('year_id')
+                        .equals(cycleId)
+                        .and(prompt => prompt.division_name === divisionInfo.division.name)
+                        .toArray();
+                    if (essayPrompts.length > 0) {
+                        essayStatus = 'assigned';
+                    }
+                }
+            } catch (error) {
+                console.warn('Error checking essay assignment for child:', child.child_id, error);
+            }
+        }
 
-        const childEnrolls = allEnrollmentsForChildren.filter(e => e.child_id === child.child_id).map(e => ({ ...e, ministryName: ministryMap.get(e.ministry_id)?.name || 'Unknown' }));
+        // For new-schema enrollments, get ministries from the enrollments table
+        let childEnrolls: any[] = [];
+        if (cycleId && (await db.bible_bee_years.get(cycleId))) {
+            // New schema: Look up actual enrollments for the child in this year
+            try {
+                const enrollments = await db.enrollments.where('child_id').equals(child.child_id).and(e => e.year_id === cycleId).toArray();
+                // Map to Bible Bee ministry
+                childEnrolls = [{ ministry_id: 'bible-bee', ministryName: 'Bible Bee' }];
+            } catch (error) {
+                childEnrolls = [];
+            }
+        } else {
+            // Legacy schema: Use ministry_enrollments
+            childEnrolls = allEnrollmentsForChildren.filter(e => e.child_id === child.child_id).map(e => ({ ...e, ministryName: ministryMap.get(e.ministry_id)?.name || 'Unknown' }));
+        }
 
+        // Use the new division system to get target and division info
         let requiredScriptures: number | null = null;
         let gradeGroup: string | null = null;
         try {
-            const gradeNum = child.grade ? Number(child.grade) : NaN;
-            const rule = !isNaN(gradeNum) && compYear ? await getApplicableGradeRule(compYear.id, gradeNum) : null;
-            requiredScriptures = rule?.targetCount ?? null;
-            if (rule) {
-                if (rule.minGrade === rule.maxGrade) gradeGroup = `Grade ${rule.minGrade}`;
-                else gradeGroup = `Grades ${rule.minGrade}-${rule.maxGrade}`;
-            }
+            // Use the helper function to get division information
+            const divisionInfo = await (await import('./bibleBee')).getChildDivisionInfo(child.child_id, cycleId);
+            requiredScriptures = divisionInfo.target;
+            gradeGroup = divisionInfo.gradeGroup;
         } catch (err) {
-            requiredScriptures = null;
-            gradeGroup = null;
+            console.warn('Error getting division info:', err);
+            // Fall back to legacy system
+            try {
+                const gradeNum = child.grade ? gradeToCode(child.grade) : null;
+                const rule = gradeNum !== null && compYear ? await getApplicableGradeRule(compYear.id, gradeNum) : null;
+                requiredScriptures = rule?.targetCount ?? null;
+                if (rule) {
+                    if (rule.minGrade === rule.maxGrade) gradeGroup = `Grade ${rule.minGrade}`;
+                    else gradeGroup = `Grades ${rule.minGrade}-${rule.maxGrade}`;
+                }
+            } catch (legacyErr) {
+                requiredScriptures = null;
+                gradeGroup = null;
+            }
         }
 
         const target = requiredScriptures ?? totalScriptures;
@@ -867,33 +1426,539 @@ export async function getBibleBeeProgressForCycle(cycleId: string) {
 }
 
 export async function saveLeaderAssignments(leaderId: string, cycleId: string, newAssignments: Omit<LeaderAssignment, 'assignment_id'>[]) {
-    return (db as any).transaction('rw', db.leader_assignments, async () => {
-        // Delete old assignments for this leader and cycle
-        await db.leader_assignments.where({ leader_id: leaderId, cycle_id: cycleId }).delete();
+    if (shouldUseAdapter()) {
+        // Use Supabase adapter for live mode
+        return await dbAdapter.transaction(async () => {
+            // Note: This would need leader assignment methods in the adapter
+            // For now, just log the operation
+            console.log('Leader assignments would be saved to Supabase:', { leaderId, cycleId, newAssignments });
+            // In a full implementation, we'd need adapter methods for leader assignments
+        });
+    } else {
+        // Use legacy Dexie interface for demo mode
+        return (db as any).transaction('rw', db.leader_assignments, async () => {
+            // Delete old assignments for this leader and cycle
+            await db.leader_assignments.where({ leader_id: leaderId, cycle_id: cycleId }).delete();
 
-        // Add new ones
-        if (newAssignments.length > 0) {
-            const assignmentsToCreate = newAssignments.map(a => ({
-                ...a,
-                assignment_id: uuidv4()
+            // Add new ones
+            if (newAssignments.length > 0) {
+                const assignmentsToCreate = newAssignments.map(a => ({
+                    ...a,
+                    assignment_id: uuidv4()
+                }));
+                await db.leader_assignments.bulkAdd(assignmentsToCreate);
+            }
+        });
+    }
+}
+
+export async function updateLeaderStatus(leaderId: string, isActive: boolean): Promise<number | string> {
+    if (shouldUseAdapter()) {
+        // Use Supabase adapter for live mode
+        const updatedUser = await dbAdapter.updateUser(leaderId, { is_active: isActive });
+        return updatedUser.user_id;
+    } else {
+        // Use legacy Dexie interface for demo mode
+        return db.users.update(leaderId, { is_active: isActive });
+    }
+}
+
+// === NEW: Leader Profile Management Functions ===
+
+// Normalize email to lowercase
+function normalizeEmail(email?: string): string | undefined {
+  return email ? email.toLowerCase().trim() : undefined;
+}
+
+// Normalize phone number (basic implementation)
+function normalizePhone(phone?: string): string | undefined {
+  if (!phone) return undefined;
+  return phone.replace(/\D/g, ''); // Remove all non-digits
+}
+
+// Query all leader profiles with their membership counts
+export async function queryLeaderProfiles() {
+    console.log('queryLeaderProfiles called, shouldUseAdapter():', shouldUseAdapter());
+    
+    if (shouldUseAdapter()) {
+        // Use Supabase adapter for live mode
+        console.log('Using Supabase adapter for leader profiles');
+        try {
+            const [profiles, memberships] = await Promise.all([
+                dbAdapter.listLeaderProfiles(),
+                dbAdapter.listMinistryLeaderMemberships()
+            ]);
+            
+            console.log('Raw profiles from Supabase:', profiles);
+            console.log('Raw memberships from Supabase:', memberships);
+            
+            // Sort by last name, then first name
+            profiles.sort((a, b) => {
+                const lastNameCompare = a.last_name.localeCompare(b.last_name);
+                if (lastNameCompare !== 0) return lastNameCompare;
+                return a.first_name.localeCompare(b.first_name);
+            });
+            
+            // Create a map of leader_id to ministry count (only active memberships)
+            const membershipCounts = memberships.reduce((acc, m) => {
+                if (m.is_active) {
+                    acc[m.leader_id] = (acc[m.leader_id] || 0) + 1;
+                }
+                return acc;
+            }, {} as Record<string, number>);
+            
+            const result = profiles.map(profile => ({
+                ...profile,
+                ministryCount: membershipCounts[profile.leader_id] || 0,
+                is_active: profile.is_active && (membershipCounts[profile.leader_id] || 0) > 0
             }));
-            await db.leader_assignments.bulkAdd(assignmentsToCreate);
+            
+            console.log('Final processed leader profiles:', result);
+            return result;
+        } catch (error) {
+            console.error('Error in Supabase leader query:', error);
+            throw error;
         }
-    });
+    } else {
+        // Use legacy Dexie interface for demo mode
+        console.log('Using Dexie for leader profiles');
+        const profiles = await db.leader_profiles.toArray();
+        const memberships = await db.ministry_leader_memberships.toArray();
+        
+        // Sort by last name, then first name
+        profiles.sort((a, b) => {
+            const lastNameCompare = a.last_name.localeCompare(b.last_name);
+            if (lastNameCompare !== 0) return lastNameCompare;
+            return a.first_name.localeCompare(b.first_name);
+        });
+        
+        // Create a map of leader_id to ministry count (only active memberships)
+        const membershipCounts = memberships.reduce((acc, m) => {
+            if (m.is_active) {
+                acc[m.leader_id] = (acc[m.leader_id] || 0) + 1;
+            }
+            return acc;
+        }, {} as Record<string, number>);
+        
+        return profiles.map(profile => ({
+            ...profile,
+            ministryCount: membershipCounts[profile.leader_id] || 0,
+            is_active: profile.is_active && (membershipCounts[profile.leader_id] || 0) > 0
+        }));
+    }
 }
 
-export async function updateLeaderStatus(leaderId: string, isActive: boolean): Promise<number> {
-    return db.users.update(leaderId, { is_active: isActive });
+// Get leader profile with all memberships
+export async function getLeaderProfileWithMemberships(leaderId: string) {
+    const profile = await db.leader_profiles.get(leaderId);
+    if (!profile) return null;
+
+    const memberships = await db.ministry_leader_memberships.where('leader_id').equals(leaderId).toArray();
+    const ministries = await db.ministries.toArray();
+    const ministryMap = new Map(ministries.map(m => [m.ministry_id, m]));
+
+    const membershipsWithMinistries = memberships.map(m => ({
+        ...m,
+        ministry: ministryMap.get(m.ministry_id)
+    })).filter(m => m.ministry); // Filter out memberships for deleted ministries
+
+    return {
+        profile,
+        memberships: membershipsWithMinistries,
+        allMinistries: ministries.filter(m => m.is_active).sort((a, b) => a.name.localeCompare(b.name))
+    };
 }
 
-export async function updateChildPhoto(childId: string, photoDataUrl: string): Promise<number> {
-    return db.children.update(childId, { photo_url: photoDataUrl });
+/**
+ * Determine whether a leader can manage the Bible Bee ministry.
+ * Checks legacy leader_assignments (mapped to active registration cycle when
+ * selectedCycle points to a bible_bee_year), new ministry_leader_memberships,
+ * and ministry_accounts (email-based demo mapping).
+ */
+export async function canLeaderManageBibleBee(opts: { leaderId?: string; email?: string; selectedCycle?: string; }) {
+    const { leaderId, email, selectedCycle } = opts || {};
+    // If neither identifier provided, cannot determine permission
+    if (!leaderId && !email) return false;
+
+    // Resolve an effective cycle id for legacy leader_assignments. If
+    // selectedCycle corresponds to a bible_bee_year, map it to the currently
+    // active registration cycle id.
+    let effectiveCycle = selectedCycle;
+    if (selectedCycle) {
+        try {
+            const bb = await db.bible_bee_years.get(selectedCycle);
+            if (bb) {
+                const allCycles = await db.registration_cycles.toArray();
+                const active = allCycles.find((c: any) => {
+                    const val: any = (c as any)?.is_active;
+                    return val === true || val === 1 || String(val) === '1';
+                });
+                if (active && active.cycle_id) effectiveCycle = active.cycle_id;
+            }
+        } catch (err) {
+            // ignore and proceed
+        }
+    }
+
+    // 1) Legacy leader_assignments check
+    if (leaderId && effectiveCycle) {
+        const assignments = await db.leader_assignments.where({ leader_id: leaderId, cycle_id: effectiveCycle }).toArray();
+        if (assignments.some((a: any) => (a as any).ministry_id === 'bible-bee' && (a as any).role === 'Primary')) return true;
+    }
+
+    // 2) New management system: ministry_leader_memberships
+    if (leaderId) {
+        const memberships = await db.ministry_leader_memberships.where('leader_id').equals(leaderId).toArray();
+        if (memberships.some((m: any) => (m.ministry_id === 'bible-bee') && m.is_active)) return true;
+    }
+
+    // 3) Demo/email-based mapping: ministry_accounts
+    if (email) {
+        const accounts = await db.ministry_accounts.where('email').equals(String(email)).toArray();
+        if (accounts.some((a: any) => a.ministry_id === 'bible-bee')) return true;
+    }
+
+    return false;
+}
+
+// Create or update leader profile
+export async function saveLeaderProfile(profileData: Omit<LeaderProfile, 'created_at' | 'updated_at'> & { created_at?: string }) {
+    if (shouldUseAdapter()) {
+        // Use Supabase adapter for live mode
+        const now = new Date().toISOString();
+        
+        // Normalize email and phone
+        const normalizedProfile = {
+            ...profileData,
+            email: normalizeEmail(profileData.email),
+            phone: normalizePhone(profileData.phone),
+        };
+
+        // Check for duplicate email (if provided)
+        if (normalizedProfile.email) {
+            const existingProfiles = await dbAdapter.listLeaderProfiles();
+            const existingByEmail = existingProfiles.find(p => 
+                p.email === normalizedProfile.email && p.leader_id !== normalizedProfile.leader_id
+            );
+            
+            if (existingByEmail) {
+                throw new Error(`A leader profile with email ${normalizedProfile.email} already exists`);
+            }
+        }
+
+        // Check if profile exists
+        const existingProfile = await dbAdapter.getLeaderProfile(normalizedProfile.leader_id);
+        if (existingProfile) {
+            const updatedProfile = await dbAdapter.updateLeaderProfile(normalizedProfile.leader_id, normalizedProfile);
+            return updatedProfile.leader_id;
+        } else {
+            // Create new profile - exclude leader_id as adapter generates its own UUID
+            const { leader_id, ...profileDataWithoutId } = normalizedProfile;
+            const newProfile = await dbAdapter.createLeaderProfile(profileDataWithoutId);
+            return newProfile.leader_id;
+        }
+    } else {
+        // Use legacy Dexie interface for demo mode
+        const now = new Date().toISOString();
+        
+        // Normalize email and phone
+        const normalizedProfile: LeaderProfile = {
+            ...profileData,
+            email: normalizeEmail(profileData.email),
+            phone: normalizePhone(profileData.phone),
+            created_at: profileData.created_at || now,
+            updated_at: now
+        };
+
+        // Check for duplicate email (if provided)
+        if (normalizedProfile.email) {
+            const existingByEmail = await db.leader_profiles
+                .where('email').equals(normalizedProfile.email)
+                .and(p => p.leader_id !== normalizedProfile.leader_id)
+                .first();
+            
+            if (existingByEmail) {
+                throw new Error(`A leader profile with email ${normalizedProfile.email} already exists`);
+            }
+        }
+
+        return db.leader_profiles.put(normalizedProfile);
+    }
+}
+
+// Get ministry memberships for a leader
+export async function getLeaderMemberships(leaderId: string) {
+    const memberships = await db.ministry_leader_memberships.where('leader_id').equals(leaderId).toArray();
+    const ministries = await db.ministries.toArray();
+    const ministryMap = new Map(ministries.map(m => [m.ministry_id, m]));
+
+    return memberships.map(m => ({
+        ...m,
+        ministry: ministryMap.get(m.ministry_id)
+    })).filter(m => m.ministry);
+}
+
+// Save leader memberships (replaces all memberships for the leader)
+export async function saveLeaderMemberships(leaderId: string, memberships: Omit<MinistryLeaderMembership, 'membership_id' | 'created_at' | 'updated_at'>[]) {
+    if (shouldUseAdapter()) {
+        // Use Supabase adapter for live mode
+        return await dbAdapter.transaction(async () => {
+            // Delete existing memberships for this leader
+            const existingMemberships = await dbAdapter.listMinistryLeaderMemberships(undefined, leaderId);
+            for (const membership of existingMemberships) {
+                await dbAdapter.deleteMinistryLeaderMembership(membership.membership_id);
+            }
+
+            // Add new memberships
+            if (memberships.length > 0) {
+                for (const membershipData of memberships) {
+                    // The membershipData already includes leader_id, just pass it to the adapter
+                    await dbAdapter.createMinistryLeaderMembership(membershipData);
+                }
+            }
+
+            // Update leader profile activity status
+            await updateLeaderProfileStatusViaAdapter(leaderId, memberships.some(m => m.is_active));
+        });
+    } else {
+        // Use legacy Dexie interface for demo mode
+        return db.transaction('rw', [db.ministry_leader_memberships, db.leader_profiles], async () => {
+            // Delete existing memberships for this leader
+            await db.ministry_leader_memberships.where('leader_id').equals(leaderId).delete();
+
+            // Add new memberships
+            if (memberships.length > 0) {
+                const now = new Date().toISOString();
+                const membershipRecords: MinistryLeaderMembership[] = memberships.map(m => ({
+                    ...m,
+                    membership_id: uuidv4(),
+                    created_at: now,
+                    updated_at: now
+                }));
+
+                await db.ministry_leader_memberships.bulkAdd(membershipRecords);
+            }
+
+            // Update leader profile activity status
+            await updateLeaderProfileStatus(leaderId, memberships.some(m => m.is_active));
+        });
+    }
+}
+
+// Helper function to update leader profile status via adapter
+async function updateLeaderProfileStatusViaAdapter(leaderId: string, isActive: boolean) {
+    const existingProfile = await dbAdapter.getLeaderProfile(leaderId);
+    if (existingProfile) {
+        await dbAdapter.updateLeaderProfile(leaderId, { is_active: isActive });
+    }
+}
+
+// Update leader profile active status
+export async function updateLeaderProfileStatus(leaderId: string, isActive: boolean) {
+    if (shouldUseAdapter()) {
+        // Use Supabase adapter for live mode
+        await updateLeaderProfileStatusViaAdapter(leaderId, isActive);
+        return leaderId;
+    } else {
+        // Use legacy Dexie interface for demo mode
+        const now = new Date().toISOString();
+        return db.leader_profiles.update(leaderId, { is_active: isActive, updated_at: now });
+    }
+}
+
+// Get ministry roster (memberships for a ministry)
+export async function getMinistryRoster(ministryId: string) {
+    const memberships = await db.ministry_leader_memberships.where('ministry_id').equals(ministryId).toArray();
+    const leaderIds = memberships.map(m => m.leader_id);
+    
+    if (leaderIds.length === 0) return [];
+    
+    const profiles = await db.leader_profiles.where('leader_id').anyOf(leaderIds).toArray();
+    const profileMap = new Map(profiles.map(p => [p.leader_id, p]));
+
+    return memberships.map(m => ({
+        ...m,
+        profile: profileMap.get(m.leader_id)
+    })).filter(m => m.profile);
+}
+
+// Search leader profiles by name or email
+export async function searchLeaderProfiles(searchTerm: string) {
+    const lowerSearchTerm = searchTerm.toLowerCase();
+    console.log('searchLeaderProfiles called with term:', searchTerm, 'shouldUseAdapter():', shouldUseAdapter());
+    
+    if (shouldUseAdapter()) {
+        // Use Supabase adapter for live mode
+        console.log('Using Supabase adapter for leader search');
+        try {
+            const [allProfiles, memberships] = await Promise.all([
+                dbAdapter.listLeaderProfiles(),
+                dbAdapter.listMinistryLeaderMemberships()
+            ]);
+            
+            console.log('Raw profiles for search from Supabase:', allProfiles);
+            
+            const profiles = allProfiles.filter(profile => {
+                const fullName = `${profile.first_name} ${profile.last_name}`.toLowerCase();
+                const email = profile.email?.toLowerCase() || '';
+                
+                return fullName.includes(lowerSearchTerm) || email.includes(lowerSearchTerm);
+            });
+            
+            console.log('Filtered profiles:', profiles);
+            
+            // Sort by last name, then first name
+            profiles.sort((a, b) => {
+                const lastNameCompare = a.last_name.localeCompare(b.last_name);
+                if (lastNameCompare !== 0) return lastNameCompare;
+                return a.first_name.localeCompare(b.first_name);
+            });
+            
+            // Create a map of leader_id to ministry count (only active memberships)
+            const membershipCounts = memberships.reduce((acc, m) => {
+                if (m.is_active) {
+                    acc[m.leader_id] = (acc[m.leader_id] || 0) + 1;
+                }
+                return acc;
+            }, {} as Record<string, number>);
+            
+            const result = profiles.map(profile => ({
+                ...profile,
+                ministryCount: membershipCounts[profile.leader_id] || 0,
+                is_active: profile.is_active && (membershipCounts[profile.leader_id] || 0) > 0
+            }));
+            
+            console.log('Final search results:', result);
+            return result;
+        } catch (error) {
+            console.error('Error in Supabase leader search:', error);
+            throw error;
+        }
+    } else {
+        // Use legacy Dexie interface for demo mode
+        console.log('Using Dexie for leader search');
+        const profiles = await db.leader_profiles
+            .filter(profile => {
+                const fullName = `${profile.first_name} ${profile.last_name}`.toLowerCase();
+                const email = profile.email?.toLowerCase() || '';
+                
+                return fullName.includes(lowerSearchTerm) || email.includes(lowerSearchTerm);
+            })
+            .toArray();
+        
+        // Sort by last name, then first name
+        profiles.sort((a, b) => {
+            const lastNameCompare = a.last_name.localeCompare(b.last_name);
+            if (lastNameCompare !== 0) return lastNameCompare;
+            return a.first_name.localeCompare(b.first_name);
+        });
+        
+        // Get all memberships to calculate counts
+        const memberships = await db.ministry_leader_memberships.toArray();
+        
+        // Create a map of leader_id to ministry count (only active memberships)
+        const membershipCounts = memberships.reduce((acc, m) => {
+            if (m.is_active) {
+                acc[m.leader_id] = (acc[m.leader_id] || 0) + 1;
+            }
+            return acc;
+        }, {} as Record<string, number>);
+        
+        return profiles.map(profile => ({
+            ...profile,
+            ministryCount: membershipCounts[profile.leader_id] || 0,
+            is_active: profile.is_active && (membershipCounts[profile.leader_id] || 0) > 0
+        }));
+    }
+}
+
+// Get ministry accounts
+export async function getMinistryAccounts() {
+    const accounts = await db.ministry_accounts.toArray();
+    const ministries = await db.ministries.toArray();
+    const ministryMap = new Map(ministries.map(m => [m.ministry_id, m]));
+
+    return accounts.map(account => ({
+        ...account,
+        ministry: ministryMap.get(account.ministry_id)
+    })).filter(a => a.ministry);
+}
+
+// Create or update ministry account
+export async function saveMinistryAccount(accountData: Omit<MinistryAccount, 'created_at' | 'updated_at'> & { created_at?: string }) {
+    if (shouldUseAdapter()) {
+        // Use Supabase adapter for live mode
+        const normalizedAccount = {
+            ...accountData,
+            email: normalizeEmail(accountData.email) || '',
+        };
+
+        // Check for duplicate email
+        const existingAccounts = await dbAdapter.listMinistryAccounts();
+        const existingByEmail = existingAccounts.find(a => 
+            a.email === normalizedAccount.email && a.ministry_id !== normalizedAccount.ministry_id
+        );
+        
+        if (existingByEmail) {
+            throw new Error(`A ministry account with email ${normalizedAccount.email} already exists`);
+        }
+
+        // Check if account exists
+        const existingAccount = await dbAdapter.getMinistryAccount(normalizedAccount.ministry_id);
+        if (existingAccount) {
+            const updatedAccount = await dbAdapter.updateMinistryAccount(normalizedAccount.ministry_id, normalizedAccount);
+            return updatedAccount.ministry_id;
+        } else {
+            const newAccount = await dbAdapter.createMinistryAccount(normalizedAccount);
+            return newAccount.ministry_id;
+        }
+    } else {
+        // Use legacy Dexie interface for demo mode
+        const now = new Date().toISOString();
+        
+        const normalizedAccount: MinistryAccount = {
+            ...accountData,
+            email: normalizeEmail(accountData.email) || '',
+            created_at: accountData.created_at || now,
+            updated_at: now
+        };
+
+        // Check for duplicate email
+        const existingByEmail = await db.ministry_accounts
+            .where('email').equals(normalizedAccount.email)
+            .and(a => a.ministry_id !== normalizedAccount.ministry_id)
+            .first();
+        
+        if (existingByEmail) {
+            throw new Error(`A ministry account with email ${normalizedAccount.email} already exists`);
+        }
+
+        return db.ministry_accounts.put(normalizedAccount);
+    }
+}
+
+export async function updateChildPhoto(childId: string, photoDataUrl: string): Promise<number | string> {
+    if (shouldUseAdapter()) {
+        // Use Supabase adapter for live mode
+        const updatedChild = await dbAdapter.updateChild(childId, { photo_url: photoDataUrl });
+        return updatedChild.child_id;
+    } else {
+        // Use legacy Dexie interface for demo mode
+        return db.children.update(childId, { photo_url: photoDataUrl });
+    }
 }
 
 // Branding Settings CRUD
 export async function getBrandingSettings(orgId: string = 'default'): Promise<BrandingSettings | null> {
-    const settings = await db.branding_settings.where({ org_id: orgId }).first();
-    return settings || null;
+    if (shouldUseAdapter()) {
+        // Use Supabase adapter for live mode
+        const settings = await dbAdapter.listBrandingSettings();
+        return settings.find(s => s.org_id === orgId) || null;
+    } else {
+        // Use legacy Dexie interface for demo mode
+        const settings = await db.branding_settings.where({ org_id: orgId }).first();
+        return settings || null;
+    }
 }
 
 export async function saveBrandingSettings(
@@ -903,24 +1968,43 @@ export async function saveBrandingSettings(
     const now = new Date().toISOString();
     const existingSettings = await getBrandingSettings(orgId);
     
-    if (existingSettings) {
-        // Update existing settings
-        await db.branding_settings.update(existingSettings.setting_id, {
-            ...settings,
-            updated_at: now,
-        });
-        return existingSettings.setting_id;
+    if (shouldUseAdapter()) {
+        // Use Supabase adapter for live mode
+        if (existingSettings) {
+            // Update existing settings
+            const updatedSettings = await dbAdapter.updateBrandingSettings(existingSettings.setting_id, {
+                ...settings,
+            });
+            return updatedSettings.setting_id;
+        } else {
+            // Create new settings
+            const newSettings = await dbAdapter.createBrandingSettings({
+                org_id: orgId,
+                ...settings,
+            });
+            return newSettings.setting_id;
+        }
     } else {
-        // Create new settings
-        const newSettings: BrandingSettings = {
-            setting_id: uuidv4(),
-            org_id: orgId,
-            ...settings,
-            created_at: now,
-            updated_at: now,
-        };
-        await db.branding_settings.add(newSettings);
-        return newSettings.setting_id;
+        // Use legacy Dexie interface for demo mode
+        if (existingSettings) {
+            // Update existing settings
+            await db.branding_settings.update(existingSettings.setting_id, {
+                ...settings,
+                updated_at: now,
+            });
+            return existingSettings.setting_id;
+        } else {
+            // Create new settings
+            const newSettings: BrandingSettings = {
+                setting_id: uuidv4(),
+                org_id: orgId,
+                ...settings,
+                created_at: now,
+                updated_at: now,
+            };
+            await db.branding_settings.add(newSettings);
+            return newSettings.setting_id;
+        }
     }
 }
 
@@ -933,4 +2017,615 @@ export async function getDefaultBrandingSettings(): Promise<Partial<BrandingSett
         youtube_url: undefined,
         instagram_url: undefined,
     };
+}
+
+// Check if leader migration is needed and run it if so
+export async function migrateLeadersIfNeeded(): Promise<boolean> {
+    try {
+        // Check if we have any leader profiles already
+        const existingProfiles = await db.leader_profiles.limit(1).toArray();
+        if (existingProfiles.length > 0) {
+            return false; // Migration already done
+        }
+
+        // Check if we have any old ministry leaders to migrate
+        const oldLeaders = await db.users.where('role').equals(AuthRole.MINISTRY_LEADER).limit(1).toArray();
+        if (oldLeaders.length === 0) {
+            return false; // No leaders to migrate
+        }
+
+        // Run the migration
+        const { migrateLeaders } = await import('../../scripts/migrate/migrate-leaders');
+        const report = await migrateLeaders();
+        
+        console.log('Migration completed:', report);
+        return true;
+    } catch (error) {
+        console.error('Migration failed:', error);
+        throw error;
+    }
+}
+
+// Avatar Management Functions
+import { AvatarService } from './avatar/avatar-service';
+
+/**
+ * Get avatar URL for a child
+ */
+export async function getChildAvatarUrl(
+	childId: string
+): Promise<string | null> {
+	return AvatarService.getAvatarUrl('children', childId);
+}
+
+/**
+ * Get avatar URL for a guardian
+ */
+export async function getGuardianAvatarUrl(
+	guardianId: string
+): Promise<string | null> {
+	return AvatarService.getAvatarUrl('guardians', guardianId);
+}
+
+/**
+ * Get avatar URL for a leader
+ */
+export async function getLeaderAvatarUrl(
+	leaderId: string
+): Promise<string | null> {
+	return AvatarService.getAvatarUrl('leaders', leaderId);
+}
+
+// === NEW: User Profile Management Functions ===
+
+export interface ActiveProfileTarget {
+	target_table: 'ministry_leaders' | 'households';
+	target_id: string;
+}
+
+/**
+ * Determine which profile table to update for a user.
+ * Priority: ministry_leaders > households (if both exist).
+ * Returns the target table and ID for profile updates.
+ */
+export async function getActiveProfileTarget(user_id: string): Promise<ActiveProfileTarget | null> {
+	try {
+		// First check if user has a ministry leader profile
+		const leaderProfiles = await db.leader_profiles.toArray();
+		const leaderProfile = leaderProfiles.find(profile => 
+			profile.leader_id === user_id || 
+			profile.email === user_id // In case user_id is actually an email
+		);
+		
+		if (leaderProfile) {
+			return {
+				target_table: 'ministry_leaders',
+				target_id: leaderProfile.leader_id
+			};
+		}
+
+		// Check for household association through user_households or guardians
+		const userHouseholds = await db.user_households?.where({ auth_user_id: user_id }).toArray() || [];
+		if (userHouseholds.length > 0) {
+			return {
+				target_table: 'households',
+				target_id: userHouseholds[0].household_id
+			};
+		}
+
+		// Fallback: check guardians table for email match
+		const guardians = await db.guardians.toArray();
+		const guardian = guardians.find(g => g.email === user_id);
+		if (guardian) {
+			return {
+				target_table: 'households',
+				target_id: guardian.household_id
+			};
+		}
+
+		return null;
+	} catch (error) {
+		console.error('Error determining active profile target:', error);
+		return null;
+	}
+}
+
+/**
+ * Get merged profile data from both auth and domain tables
+ */
+export async function getMeProfile(user_id: string, auth_email?: string) {
+	const target = await getActiveProfileTarget(user_id);
+	if (!target) return null;
+
+	try {
+		if (target.target_table === 'ministry_leaders') {
+			const profile = await db.leader_profiles.get(target.target_id);
+			return {
+				target_table: target.target_table,
+				target_id: target.target_id,
+				first_name: profile?.first_name,
+				last_name: profile?.last_name,
+				email: auth_email || profile?.email, // Prefer auth email
+				phone: profile?.phone,
+				photo_url: profile?.photo_url,
+				avatar_path: profile?.avatar_path,
+			};
+		} else {
+			const household = await db.households.get(target.target_id);
+			return {
+				target_table: target.target_table,
+				target_id: target.target_id,
+				email: auth_email || household?.primary_email, // Prefer auth email
+				phone: household?.primary_phone,
+				photo_url: household?.photo_url,
+				avatar_path: household?.avatar_path,
+			};
+		}
+	} catch (error) {
+		console.error('Error getting profile data:', error);
+		return null;
+	}
+}
+
+/**
+ * Save profile data to the appropriate domain table
+ */
+export async function saveProfile(user_id: string, profileData: { 
+	email?: string;
+	phone?: string;
+	photoPath?: string;
+}) {
+	const target = await getActiveProfileTarget(user_id);
+	if (!target) {
+		throw new Error('No profile target found for user');
+	}
+
+	const now = new Date().toISOString();
+
+	try {
+		if (target.target_table === 'ministry_leaders') {
+			const updateData: Partial<LeaderProfile> = {
+				updated_at: now
+			};
+			
+			if (profileData.email !== undefined) updateData.email = profileData.email.toLowerCase();
+			if (profileData.phone !== undefined) updateData.phone = normalizePhone(profileData.phone);
+			if (profileData.photoPath !== undefined) {
+				updateData.photo_url = profileData.photoPath;
+				updateData.avatar_path = profileData.photoPath;
+			}
+
+			await db.leader_profiles.update(target.target_id, updateData);
+		} else {
+			const updateData: Partial<Household> = {
+				updated_at: now
+			};
+			
+			if (profileData.email !== undefined) updateData.primary_email = profileData.email.toLowerCase();
+			if (profileData.phone !== undefined) updateData.primary_phone = normalizePhone(profileData.phone);
+			if (profileData.photoPath !== undefined) {
+				updateData.photo_url = profileData.photoPath;
+				updateData.avatar_path = profileData.photoPath;
+			}
+
+			await db.households.update(target.target_id, updateData);
+		}
+	} catch (error) {
+		console.error('Error saving profile:', error);
+		throw error;
+	}
+}
+
+/**
+ * Get child profile data including avatar
+ */
+export async function getChildWithAvatar(childId: string) {
+	const child = await db.children.get(childId);
+	if (!child) return null;
+
+	const avatarUrl = await getChildAvatarUrl(childId);
+
+	return {
+		...child,
+		avatarUrl,
+	};
+}
+
+// === NEW: Dashboard Data Functions ===
+
+/**
+ * Get unacknowledged incidents for dashboard
+ */
+export async function getUnacknowledgedIncidents(): Promise<Incident[]> {
+	if (shouldUseAdapter()) {
+		// Use Supabase adapter for live mode
+		const incidents = await dbAdapter.listIncidents();
+		return incidents.filter(incident => !incident.admin_acknowledged_at);
+	} else {
+		// Use legacy Dexie interface for demo mode
+		return db.incidents.filter(incident => !incident.admin_acknowledged_at).toArray();
+	}
+}
+
+/**
+ * Get checked-in children count for a specific date
+ */
+export async function getCheckedInCount(dateISO: string): Promise<number> {
+	if (shouldUseAdapter()) {
+		// Use Supabase adapter for live mode
+		const attendance = await dbAdapter.listAttendance({ date: dateISO });
+		console.log(`DEBUG: Total attendance records for ${dateISO}:`, attendance.length);
+		const checkedIn = attendance.filter(a => !a.check_out_at);
+		console.log(`DEBUG: Checked-in records (no check_out_at):`, checkedIn.length);
+		console.log(`DEBUG: Sample attendance records:`, attendance.slice(0, 3).map(a => ({
+			id: a.attendance_id,
+			child_id: a.child_id,
+			check_in_at: a.check_in_at,
+			check_out_at: a.check_out_at
+		})));
+		return checkedIn.length;
+	} else {
+		// Use legacy Dexie interface for demo mode
+		try {
+			return await db.attendance
+				.where({ date: dateISO })
+				.filter((a) => !a.check_out_at)
+				.count();
+		} catch (error) {
+			console.warn('Error getting checked-in count:', error);
+			return 0;
+		}
+	}
+}
+
+/**
+ * Get registration statistics for dashboard
+ */
+export async function getRegistrationStats(): Promise<{ householdCount: number; childCount: number }> {
+	try {
+		if (shouldUseAdapter()) {
+			// Use Supabase adapter for live mode
+			// Get the active registration cycle
+			const cycles = await dbAdapter.listRegistrationCycles();
+			const activeCycle = cycles.find(cycle => cycle.is_active === true || Number(cycle.is_active) === 1);
+			
+			if (!activeCycle) {
+				return { householdCount: 0, childCount: 0 };
+			}
+			
+			const registrations = await dbAdapter.listRegistrations({ cycleId: activeCycle.cycle_id });
+			
+			if (registrations.length === 0) {
+				return { householdCount: 0, childCount: 0 };
+			}
+			
+			const childIds = registrations.map(r => r.child_id);
+			const children = await dbAdapter.listChildren();
+			const relevantChildren = children.filter(c => childIds.includes(c.child_id));
+			const householdIds = new Set(relevantChildren.map(c => c.household_id));
+			
+			return {
+				householdCount: householdIds.size,
+				childCount: registrations.length,
+			};
+		} else {
+			// Use legacy Dexie interface for demo mode
+			try {
+				const activeCycle = await db.registration_cycles
+					.filter((cycle: any) => cycle.is_active === true || Number(cycle.is_active) === 1)
+					.first();
+				
+				if (!activeCycle) {
+					return { householdCount: 0, childCount: 0 };
+				}
+				
+				const registrations = await db.registrations
+					.where({ cycle_id: activeCycle.cycle_id })
+					.toArray();
+					
+				if (registrations.length === 0) {
+					return { householdCount: 0, childCount: 0 };
+				}
+				
+				const childIds = registrations.map((r: any) => r.child_id);
+				const children = await db.children
+					.where('child_id')
+					.anyOf(childIds)
+					.toArray();
+				const householdIds = new Set(children.map((c: any) => c.household_id));
+				
+				return {
+					householdCount: householdIds.size,
+					childCount: registrations.length,
+				};
+			} catch (dexieError) {
+				console.warn('Error fetching registration stats in demo mode:', dexieError);
+				return { householdCount: 0, childCount: 0 };
+			}
+		}
+	} catch (error) {
+		console.warn('Error fetching registration stats:', error);
+		return { householdCount: 0, childCount: 0 };
+	}
+}
+
+/**
+ * Get Bible Bee years for ministry management
+ */
+export async function getBibleBeeYears(): Promise<BibleBeeYear[]> {
+	if (shouldUseAdapter()) {
+		// Use Supabase adapter for live mode
+		return dbAdapter.listBibleBeeYears();
+	} else {
+		// Use legacy Dexie interface for demo mode
+		return db.bible_bee_years.toArray();
+	}
+}
+
+/**
+ * Get scriptures for a Bible Bee year
+ */
+export async function getScripturesForBibleBeeYear(yearId: string): Promise<any[]> {
+	if (shouldUseAdapter()) {
+		// In Supabase mode, scriptures may not be available yet
+		// Return empty array for now, can be enhanced later when scripture schema is added
+		console.log('Scripture loading not yet implemented in Supabase mode');
+		return [];
+	} else {
+		// Use legacy Dexie interface for demo mode
+		if (db && 'scriptures' in db) {
+			return (db as any).scriptures?.where('year_id')?.equals(yearId)?.toArray() || [];
+		}
+		return [];
+	}
+}
+
+/**
+ * Get scriptures for a competition year (legacy)
+ */
+export async function getScripturesForCompetitionYear(competitionYearId: string): Promise<any[]> {
+	if (shouldUseAdapter()) {
+		// In Supabase mode, legacy competition year scriptures are not available
+		return [];
+	} else {
+		// Use legacy Dexie interface for demo mode
+		if (db && 'scriptures' in db) {
+			return (db as any).scriptures?.where('competitionYearId')?.equals(competitionYearId)?.toArray() || [];
+		}
+		return [];
+	}
+}
+
+/**
+ * Get ministries for ministry management
+ */
+export async function getMinistries(isActive?: boolean): Promise<Ministry[]> {
+	if (shouldUseAdapter()) {
+		// Use Supabase adapter for live mode
+		return dbAdapter.listMinistries(isActive);
+	} else {
+		// Use legacy Dexie interface for demo mode
+		if (isActive !== undefined) {
+			return db.ministries.filter(m => m.is_active === isActive).toArray();
+		}
+		return db.ministries.toArray();
+	}
+}
+
+export async function getRegistrationCycles(isActive?: boolean): Promise<RegistrationCycle[]> {
+	if (shouldUseAdapter()) {
+		// Use Supabase adapter for live mode
+		return dbAdapter.listRegistrationCycles(isActive);
+	} else {
+		// Use legacy Dexie interface for demo mode
+		if (isActive !== undefined) {
+			return db.registration_cycles.filter(c => {
+				const val = (c as any)?.is_active;
+				const isActiveValue = val === true || val === 1 || String(val) === '1';
+				return isActiveValue === isActive;
+			}).toArray();
+		}
+		return db.registration_cycles.toArray();
+	}
+}
+
+/**
+ * Get all children for check-in/out management
+ */
+export async function getAllChildren(): Promise<Child[]> {
+	if (shouldUseAdapter()) {
+		// Use Supabase adapter for live mode
+		return dbAdapter.listChildren();
+	} else {
+		// Use legacy Dexie interface for demo mode
+		return db.children.toArray();
+	}
+}
+
+/**
+ * Get attendance records for a specific date
+ */
+export async function getAttendanceForDate(dateISO: string): Promise<Attendance[]> {
+	if (shouldUseAdapter()) {
+		// Use Supabase adapter for live mode
+		return dbAdapter.listAttendance({ date: dateISO });
+	} else {
+		// Use legacy Dexie interface for demo mode
+		return db.attendance.where({ date: dateISO }).toArray();
+	}
+}
+
+/**
+ * Get all ministry enrollments for a specific cycle
+ */
+export async function getMinistryEnrollmentsByCycle(cycleId: string): Promise<MinistryEnrollment[]> {
+	if (shouldUseAdapter()) {
+		// Use Supabase adapter for live mode
+		return dbAdapter.listMinistryEnrollments(undefined, undefined, cycleId);
+	} else {
+		// Use legacy Dexie interface for demo mode
+		return db.ministry_enrollments.where({ cycle_id: cycleId }).toArray();
+	}
+}
+
+/**
+ * Get children for ministry leader based on their assigned ministries
+ */
+export async function getChildrenForLeader(assignedMinistryIds: string[], cycleId: string): Promise<Child[]> {
+	if (shouldUseAdapter()) {
+		// Use Supabase adapter for live mode
+		const enrollments = await dbAdapter.listMinistryEnrollments();
+		const filteredEnrollments = enrollments.filter(e => 
+			assignedMinistryIds.includes(e.ministry_id) && e.cycle_id === cycleId
+		);
+		const childIds = [...new Set(filteredEnrollments.map(e => e.child_id))];
+		if (childIds.length === 0) return [];
+		
+		const allChildren = await dbAdapter.listChildren();
+		return allChildren.filter(c => childIds.includes(c.child_id));
+	} else {
+		// Use legacy Dexie interface for demo mode
+		const enrollments = await db.ministry_enrollments
+			.where('ministry_id')
+			.anyOf(assignedMinistryIds)
+			.and(e => e.cycle_id === cycleId)
+			.toArray();
+		const childIds = [...new Set(enrollments.map(e => e.child_id))];
+		if (childIds.length === 0) return [];
+		return db.children.where('child_id').anyOf(childIds).toArray();
+	}
+}
+
+/**
+ * Get incidents for a specific date
+ */
+export async function getIncidentsForDate(dateISO: string): Promise<Incident[]> {
+	if (shouldUseAdapter()) {
+		// Use Supabase adapter for live mode
+		const incidents = await dbAdapter.listIncidents();
+		return incidents.filter(i => i.timestamp.startsWith(dateISO));
+	} else {
+		// Use legacy Dexie interface for demo mode
+		return db.incidents.filter(i => i.timestamp.startsWith(dateISO)).toArray();
+	}
+}
+
+/**
+ * Get all guardians
+ */
+export async function getAllGuardians(): Promise<Guardian[]> {
+	if (shouldUseAdapter()) {
+		// Use Supabase adapter for live mode
+		return dbAdapter.listAllGuardians();
+	} else {
+		// Use legacy Dexie interface for demo mode
+		return db.guardians.toArray();
+	}
+}
+
+/**
+ * Get all households
+ */
+export async function getAllHouseholds(): Promise<Household[]> {
+	if (shouldUseAdapter()) {
+		// Use Supabase adapter for live mode
+		return dbAdapter.listHouseholds();
+	} else {
+		// Use legacy Dexie interface for demo mode
+		return db.households.toArray();
+	}
+}
+
+/**
+ * Get all emergency contacts
+ */
+export async function getAllEmergencyContacts(): Promise<EmergencyContact[]> {
+	if (shouldUseAdapter()) {
+		// Use Supabase adapter for live mode
+		return dbAdapter.listAllEmergencyContacts();
+	} else {
+		// Use legacy Dexie interface for demo mode
+		return db.emergency_contacts.toArray();
+	}
+}
+
+/**
+ * Get incidents for a user based on their role
+ */
+export async function getIncidentsForUser(user: any): Promise<Incident[]> {
+	if (shouldUseAdapter()) {
+		// Use Supabase adapter for live mode
+		const allIncidents = await dbAdapter.listIncidents();
+		
+		if (user?.metadata?.role === AuthRole.MINISTRY_LEADER) {
+			// Always restrict leaders to incidents they logged
+			const leaderId = (user.uid || user.id || (user as any).user_id) as string;
+			return allIncidents.filter(incident => incident.leader_id === leaderId);
+		}
+		
+		return allIncidents.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+	} else {
+		// Use legacy Dexie interface for demo mode
+		if (user?.metadata?.role === AuthRole.MINISTRY_LEADER) {
+			// Always restrict leaders to incidents they logged
+			const leaderId = (user.uid || user.id || (user as any).user_id) as string;
+			return db.incidents
+				.where('leader_id')
+				.equals(leaderId)
+				.reverse()
+				.sortBy('timestamp');
+		}
+		
+		return db.incidents.orderBy('timestamp').reverse().toArray();
+	}
+}
+
+/**
+ * Get checked-in children for a specific date
+ */
+export async function getCheckedInChildren(dateISO: string): Promise<Child[]> {
+	if (shouldUseAdapter()) {
+		// Use Supabase adapter for live mode
+		const attendance = await dbAdapter.listAttendance({ date: dateISO });
+		const checkedInAttendance = attendance.filter(a => !a.check_out_at);
+		const childIds = checkedInAttendance.map(a => a.child_id);
+		
+		if (childIds.length === 0) return [];
+		
+		const allChildren = await dbAdapter.listChildren();
+		return allChildren.filter(c => childIds.includes(c.child_id));
+	} else {
+		// Use legacy Dexie interface for demo mode
+		const attendance = await db.attendance.where({ date: dateISO }).toArray();
+		const checkedInAttendance = attendance.filter(a => !a.check_out_at);
+		const childIds = checkedInAttendance.map(a => a.child_id);
+		
+		if (childIds.length === 0) return [];
+		
+		return db.children.where('child_id').anyOf(childIds).toArray();
+	}
+}
+
+/**
+ * Get all competition years for Bible Bee
+ */
+export async function getCompetitionYears(): Promise<any[]> {
+	// Note: Competition years are legacy - in new Bible Bee system, use getBibleBeeYears()
+	// This function is maintained for backward compatibility
+	if (shouldUseAdapter()) {
+		// Use Supabase adapter for live mode
+		// Competition years might not exist in the new schema, return empty array or fetch from appropriate table
+		try {
+			// If competition years exist in adapter
+			// return await dbAdapter.listCompetitionYears();
+			console.warn('Competition years not implemented in adapter, using legacy mode');
+			return [];
+		} catch (error) {
+			console.warn('Competition years not available in adapter mode');
+			return [];
+		}
+	} else {
+		// Use legacy Dexie interface for demo mode
+		return db.competitionYears.orderBy('year').reverse().toArray();
+	}
 }

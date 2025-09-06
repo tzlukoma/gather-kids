@@ -16,6 +16,10 @@ export interface Household {
     city?: string;
     state?: string;
     zip?: string;
+    primary_email?: string; // For settings profile management
+    primary_phone?: string; // For settings profile management
+    photo_url?: string; // Avatar path for settings profile management
+    avatar_path?: string; // Alternative avatar field name
     created_at: string;
     updated_at: string;
 }
@@ -128,12 +132,51 @@ export interface MinistryEnrollment {
     notes?: string;
 }
 
+// Legacy - keeping for backward compatibility during migration
 export interface LeaderAssignment {
     assignment_id: string; // PK
     leader_id: string; // FK to users
     ministry_id: string; // FK
     cycle_id: string; // FK
     role: 'Primary' | 'Volunteer';
+}
+
+// NEW: Leader Profiles (non-user records)
+export interface LeaderProfile {
+    leader_id: string; // PK (cuid/uuid)
+    first_name: string;
+    last_name: string;
+    email?: string; // nullable, unique if present, lowercase
+    phone?: string; // nullable, normalized
+    photo_url?: string; // Avatar path for settings profile management
+    avatar_path?: string; // Alternative avatar field name
+    notes?: string; // nullable
+    background_check_complete?: boolean; // nullable, default false
+    is_active: boolean; // default true
+    created_at: string;
+    updated_at: string;
+}
+
+// NEW: Ministry Leader Memberships (many-to-many with role)
+export interface MinistryLeaderMembership {
+    membership_id: string; // PK
+    ministry_id: string; // FK → ministries
+    leader_id: string; // FK → leader_profiles
+    role_type: 'PRIMARY' | 'VOLUNTEER';
+    is_active: boolean; // default true
+    notes?: string; // nullable
+    created_at: string;
+    updated_at: string;
+}
+
+// NEW: Ministry Accounts (one per ministry for RBAC)
+export interface MinistryAccount {
+    ministry_id: string; // FK, unique
+    email: string; // unique, lowercase
+    display_name: string;
+    is_active: boolean;
+    created_at: string;
+    updated_at: string;
 }
 
 export interface User {
@@ -213,16 +256,50 @@ export interface CompetitionYear {
     updatedAt: string;
 }
 
+// New Bible Bee Year interface (enhanced CompetitionYear)
+export interface BibleBeeYear {
+    id: string;
+    year: number;
+    name: string; // The human-readable name for the Bible Bee year
+    description?: string;
+    is_active: boolean;
+    registration_open_date?: string;
+    registration_close_date?: string;
+    competition_start_date?: string;
+    competition_end_date?: string;
+    created_at: string;
+    updated_at?: string;
+}
+
+// New Division interface
+export interface Division {
+    id: string;
+    year_id: string; // FK to bible_bee_years
+    name: string;
+    minimum_required: number;
+    min_last_order?: number; // calculated minimum boundary
+    min_grade: number; // 0-12
+    max_grade: number; // 0-12
+    created_at: string;
+    updated_at: string;
+}
+
 export interface Scripture {
     id: string;
     competitionYearId: string;
+    year_id?: string; // New FK for new system
     reference: string;
     text: string;
     translation?: string;
-    // Flattened map of translation key -> text. Example: { NIV: '...', KJV: '...' }
+    // Enhanced texts field for NIV/KJV/NIV-Spanish
     texts?: { [key: string]: string };
     bookLangAlt?: string;
     sortOrder?: number;
+    // New fields for enhanced scripture system
+    scripture_number?: string; // e.g., "1-2"
+    scripture_order?: number; // controls display & min cut-offs
+    counts_for?: number; // how many this entry counts for
+    category?: string; // e.g., "Primary Minimum", "Competition"
     createdAt: string;
     updatedAt: string;
 }
@@ -238,6 +315,38 @@ export interface GradeRule {
     instructions?: string;
     createdAt: string;
     updatedAt: string;
+}
+
+// New Essay Prompt interface
+export interface EssayPrompt {
+    id: string;
+    year_id: string; // FK to bible_bee_years
+    division_name?: string; // optional, can be per division or general
+    prompt_text: string;
+    due_date: string; // ISO date
+    created_at: string;
+    updated_at: string;
+}
+
+// New Enrollment interface (join table)
+export interface Enrollment {
+    id: string;
+    year_id: string; // FK to bible_bee_years
+    child_id: string; // FK to children
+    division_id: string; // FK to divisions
+    auto_enrolled: boolean;
+    enrolled_at: string;
+}
+
+// New Enrollment Override interface
+export interface EnrollmentOverride {
+    id: string;
+    year_id: string; // FK to bible_bee_years
+    child_id: string; // FK to children
+    division_id: string; // FK to divisions
+    reason?: string;
+    created_by?: string; // admin user id/email
+    created_at: string;
 }
 
 export interface StudentScripture {
@@ -275,4 +384,11 @@ export interface BrandingSettings {
     instagram_url?: string; // Instagram social link
     created_at: string;
     updated_at: string;
+}
+
+export interface UserHousehold {
+    user_household_id: string; // PK
+    auth_user_id: string; // Supabase auth user ID
+    household_id: string; // FK to households
+    created_at: string;
 }

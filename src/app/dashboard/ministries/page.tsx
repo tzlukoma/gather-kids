@@ -1,8 +1,6 @@
 'use client';
 
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '@/lib/db';
-import type { Ministry } from '@/lib/types';
+import type { Ministry, RegistrationCycle, MinistryAccount } from '@/lib/types';
 import {
 	Card,
 	CardContent,
@@ -10,6 +8,7 @@ import {
 	CardHeader,
 	CardTitle,
 } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
 	Table,
 	TableBody,
@@ -21,10 +20,16 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { useMemo, useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, Edit, Trash2 } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Calendar } from 'lucide-react';
 import { MinistryFormDialog } from '@/components/gatherKids/ministry-form-dialog';
-import { deleteMinistry } from '@/lib/dal';
+import RegistrationCycles from '@/components/gatherKids/registration-cycles';
+import { deleteMinistry, getMinistries } from '@/lib/dal';
+import { dbAdapter } from '@/lib/db-utils';
 import { useToast } from '@/hooks/use-toast';
+import { format } from 'date-fns';
+import { Switch } from '@/components/ui/switch';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -65,6 +70,7 @@ function MinistryTable({
 						<TableRow>
 							<TableHead>Name</TableHead>
 							<TableHead>Code</TableHead>
+							<TableHead>Email</TableHead>
 							<TableHead>Status</TableHead>
 							<TableHead>Eligibility</TableHead>
 							<TableHead className="text-right">Actions</TableHead>
@@ -76,6 +82,9 @@ function MinistryTable({
 								<TableCell className="font-medium">{m.name}</TableCell>
 								<TableCell>
 									<Badge variant="outline">{m.code}</Badge>
+								</TableCell>
+								<TableCell className="text-muted-foreground">
+									{(m as any).email || '—'}
 								</TableCell>
 								<TableCell>
 									<Badge
@@ -126,7 +135,7 @@ function MinistryTable({
 						{ministries.length === 0 && (
 							<TableRow>
 								<TableCell
-									colSpan={5}
+									colSpan={6}
 									className="text-center h-24 text-muted-foreground">
 									No ministries of this type found.
 								</TableCell>
@@ -139,16 +148,46 @@ function MinistryTable({
 	);
 }
 
-export default function ConfigurationPage() {
+export default function MinistryPage() {
 	const router = useRouter();
 	const { user, loading } = useAuth();
 	const [isAuthorized, setIsAuthorized] = useState(false);
-
-	const allMinistries = useLiveQuery(() => db.ministries.toArray(), []);
+	const [isAdmin, setIsAdmin] = useState(false);
+	const [activeTab, setActiveTab] = useState<string>('ministries');
+	const [allMinistries, setAllMinistries] = useState<Ministry[]>([]);
+	const [allMinistryAccounts, setAllMinistryAccounts] = useState<MinistryAccount[]>([]);
+	const [isLoadingData, setIsLoadingData] = useState(true);
 	const { toast } = useToast();
 
 	const [isDialogOpen, setIsDialogOpen] = useState(false);
 	const [editingMinistry, setEditingMinistry] = useState<Ministry | null>(null);
+
+	// Load data when authorized
+	useEffect(() => {
+		if (isAuthorized) {
+			const loadData = async () => {
+				try {
+					const [ministries, accounts] = await Promise.all([
+						getMinistries(),
+						dbAdapter.listMinistryAccounts()
+					]);
+					setAllMinistries(ministries);
+					setAllMinistryAccounts(accounts);
+				} catch (error) {
+					console.error('Error loading ministry data:', error);
+					toast({
+						title: 'Error',
+						description: 'Failed to load ministry data',
+						variant: 'destructive',
+					});
+				} finally {
+					setIsLoadingData(false);
+				}
+			};
+
+			loadData();
+		}
+	}, [isAuthorized, toast]);
 
 	useEffect(() => {
 		if (!loading && user) {
@@ -160,23 +199,37 @@ export default function ConfigurationPage() {
 				}
 			} else {
 				setIsAuthorized(true);
+				setIsAdmin(true);
 			}
 		}
 	}, [user, loading, router]);
 
 	const { enrolledPrograms, interestPrograms } = useMemo(() => {
-		if (!allMinistries) return { enrolledPrograms: [], interestPrograms: [] };
-		const enrolled = allMinistries
+		if (!allMinistries || !allMinistryAccounts)
+			return { enrolledPrograms: [], interestPrograms: [] };
+
+		// Create a map of ministry_id to email from ministry accounts
+		const emailMap = new Map(
+			allMinistryAccounts.map((account) => [account.ministry_id, account.email])
+		);
+
+		// Add email to ministries
+		const ministriesWithEmail = allMinistries.map((m) => ({
+			...m,
+			email: emailMap.get(m.ministry_id) || null,
+		}));
+
+		const enrolled = ministriesWithEmail
 			.filter(
 				(m) =>
 					m.enrollment_type === 'enrolled' && !m.code.startsWith('min_sunday')
 			)
 			.sort((a, b) => a.name.localeCompare(b.name));
-		const interest = allMinistries
+		const interest = ministriesWithEmail
 			.filter((m) => m.enrollment_type === 'expressed_interest')
 			.sort((a, b) => a.name.localeCompare(b.name));
 		return { enrolledPrograms: enrolled, interestPrograms: interest };
-	}, [allMinistries]);
+	}, [allMinistries, allMinistryAccounts]);
 
 	const handleAddNew = () => {
 		setEditingMinistry(null);
@@ -191,10 +244,25 @@ export default function ConfigurationPage() {
 	const handleDelete = async (ministryId: string) => {
 		try {
 			await deleteMinistry(ministryId);
+			// Also clean up the ministry account if it exists
+			try {
+				await dbAdapter.deleteMinistryAccount(ministryId);
+			} catch (e) {
+				// Ignore if account doesn't exist
+				console.warn('No ministry account to delete for:', ministryId);
+			}
 			toast({
 				title: 'Ministry Deleted',
 				description: 'The ministry has been successfully deleted.',
 			});
+			
+			// Reload data
+			const [ministries, accounts] = await Promise.all([
+				getMinistries(),
+				dbAdapter.listMinistryAccounts()
+			]);
+			setAllMinistries(ministries);
+			setAllMinistryAccounts(accounts);
 		} catch (error) {
 			console.error('Failed to delete ministry', error);
 			toast({
@@ -205,7 +273,7 @@ export default function ConfigurationPage() {
 		}
 	};
 
-	if (loading || !isAuthorized || !allMinistries) {
+	if (loading || !isAuthorized || isLoadingData) {
 		return <div>Loading configuration...</div>;
 	}
 
@@ -213,32 +281,63 @@ export default function ConfigurationPage() {
 		<div className="flex flex-col gap-8">
 			<div className="flex items-center justify-between">
 				<div>
-					<h1 className="text-3xl font-bold font-headline">Configuration</h1>
+					<h1 className="text-3xl font-bold font-headline">Ministries</h1>
 					<p className="text-muted-foreground">
 						Manage the ministries and activities available for registration.
 					</p>
 				</div>
-				<Button onClick={handleAddNew}>
-					<PlusCircle className="mr-2" />
-					Add New Program
-				</Button>
+				{activeTab === 'ministries' && (
+					<Button onClick={handleAddNew}>
+						<PlusCircle className="mr-2" />
+						Add New Program
+					</Button>
+				)}
 			</div>
 
-			<MinistryTable
-				title="Ministry Programs"
-				description="These are programs children can be officially enrolled in."
-				ministries={enrolledPrograms}
-				onEdit={handleEdit}
-				onDelete={handleDelete}
-			/>
+			<Tabs value={activeTab} onValueChange={setActiveTab}>
+				<TabsList className="inline-flex items-center gap-2">
+					<TabsTrigger value="ministries">Ministries</TabsTrigger>
+					{isAdmin && (
+						<TabsTrigger value="registration-cycles">
+							Registration Cycles
+						</TabsTrigger>
+					)}
+				</TabsList>
 
-			<MinistryTable
-				title="Expressed Interest Activities"
-				description="These are activities to gauge interest, but do not create an official enrollment."
-				ministries={interestPrograms}
-				onEdit={handleEdit}
-				onDelete={handleDelete}
-			/>
+				<TabsContent value="ministries" className="space-y-8 mt-6">
+					<MinistryTable
+						title="Ministry Programs"
+						description="These are programs children can be officially enrolled in."
+						ministries={enrolledPrograms}
+						onEdit={handleEdit}
+						onDelete={handleDelete}
+					/>
+
+					<MinistryTable
+						title="Expressed Interest Activities"
+						description="These are activities to gauge interest, but do not create an official enrollment."
+						ministries={interestPrograms}
+						onEdit={handleEdit}
+						onDelete={handleDelete}
+					/>
+				</TabsContent>
+
+				{isAdmin && (
+					<TabsContent value="registration-cycles" className="mt-6">
+						<Card>
+							<CardHeader>
+								<CardTitle>Registration Cycles</CardTitle>
+								<CardDescription>
+									Manage registration cycles for ministries and activities
+								</CardDescription>
+							</CardHeader>
+							<CardContent>
+								<RegistrationCycles />
+							</CardContent>
+						</Card>
+					</TabsContent>
+				)}
+			</Tabs>
 
 			<MinistryFormDialog
 				isOpen={isDialogOpen}

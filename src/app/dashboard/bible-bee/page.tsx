@@ -3,8 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { AuthRole } from '@/lib/auth-types';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '@/lib/db';
+import { canLeaderManageBibleBee, getBibleBeeYears, getScripturesForBibleBeeYear } from '@/lib/dal';
 import {
 	Select,
 	SelectTrigger,
@@ -23,6 +22,8 @@ import {
 } from '@/components/ui/card';
 import Link from 'next/link';
 import ScriptureCard from '@/components/gatherKids/scripture-card';
+import BibleBeeManage from '@/components/gatherKids/bible-bee-manage';
+import BibleBeeDebugger from '@/components/gatherKids/bible-bee-debugger';
 
 function AuthLoader({ user, setAllowed }: any) {
 	useEffect(() => {
@@ -54,11 +55,30 @@ export default function BibleBeePage() {
 	const { user, loading } = useAuth();
 	const [allowed, setAllowed] = useState(false);
 	const [selectedLeader, setSelectedLeader] = useState<string | null>(null);
-	const [selectedCycle, setSelectedCycle] = useState<string>('2025');
-	const competitionYears = useLiveQuery(
-		() => db.competitionYears.orderBy('year').reverse().toArray(),
-		[]
-	);
+
+	// Add the debugger component to help troubleshoot
+	// start empty and pick a sensible default once years data is available
+	const [selectedCycle, setSelectedCycle] = useState<string>('');
+	const [bibleBeeYears, setBibleBeeYears] = useState<any[]>([]);
+
+	// Load data on component mount
+	useEffect(() => {
+		const fetchData = async () => {
+			try {
+				console.log('Loading Bible Bee data...');
+				
+				// Get Bible Bee years using DAL function with adapter support
+				const beeYears = await getBibleBeeYears();
+				console.log('Bible Bee years loaded:', beeYears);
+				setBibleBeeYears(beeYears || []);
+			} catch (error) {
+				console.error('Failed to load Bible Bee data:', error);
+				setBibleBeeYears([]);
+			}
+		};
+
+		fetchData();
+	}, []);
 	const [activeTab, setActiveTab] = useState<string>('students');
 	const [scriptures, setScriptures] = useState<any[] | null>(null);
 	const [displayVersion, setDisplayVersion] = useState<string | undefined>(
@@ -66,32 +86,83 @@ export default function BibleBeePage() {
 	);
 	const [availableVersions, setAvailableVersions] = useState<string[]>([]);
 	const [canManage, setCanManage] = useState(false);
+	const [scriptureRefreshTrigger, setScriptureRefreshTrigger] = useState(0);
+
+	// Compute the proper year label for display
+	const yearLabel = React.useMemo(() => {
+		// Use Bible Bee years for new schema
+		if (bibleBeeYears && bibleBeeYears.length > 0) {
+			const bibleBeeYear = bibleBeeYears.find(
+				(y: any) => y.id === selectedCycle
+			);
+			if (bibleBeeYear && bibleBeeYear.name) {
+				return bibleBeeYear.name;
+			}
+		}
+
+		// Default fallback
+		return `Bible Bee ${selectedCycle}`;
+	}, [selectedCycle, bibleBeeYears]);
 
 	// leader list removed — Admin no longer filters by leader
+
+	useEffect(() => {
+		// set an initial selectedCycle once we have years info; prefer an
+		// explicitly active Bible Bee year when present
+		if (selectedCycle) return; // don't override an existing selection
+		if (!bibleBeeYears) return;
+		const activeBB = (bibleBeeYears || []).find((y: any) => {
+			const val: any = y?.is_active;
+			return val === true || val === 1 || String(val) === '1';
+		});
+		if (activeBB && activeBB.id) {
+			setSelectedCycle(String(activeBB.id));
+			return;
+		}
+		// If no active year, use the first available year
+		if (bibleBeeYears.length > 0) {
+			setSelectedCycle(String(bibleBeeYears[0].id));
+		}
+	}, [bibleBeeYears, selectedCycle]);
 
 	useEffect(() => {
 		// load scriptures for selected cycle
 		let mounted = true;
 		const load = async () => {
-			if (!competitionYears) return;
-			const yearObj = competitionYears.find(
-				(y: any) => String(y.year) === String(selectedCycle)
-			);
-			if (!yearObj) {
-				setScriptures([]);
-				return;
-			}
-			const s = await db.scriptures
-				.where('competitionYearId')
-				.equals(yearObj.id)
-				.toArray();
-			if (mounted) {
-				const sorted = s.sort(
-					(a: any, b: any) =>
-						Number(a.order ?? a.sortOrder ?? 0) -
-						Number(b.order ?? b.sortOrder ?? 0)
+			console.log('Loading scriptures for cycle:', selectedCycle);
+			console.log('Available Bible Bee years:', bibleBeeYears);
+
+			let scriptures: any[] = [];
+
+			// First try the new Bible Bee year system
+			if (bibleBeeYears && bibleBeeYears.length > 0) {
+				const bibleBeeYear = bibleBeeYears.find(
+					(y: any) => y.id === selectedCycle
 				);
+
+				if (bibleBeeYear) {
+					console.log('Found Bible Bee year:', bibleBeeYear);
+					try {
+						scriptures = await getScripturesForBibleBeeYear(bibleBeeYear.id);
+						console.log(
+							'Loaded scriptures from Bible Bee year:',
+							scriptures.length
+						);
+					} catch (error) {
+						console.error('Error loading scriptures:', error);
+					}
+				}
+			}
+
+			if (mounted) {
+				const sorted = scriptures.sort(
+					(a: any, b: any) =>
+						Number(a.sortOrder ?? a.scripture_order ?? 0) -
+						Number(b.sortOrder ?? b.scripture_order ?? 0)
+				);
+				console.log('Setting scriptures:', sorted.length, 'scriptures');
 				setScriptures(sorted);
+
 				// collect available versions from scriptures texts maps and translation fields
 				const versions = new Set<string>();
 				for (const item of sorted) {
@@ -112,7 +183,7 @@ export default function BibleBeePage() {
 		return () => {
 			mounted = false;
 		};
-	}, [selectedCycle, competitionYears]);
+	}, [selectedCycle, bibleBeeYears, scriptureRefreshTrigger]);
 
 	useEffect(() => {
 		// determine manage permission: Admins can manage; Ministry leaders with Primary assignment can manage
@@ -122,26 +193,24 @@ export default function BibleBeePage() {
 			return;
 		}
 		if (user?.metadata?.role === AuthRole.MINISTRY_LEADER) {
-			// simple check: if user has an assignment as Primary for bible-bee in current cycle
 			(async () => {
 				const uid =
 					(user as any).id ||
 					(user as any).uid ||
 					(user as any).user_id ||
 					(user as any).userId;
-				if (!uid) return;
-				const assignments = await db.leader_assignments
-					.where({ leader_id: uid, cycle_id: selectedCycle })
-					.toArray();
-				const hasPrimary = assignments.some(
-					(a: any) =>
-						(a as any).ministry_id === 'bible-bee' &&
-						(a as any).role === 'Primary'
-				);
-				setCanManage(hasPrimary);
+				const email =
+					(user as any).email || (user as any).user_email || (user as any).mail;
+				if (!uid && !email) return;
+				const can = await canLeaderManageBibleBee({
+					leaderId: uid,
+					email: email,
+					selectedCycle,
+				});
+				setCanManage(Boolean(can));
 			})();
 		}
-	}, [user, selectedCycle]);
+	}, [user, selectedCycle, bibleBeeYears]);
 
 	return (
 		<div className="flex flex-col gap-6">
@@ -152,7 +221,15 @@ export default function BibleBeePage() {
 				</p>
 			</div>
 
-			<Tabs value={activeTab} onValueChange={setActiveTab}>
+			<Tabs
+				value={activeTab}
+				onValueChange={(tab) => {
+					setActiveTab(tab);
+					// Force refresh scriptures when switching to scriptures tab
+					if (tab === 'scriptures') {
+						setScriptureRefreshTrigger((prev) => prev + 1);
+					}
+				}}>
 				{/* make tabs only as wide as their content */}
 				<TabsList className="inline-flex items-center gap-2">
 					<TabsTrigger value="students">Students</TabsTrigger>
@@ -177,7 +254,7 @@ export default function BibleBeePage() {
 				<TabsContent value="scriptures">
 					<Card>
 						<CardHeader>
-							<CardTitle>Scriptures for {selectedCycle}</CardTitle>
+							<CardTitle>Scriptures for {yearLabel}</CardTitle>
 							<CardDescription>
 								Scriptures assigned for the selected competition year.
 							</CardDescription>
@@ -232,7 +309,7 @@ export default function BibleBeePage() {
 														scriptureId: s.id,
 														scripture: s,
 														verseText: s.text,
-														competitionYearId: s.competitionYearId,
+														competitionYearId: s.year_id || s.competitionYearId,
 													}}
 													index={idx}
 													readOnly
@@ -248,33 +325,33 @@ export default function BibleBeePage() {
 
 				{canManage && (
 					<TabsContent value="manage">
-						<Card>
-							<CardHeader>
-								<CardTitle>Manage Competition Years</CardTitle>
-								<CardDescription>
-									Manage competition years and scriptures.
-								</CardDescription>
-							</CardHeader>
-							<CardContent>
-								<YearList />
-							</CardContent>
-						</Card>
+						<BibleBeeManage />
 					</TabsContent>
 				)}
 			</Tabs>
 
 			{!loading && user && <AuthLoader user={user} setAllowed={setAllowed} />}
+			<BibleBeeDebugger />
 		</div>
 	);
 }
 
 function YearList() {
-	const years = useLiveQuery(
-		() => db.competitionYears.orderBy('year').reverse().toArray(),
-		[]
-	);
+	const [years, setYears] = useState<any[]>([]);
+
+	useEffect(() => {
+		const fetchYears = async () => {
+			try {
+				const data = await getBibleBeeYears();
+				setYears(data);
+			} catch (error) {
+				console.error('Error loading Bible Bee years:', error);
+			}
+		};
+		fetchYears();
+	}, []);
 	if (!years) return <div>Loading years...</div>;
-	if (years.length === 0) return <div>No competition years defined.</div>;
+	if (years.length === 0) return <div>No Bible Bee years defined.</div>;
 	return (
 		<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 			{years.map((y: any) => (
