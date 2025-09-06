@@ -338,7 +338,7 @@ export function BibleBeeProgressList({
 			{competitionYears &&
 				competitionYears.length > 0 &&
 				String(competitionYears[0].year) !== String(selectedCycle) && (
-					<div className="p-2 bg-yellow-50 border-l-4 border-yellow-300 text-sm text-yellow-800">
+					<div className="p-2 bg-secondary/20 border-l-4 border-brand-yellow text-sm text-ink">
 						Viewing prior year — edits disabled
 					</div>
 				)}

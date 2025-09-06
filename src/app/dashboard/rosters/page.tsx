@@ -553,7 +553,7 @@ export default function RostersPage() {
 							<TableCell>{child.grade}</TableCell>
 							<TableCell>
 								{child.activeAttendance ? (
-									<Badge className="bg-green-500 hover:bg-green-600">
+									<Badge className="bg-brand-aqua hover:opacity-90">
 										Checked In
 									</Badge>
 								) : (
@@ -641,7 +641,7 @@ export default function RostersPage() {
 										<TableCell>{child.grade}</TableCell>
 										<TableCell>
 											{child.activeAttendance ? (
-												<Badge className="bg-green-500 hover:bg-green-600">
+												<Badge className="bg-brand-aqua hover:opacity-90">
 													Checked In
 												</Badge>
 											) : (

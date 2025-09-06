@@ -2,5 +2,22 @@
   "extends": [
     "next/core-web-vitals",
     "next/typescript"
-  ]
+  ],
+  "rules": {
+    "no-restricted-syntax": [
+      "error",
+      {
+        "selector": "Literal[value=/^#[0-9a-fA-F]+$/]",
+        "message": "Hardcoded hex colors are not allowed. Use design system tokens from globals.css (e.g., --color-teal, --color-yellow) or Tailwind classes (e.g., bg-brand-teal, text-brand-yellow)."
+      },
+      {
+        "selector": "Literal[value=/^rgb\\(/]",
+        "message": "Hardcoded RGB colors are not allowed. Use design system tokens from globals.css or Tailwind classes."
+      },
+      {
+        "selector": "TemplateElement[value.cooked*='bg-green-'], TemplateElement[value.cooked*='bg-red-'], TemplateElement[value.cooked*='bg-blue-'], TemplateElement[value.cooked*='bg-yellow-'], TemplateElement[value.cooked*='bg-orange-'], TemplateElement[value.cooked*='bg-purple-'], TemplateElement[value.cooked*='bg-pink-'], TemplateElement[value.cooked*='bg-gray-'], TemplateElement[value.cooked*='bg-indigo-'], TemplateElement[value.cooked*='bg-cyan-'], TemplateElement[value.cooked*='bg-teal-'], TemplateElement[value.cooked*='bg-lime-'], TemplateElement[value.cooked*='bg-amber-'], TemplateElement[value.cooked*='bg-emerald-'], TemplateElement[value.cooked*='bg-violet-'], TemplateElement[value.cooked*='bg-fuchsia-'], TemplateElement[value.cooked*='bg-rose-']",
+        "message": "Hardcoded Tailwind color classes are not allowed. Use design system tokens: bg-brand-teal, bg-brand-yellow, bg-brand-orange, bg-brand-aqua, bg-surface, text-ink, or existing semantic classes like bg-primary, bg-secondary, bg-muted."
+      }
+    ]
+  }
 }

@@ -237,7 +237,7 @@ export default function LeaderProfilePage() {
 				<div className="flex items-center gap-2 mt-2 flex-wrap">
 					<Badge
 						variant={isActive ? 'default' : 'secondary'}
-						className={isActive ? 'bg-green-500' : ''}>
+						className={isActive ? 'bg-brand-aqua' : ''}>
 						{isActive ? 'Active' : 'Inactive'}
 					</Badge>
 					{assignedMinistries.map((a) => (

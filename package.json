@@ -10,6 +10,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "lint:colors": "./scripts/lint-colors.sh",
     "typecheck": "tsc --noEmit",
     "test": "jest",
     "test:watch": "jest --watch",

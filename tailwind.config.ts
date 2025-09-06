@@ -24,6 +24,17 @@ export default {
         code: ['Source Code Pro', 'monospace'],
       },
       colors: {
+        // gatherKids Design System Brand Colors
+        brand: {
+          teal: 'hsl(var(--color-teal))',
+          yellow: 'hsl(var(--color-yellow))',
+          orange: 'hsl(var(--color-orange))',
+          aqua: 'hsl(var(--color-aqua))',
+        },
+        surface: 'hsl(var(--color-bg))',
+        ink: 'hsl(var(--color-ink))',
+        
+        // System colors (mapped to design system)
         background: 'hsl(var(--background))',
         foreground: 'hsl(var(--foreground))',
         card: {

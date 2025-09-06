@@ -80,7 +80,7 @@ export function ChildCard({
     return (
         <Card key={child.child_id} className="relative flex flex-col overflow-hidden">
             {isBirthdayThisWeek(child.dob) && (
-                <div className="bg-orange-400 text-white text-center py-1 px-2 text-sm font-semibold flex items-center justify-center gap-2">
+                <div className="bg-brand-orange text-white text-center py-1 px-2 text-sm font-semibold flex items-center justify-center gap-2">
                     <Cake className="h-4 w-4" />
                     Birthday This Week!
                 </div>
@@ -161,7 +161,7 @@ export function ChildCard({
                 </CardDescription>
                  <div className="flex flex-wrap gap-1 mt-2 justify-center sm:justify-start">
                     {isCheckedInHere && (
-                        <Badge variant="default" className="bg-green-500 hover:bg-green-600">Checked In</Badge>
+                        <Badge variant="default" className="bg-brand-aqua hover:opacity-90">Checked In</Badge>
                     )}
                     {isCheckedInElsewhere && (
                         <Badge variant="secondary">In {getEventName(checkedInEvent)}</Badge>

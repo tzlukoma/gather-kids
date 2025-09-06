@@ -10,89 +10,103 @@ body {
 
 @layer base {
   :root {
-    --background: 220 13% 97%;
-    /* Neutral Gray */
-    --foreground: 210 9% 31%;
-    /* Darker Gray for text */
+    /* gatherKids Design System - Primary Colors */
+    --color-teal: 181 98% 29%;
+    /* #017C7D - Brand primary */
+    --color-yellow: 39 97% 59%;
+    /* #FCB131 - CTA / highlight */
+    
+    /* gatherKids Design System - Secondary Colors */
+    --color-orange: 13 81% 55%;
+    /* #E86A2F */
+    --color-aqua: 174 85% 41%;
+    /* #1FB6AA */
+    
+    /* gatherKids Design System - Neutrals */
+    --color-bg: 40 33% 96%;
+    /* #F7F5F1 - App background */
+    --color-ink: 199 26% 15%;
+    /* #1E2A2F - Primary text */
+
+    /* System tokens mapped to new design system */
+    --background: var(--color-bg);
+    --foreground: var(--color-ink);
     --card: 0 0% 100%;
-    --card-foreground: 210 9% 31%;
+    --card-foreground: var(--color-ink);
     --popover: 0 0% 100%;
-    --popover-foreground: 210 9% 31%;
-    --primary: 202 88% 63%;
-    /* Sky Blue */
+    --popover-foreground: var(--color-ink);
+    --primary: var(--color-teal);
     --primary-foreground: 0 0% 100%;
-    --secondary: 47 100% 62%;
-    /* Sunny Yellow */
-    --secondary-foreground: 210 9% 31%;
-    --muted: 220 13% 91%;
-    --muted-foreground: 210 9% 45%;
-    --accent: 173 100% 35%;
-    /* Teal Accent */
+    --secondary: var(--color-yellow);
+    --secondary-foreground: var(--color-ink);
+    --muted: 40 33% 91%;
+    /* Lighter version of bg */
+    --muted-foreground: 199 26% 45%;
+    /* Lighter version of ink */
+    --accent: var(--color-aqua);
     --accent-foreground: 0 0% 100%;
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
-    --border: 220 13% 88%;
-    --input: 220 13% 88%;
-    --ring: 202 88% 63%;
-    /* Sky Blue */
-    --chart-1: 30 100% 50%;
-    /* Primary Orange */
-    --chart-2: 173 100% 35%;
-    /* Teal Accent */
-    --chart-3: 47 100% 62%;
-    /* Sunny Yellow */
-    --chart-4: 202 88% 63%;
-    /* Sky Blue */
-    --chart-5: 30 100% 70%;
+    --border: 40 33% 88%;
+    --input: 40 33% 88%;
+    --ring: var(--color-teal);
+    --chart-1: var(--color-orange);
+    --chart-2: var(--color-teal);
+    --chart-3: var(--color-yellow);
+    --chart-4: var(--color-aqua);
+    --chart-5: 13 81% 70%;
+    /* Lighter orange */
     --radius: 0.5rem;
-    --sidebar-background: 220 13% 95%;
-    --sidebar-foreground: 210 9% 31%;
-    --sidebar-primary: 202 88% 63%;
+    --sidebar-background: 40 33% 93%;
+    --sidebar-foreground: var(--color-ink);
+    --sidebar-primary: var(--color-teal);
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 220 13% 88%;
-    --sidebar-accent-foreground: 210 9% 15%;
-    --sidebar-border: 220 13% 85%;
-    --sidebar-ring: 202 88% 63%;
+    --sidebar-accent: 40 33% 88%;
+    --sidebar-accent-foreground: var(--color-ink);
+    --sidebar-border: 40 33% 85%;
+    --sidebar-ring: var(--color-teal);
   }
 
   .dark {
-    --background: 210 9% 15%;
-    /* Dark Gray */
-    --foreground: 220 13% 97%;
-    /* Light Gray */
-    --card: 210 9% 20%;
-    --card-foreground: 220 13% 97%;
-    --popover: 210 9% 15%;
-    --popover-foreground: 220 13% 97%;
-    --primary: 202 88% 63%;
-    /* Sky Blue */
+    /* gatherKids Design System - Dark Mode Overrides */
+    --color-bg: 199 26% 8%;
+    /* #0f1416 - Dark background */
+    --color-ink: 40 33% 91%;
+    /* #e8edf0 - Light text */
+
+    /* System tokens for dark mode */
+    --background: var(--color-bg);
+    --foreground: var(--color-ink);
+    --card: 199 26% 12%;
+    --card-foreground: var(--color-ink);
+    --popover: 199 26% 8%;
+    --popover-foreground: var(--color-ink);
+    --primary: var(--color-teal);
     --primary-foreground: 0 0% 100%;
-    --secondary: 47 100% 62%;
-    /* Sunny Yellow */
-    --secondary-foreground: 210 9% 20%;
-    --muted: 210 9% 25%;
-    --muted-foreground: 220 13% 80%;
-    --accent: 173 100% 35%;
-    /* Teal Accent */
+    --secondary: var(--color-yellow);
+    --secondary-foreground: 199 26% 8%;
+    --muted: 199 26% 15%;
+    --muted-foreground: 40 33% 75%;
+    --accent: var(--color-aqua);
     --accent-foreground: 0 0% 100%;
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
-    --border: 210 9% 30%;
-    --input: 210 9% 30%;
-    --ring: 202 88% 63%;
-    --chart-1: 30 100% 50%;
-    --chart-2: 173 100% 35%;
-    --chart-3: 47 100% 62%;
-    --chart-4: 202 88% 63%;
-    --chart-5: 30 100% 70%;
-    --sidebar-background: 210 9% 18%;
-    --sidebar-foreground: 220 13% 97%;
-    --sidebar-primary: 202 88% 63%;
+    --border: 199 26% 18%;
+    --input: 199 26% 18%;
+    --ring: var(--color-teal);
+    --chart-1: var(--color-orange);
+    --chart-2: var(--color-teal);
+    --chart-3: var(--color-yellow);
+    --chart-4: var(--color-aqua);
+    --chart-5: 13 81% 70%;
+    --sidebar-background: 199 26% 10%;
+    --sidebar-foreground: var(--color-ink);
+    --sidebar-primary: var(--color-teal);
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 210 9% 25%;
-    --sidebar-accent-foreground: 220 13% 97%;
-    --sidebar-border: 210 9% 30%;
-    --sidebar-ring: 202 88% 63%;
+    --sidebar-accent: 199 26% 15%;
+    --sidebar-accent-foreground: var(--color-ink);
+    --sidebar-border: 199 26% 18%;
+    --sidebar-ring: var(--color-teal);
   }
 }
 
@@ -139,4 +153,35 @@ p, li, blockquote {
 
 .font-scripture {
   font-family: var(--font-scripture) !important;
+}
+
+/* gatherKids Design System Utility Classes */
+@layer utilities {
+  .btn-primary { 
+    @apply bg-brand-yellow text-ink font-semibold hover:opacity-90 transition-opacity; 
+  }
+  
+  .btn-secondary { 
+    @apply bg-brand-teal text-white font-semibold hover:opacity-90 transition-opacity; 
+  }
+  
+  .link { 
+    @apply text-brand-teal underline-offset-2 hover:underline transition-colors; 
+  }
+  
+  .card { 
+    @apply bg-surface text-ink shadow-sm rounded-xl border border-border; 
+  }
+  
+  .badge-success {
+    @apply bg-brand-aqua text-white;
+  }
+  
+  .text-brand-primary {
+    @apply text-brand-teal;
+  }
+  
+  .bg-brand-primary {
+    @apply bg-brand-teal;
+  }
 }

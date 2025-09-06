@@ -58,7 +58,7 @@ export function ChildIdCard({
 		<>
 			<Card className="relative flex flex-col overflow-hidden">
 				{isBirthday && (
-					<div className="bg-orange-400 text-white text-center py-1 px-2 text-sm font-semibold flex items-center justify-center gap-2">
+					<div className="bg-brand-orange text-white text-center py-1 px-2 text-sm font-semibold flex items-center justify-center gap-2">
 						<Cake className="h-4 w-4" />
 						Birthday This Week!
 					</div>
