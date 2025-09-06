@@ -37,29 +37,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install Supabase CLI
+      - name: Install PostgreSQL client
         run: |
           set -euo pipefail
-          curl -fsSL https://get.supabase.com/cli/install | sh
-          # Add common Supabase install locations to runner PATH for later steps
-          echo "$HOME/.supabase/bin" >> $GITHUB_PATH || true
-          echo "$HOME/.local/bin" >> $GITHUB_PATH || true
-
-          # Diagnostics to help identify where the binary landed
-          echo '--- supabase install diagnostics ---'
-          ls -la "$HOME" || true
-          ls -la "$HOME/.supabase" || true
-          ls -la "$HOME/.local" || true
-          which supabase || true
-          command -v supabase || true
-
-          # Fallback: create a symlink into /usr/local/bin so later steps can find it
-          if [ -f "$HOME/.supabase/bin/supabase" ]; then
-            sudo ln -sf "$HOME/.supabase/bin/supabase" /usr/local/bin/supabase || true
-          elif [ -f "$HOME/.local/bin/supabase" ]; then
-            sudo ln -sf "$HOME/.local/bin/supabase" /usr/local/bin/supabase || true
-          fi
-          echo '--- end diagnostics ---'
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+          echo 'Installed PostgreSQL client:'
+          psql --version || true
+          pg_dump --version || true
+          pg_dumpall --version || true
 
       - name: Select Environment (DB URL + Drive Folder)
         run: |
@@ -89,10 +75,15 @@ jobs:
           BASE="supabase-${ENV,,}-backup-${TS}"
           [ -n "$SAFE_LABEL" ] && BASE="${BASE}-${SAFE_LABEL}"
 
-          echo "Creating logical dumps with Supabase CLI..."
-          supabase db dump --db-url "$SUPABASE_DB_URL" --role-only   --out "dumps/${BASE}-roles.sql"
-          supabase db dump --db-url "$SUPABASE_DB_URL" --schema-only --out "dumps/${BASE}-schema.sql"
-          supabase db dump --db-url "$SUPABASE_DB_URL" --data-only   --out "dumps/${BASE}-data.sql"
+          echo "Creating logical dumps with pg_dump/pg_dumpall..."
+          # Dump roles/cluster-wide objects (requires superuser for some objects)
+          pg_dumpall --roles-only --dbname="$SUPABASE_DB_URL" > "dumps/${BASE}-roles.sql" || true
+
+          # Schema-only dump for the specific database
+          pg_dump --schema-only --dbname="$SUPABASE_DB_URL" -f "dumps/${BASE}-schema.sql"
+
+          # Data-only dump for the specific database
+          pg_dump --data-only --column-inserts --dbname="$SUPABASE_DB_URL" -f "dumps/${BASE}-data.sql"
 
           tar -czf "dumps/${BASE}.tar.gz" -C dumps "${BASE}-roles.sql" "${BASE}-schema.sql" "${BASE}-data.sql"
           echo "ARCHIVE_UNENC=dumps/${BASE}.tar.gz" >> $GITHUB_ENV
