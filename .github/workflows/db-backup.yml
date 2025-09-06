@@ -37,15 +37,22 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install PostgreSQL client
+      - name: Install Supabase CLI
         run: |
-          set -euo pipefail
-          sudo apt-get update
-          sudo apt-get install -y postgresql-client
-          echo 'Installed PostgreSQL client:'
-          psql --version || true
-          pg_dump --version || true
-          pg_dumpall --version || true
+          # Create bin directory in home if it doesn't exist
+          mkdir -p "$HOME/.bin"
+
+          # Download the latest version for Linux
+          curl -s -L https://github.com/supabase/cli/releases/latest/download/supabase_linux_amd64.tar.gz | tar -xz -C "$HOME/.bin"
+
+          # Make it executable
+          chmod +x "$HOME/.bin/supabase"
+
+          # Add to PATH
+          echo "$HOME/.bin" >> $GITHUB_PATH
+
+          # Verify installation
+          "$HOME/.bin/supabase" --version || true
 
       - name: Select Environment (DB URL + Drive Folder)
         run: |
@@ -55,9 +62,13 @@ jobs:
 
           if [ "$ENV" = "PROD" ]; then
             echo "SUPABASE_DB_URL=$PROD_DATABASE_URL" >> $GITHUB_ENV
+            echo "SUPABASE_URL=${{ secrets.PROD_SUPABASE_URL }}" >> $GITHUB_ENV
+            echo "SUPABASE_DB_PASSWORD=${{ secrets.SUPABASE_DB_PASSWORD }}" >> $GITHUB_ENV
             echo "GDRIVE_FOLDER_ID=$GDRIVE_FOLDER_ID_PROD" >> $GITHUB_ENV
           else
             echo "SUPABASE_DB_URL=$UAT_DATABASE_URL" >> $GITHUB_ENV
+            echo "SUPABASE_URL=${{ secrets.UAT_SUPABASE_URL }}" >> $GITHUB_ENV
+            echo "SUPABASE_DB_PASSWORD=${{ secrets.SUPABASE_DB_PASSWORD }}" >> $GITHUB_ENV
             echo "GDRIVE_FOLDER_ID=$GDRIVE_FOLDER_ID_UAT" >> $GITHUB_ENV
           fi
 
@@ -75,40 +86,26 @@ jobs:
           BASE="supabase-${ENV,,}-backup-${TS}"
           [ -n "$SAFE_LABEL" ] && BASE="${BASE}-${SAFE_LABEL}"
 
-          echo "Creating logical dumps with pg_dump/pg_dumpall..."
+          echo "Creating logical dumps with Supabase CLI (linked)..."
 
-          # Parse SUPABASE_DB_URL (format: postgres://user:pass@host:port/dbname?...)
-          URL="$SUPABASE_DB_URL"
-          HOST=$(echo "$URL" | sed -E 's|^[^@]*@||; s|.*://||; s|[:/].*$||')
-          PORT=$(echo "$URL" | sed -E 's|.*:([0-9]+)/.*|\1|; t; s|.*:([0-9]+)$|\1|; t; echo ""')
-          PORT=${PORT:-5432}
-          USERPASS=$(echo "$URL" | sed -E 's|.*//([^@]+)@.*|\1|; t; echo ""')
-          PGUSER=$(echo "$USERPASS" | cut -d: -f1)
-          PGPASSWORD=$(echo "$USERPASS" | cut -d: -f2-)
-          PGDATABASE=$(echo "$URL" | sed -E 's|.*/([^/?]+).*|\1|; t; echo ""')
-
-          # Prefer IPv4 address if available
-          IPV4=$(getent ahosts "$HOST" 2>/dev/null | awk '$1 ~ /^[0-9]+(\.[0-9]+){3}$/ {print $1; exit}') || true
-          if [ -n "$IPV4" ]; then
-            export PGHOST="$IPV4"
+          # Select correct SUPABASE_URL and DB password for the environment
+          if [ "$ENV" = "PROD" ]; then
+            SUPABASE_URL="${{ secrets.PROD_SUPABASE_URL }}"
+            SUPABASE_DB_PASSWORD="${{ secrets.SUPABASE_DB_PASSWORD }}"
           else
-            export PGHOST="$HOST"
+            SUPABASE_URL="${{ secrets.UAT_SUPABASE_URL }}"
+            SUPABASE_DB_PASSWORD="${{ secrets.SUPABASE_DB_PASSWORD }}"
           fi
-          export PGPORT="$PORT"
-          [ -n "$PGUSER" ] && export PGUSER
-          [ -n "$PGPASSWORD" ] && export PGPASSWORD
-          [ -n "$PGDATABASE" ] && export PGDATABASE
 
-          echo "Using PGHOST=$PGHOST PGPORT=$PGPORT PGDATABASE=$PGDATABASE"
+          PROJECT_ID=$(echo "$SUPABASE_URL" | sed -E 's/https:\/\/([^.]+)\.supabase\.co.*/\1/')
 
-          # Dump roles (pg_dumpall reads PG* env vars)
-          pg_dumpall --roles-only > "dumps/${BASE}-roles.sql" || true
+          echo "Linking supabase project: $PROJECT_ID"
+          "$HOME/.bin/supabase" link --project-ref "$PROJECT_ID" --password "$SUPABASE_DB_PASSWORD"
 
-          # Schema-only dump
-          pg_dump --schema-only -f "dumps/${BASE}-schema.sql"
-
-          # Data-only dump (column-inserts for portability)
-          pg_dump --data-only --column-inserts -f "dumps/${BASE}-data.sql"
+          echo "Dumping roles/schema/data via supabase CLI"
+          "$HOME/.bin/supabase" db dump --role-only --linked --out "dumps/${BASE}-roles.sql"
+          "$HOME/.bin/supabase" db dump --schema-only --linked --out "dumps/${BASE}-schema.sql"
+          "$HOME/.bin/supabase" db dump --data-only --linked --out "dumps/${BASE}-data.sql"
 
           tar -czf "dumps/${BASE}.tar.gz" -C dumps "${BASE}-roles.sql" "${BASE}-schema.sql" "${BASE}-data.sql"
           echo "ARCHIVE_UNENC=dumps/${BASE}.tar.gz" >> $GITHUB_ENV
