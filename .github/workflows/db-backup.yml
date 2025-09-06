@@ -28,8 +28,8 @@ jobs:
   backup:
     runs-on: ubuntu-latest
     env:
-      DB_URL_PROD: ${{ secrets.SUPABASE_DB_URL_PROD }}
-      DB_URL_UAT: ${{ secrets.SUPABASE_DB_URL_UAT }}
+      PROD_DATABASE_URL: ${{ secrets.SUPABASE_DB_URL_PROD }}
+      UAT_DATABASE_URL: ${{ secrets.SUPABASE_DB_URL_UAT }}
       GDRIVE_FOLDER_ID_PROD: ${{ secrets.GDRIVE_FOLDER_ID_PROD }}
       GDRIVE_FOLDER_ID_UAT: ${{ secrets.GDRIVE_FOLDER_ID_UAT }}
     steps:
