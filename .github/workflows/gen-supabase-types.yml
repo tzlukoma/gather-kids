@@ -55,8 +55,8 @@ jobs:
           "$HOME/.bin/supabase" --version
           
           # Try generating types with a simple approach first
-          echo "Attempting to generate types using simple schema approach"
-          if "$HOME/.bin/supabase" gen types typescript --schema public; then
+          echo "Attempting to generate types using local generation"
+          if "$HOME/.bin/supabase" gen types typescript --local --schema public; then
             echo "Local generation succeeded"
           else
             echo "Local generation failed. Will attempt remote generation using SUPABASE_* secrets if available."

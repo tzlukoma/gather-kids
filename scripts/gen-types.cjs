@@ -120,9 +120,9 @@ function main() {
 		let command;
 		if (useLocal) {
 			console.log('📦 Generating types from local Supabase instance...');
-			// Try using a simpler approach that works across CLI versions
-			// Older CLI versions may be more compatible
-			command = `${supabasePath} gen types typescript --schema public`;
+			// Must specify --local flag when using local generation
+			// This is required by the CLI (--schema is an additional option)
+			command = `${supabasePath} gen types typescript --local --schema public`;
 		} else if (projectId) {
 			console.log(
 				`📦 Generating types from remote Supabase project (${projectId})...`
