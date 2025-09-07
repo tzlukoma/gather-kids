@@ -172,10 +172,20 @@ export function registrationToCanonical(registration: DexieTypes.Registration): 
 		cycle_id: registration.cycle_id,
 		status: registration.status,
 		pre_registered_sunday_school: registration.pre_registered_sunday_school,
-		consents: (registration.consents || []).map((consent: any) => ({
-			...consent,
-			type: consent.type === 'photoRelease' ? 'photo_release' : String(consent.type), // Convert to snake_case
-		})),
+		consents: (registration.consents || []).map((consent: unknown) => {
+			const c = consent as Record<string, unknown>;
+			const raw = (c['type'] as string) ?? '';
+			const normalized: CanonicalDtos.Consent['type'] = (
+				raw === 'photoRelease' || raw === 'photo_release'
+			) ? 'photo_release' : (raw === 'liability' ? 'liability' : 'custom');
+			return {
+				type: normalized,
+				accepted_at: (c['accepted_at'] as string) ?? null,
+				signer_id: (c['signer_id'] as string) ?? '',
+				signer_name: (c['signer_name'] as string) ?? '',
+				text: (c['text'] as string) ?? undefined,
+			} as CanonicalDtos.Consent;
+		}),
 		submitted_via: registration.submitted_via,
 		submitted_at: registration.submitted_at,
 	};
@@ -189,10 +199,18 @@ export function canonicalToRegistration(canonical: CanonicalDtos.RegistrationWri
 		cycle_id: canonical.cycle_id,
 		status: canonical.status || 'active',
 		pre_registered_sunday_school: canonical.pre_registered_sunday_school !== undefined ? canonical.pre_registered_sunday_school : true,
-		consents: (canonical.consents || []).map((consent: any) => ({
-			...consent,
-			type: consent.type === 'photo_release' ? 'photoRelease' : String(consent.type), // Convert to camelCase for legacy
-		})),
+		consents: (canonical.consents || []).map((consent: unknown) => {
+			const c = consent as Record<string, unknown>;
+			const raw = (c['type'] as string) ?? '';
+			const normalized = (raw === 'photo_release' || raw === 'photoRelease') ? 'photoRelease' : (raw === 'liability' ? 'liability' : 'custom');
+			return {
+				type: normalized,
+				accepted_at: (c['accepted_at'] as string) ?? null,
+				signer_id: (c['signer_id'] as string) ?? '',
+				signer_name: (c['signer_name'] as string) ?? '',
+				text: (c['text'] as string) ?? undefined,
+			} as Consent;
+		}),
 		submitted_via: canonical.submitted_via || 'web',
 		submitted_at: new Date().toISOString(),
 	};
