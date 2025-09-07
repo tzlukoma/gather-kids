@@ -1,6 +1,10 @@
 # 1) Targeted PR-verification checklist (approve-with-confidence list)
 
-> Use your repo’s ## E. Manual smoke (no behavior change)
+> Use your repo’s ## E. Manual smoke ## F. Paper trail
+
+- [x] PR description includes **row counts updated** per backfill step (match your migration logging).
+- [x] `docs/registration-db-drop-plan.md` updated to "dropped" (with grep proof links).
+- [x] `registration-field-mapping.md` reflects final **DB ↔ DTO** mapping.ehavior change)
 
 - [ ] Create account → verify → register full household (guardians, emergency contacts, children, ministry selections, consents) → land on `/household` with expected data populated.
       _Focus: no runtime errors from missing columns; data reads look identical._

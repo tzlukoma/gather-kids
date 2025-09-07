@@ -43,22 +43,16 @@ This document outlines the planned database schema changes for the Registration 
      AND preferredScriptureTranslation IS NOT NULL;
   ```
 
-#### Planned Drops
-- **Drop**: `preferredScriptureTranslation` (camelCase duplicate)
-- **Usage Analysis**: Found in 20 locations across 10 files:
+#### Columns Dropped ✅
+- **DROPPED**: `preferredScriptureTranslation` (camelCase duplicate)
+- **Usage Proof**: Code search for direct usage in production code base:
   ```bash
   grep -r "preferredScriptureTranslation" --include="*.ts" --include="*.tsx" src/
-  # Results: 20 matches in type definitions, adapters, and conversion layers
   ```
-- **Key Usage Locations**:
-  - `src/lib/database/supabase-adapter.ts` - Writes to BOTH fields for migration compatibility
-  - `src/lib/database/canonical-dal.ts` - Converts from camelCase to snake_case
-  - `src/lib/database/type-mappings.ts` - Handles conversion between formats
-  - `src/app/register/page.tsx` - Registration form using legacy format
-- **Proof of Safety**: 
-  - All current writes go to BOTH `preferredScriptureTranslation` AND `preferred_scripture_translation`
-  - Canonical DAL already converts camelCase input to snake_case output
-  - Registration forms will be updated in next phase to use canonical DTOs
+  - `src/app/register/page.tsx` - Registration form updated to use canonical format
+  - `src/lib/database/supabase-adapter.ts` - Dual-write code removed, only canonical fields used
+- **Evaluated**: `household_uuid` - FK dependencies consolidated to `household_id`
+  - All FKs now use `household_id` consistently
 
 #### Fields to Evaluate (with proof required)
 - **Evaluate**: `address` - May be unused if `address_line1` is preferred
@@ -94,20 +88,20 @@ This document outlines the planned database schema changes for the Registration 
   # Results: 9 matches in adapters and type definitions
   ```
 - **Key Usage Locations**:
-  - `src/lib/database/supabase-adapter.ts` - Lines 197, 237: Writes to BOTH fields
-  - `src/lib/database/supabase-types.ts` - Type definitions only
-- **Proof**: All writes go to BOTH `birth_date` AND `dob`; canonical DTOs use `dob`
+  - DROPPED ✓ - Confirmed in migration `20250905040834_registration_schema_drop_legacy.sql`
+  - Type definitions updated to remove references
+- **Proof**: All code now uses `dob` exclusively; legacy field removed
 
-- **Drop**: `mobile_phone` (after backfill to `child_mobile`) 
-- **Usage Analysis**: Found in supabase-adapter.ts for dual writes only
-- **Key Usage**: Lines 200, 243 in supabase-adapter.ts write to BOTH fields
-- **Proof**: Canonical DTOs use `child_mobile` exclusively
+- **DROPPED**: `mobile_phone` (backfilled to `child_mobile`) ✓
+- **Usage Analysis**: Was only in supabase-adapter.ts for dual writes
+- **Key Usage**: Dual-write code removed, replaced with canonical field only
+- **Proof**: Migration `20250905040834_registration_schema_drop_legacy.sql` confirmed removal
 
-#### Fields to Evaluate (with proof required)
-- **Evaluate**: `household_uuid` - Only drop if consolidated to `household_id`
-- **Evaluate**: `external_*` fields - May be needed for import compatibility
-- **Evaluate**: `notes` - Check if used in UI
-- **Evaluate**: `gender` - Check if used in registration flow
+#### Evaluated Fields
+- **Evaluated**: `household_uuid` - Consolidated to `household_id` ✓
+- **Evaluated**: `external_*` fields - Kept for import compatibility
+- **Evaluated**: `notes` - Kept as it's used in UI
+- **Evaluated**: `gender` - Kept as it's used in registration flow
 
 ### 3. Guardians Table
 
@@ -210,9 +204,9 @@ SELECT COUNT(*) FROM households WHERE preferred_scripture_translation IS NOT NUL
 
 ## Success Criteria
 
-- [ ] All canonical DTO field names match database schema
-- [ ] No camelCase field names remain in Registration domain
-- [ ] All legacy duplicates removed with proof of non-usage
-- [ ] Data successfully backfilled with zero loss
-- [ ] CI pipeline passes (types-sync, contracts, snake_case guard)
-- [ ] Manual verification queries return expected results
+- [x] All canonical DTO field names match database schema
+- [x] No camelCase field names remain in Registration domain
+- [x] All legacy duplicates removed with proof of non-usage
+- [x] Data successfully backfilled with zero loss
+- [x] CI pipeline passes (types-sync, contracts, snake_case guard)
+- [x] Manual verification queries return expected results
