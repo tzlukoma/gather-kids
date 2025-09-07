@@ -72,8 +72,27 @@ jobs:
 
           echo "Using supabase binary from $HOME/.bin"
           $HOME/.bin/supabase --version || true
-          echo "Running supabase gen types typescript --local"
-          $HOME/.bin/supabase gen types typescript --local
+          echo "Attempting local generation first (with --debug)"
+          if $HOME/.bin/supabase gen types typescript --local --debug; then
+            echo "Local generation succeeded"
+          else
+            echo "Local generation failed. Will attempt remote generation using SUPABASE_* secrets if available."
+            if [ -z "${PROD_SUPABASE_URL:-}" ] || [ -z "${SUPABASE_DB_PASSWORD:-}" ] || [ -z "${SUPABASE_ACCESS_TOKEN:-}" ]; then
+              echo "Required secrets (PROD_SUPABASE_URL, SUPABASE_DB_PASSWORD, SUPABASE_ACCESS_TOKEN) are missing; cannot perform remote generation." >&2
+              exit 1
+            fi
+
+            # Extract project id from PROD_SUPABASE_URL and link
+            PROJECT_ID=$(echo "$PROD_SUPABASE_URL" | sed -E 's/https:\/\/([^.]+)\.supabase\.co.*/\1/')
+            echo "Project ID: $PROJECT_ID"
+            echo "Linking to Supabase project..."
+            $HOME/.bin/supabase link --project-ref "$PROJECT_ID" --password "$SUPABASE_DB_PASSWORD"
+
+            echo "Generating types via node script (scripts/gen-types.cjs)"
+            SUPABASE_PROJECT_ID="$PROJECT_ID" \
+            SUPABASE_ACCESS_TOKEN="$SUPABASE_ACCESS_TOKEN" \
+            node scripts/gen-types.cjs
+          fi
 
       - name: Ensure generated file exists
         run: |
