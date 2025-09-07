@@ -31,8 +31,6 @@ function __tm_warnOnce(key: string, message: string) {
 // Type mapper utility types
 type OmitSystemFields<T> = Omit<T, 'created_at' | 'updated_at'>;
 type WithOptionalId<T, K extends keyof T> = Omit<T, K> & Partial<Pick<T, K>>;
-
-// =====================================
 // Canonical DTO Conversions
 // =====================================
 
@@ -424,8 +422,8 @@ export function supabaseToMinistry(record: SupabaseMinistry): MinistryEntity {
 		min_grade: record.min_grade,
 		max_grade: record.max_grade,
 		is_active: record.is_active !== undefined ? record.is_active : true,
-		enrollment_type: record.enrollment_type ?? (record as any).enrollmentType ?? 'enrolled',
-		data_profile: (record as any).data_profile ?? (record as any).dataProfile ?? undefined,
+	enrollment_type: (() => { const v = record.enrollment_type ?? (record as any).enrollmentType ?? 'enrolled'; if ((record as any).enrollmentType) __tm_warnOnce('ministry.enrollment_type','Using legacy enrollmentType'); return v; })(),
+	data_profile: (() => { const v = (record as any).data_profile ?? (record as any).dataProfile ?? undefined; if ((record as any).dataProfile) __tm_warnOnce('ministry.data_profile','Using legacy dataProfile field'); return v; })(),
 		custom_questions: record.custom_questions,
 		created_at: record.created_at || new Date().toISOString(),
 		updated_at: record.updated_at || new Date().toISOString(),
@@ -468,10 +466,10 @@ export function supabaseToBrandingSettings(
 		setting_id: record.setting_id || '',
 		org_id: record.org_id,
 		// accept snake_case or camelCase or alternate org_name field
-		primary_color: (record as any).primary_color ?? (record as any).primaryColor ?? undefined,
-		secondary_color: (record as any).secondary_color ?? (record as any).secondaryColor ?? undefined,
-		logo_url: record.logo_url ?? (record as any).logoUrl ?? undefined,
-		org_name: (record as any).org_name ?? (record as any).orgName ?? undefined,
+	primary_color: (() => { const v = (record as any).primary_color ?? (record as any).primaryColor ?? undefined; if ((record as any).primaryColor) __tm_warnOnce('branding.primary_color','Using camelCase primaryColor'); return v; })(),
+	secondary_color: (() => { const v = (record as any).secondary_color ?? (record as any).secondaryColor ?? undefined; if ((record as any).secondaryColor) __tm_warnOnce('branding.secondary_color','Using camelCase secondaryColor'); return v; })(),
+	logo_url: (() => { const v = record.logo_url ?? (record as any).logoUrl ?? undefined; if ((record as any).logoUrl) __tm_warnOnce('branding.logo_url','Using camelCase logoUrl'); return v; })(),
+	org_name: (() => { const v = (record as any).org_name ?? (record as any).orgName ?? undefined; if ((record as any).orgName) __tm_warnOnce('branding.org_name','Using camelCase orgName'); return v; })(),
 		created_at: record.created_at || new Date().toISOString(),
 		updated_at: record.updated_at || new Date().toISOString(),
 	}) as any;
