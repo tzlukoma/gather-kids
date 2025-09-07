@@ -171,9 +171,9 @@ async function seedMinistries() {
 				is_active: true,
 			},
 			{
-				ministry_id: `${EXTERNAL_ID_PREFIX}sunday-school`,
+				ministry_id: 'min_sunday_school',
 				name: 'Sunday School',
-				code: 'min-sunday-school',
+				code: 'min_sunday_school',
 				enrollment_type: 'enrolled',
 				data_profile: 'SafetyAware',
 				is_active: true,

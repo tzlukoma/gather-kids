@@ -422,7 +422,7 @@ async function createEssayPrompt() {
 async function createMinistries() {
 	const ministriesData = [
 		{
-			ministry_id: 'sunday_school',
+			ministry_id: 'min_sunday_school',
 			external_id: `${EXTERNAL_ID_PREFIX}sunday_school`,
 			name: 'Sunday School',
 			description: "Children's Sunday School ministry",

@@ -1087,7 +1087,7 @@ async function createMinistries() {
 	console.log('📋 Starting ministry creation...');
 	const ministriesData = [
 		{
-			ministry_id: `${EXTERNAL_ID_PREFIX}sunday_school`,
+			ministry_id: 'min_sunday_school',
 			name: 'Sunday School',
 			code: 'min_sunday_school',
 			enrollment_type: 'enrolled',

@@ -291,6 +291,7 @@ export function createSupabaseMock(): any {
 		},
 		auth: {
 			getUser: async () => ({ data: { user: { id: 'test-user-id' } }, error: null }),
+			getSession: async () => ({ data: { session: { user: { id: 'test-user-id' } } }, error: null }),
 		},
 	rpc: async () => ({ data: null, error: null }),
 		channel: (channelName: string) => ({

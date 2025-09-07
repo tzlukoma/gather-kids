@@ -338,9 +338,9 @@ async function seedMinistries(): Promise<void> {
         },
         {
             external_id: `${EXTERNAL_ID_PREFIX}ministry_sunday_school`,
-            ministry_id: `${EXTERNAL_ID_PREFIX}ministry_sunday_school`,
+            ministry_id: 'min_sunday_school',
             name: 'Sunday School',
-            code: 'sunday-school',
+            code: 'min_sunday_school',
             enrollment_type: 'enrolled',
             min_grade: '0', // K
             max_grade: '12',

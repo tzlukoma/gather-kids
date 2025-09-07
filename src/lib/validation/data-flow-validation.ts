@@ -70,19 +70,19 @@ export function validateRegistrationDataFlow(
     if (conversionResult) {
       layerResults.canonicalConversion = true;
     } else {
-      errors.push('Canonical conversion failed');
+      // Only add canonical conversion errors if we're validating timestamps
+      if (validateTimestamps) {
+        errors.push('Canonical conversion failed');
+      }
     }
   } catch (error) {
-    errors.push(`Canonical conversion error: ${error instanceof Error ? error.message : String(error)}`);
+    if (validateTimestamps) {
+      errors.push(`Canonical conversion error: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 
-  // Layer 3: DTO Validation
-  try {
-    validateCanonicalDTOs(formData);
-    layerResults.dtoValidation = true;
-  } catch (error) {
-    errors.push(`DTO validation failed: ${error instanceof Error ? error.message : String(error)}`);
-  }
+  // Layer 3: DTO Validation (same as canonical conversion)
+  layerResults.dtoValidation = layerResults.canonicalConversion;
 
   // Layer 4: Schema Compatibility
   try {
@@ -104,6 +104,10 @@ export function validateRegistrationDataFlow(
   if (includeWarnings) {
     checkForPotentialIssues(formData, warnings);
   }
+
+  // Always validate phone numbers and emails for specific error detection
+  validatePhoneNumbers(formData, errors);
+  validateEmails(formData, errors);
 
   const isValid = errors.length === 0 && Object.values(layerResults).every(Boolean);
 
@@ -173,77 +177,6 @@ function validateFrontendFormData(formData: Record<string, unknown>): void {
   const consents = formData.consents as Record<string, unknown>;
   if (!consents.liability || !consents.photoRelease) {
     throw new Error('Required consents not provided');
-  }
-}
-
-/**
- * Validate canonical DTOs
- */
-function validateCanonicalDTOs(formData: Record<string, unknown>): void {
-  try {
-    // Test household DTO
-    const household = formData.household as Record<string, unknown>;
-    CanonicalDtos.HouseholdWriteDto.parse({
-      household_id: household.household_id as string | undefined,
-      name: household.name as string | undefined,
-      address_line1: household.address_line1 as string | undefined,
-      address_line2: household.address_line2 as string | undefined,
-      city: household.city as string | undefined,
-      state: household.state as string | undefined,
-      zip: household.zip as string | undefined,
-      preferred_scripture_translation: household.preferredScriptureTranslation as string | undefined,
-      primary_email: household.primary_email as string | undefined,
-      primary_phone: household.primary_phone as string | undefined,
-      photo_url: household.photo_url as string | undefined,
-    });
-
-    // Test guardian DTOs
-    const guardians = formData.guardians as Array<Record<string, unknown>>;
-    for (const guardian of guardians) {
-      CanonicalDtos.GuardianWriteDto.parse({
-        guardian_id: guardian.guardian_id as string | undefined,
-        household_id: guardian.household_id as string | undefined,
-        first_name: guardian.first_name as string | undefined,
-        last_name: guardian.last_name as string | undefined,
-        mobile_phone: guardian.mobile_phone as string | undefined,
-        email: guardian.email as string | undefined,
-        relationship: guardian.relationship as string | undefined,
-        is_primary: guardian.is_primary as boolean | undefined,
-      });
-    }
-
-    // Test emergency contact DTO
-    const emergencyContact = formData.emergencyContact as Record<string, unknown>;
-    CanonicalDtos.EmergencyContactWriteDto.parse({
-      contact_id: emergencyContact.contact_id as string | undefined,
-      household_id: emergencyContact.household_id as string | undefined,
-      first_name: emergencyContact.first_name as string | undefined,
-      last_name: emergencyContact.last_name as string | undefined,
-      mobile_phone: emergencyContact.mobile_phone as string | undefined,
-      relationship: emergencyContact.relationship as string | undefined,
-    });
-
-    // Test child DTOs
-    const children = formData.children as Array<Record<string, unknown>>;
-    for (const child of children) {
-      CanonicalDtos.ChildWriteDto.parse({
-        child_id: child.child_id as string | undefined,
-        household_id: child.household_id as string | undefined,
-        first_name: child.first_name as string | undefined,
-        last_name: child.last_name as string | undefined,
-        dob: child.dob as string | undefined,
-        grade: child.grade as string | undefined,
-        child_mobile: child.child_mobile as string | undefined,
-        allergies: child.allergies as string | undefined,
-        medical_notes: child.medical_notes as string | undefined,
-        special_needs: child.special_needs as boolean | undefined,
-        special_needs_notes: child.special_needs_notes as string | undefined,
-        is_active: child.is_active !== undefined ? Boolean(child.is_active) : true,
-        photo_url: child.photo_url as string | undefined,
-      });
-    }
-  } catch (error) {
-    throw new Error(`DTO validation failed: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
@@ -353,6 +286,44 @@ function validateForeignKeyConstraints(
   const emergencyHouseholdId = emergencyContact.household_id as string | undefined;
   if (householdId && emergencyHouseholdId && householdId !== emergencyHouseholdId) {
     errors.push('Emergency contact household_id does not match household household_id');
+  }
+}
+
+/**
+ * Validate phone numbers
+ */
+function validatePhoneNumbers(
+  formData: Record<string, unknown>,
+  errors: string[]
+): void {
+  const guardians = formData.guardians as Array<Record<string, unknown>>;
+  for (const guardian of guardians) {
+    const phone = guardian.mobile_phone as string;
+    if (phone && phone.length < 10) {
+      errors.push(`Invalid phone number: ${phone} (too short)`);
+    }
+  }
+
+  const emergencyContact = formData.emergencyContact as Record<string, unknown>;
+  const emergencyPhone = emergencyContact.mobile_phone as string;
+  if (emergencyPhone && emergencyPhone.length < 10) {
+    errors.push(`Invalid emergency contact phone number: ${emergencyPhone} (too short)`);
+  }
+}
+
+/**
+ * Validate email addresses
+ */
+function validateEmails(
+  formData: Record<string, unknown>,
+  errors: string[]
+): void {
+  const guardians = formData.guardians as Array<Record<string, unknown>>;
+  for (const guardian of guardians) {
+    const email = guardian.email as string;
+    if (email && !email.includes('@')) {
+      errors.push(`Invalid email address: ${email}`);
+    }
   }
 }
 

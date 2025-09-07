@@ -214,7 +214,7 @@ describe('Data Flow Validation Utilities', () => {
       });
       
       expect(result.warnings.length).toBeGreaterThan(0);
-      expect(result.warnings.some(warning => warning.includes('duplicate'))).toBe(true);
+      expect(result.warnings.some(warning => warning.includes('Duplicate'))).toBe(true);
       expect(result.warnings.some(warning => warning.includes('special needs'))).toBe(true);
     });
   });
