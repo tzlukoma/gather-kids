@@ -30,3 +30,8 @@ export function createDatabaseAdapter(): DatabaseAdapter {
 
 // Create a singleton instance
 export const db = createDatabaseAdapter();
+
+// Expose adapter globally for debug instrumentation (client-side only)
+if (typeof window !== 'undefined') {
+	(window as any).gatherKidsDbAdapter = db;
+}
