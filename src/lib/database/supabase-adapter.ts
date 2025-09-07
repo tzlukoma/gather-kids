@@ -337,7 +337,8 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			.single();
 
 	if (error) throw error;
-	return result ? supabaseToGuardian(result as unknown as Database['public']['Tables']['guardians']['Row']) : (result as unknown as any);
+	if (!result) throw new Error('createGuardian: no result returned from DB');
+	return supabaseToGuardian(result as unknown as Database['public']['Tables']['guardians']['Row']);
 	}
 
 	async updateGuardian(id: string, data: Partial<Guardian>): Promise<Guardian> {
@@ -352,7 +353,8 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			.single();
 
 	if (error) throw error;
-	return result ? supabaseToGuardian(result as unknown as Database['public']['Tables']['guardians']['Row']) : (result as unknown as any);
+	if (!result) throw new Error('updateGuardian: no result returned from DB');
+	return supabaseToGuardian(result as unknown as Database['public']['Tables']['guardians']['Row']);
 	}
 
 	async listGuardians(householdId: string): Promise<Guardian[]> {
@@ -533,17 +535,18 @@ export class SupabaseAdapter implements DatabaseAdapter {
             query = query.eq('is_active', isActive);
         }
 
-	const { data, error } = await query as any;
+	const { data, error } = await query;
 	if (error) throw error;
-	return (data || []).map((r: any) => this.mapRegistrationCycle(r));
+	return (data || []).map((r: unknown) => this.mapRegistrationCycle(r as Record<string, unknown>));
 	}
 
-	private mapRegistrationCycle(row: any): RegistrationCycle {
+	private mapRegistrationCycle(row: Record<string, unknown>): RegistrationCycle {
+		const r = row ?? {} as Record<string, unknown>;
 		return {
-			cycle_id: row.cycle_id,
-			start_date: row.start_date || '',
-			end_date: row.end_date || '',
-			is_active: row.is_active ?? false,
+			cycle_id: (r['cycle_id'] as string) || '',
+			start_date: (r['start_date'] as string) || '',
+			end_date: (r['end_date'] as string) || '',
+			is_active: r['is_active'] === null || r['is_active'] === undefined ? false : !!r['is_active'],
 		};
 	}
 
@@ -793,7 +796,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			.single();
 
 		if (error) throw error;
-		return supabaseToMinistryEnrollment(result as any);
+		return supabaseToMinistryEnrollment(result as Database['public']['Tables']['ministry_enrollments']['Row']);
 	}
 
 	async listMinistryEnrollments(
@@ -871,7 +874,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			.single();
 
 		if (error) throw error;
-		return supabaseToAttendance(result as any);
+		return supabaseToAttendance(result as Database['public']['Tables']['attendance']['Row']);
 	}
 
 	async listAttendance(filters?: AttendanceFilters): Promise<Attendance[]> {
@@ -922,7 +925,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			if (error.code === 'PGRST116') return null;
 			throw error;
 		}
-		return data ? supabaseToIncident(data as unknown as Database['public']['Tables']['incidents']['Row']) : null;
+		return data ? supabaseToIncident(data as Database['public']['Tables']['incidents']['Row']) : null;
 	}
 
 	async createIncident(
@@ -961,7 +964,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 	}
 
 	async listIncidents(filters?: IncidentFilters): Promise<Incident[]> {
-		let query = (this.client as any).from('incidents').select('*');
+		let query = this.client.from('incidents').select('*');
 
 		if (filters?.childId) {
 			query = query.eq('child_id', filters.childId);
@@ -985,7 +988,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 
 		const { data, error } = await query;
 		if (error) throw error;
-		return (data || []).map((d: any) => supabaseToIncident(d));
+		return (data || []).map((d) => supabaseToIncident(d as Database['public']['Tables']['incidents']['Row']));
 	}
 
 	async deleteIncident(id: string): Promise<void> {
@@ -1022,12 +1025,14 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			updated_at: new Date().toISOString(),
 		};
 
-		const dbPayload: any = { ...event };
-		if (dbPayload.timeslots) dbPayload.timeslots = serializeIfObject(dbPayload.timeslots);
+		const insertEventPayload: Database['public']['Tables']['events']['Insert'] = {
+			...event,
+			timeslots: event.timeslots ? (serializeIfObject(event.timeslots) as Database['public']['Tables']['events']['Insert']['timeslots']) : event.timeslots,
+		};
 
 		const { data: result, error } = await this.client
 			.from('events')
-			.insert(dbPayload)
+			.insert(insertEventPayload)
 			.select()
 			.single();
 
@@ -1037,12 +1042,15 @@ export class SupabaseAdapter implements DatabaseAdapter {
 	}
 
 	async updateEvent(id: string, data: Partial<Event>): Promise<Event> {
-		const dbPayload: any = { ...data, updated_at: new Date().toISOString() };
-		if (dbPayload.timeslots) dbPayload.timeslots = serializeIfObject(dbPayload.timeslots);
+		const updateEventPayload = {
+			...(data as Database['public']['Tables']['events']['Update']),
+			updated_at: new Date().toISOString(),
+			timeslots: (data as any)?.timeslots ? (serializeIfObject((data as any).timeslots) as Database['public']['Tables']['events']['Update']['timeslots']) : (data as any).timeslots,
+		} as unknown as Database['public']['Tables']['events']['Update'];
 
 		const { data: result, error } = await this.client
 			.from('events')
-			.update(dbPayload)
+			.update(updateEventPayload)
 			.eq('event_id', id)
 			.select()
 			.single();
@@ -1058,7 +1066,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			.select('*');
 
 		if (error) throw error;
-		return (data || []).map((d: any) => supabaseToEvent(d));
+		return (data || []).map((d) => supabaseToEvent(d as Database['public']['Tables']['events']['Row']));
 	}
 
 	async deleteEvent(id: string): Promise<void> {
@@ -1082,7 +1090,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			if (error.code === 'PGRST116') return null;
 			throw error;
 		}
-		return data ? supabaseToUser(data as unknown as Database['public']['Tables']['users']['Row']) : null;
+	return data ? supabaseToUser(data as Database['public']['Tables']['users']['Row']) : null;
 	}
 
 	async createUser(
@@ -1128,7 +1136,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			.select('*');
 
 		if (error) throw error;
-		return (data || []).map((d: any) => supabaseToUser(d));
+	return (data || []).map((d) => supabaseToUser(d as Database['public']['Tables']['users']['Row']));
 	}
 
 	async deleteUser(id: string): Promise<void> {
@@ -1142,39 +1150,41 @@ export class SupabaseAdapter implements DatabaseAdapter {
 
 	// Leader Profiles
 
-	private mapLeaderProfile(row: any): LeaderProfile {
+	private mapLeaderProfile(row: Database['public']['Tables']['leader_profiles']['Row'] | Record<string, unknown>): LeaderProfile {
+		const r = (row ?? {}) as Record<string, unknown>;
 		return {
-			leader_id: row.leader_id,
-			first_name: row.first_name || '',
-			last_name: row.last_name || '',
-			email: row.email || undefined,
-			phone: row.phone || undefined,
-			photo_url: row.photo_url || undefined,
-			avatar_path: row.avatar_path || undefined,
-			notes: row.notes || undefined,
-			background_check_complete: row.background_check_complete ?? false,
-			ministryCount: row.ministryCount ?? 0,
-			is_active: row.is_active ?? true,
-			created_at: row.created_at || new Date().toISOString(),
-			updated_at: row.updated_at || new Date().toISOString(),
+			leader_id: (r['leader_id'] as string) || '',
+			first_name: (r['first_name'] as string) || '',
+			last_name: (r['last_name'] as string) || '',
+			email: (r['email'] as string) || undefined,
+			phone: (r['phone'] as string) || undefined,
+			photo_url: (r['photo_url'] as string) || undefined,
+			avatar_path: (r['avatar_path'] as string) || undefined,
+			notes: (r['notes'] as string) || undefined,
+			background_check_complete: r['background_check_complete'] === null || r['background_check_complete'] === undefined ? false : !!r['background_check_complete'],
+			ministryCount: (r['ministryCount'] as number) ?? 0,
+			is_active: r['is_active'] === null || r['is_active'] === undefined ? true : !!r['is_active'],
+			created_at: (r['created_at'] as string) || new Date().toISOString(),
+			updated_at: (r['updated_at'] as string) || new Date().toISOString(),
 		};
 	}
 
-	private mapBibleBeeYear(row: any): BibleBeeYear {
+	private mapBibleBeeYear(row: unknown): BibleBeeYear {
+		const r = (row ?? {}) as Record<string, unknown>;
 		return {
-			id: row.id,
-			year: row.year ?? undefined,
-			name: row.name || undefined,
-			label: row.label || undefined,
-			cycle_id: row.cycle_id || undefined,
-			description: row.description || undefined,
-			is_active: row.is_active ?? false,
-			registration_open_date: row.registration_open_date || undefined,
-			registration_close_date: row.registration_close_date || undefined,
-			competition_start_date: row.competition_start_date || undefined,
-			competition_end_date: row.competition_end_date || undefined,
-			created_at: row.created_at || new Date().toISOString(),
-			updated_at: row.updated_at || new Date().toISOString(),
+			id: (r['id'] as string) || '',
+			year: (r['year'] as number) ?? undefined,
+			name: (r['name'] as string) || undefined,
+			label: (r['label'] as string) || undefined,
+			cycle_id: (r['cycle_id'] as string) || undefined,
+			description: (r['description'] as string) || undefined,
+			is_active: r['is_active'] === null || r['is_active'] === undefined ? false : !!r['is_active'],
+			registration_open_date: (r['registration_open_date'] as string) || undefined,
+			registration_close_date: (r['registration_close_date'] as string) || undefined,
+			competition_start_date: (r['competition_start_date'] as string) || undefined,
+			competition_end_date: (r['competition_end_date'] as string) || undefined,
+			created_at: (r['created_at'] as string) || new Date().toISOString(),
+			updated_at: (r['updated_at'] as string) || new Date().toISOString(),
 		};
 	}
 
@@ -1240,7 +1250,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 
 		const { data, error } = await query;
 		if (error) throw error;
-		return (data || []).map((d: any) => this.mapLeaderProfile(d));
+		return (data || []).map((d) => this.mapLeaderProfile(d as Database['public']['Tables']['leader_profiles']['Row']));
 	}
 
 	async deleteLeaderProfile(id: string): Promise<void> {
@@ -1266,7 +1276,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			if (error.code === 'PGRST116') return null;
 			throw error;
 		}
-		return data ? supabaseToMinistryLeaderMembership(data as unknown as Record<string, unknown>) : null;
+	return data ? supabaseToMinistryLeaderMembership(data as Record<string, unknown>) : null;
 	}
 
 	async createMinistryLeaderMembership(
@@ -1279,47 +1289,53 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			updated_at: new Date().toISOString(),
 		};
 
+
 		// serialize any JSON-like fields before insert
-		const dbPayload: any = { ...membership };
+		const dbPayload: Record<string, unknown> = { ...membership } as Record<string, unknown>;
+		// leader_assignments table expects assignment_id as PK; map membership_id to assignment_id
+		if (dbPayload['membership_id']) dbPayload['assignment_id'] = dbPayload['membership_id'];
 		if (dbPayload.roles && typeof dbPayload.roles !== 'string') {
-			dbPayload.roles = JSON.stringify(dbPayload.roles);
+			dbPayload.roles = JSON.stringify(dbPayload.roles as unknown);
 		}
 
 		const { data: result, error } = await this.client
 			.from('leader_assignments')
-			.insert(dbPayload)
+			.insert(dbPayload as unknown as Database['public']['Tables']['leader_assignments']['Insert'])
 			.select()
 			.single();
 
 		if (error) throw error;
-	return supabaseToMinistryLeaderMembership(result as unknown as Record<string, unknown>);
+		return supabaseToMinistryLeaderMembership(result as Record<string, unknown>);
 	}
 
 	async updateMinistryLeaderMembership(
 		id: string,
 		data: Partial<MinistryLeaderMembership>
 	): Promise<MinistryLeaderMembership> {
-		const dbPayload: any = { ...data, updated_at: new Date().toISOString() };
+
+		const dbPayload: Record<string, unknown> = { ...(data as Record<string, unknown>), updated_at: new Date().toISOString() };
+		if (dbPayload['membership_id']) dbPayload['assignment_id'] = dbPayload['membership_id'];
 		if (dbPayload.roles && typeof dbPayload.roles !== 'string') {
-			dbPayload.roles = JSON.stringify(dbPayload.roles);
+			dbPayload.roles = JSON.stringify(dbPayload.roles as unknown);
 		}
 
 		const { data: result, error } = await this.client
 			.from('leader_assignments')
-			.update(dbPayload)
+			.update(dbPayload as unknown as Database['public']['Tables']['leader_assignments']['Update'])
 			.eq('membership_id', id)
 			.select()
 			.single();
 
-		if (error) throw error;
-		return result ? supabaseToMinistryLeaderMembership(result as unknown as Record<string, unknown>) : (result as unknown as MinistryLeaderMembership);
+	if (error) throw error;
+	if (!result) throw new Error('updateMinistryLeaderMembership: no result returned from DB');
+	return supabaseToMinistryLeaderMembership(result as Record<string, unknown>);
 	}
 
 	async listMinistryLeaderMemberships(
 		ministryId?: string,
 		leaderId?: string
 	): Promise<MinistryLeaderMembership[]> {
-	let query = (this.client as unknown as SupabaseClient<Database>).from('leader_assignments').select('*');
+	let query = this.client.from('leader_assignments').select('*');
 
 		if (ministryId) {
 			query = query.eq('ministry_id', ministryId);
@@ -1328,9 +1344,9 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			query = query.eq('leader_id', leaderId);
 		}
 
-		const { data, error } = await query;
-		if (error) throw error;
-		return (data || []).map((d: unknown) => supabaseToMinistryLeaderMembership(d as Record<string, unknown>));
+	const { data, error } = await query;
+	if (error) throw error;
+	return (data || []).map((d) => supabaseToMinistryLeaderMembership(d as Record<string, unknown>));
 	}
 
 	async deleteMinistryLeaderMembership(id: string): Promise<void> {
@@ -1422,7 +1438,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 
 	// Branding Settings
 	async getBrandingSettings(settingId: string): Promise<BrandingSettings | null> {
-		const { data, error } = await (this.client as any)
+		const { data, error } = await this.client
 			.from('branding_settings')
 			.select('*')
 			.eq('setting_id', settingId)
@@ -1432,7 +1448,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			if (error.code === 'PGRST116') return null;
 			throw error;
 		}
-	return data ? supabaseToBrandingSettings(data as unknown as Database['public']['Tables']['branding_settings']['Row']) : null;
+	return data ? supabaseToBrandingSettings(data as Database['public']['Tables']['branding_settings']['Row']) : null;
 	}
 
 	async createBrandingSettings(
@@ -1445,21 +1461,22 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			updated_at: new Date().toISOString(),
 		};
 
-		const { data: result, error } = await (this.client as any)
+		const { data: result, error } = await this.client
 			.from('branding_settings')
 			.insert(settings)
 			.select()
 			.single();
 
 		if (error) throw error;
-	return result ? supabaseToBrandingSettings(result as unknown as Database['public']['Tables']['branding_settings']['Row']) : (result as unknown as any);
+		if (!result) throw new Error('createBrandingSettings: no result returned from DB');
+		return supabaseToBrandingSettings(result as Database['public']['Tables']['branding_settings']['Row']);
 	}
 
 	async updateBrandingSettings(
 		settingId: string,
 		data: Partial<BrandingSettings>
 	): Promise<BrandingSettings> {
-		const { data: result, error } = await (this.client as any)
+		const { data: result, error } = await this.client
 			.from('branding_settings')
 			.update({
 				...data,
@@ -1470,16 +1487,17 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			.single();
 
 		if (error) throw error;
-		return result ? supabaseToBrandingSettings(result as any) : result as any;
+		if (!result) throw new Error('updateBrandingSettings: no result returned from DB');
+		return supabaseToBrandingSettings(result as Database['public']['Tables']['branding_settings']['Row']);
 	}
 
 	async listBrandingSettings(): Promise<BrandingSettings[]> {
-		const { data, error } = await (this.client as any)
+		const { data, error } = await this.client
 			.from('branding_settings')
 			.select('*');
 
 		if (error) throw error;
-		return (data || []).map((d: any) => supabaseToBrandingSettings(d));
+		return (data || []).map((d) => supabaseToBrandingSettings(d as Database['public']['Tables']['branding_settings']['Row']));
 	}
 
 	async deleteBrandingSettings(settingId: string): Promise<void> {
@@ -1557,8 +1575,8 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			.from('bible_bee_years')
 			.select('*');
 
-		if (error) throw error;
-		return (data || []).map((d: any) => this.mapBibleBeeYear(d));
+	if (error) throw error;
+	return (data || []).map((d: unknown) => this.mapBibleBeeYear(d));
 	}
 
 	async deleteBibleBeeYear(id: string): Promise<void> {
@@ -1635,20 +1653,21 @@ export class SupabaseAdapter implements DatabaseAdapter {
 
 		const { data, error } = await query;
 		if (error) throw error;
-		return (data || []).map((d: any) => this.mapDivision(d));
+	return (data || []).map((d: unknown) => this.mapDivision(d as Record<string, unknown>));
 	}
 
-	private mapDivision(row: any): Division {
+	private mapDivision(row: Database['public']['Tables']['divisions']['Row'] | Record<string, unknown>): Division {
+		const r = (row ?? {}) as Record<string, unknown>;
 		return {
-			id: row.id,
-			year_id: row.bible_bee_year_id || row.year_id || '',
-			name: row.name || '',
-			minimum_required: row.minimum_required ?? 0,
-			min_last_order: row.min_last_order ?? 0,
-			min_grade: row.min_grade ?? 0,
-			max_grade: row.max_grade ?? 0,
-			created_at: row.created_at || new Date().toISOString(),
-			updated_at: row.updated_at || new Date().toISOString(),
+			id: (r['id'] as string) || '',
+			year_id: (r['bible_bee_year_id'] as string) || (r['year_id'] as string) || '',
+			name: (r['name'] as string) || '',
+			minimum_required: (r['minimum_required'] as number) ?? (r['min_scriptures'] as number) ?? 0,
+			min_last_order: (r['min_last_order'] as number) ?? 0,
+			min_grade: (r['min_grade'] as number) ?? 0,
+			max_grade: (r['max_grade'] as number) ?? 0,
+			created_at: (r['created_at'] as string) || new Date().toISOString(),
+			updated_at: (r['updated_at'] as string) || new Date().toISOString(),
 		};
 	}
 
@@ -1726,18 +1745,18 @@ export class SupabaseAdapter implements DatabaseAdapter {
 
 		const { data, error } = await query;
 		if (error) throw error;
-		return (data || []).map((d: any) => this.mapEssayPrompt(d));
+		return (data || []).map((d: unknown) => this.mapEssayPrompt(d));
 	}
-
-	private mapEssayPrompt(row: any): EssayPrompt {
+	private mapEssayPrompt(row: unknown): EssayPrompt {
+		const r = (row ?? {}) as Record<string, unknown>;
 		return {
-			id: row.id,
-			year_id: row.year_id || row.bible_bee_year_id || '',
-			division_name: row.division_name || undefined,
-			prompt_text: row.prompt_text || row.prompt || '',
-			due_date: row.due_date || undefined,
-			created_at: row.created_at || new Date().toISOString(),
-			updated_at: row.updated_at || new Date().toISOString(),
+			id: (r['id'] as string) || '',
+			year_id: (r['year_id'] as string) || (r['bible_bee_year_id'] as string) || '',
+			division_name: (r['division_name'] as string) || undefined,
+			prompt_text: (r['prompt_text'] as string) || (r['prompt'] as string) || '',
+			due_date: (r['due_date'] as string) || '',
+			created_at: (r['created_at'] as string) || new Date().toISOString(),
+			updated_at: (r['updated_at'] as string) || new Date().toISOString(),
 		};
 	}
 
@@ -1769,10 +1788,10 @@ export class SupabaseAdapter implements DatabaseAdapter {
 	): Promise<Enrollment> {
 		if (!data.child_id || !data.year_id || !data.division_id) throw new Error('child_id, year_id and division_id are required for enrollment');
 
-		const insertPayload = {
-			childId: data.child_id,
-			competitionYearId: data.year_id,
-			divisionId: data.division_id,
+		const insertPayload: Database['public']['Tables']['bible_bee_enrollments']['Insert'] = {
+			childId: data.child_id!,
+			competitionYearId: data.year_id!,
+			divisionId: data.division_id!,
 			auto_enrolled: data.auto_enrolled ?? false,
 			enrolled_at: data.enrolled_at ?? new Date().toISOString(),
 			id: (data as any).id ?? undefined,
@@ -1784,18 +1803,15 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			.select()
 			.single();
 
-		if (error) throw error;
-		return supabaseToEnrollment(result as any);
+	if (error) throw error;
+	return supabaseToEnrollment(result as Database['public']['Tables']['bible_bee_enrollments']['Row']);
 	}
 
 	async updateEnrollment(id: string, data: Partial<Enrollment>): Promise<Enrollment> {
-		const payload: any = {};
-		if ('child_id' in data) payload.childId = (data as any).child_id;
-		if ('year_id' in data) payload.competitionYearId = (data as any).year_id;
-		if ('division_id' in data) payload.divisionId = (data as any).division_id;
-		if ('auto_enrolled' in data) payload.auto_enrolled = (data as any).auto_enrolled;
-		if ('enrolled_at' in data) payload.enrolled_at = (data as any).enrolled_at;
-		payload.updated_at = new Date().toISOString();
+		const payload = {
+			...(data as Database['public']['Tables']['bible_bee_enrollments']['Update']),
+			updated_at: new Date().toISOString(),
+		} as unknown as Database['public']['Tables']['bible_bee_enrollments']['Update'];
 
 		const { data: result, error } = await this.client
 			.from('bible_bee_enrollments')
@@ -1805,7 +1821,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			.single();
 
 		if (error) throw error;
-		return supabaseToEnrollment(result as any);
+		return supabaseToEnrollment(result as Database['public']['Tables']['bible_bee_enrollments']['Row']);
 	}
 
 	async listEnrollments(
