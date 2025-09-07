@@ -1972,7 +1972,10 @@ export class SupabaseAdapter implements DatabaseAdapter {
 	// Localized any-cast helper for tables not present in the generated supabase types.
 	// TODO: regenerate `src/lib/database/supabase-types.ts` and remove this.
 	// Localized any: this helper is intentionally `any` until `supabase-types.ts` is regenerated
-	// to include legacy tables (e.g. `registration_cycles`). See TODOs above.
+	// to include legacy tables (e.g. `registration_cycles`). When the generator is
+	// run successfully and types are complete, replace `getClientAny()` usages with
+	// properly typed `this.client` calls and remove this helper.
+	// See `.github/ISSUES/000-temp-relax-no-explicit-any.md` for the tracking issue.
 	/* eslint-disable-next-line @typescript-eslint/no-explicit-any */
 	private getClientAny(): any {
 		return this.client as any;
