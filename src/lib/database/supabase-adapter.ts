@@ -2,6 +2,8 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { v4 as uuidv4 } from 'uuid';
 import type { DatabaseAdapter, HouseholdFilters, ChildFilters, RegistrationFilters, AttendanceFilters, IncidentFilters } from './types';
 import type { Database } from './supabase-types';
+import { supabaseToHousehold, householdToSupabase, supabaseToChild, childToSupabase, supabaseToMinistry, supabaseToMinistryEnrollment, ministryEnrollmentToSupabase, supabaseToEnrollment, enrollmentToSupabase, supabaseToEnrollmentOverride, supabaseToRegistration, registrationToSupabase, supabaseToAttendance, supabaseToIncident, supabaseToEvent, supabaseToUser, supabaseToMinistryLeaderMembership, supabaseToMinistryAccount, supabaseToGuardian, supabaseToEmergencyContact, supabaseToBrandingSettings } from './type-mappings';
+import { serializeIfObject } from './type-mappings';
 import type {
 	Household,
 	Guardian,
@@ -27,12 +29,13 @@ import type {
 } from '../types';
 
 export class SupabaseAdapter implements DatabaseAdapter {
+	// Use strict Database typing for the Supabase client. If the generated
+	// `Database` type is incomplete, typecheck will reveal the mismatches to fix.
 	private client: SupabaseClient<Database>;
 
-
-constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: SupabaseClient<Database>) {
-	this.client = customClient || createClient<Database>(supabaseUrl, supabaseAnonKey);
-}
+	constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: SupabaseClient<Database>) {
+		this.client = customClient || (createClient(supabaseUrl, supabaseAnonKey) as SupabaseClient<Database>);
+	}
 
 	// Households
 	async getHousehold(id: string): Promise<Household | null> {
@@ -46,7 +49,7 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			if (error.code === 'PGRST116') return null; // No rows returned
 			throw error;
 		}
-		return data;
+		return data ? supabaseToHousehold(data as any) : null;
 	}
 
 	async createHousehold(
@@ -82,7 +85,7 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			.single();
 
 		if (error) throw error;
-		return result;
+		return supabaseToHousehold(result as any);
 	}
 
 	async updateHousehold(id: string, data: Partial<Household>): Promise<Household> {
@@ -118,7 +121,7 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			.single();
 
 		if (error) throw error;
-		return result;
+		return supabaseToHousehold(result as any);
 	}
 
 	async listHouseholds(filters?: HouseholdFilters): Promise<Household[]> {
@@ -148,9 +151,9 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			);
 		}
 
-		const { data, error } = await query;
-		if (error) throw error;
-		return data || [];
+	const { data, error } = await query;
+	if (error) throw error;
+	return (data || []).map((r: any) => supabaseToHousehold(r));
 	}
 
 	async deleteHousehold(id: string): Promise<void> {
@@ -174,7 +177,7 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			if (error.code === 'PGRST116') return null;
 			throw error;
 		}
-		return data;
+	return data ? supabaseToChild(data as any) : null;
 	}
 
 	async createChild(
@@ -214,7 +217,7 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			.single();
 
 		if (error) throw error;
-		return result;
+		return supabaseToChild(result as any);
 	}
 
 	async updateChild(id: string, data: Partial<Child>): Promise<Child> {
@@ -260,7 +263,7 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			.single();
 
 		if (error) throw error;
-		return result;
+		return supabaseToChild(result as any);
 	}
 
 	async listChildren(filters?: ChildFilters): Promise<Child[]> {
@@ -287,9 +290,9 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			);
 		}
 
-		const { data, error } = await query;
-		if (error) throw error;
-		return data || [];
+	const { data, error } = await query;
+	if (error) throw error;
+	return (data || []).map((d: any) => supabaseToChild(d));
 	}
 
 	async deleteChild(id: string): Promise<void> {
@@ -313,7 +316,7 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			if (error.code === 'PGRST116') return null;
 			throw error;
 		}
-		return data;
+		return data as any;
 	}
 
 	async createGuardian(
@@ -333,7 +336,7 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			.single();
 
 		if (error) throw error;
-		return result;
+		return result as any;
 	}
 
 	async updateGuardian(id: string, data: Partial<Guardian>): Promise<Guardian> {
@@ -348,26 +351,26 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			.single();
 
 		if (error) throw error;
-		return result;
+		return result as any;
 	}
 
 	async listGuardians(householdId: string): Promise<Guardian[]> {
-		const { data, error } = await this.client
+	const { data, error } = await this.client
 			.from('guardians')
 			.select('*')
 			.eq('household_id', householdId);
 
 		if (error) throw error;
-		return data || [];
+		return (data || []).map((d: any) => supabaseToGuardian(d));
 	}
 
 	async listAllGuardians(): Promise<Guardian[]> {
-		const { data, error } = await this.client
+	const { data, error } = await this.client
 			.from('guardians')
 			.select('*');
 
 		if (error) throw error;
-		return data || [];
+		return (data || []).map((d: any) => supabaseToGuardian(d));
 	}
 
 	async deleteGuardian(id: string): Promise<void> {
@@ -381,7 +384,7 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 
 	// Emergency Contacts
 	async getEmergencyContact(id: string): Promise<EmergencyContact | null> {
-		const { data, error } = await this.client
+	const { data, error } = await this.client
 			.from('emergency_contacts')
 			.select('*')
 			.eq('contact_id', id)
@@ -391,7 +394,7 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			if (error.code === 'PGRST116') return null;
 			throw error;
 		}
-		return data;
+		return data ? supabaseToEmergencyContact(data as any) : null;
 	}
 
 	async createEmergencyContact(
@@ -415,7 +418,7 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			.single();
 
 		if (error) throw error;
-		return result;
+		return result as any;
 	}
 
 	async updateEmergencyContact(
@@ -433,26 +436,26 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			.single();
 
 		if (error) throw error;
-		return result;
+		return result as any;
 	}
 
 	async listEmergencyContacts(householdId: string): Promise<EmergencyContact[]> {
-		const { data, error } = await this.client
+	const { data, error } = await this.client
 			.from('emergency_contacts')
 			.select('*')
 			.eq('household_id', householdId);
 
 		if (error) throw error;
-		return data || [];
+		return (data || []).map((d: any) => supabaseToEmergencyContact(d));
 	}
 
 	async listAllEmergencyContacts(): Promise<EmergencyContact[]> {
-		const { data, error } = await this.client
+	const { data, error } = await this.client
 			.from('emergency_contacts')
 			.select('*');
 
 		if (error) throw error;
-		return data || [];
+		return (data || []).map((d: any) => supabaseToEmergencyContact(d));
 	}
 
 	async deleteEmergencyContact(id: string): Promise<void> {
@@ -466,8 +469,8 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 
 	// Registration Cycles
 	async getRegistrationCycle(id: string): Promise<RegistrationCycle | null> {
-		const { data, error } = await this.client
-			.from('registration_cycles')
+	const { data, error } = await this.client
+			.from('registration_cycles' as any)
 			.select('*')
 			.eq('cycle_id', id)
 			.single();
@@ -476,7 +479,7 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			if (error.code === 'PGRST116') return null;
 			throw error;
 		}
-		return data;
+		return data as any;
 	}
 
 	async createRegistrationCycle(
@@ -489,22 +492,22 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			updated_at: new Date().toISOString(),
 		};
 
-		const { data: result, error } = await this.client
-			.from('registration_cycles')
+	const { data: result, error } = await this.client
+			.from('registration_cycles' as any)
 			.insert(cycle)
 			.select()
 			.single();
 
 		if (error) throw error;
-		return result;
+		return result as any;
 	}
 
 	async updateRegistrationCycle(
 		id: string,
 		data: Partial<RegistrationCycle>
 	): Promise<RegistrationCycle> {
-		const { data: result, error } = await this.client
-			.from('registration_cycles')
+	const { data: result, error } = await this.client
+		.from('registration_cycles' as any)
 			.update({
 				...data,
 				updated_at: new Date().toISOString(),
@@ -514,24 +517,33 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			.single();
 
 		if (error) throw error;
-		return result;
+		return result as any;
 	}
 
 	async listRegistrationCycles(isActive?: boolean): Promise<RegistrationCycle[]> {
-		let query = this.client.from('registration_cycles').select('*');
+    let query = this.client.from('registration_cycles' as any).select('*');
 
-		if (isActive !== undefined) {
-			query = query.eq('is_active', isActive);
-		}
+        if (isActive !== undefined) {
+            query = query.eq('is_active', isActive);
+        }
 
-		const { data, error } = await query;
-		if (error) throw error;
-		return data || [];
+        const { data, error } = await query as any;
+        if (error) throw error;
+        return (data || []).map((r: any) => this.mapRegistrationCycle(r));
+	}
+
+	private mapRegistrationCycle(row: any): RegistrationCycle {
+		return {
+			cycle_id: row.cycle_id,
+			start_date: row.start_date || '',
+			end_date: row.end_date || '',
+			is_active: row.is_active ?? false,
+		};
 	}
 
 	async deleteRegistrationCycle(id: string): Promise<void> {
 		const { error } = await this.client
-			.from('registration_cycles')
+			.from('registration_cycles' as any)
 			.delete()
 			.eq('cycle_id', id);
 
@@ -540,7 +552,7 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 
 	// Registrations
 	async getRegistration(id: string): Promise<Registration | null> {
-		const { data, error } = await this.client
+	const { data, error } = await this.client
 			.from('registrations')
 			.select('*')
 			.eq('registration_id', id)
@@ -550,7 +562,7 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			if (error.code === 'PGRST116') return null;
 			throw error;
 		}
-		return data;
+		return data ? supabaseToRegistration(data as any) : null;
 	}
 
 	async createRegistration(
@@ -563,32 +575,35 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			updated_at: new Date().toISOString(),
 		};
 
-		const { data: result, error } = await this.client
+		const dbPayload: any = { ...registration };
+		if (dbPayload.consents) dbPayload.consents = serializeIfObject(dbPayload.consents);
+
+	const { data: result, error } = await this.client
 			.from('registrations')
-			.insert(registration)
+			.insert(dbPayload)
 			.select()
 			.single();
 
 		if (error) throw error;
-		return result;
+		return supabaseToRegistration(result as any);
 	}
 
 	async updateRegistration(
 		id: string,
 		data: Partial<Registration>
 	): Promise<Registration> {
+		const payload: any = { ...data };
+		if (payload.consents) payload.consents = serializeIfObject(payload.consents);
+
 		const { data: result, error } = await this.client
 			.from('registrations')
-			.update({
-				...data,
-				updated_at: new Date().toISOString(),
-			})
+			.update(payload)
 			.eq('registration_id', id)
 			.select()
 			.single();
 
 		if (error) throw error;
-		return result;
+		return supabaseToRegistration(result as any);
 	}
 
 	async listRegistrations(filters?: RegistrationFilters): Promise<Registration[]> {
@@ -615,7 +630,7 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 
 		const { data, error } = await query;
 		if (error) throw error;
-		return data || [];
+		return (data || []).map((d: any) => supabaseToRegistration(d));
 	}
 
 	async deleteRegistration(id: string): Promise<void> {
@@ -629,7 +644,7 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 
 	// Ministries
 	async getMinistry(id: string): Promise<Ministry | null> {
-		const { data, error } = await this.client
+	const { data, error } = await this.client
 			.from('ministries')
 			.select('*')
 			.eq('ministry_id', id)
@@ -639,7 +654,7 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			if (error.code === 'PGRST116') return null;
 			throw error;
 		}
-		return data;
+	return data ? supabaseToMinistry(data as any) : null;
 	}
 
 	async createMinistry(
@@ -652,29 +667,32 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			updated_at: new Date().toISOString(),
 		};
 
+		const dbPayload: any = { ...ministry };
+		if (dbPayload.custom_questions) dbPayload.custom_questions = serializeIfObject(dbPayload.custom_questions);
+
 		const { data: result, error } = await this.client
 			.from('ministries')
-			.insert(ministry)
+			.insert(dbPayload)
 			.select()
 			.single();
 
 		if (error) throw error;
-		return result;
+		return supabaseToMinistry(result as any);
 	}
 
 	async updateMinistry(id: string, data: Partial<Ministry>): Promise<Ministry> {
+		const dbPayload: any = { ...data, updated_at: new Date().toISOString() };
+		if (dbPayload.custom_questions) dbPayload.custom_questions = serializeIfObject(dbPayload.custom_questions);
+
 		const { data: result, error } = await this.client
 			.from('ministries')
-			.update({
-				...data,
-				updated_at: new Date().toISOString(),
-			})
+			.update(dbPayload)
 			.eq('ministry_id', id)
 			.select()
 			.single();
 
 		if (error) throw error;
-		return result;
+		return supabaseToMinistry(result as any);
 	}
 
 	async listMinistries(isActive?: boolean): Promise<Ministry[]> {
@@ -684,9 +702,9 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			query = query.eq('is_active', isActive);
 		}
 
-		const { data, error } = await query;
-		if (error) throw error;
-		return data || [];
+	const { data, error } = await query;
+	if (error) throw error;
+	return (data || []).map((d: any) => supabaseToMinistry(d));
 	}
 
 	async deleteMinistry(id: string): Promise<void> {
@@ -700,7 +718,7 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 
 	// Ministry Enrollments
 	async getMinistryEnrollment(id: string): Promise<MinistryEnrollment | null> {
-		const { data, error } = await this.client
+	const { data, error } = await this.client
 			.from('ministry_enrollments')
 			.select('*')
 			.eq('enrollment_id', id)
@@ -710,7 +728,7 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			if (error.code === 'PGRST116') return null;
 			throw error;
 		}
-		return data;
+		return data ? supabaseToMinistryEnrollment(data as any) : null;
 	}
 
 	async createMinistryEnrollment(
@@ -723,32 +741,35 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			updated_at: new Date().toISOString(),
 		};
 
+		const dbPayload: any = { ...enrollment };
+		if (dbPayload.custom_fields) dbPayload.custom_fields = serializeIfObject(dbPayload.custom_fields);
+
 		const { data: result, error } = await this.client
 			.from('ministry_enrollments')
-			.insert(enrollment)
+			.insert(dbPayload)
 			.select()
 			.single();
 
 		if (error) throw error;
-		return result;
+		return supabaseToMinistryEnrollment(result as any);
 	}
 
 	async updateMinistryEnrollment(
 		id: string,
 		data: Partial<MinistryEnrollment>
 	): Promise<MinistryEnrollment> {
+		const dbPayload: any = { ...data, updated_at: new Date().toISOString() };
+		if (dbPayload.custom_fields) dbPayload.custom_fields = serializeIfObject(dbPayload.custom_fields);
+
 		const { data: result, error } = await this.client
 			.from('ministry_enrollments')
-			.update({
-				...data,
-				updated_at: new Date().toISOString(),
-			})
+			.update(dbPayload)
 			.eq('enrollment_id', id)
 			.select()
 			.single();
 
 		if (error) throw error;
-		return result;
+		return supabaseToMinistryEnrollment(result as any);
 	}
 
 	async listMinistryEnrollments(
@@ -770,7 +791,7 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 
 		const { data, error } = await query;
 		if (error) throw error;
-		return data || [];
+		return (data || []).map((d: any) => supabaseToMinistryEnrollment(d));
 	}
 
 	async deleteMinistryEnrollment(id: string): Promise<void> {
@@ -784,7 +805,7 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 
 	// Attendance
 	async getAttendance(id: string): Promise<Attendance | null> {
-		const { data, error } = await this.client
+	const { data, error } = await this.client
 			.from('attendance')
 			.select('*')
 			.eq('attendance_id', id)
@@ -794,7 +815,7 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			if (error.code === 'PGRST116') return null;
 			throw error;
 		}
-		return data;
+		return data ? supabaseToAttendance(data as any) : null;
 	}
 
 	async createAttendance(
@@ -813,7 +834,7 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			.single();
 
 		if (error) throw error;
-		return result;
+		return supabaseToAttendance(result as any);
 	}
 
 	async updateAttendance(id: string, data: Partial<Attendance>): Promise<Attendance> {
@@ -825,7 +846,7 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			.single();
 
 		if (error) throw error;
-		return result;
+		return supabaseToAttendance(result as any);
 	}
 
 	async listAttendance(filters?: AttendanceFilters): Promise<Attendance[]> {
@@ -852,7 +873,7 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 
 		const { data, error } = await query;
 		if (error) throw error;
-		return data || [];
+		return (data || []).map((d: any) => supabaseToAttendance(d));
 	}
 
 	async deleteAttendance(id: string): Promise<void> {
@@ -866,7 +887,7 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 
 	// Incidents
 	async getIncident(id: string): Promise<Incident | null> {
-		const { data, error } = await this.client
+	const { data, error } = await this.client
 			.from('incidents')
 			.select('*')
 			.eq('incident_id', id)
@@ -876,7 +897,7 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			if (error.code === 'PGRST116') return null;
 			throw error;
 		}
-		return data;
+		return data ? supabaseToIncident(data as any) : null;
 	}
 
 	async createIncident(
@@ -896,7 +917,7 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			.single();
 
 		if (error) throw error;
-		return result;
+		return supabaseToIncident(result as any);
 	}
 
 	async updateIncident(id: string, data: Partial<Incident>): Promise<Incident> {
@@ -911,11 +932,11 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			.single();
 
 		if (error) throw error;
-		return result;
+		return supabaseToIncident(result as any);
 	}
 
 	async listIncidents(filters?: IncidentFilters): Promise<Incident[]> {
-		let query = this.client.from('incidents').select('*');
+		let query = (this.client as any).from('incidents').select('*');
 
 		if (filters?.childId) {
 			query = query.eq('child_id', filters.childId);
@@ -939,7 +960,7 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 
 		const { data, error } = await query;
 		if (error) throw error;
-		return data || [];
+		return (data || []).map((d: any) => supabaseToIncident(d));
 	}
 
 	async deleteIncident(id: string): Promise<void> {
@@ -963,7 +984,7 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			if (error.code === 'PGRST116') return null;
 			throw error;
 		}
-		return data;
+		return data ? supabaseToEvent(data as any) : null;
 	}
 
 	async createEvent(
@@ -976,29 +997,32 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			updated_at: new Date().toISOString(),
 		};
 
+		const dbPayload: any = { ...event };
+		if (dbPayload.timeslots) dbPayload.timeslots = serializeIfObject(dbPayload.timeslots);
+
 		const { data: result, error } = await this.client
 			.from('events')
-			.insert(event)
+			.insert(dbPayload)
 			.select()
 			.single();
 
 		if (error) throw error;
-		return result;
+		return supabaseToEvent(result as any);
 	}
 
 	async updateEvent(id: string, data: Partial<Event>): Promise<Event> {
+		const dbPayload: any = { ...data, updated_at: new Date().toISOString() };
+		if (dbPayload.timeslots) dbPayload.timeslots = serializeIfObject(dbPayload.timeslots);
+
 		const { data: result, error } = await this.client
 			.from('events')
-			.update({
-				...data,
-				updated_at: new Date().toISOString(),
-			})
+			.update(dbPayload)
 			.eq('event_id', id)
 			.select()
 			.single();
 
 		if (error) throw error;
-		return result;
+		return supabaseToEvent(result as any);
 	}
 
 	async listEvents(): Promise<Event[]> {
@@ -1007,7 +1031,7 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			.select('*');
 
 		if (error) throw error;
-		return data || [];
+		return (data || []).map((d: any) => supabaseToEvent(d));
 	}
 
 	async deleteEvent(id: string): Promise<void> {
@@ -1031,7 +1055,7 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			if (error.code === 'PGRST116') return null;
 			throw error;
 		}
-		return data;
+		return data ? supabaseToUser(data as any) : null;
 	}
 
 	async createUser(
@@ -1051,7 +1075,7 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			.single();
 
 		if (error) throw error;
-		return result;
+		return supabaseToUser(result as any);
 	}
 
 	async updateUser(id: string, data: Partial<User>): Promise<User> {
@@ -1066,7 +1090,7 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			.single();
 
 		if (error) throw error;
-		return result;
+		return supabaseToUser(result as any);
 	}
 
 	async listUsers(): Promise<User[]> {
@@ -1075,7 +1099,7 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			.select('*');
 
 		if (error) throw error;
-		return data || [];
+		return (data || []).map((d: any) => supabaseToUser(d));
 	}
 
 	async deleteUser(id: string): Promise<void> {
@@ -1088,8 +1112,46 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 	}
 
 	// Leader Profiles
+
+	private mapLeaderProfile(row: any): LeaderProfile {
+		return {
+			leader_id: row.leader_id,
+			first_name: row.first_name || '',
+			last_name: row.last_name || '',
+			email: row.email || undefined,
+			phone: row.phone || undefined,
+			photo_url: row.photo_url || undefined,
+			avatar_path: row.avatar_path || undefined,
+			notes: row.notes || undefined,
+			background_check_complete: row.background_check_complete ?? false,
+			ministryCount: row.ministryCount ?? 0,
+			is_active: row.is_active ?? true,
+			created_at: row.created_at || new Date().toISOString(),
+			updated_at: row.updated_at || new Date().toISOString(),
+		};
+	}
+
+	private mapBibleBeeYear(row: any): BibleBeeYear {
+		return {
+			id: row.id,
+			year: row.year ?? undefined,
+			name: row.name || undefined,
+			label: row.label || undefined,
+			cycle_id: row.cycle_id || undefined,
+			description: row.description || undefined,
+			is_active: row.is_active ?? false,
+			registration_open_date: row.registration_open_date || undefined,
+			registration_close_date: row.registration_close_date || undefined,
+			competition_start_date: row.competition_start_date || undefined,
+			competition_end_date: row.competition_end_date || undefined,
+			created_at: row.created_at || new Date().toISOString(),
+			updated_at: row.updated_at || new Date().toISOString(),
+		};
+	}
+
+
 	async getLeaderProfile(id: string): Promise<LeaderProfile | null> {
-		const { data, error } = await this.client
+		const { data, error } = await (this.client as any)
 			.from('leader_profiles')
 			.select('*')
 			.eq('leader_id', id)
@@ -1099,7 +1161,7 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			if (error.code === 'PGRST116') return null;
 			throw error;
 		}
-		return data;
+		return data ? this.mapLeaderProfile(data) : null;
 	}
 
 	async createLeaderProfile(
@@ -1118,8 +1180,8 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			.select()
 			.single();
 
-		if (error) throw error;
-		return result;
+	if (error) throw error;
+	return this.mapLeaderProfile(result);
 	}
 
 	async updateLeaderProfile(
@@ -1137,11 +1199,11 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			.single();
 
 		if (error) throw error;
-		return result;
+		return this.mapLeaderProfile(result);
 	}
 
 	async listLeaderProfiles(isActive?: boolean): Promise<LeaderProfile[]> {
-		let query = this.client.from('leader_profiles').select('*');
+		let query = (this.client as any).from('leader_profiles').select('*');
 
 		if (isActive !== undefined) {
 			query = query.eq('is_active', isActive);
@@ -1149,7 +1211,7 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 
 		const { data, error } = await query;
 		if (error) throw error;
-		return data || [];
+		return (data || []).map((d: any) => this.mapLeaderProfile(d));
 	}
 
 	async deleteLeaderProfile(id: string): Promise<void> {
@@ -1166,7 +1228,7 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 		id: string
 	): Promise<MinistryLeaderMembership | null> {
 		const { data, error } = await this.client
-			.from('ministry_leader_memberships')
+			.from('leader_assignments')
 			.select('*')
 			.eq('membership_id', id)
 			.single();
@@ -1175,7 +1237,7 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			if (error.code === 'PGRST116') return null;
 			throw error;
 		}
-		return data;
+		return data ? supabaseToMinistryLeaderMembership(data as any) : null;
 	}
 
 	async createMinistryLeaderMembership(
@@ -1188,39 +1250,47 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			updated_at: new Date().toISOString(),
 		};
 
+		// serialize any JSON-like fields before insert
+		const dbPayload: any = { ...membership };
+		if (dbPayload.roles && typeof dbPayload.roles !== 'string') {
+			dbPayload.roles = JSON.stringify(dbPayload.roles);
+		}
+
 		const { data: result, error } = await this.client
-			.from('ministry_leader_memberships')
-			.insert(membership)
+			.from('leader_assignments')
+			.insert(dbPayload)
 			.select()
 			.single();
 
 		if (error) throw error;
-		return result;
+		return supabaseToMinistryLeaderMembership(result as any);
 	}
 
 	async updateMinistryLeaderMembership(
 		id: string,
 		data: Partial<MinistryLeaderMembership>
 	): Promise<MinistryLeaderMembership> {
+		const dbPayload: any = { ...data, updated_at: new Date().toISOString() };
+		if (dbPayload.roles && typeof dbPayload.roles !== 'string') {
+			dbPayload.roles = JSON.stringify(dbPayload.roles);
+		}
+
 		const { data: result, error } = await this.client
-			.from('ministry_leader_memberships')
-			.update({
-				...data,
-				updated_at: new Date().toISOString(),
-			})
+			.from('leader_assignments')
+			.update(dbPayload)
 			.eq('membership_id', id)
 			.select()
 			.single();
 
 		if (error) throw error;
-		return result;
+		return result ? supabaseToMinistryLeaderMembership(result as any) : result;
 	}
 
 	async listMinistryLeaderMemberships(
 		ministryId?: string,
 		leaderId?: string
 	): Promise<MinistryLeaderMembership[]> {
-		let query = this.client.from('ministry_leader_memberships').select('*');
+	let query = (this.client as any).from('leader_assignments').select('*');
 
 		if (ministryId) {
 			query = query.eq('ministry_id', ministryId);
@@ -1231,12 +1301,12 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 
 		const { data, error } = await query;
 		if (error) throw error;
-		return data || [];
+		return (data || []).map((d: any) => supabaseToMinistryLeaderMembership(d));
 	}
 
 	async deleteMinistryLeaderMembership(id: string): Promise<void> {
 		const { error } = await this.client
-			.from('ministry_leader_memberships')
+			.from('leader_assignments')
 			.delete()
 			.eq('membership_id', id);
 
@@ -1255,7 +1325,7 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			if (error.code === 'PGRST116') return null;
 			throw error;
 		}
-		return data;
+		return data ? supabaseToMinistryAccount(data as any) : null;
 	}
 
 	async createMinistryAccount(
@@ -1267,32 +1337,39 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			updated_at: new Date().toISOString(),
 		};
 
+		const dbPayload: any = { ...account };
+		if (dbPayload.settings && typeof dbPayload.settings !== 'string') {
+			dbPayload.settings = JSON.stringify(dbPayload.settings);
+		}
+
 		const { data: result, error } = await this.client
 			.from('ministry_accounts')
-			.insert(account)
+			.insert(dbPayload)
 			.select()
 			.single();
 
 		if (error) throw error;
-		return result;
+		return supabaseToMinistryAccount(result as any);
 	}
 
 	async updateMinistryAccount(
 		id: string,
 		data: Partial<MinistryAccount>
 	): Promise<MinistryAccount> {
+		const dbPayload: any = { ...data, updated_at: new Date().toISOString() };
+		if (dbPayload.settings && typeof dbPayload.settings !== 'string') {
+			dbPayload.settings = JSON.stringify(dbPayload.settings);
+		}
+
 		const { data: result, error } = await this.client
 			.from('ministry_accounts')
-			.update({
-				...data,
-				updated_at: new Date().toISOString(),
-			})
+			.update(dbPayload)
 			.eq('ministry_id', id)
 			.select()
 			.single();
 
 		if (error) throw error;
-		return result;
+		return result ? supabaseToMinistryAccount(result as any) : result;
 	}
 
 	async listMinistryAccounts(): Promise<MinistryAccount[]> {
@@ -1301,7 +1378,7 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			.select('*');
 
 		if (error) throw error;
-		return data || [];
+		return (data || []).map((d: any) => supabaseToMinistryAccount(d));
 	}
 
 	async deleteMinistryAccount(id: string): Promise<void> {
@@ -1315,7 +1392,7 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 
 	// Branding Settings
 	async getBrandingSettings(settingId: string): Promise<BrandingSettings | null> {
-		const { data, error } = await this.client
+		const { data, error } = await (this.client as any)
 			.from('branding_settings')
 			.select('*')
 			.eq('setting_id', settingId)
@@ -1325,7 +1402,7 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			if (error.code === 'PGRST116') return null;
 			throw error;
 		}
-		return data;
+		return data ? supabaseToBrandingSettings(data as any) : null;
 	}
 
 	async createBrandingSettings(
@@ -1338,21 +1415,21 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			updated_at: new Date().toISOString(),
 		};
 
-		const { data: result, error } = await this.client
+		const { data: result, error } = await (this.client as any)
 			.from('branding_settings')
 			.insert(settings)
 			.select()
 			.single();
 
 		if (error) throw error;
-		return result;
+		return result ? supabaseToBrandingSettings(result as any) : result as any;
 	}
 
 	async updateBrandingSettings(
 		settingId: string,
 		data: Partial<BrandingSettings>
 	): Promise<BrandingSettings> {
-		const { data: result, error } = await this.client
+		const { data: result, error } = await (this.client as any)
 			.from('branding_settings')
 			.update({
 				...data,
@@ -1363,16 +1440,16 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			.single();
 
 		if (error) throw error;
-		return result;
+		return result ? supabaseToBrandingSettings(result as any) : result as any;
 	}
 
 	async listBrandingSettings(): Promise<BrandingSettings[]> {
-		const { data, error } = await this.client
+		const { data, error } = await (this.client as any)
 			.from('branding_settings')
 			.select('*');
 
 		if (error) throw error;
-		return data || [];
+		return (data || []).map((d: any) => supabaseToBrandingSettings(d));
 	}
 
 	async deleteBrandingSettings(settingId: string): Promise<void> {
@@ -1396,26 +1473,35 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			if (error.code === 'PGRST116') return null;
 			throw error;
 		}
-		return data;
+		return data ? this.mapBibleBeeYear(data) : null;
 	}
 
 	async createBibleBeeYear(
 		data: Omit<BibleBeeYear, 'created_at' | 'updated_at'>
 	): Promise<BibleBeeYear> {
-		const year = {
-			...data,
+		if (data.year === undefined || data.year === null) throw new Error('year is required for bible bee year');
+
+		const insertPayload = {
+			name: data.name ?? '',
+			year: data.year,
+			description: data.description ?? null,
+			is_active: data.is_active ?? null,
+			registration_open_date: data.registration_open_date ?? null,
+			registration_close_date: data.registration_close_date ?? null,
+			competition_start_date: data.competition_start_date ?? null,
+			competition_end_date: data.competition_end_date ?? null,
 			created_at: new Date().toISOString(),
 			updated_at: new Date().toISOString(),
 		};
 
 		const { data: result, error } = await this.client
 			.from('bible_bee_years')
-			.insert(year)
+			.insert(insertPayload)
 			.select()
 			.single();
 
 		if (error) throw error;
-		return result;
+		return this.mapBibleBeeYear(result);
 	}
 
 	async updateBibleBeeYear(
@@ -1433,7 +1519,7 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			.single();
 
 		if (error) throw error;
-		return result;
+		return this.mapBibleBeeYear(result);
 	}
 
 	async listBibleBeeYears(): Promise<BibleBeeYear[]> {
@@ -1442,7 +1528,7 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			.select('*');
 
 		if (error) throw error;
-		return data || [];
+		return (data || []).map((d: any) => this.mapBibleBeeYear(d));
 	}
 
 	async deleteBibleBeeYear(id: string): Promise<void> {
@@ -1465,26 +1551,34 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			if (error.code === 'PGRST116') return null;
 			throw error;
 		}
-		return data;
+		return data ? this.mapDivision(data) : null;
 	}
 
 	async createDivision(
 		data: Omit<Division, 'created_at' | 'updated_at'>
 	): Promise<Division> {
-		const division = {
-			...data,
+		const insertPayload = {
+			name: data.name,
+			bible_bee_year_id: data.year_id ?? null,
+			description: (data as any).description ?? null,
+			min_age: (data as any).min_age ?? null,
+			max_age: (data as any).max_age ?? null,
+			min_grade: data.min_grade ?? null,
+			max_grade: data.max_grade ?? null,
+			min_scriptures: data.minimum_required ?? null,
+			requires_essay: (data as any).requires_essay ?? null,
 			created_at: new Date().toISOString(),
 			updated_at: new Date().toISOString(),
 		};
 
 		const { data: result, error } = await this.client
 			.from('divisions')
-			.insert(division)
+			.insert(insertPayload)
 			.select()
 			.single();
 
 		if (error) throw error;
-		return result;
+		return this.mapDivision(result);
 	}
 
 	async updateDivision(id: string, data: Partial<Division>): Promise<Division> {
@@ -1499,11 +1593,11 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			.single();
 
 		if (error) throw error;
-		return result;
+		return this.mapDivision(result);
 	}
 
 	async listDivisions(bibleBeeYearId?: string): Promise<Division[]> {
-		let query = this.client.from('divisions').select('*');
+		let query = (this.client as any).from('divisions').select('*');
 
 		if (bibleBeeYearId) {
 			query = query.eq('bible_bee_year_id', bibleBeeYearId);
@@ -1511,7 +1605,21 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 
 		const { data, error } = await query;
 		if (error) throw error;
-		return data || [];
+		return (data || []).map((d: any) => this.mapDivision(d));
+	}
+
+	private mapDivision(row: any): Division {
+		return {
+			id: row.id,
+			year_id: row.bible_bee_year_id || row.year_id || '',
+			name: row.name || '',
+			minimum_required: row.minimum_required ?? 0,
+			min_last_order: row.min_last_order ?? 0,
+			min_grade: row.min_grade ?? 0,
+			max_grade: row.max_grade ?? 0,
+			created_at: row.created_at || new Date().toISOString(),
+			updated_at: row.updated_at || new Date().toISOString(),
+		};
 	}
 
 	async deleteDivision(id: string): Promise<void> {
@@ -1534,26 +1642,31 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			if (error.code === 'PGRST116') return null;
 			throw error;
 		}
-		return data;
+		return data ? this.mapEssayPrompt(data) : null;
 	}
 
 	async createEssayPrompt(
 		data: Omit<EssayPrompt, 'created_at' | 'updated_at'>
 	): Promise<EssayPrompt> {
-		const prompt = {
-			...data,
+		const insertPayload = {
+			prompt: data.prompt_text,
+			title: (data as any).title ?? data.division_name ?? (data.prompt_text ? data.prompt_text.slice(0, 40) : 'Essay Prompt'),
+			division_id: null,
+			instructions: null,
+			min_words: null,
+			max_words: null,
 			created_at: new Date().toISOString(),
 			updated_at: new Date().toISOString(),
 		};
 
 		const { data: result, error } = await this.client
 			.from('essay_prompts')
-			.insert(prompt)
+			.insert(insertPayload)
 			.select()
 			.single();
 
 		if (error) throw error;
-		return result;
+		return this.mapEssayPrompt(result);
 	}
 
 	async updateEssayPrompt(
@@ -1571,11 +1684,11 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			.single();
 
 		if (error) throw error;
-		return result;
+		return this.mapEssayPrompt(result);
 	}
 
 	async listEssayPrompts(divisionId?: string): Promise<EssayPrompt[]> {
-		let query = this.client.from('essay_prompts').select('*');
+		let query = (this.client as any).from('essay_prompts').select('*');
 
 		if (divisionId) {
 			query = query.eq('division_id', divisionId);
@@ -1583,7 +1696,19 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 
 		const { data, error } = await query;
 		if (error) throw error;
-		return data || [];
+		return (data || []).map((d: any) => this.mapEssayPrompt(d));
+	}
+
+	private mapEssayPrompt(row: any): EssayPrompt {
+		return {
+			id: row.id,
+			year_id: row.year_id || row.bible_bee_year_id || '',
+			division_name: row.division_name || undefined,
+			prompt_text: row.prompt_text || row.prompt || '',
+			due_date: row.due_date || undefined,
+			created_at: row.created_at || new Date().toISOString(),
+			updated_at: row.updated_at || new Date().toISOString(),
+		};
 	}
 
 	async deleteEssayPrompt(id: string): Promise<void> {
@@ -1597,7 +1722,7 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 
 	async getEnrollment(id: string): Promise<Enrollment | null> {
 		const { data, error } = await this.client
-			.from('enrollments')
+			.from('bible_bee_enrollments')
 			.select('*')
 			.eq('id', id)
 			.single();
@@ -1606,48 +1731,58 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			if (error.code === 'PGRST116') return null;
 			throw error;
 		}
-		return data;
+		return data ? supabaseToEnrollment(data as any) : null;
 	}
 
 	async createEnrollment(
 		data: Omit<Enrollment, 'created_at' | 'updated_at'>
 	): Promise<Enrollment> {
-		const enrollment = {
-			...data,
-			created_at: new Date().toISOString(),
-			updated_at: new Date().toISOString(),
+		if (!data.child_id || !data.year_id || !data.division_id) throw new Error('child_id, year_id and division_id are required for enrollment');
+
+		const insertPayload = {
+			childId: data.child_id,
+			competitionYearId: data.year_id,
+			divisionId: data.division_id,
+			auto_enrolled: data.auto_enrolled ?? false,
+			enrolled_at: data.enrolled_at ?? new Date().toISOString(),
+			id: (data as any).id ?? undefined,
 		};
 
 		const { data: result, error } = await this.client
-			.from('enrollments')
-			.insert(enrollment)
+			.from('bible_bee_enrollments')
+			.insert(insertPayload)
 			.select()
 			.single();
 
 		if (error) throw error;
-		return result;
+		return supabaseToEnrollment(result as any);
 	}
 
 	async updateEnrollment(id: string, data: Partial<Enrollment>): Promise<Enrollment> {
+		const payload: any = {};
+		if ('child_id' in data) payload.childId = (data as any).child_id;
+		if ('year_id' in data) payload.competitionYearId = (data as any).year_id;
+		if ('division_id' in data) payload.divisionId = (data as any).division_id;
+		if ('auto_enrolled' in data) payload.auto_enrolled = (data as any).auto_enrolled;
+		if ('enrolled_at' in data) payload.enrolled_at = (data as any).enrolled_at;
+		payload.updated_at = new Date().toISOString();
+
 		const { data: result, error } = await this.client
-			.from('enrollments')
-			.update({
-				...data,
-				updated_at: new Date().toISOString(),
-			})
+			.from('bible_bee_enrollments')
+			.update(payload)
 			.eq('id', id)
 			.select()
 			.single();
 
 		if (error) throw error;
-		return result;
+		return supabaseToEnrollment(result as any);
 	}
 
 	async listEnrollments(
 		childId?: string,
 		bibleBeeYearId?: string
 	): Promise<Enrollment[]> {
-		let query = this.client.from('enrollments').select('*');
+	let query = (this.client as any).from('bible_bee_enrollments').select('*');
 
 		if (childId) {
 			query = query.eq('child_id', childId);
@@ -1658,12 +1793,12 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 
 		const { data, error } = await query;
 		if (error) throw error;
-		return data || [];
+		return (data || []).map((d: any) => supabaseToEnrollment(d));
 	}
 
 	async deleteEnrollment(id: string): Promise<void> {
 		const { error } = await this.client
-			.from('enrollments')
+			.from('bible_bee_enrollments')
 			.delete()
 			.eq('id', id);
 
@@ -1681,7 +1816,7 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			if (error.code === 'PGRST116') return null;
 			throw error;
 		}
-		return data;
+		return data ? supabaseToEnrollmentOverride(data as any) : null;
 	}
 
 	async createEnrollmentOverride(
@@ -1700,7 +1835,7 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			.single();
 
 		if (error) throw error;
-		return result;
+		return supabaseToEnrollmentOverride(result as any);
 	}
 
 	async updateEnrollmentOverride(
@@ -1718,11 +1853,11 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			.single();
 
 		if (error) throw error;
-		return result;
+		return supabaseToEnrollmentOverride(result as any);
 	}
 
 	async listEnrollmentOverrides(enrollmentId?: string): Promise<EnrollmentOverride[]> {
-		let query = this.client.from('enrollment_overrides').select('*');
+		let query = (this.client as any).from('enrollment_overrides').select('*');
 
 		if (enrollmentId) {
 			query = query.eq('enrollment_id', enrollmentId);
@@ -1730,7 +1865,7 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 
 		const { data, error } = await query;
 		if (error) throw error;
-		return data || [];
+		return (data || []).map((d: any) => supabaseToEnrollmentOverride(d));
 	}
 
 	async deleteEnrollmentOverride(id: string): Promise<void> {

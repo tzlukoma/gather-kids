@@ -1,6 +1,8 @@
 import type * as DexieTypes from '../types';
 import type * as SupabaseTypes from './supabase-types';
 import type * as CanonicalDtos from './canonical-dtos';
+import type { Attendance, Incident, Event, User, MinistryLeaderMembership, MinistryAccount, BrandingSettings, EventTimeslot, Consent, CustomQuestion } from '../types';
+import type { Database } from './supabase-types';
 
 /**
  * Maps between Dexie types, Supabase generated types, and canonical snake_case DTOs
@@ -215,7 +217,7 @@ export function supabaseToHousehold(
 		household_id: record.household_id || '',
 		name: record.name ?? undefined,
 		// accept either snake_case (new generated types) or legacy camelCase
-		preferredScriptureTranslation: (record as any).preferred_scripture_translation ?? record.preferredScriptureTranslation ?? undefined,
+		preferredScriptureTranslation: (record as any).preferred_scripture_translation ?? (record as any).preferredScriptureTranslation ?? undefined,
 	// coerce null -> empty string for address fields to satisfy callers expecting string
 	address_line1: record.address_line1 ?? '' ,
 	address_line2: record.address_line2 ?? '' ,
@@ -267,11 +269,181 @@ export function supabaseToChild(record: SupabaseChild): ChildEntity {
 	medical_notes: record.medical_notes ?? undefined,
 	special_needs: record.special_needs ?? false,
 	special_needs_notes: record.special_needs_notes ?? undefined,
-	is_active: record.is_active !== undefined ? record.is_active : true,
+	is_active: record.is_active ?? true,
 	created_at: record.created_at ?? new Date().toISOString(),
 	updated_at: record.updated_at ?? new Date().toISOString(),
-	photo_url: record.photo_url ?? undefined,
+	photo_url: (record as any).photo_url ?? (record as any).photoUrl ?? undefined,
 	};
+}
+
+// Attendance mapping
+export function supabaseToAttendance(row: Database['public']['Tables']['attendance']['Row'] | any): Attendance {
+	return {
+		attendance_id: row.attendance_id,
+		child_id: row.child_id || '',
+		event_id: row.event_id || '',
+		check_in_at: row.check_in_at || null,
+		check_out_at: row.check_out_at || null,
+		checked_in_by: row.checked_in_by || undefined,
+		checked_out_by: row.checked_out_by || undefined,
+		first_time_flag: !!row.first_time_flag,
+		notes: row.notes || '',
+		picked_up_by: row.picked_up_by || undefined,
+		pickup_method: row.pickup_method || undefined,
+		timeslot_id: row.timeslot_id || undefined,
+		date: row.date || undefined,
+		created_at: row.created_at || undefined,
+	} as Attendance;
+}
+
+// Incident mapping
+export function supabaseToIncident(row: Database['public']['Tables']['incidents']['Row'] | any): Incident {
+	return {
+		incident_id: row.incident_id,
+		child_id: row.child_id || '',
+		child_name: row.child_name || '',
+		event_id: row.event_id || '',
+		leader_id: row.leader_id || '',
+		description: row.description || '',
+		severity: row.severity || 'low',
+		timestamp: row.timestamp || new Date().toISOString(),
+		admin_acknowledged_at: row.admin_acknowledged_at || null,
+		created_at: row.created_at || undefined,
+	} as Incident;
+}
+
+// Events mapping - parse timeslots JSON to EventTimeslot[]
+export function supabaseToEvent(row: Database['public']['Tables']['events']['Row'] | any): Event {
+	// Parse timeslots using the helper so we always return typed EventTimeslot[]
+	const timeslots = parseEventTimeslots((row as any).timeslots);
+	return {
+		event_id: row.event_id,
+		name: row.name || '',
+		description: row.description || '',
+		timeslots,
+		created_at: row.created_at || undefined,
+	} as Event;
+}
+
+// Parse Event timeslots to typed EventTimeslot[]
+export function parseEventTimeslots(value: any): EventTimeslot[] {
+	try {
+		if (!value) return [];
+		if (typeof value === 'string') return JSON.parse(value) as EventTimeslot[];
+		return value as EventTimeslot[];
+	} catch (e) {
+		return [];
+	}
+}
+
+// Parse registration consents (stored as JSON) into canonical Consent[]
+export function parseConsents(value: any): Consent[] {
+	try {
+		if (!value) return [];
+		const raw = typeof value === 'string' ? JSON.parse(value) : value;
+		return (raw as any[]).map((c: any) => ({
+			...c,
+			// normalize to domain type 'photoRelease'
+			type: c.type === 'photo_release' ? 'photoRelease' : c.type,
+		})) as Consent[];
+	} catch (e) {
+		return [];
+	}
+}
+
+// Parse custom questions field stored in ministries
+export function parseCustomQuestions(value: any): CustomQuestion[] {
+	try {
+		if (!value) return [];
+		if (typeof value === 'string') return JSON.parse(value) as CustomQuestion[];
+		return value as CustomQuestion[];
+	} catch (e) {
+		return [];
+	}
+}
+
+// Parse enrollment custom fields
+export function parseCustomFields(value: any): Record<string, any> | undefined {
+	try {
+		if (!value) return undefined;
+		if (typeof value === 'string') return JSON.parse(value) as Record<string, any>;
+		return value as Record<string, any>;
+	} catch (e) {
+		return undefined;
+	}
+}
+
+// Serialize helpers for adapter writes
+export function serializeIfObject(value: any): any {
+	if (value === undefined || value === null) return value;
+	if (typeof value === 'string') return value;
+	try {
+		return JSON.stringify(value);
+	} catch (e) {
+		return value;
+	}
+}
+
+// Users mapping
+export function supabaseToUser(row: Database['public']['Tables']['users']['Row'] | any): User {
+	return {
+		user_id: row.user_id,
+		email: row.email || '',
+		name: row.name || '',
+		role: row.role || 'user',
+		is_active: row.is_active === null || row.is_active === undefined ? true : !!row.is_active,
+		background_check_status: row.background_check_status || 'unknown',
+		created_at: row.created_at || undefined,
+		updated_at: row.updated_at || undefined,
+	} as User;
+}
+
+// Ministry Leader Membership mapping
+export function supabaseToMinistryLeaderMembership(row: any): MinistryLeaderMembership {
+	// Normalize role/role_type to domain enum: 'PRIMARY' | 'VOLUNTEER'
+	let rawRole = (row.role_type ?? row.role ?? '') as string;
+	if (typeof rawRole === 'string') rawRole = rawRole.trim();
+	const role_type = ((): 'PRIMARY' | 'VOLUNTEER' => {
+		const r = (rawRole || '').toLowerCase();
+		if (r === 'primary' || r === 'primary_leader' || r === 'lead' || r === 'primary_leader') return 'PRIMARY';
+		if (r === 'volunteer' || r === 'member' || r === 'helper') return 'VOLUNTEER';
+		// default to VOLUNTEER for any unknown value
+		return 'VOLUNTEER';
+	})();
+
+	return {
+		membership_id: row.membership_id || row.id || '',
+		ministry_id: row.ministry_id || '',
+		leader_id: row.leader_id || row.user_id || '',
+		role_type,
+		is_active: row.is_active === null || row.is_active === undefined ? true : !!row.is_active,
+		notes: row.notes ?? undefined,
+		created_at: row.created_at || undefined,
+		updated_at: row.updated_at || undefined,
+	} as MinistryLeaderMembership;
+}
+
+// Ministry Account mapping
+export function supabaseToMinistryAccount(row: Database['public']['Tables']['ministry_accounts']['Row'] | any): MinistryAccount {
+	// Parse settings JSON if present (not currently part of the domain type but kept for future use)
+	let settings: any = undefined;
+	try {
+		if (row.settings) {
+			if (typeof row.settings === 'string') settings = JSON.parse(row.settings);
+			else settings = row.settings;
+		}
+	} catch (e) {
+		settings = undefined;
+	}
+
+	return {
+		ministry_id: row.ministry_id || row.ministry || row.id || '',
+		email: row.email || undefined,
+		display_name: row.display_name || row.name || undefined,
+		is_active: row.is_active === null || row.is_active === undefined ? true : !!row.is_active,
+		created_at: row.created_at || undefined,
+		updated_at: row.updated_at || undefined,
+	} as MinistryAccount;
 }
 
 export function childToSupabase(
@@ -387,23 +559,62 @@ export type SupabaseMinistry =
 
 // Ministry conversions
 export function supabaseToMinistry(record: SupabaseMinistry): MinistryEntity {
+	const r: any = record;
 	return {
-		ministry_id: record.ministry_id || '',
+		ministry_id: r.ministry_id || '',
 		// tolerate optional code and data profile which may be present in generated types
-		code: (record as any).code ?? (record as any).ministry_code ?? undefined,
-	name: (record.name ?? (record as any).label) ?? '',
-		description: record.description,
-		min_age: record.min_age,
-		max_age: record.max_age,
-		min_grade: record.min_grade,
-		max_grade: record.max_grade,
-		is_active: record.is_active !== undefined ? record.is_active : true,
-		enrollment_type: record.enrollment_type ?? (record as any).enrollmentType ?? 'enrolled',
-		data_profile: (record as any).data_profile ?? (record as any).dataProfile ?? undefined,
-		custom_questions: record.custom_questions,
-		created_at: record.created_at || new Date().toISOString(),
-		updated_at: record.updated_at || new Date().toISOString(),
+		code: r.code ?? r.ministry_code ?? undefined,
+		name: (r.name ?? r.label) ?? '',
+		// coerce null -> undefined for optional fields produced by the generator
+		description: r.description ?? undefined,
+		min_age: r.min_age ?? undefined,
+		max_age: r.max_age ?? undefined,
+		min_grade: r.min_grade ?? undefined,
+		max_grade: r.max_grade ?? undefined,
+		// ensure callers that expect a boolean get a sensible default
+		is_active: r.is_active ?? true,
+		enrollment_type: r.enrollment_type ?? r.enrollmentType ?? 'enrolled',
+		data_profile: r.data_profile ?? r.dataProfile ?? undefined,
+	// custom_questions is stored as SupabaseJson; parse into typed CustomQuestion[]
+	custom_questions: parseCustomQuestions(r.custom_questions),
+		created_at: r.created_at || new Date().toISOString(),
+		updated_at: r.updated_at || new Date().toISOString(),
 	};
+}
+
+// =====================================
+// Ministry Enrollment Mappings
+// =====================================
+
+export type SupabaseMinistryEnrollment =
+	SupabaseTypes.Database['public']['Tables']['ministry_enrollments']['Row'];
+
+export function supabaseToMinistryEnrollment(
+	record: SupabaseMinistryEnrollment
+): DexieTypes.MinistryEnrollment {
+	// Normalize nullable id fields to empty string so callers don't have to handle null
+	return {
+		enrollment_id: record.enrollment_id || '',
+		child_id: record.child_id ?? '',
+		cycle_id: record.cycle_id ?? '',
+		ministry_id: record.ministry_id ?? '',
+		status: (record.status as any) ?? 'enrolled',
+	custom_fields: parseCustomFields(record.custom_fields),
+		notes: undefined,
+	} as any;
+}
+
+export function ministryEnrollmentToSupabase(
+	enrollment: Omit<DexieTypes.MinistryEnrollment, 'created_at' | 'updated_at'>
+): Omit<SupabaseMinistryEnrollment, 'created_at'> {
+	return {
+		enrollment_id: enrollment.enrollment_id,
+		child_id: enrollment.child_id,
+		cycle_id: enrollment.cycle_id,
+		ministry_id: enrollment.ministry_id,
+		status: enrollment.status,
+		custom_fields: enrollment.custom_fields as any,
+	} as any;
 }
 
 export function ministryToSupabase(
@@ -449,6 +660,81 @@ export function supabaseToBrandingSettings(
 		created_at: record.created_at || new Date().toISOString(),
 		updated_at: record.updated_at || new Date().toISOString(),
 	}) as any;
+}
+
+// =====================================
+// Enrollment / EnrollmentOverride Mappings
+// =====================================
+
+// The codebase uses a couple enrollment representations (legacy camelCase tables and new snake_case).
+// Keep these functions permissive: accept either convention and coerce nullable DB fields to domain expectations.
+
+export function supabaseToEnrollment(record: any): DexieTypes.Enrollment {
+	// Support both `bible_bee_enrollments` (camelCase) and `enrollments` (snake_case)
+	return {
+		id: record.id || record.enrollment_id || '',
+		year_id: record.year_id ?? record.competitionYearId ?? record.bible_bee_year_id ?? '',
+		child_id: record.child_id ?? record.childId ?? '',
+		division_id: record.division_id ?? record.divisionId ?? '',
+		auto_enrolled: record.auto_enrolled ?? false,
+		enrolled_at: record.enrolled_at ?? record.enrolledAt ?? new Date().toISOString(),
+	} as any;
+}
+
+export function enrollmentToSupabase(enrollment: Partial<DexieTypes.Enrollment>): any {
+	return {
+		id: enrollment.id,
+		year_id: enrollment.year_id,
+		child_id: enrollment.child_id,
+		division_id: enrollment.division_id,
+		auto_enrolled: enrollment.auto_enrolled,
+		enrolled_at: enrollment.enrolled_at,
+	} as any;
+}
+
+export function supabaseToEnrollmentOverride(record: any): DexieTypes.EnrollmentOverride {
+	return {
+		id: record.id || record.override_id || '',
+		year_id: record.year_id ?? record.bible_bee_year_id ?? '',
+		child_id: record.child_id ?? record.childId ?? '',
+		division_id: record.division_id ?? record.divisionId ?? '',
+		reason: record.reason ?? undefined,
+		created_by: record.created_by ?? record.createdBy ?? undefined,
+		created_at: record.created_at ?? new Date().toISOString(),
+	} as any;
+}
+
+// =====================================
+// Registration mappings
+// =====================================
+
+export type SupabaseRegistration =
+	SupabaseTypes.Database['public']['Tables']['registrations']['Row'];
+
+export function supabaseToRegistration(record: SupabaseRegistration): DexieTypes.Registration {
+	return {
+		registration_id: record.registration_id || '',
+		child_id: record.child_id ?? '',
+		cycle_id: record.cycle_id ?? '',
+		status: (record.status as any) ?? 'active',
+		pre_registered_sunday_school: record.pre_registered_sunday_school ?? false,
+		consents: parseConsents((record as any).consents),
+		submitted_via: (record.submitted_via as any) ?? 'web',
+		submitted_at: record.submitted_at ?? new Date().toISOString(),
+	} as any;
+}
+
+export function registrationToSupabase(reg: Partial<DexieTypes.Registration>): any {
+	return {
+		registration_id: reg.registration_id,
+		child_id: reg.child_id,
+		cycle_id: reg.cycle_id,
+		status: reg.status,
+		pre_registered_sunday_school: reg.pre_registered_sunday_school,
+		consents: reg.consents as any,
+		submitted_via: reg.submitted_via,
+		submitted_at: reg.submitted_at,
+	} as any;
 }
 
 export function brandingSettingsToSupabase(

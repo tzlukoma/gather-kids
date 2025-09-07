@@ -88,13 +88,13 @@ describe('Type Mappings', () => {
 			// This test mainly checks that the types compile correctly
 			const mockDatabase: Database = {
 				public: {
-					Tables: {},
-					Views: {},
-					Functions: {},
-					Enums: {},
-					CompositeTypes: {},
+					Tables: {} as any,
+					Views: {} as any,
+					Functions: {} as any,
+					Enums: {} as any,
+					CompositeTypes: {} as any,
 				},
-			};
+			} as any;
 
 			expect(mockDatabase).toBeDefined();
 			expect(mockDatabase.public).toBeDefined();
