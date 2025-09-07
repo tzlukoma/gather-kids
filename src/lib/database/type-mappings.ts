@@ -753,8 +753,8 @@ export function enrollmentToSupabase(enrollment: Partial<DexieTypes.Enrollment>)
 	} as Record<string, unknown>;
 }
 
-export function supabaseToEnrollmentOverride(record: Record<string, unknown> | any): DexieTypes.EnrollmentOverride {
-	const r = record as Record<string, unknown>;
+export function supabaseToEnrollmentOverride(record: Record<string, unknown> | null | undefined): DexieTypes.EnrollmentOverride {
+	const r = (record ?? {}) as Record<string, unknown>;
 	return {
 		id: (r['id'] as string) || (r['override_id'] as string) || '',
 		year_id: (r['year_id'] as string) ?? (r['bible_bee_year_id'] as string) ?? '',
