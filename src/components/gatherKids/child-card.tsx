@@ -56,7 +56,7 @@ const isBirthdayThisWeek = (dob?: string): boolean => {
 const getEventName = (eventId: string | null) => {
     const eventNames: { [key: string]: string } = {
         'evt_sunday_school': 'Sunday School',
-        'evt_childrens_church': "Children's Church",
+  'evt_childrens_church': "Children&apos;s Church",
         'evt_teen_church': 'Teen Church',
     };
     if (!eventId) return '';

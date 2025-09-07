@@ -108,7 +108,7 @@ export class EmailService {
           <div class="content">
             <p>Hi there!</p>
             
-            <p>You're just one step away from completing your family registration with ${appName}. Click the button below to verify your email address and continue:</p>
+              <p>You&apos;re just one step away from completing your family registration with ${appName}. Click the button below to verify your email address and continue:</p>
             
             <div style="text-align: center; margin: 30px 0;">
               <a href="${magicLink}" class="button">Complete Registration</a>
@@ -123,7 +123,7 @@ export class EmailService {
               <strong>⚠️ Security Notice:</strong> This magic link will expire in 1 hour and can only be used once. If you didn't request this registration, you can safely ignore this email.
             </div>
             
-            <p>If you have any questions or need assistance, please contact our support team.</p>
+              <p>If you have any questions or need assistance, please contact our support team.</p>
             
             <p>Welcome to the ${appName} family!</p>
           </div>
@@ -133,7 +133,7 @@ export class EmailService {
               This email was sent to ${to} because you started a registration process with ${appName}. 
               If you didn't request this, please ignore this email.
             </p>
-            <p style="margin-top: 10px;">
+              <p style="margin-top: 10px;">
               Magic links expire after 1 hour for your security.
             </p>
           </div>
@@ -146,7 +146,7 @@ Complete Your Registration - ${appName}
 
 Hi there!
 
-You're just one step away from completing your family registration with ${appName}. 
+  You&apos;re just one step away from completing your family registration with ${appName}. 
 
 Click this link to verify your email address and continue:
 ${magicLink}
@@ -157,7 +157,6 @@ If you have any questions or need assistance, please contact our support team.
 
 Welcome to the ${appName} family!
 
----
 This email was sent to ${to} because you started a registration process with ${appName}. 
 If you didn't request this, please ignore this email.
 Magic links expire after 1 hour for your security.

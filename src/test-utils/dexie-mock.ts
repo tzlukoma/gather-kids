@@ -1,5 +1,6 @@
 // Minimal in-memory Dexie-like mock used for Node/Jest environments where
 // IndexedDB is not available. Provides basic table operations used in tests.
+/* eslint-disable @typescript-eslint/no-explicit-any */
 type RecordObj = { [k: string]: any };
 
 function createCollection(store: Map<string, RecordObj>, initialFilter?: (item: any) => boolean) {

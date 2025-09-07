@@ -232,7 +232,7 @@ function VerificationStepTwoForm({
 					continue.
 				</CardDescription>
 			</CardHeader>
-			<CardContent>
+			<CardContent className="space-y-4">
 				<Form {...form}>
 					<form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
 						<Alert>
@@ -254,7 +254,7 @@ function VerificationStepTwoForm({
 							name="childDob"
 							render={({ field }) => (
 								<FormItem>
-									<FormLabel>Oldest Child's Date of Birth</FormLabel>
+									<FormLabel>Oldest Child&apos;s Date of Birth</FormLabel>
 									<FormControl>
 										<Input type="date" {...field} />
 									</FormControl>
@@ -280,7 +280,7 @@ function VerificationStepTwoForm({
 							name="emergencyContactFirstName"
 							render={({ field }) => (
 								<FormItem>
-									<FormLabel>Emergency Contact's First Name</FormLabel>
+									<FormLabel>Emergency Contact&apos;s First Name</FormLabel>
 									<FormControl>
 										<Input placeholder="e.g., Jane" {...field} />
 									</FormControl>
@@ -1008,7 +1008,7 @@ function RegisterPageContent() {
 					Family Registration Form
 				</h1>
 				<p className="text-muted-foreground">
-					Complete the form below to register your family for our children's
+					Complete the form below to register your family for our children&apos;s
 					ministry programs.
 				</p>
 			</div>
@@ -1018,8 +1018,8 @@ function RegisterPageContent() {
 					<CardHeader>
 						<CardTitle className="font-headline">Household Lookup</CardTitle>
 						<CardDescription>
-							Enter your primary household email address. If you've registered
-							with us before, we'll pre-fill your information for you. If not,
+							Enter your primary household email address. If you&apos;ve registered
+							with us before, we&apos;ll pre-fill your information for you. If not,
 							you can start a new registration.
 						</CardDescription>
 					</CardHeader>
@@ -1049,7 +1049,7 @@ function RegisterPageContent() {
 												}>
 												{MOCK_EMAILS.PREFILL_OVERWRITE}
 											</button>{' '}
-											to pre-fill the form and see the overwrite warning.
+												to pre-fill the form and see the overwrite warning.
 										</li>
 										<li>
 											Use{' '}
@@ -1060,7 +1060,7 @@ function RegisterPageContent() {
 												}>
 												{MOCK_EMAILS.PREFILL_NO_OVERWRITE}
 											</button>{' '}
-											to pre-fill from a prior year's registration.
+											to pre-fill from a prior year&apos;s registration.
 										</li>
 										<li>
 											Use{' '}
@@ -1105,7 +1105,7 @@ function RegisterPageContent() {
 					<CardHeader>
 						<CardTitle className="font-headline">Check Your Email</CardTitle>
 						<CardDescription>
-							We've sent a verification link to your email address.
+							We&apos;ve sent a verification link to your email address.
 						</CardDescription>
 					</CardHeader>
 					<CardContent className="space-y-4">
@@ -1114,7 +1114,7 @@ function RegisterPageContent() {
 							<AlertTitle>Verification Email Sent</AlertTitle>
 							<AlertDescription>
 								<p>
-									We've sent a magic link to{' '}
+									We&apos;ve sent a magic link to{' '}
 									<strong>{verificationEmail}</strong>
 								</p>
 								<p className="mt-2">
@@ -1148,7 +1148,7 @@ function RegisterPageContent() {
 											toast({
 												title: 'Email Resent',
 												description:
-													"We've sent another verification email to your address.",
+													"We&apos;ve sent another verification email to your address.",
 											});
 										} else {
 											toast({
@@ -1614,7 +1614,7 @@ function RegisterPageContent() {
 															render={({ field }) => (
 																<FormItem>
 																	<FormLabel>
-																		Child's Phone (Optional)
+																		Child&apos;s Phone (Optional)
 																	</FormLabel>
 																	<FormControl>
 																		<Input type="tel" {...field} />
@@ -1720,7 +1720,7 @@ function RegisterPageContent() {
 																		<AlertDialogDescription>
 																			This will mark{' '}
 																			{childFirstName || 'this child'} as
-																			inactive for this year's registration and
+																			inactive for this year&apos;s registration and
 																			remove them from this form. Their
 																			historical data from previous years will
 																			be retained.
@@ -1787,7 +1787,7 @@ function RegisterPageContent() {
 									<CardContent className="space-y-6">
 										<div className="p-4 border rounded-md bg-muted/50">
 											<h4 className="font-semibold">
-												Sunday School / Children's Church
+												Sunday School / Children&apos;s Church
 											</h4>
 											<div className="text-sm text-muted-foreground mb-2 space-y-2 whitespace-pre-wrap">
 												<p>
@@ -1796,7 +1796,7 @@ function RegisterPageContent() {
 													the 9:30 AM Service. Sunday School serves ages 4-18.
 												</p>
 												<p>
-													Children's Church, for ages 4-12, will take place on
+													Children&apos;s Church, for ages 4-12, will take place on
 													3rd Sundays in the same location during the 9:30 AM
 													service.
 												</p>
@@ -1906,7 +1906,7 @@ function RegisterPageContent() {
 											Expressed Interest Activities
 										</CardTitle>
 										<CardDescription>
-											Let us know if you're interested. This does not register
+											Let us know if you&apos;re interested. This does not register
 											you for these activities but helps us gauge interest for
 											future planning.
 										</CardDescription>

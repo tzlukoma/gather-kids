@@ -41,7 +41,7 @@ const resetPasswordSchema = z
 		confirmPassword: z.string(),
 	})
 	.refine((data) => data.password === data.confirmPassword, {
-		message: "Passwords don't match",
+				message: "Passwords don&apos;t match",
 		path: ['confirmPassword'],
 	});
 
@@ -70,7 +70,7 @@ function ResetPasswordForm() {
 		// Check if we have valid reset token/code
 		const token = searchParams.get('token');
 		const code = searchParams.get('code');
-		
+
 		if (isDemoMode) {
 			// In demo mode, always allow reset
 			setHasValidToken(true);
@@ -84,7 +84,10 @@ function ResetPasswordForm() {
 		}
 	}, [searchParams, isDemoMode]);
 
-	const validateResetToken = async (token: string | null, code: string | null) => {
+	const validateResetToken = async (
+		token: string | null,
+		code: string | null
+	) => {
 		try {
 			if (!token && !code) {
 				setHasValidToken(false);
@@ -120,22 +123,24 @@ function ResetPasswordForm() {
 				await new Promise((resolve) => setTimeout(resolve, 1000));
 				toast({
 					title: 'Password Reset Successful',
-					description: 'Your password has been updated successfully. You can now sign in with your new password.',
+					description:
+						'Your password has been updated successfully. You can now sign in with your new password.',
 				});
 				router.push('/login');
 			} else {
 				// Live mode: implement Supabase password update
-				const { error } = await supabase.auth.updateUser({ 
-					password: data.password 
+				const { error } = await supabase.auth.updateUser({
+					password: data.password,
 				});
-				
+
 				if (error) {
 					throw error;
 				}
-				
+
 				toast({
 					title: 'Password Reset Successful',
-					description: 'Your password has been updated successfully. You can now sign in with your new password.',
+					description:
+						'Your password has been updated successfully. You can now sign in with your new password.',
 				});
 				router.push('/login');
 			}
@@ -143,7 +148,8 @@ function ResetPasswordForm() {
 			console.error('Password reset failed:', error);
 			toast({
 				title: 'Reset Failed',
-				description: 'Failed to reset password. Please try again or request a new reset link.',
+				description:
+					'Failed to reset password. Please try again or request a new reset link.',
 				variant: 'destructive',
 			});
 		} finally {
@@ -158,7 +164,9 @@ function ResetPasswordForm() {
 					<CardHeader className="text-center">
 						<div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
 						<CardTitle>Validating Reset Link</CardTitle>
-						<CardDescription>Please wait while we verify your reset link...</CardDescription>
+						<CardDescription>
+							Please wait while we verify your reset link...
+						</CardDescription>
 					</CardHeader>
 				</Card>
 			</div>
@@ -173,7 +181,8 @@ function ResetPasswordForm() {
 						<AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
 						<CardTitle>Invalid Reset Link</CardTitle>
 						<CardDescription>
-							This password reset link is invalid, expired, or has already been used.
+							This password reset link is invalid, expired, or has already been
+							used.
 						</CardDescription>
 					</CardHeader>
 					<CardContent>
@@ -183,10 +192,9 @@ function ResetPasswordForm() {
 								Please request a new password reset link from the sign-in page.
 							</AlertDescription>
 						</Alert>
-						<Button 
-							className="w-full mt-4" 
-							onClick={() => router.push('/login')}
-						>
+						<Button
+							className="w-full mt-4"
+							onClick={() => router.push('/login')}>
 							Return to Sign In
 						</Button>
 					</CardContent>
@@ -202,7 +210,7 @@ function ResetPasswordForm() {
 					<Lock className="h-12 w-12 text-primary mx-auto mb-4" />
 					<CardTitle>Reset Your Password</CardTitle>
 					<CardDescription>
-						Enter your new password below. Make sure it's strong and secure.
+						Enter your new password below. Make sure it&apos;s strong and secure.
 					</CardDescription>
 				</CardHeader>
 				<CardContent>
@@ -210,11 +218,12 @@ function ResetPasswordForm() {
 						<Alert className="mb-4">
 							<AlertCircle className="h-4 w-4" />
 							<AlertDescription>
-								<strong>Demo Mode:</strong> Password reset is simulated. In live mode, this would update your actual password.
+								<strong>Demo Mode:</strong> Password reset is simulated. In live
+								mode, this would update your actual password.
 							</AlertDescription>
 						</Alert>
 					)}
-					
+
 					<Form {...form}>
 						<form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
 							<FormField
@@ -238,8 +247,7 @@ function ResetPasswordForm() {
 													size="icon"
 													className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
 													onClick={() => setShowPassword(!showPassword)}
-													disabled={isLoading}
-												>
+													disabled={isLoading}>
 													{showPassword ? (
 														<EyeOff className="h-4 w-4" />
 													) : (
@@ -252,7 +260,7 @@ function ResetPasswordForm() {
 									</FormItem>
 								)}
 							/>
-							
+
 							<FormField
 								control={form.control}
 								name="confirmPassword"
@@ -273,9 +281,10 @@ function ResetPasswordForm() {
 													variant="ghost"
 													size="icon"
 													className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-													onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-													disabled={isLoading}
-												>
+													onClick={() =>
+														setShowConfirmPassword(!showConfirmPassword)
+													}
+													disabled={isLoading}>
 													{showConfirmPassword ? (
 														<EyeOff className="h-4 w-4" />
 													) : (
@@ -288,19 +297,18 @@ function ResetPasswordForm() {
 									</FormItem>
 								)}
 							/>
-							
+
 							<Button type="submit" className="w-full" disabled={isLoading}>
 								{isLoading ? 'Updating Password...' : 'Update Password'}
 							</Button>
 						</form>
 					</Form>
-					
+
 					<div className="mt-4 text-center">
-						<Button 
-							variant="link" 
+						<Button
+							variant="link"
 							onClick={() => router.push('/login')}
-							disabled={isLoading}
-						>
+							disabled={isLoading}>
 							Back to Sign In
 						</Button>
 					</div>
@@ -312,17 +320,20 @@ function ResetPasswordForm() {
 
 export default function ResetPasswordPage() {
 	return (
-		<Suspense fallback={
-			<div className="flex items-center justify-center min-h-screen bg-muted/50">
-				<Card className="w-full max-w-md">
-					<CardHeader className="text-center">
-						<div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-						<CardTitle>Loading...</CardTitle>
-						<CardDescription>Preparing password reset form...</CardDescription>
-					</CardHeader>
-				</Card>
-			</div>
-		}>
+		<Suspense
+			fallback={
+				<div className="flex items-center justify-center min-h-screen bg-muted/50">
+					<Card className="w-full max-w-md">
+						<CardHeader className="text-center">
+							<div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+							<CardTitle>Loading...</CardTitle>
+							<CardDescription>
+								Preparing password reset form...
+							</CardDescription>
+						</CardHeader>
+					</Card>
+				</div>
+			}>
 			<ResetPasswordForm />
 		</Suspense>
 	);

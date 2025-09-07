@@ -30,6 +30,6 @@ export { dbAdapter };
 
 // Make adapter available in window for debugging
 if (typeof window !== 'undefined') {
-  // @ts-ignore
+  // @ts-expect-error - expose adapter for debugging in dev only
   window.dbAdapter = dbAdapter;
 }

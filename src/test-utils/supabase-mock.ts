@@ -1,4 +1,5 @@
 // Mock functions - using Jest in this environment
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 /**
  * Creates a mock Supabase client for testing

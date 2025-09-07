@@ -81,7 +81,7 @@ type SortDirection = 'asc' | 'desc' | 'none';
 
 const eventOptions = [
 	{ id: 'evt_sunday_school', name: 'Sunday School' },
-	{ id: 'evt_childrens_church', name: "Children's Church" },
+		{ id: 'evt_childrens_church', name: "Children&apos;s Church" },
 	{ id: 'evt_teen_church', name: 'Teen Church' },
 ];
 

@@ -283,11 +283,7 @@ The verification code required for magic links was not found. This happens when:
 						console.error(
 							'Redirect may have failed, offering manual navigation'
 						);
-						setError(`✅ Authentication Successful!
-
-You've been successfully signed in, but the automatic redirect to the registration form didn't work.
-
-**Please click the button below to continue:**`);
+						setError(`✅ Authentication Successful!\n\nYou\'ve been successfully signed in, but the automatic redirect to the registration form didn\'t work.\n\n**Please click the button below to continue:**`);
 						setLoading(false);
 					}, 8000);
 				} else {
@@ -369,7 +365,7 @@ You've been successfully signed in, but the automatic redirect to the registrati
 					{success && (
 						<div className="space-y-2">
 							<p className="text-green-600">
-								You've been signed in successfully!
+								You&apos;ve been signed in successfully!
 							</p>
 							<p className="text-sm text-muted-foreground">
 								Redirecting to complete your setup...

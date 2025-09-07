@@ -109,8 +109,8 @@ export function ForgotPasswordDialog({ children }: ForgotPasswordDialogProps) {
 					</DialogTitle>
 					<DialogDescription className="text-center">
 						{emailSent
-							? "We've sent password reset instructions to your email address."
-							: 'Enter your email address and we\'ll send you a link to reset your password.'}
+							? 'We&apos;ve sent password reset instructions to your email address.'
+							: 'Enter your email address and we&apos;ll send you a link to reset your password.'}
 					</DialogDescription>
 				</DialogHeader>
 
@@ -119,7 +119,7 @@ export function ForgotPasswordDialog({ children }: ForgotPasswordDialogProps) {
 						<Alert>
 							<Mail className="h-4 w-4" />
 							<AlertDescription>
-								Check your email for a password reset link. If you don't see it, check your spam folder.
+								Check your email for a password reset link. If you don&apos;t see it, check your spam folder.
 							</AlertDescription>
 						</Alert>
 						

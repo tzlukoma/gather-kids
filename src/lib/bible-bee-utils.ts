@@ -1,20 +1,14 @@
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import type { DatabaseAdapter } from './database/types';
 import { Scripture } from './types';
+import { supabase as supabaseClient } from './supabaseClient';
 
 /**
  * Gets the appropriate database adapter instance based on the current environment
  * @returns {Promise<{ dbAdapter: DatabaseAdapter, isSupabase: boolean }>}
  */
 export async function getScriptures(yearId: string): Promise<Scripture[]> {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  
-  if (!supabaseUrl || !supabaseKey) {
-    throw new Error('Missing Supabase credentials');
-  }
-  
-  const supabase = createClient(supabaseUrl, supabaseKey);
+  const supabase = supabaseClient;
+  if (!supabase) throw new Error('Supabase client not available in this environment');
   
   try {
     // First check if this is a Bible Bee year ID
@@ -50,14 +44,8 @@ export async function getScriptures(yearId: string): Promise<Scripture[]> {
  * Gets competition years from the database
  */
 export async function getCompetitionYears(): Promise<any[]> {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  
-  if (!supabaseUrl || !supabaseKey) {
-    throw new Error('Missing Supabase credentials');
-  }
-  
-  const supabase = createClient(supabaseUrl, supabaseKey);
+  const supabase = supabaseClient;
+  if (!supabase) throw new Error('Supabase client not available in this environment');
   
   try {
     // Check if the competitionYears table exists

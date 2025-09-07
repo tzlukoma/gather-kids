@@ -113,7 +113,7 @@ export default function BibleBeeManage({ className }: BibleBeeManageProps) {
 		// Check if there are any active new schema years
 		const hasActiveNewYear = bibleBeeYears?.some((y) => y.is_active) || false;
 
-		// Always add old schema years as bridge data (not just when no new years exist)
+					// Always add old schema years as bridge data (not just when no new years exist)
 		if (competitionYears) {
 			const bridgeYears = competitionYears.map((cy) => ({
 				id: cy.id,
@@ -121,7 +121,7 @@ export default function BibleBeeManage({ className }: BibleBeeManageProps) {
 				description: cy.description || `Legacy competition year ${cy.year}`,
 				start_date: cy.opensAt,
 				end_date: cy.closesAt,
-				// Only make legacy year active if no new schema years are active
+									// Only make legacy year active if no new schema years are active
 				is_active: !hasActiveNewYear && cy.year === 2025,
 				created_at: cy.createdAt,
 				updated_at: cy.updatedAt,
@@ -2282,7 +2282,7 @@ function EnrollmentManagement({
 
 				{!preview && !isLoading && (
 					<div className="text-center py-8 text-muted-foreground">
-						Click "Refresh Preview" to see enrollment preview
+						Click &quot;Refresh Preview&quot; to see enrollment preview
 					</div>
 				)}
 			</CardContent>
