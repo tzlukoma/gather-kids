@@ -49,7 +49,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			if (error.code === 'PGRST116') return null; // No rows returned
 			throw error;
 		}
-		return data ? supabaseToHousehold(data as any) : null;
+	return data ? supabaseToHousehold(data as unknown as Database['public']['Tables']['households']['Row']) : null;
 	}
 
 	async createHousehold(
@@ -85,7 +85,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			.single();
 
 		if (error) throw error;
-		return supabaseToHousehold(result as any);
+	return supabaseToHousehold(result as unknown as Database['public']['Tables']['households']['Row']);
 	}
 
 	async updateHousehold(id: string, data: Partial<Household>): Promise<Household> {
@@ -177,7 +177,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			if (error.code === 'PGRST116') return null;
 			throw error;
 		}
-	return data ? supabaseToChild(data as any) : null;
+	return data ? supabaseToChild(data as unknown as Database['public']['Tables']['children']['Row']) : null;
 	}
 
 	async createChild(
@@ -217,7 +217,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			.single();
 
 		if (error) throw error;
-		return supabaseToChild(result as any);
+	return supabaseToChild(result as unknown as Database['public']['Tables']['children']['Row']);
 	}
 
 	async updateChild(id: string, data: Partial<Child>): Promise<Child> {
@@ -263,7 +263,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			.single();
 
 		if (error) throw error;
-		return supabaseToChild(result as any);
+	return supabaseToChild(result as unknown as Database['public']['Tables']['children']['Row']);
 	}
 
 	async listChildren(filters?: ChildFilters): Promise<Child[]> {
@@ -336,7 +336,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			.single();
 
 	if (error) throw error;
-	return result ? supabaseToGuardian(result as any) : result as any;
+	return result ? supabaseToGuardian(result as unknown as Database['public']['Tables']['guardians']['Row']) : (result as unknown as any);
 	}
 
 	async updateGuardian(id: string, data: Partial<Guardian>): Promise<Guardian> {
@@ -351,7 +351,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			.single();
 
 	if (error) throw error;
-	return result ? supabaseToGuardian(result as any) : result as any;
+	return result ? supabaseToGuardian(result as unknown as Database['public']['Tables']['guardians']['Row']) : (result as unknown as any);
 	}
 
 	async listGuardians(householdId: string): Promise<Guardian[]> {
@@ -394,7 +394,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			if (error.code === 'PGRST116') return null;
 			throw error;
 		}
-		return data ? supabaseToEmergencyContact(data as any) : null;
+	return data ? supabaseToEmergencyContact(data as unknown as Database['public']['Tables']['emergency_contacts']['Row']) : null;
 	}
 
 	async createEmergencyContact(
@@ -418,7 +418,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			.single();
 
 	if (error) throw error;
-	return result ? supabaseToEmergencyContact(result as any) : result as any;
+	return result ? supabaseToEmergencyContact(result as unknown as Database['public']['Tables']['emergency_contacts']['Row']) : (result as unknown as any);
 	}
 
 	async updateEmergencyContact(
@@ -469,8 +469,8 @@ export class SupabaseAdapter implements DatabaseAdapter {
 
 	// Registration Cycles
 	async getRegistrationCycle(id: string): Promise<RegistrationCycle | null> {
-	const { data, error } = await this.client
-			.from('registration_cycles' as any)
+	const { data, error } = await (this.client as any)
+			.from('registration_cycles')
 			.select('*')
 			.eq('cycle_id', id)
 			.single();
@@ -479,7 +479,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			if (error.code === 'PGRST116') return null;
 			throw error;
 		}
-		return data ? this.mapRegistrationCycle(data as any) : null;
+	return data ? this.mapRegistrationCycle(data as any) : null;
 	}
 
 	async createRegistrationCycle(
@@ -492,22 +492,22 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			updated_at: new Date().toISOString(),
 		};
 
-	const { data: result, error } = await this.client
-			.from('registration_cycles' as any)
+	const { data: result, error } = await (this.client as any)
+			.from('registration_cycles')
 			.insert(cycle)
 			.select()
 			.single();
 
 	if (error) throw error;
-	return result ? this.mapRegistrationCycle(result as any) : result as any;
+	return result ? this.mapRegistrationCycle(result as any) : (result as any);
 	}
 
 	async updateRegistrationCycle(
 		id: string,
 		data: Partial<RegistrationCycle>
 	): Promise<RegistrationCycle> {
-	const { data: result, error } = await this.client
-		.from('registration_cycles' as any)
+	const { data: result, error } = await (this.client as any)
+		.from('registration_cycles')
 			.update({
 				...data,
 				updated_at: new Date().toISOString(),
@@ -521,7 +521,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 	}
 
 	async listRegistrationCycles(isActive?: boolean): Promise<RegistrationCycle[]> {
-    let query = this.client.from('registration_cycles' as any).select('*');
+	let query = (this.client as any).from('registration_cycles').select('*');
 
         if (isActive !== undefined) {
             query = query.eq('is_active', isActive);
@@ -654,7 +654,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			if (error.code === 'PGRST116') return null;
 			throw error;
 		}
-	return data ? supabaseToMinistry(data as any) : null;
+	return data ? supabaseToMinistry(data as unknown as Database['public']['Tables']['ministries']['Row']) : null;
 	}
 
 	async createMinistry(
@@ -677,7 +677,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			.single();
 
 		if (error) throw error;
-		return supabaseToMinistry(result as any);
+	return supabaseToMinistry(result as unknown as Database['public']['Tables']['ministries']['Row']);
 	}
 
 	async updateMinistry(id: string, data: Partial<Ministry>): Promise<Ministry> {
@@ -728,7 +728,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			if (error.code === 'PGRST116') return null;
 			throw error;
 		}
-		return data ? supabaseToMinistryEnrollment(data as any) : null;
+	return data ? supabaseToMinistryEnrollment(data as unknown as Database['public']['Tables']['ministry_enrollments']['Row']) : null;
 	}
 
 	async createMinistryEnrollment(
@@ -751,7 +751,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			.single();
 
 		if (error) throw error;
-		return supabaseToMinistryEnrollment(result as any);
+	return supabaseToMinistryEnrollment(result as unknown as Database['public']['Tables']['ministry_enrollments']['Row']);
 	}
 
 	async updateMinistryEnrollment(
@@ -815,7 +815,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			if (error.code === 'PGRST116') return null;
 			throw error;
 		}
-		return data ? supabaseToAttendance(data as any) : null;
+		return data ? supabaseToAttendance(data as unknown as Database['public']['Tables']['attendance']['Row']) : null;
 	}
 
 	async createAttendance(
@@ -834,7 +834,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			.single();
 
 		if (error) throw error;
-		return supabaseToAttendance(result as any);
+	return supabaseToAttendance(result as unknown as Database['public']['Tables']['attendance']['Row']);
 	}
 
 	async updateAttendance(id: string, data: Partial<Attendance>): Promise<Attendance> {
@@ -897,7 +897,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			if (error.code === 'PGRST116') return null;
 			throw error;
 		}
-		return data ? supabaseToIncident(data as any) : null;
+		return data ? supabaseToIncident(data as unknown as Database['public']['Tables']['incidents']['Row']) : null;
 	}
 
 	async createIncident(
@@ -917,7 +917,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			.single();
 
 		if (error) throw error;
-		return supabaseToIncident(result as any);
+	return supabaseToIncident(result as unknown as Database['public']['Tables']['incidents']['Row']);
 	}
 
 	async updateIncident(id: string, data: Partial<Incident>): Promise<Incident> {
@@ -984,7 +984,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			if (error.code === 'PGRST116') return null;
 			throw error;
 		}
-		return data ? supabaseToEvent(data as any) : null;
+		return data ? supabaseToEvent(data as unknown as Database['public']['Tables']['events']['Row']) : null;
 	}
 
 	async createEvent(
@@ -1007,7 +1007,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			.single();
 
 		if (error) throw error;
-		return supabaseToEvent(result as any);
+	return supabaseToEvent(result as unknown as Database['public']['Tables']['events']['Row']);
 	}
 
 	async updateEvent(id: string, data: Partial<Event>): Promise<Event> {
@@ -1055,7 +1055,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			if (error.code === 'PGRST116') return null;
 			throw error;
 		}
-		return data ? supabaseToUser(data as any) : null;
+		return data ? supabaseToUser(data as unknown as Database['public']['Tables']['users']['Row']) : null;
 	}
 
 	async createUser(
@@ -1075,7 +1075,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			.single();
 
 		if (error) throw error;
-		return supabaseToUser(result as any);
+	return supabaseToUser(result as unknown as Database['public']['Tables']['users']['Row']);
 	}
 
 	async updateUser(id: string, data: Partial<User>): Promise<User> {
@@ -1151,7 +1151,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 
 
 	async getLeaderProfile(id: string): Promise<LeaderProfile | null> {
-		const { data, error } = await (this.client as any)
+		const { data, error } = await (this.client as unknown as SupabaseClient<Database>)
 			.from('leader_profiles')
 			.select('*')
 			.eq('leader_id', id)
@@ -1203,7 +1203,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 	}
 
 	async listLeaderProfiles(isActive?: boolean): Promise<LeaderProfile[]> {
-		let query = (this.client as any).from('leader_profiles').select('*');
+		let query = (this.client as unknown as SupabaseClient<Database>).from('leader_profiles').select('*');
 
 		if (isActive !== undefined) {
 			query = query.eq('is_active', isActive);
@@ -1237,7 +1237,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			if (error.code === 'PGRST116') return null;
 			throw error;
 		}
-		return data ? supabaseToMinistryLeaderMembership(data as any) : null;
+		return data ? supabaseToMinistryLeaderMembership(data as unknown as Record<string, unknown>) : null;
 	}
 
 	async createMinistryLeaderMembership(
@@ -1263,7 +1263,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			.single();
 
 		if (error) throw error;
-		return supabaseToMinistryLeaderMembership(result as any);
+	return supabaseToMinistryLeaderMembership(result as unknown as Record<string, unknown>);
 	}
 
 	async updateMinistryLeaderMembership(
@@ -1283,14 +1283,14 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			.single();
 
 		if (error) throw error;
-		return result ? supabaseToMinistryLeaderMembership(result as any) : result;
+		return result ? supabaseToMinistryLeaderMembership(result as unknown as Record<string, unknown>) : (result as unknown as MinistryLeaderMembership);
 	}
 
 	async listMinistryLeaderMemberships(
 		ministryId?: string,
 		leaderId?: string
 	): Promise<MinistryLeaderMembership[]> {
-	let query = (this.client as any).from('leader_assignments').select('*');
+	let query = (this.client as unknown as SupabaseClient<Database>).from('leader_assignments').select('*');
 
 		if (ministryId) {
 			query = query.eq('ministry_id', ministryId);
@@ -1301,7 +1301,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 
 		const { data, error } = await query;
 		if (error) throw error;
-		return (data || []).map((d: any) => supabaseToMinistryLeaderMembership(d));
+		return (data || []).map((d: unknown) => supabaseToMinistryLeaderMembership(d as Record<string, unknown>));
 	}
 
 	async deleteMinistryLeaderMembership(id: string): Promise<void> {
@@ -1325,7 +1325,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			if (error.code === 'PGRST116') return null;
 			throw error;
 		}
-		return data ? supabaseToMinistryAccount(data as any) : null;
+	return data ? supabaseToMinistryAccount(data as unknown as Database['public']['Tables']['ministry_accounts']['Row']) : null;
 	}
 
 	async createMinistryAccount(
@@ -1349,7 +1349,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			.single();
 
 		if (error) throw error;
-		return supabaseToMinistryAccount(result as any);
+	return supabaseToMinistryAccount(result as unknown as Database['public']['Tables']['ministry_accounts']['Row']);
 	}
 
 	async updateMinistryAccount(
@@ -1402,7 +1402,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			if (error.code === 'PGRST116') return null;
 			throw error;
 		}
-		return data ? supabaseToBrandingSettings(data as any) : null;
+	return data ? supabaseToBrandingSettings(data as unknown as Database['public']['Tables']['branding_settings']['Row']) : null;
 	}
 
 	async createBrandingSettings(
@@ -1422,7 +1422,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			.single();
 
 		if (error) throw error;
-		return result ? supabaseToBrandingSettings(result as any) : result as any;
+	return result ? supabaseToBrandingSettings(result as unknown as Database['public']['Tables']['branding_settings']['Row']) : (result as unknown as any);
 	}
 
 	async updateBrandingSettings(

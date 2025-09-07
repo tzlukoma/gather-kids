@@ -216,7 +216,7 @@ export function supabaseToHousehold(
 	// Emit a warning when legacy/camelCase fields or null addresses are present
 	const r = record as unknown as Record<string, unknown>;
 	try {
-		if ((r.preferredScriptureTranslation as any) !== undefined || record.address_line1 === null || record.address_line2 === null) {
+		if ((r.preferredScriptureTranslation as unknown as Record<string, unknown>)?.preferredScriptureTranslation !== undefined || record.address_line1 === null || record.address_line2 === null) {
 			console.warn('supabaseToHousehold: detected legacy/camelCase or null address fields');
 		}
 	} catch (e) {
@@ -226,7 +226,7 @@ export function supabaseToHousehold(
 		household_id: record.household_id || '',
 		name: record.name ?? undefined,
 		// accept either snake_case (new generated types) or legacy camelCase
-	preferredScriptureTranslation: (record as unknown as any).preferred_scripture_translation ?? (r.preferredScriptureTranslation as string | undefined) ?? undefined,
+		preferredScriptureTranslation: (record as unknown as Record<string, unknown>).preferred_scripture_translation as string | undefined ?? (r.preferredScriptureTranslation as string | undefined) ?? undefined,
 	// coerce null -> empty string for address fields to satisfy callers expecting string
 	address_line1: record.address_line1 ?? '' ,
 	address_line2: record.address_line2 ?? '' ,
@@ -267,7 +267,7 @@ export type SupabaseChild =
 // Child conversions
 export function supabaseToChild(record: SupabaseChild): ChildEntity {
 	// Warn when null dob is encountered (legacy data issue)
-	const rChild = record as unknown as Record<string, any>;
+	const rChild = record as unknown as Record<string, unknown>;
 	try {
 		if (rChild.dob === null) console.warn('supabaseToChild: null dob encountered');
 	} catch (e) {
@@ -288,7 +288,7 @@ export function supabaseToChild(record: SupabaseChild): ChildEntity {
 	is_active: record.is_active ?? true,
 	created_at: record.created_at ?? new Date().toISOString(),
 	updated_at: record.updated_at ?? new Date().toISOString(),
-	photo_url: rChild.photo_url ?? rChild.photoUrl ?? undefined,
+	photo_url: (rChild.photo_url as string | undefined) ?? (rChild.photoUrl as string | undefined) ?? undefined,
 	};
 }
 
@@ -331,7 +331,7 @@ export function supabaseToIncident(row: Database['public']['Tables']['incidents'
 // Events mapping - parse timeslots JSON to EventTimeslot[]
 export function supabaseToEvent(row: Database['public']['Tables']['events']['Row'] | any): Event {
 	// Parse timeslots using the helper so we always return typed EventTimeslot[]
-	const rEvent = row as unknown as Record<string, any>;
+	const rEvent = row as unknown as Record<string, unknown>;
 	const timeslots = parseEventTimeslots(rEvent.timeslots);
 	return {
 		event_id: row.event_id,
@@ -358,7 +358,7 @@ export function parseConsents(value: any): Consent[] {
 	try {
 		if (!value) return [];
 		const raw = typeof value === 'string' ? JSON.parse(value) : value;
-		return (raw as unknown as any[]).map((c: any) => ({
+		return (raw as unknown as Array<Record<string, unknown>>).map((c) => ({
 			...c,
 			// normalize to domain type 'photoRelease'
 			type: c.type === 'photo_release' ? 'photoRelease' : c.type,
@@ -416,7 +416,7 @@ export function supabaseToUser(row: Database['public']['Tables']['users']['Row']
 }
 
 // Ministry Leader Membership mapping
-export function supabaseToMinistryLeaderMembership(row: any): MinistryLeaderMembership {
+	export function supabaseToMinistryLeaderMembership(row: Record<string, unknown> | any): MinistryLeaderMembership {
 	// Normalize role/role_type to domain enum: 'PRIMARY' | 'VOLUNTEER'
 	let rawRole = (row.role_type ?? row.role ?? '') as string;
 	if (typeof rawRole === 'string') rawRole = rawRole.trim();
@@ -443,7 +443,7 @@ export function supabaseToMinistryLeaderMembership(row: any): MinistryLeaderMemb
 // Ministry Account mapping
 export function supabaseToMinistryAccount(row: Database['public']['Tables']['ministry_accounts']['Row'] | any): MinistryAccount {
 	// Parse settings JSON if present (not currently part of the domain type but kept for future use)
-	let settings: any = undefined;
+	let settings: Record<string, unknown> | undefined = undefined;
 	try {
 		if (row.settings) {
 			if (typeof row.settings === 'string') settings = JSON.parse(row.settings);
@@ -480,7 +480,7 @@ export function childToSupabase(
 		special_needs_notes: child.special_needs_notes,
 		is_active: child.is_active,
 		photo_url: child.photo_url,
-	} as any; // Using any for fallback types
+	} as unknown as Omit<SupabaseChild, 'created_at' | 'updated_at'>;
 }
 
 // =====================================
@@ -522,7 +522,7 @@ export function guardianToSupabase(
 		email: guardian.email,
 		relationship: guardian.relationship,
 		is_primary: guardian.is_primary,
-	} as any; // Using any for fallback types
+	} as unknown as Omit<SupabaseGuardian, 'created_at' | 'updated_at'>;
 }
 
 // =====================================
@@ -560,7 +560,7 @@ export function emergencyContactToSupabase(
 		last_name: contact.last_name,
 		mobile_phone: contact.mobile_phone,
 		relationship: contact.relationship,
-	} as any; // Using any for fallback types
+	} as unknown as Omit<SupabaseEmergencyContact, 'created_at' | 'updated_at'>;
 }
 
 // =====================================
@@ -576,7 +576,7 @@ export type SupabaseMinistry =
 
 // Ministry conversions
 export function supabaseToMinistry(record: SupabaseMinistry): MinistryEntity {
-	const r: any = record;
+	const r: Record<string, unknown> = record as unknown as Record<string, unknown>;
 	// Warn when legacy camelCase ministry fields are present
 	try {
 		if (r.enrollmentType !== undefined || r.dataProfile !== undefined || r.ministry_code !== undefined || r.label !== undefined) {
@@ -586,24 +586,24 @@ export function supabaseToMinistry(record: SupabaseMinistry): MinistryEntity {
 		/* ignore */
 	}
 	return {
-		ministry_id: r.ministry_id || '',
+		ministry_id: String(r.ministry_id || ''),
 		// tolerate optional code and data profile which may be present in generated types
-		code: r.code ?? r.ministry_code ?? undefined,
-		name: (r.name ?? r.label) ?? '',
+	code: String(r.code ?? r.ministry_code ?? ''),
+		name: String((r.name ?? r.label) ?? ''),
 		// coerce null -> undefined for optional fields produced by the generator
-		description: r.description ?? undefined,
-		min_age: r.min_age ?? undefined,
-		max_age: r.max_age ?? undefined,
-		min_grade: r.min_grade ?? undefined,
-		max_grade: r.max_grade ?? undefined,
+		description: (r.description as string | undefined) ?? undefined,
+		min_age: (r.min_age as number | undefined) ?? undefined,
+		max_age: (r.max_age as number | undefined) ?? undefined,
+		min_grade: (r.min_grade as string | undefined) ?? undefined,
+		max_grade: (r.max_grade as string | undefined) ?? undefined,
 		// ensure callers that expect a boolean get a sensible default
-		is_active: r.is_active ?? true,
-		enrollment_type: r.enrollment_type ?? r.enrollmentType ?? 'enrolled',
-		data_profile: r.data_profile ?? r.dataProfile ?? undefined,
-	// custom_questions is stored as SupabaseJson; parse into typed CustomQuestion[]
-	custom_questions: parseCustomQuestions(r.custom_questions),
-		created_at: r.created_at || new Date().toISOString(),
-		updated_at: r.updated_at || new Date().toISOString(),
+		is_active: r.is_active === null || r.is_active === undefined ? true : !!r.is_active,
+		enrollment_type: (r.enrollment_type ?? r.enrollmentType ?? 'enrolled') as 'enrolled' | 'expressed_interest',
+	data_profile: (r.data_profile ?? r.dataProfile ?? 'Basic') as 'Basic' | 'SafetyAware',
+		// custom_questions is stored as SupabaseJson; parse into typed CustomQuestion[]
+		custom_questions: parseCustomQuestions(r.custom_questions),
+		created_at: String(r.created_at || new Date().toISOString()),
+		updated_at: String(r.updated_at || new Date().toISOString()),
 	};
 }
 
@@ -676,7 +676,8 @@ export function supabaseToBrandingSettings(
 ): BrandingSettingsEntity {
 	// Warn when camelCase branding fields are present
 	try {
-		if ((record as any).primaryColor !== undefined || (record as any).secondaryColor !== undefined || (record as any).logoUrl !== undefined || (record as any).orgName !== undefined) {
+		const rec = record as unknown as Record<string, unknown>;
+		if (rec.primaryColor !== undefined || rec.secondaryColor !== undefined || rec.logoUrl !== undefined || rec.orgName !== undefined) {
 			console.warn('supabaseToBrandingSettings: detected camelCase branding fields');
 		}
 	} catch (e) {
@@ -686,13 +687,13 @@ export function supabaseToBrandingSettings(
 		setting_id: record.setting_id || '',
 		org_id: record.org_id,
 		// accept snake_case or camelCase or alternate org_name field
-		primary_color: (record as any).primary_color ?? (record as any).primaryColor ?? undefined,
-		secondary_color: (record as any).secondary_color ?? (record as any).secondaryColor ?? undefined,
-		logo_url: record.logo_url ?? (record as any).logoUrl ?? undefined,
-		org_name: (record as any).org_name ?? (record as any).orgName ?? undefined,
+		primary_color: (record as unknown as Record<string, unknown>).primary_color as string | undefined ?? (record as unknown as Record<string, unknown>).primaryColor as string | undefined ?? undefined,
+		secondary_color: (record as unknown as Record<string, unknown>).secondary_color as string | undefined ?? (record as unknown as Record<string, unknown>).secondaryColor as string | undefined ?? undefined,
+		logo_url: record.logo_url ?? (record as unknown as Record<string, unknown>).logoUrl as string | undefined ?? undefined,
+		org_name: (record as unknown as Record<string, unknown>).org_name as string | undefined ?? (record as unknown as Record<string, unknown>).orgName as string | undefined ?? undefined,
 		created_at: record.created_at || new Date().toISOString(),
 		updated_at: record.updated_at || new Date().toISOString(),
-	}) as any;
+	}) as BrandingSettingsEntity;
 }
 
 // =====================================
@@ -711,7 +712,7 @@ export function supabaseToEnrollment(record: any): DexieTypes.Enrollment {
 		division_id: record.division_id ?? record.divisionId ?? '',
 		auto_enrolled: record.auto_enrolled ?? false,
 		enrolled_at: record.enrolled_at ?? record.enrolledAt ?? new Date().toISOString(),
-	} as any;
+	} as unknown as DexieTypes.Enrollment;
 }
 
 export function enrollmentToSupabase(enrollment: Partial<DexieTypes.Enrollment>): any {
@@ -722,7 +723,7 @@ export function enrollmentToSupabase(enrollment: Partial<DexieTypes.Enrollment>)
 		division_id: enrollment.division_id,
 		auto_enrolled: enrollment.auto_enrolled,
 		enrolled_at: enrollment.enrolled_at,
-	} as any;
+	} as unknown as Record<string, unknown>;
 }
 
 export function supabaseToEnrollmentOverride(record: any): DexieTypes.EnrollmentOverride {
@@ -734,7 +735,7 @@ export function supabaseToEnrollmentOverride(record: any): DexieTypes.Enrollment
 		reason: record.reason ?? undefined,
 		created_by: record.created_by ?? record.createdBy ?? undefined,
 		created_at: record.created_at ?? new Date().toISOString(),
-	} as any;
+	} as unknown as DexieTypes.EnrollmentOverride;
 }
 
 // =====================================
@@ -776,10 +777,10 @@ export function brandingSettingsToSupabase(
 	return {
 	setting_id: settings.setting_id,
 	org_id: settings.org_id,
-	primary_color: (settings as unknown as any).primary_color ?? (settings as unknown as any).primaryColor ?? undefined,
-	secondary_color: (settings as unknown as any).secondary_color ?? (settings as unknown as any).secondaryColor ?? undefined,
-	logo_url: (settings as unknown as any).logo_url ?? (settings as unknown as any).logoUrl ?? undefined,
-	org_name: (settings as unknown as any).org_name ?? (settings as unknown as any).orgName ?? undefined,
+	primary_color: (settings as unknown as Record<string, unknown>).primary_color as any ?? (settings as unknown as Record<string, unknown>).primaryColor as any ?? undefined,
+	secondary_color: (settings as unknown as Record<string, unknown>).secondary_color as any ?? (settings as unknown as Record<string, unknown>).secondaryColor as any ?? undefined,
+	logo_url: (settings as unknown as Record<string, unknown>).logo_url as any ?? (settings as unknown as Record<string, unknown>).logoUrl as any ?? undefined,
+	org_name: (settings as unknown as Record<string, unknown>).org_name as any ?? (settings as unknown as Record<string, unknown>).orgName as any ?? undefined,
 	} as unknown as Omit<SupabaseBrandingSettings, 'created_at' | 'updated_at'>;
 }
 

@@ -21,7 +21,10 @@ export default function BibleBeeDebugger() {
 		console.log('- DATABASE_MODE flag:', getFlag('DATABASE_MODE'));
 		console.log('- Detected Mode:', getDatabaseMode());
 		console.log('- Using Supabase:', isSupabase() ? '✅ Yes' : '❌ No');
-	console.log('- DB Adapter Type:', dbAdapter?.constructor?.name || 'unknown');
+		console.log(
+			'- DB Adapter Type:',
+			dbAdapter?.constructor?.name || 'unknown'
+		);
 
 		// Check auth status
 		console.log('👤 Auth Status:');

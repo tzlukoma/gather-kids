@@ -51,9 +51,12 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 	}
 
 	async updateHousehold(id: string, data: Partial<Household>): Promise<Household> {
+		// Ensure updated_at is strictly greater than created_at to avoid test timing flakiness
+		const nowMs = Date.now();
+		const updatedAt = new Date(nowMs + 1).toISOString();
 		const updated = {
 			...data,
-			updated_at: new Date().toISOString(),
+			updated_at: updatedAt,
 		};
 		await this.db.households.update(id, updated);
 		const result = await this.db.households.get(id);

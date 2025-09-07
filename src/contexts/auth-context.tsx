@@ -48,7 +48,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 		const initializeAuth = async () => {
 			console.log('AuthProvider: Starting initialization...', {
 				isDemo: isDemo(),
-				isVercelPreview
+				isVercelPreview,
 			});
 			setLoading(true);
 
@@ -88,7 +88,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 						}
 						console.log('AuthProvider: Setting user from localStorage', {
 							uid: finalUser.uid,
-							role: finalUser.metadata.role
+							role: finalUser.metadata.role,
 						});
 						setUser(finalUser);
 						setUserRole(finalUser.metadata.role);
@@ -140,7 +140,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 						console.log('AuthProvider: Setting user from Supabase session', {
 							uid: finalUser.uid,
-							role: finalUser.metadata.role
+							role: finalUser.metadata.role,
 						});
 						setUser(finalUser);
 						setUserRole(finalUser.metadata.role);
@@ -194,14 +194,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 									);
 								}
 
-								console.log('AuthProvider: Setting user from recovered session', {
-									uid: finalUser.uid,
-									role: finalUser.metadata.role
-								});
+								console.log(
+									'AuthProvider: Setting user from recovered session',
+									{
+										uid: finalUser.uid,
+										role: finalUser.metadata.role,
+									}
+								);
 								setUser(finalUser);
 								setUserRole(finalUser.metadata.role);
 							} else {
-								console.log('AuthProvider: Session refresh failed. Need to re-authenticate.');
+								console.log(
+									'AuthProvider: Session refresh failed. Need to re-authenticate.'
+								);
 							}
 						} else {
 							console.log('AuthProvider: No session or tokens found');
@@ -322,7 +327,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 			console.log('AuthProvider: Setting user state...', {
 				uid: finalUser.uid,
-				role: finalUser.metadata.role
+				role: finalUser.metadata.role,
 			});
 			setUser(finalUser);
 			console.log('Setting userRole to:', finalUser.metadata.role);

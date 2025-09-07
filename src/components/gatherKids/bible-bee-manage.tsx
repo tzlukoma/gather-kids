@@ -262,7 +262,9 @@ export default function BibleBeeManage({ className }: BibleBeeManageProps) {
 											await db.registration_cycles.toArray()
 										).find((c) => {
 											const val = c.is_active;
-											return val === true || Number(val) === 1 || String(val) === '1';
+											return (
+												val === true || Number(val) === 1 || String(val) === '1'
+											);
 										});
 
 										const created = await createBibleBeeYear({
@@ -2311,7 +2313,7 @@ function OverrideManagement({
 	// Load data - be tolerant of mixed-type is_active values (1 vs true)
 	const children = useLiveQuery(async () => {
 		const all = await db.children.toArray();
-	return all.filter((c) => !!c && isActiveValue(c?.is_active));
+		return all.filter((c) => !!c && isActiveValue(c?.is_active));
 	}, []);
 
 	const overrides = useLiveQuery(

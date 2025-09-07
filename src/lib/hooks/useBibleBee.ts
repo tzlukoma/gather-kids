@@ -19,11 +19,13 @@ export function useScripturesForYear(yearId: string) {
     useEffect(() => {
         let mounted = true;
         // Always prioritize scripture_order as the unified sort field
-        const sortByOrder = (a: any, b: any) => {
+        const sortByOrder = (a: Scripture, b: Scripture) => {
             // Prioritize scripture_order, then fall back to sortOrder if needed
             // Explicitly ignore any 'order' field
-            const aOrder = Number(a.scripture_order ?? a.sortOrder ?? 0);
-            const bOrder = Number(b.scripture_order ?? b.sortOrder ?? 0);
+            const aRec = a as unknown as Record<string, unknown>;
+            const bRec = b as unknown as Record<string, unknown>;
+            const aOrder = Number(aRec['scripture_order'] ?? aRec['sortOrder'] ?? 0);
+            const bOrder = Number(bRec['scripture_order'] ?? bRec['sortOrder'] ?? 0);
             return aOrder - bOrder;
         };
         
@@ -59,11 +61,13 @@ export function useScripturesForYearQuery(yearId: string) {
         const s = await db.scriptures.where('competitionYearId').equals(yearId).toArray();
         
         // Sort by scripture_order as the unified sort field
-        return s.sort((a: any, b: any) => {
+        return s.sort((a: Scripture, b: Scripture) => {
             // Prioritize scripture_order, then fall back to sortOrder if needed
             // Explicitly ignore any 'order' field
-            const aOrder = Number(a.scripture_order ?? a.sortOrder ?? 0);
-            const bOrder = Number(b.scripture_order ?? b.sortOrder ?? 0);
+            const aRec = a as unknown as Record<string, unknown>;
+            const bRec = b as unknown as Record<string, unknown>;
+            const aOrder = Number(aRec['scripture_order'] ?? aRec['sortOrder'] ?? 0);
+            const bOrder = Number(bRec['scripture_order'] ?? bRec['sortOrder'] ?? 0);
             return aOrder - bOrder;
         });
     });
@@ -152,10 +156,12 @@ export function useStudentAssignmentsQuery(childId: string) {
             })
         );
 
-        // Sort scriptures by scripture_order for consistent display
+            // Sort scriptures by scripture_order for consistent display
         enrichedScriptures.sort((a, b) => {
-            const aOrder = Number(a.scripture?.scripture_order ?? a.scripture?.sortOrder ?? 0);
-            const bOrder = Number(b.scripture?.scripture_order ?? b.scripture?.sortOrder ?? 0);
+            const aScript = a.scripture as Partial<Scripture> | undefined;
+            const bScript = b.scripture as Partial<Scripture> | undefined;
+            const aOrder = Number(aScript?.scripture_order ?? aScript?.sortOrder ?? 0);
+            const bOrder = Number(bScript?.scripture_order ?? bScript?.sortOrder ?? 0);
             return aOrder - bOrder;
         });
 

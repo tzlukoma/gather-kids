@@ -7,7 +7,16 @@ import { getFlag } from './featureFlags';
 
 // Helper function to check if we're using Supabase or IndexedDB
 export function isSupabase(): boolean {
-  return (dbAdapter as any).constructor.name === 'SupabaseAdapter';
+  // Prefer duck-typing: Supabase adapter exposes a `from` method for querying
+  // and may have a `supabase` client property. This avoids unsafe `any` casts.
+  try {
+    const candidate: unknown = dbAdapter as unknown;
+    if (candidate && typeof (candidate as any).from === 'function') return true;
+    if (candidate && typeof (candidate as any).supabase === 'object') return true;
+  } catch (err) {
+    // ignore and fall through
+  }
+  return false;
 }
 
 // Helper function to get the current database mode

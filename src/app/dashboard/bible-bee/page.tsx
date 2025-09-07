@@ -3,7 +3,11 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { AuthRole } from '@/lib/auth-types';
-import { canLeaderManageBibleBee, getBibleBeeYears, getScripturesForBibleBeeYear } from '@/lib/dal';
+import {
+	canLeaderManageBibleBee,
+	getBibleBeeYears,
+	getScripturesForBibleBeeYear,
+} from '@/lib/dal';
 import {
 	Select,
 	SelectTrigger,
@@ -66,7 +70,7 @@ export default function BibleBeePage() {
 		const fetchData = async () => {
 			try {
 				console.log('Loading Bible Bee data...');
-				
+
 				// Get Bible Bee years using DAL function with adapter support
 				const beeYears = await getBibleBeeYears();
 				console.log('Bible Bee years loaded:', beeYears);
@@ -196,8 +200,7 @@ export default function BibleBeePage() {
 			(async () => {
 				function extractUserInfo(u: any) {
 					return {
-						id:
-							u?.id || u?.uid || u?.user_id || u?.userId || null,
+						id: u?.id || u?.uid || u?.user_id || u?.userId || null,
 						email: u?.email || u?.user_email || u?.mail || null,
 					};
 				}

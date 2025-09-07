@@ -38,13 +38,14 @@ function isActiveValue(v: unknown): boolean {
 }
 
 // Extract a user id from common shapes used across codepaths (supabase user, legacy user objects)
-function extractUserId(user: any): string | undefined {
-    return user?.uid || user?.id || user?.user_id;
+function extractUserId(user: unknown): string | undefined {
+    const u = user as unknown as Record<string, unknown> | undefined;
+    return (u?.uid as string | undefined) || (u?.id as string | undefined) || (u?.user_id as string | undefined);
 }
 
 // Wrapper to call the Dexie transaction API when multiple table args are used.
-function runDexieTransaction(...args: any[]) {
-    return (db as any).transaction(...args);
+function runDexieTransaction(...args: unknown[]) {
+    return (db as unknown as Record<string, any>).transaction(...(args as any));
 }
 
 // Utility Functions
@@ -1604,9 +1605,9 @@ export async function canLeaderManageBibleBee(opts: { leaderId?: string; email?:
             const bb = await db.bible_bee_years.get(selectedCycle);
             if (bb) {
                     const allCycles = await db.registration_cycles.toArray();
-                    const active = allCycles.find((c: any) => {
-                        return isActiveValue((c as any)?.is_active);
-                    });
+                    const active = allCycles.find((c: unknown) => {
+                            return isActiveValue((c as unknown as Record<string, unknown>)?.is_active);
+                        });
                 if (active && active.cycle_id) effectiveCycle = active.cycle_id;
             }
         } catch (err) {

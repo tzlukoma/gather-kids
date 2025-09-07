@@ -26,8 +26,10 @@ export default function ScriptureCard({
 	// Helper to safely read optional texts map
 	function getTextsMap(s: any): Record<string, string> | undefined {
 		if (!s) return undefined;
-		if (typeof s.texts === 'object' && s.texts !== null) return s.texts as Record<string, string>;
-		if (typeof s.alternateTexts === 'object' && s.alternateTexts !== null) return s.alternateTexts as Record<string, string>;
+		if (typeof s.texts === 'object' && s.texts !== null)
+			return s.texts as Record<string, string>;
+		if (typeof s.alternateTexts === 'object' && s.alternateTexts !== null)
+			return s.alternateTexts as Record<string, string>;
 		return undefined;
 	}
 	const completed = assignment.status === 'completed';
@@ -70,7 +72,7 @@ export default function ScriptureCard({
 			textsMap: textsMap,
 			requestedVersion: requestedVersion,
 			assignment: assignment,
-			scripture: scripture
+			scripture: scripture,
 		});
 	}
 

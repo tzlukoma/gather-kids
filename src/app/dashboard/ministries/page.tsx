@@ -155,7 +155,9 @@ export default function MinistryPage() {
 	const [isAdmin, setIsAdmin] = useState(false);
 	const [activeTab, setActiveTab] = useState<string>('ministries');
 	const [allMinistries, setAllMinistries] = useState<Ministry[]>([]);
-	const [allMinistryAccounts, setAllMinistryAccounts] = useState<MinistryAccount[]>([]);
+	const [allMinistryAccounts, setAllMinistryAccounts] = useState<
+		MinistryAccount[]
+	>([]);
 	const [isLoadingData, setIsLoadingData] = useState(true);
 	const { toast } = useToast();
 
@@ -169,7 +171,7 @@ export default function MinistryPage() {
 				try {
 					const [ministries, accounts] = await Promise.all([
 						getMinistries(),
-						dbAdapter.listMinistryAccounts()
+						dbAdapter.listMinistryAccounts(),
 					]);
 					setAllMinistries(ministries);
 					setAllMinistryAccounts(accounts);
@@ -255,11 +257,11 @@ export default function MinistryPage() {
 				title: 'Ministry Deleted',
 				description: 'The ministry has been successfully deleted.',
 			});
-			
+
 			// Reload data
 			const [ministries, accounts] = await Promise.all([
 				getMinistries(),
-				dbAdapter.listMinistryAccounts()
+				dbAdapter.listMinistryAccounts(),
 			]);
 			setAllMinistries(ministries);
 			setAllMinistryAccounts(accounts);

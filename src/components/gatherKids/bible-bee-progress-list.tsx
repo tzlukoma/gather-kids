@@ -108,7 +108,9 @@ export function BibleBeeProgressList({
 		if (bibleBeeYears && bibleBeeYears.length > 0) {
 			if (!initial?.selectedCycle && !initialCycle) {
 				// only default to a bible-bee-year when one is explicitly marked active
-				const active = bibleBeeYears.find((y: any) => isActiveValue(y?.is_active));
+				const active = bibleBeeYears.find((y: any) =>
+					isActiveValue(y?.is_active)
+				);
 				if (active && active.id) {
 					setSelectedCycle(String(active.id));
 				}
@@ -361,11 +363,13 @@ export function BibleBeeProgressList({
 								<Select
 									value={sortBy}
 									onValueChange={(v: unknown) =>
-										setSortBy(getValue(v) as unknown as
-											| 'name-asc'
-											| 'name-desc'
-											| 'progress-desc'
-											| 'progress-asc')
+										setSortBy(
+											getValue(v) as unknown as
+												| 'name-asc'
+												| 'name-desc'
+												| 'progress-desc'
+												| 'progress-asc'
+										)
 									}>
 									<SelectTrigger>
 										<SelectValue>
@@ -450,7 +454,7 @@ export function BibleBeeProgressList({
 					(y: any) => String(y.id) === String(selectedCycle)
 				);
 				let isPrior = false;
-									if (bb) {
+				if (bb) {
 					const val = bb?.is_active;
 					const bbActive = isActiveValue(val);
 					isPrior = !bbActive;
