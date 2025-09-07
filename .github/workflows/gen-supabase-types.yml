@@ -27,28 +27,28 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Install supabase CLI and generate types
+      - name: Install supabase CLI from latest release and generate types
         id: gen
         run: |
           set -euo pipefail
-          echo "Installing Supabase CLI via official installer"
-          curl -fsSL --retry 3 --retry-delay 2 https://raw.githubusercontent.com/supabase/cli/main/install.sh -o /tmp/install_supabase.sh
-          chmod +x /tmp/install_supabase.sh
-          # Install (the installer places the binary in ~/.supabase/bin or /usr/local/bin)
-          /tmp/install_supabase.sh --yes || true
+          echo "Installing required packages"
+          apt-get update -qq && apt-get install -y -qq curl ca-certificates jq tar
 
-          # Find the installed binary
-          if command -v supabase >/dev/null 2>&1; then
-            SUPABASE_BIN=$(command -v supabase)
-          elif [ -x "$HOME/.supabase/bin/supabase" ]; then
-            SUPABASE_BIN="$HOME/.supabase/bin/supabase"
-          elif [ -x "/usr/local/bin/supabase" ]; then
-            SUPABASE_BIN="/usr/local/bin/supabase"
-          else
-            echo "supabase CLI not found after install" >&2
+          echo "Querying GitHub Releases for supabase/cli latest release"
+          RELEASE_JSON=$(curl -sSL "https://api.github.com/repos/supabase/cli/releases/latest")
+          ASSET_URL=$(echo "$RELEASE_JSON" | jq -r '.assets[] | select(.name | test("linux_amd64.tar.gz")) | .browser_download_url' | head -n1)
+          if [ -z "$ASSET_URL" ] || [ "$ASSET_URL" = "null" ]; then
+            echo "Could not find linux_amd64 asset in latest release" >&2
+            echo "$RELEASE_JSON" | jq -r '.assets[] | .name' || true
             exit 2
           fi
 
+          echo "Downloading supabase CLI asset: $ASSET_URL"
+          curl -fSL --retry 3 --retry-delay 2 "$ASSET_URL" -o /tmp/supabase.tar.gz
+          tar -xzf /tmp/supabase.tar.gz -C /tmp
+          chmod +x /tmp/supabase || true
+
+          SUPABASE_BIN=/tmp/supabase
           echo "Using supabase binary: $SUPABASE_BIN"
           $SUPABASE_BIN --version || true
           echo "Running supabase gen types typescript --local"
