@@ -1,7 +1,7 @@
 /**
  * This file contains types generated from the Supabase schema.
  * DO NOT EDIT MANUALLY. This file is auto-generated.
- * Generated on: 2025-09-07T00:29:59.347Z
+ * Generated on: 2025-09-07T04:35:24.881Z
  */
 
 export type SupabaseJson =
@@ -11,8 +11,6 @@ export type SupabaseJson =
   | null
   | { [key: string]: Json | undefined }
   | Json[]
-// Generated types use `Json` in many locations; provide a compatible alias.
-export type Json = SupabaseJson;
 
 export type Database = {
   graphql_public: {
