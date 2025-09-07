@@ -39,10 +39,11 @@ export default function CreateAccountPage() {
 	}, [needsVerification]);
 
 	// Redirect to login if in demo mode or password auth is disabled
-	if (flags.isDemoMode || !flags.loginPasswordEnabled) {
-		router.replace('/login');
-		return null;
-	}
+	useEffect(() => {
+		if (flags.isDemoMode || !flags.loginPasswordEnabled) {
+			router.replace('/login');
+		}
+	}, [flags.isDemoMode, flags.loginPasswordEnabled, router]);
 
 	const handleCreateAccount = async () => {
 		if (!email || !password || !confirmPassword) {
