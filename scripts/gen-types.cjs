@@ -120,15 +120,15 @@ function main() {
 		let command;
 		if (useLocal) {
 			console.log('📦 Generating types from local Supabase instance...');
-			// Add --config-file /dev/null to bypass config validation issues
-			// Add --linked to use linked project if available instead of local
-			// These fix the "unknown config field" and "invalid db.major_version" errors
-			command = `${supabasePath} gen types typescript --local --config-file /dev/null --linked`;
+			// Use db-url option to bypass config validation issues
+			// This can use a direct database URL for local development
+			const dbUrl = process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:54322/postgres';
+			command = `${supabasePath} gen types typescript --db-url "${dbUrl}" --schema public`;
 		} else if (projectId) {
 			console.log(
 				`📦 Generating types from remote Supabase project (${projectId})...`
 			);
-			command = `${supabasePath} gen types typescript --project-id "${projectId}" --schema public --config-file /dev/null`;
+			command = `${supabasePath} gen types typescript --project-id "${projectId}" --schema public`;
 		} else {
 			console.error(
 				'❌ No project ID provided and --local not specified. Set SUPABASE_PROJECT_ID or use --local flag.'
