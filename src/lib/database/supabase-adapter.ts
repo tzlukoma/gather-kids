@@ -80,14 +80,12 @@ export class SupabaseAdapter implements DatabaseAdapter {
 	): Promise<Household> {
 		// Map frontend field names to database column names
 		const household = {
-			household_id: uuidv4(),
+			household_id: data.household_id || uuidv4(), // Use provided ID or generate new one
 			created_at: new Date().toISOString(),
 			updated_at: new Date().toISOString(),
-			// Map name to both fields for compatibility during migration
+			// Map name field
 			name: data.name,
-			household_name: data.name,
-			// Map preferredScriptureTranslation to both fields for compatibility during migration  
-			preferredScriptureTranslation: data.preferredScriptureTranslation,
+			// Use snake_case for database compatibility
 			preferred_scripture_translation: data.preferredScriptureTranslation,
 			// Direct field mappings
 			address_line1: data.address_line1,
@@ -219,12 +217,10 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			is_active: data.is_active,
 			photo_url: data.photo_url,
 			allergies: data.allergies,
-			// Map dob to both fields for compatibility during migration
+			// Use canonical dob field (birth_date was dropped in migration)
 			dob: data.dob,
-			birth_date: data.dob,
-			// Map child_mobile to both fields for compatibility  
+			// Use canonical child_mobile field (mobile_phone was dropped in migration)
 			child_mobile: data.child_mobile,
-			mobile_phone: data.child_mobile,
 			// Map grade and other new fields
 			grade: data.grade,
 			special_needs: data.special_needs,
@@ -258,16 +254,14 @@ export class SupabaseAdapter implements DatabaseAdapter {
 		if (data.photo_url !== undefined) updateData.photo_url = data.photo_url;
 		if (data.allergies !== undefined) updateData.allergies = data.allergies;
 		
-		// Map dob to both fields for compatibility
+		// Use canonical dob field (birth_date was dropped in migration)
 		if (data.dob !== undefined) {
 			updateData.dob = data.dob;
-			updateData.birth_date = data.dob;
 		}
 		
-		// Map child_mobile to both fields for compatibility  
+		// Use canonical child_mobile field (mobile_phone was dropped in migration)
 		if (data.child_mobile !== undefined) {
 			updateData.child_mobile = data.child_mobile;
-			updateData.mobile_phone = data.child_mobile;
 		}
 		
 		// Map grade and other new fields
@@ -623,7 +617,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			...data,
 			registration_id: uuidv4(),
 			created_at: new Date().toISOString(),
-			updated_at: new Date().toISOString(),
+			// Note: registrations table doesn't have updated_at column
 		};
 
 	const insertPayload: Database['public']['Tables']['registrations']['Insert'] = {
@@ -834,7 +828,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			...data,
 			enrollment_id: uuidv4(),
 			created_at: new Date().toISOString(),
-			updated_at: new Date().toISOString(),
+			// Note: ministry_enrollments table doesn't have updated_at column
 		};
 
 	const insertEnrollmentPayload: Database['public']['Tables']['ministry_enrollments']['Insert'] = {

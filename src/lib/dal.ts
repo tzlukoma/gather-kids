@@ -651,7 +651,7 @@ export async function getHouseholdForUser(authUserId: string): Promise<string | 
                 household_id: householdId,
                 name: input.household?.name || `${(input.guardians && (input.guardians[0] as Partial<Guardian>)?.last_name) || 'Household'} Household`,
                 address_line1: input.household?.address_line1,
-                preferredScriptureTranslation: input.household?.preferredScriptureTranslation,
+                preferredScriptureTranslation: input.household?.preferredScriptureTranslation, // Keep camelCase for adapter interface
             };
 
             if (isUpdate) {

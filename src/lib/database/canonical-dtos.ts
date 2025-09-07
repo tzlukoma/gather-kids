@@ -179,6 +179,7 @@ export const RegistrationWriteDto = z.object({
   pre_registered_sunday_school: z.boolean().default(true),
   consents: z.array(ConsentDto),
   submitted_via: z.enum(['web', 'import']).default('web'),
+  submitted_at: z.string().optional(), // ISO timestamp - optional for creates
 });
 
 export type Consent = z.infer<typeof ConsentDto>;

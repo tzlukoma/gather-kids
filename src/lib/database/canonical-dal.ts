@@ -243,6 +243,7 @@ export async function registerHouseholdCanonical(data: Record<string, unknown>, 
             }
           ],
           submitted_via: 'web',
+          submitted_at: now, // Set submitted_at in canonical format
         });
 
         // Convert back to legacy format for DAL compatibility
@@ -264,7 +265,7 @@ export async function registerHouseholdCanonical(data: Record<string, unknown>, 
               text: c.text as string | undefined,
             };
           }),
-          submitted_at: now,
+          submitted_at: registrationData.submitted_at || now, // Use canonical submitted_at
           submitted_via: registrationData.submitted_via,
         };
 
