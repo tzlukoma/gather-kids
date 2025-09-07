@@ -2,10 +2,28 @@ import type * as DexieTypes from '../types';
 import type * as SupabaseTypes from './supabase-types';
 import type * as CanonicalDtos from './canonical-dtos';
 
+// TODO(FRESH_START_3): These tolerances are temporary. Once the generated
+// `supabase-types.ts` is adopted and downstream code updated, remove the
+// legacy/camelCase fallbacks and the runtime warnings. See PR #119.
+
+const __tm_warned = new Set<string>();
+function __tm_warnOnce(key: string, message: string) {
+	try {
+		if (__tm_warned.has(key)) return;
+		__tm_warned.add(key);
+		if (typeof process !== 'undefined' && process.env.NODE_ENV !== 'production') {
+			// eslint-disable-next-line no-console
+			console.warn(`[type-mappings][${key}] ${message}`);
+		}
+	} catch (e) {
+		// swallow in case console isn't available in some runtimes
+	}
+}
+
 /**
  * Maps between Dexie types, Supabase generated types, and canonical snake_case DTOs
  * This ensures consistent typing regardless of which adapter is used
- * 
+ *
  * The canonical DTOs represent the "fresh start" data shapes that the DAL should
  * expose to the UI with consistent snake_case naming.
  */
@@ -215,15 +233,23 @@ export function supabaseToHousehold(
 ): HouseholdEntity {
 	return {
 		household_id: record.household_id || '',
-		name: record.name || undefined,
-		preferredScriptureTranslation: record.preferredScriptureTranslation || undefined,
-		address_line1: record.address_line1 || '',
-		address_line2: record.address_line2 || '',
-		city: record.city || '',
-		state: record.state || '',
-		zip: record.zip || '',
-		created_at: record.created_at || new Date().toISOString(),
-		updated_at: record.updated_at || new Date().toISOString(),
+		name: record.name ?? undefined,
+		// accept either snake_case (new generated types) or legacy camelCase
+		preferredScriptureTranslation: (() => {
+			const val = (record as any).preferred_scripture_translation ?? record.preferredScriptureTranslation ?? undefined;
+			if ((record as any).preferred_scripture_translation || record.preferredScriptureTranslation) {
+				__tm_warnOnce('household.preferredScriptureTranslation', 'Using legacy or alternate preferredScriptureTranslation field');
+			}
+			return val;
+		})(),
+		// coerce null -> empty string for address fields to satisfy callers expecting string
+		address_line1: (() => { const v = record.address_line1 ?? ''; if (record.address_line1 === null) __tm_warnOnce('household.address_line1','Coerced null address_line1 -> ""'); return v; })(),
+		address_line2: (() => { const v = record.address_line2 ?? ''; if (record.address_line2 === null) __tm_warnOnce('household.address_line2','Coerced null address_line2 -> ""'); return v; })(),
+		city: record.city ?? '' ,
+		state: record.state ?? '' ,
+		zip: record.zip ?? '' ,
+		created_at: record.created_at ?? new Date().toISOString(),
+		updated_at: record.updated_at ?? new Date().toISOString(),
 	};
 }
 
@@ -257,20 +283,20 @@ export type SupabaseChild =
 export function supabaseToChild(record: SupabaseChild): ChildEntity {
 	return {
 		child_id: record.child_id || '',
-		household_id: record.household_id || '',
-		first_name: record.first_name || '',
-		last_name: record.last_name || '',
-		dob: record.dob,
-		grade: record.grade,
-		child_mobile: record.child_mobile,
-		allergies: record.allergies,
-		medical_notes: record.medical_notes,
-		special_needs: record.special_needs || false,
-		special_needs_notes: record.special_needs_notes,
-		is_active: record.is_active !== undefined ? record.is_active : true,
-		created_at: record.created_at || new Date().toISOString(),
-		updated_at: record.updated_at || new Date().toISOString(),
-		photo_url: record.photo_url,
+	household_id: record.household_id ?? '',
+	first_name: record.first_name ?? '',
+	last_name: record.last_name ?? '',
+	dob: (() => { const v = record.dob ?? undefined; if (record.dob === null) __tm_warnOnce('child.dob','Coerced null dob -> undefined'); return v; })(),
+	grade: record.grade ?? undefined,
+	child_mobile: record.child_mobile ?? undefined,
+	allergies: record.allergies ?? undefined,
+	medical_notes: record.medical_notes ?? undefined,
+	special_needs: record.special_needs ?? false,
+	special_needs_notes: record.special_needs_notes ?? undefined,
+	is_active: record.is_active !== undefined ? record.is_active : true,
+	created_at: record.created_at ?? new Date().toISOString(),
+	updated_at: record.updated_at ?? new Date().toISOString(),
+	photo_url: record.photo_url ?? undefined,
 	};
 }
 
@@ -309,15 +335,15 @@ export type SupabaseGuardian =
 export function supabaseToGuardian(record: SupabaseGuardian): GuardianEntity {
 	return {
 		guardian_id: record.guardian_id || '',
-		household_id: record.household_id || '',
-		first_name: record.first_name || '',
-		last_name: record.last_name || '',
-		mobile_phone: record.mobile_phone || '',
-		email: record.email,
-		relationship: record.relationship || '',
-		is_primary: record.is_primary || false,
-		created_at: record.created_at || new Date().toISOString(),
-		updated_at: record.updated_at || new Date().toISOString(),
+	household_id: record.household_id ?? '',
+	first_name: record.first_name ?? '',
+	last_name: record.last_name ?? '',
+	mobile_phone: record.mobile_phone ?? '',
+	email: record.email ?? undefined,
+	relationship: record.relationship ?? '',
+	is_primary: record.is_primary ?? false,
+	created_at: record.created_at ?? new Date().toISOString(),
+	updated_at: record.updated_at ?? new Date().toISOString(),
 	};
 }
 
@@ -352,12 +378,12 @@ export function supabaseToEmergencyContact(
 	record: SupabaseEmergencyContact
 ): EmergencyContactEntity {
 	return {
-		contact_id: record.contact_id || '',
-		household_id: record.household_id || '',
-		first_name: record.first_name || '',
-		last_name: record.last_name || '',
-		mobile_phone: record.mobile_phone || '',
-		relationship: record.relationship || '',
+	contact_id: record.contact_id ?? '',
+	household_id: record.household_id ?? '',
+	first_name: record.first_name ?? '',
+	last_name: record.last_name ?? '',
+	mobile_phone: record.mobile_phone ?? '',
+	relationship: record.relationship ?? '',
 	};
 }
 
@@ -389,14 +415,17 @@ export type SupabaseMinistry =
 export function supabaseToMinistry(record: SupabaseMinistry): MinistryEntity {
 	return {
 		ministry_id: record.ministry_id || '',
-		name: record.name || '',
+		// tolerate optional code and data profile which may be present in generated types
+		code: (record as any).code ?? (record as any).ministry_code ?? undefined,
+	name: (record.name ?? (record as any).label) ?? '',
 		description: record.description,
 		min_age: record.min_age,
 		max_age: record.max_age,
 		min_grade: record.min_grade,
 		max_grade: record.max_grade,
 		is_active: record.is_active !== undefined ? record.is_active : true,
-		enrollment_type: record.enrollment_type || 'enrolled',
+		enrollment_type: record.enrollment_type ?? (record as any).enrollmentType ?? 'enrolled',
+		data_profile: (record as any).data_profile ?? (record as any).dataProfile ?? undefined,
 		custom_questions: record.custom_questions,
 		created_at: record.created_at || new Date().toISOString(),
 		updated_at: record.updated_at || new Date().toISOString(),
@@ -435,28 +464,29 @@ export type SupabaseBrandingSettings =
 export function supabaseToBrandingSettings(
 	record: SupabaseBrandingSettings
 ): BrandingSettingsEntity {
-	return {
+	return ({
 		setting_id: record.setting_id || '',
 		org_id: record.org_id,
-		primary_color: record.primary_color,
-		secondary_color: record.secondary_color,
-		logo_url: record.logo_url,
-		org_name: record.org_name,
+		// accept snake_case or camelCase or alternate org_name field
+		primary_color: (record as any).primary_color ?? (record as any).primaryColor ?? undefined,
+		secondary_color: (record as any).secondary_color ?? (record as any).secondaryColor ?? undefined,
+		logo_url: record.logo_url ?? (record as any).logoUrl ?? undefined,
+		org_name: (record as any).org_name ?? (record as any).orgName ?? undefined,
 		created_at: record.created_at || new Date().toISOString(),
 		updated_at: record.updated_at || new Date().toISOString(),
-	};
+	}) as any;
 }
 
 export function brandingSettingsToSupabase(
 	settings: CreateBrandingSettingsDTO
 ): Omit<SupabaseBrandingSettings, 'created_at' | 'updated_at'> {
 	return {
-		setting_id: settings.setting_id,
-		org_id: settings.org_id,
-		primary_color: settings.primary_color,
-		secondary_color: settings.secondary_color,
-		logo_url: settings.logo_url,
-		org_name: settings.org_name,
+	setting_id: settings.setting_id,
+	org_id: settings.org_id,
+	primary_color: (settings as any).primary_color ?? (settings as any).primaryColor ?? undefined,
+	secondary_color: (settings as any).secondary_color ?? (settings as any).secondaryColor ?? undefined,
+	logo_url: (settings as any).logo_url ?? (settings as any).logoUrl ?? undefined,
+	org_name: (settings as any).org_name ?? (settings as any).orgName ?? undefined,
 	} as any; // Using any for fallback types
 }
 
