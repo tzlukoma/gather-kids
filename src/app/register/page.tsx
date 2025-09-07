@@ -476,14 +476,22 @@ function RegisterPageContent() {
 				console.log(
 					'DEBUG: Loading ministries and registration cycles for registration form'
 				);
-				const [ministries, cycles] = await Promise.all([
-					getMinistries(),
-					getRegistrationCycles(),
-				]);
+				console.log('DEBUG: Before calling getMinistries() and getRegistrationCycles()');
+				
+				// Load ministries first to better debug any issues
+				console.log('DEBUG: Calling getMinistries()');
+				const ministries = await getMinistries();
 				console.log(
 					'DEBUG: Loaded',
 					ministries.length,
-					'ministries and',
+					'ministries',
+					ministries.length > 0 ? JSON.stringify(ministries[0]) : 'none'
+				);
+				
+				console.log('DEBUG: Calling getRegistrationCycles()');
+				const cycles = await getRegistrationCycles();
+				console.log(
+					'DEBUG: Loaded',
 					cycles.length,
 					'registration cycles'
 				);

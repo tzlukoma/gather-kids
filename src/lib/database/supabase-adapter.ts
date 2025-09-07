@@ -35,7 +35,29 @@ export class SupabaseAdapter implements DatabaseAdapter {
 
 
 	constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: SupabaseClient<Database>) {
-		this.client = customClient || (createClient(supabaseUrl, supabaseAnonKey) as SupabaseClient<Database>);
+		console.log('SupabaseAdapter constructor', { 
+			url: supabaseUrl,
+			hasAnonKey: !!supabaseAnonKey, 
+			usingCustomClient: !!customClient
+		});
+		
+		try {
+			this.client = customClient || (createClient(supabaseUrl, supabaseAnonKey) as SupabaseClient<Database>);
+			console.log('SupabaseAdapter created successfully');
+			
+			// Test connection
+			this.client.auth.getSession().then(response => {
+				console.log('SupabaseAdapter initial auth check', { 
+					success: !response.error, 
+					error: response.error ? response.error.message : null
+				});
+			}).catch(error => {
+				console.error('SupabaseAdapter initial auth check failed', error);
+			});
+		} catch (error) {
+			console.error('Error creating SupabaseAdapter', error);
+			throw error;
+		}
 	}
 
 	// Households
@@ -359,13 +381,23 @@ export class SupabaseAdapter implements DatabaseAdapter {
 	}
 
 	async listGuardians(householdId: string): Promise<Guardian[]> {
-	const { data, error } = await this.client
-			.from('guardians')
-			.select('*')
-			.eq('household_id', householdId);
+		console.log('SupabaseAdapter.listGuardians: Starting query', { householdId });
+		let query = this.client.from('guardians').select('*');
 
-	if (error) throw error;
-	return (data || []).map((d) => supabaseToGuardian(d as Database['public']['Tables']['guardians']['Row']));
+		if (householdId && householdId !== '') {
+			query = query.eq('household_id', householdId);
+		}
+
+		const { data, error } = await query;
+		
+		console.log('SupabaseAdapter.listGuardians: Query result', { 
+			hasError: !!error, 
+			errorMessage: error?.message, 
+			dataCount: data?.length || 0
+		});
+		
+		if (error) throw error;
+		return (data || []).map((d) => supabaseToGuardian(d as Database['public']['Tables']['guardians']['Row']));
 	}
 
 	async listAllGuardians(): Promise<Guardian[]> {
@@ -728,15 +760,47 @@ export class SupabaseAdapter implements DatabaseAdapter {
 	}
 
 	async listMinistries(isActive?: boolean): Promise<Ministry[]> {
+		console.log('SupabaseAdapter.listMinistries: Starting query', { isActive });
 		let query = this.client.from('ministries').select('*');
 
 		if (isActive !== undefined) {
 			query = query.eq('is_active', isActive);
 		}
 
-	const { data, error } = await query;
-	if (error) throw error;
-	return (data || []).map((d) => supabaseToMinistry(d as Database['public']['Tables']['ministries']['Row']));
+		try {
+			const { data, error } = await query;
+			console.log('SupabaseAdapter.listMinistries: Query result', { 
+				hasError: !!error, 
+				errorMessage: error?.message, 
+				dataCount: data?.length || 0,
+				firstItem: data && data.length > 0 ? JSON.stringify(data[0]) : null
+			});
+			
+			if (error) throw error;
+
+			// Check for data being empty when it shouldn't be
+			if (!data || data.length === 0) {
+				console.warn('SupabaseAdapter.listMinistries: No ministries found in the database');
+			}
+
+			const result = (data || []).map((d) => {
+				try {
+					return supabaseToMinistry(d as Database['public']['Tables']['ministries']['Row']);
+				} catch (mapError) {
+					console.error('SupabaseAdapter.listMinistries: Error mapping ministry', { 
+						ministry: d, 
+						error: mapError
+					});
+					throw mapError;
+				}
+			});
+
+			console.log(`SupabaseAdapter.listMinistries: Successfully mapped ${result.length} ministries`);
+			return result;
+		} catch (queryError) {
+			console.error('SupabaseAdapter.listMinistries: Query failed', queryError);
+			throw queryError;
+		}
 	}
 
 	async deleteMinistry(id: string): Promise<void> {
