@@ -44,10 +44,10 @@ async function initSupabase() {
 
 async function seedRegistrationCycles() {
 	console.log('🌱 Seeding registration cycles...');
-	
+
 	try {
 		const supabase = await initSupabase();
-		
+
 		// Define registration cycles
 		const cyclesData = [
 			{
@@ -56,7 +56,7 @@ async function seedRegistrationCycles() {
 				start_date: '2025-06-01T00:00:00.000Z',
 				end_date: '2026-05-31T23:59:59.999Z',
 				description: 'Registration for the 2025-2026 ministry year',
-				is_active: true
+				is_active: true,
 			},
 			{
 				cycle_id: '2024',
@@ -64,8 +64,8 @@ async function seedRegistrationCycles() {
 				start_date: '2024-06-01T00:00:00.000Z',
 				end_date: '2025-05-31T23:59:59.999Z',
 				description: 'Registration for the 2024-2025 ministry year',
-				is_active: false
-			}
+				is_active: false,
+			},
 		];
 
 		// Insert registration cycles
@@ -73,7 +73,13 @@ async function seedRegistrationCycles() {
 			try {
 				if (DRY_RUN) {
 					console.log(`[DRY RUN] Accessing table: registration_cycles`);
-					console.log(`[DRY RUN] INSERT INTO registration_cycles: ${JSON.stringify(cycleData, null, 2)}`);
+					console.log(
+						`[DRY RUN] INSERT INTO registration_cycles: ${JSON.stringify(
+							cycleData,
+							null,
+							2
+						)}`
+					);
 					console.log(`✅ Would create registration cycle: ${cycleData.name}`);
 					counters.registration_cycles++;
 					continue;
@@ -86,12 +92,16 @@ async function seedRegistrationCycles() {
 					.single();
 
 				if (checkError && checkError.code !== 'PGRST116') {
-					console.log(`⚠️ Error checking cycle ${cycleData.name}: ${checkError.message}`);
+					console.log(
+						`⚠️ Error checking cycle ${cycleData.name}: ${checkError.message}`
+					);
 					// Continue with insertion attempt rather than throwing error
 				}
 
 				if (existing) {
-					console.log(`🔄 Registration cycle already exists: ${cycleData.name}`);
+					console.log(
+						`🔄 Registration cycle already exists: ${cycleData.name}`
+					);
 					// Update the cycle to ensure it has the right properties
 					const { error: updateError } = await supabase
 						.from('registration_cycles')
@@ -100,12 +110,14 @@ async function seedRegistrationCycles() {
 							start_date: cycleData.start_date,
 							end_date: cycleData.end_date,
 							description: cycleData.description,
-							is_active: cycleData.is_active
+							is_active: cycleData.is_active,
 						})
 						.eq('cycle_id', cycleData.cycle_id);
 
 					if (updateError) {
-						console.log(`⚠️ Failed to update registration cycle ${cycleData.name}: ${updateError.message}`);
+						console.log(
+							`⚠️ Failed to update registration cycle ${cycleData.name}: ${updateError.message}`
+						);
 					} else {
 						console.log(`✅ Updated registration cycle: ${cycleData.name}`);
 					}
@@ -115,18 +127,24 @@ async function seedRegistrationCycles() {
 						.insert(cycleData);
 
 					if (insertError) {
-						console.log(`⚠️ Failed to create registration cycle ${cycleData.name}: ${insertError.message}`);
+						console.log(
+							`⚠️ Failed to create registration cycle ${cycleData.name}: ${insertError.message}`
+						);
 					} else {
 						console.log(`✅ Created registration cycle: ${cycleData.name}`);
 						counters.registration_cycles++;
 					}
 				}
 			} catch (error) {
-				console.log(`⚠️ Unexpected error with registration cycle ${cycleData.name}: ${error.message}`);
+				console.log(
+					`⚠️ Unexpected error with registration cycle ${cycleData.name}: ${error.message}`
+				);
 			}
 		}
 
-		console.log(`✅ Registration cycles seeded: ${counters.registration_cycles} created`);
+		console.log(
+			`✅ Registration cycles seeded: ${counters.registration_cycles} created`
+		);
 	} catch (error) {
 		console.error('❌ Error seeding registration cycles:', error);
 		process.exit(1);
@@ -276,7 +294,7 @@ async function seedMinistries() {
 // Run the seeding process
 async function runSeeding() {
 	console.log('🚀 Starting ministry development seed script');
-	
+
 	if (DRY_RUN) {
 		console.log('🔍 DRY RUN MODE: No changes will be made to the database');
 	}
@@ -284,13 +302,14 @@ async function runSeeding() {
 	try {
 		// First seed registration cycles since they might be referenced by other data
 		await seedRegistrationCycles();
-		
+
 		// Then seed ministries
 		await seedMinistries();
-		
+
 		console.log('✨ Dev seeding completed successfully!');
 	} catch (error) {
 		console.error('❌ Seeding failed:', error);
 		process.exit(1);
 	}
-}runSeeding();
+}
+runSeeding();
