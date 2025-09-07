@@ -1,0 +1,94 @@
+name: Generate Supabase Types (CI)
+
+on:
+  workflow_dispatch:
+    inputs:
+      commit:
+        description: 'If true, commit and push generated types to a branch and open a PR'
+        required: false
+        default: 'false'
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  gen-types:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Try supabase releases and generate types
+        id: gen
+        run: |
+          set -euo pipefail
+          VERSIONS=(v1.81.5 v1.81.4 v1.80.0 v1.76.0)
+          SUCCESS=0
+          for v in "${VERSIONS[@]}"; do
+            echo "=== Trying release: $v ==="
+            URL="https://github.com/supabase/cli/releases/download/$v/supabase_${v#v}_linux_amd64.tar.gz"
+            echo "URL=$URL"
+            if ! curl -fSL --retry 3 --retry-delay 2 "$URL" -o /tmp/supabase.tar.gz; then
+              echo "Download failed for $v, continuing..."
+              continue
+            fi
+            if ! tar -xzf /tmp/supabase.tar.gz -C /tmp; then
+              echo "Tar extraction failed for $v, continuing..."
+              continue
+            fi
+            chmod +x /tmp/supabase || true
+            echo "supabase version:"; /tmp/supabase --version || true
+            echo "Running generator with $v"
+            if /tmp/supabase gen types typescript --local; then
+              echo "Generation success with $v"
+              SUCCESS=1
+              break
+            else
+              echo "Generation failed with $v, trying next"
+            fi
+          done
+          if [ "$SUCCESS" -ne 1 ]; then
+            echo "All attempts failed" >&2
+            exit 2
+          fi
+
+      - name: Ensure generated file exists
+        run: |
+          if [ ! -f src/lib/database/supabase-types.ts ]; then
+            echo "Generated types file not found" >&2
+            ls -la src/lib/database || true
+            exit 1
+          fi
+
+      - name: Upload generated types artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: supabase-types
+          path: src/lib/database/supabase-types.ts
+
+      - name: Commit and open PR (optional)
+        if: ${{ github.event.inputs.commit == 'true' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          BRANCH=ci/gen-supabase-types-$(date +%s)
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          git add src/lib/database/supabase-types.ts
+          git commit -m "chore(gen): regenerate supabase types"
+          git push --set-upstream origin "$BRANCH"
+          echo "Creating PR..."
+          API_URL="https://api.github.com/repos/${{ github.repository }}/pulls"
+          BODY=$(jq -n --arg title "chore(gen): regenerate supabase types" --arg head "$BRANCH" --arg base "develop" '{title:$title,head:$head,base:$base,body:"Auto-generated supabase types (CI)"}')
+          curl -s -X POST -H "Authorization: token $GITHUB_TOKEN" -H "Accept: application/vnd.github+json" $API_URL -d "$BODY" | jq -r '.html_url'
