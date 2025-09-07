@@ -75,7 +75,7 @@ import { ChildCard } from '@/components/gatherKids/child-card';
 import { IncidentDetailsDialog } from '@/components/gatherKids/incident-details-dialog';
 import { PhotoCaptureDialog } from '@/components/gatherKids/photo-capture-dialog';
 
-export interface RosterChild extends EnrichedChild {}
+export type RosterChild = EnrichedChild;
 
 type SortDirection = 'asc' | 'desc' | 'none';
 
@@ -176,23 +176,12 @@ export default function RostersPage() {
 				const today = getTodayIsoDate();
 
 				// Load children based on user role
-				let childrenData: Child[];
-				if (user?.metadata?.role === AuthRole.MINISTRY_LEADER) {
-					if (
-						!user.is_active ||
-						!user.assignedMinistryIds ||
-						user.assignedMinistryIds.length === 0
-					) {
-						childrenData = [];
-					} else {
-						childrenData = await getChildrenForLeader(
-							user.assignedMinistryIds,
-							'2025'
-						);
-					}
-				} else {
-					childrenData = await getAllChildren();
-				}
+				const childrenData: Child[] =
+					user?.metadata?.role === AuthRole.MINISTRY_LEADER
+						? (!user.is_active || !user.assignedMinistryIds || user.assignedMinistryIds.length === 0
+							  ? []
+							  : await getChildrenForLeader(user.assignedMinistryIds, '2025'))
+						: await getAllChildren();
 
 				// Load all other data in parallel
 				const [
@@ -229,7 +218,7 @@ export default function RostersPage() {
 		};
 
 		loadData();
-	}, [user]);
+	}, [user, dataLoading]);
 
 	const currentEventName = useMemo(() => {
 		return (
@@ -313,31 +302,23 @@ export default function RostersPage() {
 		allHouseholds,
 		allEmergencyContacts,
 		todaysIncidents,
+		dataLoading,
 	]);
 
 	const ministryFilterOptions = useMemo(() => {
 		if (dataLoading) return [];
 
-		let relevantMinistryIds: Set<string>;
+		const relevantMinistryIds: Set<string> =
+			user?.metadata?.role === AuthRole.MINISTRY_LEADER && user.assignedMinistryIds
+				? new Set(user.assignedMinistryIds)
+				: new Set(
+					  allMinistryEnrollments
+						  .filter((e) => new Set(allChildren.map((c) => c.child_id)).has(e.child_id))
+						  .map((e) => e.ministry_id)
+				  );
 
-		if (
-			user?.metadata?.role === AuthRole.MINISTRY_LEADER &&
-			user.assignedMinistryIds
-		) {
-			relevantMinistryIds = new Set(user.assignedMinistryIds);
-		} else {
-			const childIdsInView = new Set(allChildren.map((c) => c.child_id));
-			relevantMinistryIds = new Set(
-				allMinistryEnrollments
-					.filter((e) => childIdsInView.has(e.child_id))
-					.map((e) => e.ministry_id)
-			);
-		}
-
-		return allMinistries
-			.filter((m) => relevantMinistryIds.has(m.ministry_id))
-			.sort((a, b) => a.name.localeCompare(b.name));
-	}, [allChildren, allMinistryEnrollments, allMinistries, user]);
+		return allMinistries.filter((m) => relevantMinistryIds.has(m.ministry_id)).sort((a, b) => a.name.localeCompare(b.name));
+	}, [allChildren, allMinistryEnrollments, allMinistries, user, dataLoading]);
 
 	const displayChildren = useMemo(() => {
 		let filtered = childrenWithDetails;

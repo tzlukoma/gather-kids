@@ -8,13 +8,6 @@ import {
 	getBibleBeeYears,
 	getScripturesForBibleBeeYear,
 } from '@/lib/dal';
-import {
-	Select,
-	SelectTrigger,
-	SelectValue,
-	SelectContent,
-	SelectItem,
-} from '@/components/ui/select';
 import LeaderBibleBeeProgress from '@/components/gatherKids/bible-bee-progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
@@ -187,7 +180,14 @@ export default function BibleBeePage() {
 		return () => {
 			mounted = false;
 		};
-	}, [selectedCycle, bibleBeeYears, scriptureRefreshTrigger]);
+	}, [selectedCycle, bibleBeeYears, scriptureRefreshTrigger, displayVersion]);
+
+	const extractUserInfo = React.useCallback((u: any) => {
+		return {
+			id: u?.id || u?.uid || u?.user_id || u?.userId || null,
+			email: u?.email || u?.user_email || u?.mail || null,
+		};
+	}, []);
 
 	useEffect(() => {
 		// determine manage permission: Admins can manage; Ministry leaders with Primary assignment can manage
@@ -198,12 +198,6 @@ export default function BibleBeePage() {
 		}
 		if (user?.metadata?.role === AuthRole.MINISTRY_LEADER) {
 			(async () => {
-				function extractUserInfo(u: any) {
-					return {
-						id: u?.id || u?.uid || u?.user_id || u?.userId || null,
-						email: u?.email || u?.user_email || u?.mail || null,
-					};
-				}
 				const { id: uid, email } = extractUserInfo(user);
 				if (!uid && !email) return;
 				const can = await canLeaderManageBibleBee({
@@ -214,7 +208,7 @@ export default function BibleBeePage() {
 				setCanManage(Boolean(can));
 			})();
 		}
-	}, [user, selectedCycle, bibleBeeYears]);
+	}, [user, selectedCycle, extractUserInfo]);
 
 	return (
 		<div className="flex flex-col gap-6">
@@ -340,41 +334,4 @@ export default function BibleBeePage() {
 	);
 }
 
-function YearList() {
-	const [years, setYears] = useState<any[]>([]);
 
-	useEffect(() => {
-		const fetchYears = async () => {
-			try {
-				const data = await getBibleBeeYears();
-				setYears(data);
-			} catch (error) {
-				console.error('Error loading Bible Bee years:', error);
-			}
-		};
-		fetchYears();
-	}, []);
-	if (!years) return <div>Loading years...</div>;
-	if (years.length === 0) return <div>No Bible Bee years defined.</div>;
-	return (
-		<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-			{years.map((y: any) => (
-				<Card key={y.id}>
-					<CardHeader>
-						<CardTitle>{y.name ?? y.year}</CardTitle>
-					</CardHeader>
-					<CardContent>
-						<div className="text-sm text-muted-foreground">{y.description}</div>
-						<div className="mt-2">
-							<Link
-								href={`/dashboard/bible-bee/year/${y.id}`}
-								className="text-primary underline">
-								Manage
-							</Link>
-						</div>
-					</CardContent>
-				</Card>
-			))}
-		</div>
-	);
-}

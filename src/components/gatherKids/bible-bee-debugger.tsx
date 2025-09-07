@@ -2,15 +2,16 @@
 
 import { useEffect } from 'react';
 import { useAuth } from '@/contexts/auth-context';
-import { db } from '@/lib/db';
+// db import unused in this debugger; rely on adapter helpers instead
 import { dbAdapter, isSupabase, getDatabaseMode } from '@/lib/db-utils';
 import { getFlag } from '@/lib/featureFlags';
 
 export default function BibleBeeDebugger() {
 	const { user } = useAuth();
 
-	function getUserId(u: any) {
-		return u?.uid || u?.id || u?.user_id || null;
+	function getUserId(u: unknown) {
+		const user = u as { uid?: string; id?: string; user_id?: string } | null;
+		return user?.uid || user?.id || user?.user_id || null;
 	}
 
 	useEffect(() => {

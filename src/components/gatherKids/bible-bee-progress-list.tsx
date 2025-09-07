@@ -99,8 +99,7 @@ export function BibleBeeProgressList({
 				setSelectedCycle(String(defaultYear ?? ''));
 			}
 		}
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [competitionYears]);
+	}, [competitionYears, initial, initialCycle]);
 
 	// Prefer an active new-schema Bible Bee year when present (only if no
 	// selection was pre-populated via storage or props).
@@ -108,16 +107,16 @@ export function BibleBeeProgressList({
 		if (bibleBeeYears && bibleBeeYears.length > 0) {
 			if (!initial?.selectedCycle && !initialCycle) {
 				// only default to a bible-bee-year when one is explicitly marked active
-				const active = bibleBeeYears.find((y: any) =>
-					isActiveValue(y?.is_active)
-				);
+				const active = bibleBeeYears.find((y: any) => {
+					const val = y?.is_active;
+					return val === true || val === 1 || String(val) === '1' || String(val) === 'true';
+				});
 				if (active && active.id) {
 					setSelectedCycle(String(active.id));
 				}
 			}
 		}
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [bibleBeeYears]);
+	}, [bibleBeeYears, initial, initialCycle]);
 
 	useEffect(() => {
 		let mounted = true;
@@ -191,7 +190,7 @@ export function BibleBeeProgressList({
 		return () => {
 			mounted = false;
 		};
-	}, [selectedCycle, filterChildIds]);
+	}, [selectedCycle, filterChildIds, bibleBeeYears, filterGradeGroup]);
 
 	// Resolve a friendly label for the selected cycle when bibleBeeYears
 	// isn't yet available (prevents showing UUID on first load).

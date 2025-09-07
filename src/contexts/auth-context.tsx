@@ -61,7 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 					if (storedUserString) {
 						console.log('AuthProvider: Found stored user in localStorage');
 						const storedUser = JSON.parse(storedUserString);
-						let finalUser: BaseUser = {
+						const finalUser: BaseUser = {
 							...storedUser,
 							metadata: {
 								...storedUser.metadata,
@@ -110,7 +110,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 						const supabaseUser = session.user;
 						const userRole = supabaseUser.user_metadata?.role || AuthRole.ADMIN;
 
-						let finalUser: BaseUser = {
+						const finalUser: BaseUser = {
 							uid: supabaseUser.id,
 							displayName:
 								supabaseUser.user_metadata?.full_name ||
@@ -166,7 +166,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 								const userRole =
 									recoveredUser.user_metadata?.role || AuthRole.ADMIN;
 
-								let finalUser: BaseUser = {
+								const finalUser: BaseUser = {
 									uid: recoveredUser.id,
 									displayName:
 										recoveredUser.user_metadata?.full_name ||
@@ -238,7 +238,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 					const supabaseUser = session.user;
 					const userRole = supabaseUser.user_metadata?.role || AuthRole.ADMIN;
 
-					let finalUser: BaseUser = {
+					const finalUser: BaseUser = {
 						uid: supabaseUser.id,
 						displayName:
 							supabaseUser.user_metadata?.full_name ||

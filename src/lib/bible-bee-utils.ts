@@ -12,27 +12,27 @@ export async function getScriptures(yearId: string): Promise<Scripture[]> {
   
   try {
     // First check if this is a Bible Bee year ID
-    let query = supabase.from('scriptures').select('*');
-    
-    // Try with year_id first (new schema)
-    query = query.eq('year_id', yearId);
-    
-    let { data, error } = await query;
+    const query = supabase.from('scriptures').select('*').eq('year_id', yearId);
+
+    const { data: initialData, error: initialError } = await query;
+
+  let data: Scripture[] | null = initialData as Scripture[] | null;
+  const error: any = initialError;
     
     if (error) throw error;
     
     // If no results, try with competitionYearId (legacy schema)
     if (!data || data.length === 0) {
-      const legacyQuery = supabase.from('scriptures').select('*').eq('competitionYearId', yearId);
-      const result = await legacyQuery;
-      
-      if (result.error) throw result.error;
-      data = result.data || [];
+  const legacyQuery = supabase.from('scriptures').select('*').eq('competitionYearId', yearId);
+  const result = await legacyQuery;
+
+  if (result.error) throw result.error;
+  data = result.data || [];
     }
     
     // Sort the scriptures by sortOrder or scripture_order
-    return (data || []).sort(
-      (a, b) => Number(a.sortOrder ?? a.scripture_order ?? 0) - Number(b.sortOrder ?? b.scripture_order ?? 0)
+    return (data || []).sort((a: Scripture, b: Scripture) =>
+      Number(a.sortOrder ?? a.scripture_order ?? 0) - Number(b.sortOrder ?? b.scripture_order ?? 0)
     );
   } catch (error) {
     console.error('Error fetching scriptures:', error);

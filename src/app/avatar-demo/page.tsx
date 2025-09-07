@@ -10,7 +10,6 @@ import { v4 as uuidv4 } from 'uuid';
 
 export default function AvatarTestPage() {
 	const [testChildId, setTestChildId] = useState<string>('');
-	const [avatarUrl, setAvatarUrl] = useState<string>('');
 
 	const createTestChild = async () => {
 		const childId = uuidv4();
@@ -35,7 +34,7 @@ export default function AvatarTestPage() {
 	};
 
 	const handleAvatarUpload = (url: string) => {
-		setAvatarUrl(url);
+		// keep a light-weight log for demo uploads; no local state needed here
 		console.log('Avatar uploaded:', url);
 	};
 

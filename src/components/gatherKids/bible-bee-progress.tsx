@@ -3,13 +3,7 @@
 import React from 'react';
 import { BibleBeeProgressList } from './bible-bee-progress-list';
 
-export function LeaderBibleBeeProgress({
-	cycleId,
-	canUpload = false,
-}: {
-	cycleId: string;
-	canUpload?: boolean;
-}) {
+export function LeaderBibleBeeProgress({ cycleId }: { cycleId: string }) {
 	return (
 		<BibleBeeProgressList
 			initialCycle={cycleId}
