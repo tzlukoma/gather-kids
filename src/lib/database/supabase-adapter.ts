@@ -50,7 +50,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			if (error.code === 'PGRST116') return null; // No rows returned
 			throw error;
 		}
-	return data ? supabaseToHousehold(data as unknown as Database['public']['Tables']['households']['Row']) : null;
+	return data ? supabaseToHousehold(data as Database['public']['Tables']['households']['Row']) : null;
 	}
 
 	async createHousehold(
@@ -86,7 +86,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			.single();
 
 		if (error) throw error;
-	return supabaseToHousehold(result as unknown as Database['public']['Tables']['households']['Row']);
+		return supabaseToHousehold(result as Database['public']['Tables']['households']['Row']);
 	}
 
 	async updateHousehold(id: string, data: Partial<Household>): Promise<Household> {
@@ -219,7 +219,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			.single();
 
 		if (error) throw error;
-	return supabaseToChild(result as unknown as Database['public']['Tables']['children']['Row']);
+		return supabaseToChild(result as Database['public']['Tables']['children']['Row']);
 	}
 
 	async updateChild(id: string, data: Partial<Child>): Promise<Child> {
@@ -318,7 +318,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 				if (error.code === 'PGRST116') return null;
 				throw error;
 			}
-			return data ? supabaseToGuardian(data as unknown as Database['public']['Tables']['guardians']['Row']) : null;
+			return data ? supabaseToGuardian(data as Database['public']['Tables']['guardians']['Row']) : null;
 	}
 
 	async createGuardian(
@@ -339,7 +339,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 
 	if (error) throw error;
 	if (!result) throw new Error('createGuardian: no result returned from DB');
-	return supabaseToGuardian(result as unknown as Database['public']['Tables']['guardians']['Row']);
+	return supabaseToGuardian(result as Database['public']['Tables']['guardians']['Row']);
 	}
 
 	async updateGuardian(id: string, data: Partial<Guardian>): Promise<Guardian> {
