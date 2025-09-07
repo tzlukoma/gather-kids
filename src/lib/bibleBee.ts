@@ -34,7 +34,7 @@ export async function upsertScripture(payload: Omit<Scripture, 'id' | 'createdAt
     const normalizedRef = normalizeReference(payload.reference);
     
     // First try to find an existing scripture by reference in the same competition year
-    let existingItem: any = null;
+    let existingItem: Scripture | null = null;
     if (normalizedRef && payload.competitionYearId) {
         // Get all scriptures for the competition year, then filter in JS
         const yearScriptures = await db.scriptures
@@ -50,23 +50,21 @@ export async function upsertScripture(payload: Omit<Scripture, 'id' | 'createdAt
     
     // support legacy payload.alternateTexts but prefer payload.texts
     const _payload = payload as unknown as Record<string, unknown>;
-    const textsMap = (_payload['texts'] as Record<string, string> | undefined) ?? (_payload['alternateTexts'] as Record<string, string> | undefined) ?? undefined;
+        const rRec = _payload as Record<string, unknown>;
+        const textsMap = (rRec['texts'] as Record<string, string> | undefined) ?? (rRec['alternateTexts'] as Record<string, string> | undefined) ?? undefined;
     
     // Use scripture_order as the unified sort field
     // If updating an existing item, preserve its scripture_order unless explicitly provided
-    const scriptureOrder = (payload as any).scripture_order !== undefined
-        ? (payload as any).scripture_order
-        : (payload as any).sortOrder !== undefined
-            ? (payload as any).sortOrder
-            : existingItem?.scripture_order ?? existingItem?.sortOrder ?? 0;
+    const p = payload as unknown as Record<string, unknown>;
+        const scriptureOrder = (rRec['scripture_order'] as number | undefined) ?? (rRec['sortOrder'] as number | undefined) ?? existingItem?.scripture_order ?? existingItem?.sortOrder ?? 0;
     
     const item: Scripture = {
         id,
         competitionYearId: payload.competitionYearId,
         reference: payload.reference,
-        text: payload.text || existingItem?.text,
-        translation: payload.translation || existingItem?.translation,
-        texts: textsMap || existingItem?.texts || existingItem?.alternateTexts,
+        text: (payload.text ?? existingItem?.text ?? '') as string,
+        translation: (payload.translation ?? existingItem?.translation) as string | undefined,
+        texts: (textsMap || ((existingItem as unknown as Record<string, unknown>)?.texts) || ((existingItem as unknown as Record<string, unknown>)?.alternateTexts)) as Record<string, string> | undefined,
         bookLangAlt: payload.bookLangAlt || existingItem?.bookLangAlt,
         scripture_order: scriptureOrder,
         sortOrder: scriptureOrder, // Keep sortOrder in sync for backward compatibility
@@ -135,7 +133,7 @@ export async function getChildDivisionInfo(childId: string, yearId: string) {
         console.log(`getChildDivisionInfo: Processing child ${childId} with grade ${gradeNum} for year ${yearId}`);
 
         // First try to find divisions for this year (new system)
-        let divisions: any[] = [];
+    let divisions: Division[] = [];
         try {
             divisions = await db.divisions.where('year_id').equals(yearId).toArray();
             console.log(`getChildDivisionInfo: Found ${divisions.length} divisions for year ${yearId}`, divisions.map(d => ({
@@ -234,7 +232,7 @@ export async function enrollChildInBibleBee(childId: string, competitionYearId: 
     const now = new Date().toISOString();
 
     // Check if this is a new system year (has divisions) or legacy system (has grade rules)
-    let divisions: any[] = [];
+    let divisions: Division[] = [];
     let hasNewSystem = false;
     
     try {
@@ -257,7 +255,7 @@ export async function enrollChildInBibleBee(childId: string, competitionYearId: 
         console.log('Using new division-based system, assigning all scriptures for the year');
         
         // Get scriptures for this year - try both field names for compatibility
-        let scriptures: any[] = [];
+    let scriptures: Scripture[] = [];
         try {
             // Try new schema first (year_id)
             scriptures = await db.scriptures.where('year_id').equals(competitionYearId).toArray();
@@ -412,7 +410,7 @@ export function validateCsvRows(rows: CsvRow[]) {
  *
  * Returns: { matches, csvOnly, jsonOnly, stats }
  */
-export function previewCsvJsonMatches(rows: CsvRow[], jsonItems: any[]) {
+export function previewCsvJsonMatches(rows: CsvRow[], jsonItems: Array<Record<string, unknown>>) {
     const normalizeReference = (s?: string | null) =>
         (s ?? '')
             .toString()
@@ -427,26 +425,29 @@ export function previewCsvJsonMatches(rows: CsvRow[], jsonItems: any[]) {
         if (ref) csvMap.set(ref, { row: r, index: i });
     });
 
-    const jsonMap = new Map<string, { item: any; index: number }>();
+    const jsonMap = new Map<string, { item: Record<string, unknown>; index: number }>();
     // Match strictly on the JSON `reference` field only, ignoring order fields completely.
     // If a JSON object does not include `reference`, we do not attempt fallbacks; 
     // it will be treated as json-only without a normalized key.
     (jsonItems || []).forEach((j, i) => {
-        // Explicitly ignore any 'order' field in JSON if present
-        if (j && j.order !== undefined) {
-            delete j.order; // Remove order field to avoid confusion
+        if (!j) return;
+        // Explicitly ignore any 'order' field in JSON if present by copying
+        let safeItem: Record<string, unknown> = j;
+        if (Object.prototype.hasOwnProperty.call(j, 'order')) {
+            safeItem = { ...j };
+            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+            // @ts-ignore - dynamic delete on shallow copy for runtime compatibility
+            delete (safeItem as any).order;
         }
-        
-        const rawRef = j?.reference ?? '';
+
+        const rawRef = (safeItem['reference'] as string | undefined) ?? '';
         const ref = normalizeReference(rawRef);
-        if (ref) {
-            jsonMap.set(ref, { item: j, index: i });
-        }
+        if (ref) jsonMap.set(ref, { item: safeItem, index: i });
     });
 
-    const matches: Array<{ reference: string; csv: { row: CsvRow; index: number } | null; json: { item: any; index: number } | null }> = [];
+    const matches: Array<{ reference: string; csv: { row: CsvRow; index: number } | null; json: { item: Record<string, unknown>; index: number } | null }> = [];
     const csvOnly: Array<{ reference: string; row: CsvRow; index: number }> = [];
-    const jsonOnly: Array<{ reference: string | null; item: any; index: number }> = [];
+    const jsonOnly: Array<{ reference: string | null; item: Record<string, unknown>; index: number }> = [];
 
     // union of keys
     const seen = new Set<string>();
@@ -468,10 +469,10 @@ export function previewCsvJsonMatches(rows: CsvRow[], jsonItems: any[]) {
     // Include any JSON items that did not have a reference field at all so they are
     // explicitly shown as unmatched.
     (jsonItems || []).forEach((j, i) => {
-        const rawRef = j?.reference ?? '';
+        const rawRef = (j && (j['reference'] as string | undefined)) ?? '';
         const ref = normalizeReference(rawRef);
         if (!ref) {
-            jsonOnly.push({ reference: null, item: j, index: i });
+            jsonOnly.push({ reference: null, item: j as Record<string, unknown>, index: i });
         }
     });
 
@@ -507,12 +508,10 @@ export async function commitCsvRowsToYear(rows: CsvRow[], competitionYearId: str
         .toArray();
         
     // Create a map of normalized references to existing scriptures for faster lookup
-    const existingScriptureMap = new Map();
+    const existingScriptureMap = new Map<string, Scripture>();
     allExistingScriptures.forEach(s => {
         const normalizedRef = normalizeReference(s.reference);
-        if (normalizedRef) {
-            existingScriptureMap.set(normalizedRef, s);
-        }
+        if (normalizedRef) existingScriptureMap.set(normalizedRef, s);
     });
 
     // Process rows one-by-one with precise reference matching
@@ -526,10 +525,11 @@ export async function commitCsvRowsToYear(rows: CsvRow[], competitionYearId: str
         // Look up existing scripture by normalized reference
         const existing = existingScriptureMap.get(normalizedRef);
 
-        const textsMap = (r as any).texts ?? (r as any).alternateTexts ?? undefined;
-        // Use scripture_order as the unified field for sort order
-        // Extract from CSV row if available
-        const scriptureOrder = (r as any).scripture_order ?? (r as any).sortOrder;
+    const rRec = r as Record<string, unknown>;
+    const textsMap = (rRec['texts'] as Record<string, string> | undefined) ?? (rRec['alternateTexts'] as Record<string, string> | undefined) ?? undefined;
+    // Use scripture_order as the unified field for sort order
+    // Extract from CSV row if available
+    const scriptureOrder = (rRec['scripture_order'] as number | undefined) ?? (rRec['sortOrder'] as number | undefined);
 
         if (existing) {
             // When updating, preserve the CSV row's scripture_order if provided,
@@ -538,45 +538,50 @@ export async function commitCsvRowsToYear(rows: CsvRow[], competitionYearId: str
                 ? scriptureOrder 
                 : existing.scripture_order ?? existing.sortOrder ?? 0;
                 
-            const updatedItem = {
+            const updatedItem: Scripture = {
                 ...existing,
                 reference: ref,
-                text: r.text ?? existing.text,
-                translation: r.translation ?? existing.translation,
-                texts: textsMap ?? existing.texts,
+                text: (r.text ?? existing.text) as string,
+                translation: (r.translation ?? existing.translation) as string | undefined,
+                texts: (textsMap ?? existing.texts) as Record<string, string> | undefined,
                 // Use scripture_order as the primary field, but keep sortOrder for compatibility
                 scripture_order: resolvedOrder,
                 sortOrder: resolvedOrder,
                 updatedAt: now,
-            } as any;
-            // Ensure we don't keep stale 'order' field at all
-            if (updatedItem.order !== undefined) {
-                delete updatedItem.order; // Remove order field completely
+            };
+            // Ensure we don't keep stale 'order' field at all by copying to a mutable record
+            const updatedRecord = { ...updatedItem } as Record<string, unknown>;
+            if (Object.prototype.hasOwnProperty.call(updatedRecord, 'order')) {
+                // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+                // @ts-ignore dynamic delete for legacy compatibility
+                delete updatedRecord.order;
             }
-            await db.scriptures.put(updatedItem);
+            await db.scriptures.put(updatedRecord as unknown as Scripture);
             updated++;
         } else {
             // For new entries, use CSV row's scripture_order if available, or calculate based on position
             const newOrder = scriptureOrder !== undefined ? scriptureOrder : inserted + updated;
-            const newItem = {
+            const newItem: Scripture = {
                 id: crypto.randomUUID(),
                 competitionYearId,
                 reference: ref,
-                text: r.text ?? '',
-                translation: r.translation,
-                texts: textsMap,
+                text: (r.text ?? '') as string,
+                translation: r.translation as string | undefined,
+                texts: textsMap as Record<string, string> | undefined,
                 scripture_order: newOrder,
                 sortOrder: newOrder, // Keep sortOrder for compatibility
                 createdAt: now,
                 updatedAt: now,
-            } as any;
+            };
             
-            // Ensure we never store an 'order' field
-            if (newItem.order !== undefined) {
-                delete newItem.order;
+            // Ensure we never store an 'order' field by copying to a mutable record first
+            const newRecord = { ...newItem } as Record<string, unknown>;
+            if (Object.prototype.hasOwnProperty.call(newRecord, 'order')) {
+                // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+                // @ts-ignore dynamic delete for legacy compatibility
+                delete newRecord.order;
             }
-            
-            await db.scriptures.put(newItem);
+            await db.scriptures.put(newRecord as unknown as Scripture);
             inserted++;
         }
     }

@@ -18,7 +18,7 @@ import { getApplicableGradeRule } from './bibleBee';
 import { gradeToCode } from './gradeUtils';
 import { AuthRole } from './auth-types';
 import { isDemo } from './featureFlags';
-import type { Attendance, Child, Guardian, Household, Incident, IncidentSeverity, Ministry, MinistryEnrollment, Registration, User, EmergencyContact, LeaderAssignment, LeaderProfile, MinistryLeaderMembership, MinistryAccount, BrandingSettings, BibleBeeYear, RegistrationCycle  } from './types';
+import type { Attendance, Child, Guardian, Household, Incident, IncidentSeverity, Ministry, MinistryEnrollment, Registration, User, EmergencyContact, LeaderAssignment, LeaderProfile, MinistryLeaderMembership, MinistryAccount, BrandingSettings, BibleBeeYear, RegistrationCycle, Scripture } from './types';
 import { differenceInYears, isAfter, isBefore, parseISO, isValid } from 'date-fns';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -2380,7 +2380,7 @@ export async function getBibleBeeYears(): Promise<BibleBeeYear[]> {
 /**
  * Get scriptures for a Bible Bee year
  */
-export async function getScripturesForBibleBeeYear(yearId: string): Promise<any[]> {
+export async function getScripturesForBibleBeeYear(yearId: string): Promise<Scripture[]> {
 	if (shouldUseAdapter()) {
 		// In Supabase mode, scriptures may not be available yet
 		// Return empty array for now, can be enhanced later when scripture schema is added
@@ -2389,8 +2389,9 @@ export async function getScripturesForBibleBeeYear(yearId: string): Promise<any[
 	} else {
 		// Use legacy Dexie interface for demo mode
         if (db && 'scriptures' in db) {
-            // scriptures is an optional legacy table; use a safe any access only here
-            return (db as any).scriptures?.where('year_id')?.equals(yearId)?.toArray() || [];
+            // scriptures is an optional legacy table; cast carefully to avoid `any` leaking out
+            const tbl = (db as unknown as { scriptures?: { where: (k: string) => { equals: (v: string) => { toArray: () => Scripture[] } } } }).scriptures;
+            return (tbl?.where('year_id')?.equals(yearId)?.toArray()) || [];
         }
 		return [];
 	}
@@ -2399,14 +2400,15 @@ export async function getScripturesForBibleBeeYear(yearId: string): Promise<any[
 /**
  * Get scriptures for a competition year (legacy)
  */
-export async function getScripturesForCompetitionYear(competitionYearId: string): Promise<any[]> {
+export async function getScripturesForCompetitionYear(competitionYearId: string): Promise<Scripture[]> {
 	if (shouldUseAdapter()) {
 		// In Supabase mode, legacy competition year scriptures are not available
 		return [];
 	} else {
 		// Use legacy Dexie interface for demo mode
         if (db && 'scriptures' in db) {
-            return (db as any).scriptures?.where('competitionYearId')?.equals(competitionYearId)?.toArray() || [];
+            const tbl = (db as unknown as { scriptures?: { where: (k: string) => { equals: (v: string) => { toArray: () => Scripture[] } } } }).scriptures;
+            return (tbl?.where('competitionYearId')?.equals(competitionYearId)?.toArray()) || [];
         }
 		return [];
 	}

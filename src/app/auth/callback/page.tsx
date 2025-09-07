@@ -25,7 +25,7 @@ function AuthCallbackContent() {
 	// Add a timeout to prevent users from getting stuck indefinitely
 	useEffect(() => {
 		if (!mounted || !loading) return;
-		
+
 		const timeoutTimer = setTimeout(() => {
 			if (loading && !error && !success) {
 				console.error('Auth callback timeout - user stuck in loading state');
@@ -112,22 +112,33 @@ The authentication process is taking longer than expected. This can happen if:
 								// Convert base64url to base64 by replacing URL-safe characters
 								const base64 = code.replace(/-/g, '+').replace(/_/g, '/');
 								// Add padding if needed
-								const paddedBase64 = base64 + '=='.slice(0, (4 - base64.length % 4) % 4);
+								const paddedBase64 =
+									base64 + '=='.slice(0, (4 - (base64.length % 4)) % 4);
 								// Decode using atob (browser native)
 								const decodedString = atob(paddedBase64);
 								const decoded = JSON.parse(decodedString);
-								
+
 								if (decoded.type === 'magic_link' && decoded.email) {
-									console.log('Processing email verification for registration:', decoded.email);
-									
+									console.log(
+										'Processing email verification for registration:',
+										decoded.email
+									);
+
 									// Redirect to registration form with verified email
-									router.push(`/register?verified_email=${encodeURIComponent(decoded.email)}`);
+									router.push(
+										`/register?verified_email=${encodeURIComponent(
+											decoded.email
+										)}`
+									);
 									return;
 								} else {
 									throw new Error('Invalid email verification link format');
 								}
 							} catch (decodeError) {
-								console.error('Error decoding email verification link:', decodeError);
+								console.error(
+									'Error decoding email verification link:',
+									decodeError
+								);
 								authError = new Error('Invalid email verification link');
 							}
 						} else {
@@ -257,17 +268,21 @@ The verification code required for magic links was not found. This happens when:
 					}
 				} else if (data.session) {
 					setSuccess(true);
-					console.log('Auth successful! Redirecting to /register in 1.5 seconds...');
-					
+					console.log(
+						'Auth successful! Redirecting to /register in 1.5 seconds...'
+					);
+
 					// Set up redirect with timeout fallback
 					setTimeout(() => {
 						console.log('Executing redirect to /register');
 						router.push('/register');
 					}, 1500);
-					
+
 					// Fallback timeout in case redirect doesn't work
 					setTimeout(() => {
-						console.error('Redirect may have failed, offering manual navigation');
+						console.error(
+							'Redirect may have failed, offering manual navigation'
+						);
 						setError(`✅ Authentication Successful!
 
 You've been successfully signed in, but the automatic redirect to the registration form didn't work.
@@ -366,7 +381,8 @@ You've been successfully signed in, but the automatic redirect to the registrati
 						<div className="space-y-4">
 							<div
 								className={`${
-									error.includes('⚠️ Almost there!') || error.includes('✅ Authentication Successful!')
+									error.includes('⚠️ Almost there!') ||
+									error.includes('✅ Authentication Successful!')
 										? 'text-amber-600'
 										: error.includes('⏰ Authentication Timeout')
 										? 'text-orange-600'
@@ -375,7 +391,8 @@ You've been successfully signed in, but the automatic redirect to the registrati
 								{error}
 							</div>
 							<div className="flex flex-col gap-2">
-								{error.includes('⚠️ Almost there!') || error.includes('✅ Authentication Successful!') ? (
+								{error.includes('⚠️ Almost there!') ||
+								error.includes('✅ Authentication Successful!') ? (
 									<>
 										<Button asChild className="bg-amber-600 hover:bg-amber-700">
 											<Link href="/register">Continue to Registration</Link>
@@ -386,7 +403,9 @@ You've been successfully signed in, but the automatic redirect to the registrati
 									</>
 								) : error.includes('⏰ Authentication Timeout') ? (
 									<>
-										<Button asChild className="bg-orange-600 hover:bg-orange-700">
+										<Button
+											asChild
+											className="bg-orange-600 hover:bg-orange-700">
 											<Link href="/login">Request New Magic Link</Link>
 										</Button>
 										<Button variant="outline" asChild>

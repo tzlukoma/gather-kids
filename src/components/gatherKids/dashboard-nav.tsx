@@ -53,10 +53,10 @@ export function DashboardNav({ children }: DashboardNavProps) {
 	// Helper to extract user id from possible shapes
 	function getUserId(u: unknown): string | undefined {
 		const obj = u as unknown as Record<string, unknown> | null;
-	const uid = obj && (obj.uid as string | undefined | null);
-	const id = obj && (obj.id as string | undefined | null);
-	const user_id = obj && (obj.user_id as string | undefined | null);
-	return (uid ?? id ?? user_id) ?? undefined;
+		const uid = obj && (obj.uid as string | undefined | null);
+		const id = obj && (obj.id as string | undefined | null);
+		const user_id = obj && (obj.user_id as string | undefined | null);
+		return uid ?? id ?? user_id ?? undefined;
 	}
 
 	const handleLogout = async () => {

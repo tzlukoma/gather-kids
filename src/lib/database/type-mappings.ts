@@ -293,57 +293,59 @@ export function supabaseToChild(record: SupabaseChild): ChildEntity {
 }
 
 // Attendance mapping
-export function supabaseToAttendance(row: Database['public']['Tables']['attendance']['Row'] | any): Attendance {
+export function supabaseToAttendance(row: Database['public']['Tables']['attendance']['Row'] | Record<string, unknown> | null | undefined): Attendance {
+	const r = (row ?? {}) as Record<string, unknown>;
 	return {
-		attendance_id: row.attendance_id,
-		child_id: row.child_id || '',
-		event_id: row.event_id || '',
-		check_in_at: row.check_in_at || null,
-		check_out_at: row.check_out_at || null,
-		checked_in_by: row.checked_in_by || undefined,
-		checked_out_by: row.checked_out_by || undefined,
-		first_time_flag: !!row.first_time_flag,
-		notes: row.notes || '',
-		picked_up_by: row.picked_up_by || undefined,
-		pickup_method: row.pickup_method || undefined,
-		timeslot_id: row.timeslot_id || undefined,
-		date: row.date || undefined,
-		created_at: row.created_at || undefined,
+		attendance_id: (r['attendance_id'] as string) || '',
+		child_id: (r['child_id'] as string) || '',
+		event_id: (r['event_id'] as string) || '',
+		check_in_at: (r['check_in_at'] as string) ?? null,
+		check_out_at: (r['check_out_at'] as string) ?? null,
+		checked_in_by: (r['checked_in_by'] as string) ?? undefined,
+		checked_out_by: (r['checked_out_by'] as string) ?? undefined,
+		first_time_flag: !!r['first_time_flag'],
+		notes: (r['notes'] as string) ?? '',
+		picked_up_by: (r['picked_up_by'] as string) ?? undefined,
+		pickup_method: (r['pickup_method'] as string) ?? undefined,
+		timeslot_id: (r['timeslot_id'] as string) ?? undefined,
+		date: (r['date'] as string) ?? undefined,
+		created_at: (r['created_at'] as string) ?? undefined,
 	} as Attendance;
 }
 
 // Incident mapping
-export function supabaseToIncident(row: Database['public']['Tables']['incidents']['Row'] | any): Incident {
+export function supabaseToIncident(row: Database['public']['Tables']['incidents']['Row'] | Record<string, unknown> | null | undefined): Incident {
+	const r = (row ?? {}) as Record<string, unknown>;
 	return {
-		incident_id: row.incident_id,
-		child_id: row.child_id || '',
-		child_name: row.child_name || '',
-		event_id: row.event_id || '',
-		leader_id: row.leader_id || '',
-		description: row.description || '',
-		severity: row.severity || 'low',
-		timestamp: row.timestamp || new Date().toISOString(),
-		admin_acknowledged_at: row.admin_acknowledged_at || null,
-		created_at: row.created_at || undefined,
+		incident_id: (r['incident_id'] as string) || '',
+		child_id: (r['child_id'] as string) || '',
+		child_name: (r['child_name'] as string) || '',
+		event_id: (r['event_id'] as string) || '',
+		leader_id: (r['leader_id'] as string) || '',
+		description: (r['description'] as string) || '',
+		severity: (r['severity'] as string) as Incident['severity'] || 'low',
+		timestamp: (r['timestamp'] as string) ?? new Date().toISOString(),
+		admin_acknowledged_at: (r['admin_acknowledged_at'] as string) ?? null,
+		created_at: (r['created_at'] as string) ?? undefined,
 	} as Incident;
 }
 
 // Events mapping - parse timeslots JSON to EventTimeslot[]
-export function supabaseToEvent(row: Database['public']['Tables']['events']['Row'] | any): Event {
+export function supabaseToEvent(row: Database['public']['Tables']['events']['Row'] | Record<string, unknown> | null | undefined): Event {
 	// Parse timeslots using the helper so we always return typed EventTimeslot[]
-	const rEvent = row as unknown as Record<string, unknown>;
-	const timeslots = parseEventTimeslots(rEvent.timeslots);
+	const r = (row ?? {}) as Record<string, unknown>;
+	const timeslots = parseEventTimeslots(r.timeslots);
 	return {
-		event_id: row.event_id,
-		name: row.name || '',
-		description: row.description || '',
+		event_id: (r['event_id'] as string) || '',
+		name: (r['name'] as string) || '',
+		description: (r['description'] as string) || '',
 		timeslots,
-		created_at: row.created_at || undefined,
+		created_at: (r['created_at'] as string) ?? undefined,
 	} as Event;
 }
 
 // Parse Event timeslots to typed EventTimeslot[]
-export function parseEventTimeslots(value: any): EventTimeslot[] {
+export function parseEventTimeslots(value: unknown): EventTimeslot[] {
 	try {
 		if (!value) return [];
 		if (typeof value === 'string') return JSON.parse(value) as EventTimeslot[];
@@ -354,14 +356,14 @@ export function parseEventTimeslots(value: any): EventTimeslot[] {
 }
 
 // Parse registration consents (stored as JSON) into canonical Consent[]
-export function parseConsents(value: any): Consent[] {
+export function parseConsents(value: unknown): Consent[] {
 	try {
 		if (!value) return [];
 		const raw = typeof value === 'string' ? JSON.parse(value) : value;
 		return (raw as unknown as Array<Record<string, unknown>>).map((c) => ({
 			...c,
 			// normalize to domain type 'photoRelease'
-			type: c.type === 'photo_release' ? 'photoRelease' : c.type,
+			type: (c['type'] as string) === 'photo_release' ? 'photoRelease' : (c['type'] as string),
 		})) as Consent[];
 	} catch (e) {
 		return [];
@@ -369,7 +371,7 @@ export function parseConsents(value: any): Consent[] {
 }
 
 // Parse custom questions field stored in ministries
-export function parseCustomQuestions(value: any): CustomQuestion[] {
+export function parseCustomQuestions(value: unknown): CustomQuestion[] {
 	try {
 		if (!value) return [];
 		if (typeof value === 'string') return JSON.parse(value) as CustomQuestion[];
@@ -380,18 +382,18 @@ export function parseCustomQuestions(value: any): CustomQuestion[] {
 }
 
 // Parse enrollment custom fields
-export function parseCustomFields(value: any): Record<string, any> | undefined {
+export function parseCustomFields(value: unknown): Record<string, unknown> | undefined {
 	try {
 		if (!value) return undefined;
-		if (typeof value === 'string') return JSON.parse(value) as Record<string, any>;
-		return value as Record<string, any>;
+		if (typeof value === 'string') return JSON.parse(value) as Record<string, unknown>;
+		return value as Record<string, unknown>;
 	} catch (e) {
 		return undefined;
 	}
 }
 
 // Serialize helpers for adapter writes
-export function serializeIfObject(value: any): any {
+export function serializeIfObject(value: unknown): unknown {
 	if (value === undefined || value === null) return value;
 	if (typeof value === 'string') return value;
 	try {
@@ -402,64 +404,70 @@ export function serializeIfObject(value: any): any {
 }
 
 // Users mapping
-export function supabaseToUser(row: Database['public']['Tables']['users']['Row'] | any): User {
+export function supabaseToUser(row: Database['public']['Tables']['users']['Row'] | Record<string, unknown> | null | undefined): User {
+	const r = (row ?? {}) as Record<string, unknown>;
 	return {
-		user_id: row.user_id,
-		email: row.email || '',
-		name: row.name || '',
-		role: row.role || 'user',
-		is_active: row.is_active === null || row.is_active === undefined ? true : !!row.is_active,
-		background_check_status: row.background_check_status || 'unknown',
-		created_at: row.created_at || undefined,
-		updated_at: row.updated_at || undefined,
+		user_id: (r['user_id'] as string) || '',
+		email: (r['email'] as string) || '',
+		name: (r['name'] as string) || '',
+		role: (r['role'] as string) || 'user',
+		is_active: r['is_active'] === null || r['is_active'] === undefined ? true : !!r['is_active'],
+		background_check_status: (r['background_check_status'] as string) || 'unknown',
+		created_at: (r['created_at'] as string) ?? undefined,
+		updated_at: (r['updated_at'] as string) ?? undefined,
 	} as User;
 }
 
 // Ministry Leader Membership mapping
-	export function supabaseToMinistryLeaderMembership(row: Record<string, unknown> | any): MinistryLeaderMembership {
+export function supabaseToMinistryLeaderMembership(row: Record<string, unknown> | null | undefined): MinistryLeaderMembership {
+	// normalize input to a Record for safe property access
+	const r = (row ?? {}) as Record<string, unknown>;
 	// Normalize role/role_type to domain enum: 'PRIMARY' | 'VOLUNTEER'
-	let rawRole = (row.role_type ?? row.role ?? '') as string;
+	let rawRole = (r['role_type'] ?? r['role'] ?? '') as string;
 	if (typeof rawRole === 'string') rawRole = rawRole.trim();
 	const role_type = ((): 'PRIMARY' | 'VOLUNTEER' => {
-		const r = (rawRole || '').toLowerCase();
-		if (r === 'primary' || r === 'primary_leader' || r === 'lead' || r === 'primary_leader') return 'PRIMARY';
-		if (r === 'volunteer' || r === 'member' || r === 'helper') return 'VOLUNTEER';
+		const v = (rawRole || '').toLowerCase();
+		if (v === 'primary' || v === 'primary_leader' || v === 'lead') return 'PRIMARY';
+		if (v === 'volunteer' || v === 'member' || v === 'helper') return 'VOLUNTEER';
 		// default to VOLUNTEER for any unknown value
 		return 'VOLUNTEER';
 	})();
 
 	return {
-		membership_id: row.membership_id || row.id || '',
-		ministry_id: row.ministry_id || '',
-		leader_id: row.leader_id || row.user_id || '',
+		membership_id: (r['membership_id'] as string) || (r['id'] as string) || '',
+		ministry_id: (r['ministry_id'] as string) || '',
+		leader_id: (r['leader_id'] as string) || (r['user_id'] as string) || '',
 		role_type,
-		is_active: row.is_active === null || row.is_active === undefined ? true : !!row.is_active,
-		notes: row.notes ?? undefined,
-		created_at: row.created_at || undefined,
-		updated_at: row.updated_at || undefined,
+		is_active: r['is_active'] === null || r['is_active'] === undefined ? true : !!r['is_active'],
+		notes: (r['notes'] as string) ?? undefined,
+		created_at: (r['created_at'] as string) ?? new Date().toISOString(),
+		updated_at: (r['updated_at'] as string) ?? new Date().toISOString(),
 	} as MinistryLeaderMembership;
 }
 
 // Ministry Account mapping
-export function supabaseToMinistryAccount(row: Database['public']['Tables']['ministry_accounts']['Row'] | any): MinistryAccount {
-	// Parse settings JSON if present (not currently part of the domain type but kept for future use)
-	let settings: Record<string, unknown> | undefined = undefined;
+export function supabaseToMinistryAccount(row: Database['public']['Tables']['ministry_accounts']['Row'] | Record<string, unknown> | null | undefined): MinistryAccount {
+	const r = (row ?? {}) as Record<string, unknown>;
+	// Parse legacy 'settings' if present but it's not used directly by domain type; keep safe parsing in case needed
 	try {
-		if (row.settings) {
-			if (typeof row.settings === 'string') settings = JSON.parse(row.settings);
-			else settings = row.settings;
+		const maybe = r['settings'];
+		if (maybe !== undefined && maybe !== null) {
+			if (typeof maybe === 'string') JSON.parse(maybe as string);
 		}
 	} catch (e) {
-		settings = undefined;
+		/* ignore */
 	}
 
+	// The DB has an 'id' PK and an optional 'ministry_id' FK; domain expects ministry_id as primary identifier.
+	const ministryId = (r['ministry_id'] as string) || (r['ministry'] as string) || (r['id'] as string) || '';
+
 	return {
-		ministry_id: row.ministry_id || row.ministry || row.id || '',
-		email: row.email || undefined,
-		display_name: row.display_name || row.name || undefined,
-		is_active: row.is_active === null || row.is_active === undefined ? true : !!row.is_active,
-		created_at: row.created_at || undefined,
-		updated_at: row.updated_at || undefined,
+		ministry_id: ministryId,
+		email: (r['email'] as string) ?? '',
+		display_name: (r['display_name'] as string) ?? (r['name'] as string) ?? '',
+		is_active: r['is_active'] === null || r['is_active'] === undefined ? true : !!r['is_active'],
+		created_at: (r['created_at'] as string) ?? new Date().toISOString(),
+		updated_at: (r['updated_at'] as string) ?? new Date().toISOString(),
 	} as MinistryAccount;
 }
 
@@ -703,19 +711,20 @@ export function supabaseToBrandingSettings(
 // The codebase uses a couple enrollment representations (legacy camelCase tables and new snake_case).
 // Keep these functions permissive: accept either convention and coerce nullable DB fields to domain expectations.
 
-export function supabaseToEnrollment(record: any): DexieTypes.Enrollment {
+export function supabaseToEnrollment(record: Record<string, unknown> | null | undefined): DexieTypes.Enrollment {
 	// Support both `bible_bee_enrollments` (camelCase) and `enrollments` (snake_case)
+	const r = (record ?? {}) as Record<string, unknown>;
 	return {
-		id: record.id || record.enrollment_id || '',
-		year_id: record.year_id ?? record.competitionYearId ?? record.bible_bee_year_id ?? '',
-		child_id: record.child_id ?? record.childId ?? '',
-		division_id: record.division_id ?? record.divisionId ?? '',
-		auto_enrolled: record.auto_enrolled ?? false,
-		enrolled_at: record.enrolled_at ?? record.enrolledAt ?? new Date().toISOString(),
-	} as unknown as DexieTypes.Enrollment;
+		id: (r['id'] as string) || (r['enrollment_id'] as string) || '',
+		year_id: (r['year_id'] as string) ?? (r['competitionYearId'] as string) ?? (r['bible_bee_year_id'] as string) ?? '',
+		child_id: (r['child_id'] as string) ?? (r['childId'] as string) ?? '',
+		division_id: (r['division_id'] as string) ?? (r['divisionId'] as string) ?? '',
+		auto_enrolled: (r['auto_enrolled'] as boolean) ?? false,
+		enrolled_at: (r['enrolled_at'] as string) ?? (r['enrolledAt'] as string) ?? new Date().toISOString(),
+	} as DexieTypes.Enrollment;
 }
 
-export function enrollmentToSupabase(enrollment: Partial<DexieTypes.Enrollment>): any {
+export function enrollmentToSupabase(enrollment: Partial<DexieTypes.Enrollment>): Record<string, unknown> {
 	return {
 		id: enrollment.id,
 		year_id: enrollment.year_id,
@@ -723,19 +732,20 @@ export function enrollmentToSupabase(enrollment: Partial<DexieTypes.Enrollment>)
 		division_id: enrollment.division_id,
 		auto_enrolled: enrollment.auto_enrolled,
 		enrolled_at: enrollment.enrolled_at,
-	} as unknown as Record<string, unknown>;
+	} as Record<string, unknown>;
 }
 
-export function supabaseToEnrollmentOverride(record: any): DexieTypes.EnrollmentOverride {
+export function supabaseToEnrollmentOverride(record: Record<string, unknown> | any): DexieTypes.EnrollmentOverride {
+	const r = record as Record<string, unknown>;
 	return {
-		id: record.id || record.override_id || '',
-		year_id: record.year_id ?? record.bible_bee_year_id ?? '',
-		child_id: record.child_id ?? record.childId ?? '',
-		division_id: record.division_id ?? record.divisionId ?? '',
-		reason: record.reason ?? undefined,
-		created_by: record.created_by ?? record.createdBy ?? undefined,
-		created_at: record.created_at ?? new Date().toISOString(),
-	} as unknown as DexieTypes.EnrollmentOverride;
+		id: (r['id'] as string) || (r['override_id'] as string) || '',
+		year_id: (r['year_id'] as string) ?? (r['bible_bee_year_id'] as string) ?? '',
+		child_id: (r['child_id'] as string) ?? (r['childId'] as string) ?? '',
+		division_id: (r['division_id'] as string) ?? (r['divisionId'] as string) ?? '',
+		reason: (r['reason'] as string) ?? undefined,
+		created_by: (r['created_by'] as string) ?? (r['createdBy'] as string) ?? undefined,
+		created_at: (r['created_at'] as string) ?? new Date().toISOString(),
+	} as DexieTypes.EnrollmentOverride;
 }
 
 // =====================================
@@ -745,20 +755,21 @@ export function supabaseToEnrollmentOverride(record: any): DexieTypes.Enrollment
 export type SupabaseRegistration =
 	SupabaseTypes.Database['public']['Tables']['registrations']['Row'];
 
-export function supabaseToRegistration(record: SupabaseRegistration): DexieTypes.Registration {
+export function supabaseToRegistration(record: SupabaseRegistration | Record<string, unknown>): DexieTypes.Registration {
+	const r = record as Record<string, unknown>;
 	return {
-		registration_id: record.registration_id || '',
-		child_id: record.child_id ?? '',
-		cycle_id: record.cycle_id ?? '',
-		status: (record.status as unknown as string) ?? 'active',
-		pre_registered_sunday_school: record.pre_registered_sunday_school ?? false,
-		consents: parseConsents((record as unknown as any).consents),
-		submitted_via: (record.submitted_via as unknown as string) ?? 'web',
-		submitted_at: record.submitted_at ?? new Date().toISOString(),
-	} as unknown as DexieTypes.Registration;
+		registration_id: (r['registration_id'] as string) || '',
+		child_id: (r['child_id'] as string) ?? '',
+		cycle_id: (r['cycle_id'] as string) ?? '',
+		status: (r['status'] as string) ?? 'active',
+		pre_registered_sunday_school: (r['pre_registered_sunday_school'] as boolean) ?? false,
+		consents: parseConsents(r['consents']),
+		submitted_via: (r['submitted_via'] as string) ?? 'web',
+		submitted_at: (r['submitted_at'] as string) ?? new Date().toISOString(),
+	} as DexieTypes.Registration;
 }
 
-export function registrationToSupabase(reg: Partial<DexieTypes.Registration>): any {
+export function registrationToSupabase(reg: Partial<DexieTypes.Registration>): Partial<SupabaseRegistration> {
 	return {
 		registration_id: reg.registration_id,
 		child_id: reg.child_id,
@@ -768,20 +779,21 @@ export function registrationToSupabase(reg: Partial<DexieTypes.Registration>): a
 		consents: serializeIfObject(reg.consents) as unknown as SupabaseRegistration['consents'],
 		submitted_via: reg.submitted_via,
 		submitted_at: reg.submitted_at,
-	} as unknown as Partial<SupabaseRegistration>;
+	} as Partial<SupabaseRegistration>;
 }
 
 export function brandingSettingsToSupabase(
 	settings: CreateBrandingSettingsDTO
 ): Omit<SupabaseBrandingSettings, 'created_at' | 'updated_at'> {
-	return {
+	const s = settings as unknown as Record<string, unknown>;
+	return ({
 	setting_id: settings.setting_id,
 	org_id: settings.org_id,
-	primary_color: (settings as unknown as Record<string, unknown>).primary_color as any ?? (settings as unknown as Record<string, unknown>).primaryColor as any ?? undefined,
-	secondary_color: (settings as unknown as Record<string, unknown>).secondary_color as any ?? (settings as unknown as Record<string, unknown>).secondaryColor as any ?? undefined,
-	logo_url: (settings as unknown as Record<string, unknown>).logo_url as any ?? (settings as unknown as Record<string, unknown>).logoUrl as any ?? undefined,
-	org_name: (settings as unknown as Record<string, unknown>).org_name as any ?? (settings as unknown as Record<string, unknown>).orgName as any ?? undefined,
-	} as unknown as Omit<SupabaseBrandingSettings, 'created_at' | 'updated_at'>;
+	primary_color: (s.primary_color as string | undefined) ?? (s.primaryColor as string | undefined) ?? undefined,
+	secondary_color: (s.secondary_color as string | undefined) ?? (s.secondaryColor as string | undefined) ?? undefined,
+	logo_url: (s.logo_url as string | undefined) ?? (s.logoUrl as string | undefined) ?? undefined,
+	org_name: (s.org_name as string | undefined) ?? (s.orgName as string | undefined) ?? undefined,
+	} as unknown) as Omit<SupabaseBrandingSettings, 'created_at' | 'updated_at'>;
 }
 
 // =====================================

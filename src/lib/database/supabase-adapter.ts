@@ -1325,7 +1325,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			if (error.code === 'PGRST116') return null;
 			throw error;
 		}
-	return data ? supabaseToMinistryAccount(data as unknown as Database['public']['Tables']['ministry_accounts']['Row']) : null;
+	return data ? supabaseToMinistryAccount(data as Database['public']['Tables']['ministry_accounts']['Row']) : null;
 	}
 
 	async createMinistryAccount(
@@ -1337,9 +1337,10 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			updated_at: new Date().toISOString(),
 		};
 
-		const dbPayload: any = { ...account };
-		if (dbPayload.settings && typeof dbPayload.settings !== 'string') {
-			dbPayload.settings = JSON.stringify(dbPayload.settings);
+		// Prepare DB payload with proper serialization for JSON settings
+		const dbPayload: Record<string, unknown> = { ...account };
+		if (dbPayload['settings'] && typeof dbPayload['settings'] !== 'string') {
+			dbPayload['settings'] = JSON.stringify(dbPayload['settings']);
 		}
 
 		const { data: result, error } = await this.client
@@ -1349,16 +1350,16 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			.single();
 
 		if (error) throw error;
-	return supabaseToMinistryAccount(result as unknown as Database['public']['Tables']['ministry_accounts']['Row']);
+	return supabaseToMinistryAccount(result as Database['public']['Tables']['ministry_accounts']['Row']);
 	}
 
 	async updateMinistryAccount(
 		id: string,
 		data: Partial<MinistryAccount>
 	): Promise<MinistryAccount> {
-		const dbPayload: any = { ...data, updated_at: new Date().toISOString() };
-		if (dbPayload.settings && typeof dbPayload.settings !== 'string') {
-			dbPayload.settings = JSON.stringify(dbPayload.settings);
+		const dbPayload: Record<string, unknown> = { ...data, updated_at: new Date().toISOString() };
+		if (dbPayload['settings'] && typeof dbPayload['settings'] !== 'string') {
+			dbPayload['settings'] = JSON.stringify(dbPayload['settings']);
 		}
 
 		const { data: result, error } = await this.client
@@ -1369,7 +1370,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			.single();
 
 		if (error) throw error;
-		return result ? supabaseToMinistryAccount(result as any) : result;
+		return result ? supabaseToMinistryAccount(result as Database['public']['Tables']['ministry_accounts']['Row']) : result;
 	}
 
 	async listMinistryAccounts(): Promise<MinistryAccount[]> {
@@ -1378,7 +1379,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			.select('*');
 
 		if (error) throw error;
-		return (data || []).map((d: any) => supabaseToMinistryAccount(d));
+		return (data || []).map((d) => supabaseToMinistryAccount(d as Database['public']['Tables']['ministry_accounts']['Row']));
 	}
 
 	async deleteMinistryAccount(id: string): Promise<void> {

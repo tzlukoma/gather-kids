@@ -17,7 +17,7 @@ import type { Guardian, Registration } from '../types';
  * Convert registration form data to canonical DTOs for processing
  * This handles the legacy camelCase -> snake_case conversion
  */
-function convertFormDataToCanonical(data: any): {
+function convertFormDataToCanonical(data: Record<string, unknown>): {
   household: CanonicalDtos.HouseholdWrite;
   guardians: CanonicalDtos.GuardianWrite[];
   emergencyContact: CanonicalDtos.EmergencyContactWrite;
@@ -28,70 +28,76 @@ function convertFormDataToCanonical(data: any): {
     custom_consents?: Record<string, boolean>;
   }>;
 } {
+  const d = data as Record<string, unknown>;
   // Convert household data to canonical format
+  const householdSrc = (d['household'] as Record<string, unknown>) ?? {};
   const household = CanonicalDtos.HouseholdWriteDto.parse({
-    household_id: data.household.household_id,
-    name: data.household.name,
-    address_line1: data.household.address_line1,
-    address_line2: data.household.address_line2,
-    city: data.household.city,
-    state: data.household.state,
-    zip: data.household.zip,
-    preferred_scripture_translation: data.household.preferredScriptureTranslation, // camelCase -> snake_case
-    primary_email: data.household.primary_email,
-    primary_phone: data.household.primary_phone,
-    photo_url: data.household.photo_url,
+    household_id: householdSrc['household_id'] as string | undefined,
+    name: householdSrc['name'] as string | undefined,
+    address_line1: householdSrc['address_line1'] as string | undefined,
+    address_line2: householdSrc['address_line2'] as string | undefined,
+    city: householdSrc['city'] as string | undefined,
+    state: householdSrc['state'] as string | undefined,
+    zip: householdSrc['zip'] as string | undefined,
+    preferred_scripture_translation: householdSrc['preferredScriptureTranslation'] as string | undefined, // camelCase -> snake_case
+    primary_email: householdSrc['primary_email'] as string | undefined,
+    primary_phone: householdSrc['primary_phone'] as string | undefined,
+    photo_url: householdSrc['photo_url'] as string | undefined,
   });
 
   // Convert guardians to canonical format
-  const householdIdToUse = data.household.household_id || uuidv4();
-  const guardians = data.guardians.map((guardian: any) =>
+  const householdIdToUse = (householdSrc['household_id'] as string | undefined) || uuidv4();
+  const guardiansSrc = (d['guardians'] as unknown as Array<Record<string, unknown>>) ?? [];
+  const guardians = guardiansSrc.map((guardian) =>
     CanonicalDtos.GuardianWriteDto.parse({
-      guardian_id: guardian.guardian_id,
+      guardian_id: guardian['guardian_id'] as string | undefined,
       household_id: householdIdToUse,
-      first_name: guardian.first_name,
-      last_name: guardian.last_name,
-      mobile_phone: guardian.mobile_phone,
-      email: guardian.email,
-      relationship: guardian.relationship,
-      is_primary: guardian.is_primary,
+      first_name: guardian['first_name'] as string | undefined,
+      last_name: guardian['last_name'] as string | undefined,
+      mobile_phone: guardian['mobile_phone'] as string | undefined,
+      email: guardian['email'] as string | undefined,
+      relationship: guardian['relationship'] as string | undefined,
+      is_primary: guardian['is_primary'] as boolean | undefined,
     })
   );
 
   // Convert emergency contact to canonical format
+  const emergencySrc = (d['emergencyContact'] as Record<string, unknown>) ?? {};
   const emergencyContact = CanonicalDtos.EmergencyContactWriteDto.parse({
-    contact_id: data.emergencyContact.contact_id,
+    contact_id: emergencySrc['contact_id'] as string | undefined,
     household_id: householdIdToUse,
-    first_name: data.emergencyContact.first_name,
-    last_name: data.emergencyContact.last_name,
-    mobile_phone: data.emergencyContact.mobile_phone,
-    relationship: data.emergencyContact.relationship,
+    first_name: emergencySrc['first_name'] as string | undefined,
+    last_name: emergencySrc['last_name'] as string | undefined,
+    mobile_phone: emergencySrc['mobile_phone'] as string | undefined,
+    relationship: emergencySrc['relationship'] as string | undefined,
   });
 
   // Convert children to canonical format
-  const children = data.children.map((child: any) =>
+  const childrenSrc = (d['children'] as unknown as Array<Record<string, unknown>>) ?? [];
+  const children = childrenSrc.map((child) =>
     CanonicalDtos.ChildWriteDto.parse({
-      child_id: child.child_id,
+      child_id: child['child_id'] as string | undefined,
       household_id: householdIdToUse,
-      first_name: child.first_name,
-      last_name: child.last_name,
-      dob: child.dob,
-      grade: child.grade,
-      child_mobile: child.child_mobile,
-      allergies: child.allergies,
-      medical_notes: child.medical_notes,
-      special_needs: child.special_needs,
-      special_needs_notes: child.special_needs_notes,
-      is_active: child.is_active !== undefined ? child.is_active : true,
-      photo_url: child.photo_url,
+      first_name: child['first_name'] as string | undefined,
+      last_name: child['last_name'] as string | undefined,
+      dob: child['dob'] as string | undefined,
+      grade: child['grade'] as string | undefined,
+      child_mobile: child['child_mobile'] as string | undefined,
+      allergies: child['allergies'] as string | undefined,
+      medical_notes: child['medical_notes'] as string | undefined,
+      special_needs: child['special_needs'] as boolean | undefined,
+      special_needs_notes: child['special_needs_notes'] as string | undefined,
+      is_active: child['is_active'] !== undefined ? Boolean(child['is_active']) : true,
+      photo_url: child['photo_url'] as string | undefined,
     })
   );
 
   // Convert consents to canonical format (photoRelease -> photo_release)
+  const consentsSrc = (d['consents'] as Record<string, unknown>) ?? {};
   const consents = [{
-    liability: data.consents.liability,
-    photo_release: data.consents.photoRelease, // camelCase -> snake_case
-    custom_consents: data.consents.custom_consents,
+    liability: Boolean(consentsSrc['liability']),
+    photo_release: Boolean(consentsSrc['photoRelease']), // camelCase -> snake_case
+    custom_consents: consentsSrc['custom_consents'] as Record<string, boolean> | undefined,
   }];
 
   return {
@@ -107,7 +113,7 @@ function convertFormDataToCanonical(data: any): {
  * Enhanced registerHousehold function that uses canonical DTOs internally
  * Maintains exact API compatibility while standardizing data shapes
  */
-export async function registerHouseholdCanonical(data: any, cycle_id: string, isPrefill: boolean) {
+export async function registerHouseholdCanonical(data: Record<string, unknown>, cycle_id: string, isPrefill: boolean) {
   console.log('🔄 Using canonical DTO-based registration flow');
   
   // Convert input data to canonical format and validate
@@ -252,16 +258,19 @@ export async function registerHouseholdCanonical(data: any, cycle_id: string, is
         await dbAdapter.createRegistration(legacyRegistration);
 
         // Handle ministry enrollments (original child data processing)
-        const originalChildData = data.children[index];
-        if (originalChildData.ministrySelections) {
-          for (const [ministryId, isSelected] of Object.entries(originalChildData.ministrySelections)) {
+        const childrenArray = (data['children'] as unknown as Array<Record<string, unknown>>) ?? [];
+        const originalChildData = childrenArray[index] ?? {};
+        const ministrySelections = (originalChildData && (originalChildData['ministrySelections'] as Record<string, unknown> | undefined)) ?? undefined;
+        const customData = (originalChildData && (originalChildData['customData'] as Record<string, unknown> | undefined)) ?? undefined;
+        if (ministrySelections) {
+          for (const [ministryId, isSelected] of Object.entries(ministrySelections)) {
             if (isSelected) {
               await dbAdapter.createMinistryEnrollment({
                 child_id: childId,
                 ministry_id: ministryId,
                 cycle_id: cycle_id,
                 status: 'enrolled',
-                custom_fields: originalChildData.customData?.[ministryId] || {},
+                custom_fields: (customData && (customData[ministryId] as Record<string, unknown>)) ?? {},
               });
             }
           }
@@ -289,7 +298,7 @@ export async function registerHouseholdCanonical(data: any, cycle_id: string, is
  * Test function to validate canonical DTO conversion
  * This helps ensure data shape conversion works correctly
  */
-export function testCanonicalConversion(sampleFormData: any): boolean {
+export function testCanonicalConversion(sampleFormData: Record<string, unknown>): boolean {
   try {
     const canonicalData = convertFormDataToCanonical(sampleFormData);
     console.log('✅ Canonical conversion successful:', canonicalData);
