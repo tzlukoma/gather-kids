@@ -1,7 +1,7 @@
 /**
  * This file contains types generated from the Supabase schema.
  * DO NOT EDIT MANUALLY. This file is auto-generated.
- * Generated on: 2025-09-06T23:29:27.563Z
+ * Generated on: 2025-09-07T00:17:42.001Z
  */
 
 // Supabase CLI not available - using fallback types

@@ -2,24 +2,6 @@ import type * as DexieTypes from '../types';
 import type * as SupabaseTypes from './supabase-types';
 import type * as CanonicalDtos from './canonical-dtos';
 
-// TODO(FRESH_START_3): These tolerances are temporary. Once the generated
-// `supabase-types.ts` is adopted and downstream code updated, remove the
-// legacy/camelCase fallbacks and the runtime warnings. See PR #119.
-
-const __tm_warned = new Set<string>();
-function __tm_warnOnce(key: string, message: string) {
-	try {
-		if (__tm_warned.has(key)) return;
-		__tm_warned.add(key);
-		if (typeof process !== 'undefined' && process.env.NODE_ENV !== 'production') {
-			// eslint-disable-next-line no-console
-			console.warn(`[type-mappings][${key}] ${message}`);
-		}
-	} catch (e) {
-		// swallow in case console isn't available in some runtimes
-	}
-}
-
 /**
  * Maps between Dexie types, Supabase generated types, and canonical snake_case DTOs
  * This ensures consistent typing regardless of which adapter is used
@@ -233,16 +215,10 @@ export function supabaseToHousehold(
 		household_id: record.household_id || '',
 		name: record.name ?? undefined,
 		// accept either snake_case (new generated types) or legacy camelCase
-		preferredScriptureTranslation: (() => {
-			const val = (record as any).preferred_scripture_translation ?? record.preferredScriptureTranslation ?? undefined;
-			if ((record as any).preferred_scripture_translation || record.preferredScriptureTranslation) {
-				__tm_warnOnce('household.preferredScriptureTranslation', 'Using legacy or alternate preferredScriptureTranslation field');
-			}
-			return val;
-		})(),
-		// coerce null -> empty string for address fields to satisfy callers expecting string
-		address_line1: (() => { const v = record.address_line1 ?? ''; if (record.address_line1 === null) __tm_warnOnce('household.address_line1','Coerced null address_line1 -> ""'); return v; })(),
-		address_line2: (() => { const v = record.address_line2 ?? ''; if (record.address_line2 === null) __tm_warnOnce('household.address_line2','Coerced null address_line2 -> ""'); return v; })(),
+		preferredScriptureTranslation: (record as any).preferred_scripture_translation ?? record.preferredScriptureTranslation ?? undefined,
+	// coerce null -> empty string for address fields to satisfy callers expecting string
+	address_line1: record.address_line1 ?? '' ,
+	address_line2: record.address_line2 ?? '' ,
 		city: record.city ?? '' ,
 		state: record.state ?? '' ,
 		zip: record.zip ?? '' ,
@@ -284,7 +260,7 @@ export function supabaseToChild(record: SupabaseChild): ChildEntity {
 	household_id: record.household_id ?? '',
 	first_name: record.first_name ?? '',
 	last_name: record.last_name ?? '',
-	dob: (() => { const v = record.dob ?? undefined; if (record.dob === null) __tm_warnOnce('child.dob','Coerced null dob -> undefined'); return v; })(),
+		dob: record.dob ?? undefined,
 	grade: record.grade ?? undefined,
 	child_mobile: record.child_mobile ?? undefined,
 	allergies: record.allergies ?? undefined,
@@ -422,8 +398,8 @@ export function supabaseToMinistry(record: SupabaseMinistry): MinistryEntity {
 		min_grade: record.min_grade,
 		max_grade: record.max_grade,
 		is_active: record.is_active !== undefined ? record.is_active : true,
-	enrollment_type: (() => { const v = record.enrollment_type ?? (record as any).enrollmentType ?? 'enrolled'; if ((record as any).enrollmentType) __tm_warnOnce('ministry.enrollment_type','Using legacy enrollmentType'); return v; })(),
-	data_profile: (() => { const v = (record as any).data_profile ?? (record as any).dataProfile ?? undefined; if ((record as any).dataProfile) __tm_warnOnce('ministry.data_profile','Using legacy dataProfile field'); return v; })(),
+		enrollment_type: record.enrollment_type ?? (record as any).enrollmentType ?? 'enrolled',
+		data_profile: (record as any).data_profile ?? (record as any).dataProfile ?? undefined,
 		custom_questions: record.custom_questions,
 		created_at: record.created_at || new Date().toISOString(),
 		updated_at: record.updated_at || new Date().toISOString(),
@@ -466,10 +442,10 @@ export function supabaseToBrandingSettings(
 		setting_id: record.setting_id || '',
 		org_id: record.org_id,
 		// accept snake_case or camelCase or alternate org_name field
-	primary_color: (() => { const v = (record as any).primary_color ?? (record as any).primaryColor ?? undefined; if ((record as any).primaryColor) __tm_warnOnce('branding.primary_color','Using camelCase primaryColor'); return v; })(),
-	secondary_color: (() => { const v = (record as any).secondary_color ?? (record as any).secondaryColor ?? undefined; if ((record as any).secondaryColor) __tm_warnOnce('branding.secondary_color','Using camelCase secondaryColor'); return v; })(),
-	logo_url: (() => { const v = record.logo_url ?? (record as any).logoUrl ?? undefined; if ((record as any).logoUrl) __tm_warnOnce('branding.logo_url','Using camelCase logoUrl'); return v; })(),
-	org_name: (() => { const v = (record as any).org_name ?? (record as any).orgName ?? undefined; if ((record as any).orgName) __tm_warnOnce('branding.org_name','Using camelCase orgName'); return v; })(),
+		primary_color: (record as any).primary_color ?? (record as any).primaryColor ?? undefined,
+		secondary_color: (record as any).secondary_color ?? (record as any).secondaryColor ?? undefined,
+		logo_url: record.logo_url ?? (record as any).logoUrl ?? undefined,
+		org_name: (record as any).org_name ?? (record as any).orgName ?? undefined,
 		created_at: record.created_at || new Date().toISOString(),
 		updated_at: record.updated_at || new Date().toISOString(),
 	}) as any;
