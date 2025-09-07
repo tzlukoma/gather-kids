@@ -120,10 +120,9 @@ function main() {
 		let command;
 		if (useLocal) {
 			console.log('📦 Generating types from local Supabase instance...');
-			// Use db-url option to bypass config validation issues
-			// This can use a direct database URL for local development
-			const dbUrl = process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:54322/postgres';
-			command = `${supabasePath} gen types typescript --db-url "${dbUrl}" --schema public`;
+			// Try using a simpler approach that works across CLI versions
+			// Older CLI versions may be more compatible
+			command = `${supabasePath} gen types typescript --schema public`;
 		} else if (projectId) {
 			console.log(
 				`📦 Generating types from remote Supabase project (${projectId})...`
