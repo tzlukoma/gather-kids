@@ -179,7 +179,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			if (error.code === 'PGRST116') return null;
 			throw error;
 		}
-	return data ? supabaseToChild(data as unknown as Database['public']['Tables']['children']['Row']) : null;
+	return data ? supabaseToChild(data as Database['public']['Tables']['children']['Row']) : null;
 	}
 
 	async createChild(
@@ -264,8 +264,8 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			.select()
 			.single();
 
-		if (error) throw error;
-	return supabaseToChild(result as unknown as Database['public']['Tables']['children']['Row']);
+	if (error) throw error;
+	return supabaseToChild(result as Database['public']['Tables']['children']['Row']);
 	}
 
 	async listChildren(filters?: ChildFilters): Promise<Child[]> {
@@ -355,7 +355,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 
 	if (error) throw error;
 	if (!result) throw new Error('updateGuardian: no result returned from DB');
-	return supabaseToGuardian(result as unknown as Database['public']['Tables']['guardians']['Row']);
+	return supabaseToGuardian(result as Database['public']['Tables']['guardians']['Row']);
 	}
 
 	async listGuardians(householdId: string): Promise<Guardian[]> {
@@ -398,7 +398,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			if (error.code === 'PGRST116') return null;
 			throw error;
 		}
-	return data ? supabaseToEmergencyContact(data as unknown as Database['public']['Tables']['emergency_contacts']['Row']) : null;
+	return data ? supabaseToEmergencyContact(data as Database['public']['Tables']['emergency_contacts']['Row']) : null;
 	}
 
 	async createEmergencyContact(
@@ -423,7 +423,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 
 	if (error) throw error;
 	if (!result) throw new Error('createEmergencyContact: no result returned from DB');
-	return supabaseToEmergencyContact(result as unknown as Database['public']['Tables']['emergency_contacts']['Row']);
+	return supabaseToEmergencyContact(result as Database['public']['Tables']['emergency_contacts']['Row']);
 	}
 
 	async updateEmergencyContact(
@@ -442,7 +442,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 
 	if (error) throw error;
 	if (!result) throw new Error('updateEmergencyContact: no result returned from DB');
-	return supabaseToEmergencyContact(result as unknown as Database['public']['Tables']['emergency_contacts']['Row']);
+	return supabaseToEmergencyContact(result as Database['public']['Tables']['emergency_contacts']['Row']);
 	}
 
 	async listEmergencyContacts(householdId: string): Promise<EmergencyContact[]> {
@@ -489,7 +489,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 				throw error;
 			}
 	if (!data) return null;
-	return this.mapRegistrationCycle(data as unknown as Record<string, unknown>);
+	return this.mapRegistrationCycle(data as Record<string, unknown>);
 	}
 
 	async createRegistrationCycle(
@@ -511,7 +511,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 
 	if (error) throw error;
 	if (!result) throw new Error('createRegistrationCycle: no result returned from DB');
-	return this.mapRegistrationCycle(result as unknown as Record<string, unknown>);
+	return this.mapRegistrationCycle(result as Record<string, unknown>);
 	}
 
 	async updateRegistrationCycle(
@@ -531,7 +531,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 
 	if (error) throw error;
 	if (!result) throw new Error('updateRegistrationCycle: no result returned from DB');
-	return this.mapRegistrationCycle(result as unknown as Record<string, unknown>);
+	return this.mapRegistrationCycle(result as Record<string, unknown>);
 	}
 
 	async listRegistrationCycles(isActive?: boolean): Promise<RegistrationCycle[]> {
@@ -679,7 +679,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			if (error.code === 'PGRST116') return null;
 			throw error;
 		}
-	return data ? supabaseToMinistry(data as unknown as Database['public']['Tables']['ministries']['Row']) : null;
+	return data ? supabaseToMinistry(data as Database['public']['Tables']['ministries']['Row']) : null;
 	}
 
 	async createMinistry(
@@ -760,7 +760,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			if (error.code === 'PGRST116') return null;
 			throw error;
 		}
-	return data ? supabaseToMinistryEnrollment(data as unknown as Database['public']['Tables']['ministry_enrollments']['Row']) : null;
+	return data ? supabaseToMinistryEnrollment(data as Database['public']['Tables']['ministry_enrollments']['Row']) : null;
 	}
 
 	async createMinistryEnrollment(
@@ -852,7 +852,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			if (error.code === 'PGRST116') return null;
 			throw error;
 		}
-		return data ? supabaseToAttendance(data as unknown as Database['public']['Tables']['attendance']['Row']) : null;
+	return data ? supabaseToAttendance(data as Database['public']['Tables']['attendance']['Row']) : null;
 	}
 
 	async createAttendance(
@@ -955,7 +955,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			.single();
 
 		if (error) throw error;
-	return supabaseToIncident(result as unknown as Database['public']['Tables']['incidents']['Row']);
+	return supabaseToIncident(result as Database['public']['Tables']['incidents']['Row']);
 	}
 
 	async updateIncident(id: string, data: Partial<Incident>): Promise<Incident> {
@@ -970,7 +970,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			.single();
 
 		if (error) throw error;
-	return supabaseToIncident(result as unknown as Database['public']['Tables']['incidents']['Row']);
+	return supabaseToIncident(result as Database['public']['Tables']['incidents']['Row']);
 	}
 
 	async listIncidents(filters?: IncidentFilters): Promise<Incident[]> {
@@ -1022,7 +1022,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			if (error.code === 'PGRST116') return null;
 			throw error;
 		}
-		return data ? supabaseToEvent(data as unknown as Database['public']['Tables']['events']['Row']) : null;
+	return data ? supabaseToEvent(data as Database['public']['Tables']['events']['Row']) : null;
 	}
 
 	async createEvent(
@@ -1056,7 +1056,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			...(data as Database['public']['Tables']['events']['Update']),
 			updated_at: new Date().toISOString(),
 			timeslots: ((data as unknown) as Record<string, unknown>)?.['timeslots'] ? (serializeIfObject(((data as unknown) as Record<string, unknown>)['timeslots']) as Database['public']['Tables']['events']['Update']['timeslots']) : ((data as unknown) as Record<string, unknown>)['timeslots'],
-		} as unknown as Database['public']['Tables']['events']['Update'];
+	} as Database['public']['Tables']['events']['Update'];
 
 		const { data: result, error } = await this.client
 			.from('events')
@@ -1200,7 +1200,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 
 
 	async getLeaderProfile(id: string): Promise<LeaderProfile | null> {
-		const { data, error } = await (this.client as unknown as SupabaseClient<Database>)
+	const { data, error } = await this.client
 			.from('leader_profiles')
 			.select('*')
 			.eq('leader_id', id)
@@ -1252,7 +1252,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 	}
 
 	async listLeaderProfiles(isActive?: boolean): Promise<LeaderProfile[]> {
-		let query = (this.client as unknown as SupabaseClient<Database>).from('leader_profiles').select('*');
+	let query = this.client.from('leader_profiles').select('*');
 
 		if (isActive !== undefined) {
 			query = query.eq('is_active', isActive);
@@ -1310,7 +1310,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 
 		const { data: result, error } = await this.client
 			.from('leader_assignments')
-			.insert(dbPayload as unknown as Database['public']['Tables']['leader_assignments']['Insert'])
+			.insert(dbPayload as Database['public']['Tables']['leader_assignments']['Insert'])
 			.select()
 			.single();
 
@@ -1331,7 +1331,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 
 		const { data: result, error } = await this.client
 			.from('leader_assignments')
-			.update(dbPayload as unknown as Database['public']['Tables']['leader_assignments']['Update'])
+			.update(dbPayload as Database['public']['Tables']['leader_assignments']['Update'])
 			.eq('membership_id', id)
 			.select()
 			.single();
@@ -1655,7 +1655,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 	}
 
 	async listDivisions(bibleBeeYearId?: string): Promise<Division[]> {
-	let query = (this.client as unknown as SupabaseClient<Database>).from('divisions').select('*');
+	let query = this.client.from('divisions').select('*');
 
 		if (bibleBeeYearId) {
 			query = query.eq('bible_bee_year_id', bibleBeeYearId);
