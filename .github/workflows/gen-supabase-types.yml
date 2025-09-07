@@ -32,7 +32,7 @@ jobs:
         run: |
           set -euo pipefail
           echo "Installing Supabase CLI via official installer"
-          curl -fsSL https://raw.githubusercontent.com/supabase/cli/master/install.sh -o /tmp/install_supabase.sh
+          curl -fsSL --retry 3 --retry-delay 2 https://raw.githubusercontent.com/supabase/cli/main/install.sh -o /tmp/install_supabase.sh
           chmod +x /tmp/install_supabase.sh
           # Install (the installer places the binary in ~/.supabase/bin or /usr/local/bin)
           /tmp/install_supabase.sh --yes || true
