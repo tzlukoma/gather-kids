@@ -122,10 +122,10 @@ export function BibleBeeProgressList({
 	useEffect(() => {
 		let mounted = true;
 		const load = async () => {
-				// Determine effective cycle id to pass into DAL. If selectedCycle
-				// matches a new-schema Bible Bee year id, pass that id through so the
-				// DAL can use the `enrollments` table. Otherwise pass the legacy
-				// selectedCycle through (which represents a competition year / cycle id).
+			// Determine effective cycle id to pass into DAL. If selectedCycle
+			// matches a new-schema Bible Bee year id, pass that id through so the
+			// DAL can use the `enrollments` table. Otherwise pass the legacy
+			// selectedCycle through (which represents a competition year / cycle id).
 			let effectiveCycle = selectedCycle;
 			if (
 				bibleBeeYears &&

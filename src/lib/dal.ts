@@ -18,7 +18,7 @@ import { getApplicableGradeRule } from './bibleBee';
 import { gradeToCode } from './gradeUtils';
 import { AuthRole } from './auth-types';
 import { isDemo } from './featureFlags';
-import type { Attendance, Child, Guardian, Household, Incident, IncidentSeverity, Ministry, MinistryEnrollment, Registration, User, EmergencyContact, LeaderAssignment, LeaderProfile, MinistryLeaderMembership, MinistryAccount, BrandingSettings, BibleBeeYear, RegistrationCycle, Scripture } from './types';
+import type { Attendance, Child, Guardian, Household, Incident, IncidentSeverity, Ministry, MinistryEnrollment, Registration, User, EmergencyContact, LeaderAssignment, LeaderProfile, MinistryLeaderMembership, MinistryAccount, BrandingSettings, BibleBeeYear, RegistrationCycle, Scripture, CustomQuestion } from './types';
 import { differenceInYears, isAfter, isBefore, parseISO, isValid } from 'date-fns';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -207,7 +207,7 @@ export async function queryHouseholdList(leaderMinistryIds?: string[], ministryI
     }));
 }
 
-type EnrichedEnrollment = MinistryEnrollment & { ministryName?: string; customQuestions?: any[] };
+type EnrichedEnrollment = MinistryEnrollment & { ministryName?: string; customQuestions?: CustomQuestion[] };
 export interface HouseholdProfileData {
     household: Household | null;
     guardians: Guardian[];
@@ -583,14 +583,21 @@ export async function getHouseholdForUser(authUserId: string): Promise<string | 
 
 // Registration Logic
     export async function registerHousehold(data: unknown, cycle_id: string, isPrefill: boolean) {
-    // Narrow legacy `data` to a workable shape for this handler
-    const input = data as {
-        household?: { household_id?: string; name?: string; address_line1?: string; preferredScriptureTranslation?: string };
-        guardians?: unknown[];
-        emergencyContact?: unknown;
-        children?: unknown[];
+    // Local narrowed payload type for legacy registration shapes
+    type RegistrationPayload = {
+        household?: Partial<Household>;
+        guardians?: Array<Partial<Guardian>>;
+        emergencyContact?: Partial<EmergencyContact>;
+        children?: Array<Partial<Child> & {
+            ministrySelections?: Record<string, boolean>;
+            interestSelections?: Record<string, boolean>;
+            customData?: Record<string, unknown>;
+        }>;
         consents?: { liability?: boolean; photoRelease?: boolean };
     };
+
+    // Narrow legacy `data` to a workable shape for this handler
+    const input = data as RegistrationPayload;
 
     const householdId = input.household?.household_id || uuidv4();
     const isUpdate = !!input.household?.household_id;
@@ -602,7 +609,7 @@ export async function getHouseholdForUser(authUserId: string): Promise<string | 
             // Handle household
             const household = {
                 household_id: householdId,
-                name: input.household?.name || `${(input.guardians && (input.guardians[0] as any)?.last_name) || 'Household'} Household`,
+                name: input.household?.name || `${(input.guardians && (input.guardians[0] as Partial<Guardian>)?.last_name) || 'Household'} Household`,
                 address_line1: input.household?.address_line1,
                 preferredScriptureTranslation: input.household?.preferredScriptureTranslation,
             };
@@ -625,23 +632,31 @@ export async function getHouseholdForUser(authUserId: string): Promise<string | 
             // Create guardians and store their IDs for later reference
             const createdGuardians: Guardian[] = [];
             for (const guardianData of (input.guardians || [])) {
-                const createdGuardian = await dbAdapter.createGuardian({
+                const guardianPartial = guardianData as Partial<Guardian>;
+                // Adapter expects a well-formed create payload; coerce via Record to avoid explicit `any`
+                const guardianPayload = {
                     household_id: householdId,
-                    ...(guardianData as any),
-                } as any);
+                    ...(guardianPartial as Record<string, unknown>),
+                } as unknown as Omit<Guardian, 'guardian_id' | 'created_at' | 'updated_at'>;
+                const createdGuardian = await dbAdapter.createGuardian(guardianPayload);
                 createdGuardians.push(createdGuardian);
             }
 
             // Create emergency contact
-            await dbAdapter.createEmergencyContact({
-                household_id: householdId,
-                ...(input.emergencyContact as any),
-            } as any);
+            const emergencyPartial = input.emergencyContact as Partial<EmergencyContact> | undefined;
+            if (emergencyPartial) {
+                const emergencyPayload = {
+                    household_id: householdId,
+                    ...(emergencyPartial as Record<string, unknown>),
+                } as unknown as Omit<EmergencyContact, 'contact_id' | 'created_at' | 'updated_at'>;
+                await dbAdapter.createEmergencyContact(emergencyPayload);
+            }
 
             // Handle children and enrollments
             for (const [index, childData] of (input.children || []).entries()) {
-                const { ministrySelections, interestSelections, customData, ...childCore } = childData as any;
-                const childId = childCore.child_id || uuidv4();
+                const childDataAny = childData as Partial<Child> & { ministrySelections?: Record<string, boolean>; interestSelections?: Record<string, boolean>; customData?: Record<string, unknown> };
+                const { ministrySelections, interestSelections, customData, ...childCore } = childDataAny;
+                const childId = (childCore as Partial<Child>).child_id || uuidv4();
 
                 const child = {
                     ...childCore,
@@ -653,7 +668,8 @@ export async function getHouseholdForUser(authUserId: string): Promise<string | 
                 if (childCore.child_id) {
                     await dbAdapter.updateChild(childId, child);
                 } else {
-                    await dbAdapter.createChild(child);
+                    // createChild requires the full create payload; cast from our partial
+                    await dbAdapter.createChild(child as unknown as Omit<Child, 'child_id' | 'created_at' | 'updated_at'>);
                 }
 
                 // Delete existing enrollments for this cycle if updating
@@ -693,7 +709,7 @@ export async function getHouseholdForUser(authUserId: string): Promise<string | 
                 });
 
                 // Handle ministry and interest selections
-                const allSelections = { ...(childData as any).ministrySelections || {}, ...((childData as any).interestSelections || {}) };
+                const allSelections = { ...(childDataAny.ministrySelections || {}), ...(childDataAny.interestSelections || {}) };
                 const allMinistries = await dbAdapter.listMinistries();
                 const ministryMap = new Map(allMinistries.map(m => [m.code, m]));
 
@@ -710,10 +726,10 @@ export async function getHouseholdForUser(authUserId: string): Promise<string | 
                             }
 
                             const custom_fields: { [key: string]: unknown } = {};
-                            if ((childData as any).customData && ministry.custom_questions) {
+                            if (childDataAny.customData && ministry.custom_questions) {
                                 for (const q of ministry.custom_questions) {
-                                    if ((childData as any).customData[q.id] !== undefined) {
-                                        (custom_fields as any)[q.id] = (childData as any).customData[q.id];
+                                    if (childDataAny.customData[q.id] !== undefined) {
+                                        (custom_fields as Record<string, unknown>)[q.id] = childDataAny.customData[q.id] as unknown;
                                     }
                                 }
                             }
@@ -783,9 +799,10 @@ export async function getHouseholdForUser(authUserId: string): Promise<string | 
             await db.emergency_contacts.where({ household_id: householdId }).delete();
         }
 
-        const household: Household = {
+            const guardianLastName = (input.guardians && (input.guardians[0] as Partial<Guardian>)?.last_name) || 'Household';
+            const household: Household = {
             household_id: householdId,
-            name: input.household?.name || `${(input.guardians && (input.guardians[0] as any)?.last_name) || 'Household'} Household`,
+            name: input.household?.name || `${guardianLastName} Household`,
             address_line1: input.household?.address_line1,
             preferredScriptureTranslation: input.household?.preferredScriptureTranslation,
             created_at: isUpdate ? (await db.households.get(householdId))!.created_at : now,
@@ -793,38 +810,53 @@ export async function getHouseholdForUser(authUserId: string): Promise<string | 
         };
         await db.households.put(household);
 
-    const guardians: Guardian[] = (input.guardians as unknown[] || []).map((g: unknown) => ({
-            guardian_id: uuidv4(),
-            household_id: householdId,
-            ...(g as any),
-            created_at: now,
-            updated_at: now,
-        }));
+    const guardians: Guardian[] = (input.guardians as unknown[] || []).map((g: unknown) => {
+            const partial = g as Partial<Guardian>;
+            const first_name = partial.first_name || '';
+            const last_name = partial.last_name || '';
+            return {
+                guardian_id: uuidv4(),
+                household_id: householdId,
+                first_name,
+                last_name,
+                mobile_phone: partial.mobile_phone,
+                email: partial.email,
+                relationship: partial.relationship,
+                is_primary: partial.is_primary ?? false,
+                created_at: now,
+                updated_at: now,
+            } as Guardian;
+        });
         await db.guardians.bulkAdd(guardians);
 
+        const ecPartial = (input.emergencyContact as Partial<EmergencyContact>) || {};
         const emergencyContact: EmergencyContact = {
             contact_id: uuidv4(),
             household_id: householdId,
-            ...(input.emergencyContact as any)
-        };
+            first_name: ecPartial.first_name || '',
+            last_name: ecPartial.last_name || '',
+            mobile_phone: ecPartial.mobile_phone,
+            relationship: ecPartial.relationship,
+        } as EmergencyContact;
         await db.emergency_contacts.add(emergencyContact);
 
         const existingChildren = isUpdate ? await db.children.where({ household_id: householdId }).toArray() : [];
-    const incomingChildIds = (input.children || []).map((c: unknown) => (c as any)?.child_id).filter(Boolean);
+    const incomingChildIds = (input.children || []).map((c: unknown) => ((c as Partial<Child>)?.child_id)).filter(Boolean);
 
-    const childrenToUpsert: Child[] = (input.children || []).map((c: unknown) => {
-            const { ministrySelections, interestSelections, customData, ...childCore } = c as any;
-            const existingChild = (childCore as any).child_id ? existingChildren.find(ec => ec.child_id === (childCore as any).child_id) : undefined;
+            const childrenToUpsert: Array<Partial<Child>> = (input.children || []).map((c: unknown) => {
+            const cPartial = c as Partial<Child> & { ministrySelections?: Record<string, boolean>; interestSelections?: Record<string, boolean>; customData?: Record<string, unknown> };
+            const { ministrySelections, interestSelections, customData, ...childCore } = cPartial;
+            const existingChild = childCore.child_id ? existingChildren.find(ec => ec.child_id === childCore.child_id) : undefined;
             return {
-                ...(childCore as any),
-                child_id: (childCore as any).child_id || uuidv4(),
+                ...(childCore as Partial<Child>),
+                child_id: (childCore as Partial<Child>).child_id || uuidv4(),
                 household_id: householdId,
                 is_active: true, // All children submitted are considered active for this registration
                 created_at: existingChild?.created_at || now,
                 updated_at: now,
             }
-        });
-        await db.children.bulkPut(childrenToUpsert);
+    });
+    await db.children.bulkPut(childrenToUpsert as Child[]);
 
         // Deactivate children who were in the household but removed from the form on an update
         if (isUpdate) {
@@ -839,11 +871,13 @@ export async function getHouseholdForUser(authUserId: string): Promise<string | 
 
         // Re-create registrations and enrollments for the current cycle
         for (const [index, child] of childrenToUpsert.entries()) {
-            const childData = (input.children || [])[index] as any;
+            const childData = (input.children || [])[index] as Partial<Child> & { ministrySelections?: Record<string, boolean>; interestSelections?: Record<string, boolean>; customData?: Record<string, unknown> };
+
+            const childId = child.child_id || uuidv4();
 
                 const registration: Registration = {
                 registration_id: uuidv4(),
-                child_id: child.child_id,
+                child_id: childId,
                 cycle_id: cycle_id,
                 status: 'active',
                 pre_registered_sunday_school: true,
@@ -859,7 +893,7 @@ export async function getHouseholdForUser(authUserId: string): Promise<string | 
             // Auto-enroll in Sunday School
             const sundaySchoolEnrollment: MinistryEnrollment = {
                 enrollment_id: uuidv4(),
-                child_id: child.child_id,
+                child_id: childId,
                 cycle_id: cycle_id,
                 ministry_id: "min_sunday_school",
                 status: 'enrolled',
@@ -891,9 +925,9 @@ export async function getHouseholdForUser(authUserId: string): Promise<string | 
                             }
                         }
 
-                        const enrollment: MinistryEnrollment = {
+                            const enrollment: MinistryEnrollment = {
                             enrollment_id: uuidv4(),
-                            child_id: child.child_id,
+                            child_id: childId,
                             cycle_id: cycle_id,
                             ministry_id: ministry.ministry_id,
                             status: ministry.enrollment_type,
@@ -926,7 +960,7 @@ export async function getHouseholdForUser(authUserId: string): Promise<string | 
                                     if (appropriateDivision) {
                                         const bibleBeeEnrollment = {
                                             id: uuidv4(),
-                                            child_id: child.child_id,
+                                            child_id: childId,
                                             year_id: bibleBeeYear.id,
                                             division_id: appropriateDivision.id,
                                             auto_enrolled: false,
@@ -1009,7 +1043,7 @@ function convertToCSV(data: Record<string, unknown>[]): string {
     const csvRows = [
         headers.join(','),
         ...data.map(row =>
-            headers.map(fieldName => JSON.stringify((row as any)[fieldName] ?? '')).join(',')
+            headers.map(fieldName => JSON.stringify((row[fieldName] ?? '') as unknown)).join(',')
         )
     ];
     return csvRows.join('\r\n');
@@ -1017,18 +1051,24 @@ function convertToCSV(data: Record<string, unknown>[]): string {
 
 export async function exportRosterCSV<T = unknown>(children: T[]): Promise<Blob> {
     const exportData = children.map(child => {
-        const childAny = child as any;
-        const primaryGuardian = (childAny.guardians?.find((g: Guardian) => g.is_primary) || childAny.guardians?.[0]) as Guardian | undefined;
+        const childRec = child as Record<string, unknown>;
+        const guardiansArr = (childRec['guardians'] as unknown) as Guardian[] | undefined;
+        const primaryGuardian = (guardiansArr?.find(g => g.is_primary) || guardiansArr?.[0]) as Guardian | undefined;
+
+        const firstName = (childRec['first_name'] ?? childRec['firstName'] ?? '') as string;
+        const lastName = (childRec['last_name'] ?? childRec['lastName'] ?? '') as string;
+        const grade = (childRec['grade'] ?? '') as string;
+        const activeAttendance = (childRec['activeAttendance'] as unknown) as { check_in_at?: string; event_id?: string } | undefined;
 
         return {
-            child_name: `${childAny.first_name} ${childAny.last_name}`,
-            grade: childAny.grade,
-            status: childAny.activeAttendance ? 'Checked In' : 'Checked Out',
-            check_in_time: childAny.activeAttendance?.check_in_at ? new Date(childAny.activeAttendance.check_in_at).toLocaleTimeString() : 'N/A',
-            event: childAny.activeAttendance?.event_id || 'N/A',
-            allergies: childAny.allergies || 'None',
-            medical_notes: childAny.medical_notes || 'None',
-            household: childAny.household?.name || 'N/A',
+            child_name: `${firstName} ${lastName}`.trim(),
+            grade,
+            status: activeAttendance ? 'Checked In' : 'Checked Out',
+            check_in_time: activeAttendance?.check_in_at ? new Date(activeAttendance.check_in_at).toLocaleTimeString() : 'N/A',
+            event: activeAttendance?.event_id || 'N/A',
+            allergies: (childRec['allergies'] ?? 'None') as string,
+            medical_notes: (childRec['medical_notes'] ?? 'None') as string,
+            household: ((childRec['household'] as unknown) as { name?: string } )?.name || 'N/A',
             primary_guardian: primaryGuardian ? `${primaryGuardian.first_name} ${primaryGuardian.last_name}` : 'N/A',
             guardian_phone: primaryGuardian ? primaryGuardian.mobile_phone : 'N/A',
             guardian_email: primaryGuardian ? primaryGuardian.email : 'N/A',
@@ -1200,7 +1240,21 @@ export async function getLeaderBibleBeeProgress(leaderId: string, cycleId: strin
     const compYear = await db.competitionYears.where('year').equals(yearNum).first();
 
     // For each child compute scripture and essay progress for the found competition year
-    const results: any[] = [];
+    type LeaderBibleBeeResult = {
+        childId: string;
+        childName: string;
+        totalScriptures: number;
+        completedScriptures: number;
+        requiredScriptures: number;
+        bibleBeeStatus: 'Not Started' | 'In-Progress' | 'Complete';
+        gradeGroup: string | null;
+        essayStatus: string;
+        ministries: unknown[];
+        primaryGuardian: Guardian | null;
+        child: Child;
+    };
+
+    const results: LeaderBibleBeeResult[] = [];
     // Build a map of childId -> ministries they are enrolled in
     const allEnrollmentsForChildren = await db.ministry_enrollments.where('child_id').anyOf(childIds).and(e => e.cycle_id === cycleId).toArray();
     const ministryList = await db.ministries.toArray();
@@ -1209,15 +1263,16 @@ export async function getLeaderBibleBeeProgress(leaderId: string, cycleId: strin
     // Prefetch guardians for all households to avoid per-child queries
     const householdIds = children.map(c => c.household_id).filter(Boolean);
     const allGuardians = householdIds.length ? await db.guardians.where('household_id').anyOf(householdIds).toArray() : [];
-    const guardianMap = new Map<string, any>();
+    const guardianMap = new Map<string, Guardian[]>();
     for (const g of allGuardians) {
         if (!guardianMap.has(g.household_id)) guardianMap.set(g.household_id, []);
-        guardianMap.get(g.household_id).push(g);
+        guardianMap.get(g.household_id)!.push(g);
     }
 
     for (const child of children) {
-        let scriptures: any[] = [];
-        let essays: any[] = [];
+    // StudentScripture is the legacy per-student scripture record
+    let scriptures: any[] = [];
+    let essays: { status?: string }[] = [];
         if (compYear) {
             scriptures = await db.studentScriptures.where({ childId: child.child_id, competitionYearId: compYear.id }).toArray();
             essays = await db.studentEssays.where({ childId: child.child_id, competitionYearId: compYear.id }).toArray();
@@ -1227,12 +1282,12 @@ export async function getLeaderBibleBeeProgress(leaderId: string, cycleId: strin
         const completedScriptures = scriptures.filter(s => s.status === 'completed').length;
         const essayStatus = essays.length ? essays[0].status : 'none';
 
-        const childEnrolls = allEnrollmentsForChildren.filter(e => e.child_id === child.child_id).map(e => ({ ...e, ministryName: ministryMap.get(e.ministry_id)?.name || 'Unknown' }));
+    const childEnrolls = allEnrollmentsForChildren.filter(e => e.child_id === child.child_id).map(e => ({ ...e, ministryName: ministryMap.get(e.ministry_id)?.name || 'Unknown' }));
 
-        // Identify primary guardian from pre-fetched guardians
-        let primaryGuardian = null;
-        const guardiansForHouse = guardianMap.get(child.household_id) || [];
-        primaryGuardian = guardiansForHouse.find((g: any) => g.is_primary) || guardiansForHouse[0] || null;
+    // Identify primary guardian from pre-fetched guardians
+    let primaryGuardian: Guardian | null = null;
+    const guardiansForHouse: Guardian[] = guardianMap.get(child.household_id) || [];
+    primaryGuardian = guardiansForHouse.find((g: Guardian) => g.is_primary) || guardiansForHouse[0] || null;
 
         // Determine required/scripture target for this child's grade using grade rules
         let requiredScriptures: number | null = null;
@@ -1261,7 +1316,7 @@ export async function getLeaderBibleBeeProgress(leaderId: string, cycleId: strin
             bibleBeeStatus = 'In-Progress';
         }
 
-        results.push({
+    results.push({
             childId: child.child_id,
             childName: `${child.first_name} ${child.last_name}`,
             totalScriptures,
@@ -1273,7 +1328,7 @@ export async function getLeaderBibleBeeProgress(leaderId: string, cycleId: strin
             ministries: childEnrolls,
             primaryGuardian,
             child,
-        });
+    } as LeaderBibleBeeResult);
     }
 
     // sort by child name
@@ -2447,11 +2502,13 @@ export async function getRegistrationCycles(isActive?: boolean): Promise<Registr
 		return dbAdapter.listRegistrationCycles(isActive);
 	} else {
 		// Use legacy Dexie interface for demo mode
-		if (isActive !== undefined) {
+            if (isActive !== undefined) {
             return db.registration_cycles.filter(c => {
-                return isActiveValue((c as any)?.is_active) === isActive;
+                // c may be a loose record in Dexie; access is_active defensively
+                const activeVal = (c as unknown as Record<string, unknown>)?.['is_active'];
+                return isActiveValue(activeVal) === isActive;
             }).toArray();
-		}
+        }
 		return db.registration_cycles.toArray();
 	}
 }

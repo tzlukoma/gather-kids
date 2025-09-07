@@ -81,7 +81,7 @@ type SortDirection = 'asc' | 'desc' | 'none';
 
 const eventOptions = [
 	{ id: 'evt_sunday_school', name: 'Sunday School' },
-		{ id: 'evt_childrens_church', name: "Children&apos;s Church" },
+	{ id: 'evt_childrens_church', name: 'Children&apos;s Church' },
 	{ id: 'evt_teen_church', name: 'Teen Church' },
 ];
 
@@ -152,13 +152,17 @@ export default function RostersPage() {
 		useState<Child | null>(null);
 
 	// State management for data loading
-	const [allMinistryEnrollments, setAllMinistryEnrollments] = useState<MinistryEnrollment[]>([]);
+	const [allMinistryEnrollments, setAllMinistryEnrollments] = useState<
+		MinistryEnrollment[]
+	>([]);
 	const [allChildren, setAllChildren] = useState<Child[]>([]);
 	const [todaysAttendance, setTodaysAttendance] = useState<Attendance[]>([]);
 	const [todaysIncidents, setTodaysIncidents] = useState<Incident[]>([]);
 	const [allGuardians, setAllGuardians] = useState<Guardian[]>([]);
 	const [allHouseholds, setAllHouseholds] = useState<Household[]>([]);
-	const [allEmergencyContacts, setAllEmergencyContacts] = useState<EmergencyContact[]>([]);
+	const [allEmergencyContacts, setAllEmergencyContacts] = useState<
+		EmergencyContact[]
+	>([]);
 	const [allMinistries, setAllMinistries] = useState<Ministry[]>([]);
 	const [dataLoading, setDataLoading] = useState(true);
 
@@ -166,18 +170,25 @@ export default function RostersPage() {
 	useEffect(() => {
 		const loadData = async () => {
 			if (!user) return;
-			
+
 			try {
 				setDataLoading(true);
 				const today = getTodayIsoDate();
-				
+
 				// Load children based on user role
 				let childrenData: Child[];
 				if (user?.metadata?.role === AuthRole.MINISTRY_LEADER) {
-					if (!user.is_active || !user.assignedMinistryIds || user.assignedMinistryIds.length === 0) {
+					if (
+						!user.is_active ||
+						!user.assignedMinistryIds ||
+						user.assignedMinistryIds.length === 0
+					) {
 						childrenData = [];
 					} else {
-						childrenData = await getChildrenForLeader(user.assignedMinistryIds, '2025');
+						childrenData = await getChildrenForLeader(
+							user.assignedMinistryIds,
+							'2025'
+						);
 					}
 				} else {
 					childrenData = await getAllChildren();
@@ -191,7 +202,7 @@ export default function RostersPage() {
 					guardians,
 					households,
 					emergencyContacts,
-					ministries
+					ministries,
 				] = await Promise.all([
 					getMinistryEnrollmentsByCycle('2025'),
 					getAttendanceForDate(today),
@@ -199,7 +210,7 @@ export default function RostersPage() {
 					getAllGuardians(),
 					getAllHouseholds(),
 					getAllEmergencyContacts(),
-					getMinistries(true) // Only get active ministries
+					getMinistries(true), // Only get active ministries
 				]);
 
 				setAllChildren(childrenData);

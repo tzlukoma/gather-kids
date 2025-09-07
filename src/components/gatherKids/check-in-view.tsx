@@ -14,7 +14,16 @@ import type {
 import { useToast } from '@/hooks/use-toast';
 import { Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { getTodayIsoDate, recordCheckIn, recordCheckOut, getAttendanceForDate, getIncidentsForDate, getAllGuardians, getAllHouseholds, getAllEmergencyContacts } from '@/lib/dal';
+import {
+	getTodayIsoDate,
+	recordCheckIn,
+	recordCheckOut,
+	getAttendanceForDate,
+	getIncidentsForDate,
+	getAllGuardians,
+	getAllHouseholds,
+	getAllEmergencyContacts,
+} from '@/lib/dal';
 import type { StatusFilter } from '@/app/dashboard/check-in/page';
 import { IncidentDetailsDialog } from './incident-details-dialog';
 import { PhotoCaptureDialog } from './photo-capture-dialog';
@@ -33,9 +42,9 @@ interface CheckInViewProps {
 
 const eventNames: { [key: string]: string } = {
 	evt_sunday_school: 'Sunday School',
-	evt_childrens_church: "Children&apos;s Church",
+	evt_childrens_church: 'Children&apos;s Church',
 	evt_teen_church: 'Teen Church',
-	min_choir_kids: "Children&apos;s Choir Practice",
+	min_choir_kids: 'Children&apos;s Choir Practice',
 	min_youth_group: 'Youth Group',
 };
 
@@ -74,7 +83,7 @@ export function CheckInView({
 		name: string;
 		url: string;
 	} | null>(null);
-	
+
 	// State for attendance and incidents data
 	const [todaysAttendance, setTodaysAttendance] = useState<Attendance[]>([]);
 	const [todaysIncidents, setTodaysIncidents] = useState<Incident[]>([]);
@@ -89,7 +98,7 @@ export function CheckInView({
 				setEnrichedDataLoading(true);
 				const [attendanceData, incidentsData] = await Promise.all([
 					getAttendanceForDate(today),
-					getIncidentsForDate(today)
+					getIncidentsForDate(today),
 				]);
 				setTodaysAttendance(attendanceData);
 				setTodaysIncidents(incidentsData);
@@ -127,16 +136,23 @@ export function CheckInView({
 
 			const householdIds = initialChildren.map((c) => c.household_id);
 			// Load additional data using DAL functions
-			const [allGuardians, allHouseholds, allEmergencyContacts] = await Promise.all([
-				getAllGuardians(),
-				getAllHouseholds(),
-				getAllEmergencyContacts()
-			]);
+			const [allGuardians, allHouseholds, allEmergencyContacts] =
+				await Promise.all([
+					getAllGuardians(),
+					getAllHouseholds(),
+					getAllEmergencyContacts(),
+				]);
 
 			// Filter to only relevant households for better performance
-			const relevantGuardians = allGuardians.filter((g: Guardian) => householdIds.includes(g.household_id));
-			const relevantHouseholds = allHouseholds.filter((h: Household) => householdIds.includes(h.household_id));
-			const relevantEmergencyContacts = allEmergencyContacts.filter((ec: EmergencyContact) => householdIds.includes(ec.household_id));
+			const relevantGuardians = allGuardians.filter((g: Guardian) =>
+				householdIds.includes(g.household_id)
+			);
+			const relevantHouseholds = allHouseholds.filter((h: Household) =>
+				householdIds.includes(h.household_id)
+			);
+			const relevantEmergencyContacts = allEmergencyContacts.filter(
+				(ec: EmergencyContact) => householdIds.includes(ec.household_id)
+			);
 
 			const guardianMap = new Map<string, Guardian[]>();
 			relevantGuardians.forEach((g: Guardian) => {
@@ -192,11 +208,11 @@ export function CheckInView({
 		try {
 			await recordCheckIn(childId, selectedEvent, undefined, 'user_admin');
 			const child = children.find((c) => c.child_id === childId);
-			
+
 			// Refresh attendance data to update UI immediately
 			const refreshedAttendance = await getAttendanceForDate(today);
 			setTodaysAttendance(refreshedAttendance);
-			
+
 			toast({
 				title: 'Checked In',
 				description: `${child?.first_name} ${
@@ -227,11 +243,11 @@ export function CheckInView({
 				(a) => a.attendance_id === attendanceId
 			);
 			const eventName = getEventName(todaysRecord?.event_id || null);
-			
+
 			// Refresh attendance data to update UI immediately
 			const refreshedAttendance = await getAttendanceForDate(today);
 			setTodaysAttendance(refreshedAttendance);
-			
+
 			toast({
 				title: 'Checked Out',
 				description: `${child?.first_name} ${child?.last_name} has been checked out from ${eventName}.`,
@@ -270,7 +286,9 @@ export function CheckInView({
 
 		if (selectedGrades.length > 0) {
 			results = results.filter(
-				(child) => child.grade && selectedGrades.includes(normalizeGradeDisplay(child.grade))
+				(child) =>
+					child.grade &&
+					selectedGrades.includes(normalizeGradeDisplay(child.grade))
 			);
 		}
 

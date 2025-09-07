@@ -11,7 +11,7 @@ import { AuthDebug } from '@/components/auth/auth-debug';
 
 export const metadata: Metadata = {
 	title: 'gatherKids',
-	description: "gatherKids - Children&apos;s Ministry Management",
+	description: 'gatherKids - Children&apos;s Ministry Management',
 };
 
 export default function RootLayout({

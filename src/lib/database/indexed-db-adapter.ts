@@ -26,10 +26,10 @@ import type {
 } from '../types';
 
 export class IndexedDBAdapter implements DatabaseAdapter {
-	private db: any;
+	private db: typeof dexieDb;
 
-	constructor(customDb?: any) {
-		this.db = customDb || dexieDb;
+	constructor(customDb?: typeof dexieDb) {
+		this.db = (customDb as typeof dexieDb) || dexieDb;
 	}
 	// Households
 	async getHousehold(id: string): Promise<Household | null> {

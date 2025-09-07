@@ -474,7 +474,10 @@ export class SupabaseAdapter implements DatabaseAdapter {
 
 	// Registration Cycles
 	async getRegistrationCycle(id: string): Promise<RegistrationCycle | null> {
-	const { data, error } = await (this.client as any)
+	// TODO: regenerate supabase-types so 'registration_cycles' is included in the client typing.
+	// Localized any-cast: generated types are incomplete for this table name.
+	/* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+	const { data, error } = await this.getClientAny()
 			.from('registration_cycles')
 			.select('*')
 			.eq('cycle_id', id)
@@ -484,8 +487,8 @@ export class SupabaseAdapter implements DatabaseAdapter {
 				if (error.code === 'PGRST116') return null;
 				throw error;
 			}
-		if (!data) return null;
-		return this.mapRegistrationCycle(data as Record<string, unknown>);
+	if (!data) return null;
+	return this.mapRegistrationCycle(data as unknown as Record<string, unknown>);
 	}
 
 	async createRegistrationCycle(
@@ -498,7 +501,8 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			updated_at: new Date().toISOString(),
 		};
 
-	const { data: result, error } = await (this.client as any)
+	/* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+	const { data: result, error } = await this.getClientAny()
 			.from('registration_cycles')
 			.insert(cycle)
 			.select()
@@ -506,14 +510,15 @@ export class SupabaseAdapter implements DatabaseAdapter {
 
 	if (error) throw error;
 	if (!result) throw new Error('createRegistrationCycle: no result returned from DB');
-	return this.mapRegistrationCycle(result as Record<string, unknown>);
+	return this.mapRegistrationCycle(result as unknown as Record<string, unknown>);
 	}
 
 	async updateRegistrationCycle(
 		id: string,
 		data: Partial<RegistrationCycle>
 	): Promise<RegistrationCycle> {
-	const { data: result, error } = await (this.client as any)
+	/* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+	const { data: result, error } = await this.getClientAny()
 		.from('registration_cycles')
 			.update({
 				...data,
@@ -525,11 +530,14 @@ export class SupabaseAdapter implements DatabaseAdapter {
 
 	if (error) throw error;
 	if (!result) throw new Error('updateRegistrationCycle: no result returned from DB');
-	return this.mapRegistrationCycle(result as Record<string, unknown>);
+	return this.mapRegistrationCycle(result as unknown as Record<string, unknown>);
 	}
 
 	async listRegistrationCycles(isActive?: boolean): Promise<RegistrationCycle[]> {
-	let query = (this.client as any).from('registration_cycles').select('*');
+	// TODO: regenerate supabase-types so 'registration_cycles' is included in the client typing.
+	// Localized any-cast: generated types are incomplete for this table name.
+	/* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+	let query = this.getClientAny().from('registration_cycles').select('*');
 
         if (isActive !== undefined) {
             query = query.eq('is_active', isActive);
@@ -551,8 +559,9 @@ export class SupabaseAdapter implements DatabaseAdapter {
 	}
 
 	async deleteRegistrationCycle(id: string): Promise<void> {
-		const { error } = await this.client
-			.from('registration_cycles' as any)
+    /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+    const { error } = await this.getClientAny()
+			.from('registration_cycles')
 			.delete()
 			.eq('cycle_id', id);
 
@@ -571,7 +580,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			if (error.code === 'PGRST116') return null;
 			throw error;
 		}
-		return data ? supabaseToRegistration(data as any) : null;
+	return data ? supabaseToRegistration(data as Database['public']['Tables']['registrations']['Row']) : null;
 	}
 
 	async createRegistration(
@@ -606,7 +615,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 	): Promise<Registration> {
 	const updatePayload: Database['public']['Tables']['registrations']['Update'] = {
 		...(data as Database['public']['Tables']['registrations']['Update']),
-		consents: (data as any)?.consents ? (serializeIfObject((data as any).consents) as Database['public']['Tables']['registrations']['Update']['consents']) : (data as any).consents,
+	consents: (((data as unknown) as Record<string, unknown>)['consents'] ? serializeIfObject(((data as unknown) as Record<string, unknown>)['consents']) : ((data as unknown) as Record<string, unknown>)['consents']) as Database['public']['Tables']['registrations']['Update']['consents'],
 	};
 
 		const { data: result, error } = await this.client
@@ -702,7 +711,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 	const updateMinistryPayload: Database['public']['Tables']['ministries']['Update'] = {
 		...(data as Database['public']['Tables']['ministries']['Update']),
 		updated_at: new Date().toISOString(),
-		custom_questions: (data as any)?.custom_questions ? (serializeIfObject((data as any).custom_questions) as Database['public']['Tables']['ministries']['Update']['custom_questions']) : (data as any).custom_questions,
+	custom_questions: (((data as unknown) as Record<string, unknown>)['custom_questions'] ? serializeIfObject(((data as unknown) as Record<string, unknown>)['custom_questions']) : ((data as unknown) as Record<string, unknown>)['custom_questions']) as Database['public']['Tables']['ministries']['Update']['custom_questions'],
 	};
 
 		const { data: result, error } = await this.client
@@ -785,7 +794,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 	): Promise<MinistryEnrollment> {
 	const updateEnrollmentPayload: Database['public']['Tables']['ministry_enrollments']['Update'] = {
 		...(data as Database['public']['Tables']['ministry_enrollments']['Update']),
-		custom_fields: (data as any)?.custom_fields ? (serializeIfObject((data as any).custom_fields) as Database['public']['Tables']['ministry_enrollments']['Update']['custom_fields']) : (data as any).custom_fields,
+	custom_fields: (((data as unknown) as Record<string, unknown>)['custom_fields'] ? serializeIfObject(((data as unknown) as Record<string, unknown>)['custom_fields']) : ((data as unknown) as Record<string, unknown>)['custom_fields']) as Database['public']['Tables']['ministry_enrollments']['Update']['custom_fields'],
 	};
 
 		const { data: result, error } = await this.client
@@ -960,7 +969,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			.single();
 
 		if (error) throw error;
-		return supabaseToIncident(result as any);
+	return supabaseToIncident(result as unknown as Database['public']['Tables']['incidents']['Row']);
 	}
 
 	async listIncidents(filters?: IncidentFilters): Promise<Incident[]> {
@@ -1045,7 +1054,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 		const updateEventPayload = {
 			...(data as Database['public']['Tables']['events']['Update']),
 			updated_at: new Date().toISOString(),
-			timeslots: (data as any)?.timeslots ? (serializeIfObject((data as any).timeslots) as Database['public']['Tables']['events']['Update']['timeslots']) : (data as any).timeslots,
+			timeslots: ((data as unknown) as Record<string, unknown>)?.['timeslots'] ? (serializeIfObject(((data as unknown) as Record<string, unknown>)['timeslots']) as Database['public']['Tables']['events']['Update']['timeslots']) : ((data as unknown) as Record<string, unknown>)['timeslots'],
 		} as unknown as Database['public']['Tables']['events']['Update'];
 
 		const { data: result, error } = await this.client
@@ -1608,13 +1617,13 @@ export class SupabaseAdapter implements DatabaseAdapter {
 		const insertPayload = {
 			name: data.name,
 			bible_bee_year_id: data.year_id ?? null,
-			description: (data as any).description ?? null,
-			min_age: (data as any).min_age ?? null,
-			max_age: (data as any).max_age ?? null,
+			description: (((data as unknown) as Record<string, unknown>)['description'] as string) ?? null,
+			min_age: (((data as unknown) as Record<string, unknown>)['min_age'] as number) ?? null,
+			max_age: (((data as unknown) as Record<string, unknown>)['max_age'] as number) ?? null,
 			min_grade: data.min_grade ?? null,
 			max_grade: data.max_grade ?? null,
 			min_scriptures: data.minimum_required ?? null,
-			requires_essay: (data as any).requires_essay ?? null,
+			requires_essay: (((data as unknown) as Record<string, unknown>)['requires_essay'] as boolean) ?? null,
 			created_at: new Date().toISOString(),
 			updated_at: new Date().toISOString(),
 		};
@@ -1645,7 +1654,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 	}
 
 	async listDivisions(bibleBeeYearId?: string): Promise<Division[]> {
-		let query = (this.client as any).from('divisions').select('*');
+	let query = (this.client as unknown as SupabaseClient<Database>).from('divisions').select('*');
 
 		if (bibleBeeYearId) {
 			query = query.eq('bible_bee_year_id', bibleBeeYearId);
@@ -1699,7 +1708,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 	): Promise<EssayPrompt> {
 		const insertPayload = {
 			prompt: data.prompt_text,
-			title: (data as any).title ?? data.division_name ?? (data.prompt_text ? data.prompt_text.slice(0, 40) : 'Essay Prompt'),
+			title: (((data as unknown) as Record<string, unknown>)['title'] as string) ?? data.division_name ?? (data.prompt_text ? data.prompt_text.slice(0, 40) : 'Essay Prompt'),
 			division_id: null,
 			instructions: null,
 			min_words: null,
@@ -1737,7 +1746,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 	}
 
 	async listEssayPrompts(divisionId?: string): Promise<EssayPrompt[]> {
-		let query = (this.client as any).from('essay_prompts').select('*');
+	let query = (this.client as unknown as SupabaseClient<Database>).from('essay_prompts').select('*');
 
 		if (divisionId) {
 			query = query.eq('division_id', divisionId);
@@ -1780,7 +1789,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			if (error.code === 'PGRST116') return null;
 			throw error;
 		}
-		return data ? supabaseToEnrollment(data as any) : null;
+	return data ? supabaseToEnrollment(data as unknown as Database['public']['Tables']['bible_bee_enrollments']['Row']) : null;
 	}
 
 	async createEnrollment(
@@ -1794,7 +1803,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			divisionId: data.division_id!,
 			auto_enrolled: data.auto_enrolled ?? false,
 			enrolled_at: data.enrolled_at ?? new Date().toISOString(),
-			id: (data as any).id ?? undefined,
+			id: ((data as unknown) as Record<string, unknown>)['id'] as string ?? undefined,
 		};
 
 		const { data: result, error } = await this.client
@@ -1828,7 +1837,8 @@ export class SupabaseAdapter implements DatabaseAdapter {
 		childId?: string,
 		bibleBeeYearId?: string
 	): Promise<Enrollment[]> {
-	let query = (this.client as any).from('bible_bee_enrollments').select('*');
+	// Note: client typing may lack some table names; use narrow cast only for the query builder here
+	let query = (this.client as unknown as SupabaseClient<Database>).from('bible_bee_enrollments').select('*');
 
 		if (childId) {
 			query = query.eq('child_id', childId);
@@ -1837,9 +1847,9 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			query = query.eq('bible_bee_year_id', bibleBeeYearId);
 		}
 
-		const { data, error } = await query;
-		if (error) throw error;
-		return (data || []).map((d: any) => supabaseToEnrollment(d));
+	const { data, error } = await query;
+	if (error) throw error;
+	return (data || []).map((d) => supabaseToEnrollment(d as Database['public']['Tables']['bible_bee_enrollments']['Row']));
 	}
 
 	async deleteEnrollment(id: string): Promise<void> {
@@ -1862,7 +1872,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			if (error.code === 'PGRST116') return null;
 			throw error;
 		}
-		return data ? supabaseToEnrollmentOverride(data as any) : null;
+	return data ? supabaseToEnrollmentOverride(data as Database['public']['Tables']['enrollment_overrides']['Row']) : null;
 	}
 
 	async createEnrollmentOverride(
@@ -1880,8 +1890,8 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			.select()
 			.single();
 
-		if (error) throw error;
-		return supabaseToEnrollmentOverride(result as any);
+	if (error) throw error;
+	return supabaseToEnrollmentOverride(result as Database['public']['Tables']['enrollment_overrides']['Row']);
 	}
 
 	async updateEnrollmentOverride(
@@ -1898,20 +1908,20 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			.select()
 			.single();
 
-		if (error) throw error;
-		return supabaseToEnrollmentOverride(result as any);
+	if (error) throw error;
+	return supabaseToEnrollmentOverride(result as Database['public']['Tables']['enrollment_overrides']['Row']);
 	}
 
 	async listEnrollmentOverrides(enrollmentId?: string): Promise<EnrollmentOverride[]> {
-		let query = (this.client as any).from('enrollment_overrides').select('*');
+	let query = (this.client as unknown as SupabaseClient<Database>).from('enrollment_overrides').select('*');
 
 		if (enrollmentId) {
 			query = query.eq('enrollment_id', enrollmentId);
 		}
 
-		const { data, error } = await query;
-		if (error) throw error;
-		return (data || []).map((d: any) => supabaseToEnrollmentOverride(d));
+	const { data, error } = await query;
+	if (error) throw error;
+	return (data || []).map((d: Database['public']['Tables']['enrollment_overrides']['Row']) => supabaseToEnrollmentOverride(d));
 	}
 
 	async deleteEnrollmentOverride(id: string): Promise<void> {
@@ -1948,5 +1958,15 @@ export class SupabaseAdapter implements DatabaseAdapter {
 		// For now, just execute the callback
 		// In the future, consider using pg connection to handle transactions
 		return callback();
+	}
+    
+	// Temporary helper for tables missing from generated supabase types (see TODOs below).
+	// TODO: regenerate `src/lib/database/supabase-types.ts` so the Supabase client generic
+	// includes all tables (for example: `registration_cycles`) and remove this helper.
+	// Localized any-cast helper for tables not present in the generated supabase types.
+	// TODO: regenerate `src/lib/database/supabase-types.ts` and remove this.
+	/* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+	private getClientAny(): any {
+		return this.client as any;
 	}
 }
