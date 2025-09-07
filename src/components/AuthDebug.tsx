@@ -29,12 +29,13 @@ export default function AuthDebug({ className }: AuthDebugProps) {
 	const [loading, setLoading] = useState(true);
 	const [isOpen, setIsOpen] = useState(false);
 
-	// Hide in demo mode
-	if (flags.isDemoMode) {
-		return null;
-	}
-
 	useEffect(() => {
+		// If demo mode is enabled, skip any auth fetching/subscriptions but still
+		// call hooks unconditionally to satisfy rules-of-hooks.
+		if (flags.isDemoMode) {
+			setLoading(false);
+			return;
+		}
 		const fetchAuthData = async () => {
 			try {
 				if (!supabase) {
@@ -61,8 +62,8 @@ export default function AuthDebug({ className }: AuthDebugProps) {
 
 		fetchAuthData();
 
-		// Subscribe to auth changes
-		if (supabase) {
+	// Subscribe to auth changes
+	if (supabase) {
 			const {
 				data: { subscription },
 			} = supabase.auth.onAuthStateChange((event: string, session: any) => {
@@ -73,7 +74,7 @@ export default function AuthDebug({ className }: AuthDebugProps) {
 
 			return () => subscription.unsubscribe();
 		}
-	}, []);
+	}, [flags.isDemoMode]);
 
 	if (loading) {
 		return (
@@ -81,6 +82,11 @@ export default function AuthDebug({ className }: AuthDebugProps) {
 				<p className="text-sm text-muted-foreground">Loading auth debug...</p>
 			</div>
 		);
+	}
+
+	// Hide in demo mode at render time (hooks must still be called)
+	if (flags.isDemoMode) {
+		return null;
 	}
 
 	return (

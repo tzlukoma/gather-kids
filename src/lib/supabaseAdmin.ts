@@ -9,7 +9,6 @@ let supabaseAdmin: any;
 // If the application adapter exposes a direct client (SupabaseAdapter), use it.
 // This keeps direct `@supabase` imports centralized in the adapter implementation.
 try {
-  // @ts-ignore - adapter may not expose low-level client in some implementations
   if ((dbAdapter as any)?.client) {
     // Use adapter's internal client for admin operations when present
     supabaseAdmin = (dbAdapter as any).client;
@@ -29,12 +28,14 @@ if (!supabaseAdmin) {
       })
     };
   } else {
-    // Defer to the adapter to create an admin client when possible; as a last resort
-    // keep creating a client inline but mark it as server-only and isolated.
-    // This code path is rare in CI and developer machines; prefer centralizing in DAL.
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { createClient } = require('@supabase/supabase-js');
-    supabaseAdmin = createClient(supabaseUrl, supabaseKey, { auth: { persistSession: false } });
+  // Defer to the adapter to create an admin client when possible; as a last resort
+  // keep creating a client inline but mark it as server-only and isolated.
+  // Use dynamic import to avoid `require()` and satisfy lint rules.
+  // This code path is rare in CI and developer machines; prefer centralizing in DAL.
+    const createClient = (await import('@supabase/supabase-js')) as any;
+    supabaseAdmin = createClient.createClient
+      ? createClient.createClient(supabaseUrl, supabaseKey, { auth: { persistSession: false } })
+      : createClient(supabaseUrl, supabaseKey, { auth: { persistSession: false } });
   }
 }
 
