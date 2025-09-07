@@ -31,28 +31,16 @@ jobs:
         id: gen
         run: |
           set -euo pipefail
-          echo "Installing Supabase CLI via official installer"
-          curl -fsSL --retry 3 --retry-delay 2 https://raw.githubusercontent.com/supabase/cli/main/install.sh -o /tmp/install_supabase.sh
-          chmod +x /tmp/install_supabase.sh
-          # Install (the installer places the binary in ~/.supabase/bin or /usr/local/bin)
-          /tmp/install_supabase.sh --yes || true
+          echo "Installing Supabase CLI (proven snippet from generate-types.yml)"
+          mkdir -p "$HOME/.bin"
+          curl -s -L https://github.com/supabase/cli/releases/latest/download/supabase_linux_amd64.tar.gz | tar -xz -C "$HOME/.bin"
+          chmod +x "$HOME/.bin/supabase"
+          echo "$HOME/.bin" >> $GITHUB_PATH
 
-          # Find the installed binary
-          if command -v supabase >/dev/null 2>&1; then
-            SUPABASE_BIN=$(command -v supabase)
-          elif [ -x "$HOME/.supabase/bin/supabase" ]; then
-            SUPABASE_BIN="$HOME/.supabase/bin/supabase"
-          elif [ -x "/usr/local/bin/supabase" ]; then
-            SUPABASE_BIN="/usr/local/bin/supabase"
-          else
-            echo "supabase CLI not found after install" >&2
-            exit 2
-          fi
-
-          echo "Using supabase binary: $SUPABASE_BIN"
-          $SUPABASE_BIN --version || true
+          echo "Using supabase binary from $HOME/.bin"
+          $HOME/.bin/supabase --version || true
           echo "Running supabase gen types typescript --local"
-          $SUPABASE_BIN gen types typescript --local
+          $HOME/.bin/supabase gen types typescript --local
 
       - name: Ensure generated file exists
         run: |
