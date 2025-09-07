@@ -17,6 +17,19 @@ import type { Guardian, Registration } from '../types';
  * Convert registration form data to canonical DTOs for processing
  * This handles the legacy camelCase -> snake_case conversion
  */
+// Small helpers to normalize unknown inputs to safer shapes
+function toRecord(value: unknown): Record<string, unknown> {
+  if (!value) return {};
+  if (typeof value === 'object') return value as Record<string, unknown>;
+  return {};
+}
+
+function toArrayRecords(value: unknown): Array<Record<string, unknown>> {
+  if (!value) return [];
+  if (Array.isArray(value)) return value as Array<Record<string, unknown>>;
+  return [];
+}
+
 function convertFormDataToCanonical(data: Record<string, unknown>): {
   household: CanonicalDtos.HouseholdWrite;
   guardians: CanonicalDtos.GuardianWrite[];
@@ -30,7 +43,7 @@ function convertFormDataToCanonical(data: Record<string, unknown>): {
 } {
   const d = data as Record<string, unknown>;
   // Convert household data to canonical format
-  const householdSrc = (d['household'] as Record<string, unknown>) ?? {};
+  const householdSrc = toRecord(d['household']);
   const household = CanonicalDtos.HouseholdWriteDto.parse({
     household_id: householdSrc['household_id'] as string | undefined,
     name: householdSrc['name'] as string | undefined,
@@ -47,7 +60,7 @@ function convertFormDataToCanonical(data: Record<string, unknown>): {
 
   // Convert guardians to canonical format
   const householdIdToUse = (householdSrc['household_id'] as string | undefined) || uuidv4();
-  const guardiansSrc = (d['guardians'] as unknown as Array<Record<string, unknown>>) ?? [];
+  const guardiansSrc = toArrayRecords(d['guardians']);
   const guardians = guardiansSrc.map((guardian) =>
     CanonicalDtos.GuardianWriteDto.parse({
       guardian_id: guardian['guardian_id'] as string | undefined,
@@ -62,7 +75,7 @@ function convertFormDataToCanonical(data: Record<string, unknown>): {
   );
 
   // Convert emergency contact to canonical format
-  const emergencySrc = (d['emergencyContact'] as Record<string, unknown>) ?? {};
+  const emergencySrc = toRecord(d['emergencyContact']);
   const emergencyContact = CanonicalDtos.EmergencyContactWriteDto.parse({
     contact_id: emergencySrc['contact_id'] as string | undefined,
     household_id: householdIdToUse,
@@ -73,7 +86,7 @@ function convertFormDataToCanonical(data: Record<string, unknown>): {
   });
 
   // Convert children to canonical format
-  const childrenSrc = (d['children'] as unknown as Array<Record<string, unknown>>) ?? [];
+  const childrenSrc = toArrayRecords(d['children']);
   const children = childrenSrc.map((child) =>
     CanonicalDtos.ChildWriteDto.parse({
       child_id: child['child_id'] as string | undefined,
@@ -93,7 +106,7 @@ function convertFormDataToCanonical(data: Record<string, unknown>): {
   );
 
   // Convert consents to canonical format (photoRelease -> photo_release)
-  const consentsSrc = (d['consents'] as Record<string, unknown>) ?? {};
+  const consentsSrc = toRecord(d['consents']);
   const consents = [{
     liability: Boolean(consentsSrc['liability']),
     photo_release: Boolean(consentsSrc['photoRelease']), // camelCase -> snake_case
@@ -240,7 +253,7 @@ export async function registerHouseholdCanonical(data: Record<string, unknown>, 
           status: registrationData.status,
           pre_registered_sunday_school: registrationData.pre_registered_sunday_school,
           consents: registrationData.consents.map((consent) => {
-            const c = consent as unknown as Record<string, unknown>;
+            const c = toRecord(consent);
             const rawType = String(c.type ?? 'custom');
             const mappedType = rawType === 'photo_release' ? 'photoRelease' : rawType === 'liability' ? 'liability' : 'custom';
             return {
@@ -258,7 +271,7 @@ export async function registerHouseholdCanonical(data: Record<string, unknown>, 
         await dbAdapter.createRegistration(legacyRegistration);
 
         // Handle ministry enrollments (original child data processing)
-        const childrenArray = (data['children'] as unknown as Array<Record<string, unknown>>) ?? [];
+  const childrenArray = toArrayRecords(data['children']);
         const originalChildData = childrenArray[index] ?? {};
         const ministrySelections = (originalChildData && (originalChildData['ministrySelections'] as Record<string, unknown> | undefined)) ?? undefined;
         const customData = (originalChildData && (originalChildData['customData'] as Record<string, unknown> | undefined)) ?? undefined;
