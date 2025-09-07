@@ -2046,7 +2046,7 @@ function EnrollmentManagement({
 			// mixed stored representations for is_active (1, true, '1') which
 			// can cause IDBKeyRange DataError when used with .equals(...)
 			const allCycles = await db.registration_cycles.toArray();
-			let currentCycle = allCycles.find((c) => isActiveValue(c?.is_active));
+			const currentCycle = allCycles.find((c) => isActiveValue(c?.is_active));
 			if (!currentCycle) {
 				setError(
 					'No active registration cycle found. Please contact an administrator.'

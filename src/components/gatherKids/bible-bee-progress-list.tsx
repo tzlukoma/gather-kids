@@ -146,7 +146,7 @@ export function BibleBeeProgressList({
 						filteredRes.map((r: any) => r.child?.household_id).filter(Boolean)
 					)
 				);
-				let guardianMap = new Map<string, any>();
+				const guardianMap = new Map<string, any>();
 				if (householdIds.length > 0) {
 					const guardians = await db.guardians
 						.where('household_id')
