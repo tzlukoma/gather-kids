@@ -141,8 +141,9 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 		if (filters?.search) {
 			const searchLower = filters.search.toLowerCase();
 			collection = collection.and((c: Child | unknown) => {
-				const ch = c as Child;
-				return ch.first_name?.toLowerCase().includes(searchLower) || ch.last_name?.toLowerCase().includes(searchLower);
+				const child = c as Child;
+				return (child.first_name?.toLowerCase().includes(searchLower) || false) ||
+				(child.last_name?.toLowerCase().includes(searchLower) || false);
 			});
 		}
 
@@ -158,6 +159,24 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 
 	async deleteChild(id: string): Promise<void> {
 		await this.db.children.delete(id);
+	}
+	
+	// Extension for test compatibility - not part of standard DatabaseAdapter interface
+	get children() {
+		return {
+			...this.db.children,
+			where: (filter: string | Record<string, any>) => {
+				if (typeof filter === 'object' && filter.household_id) {
+					return this.db.children.where('household_id').equals(filter.household_id as string);
+				}
+				// If it's a string, use it as an index
+				if (typeof filter === 'string') {
+					return this.db.children.where(filter);
+				}
+				// Otherwise assume it's an equality criteria object
+				return this.db.children.where(filter as Record<string, any>);
+			}
+		};
 	}
 
 	// Guardians
@@ -196,6 +215,24 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 
 	async listAllGuardians(): Promise<Guardian[]> {
 		return this.db.guardians.toArray();
+	}
+	
+	// Extension for test compatibility - not part of standard DatabaseAdapter interface
+	get guardians() {
+		return {
+			...this.db.guardians,
+			where: (filter: string | Record<string, any>) => {
+				if (typeof filter === 'object' && filter.household_id) {
+					return this.db.guardians.where('household_id').equals(filter.household_id as string);
+				}
+				// If it's a string, use it as an index
+				if (typeof filter === 'string') {
+					return this.db.guardians.where(filter);
+				}
+				// Otherwise assume it's an equality criteria object
+				return this.db.guardians.where(filter as Record<string, any>);
+			}
+		};
 	}
 
 	async deleteGuardian(id: string): Promise<void> {

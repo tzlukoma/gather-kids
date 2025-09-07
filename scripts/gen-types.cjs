@@ -54,6 +54,491 @@ function isSupabaseCLIAvailable() {
 	}
 }
 
+// Create a more comprehensive typed mock file
+function createTypedMockFile() {
+	const typedMockTypes =
+		HEADER +
+		`// MOCK TYPES: These are manually created to unblock development
+// This file is intended to be replaced with generated types when available
+
+export interface Database {
+  public: {
+    Tables: {
+      attendance_records: {
+        Row: {
+          id: string;
+          created_at: string;
+          child_id: string;
+          event_id: string;
+          status: string;
+          guardian_id: string | null;
+          check_in_time: string | null;
+          check_out_time: string | null;
+        };
+        Insert: {
+          id?: string;
+          created_at?: string;
+          child_id: string;
+          event_id: string;
+          status?: string;
+          guardian_id?: string | null;
+          check_in_time?: string | null;
+          check_out_time?: string | null;
+        };
+        Update: {
+          id?: string;
+          created_at?: string;
+          child_id?: string;
+          event_id?: string;
+          status?: string;
+          guardian_id?: string | null;
+          check_in_time?: string | null;
+          check_out_time?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "attendance_records_child_id_fkey";
+            columns: ["child_id"];
+            isOneToOne: false;
+            referencedRelation: "children";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "attendance_records_event_id_fkey";
+            columns: ["event_id"];
+            isOneToOne: false;
+            referencedRelation: "events";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "attendance_records_guardian_id_fkey";
+            columns: ["guardian_id"];
+            isOneToOne: false;
+            referencedRelation: "guardians";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      children: {
+        Row: {
+          id: string;
+          created_at: string;
+          first_name: string;
+          last_name: string;
+          date_of_birth: string | null;
+          household_id: string;
+          notes: string | null;
+          allergies: string | null;
+          photo_url: string | null;
+          status: string | null;
+        };
+        Insert: {
+          id?: string;
+          created_at?: string;
+          first_name: string;
+          last_name: string;
+          date_of_birth?: string | null;
+          household_id: string;
+          notes?: string | null;
+          allergies?: string | null;
+          photo_url?: string | null;
+          status?: string | null;
+        };
+        Update: {
+          id?: string;
+          created_at?: string;
+          first_name?: string;
+          last_name?: string;
+          date_of_birth?: string | null;
+          household_id?: string;
+          notes?: string | null;
+          allergies?: string | null;
+          photo_url?: string | null;
+          status?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "children_household_id_fkey";
+            columns: ["household_id"];
+            isOneToOne: false;
+            referencedRelation: "households";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      events: {
+        Row: {
+          id: string;
+          created_at: string;
+          title: string;
+          description: string | null;
+          start_time: string;
+          end_time: string;
+          ministry_id: string;
+          location: string | null;
+          recurring: boolean | null;
+          status: string | null;
+        };
+        Insert: {
+          id?: string;
+          created_at?: string;
+          title: string;
+          description?: string | null;
+          start_time: string;
+          end_time: string;
+          ministry_id: string;
+          location?: string | null;
+          recurring?: boolean | null;
+          status?: string | null;
+        };
+        Update: {
+          id?: string;
+          created_at?: string;
+          title?: string;
+          description?: string | null;
+          start_time?: string;
+          end_time?: string;
+          ministry_id?: string;
+          location?: string | null;
+          recurring?: boolean | null;
+          status?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "events_ministry_id_fkey";
+            columns: ["ministry_id"];
+            isOneToOne: false;
+            referencedRelation: "ministries";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      guardians: {
+        Row: {
+          id: string;
+          created_at: string;
+          first_name: string;
+          last_name: string;
+          email: string | null;
+          phone: string | null;
+          relationship: string | null;
+          household_id: string;
+          photo_url: string | null;
+          is_authorized_pickup: boolean;
+          status: string | null;
+        };
+        Insert: {
+          id?: string;
+          created_at?: string;
+          first_name: string;
+          last_name: string;
+          email?: string | null;
+          phone?: string | null;
+          relationship?: string | null;
+          household_id: string;
+          photo_url?: string | null;
+          is_authorized_pickup?: boolean;
+          status?: string | null;
+        };
+        Update: {
+          id?: string;
+          created_at?: string;
+          first_name?: string;
+          last_name?: string;
+          email?: string | null;
+          phone?: string | null;
+          relationship?: string | null;
+          household_id?: string;
+          photo_url?: string | null;
+          is_authorized_pickup?: boolean;
+          status?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "guardians_household_id_fkey";
+            columns: ["household_id"];
+            isOneToOne: false;
+            referencedRelation: "households";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      households: {
+        Row: {
+          id: string;
+          created_at: string;
+          name: string | null;
+          address: string | null;
+          city: string | null;
+          state: string | null;
+          zip_code: string | null;
+          status: string | null;
+          user_id: string | null;
+        };
+        Insert: {
+          id?: string;
+          created_at?: string;
+          name?: string | null;
+          address?: string | null;
+          city?: string | null;
+          state?: string | null;
+          zip_code?: string | null;
+          status?: string | null;
+          user_id?: string | null;
+        };
+        Update: {
+          id?: string;
+          created_at?: string;
+          name?: string | null;
+          address?: string | null;
+          city?: string | null;
+          state?: string | null;
+          zip_code?: string | null;
+          status?: string | null;
+          user_id?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "households_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      incidents: {
+        Row: {
+          id: string;
+          created_at: string;
+          child_id: string;
+          reported_by: string | null;
+          description: string;
+          severity: string;
+          status: string;
+          resolution: string | null;
+          event_id: string | null;
+        };
+        Insert: {
+          id?: string;
+          created_at?: string;
+          child_id: string;
+          reported_by?: string | null;
+          description: string;
+          severity: string;
+          status?: string;
+          resolution?: string | null;
+          event_id?: string | null;
+        };
+        Update: {
+          id?: string;
+          created_at?: string;
+          child_id?: string;
+          reported_by?: string | null;
+          description?: string;
+          severity?: string;
+          status?: string;
+          resolution?: string | null;
+          event_id?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "incidents_child_id_fkey";
+            columns: ["child_id"];
+            isOneToOne: false;
+            referencedRelation: "children";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "incidents_event_id_fkey";
+            columns: ["event_id"];
+            isOneToOne: false;
+            referencedRelation: "events";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      ministries: {
+        Row: {
+          id: string;
+          created_at: string;
+          name: string;
+          description: string | null;
+          leader_id: string | null;
+          age_range_min: number | null;
+          age_range_max: number | null;
+          status: string | null;
+        };
+        Insert: {
+          id?: string;
+          created_at?: string;
+          name: string;
+          description?: string | null;
+          leader_id?: string | null;
+          age_range_min?: number | null;
+          age_range_max?: number | null;
+          status?: string | null;
+        };
+        Update: {
+          id?: string;
+          created_at?: string;
+          name?: string;
+          description?: string | null;
+          leader_id?: string | null;
+          age_range_min?: number | null;
+          age_range_max?: number | null;
+          status?: string | null;
+        };
+        Relationships: [];
+      };
+      registrations: {
+        Row: {
+          id: string;
+          created_at: string;
+          child_id: string;
+          ministry_id: string;
+          registration_date: string;
+          status: string;
+        };
+        Insert: {
+          id?: string;
+          created_at?: string;
+          child_id: string;
+          ministry_id: string;
+          registration_date?: string;
+          status?: string;
+        };
+        Update: {
+          id?: string;
+          created_at?: string;
+          child_id?: string;
+          ministry_id?: string;
+          registration_date?: string;
+          status?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "registrations_child_id_fkey";
+            columns: ["child_id"];
+            isOneToOne: false;
+            referencedRelation: "children";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "registrations_ministry_id_fkey";
+            columns: ["ministry_id"];
+            isOneToOne: false;
+            referencedRelation: "ministries";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      scripture_memorization: {
+        Row: {
+          id: string;
+          created_at: string;
+          child_id: string;
+          scripture_id: string;
+          memorized_date: string | null;
+          verified_by: string | null;
+          status: string;
+        };
+        Insert: {
+          id?: string;
+          created_at?: string;
+          child_id: string;
+          scripture_id: string;
+          memorized_date?: string | null;
+          verified_by?: string | null;
+          status?: string;
+        };
+        Update: {
+          id?: string;
+          created_at?: string;
+          child_id?: string;
+          scripture_id?: string;
+          memorized_date?: string | null;
+          verified_by?: string | null;
+          status?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "scripture_memorization_child_id_fkey";
+            columns: ["child_id"];
+            isOneToOne: false;
+            referencedRelation: "children";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "scripture_memorization_scripture_id_fkey";
+            columns: ["scripture_id"];
+            isOneToOne: false;
+            referencedRelation: "scriptures";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      scriptures: {
+        Row: {
+          id: string;
+          created_at: string;
+          reference: string;
+          text: string;
+          translation: string | null;
+          difficulty_level: number | null;
+          status: string | null;
+          category: string | null;
+          points: number | null;
+        };
+        Insert: {
+          id?: string;
+          created_at?: string;
+          reference: string;
+          text: string;
+          translation?: string | null;
+          difficulty_level?: number | null;
+          status?: string | null;
+          category?: string | null;
+          points?: number | null;
+        };
+        Update: {
+          id?: string;
+          created_at?: string;
+          reference?: string;
+          text?: string;
+          translation?: string | null;
+          difficulty_level?: number | null;
+          status?: string | null;
+          category?: string | null;
+          points?: number | null;
+        };
+        Relationships: [];
+      };
+    };
+    Views: {
+      [_ in never]: never;
+    };
+    Functions: {
+      [_ in never]: never;
+    };
+    Enums: {
+      [_ in never]: never;
+    };
+    CompositeTypes: {
+      [_ in never]: never;
+    };
+  };
+}
+
+export type SupabaseJson = any;
+`;
+
+	fs.writeFileSync(TYPES_FILE, typedMockTypes);
+	console.log(`✅ Created comprehensive mock types: ${TYPES_FILE}`);
+	console.log('📖 These mock types contain common tables and fields to unblock development.');
+	console.log('   They can be replaced when actual schema generation is available.');
+}
+
 // Create a fallback types file if CLI is not available
 function createFallbackTypes() {
 	const fallbackTypes =
@@ -116,6 +601,14 @@ function main() {
 		console.log(
 			`🔎 Using Supabase CLI at: ${supabasePath} (detected: ${cliLocation.type})`
 		);
+		
+		// Check if this is a test run to generate mock types
+		const generateMockTypes = args.includes('--mock');
+		if (generateMockTypes) {
+			console.log('📦 Generating mock types instead of trying CLI...');
+			createTypedMockFile();
+			return;
+		}
 
 		let command;
 		if (useLocal) {
@@ -145,8 +638,9 @@ function main() {
 		const processedTypes =
 			HEADER +
 			types
-				// Add any custom processing here if needed
-				.replace(/export type Json/, 'export type SupabaseJson');
+				// Replace all instances of Json with SupabaseJson to avoid conflicts
+				.replace(/export type Json/, 'export type SupabaseJson')
+				.replace(/\bJson\b/g, 'SupabaseJson');
 		// Add more replacements as needed
 
 		fs.writeFileSync(TYPES_FILE, processedTypes);

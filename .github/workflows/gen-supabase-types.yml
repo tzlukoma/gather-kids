@@ -41,19 +41,19 @@ jobs:
           echo "Downloading specific compatible version 1.52.2"
           mkdir -p "$HOME/.bin"
           curl -sSL --retry 3 --retry-delay 2 -o /tmp/supabase_1_52_2.tar.gz "$SUPABASE_URL"
-          
+
           echo "Downloaded file info:"
           file /tmp/supabase_1_52_2.tar.gz || true
-          
+
           echo "Extracting to $HOME/.bin"
           tar -xzf /tmp/supabase_1_52_2.tar.gz -C "$HOME/.bin"
 
           chmod +x "$HOME/.bin/supabase"
           echo "$HOME/.bin" >> $GITHUB_PATH
-          
+
           echo "Supabase CLI version:"
           "$HOME/.bin/supabase" --version
-          
+
           # Try generating types with a simple approach first
           echo "Attempting to generate types using local generation"
           if "$HOME/.bin/supabase" gen types typescript --local --schema public; then
