@@ -27,31 +27,32 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Install Supabase CLI
-        id: install-supabase
-        run: |
-          set -euo pipefail
-          # Create bin directory in home if it doesn't exist
-          mkdir -p "$HOME/.bin"
-
-          # Download the latest version for Linux and extract to $HOME/.bin
-          curl -s -L https://github.com/supabase/cli/releases/latest/download/supabase_linux_amd64.tar.gz | tar -xz -C "$HOME/.bin"
-
-          # Make it executable
-          chmod +x "$HOME/.bin/supabase"
-
-          # Add to PATH for subsequent steps
-          export PATH="$HOME/.bin:$PATH"
-          echo "$HOME/.bin" >> $GITHUB_PATH
-
-      - name: Generate types using Supabase CLI
+      - name: Install supabase CLI and generate types
         id: gen
         run: |
           set -euo pipefail
-          echo "Using supabase binary at: $(which supabase || echo 'not found')"
-          supabase --version || true
+          echo "Installing Supabase CLI via official installer"
+          curl -fsSL --retry 3 --retry-delay 2 https://raw.githubusercontent.com/supabase/cli/main/install.sh -o /tmp/install_supabase.sh
+          chmod +x /tmp/install_supabase.sh
+          # Install (the installer places the binary in ~/.supabase/bin or /usr/local/bin)
+          /tmp/install_supabase.sh --yes || true
+
+          # Find the installed binary
+          if command -v supabase >/dev/null 2>&1; then
+            SUPABASE_BIN=$(command -v supabase)
+          elif [ -x "$HOME/.supabase/bin/supabase" ]; then
+            SUPABASE_BIN="$HOME/.supabase/bin/supabase"
+          elif [ -x "/usr/local/bin/supabase" ]; then
+            SUPABASE_BIN="/usr/local/bin/supabase"
+          else
+            echo "supabase CLI not found after install" >&2
+            exit 2
+          fi
+
+          echo "Using supabase binary: $SUPABASE_BIN"
+          $SUPABASE_BIN --version || true
           echo "Running supabase gen types typescript --local"
-          supabase gen types typescript --local
+          $SUPABASE_BIN gen types typescript --local
 
       - name: Ensure generated file exists
         run: |
