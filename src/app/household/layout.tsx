@@ -105,6 +105,15 @@ function HouseholdLayoutContent({ children }: { children: React.ReactNode }) {
 			: []),
 	];
 
+	function renderIcon(Icon: any) {
+		if (React.isValidElement(Icon)) return Icon;
+		if (typeof Icon === 'function') {
+			const C = Icon as React.ComponentType<{ className?: string }>;
+			return <C className="w-4 h-4" />;
+		}
+		return Icon ?? null;
+	}
+
 	if (!user) return null;
 
 	return (
@@ -178,9 +187,7 @@ function HouseholdLayoutContent({ children }: { children: React.ReactNode }) {
 													(item.href === '/household/bible-bee' &&
 														pathname.startsWith('/household/bible-bee'))
 												}>
-												{React.createElement(item.icon as any, {
-													className: 'w-4 h-4',
-												})}
+												{renderIcon(item.icon)}
 												<span>{item.label}</span>
 											</SidebarMenuButton>
 										</Link>

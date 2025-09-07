@@ -335,8 +335,8 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			.select()
 			.single();
 
-		if (error) throw error;
-		return result as any;
+	if (error) throw error;
+	return result ? supabaseToGuardian(result as any) : result as any;
 	}
 
 	async updateGuardian(id: string, data: Partial<Guardian>): Promise<Guardian> {
@@ -350,8 +350,8 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			.select()
 			.single();
 
-		if (error) throw error;
-		return result as any;
+	if (error) throw error;
+	return result ? supabaseToGuardian(result as any) : result as any;
 	}
 
 	async listGuardians(householdId: string): Promise<Guardian[]> {
@@ -417,8 +417,8 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			.select()
 			.single();
 
-		if (error) throw error;
-		return result as any;
+	if (error) throw error;
+	return result ? supabaseToEmergencyContact(result as any) : result as any;
 	}
 
 	async updateEmergencyContact(
@@ -435,8 +435,8 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			.select()
 			.single();
 
-		if (error) throw error;
-		return result as any;
+	if (error) throw error;
+	return result ? supabaseToEmergencyContact(result as any) : result as any;
 	}
 
 	async listEmergencyContacts(householdId: string): Promise<EmergencyContact[]> {
@@ -479,7 +479,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			if (error.code === 'PGRST116') return null;
 			throw error;
 		}
-		return data as any;
+		return data ? this.mapRegistrationCycle(data as any) : null;
 	}
 
 	async createRegistrationCycle(
@@ -498,8 +498,8 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			.select()
 			.single();
 
-		if (error) throw error;
-		return result as any;
+	if (error) throw error;
+	return result ? this.mapRegistrationCycle(result as any) : result as any;
 	}
 
 	async updateRegistrationCycle(
@@ -516,8 +516,8 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			.select()
 			.single();
 
-		if (error) throw error;
-		return result as any;
+	if (error) throw error;
+	return result ? this.mapRegistrationCycle(result as any) : result as any;
 	}
 
 	async listRegistrationCycles(isActive?: boolean): Promise<RegistrationCycle[]> {
@@ -527,9 +527,9 @@ export class SupabaseAdapter implements DatabaseAdapter {
             query = query.eq('is_active', isActive);
         }
 
-        const { data, error } = await query as any;
-        if (error) throw error;
-        return (data || []).map((r: any) => this.mapRegistrationCycle(r));
+	const { data, error } = await query as any;
+	if (error) throw error;
+	return (data || []).map((r: any) => this.mapRegistrationCycle(r));
 	}
 
 	private mapRegistrationCycle(row: any): RegistrationCycle {

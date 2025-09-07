@@ -39,6 +39,13 @@ export function BibleBeeProgressList({
 	description,
 	showYearSelection = true,
 }: BibleBeeProgressListProps) {
+	// Helpers
+	function isActiveValue(v: unknown): boolean {
+		return v === true || v === 1 || String(v) === '1' || String(v) === 'true';
+	}
+	function getValue(v: unknown): string {
+		return typeof v === 'string' ? v : String(v ?? '');
+	}
 	const STORAGE_KEY = 'bb_progress_filters_v1';
 	const [rows, setRows] = useState<any[] | null>(null);
 	const [availableGradeGroups, setAvailableGradeGroups] = useState<string[]>(
@@ -101,10 +108,7 @@ export function BibleBeeProgressList({
 		if (bibleBeeYears && bibleBeeYears.length > 0) {
 			if (!initial?.selectedCycle && !initialCycle) {
 				// only default to a bible-bee-year when one is explicitly marked active
-				const active = bibleBeeYears.find((y: any) => {
-					const val: any = y?.is_active;
-					return val === true || val === 1 || String(val) === '1';
-				});
+				const active = bibleBeeYears.find((y: any) => isActiveValue(y?.is_active));
 				if (active && active.id) {
 					setSelectedCycle(String(active.id));
 				}
@@ -332,7 +336,9 @@ export function BibleBeeProgressList({
 							<div className="w-56">
 								<Select
 									value={filterGradeGroup}
-									onValueChange={(v: any) => setFilterGradeGroup(v as any)}>
+									onValueChange={(v: unknown) =>
+										setFilterGradeGroup(getValue(v) as unknown as string)
+									}>
 									<SelectTrigger>
 										<SelectValue>
 											{filterGradeGroup === 'all'
@@ -354,7 +360,13 @@ export function BibleBeeProgressList({
 							<div className="w-48">
 								<Select
 									value={sortBy}
-									onValueChange={(v: any) => setSortBy(v as any)}>
+									onValueChange={(v: unknown) =>
+										setSortBy(getValue(v) as unknown as
+											| 'name-asc'
+											| 'name-desc'
+											| 'progress-desc'
+											| 'progress-asc')
+									}>
 									<SelectTrigger>
 										<SelectValue>
 											{sortBy === 'name-asc' && 'Name (A → Z)'}
@@ -438,13 +450,9 @@ export function BibleBeeProgressList({
 					(y: any) => String(y.id) === String(selectedCycle)
 				);
 				let isPrior = false;
-				if (bb) {
-					const val: any = (bb as any)?.is_active;
-					const bbActive =
-						val === true ||
-						val === 1 ||
-						String(val) === '1' ||
-						String(val) === 'true';
+									if (bb) {
+					const val = bb?.is_active;
+					const bbActive = isActiveValue(val);
 					isPrior = !bbActive;
 				} else {
 					isPrior = latestYearStr !== String(selectedCycle);

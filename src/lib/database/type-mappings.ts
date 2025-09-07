@@ -172,9 +172,9 @@ export function registrationToCanonical(registration: DexieTypes.Registration): 
 		cycle_id: registration.cycle_id,
 		status: registration.status,
 		pre_registered_sunday_school: registration.pre_registered_sunday_school,
-		consents: registration.consents.map(consent => ({
+		consents: (registration.consents || []).map((consent: any) => ({
 			...consent,
-			type: consent.type === 'photoRelease' ? 'photo_release' : consent.type as any, // Convert to snake_case
+			type: consent.type === 'photoRelease' ? 'photo_release' : String(consent.type), // Convert to snake_case
 		})),
 		submitted_via: registration.submitted_via,
 		submitted_at: registration.submitted_at,
@@ -189,9 +189,9 @@ export function canonicalToRegistration(canonical: CanonicalDtos.RegistrationWri
 		cycle_id: canonical.cycle_id,
 		status: canonical.status || 'active',
 		pre_registered_sunday_school: canonical.pre_registered_sunday_school !== undefined ? canonical.pre_registered_sunday_school : true,
-		consents: canonical.consents.map(consent => ({
+		consents: (canonical.consents || []).map((consent: any) => ({
 			...consent,
-			type: consent.type === 'photo_release' ? 'photoRelease' : consent.type as any, // Convert to camelCase for legacy
+			type: consent.type === 'photo_release' ? 'photoRelease' : String(consent.type), // Convert to camelCase for legacy
 		})),
 		submitted_via: canonical.submitted_via || 'web',
 		submitted_at: new Date().toISOString(),
@@ -213,11 +213,20 @@ export type SupabaseHousehold =
 export function supabaseToHousehold(
 	record: SupabaseHousehold
 ): HouseholdEntity {
+	// Emit a warning when legacy/camelCase fields or null addresses are present
+	const r = record as unknown as Record<string, unknown>;
+	try {
+		if ((r.preferredScriptureTranslation as any) !== undefined || record.address_line1 === null || record.address_line2 === null) {
+			console.warn('supabaseToHousehold: detected legacy/camelCase or null address fields');
+		}
+	} catch (e) {
+		/* ignore */
+	}
 	return {
 		household_id: record.household_id || '',
 		name: record.name ?? undefined,
 		// accept either snake_case (new generated types) or legacy camelCase
-		preferredScriptureTranslation: (record as any).preferred_scripture_translation ?? (record as any).preferredScriptureTranslation ?? undefined,
+	preferredScriptureTranslation: (record as unknown as any).preferred_scripture_translation ?? (r.preferredScriptureTranslation as string | undefined) ?? undefined,
 	// coerce null -> empty string for address fields to satisfy callers expecting string
 	address_line1: record.address_line1 ?? '' ,
 	address_line2: record.address_line2 ?? '' ,
@@ -241,7 +250,7 @@ export function householdToSupabase(
 		city: household.city,
 		state: household.state,
 		zip: household.zip,
-	} as any; // Using any for fallback types
+	} as unknown as Omit<SupabaseHousehold, 'created_at' | 'updated_at'>;
 }
 
 // =====================================
@@ -257,6 +266,13 @@ export type SupabaseChild =
 
 // Child conversions
 export function supabaseToChild(record: SupabaseChild): ChildEntity {
+	// Warn when null dob is encountered (legacy data issue)
+	const rChild = record as unknown as Record<string, any>;
+	try {
+		if (rChild.dob === null) console.warn('supabaseToChild: null dob encountered');
+	} catch (e) {
+		/* ignore */
+	}
 	return {
 		child_id: record.child_id || '',
 	household_id: record.household_id ?? '',
@@ -272,7 +288,7 @@ export function supabaseToChild(record: SupabaseChild): ChildEntity {
 	is_active: record.is_active ?? true,
 	created_at: record.created_at ?? new Date().toISOString(),
 	updated_at: record.updated_at ?? new Date().toISOString(),
-	photo_url: (record as any).photo_url ?? (record as any).photoUrl ?? undefined,
+	photo_url: rChild.photo_url ?? rChild.photoUrl ?? undefined,
 	};
 }
 
@@ -315,7 +331,8 @@ export function supabaseToIncident(row: Database['public']['Tables']['incidents'
 // Events mapping - parse timeslots JSON to EventTimeslot[]
 export function supabaseToEvent(row: Database['public']['Tables']['events']['Row'] | any): Event {
 	// Parse timeslots using the helper so we always return typed EventTimeslot[]
-	const timeslots = parseEventTimeslots((row as any).timeslots);
+	const rEvent = row as unknown as Record<string, any>;
+	const timeslots = parseEventTimeslots(rEvent.timeslots);
 	return {
 		event_id: row.event_id,
 		name: row.name || '',
@@ -341,7 +358,7 @@ export function parseConsents(value: any): Consent[] {
 	try {
 		if (!value) return [];
 		const raw = typeof value === 'string' ? JSON.parse(value) : value;
-		return (raw as any[]).map((c: any) => ({
+		return (raw as unknown as any[]).map((c: any) => ({
 			...c,
 			// normalize to domain type 'photoRelease'
 			type: c.type === 'photo_release' ? 'photoRelease' : c.type,
@@ -560,6 +577,14 @@ export type SupabaseMinistry =
 // Ministry conversions
 export function supabaseToMinistry(record: SupabaseMinistry): MinistryEntity {
 	const r: any = record;
+	// Warn when legacy camelCase ministry fields are present
+	try {
+		if (r.enrollmentType !== undefined || r.dataProfile !== undefined || r.ministry_code !== undefined || r.label !== undefined) {
+			console.warn('supabaseToMinistry: detected legacy/camelCase ministry fields');
+		}
+	} catch (e) {
+		/* ignore */
+	}
 	return {
 		ministry_id: r.ministry_id || '',
 		// tolerate optional code and data profile which may be present in generated types
@@ -598,10 +623,10 @@ export function supabaseToMinistryEnrollment(
 		child_id: record.child_id ?? '',
 		cycle_id: record.cycle_id ?? '',
 		ministry_id: record.ministry_id ?? '',
-		status: (record.status as any) ?? 'enrolled',
-	custom_fields: parseCustomFields(record.custom_fields),
+		status: (record.status as unknown as string) ?? 'enrolled',
+		custom_fields: parseCustomFields(record.custom_fields),
 		notes: undefined,
-	} as any;
+	} as unknown as DexieTypes.MinistryEnrollment;
 }
 
 export function ministryEnrollmentToSupabase(
@@ -613,8 +638,8 @@ export function ministryEnrollmentToSupabase(
 		cycle_id: enrollment.cycle_id,
 		ministry_id: enrollment.ministry_id,
 		status: enrollment.status,
-		custom_fields: enrollment.custom_fields as any,
-	} as any;
+		custom_fields: serializeIfObject(enrollment.custom_fields) as unknown as SupabaseMinistryEnrollment['custom_fields'],
+	} as unknown as Omit<SupabaseMinistryEnrollment, 'created_at'>;
 }
 
 export function ministryToSupabase(
@@ -630,8 +655,8 @@ export function ministryToSupabase(
 		max_grade: ministry.max_grade,
 		is_active: ministry.is_active,
 		enrollment_type: ministry.enrollment_type,
-		custom_questions: ministry.custom_questions,
-	} as any; // Using any for fallback types
+		custom_questions: serializeIfObject(ministry.custom_questions) as unknown as SupabaseMinistry['custom_questions'],
+	} as unknown as Omit<SupabaseMinistry, 'created_at' | 'updated_at'>;
 }
 
 // =====================================
@@ -649,6 +674,14 @@ export type SupabaseBrandingSettings =
 export function supabaseToBrandingSettings(
 	record: SupabaseBrandingSettings
 ): BrandingSettingsEntity {
+	// Warn when camelCase branding fields are present
+	try {
+		if ((record as any).primaryColor !== undefined || (record as any).secondaryColor !== undefined || (record as any).logoUrl !== undefined || (record as any).orgName !== undefined) {
+			console.warn('supabaseToBrandingSettings: detected camelCase branding fields');
+		}
+	} catch (e) {
+		/* ignore */
+	}
 	return ({
 		setting_id: record.setting_id || '',
 		org_id: record.org_id,
@@ -716,12 +749,12 @@ export function supabaseToRegistration(record: SupabaseRegistration): DexieTypes
 		registration_id: record.registration_id || '',
 		child_id: record.child_id ?? '',
 		cycle_id: record.cycle_id ?? '',
-		status: (record.status as any) ?? 'active',
+		status: (record.status as unknown as string) ?? 'active',
 		pre_registered_sunday_school: record.pre_registered_sunday_school ?? false,
-		consents: parseConsents((record as any).consents),
-		submitted_via: (record.submitted_via as any) ?? 'web',
+		consents: parseConsents((record as unknown as any).consents),
+		submitted_via: (record.submitted_via as unknown as string) ?? 'web',
 		submitted_at: record.submitted_at ?? new Date().toISOString(),
-	} as any;
+	} as unknown as DexieTypes.Registration;
 }
 
 export function registrationToSupabase(reg: Partial<DexieTypes.Registration>): any {
@@ -731,10 +764,10 @@ export function registrationToSupabase(reg: Partial<DexieTypes.Registration>): a
 		cycle_id: reg.cycle_id,
 		status: reg.status,
 		pre_registered_sunday_school: reg.pre_registered_sunday_school,
-		consents: reg.consents as any,
+		consents: serializeIfObject(reg.consents) as unknown as SupabaseRegistration['consents'],
 		submitted_via: reg.submitted_via,
 		submitted_at: reg.submitted_at,
-	} as any;
+	} as unknown as Partial<SupabaseRegistration>;
 }
 
 export function brandingSettingsToSupabase(
@@ -743,11 +776,11 @@ export function brandingSettingsToSupabase(
 	return {
 	setting_id: settings.setting_id,
 	org_id: settings.org_id,
-	primary_color: (settings as any).primary_color ?? (settings as any).primaryColor ?? undefined,
-	secondary_color: (settings as any).secondary_color ?? (settings as any).secondaryColor ?? undefined,
-	logo_url: (settings as any).logo_url ?? (settings as any).logoUrl ?? undefined,
-	org_name: (settings as any).org_name ?? (settings as any).orgName ?? undefined,
-	} as any; // Using any for fallback types
+	primary_color: (settings as unknown as any).primary_color ?? (settings as unknown as any).primaryColor ?? undefined,
+	secondary_color: (settings as unknown as any).secondary_color ?? (settings as unknown as any).secondaryColor ?? undefined,
+	logo_url: (settings as unknown as any).logo_url ?? (settings as unknown as any).logoUrl ?? undefined,
+	org_name: (settings as unknown as any).org_name ?? (settings as unknown as any).orgName ?? undefined,
+	} as unknown as Omit<SupabaseBrandingSettings, 'created_at' | 'updated_at'>;
 }
 
 // =====================================

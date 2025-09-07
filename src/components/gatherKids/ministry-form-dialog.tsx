@@ -169,9 +169,25 @@ export function MinistryFormDialog({
 			}
 
 			const { email, ...ministryData } = data;
+
+			function toDbMinistryPayload(md: Partial<MinistryFormValues>) {
+				return {
+					name: md.name || '',
+					code: md.code || '',
+					enrollment_type:
+						(md.enrollment_type as 'enrolled' | 'expressed_interest') ||
+						'enrolled',
+					is_active: md.is_active ?? true,
+					open_at: md.open_at ?? undefined,
+					close_at: md.close_at ?? undefined,
+					description: md.description ?? undefined,
+					details: md.details ?? undefined,
+					custom_questions: md.custom_questions ?? [],
+				};
+			}
 			
 			if (ministry) {
-				await updateMinistry(ministry.ministry_id, ministryData as any);
+				await updateMinistry(ministry.ministry_id, toDbMinistryPayload(ministryData));
 				
 				// Handle ministry account email
 				if (email && email.trim()) {
@@ -188,7 +204,7 @@ export function MinistryFormDialog({
 					description: 'The ministry has been successfully updated.',
 				});
 			} else {
-				const ministryId = await createMinistry(ministryData as any);
+				const ministryId = await createMinistry(toDbMinistryPayload(ministryData));
 				
 				// Handle ministry account email for new ministry
 				if (email && email.trim()) {

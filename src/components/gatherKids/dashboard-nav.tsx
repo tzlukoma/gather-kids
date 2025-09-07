@@ -39,6 +39,22 @@ export function DashboardNav({ children }: DashboardNavProps) {
 	const router = useRouter();
 	const { user, userRole, logout } = useAuth();
 
+	// Small helper to safely render icons stored as either a component or node
+	function renderIcon(
+		Icon: React.ComponentType<{ className?: string }> | React.ReactNode
+	) {
+		if (typeof Icon === 'function') {
+			const C = Icon as React.ComponentType<{ className?: string }>;
+			return <C className="w-4 h-4" />;
+		}
+		return Icon;
+	}
+
+	// Helper to extract user id from possible shapes
+	function getUserId(u: any): string | undefined {
+		return u?.uid || u?.id || u?.user_id;
+	}
+
 	const handleLogout = async () => {
 		// Handle Supabase logout if not in demo mode
 		if (!isDemo()) {
@@ -70,9 +86,7 @@ export function DashboardNav({ children }: DashboardNavProps) {
 				return;
 			if (userRole === AuthRole.MINISTRY_LEADER) {
 				try {
-					const leaderId = (user.uid || user.id || (user as any).user_id) as
-						| string
-						| undefined;
+					const leaderId = getUserId(user) as string | undefined;
 					if (!leaderId) return;
 					const dbAssignments = await getLeaderAssignmentsForCycle(
 						leaderId,
@@ -160,11 +174,7 @@ export function DashboardNav({ children }: DashboardNavProps) {
 											<Link
 												href={item.href}
 												className="flex items-center gap-2">
-												{typeof Icon === 'function'
-													? React.createElement(Icon as any, {
-															className: 'w-4 h-4',
-													  })
-													: Icon}
+												{renderIcon(Icon)}
 												<span>{item.label}</span>
 											</Link>
 										</SidebarMenuButton>

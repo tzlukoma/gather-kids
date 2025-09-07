@@ -32,6 +32,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 	const [userRole, setUserRole] = useState<AuthRole | null>(null);
 	const [isVercelPreview, setIsVercelPreview] = useState<boolean>(false);
 
+	// Helper to extract a user id from various shapes that may appear in demo/legacy data
+	function getUserId(u: any): string | undefined {
+		return u?.uid || u?.id || u?.user_id;
+	}
+
 	useEffect(() => {
 		// Check if we're in a Vercel preview environment
 		if (typeof window !== 'undefined') {
@@ -70,9 +75,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 						};
 
 						if (finalUser.metadata.role === AuthRole.MINISTRY_LEADER) {
-							const leaderId = (storedUser.uid ||
-								storedUser.id ||
-								(storedUser as any).user_id) as string | undefined;
+							const leaderId = getUserId(storedUser);
 							if (leaderId) {
 								const assignments = await getLeaderAssignmentsForCycle(
 									leaderId,
@@ -123,8 +126,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 						};
 
 						if (finalUser.metadata.role === AuthRole.MINISTRY_LEADER) {
-							const leaderId =
-								finalUser.uid || finalUser.id || (finalUser as any).user_id;
+							const leaderId = getUserId(finalUser);
 							if (typeof leaderId === 'string' && leaderId.length > 0) {
 								const assignments = await getLeaderAssignmentsForCycle(
 									leaderId,
@@ -247,8 +249,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 					};
 
 					if (finalUser.metadata.role === AuthRole.MINISTRY_LEADER) {
-						const leaderId =
-							finalUser.uid || finalUser.id || (finalUser as any).user_id;
+						const leaderId = getUserId(finalUser);
 						if (typeof leaderId === 'string' && leaderId.length > 0) {
 							const assignments = await getLeaderAssignmentsForCycle(
 								leaderId,
@@ -282,8 +283,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 			const finalUser: BaseUser = {
 				...userData,
 				// Ensure we have both uid and id properties for compatibility
-				uid: userData.uid || userData.id || (userData as any).user_id,
-				id: userData.id || userData.uid || (userData as any).user_id,
+				uid: getUserId(userData) || userData.uid || userData.id,
+				id: getUserId(userData) || userData.id || userData.uid,
 				// preserve is_active if provided by userData (seed/login), default to true
 				is_active:
 					typeof userData.is_active === 'boolean' ? userData.is_active : true,
@@ -299,9 +300,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 			);
 
 			if (finalUser.metadata.role === AuthRole.MINISTRY_LEADER) {
-				const leaderId = (userData.uid ||
-					userData.id ||
-					(userData as any).user_id) as string | undefined;
+				const leaderId = getUserId(userData) as string | undefined;
 				if (leaderId) {
 					const assignments = await getLeaderAssignmentsForCycle(
 						leaderId,

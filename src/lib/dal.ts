@@ -32,6 +32,21 @@ function shouldUseAdapter(): boolean {
     return !isDemo(); // Use adapter (Supabase) when not in demo mode
 }
 
+// Small helper to coerce various DB representations of "active" into a boolean.
+function isActiveValue(v: unknown): boolean {
+    return v === true || v === 1 || String(v) === '1' || String(v) === 'true';
+}
+
+// Extract a user id from common shapes used across codepaths (supabase user, legacy user objects)
+function extractUserId(user: any): string | undefined {
+    return user?.uid || user?.id || user?.user_id;
+}
+
+// Wrapper to call the Dexie transaction API when multiple table args are used.
+function runDexieTransaction(...args: any[]) {
+    return (db as any).transaction(...args);
+}
+
 // Utility Functions
 export const getTodayIsoDate = () => new Date().toISOString().split('T')[0];
 
@@ -739,7 +754,7 @@ export async function registerHousehold(data: any, cycle_id: string, isPrefill: 
         });
     } else {
         // Use legacy Dexie interface for demo mode
-        await (db as any).transaction('rw', db.households, db.guardians, db.emergency_contacts, db.children, db.registrations, db.ministry_enrollments, db.ministries, async () => {
+    await runDexieTransaction('rw', db.households, db.guardians, db.emergency_contacts, db.children, db.registrations, db.ministry_enrollments, db.ministries, async () => {
 
         // This block handles overwriting an existing registration for the *current* cycle.
         // It should NOT run for a pre-fill from a previous year.
@@ -1436,7 +1451,7 @@ export async function saveLeaderAssignments(leaderId: string, cycleId: string, n
         });
     } else {
         // Use legacy Dexie interface for demo mode
-        return (db as any).transaction('rw', db.leader_assignments, async () => {
+    return runDexieTransaction('rw', db.leader_assignments, async () => {
             // Delete old assignments for this leader and cycle
             await db.leader_assignments.where({ leader_id: leaderId, cycle_id: cycleId }).delete();
 
@@ -1588,11 +1603,10 @@ export async function canLeaderManageBibleBee(opts: { leaderId?: string; email?:
         try {
             const bb = await db.bible_bee_years.get(selectedCycle);
             if (bb) {
-                const allCycles = await db.registration_cycles.toArray();
-                const active = allCycles.find((c: any) => {
-                    const val: any = (c as any)?.is_active;
-                    return val === true || val === 1 || String(val) === '1';
-                });
+                    const allCycles = await db.registration_cycles.toArray();
+                    const active = allCycles.find((c: any) => {
+                        return isActiveValue((c as any)?.is_active);
+                    });
                 if (active && active.cycle_id) effectiveCycle = active.cycle_id;
             }
         } catch (err) {
@@ -1603,19 +1617,19 @@ export async function canLeaderManageBibleBee(opts: { leaderId?: string; email?:
     // 1) Legacy leader_assignments check
     if (leaderId && effectiveCycle) {
         const assignments = await db.leader_assignments.where({ leader_id: leaderId, cycle_id: effectiveCycle }).toArray();
-        if (assignments.some((a: any) => (a as any).ministry_id === 'bible-bee' && (a as any).role === 'Primary')) return true;
+    if (assignments.some((a: any) => a.ministry_id === 'bible-bee' && a.role === 'Primary')) return true;
     }
 
     // 2) New management system: ministry_leader_memberships
     if (leaderId) {
-        const memberships = await db.ministry_leader_memberships.where('leader_id').equals(leaderId).toArray();
-        if (memberships.some((m: any) => (m.ministry_id === 'bible-bee') && m.is_active)) return true;
+    const memberships = await db.ministry_leader_memberships.where('leader_id').equals(leaderId).toArray();
+    if (memberships.some((m: any) => (m.ministry_id === 'bible-bee') && isActiveValue(m.is_active))) return true;
     }
 
     // 3) Demo/email-based mapping: ministry_accounts
     if (email) {
-        const accounts = await db.ministry_accounts.where('email').equals(String(email)).toArray();
-        if (accounts.some((a: any) => a.ministry_id === 'bible-bee')) return true;
+    const accounts = await db.ministry_accounts.where('email').equals(String(email)).toArray();
+    if (accounts.some((a: any) => a.ministry_id === 'bible-bee')) return true;
     }
 
     return false;
@@ -2373,9 +2387,10 @@ export async function getScripturesForBibleBeeYear(yearId: string): Promise<any[
 		return [];
 	} else {
 		// Use legacy Dexie interface for demo mode
-		if (db && 'scriptures' in db) {
-			return (db as any).scriptures?.where('year_id')?.equals(yearId)?.toArray() || [];
-		}
+        if (db && 'scriptures' in db) {
+            // scriptures is an optional legacy table; use a safe any access only here
+            return (db as any).scriptures?.where('year_id')?.equals(yearId)?.toArray() || [];
+        }
 		return [];
 	}
 }
@@ -2389,9 +2404,9 @@ export async function getScripturesForCompetitionYear(competitionYearId: string)
 		return [];
 	} else {
 		// Use legacy Dexie interface for demo mode
-		if (db && 'scriptures' in db) {
-			return (db as any).scriptures?.where('competitionYearId')?.equals(competitionYearId)?.toArray() || [];
-		}
+        if (db && 'scriptures' in db) {
+            return (db as any).scriptures?.where('competitionYearId')?.equals(competitionYearId)?.toArray() || [];
+        }
 		return [];
 	}
 }
@@ -2419,11 +2434,9 @@ export async function getRegistrationCycles(isActive?: boolean): Promise<Registr
 	} else {
 		// Use legacy Dexie interface for demo mode
 		if (isActive !== undefined) {
-			return db.registration_cycles.filter(c => {
-				const val = (c as any)?.is_active;
-				const isActiveValue = val === true || val === 1 || String(val) === '1';
-				return isActiveValue === isActive;
-			}).toArray();
+            return db.registration_cycles.filter(c => {
+                return isActiveValue((c as any)?.is_active) === isActive;
+            }).toArray();
 		}
 		return db.registration_cycles.toArray();
 	}
@@ -2559,7 +2572,7 @@ export async function getIncidentsForUser(user: any): Promise<Incident[]> {
 		
 		if (user?.metadata?.role === AuthRole.MINISTRY_LEADER) {
 			// Always restrict leaders to incidents they logged
-			const leaderId = (user.uid || user.id || (user as any).user_id) as string;
+            const leaderId = (extractUserId(user) as string);
 			return allIncidents.filter(incident => incident.leader_id === leaderId);
 		}
 		
@@ -2568,7 +2581,7 @@ export async function getIncidentsForUser(user: any): Promise<Incident[]> {
 		// Use legacy Dexie interface for demo mode
 		if (user?.metadata?.role === AuthRole.MINISTRY_LEADER) {
 			// Always restrict leaders to incidents they logged
-			const leaderId = (user.uid || user.id || (user as any).user_id) as string;
+            const leaderId = (extractUserId(user) as string);
 			return db.incidents
 				.where('leader_id')
 				.equals(leaderId)

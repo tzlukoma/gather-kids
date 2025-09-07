@@ -194,13 +194,14 @@ export default function BibleBeePage() {
 		}
 		if (user?.metadata?.role === AuthRole.MINISTRY_LEADER) {
 			(async () => {
-				const uid =
-					(user as any).id ||
-					(user as any).uid ||
-					(user as any).user_id ||
-					(user as any).userId;
-				const email =
-					(user as any).email || (user as any).user_email || (user as any).mail;
+				function extractUserInfo(u: any) {
+					return {
+						id:
+							u?.id || u?.uid || u?.user_id || u?.userId || null,
+						email: u?.email || u?.user_email || u?.mail || null,
+					};
+				}
+				const { id: uid, email } = extractUserInfo(user);
 				if (!uid && !email) return;
 				const can = await canLeaderManageBibleBee({
 					leaderId: uid,

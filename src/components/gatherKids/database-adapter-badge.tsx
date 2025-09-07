@@ -10,13 +10,13 @@ export function DatabaseAdapterBadge() {
 	const [flagValue, setFlagValue] = useState<string>('Loading...');
 
 	useEffect(() => {
-		// Get the actual adapter type
-		const adapter = (db as any).constructor.name;
-		setAdapterType(adapter);
+		// Get the actual adapter type safely
+		const adapterName = db?.constructor?.name ?? 'Unknown';
+		setAdapterType(adapterName);
 
 		// Get the database mode from feature flag
 		const flagMode = getFlag('DATABASE_MODE');
-		const mode = adapter.includes('Supabase') ? 'supabase' : 'indexeddb';
+		const mode = adapterName.includes('Supabase') ? 'supabase' : 'indexeddb';
 		setFlagValue(`${mode} (flag: ${flagMode || 'default'})`);
 	}, []);
 

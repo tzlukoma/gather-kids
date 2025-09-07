@@ -54,7 +54,7 @@ function MinistryTable({
 }: {
 	title: string;
 	description: string;
-	ministries: Ministry[];
+	ministries: (Ministry & { email?: string | null })[];
 	onEdit: (ministry: Ministry) => void;
 	onDelete: (ministryId: string) => void;
 }) {
@@ -84,7 +84,7 @@ function MinistryTable({
 									<Badge variant="outline">{m.code}</Badge>
 								</TableCell>
 								<TableCell className="text-muted-foreground">
-									{(m as any).email || '—'}
+									{m.email ?? '—'}
 								</TableCell>
 								<TableCell>
 									<Badge
