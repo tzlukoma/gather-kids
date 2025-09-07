@@ -12,6 +12,9 @@ export type SupabaseJson =
   | { [key: string]: Json | undefined }
   | Json[]
 
+// Backwards-compatible alias expected by generated output
+export type Json = SupabaseJson;
+
 export type Database = {
   graphql_public: {
     Tables: {
