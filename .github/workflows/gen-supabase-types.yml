@@ -72,8 +72,8 @@ jobs:
 
           echo "Using supabase binary from $HOME/.bin"
           $HOME/.bin/supabase --version || true
-          echo "Attempting local generation first (with --debug)"
-          if $HOME/.bin/supabase gen types typescript --local --debug; then
+          echo "Attempting local generation first (with --debug, --config-file /dev/null, and --linked)"
+          if $HOME/.bin/supabase gen types typescript --local --debug --config-file /dev/null --linked; then
             echo "Local generation succeeded"
           else
             echo "Local generation failed. Will attempt remote generation using SUPABASE_* secrets if available."
