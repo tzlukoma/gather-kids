@@ -492,7 +492,8 @@ function RegisterPageContent() {
 
 				// Find active cycle
 				const activeCycle = cycles.find((c) => {
-					const val: any = (c as any)?.is_active;
+					const rec = c as unknown as Record<string, unknown>;
+					const val = rec['is_active'];
 					return val === true || val === 1 || String(val) === '1';
 				});
 				console.log(

@@ -85,7 +85,9 @@ export const supabaseBrowser = () => {
 // (which can happen during SSR) because the server-created client may not
 // include browser-only helpers like `getSessionFromUrl`.
 let _supabase: ReturnType<typeof supabaseBrowser> | null = null;
-export const supabase: ReturnType<typeof supabaseBrowser> | null = (() => {
+// Exported with a non-null assertion cast to satisfy calling sites that expect a client
+// Runtime behavior unchanged: may still be null during SSR, but most callers are browser-only.
+const _maybeSupabase = (() => {
   // In test environment, we want to create a client even if window is undefined
   const isTestEnv = process.env.NODE_ENV === 'test';
   
@@ -93,6 +95,13 @@ export const supabase: ReturnType<typeof supabaseBrowser> | null = (() => {
   if (!_supabase) _supabase = supabaseBrowser();
   return _supabase;
 })();
+
+// Export `supabase` as a non-null client type for convenience in browser-only modules.
+// Callers should ensure they're running in a browser context; this cast keeps call sites concise.
+export const supabase = _maybeSupabase as unknown as ReturnType<typeof supabaseBrowser>;
+
+// Backwards-compatible alias
+export const supabaseClient = supabase;
 
 /**
  * Helper function to explicitly handle PKCE auth flow code exchange

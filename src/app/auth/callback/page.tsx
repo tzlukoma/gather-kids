@@ -91,7 +91,7 @@ The authentication process is taking longer than expected. This can happen if:
 				}
 
 				// Try to use exchangeCodeForSession for PKCE flow, which is the modern approach
-				let data, authError;
+				let data: any, authError: any;
 
 				try {
 					// Extract the code from the URL

@@ -233,10 +233,17 @@ export async function registerHouseholdCanonical(data: any, cycle_id: string, is
           cycle_id: registrationData.cycle_id,
           status: registrationData.status,
           pre_registered_sunday_school: registrationData.pre_registered_sunday_school,
-          consents: registrationData.consents.map(consent => ({
-            ...consent,
-            type: consent.type === 'photo_release' ? 'photoRelease' as const : consent.type as any, // Convert back for legacy compatibility
-          })),
+          consents: registrationData.consents.map(consent => {
+            const rawType = consent.type as string;
+            const mappedType = rawType === 'photo_release' ? 'photoRelease' : rawType === 'liability' ? 'liability' : 'custom';
+            return { ...consent, type: mappedType } as unknown as {
+              type: 'photoRelease' | 'liability' | 'custom';
+              accepted_at: string | null;
+              signer_id: string;
+              signer_name: string;
+              text?: string;
+            };
+          }),
           submitted_at: now,
           submitted_via: registrationData.submitted_via,
         };

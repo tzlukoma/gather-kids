@@ -49,7 +49,8 @@ export async function upsertScripture(payload: Omit<Scripture, 'id' | 'createdAt
     const id = existingItem?.id ?? payload.id ?? crypto.randomUUID();
     
     // support legacy payload.alternateTexts but prefer payload.texts
-    const textsMap = (payload as any).texts ?? (payload as any).alternateTexts ?? undefined;
+    const _payload = payload as unknown as Record<string, unknown>;
+    const textsMap = (_payload['texts'] as Record<string, string> | undefined) ?? (_payload['alternateTexts'] as Record<string, string> | undefined) ?? undefined;
     
     // Use scripture_order as the unified sort field
     // If updating an existing item, preserve its scripture_order unless explicitly provided
@@ -74,7 +75,7 @@ export async function upsertScripture(payload: Omit<Scripture, 'id' | 'createdAt
     };
     
     // Remove any 'order' field if it exists to avoid confusion
-    const typedItem = item as any;
+    const typedItem = item as unknown as Record<string, unknown>;
     if (typedItem.order !== undefined) {
         delete typedItem.order;
     }
@@ -276,9 +277,13 @@ export async function enrollChildInBibleBee(childId: string, competitionYearId: 
             return { assigned: 0, error: 'No scriptures found for this year' };
         }
         
-        scriptures = scriptures.sort((a: any, b: any) => {
+        scriptures = scriptures.sort((a: Scripture, b: Scripture) => {
             // Prefer scripture_order as the primary field, then fall back to sortOrder
-            return Number(a.scripture_order ?? a.sortOrder ?? 0) - Number(b.scripture_order ?? b.sortOrder ?? 0);
+            const aRec = a as unknown as Record<string, unknown>;
+            const bRec = b as unknown as Record<string, unknown>;
+            const aOrder = Number(aRec['scripture_order'] ?? aRec['sortOrder'] ?? 0);
+            const bOrder = Number(bRec['scripture_order'] ?? bRec['sortOrder'] ?? 0);
+            return aOrder - bOrder;
         });
         
         const existing = await db.studentScriptures.where({ childId, competitionYearId }).toArray();
@@ -314,11 +319,15 @@ export async function enrollChildInBibleBee(childId: string, competitionYearId: 
 
         if (rule.type === 'scripture') {
             const scriptures = (await db.scriptures.where('competitionYearId').equals(competitionYearId).toArray())
-                .sort((a: any, b: any) => {
-                    // Prefer scripture_order as the primary field, then fall back to sortOrder
-                    // Explicitly ignore any 'order' field
-                    return Number(a.scripture_order ?? a.sortOrder ?? 0) - Number(b.scripture_order ?? b.sortOrder ?? 0);
-                });
+                        .sort((a: Scripture, b: Scripture) => {
+                            // Prefer scripture_order as the primary field, then fall back to sortOrder
+                            // Explicitly ignore any 'order' field
+                            const aRec = a as unknown as Record<string, unknown>;
+                            const bRec = b as unknown as Record<string, unknown>;
+                            const aOrder = Number(aRec['scripture_order'] ?? aRec['sortOrder'] ?? 0);
+                            const bOrder = Number(bRec['scripture_order'] ?? bRec['sortOrder'] ?? 0);
+                            return aOrder - bOrder;
+                        });
             const existing = await db.studentScriptures.where({ childId, competitionYearId }).toArray();
             const existingKeys = new Set(existing.map(s => s.scriptureId));
             const toInsert = scriptures

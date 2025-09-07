@@ -269,7 +269,7 @@ export function createSupabaseMock(): any {
 				})
 			};
 		},
-		storage: {
+	storage: {
 			from: (bucketName: string) => ({
 				upload: jest.fn().mockResolvedValue({
 					data: { path: 'test/path.jpg' },
@@ -289,18 +289,15 @@ export function createSupabaseMock(): any {
 			}),
 		},
 		auth: {
-			getUser: jest.fn().mockResolvedValue({
-				data: { user: { id: 'test-user-id' } },
-				error: null,
-			}),
+			getUser: async () => ({ data: { user: { id: 'test-user-id' } }, error: null }),
 		},
-		rpc: jest.fn().mockResolvedValue({ data: null, error: null }),
+	rpc: async () => ({ data: null, error: null }),
 		channel: (channelName: string) => ({
 			on: () => ({
-				subscribe: jest.fn().mockReturnValue(channelName),
+				subscribe: async () => channelName,
 			}),
 		}),
-		removeChannel: jest.fn().mockReturnValue(true),
+		removeChannel: () => true,
 	};
 
 	return mockClient as any;

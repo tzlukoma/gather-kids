@@ -109,7 +109,7 @@ const generateHouseholdsAndChildren = (): { households: Household[], children: C
         });
 
         let childCounter = 1;
-        for (const kid of family.kids) {
+            for (const kid of family.kids) {
             let birthMonth: number;
             do {
                 birthMonth = Math.floor(Math.random() * 12);
@@ -121,17 +121,17 @@ const generateHouseholdsAndChildren = (): { households: Household[], children: C
             const birthDay = Math.floor(Math.random() * 28) + 1; // 1-28 to be safe
             const dob = new Date(birthYear, birthMonth, birthDay);
 
-            const k = kid as any;
+            const kidInfo = kid as { age: number; allergies?: string; mobile?: string; inactive?: boolean };
             children.push({
                 child_id: `c_${householdId}_${childCounter++}`,
                 household_id: householdId,
                 first_name: kid.f,
                 last_name: family.lastName,
                 dob: formatISO(dob, { representation: 'date' }),
-                grade: getGradeFromAge(kid.age),
-                allergies: k.allergies,
-                child_mobile: k.mobile,
-                is_active: !k.inactive,
+                grade: getGradeFromAge(kidInfo.age),
+                allergies: kidInfo.allergies ?? undefined,
+                child_mobile: kidInfo.mobile ?? undefined,
+                is_active: !kidInfo.inactive,
                 special_needs: false,
                 created_at: now,
                 updated_at: now,
@@ -450,7 +450,7 @@ export const seedDB = async () => {
             await db.enrollments.bulkPut(bibleBeeEnrollments);
 
             // Create student scripture assignments for the Bible Bee enrolled children
-            const studentScripturesToInsert: any[] = [];
+            const studentScripturesToInsert: Array<{ id: string; childId: string; competitionYearId: string; scriptureId: string; status: 'assigned' | 'completed'; createdAt: string; updatedAt: string }> = [];
             
             for (let i = 0; i < bibleBeeEnrollments.length; i++) {
                 const enrollment = bibleBeeEnrollments[i];
@@ -463,8 +463,7 @@ export const seedDB = async () => {
                 
                 for (let scriptureIndex = 0; scriptureIndex < sampleScriptures.length; scriptureIndex++) {
                     const scripture = sampleScriptures[scriptureIndex];
-                    let status = 'assigned';
-                    
+                    let status: 'assigned' | 'completed' = 'assigned';
                     if (isComplete) {
                         status = 'completed';
                     } else if (isInProgress && scriptureIndex < 3) {
