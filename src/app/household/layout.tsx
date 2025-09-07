@@ -24,13 +24,7 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import {
-	Home,
-	Book,
-	User,
-	LogOut,
-	Settings,
-} from 'lucide-react';
+import { Home, Book, User, LogOut, Settings } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuth } from '@/contexts/auth-context';
 import { ProtectedRoute } from '@/components/auth/protected-route';
@@ -50,23 +44,34 @@ function HouseholdLayoutContent({ children }: { children: React.ReactNode }) {
 	useEffect(() => {
 		const checkBibleBeeEnrollment = async () => {
 			if (!user) return;
-			
+
 			// Try to get household_id from user metadata first
-			let targetHouseholdId = user.metadata?.household_id;
-			
-			// If not available, try to find it using user_households table
-			if (!targetHouseholdId && user.uid) {
-				const { getHouseholdForUser } = await import('@/lib/dal');
-				targetHouseholdId = await getHouseholdForUser(user.uid);
+			let targetHouseholdId: string | undefined;
+			try {
+				const uid = user?.uid;
+				if (!uid) throw new Error('no user');
+				const got = await getHouseholdForUser(uid);
+				// getHouseholdForUser may return null from DB mapping; coerce to undefined for callers expecting string | undefined
+				targetHouseholdId = got ?? undefined;
+			} catch (err) {
+				// no-op
 			}
-			
+
+			// If not available, try to find it using user_households table
+			if (!targetHouseholdId && user?.uid) {
+				const { getHouseholdForUser } = await import('@/lib/dal');
+				targetHouseholdId = (await getHouseholdForUser(user.uid)) ?? undefined;
+			}
+
 			if (!targetHouseholdId) return;
-			
+
 			try {
 				const profileData = await getHouseholdProfile(targetHouseholdId);
-				const hasEnrollment = profileData.children.some(child => 
-					Object.values(child.enrollmentsByCycle).some(enrollments =>
-						enrollments.some(enrollment => enrollment.ministry_id === 'bible-bee')
+				const hasEnrollment = profileData.children.some((child) =>
+					Object.values(child.enrollmentsByCycle).some((enrollments) =>
+						enrollments.some(
+							(enrollment) => enrollment.ministry_id === 'bible-bee'
+						)
 					)
 				);
 				setHasBibleBeeEnrollment(hasEnrollment);
@@ -89,11 +94,15 @@ function HouseholdLayoutContent({ children }: { children: React.ReactNode }) {
 			href: '/household',
 			icon: Home,
 		},
-		...(hasBibleBeeEnrollment ? [{
-			label: 'Bible Bee',
-			href: '/household/bible-bee',
-			icon: Book,
-		}] : []),
+		...(hasBibleBeeEnrollment
+			? [
+					{
+						label: 'Bible Bee',
+						href: '/household/bible-bee',
+						icon: Book,
+					},
+			  ]
+			: []),
 	];
 
 	if (!user) return null;
@@ -117,7 +126,7 @@ function HouseholdLayoutContent({ children }: { children: React.ReactNode }) {
 									variant="ghost"
 									className="relative h-10 w-10 rounded-full">
 									<Avatar className="h-10 w-10">
-										<AvatarImage src={undefined} alt={user.name} />
+										<AvatarImage src={undefined} alt={user.name ?? ''} />
 										<AvatarFallback>
 											<User className="h-5 w-5" />
 										</AvatarFallback>
@@ -165,8 +174,9 @@ function HouseholdLayoutContent({ children }: { children: React.ReactNode }) {
 											<SidebarMenuButton
 												tooltip={item.label}
 												isActive={
-													pathname === item.href || 
-													(item.href === '/household/bible-bee' && pathname.startsWith('/household/bible-bee'))
+													pathname === item.href ||
+													(item.href === '/household/bible-bee' &&
+														pathname.startsWith('/household/bible-bee'))
 												}>
 												{React.createElement(item.icon as any, {
 													className: 'w-4 h-4',
@@ -183,9 +193,7 @@ function HouseholdLayoutContent({ children }: { children: React.ReactNode }) {
 						</SidebarFooter>
 					</Sidebar>
 					<SidebarInset>
-						<main className="p-4 md:p-6 lg:p-8">
-							{children}
-						</main>
+						<main className="p-4 md:p-6 lg:p-8">{children}</main>
 					</SidebarInset>
 				</div>
 			</div>
@@ -199,13 +207,15 @@ function HouseholdLayoutContent({ children }: { children: React.ReactNode }) {
 
 function HouseholdProtectedRoute({ children }: { children: React.ReactNode }) {
 	const { user, loading } = useAuth();
-	const [hasHouseholdAccess, setHasHouseholdAccess] = useState<boolean | null>(null);
+	const [hasHouseholdAccess, setHasHouseholdAccess] = useState<boolean | null>(
+		null
+	);
 	const router = useRouter();
 
 	useEffect(() => {
 		const checkHouseholdAccess = async () => {
 			if (loading) return;
-			
+
 			if (!user) {
 				router.push('/login');
 				return;

@@ -3,7 +3,7 @@
 /**
  * Creates a mock Supabase client for testing
  */
-export function createSupabaseMock() {
+export function createSupabaseMock(): any {
 	// In-memory storage for mock data
 	const storage = new Map<string, Map<string, any>>();
 
@@ -303,7 +303,7 @@ export function createSupabaseMock() {
 		removeChannel: jest.fn().mockReturnValue(true),
 	};
 
-	return mockClient;
+	return mockClient as any;
 }
 
 /**

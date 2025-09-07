@@ -19,18 +19,18 @@ export default function GuardianHouseholdPage() {
 	useEffect(() => {
 		const load = async () => {
 			if (!user) return;
-			
+
 			// First try to get household_id from user metadata
-			let targetHouseholdId = user.metadata?.household_id;
-			
+			let targetHouseholdId = user.metadata?.household_id ?? undefined;
+
 			// If not available, try to find it using user_households table
-			if (!targetHouseholdId && user.uid) {
+			if (!targetHouseholdId && user?.uid) {
 				const { getHouseholdForUser } = await import('@/lib/dal');
-				targetHouseholdId = await getHouseholdForUser(user.uid);
+				targetHouseholdId = (await getHouseholdForUser(user.uid)) ?? undefined;
 			}
-			
+
 			if (!targetHouseholdId) return;
-			
+
 			setHouseholdId(targetHouseholdId);
 			const data = await getHouseholdProfile(targetHouseholdId);
 			setProfileData(data);
@@ -44,7 +44,7 @@ export default function GuardianHouseholdPage() {
 			// Check if onboarding has already been shown in this session
 			const sessionKey = `onboarding_shown_${user.uid}`;
 			const alreadyShownThisSession = sessionStorage.getItem(sessionKey);
-			
+
 			if (!alreadyShownThisSession) {
 				// For demo purposes, show onboarding for the demo parent on first login of session
 				if (user.uid === 'user_parent_demo') {
@@ -61,12 +61,12 @@ export default function GuardianHouseholdPage() {
 	return (
 		<div>
 			<HouseholdProfile profileData={profileData} />
-			
-			<AuthDebug className="mt-4" />
-			
-			<OnboardingModal 
-				isOpen={showOnboarding} 
-				onClose={() => setShowOnboarding(false)} 
+
+			<AuthDebug className="mt-4" user={user} />
+
+			<OnboardingModal
+				isOpen={showOnboarding}
+				onClose={() => setShowOnboarding(false)}
 			/>
 		</div>
 	);

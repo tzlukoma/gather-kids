@@ -220,14 +220,14 @@ describe('Supabase Adapter Integration Tests', () => {
 			city: 'FilterTestCity',
 		});
 		const ourCityHouseholds = cityFiltered.filter((h) =>
-			h.address_line1.includes(String(timestamp))
+			h.address_line1?.includes(String(timestamp))
 		);
 		expect(ourCityHouseholds.length).toBe(2);
 
 		// Test state filter
 		const stateFiltered = await adapter.listHouseholds({ state: 'FT' });
 		const ourStateHouseholds = stateFiltered.filter((h) =>
-			h.address_line1.includes(String(timestamp))
+			h.address_line1?.includes(String(timestamp))
 		);
 		expect(ourStateHouseholds.length).toBe(3);
 
@@ -236,7 +236,7 @@ describe('Supabase Adapter Integration Tests', () => {
 			search: 'Oak',
 		});
 		const ourSearchHouseholds = searchFiltered.filter((h) =>
-			h.address_line1.includes(String(timestamp))
+			h.address_line1?.includes(String(timestamp))
 		);
 		expect(ourSearchHouseholds.length).toBeGreaterThanOrEqual(1);
 	});
@@ -273,7 +273,7 @@ describe('Supabase Adapter Integration Tests', () => {
 
 		// Verify results
 		const ourRecords = queried.filter((h) =>
-			h.address_line1.includes(String(timestamp))
+			h.address_line1?.includes(String(timestamp))
 		);
 		expect(ourRecords.length).toBe(recordCount);
 

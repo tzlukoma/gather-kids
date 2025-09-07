@@ -89,7 +89,7 @@ export function BibleBeeProgressList({
 			const defaultYear = String(competitionYears[0].year);
 			// default to the most recent competition year only if not set by storage
 			if (!initial?.selectedCycle && !initialCycle) {
-				setSelectedCycle(defaultYear);
+				setSelectedCycle(String(defaultYear ?? ''));
 			}
 		}
 		// eslint-disable-next-line react-hooks/exhaustive-deps
@@ -199,7 +199,7 @@ export function BibleBeeProgressList({
 				(y: any) => String(y.id) === String(selectedCycle)
 			);
 			if (bbFromLive) {
-				if (mounted) setDisplayCycleLabel(bbFromLive.label);
+				if (mounted) setDisplayCycleLabel(bbFromLive.label ?? null);
 				return;
 			}
 			// Otherwise try a DB lookup (async) to resolve label for UUIDs

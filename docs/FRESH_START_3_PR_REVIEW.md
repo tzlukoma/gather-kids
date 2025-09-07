@@ -11,7 +11,7 @@
 
 - [x] **Apply migrations in order** (normalize → backfill → FK harden → drops).
 - [ ] **Types regen** (expect a non-empty diff):
-  
+
   - [x] **Types regen (local run)** — generated types were inspected locally; repo kept fallback to avoid wide breakage during iterative reconciliation.
 
   ```bash

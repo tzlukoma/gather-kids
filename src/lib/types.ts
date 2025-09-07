@@ -152,6 +152,7 @@ export interface LeaderProfile {
     avatar_path?: string; // Alternative avatar field name
     notes?: string; // nullable
     background_check_complete?: boolean; // nullable, default false
+    ministryCount?: number;
     is_active: boolean; // default true
     created_at: string;
     updated_at: string;
@@ -259,8 +260,11 @@ export interface CompetitionYear {
 // New Bible Bee Year interface (enhanced CompetitionYear)
 export interface BibleBeeYear {
     id: string;
-    year: number;
-    name: string; // The human-readable name for the Bible Bee year
+    year?: number;
+    name?: string; // The human-readable name for the Bible Bee year
+    // Backwards-compatible fields: some code and generated types use `label` and `cycle_id`.
+    label?: string;
+    cycle_id?: string;
     description?: string;
     is_active: boolean;
     registration_open_date?: string;
