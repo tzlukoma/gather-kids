@@ -173,7 +173,7 @@ export function registrationToCanonical(registration: DexieTypes.Registration): 
 		status: registration.status,
 		pre_registered_sunday_school: registration.pre_registered_sunday_school,
 		consents: (registration.consents || []).map((consent: unknown) => {
-			const c = consent as Record<string, unknown>;
+			const c = toRecord(consent);
 			const raw = (c['type'] as string) ?? '';
 			const normalized: CanonicalDtos.Consent['type'] = (
 				raw === 'photoRelease' || raw === 'photo_release'
@@ -200,7 +200,7 @@ export function canonicalToRegistration(canonical: CanonicalDtos.RegistrationWri
 		status: canonical.status || 'active',
 		pre_registered_sunday_school: canonical.pre_registered_sunday_school !== undefined ? canonical.pre_registered_sunday_school : true,
 		consents: (canonical.consents || []).map((consent: unknown) => {
-			const c = consent as Record<string, unknown>;
+			const c = toRecord(consent);
 			const raw = (c['type'] as string) ?? '';
 			const normalized = (raw === 'photo_release' || raw === 'photoRelease') ? 'photoRelease' : (raw === 'liability' ? 'liability' : 'custom');
 			return {
@@ -232,9 +232,9 @@ export function supabaseToHousehold(
 	record: SupabaseHousehold
 ): HouseholdEntity {
 	// Emit a warning when legacy/camelCase fields or null addresses are present
-	const r = record as unknown as Record<string, unknown>;
+	const r = toRecord(record);
 	try {
-		if ((r.preferredScriptureTranslation as unknown as Record<string, unknown>)?.preferredScriptureTranslation !== undefined || record.address_line1 === null || record.address_line2 === null) {
+		if ((r.preferredScriptureTranslation as Record<string, unknown>)?.preferredScriptureTranslation !== undefined || record.address_line1 === null || record.address_line2 === null) {
 			console.warn('supabaseToHousehold: detected legacy/camelCase or null address fields');
 		}
 	} catch (e) {
@@ -243,8 +243,8 @@ export function supabaseToHousehold(
 	return {
 		household_id: record.household_id || '',
 		name: record.name ?? undefined,
-		// accept either snake_case (new generated types) or legacy camelCase
-		preferredScriptureTranslation: (record as unknown as Record<string, unknown>).preferred_scripture_translation as string | undefined ?? (r.preferredScriptureTranslation as string | undefined) ?? undefined,
+	// accept either snake_case (new generated types) or legacy camelCase
+	preferredScriptureTranslation: (r.preferred_scripture_translation as string | undefined) ?? (r.preferredScriptureTranslation as string | undefined) ?? undefined,
 	// coerce null -> empty string for address fields to satisfy callers expecting string
 	address_line1: record.address_line1 ?? '' ,
 	address_line2: record.address_line2 ?? '' ,
@@ -268,7 +268,7 @@ export function householdToSupabase(
 		city: household.city,
 		state: household.state,
 		zip: household.zip,
-	} as unknown as Omit<SupabaseHousehold, 'created_at' | 'updated_at'>;
+	} as Omit<SupabaseHousehold, 'created_at' | 'updated_at'>;
 }
 
 // =====================================
@@ -285,7 +285,7 @@ export type SupabaseChild =
 // Child conversions
 export function supabaseToChild(record: SupabaseChild): ChildEntity {
 	// Warn when null dob is encountered (legacy data issue)
-	const rChild = record as unknown as Record<string, unknown>;
+	const rChild = toRecord(record);
 	try {
 		if (rChild.dob === null) console.warn('supabaseToChild: null dob encountered');
 	} catch (e) {
@@ -312,7 +312,7 @@ export function supabaseToChild(record: SupabaseChild): ChildEntity {
 
 // Attendance mapping
 export function supabaseToAttendance(row: Database['public']['Tables']['attendance']['Row'] | Record<string, unknown> | null | undefined): Attendance {
-	const r = (row ?? {}) as Record<string, unknown>;
+	const r = toRecord(row);
 	return {
 		attendance_id: (r['attendance_id'] as string) || '',
 		child_id: (r['child_id'] as string) || '',
@@ -333,7 +333,7 @@ export function supabaseToAttendance(row: Database['public']['Tables']['attendan
 
 // Incident mapping
 export function supabaseToIncident(row: Database['public']['Tables']['incidents']['Row'] | Record<string, unknown> | null | undefined): Incident {
-	const r = (row ?? {}) as Record<string, unknown>;
+	const r = toRecord(row);
 	return {
 		incident_id: (r['incident_id'] as string) || '',
 		child_id: (r['child_id'] as string) || '',
@@ -351,7 +351,7 @@ export function supabaseToIncident(row: Database['public']['Tables']['incidents'
 // Events mapping - parse timeslots JSON to EventTimeslot[]
 export function supabaseToEvent(row: Database['public']['Tables']['events']['Row'] | Record<string, unknown> | null | undefined): Event {
 	// Parse timeslots using the helper so we always return typed EventTimeslot[]
-	const r = (row ?? {}) as Record<string, unknown>;
+	const r = toRecord(row);
 	const timeslots = parseEventTimeslots(r.timeslots);
 	return {
 		event_id: (r['event_id'] as string) || '',
@@ -371,6 +371,13 @@ export function parseEventTimeslots(value: unknown): EventTimeslot[] {
 	} catch (e) {
 		return [];
 	}
+}
+
+// Helper to normalize unknown values to Record<string, unknown> safely
+function toRecord(value: unknown): Record<string, unknown> {
+	if (!value) return {};
+	if (typeof value === 'object') return value as Record<string, unknown>;
+	return {};
 }
 
 // Parse registration consents (stored as JSON) into canonical Consent[]
