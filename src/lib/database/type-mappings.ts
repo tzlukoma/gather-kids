@@ -268,7 +268,7 @@ export function householdToSupabase(
 		city: household.city,
 		state: household.state,
 		zip: household.zip,
-	} as Omit<SupabaseHousehold, 'created_at' | 'updated_at'>;
+	} as unknown as Omit<SupabaseHousehold, 'created_at' | 'updated_at'>;
 }
 
 // =====================================
