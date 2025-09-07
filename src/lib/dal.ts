@@ -44,7 +44,13 @@ export { dbAdapter };
 
 // Utility to determine if we should use the adapter interface for write operations
 function shouldUseAdapter(): boolean {
-    return !isDemo(); // Use adapter (Supabase) when not in demo mode
+    const isDemoMode = isDemo();
+    console.log('shouldUseAdapter: Checking database mode', { 
+        isDemoMode, 
+        useAdapter: !isDemoMode,
+        databaseMode: process.env.NEXT_PUBLIC_DATABASE_MODE || 'not set'
+    });
+    return !isDemoMode; // Use adapter (Supabase) when not in demo mode
 }
 
 // Small helper to coerce various DB representations of "active" into a boolean.
@@ -454,12 +460,23 @@ const fetchFullHouseholdData = async (householdId: string, cycleId: string) => {
 
 // Find existing household and registration data by email
 export async function findHouseholdByEmail(email: string, currentCycleId: string) {
+    console.log('findHouseholdByEmail: Starting search', { email, currentCycleId });
+    
     if (shouldUseAdapter()) {
         // Use Supabase adapter for live mode
         try {
+            console.log('findHouseholdByEmail: Using Supabase adapter to search for guardians');
             // Find guardian by email
-            const guardians = await dbAdapter.listGuardians(''); // This would need to be enhanced to search by email
+            const guardians = await dbAdapter.listGuardians(''); // Empty string means get all guardians
+            console.log(`findHouseholdByEmail: Found ${guardians.length} guardians total`);
+            
             const guardian = guardians.find(g => g.email && g.email.toLowerCase() === email.toLowerCase());
+            console.log('findHouseholdByEmail: Guardian search result', { 
+                found: !!guardian,
+                guardianId: guardian?.guardian_id,
+                householdId: guardian?.household_id 
+            });
+            
             if (!guardian) return null;
 
             const householdId = guardian.household_id;
@@ -2520,15 +2537,29 @@ export async function getScripturesForCompetitionYear(competitionYearId: string)
  * Get ministries for ministry management
  */
 export async function getMinistries(isActive?: boolean): Promise<Ministry[]> {
-	if (shouldUseAdapter()) {
-		// Use Supabase adapter for live mode
-		return dbAdapter.listMinistries(isActive);
-	} else {
-		// Use legacy Dexie interface for demo mode
-		if (isActive !== undefined) {
-			return db.ministries.filter(m => m.is_active === isActive).toArray();
+	console.log('DAL.getMinistries: Starting', { isActive, useAdapter: shouldUseAdapter() });
+	try {
+		if (shouldUseAdapter()) {
+			// Use Supabase adapter for live mode
+			console.log('DAL.getMinistries: Using Supabase adapter');
+			const ministries = await dbAdapter.listMinistries(isActive);
+			console.log('DAL.getMinistries: Got ministries from Supabase', { count: ministries.length });
+			return ministries;
+		} else {
+			// Use legacy Dexie interface for demo mode
+			console.log('DAL.getMinistries: Using Dexie interface for demo mode');
+			if (isActive !== undefined) {
+				const ministries = await db.ministries.filter(m => m.is_active === isActive).toArray();
+				console.log('DAL.getMinistries: Got filtered ministries from Dexie', { count: ministries.length });
+				return ministries;
+			}
+			const ministries = await db.ministries.toArray();
+			console.log('DAL.getMinistries: Got all ministries from Dexie', { count: ministries.length });
+			return ministries;
 		}
-		return db.ministries.toArray();
+	} catch (error) {
+		console.error('DAL.getMinistries: Error getting ministries', error);
+		throw error;
 	}
 }
 

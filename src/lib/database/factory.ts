@@ -6,6 +6,13 @@ import { getFlag } from '../featureFlags';
 export function createDatabaseAdapter(): DatabaseAdapter {
 	// Use feature flag system to determine database mode
 	const mode = getFlag('DATABASE_MODE');
+	
+	console.log('createDatabaseAdapter: Initializing with mode', {
+		mode,
+		isClient: typeof window !== 'undefined',
+		supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
+		hasSupabaseKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+	});
 
 	if (mode === 'supabase') {
 		const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -16,10 +23,13 @@ export function createDatabaseAdapter(): DatabaseAdapter {
 				'Supabase URL and key are required when using Supabase mode'
 			);
 			// Fallback to demo mode if Supabase config is missing
+			console.log('Falling back to IndexedDB adapter due to missing Supabase config');
 			return new IndexedDBAdapter();
 		}
 
-		console.log('Creating Supabase adapter for live mode');
+		console.log('Creating Supabase adapter for live mode', {
+			url: supabaseUrl
+		});
 		return new SupabaseAdapter(supabaseUrl, supabaseKey);
 	}
 

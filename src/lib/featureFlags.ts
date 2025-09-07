@@ -27,5 +27,11 @@ export function getFlag(name: FlagName): boolean | string {
 }
 
 export function isDemo(): boolean {
-  return getFlag("DATABASE_MODE") === "demo";
+  const mode = getFlag("DATABASE_MODE");
+  console.log('isDemo: Checking database mode flag', { 
+    mode, 
+    isDemo: mode === "demo",
+    env: typeof window !== 'undefined' ? 'browser' : 'server'
+  });
+  return mode === "demo";
 }

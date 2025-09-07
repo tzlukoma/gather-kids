@@ -609,35 +609,54 @@ export type SupabaseMinistry =
 
 // Ministry conversions
 export function supabaseToMinistry(record: SupabaseMinistry): MinistryEntity {
+	console.log('supabaseToMinistry: Converting record', JSON.stringify(record));
 	const r: Record<string, unknown> = record as unknown as Record<string, unknown>;
+	
 	// Warn when legacy camelCase ministry fields are present
 	try {
 		if (r.enrollmentType !== undefined || r.dataProfile !== undefined || r.ministry_code !== undefined || r.label !== undefined) {
 			console.warn('supabaseToMinistry: detected legacy/camelCase ministry fields');
 		}
 	} catch (e) {
-		/* ignore */
+		console.error('supabaseToMinistry: Error checking for legacy fields', e);
 	}
-	return {
-		ministry_id: String(r.ministry_id || ''),
-		// tolerate optional code and data profile which may be present in generated types
-	code: String(r.code ?? r.ministry_code ?? ''),
-		name: String((r.name ?? r.label) ?? ''),
-		// coerce null -> undefined for optional fields produced by the generator
-		description: (r.description as string | undefined) ?? undefined,
-		min_age: (r.min_age as number | undefined) ?? undefined,
-		max_age: (r.max_age as number | undefined) ?? undefined,
-		min_grade: (r.min_grade as string | undefined) ?? undefined,
-		max_grade: (r.max_grade as string | undefined) ?? undefined,
-		// ensure callers that expect a boolean get a sensible default
-		is_active: r.is_active === null || r.is_active === undefined ? true : !!r.is_active,
-		enrollment_type: (r.enrollment_type ?? r.enrollmentType ?? 'enrolled') as 'enrolled' | 'expressed_interest',
-	data_profile: (r.data_profile ?? r.dataProfile ?? 'Basic') as 'Basic' | 'SafetyAware',
-		// custom_questions is stored as SupabaseJson; parse into typed CustomQuestion[]
-		custom_questions: parseCustomQuestions(r.custom_questions),
-		created_at: String(r.created_at || new Date().toISOString()),
-		updated_at: String(r.updated_at || new Date().toISOString()),
-	};
+
+	try {
+		const result = {
+			ministry_id: String(r.ministry_id || ''),
+			// tolerate optional code and data profile which may be present in generated types
+			code: String(r.code ?? r.ministry_code ?? ''),
+			name: String((r.name ?? r.label) ?? ''),
+			// coerce null -> undefined for optional fields produced by the generator
+			description: (r.description as string | undefined) ?? undefined,
+			min_age: (r.min_age as number | undefined) ?? undefined,
+			max_age: (r.max_age as number | undefined) ?? undefined,
+			min_grade: (r.min_grade as string | undefined) ?? undefined,
+			max_grade: (r.max_grade as string | undefined) ?? undefined,
+			// ensure callers that expect a boolean get a sensible default
+			is_active: r.is_active === null || r.is_active === undefined ? true : !!r.is_active,
+			enrollment_type: (r.enrollment_type ?? r.enrollmentType ?? 'enrolled') as 'enrolled' | 'expressed_interest',
+			data_profile: (r.data_profile ?? r.dataProfile ?? 'Basic') as 'Basic' | 'SafetyAware',
+			// custom_questions is stored as SupabaseJson; parse into typed CustomQuestion[]
+			custom_questions: parseCustomQuestions(r.custom_questions),
+			created_at: String(r.created_at || new Date().toISOString()),
+			updated_at: String(r.updated_at || new Date().toISOString()),
+		};
+		
+		console.log('supabaseToMinistry: Successfully converted ministry', {
+			id: result.ministry_id,
+			name: result.name,
+			code: result.code
+		});
+		
+		return result;
+	} catch (error) {
+		console.error('supabaseToMinistry: Error converting ministry record', {
+			record,
+			error
+		});
+		throw error;
+	}
 }
 
 // =====================================
