@@ -140,7 +140,7 @@ export async function registerHouseholdCanonical(data: any, cycle_id: string, is
         for (const contact of existingContacts) {
           await dbAdapter.deleteEmergencyContact(contact.contact_id);
         }
-      } else {
+    } else {
         await dbAdapter.createHousehold(household);
       }
 
@@ -233,15 +233,16 @@ export async function registerHouseholdCanonical(data: any, cycle_id: string, is
           cycle_id: registrationData.cycle_id,
           status: registrationData.status,
           pre_registered_sunday_school: registrationData.pre_registered_sunday_school,
-          consents: registrationData.consents.map(consent => {
-            const rawType = consent.type as string;
+          consents: registrationData.consents.map((consent) => {
+            const c = consent as unknown as Record<string, unknown>;
+            const rawType = String(c.type ?? 'custom');
             const mappedType = rawType === 'photo_release' ? 'photoRelease' : rawType === 'liability' ? 'liability' : 'custom';
-            return { ...consent, type: mappedType } as unknown as {
-              type: 'photoRelease' | 'liability' | 'custom';
-              accepted_at: string | null;
-              signer_id: string;
-              signer_name: string;
-              text?: string;
+            return {
+              type: mappedType as 'photoRelease' | 'liability' | 'custom',
+              accepted_at: (c.accepted_at as string | null) ?? null,
+              signer_id: String(c.signer_id ?? ''),
+              signer_name: String(c.signer_name ?? ''),
+              text: c.text as string | undefined,
             };
           }),
           submitted_at: now,
@@ -276,7 +277,7 @@ export async function registerHouseholdCanonical(data: any, cycle_id: string, is
     
     // The rest follows the same pattern as the original, but with validated data
     // For brevity, keeping the original Dexie logic but noting that canonical data is validated
-    return await (db as any).transaction('rw', db.households, db.guardians, db.emergency_contacts, db.children, db.registrations, db.ministry_enrollments, async () => {
+  return await (db as unknown as Record<string, any>).transaction('rw', db.households, db.guardians, db.emergency_contacts, db.children, db.registrations, db.ministry_enrollments, async () => {
       // Original Dexie implementation would go here
       // For now, throwing to force Supabase adapter usage in this implementation
       throw new Error('Canonical DTO registration requires Supabase adapter');

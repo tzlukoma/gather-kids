@@ -41,11 +41,13 @@ export function useScripturesForYear(yearId: string) {
         refresh: async () => { 
             const s = await db.scriptures.where('competitionYearId').equals(yearId).toArray();
             // Use the same sorting logic consistently
-            setScriptures(s.sort((a: any, b: any) => {
+            setScriptures(s.sort((a: Scripture, b: Scripture) => {
                 // Prioritize scripture_order, then fall back to sortOrder if needed
                 // Explicitly ignore any 'order' field
-                const aOrder = Number(a.scripture_order ?? a.sortOrder ?? 0);
-                const bOrder = Number(b.scripture_order ?? b.sortOrder ?? 0);
+                const aRec = a as unknown as Record<string, unknown>;
+                const bRec = b as unknown as Record<string, unknown>;
+                const aOrder = Number(aRec['scripture_order'] ?? aRec['sortOrder'] ?? 0);
+                const bOrder = Number(bRec['scripture_order'] ?? bRec['sortOrder'] ?? 0);
                 return aOrder - bOrder;
             }));
         } 
@@ -72,9 +74,9 @@ export function useScripturesForYearQuery(yearId: string) {
         });
     });
 
-    const mutation = useMutation(async (payload: any) => upsertScripture(payload), {
+    const mutation = useMutation(async (payload: unknown) => upsertScripture(payload as any), {
         // optimistic update
-        onMutate: async (newScripture: any) => {
+    onMutate: async (newScripture: any) => {
             await qc.cancelQueries(key);
             const previous = qc.getQueryData<any[]>(key) || [];
             qc.setQueryData(key, (old: any[] = []) => {

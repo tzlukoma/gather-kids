@@ -9,10 +9,11 @@ import { getFlag } from './featureFlags';
 export function isSupabase(): boolean {
   // Prefer duck-typing: Supabase adapter exposes a `from` method for querying
   // and may have a `supabase` client property. This avoids unsafe `any` casts.
-  try {
+    try {
     const candidate: unknown = dbAdapter as unknown;
-    if (candidate && typeof (candidate as any).from === 'function') return true;
-    if (candidate && typeof (candidate as any).supabase === 'object') return true;
+    const candRec = candidate as Record<string, unknown> | undefined;
+    if (candRec && typeof candRec['from'] === 'function') return true;
+    if (candRec && typeof candRec['supabase'] === 'object') return true;
   } catch (err) {
     // ignore and fall through
   }
