@@ -11,6 +11,8 @@
 
 - [x] **Apply migrations in order** (normalize → backfill → FK harden → drops).
 - [ ] **Types regen** (expect a non-empty diff):
+  
+  - [x] **Types regen (local run)** — generated types were inspected locally; repo kept fallback to avoid wide breakage during iterative reconciliation.
 
   ```bash
   npx supabase gen types typescript --db-url "$DATABASE_URL" > src/lib/database/supabase-types.ts
@@ -85,6 +87,7 @@
 - [ ] **Enum sync** tests pass.
 - [ ] **ESLint import bans** pass.
 - [ ] **Typecheck** passes.
+- [x] **Typecheck** passes locally after fixes (household nullability, tabs handler, Playwright test updates).
 
 ## E. Manual smoke (no behavior change)
 
