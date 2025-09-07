@@ -71,17 +71,18 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 			collection = this.db.households.where('city').equals(filters.city);
 		}
 		if (filters?.state) {
-			collection = collection.and((h: any) => h.state === filters.state);
+			collection = collection.and((h: Household | unknown) => (h as Household).state === filters.state);
 		}
 		if (filters?.zip) {
-			collection = collection.and((h: any) => h.zip === filters.zip);
+			collection = collection.and((h: Household | unknown) => (h as Household).zip === filters.zip);
 		}
 		if (filters?.search) {
 			const searchLower = filters.search.toLowerCase();
-			collection = collection.and((h: any) => 
-				(h.address_line1?.toLowerCase().includes(searchLower) || false) ||
-				(h.city?.toLowerCase().includes(searchLower) || false)
-			);
+			collection = collection.and((h: Household | unknown) => {
+				const hh = h as Household;
+				return (hh.address_line1?.toLowerCase().includes(searchLower) || false) ||
+				(hh.city?.toLowerCase().includes(searchLower) || false);
+			});
 		}
 
 		if (filters?.offset) {
@@ -135,14 +136,14 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 			collection = this.db.children.where('household_id').equals(filters.householdId);
 		}
 		if (filters?.isActive !== undefined) {
-			collection = collection.and((c: any) => c.is_active === filters.isActive);
+			collection = collection.and((c: Child | unknown) => (c as Child).is_active === filters.isActive);
 		}
 		if (filters?.search) {
 			const searchLower = filters.search.toLowerCase();
-			collection = collection.and((c: any) => 
-				c.first_name?.toLowerCase().includes(searchLower) ||
-				c.last_name?.toLowerCase().includes(searchLower)
-			);
+			collection = collection.and((c: Child | unknown) => {
+				const ch = c as Child;
+				return ch.first_name?.toLowerCase().includes(searchLower) || ch.last_name?.toLowerCase().includes(searchLower);
+			});
 		}
 
 		if (filters?.offset) {
@@ -269,7 +270,7 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 
 	async listRegistrationCycles(isActive?: boolean): Promise<RegistrationCycle[]> {
 		if (isActive !== undefined) {
-			return this.db.registration_cycles.filter((cycle: any) => cycle.is_active === isActive).toArray();
+			return this.db.registration_cycles.filter((cycle: RegistrationCycle | unknown) => (cycle as RegistrationCycle).is_active === isActive).toArray();
 		}
 		return this.db.registration_cycles.toArray();
 	}
@@ -312,10 +313,10 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 			collection = this.db.registrations.where('child_id').equals(filters.childId);
 		}
 		if (filters?.cycleId) {
-			collection = collection.and((r: any) => r.cycle_id === filters.cycleId);
+			collection = collection.and((r: Registration | unknown) => (r as Registration).cycle_id === filters.cycleId);
 		}
 		if (filters?.status) {
-			collection = collection.and((r: any) => r.status === filters.status);
+			collection = collection.and((r: Registration | unknown) => (r as Registration).status === filters.status);
 		}
 
 		if (filters?.offset) {
@@ -364,7 +365,7 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 
 	async listMinistries(isActive?: boolean): Promise<Ministry[]> {
 		if (isActive !== undefined) {
-			return this.db.ministries.filter((ministry: any) => ministry.is_active === isActive).toArray();
+			return this.db.ministries.filter((ministry: Ministry | unknown) => (ministry as Ministry).is_active === isActive).toArray();
 		}
 		return this.db.ministries.toArray();
 	}
@@ -415,11 +416,11 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 			collection = this.db.ministry_enrollments.where('child_id').equals(childId);
 		}
 		if (ministryId) {
-			collection = collection.and((e: any) => e.ministry_id === ministryId);
+			collection = collection.and((e: MinistryEnrollment | unknown) => (e as MinistryEnrollment).ministry_id === ministryId);
 		}
-		if (cycleId) {
-			collection = collection.and((e: any) => e.cycle_id === cycleId);
-		}
+			if (cycleId) {
+				collection = collection.and((e: MinistryEnrollment | unknown) => (e as MinistryEnrollment).cycle_id === cycleId);
+			}
 
 		return collection.toArray();
 	}
@@ -458,12 +459,12 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 		if (filters?.childId) {
 			collection = this.db.attendance.where('child_id').equals(filters.childId);
 		}
-		if (filters?.eventId) {
-			collection = collection.and((a: any) => a.event_id === filters.eventId);
-		}
-		if (filters?.date) {
-			collection = collection.and((a: any) => a.date === filters.date);
-		}
+			if (filters?.eventId) {
+				collection = collection.and((a: Attendance | unknown) => (a as Attendance).event_id === filters.eventId);
+			}
+			if (filters?.date) {
+				collection = collection.and((a: Attendance | unknown) => (a as Attendance).date === filters.date);
+			}
 
 		if (filters?.offset) {
 			collection = collection.offset(filters.offset);
@@ -514,9 +515,10 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 			collection = this.db.incidents.where('child_id').equals(filters.childId);
 		}
 		if (filters?.resolved !== undefined) {
-			collection = collection.and((i: any) => 
-				filters.resolved ? (i.admin_acknowledged_at != null) : (i.admin_acknowledged_at == null)
-			);
+			collection = collection.and((i: Incident | unknown) => {
+				const incident = i as Incident;
+				return filters.resolved ? (incident.admin_acknowledged_at != null) : (incident.admin_acknowledged_at == null);
+			});
 		}
 
 		if (filters?.offset) {
@@ -632,7 +634,7 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 
 	async listLeaderProfiles(isActive?: boolean): Promise<LeaderProfile[]> {
 		if (isActive !== undefined) {
-			return this.db.leader_profiles.filter((profile: any) => profile.is_active === isActive).toArray();
+			return this.db.leader_profiles.filter((profile: LeaderProfile | unknown) => (profile as LeaderProfile).is_active === isActive).toArray();
 		}
 		return this.db.leader_profiles.toArray();
 	}
@@ -686,7 +688,7 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 			collection = this.db.ministry_leader_memberships.where('ministry_id').equals(ministryId);
 		}
 		if (leaderId) {
-			collection = collection.and((m: any) => m.leader_id === leaderId);
+			collection = collection.and((m: MinistryLeaderMembership | unknown) => (m as MinistryLeaderMembership).leader_id === leaderId);
 		}
 
 		return collection.toArray();
@@ -926,7 +928,7 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 			collection = this.db.enrollments.where('child_id').equals(childId);
 		}
 		if (bibleBeeYearId) {
-			collection = collection.and((e: any) => e.year_id === bibleBeeYearId);
+			collection = collection.and((e: Enrollment | unknown) => (e as Enrollment).year_id === bibleBeeYearId);
 		}
 
 		return collection.toArray();

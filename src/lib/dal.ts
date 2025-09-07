@@ -18,7 +18,22 @@ import { getApplicableGradeRule } from './bibleBee';
 import { gradeToCode } from './gradeUtils';
 import { AuthRole } from './auth-types';
 import { isDemo } from './featureFlags';
-import type { Attendance, Child, Guardian, Household, Incident, IncidentSeverity, Ministry, MinistryEnrollment, Registration, User, EmergencyContact, LeaderAssignment, LeaderProfile, MinistryLeaderMembership, MinistryAccount, BrandingSettings, BibleBeeYear, RegistrationCycle, Scripture, CustomQuestion } from './types';
+import type { Attendance, Child, Guardian, Household, Incident, IncidentSeverity, Ministry, MinistryEnrollment, Registration, User, EmergencyContact, LeaderAssignment, LeaderProfile, MinistryLeaderMembership, MinistryAccount, BrandingSettings, BibleBeeYear, RegistrationCycle, Scripture, CompetitionYear, CustomQuestion } from './types';
+
+// Leader view result for Bible Bee progress summaries (used by multiple helpers)
+type LeaderBibleBeeResult = {
+    childId: string;
+    childName: string;
+    totalScriptures: number;
+    completedScriptures: number;
+    requiredScriptures: number;
+    bibleBeeStatus: 'Not Started' | 'In-Progress' | 'Complete';
+    gradeGroup: string | null;
+    essayStatus: string;
+    ministries: unknown[];
+    primaryGuardian: Guardian | null;
+    child: Child;
+};
 import { differenceInYears, isAfter, isBefore, parseISO, isValid } from 'date-fns';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -41,6 +56,14 @@ function isActiveValue(v: unknown): boolean {
 function extractUserId(user: unknown): string | undefined {
     const u = user as unknown as Record<string, unknown> | undefined;
     return (u?.uid as string | undefined) || (u?.id as string | undefined) || (u?.user_id as string | undefined);
+}
+
+// Type guard to detect a user object with metadata.role === AuthRole.MINISTRY_LEADER
+function isMinistryLeaderUser(user: unknown): boolean {
+    if (!user || typeof user !== 'object') return false;
+    const u = user as Record<string, unknown>;
+    const meta = u?.metadata as Record<string, unknown> | undefined;
+    return (meta?.role as unknown) === AuthRole.MINISTRY_LEADER;
 }
 
 // Wrapper to call the Dexie transaction API when multiple table args are used.
@@ -632,12 +655,16 @@ export async function getHouseholdForUser(authUserId: string): Promise<string | 
             // Create guardians and store their IDs for later reference
             const createdGuardians: Guardian[] = [];
             for (const guardianData of (input.guardians || [])) {
-                const guardianPartial = guardianData as Partial<Guardian>;
-                // Adapter expects a well-formed create payload; coerce via Record to avoid explicit `any`
-                const guardianPayload = {
+                const gp = guardianData as Partial<Guardian>;
+                const guardianPayload: Omit<Guardian, 'guardian_id' | 'created_at' | 'updated_at'> = {
                     household_id: householdId,
-                    ...(guardianPartial as Record<string, unknown>),
-                } as unknown as Omit<Guardian, 'guardian_id' | 'created_at' | 'updated_at'>;
+                    first_name: gp.first_name || '',
+                    last_name: gp.last_name || '',
+                    mobile_phone: gp.mobile_phone || '',
+                    email: gp.email || '',
+                    relationship: gp.relationship || '',
+                    is_primary: gp.is_primary ?? false,
+                };
                 const createdGuardian = await dbAdapter.createGuardian(guardianPayload);
                 createdGuardians.push(createdGuardian);
             }
@@ -645,17 +672,21 @@ export async function getHouseholdForUser(authUserId: string): Promise<string | 
             // Create emergency contact
             const emergencyPartial = input.emergencyContact as Partial<EmergencyContact> | undefined;
             if (emergencyPartial) {
-                const emergencyPayload = {
+                const emergencyPayload: Omit<EmergencyContact, 'contact_id' | 'created_at' | 'updated_at'> = {
                     household_id: householdId,
-                    ...(emergencyPartial as Record<string, unknown>),
-                } as unknown as Omit<EmergencyContact, 'contact_id' | 'created_at' | 'updated_at'>;
+                    first_name: emergencyPartial.first_name || '',
+                    last_name: emergencyPartial.last_name || '',
+                    mobile_phone: emergencyPartial.mobile_phone || '',
+                    relationship: emergencyPartial.relationship || '',
+                };
                 await dbAdapter.createEmergencyContact(emergencyPayload);
             }
 
             // Handle children and enrollments
             for (const [index, childData] of (input.children || []).entries()) {
-                const childDataAny = childData as Partial<Child> & { ministrySelections?: Record<string, boolean>; interestSelections?: Record<string, boolean>; customData?: Record<string, unknown> };
-                const { ministrySelections, interestSelections, customData, ...childCore } = childDataAny;
+                        type IncomingChild = Partial<Child> & { ministrySelections?: Record<string, boolean>; interestSelections?: Record<string, boolean>; customData?: Record<string, unknown> };
+                        const childDataAny = childData as IncomingChild;
+                        const { ministrySelections, interestSelections, customData, ...childCore } = childDataAny;
                 const childId = (childCore as Partial<Child>).child_id || uuidv4();
 
                 const child = {
@@ -916,11 +947,11 @@ export async function getHouseholdForUser(authUserId: string): Promise<string | 
                             continue;
                         }
 
-                        const custom_fields: { [key: string]: any } = {};
+                        const custom_fields: { [key: string]: unknown } = {};
                         if (childData.customData && ministry.custom_questions) {
                             for (const q of ministry.custom_questions) {
-                                if (childData.customData[q.id] !== undefined) {
-                                    custom_fields[q.id] = childData.customData[q.id];
+                                if ((childData.customData as Record<string, unknown>)[q.id] !== undefined) {
+                                    (custom_fields as Record<string, unknown>)[q.id] = (childData.customData as Record<string, unknown>)[q.id];
                                 }
                             }
                         }
@@ -1256,7 +1287,7 @@ export async function getLeaderBibleBeeProgress(leaderId: string, cycleId: strin
 
     const results: LeaderBibleBeeResult[] = [];
     // Build a map of childId -> ministries they are enrolled in
-    const allEnrollmentsForChildren = await db.ministry_enrollments.where('child_id').anyOf(childIds).and(e => e.cycle_id === cycleId).toArray();
+    const allEnrollmentsForChildren = await db.ministry_enrollments.where('child_id').anyOf(childIds).and((e: MinistryEnrollment) => e.cycle_id === cycleId).toArray();
     const ministryList = await db.ministries.toArray();
     const ministryMap = new Map(ministryList.map(m => [m.ministry_id, m]));
 
@@ -1271,16 +1302,19 @@ export async function getLeaderBibleBeeProgress(leaderId: string, cycleId: strin
 
     for (const child of children) {
     // StudentScripture is the legacy per-student scripture record
-    let scriptures: any[] = [];
-    let essays: { status?: string }[] = [];
+    // Use unknown[] and narrow when accessing status fields
+    let scriptures: unknown[] = [];
+    let essays: Array<{ status?: string }> = [];
         if (compYear) {
-            scriptures = await db.studentScriptures.where({ childId: child.child_id, competitionYearId: compYear.id }).toArray();
-            essays = await db.studentEssays.where({ childId: child.child_id, competitionYearId: compYear.id }).toArray();
+            const compId = (compYear as { id?: string })?.id;
+            scriptures = await db.studentScriptures.where({ childId: child.child_id, competitionYearId: compId }).toArray();
+            essays = await db.studentEssays.where({ childId: child.child_id, competitionYearId: compId }).toArray();
         }
 
         const totalScriptures = scriptures.length;
-        const completedScriptures = scriptures.filter(s => s.status === 'completed').length;
-        const essayStatus = essays.length ? essays[0].status : 'none';
+        const completedScriptures = scriptures.filter((s): s is { status?: string } => typeof (s as unknown as { status?: unknown })?.status === 'string')
+            .filter(s => s.status === 'completed').length;
+        const essayStatus = essays.length ? (typeof (essays[0] as unknown as { status?: unknown })?.status === 'string' ? (essays[0] as { status?: string }).status : 'none') : 'none';
 
     const childEnrolls = allEnrollmentsForChildren.filter(e => e.child_id === child.child_id).map(e => ({ ...e, ministryName: ministryMap.get(e.ministry_id)?.name || 'Unknown' }));
 
@@ -1294,7 +1328,7 @@ export async function getLeaderBibleBeeProgress(leaderId: string, cycleId: strin
         let gradeGroup: string | null = null;
         try {
             const gradeNum = child.grade ? gradeToCode(child.grade) : null;
-            const rule = gradeNum !== null && compYear ? await getApplicableGradeRule(compYear.id, gradeNum) : null;
+            const rule = gradeNum !== null && compYear ? await getApplicableGradeRule((compYear as { id?: string }).id || '', gradeNum) : null;
             requiredScriptures = rule?.targetCount ?? null;
             if (rule) {
                 if (rule.minGrade === rule.maxGrade) gradeGroup = `Grade ${rule.minGrade}`;
@@ -1346,8 +1380,8 @@ export async function getBibleBeeProgressForCycle(cycleId: string) {
     // enrollments are present, and avoids accidental mapping to the active
     // registration cycle which could show prior-year children.
     let childIds: string[] = [];
-    let children: any[] = [];
-    let compYear: any = null;
+    let children: Child[] = [];
+    let compYear: unknown | null = null;
 
     try {
         const newEnrolls = await db.enrollments.where('year_id').equals(cycleId).toArray();
@@ -1384,30 +1418,32 @@ export async function getBibleBeeProgressForCycle(cycleId: string) {
 
             // Find the competition year matching the numeric cycle year (if present)
             const yearNum = Number(cycleId);
-            compYear = await db.competitionYears.where('year').equals(yearNum).first();
+                                    compYear = (await db.competitionYears.where('year').equals(yearNum).first()) || null;
         }
     }
 
-    const results: any[] = [];
+    const results: LeaderBibleBeeResult[] = [];
     const allEnrollmentsForChildren = await db.ministry_enrollments.where('child_id').anyOf(childIds).and(e => e.cycle_id === cycleId).toArray();
     const ministryList = await db.ministries.toArray();
     const ministryMap = new Map(ministryList.map(m => [m.ministry_id, m]));
 
     for (const child of children) {
-        let scriptures: any[] = [];
-        let essays: any[] = [];
+    let scriptures: unknown[] = [];
+    let essays: { status?: string }[] = [];
         if (compYear) {
-            scriptures = await db.studentScriptures.where({ childId: child.child_id, competitionYearId: compYear.id }).toArray();
-            essays = await db.studentEssays.where({ childId: child.child_id, competitionYearId: compYear.id }).toArray();
+            const compId = (compYear as { id?: string })?.id || '';
+            scriptures = await db.studentScriptures.where({ childId: child.child_id, competitionYearId: compId }).toArray();
+            essays = await db.studentEssays.where({ childId: child.child_id, competitionYearId: compId }).toArray();
         }
 
         const totalScriptures = scriptures.length;
-        const completedScriptures = scriptures.filter(s => s.status === 'completed').length;
+    const completedScriptures = scriptures.filter((s): s is { status?: string } => typeof (s as unknown as { status?: unknown })?.status === 'string')
+            .filter(s => s.status === 'completed').length;
         
         // Check essay status - look for essay prompts assigned to the child's division
         let essayStatus = 'none';
-        if (essays.length > 0) {
-            essayStatus = essays[0].status;
+        if (essays.length > 0 && typeof (essays[0] as unknown as { status?: unknown })?.status === 'string') {
+            essayStatus = (essays[0] as { status?: string }).status ?? 'none';
         } else {
             // Check if there's an essay prompt assigned to this child's division
             try {
@@ -1427,8 +1463,8 @@ export async function getBibleBeeProgressForCycle(cycleId: string) {
             }
         }
 
-        // For new-schema enrollments, get ministries from the enrollments table
-        let childEnrolls: any[] = [];
+    // For new-schema enrollments, get ministries from the enrollments table
+    let childEnrolls: EnrichedEnrollment[] | { ministry_id: string; ministryName: string }[] = [];
         if (cycleId && (await db.bible_bee_years.get(cycleId))) {
             // New schema: Look up actual enrollments for the child in this year
             try {
@@ -1456,7 +1492,7 @@ export async function getBibleBeeProgressForCycle(cycleId: string) {
             // Fall back to legacy system
             try {
                 const gradeNum = child.grade ? gradeToCode(child.grade) : null;
-                const rule = gradeNum !== null && compYear ? await getApplicableGradeRule(compYear.id, gradeNum) : null;
+                const rule = gradeNum !== null && compYear ? await getApplicableGradeRule((compYear as { id?: string }).id || '', gradeNum) : null;
                 requiredScriptures = rule?.targetCount ?? null;
                 if (rule) {
                     if (rule.minGrade === rule.maxGrade) gradeGroup = `Grade ${rule.minGrade}`;
@@ -1684,19 +1720,19 @@ export async function canLeaderManageBibleBee(opts: { leaderId?: string; email?:
     // 1) Legacy leader_assignments check
     if (leaderId && effectiveCycle) {
         const assignments = await db.leader_assignments.where({ leader_id: leaderId, cycle_id: effectiveCycle }).toArray();
-    if (assignments.some((a: any) => a.ministry_id === 'bible-bee' && a.role === 'Primary')) return true;
+    if (assignments.some((a: LeaderAssignment) => a.ministry_id === 'bible-bee' && a.role === 'Primary')) return true;
     }
 
     // 2) New management system: ministry_leader_memberships
     if (leaderId) {
     const memberships = await db.ministry_leader_memberships.where('leader_id').equals(leaderId).toArray();
-    if (memberships.some((m: any) => (m.ministry_id === 'bible-bee') && isActiveValue(m.is_active))) return true;
+    if (memberships.some((m: MinistryLeaderMembership) => (m.ministry_id === 'bible-bee') && isActiveValue(m.is_active))) return true;
     }
 
     // 3) Demo/email-based mapping: ministry_accounts
     if (email) {
     const accounts = await db.ministry_accounts.where('email').equals(String(email)).toArray();
-    if (accounts.some((a: any) => a.ministry_id === 'bible-bee')) return true;
+    if (accounts.some((a: MinistryAccount) => a.ministry_id === 'bible-bee')) return true;
     }
 
     return false;
@@ -2392,9 +2428,9 @@ export async function getRegistrationStats(): Promise<{ householdCount: number; 
 		} else {
 			// Use legacy Dexie interface for demo mode
 			try {
-				const activeCycle = await db.registration_cycles
-					.filter((cycle: any) => cycle.is_active === true || Number(cycle.is_active) === 1)
-					.first();
+                const activeCycle = await db.registration_cycles
+                    .filter((cycle: { is_active?: boolean | number | string }) => cycle.is_active === true || Number((cycle.is_active as unknown) ?? 0) === 1)
+                    .first();
 				
 				if (!activeCycle) {
 					return { householdCount: 0, childCount: 0 };
@@ -2408,12 +2444,12 @@ export async function getRegistrationStats(): Promise<{ householdCount: number; 
 					return { householdCount: 0, childCount: 0 };
 				}
 				
-				const childIds = registrations.map((r: any) => r.child_id);
-				const children = await db.children
-					.where('child_id')
-					.anyOf(childIds)
-					.toArray();
-				const householdIds = new Set(children.map((c: any) => c.household_id));
+                const childIds = registrations.map((r: Registration) => r.child_id);
+                const children = await db.children
+                    .where('child_id')
+                    .anyOf(childIds)
+                    .toArray();
+                const householdIds = new Set(children.map((c: Child) => c.household_id));
 				
 				return {
 					householdCount: householdIds.size,
@@ -2636,29 +2672,31 @@ export async function getAllEmergencyContacts(): Promise<EmergencyContact[]> {
 /**
  * Get incidents for a user based on their role
  */
-export async function getIncidentsForUser(user: any): Promise<Incident[]> {
+export async function getIncidentsForUser(user: unknown): Promise<Incident[]> {
 	if (shouldUseAdapter()) {
 		// Use Supabase adapter for live mode
 		const allIncidents = await dbAdapter.listIncidents();
 		
-		if (user?.metadata?.role === AuthRole.MINISTRY_LEADER) {
-			// Always restrict leaders to incidents they logged
-            const leaderId = (extractUserId(user) as string);
-			return allIncidents.filter(incident => incident.leader_id === leaderId);
-		}
+    if (isMinistryLeaderUser(user)) {
+            // Always restrict leaders to incidents they logged
+            const leaderId = extractUserId(user) as string | undefined;
+            if (!leaderId) return [];
+            return allIncidents.filter(incident => incident.leader_id === leaderId);
+        }
 		
 		return allIncidents.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 	} else {
 		// Use legacy Dexie interface for demo mode
-		if (user?.metadata?.role === AuthRole.MINISTRY_LEADER) {
-			// Always restrict leaders to incidents they logged
-            const leaderId = (extractUserId(user) as string);
-			return db.incidents
-				.where('leader_id')
-				.equals(leaderId)
-				.reverse()
-				.sortBy('timestamp');
-		}
+    if (isMinistryLeaderUser(user)) {
+            // Always restrict leaders to incidents they logged
+            const leaderId = extractUserId(user) as string | undefined;
+            if (!leaderId) return [];
+            return db.incidents
+                .where('leader_id')
+                .equals(leaderId)
+                .reverse()
+                .sortBy('timestamp');
+        }
 		
 		return db.incidents.orderBy('timestamp').reverse().toArray();
 	}
@@ -2693,23 +2731,24 @@ export async function getCheckedInChildren(dateISO: string): Promise<Child[]> {
 /**
  * Get all competition years for Bible Bee
  */
-export async function getCompetitionYears(): Promise<any[]> {
+export async function getCompetitionYears(): Promise<CompetitionYear[]> {
 	// Note: Competition years are legacy - in new Bible Bee system, use getBibleBeeYears()
 	// This function is maintained for backward compatibility
 	if (shouldUseAdapter()) {
 		// Use Supabase adapter for live mode
 		// Competition years might not exist in the new schema, return empty array or fetch from appropriate table
-		try {
-			// If competition years exist in adapter
-			// return await dbAdapter.listCompetitionYears();
-			console.warn('Competition years not implemented in adapter, using legacy mode');
-			return [];
-		} catch (error) {
-			console.warn('Competition years not available in adapter mode');
-			return [];
-		}
-	} else {
-		// Use legacy Dexie interface for demo mode
-		return db.competitionYears.orderBy('year').reverse().toArray();
-	}
+        try {
+            // If competition years exist in adapter
+            // return await dbAdapter.listCompetitionYears();
+            console.warn('Competition years not implemented in adapter, using legacy mode');
+            return [] as CompetitionYear[];
+        } catch (error) {
+            console.warn('Competition years not available in adapter mode');
+            return [] as CompetitionYear[];
+        }
+    } else {
+        // Use legacy Dexie interface for demo mode
+    // Keep compatibility shape and return typed CompetitionYear[] from legacy DB
+    return (await db.competitionYears.orderBy('year').reverse().toArray()) as CompetitionYear[];
+    }
 }

@@ -286,7 +286,10 @@ export async function registerHouseholdCanonical(data: Record<string, unknown>, 
     
     // The rest follows the same pattern as the original, but with validated data
     // For brevity, keeping the original Dexie logic but noting that canonical data is validated
-  return await (db as unknown as Record<string, any>).transaction('rw', db.households, db.guardians, db.emergency_contacts, db.children, db.registrations, db.ministry_enrollments, async () => {
+  // Localized any: Dexie DB object has complex runtime types; keep `any` here
+  // to avoid blocking conversion work. This is low-risk and limited to demo path.
+  /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+  return await (db as any).transaction('rw', db.households, db.guardians, db.emergency_contacts, db.children, db.registrations, db.ministry_enrollments, async () => {
       // Original Dexie implementation would go here
       // For now, throwing to force Supabase adapter usage in this implementation
       throw new Error('Canonical DTO registration requires Supabase adapter');

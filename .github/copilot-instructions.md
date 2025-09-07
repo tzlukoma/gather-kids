@@ -217,3 +217,9 @@ gather-kids/
 - Always include the reference to the original issue in the Pull Request (e.g. Fixes issue #4)
 - Provide major status updates in the body of the issue but don't override previous updates so that the progression is clear
 - Keep the original title of the PR intact for traceability (i.e. do not rename it as you provide updates)
+
+## Coding guidance: avoid `any` in new code
+
+- Please avoid introducing `any` in new source files. Prefer `unknown` plus a narrow runtime guard, or define small domain types/interfaces and mapping helpers in the DAL layer.
+- If a temporary `any` is required for an exceptional case (for example, while migrating legacy data or awaiting regenerated Supabase types), add a localized comment with justification and a TODO linking to the tracking issue: `.github/ISSUES/000-temp-relax-no-explicit-any.md`.
+- The long-term goal is to keep `@typescript-eslint/no-explicit-any` enabled as `error` on `develop` and restrict `any` to only well-documented, short-lived exceptions.

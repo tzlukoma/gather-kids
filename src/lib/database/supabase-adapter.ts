@@ -33,6 +33,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 	// `Database` type is incomplete, typecheck will reveal the mismatches to fix.
 	private client: SupabaseClient<Database>;
 
+
 	constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: SupabaseClient<Database>) {
 		this.client = customClient || (createClient(supabaseUrl, supabaseAnonKey) as SupabaseClient<Database>);
 	}
@@ -1965,6 +1966,13 @@ export class SupabaseAdapter implements DatabaseAdapter {
 	// includes all tables (for example: `registration_cycles`) and remove this helper.
 	// Localized any-cast helper for tables not present in the generated supabase types.
 	// TODO: regenerate `src/lib/database/supabase-types.ts` and remove this.
+	// Temporary helper for tables missing from generated supabase types (see TODOs below).
+	// TODO: regenerate `src/lib/database/supabase-types.ts` so the Supabase client generic
+	// includes all tables (for example: `registration_cycles`) and remove this helper.
+	// Localized any-cast helper for tables not present in the generated supabase types.
+	// TODO: regenerate `src/lib/database/supabase-types.ts` and remove this.
+	// Localized any: this helper is intentionally `any` until `supabase-types.ts` is regenerated
+	// to include legacy tables (e.g. `registration_cycles`). See TODOs above.
 	/* eslint-disable-next-line @typescript-eslint/no-explicit-any */
 	private getClientAny(): any {
 		return this.client as any;
