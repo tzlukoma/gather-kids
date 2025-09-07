@@ -27,32 +27,53 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Install supabase CLI and generate types
+      - name: Install supabase CLI and generate types (debug)
         id: gen
         run: |
           set -euo pipefail
-          echo "Installing Supabase CLI via official installer"
-          curl -fsSL --retry 3 --retry-delay 2 https://raw.githubusercontent.com/supabase/cli/main/install.sh -o /tmp/install_supabase.sh
-          chmod +x /tmp/install_supabase.sh
-          # Install (the installer places the binary in ~/.supabase/bin or /usr/local/bin)
-          /tmp/install_supabase.sh --yes || true
+          set -x
+          echo "Installing Supabase CLI (debug mode)"
 
-          # Find the installed binary
-          if command -v supabase >/dev/null 2>&1; then
-            SUPABASE_BIN=$(command -v supabase)
-          elif [ -x "$HOME/.supabase/bin/supabase" ]; then
-            SUPABASE_BIN="$HOME/.supabase/bin/supabase"
-          elif [ -x "/usr/local/bin/supabase" ]; then
-            SUPABASE_BIN="/usr/local/bin/supabase"
+          SUPABASE_URL="https://github.com/supabase/cli/releases/latest/download/supabase_linux_amd64.tar.gz"
+          echo "Target URL: $SUPABASE_URL"
+
+          echo "Testing HEAD for the asset (shows HTTP headers)"
+          curl -sS -I -L -D /tmp/supabase_headers.txt "$SUPABASE_URL" || true
+          echo "---- HEAD headers ----"
+          sed -n '1,200p' /tmp/supabase_headers.txt || true
+          echo "----------------------"
+
+          echo "Downloading asset to /tmp/supabase_asset.tar.gz (retries enabled)"
+          mkdir -p /tmp
+          curl -sSL --retry 3 --retry-delay 2 -D /tmp/curl_headers.txt -o /tmp/supabase_asset.tar.gz -w "%{http_code}" "$SUPABASE_URL" > /tmp/curl_http_code || true
+
+          echo "---- curl http code ----"
+          cat /tmp/curl_http_code || true
+          echo "---- curl headers ----"
+          sed -n '1,200p' /tmp/curl_headers.txt || true
+          echo "---- downloaded file info ----"
+          file /tmp/supabase_asset.tar.gz || true
+          echo "---- first bytes (helps detect HTML 404 pages) ----"
+          head -c 512 /tmp/supabase_asset.tar.gz | sed -n '1,200p' || true
+
+          echo "Attempting to extract to $HOME/.bin"
+          mkdir -p "$HOME/.bin"
+          if tar -xz -f /tmp/supabase_asset.tar.gz -C "$HOME/.bin"; then
+            echo "Extraction succeeded"
           else
-            echo "supabase CLI not found after install" >&2
-            exit 2
+            echo "tar extraction failed; dumping first 200 lines of the downloaded file to help debug:" >&2
+            hexdump -C /tmp/supabase_asset.tar.gz | sed -n '1,200p' || true
+            echo "Exiting with error" >&2
+            exit 1
           fi
 
-          echo "Using supabase binary: $SUPABASE_BIN"
-          $SUPABASE_BIN --version || true
+          chmod +x "$HOME/.bin/supabase"
+          echo "$HOME/.bin" >> $GITHUB_PATH
+
+          echo "Using supabase binary from $HOME/.bin"
+          $HOME/.bin/supabase --version || true
           echo "Running supabase gen types typescript --local"
-          $SUPABASE_BIN gen types typescript --local
+          $HOME/.bin/supabase gen types typescript --local
 
       - name: Ensure generated file exists
         run: |
