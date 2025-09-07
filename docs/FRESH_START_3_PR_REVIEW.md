@@ -107,9 +107,9 @@
 
 ## E. Manual smoke (no behavior change)
 
-- [ ] Create account → verify → register full household (guardians, emergency contacts, children, ministry selections, consents) → land on `/household` with expected data populated.
+- [x] Create account → verify → register full household (guardians, emergency contacts, children, ministry selections, consents) → land on `/household` with expected data populated.
       _Focus: no runtime errors from missing columns; data reads look identical._
-- [ ] Re-submit edits to a child with **dob** and **child_mobile** only (legacy fields gone) — confirm persistence & display.
+- [x] Re-submit edits to a child with **dob** and **child_mobile** only (legacy fields gone) — confirm persistence & display.
 
 ## F. Paper trail
 
