@@ -90,7 +90,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 
 	async updateHousehold(id: string, data: Partial<Household>): Promise<Household> {
 		// Map frontend field names to database column names  
-		const updateData: any = {
+	const updateData: Record<string, unknown> = {
 			updated_at: new Date().toISOString(),
 		};
 		
@@ -120,8 +120,9 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			.select()
 			.single();
 
-		if (error) throw error;
-		return supabaseToHousehold(result as any);
+	if (error) throw error;
+	if (!result) throw new Error('updateHousehold: no result returned from DB');
+	return supabaseToHousehold(result as Database['public']['Tables']['households']['Row']);
 	}
 
 	async listHouseholds(filters?: HouseholdFilters): Promise<Household[]> {
@@ -153,7 +154,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 
 	const { data, error } = await query;
 	if (error) throw error;
-	return (data || []).map((r: any) => supabaseToHousehold(r));
+	return (data || []).map((r) => supabaseToHousehold(r as Database['public']['Tables']['households']['Row']));
 	}
 
 	async deleteHousehold(id: string): Promise<void> {
@@ -222,7 +223,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 
 	async updateChild(id: string, data: Partial<Child>): Promise<Child> {
 		// Map frontend field names to database column names
-		const updateData: any = {
+	const updateData: Record<string, unknown> = {
 			updated_at: new Date().toISOString(),
 		};
 		
@@ -292,7 +293,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 
 	const { data, error } = await query;
 	if (error) throw error;
-	return (data || []).map((d: any) => supabaseToChild(d));
+	return (data || []).map((d) => supabaseToChild(d as Database['public']['Tables']['children']['Row']));
 	}
 
 	async deleteChild(id: string): Promise<void> {
@@ -313,10 +314,10 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			.single();
 
 		if (error) {
-			if (error.code === 'PGRST116') return null;
-			throw error;
-		}
-		return data as any;
+				if (error.code === 'PGRST116') return null;
+				throw error;
+			}
+			return data ? supabaseToGuardian(data as unknown as Database['public']['Tables']['guardians']['Row']) : null;
 	}
 
 	async createGuardian(
@@ -360,8 +361,8 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			.select('*')
 			.eq('household_id', householdId);
 
-		if (error) throw error;
-		return (data || []).map((d: any) => supabaseToGuardian(d));
+	if (error) throw error;
+	return (data || []).map((d) => supabaseToGuardian(d as Database['public']['Tables']['guardians']['Row']));
 	}
 
 	async listAllGuardians(): Promise<Guardian[]> {
@@ -369,8 +370,8 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			.from('guardians')
 			.select('*');
 
-		if (error) throw error;
-		return (data || []).map((d: any) => supabaseToGuardian(d));
+	if (error) throw error;
+	return (data || []).map((d) => supabaseToGuardian(d as Database['public']['Tables']['guardians']['Row']));
 	}
 
 	async deleteGuardian(id: string): Promise<void> {
@@ -418,7 +419,8 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			.single();
 
 	if (error) throw error;
-	return result ? supabaseToEmergencyContact(result as unknown as Database['public']['Tables']['emergency_contacts']['Row']) : (result as unknown as any);
+	if (!result) throw new Error('createEmergencyContact: no result returned from DB');
+	return supabaseToEmergencyContact(result as unknown as Database['public']['Tables']['emergency_contacts']['Row']);
 	}
 
 	async updateEmergencyContact(
@@ -436,7 +438,8 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			.single();
 
 	if (error) throw error;
-	return result ? supabaseToEmergencyContact(result as any) : result as any;
+	if (!result) throw new Error('updateEmergencyContact: no result returned from DB');
+	return supabaseToEmergencyContact(result as unknown as Database['public']['Tables']['emergency_contacts']['Row']);
 	}
 
 	async listEmergencyContacts(householdId: string): Promise<EmergencyContact[]> {
@@ -445,8 +448,8 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			.select('*')
 			.eq('household_id', householdId);
 
-		if (error) throw error;
-		return (data || []).map((d: any) => supabaseToEmergencyContact(d));
+	if (error) throw error;
+	return (data || []).map((d) => supabaseToEmergencyContact(d as Database['public']['Tables']['emergency_contacts']['Row']));
 	}
 
 	async listAllEmergencyContacts(): Promise<EmergencyContact[]> {
@@ -454,8 +457,8 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			.from('emergency_contacts')
 			.select('*');
 
-		if (error) throw error;
-		return (data || []).map((d: any) => supabaseToEmergencyContact(d));
+	if (error) throw error;
+	return (data || []).map((d) => supabaseToEmergencyContact(d as Database['public']['Tables']['emergency_contacts']['Row']));
 	}
 
 	async deleteEmergencyContact(id: string): Promise<void> {
@@ -476,10 +479,11 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			.single();
 
 		if (error) {
-			if (error.code === 'PGRST116') return null;
-			throw error;
-		}
-	return data ? this.mapRegistrationCycle(data as any) : null;
+				if (error.code === 'PGRST116') return null;
+				throw error;
+			}
+		if (!data) return null;
+		return this.mapRegistrationCycle(data as Record<string, unknown>);
 	}
 
 	async createRegistrationCycle(
@@ -499,7 +503,8 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			.single();
 
 	if (error) throw error;
-	return result ? this.mapRegistrationCycle(result as any) : (result as any);
+	if (!result) throw new Error('createRegistrationCycle: no result returned from DB');
+	return this.mapRegistrationCycle(result as Record<string, unknown>);
 	}
 
 	async updateRegistrationCycle(
@@ -517,7 +522,8 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			.single();
 
 	if (error) throw error;
-	return result ? this.mapRegistrationCycle(result as any) : result as any;
+	if (!result) throw new Error('updateRegistrationCycle: no result returned from DB');
+	return this.mapRegistrationCycle(result as Record<string, unknown>);
 	}
 
 	async listRegistrationCycles(isActive?: boolean): Promise<RegistrationCycle[]> {
@@ -575,35 +581,41 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			updated_at: new Date().toISOString(),
 		};
 
-		const dbPayload: any = { ...registration };
-		if (dbPayload.consents) dbPayload.consents = serializeIfObject(dbPayload.consents);
+	const insertPayload: Database['public']['Tables']['registrations']['Insert'] = {
+		...registration,
+		consents: registration.consents ? (serializeIfObject(registration.consents) as Database['public']['Tables']['registrations']['Insert']['consents']) : registration.consents,
+	};
 
 	const { data: result, error } = await this.client
 			.from('registrations')
-			.insert(dbPayload)
+			.insert(insertPayload)
 			.select()
 			.single();
 
-		if (error) throw error;
-		return supabaseToRegistration(result as any);
+	if (error) throw error;
+	if (!result) throw new Error('createRegistration: no result returned from DB');
+	return supabaseToRegistration(result as Database['public']['Tables']['registrations']['Row']);
 	}
 
 	async updateRegistration(
 		id: string,
 		data: Partial<Registration>
 	): Promise<Registration> {
-		const payload: any = { ...data };
-		if (payload.consents) payload.consents = serializeIfObject(payload.consents);
+	const updatePayload: Database['public']['Tables']['registrations']['Update'] = {
+		...(data as Database['public']['Tables']['registrations']['Update']),
+		consents: (data as any)?.consents ? (serializeIfObject((data as any).consents) as Database['public']['Tables']['registrations']['Update']['consents']) : (data as any).consents,
+	};
 
 		const { data: result, error } = await this.client
 			.from('registrations')
-			.update(payload)
+			.update(updatePayload)
 			.eq('registration_id', id)
 			.select()
 			.single();
 
-		if (error) throw error;
-		return supabaseToRegistration(result as any);
+	if (error) throw error;
+	if (!result) throw new Error('updateRegistration: no result returned from DB');
+	return supabaseToRegistration(result as Database['public']['Tables']['registrations']['Row']);
 	}
 
 	async listRegistrations(filters?: RegistrationFilters): Promise<Registration[]> {
@@ -628,9 +640,9 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			);
 		}
 
-		const { data, error } = await query;
-		if (error) throw error;
-		return (data || []).map((d: any) => supabaseToRegistration(d));
+	const { data, error } = await query;
+	if (error) throw error;
+	return (data || []).map((d) => supabaseToRegistration(d as Database['public']['Tables']['registrations']['Row']));
 	}
 
 	async deleteRegistration(id: string): Promise<void> {
@@ -667,32 +679,39 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			updated_at: new Date().toISOString(),
 		};
 
-		const dbPayload: any = { ...ministry };
-		if (dbPayload.custom_questions) dbPayload.custom_questions = serializeIfObject(dbPayload.custom_questions);
+	const insertMinistryPayload: Database['public']['Tables']['ministries']['Insert'] = {
+		...ministry,
+		custom_questions: ministry.custom_questions ? (serializeIfObject(ministry.custom_questions) as Database['public']['Tables']['ministries']['Insert']['custom_questions']) : ministry.custom_questions,
+	};
 
 		const { data: result, error } = await this.client
 			.from('ministries')
-			.insert(dbPayload)
+			.insert(insertMinistryPayload)
 			.select()
 			.single();
 
 		if (error) throw error;
-	return supabaseToMinistry(result as unknown as Database['public']['Tables']['ministries']['Row']);
+		if (!result) throw new Error('createMinistry: no result returned from DB');
+		return supabaseToMinistry(result as Database['public']['Tables']['ministries']['Row']);
 	}
 
 	async updateMinistry(id: string, data: Partial<Ministry>): Promise<Ministry> {
-		const dbPayload: any = { ...data, updated_at: new Date().toISOString() };
-		if (dbPayload.custom_questions) dbPayload.custom_questions = serializeIfObject(dbPayload.custom_questions);
+	const updateMinistryPayload: Database['public']['Tables']['ministries']['Update'] = {
+		...(data as Database['public']['Tables']['ministries']['Update']),
+		updated_at: new Date().toISOString(),
+		custom_questions: (data as any)?.custom_questions ? (serializeIfObject((data as any).custom_questions) as Database['public']['Tables']['ministries']['Update']['custom_questions']) : (data as any).custom_questions,
+	};
 
 		const { data: result, error } = await this.client
 			.from('ministries')
-			.update(dbPayload)
+			.update(updateMinistryPayload)
 			.eq('ministry_id', id)
 			.select()
 			.single();
 
-		if (error) throw error;
-		return supabaseToMinistry(result as any);
+	if (error) throw error;
+	if (!result) throw new Error('updateMinistry: no result returned from DB');
+	return supabaseToMinistry(result as Database['public']['Tables']['ministries']['Row']);
 	}
 
 	async listMinistries(isActive?: boolean): Promise<Ministry[]> {
@@ -704,7 +723,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 
 	const { data, error } = await query;
 	if (error) throw error;
-	return (data || []).map((d: any) => supabaseToMinistry(d));
+	return (data || []).map((d) => supabaseToMinistry(d as Database['public']['Tables']['ministries']['Row']));
 	}
 
 	async deleteMinistry(id: string): Promise<void> {
@@ -741,29 +760,34 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			updated_at: new Date().toISOString(),
 		};
 
-		const dbPayload: any = { ...enrollment };
-		if (dbPayload.custom_fields) dbPayload.custom_fields = serializeIfObject(dbPayload.custom_fields);
+	const insertEnrollmentPayload: Database['public']['Tables']['ministry_enrollments']['Insert'] = {
+		...enrollment,
+		custom_fields: enrollment.custom_fields ? (serializeIfObject(enrollment.custom_fields) as Database['public']['Tables']['ministry_enrollments']['Insert']['custom_fields']) : enrollment.custom_fields,
+	};
 
 		const { data: result, error } = await this.client
 			.from('ministry_enrollments')
-			.insert(dbPayload)
+			.insert(insertEnrollmentPayload)
 			.select()
 			.single();
 
 		if (error) throw error;
-	return supabaseToMinistryEnrollment(result as unknown as Database['public']['Tables']['ministry_enrollments']['Row']);
+		if (!result) throw new Error('createMinistryEnrollment: no result returned from DB');
+		return supabaseToMinistryEnrollment(result as Database['public']['Tables']['ministry_enrollments']['Row']);
 	}
 
 	async updateMinistryEnrollment(
 		id: string,
 		data: Partial<MinistryEnrollment>
 	): Promise<MinistryEnrollment> {
-		const dbPayload: any = { ...data, updated_at: new Date().toISOString() };
-		if (dbPayload.custom_fields) dbPayload.custom_fields = serializeIfObject(dbPayload.custom_fields);
+	const updateEnrollmentPayload: Database['public']['Tables']['ministry_enrollments']['Update'] = {
+		...(data as Database['public']['Tables']['ministry_enrollments']['Update']),
+		custom_fields: (data as any)?.custom_fields ? (serializeIfObject((data as any).custom_fields) as Database['public']['Tables']['ministry_enrollments']['Update']['custom_fields']) : (data as any).custom_fields,
+	};
 
 		const { data: result, error } = await this.client
 			.from('ministry_enrollments')
-			.update(dbPayload)
+			.update(updateEnrollmentPayload)
 			.eq('enrollment_id', id)
 			.select()
 			.single();
@@ -790,8 +814,8 @@ export class SupabaseAdapter implements DatabaseAdapter {
 		}
 
 		const { data, error } = await query;
-		if (error) throw error;
-		return (data || []).map((d: any) => supabaseToMinistryEnrollment(d));
+	if (error) throw error;
+	return (data || []).map((d) => supabaseToMinistryEnrollment(d as Database['public']['Tables']['ministry_enrollments']['Row']));
 	}
 
 	async deleteMinistryEnrollment(id: string): Promise<void> {
@@ -834,7 +858,8 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			.single();
 
 		if (error) throw error;
-	return supabaseToAttendance(result as unknown as Database['public']['Tables']['attendance']['Row']);
+		if (!result) throw new Error('createAttendance: no result returned from DB');
+		return supabaseToAttendance(result as Database['public']['Tables']['attendance']['Row']);
 	}
 
 	async updateAttendance(id: string, data: Partial<Attendance>): Promise<Attendance> {
@@ -872,8 +897,8 @@ export class SupabaseAdapter implements DatabaseAdapter {
 		}
 
 		const { data, error } = await query;
-		if (error) throw error;
-		return (data || []).map((d: any) => supabaseToAttendance(d));
+	if (error) throw error;
+	return (data || []).map((d) => supabaseToAttendance(d as Database['public']['Tables']['attendance']['Row']));
 	}
 
 	async deleteAttendance(id: string): Promise<void> {
@@ -1006,8 +1031,9 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			.select()
 			.single();
 
-		if (error) throw error;
-	return supabaseToEvent(result as unknown as Database['public']['Tables']['events']['Row']);
+	if (error) throw error;
+	if (!result) throw new Error('createEvent: no result returned from DB');
+	return supabaseToEvent(result as Database['public']['Tables']['events']['Row']);
 	}
 
 	async updateEvent(id: string, data: Partial<Event>): Promise<Event> {
@@ -1021,8 +1047,9 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			.select()
 			.single();
 
-		if (error) throw error;
-		return supabaseToEvent(result as any);
+	if (error) throw error;
+	if (!result) throw new Error('updateEvent: no result returned from DB');
+	return supabaseToEvent(result as Database['public']['Tables']['events']['Row']);
 	}
 
 	async listEvents(): Promise<Event[]> {
@@ -1074,8 +1101,9 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			.select()
 			.single();
 
-		if (error) throw error;
-	return supabaseToUser(result as unknown as Database['public']['Tables']['users']['Row']);
+	if (error) throw error;
+	if (!result) throw new Error('createUser: no result returned from DB');
+	return supabaseToUser(result as Database['public']['Tables']['users']['Row']);
 	}
 
 	async updateUser(id: string, data: Partial<User>): Promise<User> {
@@ -1089,8 +1117,9 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			.select()
 			.single();
 
-		if (error) throw error;
-		return supabaseToUser(result as any);
+	if (error) throw error;
+	if (!result) throw new Error('updateUser: no result returned from DB');
+	return supabaseToUser(result as Database['public']['Tables']['users']['Row']);
 	}
 
 	async listUsers(): Promise<User[]> {
