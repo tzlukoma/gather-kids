@@ -99,6 +99,15 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 		await this.db.households.delete(id);
 	}
 
+	async getHouseholdForUser(authUserId: string): Promise<string | null> {
+		const userHousehold = await this.db.user_households
+			.where('auth_user_id')
+			.equals(authUserId)
+			.first();
+		
+		return userHousehold?.household_id || null;
+	}
+
 	// Children
 	async getChild(id: string): Promise<Child | null> {
 		const result = await this.db.children.get(id);

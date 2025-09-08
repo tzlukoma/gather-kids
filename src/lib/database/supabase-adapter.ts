@@ -187,6 +187,46 @@ export class SupabaseAdapter implements DatabaseAdapter {
 		if (error) throw error;
 	}
 
+	async getHouseholdForUser(authUserId: string): Promise<string | null> {
+		console.log('SupabaseAdapter.getHouseholdForUser: Starting query', { authUserId });
+		
+		try {
+			const { data, error } = await this.client
+				.from('user_households')
+				.select('household_id')
+				.eq('auth_user_id', authUserId);
+
+			console.log('SupabaseAdapter.getHouseholdForUser: Query result', { 
+				hasError: !!error, 
+				errorMessage: error?.message, 
+				dataCount: data?.length || 0,
+				householdIds: data?.map(d => d.household_id) || []
+			});
+			
+			if (error) {
+				console.error('SupabaseAdapter.getHouseholdForUser: Query error', error);
+				return null;
+			}
+
+			if (!data || data.length === 0) {
+				console.log('SupabaseAdapter.getHouseholdForUser: No household found for user');
+				return null;
+			}
+
+			if (data.length > 1) {
+				console.warn('SupabaseAdapter.getHouseholdForUser: Multiple households found for user, using first one', {
+					authUserId,
+					householdIds: data.map(d => d.household_id)
+				});
+			}
+
+			return data[0]?.household_id || null;
+		} catch (queryError) {
+			console.error('SupabaseAdapter.getHouseholdForUser: Query failed', queryError);
+			throw queryError;
+		}
+	}
+
 	// Children
 	async getChild(id: string): Promise<Child | null> {
 		const { data, error } = await this.client

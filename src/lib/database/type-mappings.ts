@@ -629,6 +629,7 @@ export function supabaseToMinistry(record: SupabaseMinistry): MinistryEntity {
 			name: String((r.name ?? r.label) ?? ''),
 			// coerce null -> undefined for optional fields produced by the generator
 			description: (r.description as string | undefined) ?? undefined,
+			details: (r.details as string | undefined) ?? undefined,
 			min_age: (r.min_age as number | undefined) ?? undefined,
 			max_age: (r.max_age as number | undefined) ?? undefined,
 			min_grade: (r.min_grade as string | undefined) ?? undefined,
@@ -639,6 +640,10 @@ export function supabaseToMinistry(record: SupabaseMinistry): MinistryEntity {
 			data_profile: (r.data_profile ?? r.dataProfile ?? 'Basic') as 'Basic' | 'SafetyAware',
 			// custom_questions is stored as SupabaseJson; parse into typed CustomQuestion[]
 			custom_questions: parseCustomQuestions(r.custom_questions),
+			optional_consent_text: (r.optional_consent_text as string | undefined) ?? undefined,
+			communicate_later: (r.communicate_later as boolean | undefined) ?? undefined,
+			open_at: (r.open_at as string | undefined) ?? undefined,
+			close_at: (r.close_at as string | undefined) ?? undefined,
 			created_at: String(r.created_at || new Date().toISOString()),
 			updated_at: String(r.updated_at || new Date().toISOString()),
 		};

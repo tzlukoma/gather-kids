@@ -36,7 +36,7 @@ import { useState, useMemo, useEffect, useCallback, Suspense } from 'react';
 import { Textarea } from '@/components/ui/textarea';
 import {
 	findHouseholdByEmail,
-	registerHousehold,
+	registerHouseholdCanonical,
 	getMinistries,
 	getRegistrationCycles,
 } from '@/lib/dal';
@@ -463,6 +463,8 @@ function RegisterPageContent() {
 	const [isCurrentYearOverwrite, setIsCurrentYearOverwrite] = useState(false);
 	const [isPrefill, setIsPrefill] = useState(false);
 	const [isAuthenticatedUser, setIsAuthenticatedUser] = useState(false);
+	const [isSubmitting, setIsSubmitting] = useState(false);
+	const [submissionStatus, setSubmissionStatus] = useState<string>('');
 
 	const [allMinistries, setAllMinistries] = useState<Ministry[]>([]);
 	const [activeRegistrationCycle, setActiveRegistrationCycle] = useState<
@@ -476,8 +478,10 @@ function RegisterPageContent() {
 				console.log(
 					'DEBUG: Loading ministries and registration cycles for registration form'
 				);
-				console.log('DEBUG: Before calling getMinistries() and getRegistrationCycles()');
-				
+				console.log(
+					'DEBUG: Before calling getMinistries() and getRegistrationCycles()'
+				);
+
 				// Load ministries first to better debug any issues
 				console.log('DEBUG: Calling getMinistries()');
 				const ministries = await getMinistries();
@@ -487,14 +491,10 @@ function RegisterPageContent() {
 					'ministries',
 					ministries.length > 0 ? JSON.stringify(ministries[0]) : 'none'
 				);
-				
+
 				console.log('DEBUG: Calling getRegistrationCycles()');
 				const cycles = await getRegistrationCycles();
-				console.log(
-					'DEBUG: Loaded',
-					cycles.length,
-					'registration cycles'
-				);
+				console.log('DEBUG: Loaded', cycles.length, 'registration cycles');
 
 				setAllMinistries(ministries);
 
@@ -954,24 +954,53 @@ function RegisterPageContent() {
 
 	async function onSubmit(data: RegistrationFormValues) {
 		console.log('DEBUG: onSubmit called');
+		setIsSubmitting(true);
+		setSubmissionStatus('Creating household...');
+
 		try {
 			// Use the active registration cycle instead of hardcoded '2025'
 			const cycleId = activeRegistrationCycle?.cycle_id || '2025'; // fallback to '2025' if no active cycle found
 			console.log('DEBUG: Registering household for cycle:', cycleId);
-			const result = await registerHousehold(data, cycleId, isPrefill);
+
+			setSubmissionStatus('Processing registration...');
+			const result = await registerHouseholdCanonical(data, cycleId, isPrefill);
 			console.log('DEBUG: Registration result:', result);
+
 			toast({
 				title: 'Registration Submitted!',
 				description: "Thank you! Your family's registration has been received.",
 			});
 
 			// Check if user is authenticated and should be redirected to household page
+			console.log('DEBUG: Checking redirect conditions:', {
+				isAuthenticatedUser,
+				userEmail: user?.email,
+				userRole: user?.metadata?.role,
+				userExists: !!user,
+				registrationComplete: result.isComplete,
+			});
+
 			if (isAuthenticatedUser && user?.email) {
-				console.log('DEBUG: Authenticated user, redirecting to household page');
-				// For authenticated users, redirect to household page after successful registration
-				// The registerHousehold function will have assigned the GUARDIAN role
-				router.push('/household');
-				return;
+				if (result.isComplete) {
+					console.log(
+						'DEBUG: Registration complete, redirecting to household page'
+					);
+					setSubmissionStatus('Redirecting to household...');
+					router.push('/household');
+					return;
+				} else {
+					console.warn('DEBUG: Registration incomplete:', {
+						userHouseholdsCreated: result.userHouseholdsCreated,
+						roleAssigned: result.roleAssigned,
+					});
+					// Even if incomplete, try to redirect after a short delay
+					setSubmissionStatus('Finalizing setup...');
+					setTimeout(() => {
+						console.log('DEBUG: Redirecting to household page after delay');
+						router.push('/household');
+					}, 2000);
+					return;
+				}
 			}
 
 			console.log('DEBUG: Non-authenticated user, resetting form');
@@ -984,12 +1013,20 @@ function RegisterPageContent() {
 			setIsPrefill(false);
 		} catch (e) {
 			console.error('DEBUG: Error in onSubmit:', e);
+			setIsSubmitting(false);
+			setSubmissionStatus('');
 			toast({
 				title: 'Submission Error',
 				description:
 					'There was an error processing your registration. Please try again.',
 				variant: 'destructive',
 			});
+		} finally {
+			// Reset loading state for non-authenticated users
+			if (!isAuthenticatedUser) {
+				setIsSubmitting(false);
+				setSubmissionStatus('');
+			}
 		}
 	}
 
@@ -1016,8 +1053,8 @@ function RegisterPageContent() {
 					Family Registration Form
 				</h1>
 				<p className="text-muted-foreground">
-					Complete the form below to register your family for our children&apos;s
-					ministry programs.
+					Complete the form below to register your family for our
+					children&apos;s ministry programs.
 				</p>
 			</div>
 
@@ -1026,9 +1063,9 @@ function RegisterPageContent() {
 					<CardHeader>
 						<CardTitle className="font-headline">Household Lookup</CardTitle>
 						<CardDescription>
-							Enter your primary household email address. If you&apos;ve registered
-							with us before, we&apos;ll pre-fill your information for you. If not,
-							you can start a new registration.
+							Enter your primary household email address. If you&apos;ve
+							registered with us before, we&apos;ll pre-fill your information
+							for you. If not, you can start a new registration.
 						</CardDescription>
 					</CardHeader>
 					<CardContent className="space-y-4">
@@ -1057,7 +1094,7 @@ function RegisterPageContent() {
 												}>
 												{MOCK_EMAILS.PREFILL_OVERWRITE}
 											</button>{' '}
-												to pre-fill the form and see the overwrite warning.
+											to pre-fill the form and see the overwrite warning.
 										</li>
 										<li>
 											Use{' '}
@@ -1156,7 +1193,7 @@ function RegisterPageContent() {
 											toast({
 												title: 'Email Resent',
 												description:
-													"We&apos;ve sent another verification email to your address.",
+													'We&apos;ve sent another verification email to your address.',
 											});
 										} else {
 											toast({
@@ -1728,8 +1765,8 @@ function RegisterPageContent() {
 																		<AlertDialogDescription>
 																			This will mark{' '}
 																			{childFirstName || 'this child'} as
-																			inactive for this year&apos;s registration and
-																			remove them from this form. Their
+																			inactive for this year&apos;s registration
+																			and remove them from this form. Their
 																			historical data from previous years will
 																			be retained.
 																			<br />
@@ -1804,8 +1841,8 @@ function RegisterPageContent() {
 													the 9:30 AM Service. Sunday School serves ages 4-18.
 												</p>
 												<p>
-													Children&apos;s Church, for ages 4-12, will take place on
-													3rd Sundays in the same location during the 9:30 AM
+													Children&apos;s Church, for ages 4-12, will take place
+													on 3rd Sundays in the same location during the 9:30 AM
 													service.
 												</p>
 												<p>
@@ -1914,9 +1951,9 @@ function RegisterPageContent() {
 											Expressed Interest Activities
 										</CardTitle>
 										<CardDescription>
-											Let us know if you&apos;re interested. This does not register
-											you for these activities but helps us gauge interest for
-											future planning.
+											Let us know if you&apos;re interested. This does not
+											register you for these activities but helps us gauge
+											interest for future planning.
 										</CardDescription>
 									</CardHeader>
 									<CardContent className="space-y-6">
@@ -2092,8 +2129,19 @@ function RegisterPageContent() {
 							</CardContent>
 						</Card>
 
-						<Button type="submit" size="lg" className="w-full md:w-auto">
-							Submit Registration
+						<Button
+							type="submit"
+							size="lg"
+							className="w-full md:w-auto"
+							disabled={isSubmitting}>
+							{isSubmitting ? (
+								<div className="flex items-center gap-2">
+									<div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+									{submissionStatus || 'Processing...'}
+								</div>
+							) : (
+								'Submit Registration'
+							)}
 						</Button>
 					</form>
 				</Form>

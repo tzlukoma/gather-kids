@@ -1,9 +1,16 @@
-#!/usr/bin/env node
 /**
  * Dev Ministries Seed Script for gatherKids
  *
- * Seeds the development database with a minimal set of ministries for testing registration flow.
- * This is specifically for testing the snake_case schema changes in the registration flow.
+ * Seeds the development database with a comprehensive set of ministries for testing all registration flow edge cases.
+ * This includes ministries with custom questions, age restrictions, custom consent types, and different enrollment types.
+ *
+ * Features tested:
+ * - Custom questions (Teen Fellowship with 3 checkbox questions)
+ * - Age restrictions (Joy Bells: 4-8, Keita Choir: 9-12, Teen Choir: 13-18)
+ * - Custom consent text (New Jersey Orators)
+ * - Different enrollment types (enrolled vs expressed_interest)
+ * - Communicate later flag (for future ministries)
+ * - Open/close dates (Bible Bee with registration window)
  *
  * Usage:
  *   npm run seed:dev:ministries
@@ -157,19 +164,9 @@ async function seedMinistries() {
 	try {
 		const supabase = await initSupabase();
 
-		// Define ministries for development testing
+		// Define ministries for development testing - comprehensive set from UAT
 		const ministriesData = [
-			{
-				ministry_id: `${EXTERNAL_ID_PREFIX}bible-bee`,
-				name: 'Bible Bee',
-				code: 'bible-bee',
-				enrollment_type: 'enrolled',
-				description: 'Registration open for testing',
-				details:
-					'Bible Bee is a competitive program that encourages scripture memorization.',
-				data_profile: 'Basic',
-				is_active: true,
-			},
+			// Core ministries
 			{
 				ministry_id: 'min_sunday_school',
 				name: 'Sunday School',
@@ -179,33 +176,223 @@ async function seedMinistries() {
 				is_active: true,
 			},
 			{
-				ministry_id: `${EXTERNAL_ID_PREFIX}youth-group`,
-				name: 'Youth Group',
-				code: 'youth-group',
+				ministry_id: `${EXTERNAL_ID_PREFIX}bible-bee`,
+				name: 'Bible Bee',
+				code: 'bible-bee',
 				enrollment_type: 'enrolled',
-				details: 'Weekly meetings for teenagers to learn and grow together.',
+				description: 'Registration open until Oct. 8, 2025',
+				open_at: '2025-01-01',
+				close_at: '2025-10-08',
+				details:
+					'Bible Bee is a competitive program that encourages scripture memorization. Materials must be purchased separately.',
+				data_profile: 'Basic',
+				is_active: true,
+			},
+
+			// Enrolled ministries
+			{
+				ministry_id: `${EXTERNAL_ID_PREFIX}acolyte`,
+				name: 'Acolyte Ministry',
+				code: 'acolyte',
+				enrollment_type: 'enrolled',
+				details:
+					"Thank you for registering for the Acolyte Ministry.\n\nYou will receive information from ministry leaders regarding next steps for your child's participation.",
 				data_profile: 'Basic',
 				is_active: true,
 			},
 			{
-				ministry_id: `${EXTERNAL_ID_PREFIX}vacation-bible-school`,
+				ministry_id: `${EXTERNAL_ID_PREFIX}dance`,
+				name: 'Dance Ministry',
+				code: 'dance',
+				enrollment_type: 'enrolled',
+				details:
+					"Thank you for registering for the Dance Ministry.\n\nYou will receive information from ministry leaders regarding next steps for your child's participation.",
+				data_profile: 'Basic',
+				is_active: true,
+			},
+			{
+				ministry_id: `${EXTERNAL_ID_PREFIX}media_production`,
+				name: 'Media Production Ministry',
+				code: 'media-production',
+				enrollment_type: 'enrolled',
+				details:
+					"Thank you for registering for the Media Ministry.\n\nYou will receive information from ministry leaders regarding next steps for your child's participation.",
+				data_profile: 'Basic',
+				is_active: true,
+			},
+			{
+				ministry_id: `${EXTERNAL_ID_PREFIX}mentoring_boys`,
+				name: 'Mentoring Ministry-Boys (Khalfani)',
+				code: 'mentoring-boys',
+				enrollment_type: 'enrolled',
+				details:
+					'The Khalfani ministry provides mentorship for young boys through various activities and discussions.',
+				data_profile: 'Basic',
+				is_active: true,
+			},
+			{
+				ministry_id: `${EXTERNAL_ID_PREFIX}mentoring_girls`,
+				name: 'Mentoring Ministry-Girls (Nailah)',
+				code: 'mentoring-girls',
+				enrollment_type: 'enrolled',
+				details:
+					'The Nailah ministry provides mentorship for young girls, focusing on empowerment and personal growth.',
+				data_profile: 'Basic',
+				is_active: true,
+			},
+
+			// Teen Fellowship with custom questions
+			{
+				ministry_id: `${EXTERNAL_ID_PREFIX}teen_fellowship`,
+				name: 'New Generation Teen Fellowship',
+				code: 'teen-fellowship',
+				enrollment_type: 'enrolled',
+				details:
+					'Thank you for registering for New Generation Teen Fellowship.\n\nOn 3rd Sundays, during the 10:30 AM service, New Generation Teen Fellowship will host Teen Church in the Family Life Enrichment Center. Teens may sign themselves in and out of the service.\n\nYou will receive more information about ministry activities from minstry leaders.',
+				data_profile: 'Basic',
+				custom_questions: [
+					{
+						id: 'teen_podcast',
+						text: 'Podcast & YouTube Channel Projects',
+						type: 'checkbox',
+					},
+					{
+						id: 'teen_social_media',
+						text: 'Social Media Team',
+						type: 'checkbox',
+					},
+					{
+						id: 'teen_community_service',
+						text: 'Leading Community Service Projects',
+						type: 'checkbox',
+					},
+				],
+				is_active: true,
+			},
+
+			// Music ministries with age restrictions
+			{
+				ministry_id: `${EXTERNAL_ID_PREFIX}symphonic_orchestra`,
+				name: 'Symphonic Orchestra',
+				code: 'symphonic-orchestra',
+				enrollment_type: 'enrolled',
+				data_profile: 'Basic',
+				details:
+					'The Symphonic Orchestra is for experienced musicians. Auditions may be required.',
+				is_active: true,
+			},
+			{
+				ministry_id: `${EXTERNAL_ID_PREFIX}joy_bells`,
+				name: 'Youth Choirs- Joy Bells (Ages 4-8)',
+				code: 'choir-joy-bells',
+				enrollment_type: 'enrolled',
+				min_age: 4,
+				max_age: 8,
+				details:
+					'Joy Bells is our introductory choir for the youngest voices. Practices are held after the 11 AM service.',
+				data_profile: 'Basic',
+				is_active: true,
+			},
+			{
+				ministry_id: `${EXTERNAL_ID_PREFIX}keita_choir`,
+				name: 'Youth Choirs- Keita Praise Choir (Ages 9-12)',
+				code: 'choir-keita',
+				enrollment_type: 'enrolled',
+				min_age: 9,
+				max_age: 12,
+				details:
+					'Keita Praise Choir builds on foundational skills and performs once a month. Practices are on Wednesdays.',
+				data_profile: 'Basic',
+				is_active: true,
+			},
+			{
+				ministry_id: `${EXTERNAL_ID_PREFIX}teen_choir`,
+				name: 'Youth Choirs- New Generation Teen Choir (Ages 13-18)',
+				code: 'choir-teen',
+				enrollment_type: 'enrolled',
+				min_age: 13,
+				max_age: 18,
+				details:
+					'The Teen Choir performs contemporary gospel music and leads worship during Youth Sundays.',
+				data_profile: 'Basic',
+				is_active: true,
+			},
+
+			// Other enrolled ministries
+			{
+				ministry_id: `${EXTERNAL_ID_PREFIX}youth_ushers`,
+				name: 'Youth Ushers',
+				code: 'youth-ushers',
+				enrollment_type: 'enrolled',
+				details:
+					"Thank you for registering for the Youth Ushers Ministry.\n\nYou will receive information from ministry leaders regarding next steps for your child's participation.",
+				data_profile: 'Basic',
+				is_active: true,
+			},
+
+			// Interest-only ministries (expressed_interest)
+			{
+				ministry_id: `${EXTERNAL_ID_PREFIX}childrens_musical`,
+				name: "Children's Musical",
+				code: 'childrens-musical',
+				enrollment_type: 'expressed_interest',
+				data_profile: 'Basic',
+				communicate_later: true,
+				is_active: true,
+			},
+			{
+				ministry_id: `${EXTERNAL_ID_PREFIX}confirmation`,
+				name: 'Confirmation',
+				code: 'confirmation',
+				enrollment_type: 'expressed_interest',
+				data_profile: 'Basic',
+				communicate_later: true,
+				is_active: true,
+			},
+			{
+				ministry_id: `${EXTERNAL_ID_PREFIX}international_travel`,
+				name: 'International Travel',
+				code: 'international-travel',
+				enrollment_type: 'expressed_interest',
+				data_profile: 'Basic',
+				is_active: true,
+			},
+			{
+				ministry_id: `${EXTERNAL_ID_PREFIX}nursery`,
+				name: 'Nursery',
+				code: 'nursery',
+				enrollment_type: 'expressed_interest',
+				data_profile: 'Basic',
+				communicate_later: true,
+				is_active: true,
+			},
+			{
+				ministry_id: `${EXTERNAL_ID_PREFIX}vbs`,
 				name: 'Vacation Bible School',
 				code: 'vbs',
-				enrollment_type: 'enrolled',
-				description: 'Summer program for kids',
-				details:
-					'A week-long summer program filled with Bible stories, crafts, and fun activities.',
+				enrollment_type: 'expressed_interest',
 				data_profile: 'Basic',
+				communicate_later: true,
 				is_active: true,
 			},
 			{
-				ministry_id: `${EXTERNAL_ID_PREFIX}childrens-choir`,
-				name: "Children's Choir",
-				code: 'childrens-choir',
-				enrollment_type: 'enrolled',
-				details:
-					'For children who love to sing and perform in church services.',
+				ministry_id: `${EXTERNAL_ID_PREFIX}college_tour`,
+				name: 'College Tour',
+				code: 'college-tour',
+				enrollment_type: 'expressed_interest',
 				data_profile: 'Basic',
+				is_active: true,
+			},
+
+			// Ministry with custom consent
+			{
+				ministry_id: `${EXTERNAL_ID_PREFIX}orators`,
+				name: 'New Jersey Orators',
+				code: 'orators',
+				enrollment_type: 'expressed_interest',
+				data_profile: 'Basic',
+				optional_consent_text:
+					'I agree to share my contact information with New Jersey Orators. New Jersey Orators is not a part of Cathedral International, but Cathedral hosts the Perth Amboy Chapter. Registration can take place through their website at oratorsinc.org.',
 				is_active: true,
 			},
 		];
@@ -307,6 +494,13 @@ async function runSeeding() {
 		await seedMinistries();
 
 		console.log('✨ Dev seeding completed successfully!');
+		console.log('📊 Summary:');
+		console.log('- 20+ ministries with various enrollment types');
+		console.log('- Custom questions for Teen Fellowship testing');
+		console.log('- Age restrictions for choir ministries');
+		console.log('- Custom consent text for New Jersey Orators');
+		console.log('- Registration window testing for Bible Bee');
+		console.log('- Both enrolled and expressed_interest ministries');
 	} catch (error) {
 		console.error('❌ Seeding failed:', error);
 		process.exit(1);

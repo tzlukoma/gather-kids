@@ -5,6 +5,9 @@ import { db } from '../db';
 import { db as dbAdapter } from './factory';
 import { isDemo } from '../featureFlags';
 import type { Guardian, Registration } from '../types';
+import { ageOn } from '../dal';
+import { gradeToCode } from '../gradeUtils';
+import { enrollChildInBibleBee } from '../bibleBee';
 
 /**
  * Enhanced DAL functions that use canonical snake_case DTOs internally
@@ -187,6 +190,37 @@ export async function registerHouseholdCanonical(data: Record<string, unknown>, 
         relationship: canonicalData.emergencyContact.relationship,
       });
 
+      // Handle robust update logic for existing children
+      if (isUpdate && !isPrefill) {
+        const existingChildren = await dbAdapter.listChildren(householdId);
+        const incomingChildIds = canonicalData.children.map(c => c.child_id).filter(Boolean);
+        
+        // Delete existing enrollments and registrations for children being updated
+        for (const existingChild of existingChildren) {
+          if (incomingChildIds.includes(existingChild.child_id)) {
+            const existingEnrollments = await dbAdapter.listMinistryEnrollments(existingChild.child_id, undefined, cycle_id);
+            for (const enrollment of existingEnrollments) {
+              await dbAdapter.deleteMinistryEnrollment(enrollment.enrollment_id);
+            }
+            
+            const existingRegistrations = await dbAdapter.listRegistrations({ childId: existingChild.child_id, cycleId: cycle_id });
+            for (const registration of existingRegistrations) {
+              await dbAdapter.deleteRegistration(registration.registration_id);
+            }
+          }
+        }
+        
+        // Deactivate children who were removed from the form
+        const childrenToRemove = existingChildren
+          .filter(c => c.is_active)
+          .map(c => c.child_id)
+          .filter(id => !incomingChildIds.includes(id));
+        
+        for (const childIdToRemove of childrenToRemove) {
+          await dbAdapter.updateChild(childIdToRemove, { is_active: false });
+        }
+      }
+
       // Handle children and enrollments with canonical data
       for (const [index, childData] of canonicalData.children.entries()) {
         const childId = childData.child_id || uuidv4();
@@ -214,12 +248,6 @@ export async function registerHouseholdCanonical(data: Record<string, unknown>, 
         }
 
         // Create registration with canonical consent types
-        if (isUpdate) {
-          const existingRegistrations = await dbAdapter.listRegistrations({ childId, cycleId: cycle_id });
-          for (const registration of existingRegistrations) {
-            await dbAdapter.deleteRegistration(registration.registration_id);
-          }
-        }
 
         // Create registration using canonical format
         const primaryGuardian = createdGuardians[0];
@@ -271,21 +299,101 @@ export async function registerHouseholdCanonical(data: Record<string, unknown>, 
 
         await dbAdapter.createRegistration(legacyRegistration);
 
-        // Handle ministry enrollments (original child data processing)
+        // Auto-enroll in Sunday School (same as legacy function)
+        await dbAdapter.createMinistryEnrollment({
+          child_id: childId,
+          cycle_id: cycle_id,
+          ministry_id: "min_sunday_school",
+          status: 'enrolled',
+        });
+
+        // Handle ministry and interest selections with age validation and custom fields
   const childrenArray = toArrayRecords(data['children']);
         const originalChildData = childrenArray[index] ?? {};
         const ministrySelections = (originalChildData && (originalChildData['ministrySelections'] as Record<string, unknown> | undefined)) ?? undefined;
+        const interestSelections = (originalChildData && (originalChildData['interestSelections'] as Record<string, unknown> | undefined)) ?? undefined;
         const customData = (originalChildData && (originalChildData['customData'] as Record<string, unknown> | undefined)) ?? undefined;
-        if (ministrySelections) {
-          for (const [ministryId, isSelected] of Object.entries(ministrySelections)) {
-            if (isSelected) {
+        
+        // Combine ministry and interest selections
+        const allSelections = { ...(ministrySelections || {}), ...(interestSelections || {}) };
+        const allMinistries = await dbAdapter.listMinistries();
+        const ministryMap = new Map(allMinistries.map(m => [m.code, m]));
+
+        for (const ministryCode in allSelections) {
+          if (allSelections[ministryCode] && ministryCode !== 'min_sunday_school') {
+            const ministry = ministryMap.get(ministryCode);
+            if (ministry) {
+              // Age validation
+              const age = child.dob ? ageOn(now, child.dob) : null;
+              const minAge = ministry.min_age ?? -1;
+              const maxAge = ministry.max_age ?? 999;
+              if (age !== null && (age < minAge || age > maxAge)) {
+                console.warn(`Skipping enrollment for ${child.first_name} in ${ministry.name} due to age restrictions.`);
+                continue;
+              }
+
+              // Custom fields handling
+              const custom_fields: { [key: string]: unknown } = {};
+              if (customData && ministry.custom_questions) {
+                for (const q of ministry.custom_questions) {
+                  if (customData[q.id] !== undefined) {
+                    custom_fields[q.id] = customData[q.id];
+                  }
+                }
+              }
+
               await dbAdapter.createMinistryEnrollment({
                 child_id: childId,
-                ministry_id: ministryId,
                 cycle_id: cycle_id,
-                status: 'enrolled',
-                custom_fields: (customData && (customData[ministryId] as Record<string, unknown>)) ?? {},
+                ministry_id: ministry.ministry_id,
+                status: ministry.enrollment_type,
+                custom_fields: Object.keys(custom_fields).length > 0 ? custom_fields : undefined,
               });
+
+              // Handle Bible Bee enrollment through new system
+              if (ministry.code === 'bible-bee') {
+                try {
+                  const bibleBeeYears = await dbAdapter.listBibleBeeYears();
+                  const bibleBeeYear = bibleBeeYears.find(year => year.is_active);
+                  
+                  if (bibleBeeYear) {
+                    const gradeNum = child.grade ? gradeToCode(child.grade) : 0;
+                    const divisions = await dbAdapter.listDivisions(bibleBeeYear.id);
+                    
+                    const appropriateDivision = divisions.find(d => 
+                      gradeNum !== null && gradeNum >= d.min_grade && gradeNum <= d.max_grade
+                    );
+                    
+                    if (appropriateDivision) {
+                      await dbAdapter.createEnrollment({
+                        id: uuidv4(),
+                        child_id: childId,
+                        year_id: bibleBeeYear.id,
+                        division_id: appropriateDivision.id,
+                        auto_enrolled: false,
+                        enrolled_at: now,
+                      });
+                      console.log(`Created Bible Bee enrollment for child ${child.first_name} in division ${appropriateDivision.name}`);
+                      
+                      // Also assign scriptures for the child
+                      try {
+                        await enrollChildInBibleBee(childId, bibleBeeYear.id);
+                      } catch (scriptureError) {
+                        console.warn(`Warning: Failed to assign scriptures for child ${child.first_name}:`, scriptureError);
+                        // Don't fail the entire registration if scripture assignment fails
+                      }
+                    } else {
+                      console.warn(`No appropriate Bible Bee division found for child ${child.first_name} in grade ${child.grade}`);
+                    }
+                  } else {
+                    console.warn(`No active Bible Bee year found - skipping Bible Bee enrollment for ${child.first_name}`);
+                    // Don't fail the entire registration if no Bible Bee year exists
+                  }
+                } catch (error) {
+                  console.error('Error creating Bible Bee enrollment:', error);
+                  // Don't fail the entire registration if Bible Bee enrollment fails
+                }
+              }
             }
           }
         }
@@ -295,23 +403,346 @@ export async function registerHouseholdCanonical(data: Record<string, unknown>, 
       return { household_id: householdId };
     });
   } else {
-    // Use legacy Dexie interface for demo mode but with validated canonical data
-    console.log('🔄 Using Dexie with canonical data validation');
+    // Use dbAdapter for demo mode - same interface as Supabase mode
+    console.log('🔄 Using dbAdapter for demo mode with canonical data validation');
     
-    // The rest follows the same pattern as the original, but with validated data
-    // For brevity, keeping the original Dexie logic but noting that canonical data is validated
-  // Localized any: Dexie DB object has complex runtime types; keep `any` here
-  // to avoid blocking conversion work. This is intentionally narrow and limited
-  // to the demo path. When a proper Dexie typing is added or the canonical
-  // demo path is refactored, replace this `any` and remove the exception.
-  // See `.github/ISSUES/000-temp-relax-no-explicit-any.md` for tracking.
-  /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-  return await (db as any).transaction('rw', db.households, db.guardians, db.emergency_contacts, db.children, db.registrations, db.ministry_enrollments, async () => {
-      // Original Dexie implementation would go here
-      // For now, throwing to force Supabase adapter usage in this implementation
-      throw new Error('Canonical DTO registration requires Supabase adapter');
+    return await dbAdapter.transaction(async () => {
+      // Handle household with canonical data
+      const household = {
+        household_id: householdId,
+        name: canonicalData.household.name || `${canonicalData.guardians[0].last_name} Household`,
+        address_line1: canonicalData.household.address_line1,
+        preferredScriptureTranslation: canonicalData.household.preferred_scripture_translation,
+      };
+
+      if (isUpdate) {
+        await dbAdapter.updateHousehold(householdId, household);
+        // Delete existing guardians and contacts for update
+        const existingGuardians = await dbAdapter.listGuardians(householdId);
+        const existingContacts = await dbAdapter.listEmergencyContacts(householdId);
+        for (const guardian of existingGuardians) {
+          await dbAdapter.deleteGuardian(guardian.guardian_id);
+        }
+        for (const contact of existingContacts) {
+          await dbAdapter.deleteEmergencyContact(contact.contact_id);
+        }
+      } else {
+        await dbAdapter.createHousehold(household);
+      }
+
+      // Create guardians using canonical data
+      const createdGuardians: Guardian[] = [];
+      for (const guardianData of canonicalData.guardians) {
+        const createdGuardian = await dbAdapter.createGuardian({
+          household_id: householdId,
+          first_name: guardianData.first_name,
+          last_name: guardianData.last_name,
+          mobile_phone: guardianData.mobile_phone,
+          email: guardianData.email,
+          relationship: guardianData.relationship,
+          is_primary: guardianData.is_primary,
+        });
+        createdGuardians.push(createdGuardian);
+      }
+
+      // Create emergency contact using canonical data
+      await dbAdapter.createEmergencyContact({
+        household_id: householdId,
+        first_name: canonicalData.emergencyContact.first_name,
+        last_name: canonicalData.emergencyContact.last_name,
+        mobile_phone: canonicalData.emergencyContact.mobile_phone,
+        relationship: canonicalData.emergencyContact.relationship,
+      });
+
+      // Handle robust update logic for existing children
+      if (isUpdate && !isPrefill) {
+        const existingChildren = await dbAdapter.listChildren(householdId);
+        const incomingChildIds = canonicalData.children.map(c => c.child_id).filter(Boolean);
+        
+        // Delete existing enrollments and registrations for children being updated
+        for (const existingChild of existingChildren) {
+          if (incomingChildIds.includes(existingChild.child_id)) {
+            const existingEnrollments = await dbAdapter.listMinistryEnrollments(existingChild.child_id, undefined, cycle_id);
+            for (const enrollment of existingEnrollments) {
+              await dbAdapter.deleteMinistryEnrollment(enrollment.enrollment_id);
+            }
+            
+            const existingRegistrations = await dbAdapter.listRegistrations({ childId: existingChild.child_id, cycleId: cycle_id });
+            for (const registration of existingRegistrations) {
+              await dbAdapter.deleteRegistration(registration.registration_id);
+            }
+          }
+        }
+        
+        // Deactivate children who were removed from the form
+        const childrenToRemove = existingChildren
+          .filter(c => c.is_active)
+          .map(c => c.child_id)
+          .filter(id => !incomingChildIds.includes(id));
+        
+        for (const childIdToRemove of childrenToRemove) {
+          await dbAdapter.updateChild(childIdToRemove, { is_active: false });
+        }
+      }
+
+      // Handle children and enrollments with canonical data
+      for (const [index, childData] of canonicalData.children.entries()) {
+        const childId = childData.child_id || uuidv4();
+
+        const child = {
+          child_id: childId,
+          household_id: householdId,
+          first_name: childData.first_name,
+          last_name: childData.last_name,
+          dob: childData.dob,
+          grade: childData.grade,
+          child_mobile: childData.child_mobile,
+          allergies: childData.allergies,
+          medical_notes: childData.medical_notes,
+          special_needs: childData.special_needs,
+          special_needs_notes: childData.special_needs_notes,
+          is_active: childData.is_active,
+          photo_url: childData.photo_url,
+        };
+
+        if (isUpdate) {
+          await dbAdapter.updateChild(childId, child);
+        } else {
+          await dbAdapter.createChild(child);
+        }
+
+        // Create registration with canonical consent types
+        const primaryGuardian = createdGuardians[0];
+        const registrationData = CanonicalDtos.RegistrationWriteDto.parse({
+          child_id: childId,
+          cycle_id: cycle_id,
+          status: 'active',
+          pre_registered_sunday_school: true,
+          consents: [
+            { 
+              type: 'liability' as const, 
+              accepted_at: canonicalData.consents[0].liability ? now : null, 
+              signer_id: primaryGuardian.guardian_id, 
+              signer_name: `${primaryGuardian.first_name} ${primaryGuardian.last_name}` 
+            },
+            { 
+              type: 'photo_release' as const, // Canonical snake_case
+              accepted_at: canonicalData.consents[0].photo_release ? now : null, 
+              signer_id: primaryGuardian.guardian_id, 
+              signer_name: `${primaryGuardian.first_name} ${primaryGuardian.last_name}` 
+            }
+          ],
+          submitted_via: 'web',
+          submitted_at: now, // Set submitted_at in canonical format
+        });
+
+        // Convert back to legacy format for DAL compatibility
+        const legacyRegistration = {
+          registration_id: uuidv4(),
+          child_id: registrationData.child_id,
+          cycle_id: registrationData.cycle_id,
+          status: registrationData.status,
+          pre_registered_sunday_school: registrationData.pre_registered_sunday_school,
+          consents: registrationData.consents.map((consent) => {
+            const c = toRecord(consent);
+            const rawType = String(c.type ?? 'custom');
+            const mappedType = rawType === 'photo_release' ? 'photoRelease' : rawType === 'liability' ? 'liability' : 'custom';
+            return {
+              type: mappedType as 'photoRelease' | 'liability' | 'custom',
+              accepted_at: (c.accepted_at as string | null) ?? null,
+              signer_id: String(c.signer_id ?? ''),
+              signer_name: String(c.signer_name ?? ''),
+              text: c.text as string | undefined,
+            };
+          }),
+          submitted_at: registrationData.submitted_at || now, // Use canonical submitted_at
+          submitted_via: registrationData.submitted_via,
+        };
+
+        await dbAdapter.createRegistration(legacyRegistration);
+
+        // Auto-enroll in Sunday School (same as legacy function)
+        await dbAdapter.createMinistryEnrollment({
+          child_id: childId,
+          cycle_id: cycle_id,
+          ministry_id: "min_sunday_school",
+          status: 'enrolled',
+        });
+
+        // Handle ministry and interest selections with age validation and custom fields
+        const childrenArray = toArrayRecords(data['children']);
+        const originalChildData = childrenArray[index] ?? {};
+        const ministrySelections = (originalChildData && (originalChildData['ministrySelections'] as Record<string, unknown> | undefined)) ?? undefined;
+        const interestSelections = (originalChildData && (originalChildData['interestSelections'] as Record<string, unknown> | undefined)) ?? undefined;
+        const customData = (originalChildData && (originalChildData['customData'] as Record<string, unknown> | undefined)) ?? undefined;
+        
+        // Combine ministry and interest selections
+        const allSelections = { ...(ministrySelections || {}), ...(interestSelections || {}) };
+        const allMinistries = await dbAdapter.listMinistries();
+        const ministryMap = new Map(allMinistries.map(m => [m.code, m]));
+
+        for (const ministryCode in allSelections) {
+          if (allSelections[ministryCode] && ministryCode !== 'min_sunday_school') {
+            const ministry = ministryMap.get(ministryCode);
+            if (ministry) {
+              // Age validation
+              const age = child.dob ? ageOn(now, child.dob) : null;
+              const minAge = ministry.min_age ?? -1;
+              const maxAge = ministry.max_age ?? 999;
+              if (age !== null && (age < minAge || age > maxAge)) {
+                console.warn(`Skipping enrollment for ${child.first_name} in ${ministry.name} due to age restrictions.`);
+                continue;
+              }
+
+              // Custom fields handling
+              const custom_fields: { [key: string]: unknown } = {};
+              if (customData && ministry.custom_questions) {
+                for (const q of ministry.custom_questions) {
+                  if (customData[q.id] !== undefined) {
+                    custom_fields[q.id] = customData[q.id];
+                  }
+                }
+              }
+
+              await dbAdapter.createMinistryEnrollment({
+                child_id: childId,
+                cycle_id: cycle_id,
+                ministry_id: ministry.ministry_id,
+                status: ministry.enrollment_type,
+                custom_fields: Object.keys(custom_fields).length > 0 ? custom_fields : undefined,
+              });
+
+              // Handle Bible Bee enrollment through new system
+              if (ministry.code === 'bible-bee') {
+                try {
+                  const bibleBeeYears = await dbAdapter.listBibleBeeYears();
+                  const bibleBeeYear = bibleBeeYears.find(year => year.is_active);
+                  
+                  if (bibleBeeYear) {
+                    const gradeNum = child.grade ? gradeToCode(child.grade) : 0;
+                    const divisions = await dbAdapter.listDivisions(bibleBeeYear.id);
+                    
+                    const appropriateDivision = divisions.find(d => 
+                      gradeNum !== null && gradeNum >= d.min_grade && gradeNum <= d.max_grade
+                    );
+                    
+                    if (appropriateDivision) {
+                      await dbAdapter.createEnrollment({
+                        id: uuidv4(),
+                        child_id: childId,
+                        year_id: bibleBeeYear.id,
+                        division_id: appropriateDivision.id,
+                        auto_enrolled: false,
+                        enrolled_at: now,
+                      });
+                      console.log(`Created Bible Bee enrollment for child ${child.first_name} in division ${appropriateDivision.name}`);
+                      
+                      // Also assign scriptures for the child
+                      try {
+                        await enrollChildInBibleBee(childId, bibleBeeYear.id);
+                      } catch (scriptureError) {
+                        console.warn(`Warning: Failed to assign scriptures for child ${child.first_name}:`, scriptureError);
+                        // Don't fail the entire registration if scripture assignment fails
+                      }
+                    } else {
+                      console.warn(`No appropriate Bible Bee division found for child ${child.first_name} in grade ${child.grade}`);
+                    }
+                  } else {
+                    console.warn(`No active Bible Bee year found - skipping Bible Bee enrollment for ${child.first_name}`);
+                    // Don't fail the entire registration if no Bible Bee year exists
+                  }
+                } catch (error) {
+                  console.error('Error creating Bible Bee enrollment:', error);
+                  // Don't fail the entire registration if Bible Bee enrollment fails
+                }
+              }
+            }
+          }
+        }
+      }
+
+      console.log('✅ Canonical registration completed successfully (demo mode)');
+      return { household_id: householdId };
     });
   }
+
+  // Create user_households relationship for Supabase auth
+  // Handle this separately to avoid transaction conflicts with external async operations
+  let userHouseholdsCreated = false;
+  let roleAssigned = false;
+  
+  if (!isPrefill) { // Only create the relationship on final registration, not prefill
+    try {
+      // Import here to avoid circular dependency issues
+      const { supabase } = await import('@/lib/supabaseClient');
+      if (supabase) {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          // Check if relationship already exists using adapter
+          const existingHouseholdId = await dbAdapter.getHouseholdForUser(session.user.id);
+          
+          if (!existingHouseholdId) {
+            // Create the user_households relationship using adapter
+            const userHousehold = {
+              user_household_id: uuidv4(),
+              auth_user_id: session.user.id,
+              household_id: householdId,
+              created_at: now,
+            };
+            
+            // For Supabase mode, we need to insert directly since there's no createUserHousehold method
+            if (!isDemo()) {
+              const { supabase } = await import('@/lib/supabaseClient');
+              const { error } = await supabase.from('user_households').insert(userHousehold);
+              if (error) {
+                console.error('Could not create user_households relationship:', error);
+              } else {
+                console.log('Created user_households relationship:', userHousehold);
+                userHouseholdsCreated = true;
+              }
+            } else {
+              // Demo mode - use Dexie
+              await db.user_households.add(userHousehold);
+              console.log('Created user_households relationship:', userHousehold);
+              userHouseholdsCreated = true;
+            }
+          } else {
+            console.log('User already has household relationship:', existingHouseholdId);
+            userHouseholdsCreated = true; // Already exists
+          }
+
+          // Assign GUARDIAN role to the authenticated user
+          const { error: roleError } = await supabase.auth.updateUser({
+            data: {
+              role: 'GUARDIAN',
+              household_id: householdId,
+            },
+          });
+
+          if (roleError) {
+            console.warn('Could not assign GUARDIAN role:', roleError);
+          } else {
+            console.log('Assigned GUARDIAN role to user:', session.user.id);
+            roleAssigned = true;
+          }
+        }
+      }
+    } catch (error) {
+      console.warn('Could not create user_households relationship:', error);
+    }
+  } else {
+    // For prefill, we don't create relationships or assign roles
+    userHouseholdsCreated = true;
+    roleAssigned = true;
+  }
+  
+  // Return the household_id and completion status for the calling code
+  return { 
+    household_id: householdId,
+    userHouseholdsCreated,
+    roleAssigned,
+    isComplete: userHouseholdsCreated && roleAssigned
+  };
 }
 
 /**

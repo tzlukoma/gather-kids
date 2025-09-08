@@ -234,7 +234,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 			} = supabase.auth.onAuthStateChange(async (event: any, session: any) => {
 				console.log('Supabase auth state change:', event, session?.user?.id);
 
-				if (event === 'SIGNED_IN' && session?.user) {
+				if (
+					(event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') &&
+					session?.user
+				) {
+					console.log('AuthProvider: Processing auth state change:', event);
 					const supabaseUser = session.user;
 					const userRole = supabaseUser.user_metadata?.role || AuthRole.ADMIN;
 
@@ -266,6 +270,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 						}
 					}
 
+					console.log('AuthProvider: Updating user from auth state change:', {
+						event,
+						uid: finalUser.uid,
+						role: finalUser.metadata.role,
+					});
 					setUser(finalUser);
 					setUserRole(finalUser.metadata.role);
 				} else if (event === 'SIGNED_OUT') {

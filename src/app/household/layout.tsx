@@ -221,15 +221,26 @@ function HouseholdProtectedRoute({ children }: { children: React.ReactNode }) {
 
 	useEffect(() => {
 		const checkHouseholdAccess = async () => {
+			console.log('HouseholdProtectedRoute: Checking household access', {
+				loading,
+				userExists: !!user,
+				userRole: user?.metadata?.role,
+				userUid: user?.uid,
+			});
+
 			if (loading) return;
 
 			if (!user) {
+				console.log('HouseholdProtectedRoute: No user, redirecting to login');
 				router.push('/login');
 				return;
 			}
 
 			// Check if user has GUARDIAN role OR has household data
 			if (user.metadata?.role === ROLES.GUARDIAN) {
+				console.log(
+					'HouseholdProtectedRoute: User has GUARDIAN role, granting access'
+				);
 				setHasHouseholdAccess(true);
 				return;
 			}
@@ -237,8 +248,19 @@ function HouseholdProtectedRoute({ children }: { children: React.ReactNode }) {
 			// Check if user has household data via user_households table
 			if (user.uid) {
 				try {
+					console.log(
+						'HouseholdProtectedRoute: Checking household data for user:',
+						user.uid
+					);
 					const householdId = await getHouseholdForUser(user.uid);
+					console.log(
+						'HouseholdProtectedRoute: Household ID result:',
+						householdId
+					);
 					if (householdId) {
+						console.log(
+							'HouseholdProtectedRoute: Found household, granting access'
+						);
 						setHasHouseholdAccess(true);
 						return;
 					}
@@ -248,6 +270,9 @@ function HouseholdProtectedRoute({ children }: { children: React.ReactNode }) {
 			}
 
 			// No household access found
+			console.log(
+				'HouseholdProtectedRoute: No household access found, redirecting to register'
+			);
 			setHasHouseholdAccess(false);
 			router.push('/register'); // Redirect to registration if no household found
 		};
