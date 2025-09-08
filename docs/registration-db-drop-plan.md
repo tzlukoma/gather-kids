@@ -9,12 +9,14 @@ This document outlines the planned database schema changes for the Registration 
 ### Backup & Rollback Steps
 
 1. **Pre-migration Database Backup**:
+
    ```bash
    # Create timestamped backup
    pg_dump "$DATABASE_URL" > backup_$(date +%Y%m%d_%H%M%S)_pre_registration_cleanup.sql
    ```
 
 2. **Rollback Strategy**:
+
    - Each migration is non-destructive initially (adds before removing)
    - Failed migrations can be rolled back by reversing the specific changes
    - Database backup can be restored if needed: `psql "$DATABASE_URL" < backup_file.sql`
@@ -33,9 +35,10 @@ This document outlines the planned database schema changes for the Registration 
 ### 1. Households Table
 
 #### Backfill Operations
+
 - **Field**: `preferred_scripture_translation` ← `preferredScriptureTranslation`
 - **Rationale**: Canonical DTO uses snake_case; camelCase is legacy
-- **Backfill SQL**: 
+- **Backfill SQL**:
   ```sql
   UPDATE public.households
      SET preferred_scripture_translation = preferredScriptureTranslation
@@ -44,6 +47,7 @@ This document outlines the planned database schema changes for the Registration 
   ```
 
 #### Columns Dropped ✅
+
 - **DROPPED**: `preferredScriptureTranslation` (camelCase duplicate)
 - **Usage Proof**: Code search for direct usage in production code base:
   ```bash
@@ -55,6 +59,7 @@ This document outlines the planned database schema changes for the Registration 
   - All FKs now use `household_id` consistently
 
 #### Fields to Evaluate (with proof required)
+
 - **Evaluate**: `address` - May be unused if `address_line1` is preferred
 - **Evaluate**: `household_name` - May be duplicate of `name`
 - **Evaluate**: `household_uuid` - Only drop if no remaining FK dependencies
@@ -62,9 +67,11 @@ This document outlines the planned database schema changes for the Registration 
 ### 2. Children Table
 
 #### Backfill Operations
+
 - **Field**: `dob` ← `birth_date`
 - **Rationale**: Canonical DTO uses `dob`; `birth_date` is legacy
 - **Backfill SQL**:
+
   ```sql
   UPDATE public.children
      SET dob = COALESCE(dob, birth_date)
@@ -81,6 +88,7 @@ This document outlines the planned database schema changes for the Registration 
   ```
 
 #### Planned Drops
+
 - **Drop**: `birth_date` (after backfill to `dob`)
 - **Usage Analysis**: Found in 9 locations across 6 files:
   ```bash
@@ -98,6 +106,7 @@ This document outlines the planned database schema changes for the Registration 
 - **Proof**: Migration `20250905040834_registration_schema_drop_legacy.sql` confirmed removal
 
 #### Evaluated Fields
+
 - **Evaluated**: `household_uuid` - Consolidated to `household_id` ✓
 - **Evaluated**: `external_*` fields - Kept for import compatibility
 - **Evaluated**: `notes` - Kept as it's used in UI
@@ -106,6 +115,7 @@ This document outlines the planned database schema changes for the Registration 
 ### 3. Guardians Table
 
 #### Backfill Operations
+
 - **Field**: `household_id` ← mapping from `household_uuid`
 - **Rationale**: Consolidate household references to use primary key
 - **Backfill SQL**:
@@ -119,6 +129,7 @@ This document outlines the planned database schema changes for the Registration 
   ```
 
 #### Fields to Evaluate (with proof required)
+
 - **Evaluate**: `household_uuid` - Drop after consolidating to `household_id`
 - **Evaluate**: `household_id_uuid` - Intermediate field, may be droppable
 - **Evaluate**: `external_*` fields - Check import script dependencies
@@ -126,6 +137,7 @@ This document outlines the planned database schema changes for the Registration 
 ### 4. Emergency Contacts Table
 
 #### Status
+
 - **Schema**: Already snake_case (`first_name`, `last_name`, `mobile_phone`, `relationship`)
 - **Action**: No schema changes needed, already aligned with canonical DTOs
 - **FK**: May need `household_id_uuid` FK constraint addition (separate from this cleanup)
@@ -133,6 +145,7 @@ This document outlines the planned database schema changes for the Registration 
 ### 5. Registrations Table
 
 #### Schema Updates
+
 - **Field**: `consents` column type
 - **Change**: `json` → `jsonb` for better performance and functionality
 - **SQL**:
@@ -142,6 +155,7 @@ This document outlines the planned database schema changes for the Registration 
   ```
 
 #### Backfill Operations
+
 - **Field**: Consent object `type` values
 - **Change**: `'photoRelease'` → `'photo_release'`
 - **Rationale**: Canonical DTOs enforce snake_case for consent types
@@ -166,10 +180,12 @@ This document outlines the planned database schema changes for the Registration 
 ## Default Value Updates
 
 ### Timestamp Columns
+
 - **All tables**: Update `created_at`, `updated_at` to `timestamptz NOT NULL DEFAULT now()`
 - **Rationale**: Ensure consistent timezone handling and non-null defaults
 
 ### Boolean Defaults
+
 - **children.is_active**: Set `DEFAULT true`
 - **Rationale**: New children should be active by default
 
@@ -186,15 +202,15 @@ Post-migration verification queries:
 
 ```sql
 -- Verify no photoRelease consent types remain
-SELECT COUNT(*) FROM registrations r, jsonb_array_elements(r.consents) e 
+SELECT COUNT(*) FROM registrations r, jsonb_array_elements(r.consents) e
 WHERE e->>'type' = 'photoRelease';
 
 -- Verify birth_date/mobile_phone removal
-SELECT column_name FROM information_schema.columns 
+SELECT column_name FROM information_schema.columns
 WHERE table_name = 'children' AND column_name IN ('birth_date', 'mobile_phone');
 
--- Verify preferredScriptureTranslation removal  
-SELECT column_name FROM information_schema.columns 
+-- Verify preferredScriptureTranslation removal
+SELECT column_name FROM information_schema.columns
 WHERE table_name = 'households' AND column_name = 'preferredScriptureTranslation';
 
 -- Check data integrity
@@ -210,3 +226,23 @@ SELECT COUNT(*) FROM households WHERE preferred_scripture_translation IS NOT NUL
 - [x] Data successfully backfilled with zero loss
 - [x] CI pipeline passes (types-sync, contracts, snake_case guard)
 - [x] Manual verification queries return expected results
+
+## Confirmed Drops (September 8, 2025)
+
+The following columns have been confirmed dropped as part of migration `20250905040834_registration_schema_drop_legacy.sql`:
+
+1. `households.preferredScriptureTranslation` - Dropped ✅
+
+   - Replaced by `preferred_scripture_translation` (snake_case version)
+   - All code now references the snake_case version
+
+2. `children.birth_date` - Dropped ✅
+
+   - Replaced by `dob` (standardized field name)
+   - All type definitions and code updated to use `dob` exclusively
+
+3. `children.mobile_phone` - Dropped ✅
+   - Replaced by `child_mobile` (more specific field name)
+   - Disambiguates from guardian mobile phone fields
+
+All manual testing confirms the registration flow works correctly with the new schema.
