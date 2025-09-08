@@ -72,12 +72,22 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 	const menuItems = getMenuItems();
 
 	function renderIcon(Icon: any) {
+		// Handle React elements (like the Bible Bee SVG)
 		if (React.isValidElement(Icon)) return Icon;
+
+		// Handle Lucide React components (they are objects with forwardRef)
+		if (Icon && typeof Icon === 'object' && Icon.$$typeof) {
+			const C = Icon as React.ComponentType<{ className?: string }>;
+			return <C className="w-4 h-4" />;
+		}
+
+		// Handle function components (fallback)
 		if (typeof Icon === 'function') {
 			const C = Icon as React.ComponentType<{ className?: string }>;
 			return <C className="w-4 h-4" />;
 		}
-		return null; // Changed from Icon ?? null
+
+		return null;
 	}
 
 	React.useEffect(() => {
