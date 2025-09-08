@@ -277,7 +277,7 @@ export default function RostersPage() {
 			console.log('🔍 RostersPage: Authorization check', {
 				userRole: user?.metadata?.role,
 				userEmail: user?.email,
-				loading
+				loading,
 			});
 			// Always authorize ministry leaders - let the empty state handle no ministry assignment
 			setIsAuthorized(true);
@@ -490,6 +490,11 @@ export default function RostersPage() {
 	const handleCheckIn = async (childId: string) => {
 		try {
 			await recordCheckIn(childId, selectedEvent, undefined, user?.id);
+
+			// Refresh attendance data to update UI immediately
+			const refreshedAttendance = await getAttendanceForDate(today);
+			setTodaysAttendance(refreshedAttendance);
+
 			const child = childrenWithDetails.find((c) => c.child_id === childId);
 			toast({
 				title: 'Checked In',
@@ -515,6 +520,11 @@ export default function RostersPage() {
 	) => {
 		try {
 			await recordCheckOut(attendanceId, verifier, user?.id);
+
+			// Refresh attendance data to update UI immediately
+			const refreshedAttendance = await getAttendanceForDate(today);
+			setTodaysAttendance(refreshedAttendance);
+
 			const child = childrenWithDetails.find((c) => c.child_id === childId);
 			const eventName = getEventName(child?.activeAttendance?.event_id || null);
 			toast({
