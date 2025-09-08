@@ -1,7 +1,7 @@
 /**
  * This file contains types generated from the Supabase schema.
  * DO NOT EDIT MANUALLY. This file is auto-generated.
- * Generated on: 2025-09-07T19:11:56.116Z
+ * Generated on: 2025-09-08T05:49:50.765Z
  */
 
 export type SupabaseJson =
@@ -13,6 +13,11 @@ export type SupabaseJson =
   | SupabaseJson[]
 
 export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "13.0.4"
+  }
   public: {
     Tables: {
       attendance: {
@@ -244,7 +249,15 @@ export type Database = {
           notes?: string | null
           profile_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fk_child_year_profiles_cycle_id"
+            columns: ["cycle_id"]
+            isOneToOne: false
+            referencedRelation: "registration_cycles"
+            referencedColumns: ["cycle_id"]
+          },
+        ]
       }
       children: {
         Row: {
@@ -690,6 +703,7 @@ export type Database = {
           household_uuid: string
           name: string | null
           preferred_scripture_translation: string | null
+          preferredScriptureTranslation: string | null
           primary_phone: string | null
           state: string | null
           updated_at: string | null
@@ -708,6 +722,7 @@ export type Database = {
           household_uuid?: string
           name?: string | null
           preferred_scripture_translation?: string | null
+          preferredScriptureTranslation?: string | null
           primary_phone?: string | null
           state?: string | null
           updated_at?: string | null
@@ -726,6 +741,7 @@ export type Database = {
           household_uuid?: string
           name?: string | null
           preferred_scripture_translation?: string | null
+          preferredScriptureTranslation?: string | null
           primary_phone?: string | null
           state?: string | null
           updated_at?: string | null
@@ -797,7 +813,15 @@ export type Database = {
           ministry_id?: string | null
           role?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fk_leader_assignments_cycle_id"
+            columns: ["cycle_id"]
+            isOneToOne: false
+            referencedRelation: "registration_cycles"
+            referencedColumns: ["cycle_id"]
+          },
+        ]
       }
       leader_profiles: {
         Row: {
@@ -978,6 +1002,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "fk_ministry_enrollments_cycle_id"
+            columns: ["cycle_id"]
+            isOneToOne: false
+            referencedRelation: "registration_cycles"
+            referencedColumns: ["cycle_id"]
+          },
+          {
             foreignKeyName: "ministry_enrollments_ministry_id_fkey"
             columns: ["ministry_id"]
             isOneToOne: false
@@ -985,6 +1016,69 @@ export type Database = {
             referencedColumns: ["ministry_id"]
           },
         ]
+      }
+      ministry_leaders: {
+        Row: {
+          created_at: string | null
+          id: string
+          ministry_id: string | null
+          role: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          ministry_id?: string | null
+          role?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          ministry_id?: string | null
+          role?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      registration_cycles: {
+        Row: {
+          active: boolean
+          created_at: string | null
+          cycle_id: string | null
+          description: string | null
+          end_date: string
+          id: string
+          is_active: boolean | null
+          name: string
+          start_date: string
+          updated_at: string | null
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string | null
+          cycle_id?: string | null
+          description?: string | null
+          end_date: string
+          id?: string
+          is_active?: boolean | null
+          name: string
+          start_date: string
+          updated_at?: string | null
+        }
+        Update: {
+          active?: boolean
+          created_at?: string | null
+          cycle_id?: string | null
+          description?: string | null
+          end_date?: string
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          start_date?: string
+          updated_at?: string | null
+        }
+        Relationships: []
       }
       registrations: {
         Row: {
@@ -1020,7 +1114,15 @@ export type Database = {
           submitted_at?: string | null
           submitted_via?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fk_registrations_cycle_id"
+            columns: ["cycle_id"]
+            isOneToOne: false
+            referencedRelation: "registration_cycles"
+            referencedColumns: ["cycle_id"]
+          },
+        ]
       }
       scriptures: {
         Row: {
@@ -1138,6 +1240,62 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "scriptures"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      timeslots: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          end_time: string | null
+          event_id: string | null
+          start_time: string | null
+          timeslot_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          end_time?: string | null
+          event_id?: string | null
+          start_time?: string | null
+          timeslot_id: string
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          end_time?: string | null
+          event_id?: string | null
+          start_time?: string | null
+          timeslot_id?: string
+        }
+        Relationships: []
+      }
+      user_households: {
+        Row: {
+          auth_user_id: string
+          created_at: string | null
+          household_id: string
+          user_household_id: string
+        }
+        Insert: {
+          auth_user_id: string
+          created_at?: string | null
+          household_id: string
+          user_household_id?: string
+        }
+        Update: {
+          auth_user_id?: string
+          created_at?: string | null
+          household_id?: string
+          user_household_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_households_household_id_fkey"
+            columns: ["household_id"]
+            isOneToOne: false
+            referencedRelation: "households"
+            referencedColumns: ["household_id"]
           },
         ]
       }
@@ -1347,4 +1505,3 @@ export const Constants = {
     Enums: {},
   },
 } as const
-
