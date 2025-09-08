@@ -104,6 +104,7 @@ export interface Ministry {
     ministry_id: string; // PK
     name: string;
     code: string;
+    email?: string; // Email address for the ministry
     enrollment_type: 'enrolled' | 'expressed_interest';
     min_age?: number;
     max_age?: number;

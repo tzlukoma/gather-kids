@@ -627,6 +627,7 @@ export function supabaseToMinistry(record: SupabaseMinistry): MinistryEntity {
 			// tolerate optional code and data profile which may be present in generated types
 			code: String(r.code ?? r.ministry_code ?? ''),
 			name: String((r.name ?? r.label) ?? ''),
+			email: (r.email as string | undefined) ?? undefined, // Add email field
 			// coerce null -> undefined for optional fields produced by the generator
 			description: (r.description as string | undefined) ?? undefined,
 			details: (r.details as string | undefined) ?? undefined,

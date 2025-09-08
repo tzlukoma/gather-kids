@@ -1124,6 +1124,29 @@ async function createEssayPrompt(yearId, divisionMap) {
 }
 
 /**
+ * Convert ministry name to email address following the pattern ministryname@example.com
+ */
+function ministryNameToEmail(ministryName) {
+	// Convert to lowercase, remove special characters, replace spaces with nothing
+	const emailName = ministryName
+		.toLowerCase()
+		.replace(/[^a-z0-9\s]/g, '') // Remove special characters except spaces
+		.replace(/\s+/g, '') // Replace spaces with nothing
+		.replace(/ministry/g, '') // Remove "ministry" from the name
+		.replace(/youthchoirs/g, '') // Remove "youthchoirs" from choir names
+		.replace(/ages\d+-\d+/g, '') // Remove age ranges like "ages4-8"
+		.replace(/\([^)]*\)/g, '') // Remove parenthetical text like "(Khalfani)"
+		.replace(/newgeneration/g, '') // Remove "newgeneration" prefix
+		.replace(/childrens/g, 'children') // Fix "childrens" to "children"
+		.replace(/choir/g, '') // Remove "choir" from choir names
+		.replace(/praise/g, '') // Remove "praise" from choir names
+		.replace(/ages\d+/g, '') // Remove remaining age numbers
+		.trim();
+
+	return `${emailName}@example.com`;
+}
+
+/**
  * Create mock ministries
  */
 async function createMinistries() {
@@ -1653,49 +1676,16 @@ async function createMinistryLeaders() {
 			}
 		}
 
-		// Create ministry accounts for ministries
-		console.log('🔑 Creating ministry accounts...');
+		// Create ministry accounts for all ministries
+		console.log('🔑 Creating ministry accounts for all ministries...');
 
-		const accountsData = [
-			{
-				ministry_id: ministries.find((m) => m.name === 'Sunday School')
-					?.ministry_id,
-				email: 'leader.sundayschool@example.com',
-				display_name: 'Sunday School',
-				is_active: true,
-			},
-			{
-				ministry_id: ministries.find((m) => m.name === 'Bible Bee')
-					?.ministry_id,
-				email: 'leader.biblebee@example.com',
-				display_name: 'Bible Bee',
-				is_active: true,
-			},
-			{
-				ministry_id: ministries.find((m) =>
-					m.name.includes('Mentoring Ministry-Boys')
-				)?.ministry_id,
-				email: 'leader.khalfani@example.com',
-				display_name: 'Boys Mentoring Ministry (Khalfani)',
-				is_active: true,
-			},
-			{
-				ministry_id: ministries.find((m) =>
-					m.name.includes('Youth Choirs- Joy Bells')
-				)?.ministry_id,
-				email: 'leader.joybells@example.com',
-				display_name: 'Youth Choirs- Joy Bells',
-				is_active: true,
-			},
-			{
-				ministry_id: ministries.find((m) =>
-					m.name.includes('Mentoring Ministry-Girls')
-				)?.ministry_id,
-				email: 'leader.nailah@example.com',
-				display_name: 'Girls Mentoring Ministry (Nailah)',
-				is_active: true,
-			},
-		];
+		// Create accounts for all ministries using the ministryNameToEmail function
+		const accountsData = ministries.map((ministry) => ({
+			ministry_id: ministry.ministry_id,
+			email: ministryNameToEmail(ministry.name),
+			display_name: ministry.name,
+			is_active: true,
+		}));
 
 		for (const accountData of accountsData) {
 			if (!accountData.ministry_id) {

@@ -795,7 +795,10 @@ export class SupabaseAdapter implements DatabaseAdapter {
 
 	async listMinistries(isActive?: boolean): Promise<Ministry[]> {
 		console.log('SupabaseAdapter.listMinistries: Starting query', { isActive });
-		let query = this.client.from('ministries').select('*');
+		let query = this.client.from('ministries').select(`
+			*,
+			ministry_accounts!left(email)
+		`);
 
 		if (isActive !== undefined) {
 			query = query.eq('is_active', isActive);
@@ -819,7 +822,17 @@ export class SupabaseAdapter implements DatabaseAdapter {
 
 			const result = (data || []).map((d) => {
 				try {
-					return supabaseToMinistry(d as Database['public']['Tables']['ministries']['Row']);
+					// Extract email from ministry_accounts relationship
+					const ministryAccount = (d as any).ministry_accounts;
+					const email = ministryAccount && ministryAccount.length > 0 ? ministryAccount[0].email : undefined;
+					
+					// Create a modified record with the email field
+					const recordWithEmail = {
+						...d,
+						email: email
+					};
+					
+					return supabaseToMinistry(recordWithEmail as Database['public']['Tables']['ministries']['Row']);
 				} catch (mapError) {
 					console.error('SupabaseAdapter.listMinistries: Error mapping ministry', { 
 						ministry: d, 

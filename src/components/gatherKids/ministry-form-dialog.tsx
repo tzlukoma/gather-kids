@@ -37,7 +37,7 @@ import { useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { PlusCircle, Trash2 } from 'lucide-react';
 import { Separator } from '../ui/separator';
-import { db } from '@/lib/db';
+import { dbAdapter } from '@/lib/db-utils';
 import { Switch } from '../ui/switch';
 
 const customQuestionSchema = z.object({
@@ -107,59 +107,44 @@ export function MinistryFormDialog({
 	});
 
 	useEffect(() => {
-		const loadMinistryData = async () => {
-			if (ministry) {
-				// Load the email from ministry_accounts table
-				let email = '';
-				try {
-					const account = await db.ministry_accounts.get(ministry.ministry_id);
-					email = account?.email || '';
-				} catch (e) {
-					console.warn('Could not load ministry account email:', e);
-				}
-
-				form.reset({
-					name: ministry.name,
-					code: ministry.code,
-					email: email,
-					enrollment_type: ministry.enrollment_type,
-					is_active: ministry.is_active ?? true,
-					open_at: ministry.open_at || undefined,
-					close_at: ministry.close_at || undefined,
-					description: ministry.description,
-					details: ministry.details,
-					custom_questions:
-						ministry.custom_questions?.map((q) => ({
-							...q,
-							options: q.options || [],
-						})) || [],
-				});
-			} else {
-				form.reset({
-					name: '',
-					code: '',
-					email: '',
-					enrollment_type: 'enrolled',
-					is_active: true,
-					open_at: undefined,
-					close_at: undefined,
-					description: '',
-					details: '',
-					custom_questions: [],
-				});
-			}
-		};
-
-		loadMinistryData();
+		if (ministry) {
+			form.reset({
+				name: ministry.name,
+				code: ministry.code,
+				email: ministry.email || '', // Get email directly from ministry
+				enrollment_type: ministry.enrollment_type,
+				is_active: ministry.is_active ?? true,
+				open_at: ministry.open_at || undefined,
+				close_at: ministry.close_at || undefined,
+				description: ministry.description,
+				details: ministry.details,
+				custom_questions:
+					ministry.custom_questions?.map((q) => ({
+						...q,
+						options: q.options || [],
+					})) || [],
+			});
+		} else {
+			form.reset({
+				name: '',
+				code: '',
+				email: '',
+				enrollment_type: 'enrolled',
+				is_active: true,
+				open_at: undefined,
+				close_at: undefined,
+				description: '',
+				details: '',
+				custom_questions: [],
+			});
+		}
 	}, [ministry, form, isOpen]);
 
 	const onSubmit = async (data: MinistryFormValues) => {
 		try {
-			// Check for duplicate code
-			const existingMinistry = await db.ministries
-				.where('code')
-				.equals(data.code)
-				.first();
+			// Check for duplicate code using dbAdapter
+			const allMinistries = await dbAdapter.listMinistries();
+			const existingMinistry = allMinistries.find((m) => m.code === data.code);
 			if (
 				existingMinistry &&
 				existingMinistry.ministry_id !== ministry?.ministry_id
@@ -172,12 +157,13 @@ export function MinistryFormDialog({
 				return;
 			}
 
-			const { email, ...ministryData } = data;
+			const ministryData = data;
 
 			function toDbMinistryPayload(md: Partial<MinistryFormValues>) {
 				return {
 					name: md.name || '',
 					code: md.code || '',
+					email: md.email || undefined, // Include email field
 					enrollment_type:
 						(md.enrollment_type as 'enrolled' | 'expressed_interest') ||
 						'enrolled',
@@ -193,18 +179,8 @@ export function MinistryFormDialog({
 			if (ministry) {
 				await updateMinistry(
 					ministry.ministry_id,
-					toDbMinistryPayload(ministryData)
+					toDbMinistryPayload(data) // Include email in the payload
 				);
-
-				// Handle ministry account email
-				if (email && email.trim()) {
-					await saveMinistryAccount({
-						ministry_id: ministry.ministry_id,
-						email: email.trim(),
-						display_name: data.name,
-						is_active: true,
-					});
-				}
 
 				toast({
 					title: 'Ministry Updated',
@@ -212,18 +188,8 @@ export function MinistryFormDialog({
 				});
 			} else {
 				const ministryId = await createMinistry(
-					toDbMinistryPayload(ministryData)
+					toDbMinistryPayload(data) // Include email in the payload
 				);
-
-				// Handle ministry account email for new ministry
-				if (email && email.trim()) {
-					await saveMinistryAccount({
-						ministry_id: ministryId,
-						email: email.trim(),
-						display_name: data.name,
-						is_active: true,
-					});
-				}
 
 				toast({
 					title: 'Ministry Created',
