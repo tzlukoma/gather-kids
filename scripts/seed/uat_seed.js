@@ -59,6 +59,7 @@ const counters = {
 	children: 0,
 	ministry_enrollments: 0,
 	registrations: 0,
+	user_households: 0,
 };
 
 // Supabase client setup
@@ -1732,33 +1733,33 @@ async function createHouseholdsAndFamilies() {
 	const householdsData = [
 		{
 			external_id: `${EXTERNAL_ID_PREFIX}household_1`,
-			household_name: 'The Smith Family',
-			address: '123 Main St',
+			name: 'The Smith Family',
+			address_line1: '123 Main St',
 			city: 'Anytown',
 			state: 'ST',
 			zip: '12345',
 			primary_phone: '555-123-4567',
-			email: 'smith@example.com',
+			primary_email: 'smith@example.com',
 		},
 		{
 			external_id: `${EXTERNAL_ID_PREFIX}household_2`,
-			household_name: 'The Johnson Family',
-			address: '456 Oak Ave',
+			name: 'The Johnson Family',
+			address_line1: '456 Oak Ave',
 			city: 'Somewhere',
 			state: 'ST',
 			zip: '67890',
 			primary_phone: '555-234-5678',
-			email: 'johnson@example.com',
+			primary_email: 'johnson@example.com',
 		},
 		{
 			external_id: `${EXTERNAL_ID_PREFIX}household_3`,
-			household_name: 'The Davis Family',
-			address: '789 Pine Rd',
+			name: 'The Davis Family',
+			address_line1: '789 Pine Rd',
 			city: 'Elsewhere',
 			state: 'ST',
 			zip: '54321',
 			primary_phone: '555-345-6789',
-			email: 'davis@example.com',
+			primary_email: 'davis@example.com',
 		},
 	];
 
@@ -1962,7 +1963,7 @@ async function createHouseholdsAndFamilies() {
 			first_name: 'John',
 			last_name: 'Smith',
 			email: 'john.smith@example.com',
-			phone: '555-123-4567',
+			mobile_phone: '555-123-4567',
 			relationship: 'Father',
 			is_primary: true,
 		},
@@ -1972,7 +1973,7 @@ async function createHouseholdsAndFamilies() {
 			first_name: 'Jane',
 			last_name: 'Smith',
 			email: 'jane.smith@example.com',
-			phone: '555-987-6543',
+			mobile_phone: '555-987-6543',
 			relationship: 'Mother',
 			is_primary: false,
 		},
@@ -1982,7 +1983,7 @@ async function createHouseholdsAndFamilies() {
 			first_name: 'Bob',
 			last_name: 'Johnson',
 			email: 'bob.johnson@example.com',
-			phone: '555-234-5678',
+			mobile_phone: '555-234-5678',
 			relationship: 'Father',
 			is_primary: true,
 		},
@@ -1992,7 +1993,7 @@ async function createHouseholdsAndFamilies() {
 			first_name: 'Mary',
 			last_name: 'Johnson',
 			email: 'mary.johnson@example.com',
-			phone: '555-876-5432',
+			mobile_phone: '555-876-5432',
 			relationship: 'Mother',
 			is_primary: false,
 		},
@@ -2002,7 +2003,7 @@ async function createHouseholdsAndFamilies() {
 			first_name: 'David',
 			last_name: 'Davis',
 			email: 'david.davis@example.com',
-			phone: '555-345-6789',
+			mobile_phone: '555-345-6789',
 			relationship: 'Father',
 			is_primary: false,
 		},
@@ -2012,7 +2013,7 @@ async function createHouseholdsAndFamilies() {
 			first_name: 'Carol',
 			last_name: 'Davis',
 			email: 'carol.davis@example.com',
-			phone: '555-765-4321',
+			mobile_phone: '555-765-4321',
 			relationship: 'Mother',
 			is_primary: true,
 		},
@@ -2028,7 +2029,8 @@ async function createHouseholdsAndFamilies() {
 			first_name: originalGuardian.first_name,
 			last_name: originalGuardian.last_name,
 			email: originalGuardian.email,
-			mobile_phone: originalGuardian.phone, // Schema uses mobile_phone instead of phone
+			mobile_phone: originalGuardian.mobile_phone,
+			relationship: originalGuardian.relationship,
 			is_primary: originalGuardian.is_primary,
 		};
 
@@ -2081,8 +2083,14 @@ async function createHouseholdsAndFamilies() {
 				household_id: householdId,
 				first_name: `Child${h + 1}-${i}`,
 				last_name: lastName,
-				birth_date: `${birthYear}-06-15`,
+				dob: `${birthYear}-06-15`, // Use dob instead of birth_date
+				grade: `${Math.min(12, Math.max(0, age - 5))}`, // Calculate grade based on age
 				gender: i % 2 === 0 ? 'M' : 'F',
+				allergies: i % 3 === 0 ? 'None' : null, // Some children have allergies
+				medical_notes: i % 5 === 0 ? 'Regular checkups' : null, // Some children have medical notes
+				special_needs: i % 7 === 0, // Some children have special needs
+				special_needs_notes: i % 7 === 0 ? 'Requires additional support' : null,
+				is_active: true,
 			};
 
 			const { data: existing, error: checkError } = await supabase
@@ -2118,6 +2126,93 @@ async function createHouseholdsAndFamilies() {
 				counters.children++;
 			}
 		}
+	}
+}
+
+/**
+ * Create user_households records for canonical DAL
+ */
+async function createUserHouseholds() {
+	console.log('🔗 Creating user_households records for canonical DAL...');
+
+	try {
+		// Get households
+		const { data: households, error: householdsError } = await supabase
+			.from('households')
+			.select('household_id, external_id')
+			.like('external_id', `${EXTERNAL_ID_PREFIX}%`);
+
+		if (householdsError) {
+			throw new Error(`Failed to fetch households: ${householdsError.message}`);
+		}
+
+		if (!households || households.length === 0) {
+			console.log('⚠️ No households found, skipping user_households creation');
+			return;
+		}
+
+		// Create mock auth user IDs for testing
+		const mockAuthUserIds = [
+			'auth-user-smith-123',
+			'auth-user-johnson-456',
+			'auth-user-davis-789',
+		];
+
+		// Create user_households records
+		for (
+			let i = 0;
+			i < Math.min(households.length, mockAuthUserIds.length);
+			i++
+		) {
+			const household = households[i];
+			const authUserId = mockAuthUserIds[i];
+
+			const userHouseholdData = {
+				auth_user_id: authUserId,
+				household_id: household.household_id,
+			};
+
+			// Check if user_household already exists
+			const { data: existing, error: checkError } = await supabase
+				.from('user_households')
+				.select('user_household_id')
+				.eq('auth_user_id', authUserId)
+				.single();
+
+			if (checkError && checkError.code !== 'PGRST116') {
+				throw new Error(
+					`Error checking user_household for ${authUserId}: ${checkError.message}`
+				);
+			}
+
+			if (existing) {
+				console.log(
+					`✅ User household already exists for auth user: ${authUserId}`
+				);
+			} else {
+				const { error: insertError } = await supabase
+					.from('user_households')
+					.insert(userHouseholdData);
+
+				if (insertError) {
+					throw new Error(
+						`Failed to create user_household for ${authUserId}: ${insertError.message}`
+					);
+				}
+
+				console.log(
+					`✅ Created user_household: ${authUserId} -> ${household.household_id}`
+				);
+				counters.user_households++;
+			}
+		}
+
+		console.log(
+			`✅ Created ${counters.user_households} user_households records`
+		);
+	} catch (error) {
+		console.error(`❌ Error creating user_households: ${error.message}`);
+		throw error;
 	}
 }
 
@@ -2601,6 +2696,7 @@ function displaySeedingSummary() {
 	console.log(`Children: ${counters.children}`);
 	console.log(`Ministry Enrollments: ${counters.ministry_enrollments}`);
 	console.log(`Registrations: ${counters.registrations}`);
+	console.log(`User Households: ${counters.user_households}`);
 
 	const totalRecords = Object.values(counters).reduce(
 		(sum, count) => sum + count,
@@ -2760,6 +2856,15 @@ WHERE enrollment_id LIKE '${EXTERNAL_ID_PREFIX}%'
 UNION ALL
 
 SELECT 
+    'user_households' as table_name,
+    COUNT(*) as actual_count,
+    ${counters.user_households} as expected_count
+FROM user_households 
+WHERE auth_user_id LIKE 'auth-user-%'
+
+UNION ALL
+
+SELECT 
     'registrations' as table_name,
     COUNT(*) as actual_count,
     ${counters.registrations} as expected_count
@@ -2799,6 +2904,7 @@ async function resetUATData() {
 		{ table: 'children', filter: { type: 'external_id' } },
 		{ table: 'emergency_contacts', filter: { type: 'contact_id' } },
 		{ table: 'guardians', filter: { type: 'external_id' } },
+		{ table: 'user_households', filter: { type: 'all_records' } },
 		{ table: 'households', filter: { type: 'external_id' } },
 
 		// Level 5: Ministry structure
@@ -2929,6 +3035,9 @@ async function seedUATData() {
 		// Create households, guardians, and children
 		await createHouseholdsAndFamilies();
 
+		// Create user_households records for canonical DAL
+		await createUserHouseholds();
+
 		// Create ministry enrollments
 		await createMinistryEnrollments();
 
@@ -2958,6 +3067,7 @@ async function seedUATData() {
 		);
 		console.log('- Essay prompt created for Senior division');
 		console.log('- 3 households with guardians and children');
+		console.log('- 3 user_households records for canonical DAL testing');
 		console.log(
 			'- 10 children enrolled in Bible Bee ministry ready for division assignment'
 		);
