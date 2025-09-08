@@ -47,6 +47,12 @@ function convertFormDataToCanonical(data: Record<string, unknown>): {
   const d = data as Record<string, unknown>;
   // Convert household data to canonical format
   const householdSrc = toRecord(d['household']);
+  
+  // Convert guardians to get primary guardian's email for household primary_email
+  const guardiansSrc = toArrayRecords(d['guardians']);
+  const primaryGuardian = guardiansSrc.find(g => g['is_primary'] === true) || guardiansSrc[0];
+  const primaryGuardianEmail = primaryGuardian?.['email'] as string | undefined;
+  
   const household = CanonicalDtos.HouseholdWriteDto.parse({
     household_id: householdSrc['household_id'] as string | undefined,
     name: householdSrc['name'] as string | undefined,
@@ -56,14 +62,13 @@ function convertFormDataToCanonical(data: Record<string, unknown>): {
     state: householdSrc['state'] as string | undefined,
     zip: householdSrc['zip'] as string | undefined,
     preferred_scripture_translation: householdSrc['preferredScriptureTranslation'] as string | undefined, // camelCase -> snake_case
-    primary_email: householdSrc['primary_email'] as string | undefined,
+    primary_email: primaryGuardianEmail, // Derive from primary guardian's email
     primary_phone: householdSrc['primary_phone'] as string | undefined,
     photo_url: householdSrc['photo_url'] as string | undefined,
   });
 
   // Convert guardians to canonical format
   const householdIdToUse = (householdSrc['household_id'] as string | undefined) || uuidv4();
-  const guardiansSrc = toArrayRecords(d['guardians']);
   const guardians = guardiansSrc.map((guardian) =>
     CanonicalDtos.GuardianWriteDto.parse({
       guardian_id: guardian['guardian_id'] as string | undefined,
@@ -149,6 +154,7 @@ export async function registerHouseholdCanonical(data: Record<string, unknown>, 
         address_line1: canonicalData.household.address_line1,
         // Use snake_case internally, but map to current DB schema as needed
         preferredScriptureTranslation: canonicalData.household.preferred_scripture_translation,
+        email: canonicalData.household.primary_email, // Map primary_email to email field in DB
       };
 
       if (isUpdate) {
@@ -192,7 +198,7 @@ export async function registerHouseholdCanonical(data: Record<string, unknown>, 
 
       // Handle robust update logic for existing children
       if (isUpdate && !isPrefill) {
-        const existingChildren = await dbAdapter.listChildren(householdId);
+        const existingChildren = await dbAdapter.listChildren({ householdId });
         const incomingChildIds = canonicalData.children.map(c => c.child_id).filter(Boolean);
         
         // Delete existing enrollments and registrations for children being updated
@@ -522,6 +528,7 @@ export async function registerHouseholdCanonical(data: Record<string, unknown>, 
         name: canonicalData.household.name || `${canonicalData.guardians[0].last_name} Household`,
         address_line1: canonicalData.household.address_line1,
         preferredScriptureTranslation: canonicalData.household.preferred_scripture_translation,
+        email: canonicalData.household.primary_email, // Map primary_email to email field in DB
       };
 
       if (isUpdate) {
@@ -565,7 +572,7 @@ export async function registerHouseholdCanonical(data: Record<string, unknown>, 
 
       // Handle robust update logic for existing children
       if (isUpdate && !isPrefill) {
-        const existingChildren = await dbAdapter.listChildren(householdId);
+        const existingChildren = await dbAdapter.listChildren({ householdId });
         const incomingChildIds = canonicalData.children.map(c => c.child_id).filter(Boolean);
         
         // Delete existing enrollments and registrations for children being updated

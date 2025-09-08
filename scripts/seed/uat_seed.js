@@ -1077,7 +1077,7 @@ async function createEssayPrompt(yearId, divisionMap) {
 		}
 
 		const essayPromptData = {
-			id: `${EXTERNAL_ID_PREFIX}senior_essay_prompt`,
+			prompt_id: crypto.randomUUID(), // Generate UUID for prompt_id
 			division_id: seniorDivisionId, // Use division_id as per generated types
 			title: 'Senior Division Essay',
 			prompt:
@@ -1739,7 +1739,7 @@ async function createHouseholdsAndFamilies() {
 			state: 'ST',
 			zip: '12345',
 			primary_phone: '555-123-4567',
-			primary_email: 'smith@example.com',
+			email: 'john.smith@example.com', // Match primary guardian's email
 		},
 		{
 			external_id: `${EXTERNAL_ID_PREFIX}household_2`,
@@ -1749,7 +1749,7 @@ async function createHouseholdsAndFamilies() {
 			state: 'ST',
 			zip: '67890',
 			primary_phone: '555-234-5678',
-			primary_email: 'johnson@example.com',
+			email: 'bob.johnson@example.com', // Match primary guardian's email
 		},
 		{
 			external_id: `${EXTERNAL_ID_PREFIX}household_3`,
@@ -1759,7 +1759,7 @@ async function createHouseholdsAndFamilies() {
 			state: 'ST',
 			zip: '54321',
 			primary_phone: '555-345-6789',
-			primary_email: 'davis@example.com',
+			email: 'carol.davis@example.com', // Match primary guardian's email
 		},
 	];
 
@@ -2806,7 +2806,7 @@ SELECT
     COUNT(*) as actual_count,
     ${counters.essay_prompts} as expected_count
 FROM essay_prompts 
-WHERE id LIKE '${EXTERNAL_ID_PREFIX}%'
+WHERE prompt_id IS NOT NULL
 
 UNION ALL
 
