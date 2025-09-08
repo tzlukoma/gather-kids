@@ -2607,13 +2607,25 @@ export async function getScripturesForCompetitionYear(competitionYearId: string)
  * Get ministries for ministry management
  */
 export async function getMinistries(isActive?: boolean): Promise<Ministry[]> {
-	console.log('DAL.getMinistries: Starting', { isActive, useAdapter: shouldUseAdapter() });
+	console.log('🔍 DAL.getMinistries: Starting', { 
+		isActive, 
+		useAdapter: shouldUseAdapter(),
+		timestamp: new Date().toISOString()
+	});
 	try {
 		if (shouldUseAdapter()) {
 			// Use Supabase adapter for live mode
-			console.log('DAL.getMinistries: Using Supabase adapter');
+			console.log('🔍 DAL.getMinistries: Using Supabase adapter');
 			const ministries = await dbAdapter.listMinistries(isActive);
-			console.log('DAL.getMinistries: Got ministries from Supabase', { count: ministries.length });
+			console.log('🔍 DAL.getMinistries: Got ministries from Supabase', { 
+				count: ministries.length,
+				ministries: ministries.map(m => ({
+					ministry_id: m.ministry_id,
+					name: m.name,
+					email: m.email,
+					hasEmail: !!m.email
+				}))
+			});
 			return ministries;
 		} else {
 			// Use legacy Dexie interface for demo mode

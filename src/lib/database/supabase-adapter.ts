@@ -794,7 +794,11 @@ export class SupabaseAdapter implements DatabaseAdapter {
 	}
 
 	async listMinistries(isActive?: boolean): Promise<Ministry[]> {
-		console.log('SupabaseAdapter.listMinistries: Starting query', { isActive });
+		console.log('🔍 SupabaseAdapter.listMinistries: Starting query', { 
+			isActive,
+			timestamp: new Date().toISOString(),
+			clientUrl: this.client.supabaseUrl
+		});
 		
 		// First get all ministries
 		let query = this.client.from('ministries').select('*');
@@ -804,53 +808,82 @@ export class SupabaseAdapter implements DatabaseAdapter {
 		}
 
 		try {
+			console.log('🔍 SupabaseAdapter.listMinistries: Executing ministries query...');
 			const { data: ministries, error: ministriesError } = await query;
-			console.log('SupabaseAdapter.listMinistries: Ministries query result', { 
+			
+			console.log('🔍 SupabaseAdapter.listMinistries: Ministries query result', { 
 				hasError: !!ministriesError, 
 				errorMessage: ministriesError?.message, 
-				dataCount: ministries?.length || 0
+				dataCount: ministries?.length || 0,
+				ministries: ministries?.map(m => ({ 
+					ministry_id: m.ministry_id, 
+					name: m.name, 
+					code: m.code 
+				}))
 			});
 			
 			if (ministriesError) throw ministriesError;
 
 			if (!ministries || ministries.length === 0) {
-				console.warn('SupabaseAdapter.listMinistries: No ministries found in the database');
+				console.warn('⚠️ SupabaseAdapter.listMinistries: No ministries found in the database');
 				return [];
 			}
 
 			// Get all ministry accounts
+			console.log('🔍 SupabaseAdapter.listMinistries: Executing ministry_accounts query...');
 			const { data: accounts, error: accountsError } = await this.client
 				.from('ministry_accounts')
-				.select('ministry_id, email');
+				.select('ministry_id, email, display_name');
+			
+			console.log('🔍 SupabaseAdapter.listMinistries: Ministry accounts query result', {
+				hasError: !!accountsError,
+				errorMessage: accountsError?.message,
+				accountCount: accounts?.length || 0,
+				accounts: accounts?.map(a => ({
+					ministry_id: a.ministry_id,
+					email: a.email,
+					display_name: a.display_name
+				}))
+			});
 			
 			if (accountsError) {
-				console.warn('SupabaseAdapter.listMinistries: Error fetching ministry accounts', accountsError);
+				console.warn('⚠️ SupabaseAdapter.listMinistries: Error fetching ministry accounts', accountsError);
 			}
 
 			// Create a map of ministry_id to email
 			const emailMap = new Map<string, string>();
 			if (accounts) {
 				accounts.forEach(account => {
+					console.log('🔍 SupabaseAdapter.listMinistries: Processing account', {
+						ministry_id: account.ministry_id,
+						email: account.email,
+						display_name: account.display_name
+					});
+					
 					if (account.ministry_id && account.email) {
 						emailMap.set(account.ministry_id, account.email);
 					}
 				});
 			}
 
-			console.log('SupabaseAdapter.listMinistries: Email map', {
+			console.log('🔍 SupabaseAdapter.listMinistries: Email map created', {
 				accountCount: accounts?.length || 0,
 				emailMapSize: emailMap.size,
-				emailMapEntries: Array.from(emailMap.entries())
+				emailMapEntries: Array.from(emailMap.entries()),
+				allMinistryIds: ministries.map(m => m.ministry_id),
+				allAccountMinistryIds: accounts?.map(a => a.ministry_id) || []
 			});
 
 			const result = ministries.map((ministry) => {
 				try {
 					const email = emailMap.get(ministry.ministry_id);
 					
-					console.log('SupabaseAdapter.listMinistries: Processing ministry', {
+					console.log('🔍 SupabaseAdapter.listMinistries: Processing ministry', {
 						ministryId: ministry.ministry_id,
 						ministryName: ministry.name,
-						email: email
+						ministryCode: ministry.code,
+						email: email,
+						hasEmailInMap: emailMap.has(ministry.ministry_id)
 					});
 					
 					// Create a modified record with the email field
@@ -859,9 +892,18 @@ export class SupabaseAdapter implements DatabaseAdapter {
 						email: email
 					};
 					
-					return supabaseToMinistry(recordWithEmail as Database['public']['Tables']['ministries']['Row']);
+					const mappedMinistry = supabaseToMinistry(recordWithEmail as Database['public']['Tables']['ministries']['Row']);
+					
+					console.log('🔍 SupabaseAdapter.listMinistries: Mapped ministry result', {
+						originalMinistryId: ministry.ministry_id,
+						mappedMinistryId: mappedMinistry.ministry_id,
+						mappedEmail: mappedMinistry.email,
+						mappedName: mappedMinistry.name
+					});
+					
+					return mappedMinistry;
 				} catch (mapError) {
-					console.error('SupabaseAdapter.listMinistries: Error mapping ministry', { 
+					console.error('❌ SupabaseAdapter.listMinistries: Error mapping ministry', { 
 						ministry, 
 						error: mapError
 					});
@@ -869,7 +911,14 @@ export class SupabaseAdapter implements DatabaseAdapter {
 				}
 			});
 
-			console.log(`SupabaseAdapter.listMinistries: Successfully mapped ${result.length} ministries`);
+			console.log('✅ SupabaseAdapter.listMinistries: Successfully mapped ministries', {
+				resultCount: result.length,
+				resultEmails: result.map(r => ({ 
+					ministry_id: r.ministry_id, 
+					name: r.name, 
+					email: r.email 
+				}))
+			});
 			return result;
 		} catch (queryError) {
 			console.error('SupabaseAdapter.listMinistries: Query failed', queryError);

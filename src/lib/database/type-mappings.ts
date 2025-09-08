@@ -609,7 +609,12 @@ export type SupabaseMinistry =
 
 // Ministry conversions
 export function supabaseToMinistry(record: SupabaseMinistry): MinistryEntity {
-	console.log('supabaseToMinistry: Converting record', JSON.stringify(record));
+	console.log('🔍 supabaseToMinistry: Converting record', {
+		ministry_id: record.ministry_id,
+		name: record.name,
+		email: (record as any).email,
+		allFields: Object.keys(record)
+	});
 	const r: Record<string, unknown> = record as unknown as Record<string, unknown>;
 	
 	// Warn when legacy camelCase ministry fields are present
@@ -622,12 +627,19 @@ export function supabaseToMinistry(record: SupabaseMinistry): MinistryEntity {
 	}
 
 	try {
+		const emailValue = (r.email as string | undefined) ?? undefined;
+		console.log('🔍 supabaseToMinistry: Email processing', {
+			rawEmail: r.email,
+			emailValue: emailValue,
+			emailType: typeof r.email
+		});
+
 		const result = {
 			ministry_id: String(r.ministry_id || ''),
 			// tolerate optional code and data profile which may be present in generated types
 			code: String(r.code ?? r.ministry_code ?? ''),
 			name: String((r.name ?? r.label) ?? ''),
-			email: (r.email as string | undefined) ?? undefined, // Add email field
+			email: emailValue, // Add email field
 			// coerce null -> undefined for optional fields produced by the generator
 			description: (r.description as string | undefined) ?? undefined,
 			details: (r.details as string | undefined) ?? undefined,
@@ -649,10 +661,12 @@ export function supabaseToMinistry(record: SupabaseMinistry): MinistryEntity {
 			updated_at: String(r.updated_at || new Date().toISOString()),
 		};
 		
-		console.log('supabaseToMinistry: Successfully converted ministry', {
+		console.log('🔍 supabaseToMinistry: Successfully converted ministry', {
 			id: result.ministry_id,
 			name: result.name,
-			code: result.code
+			code: result.code,
+			email: result.email,
+			emailType: typeof result.email
 		});
 		
 		return result;
