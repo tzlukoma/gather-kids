@@ -178,9 +178,11 @@ export default function RostersPage() {
 				// Load children based on user role
 				const childrenData: Child[] =
 					user?.metadata?.role === AuthRole.MINISTRY_LEADER
-						? (!user.is_active || !user.assignedMinistryIds || user.assignedMinistryIds.length === 0
-							  ? []
-							  : await getChildrenForLeader(user.assignedMinistryIds, '2025'))
+						? !user.is_active ||
+						  !user.assignedMinistryIds ||
+						  user.assignedMinistryIds.length === 0
+							? []
+							: await getChildrenForLeader(user.assignedMinistryIds, '2025')
 						: await getAllChildren();
 
 				// Load all other data in parallel
@@ -218,7 +220,7 @@ export default function RostersPage() {
 		};
 
 		loadData();
-	}, [user, dataLoading]);
+	}, [user]);
 
 	const currentEventName = useMemo(() => {
 		return (
@@ -309,15 +311,20 @@ export default function RostersPage() {
 		if (dataLoading) return [];
 
 		const relevantMinistryIds: Set<string> =
-			user?.metadata?.role === AuthRole.MINISTRY_LEADER && user.assignedMinistryIds
+			user?.metadata?.role === AuthRole.MINISTRY_LEADER &&
+			user.assignedMinistryIds
 				? new Set(user.assignedMinistryIds)
 				: new Set(
-					  allMinistryEnrollments
-						  .filter((e) => new Set(allChildren.map((c) => c.child_id)).has(e.child_id))
-						  .map((e) => e.ministry_id)
+						allMinistryEnrollments
+							.filter((e) =>
+								new Set(allChildren.map((c) => c.child_id)).has(e.child_id)
+							)
+							.map((e) => e.ministry_id)
 				  );
 
-		return allMinistries.filter((m) => relevantMinistryIds.has(m.ministry_id)).sort((a, b) => a.name.localeCompare(b.name));
+		return allMinistries
+			.filter((m) => relevantMinistryIds.has(m.ministry_id))
+			.sort((a, b) => a.name.localeCompare(b.name));
 	}, [allChildren, allMinistryEnrollments, allMinistries, user, dataLoading]);
 
 	const displayChildren = useMemo(() => {
