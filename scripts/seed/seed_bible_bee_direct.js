@@ -148,11 +148,10 @@ async function main() {
 
 		// 1. Find Bible Bee Competition Year...
 		console.log('📅 Finding Bible Bee Competition Year...');
-		const { data: yearData, error: yearError } = await supabase
+		const { data: yearDataArray, error: yearError } = await supabase
 			.from('competition_years')
 			.select('id')
-			.eq('name', 'Bible Bee 2025-2026')
-			.single();
+			.eq('name', '2025-2026 Competition Year');
 
 		if (yearError) {
 			console.error(`❌ Error finding competition year: ${yearError.message}`);
@@ -161,7 +160,18 @@ async function main() {
 			);
 			process.exit(1);
 		}
-		const yearId = yearData.id;
+
+		if (!yearDataArray || yearDataArray.length === 0) {
+			console.error(
+				`❌ No competition year found with name '2025-2026 Competition Year'`
+			);
+			console.error(
+				'Make sure the UAT seed script has been run first to create the competition year.'
+			);
+			process.exit(1);
+		}
+
+		const yearId = yearDataArray[0].id;
 		console.log(`✅ Found competition year ID: ${yearId}`);
 
 		// 1b. Create Bible Bee Year

@@ -1077,7 +1077,7 @@ async function createEssayPrompt(yearId, divisionMap) {
 		}
 
 		const essayPromptData = {
-			prompt_id: crypto.randomUUID(), // Generate UUID for prompt_id
+			id: crypto.randomUUID(), // Generate UUID for id (not prompt_id)
 			division_id: seniorDivisionId, // Use division_id as per generated types
 			title: 'Senior Division Essay',
 			prompt:
@@ -2514,7 +2514,7 @@ async function createHouseholdRegistrations() {
 		// Create or get the registration cycle
 		const activeCycleId = await createRegistrationCycle();
 
-		// Create registrations for each household
+		// Create registrations for each child in each household
 		for (const household of households) {
 			const householdId = household.household_id;
 
@@ -2530,42 +2530,44 @@ async function createHouseholdRegistrations() {
 				continue;
 			}
 
-			// Create a registration
-			const registrationData = {
-				registration_id: `${EXTERNAL_ID_PREFIX}reg_${
-					household.external_id.split('_')[2]
-				}`,
-				household_id: householdId,
-				cycle_id: activeCycleId,
-				status: 'approved',
-				created_at: new Date().toISOString(),
-				// Remove approved_at field as it doesn't exist in the schema
-			};
+			// Create a registration for each child
+			for (const child of children) {
+				const registrationData = {
+					registration_id: `${EXTERNAL_ID_PREFIX}reg_${
+						household.external_id.split('_')[2]
+					}_${child.external_id.split('_')[2]}`,
+					child_id: child.child_id, // Use child_id instead of household_id
+					cycle_id: activeCycleId,
+					status: 'approved',
+					created_at: new Date().toISOString(),
+					// Remove approved_at field as it doesn't exist in the schema
+				};
 
-			// Make registration ID unique for this cycle to ensure new registrations
-			const timestamp = new Date().getTime().toString().substring(6, 13);
-			registrationData.registration_id = `${registrationData.registration_id}_${timestamp}`;
+				// Make registration ID unique for this cycle to ensure new registrations
+				const timestamp = new Date().getTime().toString().substring(6, 13);
+				registrationData.registration_id = `${registrationData.registration_id}_${timestamp}`;
 
-			// Always create a new registration for the new cycle
-			console.log(
-				`🔄 Creating new registration for household ${household.external_id} in cycle ${activeCycleId}`
-			);
-
-			// Insert the new registration
-			const { error: insertRegError } = await supabase
-				.from('registrations')
-				.insert(registrationData);
-
-			if (insertRegError) {
-				console.error(
-					`Failed to create registration for household ${household.external_id}: ${insertRegError.message}`
-				);
-				continue;
-			} else {
+				// Always create a new registration for the new cycle
 				console.log(
-					`✅ Created registration for household ${household.external_id}`
+					`🔄 Creating new registration for child ${child.first_name} ${child.last_name} in household ${household.external_id} in cycle ${activeCycleId}`
 				);
-				counters.registrations++;
+
+				// Insert the new registration
+				const { error: insertRegError } = await supabase
+					.from('registrations')
+					.insert(registrationData);
+
+				if (insertRegError) {
+					console.error(
+						`Failed to create registration for child ${child.first_name} ${child.last_name} in household ${household.external_id}: ${insertRegError.message}`
+					);
+					continue;
+				} else {
+					console.log(
+						`✅ Created registration for child ${child.first_name} ${child.last_name} in household ${household.external_id}`
+					);
+					counters.registrations++;
+				}
 			}
 
 			// Now enroll each child in at least 5 random ministries
@@ -2832,7 +2834,7 @@ SELECT
     COUNT(*) as actual_count,
     ${counters.essay_prompts} as expected_count
 FROM essay_prompts 
-WHERE prompt_id IS NOT NULL
+WHERE id IS NOT NULL
 
 UNION ALL
 
