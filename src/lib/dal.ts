@@ -254,9 +254,15 @@ export async function getHouseholdProfile(householdId: string): Promise<Househol
         const children = await dbAdapter.listChildren({ householdId });
         
         const childIds = children.map(c => c.child_id);
+        console.log('DEBUG: getHouseholdProfile - childIds:', childIds);
         const allEnrollments = await dbAdapter.listMinistryEnrollments();
+        console.log('DEBUG: getHouseholdProfile - allEnrollments:', allEnrollments);
         const childEnrollments = allEnrollments.filter(e => childIds.includes(e.child_id));
+        console.log('DEBUG: getHouseholdProfile - childEnrollments:', childEnrollments);
+        console.log('DEBUG: getHouseholdProfile - enrollment child IDs:', allEnrollments.map(e => e.child_id));
+        console.log('DEBUG: getHouseholdProfile - searching for child IDs:', childIds);
         const allMinistries = await dbAdapter.listMinistries();
+        console.log('DEBUG: getHouseholdProfile - allMinistries count:', allMinistries.length);
         const ministryMap = new Map(allMinistries.map(m => [m.ministry_id, m]));
 
         const childrenWithEnrollments = children.map(child => {

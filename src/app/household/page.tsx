@@ -33,6 +33,15 @@ export default function GuardianHouseholdPage() {
 
 			setHouseholdId(targetHouseholdId);
 			const data = await getHouseholdProfile(targetHouseholdId);
+			console.log('DEBUG: Household profile data:', data);
+			console.log(
+				'DEBUG: Children with enrollments:',
+				data.children.map((c) => ({
+					childName: `${c.first_name} ${c.last_name}`,
+					enrollmentsByCycle: c.enrollmentsByCycle,
+					enrollmentCount: Object.values(c.enrollmentsByCycle).flat().length,
+				}))
+			);
 			setProfileData(data);
 		};
 		load();

@@ -302,6 +302,7 @@ function VerificationStepTwoForm({
 }
 
 const defaultChildValues = {
+	child_id: '', // Will be generated when child is added
 	first_name: '',
 	last_name: '',
 	dob: '',
@@ -670,7 +671,12 @@ function RegisterPageContent() {
 					mobile_phone: '',
 					relationship: '',
 				},
-				children: [defaultChildValues],
+				children: [
+					{
+						...defaultChildValues,
+						child_id: crypto.randomUUID(), // Generate fresh ID for initial child
+					},
+				],
 				consents: {
 					liability: false,
 					photoRelease: false,
@@ -858,7 +864,12 @@ function RegisterPageContent() {
 								mobile_phone: '',
 								relationship: '',
 							},
-							children: [defaultChildValues],
+							children: [
+								{
+									...defaultChildValues,
+									child_id: crypto.randomUUID(), // Generate fresh ID for initial child
+								},
+							],
 							consents: {
 								liability: false,
 								photoRelease: false,
@@ -1815,7 +1826,10 @@ function RegisterPageContent() {
 									size="sm"
 									className="mt-4"
 									onClick={() => {
-										appendChild(defaultChildValues);
+										appendChild({
+											...defaultChildValues,
+											child_id: crypto.randomUUID(), // Generate fresh ID for each child
+										});
 										setOpenAccordionItems((prev) => [
 											...prev,
 											`item-${childFields.length}`,

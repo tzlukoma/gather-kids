@@ -243,11 +243,11 @@ export class SupabaseAdapter implements DatabaseAdapter {
 	}
 
 	async createChild(
-		data: Omit<Child, 'child_id' | 'created_at' | 'updated_at'>
+		data: Omit<Child, 'created_at' | 'updated_at'>
 	): Promise<Child> {
 		// Map frontend field names to database column names
 		const child = {
-			child_id: uuidv4(),
+			child_id: data.child_id || uuidv4(), // Use provided child_id or generate new one
 			created_at: new Date().toISOString(),
 			updated_at: new Date().toISOString(),
 			// Direct mappings

@@ -223,7 +223,9 @@ export async function registerHouseholdCanonical(data: Record<string, unknown>, 
 
       // Handle children and enrollments with canonical data
       for (const [index, childData] of canonicalData.children.entries()) {
+        console.log('DEBUG: Processing child at index', index, 'childData:', childData);
         const childId = childData.child_id || uuidv4();
+        console.log('DEBUG: Generated childId:', childId, 'from childData.child_id:', childData.child_id);
 
         const child = {
           child_id: childId,
@@ -244,7 +246,9 @@ export async function registerHouseholdCanonical(data: Record<string, unknown>, 
         if (isUpdate) {
           await dbAdapter.updateChild(childId, child);
         } else {
-          await dbAdapter.createChild(child);
+          console.log('DEBUG: About to create child with ID:', childId);
+          const createdChild = await dbAdapter.createChild(child);
+          console.log('DEBUG: Created child with ID:', createdChild.child_id);
         }
 
         // Create registration with canonical consent types
@@ -342,13 +346,28 @@ export async function registerHouseholdCanonical(data: Record<string, unknown>, 
                 }
               }
 
-              await dbAdapter.createMinistryEnrollment({
-                child_id: childId,
-                cycle_id: cycle_id,
-                ministry_id: ministry.ministry_id,
-                status: ministry.enrollment_type,
-                custom_fields: Object.keys(custom_fields).length > 0 ? custom_fields : undefined,
-              });
+              try {
+                console.log('DEBUG: Creating ministry enrollment for:', {
+                  childId,
+                  cycle_id,
+                  ministry_id: ministry.ministry_id,
+                  status: ministry.enrollment_type,
+                  custom_fields
+                });
+                
+                await dbAdapter.createMinistryEnrollment({
+                  child_id: childId,
+                  cycle_id: cycle_id,
+                  ministry_id: ministry.ministry_id,
+                  status: ministry.enrollment_type,
+                  custom_fields: Object.keys(custom_fields).length > 0 ? custom_fields : undefined,
+                });
+                
+                console.log('DEBUG: Successfully created ministry enrollment for ministry:', ministry.name);
+              } catch (enrollmentError) {
+                console.error('DEBUG: Failed to create ministry enrollment:', enrollmentError);
+                throw enrollmentError;
+              }
 
               // Handle Bible Bee enrollment through new system
               if (ministry.code === 'bible-bee') {
@@ -577,7 +596,9 @@ export async function registerHouseholdCanonical(data: Record<string, unknown>, 
 
       // Handle children and enrollments with canonical data
       for (const [index, childData] of canonicalData.children.entries()) {
+        console.log('DEBUG: Processing child at index', index, 'childData:', childData);
         const childId = childData.child_id || uuidv4();
+        console.log('DEBUG: Generated childId:', childId, 'from childData.child_id:', childData.child_id);
 
         const child = {
           child_id: childId,
@@ -598,7 +619,9 @@ export async function registerHouseholdCanonical(data: Record<string, unknown>, 
         if (isUpdate) {
           await dbAdapter.updateChild(childId, child);
         } else {
-          await dbAdapter.createChild(child);
+          console.log('DEBUG: About to create child with ID:', childId);
+          const createdChild = await dbAdapter.createChild(child);
+          console.log('DEBUG: Created child with ID:', createdChild.child_id);
         }
 
         // Create registration with canonical consent types
@@ -694,13 +717,28 @@ export async function registerHouseholdCanonical(data: Record<string, unknown>, 
                 }
               }
 
-              await dbAdapter.createMinistryEnrollment({
-                child_id: childId,
-                cycle_id: cycle_id,
-                ministry_id: ministry.ministry_id,
-                status: ministry.enrollment_type,
-                custom_fields: Object.keys(custom_fields).length > 0 ? custom_fields : undefined,
-              });
+              try {
+                console.log('DEBUG: Creating ministry enrollment for:', {
+                  childId,
+                  cycle_id,
+                  ministry_id: ministry.ministry_id,
+                  status: ministry.enrollment_type,
+                  custom_fields
+                });
+                
+                await dbAdapter.createMinistryEnrollment({
+                  child_id: childId,
+                  cycle_id: cycle_id,
+                  ministry_id: ministry.ministry_id,
+                  status: ministry.enrollment_type,
+                  custom_fields: Object.keys(custom_fields).length > 0 ? custom_fields : undefined,
+                });
+                
+                console.log('DEBUG: Successfully created ministry enrollment for ministry:', ministry.name);
+              } catch (enrollmentError) {
+                console.error('DEBUG: Failed to create ministry enrollment:', enrollmentError);
+                throw enrollmentError;
+              }
 
               // Handle Bible Bee enrollment through new system
               if (ministry.code === 'bible-bee') {
