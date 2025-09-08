@@ -167,6 +167,7 @@ export default function RostersPage() {
 	const [allMinistries, setAllMinistries] = useState<Ministry[]>([]);
 	const [dataLoading, setDataLoading] = useState(true);
 	const [leaderMinistryId, setLeaderMinistryId] = useState<string | null>(null);
+	const [noMinistryAssigned, setNoMinistryAssigned] = useState(false);
 
 	// Load data using DAL functions
 	useEffect(() => {
@@ -222,6 +223,7 @@ export default function RostersPage() {
 						);
 						childrenData = [];
 						setLeaderMinistryId(null);
+						setNoMinistryAssigned(true);
 					}
 				} else {
 					childrenData = await getAllChildren();
@@ -554,6 +556,25 @@ export default function RostersPage() {
 
 	if (loading || !isAuthorized || dataLoading) {
 		return <div>Loading rosters...</div>;
+	}
+
+	// Show empty state for ministry leaders without assigned ministry
+	if (user?.metadata?.role === AuthRole.MINISTRY_LEADER && noMinistryAssigned) {
+		return (
+			<div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
+				<div className="text-center space-y-2">
+					<h2 className="text-2xl font-semibold">No Ministry Assigned</h2>
+					<p className="text-muted-foreground max-w-md">
+						Your email address ({user.email}) is not currently associated with
+						any active ministry. Please contact your administrator to assign you
+						to a ministry.
+					</p>
+				</div>
+				<Button variant="outline" onClick={() => window.location.reload()}>
+					Refresh Page
+				</Button>
+			</div>
+		);
 	}
 
 	const showBulkActions =

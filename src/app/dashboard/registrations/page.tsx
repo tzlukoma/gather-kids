@@ -40,6 +40,7 @@ export default function RegistrationsPage() {
 
 	// For ministry leaders, find which ministry their email is associated with
 	const [leaderMinistryId, setLeaderMinistryId] = useState<string | null>(null);
+	const [noMinistryAssigned, setNoMinistryAssigned] = useState(false);
 
 	// Load data using DAL functions
 	useEffect(() => {
@@ -77,6 +78,7 @@ export default function RegistrationsPage() {
 							'⚠️ RegistrationsPage: No ministry account found for leader email',
 							user.email
 						);
+						setNoMinistryAssigned(true);
 					}
 				}
 
@@ -102,6 +104,25 @@ export default function RegistrationsPage() {
 
 	if (loading) {
 		return <div>Loading registrations...</div>;
+	}
+
+	// Show empty state for ministry leaders without assigned ministry
+	if (user?.metadata?.role === AuthRole.MINISTRY_LEADER && noMinistryAssigned) {
+		return (
+			<div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
+				<div className="text-center space-y-2">
+					<h2 className="text-2xl font-semibold">No Ministry Assigned</h2>
+					<p className="text-muted-foreground max-w-md">
+						Your email address ({user.email}) is not currently associated with
+						any active ministry. Please contact your administrator to assign you
+						to a ministry.
+					</p>
+				</div>
+				<Button variant="outline" onClick={() => window.location.reload()}>
+					Refresh Page
+				</Button>
+			</div>
+		);
 	}
 
 	const ministryOptions =
