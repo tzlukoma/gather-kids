@@ -403,28 +403,24 @@ async function createRegistrationCycle() {
 
 		const cycleData = {
 			cycle_id: cycleId,
-			name: cycleName,
 			start_date: startDateString,
 			end_date: endDateString,
 			is_active: true, // This is the active cycle
-			created_at: new Date().toISOString(),
 		};
 
-		// Force create a new cycle with a unique name by appending a timestamp
+		// Force create a new cycle with a unique ID by appending a timestamp
 		const timestamp = new Date()
 			.toISOString()
 			.replace(/[^0-9]/g, '')
 			.substring(0, 14);
-		const uniqueCycleName = `${cycleName} (${timestamp})`;
 		const uniqueCycleId = `${cycleId}_${timestamp}`;
 
 		console.log(
-			`🔄 Creating a new unique registration cycle: ${uniqueCycleName}`
+			`🔄 Creating a new unique registration cycle: ${uniqueCycleId}`
 		);
 
-		// Update the cycle data with the unique name and ID
+		// Update the cycle data with the unique ID
 		cycleData.cycle_id = uniqueCycleId;
-		cycleData.name = uniqueCycleName;
 
 		// Before inserting, make sure no other cycles are active
 		try {
@@ -507,23 +503,11 @@ function generateUUID() {
  * Create or get Bible Bee year following proper business flow:
  * Registration Cycle → Bible Bee Year → Divisions
  */
-async function createBibleBeeYear() {
+async function createBibleBeeYear(registrationCycleId) {
 	console.log('📅 Creating Bible Bee Year following proper business flow...');
+	console.log(`✅ Using provided registration cycle: ${registrationCycleId}`);
 
-	// Step 1: Create or get the registration cycle (foundation)
-	let registrationCycleId;
-	try {
-		registrationCycleId = await createRegistrationCycle();
-		console.log(`✅ Registration cycle ready: ${registrationCycleId}`);
-	} catch (cycleError) {
-		console.warn(
-			`⚠️ Could not create registration cycle: ${cycleError.message}`
-		);
-		console.log('⚙️ Using a fallback registration cycle ID');
-		registrationCycleId = `${EXTERNAL_ID_PREFIX}cycle_${Date.now()}`;
-	}
-
-	// Step 2: Create Bible Bee Year linked to registration cycle
+	// Step 1: Create Bible Bee Year linked to registration cycle
 	const bibleBeeYearId = DRY_RUN ? 'test-bible-bee-year-uuid' : generateUUID();
 
 	const bibleBeeYearData = {
@@ -3140,22 +3124,35 @@ async function seedUATData() {
 		// Follow proper Bible Bee business workflow:
 		// Registration Cycle → Bible Bee Year → Competition Year → Divisions → Grade Rules → Scriptures → Essay Prompts
 
-		// Step 1: Bible Bee Year (includes registration cycle creation)
-		const bibleBeeYearId = await createBibleBeeYear();
+		// Step 1: Create registration cycle first
+		let registrationCycleId;
+		try {
+			registrationCycleId = await createRegistrationCycle();
+			console.log(`✅ Registration cycle ready: ${registrationCycleId}`);
+		} catch (cycleError) {
+			console.warn(
+				`⚠️ Could not create registration cycle: ${cycleError.message}`
+			);
+			console.log('⚙️ Using a fallback registration cycle ID');
+			registrationCycleId = `${EXTERNAL_ID_PREFIX}cycle_${Date.now()}`;
+		}
 
-		// Step 2: Create corresponding competition year for scriptures and grade rules
+		// Step 2: Bible Bee Year (linked to registration cycle)
+		const bibleBeeYearId = await createBibleBeeYear(registrationCycleId);
+
+		// Step 3: Create corresponding competition year for scriptures and grade rules
 		const competitionYearId = await createCompetitionYear(bibleBeeYearId);
 
-		// Step 3: Create divisions linked to Bible Bee year
+		// Step 4: Create divisions linked to Bible Bee year
 		const divisionMap = await createDivisions(bibleBeeYearId);
 
-		// Step 4: Create grade rules linked to competition year (per generated types)
+		// Step 5: Create grade rules linked to competition year (per generated types)
 		await createGradeRules(competitionYearId, divisionMap);
 
-		// Step 5: Load scriptures from actual data files linked to competition year (per generated types)
+		// Step 6: Load scriptures from actual data files linked to competition year (per generated types)
 		await createScriptures(competitionYearId);
 
-		// Step 6: Create essay prompt for Senior division
+		// Step 7: Create essay prompt for Senior division
 		await createEssayPrompt(bibleBeeYearId, divisionMap);
 
 		// Create households, guardians, and children

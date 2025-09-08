@@ -2813,6 +2813,68 @@ export async function getAllChildren(): Promise<Child[]> {
 }
 
 /**
+ * Registration Cycle DAL functions
+ */
+export async function getRegistrationCycle(id: string): Promise<RegistrationCycle | null> {
+	if (shouldUseAdapter()) {
+		return dbAdapter.getRegistrationCycle(id);
+	} else {
+		return db.registration_cycles.get(id);
+	}
+}
+
+export async function createRegistrationCycle(
+	data: Omit<RegistrationCycle, 'cycle_id' | 'created_at' | 'updated_at'>
+): Promise<RegistrationCycle> {
+	if (shouldUseAdapter()) {
+		return dbAdapter.createRegistrationCycle(data);
+	} else {
+		const cycleId = data.cycle_id || `cycle_${Date.now()}`;
+		const cycle: RegistrationCycle = {
+			cycle_id: cycleId,
+			start_date: data.start_date,
+			end_date: data.end_date,
+			is_active: data.is_active,
+		};
+		await db.registration_cycles.put(cycle);
+		return cycle;
+	}
+}
+
+export async function updateRegistrationCycle(
+	id: string,
+	data: Partial<RegistrationCycle>
+): Promise<RegistrationCycle> {
+	if (shouldUseAdapter()) {
+		return dbAdapter.updateRegistrationCycle(id, data);
+	} else {
+		await db.registration_cycles.update(id, data);
+		const updated = await db.registration_cycles.get(id);
+		if (!updated) throw new Error('Registration cycle not found');
+		return updated;
+	}
+}
+
+export async function listRegistrationCycles(isActive?: boolean): Promise<RegistrationCycle[]> {
+	if (shouldUseAdapter()) {
+		return dbAdapter.listRegistrationCycles(isActive);
+	} else {
+		if (isActive !== undefined) {
+			return db.registration_cycles.filter(c => c.is_active === isActive).toArray();
+		}
+		return db.registration_cycles.toArray();
+	}
+}
+
+export async function deleteRegistrationCycle(id: string): Promise<void> {
+	if (shouldUseAdapter()) {
+		return dbAdapter.deleteRegistrationCycle(id);
+	} else {
+		await db.registration_cycles.delete(id);
+	}
+}
+
+/**
  * Get attendance records for a specific date
  */
 export async function getAttendanceForDate(dateISO: string): Promise<Attendance[]> {
