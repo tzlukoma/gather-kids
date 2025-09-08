@@ -1430,6 +1430,133 @@ async function createMinistries() {
 }
 
 /**
+ * Create ministry accounts for all ministries
+ */
+async function createMinistryAccounts() {
+	try {
+		console.log('🔑 Creating ministry accounts for all ministries...');
+
+		// Get all ministries (both UAT and regular ones)
+		let ministries;
+		if (DRY_RUN) {
+			// In dry run mode, create mock ministry data
+			ministries = [
+				{ ministry_id: 'min_sunday_school', name: 'Sunday School' },
+				{ ministry_id: 'uat_acolyte', name: 'Acolyte Ministry' },
+				{ ministry_id: 'uat_bible_bee', name: 'Bible Bee' },
+				{ ministry_id: 'uat_dance', name: 'Dance Ministry' },
+				{
+					ministry_id: 'uat_media_production',
+					name: 'Media Production Ministry',
+				},
+				{
+					ministry_id: 'uat_mentoring_boys',
+					name: 'Mentoring Ministry-Boys (Khalfani)',
+				},
+				{
+					ministry_id: 'uat_mentoring_girls',
+					name: 'Mentoring Ministry-Girls (Nailah)',
+				},
+				{
+					ministry_id: 'uat_teen_fellowship',
+					name: 'New Generation Teen Fellowship',
+				},
+				{ ministry_id: 'uat_symphonic_orchestra', name: 'Symphonic Orchestra' },
+				{
+					ministry_id: 'uat_joy_bells',
+					name: 'Youth Choirs- Joy Bells (Ages 4-8)',
+				},
+				{
+					ministry_id: 'uat_keita_choir',
+					name: 'Youth Choirs- Keita Praise Choir (Ages 9-12)',
+				},
+				{
+					ministry_id: 'uat_teen_choir',
+					name: 'Youth Choirs- New Generation Teen Choir (Ages 13-18)',
+				},
+				{ ministry_id: 'uat_youth_ushers', name: 'Youth Ushers' },
+				{ ministry_id: 'uat_childrens_musical', name: "Children's Musical" },
+				{ ministry_id: 'uat_confirmation', name: 'Confirmation' },
+				{
+					ministry_id: 'uat_international_travel',
+					name: 'International Travel',
+				},
+				{ ministry_id: 'uat_orators', name: 'New Jersey Orators' },
+				{ ministry_id: 'uat_nursery', name: 'Nursery' },
+				{ ministry_id: 'uat_vbs', name: 'Vacation Bible School' },
+				{ ministry_id: 'uat_college_tour', name: 'College Tour' },
+			];
+			console.log('[DRY RUN] Using mock ministry data for ministry accounts');
+		} else {
+			const { data, error: ministryError } = await supabase
+				.from('ministries')
+				.select('ministry_id, name');
+
+			if (ministryError) {
+				throw new Error(`Error fetching ministries: ${ministryError.message}`);
+			}
+
+			ministries = data;
+		}
+
+		// Create accounts for all ministries using the ministryNameToEmail function
+		const accountsData = ministries.map((ministry) => ({
+			ministry_id: ministry.ministry_id,
+			email: ministryNameToEmail(ministry.name),
+			display_name: ministry.name,
+			is_active: true,
+		}));
+
+		for (const accountData of accountsData) {
+			if (!accountData.ministry_id) {
+				console.log(
+					`⚠️ Skipping invalid ministry account: missing ministry ID`
+				);
+				continue;
+			}
+
+			// Check if account already exists
+			const { data: existing, error: checkError } = await supabase
+				.from('ministry_accounts')
+				.select('id')
+				.eq('ministry_id', accountData.ministry_id)
+				.single();
+
+			if (checkError && checkError.code !== 'PGRST116') {
+				console.log(
+					`⚠️ Error checking ministry account: ${checkError.message}`
+				);
+				continue;
+			}
+
+			if (existing) {
+				console.log(
+					`✅ Ministry account already exists for ${accountData.display_name}`
+				);
+			} else {
+				const { error: insertError } = await supabase
+					.from('ministry_accounts')
+					.insert(accountData);
+
+				if (insertError) {
+					console.log(
+						`⚠️ Failed to create ministry account for ${accountData.display_name}: ${insertError.message}`
+					);
+				} else {
+					console.log(
+						`✅ Created ministry account for ${accountData.display_name}`
+					);
+					counters.ministry_accounts++;
+				}
+			}
+		}
+	} catch (error) {
+		console.log(`❌ Error creating ministry accounts: ${error.message}`);
+		throw error;
+	}
+}
+
+/**
  * Create ministry leaders, leader profiles, and assignments
  */
 async function createMinistryLeaders() {
@@ -1672,61 +1799,6 @@ async function createMinistryLeaders() {
 				} else {
 					console.log(`✅ Created leader assignment`);
 					counters.leader_assignments++;
-				}
-			}
-		}
-
-		// Create ministry accounts for all ministries
-		console.log('🔑 Creating ministry accounts for all ministries...');
-
-		// Create accounts for all ministries using the ministryNameToEmail function
-		const accountsData = ministries.map((ministry) => ({
-			ministry_id: ministry.ministry_id,
-			email: ministryNameToEmail(ministry.name),
-			display_name: ministry.name,
-			is_active: true,
-		}));
-
-		for (const accountData of accountsData) {
-			if (!accountData.ministry_id) {
-				console.log(
-					`⚠️ Skipping invalid ministry account: missing ministry ID`
-				);
-				continue;
-			}
-
-			// Check if account already exists
-			const { data: existing, error: checkError } = await supabase
-				.from('ministry_accounts')
-				.select('id')
-				.eq('ministry_id', accountData.ministry_id)
-				.single();
-
-			if (checkError && checkError.code !== 'PGRST116') {
-				console.log(
-					`⚠️ Error checking ministry account: ${checkError.message}`
-				);
-				continue;
-			}
-
-			if (existing) {
-				console.log(
-					`✅ Ministry account already exists for ${accountData.display_name}`
-				);
-			} else {
-				const { error: insertError } = await supabase
-					.from('ministry_accounts')
-					.insert(accountData);
-
-				if (insertError) {
-					console.log(
-						`⚠️ Failed to create ministry account for ${accountData.display_name}: ${insertError.message}`
-					);
-				} else {
-					console.log(
-						`✅ Created ministry account for ${accountData.display_name}`
-					);
-					counters.ministry_accounts++;
 				}
 			}
 		}
@@ -3043,6 +3115,7 @@ async function seedUATData() {
 
 		// Create ministries first (no dependencies)
 		await createMinistries();
+		await createMinistryAccounts();
 		await createMinistryLeaders();
 
 		// Follow proper Bible Bee business workflow:

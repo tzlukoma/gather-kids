@@ -160,41 +160,61 @@ export function MinistryFormDialog({
 			const ministryData = data;
 
 			function toDbMinistryPayload(md: Partial<MinistryFormValues>) {
+				// Remove email from ministry payload since it goes to ministry_accounts table
+				const { email, ...ministryData } = md;
 				return {
-					name: md.name || '',
-					code: md.code || '',
-					email: md.email || undefined, // Include email field
+					name: ministryData.name || '',
+					code: ministryData.code || '',
 					enrollment_type:
-						(md.enrollment_type as 'enrolled' | 'expressed_interest') ||
-						'enrolled',
-					is_active: md.is_active ?? true,
-					open_at: md.open_at ?? undefined,
-					close_at: md.close_at ?? undefined,
-					description: md.description ?? undefined,
-					details: md.details ?? undefined,
-					custom_questions: md.custom_questions ?? [],
+						(ministryData.enrollment_type as
+							| 'enrolled'
+							| 'expressed_interest') || 'enrolled',
+					is_active: ministryData.is_active ?? true,
+					open_at: ministryData.open_at ?? undefined,
+					close_at: ministryData.close_at ?? undefined,
+					description: ministryData.description ?? undefined,
+					details: ministryData.details ?? undefined,
+					custom_questions: ministryData.custom_questions ?? [],
 				};
 			}
 
+			let ministryId: string;
+
 			if (ministry) {
-				await updateMinistry(
-					ministry.ministry_id,
-					toDbMinistryPayload(data) // Include email in the payload
-				);
+				await updateMinistry(ministry.ministry_id, toDbMinistryPayload(data));
+				ministryId = ministry.ministry_id;
 
 				toast({
 					title: 'Ministry Updated',
 					description: 'The ministry has been successfully updated.',
 				});
 			} else {
-				const ministryId = await createMinistry(
-					toDbMinistryPayload(data) // Include email in the payload
-				);
+				ministryId = await createMinistry(toDbMinistryPayload(data));
 
 				toast({
 					title: 'Ministry Created',
 					description: 'The new ministry has been created.',
 				});
+			}
+
+			// Handle ministry account (email) separately
+			if (data.email && data.email.trim() !== '') {
+				try {
+					await saveMinistryAccount({
+						ministry_id: ministryId,
+						email: data.email.trim(),
+						display_name: data.name,
+						is_active: true,
+					});
+				} catch (error) {
+					console.error('Failed to save ministry account:', error);
+					toast({
+						title: 'Warning',
+						description:
+							'Ministry saved but email account could not be created. You may need to set up the ministry account separately.',
+						variant: 'destructive',
+					});
+				}
 			}
 			onCloseAction();
 		} catch (error) {
