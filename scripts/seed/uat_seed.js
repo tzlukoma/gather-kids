@@ -864,7 +864,7 @@ async function createDivisions(yearId) {
 
 		const divisionsData = [
 			{
-				division_id: `${EXTERNAL_ID_PREFIX}primary_division`,
+				id: crypto.randomUUID(), // Use id instead of division_id
 				name: 'Primary',
 				description: 'Primary Division (Kindergarten - 2nd Grade)',
 				min_age: 5, // Approx. Kindergarten age
@@ -874,7 +874,7 @@ async function createDivisions(yearId) {
 				created_at: new Date().toISOString(),
 			},
 			{
-				division_id: `${EXTERNAL_ID_PREFIX}junior_division`,
+				id: crypto.randomUUID(), // Use id instead of division_id
 				name: 'Junior',
 				description: 'Junior Division (3rd - 7th Grade)',
 				min_age: 8,
@@ -884,7 +884,7 @@ async function createDivisions(yearId) {
 				created_at: new Date().toISOString(),
 			},
 			{
-				division_id: `${EXTERNAL_ID_PREFIX}senior_division`,
+				id: crypto.randomUUID(), // Use id instead of division_id
 				name: 'Senior',
 				description: 'Senior Division (8th - 12th Grade)',
 				min_age: 13,
@@ -922,6 +922,7 @@ async function createDivisions(yearId) {
 			} else {
 				// Format division data according to schema using generated types
 				const insertData = {
+					id: divisionData.id, // Include the id field
 					name: divisionData.name,
 					bible_bee_year_id: yearId, // snake_case as per generated types - links to bible_bee_years.id
 					min_grade: divisionData.min_grade,
@@ -1547,8 +1548,21 @@ async function createMinistryLeaders() {
 
 		console.log('🔗 Creating leader assignments...');
 
-		// Create cycle ID for the current year
-		const currentCycleId = '2025';
+		// Get the active registration cycle ID
+		const { data: activeCycle, error: cycleError } = await supabase
+			.from('registration_cycles')
+			.select('cycle_id')
+			.eq('is_active', true)
+			.limit(1);
+
+		if (cycleError || !activeCycle || activeCycle.length === 0) {
+			console.log(
+				'⚠️ No active registration cycle found, skipping leader assignments'
+			);
+			return;
+		}
+
+		const currentCycleId = activeCycle[0].cycle_id;
 
 		// Define leader assignments
 		const assignments = [
@@ -1571,24 +1585,27 @@ async function createMinistryLeaders() {
 			{
 				assignment_id: crypto.randomUUID(),
 				leader_id: leaderMap['leader.khalfani@example.com'],
-				ministry_id: ministries.find((m) => m.name.includes('Boys Mentoring'))
-					?.ministry_id,
+				ministry_id: ministries.find((m) =>
+					m.name.includes('Mentoring Ministry-Boys')
+				)?.ministry_id,
 				cycle_id: currentCycleId,
 				role: 'Primary',
 			},
 			{
 				assignment_id: crypto.randomUUID(),
 				leader_id: leaderMap['leader.joybells@example.com'],
-				ministry_id: ministries.find((m) => m.name.includes('Joy Bells'))
-					?.ministry_id,
+				ministry_id: ministries.find((m) =>
+					m.name.includes('Youth Choirs- Joy Bells')
+				)?.ministry_id,
 				cycle_id: currentCycleId,
 				role: 'Primary',
 			},
 			{
 				assignment_id: crypto.randomUUID(),
 				leader_id: leaderMap['leader.nailah@example.com'],
-				ministry_id: ministries.find((m) => m.name.includes('Girls'))
-					?.ministry_id,
+				ministry_id: ministries.find((m) =>
+					m.name.includes('Mentoring Ministry-Girls')
+				)?.ministry_id,
 				cycle_id: currentCycleId,
 				role: 'Primary',
 			},
@@ -1655,22 +1672,25 @@ async function createMinistryLeaders() {
 				is_active: true,
 			},
 			{
-				ministry_id: ministries.find((m) => m.name.includes('Boys Mentoring'))
-					?.ministry_id,
+				ministry_id: ministries.find((m) =>
+					m.name.includes('Mentoring Ministry-Boys')
+				)?.ministry_id,
 				email: 'leader.khalfani@example.com',
 				display_name: 'Boys Mentoring Ministry (Khalfani)',
 				is_active: true,
 			},
 			{
-				ministry_id: ministries.find((m) => m.name.includes('Joy Bells'))
-					?.ministry_id,
+				ministry_id: ministries.find((m) =>
+					m.name.includes('Youth Choirs- Joy Bells')
+				)?.ministry_id,
 				email: 'leader.joybells@example.com',
 				display_name: 'Youth Choirs- Joy Bells',
 				is_active: true,
 			},
 			{
-				ministry_id: ministries.find((m) => m.name.includes('Girls'))
-					?.ministry_id,
+				ministry_id: ministries.find((m) =>
+					m.name.includes('Mentoring Ministry-Girls')
+				)?.ministry_id,
 				email: 'leader.nailah@example.com',
 				display_name: 'Girls Mentoring Ministry (Nailah)',
 				is_active: true,
@@ -1921,19 +1941,18 @@ async function createHouseholdsAndFamilies() {
 			contact_id: crypto.randomUUID(), // Generate UUID for contact_id
 		};
 
-		const { data: existing, error: checkError } = await supabase
+		const { data: existingContacts, error: checkError } = await supabase
 			.from('emergency_contacts')
 			.select('contact_id')
-			.eq('contact_id', contactData.contact_id)
-			.single();
+			.eq('contact_id', contactData.contact_id);
 
-		if (checkError && checkError.code !== 'PGRST116') {
+		if (checkError) {
 			throw new Error(
 				`Error checking emergency contact ${contactData.first_name} ${contactData.last_name}: ${checkError.message}`
 			);
 		}
 
-		if (existing) {
+		if (existingContacts && existingContacts.length > 0) {
 			console.log(
 				`✅ Emergency contact already exists: ${contactData.first_name} ${contactData.last_name}`
 			);
