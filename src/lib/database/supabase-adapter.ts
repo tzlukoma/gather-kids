@@ -1557,6 +1557,8 @@ export class SupabaseAdapter implements DatabaseAdapter {
 
 	// Ministry Accounts
 	async getMinistryAccount(id: string): Promise<MinistryAccount | null> {
+		console.log('🔍 SupabaseAdapter.getMinistryAccount: Starting', { ministryId: id });
+		
 		const { data, error } = await this.client
 			.from('ministry_accounts')
 			.select('*')
@@ -1564,10 +1566,22 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			.single();
 
 		if (error) {
-			if (error.code === 'PGRST116') return null;
+			if (error.code === 'PGRST116') {
+				console.log('🔍 SupabaseAdapter.getMinistryAccount: No account found', { ministryId: id });
+				return null;
+			}
+			console.error('❌ SupabaseAdapter.getMinistryAccount: Error', error);
 			throw error;
 		}
-	return data ? supabaseToMinistryAccount(data as Database['public']['Tables']['ministry_accounts']['Row']) : null;
+		
+		const result = data ? supabaseToMinistryAccount(data as Database['public']['Tables']['ministry_accounts']['Row']) : null;
+		console.log('🔍 SupabaseAdapter.getMinistryAccount: Result', {
+			ministryId: id,
+			found: !!result,
+			email: result?.email
+		});
+		
+		return result;
 	}
 
 	async createMinistryAccount(
@@ -1599,10 +1613,17 @@ export class SupabaseAdapter implements DatabaseAdapter {
 		id: string,
 		data: Partial<MinistryAccount>
 	): Promise<MinistryAccount> {
+		console.log('🔍 SupabaseAdapter.updateMinistryAccount: Starting', {
+			ministryId: id,
+			updateData: data
+		});
+		
 		const dbPayload: Record<string, unknown> = { ...data, updated_at: new Date().toISOString() };
 		if (dbPayload['settings'] && typeof dbPayload['settings'] !== 'string') {
 			dbPayload['settings'] = JSON.stringify(dbPayload['settings']);
 		}
+
+		console.log('🔍 SupabaseAdapter.updateMinistryAccount: DB payload', dbPayload);
 
 		const { data: result, error } = await this.client
 			.from('ministry_accounts')
@@ -1611,8 +1632,18 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			.select()
 			.single();
 
-		if (error) throw error;
-		return result ? supabaseToMinistryAccount(result as Database['public']['Tables']['ministry_accounts']['Row']) : result;
+		if (error) {
+			console.error('❌ SupabaseAdapter.updateMinistryAccount: Error', error);
+			throw error;
+		}
+		
+		const mappedResult = result ? supabaseToMinistryAccount(result as Database['public']['Tables']['ministry_accounts']['Row']) : result;
+		console.log('✅ SupabaseAdapter.updateMinistryAccount: Success', {
+			ministryId: id,
+			updatedEmail: mappedResult?.email
+		});
+		
+		return mappedResult;
 	}
 
 	async listMinistryAccounts(): Promise<MinistryAccount[]> {

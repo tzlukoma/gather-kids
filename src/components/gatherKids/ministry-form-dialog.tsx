@@ -200,21 +200,45 @@ export function MinistryFormDialog({
 			// Handle ministry account (email) separately
 			if (data.email && data.email.trim() !== '') {
 				try {
+					console.log('🔍 MinistryFormDialog: Saving ministry account', {
+						ministryId: ministryId,
+						email: data.email.trim(),
+						displayName: data.name,
+						isUpdate: !!ministry,
+					});
+
 					await saveMinistryAccount({
 						ministry_id: ministryId,
 						email: data.email.trim(),
 						display_name: data.name,
 						is_active: true,
 					});
+
+					console.log(
+						'✅ MinistryFormDialog: Ministry account saved successfully'
+					);
 				} catch (error) {
-					console.error('Failed to save ministry account:', error);
+					console.error(
+						'❌ MinistryFormDialog: Failed to save ministry account:',
+						error
+					);
 					toast({
 						title: 'Warning',
 						description:
-							'Ministry saved but email account could not be created. You may need to set up the ministry account separately.',
+							'Ministry saved but email account could not be updated. You may need to set up the ministry account separately.',
 						variant: 'destructive',
 					});
 				}
+			} else if (ministry) {
+				// If updating a ministry and email is empty, we might want to delete the ministry account
+				// For now, just log this case
+				console.log(
+					'🔍 MinistryFormDialog: Email field is empty for existing ministry',
+					{
+						ministryId: ministryId,
+						originalEmail: ministry.email,
+					}
+				);
 			}
 			onCloseAction();
 		} catch (error) {

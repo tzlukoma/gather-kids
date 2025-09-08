@@ -2090,12 +2090,25 @@ export async function getMinistryAccounts() {
 
 // Create or update ministry account
 export async function saveMinistryAccount(accountData: Omit<MinistryAccount, 'created_at' | 'updated_at'> & { created_at?: string }) {
+    console.log('🔍 DAL.saveMinistryAccount: Starting', {
+        ministryId: accountData.ministry_id,
+        email: accountData.email,
+        displayName: accountData.display_name,
+        useAdapter: shouldUseAdapter()
+    });
+    
     if (shouldUseAdapter()) {
         // Use Supabase adapter for live mode
         const normalizedAccount = {
             ...accountData,
             email: normalizeEmail(accountData.email) || '',
         };
+
+        console.log('🔍 DAL.saveMinistryAccount: Normalized account', {
+            ministryId: normalizedAccount.ministry_id,
+            email: normalizedAccount.email,
+            displayName: normalizedAccount.display_name
+        });
 
         // Check for duplicate email
         const existingAccounts = await dbAdapter.listMinistryAccounts();
@@ -2104,16 +2117,35 @@ export async function saveMinistryAccount(accountData: Omit<MinistryAccount, 'cr
         );
         
         if (existingByEmail) {
+            console.error('❌ DAL.saveMinistryAccount: Duplicate email found', {
+                duplicateEmail: normalizedAccount.email,
+                existingMinistryId: existingByEmail.ministry_id
+            });
             throw new Error(`A ministry account with email ${normalizedAccount.email} already exists`);
         }
 
         // Check if account exists
+        console.log('🔍 DAL.saveMinistryAccount: Checking for existing account');
         const existingAccount = await dbAdapter.getMinistryAccount(normalizedAccount.ministry_id);
+        
         if (existingAccount) {
+            console.log('🔍 DAL.saveMinistryAccount: Updating existing account', {
+                existingEmail: existingAccount.email,
+                newEmail: normalizedAccount.email
+            });
             const updatedAccount = await dbAdapter.updateMinistryAccount(normalizedAccount.ministry_id, normalizedAccount);
+            console.log('✅ DAL.saveMinistryAccount: Account updated successfully', {
+                ministryId: updatedAccount.ministry_id,
+                email: updatedAccount.email
+            });
             return updatedAccount.ministry_id;
         } else {
+            console.log('🔍 DAL.saveMinistryAccount: Creating new account');
             const newAccount = await dbAdapter.createMinistryAccount(normalizedAccount);
+            console.log('✅ DAL.saveMinistryAccount: Account created successfully', {
+                ministryId: newAccount.ministry_id,
+                email: newAccount.email
+            });
             return newAccount.ministry_id;
         }
     } else {
