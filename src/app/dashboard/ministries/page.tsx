@@ -88,7 +88,7 @@ function MinistryTable({
 								<TableCell>
 									<Badge
 										variant={m.is_active ? 'default' : 'secondary'}
-										className={m.is_active ? 'bg-green-500' : ''}>
+										className={m.is_active ? 'bg-brand-aqua' : ''}>
 										{m.is_active ? 'Active' : 'Inactive'}
 									</Badge>
 								</TableCell>

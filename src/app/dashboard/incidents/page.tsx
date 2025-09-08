@@ -170,7 +170,7 @@ export default function IncidentsPage() {
 												}
 												className={
 													incident.admin_acknowledged_at
-														? 'bg-green-500 hover:bg-green-600'
+														? 'bg-brand-aqua hover:opacity-90'
 														: ''
 												}>
 												{incident.admin_acknowledged_at
@@ -293,7 +293,7 @@ export default function IncidentsPage() {
 													}
 													className={
 														incident.admin_acknowledged_at
-															? 'bg-green-500 hover:bg-green-600'
+															? 'bg-brand-aqua hover:opacity-90'
 															: ''
 													}>
 													{incident.admin_acknowledged_at
