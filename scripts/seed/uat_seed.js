@@ -2674,9 +2674,6 @@ async function verifyTableCleared(tableName, filterCondition) {
 		query = query.like('external_id', `${EXTERNAL_ID_PREFIX}%`);
 	} else if (filterCondition.type === 'contact_id') {
 		query = query.like('contact_id', `${EXTERNAL_ID_PREFIX}%`);
-	} else if (filterCondition.type === 'household_id') {
-		// For emergency_contacts, check by household_id since contact_id is now UUID
-		query = query.in('household_id', householdIds);
 	} else if (filterCondition.type === 'cycle_id') {
 		query = query.like('cycle_id', `${EXTERNAL_ID_PREFIX}%`);
 	} else if (filterCondition.type === 'all_records') {
@@ -2939,8 +2936,8 @@ async function resetUATData() {
 
 		// Level 4: People tables (children before guardians before households)
 		{ table: 'children', filter: { type: 'external_id' } },
-		{ table: 'emergency_contacts', filter: { type: 'household_id' } },
 		{ table: 'guardians', filter: { type: 'external_id' } },
+		{ table: 'emergency_contacts', filter: { type: 'all_records' } },
 		{ table: 'user_households', filter: { type: 'all_records' } },
 		{ table: 'households', filter: { type: 'external_id' } },
 
@@ -2975,12 +2972,6 @@ async function resetUATData() {
 						.from(table)
 						.delete()
 						.like('contact_id', `${EXTERNAL_ID_PREFIX}%`);
-				} else if (filter.type === 'household_id') {
-					// For emergency_contacts, delete by household_id since contact_id is now UUID
-					result = await supabase
-						.from(table)
-						.delete()
-						.in('household_id', householdIds);
 				} else if (filter.type === 'cycle_id') {
 					result = await supabase
 						.from(table)
