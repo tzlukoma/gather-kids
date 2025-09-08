@@ -2584,7 +2584,7 @@ export async function getUnacknowledgedIncidents(): Promise<Incident[]> {
 		return incidents.filter(incident => !incident.admin_acknowledged_at);
 	} else {
 		// Use legacy Dexie interface for demo mode
-		return db.incidents.filter(incident => !incident.admin_acknowledged_at).toArray();
+		return await db.incidents.filter(incident => !incident.admin_acknowledged_at).toArray();
 	}
 }
 
@@ -2626,58 +2626,31 @@ export async function getRegistrationStats(): Promise<{ householdCount: number; 
 	try {
 		if (shouldUseAdapter()) {
 			// Use Supabase adapter for live mode
-			// Get the active registration cycle
-			const cycles = await dbAdapter.listRegistrationCycles();
-			const activeCycle = cycles.find(cycle => cycle.is_active === true || Number(cycle.is_active) === 1);
-			
-			if (!activeCycle) {
-				return { householdCount: 0, childCount: 0 };
-			}
-			
-			const registrations = await dbAdapter.listRegistrations({ cycleId: activeCycle.cycle_id });
-			
-			if (registrations.length === 0) {
-				return { householdCount: 0, childCount: 0 };
-			}
-			
-			const childIds = registrations.map(r => r.child_id);
+			// Get all children and households directly
 			const children = await dbAdapter.listChildren();
-			const relevantChildren = children.filter(c => childIds.includes(c.child_id));
-			const householdIds = new Set(relevantChildren.map(c => c.household_id));
+			const households = await dbAdapter.listHouseholds();
+			
+			// Filter children and households that are active
+			const activeChildren = children.filter(c => c.is_active !== false);
+			const activeHouseholds = households.filter(h => activeChildren.some(c => c.household_id === h.household_id));
 			
 			return {
-				householdCount: householdIds.size,
-				childCount: registrations.length,
+				householdCount: activeHouseholds.length,
+				childCount: activeChildren.length,
 			};
 		} else {
 			// Use legacy Dexie interface for demo mode
 			try {
-                const activeCycle = await db.registration_cycles
-                    .filter((cycle: { is_active?: boolean | number | string }) => cycle.is_active === true || Number((cycle.is_active as unknown) ?? 0) === 1)
-                    .first();
+				const children = await db.children.toArray();
+				const households = await db.households.toArray();
 				
-				if (!activeCycle) {
-					return { householdCount: 0, childCount: 0 };
-				}
-				
-				const registrations = await db.registrations
-					.where({ cycle_id: activeCycle.cycle_id })
-					.toArray();
-					
-				if (registrations.length === 0) {
-					return { householdCount: 0, childCount: 0 };
-				}
-				
-                const childIds = registrations.map((r: Registration) => r.child_id);
-                const children = await db.children
-                    .where('child_id')
-                    .anyOf(childIds)
-                    .toArray();
-                const householdIds = new Set(children.map((c: Child) => c.household_id));
+				// Filter children and households that are active
+				const activeChildren = children.filter(c => c.is_active !== false);
+				const activeHouseholds = households.filter(h => activeChildren.some(c => c.household_id === h.household_id));
 				
 				return {
-					householdCount: householdIds.size,
-					childCount: registrations.length,
+					householdCount: activeHouseholds.length,
+					childCount: activeChildren.length,
 				};
 			} catch (dexieError) {
 				console.warn('Error fetching registration stats in demo mode:', dexieError);

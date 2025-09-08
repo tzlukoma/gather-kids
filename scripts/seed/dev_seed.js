@@ -95,6 +95,7 @@ const counters = {
 	children: 0,
 	ministry_enrollments: 0,
 	events: 0,
+	incidents: 0,
 };
 
 // Helper function to convert ministry name to email
@@ -816,6 +817,78 @@ async function createMinistryEnrollmentsData(activeCycleId) {
 }
 
 /**
+ * Create incidents using direct Supabase calls
+ */
+async function createIncidentsData() {
+	try {
+		console.log('🚨 Creating incidents for testing...');
+
+		// Get children to create incidents for
+		const { data: children, error: childrenError } = await client
+			.from('children')
+			.select('child_id, first_name, last_name')
+			.in('first_name', ['Emma', 'Liam', 'Sophia', 'Noah']);
+
+		if (childrenError) {
+			throw new Error(`Failed to get children: ${childrenError.message}`);
+		}
+
+		if (!children || children.length === 0) {
+			console.log('⚠️ No children found for incidents');
+			return;
+		}
+
+		const incidentsData = [
+			{
+				incident_id: crypto.randomUUID(),
+				child_id: children[0].child_id,
+				child_name: `${children[0].first_name} ${children[0].last_name}`,
+				severity: 'medium',
+				description: 'Minor behavioral issue during Sunday School',
+				timestamp: new Date().toISOString(),
+				admin_acknowledged_at: null, // Unacknowledged incident
+			},
+			{
+				incident_id: crypto.randomUUID(),
+				child_id: children[1].child_id,
+				child_name: `${children[1].first_name} ${children[1].last_name}`,
+				severity: 'high',
+				description:
+					'Allergic reaction to snack - immediate attention required',
+				timestamp: new Date(Date.now() - 30 * 60 * 1000).toISOString(), // 30 minutes ago
+				admin_acknowledged_at: null, // Unacknowledged incident
+			},
+		];
+
+		for (const incidentData of incidentsData) {
+			try {
+				const { data, error } = await client
+					.from('incidents')
+					.insert(incidentData)
+					.select()
+					.single();
+
+				if (error) {
+					throw new Error(`Failed to create incident: ${error.message}`);
+				}
+
+				console.log(`✅ Created incident: ${incidentData.description}`);
+				counters.incidents++;
+			} catch (error) {
+				console.log(
+					`⚠️ Failed to create incident ${incidentData.description}: ${error.message}`
+				);
+			}
+		}
+
+		console.log(`✅ Created ${counters.incidents} incidents for testing`);
+	} catch (error) {
+		console.error('❌ Failed to create incidents:', error.message);
+		throw error;
+	}
+}
+
+/**
  * Main seeding function
  */
 async function seedDevData() {
@@ -840,6 +913,9 @@ async function seedDevData() {
 		// Create ministry enrollments
 		await createMinistryEnrollmentsData(activeCycleId);
 
+		// Create some incidents for testing
+		await createIncidentsData();
+
 		console.log('✨ Dev seeding completed successfully!');
 		console.log('📊 Summary:');
 		console.log(`- ${counters.ministries} ministries created`);
@@ -854,6 +930,7 @@ async function seedDevData() {
 			`- ${counters.ministry_enrollments} ministry enrollments created`
 		);
 		console.log(`- ${counters.events} events created`);
+		console.log(`- ${counters.incidents} incidents created`);
 		console.log('');
 		console.log('🎯 Test Data Summary:');
 		console.log('- 2 households with 2 children each');
