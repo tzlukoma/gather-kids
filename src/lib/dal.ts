@@ -194,46 +194,140 @@ export async function queryDashboardMetrics(cycleId: string) {
 }
 
 export async function queryHouseholdList(leaderMinistryIds?: string[], ministryId?: string) {
-    let households = await db.households.orderBy('created_at').reverse().toArray();
-    let householdIds = households.map(h => h.household_id);
+    console.log('🔍 DAL.queryHouseholdList: Starting', {
+        leaderMinistryIds,
+        ministryId,
+        useAdapter: shouldUseAdapter()
+    });
 
-    let ministryFilterIds = leaderMinistryIds;
+    if (shouldUseAdapter()) {
+        // Use Supabase adapter for live mode
+        console.log('🔍 DAL.queryHouseholdList: Using Supabase adapter');
+        
+        // Get all households
+        const households = await dbAdapter.listHouseholds();
+        console.log('🔍 DAL.queryHouseholdList: Got households', { count: households.length });
 
-    // If a specific ministryId filter is applied, it takes precedence
-    if (ministryId) {
-        ministryFilterIds = [ministryId];
-    }
+        let filteredHouseholds = households;
+        let ministryFilterIds = leaderMinistryIds;
 
-    if (ministryFilterIds && ministryFilterIds.length > 0) {
-        const enrollments = await db.ministry_enrollments
-            .where('ministry_id').anyOf(ministryFilterIds)
-            .and(e => e.cycle_id === '2025')
-            .toArray();
-        const relevantChildIds = [...new Set(enrollments.map(e => e.child_id))];
-        const relevantChildren = await db.children.where('child_id').anyOf(relevantChildIds).toArray();
-        const relevantHouseholdIds = [...new Set(relevantChildren.map(c => c.household_id))];
-
-        households = households.filter(h => relevantHouseholdIds.includes(h.household_id));
-        householdIds = households.map(h => h.household_id);
-    }
-
-    const allChildren = await db.children.where('household_id').anyOf(householdIds).toArray();
-
-    const childrenByHousehold = new Map<string, (Child & { age: number | null })[]>();
-    for (const child of allChildren) {
-        if (!childrenByHousehold.has(child.household_id)) {
-            childrenByHousehold.set(child.household_id, []);
+        // If a specific ministryId filter is applied, it takes precedence
+        if (ministryId) {
+            ministryFilterIds = [ministryId];
         }
-        childrenByHousehold.get(child.household_id)!.push({
-            ...child,
-            age: child.dob ? ageOn(new Date().toISOString(), child.dob) : null
-        });
-    }
 
-    return households.map(h => ({
-        ...h,
-        children: childrenByHousehold.get(h.household_id) || []
-    }));
+        if (ministryFilterIds && ministryFilterIds.length > 0) {
+            console.log('🔍 DAL.queryHouseholdList: Filtering by ministry IDs', ministryFilterIds);
+            
+            // Get ministry enrollments for the specified ministries
+            const enrollments = await dbAdapter.listMinistryEnrollments(undefined, undefined, '2025');
+            const relevantEnrollments = enrollments.filter(e => 
+                ministryFilterIds!.includes(e.ministry_id)
+            );
+            
+            console.log('🔍 DAL.queryHouseholdList: Relevant enrollments', { 
+                total: enrollments.length, 
+                filtered: relevantEnrollments.length 
+            });
+
+            const relevantChildIds = [...new Set(relevantEnrollments.map(e => e.child_id))];
+            
+            // Get children for these enrollments
+            const allChildren = await dbAdapter.listChildren();
+            const relevantChildren = allChildren.filter(c => relevantChildIds.includes(c.child_id));
+            
+            console.log('🔍 DAL.queryHouseholdList: Relevant children', { 
+                total: allChildren.length, 
+                filtered: relevantChildren.length 
+            });
+
+            const relevantHouseholdIds = [...new Set(relevantChildren.map(c => c.household_id))];
+            filteredHouseholds = households.filter(h => relevantHouseholdIds.includes(h.household_id));
+            
+            console.log('🔍 DAL.queryHouseholdList: Filtered households', { 
+                total: households.length, 
+                filtered: filteredHouseholds.length 
+            });
+        }
+
+        // Get all children for the filtered households
+        const allChildren = await dbAdapter.listChildren();
+        const householdIds = filteredHouseholds.map(h => h.household_id);
+        const relevantChildren = allChildren.filter(c => householdIds.includes(c.household_id));
+
+        console.log('🔍 DAL.queryHouseholdList: Children for households', { 
+            householdCount: householdIds.length,
+            childrenCount: relevantChildren.length 
+        });
+
+        // Group children by household and calculate ages
+        const childrenByHousehold = new Map<string, (Child & { age: number | null })[]>();
+        for (const child of relevantChildren) {
+            if (!childrenByHousehold.has(child.household_id)) {
+                childrenByHousehold.set(child.household_id, []);
+            }
+            childrenByHousehold.get(child.household_id)!.push({
+                ...child,
+                age: child.dob ? ageOn(new Date().toISOString(), child.dob) : null
+            });
+        }
+
+        const result = filteredHouseholds.map(h => ({
+            ...h,
+            children: childrenByHousehold.get(h.household_id) || []
+        }));
+
+        console.log('✅ DAL.queryHouseholdList: Success', { 
+            resultCount: result.length,
+            householdsWithChildren: result.filter(h => h.children.length > 0).length
+        });
+
+        return result;
+    } else {
+        // Use legacy Dexie interface for demo mode
+        console.log('🔍 DAL.queryHouseholdList: Using Dexie interface for demo mode');
+        
+        let households = await db.households.orderBy('created_at').reverse().toArray();
+        let householdIds = households.map(h => h.household_id);
+
+        let ministryFilterIds = leaderMinistryIds;
+
+        // If a specific ministryId filter is applied, it takes precedence
+        if (ministryId) {
+            ministryFilterIds = [ministryId];
+        }
+
+        if (ministryFilterIds && ministryFilterIds.length > 0) {
+            const enrollments = await db.ministry_enrollments
+                .where('ministry_id').anyOf(ministryFilterIds)
+                .and(e => e.cycle_id === '2025')
+                .toArray();
+            const relevantChildIds = [...new Set(enrollments.map(e => e.child_id))];
+            const relevantChildren = await db.children.where('child_id').anyOf(relevantChildIds).toArray();
+            const relevantHouseholdIds = [...new Set(relevantChildren.map(c => c.household_id))];
+
+            households = households.filter(h => relevantHouseholdIds.includes(h.household_id));
+            householdIds = households.map(h => h.household_id);
+        }
+
+        const allChildren = await db.children.where('household_id').anyOf(householdIds).toArray();
+
+        const childrenByHousehold = new Map<string, (Child & { age: number | null })[]>();
+        for (const child of allChildren) {
+            if (!childrenByHousehold.has(child.household_id)) {
+                childrenByHousehold.set(child.household_id, []);
+            }
+            childrenByHousehold.get(child.household_id)!.push({
+                ...child,
+                age: child.dob ? ageOn(new Date().toISOString(), child.dob) : null
+            });
+        }
+
+        return households.map(h => ({
+            ...h,
+            children: childrenByHousehold.get(h.household_id) || []
+        }));
+    }
 }
 
 type EnrichedEnrollment = MinistryEnrollment & { ministryName?: string; customQuestions?: CustomQuestion[] };
