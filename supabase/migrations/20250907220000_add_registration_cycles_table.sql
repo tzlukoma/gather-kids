@@ -22,7 +22,8 @@ CREATE INDEX IF NOT EXISTS idx_registration_cycles_dates ON registration_cycles(
 -- Add foreign key constraint to registrations table
 DO $$
 BEGIN
-  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'registrations') THEN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'registrations') 
+     AND NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name = 'fk_registrations_cycle_id') THEN
     ALTER TABLE registrations 
     ADD CONSTRAINT fk_registrations_cycle_id 
     FOREIGN KEY (cycle_id) REFERENCES registration_cycles(cycle_id) ON DELETE SET NULL;
@@ -32,7 +33,8 @@ END $$;
 -- Add foreign key constraint to ministry_enrollments table
 DO $$
 BEGIN
-  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'ministry_enrollments') THEN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'ministry_enrollments') 
+     AND NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name = 'fk_ministry_enrollments_cycle_id') THEN
     ALTER TABLE ministry_enrollments 
     ADD CONSTRAINT fk_ministry_enrollments_cycle_id 
     FOREIGN KEY (cycle_id) REFERENCES registration_cycles(cycle_id) ON DELETE SET NULL;
@@ -42,7 +44,8 @@ END $$;
 -- Add foreign key constraint to leader_assignments table
 DO $$
 BEGIN
-  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'leader_assignments') THEN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'leader_assignments') 
+     AND NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name = 'fk_leader_assignments_cycle_id') THEN
     ALTER TABLE leader_assignments 
     ADD CONSTRAINT fk_leader_assignments_cycle_id 
     FOREIGN KEY (cycle_id) REFERENCES registration_cycles(cycle_id) ON DELETE SET NULL;
@@ -52,7 +55,8 @@ END $$;
 -- Add foreign key constraint to child_year_profiles table
 DO $$
 BEGIN
-  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'child_year_profiles') THEN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'child_year_profiles') 
+     AND NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name = 'fk_child_year_profiles_cycle_id') THEN
     ALTER TABLE child_year_profiles 
     ADD CONSTRAINT fk_child_year_profiles_cycle_id 
     FOREIGN KEY (cycle_id) REFERENCES registration_cycles(cycle_id) ON DELETE SET NULL;
