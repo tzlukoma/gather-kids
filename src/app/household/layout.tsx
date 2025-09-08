@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
@@ -88,30 +88,34 @@ function HouseholdLayoutContent({ children }: { children: React.ReactNode }) {
 		router.push('/');
 	};
 
-	const menuItems = [
-		{
-			label: 'Our Household',
-			href: '/household',
-			icon: Home,
-		},
-		...(hasBibleBeeEnrollment
-			? [
-					{
-						label: 'Bible Bee',
-						href: '/household/bible-bee',
-						icon: Book,
-					},
-			  ]
-			: []),
-	];
+	const menuItems = useMemo(
+		() => [
+			{
+				label: 'Our Household',
+				href: '/household',
+				icon: Home,
+			},
+			...(hasBibleBeeEnrollment
+				? [
+						{
+							label: 'Bible Bee',
+							href: '/household/bible-bee',
+							icon: Book,
+						},
+				  ]
+				: []),
+		],
+		[hasBibleBeeEnrollment]
+	);
 
 	function renderIcon(Icon: any) {
+		console.log('renderIcon called with:', Icon, typeof Icon);
 		if (React.isValidElement(Icon)) return Icon;
 		if (typeof Icon === 'function') {
 			const C = Icon as React.ComponentType<{ className?: string }>;
 			return <C className="w-4 h-4" />;
 		}
-		return Icon ?? null;
+		return null;
 	}
 
 	if (!user) return null;

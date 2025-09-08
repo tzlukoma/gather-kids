@@ -242,6 +242,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 					const supabaseUser = session.user;
 					const userRole = supabaseUser.user_metadata?.role || AuthRole.ADMIN;
 
+					console.log('AuthProvider: User metadata:', {
+						role: supabaseUser.user_metadata?.role,
+						defaultedRole: userRole,
+						event: event,
+					});
+
 					const finalUser: BaseUser = {
 						uid: supabaseUser.id,
 						displayName:

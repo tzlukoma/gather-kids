@@ -400,7 +400,97 @@ export async function registerHouseholdCanonical(data: Record<string, unknown>, 
       }
 
       console.log('✅ Canonical registration completed successfully');
-      return { household_id: householdId };
+      
+      // Create user_households relationship for Supabase auth
+      let userHouseholdsCreated = false;
+      let roleAssigned = false;
+      
+      if (!isPrefill) { // Only create the relationship on final registration, not prefill
+        console.log('DEBUG: Starting user_households creation and role assignment');
+        try {
+          // Import here to avoid circular dependency issues
+          const { supabase } = await import('@/lib/supabaseClient');
+          if (supabase) {
+            console.log('DEBUG: Supabase client available');
+            const { data: { session } } = await supabase.auth.getSession();
+            console.log('DEBUG: Session check result:', {
+              hasSession: !!session,
+              hasUser: !!session?.user,
+              userId: session?.user?.id
+            });
+            if (session?.user) {
+              // Check if relationship already exists using adapter
+              const existingHouseholdId = await dbAdapter.getHouseholdForUser(session.user.id);
+              
+              if (!existingHouseholdId) {
+                // Create the user_households relationship using adapter
+                const userHousehold = {
+                  user_household_id: uuidv4(),
+                  auth_user_id: session.user.id,
+                  household_id: householdId,
+                  created_at: now,
+                };
+                
+                // For Supabase mode, we need to insert directly since there's no createUserHousehold method
+                const { supabase } = await import('@/lib/supabaseClient');
+                const { error } = await supabase.from('user_households').insert(userHousehold);
+                if (error) {
+                  console.error('Could not create user_households relationship:', error);
+                } else {
+                  console.log('Created user_households relationship:', userHousehold);
+                  userHouseholdsCreated = true;
+                }
+              } else {
+                console.log('User already has household relationship:', existingHouseholdId);
+                userHouseholdsCreated = true; // Already exists
+              }
+
+              // Assign GUARDIAN role to the authenticated user
+              console.log('DEBUG: About to assign GUARDIAN role to user:', session.user.id);
+              const { error: roleError } = await supabase.auth.updateUser({
+                data: {
+                  role: 'GUARDIAN',
+                  household_id: householdId,
+                },
+              });
+
+              if (roleError) {
+                console.warn('Could not assign GUARDIAN role:', roleError);
+              } else {
+                console.log('Assigned GUARDIAN role to user:', session.user.id);
+                roleAssigned = true;
+                
+                // Force a session refresh to ensure the AuthContext picks up the role change
+                try {
+                  const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+                  if (refreshError) {
+                    console.warn('Could not refresh session after role assignment:', refreshError);
+                  } else {
+                    console.log('Session refreshed successfully after role assignment');
+                  }
+                } catch (refreshErr) {
+                  console.warn('Error refreshing session:', refreshErr);
+                }
+              }
+            } else {
+              console.log('DEBUG: No session or user found, skipping role assignment');
+            }
+          }
+        } catch (error) {
+          console.warn('Could not create user_households relationship:', error);
+        }
+      } else {
+        // For prefill, we don't create relationships or assign roles
+        userHouseholdsCreated = true;
+        roleAssigned = true;
+      }
+      
+      return { 
+        household_id: householdId,
+        userHouseholdsCreated,
+        roleAssigned,
+        isComplete: userHouseholdsCreated && roleAssigned
+      };
     });
   } else {
     // Use dbAdapter for demo mode - same interface as Supabase mode
@@ -662,87 +752,17 @@ export async function registerHouseholdCanonical(data: Record<string, unknown>, 
       }
 
       console.log('✅ Canonical registration completed successfully (demo mode)');
-      return { household_id: householdId };
+      
+      // For demo mode, we don't create user_households or assign roles
+      // But we still return the new format for consistency
+      return { 
+        household_id: householdId,
+        userHouseholdsCreated: true, // Demo mode doesn't need this
+        roleAssigned: true, // Demo mode doesn't need this
+        isComplete: true
+      };
     });
   }
-
-  // Create user_households relationship for Supabase auth
-  // Handle this separately to avoid transaction conflicts with external async operations
-  let userHouseholdsCreated = false;
-  let roleAssigned = false;
-  
-  if (!isPrefill) { // Only create the relationship on final registration, not prefill
-    try {
-      // Import here to avoid circular dependency issues
-      const { supabase } = await import('@/lib/supabaseClient');
-      if (supabase) {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user) {
-          // Check if relationship already exists using adapter
-          const existingHouseholdId = await dbAdapter.getHouseholdForUser(session.user.id);
-          
-          if (!existingHouseholdId) {
-            // Create the user_households relationship using adapter
-            const userHousehold = {
-              user_household_id: uuidv4(),
-              auth_user_id: session.user.id,
-              household_id: householdId,
-              created_at: now,
-            };
-            
-            // For Supabase mode, we need to insert directly since there's no createUserHousehold method
-            if (!isDemo()) {
-              const { supabase } = await import('@/lib/supabaseClient');
-              const { error } = await supabase.from('user_households').insert(userHousehold);
-              if (error) {
-                console.error('Could not create user_households relationship:', error);
-              } else {
-                console.log('Created user_households relationship:', userHousehold);
-                userHouseholdsCreated = true;
-              }
-            } else {
-              // Demo mode - use Dexie
-              await db.user_households.add(userHousehold);
-              console.log('Created user_households relationship:', userHousehold);
-              userHouseholdsCreated = true;
-            }
-          } else {
-            console.log('User already has household relationship:', existingHouseholdId);
-            userHouseholdsCreated = true; // Already exists
-          }
-
-          // Assign GUARDIAN role to the authenticated user
-          const { error: roleError } = await supabase.auth.updateUser({
-            data: {
-              role: 'GUARDIAN',
-              household_id: householdId,
-            },
-          });
-
-          if (roleError) {
-            console.warn('Could not assign GUARDIAN role:', roleError);
-          } else {
-            console.log('Assigned GUARDIAN role to user:', session.user.id);
-            roleAssigned = true;
-          }
-        }
-      }
-    } catch (error) {
-      console.warn('Could not create user_households relationship:', error);
-    }
-  } else {
-    // For prefill, we don't create relationships or assign roles
-    userHouseholdsCreated = true;
-    roleAssigned = true;
-  }
-  
-  // Return the household_id and completion status for the calling code
-  return { 
-    household_id: householdId,
-    userHouseholdsCreated,
-    roleAssigned,
-    isComplete: userHouseholdsCreated && roleAssigned
-  };
 }
 
 /**

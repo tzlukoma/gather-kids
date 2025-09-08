@@ -965,6 +965,14 @@ function RegisterPageContent() {
 			setSubmissionStatus('Processing registration...');
 			const result = await registerHouseholdCanonical(data, cycleId, isPrefill);
 			console.log('DEBUG: Registration result:', result);
+			console.log('DEBUG: Result type check:', {
+				hasResult: !!result,
+				resultType: typeof result,
+				resultKeys: result ? Object.keys(result) : 'no result',
+				isComplete: result?.isComplete,
+				userHouseholdsCreated: result?.userHouseholdsCreated,
+				roleAssigned: result?.roleAssigned,
+			});
 
 			toast({
 				title: 'Registration Submitted!',
