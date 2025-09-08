@@ -219,8 +219,19 @@ export async function queryHouseholdList(leaderMinistryIds?: string[], ministryI
         if (ministryFilterIds && ministryFilterIds.length > 0) {
             console.log('🔍 DAL.queryHouseholdList: Filtering by ministry IDs', ministryFilterIds);
             
+            // Get the active registration cycle
+            const cycles = await dbAdapter.listRegistrationCycles();
+            const activeCycle = cycles.find(cycle => cycle.is_active === true || Number(cycle.is_active) === 1);
+            
+            if (!activeCycle) {
+                console.warn('⚠️ DAL.queryHouseholdList: No active registration cycle found');
+                return [];
+            }
+            
+            console.log('🔍 DAL.queryHouseholdList: Using active cycle', activeCycle.cycle_id);
+            
             // Get ministry enrollments for the specified ministries
-            const enrollments = await dbAdapter.listMinistryEnrollments(undefined, undefined, '2025');
+            const enrollments = await dbAdapter.listMinistryEnrollments(undefined, undefined, activeCycle.cycle_id);
             const relevantEnrollments = enrollments.filter(e => 
                 ministryFilterIds!.includes(e.ministry_id)
             );

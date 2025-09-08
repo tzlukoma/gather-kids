@@ -32,7 +32,9 @@ export default function RegistrationsPage() {
 	const [ministryFilter, setMinistryFilter] = useState<string | null>(null);
 
 	// State management for data loading
-	const [households, setHouseholds] = useState<(Household & { children: (Child & { age: number | null })[] })[]>([]);
+	const [households, setHouseholds] = useState<
+		(Household & { children: (Child & { age: number | null })[] })[]
+	>([]);
 	const [allMinistries, setAllMinistries] = useState<Ministry[]>([]);
 	const [loading, setLoading] = useState(true);
 
@@ -44,33 +46,43 @@ export default function RegistrationsPage() {
 		const loadData = async () => {
 			try {
 				setLoading(true);
-				
+
 				// For ministry leaders, find their associated ministry
 				let ministryFilterIds: string[] | undefined = undefined;
 				if (user?.metadata?.role === AuthRole.MINISTRY_LEADER && user.email) {
-					console.log('🔍 RegistrationsPage: Finding ministry for leader email', user.email);
-					
+					console.log(
+						'🔍 RegistrationsPage: Finding ministry for leader email',
+						user.email
+					);
+
 					// Get all ministry accounts to find which ministry this email belongs to
 					const ministryAccounts = await dbAdapter.listMinistryAccounts();
-					const matchingAccount = ministryAccounts.find(account => 
-						account.email.toLowerCase() === user.email.toLowerCase()
+					const matchingAccount = ministryAccounts.find(
+						(account) =>
+							account.email.toLowerCase() === user.email.toLowerCase()
 					);
-					
+
 					if (matchingAccount) {
-						console.log('🔍 RegistrationsPage: Found matching ministry account', {
-							ministryId: matchingAccount.ministry_id,
-							displayName: matchingAccount.display_name
-						});
+						console.log(
+							'🔍 RegistrationsPage: Found matching ministry account',
+							{
+								ministryId: matchingAccount.ministry_id,
+								displayName: matchingAccount.display_name,
+							}
+						);
 						ministryFilterIds = [matchingAccount.ministry_id];
 						setLeaderMinistryId(matchingAccount.ministry_id);
 					} else {
-						console.warn('⚠️ RegistrationsPage: No ministry account found for leader email', user.email);
+						console.warn(
+							'⚠️ RegistrationsPage: No ministry account found for leader email',
+							user.email
+						);
 					}
 				}
 
 				const [householdsData, ministriesData] = await Promise.all([
 					queryHouseholdList(ministryFilterIds, ministryFilter ?? undefined),
-					getMinistries()
+					getMinistries(),
 				]);
 				setHouseholds(householdsData);
 				setAllMinistries(ministriesData);

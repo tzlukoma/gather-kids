@@ -35,6 +35,7 @@ import {
 	getMinistries,
 	getMinistryEnrollmentsByCycle,
 } from '@/lib/dal';
+import { dbAdapter } from '@/lib/db-utils';
 import { useMemo } from 'react';
 import type {
 	Child,
@@ -165,6 +166,7 @@ export default function RostersPage() {
 	>([]);
 	const [allMinistries, setAllMinistries] = useState<Ministry[]>([]);
 	const [dataLoading, setDataLoading] = useState(true);
+	const [leaderMinistryId, setLeaderMinistryId] = useState<string | null>(null);
 
 	// Load data using DAL functions
 	useEffect(() => {
@@ -175,15 +177,55 @@ export default function RostersPage() {
 				setDataLoading(true);
 				const today = getTodayIsoDate();
 
+				// Get the active registration cycle
+				const cycles = await dbAdapter.listRegistrationCycles();
+				const activeCycle = cycles.find(
+					(cycle) => cycle.is_active === true || Number(cycle.is_active) === 1
+				);
+
+				if (!activeCycle) {
+					console.warn('⚠️ RostersPage: No active registration cycle found');
+					return;
+				}
+
+				console.log('🔍 RostersPage: Using active cycle', activeCycle.cycle_id);
+
 				// Load children based on user role
-				const childrenData: Child[] =
-					user?.metadata?.role === AuthRole.MINISTRY_LEADER
-						? !user.is_active ||
-						  !user.assignedMinistryIds ||
-						  user.assignedMinistryIds.length === 0
-							? []
-							: await getChildrenForLeader(user.assignedMinistryIds, '2025')
-						: await getAllChildren();
+				let childrenData: Child[] = [];
+				if (user?.metadata?.role === AuthRole.MINISTRY_LEADER && user.email) {
+					console.log(
+						'🔍 RostersPage: Finding ministry for leader email',
+						user.email
+					);
+
+					// Get all ministry accounts to find which ministry this email belongs to
+					const ministryAccounts = await dbAdapter.listMinistryAccounts();
+					const matchingAccount = ministryAccounts.find(
+						(account) =>
+							account.email.toLowerCase() === user.email.toLowerCase()
+					);
+
+					if (matchingAccount) {
+						console.log('🔍 RostersPage: Found matching ministry account', {
+							ministryId: matchingAccount.ministry_id,
+							displayName: matchingAccount.display_name,
+						});
+						childrenData = await getChildrenForLeader(
+							[matchingAccount.ministry_id],
+							activeCycle.cycle_id
+						);
+						setLeaderMinistryId(matchingAccount.ministry_id);
+					} else {
+						console.warn(
+							'⚠️ RostersPage: No ministry account found for leader email',
+							user.email
+						);
+						childrenData = [];
+						setLeaderMinistryId(null);
+					}
+				} else {
+					childrenData = await getAllChildren();
+				}
 
 				// Load all other data in parallel
 				const [
@@ -195,7 +237,7 @@ export default function RostersPage() {
 					emergencyContacts,
 					ministries,
 				] = await Promise.all([
-					getMinistryEnrollmentsByCycle('2025'),
+					getMinistryEnrollmentsByCycle(activeCycle.cycle_id),
 					getAttendanceForDate(today),
 					getIncidentsForDate(today),
 					getAllGuardians(),
@@ -252,13 +294,10 @@ export default function RostersPage() {
 	}, [searchParams]);
 
 	useEffect(() => {
-		if (
-			user?.metadata?.role === AuthRole.MINISTRY_LEADER &&
-			user.assignedMinistryIds?.length === 1
-		) {
-			setSelectedMinistryFilter(user.assignedMinistryIds[0]);
+		if (user?.metadata?.role === AuthRole.MINISTRY_LEADER && leaderMinistryId) {
+			setSelectedMinistryFilter(leaderMinistryId);
 		}
-	}, [user]);
+	}, [user, leaderMinistryId]);
 
 	const childrenWithDetails: RosterChild[] = useMemo(() => {
 		if (dataLoading) return [];
@@ -311,9 +350,8 @@ export default function RostersPage() {
 		if (dataLoading) return [];
 
 		const relevantMinistryIds: Set<string> =
-			user?.metadata?.role === AuthRole.MINISTRY_LEADER &&
-			user.assignedMinistryIds
-				? new Set(user.assignedMinistryIds)
+			user?.metadata?.role === AuthRole.MINISTRY_LEADER && leaderMinistryId
+				? new Set([leaderMinistryId])
 				: new Set(
 						allMinistryEnrollments
 							.filter((e) =>
@@ -325,7 +363,14 @@ export default function RostersPage() {
 		return allMinistries
 			.filter((m) => relevantMinistryIds.has(m.ministry_id))
 			.sort((a, b) => a.name.localeCompare(b.name));
-	}, [allChildren, allMinistryEnrollments, allMinistries, user, dataLoading]);
+	}, [
+		allChildren,
+		allMinistryEnrollments,
+		allMinistries,
+		user,
+		dataLoading,
+		leaderMinistryId,
+	]);
 
 	const displayChildren = useMemo(() => {
 		let filtered = childrenWithDetails;

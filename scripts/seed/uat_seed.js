@@ -2300,7 +2300,7 @@ async function createUserHouseholds() {
 /**
  * Create ministry enrollments
  */
-async function createMinistryEnrollments() {
+async function createMinistryEnrollments(activeCycleId) {
 	// Get children and ministries
 	const { data: children, error: childrenError } = await supabase
 		.from('children')
@@ -2324,6 +2324,13 @@ async function createMinistryEnrollments() {
 	if (!ministries || !Array.isArray(ministries) || ministries.length === 0) {
 		console.log('⚠️  Skipping ministry enrollments - no ministries found');
 		return; // Exit early since there are no ministries to enroll in
+	}
+
+	if (!activeCycleId) {
+		console.log(
+			'⚠️  Skipping ministry enrollments - no active cycle ID provided'
+		);
+		return; // Exit early since we need a cycle ID
 	}
 
 	// Create a mapping from our external IDs to the actual ministry IDs
@@ -2354,6 +2361,7 @@ async function createMinistryEnrollments() {
 			ministry_id:
 				ministryMap[`${EXTERNAL_ID_PREFIX}sunday_school`] ||
 				'min_sunday_school',
+			cycle_id: activeCycleId, // Use the actual active cycle ID
 			enrollment_date: '2025-01-01',
 			is_active: true,
 		})),
@@ -2368,6 +2376,7 @@ async function createMinistryEnrollments() {
 			ministry_id:
 				ministryMap[`${EXTERNAL_ID_PREFIX}bible_bee`] ||
 				`${EXTERNAL_ID_PREFIX}bible_bee`,
+			cycle_id: activeCycleId, // Use the actual active cycle ID
 			enrollment_date: '2025-01-01',
 			is_active: true,
 			division: 'primary', // K-2nd grade
@@ -2380,6 +2389,7 @@ async function createMinistryEnrollments() {
 			ministry_id:
 				ministryMap[`${EXTERNAL_ID_PREFIX}bible_bee`] ||
 				`${EXTERNAL_ID_PREFIX}bible_bee`,
+			cycle_id: activeCycleId, // Use the actual active cycle ID
 			enrollment_date: '2025-01-01',
 			is_active: true,
 			division: 'primary', // K-2nd grade
@@ -2392,6 +2402,7 @@ async function createMinistryEnrollments() {
 			ministry_id:
 				ministryMap[`${EXTERNAL_ID_PREFIX}bible_bee`] ||
 				`${EXTERNAL_ID_PREFIX}bible_bee`,
+			cycle_id: activeCycleId, // Use the actual active cycle ID
 			enrollment_date: '2025-01-01',
 			is_active: true,
 			division: 'primary', // K-2nd grade
@@ -2406,6 +2417,7 @@ async function createMinistryEnrollments() {
 			ministry_id:
 				ministryMap[`${EXTERNAL_ID_PREFIX}bible_bee`] ||
 				`${EXTERNAL_ID_PREFIX}bible_bee`,
+			cycle_id: activeCycleId, // Use the actual active cycle ID
 			enrollment_date: '2025-01-01',
 			is_active: true,
 			division: 'junior', // 3rd-7th grade
@@ -2418,6 +2430,7 @@ async function createMinistryEnrollments() {
 			ministry_id:
 				ministryMap[`${EXTERNAL_ID_PREFIX}bible_bee`] ||
 				`${EXTERNAL_ID_PREFIX}bible_bee`,
+			cycle_id: activeCycleId, // Use the actual active cycle ID
 			enrollment_date: '2025-01-01',
 			is_active: true,
 			division: 'junior', // 3rd-7th grade
@@ -2430,6 +2443,7 @@ async function createMinistryEnrollments() {
 			ministry_id:
 				ministryMap[`${EXTERNAL_ID_PREFIX}bible_bee`] ||
 				`${EXTERNAL_ID_PREFIX}bible_bee`,
+			cycle_id: activeCycleId, // Use the actual active cycle ID
 			enrollment_date: '2025-01-01',
 			is_active: true,
 			division: 'junior', // 3rd-7th grade
@@ -2444,6 +2458,7 @@ async function createMinistryEnrollments() {
 			ministry_id:
 				ministryMap[`${EXTERNAL_ID_PREFIX}bible_bee`] ||
 				`${EXTERNAL_ID_PREFIX}bible_bee`,
+			cycle_id: activeCycleId, // Use the actual active cycle ID
 			enrollment_date: '2025-01-01',
 			is_active: true,
 			division: 'senior', // 8th-12th grade
@@ -2456,6 +2471,7 @@ async function createMinistryEnrollments() {
 			ministry_id:
 				ministryMap[`${EXTERNAL_ID_PREFIX}bible_bee`] ||
 				`${EXTERNAL_ID_PREFIX}bible_bee`,
+			cycle_id: activeCycleId, // Use the actual active cycle ID
 			enrollment_date: '2025-01-01',
 			is_active: true,
 			division: 'senior', // 8th-12th grade
@@ -2468,6 +2484,7 @@ async function createMinistryEnrollments() {
 			ministry_id:
 				ministryMap[`${EXTERNAL_ID_PREFIX}bible_bee`] ||
 				`${EXTERNAL_ID_PREFIX}bible_bee`,
+			cycle_id: activeCycleId, // Use the actual active cycle ID
 			enrollment_date: '2025-01-01',
 			is_active: true,
 			division: 'senior', // 8th-12th grade
@@ -2480,6 +2497,7 @@ async function createMinistryEnrollments() {
 			ministry_id:
 				ministryMap[`${EXTERNAL_ID_PREFIX}bible_bee`] ||
 				`${EXTERNAL_ID_PREFIX}bible_bee`,
+			cycle_id: activeCycleId, // Use the actual active cycle ID
 			enrollment_date: '2025-01-01',
 			is_active: true,
 			division: 'senior', // 8th-12th grade
@@ -2674,6 +2692,7 @@ async function createHouseholdRegistrations() {
 						}_${ministry.code || ministry.ministry_id.split('_').pop()}`,
 						child_id: child.child_id,
 						ministry_id: ministry.ministry_id,
+						cycle_id: activeCycleId, // Add cycle_id for filtering
 						status: 'active',
 						created_at: new Date().toISOString(),
 					};
@@ -3146,7 +3165,7 @@ async function seedUATData() {
 		await createUserHouseholds();
 
 		// Create ministry enrollments
-		await createMinistryEnrollments();
+		await createMinistryEnrollments(registrationCycleId);
 
 		// Create household registrations with multiple ministry enrollments
 		await createHouseholdRegistrations();
