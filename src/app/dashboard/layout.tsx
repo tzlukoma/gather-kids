@@ -84,14 +84,29 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 		if (loading) return;
 
 		if (!user) {
+			console.log('DashboardLayout: No user, redirecting to login');
 			router.push('/login');
 			return;
 		}
 
+		// If user exists but has no authorized menu items, redirect to login
+		if (menuItems.length === 0) {
+			console.log(
+				'DashboardLayout: User has no authorized menu items, redirecting to login'
+			);
+			router.push('/login');
+			return;
+		}
+
+		// Redirect to first authorized page if on base dashboard
 		if (menuItems.length > 0) {
 			const topMenuItem = menuItems[0];
 			// Only redirect if the user is at the base dashboard and not already on their target page
 			if (pathname === '/dashboard' && topMenuItem.href !== '/dashboard') {
+				console.log(
+					'DashboardLayout: Redirecting to first authorized page:',
+					topMenuItem.href
+				);
 				router.replace(topMenuItem.href);
 			}
 		}
