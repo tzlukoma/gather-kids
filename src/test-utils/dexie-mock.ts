@@ -1,5 +1,6 @@
 // Minimal in-memory Dexie-like mock used for Node/Jest environments where
 // IndexedDB is not available. Provides basic table operations used in tests.
+/* eslint-disable @typescript-eslint/no-explicit-any */
 type RecordObj = { [k: string]: any };
 
 function createCollection(store: Map<string, RecordObj>, initialFilter?: (item: any) => boolean) {
@@ -42,7 +43,7 @@ function createTable(primaryKey: string) {
     const store = new Map<string, RecordObj>();
 
     const table = {
-        async add(obj: RecordObj) {
+    async add(obj: RecordObj) {
             const key = obj[primaryKey];
             if (!key) throw new Error(`Missing primary key ${primaryKey}`);
             store.set(String(key), JSON.parse(JSON.stringify(obj)));
@@ -71,7 +72,7 @@ function createTable(primaryKey: string) {
             return items.map(i => i[primaryKey]);
         },
         async get(id: string) {
-            return store.get(String(id));
+            return store.get(String(id)) as RecordObj | undefined;
         },
         async update(id: string, patch: Record<string, any>) {
             const cur = store.get(String(id)) || {};
@@ -79,7 +80,7 @@ function createTable(primaryKey: string) {
             store.set(String(id), merged);
             return 1;
         },
-        where(filter: any) {
+    where(filter: unknown) {
             // filter can be a key string (index), a composite like '[a+b]', or an equality object
             if (typeof filter === 'string') {
                 const index = filter;
@@ -151,14 +152,15 @@ function createTable(primaryKey: string) {
                 };
             }
 
-            if (typeof filter === 'object') {
+            if (typeof filter === 'object' && filter !== null) {
+                const filt = filter as Record<string, any>;
                 return {
                     toArray: async () => {
                         const res: any[] = [];
                         for (const v of store.values()) {
                             let match = true;
-                            for (const k of Object.keys(filter)) {
-                                if (v[k] !== filter[k]) { match = false; break; }
+                            for (const k of Object.keys(filt)) {
+                                if ((v as Record<string, any>)[k] !== filt[k]) { match = false; break; }
                             }
                             if (match) res.push(v);
                         }
@@ -167,8 +169,8 @@ function createTable(primaryKey: string) {
                     delete: async () => {
                         for (const [k, v] of Array.from(store.entries())) {
                             let match = true;
-                            for (const fk of Object.keys(filter)) {
-                                if (v[fk] !== filter[fk]) { match = false; break; }
+                            for (const fk of Object.keys(filt)) {
+                                if ((v as Record<string, any>)[fk] !== filt[fk]) { match = false; break; }
                             }
                             if (match) store.delete(k);
                         }
@@ -177,8 +179,8 @@ function createTable(primaryKey: string) {
                         const arr = [] as any[];
                         for (const v of store.values()) {
                             let match = true;
-                            for (const fk of Object.keys(filter)) {
-                                if (v[fk] !== filter[fk]) { match = false; break; }
+                            for (const fk of Object.keys(filt)) {
+                                if ((v as Record<string, any>)[fk] !== filt[fk]) { match = false; break; }
                             }
                             if (match) arr.push(v);
                         }
@@ -194,8 +196,8 @@ function createTable(primaryKey: string) {
         orderBy: (key: string) => ({
             reverse: () => ({
                 toArray: async () => Array.from(store.values()).sort((a, b) => {
-                    const av = a[key]; const bv = b[key];
-                    if (av === bv) return 0; return av < bv ? 1 : -1;
+                    const av = (a as Record<string, any>)[key]; const bv = (b as Record<string, any>)[key];
+                    if (av === bv) return 0; return (av as any) < (bv as any) ? 1 : -1;
                 })
             }),
             toArray: async () => {
@@ -204,18 +206,18 @@ function createTable(primaryKey: string) {
                     const keys = key.slice(1, -1).split('+').map(s => s.trim());
                     return Array.from(store.values()).sort((a, b) => {
                         for (const k of keys) {
-                            const av = a[k] || '';
-                            const bv = b[k] || '';
+                            const av = (a as Record<string, any>)[k] || '';
+                            const bv = (b as Record<string, any>)[k] || '';
                             if (av !== bv) {
-                                return av < bv ? -1 : 1;
+                                return (av as any) < (bv as any) ? -1 : 1;
                             }
                         }
                         return 0;
                     });
                 } else {
                     return Array.from(store.values()).sort((a, b) => {
-                        const av = a[key]; const bv = b[key];
-                        if (av === bv) return 0; return av < bv ? -1 : 1;
+                        const av = (a as Record<string, any>)[key]; const bv = (b as Record<string, any>)[key];
+                        if (av === bv) return 0; return (av as any) < (bv as any) ? -1 : 1;
                     });
                 }
             }

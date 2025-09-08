@@ -21,6 +21,12 @@ export interface BaseUser {
     };
     is_active: boolean;
     assignedMinistryIds?: string[];
+    // Optional Supabase-derived fields (present on some user shapes)
+    last_sign_in_at?: string;
+    email_confirmed_at?: string;
+    created_at?: string;
+    user_metadata?: any;
+    identities?: any[];
 }
 
 export interface AuthState {

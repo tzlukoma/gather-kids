@@ -2,7 +2,6 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { DatabaseAdapterBadge } from '@/components/gatherKids/database-adapter-badge';
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -71,6 +70,15 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 	};
 
 	const menuItems = getMenuItems();
+
+	function renderIcon(Icon: any) {
+		if (React.isValidElement(Icon)) return Icon;
+		if (typeof Icon === 'function') {
+			const C = Icon as React.ComponentType<{ className?: string }>;
+			return <C className="w-4 h-4" />;
+		}
+		return Icon ?? null;
+	}
 
 	React.useEffect(() => {
 		if (loading) return;
@@ -193,11 +201,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 													(item.href !== '/dashboard' ||
 														pathname === '/dashboard')
 												}>
-												{React.isValidElement(item.icon)
-													? item.icon
-													: React.createElement(item.icon as any, {
-															className: 'w-4 h-4',
-													  })}
+												{renderIcon(item.icon)}
 												<span>{item.label}</span>
 											</SidebarMenuButton>
 										</Link>
@@ -205,9 +209,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 								))}
 							</SidebarMenu>
 						</SidebarContent>
-						<SidebarFooter className="p-2 flex justify-center">
-							<DatabaseAdapterBadge />
-						</SidebarFooter>
+						<SidebarFooter className="p-2 flex justify-center"></SidebarFooter>
 					</Sidebar>
 					<SidebarInset>
 						<main className="p-4 md:p-6 lg:p-8">{children}</main>

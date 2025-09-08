@@ -255,14 +255,14 @@ export default function LoginPage() {
 						<CardDescription>
 							{flags.loginPasswordEnabled && !flags.isDemoMode ? (
 								<>
-									Don't have an account?{' '}
+									Don&apos;t have an account?{' '}
 									<Link href="/create-account" className="underline">
 										Create account
 									</Link>
 								</>
 							) : (
 								<>
-									Don't have an account?{' '}
+									Don&apos;t have an account?{' '}
 									<Link href="/register" className="underline">
 										Register your family
 									</Link>

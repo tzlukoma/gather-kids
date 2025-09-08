@@ -13,7 +13,7 @@ import { DebugPanelDialog } from '@/components/debug/debug-panel-dialog';
 
 export const metadata: Metadata = {
 	title: 'gatherKids',
-	description: "gatherKids - Children's Ministry Management",
+	description: 'gatherKids - Children&apos;s Ministry Management',
 };
 
 export default function RootLayout({

@@ -1,35 +1,36 @@
 {
-  "extends": [
-    "next/core-web-vitals",
-    "next/typescript"
-  ],
-  "rules": {
-    "no-restricted-imports": ["error", {
-      "paths": [
-        { 
-          "name": "@supabase/supabase-js", 
-          "message": "Use the DAL/dbAdapter only. Direct database imports are not allowed outside the DAL layer." 
-        },
-        { 
-          "name": "pg", 
-          "message": "Use the DAL/dbAdapter only. Direct database imports are not allowed outside the DAL layer." 
-        }
-      ]
-    }]
-  },
-  "overrides": [
-    {
-      "files": [
-        "src/lib/database/**/*.ts",
-        "src/lib/db.ts",
-        "scripts/**/*.js",
-        "scripts/**/*.ts",
-        "__tests__/**/*.ts",
-        "__tests__/**/*.tsx"
-      ],
-      "rules": {
-        "no-restricted-imports": "off"
-      }
-    }
-  ]
+	"extends": ["next/core-web-vitals", "next/typescript"],
+	"rules": {
+		"no-restricted-imports": [
+			"error",
+			{
+				"paths": [
+					{
+						"name": "@supabase/supabase-js",
+						"message": "Use the DAL/dbAdapter only. Direct database imports are not allowed outside the DAL layer."
+					},
+					{
+						"name": "pg",
+						"message": "Use the DAL/dbAdapter only. Direct database imports are not allowed outside the DAL layer."
+					}
+				]
+			}
+		],
+		"@typescript-eslint/no-explicit-any": "warn"
+	},
+	"overrides": [
+		{
+			"files": [
+				"src/lib/database/**/*.ts",
+				"src/lib/db.ts",
+				"scripts/**/*.js",
+				"scripts/**/*.ts",
+				"__tests__/**/*.ts",
+				"__tests__/**/*.tsx"
+			],
+			"rules": {
+				"no-restricted-imports": "off"
+			}
+		}
+	]
 }

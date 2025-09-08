@@ -65,7 +65,7 @@ export default function Home() {
 					</h1>
 					<p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-8">
 						{settings.description || 
-							"The simple, secure, and smart way to manage your children's ministry. Streamline check-ins, track attendance, and keep your community connected."
+							"The simple, secure, and smart way to manage your children&apos;s ministry. Streamline check-ins, track attendance, and keep your community connected."
 						}
 					</p>
 					<div className="flex flex-col sm:flex-row gap-4 justify-center">

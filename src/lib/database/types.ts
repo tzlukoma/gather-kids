@@ -70,6 +70,7 @@ export interface DatabaseAdapter {
 	updateHousehold(id: string, data: Partial<Household>): Promise<Household>;
 	listHouseholds(filters?: HouseholdFilters): Promise<Household[]>;
 	deleteHousehold(id: string): Promise<void>;
+	getHouseholdForUser(authUserId: string): Promise<string | null>;
 
 	// Children
 	getChild(id: string): Promise<Child | null>;

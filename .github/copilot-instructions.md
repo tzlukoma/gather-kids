@@ -53,8 +53,8 @@ Always reference these instructions first and fallback to search or bash command
 - **LIMITATION**: Supabase CLI installation via npm is NOT supported. Use system package manager or direct download.
 - **ALTERNATIVE**: Docker installation works: `curl -fsSL https://get.docker.com -o get-docker.sh && sudo sh get-docker.sh`
 - Local Supabase (if CLI available): `supabase start` -- requires Docker and Supabase CLI
-- Database reset: `supabase db reset` followed by `npx prisma db seed`
-- Generate Prisma client: `npx prisma generate`
+  -- Database reset: `supabase db reset` followed by the project seed scripts (for example `npm run seed:uat:reset`)
+  -- Generate types: `npm run gen:types` (generates TypeScript types from Supabase schema)
 - **Database migrations**:
   - Prefer timestamp-based naming: `YYYYMMDDHHMMSS_name_of_change.sql` (e.g. `20250903123456_add_new_table.sql`)
   - ALWAYS use timestamp format to avoid version conflicts
@@ -209,7 +209,7 @@ gather-kids/
 - **Primary storage**: IndexedDB (Dexie.js) for demo/development mode
 - **Supabase integration**: Available for production environments
 - **Multiple adapters**: Unified DAL (Data Access Layer) supports multiple backends
-- **Migrations**: Prisma-based migrations in supabase/migrations/
+  -- **Migrations**: Raw SQL migrations in `supabase/migrations/` (apply with `supabase migration up` or the repo scripts)
 -
 
 ### Managing Issue Information
@@ -217,3 +217,9 @@ gather-kids/
 - Always include the reference to the original issue in the Pull Request (e.g. Fixes issue #4)
 - Provide major status updates in the body of the issue but don't override previous updates so that the progression is clear
 - Keep the original title of the PR intact for traceability (i.e. do not rename it as you provide updates)
+
+## Coding guidance: avoid `any` in new code
+
+- Please avoid introducing `any` in new source files. Prefer `unknown` plus a narrow runtime guard, or define small domain types/interfaces and mapping helpers in the DAL layer.
+- If a temporary `any` is required for an exceptional case (for example, while migrating legacy data or awaiting regenerated Supabase types), add a localized comment with justification and a TODO linking to the tracking issue: `.github/ISSUES/000-temp-relax-no-explicit-any.md`.
+- The long-term goal is to keep `@typescript-eslint/no-explicit-any` enabled as `error` on `develop` and restrict `any` to only well-documented, short-lived exceptions.

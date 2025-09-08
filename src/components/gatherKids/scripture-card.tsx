@@ -23,6 +23,15 @@ export default function ScriptureCard({
 	readOnly = false,
 	displayVersion,
 }: ScriptureCardProps) {
+	// Helper to safely read optional texts map
+	function getTextsMap(s: any): Record<string, string> | undefined {
+		if (!s) return undefined;
+		if (typeof s.texts === 'object' && s.texts !== null)
+			return s.texts as Record<string, string>;
+		if (typeof s.alternateTexts === 'object' && s.alternateTexts !== null)
+			return s.alternateTexts as Record<string, string>;
+		return undefined;
+	}
 	const completed = assignment.status === 'completed';
 
 	// Always prioritize the reference text as the primary identifier
@@ -39,10 +48,7 @@ export default function ScriptureCard({
 	const scriptureReference = normalizedReference;
 
 	// choose verse HTML by preference: displayVersion prop -> assignment.verseText -> scripture.texts map -> scripture.text
-	const textsMap =
-		(assignment.scripture as any)?.texts ??
-		(assignment.scripture as any)?.alternateTexts ??
-		undefined;
+	const textsMap = getTextsMap(assignment.scripture);
 	const requestedVersion = displayVersion ?? undefined;
 
 	// Get the appropriate verse text based on version
@@ -66,7 +72,7 @@ export default function ScriptureCard({
 			textsMap: textsMap,
 			requestedVersion: requestedVersion,
 			assignment: assignment,
-			scripture: scripture
+			scripture: scripture,
 		});
 	}
 

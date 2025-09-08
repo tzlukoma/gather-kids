@@ -227,20 +227,20 @@ When deploying to Vercel, configure environment variables in the Vercel project 
 
 ### Running Migrations in Different Environments
 
-Use the following pattern to run migrations in each environment:
+Migrations are raw SQL files in `supabase/migrations/`. Use the Supabase CLI or repository helper scripts to apply them.
 
 ```bash
-# Development
-npx prisma migrate dev --name <change_name>
+# Development (create a new timestamped SQL migration)
+supabase migration new "<change_name>"
 
-# UAT/Preview
-DATABASE_URL=<uat_db_url> npx prisma migrate deploy
+# Apply migrations to local or remote DB
+supabase migration up
 
-# Production
-DATABASE_URL=<prod_db_url> npx prisma migrate deploy
+# For CI or non-interactive deploys, ensure DATABASE_URL is set and use the repo scripts that apply migrations
+scripts/db/apply_migrations_safe.sh "$DATABASE_URL"
 ```
 
-For CI/CD pipelines, it's recommended to use the `migrate deploy` command which applies existing migrations without generating new ones.
+For CI/CD pipelines, run `supabase migration up` (or the repo helper script) against the target `DATABASE_URL`.
 
 ### Safe Migration Process
 
@@ -386,7 +386,7 @@ supabase db dump -f rls_policies.sql --data-only --table auth.policies
 
 - [Supabase Documentation](https://supabase.io/docs)
 - [Next.js Environment Variables](https://nextjs.org/docs/basic-features/environment-variables)
-- [Prisma Migrations](https://www.prisma.io/docs/concepts/components/prisma-migrate)
+- [Supabase Migrations & CLI](https://supabase.com/docs/guides/database)
 - [Supabase CLI](https://supabase.io/docs/reference/cli)
 
 ## Conclusion

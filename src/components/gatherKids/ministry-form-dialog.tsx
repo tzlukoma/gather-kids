@@ -56,7 +56,11 @@ const ministryFormSchema = z.object({
 			/^[a-z0-9-]+$/,
 			'Code can only contain lowercase letters, numbers, and hyphens.'
 		),
-	email: z.string().email('Please enter a valid email address').optional().or(z.literal('')),
+	email: z
+		.string()
+		.email('Please enter a valid email address')
+		.optional()
+		.or(z.literal('')),
 	enrollment_type: z.enum(['enrolled', 'expressed_interest']),
 	is_active: z.boolean().default(true),
 	open_at: z.string().optional(),
@@ -113,7 +117,7 @@ export function MinistryFormDialog({
 				} catch (e) {
 					console.warn('Could not load ministry account email:', e);
 				}
-				
+
 				form.reset({
 					name: ministry.name,
 					code: ministry.code,
@@ -145,7 +149,7 @@ export function MinistryFormDialog({
 				});
 			}
 		};
-		
+
 		loadMinistryData();
 	}, [ministry, form, isOpen]);
 
@@ -169,10 +173,29 @@ export function MinistryFormDialog({
 			}
 
 			const { email, ...ministryData } = data;
-			
+
+			function toDbMinistryPayload(md: Partial<MinistryFormValues>) {
+				return {
+					name: md.name || '',
+					code: md.code || '',
+					enrollment_type:
+						(md.enrollment_type as 'enrolled' | 'expressed_interest') ||
+						'enrolled',
+					is_active: md.is_active ?? true,
+					open_at: md.open_at ?? undefined,
+					close_at: md.close_at ?? undefined,
+					description: md.description ?? undefined,
+					details: md.details ?? undefined,
+					custom_questions: md.custom_questions ?? [],
+				};
+			}
+
 			if (ministry) {
-				await updateMinistry(ministry.ministry_id, ministryData as any);
-				
+				await updateMinistry(
+					ministry.ministry_id,
+					toDbMinistryPayload(ministryData)
+				);
+
 				// Handle ministry account email
 				if (email && email.trim()) {
 					await saveMinistryAccount({
@@ -182,14 +205,16 @@ export function MinistryFormDialog({
 						is_active: true,
 					});
 				}
-				
+
 				toast({
 					title: 'Ministry Updated',
 					description: 'The ministry has been successfully updated.',
 				});
 			} else {
-				const ministryId = await createMinistry(ministryData as any);
-				
+				const ministryId = await createMinistry(
+					toDbMinistryPayload(ministryData)
+				);
+
 				// Handle ministry account email for new ministry
 				if (email && email.trim()) {
 					await saveMinistryAccount({
@@ -199,7 +224,7 @@ export function MinistryFormDialog({
 						is_active: true,
 					});
 				}
-				
+
 				toast({
 					title: 'Ministry Created',
 					description: 'The new ministry has been created.',
@@ -272,7 +297,11 @@ export function MinistryFormDialog({
 								<FormItem>
 									<FormLabel>Ministry Email</FormLabel>
 									<FormControl>
-										<Input type="email" placeholder="ministry@example.com" {...field} />
+										<Input
+											type="email"
+											placeholder="ministry@example.com"
+											{...field}
+										/>
 									</FormControl>
 									<FormDescription>
 										Email address for this ministry account (optional).

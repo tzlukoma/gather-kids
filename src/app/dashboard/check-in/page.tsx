@@ -37,7 +37,7 @@ export type StatusFilter = 'all' | 'checkedIn' | 'checkedOut';
 
 const eventOptions = [
 	{ id: 'evt_sunday_school', name: 'Sunday School' },
-	{ id: 'evt_childrens_church', name: "Children's Church" },
+	{ id: 'evt_childrens_church', name: "Children&apos;s Church" },
 	{ id: 'evt_teen_church', name: 'Teen Church' },
 ];
 
@@ -180,7 +180,7 @@ function CheckInContent() {
 	if (loading) {
 		return (
 			<div className="flex flex-col items-center justify-center h-64">
-				<p className="text-muted-foreground mb-4">Loading children's data...</p>
+				<p className="text-muted-foreground mb-4">Loading children&apos;s data...</p>
 			</div>
 		);
 	}

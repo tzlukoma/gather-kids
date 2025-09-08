@@ -147,7 +147,7 @@ export default function HouseholdBibleBeePage() {
 				<TabsContent value="students">
 					<Card>
 						<CardHeader>
-							<CardTitle>Your Children's Progress</CardTitle>
+							<CardTitle>Your Children&apos;s Progress</CardTitle>
 							<CardDescription>
 								Progress for your children enrolled in Bible Bee for{' '}
 								{selectedCycle}.

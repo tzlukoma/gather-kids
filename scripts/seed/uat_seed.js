@@ -58,7 +58,7 @@ const counters = {
 	guardians: 0,
 	children: 0,
 	ministry_enrollments: 0,
-	registrations: 0
+	registrations: 0,
 };
 
 // Supabase client setup
@@ -100,8 +100,8 @@ function createDryRunProxy(realClient) {
 										single: () => ({ data: null, error: { code: 'PGRST116' } }),
 										limit: (count) => {
 											console.log(`[DRY RUN] LIMIT ${count}`);
-											return ({ data: [], error: null });
-										}
+											return { data: [], error: null };
+										},
 									};
 								},
 								like: (column, value) => {
@@ -110,8 +110,8 @@ function createDryRunProxy(realClient) {
 										single: () => ({ data: null, error: { code: 'PGRST116' } }),
 										limit: (count) => {
 											console.log(`[DRY RUN] LIMIT ${count}`);
-											return ({ data: [], error: null });
-										}
+											return { data: [], error: null };
+										},
 									};
 								},
 								in: (column, values) => {
@@ -122,14 +122,14 @@ function createDryRunProxy(realClient) {
 										single: () => ({ data: null, error: { code: 'PGRST116' } }),
 										limit: (count) => {
 											console.log(`[DRY RUN] LIMIT ${count}`);
-											return ({ data: [], error: null });
-										}
+											return { data: [], error: null };
+										},
 									};
 								},
 								limit: (count) => {
 									console.log(`[DRY RUN] LIMIT ${count}`);
-									return ({ data: [], error: null });
-								}
+									return { data: [], error: null };
+								},
 							};
 						},
 						insert: (data) => {
@@ -508,21 +508,23 @@ function generateUUID() {
  */
 async function createBibleBeeYear() {
 	console.log('📅 Creating Bible Bee Year following proper business flow...');
-	
+
 	// Step 1: Create or get the registration cycle (foundation)
 	let registrationCycleId;
 	try {
 		registrationCycleId = await createRegistrationCycle();
 		console.log(`✅ Registration cycle ready: ${registrationCycleId}`);
 	} catch (cycleError) {
-		console.warn(`⚠️ Could not create registration cycle: ${cycleError.message}`);
+		console.warn(
+			`⚠️ Could not create registration cycle: ${cycleError.message}`
+		);
 		console.log('⚙️ Using a fallback registration cycle ID');
 		registrationCycleId = `${EXTERNAL_ID_PREFIX}cycle_${Date.now()}`;
 	}
 
-	// Step 2: Create Bible Bee Year linked to registration cycle  
+	// Step 2: Create Bible Bee Year linked to registration cycle
 	const bibleBeeYearId = DRY_RUN ? 'test-bible-bee-year-uuid' : generateUUID();
-	
+
 	const bibleBeeYearData = {
 		id: bibleBeeYearId,
 		year: 2025,
@@ -532,7 +534,7 @@ async function createBibleBeeYear() {
 		registration_open_date: '2025-01-01',
 		registration_close_date: '2025-10-08',
 		competition_start_date: '2025-11-01',
-		competition_end_date: '2026-04-30'
+		competition_end_date: '2026-04-30',
 	};
 
 	// Check if Bible Bee year already exists
@@ -566,7 +568,9 @@ async function createBibleBeeYear() {
 			.single();
 
 		if (insertError) {
-			throw new Error(`Failed to create Bible Bee year: ${insertError.message}`);
+			throw new Error(
+				`Failed to create Bible Bee year: ${insertError.message}`
+			);
 		}
 
 		console.log(`✅ Created Bible Bee year: ${bibleBeeYearData.name}`);
@@ -581,7 +585,7 @@ async function createBibleBeeYear() {
  */
 async function createCompetitionYear(bibleBeeYearId) {
 	console.log('📅 Creating Competition Year for scriptures and grade rules...');
-	
+
 	const competitionYearData = {
 		id: DRY_RUN ? 'test-competition-year-uuid' : generateUUID(),
 		year: 2025,
@@ -610,7 +614,10 @@ async function createCompetitionYear(bibleBeeYearId) {
 
 	// Create new competition year
 	if (DRY_RUN) {
-		console.log(`[DRY RUN] Would create competition year:`, competitionYearData);
+		console.log(
+			`[DRY RUN] Would create competition year:`,
+			competitionYearData
+		);
 		counters.competition_years++;
 		return competitionYearData.id;
 	} else {
@@ -621,7 +628,9 @@ async function createCompetitionYear(bibleBeeYearId) {
 			.single();
 
 		if (insertError) {
-			throw new Error(`Failed to create competition year: ${insertError.message}`);
+			throw new Error(
+				`Failed to create competition year: ${insertError.message}`
+			);
 		}
 
 		console.log(`✅ Created competition year: ${competitionYearData.name}`);
@@ -638,18 +647,18 @@ async function createCompetitionYear(bibleBeeYearId) {
  */
 function parseScriptureMetadata() {
 	const csvPath = path.join(__dirname, '../data/bible_bee_corrected.csv');
-	
+
 	if (!fs.existsSync(csvPath)) {
 		throw new Error(`Scripture metadata file not found: ${csvPath}`);
 	}
-	
+
 	const csvContent = fs.readFileSync(csvPath, 'utf8');
 	const lines = csvContent.trim().split('\n');
-	const headers = lines[0].split(',').map(h => h.trim());
-	
+	const headers = lines[0].split(',').map((h) => h.trim());
+
 	const scriptures = [];
 	for (let i = 1; i < lines.length; i++) {
-		const values = lines[i].split(',').map(v => v.trim());
+		const values = lines[i].split(',').map((v) => v.trim());
 		if (values.length === headers.length) {
 			const scripture = {};
 			headers.forEach((header, index) => {
@@ -658,8 +667,10 @@ function parseScriptureMetadata() {
 			scriptures.push(scripture);
 		}
 	}
-	
-	console.log(`📋 Parsed ${scriptures.length} scripture metadata entries from CSV`);
+
+	console.log(
+		`📋 Parsed ${scriptures.length} scripture metadata entries from CSV`
+	);
 	return scriptures;
 }
 
@@ -667,16 +678,21 @@ function parseScriptureMetadata() {
  * Parse JSON scripture texts from the data file
  */
 function parseScriptureTexts() {
-	const jsonPath = path.join(__dirname, '../data/bible-bee-2025-scriptures2.json');
-	
+	const jsonPath = path.join(
+		__dirname,
+		'../data/bible-bee-2025-scriptures2.json'
+	);
+
 	if (!fs.existsSync(jsonPath)) {
 		throw new Error(`Scripture texts file not found: ${jsonPath}`);
 	}
-	
+
 	const jsonContent = fs.readFileSync(jsonPath, 'utf8');
 	const data = JSON.parse(jsonContent);
-	
-	console.log(`📖 Parsed ${data.scriptures.length} scripture text entries from JSON`);
+
+	console.log(
+		`📖 Parsed ${data.scriptures.length} scripture text entries from JSON`
+	);
 	return data;
 }
 
@@ -691,56 +707,64 @@ function normalizeReference(ref) {
  * Create scriptures from actual data files using reference-based matching
  */
 async function createScriptures(yearId) {
-	console.log(`📖 Loading scriptures from data files for Bible Bee year ${yearId}...`);
-	
+	console.log(
+		`📖 Loading scriptures from data files for Bible Bee year ${yearId}...`
+	);
+
 	if (!yearId) {
 		throw new Error('yearId is required for scripture creation');
 	}
-	
+
 	try {
 		// Load the metadata from CSV and texts from JSON
 		const csvScriptures = parseScriptureMetadata();
 		const jsonData = parseScriptureTexts();
-		
-		console.log(`🔗 Matching ${csvScriptures.length} CSV entries with ${jsonData.scriptures.length} JSON entries...`);
-		
+
+		console.log(
+			`🔗 Matching ${csvScriptures.length} CSV entries with ${jsonData.scriptures.length} JSON entries...`
+		);
+
 		let createdCount = 0;
 		let existingCount = 0;
 		let errorCount = 0;
-		
+
 		// Process each scripture from the CSV metadata
 		for (const csvRow of csvScriptures) {
 			try {
 				// Find matching text data in JSON by reference
 				const normalizedCsvRef = normalizeReference(csvRow.reference);
-				const matchingJsonEntry = jsonData.scriptures.find(js => 
-					normalizeReference(js.reference) === normalizedCsvRef
+				const matchingJsonEntry = jsonData.scriptures.find(
+					(js) => normalizeReference(js.reference) === normalizedCsvRef
 				);
-				
+
 				if (!matchingJsonEntry) {
-					console.warn(`⚠️ No matching text found for reference: ${csvRow.reference}`);
+					console.warn(
+						`⚠️ No matching text found for reference: ${csvRow.reference}`
+					);
 					errorCount++;
 					continue;
 				}
-				
+
 				// Build the scripture data combining CSV metadata with JSON texts
 				const scriptureData = {
-					external_id: `${EXTERNAL_ID_PREFIX}scripture_${parseInt(csvRow.scripture_order)}`,
+					external_id: `${EXTERNAL_ID_PREFIX}scripture_${parseInt(
+						csvRow.scripture_order
+					)}`,
 					competition_year_id: yearId,
 					order: parseInt(csvRow.scripture_order), // Use order from CSV
 					reference: csvRow.reference,
 					texts: JSON.stringify({
 						NIV: matchingJsonEntry.texts.NIV || '',
 						KJV: matchingJsonEntry.texts.KJV || '',
-						'NIV-Spanish': matchingJsonEntry.texts.NVI || '' // Map NVI to NIV-Spanish
+						'NIV-Spanish': matchingJsonEntry.texts.NVI || '', // Map NVI to NIV-Spanish
 					}),
 					// Enhanced scripture fields from CSV
 					scripture_number: csvRow.scripture_number,
 					scripture_order: parseInt(csvRow.scripture_order),
 					counts_for: parseInt(csvRow.counts_for),
-					category: csvRow.category
+					category: csvRow.category,
 				};
-				
+
 				// Check if scripture already exists
 				if (!DRY_RUN) {
 					const { data: existing, error: checkError } = await supabase
@@ -750,13 +774,17 @@ async function createScriptures(yearId) {
 						.single();
 
 					if (checkError && checkError.code !== 'PGRST116') {
-						console.warn(`⚠️ Error checking scripture ${scriptureData.reference}: ${checkError.message}`);
+						console.warn(
+							`⚠️ Error checking scripture ${scriptureData.reference}: ${checkError.message}`
+						);
 						errorCount++;
 						continue;
 					}
 
 					if (existing) {
-						console.log(`✅ Scripture already exists: ${scriptureData.reference}`);
+						console.log(
+							`✅ Scripture already exists: ${scriptureData.reference}`
+						);
 						existingCount++;
 						continue;
 					}
@@ -764,7 +792,9 @@ async function createScriptures(yearId) {
 
 				// Create the scripture
 				if (DRY_RUN) {
-					console.log(`[DRY RUN] Would create scripture: ${scriptureData.reference}`);
+					console.log(
+						`[DRY RUN] Would create scripture: ${scriptureData.reference}`
+					);
 					createdCount++;
 				} else {
 					const { error: insertError } = await supabase
@@ -772,7 +802,9 @@ async function createScriptures(yearId) {
 						.insert(scriptureData);
 
 					if (insertError) {
-						console.warn(`⚠️ Failed to create scripture ${scriptureData.reference}: ${insertError.message}`);
+						console.warn(
+							`⚠️ Failed to create scripture ${scriptureData.reference}: ${insertError.message}`
+						);
 						errorCount++;
 						continue;
 					}
@@ -780,29 +812,33 @@ async function createScriptures(yearId) {
 					console.log(`✅ Created scripture: ${scriptureData.reference}`);
 					createdCount++;
 				}
-				
 			} catch (rowError) {
-				console.warn(`⚠️ Error processing scripture row ${csvRow.reference}: ${rowError.message}`);
+				console.warn(
+					`⚠️ Error processing scripture row ${csvRow.reference}: ${rowError.message}`
+				);
 				errorCount++;
 			}
 		}
-		
+
 		// Summary
 		console.log(`📊 Scripture loading complete:`);
 		console.log(`   - Created: ${createdCount}`);
 		console.log(`   - Already existed: ${existingCount}`);
 		console.log(`   - Errors: ${errorCount}`);
-		console.log(`   - Total processed: ${createdCount + existingCount + errorCount}`);
-		
+		console.log(
+			`   - Total processed: ${createdCount + existingCount + errorCount}`
+		);
+
 		// Update global counter
 		counters.scriptures += createdCount;
-		
+
 		if (errorCount > 0) {
 			console.warn(`⚠️ ${errorCount} scriptures had errors during processing`);
 		}
-		
 	} catch (error) {
-		console.error(`❌ Error loading scriptures from data files: ${error.message}`);
+		console.error(
+			`❌ Error loading scriptures from data files: ${error.message}`
+		);
 		throw error;
 	}
 }
@@ -955,7 +991,7 @@ async function createGradeRules(yearId, divisionMap) {
 				id: `${EXTERNAL_ID_PREFIX}primary_grade_rule`,
 				competition_year_id: yearId, // Link to the Bible Bee year
 				min_grade: 0, // Kindergarten
-				max_grade: 2, // 2nd grade  
+				max_grade: 2, // 2nd grade
 				type: 'scripture', // Type of rule
 				target_count: 10, // Target scripture count for Primary
 				created_at: new Date().toISOString(),
@@ -976,7 +1012,8 @@ async function createGradeRules(yearId, divisionMap) {
 				max_grade: 12, // 12th grade
 				type: 'essay', // Senior division uses essays
 				target_count: null, // No target count for essays
-				prompt_text: 'Write a 500-word essay on the importance of scripture memorization in modern Christian life.',
+				prompt_text:
+					'Write a 500-word essay on the importance of scripture memorization in modern Christian life.',
 				created_at: new Date().toISOString(),
 			},
 		];
@@ -996,7 +1033,9 @@ async function createGradeRules(yearId, divisionMap) {
 			}
 
 			if (existingRule) {
-				console.log(`✅ Grade rule already exists: ${ruleData.type} for grades ${ruleData.min_grade}-${ruleData.max_grade}`);
+				console.log(
+					`✅ Grade rule already exists: ${ruleData.type} for grades ${ruleData.min_grade}-${ruleData.max_grade}`
+				);
 			} else {
 				const { error: insertError } = await supabase
 					.from('grade_rules')
@@ -1007,7 +1046,9 @@ async function createGradeRules(yearId, divisionMap) {
 					continue;
 				}
 
-				console.log(`✅ Created grade rule: ${ruleData.type} for grades ${ruleData.min_grade}-${ruleData.max_grade}`);
+				console.log(
+					`✅ Created grade rule: ${ruleData.type} for grades ${ruleData.min_grade}-${ruleData.max_grade}`
+				);
 				counters.grade_rules++;
 			}
 		}
@@ -1040,7 +1081,8 @@ async function createEssayPrompt(yearId, divisionMap) {
 			title: 'Senior Division Essay',
 			prompt:
 				"Reflecting on Romans chapters 1-11, discuss how Paul's teachings on salvation through faith apply to modern Christian life. Include at least three specific scripture references from the assigned passages to support your analysis.",
-			instructions: 'Write a thoughtful essay of 500-750 words. Be sure to include specific scripture references.',
+			instructions:
+				'Write a thoughtful essay of 500-750 words. Be sure to include specific scripture references.',
 			min_words: 500,
 			max_words: 750,
 			created_at: new Date().toISOString(),
@@ -1087,7 +1129,7 @@ async function createMinistries() {
 	console.log('📋 Starting ministry creation...');
 	const ministriesData = [
 		{
-			ministry_id: `${EXTERNAL_ID_PREFIX}sunday_school`,
+			ministry_id: 'min_sunday_school',
 			name: 'Sunday School',
 			code: 'min_sunday_school',
 			enrollment_type: 'enrolled',
@@ -1478,9 +1520,15 @@ async function createMinistryLeaders() {
 			ministries = [
 				{ ministry_id: 'uat_sunday_school', name: 'Sunday School' },
 				{ ministry_id: 'uat_bible_bee', name: 'Bible Bee' },
-				{ ministry_id: 'uat_mentoring_boys', name: 'Mentoring Ministry-Boys (Khalfani)' },
-				{ ministry_id: 'uat_joy_bells', name: 'Joy Bells Children\'s Choir' },
-				{ ministry_id: 'uat_mentoring_girls', name: 'Mentoring Ministry-Girls (Nailah)' }
+				{
+					ministry_id: 'uat_mentoring_boys',
+					name: 'Mentoring Ministry-Boys (Khalfani)',
+				},
+				{ ministry_id: 'uat_joy_bells', name: "Joy Bells Children's Choir" },
+				{
+					ministry_id: 'uat_mentoring_girls',
+					name: 'Mentoring Ministry-Girls (Nailah)',
+				},
 			];
 			console.log('[DRY RUN] Using mock ministry data for leader assignments');
 		} else {
@@ -1492,7 +1540,7 @@ async function createMinistryLeaders() {
 			if (ministryError) {
 				throw new Error(`Error fetching ministries: ${ministryError.message}`);
 			}
-			
+
 			ministries = data;
 		}
 
@@ -2488,8 +2536,10 @@ async function verifyTableCleared(tableName, filterCondition) {
 		return true;
 	}
 
-	let query = supabase.from(tableName).select('*', { count: 'exact', head: true });
-	
+	let query = supabase
+		.from(tableName)
+		.select('*', { count: 'exact', head: true });
+
 	// Apply the same filter used for deletion
 	if (filterCondition.type === 'external_id') {
 		query = query.like('external_id', `${EXTERNAL_ID_PREFIX}%`);
@@ -2510,14 +2560,16 @@ async function verifyTableCleared(tableName, filterCondition) {
 	}
 
 	const { count, error } = await query;
-	
+
 	if (error) {
 		console.warn(`⚠️ Could not verify ${tableName} clearing: ${error.message}`);
 		return false;
 	}
 
 	if (count > 0) {
-		console.warn(`⚠️ ${tableName} still contains ${count} UAT records after deletion`);
+		console.warn(
+			`⚠️ ${tableName} still contains ${count} UAT records after deletion`
+		);
 		return false;
 	}
 
@@ -2531,7 +2583,7 @@ async function verifyTableCleared(tableName, filterCondition) {
 function displaySeedingSummary() {
 	console.log('\n📊 SEEDING SUMMARY - Actual Records Created:');
 	console.log('============================================');
-	
+
 	console.log(`Ministries: ${counters.ministries}`);
 	console.log(`Leader Profiles: ${counters.leader_profiles}`);
 	console.log(`Leader Assignments: ${counters.leader_assignments}`);
@@ -2549,10 +2601,13 @@ function displaySeedingSummary() {
 	console.log(`Children: ${counters.children}`);
 	console.log(`Ministry Enrollments: ${counters.ministry_enrollments}`);
 	console.log(`Registrations: ${counters.registrations}`);
-	
-	const totalRecords = Object.values(counters).reduce((sum, count) => sum + count, 0);
+
+	const totalRecords = Object.values(counters).reduce(
+		(sum, count) => sum + count,
+		0
+	);
 	console.log(`\nTOTAL RECORDS CREATED: ${totalRecords}`);
-	
+
 	console.log('\n🗄️ SQL VERIFICATION QUERY:');
 	console.log('Run this query to verify actual database counts:');
 	console.log('=================================================');
@@ -2729,38 +2784,41 @@ async function resetUATData() {
 		{ table: 'enrollment_overrides', filter: { type: 'all_records' } },
 		{ table: 'ministry_enrollments', filter: { type: 'all_records' } },
 		{ table: 'registrations', filter: { type: 'all_records' } },
-		
+
 		// Level 2: Bible Bee structure tables
 		{ table: 'essay_prompts', filter: { type: 'all_records' } },
 		{ table: 'grade_rules', filter: { type: 'all_records' } },
 		{ table: 'divisions', filter: { type: 'all_records' } },
 		{ table: 'scriptures', filter: { type: 'external_id' } },
-		
+
 		// Level 3: Competition/cycle tables
 		{ table: 'competition_years', filter: { type: 'all_records' } },
 		{ table: 'registration_cycles', filter: { type: 'cycle_id' } },
-		
+
 		// Level 4: People tables (children before guardians before households)
 		{ table: 'children', filter: { type: 'external_id' } },
 		{ table: 'emergency_contacts', filter: { type: 'contact_id' } },
 		{ table: 'guardians', filter: { type: 'external_id' } },
 		{ table: 'households', filter: { type: 'external_id' } },
-		
+
 		// Level 5: Ministry structure
 		{ table: 'ministry_leaders', filter: { type: 'all_records' } },
-		{ table: 'ministries', filter: { type: 'external_id' } }
+		{ table: 'ministries', filter: { type: 'external_id' } },
 	];
 
 	let deletionErrors = [];
 
 	for (const { table, filter } of deletionPlan) {
 		console.log(`🗑️  Deleting ${table}...`);
-		
+
 		try {
 			let result;
-			
+
 			if (DRY_RUN) {
-				console.log(`[DRY RUN] Would delete from ${table} with filter:`, filter);
+				console.log(
+					`[DRY RUN] Would delete from ${table} with filter:`,
+					filter
+				);
 				result = { error: null };
 			} else {
 				// Apply the appropriate deletion filter
@@ -2803,11 +2861,14 @@ async function resetUATData() {
 				deletionErrors.push({ table, error: result.error.message });
 			} else {
 				console.log(`✅ Cleared ${table}`);
-				
+
 				// Verify the table is actually cleared
 				const verified = await verifyTableCleared(table, filter);
 				if (!verified) {
-					deletionErrors.push({ table, error: 'Verification failed - records still exist' });
+					deletionErrors.push({
+						table,
+						error: 'Verification failed - records still exist',
+					});
 				}
 			}
 		} catch (error) {
@@ -2821,7 +2882,9 @@ async function resetUATData() {
 		deletionErrors.forEach(({ table, error }) => {
 			console.log(`   - ${table}: ${error}`);
 		});
-		throw new Error(`Failed to completely reset UAT data. ${deletionErrors.length} tables had issues.`);
+		throw new Error(
+			`Failed to completely reset UAT data. ${deletionErrors.length} tables had issues.`
+		);
 	}
 
 	console.log('✅ Reset complete - all UAT data cleared and verified');
@@ -2844,7 +2907,7 @@ async function seedUATData() {
 
 		// Follow proper Bible Bee business workflow:
 		// Registration Cycle → Bible Bee Year → Competition Year → Divisions → Grade Rules → Scriptures → Essay Prompts
-		
+
 		// Step 1: Bible Bee Year (includes registration cycle creation)
 		const bibleBeeYearId = await createBibleBeeYear();
 
@@ -2876,21 +2939,31 @@ async function seedUATData() {
 		await recalculateMinimumBoundaries(bibleBeeYearId);
 
 		console.log('🎉 UAT seeding completed successfully!');
-		
+
 		// Display actual counts and verification query
 		displaySeedingSummary();
-		
+
 		console.log('📊 Summary:');
 		console.log('- Active registration cycle for the next 6 months');
 		console.log('- 20 ministries with 5 ministry leaders assigned');
-		console.log('- Bible Bee year 2025-2026 with 3 divisions: Primary, Junior, Senior');
+		console.log(
+			'- Bible Bee year 2025-2026 with 3 divisions: Primary, Junior, Senior'
+		);
 		console.log('- Registration cycle properly linked to Bible Bee year');
-		console.log('- Grade rules for scripture memorization and Senior division essay');
-		console.log('- Scriptures loaded from data files with NIV, KJV, and NIV-Spanish texts');
+		console.log(
+			'- Grade rules for scripture memorization and Senior division essay'
+		);
+		console.log(
+			'- Scriptures loaded from data files with NIV, KJV, and NIV-Spanish texts'
+		);
 		console.log('- Essay prompt created for Senior division');
 		console.log('- 3 households with guardians and children');
-		console.log('- 10 children enrolled in Bible Bee ministry ready for division assignment');
-		console.log('- 3 household registrations with 5+ ministries per child (linked to active cycle)');
+		console.log(
+			'- 10 children enrolled in Bible Bee ministry ready for division assignment'
+		);
+		console.log(
+			'- 3 household registrations with 5+ ministries per child (linked to active cycle)'
+		);
 		console.log('- Ministry enrollments for children');
 	} catch (error) {
 		console.error('❌ Seeding failed:', error.message);

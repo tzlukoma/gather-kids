@@ -39,6 +39,13 @@ export function BibleBeeProgressList({
 	description,
 	showYearSelection = true,
 }: BibleBeeProgressListProps) {
+	// Helpers
+	function isActiveValue(v: unknown): boolean {
+		return v === true || v === 1 || String(v) === '1' || String(v) === 'true';
+	}
+	function getValue(v: unknown): string {
+		return typeof v === 'string' ? v : String(v ?? '');
+	}
 	const STORAGE_KEY = 'bb_progress_filters_v1';
 	const [rows, setRows] = useState<any[] | null>(null);
 	const [availableGradeGroups, setAvailableGradeGroups] = useState<string[]>(
@@ -89,11 +96,10 @@ export function BibleBeeProgressList({
 			const defaultYear = String(competitionYears[0].year);
 			// default to the most recent competition year only if not set by storage
 			if (!initial?.selectedCycle && !initialCycle) {
-				setSelectedCycle(defaultYear);
+				setSelectedCycle(String(defaultYear ?? ''));
 			}
 		}
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [competitionYears]);
+	}, [competitionYears, initial, initialCycle]);
 
 	// Prefer an active new-schema Bible Bee year when present (only if no
 	// selection was pre-populated via storage or props).
@@ -102,16 +108,15 @@ export function BibleBeeProgressList({
 			if (!initial?.selectedCycle && !initialCycle) {
 				// only default to a bible-bee-year when one is explicitly marked active
 				const active = bibleBeeYears.find((y: any) => {
-					const val: any = y?.is_active;
-					return val === true || val === 1 || String(val) === '1';
+					const val = y?.is_active;
+					return val === true || val === 1 || String(val) === '1' || String(val) === 'true';
 				});
 				if (active && active.id) {
 					setSelectedCycle(String(active.id));
 				}
 			}
 		}
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [bibleBeeYears]);
+	}, [bibleBeeYears, initial, initialCycle]);
 
 	useEffect(() => {
 		let mounted = true;
@@ -140,7 +145,7 @@ export function BibleBeeProgressList({
 						filteredRes.map((r: any) => r.child?.household_id).filter(Boolean)
 					)
 				);
-				let guardianMap = new Map<string, any>();
+				const guardianMap = new Map<string, any>();
 				if (householdIds.length > 0) {
 					const guardians = await db.guardians
 						.where('household_id')
@@ -185,7 +190,7 @@ export function BibleBeeProgressList({
 		return () => {
 			mounted = false;
 		};
-	}, [selectedCycle, filterChildIds]);
+	}, [selectedCycle, filterChildIds, bibleBeeYears, filterGradeGroup]);
 
 	// Resolve a friendly label for the selected cycle when bibleBeeYears
 	// isn't yet available (prevents showing UUID on first load).
@@ -199,7 +204,7 @@ export function BibleBeeProgressList({
 				(y: any) => String(y.id) === String(selectedCycle)
 			);
 			if (bbFromLive) {
-				if (mounted) setDisplayCycleLabel(bbFromLive.label);
+				if (mounted) setDisplayCycleLabel(bbFromLive.label ?? null);
 				return;
 			}
 			// Otherwise try a DB lookup (async) to resolve label for UUIDs
@@ -332,7 +337,9 @@ export function BibleBeeProgressList({
 							<div className="w-56">
 								<Select
 									value={filterGradeGroup}
-									onValueChange={(v: any) => setFilterGradeGroup(v as any)}>
+									onValueChange={(v: unknown) =>
+										setFilterGradeGroup(getValue(v) as unknown as string)
+									}>
 									<SelectTrigger>
 										<SelectValue>
 											{filterGradeGroup === 'all'
@@ -354,7 +361,15 @@ export function BibleBeeProgressList({
 							<div className="w-48">
 								<Select
 									value={sortBy}
-									onValueChange={(v: any) => setSortBy(v as any)}>
+									onValueChange={(v: unknown) =>
+										setSortBy(
+											getValue(v) as unknown as
+												| 'name-asc'
+												| 'name-desc'
+												| 'progress-desc'
+												| 'progress-asc'
+										)
+									}>
 									<SelectTrigger>
 										<SelectValue>
 											{sortBy === 'name-asc' && 'Name (A → Z)'}
@@ -439,12 +454,8 @@ export function BibleBeeProgressList({
 				);
 				let isPrior = false;
 				if (bb) {
-					const val: any = (bb as any)?.is_active;
-					const bbActive =
-						val === true ||
-						val === 1 ||
-						String(val) === '1' ||
-						String(val) === 'true';
+					const val = bb?.is_active;
+					const bbActive = isActiveValue(val);
 					isPrior = !bbActive;
 				} else {
 					isPrior = latestYearStr !== String(selectedCycle);

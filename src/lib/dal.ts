@@ -18,7 +18,22 @@ import { getApplicableGradeRule } from './bibleBee';
 import { gradeToCode } from './gradeUtils';
 import { AuthRole } from './auth-types';
 import { isDemo } from './featureFlags';
-import type { Attendance, Child, Guardian, Household, Incident, IncidentSeverity, Ministry, MinistryEnrollment, Registration, User, EmergencyContact, LeaderAssignment, LeaderProfile, MinistryLeaderMembership, MinistryAccount, BrandingSettings, BibleBeeYear, RegistrationCycle  } from './types';
+import type { Attendance, Child, Guardian, Household, Incident, IncidentSeverity, Ministry, MinistryEnrollment, Registration, User, EmergencyContact, LeaderAssignment, LeaderProfile, MinistryLeaderMembership, MinistryAccount, BrandingSettings, BibleBeeYear, RegistrationCycle, Scripture, CompetitionYear, CustomQuestion } from './types';
+
+// Leader view result for Bible Bee progress summaries (used by multiple helpers)
+type LeaderBibleBeeResult = {
+    childId: string;
+    childName: string;
+    totalScriptures: number;
+    completedScriptures: number;
+    requiredScriptures: number;
+    bibleBeeStatus: 'Not Started' | 'In-Progress' | 'Complete';
+    gradeGroup: string | null;
+    essayStatus: string;
+    ministries: unknown[];
+    primaryGuardian: Guardian | null;
+    child: Child;
+};
 import { differenceInYears, isAfter, isBefore, parseISO, isValid } from 'date-fns';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -29,7 +44,38 @@ export { dbAdapter };
 
 // Utility to determine if we should use the adapter interface for write operations
 function shouldUseAdapter(): boolean {
-    return !isDemo(); // Use adapter (Supabase) when not in demo mode
+    const isDemoMode = isDemo();
+    console.log('shouldUseAdapter: Checking database mode', { 
+        isDemoMode, 
+        useAdapter: !isDemoMode,
+        databaseMode: process.env.NEXT_PUBLIC_DATABASE_MODE || 'not set'
+    });
+    return !isDemoMode; // Use adapter (Supabase) when not in demo mode
+}
+
+// Small helper to coerce various DB representations of "active" into a boolean.
+function isActiveValue(v: unknown): boolean {
+    return v === true || v === 1 || String(v) === '1' || String(v) === 'true';
+}
+
+// Extract a user id from common shapes used across codepaths (supabase user, legacy user objects)
+function extractUserId(user: unknown): string | undefined {
+    const u = user as unknown as Record<string, unknown> | undefined;
+    return (u?.uid as string | undefined) || (u?.id as string | undefined) || (u?.user_id as string | undefined);
+}
+
+// Type guard to detect a user object with metadata.role === AuthRole.MINISTRY_LEADER
+function isMinistryLeaderUser(user: unknown): boolean {
+    if (!user || typeof user !== 'object') return false;
+    const u = user as Record<string, unknown>;
+    const meta = u?.metadata as Record<string, unknown> | undefined;
+    return (meta?.role as unknown) === AuthRole.MINISTRY_LEADER;
+}
+
+// Wrapper to call the Dexie transaction API when multiple table args are used.
+function runDexieTransaction(...args: unknown[]) {
+    // Narrow the transaction API cast to avoid `any` leaking into the codebase.
+    return (db as unknown as { transaction: (...innerArgs: unknown[]) => unknown }).transaction(...args);
 }
 
 // Utility Functions
@@ -190,7 +236,7 @@ export async function queryHouseholdList(leaderMinistryIds?: string[], ministryI
     }));
 }
 
-type EnrichedEnrollment = MinistryEnrollment & { ministryName?: string; customQuestions?: any[] };
+type EnrichedEnrollment = MinistryEnrollment & { ministryName?: string; customQuestions?: CustomQuestion[] };
 export interface HouseholdProfileData {
     household: Household | null;
     guardians: Guardian[];
@@ -199,49 +245,105 @@ export interface HouseholdProfileData {
 }
 
 export async function getHouseholdProfile(householdId: string): Promise<HouseholdProfileData> {
-    const household = await db.households.get(householdId) ?? null;
-    const guardians = await db.guardians.where({ household_id: householdId }).toArray();
-    const emergencyContact = await db.emergency_contacts.where({ household_id: householdId }).first() ?? null;
-    const children = await db.children.where({ household_id: householdId }).toArray(); // Fetch all, including inactive
+    if (shouldUseAdapter()) {
+        // Use Supabase adapter for live mode
+        const household = await dbAdapter.getHousehold(householdId);
+        const guardians = await dbAdapter.listGuardians(householdId);
+        const emergencyContacts = await dbAdapter.listEmergencyContacts(householdId);
+        const emergencyContact = emergencyContacts[0] || null;
+        const children = await dbAdapter.listChildren({ householdId });
+        
+        const childIds = children.map(c => c.child_id);
+        console.log('DEBUG: getHouseholdProfile - childIds:', childIds);
+        const allEnrollments = await dbAdapter.listMinistryEnrollments();
+        console.log('DEBUG: getHouseholdProfile - allEnrollments:', allEnrollments);
+        const childEnrollments = allEnrollments.filter(e => childIds.includes(e.child_id));
+        console.log('DEBUG: getHouseholdProfile - childEnrollments:', childEnrollments);
+        console.log('DEBUG: getHouseholdProfile - enrollment child IDs:', allEnrollments.map(e => e.child_id));
+        console.log('DEBUG: getHouseholdProfile - searching for child IDs:', childIds);
+        const allMinistries = await dbAdapter.listMinistries();
+        console.log('DEBUG: getHouseholdProfile - allMinistries count:', allMinistries.length);
+        const ministryMap = new Map(allMinistries.map(m => [m.ministry_id, m]));
 
-    const childIds = children.map(c => c.child_id);
-    const allEnrollments = await db.ministry_enrollments.where('child_id').anyOf(childIds).toArray();
-    const allMinistries = await db.ministries.toArray();
-    const ministryMap = new Map(allMinistries.map(m => [m.ministry_id, m]));
+        const childrenWithEnrollments = children.map(child => {
+            const enrollmentsByCycle = childEnrollments
+                .filter(e => e.child_id === child.child_id)
+                .reduce((acc, e) => {
+                    const ministry = ministryMap.get(e.ministry_id);
+                    if (!ministry) return acc;
 
-    const childrenWithEnrollments = children.map(child => {
-        const enrollmentsByCycle = allEnrollments
-            .filter(e => e.child_id === child.child_id)
-            .reduce((acc, e) => {
-                const ministry = ministryMap.get(e.ministry_id);
-                if (!ministry) return acc;
+                    const enrichedEnrollment: EnrichedEnrollment = {
+                        ...e,
+                        ministryName: ministry.name,
+                        customQuestions: ministry.custom_questions
+                    };
 
-                const enrichedEnrollment: EnrichedEnrollment = {
-                    ...e,
-                    ministryName: ministry.name,
-                    customQuestions: ministry.custom_questions
-                };
+                    if (!acc[e.cycle_id]) {
+                        acc[e.cycle_id] = [];
+                    }
+                    acc[e.cycle_id].push(enrichedEnrollment);
+                    return acc;
+                }, {} as Record<string, EnrichedEnrollment[]>);
 
-                if (!acc[e.cycle_id]) {
-                    acc[e.cycle_id] = [];
-                }
-                acc[e.cycle_id].push(enrichedEnrollment);
-                return acc;
-            }, {} as Record<string, EnrichedEnrollment[]>);
+            return {
+                ...child,
+                age: child.dob ? ageOn(new Date().toISOString(), child.dob) : null,
+                enrollmentsByCycle: enrollmentsByCycle,
+            };
+        });
 
         return {
-            ...child,
-            age: child.dob ? ageOn(new Date().toISOString(), child.dob) : null,
-            enrollmentsByCycle: enrollmentsByCycle,
+            household,
+            guardians,
+            emergencyContact,
+            children: childrenWithEnrollments,
         };
-    });
+    } else {
+        // Use legacy Dexie interface for demo mode
+        const household = await db.households.get(householdId) ?? null;
+        const guardians = await db.guardians.where({ household_id: householdId }).toArray();
+        const emergencyContact = await db.emergency_contacts.where({ household_id: householdId }).first() ?? null;
+        const children = await db.children.where({ household_id: householdId }).toArray(); // Fetch all, including inactive
 
-    return {
-        household,
-        guardians,
-        emergencyContact,
-        children: childrenWithEnrollments,
-    };
+        const childIds = children.map(c => c.child_id);
+        const allEnrollments = await db.ministry_enrollments.where('child_id').anyOf(childIds).toArray();
+        const allMinistries = await db.ministries.toArray();
+        const ministryMap = new Map(allMinistries.map(m => [m.ministry_id, m]));
+
+        const childrenWithEnrollments = children.map(child => {
+            const enrollmentsByCycle = allEnrollments
+                .filter(e => e.child_id === child.child_id)
+                .reduce((acc, e) => {
+                    const ministry = ministryMap.get(e.ministry_id);
+                    if (!ministry) return acc;
+
+                    const enrichedEnrollment: EnrichedEnrollment = {
+                        ...e,
+                        ministryName: ministry.name,
+                        customQuestions: ministry.custom_questions
+                    };
+
+                    if (!acc[e.cycle_id]) {
+                        acc[e.cycle_id] = [];
+                    }
+                    acc[e.cycle_id].push(enrichedEnrollment);
+                    return acc;
+                }, {} as Record<string, EnrichedEnrollment[]>);
+
+            return {
+                ...child,
+                age: child.dob ? ageOn(new Date().toISOString(), child.dob) : null,
+                enrollmentsByCycle: enrollmentsByCycle,
+            };
+        });
+
+        return {
+            household,
+            guardians,
+            emergencyContact,
+            children: childrenWithEnrollments,
+        };
+    }
 }
 
 
@@ -370,56 +472,73 @@ export async function logIncident(data: { child_id: string, child_name: string, 
 }
 
 const fetchFullHouseholdData = async (householdId: string, cycleId: string) => {
-    const household = await db.households.get(householdId);
-    const guardians = await db.guardians.where({ household_id: householdId }).toArray();
-    const emergencyContact = await db.emergency_contacts.where({ household_id: householdId }).first();
-    const children = await db.children.where({ household_id: householdId }).and(c => c.is_active).toArray();
-    const childIds = children.map(c => c.child_id);
-    const enrollments = await db.ministry_enrollments.where('child_id').anyOf(childIds).and(e => e.cycle_id === cycleId).toArray();
-    const allMinistries = await db.ministries.toArray();
-    const ministryMap = new Map(allMinistries.map(m => [m.ministry_id, m]));
+    if (shouldUseAdapter()) {
+        // Use Supabase adapter for live mode
+        return await fetchFullHouseholdDataFromAdapter(householdId, cycleId);
+    } else {
+        // Use legacy Dexie interface for demo mode
+        const household = await db.households.get(householdId);
+        const guardians = await db.guardians.where({ household_id: householdId }).toArray();
+        const emergencyContact = await db.emergency_contacts.where({ household_id: householdId }).first();
+        const children = await db.children.where({ household_id: householdId }).and(c => c.is_active).toArray();
+        const childIds = children.map(c => c.child_id);
+        const enrollments = await db.ministry_enrollments.where('child_id').anyOf(childIds).and(e => e.cycle_id === cycleId).toArray();
+        const allMinistries = await db.ministries.toArray();
+        const ministryMap = new Map(allMinistries.map(m => [m.ministry_id, m]));
 
-    const childrenWithSelections = children.map(child => {
-        const childEnrollments = enrollments.filter(e => e.child_id === child.child_id);
-        const ministrySelections: { [key: string]: boolean | undefined } = {};
-        const interestSelections: { [key: string]: boolean | undefined } = {};
-        let customData: any = {};
+        const childrenWithSelections = children.map(child => {
+            const childEnrollments = enrollments.filter(e => e.child_id === child.child_id);
+            const ministrySelections: { [key: string]: boolean | undefined } = {};
+            const interestSelections: { [key: string]: boolean | undefined } = {};
+        let customData: Record<string, unknown> = {};
 
-        childEnrollments.forEach(enrollment => {
-            const ministry = ministryMap.get(enrollment.ministry_id);
-            if (!ministry) return;
+            childEnrollments.forEach(enrollment => {
+                const ministry = ministryMap.get(enrollment.ministry_id);
+                if (!ministry) return;
 
-            if (enrollment.status === 'enrolled') {
-                ministrySelections[ministry.code] = true;
-                if (enrollment.custom_fields) {
-                    customData = { ...customData, ...enrollment.custom_fields };
+                if (enrollment.status === 'enrolled') {
+                    ministrySelections[ministry.code] = true;
+                    if (enrollment.custom_fields) {
+                        customData = { ...customData, ...enrollment.custom_fields };
+                    }
+                } else if (enrollment.status === 'expressed_interest') {
+                    interestSelections[ministry.code] = true;
                 }
-            } else if (enrollment.status === 'expressed_interest') {
-                interestSelections[ministry.code] = true;
-            }
+            });
+
+            return { ...child, ministrySelections, interestSelections, customData };
         });
 
-        return { ...child, ministrySelections, interestSelections, customData };
-    });
-
-    return {
-        household,
-        guardians,
-        emergencyContact,
-        children: childrenWithSelections,
-        consents: { liability: true, photoRelease: true } // Assume consents were given
-    };
+        return {
+            household,
+            guardians,
+            emergencyContact,
+            children: childrenWithSelections,
+            consents: { liability: true, photoRelease: true } // Assume consents were given
+        };
+    }
 };
 
 
 // Find existing household and registration data by email
 export async function findHouseholdByEmail(email: string, currentCycleId: string) {
+    console.log('findHouseholdByEmail: Starting search', { email, currentCycleId });
+    
     if (shouldUseAdapter()) {
         // Use Supabase adapter for live mode
         try {
+            console.log('findHouseholdByEmail: Using Supabase adapter to search for guardians');
             // Find guardian by email
-            const guardians = await dbAdapter.listGuardians(''); // This would need to be enhanced to search by email
+            const guardians = await dbAdapter.listGuardians(''); // Empty string means get all guardians
+            console.log(`findHouseholdByEmail: Found ${guardians.length} guardians total`);
+            
             const guardian = guardians.find(g => g.email && g.email.toLowerCase() === email.toLowerCase());
+            console.log('findHouseholdByEmail: Guardian search result', { 
+                found: !!guardian,
+                guardianId: guardian?.guardian_id,
+                householdId: guardian?.household_id 
+            });
+            
             if (!guardian) return null;
 
             const householdId = guardian.household_id;
@@ -521,7 +640,7 @@ async function fetchFullHouseholdDataFromAdapter(householdId: string, cycleId: s
         const childEnrollments = enrollments.filter(e => e.child_id === child.child_id);
         const ministrySelections: { [key: string]: boolean | undefined } = {};
         const interestSelections: { [key: string]: boolean | undefined } = {};
-        let customData: any = {};
+        let customData: Record<string, unknown> = {};
 
         childEnrollments.forEach(enrollment => {
             const ministry = ministryMap.get(enrollment.ministry_id);
@@ -552,22 +671,46 @@ async function fetchFullHouseholdDataFromAdapter(householdId: string, cycleId: s
 
 export async function getHouseholdForUser(authUserId: string): Promise<string | null> {
     try {
-        const userHousehold = await db.user_households
-            .where('auth_user_id')
-            .equals(authUserId)
-            .first();
-        
-        return userHousehold?.household_id || null;
+        if (shouldUseAdapter()) {
+            // Use Supabase adapter for live mode
+            console.log('DAL.getHouseholdForUser: Using Supabase adapter');
+            return await dbAdapter.getHouseholdForUser(authUserId);
+        } else {
+            // Use legacy Dexie interface for demo mode
+            console.log('DAL.getHouseholdForUser: Using Dexie interface for demo mode');
+            const userHousehold = await db.user_households
+                .where('auth_user_id')
+                .equals(authUserId)
+                .first();
+            
+            return userHousehold?.household_id || null;
+        }
     } catch (error) {
-        console.warn('Could not get household for user (likely demo mode):', error);
+        console.warn('Could not get household for user:', error);
         return null;
     }
 }
 
 // Registration Logic
-export async function registerHousehold(data: any, cycle_id: string, isPrefill: boolean) {
-    const householdId = data.household.household_id || uuidv4();
-    const isUpdate = !!data.household.household_id;
+    export async function registerHousehold(data: unknown, cycle_id: string, isPrefill: boolean) {
+    // Local narrowed payload type for legacy registration shapes
+    type RegistrationPayload = {
+        household?: Partial<Household>;
+        guardians?: Array<Partial<Guardian>>;
+        emergencyContact?: Partial<EmergencyContact>;
+        children?: Array<Partial<Child> & {
+            ministrySelections?: Record<string, boolean>;
+            interestSelections?: Record<string, boolean>;
+            customData?: Record<string, unknown>;
+        }>;
+        consents?: { liability?: boolean; photoRelease?: boolean };
+    };
+
+    // Narrow legacy `data` to a workable shape for this handler
+    const input = data as RegistrationPayload;
+
+    const householdId = input.household?.household_id || uuidv4();
+    const isUpdate = !!input.household?.household_id;
     const now = new Date().toISOString();
 
     if (shouldUseAdapter()) {
@@ -576,9 +719,9 @@ export async function registerHousehold(data: any, cycle_id: string, isPrefill: 
             // Handle household
             const household = {
                 household_id: householdId,
-                name: data.household.name || `${data.guardians[0].last_name} Household`,
-                address_line1: data.household.address_line1,
-                preferredScriptureTranslation: data.household.preferredScriptureTranslation,
+                name: input.household?.name || `${(input.guardians && (input.guardians[0] as Partial<Guardian>)?.last_name) || 'Household'} Household`,
+                address_line1: input.household?.address_line1,
+                preferredScriptureTranslation: input.household?.preferredScriptureTranslation, // Keep camelCase for adapter interface
             };
 
             if (isUpdate) {
@@ -598,24 +741,40 @@ export async function registerHousehold(data: any, cycle_id: string, isPrefill: 
 
             // Create guardians and store their IDs for later reference
             const createdGuardians: Guardian[] = [];
-            for (const guardianData of data.guardians) {
-                const createdGuardian = await dbAdapter.createGuardian({
+            for (const guardianData of (input.guardians || [])) {
+                const gp = guardianData as Partial<Guardian>;
+                const guardianPayload: Omit<Guardian, 'guardian_id' | 'created_at' | 'updated_at'> = {
                     household_id: householdId,
-                    ...guardianData,
-                });
+                    first_name: gp.first_name || '',
+                    last_name: gp.last_name || '',
+                    mobile_phone: gp.mobile_phone || '',
+                    email: gp.email || '',
+                    relationship: gp.relationship || '',
+                    is_primary: gp.is_primary ?? false,
+                };
+                const createdGuardian = await dbAdapter.createGuardian(guardianPayload);
                 createdGuardians.push(createdGuardian);
             }
 
             // Create emergency contact
-            await dbAdapter.createEmergencyContact({
-                household_id: householdId,
-                ...data.emergencyContact,
-            });
+            const emergencyPartial = input.emergencyContact as Partial<EmergencyContact> | undefined;
+            if (emergencyPartial) {
+                const emergencyPayload: Omit<EmergencyContact, 'contact_id' | 'created_at' | 'updated_at'> = {
+                    household_id: householdId,
+                    first_name: emergencyPartial.first_name || '',
+                    last_name: emergencyPartial.last_name || '',
+                    mobile_phone: emergencyPartial.mobile_phone || '',
+                    relationship: emergencyPartial.relationship || '',
+                };
+                await dbAdapter.createEmergencyContact(emergencyPayload);
+            }
 
             // Handle children and enrollments
-            for (const [index, childData] of data.children.entries()) {
-                const { ministrySelections, interestSelections, customData, ...childCore } = childData;
-                const childId = childCore.child_id || uuidv4();
+            for (const [index, childData] of (input.children || []).entries()) {
+                        type IncomingChild = Partial<Child> & { ministrySelections?: Record<string, boolean>; interestSelections?: Record<string, boolean>; customData?: Record<string, unknown> };
+                        const childDataAny = childData as IncomingChild;
+                        const { ministrySelections, interestSelections, customData, ...childCore } = childDataAny;
+                const childId = (childCore as Partial<Child>).child_id || uuidv4();
 
                 const child = {
                     ...childCore,
@@ -627,7 +786,8 @@ export async function registerHousehold(data: any, cycle_id: string, isPrefill: 
                 if (childCore.child_id) {
                     await dbAdapter.updateChild(childId, child);
                 } else {
-                    await dbAdapter.createChild(child);
+                    // createChild requires the full create payload; cast from our partial
+                    await dbAdapter.createChild(child as unknown as Omit<Child, 'child_id' | 'created_at' | 'updated_at'>);
                 }
 
                 // Delete existing enrollments for this cycle if updating
@@ -651,8 +811,8 @@ export async function registerHousehold(data: any, cycle_id: string, isPrefill: 
                     status: 'active',
                     pre_registered_sunday_school: true,
                     consents: [
-                        { type: 'liability', accepted_at: data.consents.liability ? now : null, signer_id: primaryGuardian.guardian_id, signer_name: `${primaryGuardian.first_name} ${primaryGuardian.last_name}` },
-                        { type: 'photoRelease', accepted_at: data.consents.photoRelease ? now : null, signer_id: primaryGuardian.guardian_id, signer_name: `${primaryGuardian.first_name} ${primaryGuardian.last_name}` }
+                        { type: 'liability', accepted_at: input.consents?.liability ? now : null, signer_id: primaryGuardian.guardian_id, signer_name: `${primaryGuardian.first_name} ${primaryGuardian.last_name}` },
+                        { type: 'photoRelease', accepted_at: input.consents?.photoRelease ? now : null, signer_id: primaryGuardian.guardian_id, signer_name: `${primaryGuardian.first_name} ${primaryGuardian.last_name}` }
                     ],
                     submitted_at: now,
                     submitted_via: 'web',
@@ -667,7 +827,7 @@ export async function registerHousehold(data: any, cycle_id: string, isPrefill: 
                 });
 
                 // Handle ministry and interest selections
-                const allSelections = { ...(childData.ministrySelections || {}), ...(childData.interestSelections || {}) };
+                const allSelections = { ...(childDataAny.ministrySelections || {}), ...(childDataAny.interestSelections || {}) };
                 const allMinistries = await dbAdapter.listMinistries();
                 const ministryMap = new Map(allMinistries.map(m => [m.code, m]));
 
@@ -683,11 +843,11 @@ export async function registerHousehold(data: any, cycle_id: string, isPrefill: 
                                 continue;
                             }
 
-                            const custom_fields: { [key: string]: any } = {};
-                            if (childData.customData && ministry.custom_questions) {
+                            const custom_fields: { [key: string]: unknown } = {};
+                            if (childDataAny.customData && ministry.custom_questions) {
                                 for (const q of ministry.custom_questions) {
-                                    if (childData.customData[q.id] !== undefined) {
-                                        custom_fields[q.id] = childData.customData[q.id];
+                                    if (childDataAny.customData[q.id] !== undefined) {
+                                        (custom_fields as Record<string, unknown>)[q.id] = childDataAny.customData[q.id] as unknown;
                                     }
                                 }
                             }
@@ -739,7 +899,7 @@ export async function registerHousehold(data: any, cycle_id: string, isPrefill: 
         });
     } else {
         // Use legacy Dexie interface for demo mode
-        await (db as any).transaction('rw', db.households, db.guardians, db.emergency_contacts, db.children, db.registrations, db.ministry_enrollments, db.ministries, async () => {
+    await runDexieTransaction('rw', db.households, db.guardians, db.emergency_contacts, db.children, db.registrations, db.ministry_enrollments, db.ministries, async () => {
 
         // This block handles overwriting an existing registration for the *current* cycle.
         // It should NOT run for a pre-fill from a previous year.
@@ -757,48 +917,64 @@ export async function registerHousehold(data: any, cycle_id: string, isPrefill: 
             await db.emergency_contacts.where({ household_id: householdId }).delete();
         }
 
-        const household: Household = {
+            const guardianLastName = (input.guardians && (input.guardians[0] as Partial<Guardian>)?.last_name) || 'Household';
+            const household: Household = {
             household_id: householdId,
-            name: data.household.name || `${data.guardians[0].last_name} Household`,
-            address_line1: data.household.address_line1,
-            preferredScriptureTranslation: data.household.preferredScriptureTranslation,
+            name: input.household?.name || `${guardianLastName} Household`,
+            address_line1: input.household?.address_line1,
+            preferredScriptureTranslation: input.household?.preferredScriptureTranslation,
             created_at: isUpdate ? (await db.households.get(householdId))!.created_at : now,
             updated_at: now,
         };
         await db.households.put(household);
 
-        const guardians: Guardian[] = data.guardians.map((g: any) => ({
-            guardian_id: uuidv4(),
-            household_id: householdId,
-            ...g,
-            created_at: now,
-            updated_at: now,
-        }));
+    const guardians: Guardian[] = (input.guardians as unknown[] || []).map((g: unknown) => {
+            const partial = g as Partial<Guardian>;
+            const first_name = partial.first_name || '';
+            const last_name = partial.last_name || '';
+            return {
+                guardian_id: uuidv4(),
+                household_id: householdId,
+                first_name,
+                last_name,
+                mobile_phone: partial.mobile_phone,
+                email: partial.email,
+                relationship: partial.relationship,
+                is_primary: partial.is_primary ?? false,
+                created_at: now,
+                updated_at: now,
+            } as Guardian;
+        });
         await db.guardians.bulkAdd(guardians);
 
+        const ecPartial = (input.emergencyContact as Partial<EmergencyContact>) || {};
         const emergencyContact: EmergencyContact = {
             contact_id: uuidv4(),
             household_id: householdId,
-            ...data.emergencyContact
-        };
+            first_name: ecPartial.first_name || '',
+            last_name: ecPartial.last_name || '',
+            mobile_phone: ecPartial.mobile_phone,
+            relationship: ecPartial.relationship,
+        } as EmergencyContact;
         await db.emergency_contacts.add(emergencyContact);
 
         const existingChildren = isUpdate ? await db.children.where({ household_id: householdId }).toArray() : [];
-        const incomingChildIds = data.children.map((c: any) => c.child_id).filter(Boolean);
+    const incomingChildIds = (input.children || []).map((c: unknown) => ((c as Partial<Child>)?.child_id)).filter(Boolean);
 
-        const childrenToUpsert: Child[] = data.children.map((c: any) => {
-            const { ministrySelections, interestSelections, customData, ...childCore } = c;
+            const childrenToUpsert: Array<Partial<Child>> = (input.children || []).map((c: unknown) => {
+            const cPartial = c as Partial<Child> & { ministrySelections?: Record<string, boolean>; interestSelections?: Record<string, boolean>; customData?: Record<string, unknown> };
+            const { ministrySelections, interestSelections, customData, ...childCore } = cPartial;
             const existingChild = childCore.child_id ? existingChildren.find(ec => ec.child_id === childCore.child_id) : undefined;
             return {
-                ...childCore,
-                child_id: childCore.child_id || uuidv4(),
+                ...(childCore as Partial<Child>),
+                child_id: (childCore as Partial<Child>).child_id || uuidv4(),
                 household_id: householdId,
                 is_active: true, // All children submitted are considered active for this registration
                 created_at: existingChild?.created_at || now,
                 updated_at: now,
             }
-        });
-        await db.children.bulkPut(childrenToUpsert);
+    });
+    await db.children.bulkPut(childrenToUpsert as Child[]);
 
         // Deactivate children who were in the household but removed from the form on an update
         if (isUpdate) {
@@ -813,17 +989,19 @@ export async function registerHousehold(data: any, cycle_id: string, isPrefill: 
 
         // Re-create registrations and enrollments for the current cycle
         for (const [index, child] of childrenToUpsert.entries()) {
-            const childData = data.children[index];
+            const childData = (input.children || [])[index] as Partial<Child> & { ministrySelections?: Record<string, boolean>; interestSelections?: Record<string, boolean>; customData?: Record<string, unknown> };
 
-            const registration: Registration = {
+            const childId = child.child_id || uuidv4();
+
+                const registration: Registration = {
                 registration_id: uuidv4(),
-                child_id: child.child_id,
+                child_id: childId,
                 cycle_id: cycle_id,
                 status: 'active',
                 pre_registered_sunday_school: true,
-                consents: [
-                    { type: 'liability', accepted_at: data.consents.liability ? now : null, signer_id: guardians[0].guardian_id, signer_name: `${guardians[0].first_name} ${guardians[0].last_name}` },
-                    { type: 'photoRelease', accepted_at: data.consents.photoRelease ? now : null, signer_id: guardians[0].guardian_id, signer_name: `${guardians[0].first_name} ${guardians[0].last_name}` }
+                    consents: [
+                    { type: 'liability', accepted_at: input.consents?.liability ? now : null, signer_id: guardians[0].guardian_id, signer_name: `${guardians[0].first_name} ${guardians[0].last_name}` },
+                    { type: 'photoRelease', accepted_at: input.consents?.photoRelease ? now : null, signer_id: guardians[0].guardian_id, signer_name: `${guardians[0].first_name} ${guardians[0].last_name}` }
                 ],
                 submitted_at: now,
                 submitted_via: 'web',
@@ -833,7 +1011,7 @@ export async function registerHousehold(data: any, cycle_id: string, isPrefill: 
             // Auto-enroll in Sunday School
             const sundaySchoolEnrollment: MinistryEnrollment = {
                 enrollment_id: uuidv4(),
-                child_id: child.child_id,
+                child_id: childId,
                 cycle_id: cycle_id,
                 ministry_id: "min_sunday_school",
                 status: 'enrolled',
@@ -856,18 +1034,18 @@ export async function registerHousehold(data: any, cycle_id: string, isPrefill: 
                             continue;
                         }
 
-                        const custom_fields: { [key: string]: any } = {};
+                        const custom_fields: { [key: string]: unknown } = {};
                         if (childData.customData && ministry.custom_questions) {
                             for (const q of ministry.custom_questions) {
-                                if (childData.customData[q.id] !== undefined) {
-                                    custom_fields[q.id] = childData.customData[q.id];
+                                if ((childData.customData as Record<string, unknown>)[q.id] !== undefined) {
+                                    (custom_fields as Record<string, unknown>)[q.id] = (childData.customData as Record<string, unknown>)[q.id];
                                 }
                             }
                         }
 
-                        const enrollment: MinistryEnrollment = {
+                            const enrollment: MinistryEnrollment = {
                             enrollment_id: uuidv4(),
-                            child_id: child.child_id,
+                            child_id: childId,
                             cycle_id: cycle_id,
                             ministry_id: ministry.ministry_id,
                             status: ministry.enrollment_type,
@@ -900,7 +1078,7 @@ export async function registerHousehold(data: any, cycle_id: string, isPrefill: 
                                     if (appropriateDivision) {
                                         const bibleBeeEnrollment = {
                                             id: uuidv4(),
-                                            child_id: child.child_id,
+                                            child_id: childId,
                                             year_id: bibleBeeYear.id,
                                             division_id: appropriateDivision.id,
                                             auto_enrolled: false,
@@ -977,31 +1155,38 @@ export async function registerHousehold(data: any, cycle_id: string, isPrefill: 
 }
 
 // CSV Export Functions
-function convertToCSV(data: any[]): string {
+function convertToCSV(data: Record<string, unknown>[]): string {
     if (data.length === 0) return "";
     const headers = Object.keys(data[0]);
     const csvRows = [
         headers.join(','),
         ...data.map(row =>
-            headers.map(fieldName => JSON.stringify(row[fieldName] ?? '')).join(',')
+            headers.map(fieldName => JSON.stringify((row[fieldName] ?? '') as unknown)).join(',')
         )
     ];
     return csvRows.join('\r\n');
 }
 
-export async function exportRosterCSV(children: any[]): Promise<Blob> {
+export async function exportRosterCSV<T = unknown>(children: T[]): Promise<Blob> {
     const exportData = children.map(child => {
-        const primaryGuardian = child.guardians?.find((g: Guardian) => g.is_primary) || child.guardians?.[0];
+        const childRec = child as Record<string, unknown>;
+        const guardiansArr = (childRec['guardians'] as unknown) as Guardian[] | undefined;
+        const primaryGuardian = (guardiansArr?.find(g => g.is_primary) || guardiansArr?.[0]) as Guardian | undefined;
+
+        const firstName = (childRec['first_name'] ?? childRec['firstName'] ?? '') as string;
+        const lastName = (childRec['last_name'] ?? childRec['lastName'] ?? '') as string;
+        const grade = (childRec['grade'] ?? '') as string;
+        const activeAttendance = (childRec['activeAttendance'] as unknown) as { check_in_at?: string; event_id?: string } | undefined;
 
         return {
-            child_name: `${child.first_name} ${child.last_name}`,
-            grade: child.grade,
-            status: child.activeAttendance ? 'Checked In' : 'Checked Out',
-            check_in_time: child.activeAttendance?.check_in_at ? new Date(child.activeAttendance.check_in_at).toLocaleTimeString() : 'N/A',
-            event: child.activeAttendance?.event_id || 'N/A',
-            allergies: child.allergies || 'None',
-            medical_notes: child.medical_notes || 'None',
-            household: child.household?.name || 'N/A',
+            child_name: `${firstName} ${lastName}`.trim(),
+            grade,
+            status: activeAttendance ? 'Checked In' : 'Checked Out',
+            check_in_time: activeAttendance?.check_in_at ? new Date(activeAttendance.check_in_at).toLocaleTimeString() : 'N/A',
+            event: activeAttendance?.event_id || 'N/A',
+            allergies: (childRec['allergies'] ?? 'None') as string,
+            medical_notes: (childRec['medical_notes'] ?? 'None') as string,
+            household: ((childRec['household'] as unknown) as { name?: string } )?.name || 'N/A',
             primary_guardian: primaryGuardian ? `${primaryGuardian.first_name} ${primaryGuardian.last_name}` : 'N/A',
             guardian_phone: primaryGuardian ? primaryGuardian.mobile_phone : 'N/A',
             guardian_email: primaryGuardian ? primaryGuardian.email : 'N/A',
@@ -1173,46 +1358,64 @@ export async function getLeaderBibleBeeProgress(leaderId: string, cycleId: strin
     const compYear = await db.competitionYears.where('year').equals(yearNum).first();
 
     // For each child compute scripture and essay progress for the found competition year
-    const results: any[] = [];
+    type LeaderBibleBeeResult = {
+        childId: string;
+        childName: string;
+        totalScriptures: number;
+        completedScriptures: number;
+        requiredScriptures: number;
+        bibleBeeStatus: 'Not Started' | 'In-Progress' | 'Complete';
+        gradeGroup: string | null;
+        essayStatus: string;
+        ministries: unknown[];
+        primaryGuardian: Guardian | null;
+        child: Child;
+    };
+
+    const results: LeaderBibleBeeResult[] = [];
     // Build a map of childId -> ministries they are enrolled in
-    const allEnrollmentsForChildren = await db.ministry_enrollments.where('child_id').anyOf(childIds).and(e => e.cycle_id === cycleId).toArray();
+    const allEnrollmentsForChildren = await db.ministry_enrollments.where('child_id').anyOf(childIds).and((e: MinistryEnrollment) => e.cycle_id === cycleId).toArray();
     const ministryList = await db.ministries.toArray();
     const ministryMap = new Map(ministryList.map(m => [m.ministry_id, m]));
 
     // Prefetch guardians for all households to avoid per-child queries
     const householdIds = children.map(c => c.household_id).filter(Boolean);
     const allGuardians = householdIds.length ? await db.guardians.where('household_id').anyOf(householdIds).toArray() : [];
-    const guardianMap = new Map<string, any>();
+    const guardianMap = new Map<string, Guardian[]>();
     for (const g of allGuardians) {
         if (!guardianMap.has(g.household_id)) guardianMap.set(g.household_id, []);
-        guardianMap.get(g.household_id).push(g);
+        guardianMap.get(g.household_id)!.push(g);
     }
 
     for (const child of children) {
-        let scriptures: any[] = [];
-        let essays: any[] = [];
+    // StudentScripture is the legacy per-student scripture record
+    // Use unknown[] and narrow when accessing status fields
+    let scriptures: unknown[] = [];
+    let essays: Array<{ status?: string }> = [];
         if (compYear) {
-            scriptures = await db.studentScriptures.where({ childId: child.child_id, competitionYearId: compYear.id }).toArray();
-            essays = await db.studentEssays.where({ childId: child.child_id, competitionYearId: compYear.id }).toArray();
+            const compId = (compYear as { id?: string })?.id;
+            scriptures = await db.studentScriptures.where({ childId: child.child_id, competitionYearId: compId }).toArray();
+            essays = await db.studentEssays.where({ childId: child.child_id, competitionYearId: compId }).toArray();
         }
 
         const totalScriptures = scriptures.length;
-        const completedScriptures = scriptures.filter(s => s.status === 'completed').length;
-        const essayStatus = essays.length ? essays[0].status : 'none';
+        const completedScriptures = scriptures.filter((s): s is { status?: string } => typeof (s as unknown as { status?: unknown })?.status === 'string')
+            .filter(s => s.status === 'completed').length;
+        const essayStatus = essays.length ? (typeof (essays[0] as unknown as { status?: unknown })?.status === 'string' ? (essays[0] as { status?: string }).status : 'none') : 'none';
 
-        const childEnrolls = allEnrollmentsForChildren.filter(e => e.child_id === child.child_id).map(e => ({ ...e, ministryName: ministryMap.get(e.ministry_id)?.name || 'Unknown' }));
+    const childEnrolls = allEnrollmentsForChildren.filter(e => e.child_id === child.child_id).map(e => ({ ...e, ministryName: ministryMap.get(e.ministry_id)?.name || 'Unknown' }));
 
-        // Identify primary guardian from pre-fetched guardians
-        let primaryGuardian = null;
-        const guardiansForHouse = guardianMap.get(child.household_id) || [];
-        primaryGuardian = guardiansForHouse.find((g: any) => g.is_primary) || guardiansForHouse[0] || null;
+    // Identify primary guardian from pre-fetched guardians
+    let primaryGuardian: Guardian | null = null;
+    const guardiansForHouse: Guardian[] = guardianMap.get(child.household_id) || [];
+    primaryGuardian = guardiansForHouse.find((g: Guardian) => g.is_primary) || guardiansForHouse[0] || null;
 
         // Determine required/scripture target for this child's grade using grade rules
         let requiredScriptures: number | null = null;
         let gradeGroup: string | null = null;
         try {
             const gradeNum = child.grade ? gradeToCode(child.grade) : null;
-            const rule = gradeNum !== null && compYear ? await getApplicableGradeRule(compYear.id, gradeNum) : null;
+            const rule = gradeNum !== null && compYear ? await getApplicableGradeRule((compYear as { id?: string }).id || '', gradeNum) : null;
             requiredScriptures = rule?.targetCount ?? null;
             if (rule) {
                 if (rule.minGrade === rule.maxGrade) gradeGroup = `Grade ${rule.minGrade}`;
@@ -1234,7 +1437,7 @@ export async function getLeaderBibleBeeProgress(leaderId: string, cycleId: strin
             bibleBeeStatus = 'In-Progress';
         }
 
-        results.push({
+    results.push({
             childId: child.child_id,
             childName: `${child.first_name} ${child.last_name}`,
             totalScriptures,
@@ -1246,7 +1449,7 @@ export async function getLeaderBibleBeeProgress(leaderId: string, cycleId: strin
             ministries: childEnrolls,
             primaryGuardian,
             child,
-        });
+    } as LeaderBibleBeeResult);
     }
 
     // sort by child name
@@ -1264,8 +1467,8 @@ export async function getBibleBeeProgressForCycle(cycleId: string) {
     // enrollments are present, and avoids accidental mapping to the active
     // registration cycle which could show prior-year children.
     let childIds: string[] = [];
-    let children: any[] = [];
-    let compYear: any = null;
+    let children: Child[] = [];
+    let compYear: unknown | null = null;
 
     try {
         const newEnrolls = await db.enrollments.where('year_id').equals(cycleId).toArray();
@@ -1302,30 +1505,32 @@ export async function getBibleBeeProgressForCycle(cycleId: string) {
 
             // Find the competition year matching the numeric cycle year (if present)
             const yearNum = Number(cycleId);
-            compYear = await db.competitionYears.where('year').equals(yearNum).first();
+                                    compYear = (await db.competitionYears.where('year').equals(yearNum).first()) || null;
         }
     }
 
-    const results: any[] = [];
+    const results: LeaderBibleBeeResult[] = [];
     const allEnrollmentsForChildren = await db.ministry_enrollments.where('child_id').anyOf(childIds).and(e => e.cycle_id === cycleId).toArray();
     const ministryList = await db.ministries.toArray();
     const ministryMap = new Map(ministryList.map(m => [m.ministry_id, m]));
 
     for (const child of children) {
-        let scriptures: any[] = [];
-        let essays: any[] = [];
+    let scriptures: unknown[] = [];
+    let essays: { status?: string }[] = [];
         if (compYear) {
-            scriptures = await db.studentScriptures.where({ childId: child.child_id, competitionYearId: compYear.id }).toArray();
-            essays = await db.studentEssays.where({ childId: child.child_id, competitionYearId: compYear.id }).toArray();
+            const compId = (compYear as { id?: string })?.id || '';
+            scriptures = await db.studentScriptures.where({ childId: child.child_id, competitionYearId: compId }).toArray();
+            essays = await db.studentEssays.where({ childId: child.child_id, competitionYearId: compId }).toArray();
         }
 
         const totalScriptures = scriptures.length;
-        const completedScriptures = scriptures.filter(s => s.status === 'completed').length;
+    const completedScriptures = scriptures.filter((s): s is { status?: string } => typeof (s as unknown as { status?: unknown })?.status === 'string')
+            .filter(s => s.status === 'completed').length;
         
         // Check essay status - look for essay prompts assigned to the child's division
         let essayStatus = 'none';
-        if (essays.length > 0) {
-            essayStatus = essays[0].status;
+        if (essays.length > 0 && typeof (essays[0] as unknown as { status?: unknown })?.status === 'string') {
+            essayStatus = (essays[0] as { status?: string }).status ?? 'none';
         } else {
             // Check if there's an essay prompt assigned to this child's division
             try {
@@ -1345,8 +1550,8 @@ export async function getBibleBeeProgressForCycle(cycleId: string) {
             }
         }
 
-        // For new-schema enrollments, get ministries from the enrollments table
-        let childEnrolls: any[] = [];
+    // For new-schema enrollments, get ministries from the enrollments table
+    let childEnrolls: EnrichedEnrollment[] | { ministry_id: string; ministryName: string }[] = [];
         if (cycleId && (await db.bible_bee_years.get(cycleId))) {
             // New schema: Look up actual enrollments for the child in this year
             try {
@@ -1374,7 +1579,7 @@ export async function getBibleBeeProgressForCycle(cycleId: string) {
             // Fall back to legacy system
             try {
                 const gradeNum = child.grade ? gradeToCode(child.grade) : null;
-                const rule = gradeNum !== null && compYear ? await getApplicableGradeRule(compYear.id, gradeNum) : null;
+                const rule = gradeNum !== null && compYear ? await getApplicableGradeRule((compYear as { id?: string }).id || '', gradeNum) : null;
                 requiredScriptures = rule?.targetCount ?? null;
                 if (rule) {
                     if (rule.minGrade === rule.maxGrade) gradeGroup = `Grade ${rule.minGrade}`;
@@ -1436,7 +1641,7 @@ export async function saveLeaderAssignments(leaderId: string, cycleId: string, n
         });
     } else {
         // Use legacy Dexie interface for demo mode
-        return (db as any).transaction('rw', db.leader_assignments, async () => {
+    return runDexieTransaction('rw', db.leader_assignments, async () => {
             // Delete old assignments for this leader and cycle
             await db.leader_assignments.where({ leader_id: leaderId, cycle_id: cycleId }).delete();
 
@@ -1588,11 +1793,10 @@ export async function canLeaderManageBibleBee(opts: { leaderId?: string; email?:
         try {
             const bb = await db.bible_bee_years.get(selectedCycle);
             if (bb) {
-                const allCycles = await db.registration_cycles.toArray();
-                const active = allCycles.find((c: any) => {
-                    const val: any = (c as any)?.is_active;
-                    return val === true || val === 1 || String(val) === '1';
-                });
+                    const allCycles = await db.registration_cycles.toArray();
+                    const active = allCycles.find((c: unknown) => {
+                            return isActiveValue((c as unknown as Record<string, unknown>)?.is_active);
+                        });
                 if (active && active.cycle_id) effectiveCycle = active.cycle_id;
             }
         } catch (err) {
@@ -1603,19 +1807,19 @@ export async function canLeaderManageBibleBee(opts: { leaderId?: string; email?:
     // 1) Legacy leader_assignments check
     if (leaderId && effectiveCycle) {
         const assignments = await db.leader_assignments.where({ leader_id: leaderId, cycle_id: effectiveCycle }).toArray();
-        if (assignments.some((a: any) => (a as any).ministry_id === 'bible-bee' && (a as any).role === 'Primary')) return true;
+    if (assignments.some((a: LeaderAssignment) => a.ministry_id === 'bible-bee' && a.role === 'Primary')) return true;
     }
 
     // 2) New management system: ministry_leader_memberships
     if (leaderId) {
-        const memberships = await db.ministry_leader_memberships.where('leader_id').equals(leaderId).toArray();
-        if (memberships.some((m: any) => (m.ministry_id === 'bible-bee') && m.is_active)) return true;
+    const memberships = await db.ministry_leader_memberships.where('leader_id').equals(leaderId).toArray();
+    if (memberships.some((m: MinistryLeaderMembership) => (m.ministry_id === 'bible-bee') && isActiveValue(m.is_active))) return true;
     }
 
     // 3) Demo/email-based mapping: ministry_accounts
     if (email) {
-        const accounts = await db.ministry_accounts.where('email').equals(String(email)).toArray();
-        if (accounts.some((a: any) => a.ministry_id === 'bible-bee')) return true;
+    const accounts = await db.ministry_accounts.where('email').equals(String(email)).toArray();
+    if (accounts.some((a: MinistryAccount) => a.ministry_id === 'bible-bee')) return true;
     }
 
     return false;
@@ -2011,7 +2215,7 @@ export async function saveBrandingSettings(
 export async function getDefaultBrandingSettings(): Promise<Partial<BrandingSettings>> {
     return {
         app_name: 'gatherKids',
-        description: "The simple, secure, and smart way to manage your children's ministry. Streamline check-ins, track attendance, and keep your community connected.",
+    description: "The simple, secure, and smart way to manage your children&apos;s ministry. Streamline check-ins, track attendance, and keep your community connected.",
         logo_url: undefined, // Will use default cross icon
         use_logo_only: false, // Show app name with logo by default
         youtube_url: undefined,
@@ -2311,9 +2515,9 @@ export async function getRegistrationStats(): Promise<{ householdCount: number; 
 		} else {
 			// Use legacy Dexie interface for demo mode
 			try {
-				const activeCycle = await db.registration_cycles
-					.filter((cycle: any) => cycle.is_active === true || Number(cycle.is_active) === 1)
-					.first();
+                const activeCycle = await db.registration_cycles
+                    .filter((cycle: { is_active?: boolean | number | string }) => cycle.is_active === true || Number((cycle.is_active as unknown) ?? 0) === 1)
+                    .first();
 				
 				if (!activeCycle) {
 					return { householdCount: 0, childCount: 0 };
@@ -2327,12 +2531,12 @@ export async function getRegistrationStats(): Promise<{ householdCount: number; 
 					return { householdCount: 0, childCount: 0 };
 				}
 				
-				const childIds = registrations.map((r: any) => r.child_id);
-				const children = await db.children
-					.where('child_id')
-					.anyOf(childIds)
-					.toArray();
-				const householdIds = new Set(children.map((c: any) => c.household_id));
+                const childIds = registrations.map((r: Registration) => r.child_id);
+                const children = await db.children
+                    .where('child_id')
+                    .anyOf(childIds)
+                    .toArray();
+                const householdIds = new Set(children.map((c: Child) => c.household_id));
 				
 				return {
 					householdCount: householdIds.size,
@@ -2365,7 +2569,7 @@ export async function getBibleBeeYears(): Promise<BibleBeeYear[]> {
 /**
  * Get scriptures for a Bible Bee year
  */
-export async function getScripturesForBibleBeeYear(yearId: string): Promise<any[]> {
+export async function getScripturesForBibleBeeYear(yearId: string): Promise<Scripture[]> {
 	if (shouldUseAdapter()) {
 		// In Supabase mode, scriptures may not be available yet
 		// Return empty array for now, can be enhanced later when scripture schema is added
@@ -2373,9 +2577,11 @@ export async function getScripturesForBibleBeeYear(yearId: string): Promise<any[
 		return [];
 	} else {
 		// Use legacy Dexie interface for demo mode
-		if (db && 'scriptures' in db) {
-			return (db as any).scriptures?.where('year_id')?.equals(yearId)?.toArray() || [];
-		}
+        if (db && 'scriptures' in db) {
+            // scriptures is an optional legacy table; cast carefully to avoid `any` leaking out
+            const tbl = (db as unknown as { scriptures?: { where: (k: string) => { equals: (v: string) => { toArray: () => Scripture[] } } } }).scriptures;
+            return (tbl?.where('year_id')?.equals(yearId)?.toArray()) || [];
+        }
 		return [];
 	}
 }
@@ -2383,15 +2589,16 @@ export async function getScripturesForBibleBeeYear(yearId: string): Promise<any[
 /**
  * Get scriptures for a competition year (legacy)
  */
-export async function getScripturesForCompetitionYear(competitionYearId: string): Promise<any[]> {
+export async function getScripturesForCompetitionYear(competitionYearId: string): Promise<Scripture[]> {
 	if (shouldUseAdapter()) {
 		// In Supabase mode, legacy competition year scriptures are not available
 		return [];
 	} else {
 		// Use legacy Dexie interface for demo mode
-		if (db && 'scriptures' in db) {
-			return (db as any).scriptures?.where('competitionYearId')?.equals(competitionYearId)?.toArray() || [];
-		}
+        if (db && 'scriptures' in db) {
+            const tbl = (db as unknown as { scriptures?: { where: (k: string) => { equals: (v: string) => { toArray: () => Scripture[] } } } }).scriptures;
+            return (tbl?.where('competitionYearId')?.equals(competitionYearId)?.toArray()) || [];
+        }
 		return [];
 	}
 }
@@ -2400,15 +2607,29 @@ export async function getScripturesForCompetitionYear(competitionYearId: string)
  * Get ministries for ministry management
  */
 export async function getMinistries(isActive?: boolean): Promise<Ministry[]> {
-	if (shouldUseAdapter()) {
-		// Use Supabase adapter for live mode
-		return dbAdapter.listMinistries(isActive);
-	} else {
-		// Use legacy Dexie interface for demo mode
-		if (isActive !== undefined) {
-			return db.ministries.filter(m => m.is_active === isActive).toArray();
+	console.log('DAL.getMinistries: Starting', { isActive, useAdapter: shouldUseAdapter() });
+	try {
+		if (shouldUseAdapter()) {
+			// Use Supabase adapter for live mode
+			console.log('DAL.getMinistries: Using Supabase adapter');
+			const ministries = await dbAdapter.listMinistries(isActive);
+			console.log('DAL.getMinistries: Got ministries from Supabase', { count: ministries.length });
+			return ministries;
+		} else {
+			// Use legacy Dexie interface for demo mode
+			console.log('DAL.getMinistries: Using Dexie interface for demo mode');
+			if (isActive !== undefined) {
+				const ministries = await db.ministries.filter(m => m.is_active === isActive).toArray();
+				console.log('DAL.getMinistries: Got filtered ministries from Dexie', { count: ministries.length });
+				return ministries;
+			}
+			const ministries = await db.ministries.toArray();
+			console.log('DAL.getMinistries: Got all ministries from Dexie', { count: ministries.length });
+			return ministries;
 		}
-		return db.ministries.toArray();
+	} catch (error) {
+		console.error('DAL.getMinistries: Error getting ministries', error);
+		throw error;
 	}
 }
 
@@ -2418,13 +2639,13 @@ export async function getRegistrationCycles(isActive?: boolean): Promise<Registr
 		return dbAdapter.listRegistrationCycles(isActive);
 	} else {
 		// Use legacy Dexie interface for demo mode
-		if (isActive !== undefined) {
-			return db.registration_cycles.filter(c => {
-				const val = (c as any)?.is_active;
-				const isActiveValue = val === true || val === 1 || String(val) === '1';
-				return isActiveValue === isActive;
-			}).toArray();
-		}
+            if (isActive !== undefined) {
+            return db.registration_cycles.filter(c => {
+                // c may be a loose record in Dexie; access is_active defensively
+                const activeVal = (c as unknown as Record<string, unknown>)?.['is_active'];
+                return isActiveValue(activeVal) === isActive;
+            }).toArray();
+        }
 		return db.registration_cycles.toArray();
 	}
 }
@@ -2552,29 +2773,31 @@ export async function getAllEmergencyContacts(): Promise<EmergencyContact[]> {
 /**
  * Get incidents for a user based on their role
  */
-export async function getIncidentsForUser(user: any): Promise<Incident[]> {
+export async function getIncidentsForUser(user: unknown): Promise<Incident[]> {
 	if (shouldUseAdapter()) {
 		// Use Supabase adapter for live mode
 		const allIncidents = await dbAdapter.listIncidents();
 		
-		if (user?.metadata?.role === AuthRole.MINISTRY_LEADER) {
-			// Always restrict leaders to incidents they logged
-			const leaderId = (user.uid || user.id || (user as any).user_id) as string;
-			return allIncidents.filter(incident => incident.leader_id === leaderId);
-		}
+    if (isMinistryLeaderUser(user)) {
+            // Always restrict leaders to incidents they logged
+            const leaderId = extractUserId(user) as string | undefined;
+            if (!leaderId) return [];
+            return allIncidents.filter(incident => incident.leader_id === leaderId);
+        }
 		
 		return allIncidents.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 	} else {
 		// Use legacy Dexie interface for demo mode
-		if (user?.metadata?.role === AuthRole.MINISTRY_LEADER) {
-			// Always restrict leaders to incidents they logged
-			const leaderId = (user.uid || user.id || (user as any).user_id) as string;
-			return db.incidents
-				.where('leader_id')
-				.equals(leaderId)
-				.reverse()
-				.sortBy('timestamp');
-		}
+    if (isMinistryLeaderUser(user)) {
+            // Always restrict leaders to incidents they logged
+            const leaderId = extractUserId(user) as string | undefined;
+            if (!leaderId) return [];
+            return db.incidents
+                .where('leader_id')
+                .equals(leaderId)
+                .reverse()
+                .sortBy('timestamp');
+        }
 		
 		return db.incidents.orderBy('timestamp').reverse().toArray();
 	}
@@ -2609,23 +2832,27 @@ export async function getCheckedInChildren(dateISO: string): Promise<Child[]> {
 /**
  * Get all competition years for Bible Bee
  */
-export async function getCompetitionYears(): Promise<any[]> {
+export async function getCompetitionYears(): Promise<CompetitionYear[]> {
 	// Note: Competition years are legacy - in new Bible Bee system, use getBibleBeeYears()
 	// This function is maintained for backward compatibility
 	if (shouldUseAdapter()) {
 		// Use Supabase adapter for live mode
 		// Competition years might not exist in the new schema, return empty array or fetch from appropriate table
-		try {
-			// If competition years exist in adapter
-			// return await dbAdapter.listCompetitionYears();
-			console.warn('Competition years not implemented in adapter, using legacy mode');
-			return [];
-		} catch (error) {
-			console.warn('Competition years not available in adapter mode');
-			return [];
-		}
-	} else {
-		// Use legacy Dexie interface for demo mode
-		return db.competitionYears.orderBy('year').reverse().toArray();
-	}
+        try {
+            // If competition years exist in adapter
+            // return await dbAdapter.listCompetitionYears();
+            console.warn('Competition years not implemented in adapter, using legacy mode');
+            return [] as CompetitionYear[];
+        } catch (error) {
+            console.warn('Competition years not available in adapter mode');
+            return [] as CompetitionYear[];
+        }
+    } else {
+        // Use legacy Dexie interface for demo mode
+    // Keep compatibility shape and return typed CompetitionYear[] from legacy DB
+    return (await db.competitionYears.orderBy('year').reverse().toArray()) as CompetitionYear[];
+    }
 }
+
+// Export canonical registration function
+export { registerHouseholdCanonical } from './database/canonical-dal';

@@ -2,6 +2,8 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { v4 as uuidv4 } from 'uuid';
 import type { DatabaseAdapter, HouseholdFilters, ChildFilters, RegistrationFilters, AttendanceFilters, IncidentFilters } from './types';
 import type { Database } from './supabase-types';
+import { supabaseToHousehold, householdToSupabase, supabaseToChild, childToSupabase, supabaseToMinistry, supabaseToMinistryEnrollment, ministryEnrollmentToSupabase, supabaseToEnrollment, enrollmentToSupabase, supabaseToEnrollmentOverride, supabaseToRegistration, registrationToSupabase, supabaseToAttendance, supabaseToIncident, supabaseToEvent, supabaseToUser, supabaseToMinistryLeaderMembership, supabaseToMinistryAccount, supabaseToGuardian, supabaseToEmergencyContact, supabaseToBrandingSettings } from './type-mappings';
+import { serializeIfObject } from './type-mappings';
 import type {
 	Household,
 	Guardian,
@@ -27,12 +29,36 @@ import type {
 } from '../types';
 
 export class SupabaseAdapter implements DatabaseAdapter {
+	// Use strict Database typing for the Supabase client. If the generated
+	// `Database` type is incomplete, typecheck will reveal the mismatches to fix.
 	private client: SupabaseClient<Database>;
 
 
-constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: SupabaseClient<Database>) {
-	this.client = customClient || createClient<Database>(supabaseUrl, supabaseAnonKey);
-}
+	constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: SupabaseClient<Database>) {
+		console.log('SupabaseAdapter constructor', { 
+			url: supabaseUrl,
+			hasAnonKey: !!supabaseAnonKey, 
+			usingCustomClient: !!customClient
+		});
+		
+		try {
+			this.client = customClient || (createClient(supabaseUrl, supabaseAnonKey) as SupabaseClient<Database>);
+			console.log('SupabaseAdapter created successfully');
+			
+			// Test connection
+			this.client.auth.getSession().then(response => {
+				console.log('SupabaseAdapter initial auth check', { 
+					success: !response.error, 
+					error: response.error ? response.error.message : null
+				});
+			}).catch(error => {
+				console.error('SupabaseAdapter initial auth check failed', error);
+			});
+		} catch (error) {
+			console.error('Error creating SupabaseAdapter', error);
+			throw error;
+		}
+	}
 
 	// Households
 	async getHousehold(id: string): Promise<Household | null> {
@@ -46,7 +72,7 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			if (error.code === 'PGRST116') return null; // No rows returned
 			throw error;
 		}
-		return data;
+	return data ? supabaseToHousehold(data as Database['public']['Tables']['households']['Row']) : null;
 	}
 
 	async createHousehold(
@@ -54,14 +80,12 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 	): Promise<Household> {
 		// Map frontend field names to database column names
 		const household = {
-			household_id: uuidv4(),
+			household_id: data.household_id || uuidv4(), // Use provided ID or generate new one
 			created_at: new Date().toISOString(),
 			updated_at: new Date().toISOString(),
-			// Map name to both fields for compatibility during migration
+			// Map name field
 			name: data.name,
-			household_name: data.name,
-			// Map preferredScriptureTranslation to both fields for compatibility during migration  
-			preferredScriptureTranslation: data.preferredScriptureTranslation,
+			// Use snake_case for database compatibility
 			preferred_scripture_translation: data.preferredScriptureTranslation,
 			// Direct field mappings
 			address_line1: data.address_line1,
@@ -82,12 +106,12 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			.single();
 
 		if (error) throw error;
-		return result;
+		return supabaseToHousehold(result as Database['public']['Tables']['households']['Row']);
 	}
 
 	async updateHousehold(id: string, data: Partial<Household>): Promise<Household> {
 		// Map frontend field names to database column names  
-		const updateData: any = {
+	const updateData: Record<string, unknown> = {
 			updated_at: new Date().toISOString(),
 		};
 		
@@ -117,8 +141,9 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			.select()
 			.single();
 
-		if (error) throw error;
-		return result;
+	if (error) throw error;
+	if (!result) throw new Error('updateHousehold: no result returned from DB');
+	return supabaseToHousehold(result as Database['public']['Tables']['households']['Row']);
 	}
 
 	async listHouseholds(filters?: HouseholdFilters): Promise<Household[]> {
@@ -148,9 +173,9 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			);
 		}
 
-		const { data, error } = await query;
-		if (error) throw error;
-		return data || [];
+	const { data, error } = await query;
+	if (error) throw error;
+	return (data || []).map((r) => supabaseToHousehold(r as Database['public']['Tables']['households']['Row']));
 	}
 
 	async deleteHousehold(id: string): Promise<void> {
@@ -160,6 +185,46 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			.eq('household_id', id);
 
 		if (error) throw error;
+	}
+
+	async getHouseholdForUser(authUserId: string): Promise<string | null> {
+		console.log('SupabaseAdapter.getHouseholdForUser: Starting query', { authUserId });
+		
+		try {
+			const { data, error } = await this.client
+				.from('user_households')
+				.select('household_id')
+				.eq('auth_user_id', authUserId);
+
+			console.log('SupabaseAdapter.getHouseholdForUser: Query result', { 
+				hasError: !!error, 
+				errorMessage: error?.message, 
+				dataCount: data?.length || 0,
+				householdIds: data?.map(d => d.household_id) || []
+			});
+			
+			if (error) {
+				console.error('SupabaseAdapter.getHouseholdForUser: Query error', error);
+				return null;
+			}
+
+			if (!data || data.length === 0) {
+				console.log('SupabaseAdapter.getHouseholdForUser: No household found for user');
+				return null;
+			}
+
+			if (data.length > 1) {
+				console.warn('SupabaseAdapter.getHouseholdForUser: Multiple households found for user, using first one', {
+					authUserId,
+					householdIds: data.map(d => d.household_id)
+				});
+			}
+
+			return data[0]?.household_id || null;
+		} catch (queryError) {
+			console.error('SupabaseAdapter.getHouseholdForUser: Query failed', queryError);
+			throw queryError;
+		}
 	}
 
 	// Children
@@ -174,15 +239,15 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			if (error.code === 'PGRST116') return null;
 			throw error;
 		}
-		return data;
+	return data ? supabaseToChild(data as Database['public']['Tables']['children']['Row']) : null;
 	}
 
 	async createChild(
-		data: Omit<Child, 'child_id' | 'created_at' | 'updated_at'>
+		data: Omit<Child, 'created_at' | 'updated_at'>
 	): Promise<Child> {
 		// Map frontend field names to database column names
 		const child = {
-			child_id: uuidv4(),
+			child_id: data.child_id || uuidv4(), // Use provided child_id or generate new one
 			created_at: new Date().toISOString(),
 			updated_at: new Date().toISOString(),
 			// Direct mappings
@@ -192,12 +257,10 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			is_active: data.is_active,
 			photo_url: data.photo_url,
 			allergies: data.allergies,
-			// Map dob to both fields for compatibility during migration
+			// Use canonical dob field (birth_date was dropped in migration)
 			dob: data.dob,
-			birth_date: data.dob,
-			// Map child_mobile to both fields for compatibility  
+			// Use canonical child_mobile field (mobile_phone was dropped in migration)
 			child_mobile: data.child_mobile,
-			mobile_phone: data.child_mobile,
 			// Map grade and other new fields
 			grade: data.grade,
 			special_needs: data.special_needs,
@@ -214,12 +277,12 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			.single();
 
 		if (error) throw error;
-		return result;
+		return supabaseToChild(result as Database['public']['Tables']['children']['Row']);
 	}
 
 	async updateChild(id: string, data: Partial<Child>): Promise<Child> {
 		// Map frontend field names to database column names
-		const updateData: any = {
+	const updateData: Record<string, unknown> = {
 			updated_at: new Date().toISOString(),
 		};
 		
@@ -231,16 +294,14 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 		if (data.photo_url !== undefined) updateData.photo_url = data.photo_url;
 		if (data.allergies !== undefined) updateData.allergies = data.allergies;
 		
-		// Map dob to both fields for compatibility
+		// Use canonical dob field (birth_date was dropped in migration)
 		if (data.dob !== undefined) {
 			updateData.dob = data.dob;
-			updateData.birth_date = data.dob;
 		}
 		
-		// Map child_mobile to both fields for compatibility  
+		// Use canonical child_mobile field (mobile_phone was dropped in migration)
 		if (data.child_mobile !== undefined) {
 			updateData.child_mobile = data.child_mobile;
-			updateData.mobile_phone = data.child_mobile;
 		}
 		
 		// Map grade and other new fields
@@ -259,8 +320,8 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			.select()
 			.single();
 
-		if (error) throw error;
-		return result;
+	if (error) throw error;
+	return supabaseToChild(result as Database['public']['Tables']['children']['Row']);
 	}
 
 	async listChildren(filters?: ChildFilters): Promise<Child[]> {
@@ -287,9 +348,9 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			);
 		}
 
-		const { data, error } = await query;
-		if (error) throw error;
-		return data || [];
+	const { data, error } = await query;
+	if (error) throw error;
+	return (data || []).map((d) => supabaseToChild(d as Database['public']['Tables']['children']['Row']));
 	}
 
 	async deleteChild(id: string): Promise<void> {
@@ -310,10 +371,10 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			.single();
 
 		if (error) {
-			if (error.code === 'PGRST116') return null;
-			throw error;
-		}
-		return data;
+				if (error.code === 'PGRST116') return null;
+				throw error;
+			}
+			return data ? supabaseToGuardian(data as Database['public']['Tables']['guardians']['Row']) : null;
 	}
 
 	async createGuardian(
@@ -332,8 +393,9 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			.select()
 			.single();
 
-		if (error) throw error;
-		return result;
+	if (error) throw error;
+	if (!result) throw new Error('createGuardian: no result returned from DB');
+	return supabaseToGuardian(result as Database['public']['Tables']['guardians']['Row']);
 	}
 
 	async updateGuardian(id: string, data: Partial<Guardian>): Promise<Guardian> {
@@ -347,27 +409,38 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			.select()
 			.single();
 
-		if (error) throw error;
-		return result;
+	if (error) throw error;
+	if (!result) throw new Error('updateGuardian: no result returned from DB');
+	return supabaseToGuardian(result as Database['public']['Tables']['guardians']['Row']);
 	}
 
 	async listGuardians(householdId: string): Promise<Guardian[]> {
-		const { data, error } = await this.client
-			.from('guardians')
-			.select('*')
-			.eq('household_id', householdId);
+		console.log('SupabaseAdapter.listGuardians: Starting query', { householdId });
+		let query = this.client.from('guardians').select('*');
 
+		if (householdId && householdId !== '') {
+			query = query.eq('household_id', householdId);
+		}
+
+		const { data, error } = await query;
+		
+		console.log('SupabaseAdapter.listGuardians: Query result', { 
+			hasError: !!error, 
+			errorMessage: error?.message, 
+			dataCount: data?.length || 0
+		});
+		
 		if (error) throw error;
-		return data || [];
+		return (data || []).map((d) => supabaseToGuardian(d as Database['public']['Tables']['guardians']['Row']));
 	}
 
 	async listAllGuardians(): Promise<Guardian[]> {
-		const { data, error } = await this.client
+	const { data, error } = await this.client
 			.from('guardians')
 			.select('*');
 
-		if (error) throw error;
-		return data || [];
+	if (error) throw error;
+	return (data || []).map((d) => supabaseToGuardian(d as Database['public']['Tables']['guardians']['Row']));
 	}
 
 	async deleteGuardian(id: string): Promise<void> {
@@ -381,7 +454,7 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 
 	// Emergency Contacts
 	async getEmergencyContact(id: string): Promise<EmergencyContact | null> {
-		const { data, error } = await this.client
+	const { data, error } = await this.client
 			.from('emergency_contacts')
 			.select('*')
 			.eq('contact_id', id)
@@ -391,7 +464,7 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			if (error.code === 'PGRST116') return null;
 			throw error;
 		}
-		return data;
+	return data ? supabaseToEmergencyContact(data as Database['public']['Tables']['emergency_contacts']['Row']) : null;
 	}
 
 	async createEmergencyContact(
@@ -414,8 +487,9 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			.select()
 			.single();
 
-		if (error) throw error;
-		return result;
+	if (error) throw error;
+	if (!result) throw new Error('createEmergencyContact: no result returned from DB');
+	return supabaseToEmergencyContact(result as Database['public']['Tables']['emergency_contacts']['Row']);
 	}
 
 	async updateEmergencyContact(
@@ -432,27 +506,28 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			.select()
 			.single();
 
-		if (error) throw error;
-		return result;
+	if (error) throw error;
+	if (!result) throw new Error('updateEmergencyContact: no result returned from DB');
+	return supabaseToEmergencyContact(result as Database['public']['Tables']['emergency_contacts']['Row']);
 	}
 
 	async listEmergencyContacts(householdId: string): Promise<EmergencyContact[]> {
-		const { data, error } = await this.client
+	const { data, error } = await this.client
 			.from('emergency_contacts')
 			.select('*')
 			.eq('household_id', householdId);
 
-		if (error) throw error;
-		return data || [];
+	if (error) throw error;
+	return (data || []).map((d) => supabaseToEmergencyContact(d as Database['public']['Tables']['emergency_contacts']['Row']));
 	}
 
 	async listAllEmergencyContacts(): Promise<EmergencyContact[]> {
-		const { data, error } = await this.client
+	const { data, error } = await this.client
 			.from('emergency_contacts')
 			.select('*');
 
-		if (error) throw error;
-		return data || [];
+	if (error) throw error;
+	return (data || []).map((d) => supabaseToEmergencyContact(d as Database['public']['Tables']['emergency_contacts']['Row']));
 	}
 
 	async deleteEmergencyContact(id: string): Promise<void> {
@@ -466,17 +541,21 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 
 	// Registration Cycles
 	async getRegistrationCycle(id: string): Promise<RegistrationCycle | null> {
-		const { data, error } = await this.client
+	// TODO: regenerate supabase-types so 'registration_cycles' is included in the client typing.
+	// Localized any-cast: generated types are incomplete for this table name.
+	/* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+	const { data, error } = await this.getClientAny()
 			.from('registration_cycles')
 			.select('*')
 			.eq('cycle_id', id)
 			.single();
 
 		if (error) {
-			if (error.code === 'PGRST116') return null;
-			throw error;
-		}
-		return data;
+				if (error.code === 'PGRST116') return null;
+				throw error;
+			}
+	if (!data) return null;
+	return this.mapRegistrationCycle(data as Record<string, unknown>);
 	}
 
 	async createRegistrationCycle(
@@ -489,22 +568,25 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			updated_at: new Date().toISOString(),
 		};
 
-		const { data: result, error } = await this.client
+	/* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+	const { data: result, error } = await this.getClientAny()
 			.from('registration_cycles')
 			.insert(cycle)
 			.select()
 			.single();
 
-		if (error) throw error;
-		return result;
+	if (error) throw error;
+	if (!result) throw new Error('createRegistrationCycle: no result returned from DB');
+	return this.mapRegistrationCycle(result as Record<string, unknown>);
 	}
 
 	async updateRegistrationCycle(
 		id: string,
 		data: Partial<RegistrationCycle>
 	): Promise<RegistrationCycle> {
-		const { data: result, error } = await this.client
-			.from('registration_cycles')
+	/* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+	const { data: result, error } = await this.getClientAny()
+		.from('registration_cycles')
 			.update({
 				...data,
 				updated_at: new Date().toISOString(),
@@ -513,24 +595,39 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			.select()
 			.single();
 
-		if (error) throw error;
-		return result;
+	if (error) throw error;
+	if (!result) throw new Error('updateRegistrationCycle: no result returned from DB');
+	return this.mapRegistrationCycle(result as Record<string, unknown>);
 	}
 
 	async listRegistrationCycles(isActive?: boolean): Promise<RegistrationCycle[]> {
-		let query = this.client.from('registration_cycles').select('*');
+	// TODO: regenerate supabase-types so 'registration_cycles' is included in the client typing.
+	// Localized any-cast: generated types are incomplete for this table name.
+	/* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+	let query = this.getClientAny().from('registration_cycles').select('*');
 
-		if (isActive !== undefined) {
-			query = query.eq('is_active', isActive);
-		}
+        if (isActive !== undefined) {
+            query = query.eq('is_active', isActive);
+        }
 
-		const { data, error } = await query;
-		if (error) throw error;
-		return data || [];
+	const { data, error } = await query;
+	if (error) throw error;
+	return (data || []).map((r: unknown) => this.mapRegistrationCycle(r as Record<string, unknown>));
+	}
+
+	private mapRegistrationCycle(row: Record<string, unknown>): RegistrationCycle {
+		const r = row ?? {} as Record<string, unknown>;
+		return {
+			cycle_id: (r['cycle_id'] as string) || '',
+			start_date: (r['start_date'] as string) || '',
+			end_date: (r['end_date'] as string) || '',
+			is_active: r['is_active'] === null || r['is_active'] === undefined ? false : !!r['is_active'],
+		};
 	}
 
 	async deleteRegistrationCycle(id: string): Promise<void> {
-		const { error } = await this.client
+    /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+    const { error } = await this.getClientAny()
 			.from('registration_cycles')
 			.delete()
 			.eq('cycle_id', id);
@@ -540,7 +637,7 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 
 	// Registrations
 	async getRegistration(id: string): Promise<Registration | null> {
-		const { data, error } = await this.client
+	const { data, error } = await this.client
 			.from('registrations')
 			.select('*')
 			.eq('registration_id', id)
@@ -550,7 +647,7 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			if (error.code === 'PGRST116') return null;
 			throw error;
 		}
-		return data;
+	return data ? supabaseToRegistration(data as Database['public']['Tables']['registrations']['Row']) : null;
 	}
 
 	async createRegistration(
@@ -560,35 +657,44 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			...data,
 			registration_id: uuidv4(),
 			created_at: new Date().toISOString(),
-			updated_at: new Date().toISOString(),
+			// Note: registrations table doesn't have updated_at column
 		};
 
-		const { data: result, error } = await this.client
+	const insertPayload: Database['public']['Tables']['registrations']['Insert'] = {
+		...registration,
+		consents: registration.consents ? (serializeIfObject(registration.consents) as Database['public']['Tables']['registrations']['Insert']['consents']) : registration.consents,
+	};
+
+	const { data: result, error } = await this.client
 			.from('registrations')
-			.insert(registration)
+			.insert(insertPayload)
 			.select()
 			.single();
 
-		if (error) throw error;
-		return result;
+	if (error) throw error;
+	if (!result) throw new Error('createRegistration: no result returned from DB');
+	return supabaseToRegistration(result as Database['public']['Tables']['registrations']['Row']);
 	}
 
 	async updateRegistration(
 		id: string,
 		data: Partial<Registration>
 	): Promise<Registration> {
+	const updatePayload: Database['public']['Tables']['registrations']['Update'] = {
+		...(data as Database['public']['Tables']['registrations']['Update']),
+	consents: (((data as unknown) as Record<string, unknown>)['consents'] ? serializeIfObject(((data as unknown) as Record<string, unknown>)['consents']) : ((data as unknown) as Record<string, unknown>)['consents']) as Database['public']['Tables']['registrations']['Update']['consents'],
+	};
+
 		const { data: result, error } = await this.client
 			.from('registrations')
-			.update({
-				...data,
-				updated_at: new Date().toISOString(),
-			})
+			.update(updatePayload)
 			.eq('registration_id', id)
 			.select()
 			.single();
 
-		if (error) throw error;
-		return result;
+	if (error) throw error;
+	if (!result) throw new Error('updateRegistration: no result returned from DB');
+	return supabaseToRegistration(result as Database['public']['Tables']['registrations']['Row']);
 	}
 
 	async listRegistrations(filters?: RegistrationFilters): Promise<Registration[]> {
@@ -613,9 +719,9 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			);
 		}
 
-		const { data, error } = await query;
-		if (error) throw error;
-		return data || [];
+	const { data, error } = await query;
+	if (error) throw error;
+	return (data || []).map((d) => supabaseToRegistration(d as Database['public']['Tables']['registrations']['Row']));
 	}
 
 	async deleteRegistration(id: string): Promise<void> {
@@ -629,7 +735,7 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 
 	// Ministries
 	async getMinistry(id: string): Promise<Ministry | null> {
-		const { data, error } = await this.client
+	const { data, error } = await this.client
 			.from('ministries')
 			.select('*')
 			.eq('ministry_id', id)
@@ -639,7 +745,7 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			if (error.code === 'PGRST116') return null;
 			throw error;
 		}
-		return data;
+	return data ? supabaseToMinistry(data as Database['public']['Tables']['ministries']['Row']) : null;
 	}
 
 	async createMinistry(
@@ -652,41 +758,83 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			updated_at: new Date().toISOString(),
 		};
 
+	const insertMinistryPayload: Database['public']['Tables']['ministries']['Insert'] = {
+		...ministry,
+		custom_questions: ministry.custom_questions ? (serializeIfObject(ministry.custom_questions) as Database['public']['Tables']['ministries']['Insert']['custom_questions']) : ministry.custom_questions,
+	};
+
 		const { data: result, error } = await this.client
 			.from('ministries')
-			.insert(ministry)
+			.insert(insertMinistryPayload)
 			.select()
 			.single();
 
 		if (error) throw error;
-		return result;
+		if (!result) throw new Error('createMinistry: no result returned from DB');
+		return supabaseToMinistry(result as Database['public']['Tables']['ministries']['Row']);
 	}
 
 	async updateMinistry(id: string, data: Partial<Ministry>): Promise<Ministry> {
+	const updateMinistryPayload: Database['public']['Tables']['ministries']['Update'] = {
+		...(data as Database['public']['Tables']['ministries']['Update']),
+		updated_at: new Date().toISOString(),
+	custom_questions: (((data as unknown) as Record<string, unknown>)['custom_questions'] ? serializeIfObject(((data as unknown) as Record<string, unknown>)['custom_questions']) : ((data as unknown) as Record<string, unknown>)['custom_questions']) as Database['public']['Tables']['ministries']['Update']['custom_questions'],
+	};
+
 		const { data: result, error } = await this.client
 			.from('ministries')
-			.update({
-				...data,
-				updated_at: new Date().toISOString(),
-			})
+			.update(updateMinistryPayload)
 			.eq('ministry_id', id)
 			.select()
 			.single();
 
-		if (error) throw error;
-		return result;
+	if (error) throw error;
+	if (!result) throw new Error('updateMinistry: no result returned from DB');
+	return supabaseToMinistry(result as Database['public']['Tables']['ministries']['Row']);
 	}
 
 	async listMinistries(isActive?: boolean): Promise<Ministry[]> {
+		console.log('SupabaseAdapter.listMinistries: Starting query', { isActive });
 		let query = this.client.from('ministries').select('*');
 
 		if (isActive !== undefined) {
 			query = query.eq('is_active', isActive);
 		}
 
-		const { data, error } = await query;
-		if (error) throw error;
-		return data || [];
+		try {
+			const { data, error } = await query;
+			console.log('SupabaseAdapter.listMinistries: Query result', { 
+				hasError: !!error, 
+				errorMessage: error?.message, 
+				dataCount: data?.length || 0,
+				firstItem: data && data.length > 0 ? JSON.stringify(data[0]) : null
+			});
+			
+			if (error) throw error;
+
+			// Check for data being empty when it shouldn't be
+			if (!data || data.length === 0) {
+				console.warn('SupabaseAdapter.listMinistries: No ministries found in the database');
+			}
+
+			const result = (data || []).map((d) => {
+				try {
+					return supabaseToMinistry(d as Database['public']['Tables']['ministries']['Row']);
+				} catch (mapError) {
+					console.error('SupabaseAdapter.listMinistries: Error mapping ministry', { 
+						ministry: d, 
+						error: mapError
+					});
+					throw mapError;
+				}
+			});
+
+			console.log(`SupabaseAdapter.listMinistries: Successfully mapped ${result.length} ministries`);
+			return result;
+		} catch (queryError) {
+			console.error('SupabaseAdapter.listMinistries: Query failed', queryError);
+			throw queryError;
+		}
 	}
 
 	async deleteMinistry(id: string): Promise<void> {
@@ -700,7 +848,7 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 
 	// Ministry Enrollments
 	async getMinistryEnrollment(id: string): Promise<MinistryEnrollment | null> {
-		const { data, error } = await this.client
+	const { data, error } = await this.client
 			.from('ministry_enrollments')
 			.select('*')
 			.eq('enrollment_id', id)
@@ -710,7 +858,7 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			if (error.code === 'PGRST116') return null;
 			throw error;
 		}
-		return data;
+	return data ? supabaseToMinistryEnrollment(data as Database['public']['Tables']['ministry_enrollments']['Row']) : null;
 	}
 
 	async createMinistryEnrollment(
@@ -720,35 +868,43 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			...data,
 			enrollment_id: uuidv4(),
 			created_at: new Date().toISOString(),
-			updated_at: new Date().toISOString(),
+			// Note: ministry_enrollments table doesn't have updated_at column
 		};
+
+	const insertEnrollmentPayload: Database['public']['Tables']['ministry_enrollments']['Insert'] = {
+		...enrollment,
+		custom_fields: enrollment.custom_fields ? (serializeIfObject(enrollment.custom_fields) as Database['public']['Tables']['ministry_enrollments']['Insert']['custom_fields']) : enrollment.custom_fields,
+	};
 
 		const { data: result, error } = await this.client
 			.from('ministry_enrollments')
-			.insert(enrollment)
+			.insert(insertEnrollmentPayload)
 			.select()
 			.single();
 
 		if (error) throw error;
-		return result;
+		if (!result) throw new Error('createMinistryEnrollment: no result returned from DB');
+		return supabaseToMinistryEnrollment(result as Database['public']['Tables']['ministry_enrollments']['Row']);
 	}
 
 	async updateMinistryEnrollment(
 		id: string,
 		data: Partial<MinistryEnrollment>
 	): Promise<MinistryEnrollment> {
+	const updateEnrollmentPayload: Database['public']['Tables']['ministry_enrollments']['Update'] = {
+		...(data as Database['public']['Tables']['ministry_enrollments']['Update']),
+	custom_fields: (((data as unknown) as Record<string, unknown>)['custom_fields'] ? serializeIfObject(((data as unknown) as Record<string, unknown>)['custom_fields']) : ((data as unknown) as Record<string, unknown>)['custom_fields']) as Database['public']['Tables']['ministry_enrollments']['Update']['custom_fields'],
+	};
+
 		const { data: result, error } = await this.client
 			.from('ministry_enrollments')
-			.update({
-				...data,
-				updated_at: new Date().toISOString(),
-			})
+			.update(updateEnrollmentPayload)
 			.eq('enrollment_id', id)
 			.select()
 			.single();
 
 		if (error) throw error;
-		return result;
+		return supabaseToMinistryEnrollment(result as Database['public']['Tables']['ministry_enrollments']['Row']);
 	}
 
 	async listMinistryEnrollments(
@@ -769,8 +925,8 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 		}
 
 		const { data, error } = await query;
-		if (error) throw error;
-		return data || [];
+	if (error) throw error;
+	return (data || []).map((d) => supabaseToMinistryEnrollment(d as Database['public']['Tables']['ministry_enrollments']['Row']));
 	}
 
 	async deleteMinistryEnrollment(id: string): Promise<void> {
@@ -784,7 +940,7 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 
 	// Attendance
 	async getAttendance(id: string): Promise<Attendance | null> {
-		const { data, error } = await this.client
+	const { data, error } = await this.client
 			.from('attendance')
 			.select('*')
 			.eq('attendance_id', id)
@@ -794,7 +950,7 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			if (error.code === 'PGRST116') return null;
 			throw error;
 		}
-		return data;
+	return data ? supabaseToAttendance(data as Database['public']['Tables']['attendance']['Row']) : null;
 	}
 
 	async createAttendance(
@@ -813,7 +969,8 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			.single();
 
 		if (error) throw error;
-		return result;
+		if (!result) throw new Error('createAttendance: no result returned from DB');
+		return supabaseToAttendance(result as Database['public']['Tables']['attendance']['Row']);
 	}
 
 	async updateAttendance(id: string, data: Partial<Attendance>): Promise<Attendance> {
@@ -825,7 +982,7 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			.single();
 
 		if (error) throw error;
-		return result;
+		return supabaseToAttendance(result as Database['public']['Tables']['attendance']['Row']);
 	}
 
 	async listAttendance(filters?: AttendanceFilters): Promise<Attendance[]> {
@@ -851,8 +1008,8 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 		}
 
 		const { data, error } = await query;
-		if (error) throw error;
-		return data || [];
+	if (error) throw error;
+	return (data || []).map((d) => supabaseToAttendance(d as Database['public']['Tables']['attendance']['Row']));
 	}
 
 	async deleteAttendance(id: string): Promise<void> {
@@ -866,7 +1023,7 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 
 	// Incidents
 	async getIncident(id: string): Promise<Incident | null> {
-		const { data, error } = await this.client
+	const { data, error } = await this.client
 			.from('incidents')
 			.select('*')
 			.eq('incident_id', id)
@@ -876,7 +1033,7 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			if (error.code === 'PGRST116') return null;
 			throw error;
 		}
-		return data;
+		return data ? supabaseToIncident(data as Database['public']['Tables']['incidents']['Row']) : null;
 	}
 
 	async createIncident(
@@ -896,7 +1053,7 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			.single();
 
 		if (error) throw error;
-		return result;
+	return supabaseToIncident(result as Database['public']['Tables']['incidents']['Row']);
 	}
 
 	async updateIncident(id: string, data: Partial<Incident>): Promise<Incident> {
@@ -911,7 +1068,7 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			.single();
 
 		if (error) throw error;
-		return result;
+	return supabaseToIncident(result as Database['public']['Tables']['incidents']['Row']);
 	}
 
 	async listIncidents(filters?: IncidentFilters): Promise<Incident[]> {
@@ -939,7 +1096,7 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 
 		const { data, error } = await query;
 		if (error) throw error;
-		return data || [];
+		return (data || []).map((d) => supabaseToIncident(d as Database['public']['Tables']['incidents']['Row']));
 	}
 
 	async deleteIncident(id: string): Promise<void> {
@@ -963,7 +1120,7 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			if (error.code === 'PGRST116') return null;
 			throw error;
 		}
-		return data;
+	return data ? supabaseToEvent(data as Database['public']['Tables']['events']['Row']) : null;
 	}
 
 	async createEvent(
@@ -976,29 +1133,39 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			updated_at: new Date().toISOString(),
 		};
 
+		const insertEventPayload: Database['public']['Tables']['events']['Insert'] = {
+			...event,
+			timeslots: event.timeslots ? (serializeIfObject(event.timeslots) as Database['public']['Tables']['events']['Insert']['timeslots']) : event.timeslots,
+		};
+
 		const { data: result, error } = await this.client
 			.from('events')
-			.insert(event)
+			.insert(insertEventPayload)
 			.select()
 			.single();
 
-		if (error) throw error;
-		return result;
+	if (error) throw error;
+	if (!result) throw new Error('createEvent: no result returned from DB');
+	return supabaseToEvent(result as Database['public']['Tables']['events']['Row']);
 	}
 
 	async updateEvent(id: string, data: Partial<Event>): Promise<Event> {
+		const updateEventPayload = {
+			...(data as Database['public']['Tables']['events']['Update']),
+			updated_at: new Date().toISOString(),
+			timeslots: ((data as unknown) as Record<string, unknown>)?.['timeslots'] ? (serializeIfObject(((data as unknown) as Record<string, unknown>)['timeslots']) as Database['public']['Tables']['events']['Update']['timeslots']) : ((data as unknown) as Record<string, unknown>)['timeslots'],
+	} as Database['public']['Tables']['events']['Update'];
+
 		const { data: result, error } = await this.client
 			.from('events')
-			.update({
-				...data,
-				updated_at: new Date().toISOString(),
-			})
+			.update(updateEventPayload)
 			.eq('event_id', id)
 			.select()
 			.single();
 
-		if (error) throw error;
-		return result;
+	if (error) throw error;
+	if (!result) throw new Error('updateEvent: no result returned from DB');
+	return supabaseToEvent(result as Database['public']['Tables']['events']['Row']);
 	}
 
 	async listEvents(): Promise<Event[]> {
@@ -1007,7 +1174,7 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			.select('*');
 
 		if (error) throw error;
-		return data || [];
+		return (data || []).map((d) => supabaseToEvent(d as Database['public']['Tables']['events']['Row']));
 	}
 
 	async deleteEvent(id: string): Promise<void> {
@@ -1031,7 +1198,7 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			if (error.code === 'PGRST116') return null;
 			throw error;
 		}
-		return data;
+	return data ? supabaseToUser(data as Database['public']['Tables']['users']['Row']) : null;
 	}
 
 	async createUser(
@@ -1050,8 +1217,9 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			.select()
 			.single();
 
-		if (error) throw error;
-		return result;
+	if (error) throw error;
+	if (!result) throw new Error('createUser: no result returned from DB');
+	return supabaseToUser(result as Database['public']['Tables']['users']['Row']);
 	}
 
 	async updateUser(id: string, data: Partial<User>): Promise<User> {
@@ -1065,8 +1233,9 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			.select()
 			.single();
 
-		if (error) throw error;
-		return result;
+	if (error) throw error;
+	if (!result) throw new Error('updateUser: no result returned from DB');
+	return supabaseToUser(result as Database['public']['Tables']['users']['Row']);
 	}
 
 	async listUsers(): Promise<User[]> {
@@ -1075,7 +1244,7 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			.select('*');
 
 		if (error) throw error;
-		return data || [];
+	return (data || []).map((d) => supabaseToUser(d as Database['public']['Tables']['users']['Row']));
 	}
 
 	async deleteUser(id: string): Promise<void> {
@@ -1088,8 +1257,48 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 	}
 
 	// Leader Profiles
+
+	private mapLeaderProfile(row: Database['public']['Tables']['leader_profiles']['Row'] | Record<string, unknown>): LeaderProfile {
+		const r = (row ?? {}) as Record<string, unknown>;
+		return {
+			leader_id: (r['leader_id'] as string) || '',
+			first_name: (r['first_name'] as string) || '',
+			last_name: (r['last_name'] as string) || '',
+			email: (r['email'] as string) || undefined,
+			phone: (r['phone'] as string) || undefined,
+			photo_url: (r['photo_url'] as string) || undefined,
+			avatar_path: (r['avatar_path'] as string) || undefined,
+			notes: (r['notes'] as string) || undefined,
+			background_check_complete: r['background_check_complete'] === null || r['background_check_complete'] === undefined ? false : !!r['background_check_complete'],
+			ministryCount: (r['ministryCount'] as number) ?? 0,
+			is_active: r['is_active'] === null || r['is_active'] === undefined ? true : !!r['is_active'],
+			created_at: (r['created_at'] as string) || new Date().toISOString(),
+			updated_at: (r['updated_at'] as string) || new Date().toISOString(),
+		};
+	}
+
+	private mapBibleBeeYear(row: unknown): BibleBeeYear {
+		const r = (row ?? {}) as Record<string, unknown>;
+		return {
+			id: (r['id'] as string) || '',
+			year: (r['year'] as number) ?? undefined,
+			name: (r['name'] as string) || undefined,
+			label: (r['label'] as string) || undefined,
+			cycle_id: (r['cycle_id'] as string) || undefined,
+			description: (r['description'] as string) || undefined,
+			is_active: r['is_active'] === null || r['is_active'] === undefined ? false : !!r['is_active'],
+			registration_open_date: (r['registration_open_date'] as string) || undefined,
+			registration_close_date: (r['registration_close_date'] as string) || undefined,
+			competition_start_date: (r['competition_start_date'] as string) || undefined,
+			competition_end_date: (r['competition_end_date'] as string) || undefined,
+			created_at: (r['created_at'] as string) || new Date().toISOString(),
+			updated_at: (r['updated_at'] as string) || new Date().toISOString(),
+		};
+	}
+
+
 	async getLeaderProfile(id: string): Promise<LeaderProfile | null> {
-		const { data, error } = await this.client
+	const { data, error } = await this.client
 			.from('leader_profiles')
 			.select('*')
 			.eq('leader_id', id)
@@ -1099,7 +1308,7 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			if (error.code === 'PGRST116') return null;
 			throw error;
 		}
-		return data;
+		return data ? this.mapLeaderProfile(data) : null;
 	}
 
 	async createLeaderProfile(
@@ -1118,8 +1327,8 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			.select()
 			.single();
 
-		if (error) throw error;
-		return result;
+	if (error) throw error;
+	return this.mapLeaderProfile(result);
 	}
 
 	async updateLeaderProfile(
@@ -1137,11 +1346,11 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			.single();
 
 		if (error) throw error;
-		return result;
+		return this.mapLeaderProfile(result);
 	}
 
 	async listLeaderProfiles(isActive?: boolean): Promise<LeaderProfile[]> {
-		let query = this.client.from('leader_profiles').select('*');
+	let query = this.client.from('leader_profiles').select('*');
 
 		if (isActive !== undefined) {
 			query = query.eq('is_active', isActive);
@@ -1149,7 +1358,7 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 
 		const { data, error } = await query;
 		if (error) throw error;
-		return data || [];
+		return (data || []).map((d) => this.mapLeaderProfile(d as Database['public']['Tables']['leader_profiles']['Row']));
 	}
 
 	async deleteLeaderProfile(id: string): Promise<void> {
@@ -1166,7 +1375,7 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 		id: string
 	): Promise<MinistryLeaderMembership | null> {
 		const { data, error } = await this.client
-			.from('ministry_leader_memberships')
+			.from('leader_assignments')
 			.select('*')
 			.eq('membership_id', id)
 			.single();
@@ -1175,7 +1384,7 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			if (error.code === 'PGRST116') return null;
 			throw error;
 		}
-		return data;
+	return data ? supabaseToMinistryLeaderMembership(data as Record<string, unknown>) : null;
 	}
 
 	async createMinistryLeaderMembership(
@@ -1188,39 +1397,53 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			updated_at: new Date().toISOString(),
 		};
 
+
+		// serialize any JSON-like fields before insert
+		const dbPayload: Record<string, unknown> = { ...membership } as Record<string, unknown>;
+		// leader_assignments table expects assignment_id as PK; map membership_id to assignment_id
+		if (dbPayload['membership_id']) dbPayload['assignment_id'] = dbPayload['membership_id'];
+		if (dbPayload.roles && typeof dbPayload.roles !== 'string') {
+			dbPayload.roles = JSON.stringify(dbPayload.roles as unknown);
+		}
+
 		const { data: result, error } = await this.client
-			.from('ministry_leader_memberships')
-			.insert(membership)
+			.from('leader_assignments')
+			.insert(dbPayload as Database['public']['Tables']['leader_assignments']['Insert'])
 			.select()
 			.single();
 
 		if (error) throw error;
-		return result;
+		return supabaseToMinistryLeaderMembership(result as Record<string, unknown>);
 	}
 
 	async updateMinistryLeaderMembership(
 		id: string,
 		data: Partial<MinistryLeaderMembership>
 	): Promise<MinistryLeaderMembership> {
+
+		const dbPayload: Record<string, unknown> = { ...(data as Record<string, unknown>), updated_at: new Date().toISOString() };
+		if (dbPayload['membership_id']) dbPayload['assignment_id'] = dbPayload['membership_id'];
+		if (dbPayload.roles && typeof dbPayload.roles !== 'string') {
+			dbPayload.roles = JSON.stringify(dbPayload.roles as unknown);
+		}
+
 		const { data: result, error } = await this.client
-			.from('ministry_leader_memberships')
-			.update({
-				...data,
-				updated_at: new Date().toISOString(),
-			})
+			.from('leader_assignments')
+			.update(dbPayload as Database['public']['Tables']['leader_assignments']['Update'])
 			.eq('membership_id', id)
 			.select()
 			.single();
 
-		if (error) throw error;
-		return result;
+	if (error) throw error;
+	if (!result) throw new Error('updateMinistryLeaderMembership: no result returned from DB');
+	return supabaseToMinistryLeaderMembership(result as Record<string, unknown>);
 	}
 
 	async listMinistryLeaderMemberships(
 		ministryId?: string,
 		leaderId?: string
 	): Promise<MinistryLeaderMembership[]> {
-		let query = this.client.from('ministry_leader_memberships').select('*');
+	let query = this.client.from('leader_assignments').select('*');
 
 		if (ministryId) {
 			query = query.eq('ministry_id', ministryId);
@@ -1229,14 +1452,14 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			query = query.eq('leader_id', leaderId);
 		}
 
-		const { data, error } = await query;
-		if (error) throw error;
-		return data || [];
+	const { data, error } = await query;
+	if (error) throw error;
+	return (data || []).map((d) => supabaseToMinistryLeaderMembership(d as Record<string, unknown>));
 	}
 
 	async deleteMinistryLeaderMembership(id: string): Promise<void> {
 		const { error } = await this.client
-			.from('ministry_leader_memberships')
+			.from('leader_assignments')
 			.delete()
 			.eq('membership_id', id);
 
@@ -1255,7 +1478,7 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			if (error.code === 'PGRST116') return null;
 			throw error;
 		}
-		return data;
+	return data ? supabaseToMinistryAccount(data as Database['public']['Tables']['ministry_accounts']['Row']) : null;
 	}
 
 	async createMinistryAccount(
@@ -1267,32 +1490,40 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			updated_at: new Date().toISOString(),
 		};
 
+		// Prepare DB payload with proper serialization for JSON settings
+		const dbPayload: Record<string, unknown> = { ...account };
+		if (dbPayload['settings'] && typeof dbPayload['settings'] !== 'string') {
+			dbPayload['settings'] = JSON.stringify(dbPayload['settings']);
+		}
+
 		const { data: result, error } = await this.client
 			.from('ministry_accounts')
-			.insert(account)
+			.insert(dbPayload)
 			.select()
 			.single();
 
 		if (error) throw error;
-		return result;
+	return supabaseToMinistryAccount(result as Database['public']['Tables']['ministry_accounts']['Row']);
 	}
 
 	async updateMinistryAccount(
 		id: string,
 		data: Partial<MinistryAccount>
 	): Promise<MinistryAccount> {
+		const dbPayload: Record<string, unknown> = { ...data, updated_at: new Date().toISOString() };
+		if (dbPayload['settings'] && typeof dbPayload['settings'] !== 'string') {
+			dbPayload['settings'] = JSON.stringify(dbPayload['settings']);
+		}
+
 		const { data: result, error } = await this.client
 			.from('ministry_accounts')
-			.update({
-				...data,
-				updated_at: new Date().toISOString(),
-			})
+			.update(dbPayload)
 			.eq('ministry_id', id)
 			.select()
 			.single();
 
 		if (error) throw error;
-		return result;
+		return result ? supabaseToMinistryAccount(result as Database['public']['Tables']['ministry_accounts']['Row']) : result;
 	}
 
 	async listMinistryAccounts(): Promise<MinistryAccount[]> {
@@ -1301,7 +1532,7 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			.select('*');
 
 		if (error) throw error;
-		return data || [];
+		return (data || []).map((d) => supabaseToMinistryAccount(d as Database['public']['Tables']['ministry_accounts']['Row']));
 	}
 
 	async deleteMinistryAccount(id: string): Promise<void> {
@@ -1325,7 +1556,7 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			if (error.code === 'PGRST116') return null;
 			throw error;
 		}
-		return data;
+	return data ? supabaseToBrandingSettings(data as Database['public']['Tables']['branding_settings']['Row']) : null;
 	}
 
 	async createBrandingSettings(
@@ -1345,7 +1576,8 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			.single();
 
 		if (error) throw error;
-		return result;
+		if (!result) throw new Error('createBrandingSettings: no result returned from DB');
+		return supabaseToBrandingSettings(result as Database['public']['Tables']['branding_settings']['Row']);
 	}
 
 	async updateBrandingSettings(
@@ -1363,7 +1595,8 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			.single();
 
 		if (error) throw error;
-		return result;
+		if (!result) throw new Error('updateBrandingSettings: no result returned from DB');
+		return supabaseToBrandingSettings(result as Database['public']['Tables']['branding_settings']['Row']);
 	}
 
 	async listBrandingSettings(): Promise<BrandingSettings[]> {
@@ -1372,7 +1605,7 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			.select('*');
 
 		if (error) throw error;
-		return data || [];
+		return (data || []).map((d) => supabaseToBrandingSettings(d as Database['public']['Tables']['branding_settings']['Row']));
 	}
 
 	async deleteBrandingSettings(settingId: string): Promise<void> {
@@ -1396,26 +1629,35 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			if (error.code === 'PGRST116') return null;
 			throw error;
 		}
-		return data;
+		return data ? this.mapBibleBeeYear(data) : null;
 	}
 
 	async createBibleBeeYear(
 		data: Omit<BibleBeeYear, 'created_at' | 'updated_at'>
 	): Promise<BibleBeeYear> {
-		const year = {
-			...data,
+		if (data.year === undefined || data.year === null) throw new Error('year is required for bible bee year');
+
+		const insertPayload = {
+			name: data.name ?? '',
+			year: data.year,
+			description: data.description ?? null,
+			is_active: data.is_active ?? null,
+			registration_open_date: data.registration_open_date ?? null,
+			registration_close_date: data.registration_close_date ?? null,
+			competition_start_date: data.competition_start_date ?? null,
+			competition_end_date: data.competition_end_date ?? null,
 			created_at: new Date().toISOString(),
 			updated_at: new Date().toISOString(),
 		};
 
 		const { data: result, error } = await this.client
 			.from('bible_bee_years')
-			.insert(year)
+			.insert(insertPayload)
 			.select()
 			.single();
 
 		if (error) throw error;
-		return result;
+		return this.mapBibleBeeYear(result);
 	}
 
 	async updateBibleBeeYear(
@@ -1433,7 +1675,7 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			.single();
 
 		if (error) throw error;
-		return result;
+		return this.mapBibleBeeYear(result);
 	}
 
 	async listBibleBeeYears(): Promise<BibleBeeYear[]> {
@@ -1441,8 +1683,8 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			.from('bible_bee_years')
 			.select('*');
 
-		if (error) throw error;
-		return data || [];
+	if (error) throw error;
+	return (data || []).map((d: unknown) => this.mapBibleBeeYear(d));
 	}
 
 	async deleteBibleBeeYear(id: string): Promise<void> {
@@ -1465,26 +1707,34 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			if (error.code === 'PGRST116') return null;
 			throw error;
 		}
-		return data;
+		return data ? this.mapDivision(data) : null;
 	}
 
 	async createDivision(
 		data: Omit<Division, 'created_at' | 'updated_at'>
 	): Promise<Division> {
-		const division = {
-			...data,
+		const insertPayload = {
+			name: data.name,
+			bible_bee_year_id: data.year_id ?? null,
+			description: (((data as unknown) as Record<string, unknown>)['description'] as string) ?? null,
+			min_age: (((data as unknown) as Record<string, unknown>)['min_age'] as number) ?? null,
+			max_age: (((data as unknown) as Record<string, unknown>)['max_age'] as number) ?? null,
+			min_grade: data.min_grade ?? null,
+			max_grade: data.max_grade ?? null,
+			min_scriptures: data.minimum_required ?? null,
+			requires_essay: (((data as unknown) as Record<string, unknown>)['requires_essay'] as boolean) ?? null,
 			created_at: new Date().toISOString(),
 			updated_at: new Date().toISOString(),
 		};
 
 		const { data: result, error } = await this.client
 			.from('divisions')
-			.insert(division)
+			.insert(insertPayload)
 			.select()
 			.single();
 
 		if (error) throw error;
-		return result;
+		return this.mapDivision(result);
 	}
 
 	async updateDivision(id: string, data: Partial<Division>): Promise<Division> {
@@ -1499,11 +1749,11 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			.single();
 
 		if (error) throw error;
-		return result;
+		return this.mapDivision(result);
 	}
 
 	async listDivisions(bibleBeeYearId?: string): Promise<Division[]> {
-		let query = this.client.from('divisions').select('*');
+	let query = this.client.from('divisions').select('*');
 
 		if (bibleBeeYearId) {
 			query = query.eq('bible_bee_year_id', bibleBeeYearId);
@@ -1511,7 +1761,22 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 
 		const { data, error } = await query;
 		if (error) throw error;
-		return data || [];
+	return (data || []).map((d: unknown) => this.mapDivision(d as Record<string, unknown>));
+	}
+
+	private mapDivision(row: Database['public']['Tables']['divisions']['Row'] | Record<string, unknown>): Division {
+		const r = (row ?? {}) as Record<string, unknown>;
+		return {
+			id: (r['id'] as string) || '',
+			year_id: (r['bible_bee_year_id'] as string) || (r['year_id'] as string) || '',
+			name: (r['name'] as string) || '',
+			minimum_required: (r['minimum_required'] as number) ?? (r['min_scriptures'] as number) ?? 0,
+			min_last_order: (r['min_last_order'] as number) ?? 0,
+			min_grade: (r['min_grade'] as number) ?? 0,
+			max_grade: (r['max_grade'] as number) ?? 0,
+			created_at: (r['created_at'] as string) || new Date().toISOString(),
+			updated_at: (r['updated_at'] as string) || new Date().toISOString(),
+		};
 	}
 
 	async deleteDivision(id: string): Promise<void> {
@@ -1534,26 +1799,31 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			if (error.code === 'PGRST116') return null;
 			throw error;
 		}
-		return data;
+		return data ? this.mapEssayPrompt(data) : null;
 	}
 
 	async createEssayPrompt(
 		data: Omit<EssayPrompt, 'created_at' | 'updated_at'>
 	): Promise<EssayPrompt> {
-		const prompt = {
-			...data,
+		const insertPayload = {
+			prompt: data.prompt_text,
+			title: (((data as unknown) as Record<string, unknown>)['title'] as string) ?? data.division_name ?? (data.prompt_text ? data.prompt_text.slice(0, 40) : 'Essay Prompt'),
+			division_id: null,
+			instructions: null,
+			min_words: null,
+			max_words: null,
 			created_at: new Date().toISOString(),
 			updated_at: new Date().toISOString(),
 		};
 
 		const { data: result, error } = await this.client
 			.from('essay_prompts')
-			.insert(prompt)
+			.insert(insertPayload)
 			.select()
 			.single();
 
 		if (error) throw error;
-		return result;
+		return this.mapEssayPrompt(result);
 	}
 
 	async updateEssayPrompt(
@@ -1571,11 +1841,11 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			.single();
 
 		if (error) throw error;
-		return result;
+		return this.mapEssayPrompt(result);
 	}
 
 	async listEssayPrompts(divisionId?: string): Promise<EssayPrompt[]> {
-		let query = this.client.from('essay_prompts').select('*');
+	let query = (this.client as unknown as SupabaseClient<Database>).from('essay_prompts').select('*');
 
 		if (divisionId) {
 			query = query.eq('division_id', divisionId);
@@ -1583,7 +1853,19 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 
 		const { data, error } = await query;
 		if (error) throw error;
-		return data || [];
+		return (data || []).map((d: unknown) => this.mapEssayPrompt(d));
+	}
+	private mapEssayPrompt(row: unknown): EssayPrompt {
+		const r = (row ?? {}) as Record<string, unknown>;
+		return {
+			id: (r['id'] as string) || '',
+			year_id: (r['year_id'] as string) || (r['bible_bee_year_id'] as string) || '',
+			division_name: (r['division_name'] as string) || undefined,
+			prompt_text: (r['prompt_text'] as string) || (r['prompt'] as string) || '',
+			due_date: (r['due_date'] as string) || '',
+			created_at: (r['created_at'] as string) || new Date().toISOString(),
+			updated_at: (r['updated_at'] as string) || new Date().toISOString(),
+		};
 	}
 
 	async deleteEssayPrompt(id: string): Promise<void> {
@@ -1597,7 +1879,7 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 
 	async getEnrollment(id: string): Promise<Enrollment | null> {
 		const { data, error } = await this.client
-			.from('enrollments')
+			.from('bible_bee_enrollments')
 			.select('*')
 			.eq('id', id)
 			.single();
@@ -1606,48 +1888,56 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			if (error.code === 'PGRST116') return null;
 			throw error;
 		}
-		return data;
+	return data ? supabaseToEnrollment(data as unknown as Database['public']['Tables']['bible_bee_enrollments']['Row']) : null;
 	}
 
 	async createEnrollment(
 		data: Omit<Enrollment, 'created_at' | 'updated_at'>
 	): Promise<Enrollment> {
-		const enrollment = {
-			...data,
-			created_at: new Date().toISOString(),
-			updated_at: new Date().toISOString(),
+		if (!data.child_id || !data.year_id || !data.division_id) throw new Error('child_id, year_id and division_id are required for enrollment');
+
+		const insertPayload: Database['public']['Tables']['bible_bee_enrollments']['Insert'] = {
+			childId: data.child_id!,
+			competitionYearId: data.year_id!,
+			divisionId: data.division_id!,
+			auto_enrolled: data.auto_enrolled ?? false,
+			enrolled_at: data.enrolled_at ?? new Date().toISOString(),
+			id: ((data as unknown) as Record<string, unknown>)['id'] as string ?? undefined,
 		};
 
 		const { data: result, error } = await this.client
-			.from('enrollments')
-			.insert(enrollment)
+			.from('bible_bee_enrollments')
+			.insert(insertPayload)
 			.select()
 			.single();
 
-		if (error) throw error;
-		return result;
+	if (error) throw error;
+	return supabaseToEnrollment(result as Database['public']['Tables']['bible_bee_enrollments']['Row']);
 	}
 
 	async updateEnrollment(id: string, data: Partial<Enrollment>): Promise<Enrollment> {
+		const payload = {
+			...(data as Database['public']['Tables']['bible_bee_enrollments']['Update']),
+			updated_at: new Date().toISOString(),
+		} as unknown as Database['public']['Tables']['bible_bee_enrollments']['Update'];
+
 		const { data: result, error } = await this.client
-			.from('enrollments')
-			.update({
-				...data,
-				updated_at: new Date().toISOString(),
-			})
+			.from('bible_bee_enrollments')
+			.update(payload)
 			.eq('id', id)
 			.select()
 			.single();
 
 		if (error) throw error;
-		return result;
+		return supabaseToEnrollment(result as Database['public']['Tables']['bible_bee_enrollments']['Row']);
 	}
 
 	async listEnrollments(
 		childId?: string,
 		bibleBeeYearId?: string
 	): Promise<Enrollment[]> {
-		let query = this.client.from('enrollments').select('*');
+	// Note: client typing may lack some table names; use narrow cast only for the query builder here
+	let query = (this.client as unknown as SupabaseClient<Database>).from('bible_bee_enrollments').select('*');
 
 		if (childId) {
 			query = query.eq('child_id', childId);
@@ -1656,14 +1946,14 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			query = query.eq('bible_bee_year_id', bibleBeeYearId);
 		}
 
-		const { data, error } = await query;
-		if (error) throw error;
-		return data || [];
+	const { data, error } = await query;
+	if (error) throw error;
+	return (data || []).map((d) => supabaseToEnrollment(d as Database['public']['Tables']['bible_bee_enrollments']['Row']));
 	}
 
 	async deleteEnrollment(id: string): Promise<void> {
 		const { error } = await this.client
-			.from('enrollments')
+			.from('bible_bee_enrollments')
 			.delete()
 			.eq('id', id);
 
@@ -1681,7 +1971,7 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			if (error.code === 'PGRST116') return null;
 			throw error;
 		}
-		return data;
+	return data ? supabaseToEnrollmentOverride(data as Database['public']['Tables']['enrollment_overrides']['Row']) : null;
 	}
 
 	async createEnrollmentOverride(
@@ -1699,8 +1989,8 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			.select()
 			.single();
 
-		if (error) throw error;
-		return result;
+	if (error) throw error;
+	return supabaseToEnrollmentOverride(result as Database['public']['Tables']['enrollment_overrides']['Row']);
 	}
 
 	async updateEnrollmentOverride(
@@ -1717,20 +2007,20 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 			.select()
 			.single();
 
-		if (error) throw error;
-		return result;
+	if (error) throw error;
+	return supabaseToEnrollmentOverride(result as Database['public']['Tables']['enrollment_overrides']['Row']);
 	}
 
 	async listEnrollmentOverrides(enrollmentId?: string): Promise<EnrollmentOverride[]> {
-		let query = this.client.from('enrollment_overrides').select('*');
+	let query = (this.client as unknown as SupabaseClient<Database>).from('enrollment_overrides').select('*');
 
 		if (enrollmentId) {
 			query = query.eq('enrollment_id', enrollmentId);
 		}
 
-		const { data, error } = await query;
-		if (error) throw error;
-		return data || [];
+	const { data, error } = await query;
+	if (error) throw error;
+	return (data || []).map((d: Database['public']['Tables']['enrollment_overrides']['Row']) => supabaseToEnrollmentOverride(d));
 	}
 
 	async deleteEnrollmentOverride(id: string): Promise<void> {
@@ -1767,5 +2057,25 @@ constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: Supabas
 		// For now, just execute the callback
 		// In the future, consider using pg connection to handle transactions
 		return callback();
+	}
+    
+	// Temporary helper for tables missing from generated supabase types (see TODOs below).
+	// TODO: regenerate `src/lib/database/supabase-types.ts` so the Supabase client generic
+	// includes all tables (for example: `registration_cycles`) and remove this helper.
+	// Localized any-cast helper for tables not present in the generated supabase types.
+	// TODO: regenerate `src/lib/database/supabase-types.ts` and remove this.
+	// Temporary helper for tables missing from generated supabase types (see TODOs below).
+	// TODO: regenerate `src/lib/database/supabase-types.ts` so the Supabase client generic
+	// includes all tables (for example: `registration_cycles`) and remove this helper.
+	// Localized any-cast helper for tables not present in the generated supabase types.
+	// TODO: regenerate `src/lib/database/supabase-types.ts` and remove this.
+	// Localized any: this helper is intentionally `any` until `supabase-types.ts` is regenerated
+	// to include legacy tables (e.g. `registration_cycles`). When the generator is
+	// run successfully and types are complete, replace `getClientAny()` usages with
+	// properly typed `this.client` calls and remove this helper.
+	// See `.github/ISSUES/000-temp-relax-no-explicit-any.md` for the tracking issue.
+	/* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+	private getClientAny(): any {
+		return this.client as any;
 	}
 }

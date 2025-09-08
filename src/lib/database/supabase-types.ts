@@ -1,7 +1,7 @@
 /**
  * This file contains types generated from the Supabase schema.
  * DO NOT EDIT MANUALLY. This file is auto-generated.
- * Generated on: 2025-09-05T03:46:24.227Z
+ * Generated on: 2025-09-07T19:11:56.116Z
  */
 
 export type SupabaseJson =
@@ -9,35 +9,10 @@ export type SupabaseJson =
   | number
   | boolean
   | null
-  | { [key: string]: Json | undefined }
-  | Json[]
+  | { [key: string]: SupabaseJson | undefined }
+  | SupabaseJson[]
 
 export type Database = {
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
   public: {
     Tables: {
       attendance: {
@@ -274,7 +249,6 @@ export type Database = {
       children: {
         Row: {
           allergies: string | null
-          birth_date: string | null
           child_id: string
           child_mobile: string | null
           created_at: string | null
@@ -289,7 +263,6 @@ export type Database = {
           is_active: boolean | null
           last_name: string | null
           medical_notes: string | null
-          mobile_phone: string | null
           notes: string | null
           special_needs: boolean | null
           special_needs_notes: string | null
@@ -297,7 +270,6 @@ export type Database = {
         }
         Insert: {
           allergies?: string | null
-          birth_date?: string | null
           child_id: string
           child_mobile?: string | null
           created_at?: string | null
@@ -312,7 +284,6 @@ export type Database = {
           is_active?: boolean | null
           last_name?: string | null
           medical_notes?: string | null
-          mobile_phone?: string | null
           notes?: string | null
           special_needs?: boolean | null
           special_needs_notes?: string | null
@@ -320,7 +291,6 @@ export type Database = {
         }
         Update: {
           allergies?: string | null
-          birth_date?: string | null
           child_id?: string
           child_mobile?: string | null
           created_at?: string | null
@@ -335,7 +305,6 @@ export type Database = {
           is_active?: boolean | null
           last_name?: string | null
           medical_notes?: string | null
-          mobile_phone?: string | null
           notes?: string | null
           special_needs?: boolean | null
           special_needs_notes?: string | null
@@ -469,7 +438,15 @@ export type Database = {
           relationship?: string | null
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "emergency_contacts_household_id_fkey"
+            columns: ["household_id"]
+            isOneToOne: false
+            referencedRelation: "households"
+            referencedColumns: ["household_id"]
+          },
+        ]
       }
       enrollment_overrides: {
         Row: {
@@ -576,21 +553,21 @@ export type Database = {
           description: string | null
           event_id: string
           name: string | null
-          timeslots: Json | null
+          timeslots: SupabaseJson | null
         }
         Insert: {
           created_at?: string | null
           description?: string | null
           event_id: string
           name?: string | null
-          timeslots?: Json | null
+          timeslots?: SupabaseJson | null
         }
         Update: {
           created_at?: string | null
           description?: string | null
           event_id?: string
           name?: string | null
-          timeslots?: Json | null
+          timeslots?: SupabaseJson | null
         }
         Relationships: []
       }
@@ -702,6 +679,8 @@ export type Database = {
       households: {
         Row: {
           address: string | null
+          address_line1: string | null
+          address_line2: string | null
           city: string | null
           created_at: string | null
           email: string | null
@@ -711,7 +690,6 @@ export type Database = {
           household_uuid: string
           name: string | null
           preferred_scripture_translation: string | null
-          preferredScriptureTranslation: string | null
           primary_phone: string | null
           state: string | null
           updated_at: string | null
@@ -719,6 +697,8 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          address_line1?: string | null
+          address_line2?: string | null
           city?: string | null
           created_at?: string | null
           email?: string | null
@@ -728,7 +708,6 @@ export type Database = {
           household_uuid?: string
           name?: string | null
           preferred_scripture_translation?: string | null
-          preferredScriptureTranslation?: string | null
           primary_phone?: string | null
           state?: string | null
           updated_at?: string | null
@@ -736,6 +715,8 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          address_line1?: string | null
+          address_line2?: string | null
           city?: string | null
           created_at?: string | null
           email?: string | null
@@ -745,7 +726,6 @@ export type Database = {
           household_uuid?: string
           name?: string | null
           preferred_scripture_translation?: string | null
-          preferredScriptureTranslation?: string | null
           primary_phone?: string | null
           state?: string | null
           updated_at?: string | null
@@ -871,7 +851,7 @@ export type Database = {
           code: string | null
           communicate_later: boolean | null
           created_at: string | null
-          custom_questions: Json | null
+          custom_questions: SupabaseJson | null
           data_profile: string | null
           description: string | null
           details: string | null
@@ -892,7 +872,7 @@ export type Database = {
           code?: string | null
           communicate_later?: boolean | null
           created_at?: string | null
-          custom_questions?: Json | null
+          custom_questions?: SupabaseJson | null
           data_profile?: string | null
           description?: string | null
           details?: string | null
@@ -913,7 +893,7 @@ export type Database = {
           code?: string | null
           communicate_later?: boolean | null
           created_at?: string | null
-          custom_questions?: Json | null
+          custom_questions?: SupabaseJson | null
           data_profile?: string | null
           description?: string | null
           details?: string | null
@@ -972,7 +952,7 @@ export type Database = {
         Row: {
           child_id: string | null
           created_at: string | null
-          custom_fields: Json | null
+          custom_fields: SupabaseJson | null
           cycle_id: string | null
           enrollment_id: string
           ministry_id: string | null
@@ -981,7 +961,7 @@ export type Database = {
         Insert: {
           child_id?: string | null
           created_at?: string | null
-          custom_fields?: Json | null
+          custom_fields?: SupabaseJson | null
           cycle_id?: string | null
           enrollment_id: string
           ministry_id?: string | null
@@ -990,7 +970,7 @@ export type Database = {
         Update: {
           child_id?: string | null
           created_at?: string | null
-          custom_fields?: Json | null
+          custom_fields?: SupabaseJson | null
           cycle_id?: string | null
           enrollment_id?: string
           ministry_id?: string | null
@@ -1009,7 +989,7 @@ export type Database = {
       registrations: {
         Row: {
           child_id: string | null
-          consents: Json | null
+          consents: SupabaseJson | null
           created_at: string | null
           cycle_id: string | null
           pre_registered_sunday_school: boolean | null
@@ -1020,7 +1000,7 @@ export type Database = {
         }
         Insert: {
           child_id?: string | null
-          consents?: Json | null
+          consents?: SupabaseJson | null
           created_at?: string | null
           cycle_id?: string | null
           pre_registered_sunday_school?: boolean | null
@@ -1031,7 +1011,7 @@ export type Database = {
         }
         Update: {
           child_id?: string | null
-          consents?: Json | null
+          consents?: SupabaseJson | null
           created_at?: string | null
           cycle_id?: string | null
           pre_registered_sunday_school?: boolean | null
@@ -1044,33 +1024,45 @@ export type Database = {
       }
       scriptures: {
         Row: {
+          category: string | null
           competition_year_id: string | null
+          counts_for: number | null
           created_at: string | null
           external_id: string | null
           id: string
           order: number
           reference: string
-          texts: Json
+          scripture_number: string | null
+          scripture_order: number | null
+          texts: SupabaseJson
           updated_at: string | null
         }
         Insert: {
+          category?: string | null
           competition_year_id?: string | null
+          counts_for?: number | null
           created_at?: string | null
           external_id?: string | null
           id?: string
           order: number
           reference: string
-          texts: Json
+          scripture_number?: string | null
+          scripture_order?: number | null
+          texts: SupabaseJson
           updated_at?: string | null
         }
         Update: {
+          category?: string | null
           competition_year_id?: string | null
+          counts_for?: number | null
           created_at?: string | null
           external_id?: string | null
           id?: string
           order?: number
           reference?: string
-          texts?: Json
+          scripture_number?: string | null
+          scripture_order?: number | null
+          texts?: SupabaseJson
           updated_at?: string | null
         }
         Relationships: []
@@ -1351,9 +1343,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {},
   },

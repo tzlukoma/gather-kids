@@ -149,7 +149,7 @@ export default function BrandingPage() {
     const handleReset = () => {
         setFormData({
             app_name: 'gatherKids',
-            description: "The simple, secure, and smart way to manage your children's ministry. Streamline check-ins, track attendance, and keep your community connected.",
+            description: "The simple, secure, and smart way to manage your children&apos;s ministry. Streamline check-ins, track attendance, and keep your community connected.",
             logo_url: '',
             use_logo_only: false,
             youtube_url: '',
@@ -170,7 +170,7 @@ export default function BrandingPage() {
                         Branding & Private Label
                     </h1>
                     <p className="text-muted-foreground">
-                        Customize your app's appearance and branding to match your organization.
+                        Customize your app&apos;s appearance and branding to match your organization.
                     </p>
                 </div>
             </div>
@@ -180,8 +180,9 @@ export default function BrandingPage() {
                 <Card>
                     <CardHeader>
                         <CardTitle>App Identity</CardTitle>
+
                         <CardDescription>
-                            Configure your app's name and description that appears throughout the interface.
+                            Configure your app&apos;s name and description that appears throughout the interface.
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
@@ -204,7 +205,7 @@ export default function BrandingPage() {
                             <Label htmlFor="description">Description / Tagline</Label>
                             <Textarea
                                 id="description"
-                                placeholder="The simple, secure, and smart way to manage your children's ministry..."
+                                placeholder="The simple, secure, and smart way to manage your children&apos;s ministry..."
                                 value={formData.description}
                                 onChange={(e) => handleInputChange('description', e.target.value)}
                                 className="mt-1"
@@ -288,9 +289,7 @@ export default function BrandingPage() {
                                 <Checkbox
                                     id="use_logo_only"
                                     checked={formData.use_logo_only}
-                                    onCheckedChange={(checked) => 
-                                        handleInputChange('use_logo_only', checked === true)
-                                    }
+                                    onCheckedChange={(checked) => handleInputChange('use_logo_only', checked === true)}
                                 />
                                 <Label
                                     htmlFor="use_logo_only"
@@ -304,7 +303,7 @@ export default function BrandingPage() {
                             </p>
                             {formData.use_logo_only && !formData.logo_url && (
                                 <p className="text-sm text-destructive font-medium">
-                                    ⚠️ A logo file is required when "Use Logo Only" is enabled.
+                                    ⚠️ A logo file is required when &quot;Use Logo Only&quot; is enabled.
                                 </p>
                             )}
                         </div>
@@ -316,7 +315,7 @@ export default function BrandingPage() {
                     <CardHeader>
                         <CardTitle>Social Media Links</CardTitle>
                         <CardDescription>
-                            Add links to your organization's social media profiles. These will appear on the home page when provided.
+                            Add links to your organization&apos;s social media profiles. These will appear on the home page when provided.
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">

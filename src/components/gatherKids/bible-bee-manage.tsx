@@ -80,6 +80,11 @@ interface BibleBeeManageProps {
 	className?: string;
 }
 
+// Module-level helper to normalize mixed-type active flags
+function isActiveValue(v: unknown): boolean {
+	return v === true || v === 1 || String(v) === '1' || String(v) === 'true';
+}
+
 export default function BibleBeeManage({ className }: BibleBeeManageProps) {
 	const [activeTab, setActiveTab] = useState('years');
 	const [selectedYearId, setSelectedYearId] = useState<string | null>(null);
@@ -257,7 +262,9 @@ export default function BibleBeeManage({ className }: BibleBeeManageProps) {
 											await db.registration_cycles.toArray()
 										).find((c) => {
 											const val = c.is_active;
-											return val === true || Number(val) === 1 || String(val) === '1';
+											return (
+												val === true || Number(val) === 1 || String(val) === '1'
+											);
 										});
 
 										const created = await createBibleBeeYear({
@@ -2039,10 +2046,7 @@ function EnrollmentManagement({
 			// mixed stored representations for is_active (1, true, '1') which
 			// can cause IDBKeyRange DataError when used with .equals(...)
 			const allCycles = await db.registration_cycles.toArray();
-			let currentCycle = allCycles.find((c) => {
-				const val: any = (c as any)?.is_active;
-				return val === true || val === 1 || String(val) === '1';
-			});
+			const currentCycle = allCycles.find((c) => isActiveValue(c?.is_active));
 			if (!currentCycle) {
 				setError(
 					'No active registration cycle found. Please contact an administrator.'
@@ -2278,7 +2282,7 @@ function EnrollmentManagement({
 
 				{!preview && !isLoading && (
 					<div className="text-center py-8 text-muted-foreground">
-						Click "Refresh Preview" to see enrollment preview
+						Click &quot;Refresh Preview&quot; to see enrollment preview
 					</div>
 				)}
 			</CardContent>
@@ -2309,10 +2313,7 @@ function OverrideManagement({
 	// Load data - be tolerant of mixed-type is_active values (1 vs true)
 	const children = useLiveQuery(async () => {
 		const all = await db.children.toArray();
-		return all.filter((c) => {
-			const val: any = (c as any)?.is_active;
-			return !!c && (val === true || val === 1 || String(val) === '1');
-		});
+		return all.filter((c) => !!c && isActiveValue(c?.is_active));
 	}, []);
 
 	const overrides = useLiveQuery(

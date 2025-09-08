@@ -39,10 +39,11 @@ export default function CreateAccountPage() {
 	}, [needsVerification]);
 
 	// Redirect to login if in demo mode or password auth is disabled
-	if (flags.isDemoMode || !flags.loginPasswordEnabled) {
-		router.replace('/login');
-		return null;
-	}
+	useEffect(() => {
+		if (flags.isDemoMode || !flags.loginPasswordEnabled) {
+			router.replace('/login');
+		}
+	}, [flags.isDemoMode, flags.loginPasswordEnabled, router]);
 
 	const handleCreateAccount = async () => {
 		if (!email || !password || !confirmPassword) {
@@ -200,7 +201,7 @@ export default function CreateAccountPage() {
 								Check Your Email
 							</CardTitle>
 							<CardDescription>
-								We've sent a verification link to your email address.
+								We&apos;ve sent a verification link to your email address.
 							</CardDescription>
 						</CardHeader>
 						<CardContent className="space-y-4">
@@ -209,7 +210,7 @@ export default function CreateAccountPage() {
 								<AlertTitle>Verification Required</AlertTitle>
 								<AlertDescription>
 									Please check your inbox and click the verification link to
-									activate your account. Once verified, you'll be able to
+									activate your account. Once verified, you&apos;ll be able to
 									continue with registration.
 								</AlertDescription>
 							</Alert>

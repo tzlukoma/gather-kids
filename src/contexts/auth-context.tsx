@@ -32,6 +32,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 	const [userRole, setUserRole] = useState<AuthRole | null>(null);
 	const [isVercelPreview, setIsVercelPreview] = useState<boolean>(false);
 
+	// Helper to extract a user id from various shapes that may appear in demo/legacy data
+	function getUserId(u: any): string | undefined {
+		return u?.uid || u?.id || u?.user_id;
+	}
+
 	useEffect(() => {
 		// Check if we're in a Vercel preview environment
 		if (typeof window !== 'undefined') {
@@ -43,7 +48,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 		const initializeAuth = async () => {
 			console.log('AuthProvider: Starting initialization...', {
 				isDemo: isDemo(),
-				isVercelPreview
+				isVercelPreview,
 			});
 			setLoading(true);
 
@@ -56,7 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 					if (storedUserString) {
 						console.log('AuthProvider: Found stored user in localStorage');
 						const storedUser = JSON.parse(storedUserString);
-						let finalUser: BaseUser = {
+						const finalUser: BaseUser = {
 							...storedUser,
 							metadata: {
 								...storedUser.metadata,
@@ -70,9 +75,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 						};
 
 						if (finalUser.metadata.role === AuthRole.MINISTRY_LEADER) {
-							const leaderId = (storedUser.uid ||
-								storedUser.id ||
-								(storedUser as any).user_id) as string | undefined;
+							const leaderId = getUserId(storedUser);
 							if (leaderId) {
 								const assignments = await getLeaderAssignmentsForCycle(
 									leaderId,
@@ -85,7 +88,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 						}
 						console.log('AuthProvider: Setting user from localStorage', {
 							uid: finalUser.uid,
-							role: finalUser.metadata.role
+							role: finalUser.metadata.role,
 						});
 						setUser(finalUser);
 						setUserRole(finalUser.metadata.role);
@@ -107,7 +110,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 						const supabaseUser = session.user;
 						const userRole = supabaseUser.user_metadata?.role || AuthRole.ADMIN;
 
-						let finalUser: BaseUser = {
+						const finalUser: BaseUser = {
 							uid: supabaseUser.id,
 							displayName:
 								supabaseUser.user_metadata?.full_name ||
@@ -123,8 +126,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 						};
 
 						if (finalUser.metadata.role === AuthRole.MINISTRY_LEADER) {
-							const leaderId =
-								finalUser.uid || finalUser.id || (finalUser as any).user_id;
+							const leaderId = getUserId(finalUser);
 							if (typeof leaderId === 'string' && leaderId.length > 0) {
 								const assignments = await getLeaderAssignmentsForCycle(
 									leaderId,
@@ -138,7 +140,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 						console.log('AuthProvider: Setting user from Supabase session', {
 							uid: finalUser.uid,
-							role: finalUser.metadata.role
+							role: finalUser.metadata.role,
 						});
 						setUser(finalUser);
 						setUserRole(finalUser.metadata.role);
@@ -164,7 +166,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 								const userRole =
 									recoveredUser.user_metadata?.role || AuthRole.ADMIN;
 
-								let finalUser: BaseUser = {
+								const finalUser: BaseUser = {
 									uid: recoveredUser.id,
 									displayName:
 										recoveredUser.user_metadata?.full_name ||
@@ -192,14 +194,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 									);
 								}
 
-								console.log('AuthProvider: Setting user from recovered session', {
-									uid: finalUser.uid,
-									role: finalUser.metadata.role
-								});
+								console.log(
+									'AuthProvider: Setting user from recovered session',
+									{
+										uid: finalUser.uid,
+										role: finalUser.metadata.role,
+									}
+								);
 								setUser(finalUser);
 								setUserRole(finalUser.metadata.role);
 							} else {
-								console.log('AuthProvider: Session refresh failed. Need to re-authenticate.');
+								console.log(
+									'AuthProvider: Session refresh failed. Need to re-authenticate.'
+								);
 							}
 						} else {
 							console.log('AuthProvider: No session or tokens found');
@@ -227,11 +234,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 			} = supabase.auth.onAuthStateChange(async (event: any, session: any) => {
 				console.log('Supabase auth state change:', event, session?.user?.id);
 
-				if (event === 'SIGNED_IN' && session?.user) {
+				if (
+					(event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') &&
+					session?.user
+				) {
+					console.log('AuthProvider: Processing auth state change:', event);
 					const supabaseUser = session.user;
 					const userRole = supabaseUser.user_metadata?.role || AuthRole.ADMIN;
 
-					let finalUser: BaseUser = {
+					console.log('AuthProvider: User metadata:', {
+						role: supabaseUser.user_metadata?.role,
+						defaultedRole: userRole,
+						event: event,
+					});
+
+					const finalUser: BaseUser = {
 						uid: supabaseUser.id,
 						displayName:
 							supabaseUser.user_metadata?.full_name ||
@@ -247,8 +264,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 					};
 
 					if (finalUser.metadata.role === AuthRole.MINISTRY_LEADER) {
-						const leaderId =
-							finalUser.uid || finalUser.id || (finalUser as any).user_id;
+						const leaderId = getUserId(finalUser);
 						if (typeof leaderId === 'string' && leaderId.length > 0) {
 							const assignments = await getLeaderAssignmentsForCycle(
 								leaderId,
@@ -260,6 +276,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 						}
 					}
 
+					console.log('AuthProvider: Updating user from auth state change:', {
+						event,
+						uid: finalUser.uid,
+						role: finalUser.metadata.role,
+					});
 					setUser(finalUser);
 					setUserRole(finalUser.metadata.role);
 				} else if (event === 'SIGNED_OUT') {
@@ -282,8 +303,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 			const finalUser: BaseUser = {
 				...userData,
 				// Ensure we have both uid and id properties for compatibility
-				uid: userData.uid || userData.id || (userData as any).user_id,
-				id: userData.id || userData.uid || (userData as any).user_id,
+				uid: getUserId(userData) || userData.uid || userData.id,
+				id: getUserId(userData) || userData.id || userData.uid,
 				// preserve is_active if provided by userData (seed/login), default to true
 				is_active:
 					typeof userData.is_active === 'boolean' ? userData.is_active : true,
@@ -299,9 +320,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 			);
 
 			if (finalUser.metadata.role === AuthRole.MINISTRY_LEADER) {
-				const leaderId = (userData.uid ||
-					userData.id ||
-					(userData as any).user_id) as string | undefined;
+				const leaderId = getUserId(userData) as string | undefined;
 				if (leaderId) {
 					const assignments = await getLeaderAssignmentsForCycle(
 						leaderId,
@@ -323,7 +342,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 			console.log('AuthProvider: Setting user state...', {
 				uid: finalUser.uid,
-				role: finalUser.metadata.role
+				role: finalUser.metadata.role,
 			});
 			setUser(finalUser);
 			console.log('Setting userRole to:', finalUser.metadata.role);

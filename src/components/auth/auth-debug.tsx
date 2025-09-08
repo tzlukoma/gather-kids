@@ -27,16 +27,23 @@ interface AuthDebugProps {
 	children?: React.ReactNode;
 	showInProduction?: boolean;
 	inline?: boolean;
+	user?: any;
 }
 
-export function AuthDebug({ children, showInProduction = false, inline = false }: AuthDebugProps) {
-	const { user, userRole } = useAuth();
+export function AuthDebug({
+	children,
+	showInProduction = false,
+	inline = false,
+	user: passedUser,
+}: AuthDebugProps) {
+	const { user: ctxUser, userRole } = useAuth();
+	const user = passedUser ?? ctxUser;
 	const [open, setOpen] = useState(false);
-	
+
 	const isDemoMode = isDemo();
 	const nodeEnv = process.env.NODE_ENV;
 	const isProduction = nodeEnv === 'production';
-	
+
 	// Hide in production unless explicitly allowed
 	if (isProduction && !showInProduction) {
 		return null;
@@ -86,13 +93,18 @@ export function AuthDebug({ children, showInProduction = false, inline = false }
 		SHOW_DEMO_FEATURES: process.env.NEXT_PUBLIC_SHOW_DEMO_FEATURES,
 		ENABLE_AI_FEATURES: process.env.NEXT_PUBLIC_ENABLE_AI_FEATURES,
 		HOSTNAME: typeof window !== 'undefined' ? window.location.hostname : 'SSR',
-		IS_VERCEL_PREVIEW: typeof window !== 'undefined' && window.location.hostname.includes('vercel.app') ? 'Yes' : 'No',
+		IS_VERCEL_PREVIEW:
+			typeof window !== 'undefined' &&
+			window.location.hostname.includes('vercel.app')
+				? 'Yes'
+				: 'No',
 	};
 
 	const sessionInfo = {
 		hasSession: !!user,
 		sessionAge: user ? '24 hours' : 'No session',
-		lastActivity: user?.last_sign_in_at || (user ? new Date().toISOString() : 'N/A'),
+		lastActivity:
+			user?.last_sign_in_at || (user ? new Date().toISOString() : 'N/A'),
 		storageMethod: isDemoMode ? 'localStorage (demo mode)' : 'Supabase Auth',
 		hasSupabaseTokens: tokens.length > 0 ? 'Yes' : 'No',
 		tokenCount: tokens.length,
@@ -111,8 +123,15 @@ export function AuthDebug({ children, showInProduction = false, inline = false }
 				<CardContent className="space-y-3">
 					{Object.entries(environmentInfo).map(([key, value]) => (
 						<div key={key} className="flex justify-between items-center">
-							<span className="text-sm font-mono text-muted-foreground">{key}</span>
-							<Badge variant={key === 'NODE_ENV' && value === 'production' ? 'destructive' : 'secondary'}>
+							<span className="text-sm font-mono text-muted-foreground">
+								{key}
+							</span>
+							<Badge
+								variant={
+									key === 'NODE_ENV' && value === 'production'
+										? 'destructive'
+										: 'secondary'
+								}>
 								{String(value)}
 							</Badge>
 						</div>
@@ -156,15 +175,23 @@ export function AuthDebug({ children, showInProduction = false, inline = false }
 								</div>
 								<div className="flex justify-between items-center">
 									<span className="text-sm font-medium">Active</span>
-									<Badge variant={user.is_active !== false ? 'default' : 'destructive'}>
+									<Badge
+										variant={
+											user.is_active !== false ? 'default' : 'destructive'
+										}>
 										{user.is_active !== false ? 'Yes' : 'No'}
 									</Badge>
 								</div>
 								{!isDemoMode && (
 									<>
 										<div className="flex justify-between items-center">
-											<span className="text-sm font-medium">Email Confirmed</span>
-											<Badge variant={user.email_confirmed_at ? 'default' : 'destructive'}>
+											<span className="text-sm font-medium">
+												Email Confirmed
+											</span>
+											<Badge
+												variant={
+													user.email_confirmed_at ? 'default' : 'destructive'
+												}>
 												{user.email_confirmed_at ? 'Yes' : 'No'}
 											</Badge>
 										</div>
@@ -190,26 +217,31 @@ export function AuthDebug({ children, showInProduction = false, inline = false }
 										</code>
 									</div>
 								)}
-								{user.assignedMinistryIds && user.assignedMinistryIds.length > 0 && (
-									<div className="flex justify-between items-center">
-										<span className="text-sm font-medium">Ministries</span>
-										<div className="flex flex-wrap gap-1">
-											{user.assignedMinistryIds.map((id) => (
-												<Badge key={id} variant="outline" className="text-xs">
-													{id}
-												</Badge>
-											))}
+								{user.assignedMinistryIds &&
+									user.assignedMinistryIds.length > 0 && (
+										<div className="flex justify-between items-center">
+											<span className="text-sm font-medium">Ministries</span>
+											<div className="flex flex-wrap gap-1">
+												{user.assignedMinistryIds.map((id: string) => (
+													<Badge key={id} variant="outline" className="text-xs">
+														{id}
+													</Badge>
+												))}
+											</div>
 										</div>
-									</div>
-								)}
+									)}
 							</div>
-							
+
 							<Separator />
-							
+
 							<div className="text-xs text-muted-foreground">
 								<strong>Metadata:</strong>
 								<pre className="mt-1 bg-muted p-2 rounded text-xs overflow-x-auto">
-									{JSON.stringify(user.metadata || user.user_metadata || {}, null, 2)}
+									{JSON.stringify(
+										user.metadata || user.user_metadata || {},
+										null,
+										2
+									)}
 								</pre>
 							</div>
 
@@ -244,20 +276,28 @@ export function AuthDebug({ children, showInProduction = false, inline = false }
 				<CardContent className="space-y-3">
 					{Object.entries(sessionInfo).map(([key, value]) => (
 						<div key={key} className="flex justify-between items-center">
-							<span className="text-sm font-medium">{key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}</span>
+							<span className="text-sm font-medium">
+								{key
+									.replace(/([A-Z])/g, ' $1')
+									.replace(/^./, (str) => str.toUpperCase())}
+							</span>
 							<code className="text-sm bg-muted px-2 py-1 rounded">
 								{String(value)}
 							</code>
 						</div>
 					))}
-					
+
 					{!isDemoMode && tokens.length > 0 && (
 						<>
 							<Separator />
 							<div className="text-xs text-muted-foreground">
 								<strong>Auth Tokens:</strong>
 								<pre className="mt-1 bg-muted p-2 rounded text-xs overflow-x-auto">
-									{JSON.stringify(tokens.map(t => ({ key: t.key, type: t.type })), null, 2)}
+									{JSON.stringify(
+										tokens.map((t) => ({ key: t.key, type: t.type })),
+										null,
+										2
+									)}
 								</pre>
 							</div>
 						</>
@@ -283,8 +323,7 @@ export function AuthDebug({ children, showInProduction = false, inline = false }
 								console.log('Auth Debug - User Role:', userRole);
 								console.log('Auth Debug - Environment:', environmentInfo);
 								console.log('Auth Debug - Session Info:', sessionInfo);
-							}}
-						>
+							}}>
 							Log to Console
 						</Button>
 						<Button
@@ -296,12 +335,13 @@ export function AuthDebug({ children, showInProduction = false, inline = false }
 									userRole,
 									environment: environmentInfo,
 									session: sessionInfo,
-									tokens: tokens.map(t => ({ key: t.key, type: t.type })),
+									tokens: tokens.map((t) => ({ key: t.key, type: t.type })),
 									timestamp: new Date().toISOString(),
 								};
-								navigator.clipboard?.writeText(JSON.stringify(debugInfo, null, 2));
-							}}
-						>
+								navigator.clipboard?.writeText(
+									JSON.stringify(debugInfo, null, 2)
+								);
+							}}>
 							Copy Debug Info
 						</Button>
 					</div>
@@ -335,8 +375,7 @@ export function AuthDebug({ children, showInProduction = false, inline = false }
 					<Button
 						variant="outline"
 						size="sm"
-						className="fixed bottom-4 right-4 z-50 bg-background/80 backdrop-blur-sm"
-					>
+						className="fixed bottom-4 right-4 z-50 bg-background/80 backdrop-blur-sm">
 						<Bug className="h-4 w-4 mr-2" />
 						Auth Debug
 					</Button>
@@ -349,7 +388,8 @@ export function AuthDebug({ children, showInProduction = false, inline = false }
 						Authentication Debug Information
 					</DialogTitle>
 					<DialogDescription>
-						Development information for debugging authentication and environment state.
+						Development information for debugging authentication and environment
+						state.
 						{isDemoMode ? ' (Demo Mode)' : ' (Live Mode)'}
 					</DialogDescription>
 				</DialogHeader>

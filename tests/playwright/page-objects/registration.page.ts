@@ -31,10 +31,10 @@ export class RegistrationPage {
       await addGuardianButton.click();
       
       // Fill second guardian info
-      await this.page.fill('input[name*="firstName"]:visible', 'Jane').last();
-      await this.page.fill('input[name*="lastName"]:visible', 'Smith').last();
-      await this.page.fill('input[name*="email"]:visible', 'jane.smith@example.com').last();
-      await this.page.fill('input[name*="phone"]:visible', '555-987-6543').last();
+  await this.page.locator('input[name*="firstName"]:visible').last().fill('Jane');
+  await this.page.locator('input[name*="lastName"]:visible').last().fill('Smith');
+  await this.page.locator('input[name*="email"]:visible').last().fill('jane.smith@example.com');
+  await this.page.locator('input[name*="phone"]:visible').last().fill('555-987-6543');
     }
   }
 
@@ -52,9 +52,9 @@ export class RegistrationPage {
     await addChildButton.click();
     
     // Fill child information
-    await this.page.fill('input[name*="firstName"]:visible', firstName).last();
-    await this.page.fill('input[name*="lastName"]:visible', lastName).last();
-    await this.page.fill('input[name*="birth"], input[type="date"]:visible', birthdate).last();
+  await this.page.locator('input[name*="firstName"]:visible').last().fill(firstName);
+  await this.page.locator('input[name*="lastName"]:visible').last().fill(lastName);
+  await this.page.locator('input[name*="birth"], input[type="date"]:visible').last().fill(birthdate);
     
     // Select grade based on age
     const age = new Date().getFullYear() - new Date(birthdate).getFullYear();

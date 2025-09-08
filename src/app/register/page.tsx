@@ -36,7 +36,7 @@ import { useState, useMemo, useEffect, useCallback, Suspense } from 'react';
 import { Textarea } from '@/components/ui/textarea';
 import {
 	findHouseholdByEmail,
-	registerHousehold,
+	registerHouseholdCanonical,
 	getMinistries,
 	getRegistrationCycles,
 } from '@/lib/dal';
@@ -232,7 +232,7 @@ function VerificationStepTwoForm({
 					continue.
 				</CardDescription>
 			</CardHeader>
-			<CardContent>
+			<CardContent className="space-y-4">
 				<Form {...form}>
 					<form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
 						<Alert>
@@ -254,7 +254,7 @@ function VerificationStepTwoForm({
 							name="childDob"
 							render={({ field }) => (
 								<FormItem>
-									<FormLabel>Oldest Child's Date of Birth</FormLabel>
+									<FormLabel>Oldest Child&apos;s Date of Birth</FormLabel>
 									<FormControl>
 										<Input type="date" {...field} />
 									</FormControl>
@@ -280,7 +280,7 @@ function VerificationStepTwoForm({
 							name="emergencyContactFirstName"
 							render={({ field }) => (
 								<FormItem>
-									<FormLabel>Emergency Contact's First Name</FormLabel>
+									<FormLabel>Emergency Contact&apos;s First Name</FormLabel>
 									<FormControl>
 										<Input placeholder="e.g., Jane" {...field} />
 									</FormControl>
@@ -302,6 +302,7 @@ function VerificationStepTwoForm({
 }
 
 const defaultChildValues = {
+	child_id: '', // Will be generated when child is added
 	first_name: '',
 	last_name: '',
 	dob: '',
@@ -463,6 +464,8 @@ function RegisterPageContent() {
 	const [isCurrentYearOverwrite, setIsCurrentYearOverwrite] = useState(false);
 	const [isPrefill, setIsPrefill] = useState(false);
 	const [isAuthenticatedUser, setIsAuthenticatedUser] = useState(false);
+	const [isSubmitting, setIsSubmitting] = useState(false);
+	const [submissionStatus, setSubmissionStatus] = useState<string>('');
 
 	const [allMinistries, setAllMinistries] = useState<Ministry[]>([]);
 	const [activeRegistrationCycle, setActiveRegistrationCycle] = useState<
@@ -476,23 +479,30 @@ function RegisterPageContent() {
 				console.log(
 					'DEBUG: Loading ministries and registration cycles for registration form'
 				);
-				const [ministries, cycles] = await Promise.all([
-					getMinistries(),
-					getRegistrationCycles(),
-				]);
+				console.log(
+					'DEBUG: Before calling getMinistries() and getRegistrationCycles()'
+				);
+
+				// Load ministries first to better debug any issues
+				console.log('DEBUG: Calling getMinistries()');
+				const ministries = await getMinistries();
 				console.log(
 					'DEBUG: Loaded',
 					ministries.length,
-					'ministries and',
-					cycles.length,
-					'registration cycles'
+					'ministries',
+					ministries.length > 0 ? JSON.stringify(ministries[0]) : 'none'
 				);
+
+				console.log('DEBUG: Calling getRegistrationCycles()');
+				const cycles = await getRegistrationCycles();
+				console.log('DEBUG: Loaded', cycles.length, 'registration cycles');
 
 				setAllMinistries(ministries);
 
 				// Find active cycle
 				const activeCycle = cycles.find((c) => {
-					const val: any = (c as any)?.is_active;
+					const rec = c as unknown as Record<string, unknown>;
+					const val = rec['is_active'];
 					return val === true || val === 1 || String(val) === '1';
 				});
 				console.log(
@@ -661,7 +671,12 @@ function RegisterPageContent() {
 					mobile_phone: '',
 					relationship: '',
 				},
-				children: [defaultChildValues],
+				children: [
+					{
+						...defaultChildValues,
+						child_id: crypto.randomUUID(), // Generate fresh ID for initial child
+					},
+				],
 				consents: {
 					liability: false,
 					photoRelease: false,
@@ -849,7 +864,12 @@ function RegisterPageContent() {
 								mobile_phone: '',
 								relationship: '',
 							},
-							children: [defaultChildValues],
+							children: [
+								{
+									...defaultChildValues,
+									child_id: crypto.randomUUID(), // Generate fresh ID for initial child
+								},
+							],
 							consents: {
 								liability: false,
 								photoRelease: false,
@@ -945,24 +965,61 @@ function RegisterPageContent() {
 
 	async function onSubmit(data: RegistrationFormValues) {
 		console.log('DEBUG: onSubmit called');
+		setIsSubmitting(true);
+		setSubmissionStatus('Creating household...');
+
 		try {
 			// Use the active registration cycle instead of hardcoded '2025'
 			const cycleId = activeRegistrationCycle?.cycle_id || '2025'; // fallback to '2025' if no active cycle found
 			console.log('DEBUG: Registering household for cycle:', cycleId);
-			const result = await registerHousehold(data, cycleId, isPrefill);
+
+			setSubmissionStatus('Processing registration...');
+			const result = await registerHouseholdCanonical(data, cycleId, isPrefill);
 			console.log('DEBUG: Registration result:', result);
+			console.log('DEBUG: Result type check:', {
+				hasResult: !!result,
+				resultType: typeof result,
+				resultKeys: result ? Object.keys(result) : 'no result',
+				isComplete: result?.isComplete,
+				userHouseholdsCreated: result?.userHouseholdsCreated,
+				roleAssigned: result?.roleAssigned,
+			});
+
 			toast({
 				title: 'Registration Submitted!',
 				description: "Thank you! Your family's registration has been received.",
 			});
 
 			// Check if user is authenticated and should be redirected to household page
+			console.log('DEBUG: Checking redirect conditions:', {
+				isAuthenticatedUser,
+				userEmail: user?.email,
+				userRole: user?.metadata?.role,
+				userExists: !!user,
+				registrationComplete: result.isComplete,
+			});
+
 			if (isAuthenticatedUser && user?.email) {
-				console.log('DEBUG: Authenticated user, redirecting to household page');
-				// For authenticated users, redirect to household page after successful registration
-				// The registerHousehold function will have assigned the GUARDIAN role
-				router.push('/household');
-				return;
+				if (result.isComplete) {
+					console.log(
+						'DEBUG: Registration complete, redirecting to household page'
+					);
+					setSubmissionStatus('Redirecting to household...');
+					router.push('/household');
+					return;
+				} else {
+					console.warn('DEBUG: Registration incomplete:', {
+						userHouseholdsCreated: result.userHouseholdsCreated,
+						roleAssigned: result.roleAssigned,
+					});
+					// Even if incomplete, try to redirect after a short delay
+					setSubmissionStatus('Finalizing setup...');
+					setTimeout(() => {
+						console.log('DEBUG: Redirecting to household page after delay');
+						router.push('/household');
+					}, 2000);
+					return;
+				}
 			}
 
 			console.log('DEBUG: Non-authenticated user, resetting form');
@@ -975,12 +1032,20 @@ function RegisterPageContent() {
 			setIsPrefill(false);
 		} catch (e) {
 			console.error('DEBUG: Error in onSubmit:', e);
+			setIsSubmitting(false);
+			setSubmissionStatus('');
 			toast({
 				title: 'Submission Error',
 				description:
 					'There was an error processing your registration. Please try again.',
 				variant: 'destructive',
 			});
+		} finally {
+			// Reset loading state for non-authenticated users
+			if (!isAuthenticatedUser) {
+				setIsSubmitting(false);
+				setSubmissionStatus('');
+			}
 		}
 	}
 
@@ -1007,8 +1072,8 @@ function RegisterPageContent() {
 					Family Registration Form
 				</h1>
 				<p className="text-muted-foreground">
-					Complete the form below to register your family for our children's
-					ministry programs.
+					Complete the form below to register your family for our
+					children&apos;s ministry programs.
 				</p>
 			</div>
 
@@ -1017,9 +1082,9 @@ function RegisterPageContent() {
 					<CardHeader>
 						<CardTitle className="font-headline">Household Lookup</CardTitle>
 						<CardDescription>
-							Enter your primary household email address. If you've registered
-							with us before, we'll pre-fill your information for you. If not,
-							you can start a new registration.
+							Enter your primary household email address. If you&apos;ve
+							registered with us before, we&apos;ll pre-fill your information
+							for you. If not, you can start a new registration.
 						</CardDescription>
 					</CardHeader>
 					<CardContent className="space-y-4">
@@ -1059,7 +1124,7 @@ function RegisterPageContent() {
 												}>
 												{MOCK_EMAILS.PREFILL_NO_OVERWRITE}
 											</button>{' '}
-											to pre-fill from a prior year's registration.
+											to pre-fill from a prior year&apos;s registration.
 										</li>
 										<li>
 											Use{' '}
@@ -1104,7 +1169,7 @@ function RegisterPageContent() {
 					<CardHeader>
 						<CardTitle className="font-headline">Check Your Email</CardTitle>
 						<CardDescription>
-							We've sent a verification link to your email address.
+							We&apos;ve sent a verification link to your email address.
 						</CardDescription>
 					</CardHeader>
 					<CardContent className="space-y-4">
@@ -1113,7 +1178,7 @@ function RegisterPageContent() {
 							<AlertTitle>Verification Email Sent</AlertTitle>
 							<AlertDescription>
 								<p>
-									We've sent a magic link to{' '}
+									We&apos;ve sent a magic link to{' '}
 									<strong>{verificationEmail}</strong>
 								</p>
 								<p className="mt-2">
@@ -1147,7 +1212,7 @@ function RegisterPageContent() {
 											toast({
 												title: 'Email Resent',
 												description:
-													"We've sent another verification email to your address.",
+													'We&apos;ve sent another verification email to your address.',
 											});
 										} else {
 											toast({
@@ -1613,7 +1678,7 @@ function RegisterPageContent() {
 															render={({ field }) => (
 																<FormItem>
 																	<FormLabel>
-																		Child's Phone (Optional)
+																		Child&apos;s Phone (Optional)
 																	</FormLabel>
 																	<FormControl>
 																		<Input type="tel" {...field} />
@@ -1719,8 +1784,8 @@ function RegisterPageContent() {
 																		<AlertDialogDescription>
 																			This will mark{' '}
 																			{childFirstName || 'this child'} as
-																			inactive for this year's registration and
-																			remove them from this form. Their
+																			inactive for this year&apos;s registration
+																			and remove them from this form. Their
 																			historical data from previous years will
 																			be retained.
 																			<br />
@@ -1761,7 +1826,10 @@ function RegisterPageContent() {
 									size="sm"
 									className="mt-4"
 									onClick={() => {
-										appendChild(defaultChildValues);
+										appendChild({
+											...defaultChildValues,
+											child_id: crypto.randomUUID(), // Generate fresh ID for each child
+										});
 										setOpenAccordionItems((prev) => [
 											...prev,
 											`item-${childFields.length}`,
@@ -1786,7 +1854,7 @@ function RegisterPageContent() {
 									<CardContent className="space-y-6">
 										<div className="p-4 border rounded-md bg-muted/50">
 											<h4 className="font-semibold">
-												Sunday School / Children's Church
+												Sunday School / Children&apos;s Church
 											</h4>
 											<div className="text-sm text-muted-foreground mb-2 space-y-2 whitespace-pre-wrap">
 												<p>
@@ -1795,8 +1863,8 @@ function RegisterPageContent() {
 													the 9:30 AM Service. Sunday School serves ages 4-18.
 												</p>
 												<p>
-													Children's Church, for ages 4-12, will take place on
-													3rd Sundays in the same location during the 9:30 AM
+													Children&apos;s Church, for ages 4-12, will take place
+													on 3rd Sundays in the same location during the 9:30 AM
 													service.
 												</p>
 												<p>
@@ -1905,9 +1973,9 @@ function RegisterPageContent() {
 											Expressed Interest Activities
 										</CardTitle>
 										<CardDescription>
-											Let us know if you're interested. This does not register
-											you for these activities but helps us gauge interest for
-											future planning.
+											Let us know if you&apos;re interested. This does not
+											register you for these activities but helps us gauge
+											interest for future planning.
 										</CardDescription>
 									</CardHeader>
 									<CardContent className="space-y-6">
@@ -2083,8 +2151,19 @@ function RegisterPageContent() {
 							</CardContent>
 						</Card>
 
-						<Button type="submit" size="lg" className="w-full md:w-auto">
-							Submit Registration
+						<Button
+							type="submit"
+							size="lg"
+							className="w-full md:w-auto"
+							disabled={isSubmitting}>
+							{isSubmitting ? (
+								<div className="flex items-center gap-2">
+									<div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+									{submissionStatus || 'Processing...'}
+								</div>
+							) : (
+								'Submit Registration'
+							)}
 						</Button>
 					</form>
 				</Form>
