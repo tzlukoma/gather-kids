@@ -540,19 +540,18 @@ async function createBibleBeeYear() {
 
 	// Check if Bible Bee year already exists
 	if (!DRY_RUN) {
-		const { data: existingYear, error: checkError } = await supabase
+		const { data: existingYears, error: checkError } = await supabase
 			.from('bible_bee_years')
 			.select('id, name')
-			.eq('name', bibleBeeYearData.name)
-			.single();
+			.eq('name', bibleBeeYearData.name);
 
-		if (checkError && checkError.code !== 'PGRST116') {
+		if (checkError) {
 			throw new Error(`Error checking Bible Bee year: ${checkError.message}`);
 		}
 
-		if (existingYear) {
-			// console.log(`✅ Bible Bee year already exists: ${bibleBeeYearData.name}`);
-			return existingYear.id;
+		if (existingYears && existingYears.length > 0) {
+			console.log(`✅ Bible Bee year already exists: ${bibleBeeYearData.name}`);
+			return existingYears[0].id; // Return the first one if multiple exist
 		}
 	}
 
@@ -597,19 +596,20 @@ async function createCompetitionYear(bibleBeeYearId) {
 
 	// Check if competition year already exists
 	if (!DRY_RUN) {
-		const { data: existingYear, error: checkError } = await supabase
+		const { data: existingYears, error: checkError } = await supabase
 			.from('competition_years')
 			.select('id, name')
-			.eq('name', competitionYearData.name)
-			.single();
+			.eq('name', competitionYearData.name);
 
-		if (checkError && checkError.code !== 'PGRST116') {
+		if (checkError) {
 			throw new Error(`Error checking competition year: ${checkError.message}`);
 		}
 
-		if (existingYear) {
-			// console.log(`✅ Competition year already exists: ${competitionYearData.name}`);
-			return existingYear.id;
+		if (existingYears && existingYears.length > 0) {
+			console.log(
+				`✅ Competition year already exists: ${competitionYearData.name}`
+			);
+			return existingYears[0].id; // Return the first one if multiple exist
 		}
 	}
 
