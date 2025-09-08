@@ -2248,11 +2248,12 @@ async function createMinistryEnrollments() {
 	// Create a mapping from our external IDs to the actual ministry IDs
 	const ministryMap = {};
 	ministries.forEach((ministry) => {
-		if (ministry.ministry_id === 'sunday-school') {
+		// Map the actual ministry IDs to our expected external IDs
+		if (ministry.ministry_id === 'min_sunday_school') {
 			ministryMap[`${EXTERNAL_ID_PREFIX}sunday_school`] = ministry.ministry_id;
-		} else if (ministry.ministry_id === 'bible-bee') {
+		} else if (ministry.ministry_id === `${EXTERNAL_ID_PREFIX}bible_bee`) {
 			ministryMap[`${EXTERNAL_ID_PREFIX}bible_bee`] = ministry.ministry_id;
-		} else if (ministry.ministry_id === 'boys') {
+		} else if (ministry.ministry_id === `${EXTERNAL_ID_PREFIX}mentoring_boys`) {
 			ministryMap[`${EXTERNAL_ID_PREFIX}boys_mentoring`] = ministry.ministry_id;
 		}
 	});
@@ -2269,7 +2270,9 @@ async function createMinistryEnrollments() {
 				child.external_id.split('_')[2]
 			}_ss`,
 			child_id: child.child_id,
-			ministry_id: `${EXTERNAL_ID_PREFIX}sunday_school`,
+			ministry_id:
+				ministryMap[`${EXTERNAL_ID_PREFIX}sunday_school`] ||
+				'min_sunday_school',
 			enrollment_date: '2025-01-01',
 			is_active: true,
 		})),
@@ -2281,7 +2284,9 @@ async function createMinistryEnrollments() {
 			child_id: children.find(
 				(c) => c.external_id === `${EXTERNAL_ID_PREFIX}child_1`
 			)?.child_id,
-			ministry_id: `${EXTERNAL_ID_PREFIX}bible_bee`,
+			ministry_id:
+				ministryMap[`${EXTERNAL_ID_PREFIX}bible_bee`] ||
+				`${EXTERNAL_ID_PREFIX}bible_bee`,
 			enrollment_date: '2025-01-01',
 			is_active: true,
 			division: 'primary', // K-2nd grade
@@ -2291,7 +2296,9 @@ async function createMinistryEnrollments() {
 			child_id: children.find(
 				(c) => c.external_id === `${EXTERNAL_ID_PREFIX}child_2`
 			)?.child_id,
-			ministry_id: `${EXTERNAL_ID_PREFIX}bible_bee`,
+			ministry_id:
+				ministryMap[`${EXTERNAL_ID_PREFIX}bible_bee`] ||
+				`${EXTERNAL_ID_PREFIX}bible_bee`,
 			enrollment_date: '2025-01-01',
 			is_active: true,
 			division: 'primary', // K-2nd grade
@@ -2301,7 +2308,9 @@ async function createMinistryEnrollments() {
 			child_id: children.find(
 				(c) => c.external_id === `${EXTERNAL_ID_PREFIX}child_3`
 			)?.child_id,
-			ministry_id: `${EXTERNAL_ID_PREFIX}bible_bee`,
+			ministry_id:
+				ministryMap[`${EXTERNAL_ID_PREFIX}bible_bee`] ||
+				`${EXTERNAL_ID_PREFIX}bible_bee`,
 			enrollment_date: '2025-01-01',
 			is_active: true,
 			division: 'primary', // K-2nd grade
@@ -2313,7 +2322,9 @@ async function createMinistryEnrollments() {
 			child_id: children.find(
 				(c) => c.external_id === `${EXTERNAL_ID_PREFIX}child_5`
 			)?.child_id,
-			ministry_id: `${EXTERNAL_ID_PREFIX}bible_bee`,
+			ministry_id:
+				ministryMap[`${EXTERNAL_ID_PREFIX}bible_bee`] ||
+				`${EXTERNAL_ID_PREFIX}bible_bee`,
 			enrollment_date: '2025-01-01',
 			is_active: true,
 			division: 'junior', // 3rd-7th grade
@@ -2323,7 +2334,9 @@ async function createMinistryEnrollments() {
 			child_id: children.find(
 				(c) => c.external_id === `${EXTERNAL_ID_PREFIX}child_6`
 			)?.child_id,
-			ministry_id: `${EXTERNAL_ID_PREFIX}bible_bee`,
+			ministry_id:
+				ministryMap[`${EXTERNAL_ID_PREFIX}bible_bee`] ||
+				`${EXTERNAL_ID_PREFIX}bible_bee`,
 			enrollment_date: '2025-01-01',
 			is_active: true,
 			division: 'junior', // 3rd-7th grade
@@ -2333,7 +2346,9 @@ async function createMinistryEnrollments() {
 			child_id: children.find(
 				(c) => c.external_id === `${EXTERNAL_ID_PREFIX}child_7`
 			)?.child_id,
-			ministry_id: `${EXTERNAL_ID_PREFIX}bible_bee`,
+			ministry_id:
+				ministryMap[`${EXTERNAL_ID_PREFIX}bible_bee`] ||
+				`${EXTERNAL_ID_PREFIX}bible_bee`,
 			enrollment_date: '2025-01-01',
 			is_active: true,
 			division: 'junior', // 3rd-7th grade
@@ -2345,7 +2360,9 @@ async function createMinistryEnrollments() {
 			child_id: children.find(
 				(c) => c.external_id === `${EXTERNAL_ID_PREFIX}child_9`
 			)?.child_id,
-			ministry_id: `${EXTERNAL_ID_PREFIX}bible_bee`,
+			ministry_id:
+				ministryMap[`${EXTERNAL_ID_PREFIX}bible_bee`] ||
+				`${EXTERNAL_ID_PREFIX}bible_bee`,
 			enrollment_date: '2025-01-01',
 			is_active: true,
 			division: 'senior', // 8th-12th grade
@@ -2355,7 +2372,9 @@ async function createMinistryEnrollments() {
 			child_id: children.find(
 				(c) => c.external_id === `${EXTERNAL_ID_PREFIX}child_10`
 			)?.child_id,
-			ministry_id: `${EXTERNAL_ID_PREFIX}bible_bee`,
+			ministry_id:
+				ministryMap[`${EXTERNAL_ID_PREFIX}bible_bee`] ||
+				`${EXTERNAL_ID_PREFIX}bible_bee`,
 			enrollment_date: '2025-01-01',
 			is_active: true,
 			division: 'senior', // 8th-12th grade
@@ -2365,7 +2384,9 @@ async function createMinistryEnrollments() {
 			child_id: children.find(
 				(c) => c.external_id === `${EXTERNAL_ID_PREFIX}child_11`
 			)?.child_id,
-			ministry_id: `${EXTERNAL_ID_PREFIX}bible_bee`,
+			ministry_id:
+				ministryMap[`${EXTERNAL_ID_PREFIX}bible_bee`] ||
+				`${EXTERNAL_ID_PREFIX}bible_bee`,
 			enrollment_date: '2025-01-01',
 			is_active: true,
 			division: 'senior', // 8th-12th grade
@@ -2375,7 +2396,9 @@ async function createMinistryEnrollments() {
 			child_id: children.find(
 				(c) => c.external_id === `${EXTERNAL_ID_PREFIX}child_12`
 			)?.child_id,
-			ministry_id: `${EXTERNAL_ID_PREFIX}bible_bee`,
+			ministry_id:
+				ministryMap[`${EXTERNAL_ID_PREFIX}bible_bee`] ||
+				`${EXTERNAL_ID_PREFIX}bible_bee`,
 			enrollment_date: '2025-01-01',
 			is_active: true,
 			division: 'senior', // 8th-12th grade
