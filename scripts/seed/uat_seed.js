@@ -2597,6 +2597,20 @@ async function createHouseholdRegistrations() {
 			return;
 		}
 
+		// Find the Acolyte ministry
+		const acolyteMinistry = ministries.find((m) => m.code === 'acolyte');
+		if (!acolyteMinistry) {
+			console.log(
+				'⚠️ Acolyte ministry not found, skipping Acolyte-specific logic'
+			);
+		}
+
+		// Select one specific household for Acolyte enrollments (first household)
+		const acolyteHousehold = households[0];
+		console.log(
+			`🎯 Selected household ${acolyteHousehold.external_id} for Acolyte enrollments`
+		);
+
 		// Create or get the registration cycle
 		const activeCycleId = await createRegistrationCycle();
 
@@ -2656,15 +2670,42 @@ async function createHouseholdRegistrations() {
 				}
 			}
 
-			// Now enroll each child in at least 5 random ministries
+			// Now enroll each child in ministries
 			for (const child of children) {
-				// Shuffle ministries and take first 5
-				const shuffledMinistries = [...ministries]
-					.sort(() => 0.5 - Math.random())
-					.slice(0, 5);
+				let ministriesToEnroll = [];
+
+				// Special handling for Acolyte ministry
+				if (
+					acolyteMinistry &&
+					household.household_id === acolyteHousehold.household_id
+				) {
+					// This is the selected household - include Acolyte in their enrollments
+					console.log(
+						`🎯 Enrolling child ${child.first_name} from Acolyte household in Acolyte ministry`
+					);
+					ministriesToEnroll.push(acolyteMinistry);
+
+					// Add 4 more random ministries (excluding Acolyte)
+					const otherMinistries = ministries.filter(
+						(m) => m.ministry_id !== acolyteMinistry.ministry_id
+					);
+					const shuffledOthers = [...otherMinistries]
+						.sort(() => 0.5 - Math.random())
+						.slice(0, 4);
+					ministriesToEnroll.push(...shuffledOthers);
+				} else {
+					// Other households - exclude Acolyte from their enrollments
+					const nonAcolyteMinistries = ministries.filter(
+						(m) => m.ministry_id !== acolyteMinistry?.ministry_id
+					);
+					const shuffledMinistries = [...nonAcolyteMinistries]
+						.sort(() => 0.5 - Math.random())
+						.slice(0, 5);
+					ministriesToEnroll = shuffledMinistries;
+				}
 
 				// Skip if we don't have enough ministries
-				if (shuffledMinistries.length < 5) {
+				if (ministriesToEnroll.length < 5) {
 					console.log(
 						`⚠️ Not enough ministries for child ${child.external_id}, need 5`
 					);
@@ -2672,7 +2713,7 @@ async function createHouseholdRegistrations() {
 				}
 
 				// Create enrollments for each ministry
-				for (const ministry of shuffledMinistries) {
+				for (const ministry of ministriesToEnroll) {
 					const enrollmentData = {
 						enrollment_id: `${EXTERNAL_ID_PREFIX}enroll_${
 							child.external_id.split('_')[2]

@@ -58,6 +58,10 @@ export default function RegistrationsPage() {
 
 					// Get all ministry accounts to find which ministry this email belongs to
 					const ministryAccounts = await dbAdapter.listMinistryAccounts();
+					console.log(
+						'🔍 RegistrationsPage: All ministry accounts',
+						ministryAccounts
+					);
 					const matchingAccount = ministryAccounts.find(
 						(account) =>
 							account.email.toLowerCase() === user.email.toLowerCase()
@@ -86,6 +90,15 @@ export default function RegistrationsPage() {
 					queryHouseholdList(ministryFilterIds, ministryFilter ?? undefined),
 					getMinistries(),
 				]);
+
+				console.log('🔍 RegistrationsPage: Filtering results', {
+					ministryFilterIds,
+					ministryFilter,
+					householdsCount: householdsData.length,
+					userRole: user?.metadata?.role,
+					userEmail: user?.email,
+				});
+
 				setHouseholds(householdsData);
 				setAllMinistries(ministriesData);
 			} catch (error) {

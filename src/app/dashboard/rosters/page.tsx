@@ -274,18 +274,10 @@ export default function RostersPage() {
 
 	useEffect(() => {
 		if (!loading && user) {
-			if (
-				user.metadata.role === AuthRole.MINISTRY_LEADER &&
-				(!user.is_active ||
-					!user.assignedMinistryIds ||
-					user.assignedMinistryIds.length === 0)
-			) {
-				router.push('/dashboard/incidents');
-			} else {
-				setIsAuthorized(true);
-			}
+			// Always authorize ministry leaders - let the empty state handle no ministry assignment
+			setIsAuthorized(true);
 		}
-	}, [user, loading, router]);
+	}, [user, loading]);
 
 	useEffect(() => {
 		const statusParam = searchParams.get('status');
