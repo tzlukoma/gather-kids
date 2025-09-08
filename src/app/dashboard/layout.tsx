@@ -97,7 +97,13 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 		}
 	}, [user, loading, router, menuItems, pathname]);
 
-	if (!user) return null;
+	if (loading) {
+		return <AdminSkeleton />;
+	}
+
+	if (!user) {
+		return <AdminSkeleton />; // Show loading while redirecting to login
+	}
 
 	const handleLogout = () => {
 		logout();
