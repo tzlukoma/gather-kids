@@ -77,7 +77,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 			const C = Icon as React.ComponentType<{ className?: string }>;
 			return <C className="w-4 h-4" />;
 		}
-		return Icon ?? null;
+		return null; // Changed from Icon ?? null
 	}
 
 	React.useEffect(() => {
@@ -118,7 +118,9 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 									<img
 										src={settings.logo_url}
 										alt={`${settings.app_name || 'gatherKids'} Logo`}
-										className={`h-24 w-auto ${settings.use_logo_only ? '' : 'max-w-[50%]'} object-contain`}
+										className={`h-24 w-auto ${
+											settings.use_logo_only ? '' : 'max-w-[50%]'
+										} object-contain`}
 									/>
 									{!settings.use_logo_only && (
 										<div className="font-headline text-2xl font-bold">
