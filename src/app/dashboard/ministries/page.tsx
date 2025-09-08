@@ -244,6 +244,25 @@ export default function MinistryPage() {
 		}
 	};
 
+	const handleMinistryUpdated = async () => {
+		console.log('🔍 MinistryPage: Refreshing ministries list after update');
+		try {
+			const ministries = await getMinistries();
+			setAllMinistries(ministries);
+			console.log('✅ MinistryPage: Ministries list refreshed successfully');
+		} catch (error) {
+			console.error(
+				'❌ MinistryPage: Failed to refresh ministries list',
+				error
+			);
+			toast({
+				title: 'Error',
+				description: 'Failed to refresh ministry data',
+				variant: 'destructive',
+			});
+		}
+	};
+
 	if (loading || !isAuthorized || isLoadingData) {
 		return <div>Loading configuration...</div>;
 	}
@@ -314,6 +333,7 @@ export default function MinistryPage() {
 				isOpen={isDialogOpen}
 				onCloseAction={() => setIsDialogOpen(false)}
 				ministry={editingMinistry}
+				onMinistryUpdated={handleMinistryUpdated}
 			/>
 		</div>
 	);

@@ -76,12 +76,14 @@ interface MinistryFormDialogProps {
 	isOpen: boolean;
 	onCloseAction: () => void;
 	ministry: Ministry | null;
+	onMinistryUpdated?: () => void; // Callback to refresh the parent component
 }
 
 export function MinistryFormDialog({
 	isOpen,
 	onCloseAction,
 	ministry,
+	onMinistryUpdated,
 }: MinistryFormDialogProps) {
 	const { toast } = useToast();
 
@@ -240,6 +242,13 @@ export function MinistryFormDialog({
 					}
 				);
 			}
+
+			// Notify parent component to refresh the ministries list
+			if (onMinistryUpdated) {
+				console.log('🔍 MinistryFormDialog: Triggering parent refresh');
+				onMinistryUpdated();
+			}
+
 			onCloseAction();
 		} catch (error) {
 			console.error('Failed to save ministry', error);
