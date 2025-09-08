@@ -17,6 +17,7 @@ import {
 	CardTitle,
 } from '@/components/ui/card';
 import { queryHouseholdList, getMinistries } from '@/lib/dal';
+import { dbAdapter } from '@/lib/db-utils';
 import { format } from 'date-fns';
 import { ChevronRight, Filter } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
@@ -35,19 +36,40 @@ export default function RegistrationsPage() {
 	const [allMinistries, setAllMinistries] = useState<Ministry[]>([]);
 	const [loading, setLoading] = useState(true);
 
-	// For leaders, pass their assigned ministry IDs to the query
-	const leaderMinistryIds =
-		user?.metadata?.role === AuthRole.MINISTRY_LEADER
-			? user.assignedMinistryIds
-			: undefined;
+	// For ministry leaders, find which ministry their email is associated with
+	const [leaderMinistryId, setLeaderMinistryId] = useState<string | null>(null);
 
 	// Load data using DAL functions
 	useEffect(() => {
 		const loadData = async () => {
 			try {
 				setLoading(true);
+				
+				// For ministry leaders, find their associated ministry
+				let ministryFilterIds: string[] | undefined = undefined;
+				if (user?.metadata?.role === AuthRole.MINISTRY_LEADER && user.email) {
+					console.log('🔍 RegistrationsPage: Finding ministry for leader email', user.email);
+					
+					// Get all ministry accounts to find which ministry this email belongs to
+					const ministryAccounts = await dbAdapter.listMinistryAccounts();
+					const matchingAccount = ministryAccounts.find(account => 
+						account.email.toLowerCase() === user.email.toLowerCase()
+					);
+					
+					if (matchingAccount) {
+						console.log('🔍 RegistrationsPage: Found matching ministry account', {
+							ministryId: matchingAccount.ministry_id,
+							displayName: matchingAccount.display_name
+						});
+						ministryFilterIds = [matchingAccount.ministry_id];
+						setLeaderMinistryId(matchingAccount.ministry_id);
+					} else {
+						console.warn('⚠️ RegistrationsPage: No ministry account found for leader email', user.email);
+					}
+				}
+
 				const [householdsData, ministriesData] = await Promise.all([
-					queryHouseholdList(leaderMinistryIds, ministryFilter ?? undefined),
+					queryHouseholdList(ministryFilterIds, ministryFilter ?? undefined),
 					getMinistries()
 				]);
 				setHouseholds(householdsData);
@@ -60,7 +82,7 @@ export default function RegistrationsPage() {
 		};
 
 		loadData();
-	}, [leaderMinistryIds, ministryFilter]);
+	}, [user, ministryFilter]);
 
 	const handleRowClick = (householdId: string) => {
 		router.push(`/dashboard/registrations/${householdId}`);
