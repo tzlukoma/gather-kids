@@ -60,6 +60,7 @@ const counters = {
 	ministry_enrollments: 0,
 	registrations: 0,
 	user_households: 0,
+	events: 0,
 };
 
 // Supabase client setup
@@ -3150,6 +3151,73 @@ async function resetUATData() {
 }
 
 /**
+ * Create events for check-in functionality
+ */
+async function createEvents() {
+	try {
+		console.log('🎪 Creating events for check-in functionality...');
+
+		// Define the events that the check-in system expects
+		const events = [
+			{
+				event_id: 'evt_sunday_school',
+				name: 'Sunday School',
+				description: 'Sunday School check-in event',
+			},
+			{
+				event_id: 'evt_childrens_church',
+				name: "Children's Church",
+				description: "Children's Church check-in event",
+			},
+			{
+				event_id: 'evt_teen_church',
+				name: 'Teen Church',
+				description: 'Teen Church check-in event',
+			},
+		];
+
+		for (const event of events) {
+			// Check if event already exists
+			const { data: existing, error: checkError } = await supabase
+				.from('events')
+				.select('event_id')
+				.eq('event_id', event.event_id)
+				.single();
+
+			if (checkError && checkError.code !== 'PGRST116') {
+				throw new Error(
+					`Error checking event ${event.event_id}: ${checkError.message}`
+				);
+			}
+
+			if (existing) {
+				console.log(`✅ Event already exists: ${event.event_id}`);
+			} else {
+				const { error: insertError } = await supabase
+					.from('events')
+					.insert(event);
+
+				if (insertError) {
+					throw new Error(
+						`Failed to create event ${event.event_id}: ${insertError.message}`
+					);
+				}
+
+				console.log(`✅ Created event: ${event.event_id} - ${event.name}`);
+				counters.events++;
+			}
+		}
+
+		console.log(
+			`✅ Created ${counters.events} events for check-in functionality`
+		);
+	} catch (error) {
+		console.error('❌ Failed to create events:', error.message);
+		throw error;
+	}
+}
+
+/**
  * Main seeding function
  */
 async function seedUATData() {
@@ -3211,6 +3279,9 @@ async function seedUATData() {
 		// Create household registrations with multiple ministry enrollments
 		await createHouseholdRegistrations();
 
+		// Create events for check-in functionality
+		await createEvents();
+
 		// Recalculate division boundaries
 		await recalculateMinimumBoundaries(bibleBeeYearId);
 
@@ -3242,6 +3313,7 @@ async function seedUATData() {
 			'- 3 household registrations with 5+ ministries per child (linked to active cycle)'
 		);
 		console.log('- Ministry enrollments for children');
+		console.log('- Events for check-in functionality');
 	} catch (error) {
 		console.error('❌ Seeding failed:', error.message);
 		process.exit(1);
