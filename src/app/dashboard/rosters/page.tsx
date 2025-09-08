@@ -274,6 +274,11 @@ export default function RostersPage() {
 
 	useEffect(() => {
 		if (!loading && user) {
+			console.log('🔍 RostersPage: Authorization check', {
+				userRole: user?.metadata?.role,
+				userEmail: user?.email,
+				loading
+			});
 			// Always authorize ministry leaders - let the empty state handle no ministry assignment
 			setIsAuthorized(true);
 		}

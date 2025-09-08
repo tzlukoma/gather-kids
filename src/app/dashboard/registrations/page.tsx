@@ -16,6 +16,7 @@ import {
 	CardHeader,
 	CardTitle,
 } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { queryHouseholdList, getMinistries } from '@/lib/dal';
 import { dbAdapter } from '@/lib/db-utils';
 import { format } from 'date-fns';
@@ -60,8 +61,13 @@ export default function RegistrationsPage() {
 					const ministryAccounts = await dbAdapter.listMinistryAccounts();
 					console.log(
 						'🔍 RegistrationsPage: All ministry accounts',
-						ministryAccounts
+						ministryAccounts.map((acc) => ({
+							email: acc.email,
+							ministry_id: acc.ministry_id,
+							display_name: acc.display_name,
+						}))
 					);
+					console.log('🔍 RegistrationsPage: Looking for email', user.email);
 					const matchingAccount = ministryAccounts.find(
 						(account) =>
 							account.email.toLowerCase() === user.email.toLowerCase()
@@ -77,12 +83,20 @@ export default function RegistrationsPage() {
 						);
 						ministryFilterIds = [matchingAccount.ministry_id];
 						setLeaderMinistryId(matchingAccount.ministry_id);
+						console.log(
+							'🔍 RegistrationsPage: Set ministryFilterIds to',
+							ministryFilterIds
+						);
 					} else {
 						console.warn(
 							'⚠️ RegistrationsPage: No ministry account found for leader email',
 							user.email
 						);
 						setNoMinistryAssigned(true);
+						console.log(
+							'🔍 RegistrationsPage: ministryFilterIds remains',
+							ministryFilterIds
+						);
 					}
 				}
 
@@ -119,8 +133,20 @@ export default function RegistrationsPage() {
 		return <div>Loading registrations...</div>;
 	}
 
+	console.log('🔍 RegistrationsPage: State check before empty state', {
+		userRole: user?.metadata?.role,
+		userEmail: user?.email,
+		noMinistryAssigned,
+		loading,
+	});
+
 	// Show empty state for ministry leaders without assigned ministry
 	if (user?.metadata?.role === AuthRole.MINISTRY_LEADER && noMinistryAssigned) {
+		console.log('🔍 RegistrationsPage: Showing empty state', {
+			userRole: user?.metadata?.role,
+			userEmail: user?.email,
+			noMinistryAssigned,
+		});
 		return (
 			<div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
 				<div className="text-center space-y-2">
