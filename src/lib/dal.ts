@@ -2832,6 +2832,7 @@ export async function createRegistrationCycle(
 		const cycleId = data.cycle_id || `cycle_${Date.now()}`;
 		const cycle: RegistrationCycle = {
 			cycle_id: cycleId,
+			name: data.name,
 			start_date: data.start_date,
 			end_date: data.end_date,
 			is_active: data.is_active,

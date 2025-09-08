@@ -66,6 +66,7 @@ export interface Child {
 
 export interface RegistrationCycle {
     cycle_id: string; // PK (e.g., "2026")
+    name: string; // Display name (e.g., "Fall 2026")
     start_date: string; // ISO
     end_date: string; // ISO
     is_active: boolean;

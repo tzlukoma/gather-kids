@@ -34,6 +34,7 @@ import { CalendarIcon } from 'lucide-react';
 export default function RegistrationCycles() {
 	const [newCycle, setNewCycle] = useState<Partial<RegistrationCycle>>({
 		cycle_id: '',
+		name: '', // Add name field
 		start_date: '',
 		end_date: '',
 		is_active: false,
@@ -60,7 +61,12 @@ export default function RegistrationCycles() {
 	}, []);
 
 	const handleCreateCycle = async () => {
-		if (!newCycle.cycle_id || !newCycle.start_date || !newCycle.end_date) {
+		if (
+			!newCycle.cycle_id ||
+			!newCycle.name ||
+			!newCycle.start_date ||
+			!newCycle.end_date
+		) {
 			setError('Please fill in all required fields');
 			return;
 		}
@@ -82,6 +88,7 @@ export default function RegistrationCycles() {
 			// Create the new cycle
 			const createdCycle = await createRegistrationCycle({
 				cycle_id: newCycle.cycle_id,
+				name: newCycle.name,
 				start_date: newCycle.start_date,
 				end_date: newCycle.end_date,
 				is_active: newCycle.is_active || false,
@@ -101,6 +108,7 @@ export default function RegistrationCycles() {
 
 			setNewCycle({
 				cycle_id: '',
+				name: '',
 				start_date: '',
 				end_date: '',
 				is_active: false,
@@ -186,6 +194,20 @@ export default function RegistrationCycles() {
 							/>
 						</div>
 
+						<div className="space-y-2">
+							<Label htmlFor="name">Cycle Name</Label>
+							<Input
+								id="name"
+								value={newCycle.name}
+								onChange={(e) =>
+									setNewCycle({ ...newCycle, name: e.target.value })
+								}
+								placeholder="e.g., Fall 2026"
+							/>
+						</div>
+					</div>
+
+					<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
 						<div className="space-y-2">
 							<div className="flex items-center space-x-2">
 								<Switch
@@ -282,6 +304,7 @@ export default function RegistrationCycles() {
 						disabled={
 							isLoading ||
 							!newCycle.cycle_id ||
+							!newCycle.name ||
 							!newCycle.start_date ||
 							!newCycle.end_date
 						}>
@@ -307,7 +330,9 @@ export default function RegistrationCycles() {
 									key={cycle.cycle_id}
 									className="flex items-center justify-between border-b pb-4">
 									<div>
-										<h3 className="text-lg font-medium">{cycle.cycle_id}</h3>
+										<h3 className="text-lg font-medium">
+											{cycle.name || cycle.cycle_id}
+										</h3>
 										<p className="text-sm text-muted-foreground">
 											{format(new Date(cycle.start_date), 'PPP')} to{' '}
 											{format(new Date(cycle.end_date), 'PPP')}

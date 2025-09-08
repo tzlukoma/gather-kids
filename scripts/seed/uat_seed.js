@@ -403,6 +403,7 @@ async function createRegistrationCycle() {
 
 		const cycleData = {
 			cycle_id: cycleId,
+			name: cycleName, // Required by database schema
 			start_date: startDateString,
 			end_date: endDateString,
 			is_active: true, // This is the active cycle
@@ -414,13 +415,15 @@ async function createRegistrationCycle() {
 			.replace(/[^0-9]/g, '')
 			.substring(0, 14);
 		const uniqueCycleId = `${cycleId}_${timestamp}`;
+		const uniqueCycleName = `${cycleName} (${timestamp})`;
 
 		console.log(
-			`🔄 Creating a new unique registration cycle: ${uniqueCycleId}`
+			`🔄 Creating a new unique registration cycle: ${uniqueCycleName}`
 		);
 
-		// Update the cycle data with the unique ID
+		// Update the cycle data with the unique ID and name
 		cycleData.cycle_id = uniqueCycleId;
+		cycleData.name = uniqueCycleName;
 
 		// Before inserting, make sure no other cycles are active
 		try {
