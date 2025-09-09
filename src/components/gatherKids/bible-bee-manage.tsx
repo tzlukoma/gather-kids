@@ -946,9 +946,6 @@ function ScriptureManagement({
 	const [jsonPreview, setJsonPreview] = useState<any>(null);
 	const [jsonMode, setJsonMode] = useState<'merge' | 'overwrite'>('merge');
 
-	// Add refresh counter to trigger re-fetch when data changes
-	const [scripturesRefreshCounter, setScripturesRefreshCounter] = useState(0);
-
 	// Load scriptures for this year using DAL
 	const scriptures = useLiveQuery(async () => {
 		try {
@@ -960,7 +957,7 @@ function ScriptureManagement({
 			console.error('Error loading scriptures:', error);
 			return [];
 		}
-	}, [yearId, scripturesRefreshCounter]);
+	}, [yearId, onRefresh]);
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
