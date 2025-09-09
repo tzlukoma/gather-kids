@@ -443,6 +443,13 @@ export function BibleBeeProgressList({
 			)}
 
 			{/* show prior-year hint if viewing a non-latest year */}
+			{competitionYears &&
+				competitionYears.length > 0 &&
+				String(competitionYears[0].year) !== String(selectedCycle) && (
+					<div className="p-2 bg-secondary/20 border-l-4 border-brand-yellow text-sm text-ink">
+						Viewing prior year — edits disabled
+					</div>
+				)}
 			{/* show prior-year hint if viewing a non-latest year. For new-schema
 			    bible-bee years, treat an active bible-bee-year as current. */}
 			{(() => {

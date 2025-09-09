@@ -15,6 +15,8 @@ import {
 	FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { PhoneInput } from '@/components/ui/phone-input';
+import { cleanPhone } from '@/hooks/usePhoneFormat';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
 	Card,
@@ -59,6 +61,7 @@ import {
 	isValid,
 } from 'date-fns';
 import { DanceMinistryForm } from '@/components/gatherKids/dance-ministry-form';
+import { BibleBeeMinistryForm } from '@/components/gatherKids/bible-bee-ministry-form';
 import { TeenFellowshipForm } from '@/components/gatherKids/teen-fellowship-form';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import {
@@ -409,6 +412,9 @@ const ProgramSection = ({
 			</div>
 			{isAnyChildSelected && program.code === 'dance' && (
 				<DanceMinistryForm control={control} />
+			)}
+			{isAnyChildSelected && program.code === 'bible-bee' && (
+				<BibleBeeMinistryForm control={control} />
 			)}
 			{childFields.map((field, index) => {
 				const child = childrenData[index];
@@ -969,12 +975,29 @@ function RegisterPageContent() {
 		setSubmissionStatus('Creating household...');
 
 		try {
+			// Clean phone numbers before submission (remove formatting, keep digits only)
+			const cleanedData = {
+				...data,
+				guardians: data.guardians.map(guardian => ({
+					...guardian,
+					mobile_phone: cleanPhone(guardian.mobile_phone)
+				})),
+				emergencyContact: {
+					...data.emergencyContact,
+					mobile_phone: cleanPhone(data.emergencyContact.mobile_phone)
+				},
+				children: data.children.map(child => ({
+					...child,
+					child_mobile: child.child_mobile ? cleanPhone(child.child_mobile) : child.child_mobile
+				}))
+			};
+
 			// Use the active registration cycle instead of hardcoded '2025'
 			const cycleId = activeRegistrationCycle?.cycle_id || '2025'; // fallback to '2025' if no active cycle found
 			console.log('DEBUG: Registering household for cycle:', cycleId);
 
 			setSubmissionStatus('Processing registration...');
-			const result = await registerHouseholdCanonical(data, cycleId, isPrefill);
+			const result = await registerHouseholdCanonical(cleanedData, cycleId, isPrefill);
 			console.log('DEBUG: Registration result:', result);
 			console.log('DEBUG: Result type check:', {
 				hasResult: !!result,
@@ -1318,46 +1341,6 @@ function RegisterPageContent() {
 										</FormItem>
 									)}
 								/>
-								<FormField
-									control={form.control}
-									name="household.preferredScriptureTranslation"
-									render={({ field }) => (
-										<FormItem>
-											<FormLabel>Preferred Bible Translation</FormLabel>
-											<FormDescription>
-												Select the Bible translation your family prefers for
-												scripture memorization.
-											</FormDescription>
-											<Select
-												onValueChange={field.onChange}
-												defaultValue={field.value}>
-												<FormControl>
-													<SelectTrigger>
-														<SelectValue placeholder="Select a Bible translation" />
-													</SelectTrigger>
-												</FormControl>
-												<SelectContent>
-													<SelectItem value="NIV">
-														NIV - New International Version
-													</SelectItem>
-													<SelectItem value="KJV">
-														KJV - King James Version
-													</SelectItem>
-													<SelectItem value="ESV">
-														ESV - English Standard Version
-													</SelectItem>
-													<SelectItem value="NASB">
-														NASB - New American Standard Bible
-													</SelectItem>
-													<SelectItem value="NLT">
-														NLT - New Living Translation
-													</SelectItem>
-												</SelectContent>
-											</Select>
-											<FormMessage />
-										</FormItem>
-									)}
-								/>
 								<Separator />
 								{guardianFields.map((field, index) => (
 									<div
@@ -1400,7 +1383,10 @@ function RegisterPageContent() {
 													<FormItem>
 														<FormLabel>Phone</FormLabel>
 														<FormControl>
-															<Input type="tel" {...field} />
+															<PhoneInput 
+																value={field.value}
+																onChange={field.onChange}
+															/>
 														</FormControl>
 														<FormMessage />
 													</FormItem>
@@ -1573,7 +1559,10 @@ function RegisterPageContent() {
 											<FormItem>
 												<FormLabel>Phone</FormLabel>
 												<FormControl>
-													<Input type="tel" {...field} />
+													<PhoneInput 
+														value={field.value}
+														onChange={field.onChange}
+													/>
 												</FormControl>
 												<FormMessage />
 											</FormItem>
@@ -1681,7 +1670,10 @@ function RegisterPageContent() {
 																		Child&apos;s Phone (Optional)
 																	</FormLabel>
 																	<FormControl>
-																		<Input type="tel" {...field} />
+																		<PhoneInput 
+																			value={field.value}
+																			onChange={field.onChange}
+																		/>
 																	</FormControl>
 																	<FormMessage />
 																</FormItem>

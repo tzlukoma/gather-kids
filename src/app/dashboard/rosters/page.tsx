@@ -348,16 +348,26 @@ export default function RostersPage() {
 	const ministryFilterOptions = useMemo(() => {
 		if (dataLoading) return [];
 
-		const relevantMinistryIds: Set<string> =
-			user?.metadata?.role === AuthRole.MINISTRY_LEADER && leaderMinistryId
-				? new Set([leaderMinistryId])
-				: new Set(
-						allMinistryEnrollments
-							.filter((e) =>
-								new Set(allChildren.map((c) => c.child_id)).has(e.child_id)
-							)
-							.map((e) => e.ministry_id)
-				  );
+		// For ADMIN users, show all ministries
+		// For MINISTRY_LEADER users, show only their assigned ministry
+		if (user?.metadata?.role === AuthRole.ADMIN) {
+			return allMinistries.sort((a, b) => a.name.localeCompare(b.name));
+		}
+
+		if (user?.metadata?.role === AuthRole.MINISTRY_LEADER && leaderMinistryId) {
+			return allMinistries
+				.filter((m) => m.ministry_id === leaderMinistryId)
+				.sort((a, b) => a.name.localeCompare(b.name));
+		}
+
+		// Fallback: show ministries that have enrollments for loaded children
+		const relevantMinistryIds: Set<string> = new Set(
+			allMinistryEnrollments
+				.filter((e) =>
+					new Set(allChildren.map((c) => c.child_id)).has(e.child_id)
+				)
+				.map((e) => e.ministry_id)
+		);
 
 		return allMinistries
 			.filter((m) => relevantMinistryIds.has(m.ministry_id))
@@ -651,7 +661,7 @@ export default function RostersPage() {
 							<TableCell>{child.grade}</TableCell>
 							<TableCell>
 								{child.activeAttendance ? (
-									<Badge className="bg-green-500 hover:bg-green-600">
+									<Badge className="bg-brand-aqua hover:opacity-90">
 										Checked In
 									</Badge>
 								) : (
@@ -739,7 +749,7 @@ export default function RostersPage() {
 										<TableCell>{child.grade}</TableCell>
 										<TableCell>
 											{child.activeAttendance ? (
-												<Badge className="bg-green-500 hover:bg-green-600">
+												<Badge className="bg-brand-aqua hover:opacity-90">
 													Checked In
 												</Badge>
 											) : (

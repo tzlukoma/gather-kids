@@ -72,32 +72,63 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 	const menuItems = getMenuItems();
 
 	function renderIcon(Icon: any) {
+		// Handle React elements (like the Bible Bee SVG)
 		if (React.isValidElement(Icon)) return Icon;
+
+		// Handle Lucide React components (they are objects with forwardRef)
+		if (Icon && typeof Icon === 'object' && Icon.$$typeof) {
+			const C = Icon as React.ComponentType<{ className?: string }>;
+			return <C className="w-4 h-4" />;
+		}
+
+		// Handle function components (fallback)
 		if (typeof Icon === 'function') {
 			const C = Icon as React.ComponentType<{ className?: string }>;
 			return <C className="w-4 h-4" />;
 		}
-		return null; // Changed from Icon ?? null
+
+		return null;
 	}
 
 	React.useEffect(() => {
 		if (loading) return;
 
 		if (!user) {
+			console.log('DashboardLayout: No user, redirecting to login');
 			router.push('/login');
 			return;
 		}
 
+		// If user exists but has no authorized menu items, redirect to login
+		if (menuItems.length === 0) {
+			console.log(
+				'DashboardLayout: User has no authorized menu items, redirecting to login'
+			);
+			router.push('/login');
+			return;
+		}
+
+		// Redirect to first authorized page if on base dashboard
 		if (menuItems.length > 0) {
 			const topMenuItem = menuItems[0];
 			// Only redirect if the user is at the base dashboard and not already on their target page
 			if (pathname === '/dashboard' && topMenuItem.href !== '/dashboard') {
+				console.log(
+					'DashboardLayout: Redirecting to first authorized page:',
+					topMenuItem.href
+				);
 				router.replace(topMenuItem.href);
 			}
 		}
 	}, [user, loading, router, menuItems, pathname]);
 
-	if (!user) return null;
+	if (loading) {
+		return <AdminSkeleton />;
+	}
+
+	if (!user) {
+		return <AdminSkeleton />; // Show loading while redirecting to login
+	}
 
 	const handleLogout = () => {
 		logout();

@@ -188,7 +188,7 @@ export default function LeadersPage() {
 									<TableCell>
 										<Badge
 											variant={leader.is_active ? 'default' : 'secondary'}
-											className={leader.is_active ? 'bg-green-500' : ''}>
+											className={leader.is_active ? 'bg-brand-aqua' : ''}>
 											{leader.is_active ? 'Active' : 'Inactive'}
 										</Badge>
 									</TableCell>
