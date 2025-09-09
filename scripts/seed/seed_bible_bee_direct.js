@@ -429,14 +429,18 @@ async function main() {
 
 		const essayPromptData = {
 			id: crypto.randomUUID(),
-			division_id: seniorDivisionId,
+			bible_bee_cycle_id: yearId, // Use bible_bee_cycle_id as per new schema
+			division_name: 'Senior',
 			title: 'Romans Essay',
 			prompt:
 				"Reflecting on Romans chapters 1-11, discuss how Paul's teachings on salvation through faith apply to modern Christian life.",
+			prompt_text:
+				"Reflecting on Romans chapters 1-11, discuss how Paul's teachings on salvation through faith apply to modern Christian life. Include at least three specific scripture references from the assigned passages to support your analysis.",
 			instructions:
 				'Include at least three specific scripture references from the assigned passages to support your analysis.',
 			min_words: 500,
 			max_words: 1000,
+			due_date: '2026-06-05',
 			created_at: new Date().toISOString(),
 			updated_at: new Date().toISOString(),
 		};
@@ -445,7 +449,8 @@ async function main() {
 		const { data: existingPrompt, error: checkPromptError } = await supabase
 			.from('essay_prompts')
 			.select('id')
-			.eq('division_id', seniorDivisionId)
+			.eq('bible_bee_cycle_id', yearId)
+			.eq('division_name', 'Senior')
 			.maybeSingle();
 
 		if (existingPrompt) {
