@@ -286,6 +286,8 @@ export interface DatabaseAdapter {
 	upsertScripture(data: Omit<Scripture, 'created_at' | 'updated_at'> & { id?: string }): Promise<Scripture>;
 	deleteScripture(id: string): Promise<void>;
 	listScriptures(filters?: { yearId?: string }): Promise<Scripture[]>;
+	commitEnhancedCsvRowsToYear(rows: any[], yearId: string): Promise<any>;
+	uploadJsonTexts(yearId: string, data: any, mode: 'merge' | 'overwrite', dryRun: boolean): Promise<any>;
 
 	getEssayPrompt(id: string): Promise<EssayPrompt | null>;
 	getEssayPromptsForYearAndDivision(yearId: string, divisionName: string): Promise<EssayPrompt[]>;

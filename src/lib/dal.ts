@@ -15,7 +15,7 @@
 import { db } from './db';
 import { db as dbAdapter } from './database/factory';
 import { getApplicableGradeRule } from './bibleBee';
-import { gradeToCode } from './gradeUtils';
+import { gradeToCode, doGradeRangesOverlap } from './gradeUtils';
 import { AuthRole } from './auth-types';
 import { isDemo } from './featureFlags';
 import type { Attendance, Child, Guardian, Household, Incident, IncidentSeverity, Ministry, MinistryEnrollment, Registration, User, EmergencyContact, LeaderAssignment, LeaderProfile, MinistryLeaderMembership, MinistryAccount, BrandingSettings, BibleBeeYear, RegistrationCycle, Scripture, CompetitionYear, CustomQuestion } from './types';
@@ -2834,6 +2834,19 @@ export async function deleteBibleBeeCycle(id: string): Promise<void> {
 }
 
 /**
+ * Get a division by ID
+ */
+export async function getDivision(id: string): Promise<any | null> {
+	if (shouldUseAdapter()) {
+		// Use Supabase adapter for live mode
+		return dbAdapter.getDivision(id);
+	} else {
+		// Use legacy Dexie interface for demo mode
+		return db.divisions.get(id);
+	}
+}
+
+/**
  * Get divisions for a Bible Bee year
  */
 export async function getDivisionsForBibleBeeYear(yearId: string): Promise<any[]> {
@@ -2850,6 +2863,26 @@ export async function getDivisionsForBibleBeeYear(yearId: string): Promise<any[]
  * Create a division
  */
 export async function createDivision(data: Omit<any, 'id' | 'created_at' | 'updated_at'>): Promise<any> {
+	// Validate grade ranges
+	if (data.min_grade < 0 || data.min_grade > 12) {
+		throw new Error('min_grade must be between 0 and 12');
+	}
+	if (data.max_grade < 0 || data.max_grade > 12) {
+		throw new Error('max_grade must be between 0 and 12');
+	}
+	if (data.min_grade > data.max_grade) {
+		throw new Error('min_grade must be <= max_grade');
+	}
+	
+	// Check for overlapping ranges in the same year/cycle
+	const yearId = data.bible_bee_cycle_id || data.year_id;
+	const existingDivisions = await getDivisionsForBibleBeeYear(yearId);
+	for (const existing of existingDivisions) {
+		if (doGradeRangesOverlap(data.min_grade, data.max_grade, existing.min_grade, existing.max_grade)) {
+			throw new Error(`Grade range ${data.min_grade}-${data.max_grade} overlaps with existing division "${existing.name}" (${existing.min_grade}-${existing.max_grade})`);
+		}
+	}
+	
 	if (shouldUseAdapter()) {
 		// Use Supabase adapter for live mode
 		return dbAdapter.createDivision(data);
@@ -2873,6 +2906,38 @@ export async function createDivision(data: Omit<any, 'id' | 'created_at' | 'upda
  * Update a division
  */
 export async function updateDivision(id: string, updates: Partial<any>): Promise<any> {
+	// If updating grade ranges, validate them
+	if (updates.min_grade !== undefined || updates.max_grade !== undefined) {
+		// Get the existing division to merge with updates
+		const existing = await getDivision(id);
+		if (!existing) {
+			throw new Error(`Division ${id} not found`);
+		}
+		
+		const newMinGrade = updates.min_grade !== undefined ? updates.min_grade : existing.min_grade;
+		const newMaxGrade = updates.max_grade !== undefined ? updates.max_grade : existing.max_grade;
+		
+		// Validate grade ranges
+		if (newMinGrade < 0 || newMinGrade > 12) {
+			throw new Error('min_grade must be between 0 and 12');
+		}
+		if (newMaxGrade < 0 || newMaxGrade > 12) {
+			throw new Error('max_grade must be between 0 and 12');
+		}
+		if (newMinGrade > newMaxGrade) {
+			throw new Error('min_grade must be <= max_grade');
+		}
+		
+		// Check overlap with other divisions (excluding current one)
+		const yearId = existing.bible_bee_cycle_id || existing.year_id;
+		const otherDivisions = await getDivisionsForBibleBeeYear(yearId);
+		for (const other of otherDivisions) {
+			if (other.id !== id && doGradeRangesOverlap(newMinGrade, newMaxGrade, other.min_grade, other.max_grade)) {
+				throw new Error(`Grade range ${newMinGrade}-${newMaxGrade} overlaps with existing division "${other.name}" (${other.min_grade}-${other.max_grade})`);
+			}
+		}
+	}
+	
 	if (shouldUseAdapter()) {
 		// Use Supabase adapter for live mode
 		return dbAdapter.updateDivision(id, updates);
@@ -2910,6 +2975,24 @@ export async function deleteScripture(id: string): Promise<void> {
 	} else {
 		// Use legacy Dexie interface for demo mode
 		await db.scriptures.delete(id);
+	}
+}
+
+/**
+ * Get essay prompts for a Bible Bee year
+ */
+export async function getEssayPromptsForBibleBeeYear(yearId: string): Promise<any[]> {
+	if (shouldUseAdapter()) {
+		// Use Supabase adapter for live mode - filter by year/cycle ID
+		const allPrompts = await dbAdapter.listEssayPrompts();
+		// Filter by year_id or bible_bee_cycle_id
+		return allPrompts.filter(prompt => 
+			prompt.year_id === yearId || 
+			(prompt as any).bible_bee_cycle_id === yearId
+		);
+	} else {
+		// Use legacy Dexie interface for demo mode
+		return db.essay_prompts.where('year_id').equals(yearId).toArray();
 	}
 }
 

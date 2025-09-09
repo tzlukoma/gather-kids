@@ -31,6 +31,7 @@ import {
 	getDivisionsForBibleBeeYear,
 	getBibleBeeYears,
 	getScripturesForBibleBeeYear,
+	getEssayPromptsForBibleBeeYear,
 	upsertScripture,
 	deleteScripture,
 } from '@/lib/dal';
@@ -147,8 +148,10 @@ export default function BibleBeeManage({ className }: BibleBeeManageProps) {
 		return cycles;
 	}, [bibleBeeCycles, competitionYears]);
 
-	// Add refresh counter to trigger re-fetch when data changes
+	// Add refresh counters to trigger re-fetch when data changes
 	const [divisionsRefreshCounter, setDivisionsRefreshCounter] = useState(0);
+	const [essayPromptsRefreshCounter, setEssayPromptsRefreshCounter] =
+		useState(0);
 
 	const divisions = useLiveQuery(async () => {
 		if (!selectedYearId) return [];
@@ -159,10 +162,10 @@ export default function BibleBeeManage({ className }: BibleBeeManageProps) {
 
 	const essayPrompts = useLiveQuery(async () => {
 		if (!selectedYearId) return [];
-		// TODO: Create DAL function for essay prompts by year
-		// For now, return empty array in Supabase mode
-		return [];
-	}, [selectedYearId]);
+
+		// Use DAL function for consistent dbAdapter pattern
+		return await getEssayPromptsForBibleBeeYear(selectedYearId);
+	}, [selectedYearId, essayPromptsRefreshCounter]);
 
 	// Get the active year for default selection
 	React.useEffect(() => {
@@ -316,6 +319,7 @@ export default function BibleBeeManage({ className }: BibleBeeManageProps) {
 								yearLabel={selectedCycle.label}
 								divisions={divisions || []}
 								selectedCycle={selectedCycle}
+								onRefresh={() => setDivisionsRefreshCounter((prev) => prev + 1)}
 							/>
 						) : (
 							<div className="text-center py-8 text-muted-foreground">
@@ -330,6 +334,9 @@ export default function BibleBeeManage({ className }: BibleBeeManageProps) {
 								yearId={selectedCycle.id}
 								yearLabel={selectedCycle.label}
 								selectedCycle={selectedCycle}
+								onRefresh={() =>
+									setScripturesRefreshCounter((prev) => prev + 1)
+								}
 							/>
 						) : (
 							<div className="text-center py-8 text-muted-foreground">
@@ -346,6 +353,9 @@ export default function BibleBeeManage({ className }: BibleBeeManageProps) {
 								essayPrompts={essayPrompts || []}
 								divisions={divisions || []}
 								selectedCycle={selectedCycle}
+								onRefresh={() =>
+									setEssayPromptsRefreshCounter((prev) => prev + 1)
+								}
 							/>
 						) : (
 							<div className="text-center py-8 text-muted-foreground">
@@ -625,11 +635,13 @@ function DivisionManagement({
 	yearLabel,
 	divisions,
 	selectedCycle,
+	onRefresh,
 }: {
 	yearId: string;
 	yearLabel: string;
 	divisions: any[];
 	selectedCycle: any;
+	onRefresh: () => void;
 }) {
 	const { toast } = useToast();
 	const [isCreating, setIsCreating] = useState(false);
@@ -655,7 +667,7 @@ function DivisionManagement({
 				setEditingDivision(null);
 				setIsCreating(false);
 				// Trigger refresh of divisions list
-				setDivisionsRefreshCounter((prev) => prev + 1);
+				onRefresh();
 			} else {
 				await createDivision({
 					...formData,
@@ -664,7 +676,7 @@ function DivisionManagement({
 				});
 				setIsCreating(false);
 				// Trigger refresh of divisions list
-				setDivisionsRefreshCounter((prev) => prev + 1);
+				onRefresh();
 			}
 			setFormData({
 				name: '',
@@ -687,7 +699,7 @@ function DivisionManagement({
 			try {
 				await deleteDivision(division.id);
 				// Trigger refresh of divisions list
-				setDivisionsRefreshCounter((prev) => prev + 1);
+				onRefresh();
 			} catch (error) {
 				console.error('Error deleting division:', error);
 				alert('Error deleting division: ' + error);
@@ -903,10 +915,12 @@ function ScriptureManagement({
 	yearId,
 	yearLabel,
 	selectedCycle,
+	onRefresh,
 }: {
 	yearId: string;
 	yearLabel: string;
 	selectedCycle: any;
+	onRefresh: () => void;
 }) {
 	const { toast } = useToast();
 	const [isCreating, setIsCreating] = useState(false);
@@ -989,7 +1003,7 @@ function ScriptureManagement({
 				setEditingScripture(null);
 				setIsCreating(false);
 				// Trigger refresh of scriptures list
-				setScripturesRefreshCounter((prev) => prev + 1);
+				onRefresh();
 			} else {
 				await upsertScripture({
 					id: crypto.randomUUID(),
@@ -1003,7 +1017,7 @@ function ScriptureManagement({
 				});
 				setIsCreating(false);
 				// Trigger refresh of scriptures list
-				setScripturesRefreshCounter((prev) => prev + 1);
+				onRefresh();
 			}
 			setFormData({
 				scripture_number: '',
@@ -1190,7 +1204,7 @@ function ScriptureManagement({
 			setShowCsvImport(false);
 			setError(null);
 			// Trigger refresh of scriptures list
-			setScripturesRefreshCounter((prev) => prev + 1);
+			onRefresh();
 
 			// Check if scriptures were actually created
 			const scriptureCount = await db.scriptures
@@ -1270,6 +1284,8 @@ function ScriptureManagement({
 
 			// Force refresh the scripture list by updating the yearId dependency
 			console.log('JSON upload completed:', result);
+			// Trigger refresh of scriptures list
+			onRefresh();
 
 			toast({
 				title: 'JSON Upload Complete',
@@ -1805,12 +1821,14 @@ function EssayManagement({
 	essayPrompts,
 	divisions,
 	selectedCycle,
+	onRefresh,
 }: {
 	yearId: string;
 	yearLabel: string;
 	essayPrompts: any[];
 	divisions: any[];
 	selectedCycle: any;
+	onRefresh: () => void;
 }) {
 	const { toast } = useToast();
 	const [isCreating, setIsCreating] = useState(false);
@@ -1843,6 +1861,8 @@ function EssayManagement({
 				});
 				setEditingEssay(null);
 				setIsCreating(false);
+				// Trigger refresh of essay prompts list
+				onRefresh();
 			} else {
 				await createEssayPrompt(essayData);
 				toast({
@@ -1850,6 +1870,8 @@ function EssayManagement({
 					description: 'Essay prompt has been successfully created.',
 				});
 				setIsCreating(false);
+				// Trigger refresh of essay prompts list
+				onRefresh();
 			}
 			setFormData({
 				division_name: 'all',
@@ -1874,6 +1896,8 @@ function EssayManagement({
 					title: 'Essay Prompt Deleted',
 					description: 'Essay prompt has been successfully deleted.',
 				});
+				// Trigger refresh of essay prompts list
+				onRefresh();
 			} catch (error: any) {
 				console.error('Error deleting essay prompt:', error);
 				setError(error.message || 'Error deleting essay prompt');
