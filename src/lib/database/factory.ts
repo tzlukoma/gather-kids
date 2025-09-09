@@ -11,7 +11,9 @@ export function createDatabaseAdapter(): DatabaseAdapter {
 		mode,
 		isClient: typeof window !== 'undefined',
 		supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
-		hasSupabaseKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+		hasSupabaseKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+		NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
+		NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? 'SET' : 'NOT_SET'
 	});
 
 	if (mode === 'supabase') {

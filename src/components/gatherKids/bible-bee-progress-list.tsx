@@ -1,8 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '@/lib/db';
+import { getBibleBeeYears, getAllGuardians } from '@/lib/dal';
 import {
 	Select,
 	SelectTrigger,
@@ -51,15 +50,26 @@ export function BibleBeeProgressList({
 	const [availableGradeGroups, setAvailableGradeGroups] = useState<string[]>(
 		[]
 	);
-	const competitionYears = useLiveQuery(
-		() => db.competitionYears.orderBy('year').reverse().toArray(),
-		[]
-	);
-	// Also support new-schema Bible Bee years
-	const bibleBeeYears = useLiveQuery(
-		() => db.bible_bee_years.orderBy('label').toArray(),
-		[]
-	);
+	const [bibleBeeYears, setBibleBeeYears] = useState<any[]>([]);
+
+	// Load Bible Bee years using DAL functions (no longer need competition years)
+	useEffect(() => {
+		const loadData = async () => {
+			try {
+				console.log('BibleBeeProgressList: Loading Bible Bee data...');
+				const bbYears = await getBibleBeeYears();
+				console.log('BibleBeeProgressList: Loaded Bible Bee years:', bbYears);
+				setBibleBeeYears(bbYears || []);
+			} catch (error) {
+				console.error(
+					'BibleBeeProgressList: Error loading Bible Bee data:',
+					error
+				);
+				setBibleBeeYears([]);
+			}
+		};
+		loadData();
+	}, []);
 
 	// Initialize filters from localStorage when possible so tab switches keep state
 	const loadInitial = () => {
@@ -92,14 +102,47 @@ export function BibleBeeProgressList({
 	>(initial?.sortBy ?? 'name-asc');
 
 	useEffect(() => {
-		if (competitionYears && competitionYears.length > 0) {
-			const defaultYear = String(competitionYears[0].year);
-			// default to the most recent competition year only if not set by storage
+		if (bibleBeeYears && bibleBeeYears.length > 0) {
+			// First try to find an active Bible Bee year
+			const active = bibleBeeYears.find((y: any) => {
+				const val = y?.is_active;
+				return (
+					val === true ||
+					val === 1 ||
+					String(val) === '1' ||
+					String(val) === 'true'
+				);
+			});
+			if (active && active.id) {
+				// default to the active Bible Bee year only if not set by storage
+				if (!initial?.selectedCycle && !initialCycle) {
+					setSelectedCycle(String(active.id));
+				}
+				return;
+			}
+
+			// If no active year, use the most recent year
+			const sortedYears = [...bibleBeeYears].sort((a: any, b: any) => {
+				// Try to sort by label first (e.g., "2025", "2024")
+				if (a.label && b.label) {
+					return b.label.localeCompare(a.label);
+				}
+				// Fallback to created_at
+				if (a.created_at && b.created_at) {
+					return (
+						new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+					);
+				}
+				return 0;
+			});
+
+			const defaultYear = String(sortedYears[0].id);
+			// default to the most recent Bible Bee year only if not set by storage
 			if (!initial?.selectedCycle && !initialCycle) {
 				setSelectedCycle(String(defaultYear ?? ''));
 			}
 		}
-	}, [competitionYears, initial, initialCycle]);
+	}, [bibleBeeYears, initial, initialCycle]);
 
 	// Prefer an active new-schema Bible Bee year when present (only if no
 	// selection was pre-populated via storage or props).
@@ -109,7 +152,12 @@ export function BibleBeeProgressList({
 				// only default to a bible-bee-year when one is explicitly marked active
 				const active = bibleBeeYears.find((y: any) => {
 					const val = y?.is_active;
-					return val === true || val === 1 || String(val) === '1' || String(val) === 'true';
+					return (
+						val === true ||
+						val === 1 ||
+						String(val) === '1' ||
+						String(val) === 'true'
+					);
 				});
 				if (active && active.id) {
 					setSelectedCycle(String(active.id));
@@ -119,6 +167,16 @@ export function BibleBeeProgressList({
 	}, [bibleBeeYears, initial, initialCycle]);
 
 	useEffect(() => {
+		console.log(
+			'BibleBeeProgressList: useEffect triggered with dependencies:',
+			{
+				selectedCycle,
+				filterChildIds,
+				bibleBeeYearsCount: bibleBeeYears?.length,
+				filterGradeGroup,
+			}
+		);
+
 		let mounted = true;
 		const load = async () => {
 			// Determine effective cycle id to pass into DAL. If selectedCycle
@@ -132,7 +190,12 @@ export function BibleBeeProgressList({
 			) {
 				effectiveCycle = String(selectedCycle);
 			}
+			console.log(
+				'BibleBeeProgressList: Loading progress for cycle:',
+				effectiveCycle
+			);
 			const res = await getBibleBeeProgressForCycle(effectiveCycle);
+			console.log('BibleBeeProgressList: Loaded progress data:', res);
 			if (mounted) {
 				// Filter to specific children if provided
 				const filteredRes = filterChildIds
@@ -147,10 +210,10 @@ export function BibleBeeProgressList({
 				);
 				const guardianMap = new Map<string, any>();
 				if (householdIds.length > 0) {
-					const guardians = await db.guardians
-						.where('household_id')
-						.anyOf(householdIds)
-						.toArray();
+					const allGuardians = await getAllGuardians();
+					const guardians = allGuardians.filter((g) =>
+						householdIds.includes(g.household_id)
+					);
 					for (const g of guardians) {
 						if (!guardianMap.has(g.household_id))
 							guardianMap.set(g.household_id, []);
@@ -209,7 +272,8 @@ export function BibleBeeProgressList({
 			}
 			// Otherwise try a DB lookup (async) to resolve label for UUIDs
 			try {
-				const maybe = await db.bible_bee_years.get(String(selectedCycle));
+				const allYears = await getBibleBeeYears();
+				const maybe = allYears.find((y) => y.id === String(selectedCycle));
 				if (mounted && maybe && maybe.label) setDisplayCycleLabel(maybe.label);
 			} catch (e) {
 				// ignore
@@ -315,16 +379,10 @@ export function BibleBeeProgressList({
 									</SelectValue>
 								</SelectTrigger>
 								<SelectContent>
-									{/* New schema years first */}
+									{/* Bible Bee years */}
 									{(bibleBeeYears || []).map((y: any) => (
 										<SelectItem key={`bb-${y.id}`} value={y.id}>
-											{y.label}
-										</SelectItem>
-									))}
-									{/* Legacy competition years */}
-									{(competitionYears || []).map((y: any) => (
-										<SelectItem key={`cy-${y.id}`} value={String(y.year)}>
-											{String(y.year)}
+											{y.label || y.name || `Bible Bee ${y.id}`}
 										</SelectItem>
 									))}
 								</SelectContent>
@@ -425,8 +483,16 @@ export function BibleBeeProgressList({
 									className="px-2 py-1 border rounded"
 									onClick={() => {
 										// reset to defaults
-										if (competitionYears && competitionYears.length > 0)
-											setSelectedCycle(String(competitionYears[0].year));
+										if (bibleBeeYears && bibleBeeYears.length > 0) {
+											// Use active year if available, otherwise most recent
+											const active = bibleBeeYears.find(
+												(y: any) => y.is_active
+											);
+											const defaultYear = active
+												? active.id
+												: bibleBeeYears[0].id;
+											setSelectedCycle(String(defaultYear));
+										}
 										setFilterGradeGroup('all');
 										setFilterStatus('all');
 										setSortBy('name-asc');
@@ -442,31 +508,12 @@ export function BibleBeeProgressList({
 				</div>
 			)}
 
-			{/* show prior-year hint if viewing a non-latest year */}
-			{competitionYears &&
-				competitionYears.length > 0 &&
-				String(competitionYears[0].year) !== String(selectedCycle) && (
-					<div className="p-2 bg-secondary/20 border-l-4 border-brand-yellow text-sm text-ink">
-						Viewing prior year — edits disabled
-					</div>
-				)}
-			{/* show prior-year hint if viewing a non-latest year. For new-schema
-			    bible-bee years, treat an active bible-bee-year as current. */}
+			{/* show prior-year hint if viewing a non-active year */}
 			{(() => {
-				if (!competitionYears || competitionYears.length === 0) return null;
-				const latestYearStr = String(competitionYears[0].year);
-				// If selectedCycle corresponds to a new-schema year id, check its is_active
-				const bb = (bibleBeeYears || []).find(
-					(y: any) => String(y.id) === String(selectedCycle)
-				);
-				let isPrior = false;
-				if (bb) {
-					const val = bb?.is_active;
-					const bbActive = isActiveValue(val);
-					isPrior = !bbActive;
-				} else {
-					isPrior = latestYearStr !== String(selectedCycle);
-				}
+				if (!bibleBeeYears || bibleBeeYears.length === 0) return null;
+				const activeYear = bibleBeeYears.find((y: any) => y.is_active);
+				if (!activeYear) return null;
+				const isPrior = String(activeYear.id) !== String(selectedCycle);
 				if (isPrior) {
 					return (
 						<div className="p-2 bg-yellow-50 border-l-4 border-yellow-300 text-sm text-yellow-800">

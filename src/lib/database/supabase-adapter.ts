@@ -435,12 +435,27 @@ export class SupabaseAdapter implements DatabaseAdapter {
 	}
 
 	async listAllGuardians(): Promise<Guardian[]> {
-	const { data, error } = await this.client
-			.from('guardians')
-			.select('*');
+		console.log('SupabaseAdapter.listAllGuardians: Starting query');
+		try {
+			const { data, error } = await this.client
+				.from('guardians')
+				.select('*');
 
-	if (error) throw error;
-	return (data || []).map((d) => supabaseToGuardian(d as Database['public']['Tables']['guardians']['Row']));
+			console.log('SupabaseAdapter.listAllGuardians: Query result', { 
+				hasError: !!error, 
+				errorMessage: error?.message, 
+				dataCount: data?.length || 0
+			});
+
+			if (error) {
+				console.error('SupabaseAdapter.listAllGuardians: Query failed', error);
+				throw error;
+			}
+			return (data || []).map((d) => supabaseToGuardian(d as Database['public']['Tables']['guardians']['Row']));
+		} catch (error) {
+			console.error('SupabaseAdapter.listAllGuardians: Exception caught', error);
+			throw error;
+		}
 	}
 
 	async deleteGuardian(id: string): Promise<void> {
@@ -2443,7 +2458,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 	}
 	private mapEssayPrompt(row: unknown): EssayPrompt {
 		const r = (row ?? {}) as Record<string, unknown>;
-		return {
+		const mapped = {
 			id: (r['id'] as string) || '',
 			year_id: (r['year_id'] as string) || (r['bible_bee_year_id'] as string) || (r['bible_bee_cycle_id'] as string) || '',
 			division_name: (r['division_name'] as string) || undefined,
@@ -2452,6 +2467,13 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			created_at: (r['created_at'] as string) || new Date().toISOString(),
 			updated_at: (r['updated_at'] as string) || new Date().toISOString(),
 		};
+		
+		// Preserve the original bible_bee_cycle_id for filtering purposes
+		if (r['bible_bee_cycle_id']) {
+			(mapped as any).bible_bee_cycle_id = r['bible_bee_cycle_id'] as string;
+		}
+		
+		return mapped;
 	}
 
 	async deleteEssayPrompt(id: string): Promise<void> {

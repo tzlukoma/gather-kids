@@ -1,8 +1,6 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '@/lib/db';
 import type { Division, GradeRule } from '@/lib/types';
 import {
 	createBibleBeeYear,
@@ -34,7 +32,13 @@ import {
 	getEssayPromptsForBibleBeeYear,
 	upsertScripture,
 	deleteScripture,
+	getCompetitionYears,
+	getRegistrationCycles,
+	getAllChildren,
+	getEnrollmentOverridesForYear,
+	getMinistries,
 } from '@/lib/dal';
+import { dbAdapter } from '@/lib/dal';
 import { gradeCodeToLabel } from '@/lib/gradeUtils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
@@ -99,16 +103,42 @@ export default function BibleBeeManage({ className }: BibleBeeManageProps) {
 	const [activeTab, setActiveTab] = useState('cycles');
 	const [selectedYearId, setSelectedYearId] = useState<string | null>(null);
 
-	// Load Bible Bee cycles using DAL
-	const bibleBeeCycles = useLiveQuery(async () => {
-		return await getBibleBeeCycles();
+	// Load Bible Bee cycles using dbAdapter pattern
+	const [bibleBeeCycles, setBibleBeeCycles] = useState<any[]>([]);
+
+	// Load Bible Bee cycles on component mount
+	React.useEffect(() => {
+		const loadBibleBeeCycles = async () => {
+			try {
+				const cycles = await getBibleBeeCycles();
+				setBibleBeeCycles(cycles);
+			} catch (error) {
+				console.error('Error loading Bible Bee cycles:', error);
+				setBibleBeeCycles([]);
+			}
+		};
+
+		loadBibleBeeCycles();
 	}, []);
 
-	// Load old schema competition years as fallback
-	const competitionYears = useLiveQuery(
-		() => db.competitionYears.orderBy('year').reverse().toArray(),
-		[]
-	);
+	// Load old schema competition years as fallback using dbAdapter pattern
+	const [competitionYears, setCompetitionYears] = useState<any[]>([]);
+
+	// Load competition years on component mount
+	React.useEffect(() => {
+		const loadCompetitionYears = async () => {
+			try {
+				// Use DAL function instead of direct Dexie call
+				const years = await getCompetitionYears();
+				setCompetitionYears(years);
+			} catch (error) {
+				console.error('Error loading competition years:', error);
+				setCompetitionYears([]);
+			}
+		};
+
+		loadCompetitionYears();
+	}, []);
 
 	// Create combined cycles list (new schema first, then bridge old schema)
 	const allCycles = React.useMemo(() => {
@@ -154,18 +184,50 @@ export default function BibleBeeManage({ className }: BibleBeeManageProps) {
 	const [essayPromptsRefreshCounter, setEssayPromptsRefreshCounter] =
 		useState(0);
 
-	const divisions = useLiveQuery(async () => {
-		if (!selectedYearId) return [];
+	// Load divisions using dbAdapter pattern
+	const [divisions, setDivisions] = useState<any[]>([]);
 
-		// Use DAL function for consistent dbAdapter pattern
-		return await getDivisionsForBibleBeeYear(selectedYearId);
+	// Load divisions when selectedYearId changes
+	React.useEffect(() => {
+		if (!selectedYearId) {
+			setDivisions([]);
+			return;
+		}
+
+		const loadDivisions = async () => {
+			try {
+				const divs = await getDivisionsForBibleBeeYear(selectedYearId);
+				setDivisions(divs);
+			} catch (error) {
+				console.error('Error loading divisions:', error);
+				setDivisions([]);
+			}
+		};
+
+		loadDivisions();
 	}, [selectedYearId, divisionsRefreshCounter]);
 
-	const essayPrompts = useLiveQuery(async () => {
-		if (!selectedYearId) return [];
+	// Load essay prompts using dbAdapter pattern
+	const [essayPrompts, setEssayPrompts] = useState<any[]>([]);
 
-		// Use DAL function for consistent dbAdapter pattern
-		return await getEssayPromptsForBibleBeeYear(selectedYearId);
+	// Load essay prompts when selectedYearId changes
+	React.useEffect(() => {
+		if (!selectedYearId) {
+			setEssayPrompts([]);
+			return;
+		}
+
+		const loadEssayPrompts = async () => {
+			try {
+				const prompts = await getEssayPromptsForBibleBeeYear(selectedYearId);
+				setEssayPrompts(prompts);
+			} catch (error) {
+				console.error('Error loading essay prompts:', error);
+				setEssayPrompts([]);
+			}
+		};
+
+		loadEssayPrompts();
 	}, [selectedYearId, essayPromptsRefreshCounter]);
 
 	// Get the active year for default selection
@@ -188,12 +250,11 @@ export default function BibleBeeManage({ className }: BibleBeeManageProps) {
 					try {
 						console.log('Auto-repro: creating active Bible Bee year...');
 						// Get the active cycle to link to this Bible Bee year
-						const activeCycle = (await db.registration_cycles.toArray()).find(
-							(c) => {
-								const val = c.is_active;
-								return val === true || Number(val) === 1 || String(val) === '1';
-							}
-						);
+						const allCycles = await getRegistrationCycles();
+						const activeCycle = allCycles.find((c) => {
+							const val = c.is_active;
+							return val === true || Number(val) === 1 || String(val) === '1';
+						});
 
 						const created = await createBibleBeeCycle({
 							name: 'Auto Repro Cycle',
@@ -242,9 +303,8 @@ export default function BibleBeeManage({ className }: BibleBeeManageProps) {
 											'Repro helper: creating active Bible Bee year...'
 										);
 										// Get the active cycle to link to this Bible Bee year
-										const activeCycle = (
-											await db.registration_cycles.toArray()
-										).find((c) => {
+										const allCycles = await getRegistrationCycles();
+										const activeCycle = allCycles.find((c) => {
 											const val = c.is_active;
 											return (
 												val === true || Number(val) === 1 || String(val) === '1'
@@ -416,16 +476,26 @@ function YearManagement({
 		cycle_id: '',
 	});
 
-	// Query registration cycles for the dropdown
-	const registrationCycles = useLiveQuery(
-		() =>
-			db.registration_cycles
-				.toArray()
-				.then((data) =>
-					data.sort((a, b) => a.cycle_id.localeCompare(b.cycle_id))
-				),
-		[]
-	);
+	// Load registration cycles using dbAdapter pattern
+	const [registrationCycles, setRegistrationCycles] = useState<any[]>([]);
+
+	// Load registration cycles on component mount
+	React.useEffect(() => {
+		const loadRegistrationCycles = async () => {
+			try {
+				// Use DAL function instead of direct Dexie call
+				const cycles = await getRegistrationCycles();
+				setRegistrationCycles(
+					cycles.sort((a, b) => a.cycle_id.localeCompare(b.cycle_id))
+				);
+			} catch (error) {
+				console.error('Error loading registration cycles:', error);
+				setRegistrationCycles([]);
+			}
+		};
+
+		loadRegistrationCycles();
+	}, []);
 
 	// Remove individual bibleBeeYears query since we get data from props
 
@@ -558,7 +628,7 @@ function YearManagement({
 									setIsCreating(false);
 									setEditingYear(null);
 									setFormData({
-										label: '',
+										name: '',
 										is_active: false,
 										cycle_id: '',
 									});
@@ -673,7 +743,9 @@ function DivisionManagement({
 				await createDivision({
 					...formData,
 					bible_bee_cycle_id: selectedCycle._isNewSchema ? yearId : null,
-					year_id: selectedCycle._isNewSchema ? null : yearId,
+					competitionYearId: selectedCycle._isNewSchema
+						? ''
+						: (yearId as string),
 				});
 				setIsCreating(false);
 				// Trigger refresh of divisions list
@@ -947,17 +1019,27 @@ function ScriptureManagement({
 	const [jsonPreview, setJsonPreview] = useState<any>(null);
 	const [jsonMode, setJsonMode] = useState<'merge' | 'overwrite'>('merge');
 
-	// Load scriptures for this year using DAL
-	const scriptures = useLiveQuery(async () => {
-		try {
-			console.log('Loading scriptures for year:', yearId);
-			const result = await getScripturesForBibleBeeYear(yearId);
-			console.log(`Found ${result.length} scriptures for year ${yearId}`);
-			return result;
-		} catch (error) {
-			console.error('Error loading scriptures:', error);
-			return [];
+	// Load scriptures using dbAdapter pattern
+	const [scriptures, setScriptures] = useState<any[]>([]);
+
+	// Load scriptures when yearId changes
+	React.useEffect(() => {
+		if (!yearId) {
+			setScriptures([]);
+			return;
 		}
+
+		const loadScriptures = async () => {
+			try {
+				const result = await getScripturesForBibleBeeYear(yearId);
+				setScriptures(result);
+			} catch (error) {
+				console.error('Error loading scriptures:', error);
+				setScriptures([]);
+			}
+		};
+
+		loadScriptures();
 	}, [yearId, onRefresh]);
 
 	const handleSubmit = async (e: React.FormEvent) => {
@@ -992,7 +1074,9 @@ function ScriptureManagement({
 					...editingScripture,
 					...scriptureData,
 					bible_bee_cycle_id: selectedCycle._isNewSchema ? yearId : null,
-					year_id: selectedCycle._isNewSchema ? null : yearId,
+					competitionYearId: selectedCycle._isNewSchema
+						? ''
+						: (yearId as string),
 				});
 				toast({
 					title: `Scripture ${formData.scripture_number} Updated`,
@@ -1006,8 +1090,10 @@ function ScriptureManagement({
 				await upsertScripture({
 					id: crypto.randomUUID(),
 					...scriptureData,
-					bible_bee_cycle_id: selectedCycle._isNewSchema ? yearId : null,
-					year_id: selectedCycle._isNewSchema ? null : yearId,
+					bible_bee_cycle_id: selectedCycle._isNewSchema ? yearId : undefined,
+					competitionYearId: selectedCycle._isNewSchema
+						? ''
+						: (yearId as string),
 				});
 				toast({
 					title: `Scripture ${formData.scripture_number} Created`,
@@ -1121,10 +1207,7 @@ function ScriptureManagement({
 					.toLowerCase();
 
 			// Get all existing scriptures for this year
-			const existingScriptures = await db.scriptures
-				.where('year_id')
-				.equals(yearId)
-				.toArray();
+			const existingScriptures = await getScripturesForBibleBeeYear(yearId);
 
 			// Track references with missing texts and their details
 			const referencesWithoutTexts = preview.filter((row) => {
@@ -1207,10 +1290,8 @@ function ScriptureManagement({
 			onRefresh();
 
 			// Check if scriptures were actually created
-			const scriptureCount = await db.scriptures
-				.where('year_id')
-				.equals(yearId)
-				.count();
+			const allScriptures = await getScripturesForBibleBeeYear(yearId);
+			const scriptureCount = allScriptures.length;
 			console.log(
 				`Total scriptures for year ${yearId} after CSV import:`,
 				scriptureCount
@@ -1298,10 +1379,8 @@ function ScriptureManagement({
 			setError(null);
 
 			// Check if scriptures were actually created/updated
-			const scriptureCount = await db.scriptures
-				.where('year_id')
-				.equals(yearId)
-				.count();
+			const allScriptures = await getScripturesForBibleBeeYear(yearId);
+			const scriptureCount = allScriptures.length;
 			console.log(`Total scriptures for year ${yearId}:`, scriptureCount);
 		} catch (error: any) {
 			console.error('Error uploading JSON:', error);
@@ -1847,7 +1926,7 @@ function EssayManagement({
 			const essayData = {
 				...formData,
 				bible_bee_cycle_id: selectedCycle._isNewSchema ? yearId : null,
-				year_id: selectedCycle._isNewSchema ? null : yearId,
+				competitionYearId: selectedCycle._isNewSchema ? '' : yearId,
 				division_name:
 					formData.division_name === 'all' ? '' : formData.division_name,
 				due_date: formData.due_date || new Date().toISOString().split('T')[0], // Default to today if not provided
@@ -2094,7 +2173,7 @@ function EnrollmentManagement({
 			// Use a safe scan to find the active registration cycle and tolerate
 			// mixed stored representations for is_active (1, true, '1') which
 			// can cause IDBKeyRange DataError when used with .equals(...)
-			const allCycles = await db.registration_cycles.toArray();
+			const allCycles = await getRegistrationCycles();
 			const currentCycle = allCycles.find((c) => isActiveValue(c?.is_active));
 			if (!currentCycle) {
 				setError(
@@ -2104,10 +2183,10 @@ function EnrollmentManagement({
 				return;
 			}
 
-			const bibleBeeMinistry = await db.ministries
-				.where('code')
-				.equals('bible-bee')
-				.first();
+			const allMinistries = await getMinistries();
+			const bibleBeeMinistry = allMinistries.find(
+				(m: any) => m.code === 'bible-bee'
+			);
 			if (!bibleBeeMinistry) {
 				setError(
 					'Bible Bee ministry not found. Please contact an administrator.'
@@ -2118,7 +2197,7 @@ function EnrollmentManagement({
 
 			// Avoid using a compound .equals([...]) query which can throw when stored
 			// key types are mixed (string vs number). Do a safe scan and filter in JS.
-			const allEnrollments = await db.ministry_enrollments.toArray();
+			const allEnrollments = await dbAdapter.listMinistryEnrollments();
 			const bibleBeeEnrollments = allEnrollments.filter((e: any) => {
 				try {
 					return (
@@ -2364,17 +2443,49 @@ function OverrideManagement({
 	});
 	const [error, setError] = useState<string | null>(null);
 
-	// Load data - be tolerant of mixed-type is_active values (1 vs true)
-	const children = useLiveQuery(async () => {
-		const all = await db.children.toArray();
-		return all.filter((c) => !!c && isActiveValue(c?.is_active));
+	// Load data using dbAdapter pattern
+	const [children, setChildren] = useState<any[]>([]);
+	const [overrides, setOverrides] = useState<any[]>([]);
+
+	// Load children on component mount
+	React.useEffect(() => {
+		const loadChildren = async () => {
+			try {
+				// Use DAL function instead of direct Dexie call
+				const allChildren = await getAllChildren();
+				const activeChildren = allChildren.filter(
+					(c) => !!c && isActiveValue(c?.is_active)
+				);
+				setChildren(activeChildren);
+			} catch (error) {
+				console.error('Error loading children:', error);
+				setChildren([]);
+			}
+		};
+
+		loadChildren();
 	}, []);
 
-	const overrides = useLiveQuery(
-		async () =>
-			await db.enrollment_overrides.where('year_id').equals(yearId).toArray(),
-		[yearId]
-	);
+	// Load overrides when yearId changes
+	React.useEffect(() => {
+		if (!yearId) {
+			setOverrides([]);
+			return;
+		}
+
+		const loadOverrides = async () => {
+			try {
+				// Use DAL function instead of direct Dexie call
+				const overridesData = await getEnrollmentOverridesForYear(yearId);
+				setOverrides(overridesData);
+			} catch (error) {
+				console.error('Error loading overrides:', error);
+				setOverrides([]);
+			}
+		};
+
+		loadOverrides();
+	}, [yearId]);
 
 	// Get child details for overrides
 	const enrichedOverrides = React.useMemo(() => {
@@ -2415,7 +2526,7 @@ function OverrideManagement({
 		try {
 			const overrideData = {
 				bible_bee_cycle_id: selectedCycle._isNewSchema ? yearId : null,
-				year_id: selectedCycle._isNewSchema ? null : yearId,
+				competitionYearId: selectedCycle._isNewSchema ? '' : yearId,
 				child_id: selectedChild.child_id,
 				division_id: formData.division_id,
 				reason: formData.reason,

@@ -299,46 +299,46 @@ export async function queryHouseholdList(leaderMinistryIds?: string[], ministryI
         // Use legacy Dexie interface for demo mode
         console.log('🔍 DAL.queryHouseholdList: Using Dexie interface for demo mode');
         
-        let households = await db.households.orderBy('created_at').reverse().toArray();
-        let householdIds = households.map(h => h.household_id);
+    let households = await db.households.orderBy('created_at').reverse().toArray();
+    let householdIds = households.map(h => h.household_id);
 
-        let ministryFilterIds = leaderMinistryIds;
+    let ministryFilterIds = leaderMinistryIds;
 
-        // If a specific ministryId filter is applied, it takes precedence
-        if (ministryId) {
-            ministryFilterIds = [ministryId];
+    // If a specific ministryId filter is applied, it takes precedence
+    if (ministryId) {
+        ministryFilterIds = [ministryId];
+    }
+
+    if (ministryFilterIds && ministryFilterIds.length > 0) {
+        const enrollments = await db.ministry_enrollments
+            .where('ministry_id').anyOf(ministryFilterIds)
+            .and(e => e.cycle_id === '2025')
+            .toArray();
+        const relevantChildIds = [...new Set(enrollments.map(e => e.child_id))];
+        const relevantChildren = await db.children.where('child_id').anyOf(relevantChildIds).toArray();
+        const relevantHouseholdIds = [...new Set(relevantChildren.map(c => c.household_id))];
+
+        households = households.filter(h => relevantHouseholdIds.includes(h.household_id));
+        householdIds = households.map(h => h.household_id);
+    }
+
+    const allChildren = await db.children.where('household_id').anyOf(householdIds).toArray();
+
+    const childrenByHousehold = new Map<string, (Child & { age: number | null })[]>();
+    for (const child of allChildren) {
+        if (!childrenByHousehold.has(child.household_id)) {
+            childrenByHousehold.set(child.household_id, []);
         }
+        childrenByHousehold.get(child.household_id)!.push({
+            ...child,
+            age: child.dob ? ageOn(new Date().toISOString(), child.dob) : null
+        });
+    }
 
-        if (ministryFilterIds && ministryFilterIds.length > 0) {
-            const enrollments = await db.ministry_enrollments
-                .where('ministry_id').anyOf(ministryFilterIds)
-                .and(e => e.cycle_id === '2025')
-                .toArray();
-            const relevantChildIds = [...new Set(enrollments.map(e => e.child_id))];
-            const relevantChildren = await db.children.where('child_id').anyOf(relevantChildIds).toArray();
-            const relevantHouseholdIds = [...new Set(relevantChildren.map(c => c.household_id))];
-
-            households = households.filter(h => relevantHouseholdIds.includes(h.household_id));
-            householdIds = households.map(h => h.household_id);
-        }
-
-        const allChildren = await db.children.where('household_id').anyOf(householdIds).toArray();
-
-        const childrenByHousehold = new Map<string, (Child & { age: number | null })[]>();
-        for (const child of allChildren) {
-            if (!childrenByHousehold.has(child.household_id)) {
-                childrenByHousehold.set(child.household_id, []);
-            }
-            childrenByHousehold.get(child.household_id)!.push({
-                ...child,
-                age: child.dob ? ageOn(new Date().toISOString(), child.dob) : null
-            });
-        }
-
-        return households.map(h => ({
-            ...h,
-            children: childrenByHousehold.get(h.household_id) || []
-        }));
+    return households.map(h => ({
+        ...h,
+        children: childrenByHousehold.get(h.household_id) || []
+    }));
     }
 }
 
@@ -3173,6 +3173,24 @@ export async function deleteEnrollmentOverrideByChild(childId: string): Promise<
 }
 
 /**
+ * Get enrollment overrides for a specific year/cycle
+ */
+export async function getEnrollmentOverridesForYear(yearId: string): Promise<any[]> {
+	if (shouldUseAdapter()) {
+		// Use Supabase adapter for live mode
+		const allOverrides = await dbAdapter.listEnrollmentOverrides();
+		// Filter by year_id or bible_bee_cycle_id
+		return allOverrides.filter(override => 
+			override.year_id === yearId || 
+			(override as any).bible_bee_cycle_id === yearId
+		);
+	} else {
+		// Use legacy Dexie interface for demo mode
+		return db.enrollment_overrides.where('year_id').equals(yearId).toArray();
+	}
+}
+
+/**
  * Recalculate minimum boundaries
  */
 export async function recalculateMinimumBoundaries(yearId: string): Promise<any> {
@@ -3649,11 +3667,21 @@ export async function getIncidentsForDate(dateISO: string): Promise<Incident[]> 
  * Get all guardians
  */
 export async function getAllGuardians(): Promise<Guardian[]> {
+	console.log('DAL.getAllGuardians: Starting', { useAdapter: shouldUseAdapter() });
 	if (shouldUseAdapter()) {
 		// Use Supabase adapter for live mode
-		return dbAdapter.listAllGuardians();
+		console.log('DAL.getAllGuardians: Using Supabase adapter');
+		try {
+			const result = await dbAdapter.listAllGuardians();
+			console.log('DAL.getAllGuardians: Supabase adapter result', { count: result.length });
+			return result;
+		} catch (error) {
+			console.error('DAL.getAllGuardians: Supabase adapter failed', error);
+			throw error;
+		}
 	} else {
 		// Use legacy Dexie interface for demo mode
+		console.log('DAL.getAllGuardians: Using Dexie interface');
 		return db.guardians.toArray();
 	}
 }
