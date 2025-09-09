@@ -36,6 +36,7 @@ type LeaderBibleBeeResult = {
 };
 import { differenceInYears, isAfter, isBefore, parseISO, isValid } from 'date-fns';
 import { v4 as uuidv4 } from 'uuid';
+import crypto from 'crypto';
 
 // Export both the legacy Dexie interface (db) and the new adapter interface (dbAdapter)
 // Legacy DAL functions continue to use the Dexie interface for backward compatibility
@@ -2772,6 +2773,63 @@ export async function deleteBibleBeeYear(id: string): Promise<void> {
 	} else {
 		// Use legacy Dexie interface for demo mode
 		await db.bible_bee_years.delete(id);
+	}
+}
+
+// Bible Bee Cycles (new cycle-based system)
+export async function getBibleBeeCycles(isActive?: boolean): Promise<BibleBeeCycle[]> {
+	if (shouldUseAdapter()) {
+		// Use Supabase adapter for live mode
+		return dbAdapter.listBibleBeeCycles(isActive);
+	} else {
+		// Use legacy Dexie interface for demo mode
+		if (isActive !== undefined) {
+			return db.bible_bee_cycles.where('is_active').equals(isActive).toArray();
+		}
+		return db.bible_bee_cycles.toArray();
+	}
+}
+
+export async function createBibleBeeCycle(data: Omit<BibleBeeCycle, 'id' | 'created_at' | 'updated_at'>): Promise<BibleBeeCycle> {
+	if (shouldUseAdapter()) {
+		// Use Supabase adapter for live mode
+		return dbAdapter.createBibleBeeCycle(data);
+	} else {
+		// Use legacy Dexie interface for demo mode
+		const cycle: BibleBeeCycle = {
+			...data,
+			id: crypto.randomUUID(),
+			created_at: new Date().toISOString(),
+			updated_at: new Date().toISOString(),
+		};
+		await db.bible_bee_cycles.add(cycle);
+		return cycle;
+	}
+}
+
+export async function updateBibleBeeCycle(id: string, updates: Partial<Omit<BibleBeeCycle, 'id' | 'created_at' | 'updated_at'>>): Promise<BibleBeeCycle> {
+	if (shouldUseAdapter()) {
+		// Use Supabase adapter for live mode
+		return dbAdapter.updateBibleBeeCycle(id, updates);
+	} else {
+		// Use legacy Dexie interface for demo mode
+		await db.bible_bee_cycles.update(id, {
+			...updates,
+			updated_at: new Date().toISOString(),
+		});
+		const result = await db.bible_bee_cycles.get(id);
+		if (!result) throw new Error(`Bible Bee cycle ${id} not found after update`);
+		return result;
+	}
+}
+
+export async function deleteBibleBeeCycle(id: string): Promise<void> {
+	if (shouldUseAdapter()) {
+		// Use Supabase adapter for live mode
+		return dbAdapter.deleteBibleBeeCycle(id);
+	} else {
+		// Use legacy Dexie interface for demo mode
+		await db.bible_bee_cycles.delete(id);
 	}
 }
 

@@ -261,6 +261,18 @@ export interface DatabaseAdapter {
 	listBibleBeeYears(): Promise<BibleBeeYear[]>;
 	deleteBibleBeeYear(id: string): Promise<void>;
 
+	// Bible Bee Cycles (new cycle-based system)
+	getBibleBeeCycle(id: string): Promise<BibleBeeCycle | null>;
+	createBibleBeeCycle(
+		data: Omit<BibleBeeCycle, 'id' | 'created_at' | 'updated_at'>
+	): Promise<BibleBeeCycle>;
+	updateBibleBeeCycle(
+		id: string,
+		data: Partial<BibleBeeCycle>
+	): Promise<BibleBeeCycle>;
+	listBibleBeeCycles(isActive?: boolean): Promise<BibleBeeCycle[]>;
+	deleteBibleBeeCycle(id: string): Promise<void>;
+
 	getDivision(id: string): Promise<Division | null>;
 	createDivision(
 		data: Omit<Division, 'created_at' | 'updated_at'>

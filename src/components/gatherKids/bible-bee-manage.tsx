@@ -8,6 +8,10 @@ import {
 	createBibleBeeYear,
 	updateBibleBeeYear,
 	deleteBibleBeeYear,
+	getBibleBeeCycles,
+	createBibleBeeCycle,
+	updateBibleBeeCycle,
+	deleteBibleBeeCycle,
 	createDivision,
 	updateDivision,
 	deleteDivision,
@@ -94,9 +98,9 @@ export default function BibleBeeManage({ className }: BibleBeeManageProps) {
 	const [activeTab, setActiveTab] = useState('cycles');
 	const [selectedYearId, setSelectedYearId] = useState<string | null>(null);
 
-	// Load new schema Bible Bee years using DAL
-	const bibleBeeYears = useLiveQuery(async () => {
-		return await getBibleBeeYears();
+	// Load Bible Bee cycles using DAL
+	const bibleBeeCycles = useLiveQuery(async () => {
+		return await getBibleBeeCycles();
 	}, []);
 
 	// Load old schema competition years as fallback
@@ -105,19 +109,25 @@ export default function BibleBeeManage({ className }: BibleBeeManageProps) {
 		[]
 	);
 
-	// Create combined years list (new schema first, then bridge old schema)
-	const allYears = React.useMemo(() => {
-		const years: any[] = [];
+	// Create combined cycles list (new schema first, then bridge old schema)
+	const allCycles = React.useMemo(() => {
+		const cycles: any[] = [];
 
-		// Add new schema years
-		if (bibleBeeYears) {
-			years.push(...bibleBeeYears);
+		// Add new schema cycles
+		if (bibleBeeCycles) {
+			cycles.push(
+				...bibleBeeCycles.map((cycle) => ({
+					...cycle,
+					label: cycle.name,
+					_isNewSchema: true, // Flag to identify new schema data
+				}))
+			);
 		}
 
-		// Check if there are any active new schema years
-		const hasActiveNewYear = bibleBeeYears?.some((y) => y.is_active) || false;
+		// Check if there are any active new schema cycles
+		const hasActiveNewCycle = bibleBeeCycles?.some((c) => c.is_active) || false;
 
-		// Always add old schema years as bridge data (not just when no new years exist)
+		// Always add old schema years as bridge data (not just when no new cycles exist)
 		if (competitionYears) {
 			const bridgeYears = competitionYears.map((cy) => ({
 				id: cy.id,
@@ -125,24 +135,27 @@ export default function BibleBeeManage({ className }: BibleBeeManageProps) {
 				description: cy.description || `Legacy competition year ${cy.year}`,
 				start_date: cy.opensAt,
 				end_date: cy.closesAt,
-				// Only make legacy year active if no new schema years are active
-				is_active: !hasActiveNewYear && cy.year === 2025,
+				// Only make legacy year active if no new schema cycles are active
+				is_active: !hasActiveNewCycle && cy.year === 2025,
 				created_at: cy.createdAt,
 				updated_at: cy.updatedAt,
 				_isLegacy: true, // Flag to identify bridged data
 			}));
-			years.push(...bridgeYears);
+			cycles.push(...bridgeYears);
 		}
 
-		return years;
-	}, [bibleBeeYears, competitionYears]);
+		return cycles;
+	}, [bibleBeeCycles, competitionYears]);
+
+	// Add refresh counter to trigger re-fetch when data changes
+	const [divisionsRefreshCounter, setDivisionsRefreshCounter] = useState(0);
 
 	const divisions = useLiveQuery(async () => {
 		if (!selectedYearId) return [];
 
 		// Use DAL function for consistent dbAdapter pattern
 		return await getDivisionsForBibleBeeYear(selectedYearId);
-	}, [selectedYearId]);
+	}, [selectedYearId, divisionsRefreshCounter]);
 
 	const essayPrompts = useLiveQuery(async () => {
 		if (!selectedYearId) return [];
@@ -153,13 +166,13 @@ export default function BibleBeeManage({ className }: BibleBeeManageProps) {
 
 	// Get the active year for default selection
 	React.useEffect(() => {
-		if (allYears && allYears.length > 0 && !selectedYearId) {
-			const activeYear = allYears.find((y) => y.is_active) || allYears[0];
-			setSelectedYearId(activeYear.id);
+		if (allCycles && allCycles.length > 0 && !selectedYearId) {
+			const activeCycle = allCycles.find((c) => c.is_active) || allCycles[0];
+			setSelectedYearId(activeCycle.id);
 		}
-	}, [allYears, selectedYearId]);
+	}, [allCycles, selectedYearId]);
 
-	const selectedYear = allYears?.find((y) => y.id === selectedYearId);
+	const selectedCycle = allCycles?.find((c) => c.id === selectedYearId);
 
 	// Auto-run repro when ?repro is present (dev only)
 	React.useEffect(() => {
@@ -178,8 +191,8 @@ export default function BibleBeeManage({ className }: BibleBeeManageProps) {
 							}
 						);
 
-						const created = await createBibleBeeYear({
-							label: 'Auto Repro Year',
+						const created = await createBibleBeeCycle({
+							name: 'Auto Repro Cycle',
 							is_active: true,
 							cycle_id: activeCycle?.cycle_id || '', // Use active cycle if available
 						});
@@ -234,8 +247,8 @@ export default function BibleBeeManage({ className }: BibleBeeManageProps) {
 											);
 										});
 
-										const created = await createBibleBeeYear({
-											label: 'Repro Test Year',
+										const created = await createBibleBeeCycle({
+											name: 'Repro Test Cycle',
 											is_active: true,
 											cycle_id: activeCycle?.cycle_id || '', // Use active cycle if available
 										});
@@ -266,9 +279,9 @@ export default function BibleBeeManage({ className }: BibleBeeManageProps) {
 								<SelectValue placeholder="Select year..." />
 							</SelectTrigger>
 							<SelectContent>
-								{allYears?.map((year) => (
-									<SelectItem key={year.id} value={year.id}>
-										{year.label} {year.is_active && '(Active)'}
+								{allCycles?.map((cycle) => (
+									<SelectItem key={cycle.id} value={cycle.id}>
+										{cycle.label} {cycle.is_active && '(Active)'}
 									</SelectItem>
 								))}
 							</SelectContent>
@@ -291,77 +304,82 @@ export default function BibleBeeManage({ className }: BibleBeeManageProps) {
 
 					<TabsContent value="cycles">
 						<YearManagement
-							allYears={allYears}
+							allCycles={allCycles}
 							onYearCreated={(yearId: string) => setSelectedYearId(yearId)}
 						/>
 					</TabsContent>
 
 					<TabsContent value="divisions">
-						{selectedYear ? (
+						{selectedCycle ? (
 							<DivisionManagement
-								yearId={selectedYear.id}
-								yearLabel={selectedYear.label}
+								yearId={selectedCycle.id}
+								yearLabel={selectedCycle.label}
 								divisions={divisions || []}
+								selectedCycle={selectedCycle}
 							/>
 						) : (
 							<div className="text-center py-8 text-muted-foreground">
-								Please select a year to manage divisions
+								Please select a cycle to manage divisions
 							</div>
 						)}
 					</TabsContent>
 
 					<TabsContent value="scriptures">
-						{selectedYear ? (
+						{selectedCycle ? (
 							<ScriptureManagement
-								yearId={selectedYear.id}
-								yearLabel={selectedYear.label}
+								yearId={selectedCycle.id}
+								yearLabel={selectedCycle.label}
+								selectedCycle={selectedCycle}
 							/>
 						) : (
 							<div className="text-center py-8 text-muted-foreground">
-								Please select a year to manage scriptures
+								Please select a cycle to manage scriptures
 							</div>
 						)}
 					</TabsContent>
 
 					<TabsContent value="essays">
-						{selectedYear ? (
+						{selectedCycle ? (
 							<EssayManagement
-								yearId={selectedYear.id}
-								yearLabel={selectedYear.label}
+								yearId={selectedCycle.id}
+								yearLabel={selectedCycle.label}
 								essayPrompts={essayPrompts || []}
 								divisions={divisions || []}
+								selectedCycle={selectedCycle}
 							/>
 						) : (
 							<div className="text-center py-8 text-muted-foreground">
-								Please select a year to manage essays
+								Please select a cycle to manage essays
 							</div>
 						)}
 					</TabsContent>
 
 					<TabsContent value="enrollment">
-						{selectedYear ? (
+						{selectedCycle ? (
 							<EnrollmentManagement
-								yearId={selectedYear.id}
-								yearLabel={selectedYear.label}
+								yearId={selectedCycle.id}
+								yearLabel={selectedCycle.label}
 								divisions={divisions || []}
+								selectedCycle={selectedCycle}
 							/>
 						) : (
 							<div className="text-center py-8 text-muted-foreground">
-								Please select a year to manage enrollment
+								Please select a cycle to manage enrollment
 							</div>
 						)}
 					</TabsContent>
 
 					<TabsContent value="overrides">
-						{selectedYear ? (
+						{selectedCycle ? (
 							<OverrideManagement
-								yearId={selectedYear.id}
-								yearLabel={selectedYear.label}
+								yearId={selectedCycle.id}
+								yearLabel={selectedCycle.label}
 								divisions={divisions || []}
+								selectedCycle={selectedCycle}
 							/>
 						) : (
 							<div className="text-center py-8 text-muted-foreground">
-								Please select a year to manage overrides
+								Please select a cycle to manage overrides
 							</div>
 						)}
 					</TabsContent>
@@ -373,16 +391,16 @@ export default function BibleBeeManage({ className }: BibleBeeManageProps) {
 
 // Year Management Component
 function YearManagement({
-	allYears,
+	allCycles,
 	onYearCreated,
 }: {
-	allYears: any[];
+	allCycles: any[];
 	onYearCreated?: (yearId: string) => void;
 }) {
 	const [isCreating, setIsCreating] = useState(false);
 	const [editingYear, setEditingYear] = useState<any>(null);
 	const [formData, setFormData] = useState({
-		label: '',
+		name: '',
 		is_active: false,
 		cycle_id: '',
 	});
@@ -403,53 +421,53 @@ function YearManagement({
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
 		try {
-			let createdYear;
+			let createdCycle;
 			if (editingYear) {
-				await updateBibleBeeYear(editingYear.id, formData);
+				await updateBibleBeeCycle(editingYear.id, formData);
 				setEditingYear(null);
 			} else {
-				createdYear = await createBibleBeeYear(formData);
+				createdCycle = await createBibleBeeCycle(formData);
 				setIsCreating(false);
 			}
 
-			// If we created a new active year, automatically select it
-			// Pass the created year up to the parent component
-			if (createdYear && formData.is_active && onYearCreated) {
-				onYearCreated(createdYear.id);
+			// If we created a new active cycle, automatically select it
+			// Pass the created cycle up to the parent component
+			if (createdCycle && formData.is_active && onYearCreated) {
+				onYearCreated(createdCycle.id);
 			}
 
 			setFormData({
-				label: '',
+				name: '',
 				is_active: false,
 				cycle_id: '',
 			});
 		} catch (error) {
-			console.error('Error saving year:', error);
-			alert('Error saving year: ' + error);
+			console.error('Error saving cycle:', error);
+			alert('Error saving cycle: ' + error);
 		}
 	};
 
-	const handleDelete = async (year: any) => {
+	const handleDelete = async (cycle: any) => {
 		if (
 			confirm(
-				`Delete year "${year.label}"? This will also delete all divisions, enrollments, and overrides.`
+				`Delete cycle "${cycle.label}"? This will also delete all divisions, enrollments, and overrides.`
 			)
 		) {
 			try {
-				await deleteBibleBeeYear(year.id);
+				await deleteBibleBeeCycle(cycle.id);
 			} catch (error) {
-				console.error('Error deleting year:', error);
-				alert('Error deleting year: ' + error);
+				console.error('Error deleting cycle:', error);
+				alert('Error deleting cycle: ' + error);
 			}
 		}
 	};
 
-	const startEdit = (year: any) => {
-		setEditingYear(year);
+	const startEdit = (cycle: any) => {
+		setEditingYear(cycle);
 		setFormData({
-			label: year.label,
-			is_active: year.is_active,
-			cycle_id: year.cycle_id || '',
+			name: cycle.label,
+			is_active: cycle.is_active,
+			cycle_id: cycle.cycle_id || '',
 		});
 		setIsCreating(true);
 	};
@@ -478,9 +496,9 @@ function YearManagement({
 							<Input
 								id="cycle-name"
 								placeholder="e.g., Fall 2025 Bible Bee"
-								value={formData.label}
+								value={formData.name}
 								onChange={(e) =>
-									setFormData({ ...formData, label: e.target.value })
+									setFormData({ ...formData, name: e.target.value })
 								}
 								required
 							/>
@@ -540,23 +558,23 @@ function YearManagement({
 					</form>
 				)}
 
-				{allYears && allYears.length > 0 ? (
+				{allCycles && allCycles.length > 0 ? (
 					<div className="space-y-2">
-						{allYears.map((year) => (
+						{allCycles.map((cycle) => (
 							<div
-								key={year.id}
+								key={cycle.id}
 								className="flex items-center justify-between p-3 border rounded-lg">
 								<div>
-									<h3 className="font-medium">{year.label}</h3>
+									<h3 className="font-medium">{cycle.label}</h3>
 									<div className="flex flex-wrap gap-1 mt-1">
-										{year.is_active && <Badge variant="default">Active</Badge>}
-										{year._isLegacy && <Badge variant="outline">Legacy</Badge>}
-										{year.cycle_id && (
+										{cycle.is_active && <Badge variant="default">Active</Badge>}
+										{cycle._isLegacy && <Badge variant="outline">Legacy</Badge>}
+										{cycle.cycle_id && (
 											<Badge variant="outline" className="bg-blue-50">
-												Cycle: {year.cycle_id}
+												Cycle: {cycle.cycle_id}
 											</Badge>
 										)}
-										{!year._isLegacy && !year.cycle_id && (
+										{!cycle._isLegacy && !cycle.cycle_id && (
 											<Badge
 												variant="outline"
 												className="bg-yellow-50 text-yellow-800">
@@ -566,23 +584,23 @@ function YearManagement({
 									</div>
 								</div>
 								<div className="flex gap-2">
-									{!year._isLegacy && (
+									{!cycle._isLegacy && (
 										<>
 											<Button
 												variant="ghost"
 												size="sm"
-												onClick={() => startEdit(year)}>
+												onClick={() => startEdit(cycle)}>
 												<Edit2 className="h-4 w-4" />
 											</Button>
 											<Button
 												variant="ghost"
 												size="sm"
-												onClick={() => handleDelete(year)}>
+												onClick={() => handleDelete(cycle)}>
 												<Trash2 className="h-4 w-4" />
 											</Button>
 										</>
 									)}
-									{year._isLegacy && (
+									{cycle._isLegacy && (
 										<Badge variant="secondary" className="text-xs">
 											Read-only
 										</Badge>
@@ -606,10 +624,12 @@ function DivisionManagement({
 	yearId,
 	yearLabel,
 	divisions,
+	selectedCycle,
 }: {
 	yearId: string;
 	yearLabel: string;
 	divisions: any[];
+	selectedCycle: any;
 }) {
 	const { toast } = useToast();
 	const [isCreating, setIsCreating] = useState(false);
@@ -634,9 +654,17 @@ function DivisionManagement({
 				});
 				setEditingDivision(null);
 				setIsCreating(false);
+				// Trigger refresh of divisions list
+				setDivisionsRefreshCounter((prev) => prev + 1);
 			} else {
-				await createDivision({ ...formData, year_id: yearId });
+				await createDivision({
+					...formData,
+					bible_bee_cycle_id: selectedCycle._isNewSchema ? yearId : null,
+					year_id: selectedCycle._isNewSchema ? null : yearId,
+				});
 				setIsCreating(false);
+				// Trigger refresh of divisions list
+				setDivisionsRefreshCounter((prev) => prev + 1);
 			}
 			setFormData({
 				name: '',
@@ -658,6 +686,8 @@ function DivisionManagement({
 		) {
 			try {
 				await deleteDivision(division.id);
+				// Trigger refresh of divisions list
+				setDivisionsRefreshCounter((prev) => prev + 1);
 			} catch (error) {
 				console.error('Error deleting division:', error);
 				alert('Error deleting division: ' + error);
@@ -872,9 +902,11 @@ function DivisionManagement({
 function ScriptureManagement({
 	yearId,
 	yearLabel,
+	selectedCycle,
 }: {
 	yearId: string;
 	yearLabel: string;
+	selectedCycle: any;
 }) {
 	const { toast } = useToast();
 	const [isCreating, setIsCreating] = useState(false);
@@ -900,6 +932,9 @@ function ScriptureManagement({
 	const [jsonPreview, setJsonPreview] = useState<any>(null);
 	const [jsonMode, setJsonMode] = useState<'merge' | 'overwrite'>('merge');
 
+	// Add refresh counter to trigger re-fetch when data changes
+	const [scripturesRefreshCounter, setScripturesRefreshCounter] = useState(0);
+
 	// Load scriptures for this year using DAL
 	const scriptures = useLiveQuery(async () => {
 		try {
@@ -911,7 +946,7 @@ function ScriptureManagement({
 			console.error('Error loading scriptures:', error);
 			return [];
 		}
-	}, [yearId]);
+	}, [yearId, scripturesRefreshCounter]);
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
@@ -941,23 +976,34 @@ function ScriptureManagement({
 			};
 
 			if (editingScripture) {
-				await upsertScripture({ ...editingScripture, ...scriptureData });
+				await upsertScripture({
+					...editingScripture,
+					...scriptureData,
+					bible_bee_cycle_id: selectedCycle._isNewSchema ? yearId : null,
+					year_id: selectedCycle._isNewSchema ? null : yearId,
+				});
 				toast({
 					title: `Scripture ${formData.scripture_number} Updated`,
 					description: 'Scripture has been successfully updated.',
 				});
 				setEditingScripture(null);
 				setIsCreating(false);
+				// Trigger refresh of scriptures list
+				setScripturesRefreshCounter((prev) => prev + 1);
 			} else {
 				await upsertScripture({
 					id: crypto.randomUUID(),
 					...scriptureData,
+					bible_bee_cycle_id: selectedCycle._isNewSchema ? yearId : null,
+					year_id: selectedCycle._isNewSchema ? null : yearId,
 				});
 				toast({
 					title: `Scripture ${formData.scripture_number} Created`,
 					description: 'Scripture has been successfully created.',
 				});
 				setIsCreating(false);
+				// Trigger refresh of scriptures list
+				setScripturesRefreshCounter((prev) => prev + 1);
 			}
 			setFormData({
 				scripture_number: '',
@@ -1143,6 +1189,8 @@ function ScriptureManagement({
 			setCsvPreview([]);
 			setShowCsvImport(false);
 			setError(null);
+			// Trigger refresh of scriptures list
+			setScripturesRefreshCounter((prev) => prev + 1);
 
 			// Check if scriptures were actually created
 			const scriptureCount = await db.scriptures
@@ -1756,11 +1804,13 @@ function EssayManagement({
 	yearLabel,
 	essayPrompts,
 	divisions,
+	selectedCycle,
 }: {
 	yearId: string;
 	yearLabel: string;
 	essayPrompts: any[];
 	divisions: any[];
+	selectedCycle: any;
 }) {
 	const { toast } = useToast();
 	const [isCreating, setIsCreating] = useState(false);
@@ -1778,7 +1828,8 @@ function EssayManagement({
 		try {
 			const essayData = {
 				...formData,
-				year_id: yearId,
+				bible_bee_cycle_id: selectedCycle._isNewSchema ? yearId : null,
+				year_id: selectedCycle._isNewSchema ? null : yearId,
 				division_name:
 					formData.division_name === 'all' ? '' : formData.division_name,
 				due_date: formData.due_date || new Date().toISOString().split('T')[0], // Default to today if not provided
@@ -1989,10 +2040,12 @@ function EnrollmentManagement({
 	yearId,
 	yearLabel,
 	divisions,
+	selectedCycle,
 }: {
 	yearId: string;
 	yearLabel: string;
 	divisions: any[];
+	selectedCycle: any;
 }) {
 	const { toast } = useToast();
 	const [preview, setPreview] = useState<any>(null);
@@ -2269,10 +2322,12 @@ function OverrideManagement({
 	yearId,
 	yearLabel,
 	divisions,
+	selectedCycle,
 }: {
 	yearId: string;
 	yearLabel: string;
 	divisions: any[];
+	selectedCycle: any;
 }) {
 	const { toast } = useToast();
 	const [isCreating, setIsCreating] = useState(false);
@@ -2335,7 +2390,8 @@ function OverrideManagement({
 		setError(null);
 		try {
 			const overrideData = {
-				year_id: yearId,
+				bible_bee_cycle_id: selectedCycle._isNewSchema ? yearId : null,
+				year_id: selectedCycle._isNewSchema ? null : yearId,
 				child_id: selectedChild.child_id,
 				division_id: formData.division_id,
 				reason: formData.reason,

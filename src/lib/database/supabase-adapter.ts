@@ -1385,6 +1385,19 @@ export class SupabaseAdapter implements DatabaseAdapter {
 		};
 	}
 
+	private mapBibleBeeCycle(row: unknown): BibleBeeCycle {
+		const r = (row ?? {}) as Record<string, unknown>;
+		return {
+			id: (r['id'] as string) || '',
+			cycle_id: (r['cycle_id'] as string) || '',
+			name: (r['name'] as string) || '',
+			description: (r['description'] as string) || undefined,
+			is_active: r['is_active'] === null || r['is_active'] === undefined ? false : !!r['is_active'],
+			created_at: (r['created_at'] as string) || new Date().toISOString(),
+			updated_at: (r['updated_at'] as string) || new Date().toISOString(),
+		};
+	}
+
 
 	async getLeaderProfile(id: string): Promise<LeaderProfile | null> {
 	const { data, error } = await this.client
@@ -1816,6 +1829,89 @@ export class SupabaseAdapter implements DatabaseAdapter {
 		if (error) throw error;
 	}
 
+	// Bible Bee Cycles (new cycle-based system)
+	async getBibleBeeCycle(id: string): Promise<BibleBeeCycle | null> {
+		const { data, error } = await this.client
+			.from('bible_bee_cycles')
+			.select('*')
+			.eq('id', id)
+			.single();
+
+		if (error) {
+			if (error.code === 'PGRST116') return null;
+			throw error;
+		}
+		return data ? this.mapBibleBeeCycle(data) : null;
+	}
+
+	async createBibleBeeCycle(
+		data: Omit<BibleBeeCycle, 'id' | 'created_at' | 'updated_at'>
+	): Promise<BibleBeeCycle> {
+		const insertPayload = {
+			cycle_id: data.cycle_id,
+			name: data.name,
+			description: data.description ?? null,
+			is_active: data.is_active ?? false,
+			created_at: new Date().toISOString(),
+			updated_at: new Date().toISOString(),
+		};
+
+		const { data: result, error } = await this.client
+			.from('bible_bee_cycles')
+			.insert(insertPayload)
+			.select()
+			.single();
+
+		if (error) throw error;
+		return this.mapBibleBeeCycle(result);
+	}
+
+	async updateBibleBeeCycle(
+		id: string,
+		data: Partial<BibleBeeCycle>
+	): Promise<BibleBeeCycle> {
+		const updatePayload: Record<string, unknown> = {
+			updated_at: new Date().toISOString(),
+		};
+
+		if (data.cycle_id !== undefined) updatePayload.cycle_id = data.cycle_id;
+		if (data.name !== undefined) updatePayload.name = data.name;
+		if (data.description !== undefined) updatePayload.description = data.description;
+		if (data.is_active !== undefined) updatePayload.is_active = data.is_active;
+
+		const { data: result, error } = await this.client
+			.from('bible_bee_cycles')
+			.update(updatePayload)
+			.eq('id', id)
+			.select()
+			.single();
+
+		if (error) throw error;
+		return this.mapBibleBeeCycle(result);
+	}
+
+	async listBibleBeeCycles(isActive?: boolean): Promise<BibleBeeCycle[]> {
+		let query = this.client.from('bible_bee_cycles').select('*');
+		
+		if (isActive !== undefined) {
+			query = query.eq('is_active', isActive);
+		}
+
+		const { data, error } = await query.order('created_at', { ascending: false });
+
+		if (error) throw error;
+		return data ? data.map(this.mapBibleBeeCycle) : [];
+	}
+
+	async deleteBibleBeeCycle(id: string): Promise<void> {
+		const { error } = await this.client
+			.from('bible_bee_cycles')
+			.delete()
+			.eq('id', id);
+
+		if (error) throw error;
+	}
+
 	async getDivision(id: string): Promise<Division | null> {
 		const { data, error } = await this.client
 			.from('divisions')
@@ -1835,7 +1931,8 @@ export class SupabaseAdapter implements DatabaseAdapter {
 	): Promise<Division> {
 		const insertPayload = {
 			name: data.name,
-			bible_bee_year_id: data.year_id ?? null,
+			bible_bee_year_id: ((data as unknown) as Record<string, unknown>)['year_id'] as string ?? null,
+			bible_bee_cycle_id: data.bible_bee_cycle_id ?? null,
 			description: (((data as unknown) as Record<string, unknown>)['description'] as string) ?? null,
 			min_age: (((data as unknown) as Record<string, unknown>)['min_age'] as number) ?? null,
 			max_age: (((data as unknown) as Record<string, unknown>)['max_age'] as number) ?? null,
@@ -1873,22 +1970,23 @@ export class SupabaseAdapter implements DatabaseAdapter {
 	}
 
 	async listDivisions(bibleBeeYearId?: string): Promise<Division[]> {
-	let query = this.client.from('divisions').select('*');
+		let query = this.client.from('divisions').select('*');
 
 		if (bibleBeeYearId) {
-			query = query.eq('bible_bee_year_id', bibleBeeYearId);
+			// Check both bible_bee_year_id (legacy) and bible_bee_cycle_id (new)
+			query = query.or(`bible_bee_year_id.eq.${bibleBeeYearId},bible_bee_cycle_id.eq.${bibleBeeYearId}`);
 		}
 
 		const { data, error } = await query;
 		if (error) throw error;
-	return (data || []).map((d: unknown) => this.mapDivision(d as Record<string, unknown>));
+		return (data || []).map((d: unknown) => this.mapDivision(d as Record<string, unknown>));
 	}
 
 	private mapDivision(row: Database['public']['Tables']['divisions']['Row'] | Record<string, unknown>): Division {
 		const r = (row ?? {}) as Record<string, unknown>;
 		return {
 			id: (r['id'] as string) || '',
-			year_id: (r['bible_bee_year_id'] as string) || (r['year_id'] as string) || '',
+			bible_bee_cycle_id: (r['bible_bee_cycle_id'] as string) || (r['bible_bee_year_id'] as string) || '',
 			name: (r['name'] as string) || '',
 			minimum_required: (r['minimum_required'] as number) ?? (r['min_scriptures'] as number) ?? 0,
 			min_last_order: (r['min_last_order'] as number) ?? 0,
@@ -1926,20 +2024,36 @@ export class SupabaseAdapter implements DatabaseAdapter {
 	}
 
 	async upsertScripture(data: Omit<Scripture, 'created_at' | 'updated_at'> & { id?: string }): Promise<Scripture> {
-		const payload = {
-			id: data.id || crypto.randomUUID(),
-			year_id: data.year_id,
+		// Determine if we're using a Bible Bee cycle ID or competition year ID
+		const isBibleBeeCycleId = data.year_id && data.year_id.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
+		
+		const payload: any = {
+			id: data.id || uuidv4(),
 			scripture_number: data.scripture_number,
 			scripture_order: data.scripture_order,
 			counts_for: data.counts_for,
 			reference: data.reference,
 			category: data.category,
-			text: data.text,
-			translation: data.translation,
 			texts: data.texts,
+			order: data.scripture_order || 1, // Map scripture_order to required order field
 			created_at: new Date().toISOString(),
 			updated_at: new Date().toISOString(),
 		};
+
+		// Use the appropriate field based on whether it's a cycle ID or competition year ID
+		if (isBibleBeeCycleId) {
+			// This is a Bible Bee cycle ID - use bible_bee_cycle_id
+			console.log('upsertScripture - Using bible_bee_cycle_id:', data.year_id);
+			payload.bible_bee_cycle_id = data.year_id;
+			payload.competition_year_id = null;
+		} else {
+			// This is a competition year ID - use the traditional field
+			console.log('upsertScripture - Using competition_year_id:', data.year_id);
+			payload.competition_year_id = data.year_id;
+			payload.bible_bee_cycle_id = null;
+		}
+
+		console.log('upsertScripture - Final payload:', payload);
 
 		const { data: result, error } = await this.client
 			.from('scriptures')
@@ -1964,11 +2078,123 @@ export class SupabaseAdapter implements DatabaseAdapter {
 		if (error) throw error;
 	}
 
+	async commitEnhancedCsvRowsToYear(rows: any[], yearId: string): Promise<any> {
+		const now = new Date().toISOString();
+		
+		// Determine if we're using a Bible Bee cycle ID or competition year ID
+		const isBibleBeeCycleId = yearId && yearId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
+		
+		// Normalize reference helper for consistent matching
+		const normalizeReference = (s?: string | null) =>
+			(s ?? '')
+				.toString()
+				.trim()
+				.replace(/\s+/g, ' ')
+				.replace(/[^\w\d\s:\-]/g, '')
+				.toLowerCase();
+		
+		// Get all existing scriptures for this year/cycle
+		let query = this.client.from('scriptures').select('*');
+		if (isBibleBeeCycleId) {
+			// Query by bible_bee_cycle_id if it's a cycle ID
+			query = query.eq('bible_bee_cycle_id', yearId);
+		} else {
+			// Query by competition_year_id if it's a competition year ID
+			query = query.eq('competition_year_id', yearId);
+		}
+		
+		const { data: existingScriptures, error: fetchError } = await query;
+		
+		if (fetchError) {
+			console.error('Error fetching existing scriptures:', fetchError);
+			throw fetchError;
+		}
+		
+		let inserted = 0;
+		let updated = 0;
+		
+		for (const row of rows) {
+			// Match by normalized reference first, then fall back to scripture_number if needed
+			const normalizedRef = normalizeReference(row.reference);
+			let existing = existingScriptures?.find(s => normalizeReference(s.reference) === normalizedRef);
+			
+			// Fall back to scripture_number only if reference match fails
+			if (!existing) {
+				existing = existingScriptures?.find(s => s.scripture_number === row.scripture_number);
+			}
+			
+			const scriptureData: any = {
+				scripture_number: row.scripture_number,
+				scripture_order: row.scripture_order,
+				counts_for: row.counts_for || 1,
+				reference: row.reference || '',
+				category: row.category,
+				texts: row.texts || {},
+				order: row.scripture_order || 1, // Map scripture_order to required order field
+				updated_at: now,
+			};
+
+			// Use the appropriate field based on whether it's a cycle ID or competition year ID
+			if (isBibleBeeCycleId) {
+				scriptureData.bible_bee_cycle_id = yearId;
+				scriptureData.competition_year_id = null;
+			} else {
+				scriptureData.competition_year_id = yearId;
+				scriptureData.bible_bee_cycle_id = null;
+			}
+			
+			if (existing) {
+				// Update existing scripture
+				const { error: updateError } = await this.client
+					.from('scriptures')
+					.update(scriptureData)
+					.eq('id', existing.id);
+				
+				if (updateError) {
+					console.error('Error updating scripture:', updateError);
+					throw updateError;
+				}
+				updated++;
+			} else {
+				// Create new scripture
+				const { error: insertError } = await this.client
+					.from('scriptures')
+					.insert({
+						id: uuidv4(),
+						created_at: now,
+						...scriptureData,
+					});
+				
+				if (insertError) {
+					console.error('Error inserting scripture:', insertError);
+					throw insertError;
+				}
+				inserted++;
+			}
+		}
+		
+		return { success: true, inserted, updated };
+	}
+
 	async listScriptures(filters?: { yearId?: string }): Promise<Scripture[]> {
 		let query = this.client.from('scriptures').select('*');
 		
 		if (filters?.yearId) {
-			query = query.eq('year_id', filters.yearId);
+			// Determine if we're using a Bible Bee cycle ID or competition year ID
+			const isBibleBeeCycleId = filters.yearId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
+			
+			console.log('listScriptures - yearId:', filters.yearId);
+			console.log('listScriptures - isBibleBeeCycleId:', isBibleBeeCycleId);
+			
+			if (isBibleBeeCycleId) {
+				// Query by bible_bee_cycle_id if it's a cycle ID
+				console.log('Querying by bible_bee_cycle_id:', filters.yearId);
+				query = query.eq('bible_bee_cycle_id', filters.yearId);
+			} else {
+				// Query by competition_year_id if it's a competition year ID
+				console.log('Querying by competition_year_id:', filters.yearId);
+				query = query.eq('competition_year_id', filters.yearId);
+			}
 		}
 
 		const { data, error } = await query.order('scripture_order');
@@ -1978,6 +2204,9 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			return [];
 		}
 
+		console.log('listScriptures - found scriptures:', data?.length || 0);
+		console.log('listScriptures - data:', data);
+
 		return (data || []).map(this.mapScripture);
 	}
 
@@ -1985,14 +2214,14 @@ export class SupabaseAdapter implements DatabaseAdapter {
 	private mapScripture(data: any): Scripture {
 		return {
 			id: data.id,
-			year_id: data.year_id,
+			year_id: data.competition_year_id || data.year_id,
 			scripture_number: data.scripture_number,
-			scripture_order: data.scripture_order,
+			scripture_order: data.scripture_order || data.order || 1, // Map order field back to scripture_order
 			counts_for: data.counts_for,
 			reference: data.reference,
 			category: data.category,
-			text: data.text,
-			translation: data.translation,
+			text: data.text || '', // Provide default if missing
+			translation: data.translation || '', // Provide default if missing
 			texts: data.texts,
 			created_at: data.created_at,
 			updated_at: data.updated_at,
