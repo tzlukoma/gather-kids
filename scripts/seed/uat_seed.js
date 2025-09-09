@@ -3258,13 +3258,18 @@ async function createEvents() {
 async function seedUATData() {
 	try {
 		console.log(`🌱 Starting UAT seed script...`);
+		console.log(`📊 DEBUG - Main function started`);
 
 		if (RESET_MODE) {
+			console.log(`📊 DEBUG - Reset mode enabled, resetting data...`);
 			await resetUATData();
+			console.log(`📊 DEBUG - Reset completed`);
 		}
 
 		// Create ministries first (no dependencies)
+		console.log(`📊 DEBUG - About to create ministries...`);
 		await createMinistries();
+		console.log(`📊 DEBUG - Ministries created`);
 		await createMinistryAccounts();
 		await createMinistryLeaders();
 
@@ -3272,10 +3277,15 @@ async function seedUATData() {
 		// Registration Cycle → Bible Bee Cycle → Competition Year → Divisions → Grade Rules → Scriptures → Essay Prompts
 
 		// Step 1: Create registration cycle first
+		console.log(`📊 DEBUG - About to create Registration Cycle...`);
 		let registrationCycleId;
 		try {
 			registrationCycleId = await createRegistrationCycle();
 			console.log(`✅ Registration cycle ready: ${registrationCycleId}`);
+			console.log(
+				`📊 DEBUG - Registration Cycle created with ID:`,
+				registrationCycleId
+			);
 		} catch (cycleError) {
 			console.warn(
 				`⚠️ Could not create registration cycle: ${cycleError.message}`
@@ -3285,19 +3295,32 @@ async function seedUATData() {
 		}
 
 		// Step 2: Bible Bee Cycle (linked to registration cycle)
+		console.log(`📊 DEBUG - About to create Bible Bee Cycle...`);
 		const bibleBeeCycleId = await createBibleBeeCycle(registrationCycleId);
+		console.log(`📊 DEBUG - Created Bible Bee Cycle with ID:`, bibleBeeCycleId);
 
 		// Step 3: Create corresponding competition year for scriptures and grade rules
+		console.log(`📊 DEBUG - About to create Competition Year...`);
 		const competitionYearId = await createCompetitionYear(bibleBeeCycleId);
+		console.log(
+			`📊 DEBUG - Created Competition Year with ID:`,
+			competitionYearId
+		);
 
 		// Step 4: Create divisions linked to Bible Bee cycle
+		console.log(`📊 DEBUG - About to create Divisions...`);
 		const divisionMap = await createDivisions(bibleBeeCycleId);
+		console.log(`📊 DEBUG - Created Divisions:`, divisionMap);
 
 		// Step 5: Create grade rules linked to competition year (per generated types)
+		console.log(`📊 DEBUG - About to create Grade Rules...`);
 		await createGradeRules(competitionYearId, divisionMap);
+		console.log(`📊 DEBUG - Created Grade Rules`);
 
 		// Step 6: Load scriptures from actual data files linked to competition year (per generated types)
+		console.log(`📊 DEBUG - About to create Scriptures...`);
 		await createScriptures(competitionYearId);
+		console.log(`📊 DEBUG - Created Scriptures`);
 
 		// Step 7: Create essay prompt for Senior division
 		console.log(
