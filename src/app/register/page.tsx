@@ -978,18 +978,20 @@ function RegisterPageContent() {
 			// Clean phone numbers before submission (remove formatting, keep digits only)
 			const cleanedData = {
 				...data,
-				guardians: data.guardians.map(guardian => ({
+				guardians: data.guardians.map((guardian) => ({
 					...guardian,
-					mobile_phone: cleanPhone(guardian.mobile_phone)
+					mobile_phone: cleanPhone(guardian.mobile_phone),
 				})),
 				emergencyContact: {
 					...data.emergencyContact,
-					mobile_phone: cleanPhone(data.emergencyContact.mobile_phone)
+					mobile_phone: cleanPhone(data.emergencyContact.mobile_phone),
 				},
-				children: data.children.map(child => ({
+				children: data.children.map((child) => ({
 					...child,
-					child_mobile: child.child_mobile ? cleanPhone(child.child_mobile) : child.child_mobile
-				}))
+					child_mobile: child.child_mobile
+						? cleanPhone(child.child_mobile)
+						: child.child_mobile,
+				})),
 			};
 
 			// Use the active registration cycle instead of hardcoded '2025'
@@ -997,7 +999,11 @@ function RegisterPageContent() {
 			console.log('DEBUG: Registering household for cycle:', cycleId);
 
 			setSubmissionStatus('Processing registration...');
-			const result = await registerHouseholdCanonical(cleanedData, cycleId, isPrefill);
+			const result = await registerHouseholdCanonical(
+				cleanedData,
+				cycleId,
+				isPrefill
+			);
 			console.log('DEBUG: Registration result:', result);
 			console.log('DEBUG: Result type check:', {
 				hasResult: !!result,
@@ -1383,7 +1389,7 @@ function RegisterPageContent() {
 													<FormItem>
 														<FormLabel>Phone</FormLabel>
 														<FormControl>
-															<PhoneInput 
+															<PhoneInput
 																value={field.value}
 																onChange={field.onChange}
 															/>
@@ -1559,7 +1565,7 @@ function RegisterPageContent() {
 											<FormItem>
 												<FormLabel>Phone</FormLabel>
 												<FormControl>
-													<PhoneInput 
+													<PhoneInput
 														value={field.value}
 														onChange={field.onChange}
 													/>
@@ -1670,7 +1676,7 @@ function RegisterPageContent() {
 																		Child&apos;s Phone (Optional)
 																	</FormLabel>
 																	<FormControl>
-																		<PhoneInput 
+																		<PhoneInput
 																			value={field.value}
 																			onChange={field.onChange}
 																		/>
@@ -2091,24 +2097,28 @@ function RegisterPageContent() {
 											<div className="space-y-1 leading-none">
 												<FormLabel>Photo Release</FormLabel>
 												<FormDescription className="whitespace-pre-wrap leading-relaxed">
-													I hereby grant Cathedral International permission to
-													use my photograph/​video image in any and all
-													publications for Cathedral International including
-													website and social media entries, without payment or
-													any other consideration in perpetuity. I hereby
-													authorize Cathedral International to edit, alter,
-													copy, exhibit, publish or distribute all photos and
-													images. I waive the right to inspect or approve the
-													finished product, including a written or electronic
-													copy, wherein my photo appears. Additionally, I waive
-													any right to royalties or other compensation arising
-													or related to the use of the photograph or video
-													images. I hereby hold harmless and release and forever
-													discharge Cathedral International from all claims,
-													demands, and causes of action which I, my heirs,
-													representatives, executors, administrators, or any
-													other persons acting on my behalf or on behalf of my
-													estate may have.
+													I freely sign this Agreement and Release of Liability
+													Form. Photo/Video Release and I hereby grant Cathedral
+													International permission to use my photograph/video
+													image in any and all publications for Cathedral
+													International including website and social media
+													entries, without payment or any other consideration in
+													perpetuity. I hereby authorize Cathedral International
+													to edit, alter, copy, exhibit, publish, or distribute
+													all photos and images. I waive the right to inspect or
+													approve the finished product, including a written or
+													electronic copy, wherein my photo appears.
+													Additionally, I waive any right to royalties or other
+													compensation arising or related to the use of the
+													photograph or video images. I hereby hold harmless and
+													release and forever discharge Cathedral International
+													from all claims, demands, and causes of action which
+													I, my heirs, representatives, executors,
+													administrators, or any other persons acting on my
+													behalf or on behalf of my estate may have. I have read
+													the above photo/video release and fully understand its
+													contents. I voluntarily agree to the terms and
+													conditions stated above.
 												</FormDescription>
 												<FormMessage />
 											</div>
