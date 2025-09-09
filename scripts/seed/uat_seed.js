@@ -504,66 +504,66 @@ function generateUUID() {
 }
 
 /**
- * Create or get Bible Bee year following proper business flow:
- * Registration Cycle → Bible Bee Year → Divisions
+ * Create or get Bible Bee cycle following proper business flow:
+ * Registration Cycle → Bible Bee Cycle → Divisions
  */
-async function createBibleBeeYear(registrationCycleId) {
-	console.log('📅 Creating Bible Bee Year following proper business flow...');
+async function createBibleBeeCycle(registrationCycleId) {
+	console.log('📅 Creating Bible Bee Cycle following proper business flow...');
 	console.log(`✅ Using provided registration cycle: ${registrationCycleId}`);
 
-	// Step 1: Create Bible Bee Year linked to registration cycle
-	const bibleBeeYearId = DRY_RUN ? 'test-bible-bee-year-uuid' : generateUUID();
+	// Step 1: Create Bible Bee Cycle linked to registration cycle
+	const bibleBeeCycleId = DRY_RUN
+		? 'test-bible-bee-cycle-uuid'
+		: generateUUID();
 
-	const bibleBeeYearData = {
-		id: bibleBeeYearId,
-		year: 2025,
-		name: '2025-2026',
-		description: '2025-2026 Bible Bee Competition Year',
+	const bibleBeeCycleData = {
+		id: bibleBeeCycleId,
+		cycle_id: registrationCycleId, // Direct reference to registration cycle
+		name: 'Fall 2025 Bible Bee',
+		description: 'Bible Bee competition for Fall 2025 registration cycle',
 		is_active: true,
-		registration_open_date: '2025-01-01',
-		registration_close_date: '2025-10-08',
-		competition_start_date: '2025-11-01',
-		competition_end_date: '2026-04-30',
 	};
 
-	// Check if Bible Bee year already exists
+	// Check if Bible Bee cycle already exists for this registration cycle
 	if (!DRY_RUN) {
-		const { data: existingYears, error: checkError } = await supabase
-			.from('bible_bee_years')
+		const { data: existingCycles, error: checkError } = await supabase
+			.from('bible_bee_cycles')
 			.select('id, name')
-			.eq('name', bibleBeeYearData.name);
+			.eq('cycle_id', registrationCycleId);
 
 		if (checkError) {
-			throw new Error(`Error checking Bible Bee year: ${checkError.message}`);
+			throw new Error(`Error checking Bible Bee cycle: ${checkError.message}`);
 		}
 
-		if (existingYears && existingYears.length > 0) {
-			console.log(`✅ Bible Bee year already exists: ${bibleBeeYearData.name}`);
-			return existingYears[0].id; // Return the first one if multiple exist
+		if (existingCycles && existingCycles.length > 0) {
+			console.log(
+				`✅ Bible Bee cycle already exists for cycle ${registrationCycleId}`
+			);
+			return existingCycles[0].id; // Return the first one if multiple exist
 		}
 	}
 
-	// Create new Bible Bee year
+	// Create new Bible Bee cycle
 	if (DRY_RUN) {
-		console.log(`[DRY RUN] Would create Bible Bee year:`, bibleBeeYearData);
-		counters.bible_bee_years++;
-		return bibleBeeYearId;
+		console.log(`[DRY RUN] Would create Bible Bee cycle:`, bibleBeeCycleData);
+		counters.bible_bee_years++; // Keep same counter name for now
+		return bibleBeeCycleId;
 	} else {
-		const { data: newYear, error: insertError } = await supabase
-			.from('bible_bee_years')
-			.insert(bibleBeeYearData)
+		const { data: newCycle, error: insertError } = await supabase
+			.from('bible_bee_cycles')
+			.insert(bibleBeeCycleData)
 			.select('id')
 			.single();
 
 		if (insertError) {
 			throw new Error(
-				`Failed to create Bible Bee year: ${insertError.message}`
+				`Failed to create Bible Bee cycle: ${insertError.message}`
 			);
 		}
 
-		console.log(`✅ Created Bible Bee year: ${bibleBeeYearData.name}`);
-		counters.bible_bee_years++;
-		return newYear.id;
+		console.log(`✅ Created Bible Bee cycle: ${bibleBeeCycleData.name}`);
+		counters.bible_bee_years++; // Keep same counter name for now
+		return newCycle.id;
 	}
 }
 
@@ -912,7 +912,7 @@ async function createDivisions(yearId) {
 				const insertData = {
 					id: divisionData.id, // Include the id field
 					name: divisionData.name,
-					bible_bee_year_id: yearId, // snake_case as per generated types - links to bible_bee_years.id
+					bible_bee_cycle_id: yearId, // snake_case as per generated types - links to bible_bee_cycles.id
 					min_grade: divisionData.min_grade,
 					max_grade: divisionData.max_grade,
 					min_scriptures: 0, // Use min_scriptures field as per generated types
@@ -1051,7 +1051,7 @@ async function createGradeRules(yearId, divisionMap) {
 /**
  * Create essay prompt
  */
-async function createEssayPrompt(yearId, divisionMap) {
+async function createEssayPrompt(cycleId, divisionMap) {
 	try {
 		console.log(`📝 Creating essay prompt for Senior Division...`);
 
@@ -1067,14 +1067,14 @@ async function createEssayPrompt(yearId, divisionMap) {
 
 		const essayPromptData = {
 			id: crypto.randomUUID(), // Generate UUID for id (not prompt_id)
-			division_id: seniorDivisionId, // Use division_id as per generated types
+			bible_bee_cycle_id: cycleId, // Use bible_bee_cycle_id as per new schema
 			title: 'Senior Division Essay',
 			prompt:
 				"Reflecting on Romans chapters 1-11, discuss how Paul's teachings on salvation through faith apply to modern Christian life. Include at least three specific scripture references from the assigned passages to support your analysis.",
-			instructions:
-				'Write a thoughtful essay of 500-750 words. Be sure to include specific scripture references.',
-			min_words: 500,
-			max_words: 750,
+			prompt_text:
+				"Reflecting on Romans chapters 1-11, discuss how Paul's teachings on salvation through faith apply to modern Christian life. Include at least three specific scripture references from the assigned passages to support your analysis.",
+			division_name: 'Senior',
+			due_date: '2026-06-05',
 			created_at: new Date().toISOString(),
 		};
 
@@ -1082,7 +1082,8 @@ async function createEssayPrompt(yearId, divisionMap) {
 		const { data: existingPrompt, error: checkError } = await supabase
 			.from('essay_prompts')
 			.select('*')
-			.eq('division_id', seniorDivisionId)
+			.eq('bible_bee_cycle_id', cycleId)
+			.eq('division_name', 'Senior')
 			.single();
 
 		if (checkError && checkError.code !== 'PGRST116') {
@@ -1805,8 +1806,9 @@ async function createHouseholdsAndFamilies() {
 			external_id: `${EXTERNAL_ID_PREFIX}household_1`,
 			name: 'The Smith Family',
 			address_line1: '123 Main St',
+			address_line2: '',
 			city: 'Anytown',
-			state: 'ST',
+			state: 'CA',
 			zip: '12345',
 			primary_phone: '555-123-4567',
 			email: 'john.smith@example.com', // Match primary guardian's email
@@ -1815,8 +1817,9 @@ async function createHouseholdsAndFamilies() {
 			external_id: `${EXTERNAL_ID_PREFIX}household_2`,
 			name: 'The Johnson Family',
 			address_line1: '456 Oak Ave',
+			address_line2: 'Apt 2B',
 			city: 'Somewhere',
-			state: 'ST',
+			state: 'CA',
 			zip: '67890',
 			primary_phone: '555-234-5678',
 			email: 'bob.johnson@example.com', // Match primary guardian's email
@@ -1825,8 +1828,9 @@ async function createHouseholdsAndFamilies() {
 			external_id: `${EXTERNAL_ID_PREFIX}household_3`,
 			name: 'The Davis Family',
 			address_line1: '789 Pine Rd',
+			address_line2: '',
 			city: 'Elsewhere',
-			state: 'ST',
+			state: 'CA',
 			zip: '54321',
 			primary_phone: '555-345-6789',
 			email: 'carol.davis@example.com', // Match primary guardian's email
@@ -3052,6 +3056,7 @@ async function resetUATData() {
 
 		// Level 3: Competition/cycle tables
 		{ table: 'competition_years', filter: { type: 'all_records' } },
+		{ table: 'bible_bee_cycles', filter: { type: 'all_records' } },
 		{ table: 'registration_cycles', filter: { type: 'cycle_id' } },
 
 		// Level 4: People tables (children before guardians before households)
@@ -3234,7 +3239,7 @@ async function seedUATData() {
 		await createMinistryLeaders();
 
 		// Follow proper Bible Bee business workflow:
-		// Registration Cycle → Bible Bee Year → Competition Year → Divisions → Grade Rules → Scriptures → Essay Prompts
+		// Registration Cycle → Bible Bee Cycle → Competition Year → Divisions → Grade Rules → Scriptures → Essay Prompts
 
 		// Step 1: Create registration cycle first
 		let registrationCycleId;
@@ -3249,14 +3254,14 @@ async function seedUATData() {
 			registrationCycleId = `${EXTERNAL_ID_PREFIX}cycle_${Date.now()}`;
 		}
 
-		// Step 2: Bible Bee Year (linked to registration cycle)
-		const bibleBeeYearId = await createBibleBeeYear(registrationCycleId);
+		// Step 2: Bible Bee Cycle (linked to registration cycle)
+		const bibleBeeCycleId = await createBibleBeeCycle(registrationCycleId);
 
 		// Step 3: Create corresponding competition year for scriptures and grade rules
-		const competitionYearId = await createCompetitionYear(bibleBeeYearId);
+		const competitionYearId = await createCompetitionYear(bibleBeeCycleId);
 
-		// Step 4: Create divisions linked to Bible Bee year
-		const divisionMap = await createDivisions(bibleBeeYearId);
+		// Step 4: Create divisions linked to Bible Bee cycle
+		const divisionMap = await createDivisions(bibleBeeCycleId);
 
 		// Step 5: Create grade rules linked to competition year (per generated types)
 		await createGradeRules(competitionYearId, divisionMap);
@@ -3265,7 +3270,7 @@ async function seedUATData() {
 		await createScriptures(competitionYearId);
 
 		// Step 7: Create essay prompt for Senior division
-		await createEssayPrompt(bibleBeeYearId, divisionMap);
+		await createEssayPrompt(bibleBeeCycleId, divisionMap);
 
 		// Create households, guardians, and children
 		await createHouseholdsAndFamilies();
@@ -3294,9 +3299,9 @@ async function seedUATData() {
 		console.log('- Active registration cycle for the next 6 months');
 		console.log('- 20 ministries with 5 ministry leaders assigned');
 		console.log(
-			'- Bible Bee year 2025-2026 with 3 divisions: Primary, Junior, Senior'
+			'- Bible Bee cycle Fall 2025 with 3 divisions: Primary, Junior, Senior'
 		);
-		console.log('- Registration cycle properly linked to Bible Bee year');
+		console.log('- Registration cycle properly linked to Bible Bee cycle');
 		console.log(
 			'- Grade rules for scripture memorization and Senior division essay'
 		);
@@ -3304,7 +3309,9 @@ async function seedUATData() {
 			'- Scriptures loaded from data files with NIV, KJV, and NIV-Spanish texts'
 		);
 		console.log('- Essay prompt created for Senior division');
-		console.log('- 3 households with guardians and children');
+		console.log(
+			'- 3 households with guardians and children (using separate address fields)'
+		);
 		console.log('- 3 user_households records for canonical DAL testing');
 		console.log(
 			'- 10 children enrolled in Bible Bee ministry ready for division assignment'
