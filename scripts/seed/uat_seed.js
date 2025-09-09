@@ -568,10 +568,10 @@ async function createBibleBeeCycle(registrationCycleId) {
 }
 
 /**
- * Create a competition year that corresponds to the Bible Bee year
+ * Create a competition year that corresponds to the Bible Bee cycle
  * This is needed because scriptures and grade_rules tables reference competition_years
  */
-async function createCompetitionYear(bibleBeeYearId) {
+async function createCompetitionYear(bibleBeeCycleId) {
 	console.log('📅 Creating Competition Year for scriptures and grade rules...');
 
 	const competitionYearData = {
@@ -835,10 +835,10 @@ async function createScriptures(yearId) {
 /**
  * Recalculate the minimum age and grade boundaries for divisions
  */
-async function recalculateMinimumBoundaries(yearId) {
+async function recalculateMinimumBoundaries(cycleId) {
 	// For demonstration, let's just log what we would do
 	console.log(
-		`📊 Recalculating minimum age and grade boundaries for year ${yearId}...`
+		`📊 Recalculating minimum age and grade boundaries for cycle ${cycleId}...`
 	);
 	console.log(`✅ Boundaries recalculated successfully`);
 }
@@ -3288,7 +3288,7 @@ async function seedUATData() {
 		await createEvents();
 
 		// Recalculate division boundaries
-		await recalculateMinimumBoundaries(bibleBeeYearId);
+		await recalculateMinimumBoundaries(bibleBeeCycleId);
 
 		console.log('🎉 UAT seeding completed successfully!');
 
