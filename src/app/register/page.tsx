@@ -138,6 +138,10 @@ const registrationSchema = z
 		household: z.object({
 			name: z.string().optional(),
 			address_line1: z.string().min(1, 'Address is required.'),
+			address_line2: z.string().optional(),
+			city: z.string().min(1, 'City is required.'),
+			state: z.string().min(1, 'State is required.'),
+			zip: z.string().min(1, 'ZIP code is required.'),
 			household_id: z.string().optional(), // To track for overwrites
 			preferredScriptureTranslation: z.string().optional(),
 		}),
@@ -574,6 +578,10 @@ function RegisterPageContent() {
 			household: {
 				name: '',
 				address_line1: '',
+				address_line2: '',
+				city: '',
+				state: '',
+				zip: '',
 				preferredScriptureTranslation: 'NIV',
 			},
 			guardians: [
@@ -629,6 +637,9 @@ function RegisterPageContent() {
 			// Only save if there's actual data (not just empty defaults)
 			const hasData =
 				data.household?.address_line1 ||
+				data.household?.city ||
+				data.household?.state ||
+				data.household?.zip ||
 				data.guardians?.some(
 					(g) => g.first_name || g.last_name || g.mobile_phone
 				) ||
@@ -688,6 +699,10 @@ function RegisterPageContent() {
 						household_id: householdData?.household_id,
 						name: householdData?.name,
 						address_line1: householdData?.address_line1,
+						address_line2: householdData?.address_line2,
+						city: householdData?.city,
+						state: householdData?.state,
+						zip: householdData?.zip,
 					},
 					guardians: data.guardians,
 					emergencyContact: data.emergencyContact,
@@ -723,7 +738,14 @@ function RegisterPageContent() {
 			setIsPrefill(false);
 			console.log('DEBUG: State flags set');
 			form.reset({
-				household: { name: '', address_line1: '' },
+				household: {
+					name: '',
+					address_line1: '',
+					address_line2: '',
+					city: '',
+					state: '',
+					zip: '',
+				},
 				guardians: [
 					{
 						first_name: '',
@@ -1397,22 +1419,82 @@ function RegisterPageContent() {
 								</CardDescription>
 							</CardHeader>
 							<CardContent className="space-y-6">
-								<FormField
-									control={form.control}
-									name="household.address_line1"
-									render={({ field }) => (
-										<FormItem>
-											<FormLabel>Street Address</FormLabel>
-											<FormControl>
-												<Input
-													placeholder="123 Main St, Anytown, USA"
-													{...field}
-												/>
-											</FormControl>
-											<FormMessage />
-										</FormItem>
-									)}
-								/>
+								<div className="space-y-4">
+									<FormField
+										control={form.control}
+										name="household.address_line1"
+										render={({ field }) => (
+											<FormItem>
+												<FormLabel>Street Address</FormLabel>
+												<FormControl>
+													<Input placeholder="123 Main St" {...field} />
+												</FormControl>
+												<FormMessage />
+											</FormItem>
+										)}
+									/>
+									<FormField
+										control={form.control}
+										name="household.address_line2"
+										render={({ field }) => (
+											<FormItem>
+												<FormLabel>Address Line 2 (Optional)</FormLabel>
+												<FormControl>
+													<Input
+														placeholder="Apartment, suite, unit, etc."
+														{...field}
+													/>
+												</FormControl>
+												<FormMessage />
+											</FormItem>
+										)}
+									/>
+									<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+										<FormField
+											control={form.control}
+											name="household.city"
+											render={({ field }) => (
+												<FormItem>
+													<FormLabel>City</FormLabel>
+													<FormControl>
+														<Input placeholder="Anytown" {...field} />
+													</FormControl>
+													<FormMessage />
+												</FormItem>
+											)}
+										/>
+										<FormField
+											control={form.control}
+											name="household.state"
+											render={({ field }) => (
+												<FormItem>
+													<FormLabel>State</FormLabel>
+													<FormControl>
+														<Input placeholder="CA" maxLength={2} {...field} />
+													</FormControl>
+													<FormMessage />
+												</FormItem>
+											)}
+										/>
+										<FormField
+											control={form.control}
+											name="household.zip"
+											render={({ field }) => (
+												<FormItem>
+													<FormLabel>ZIP Code</FormLabel>
+													<FormControl>
+														<Input
+															placeholder="12345"
+															maxLength={10}
+															{...field}
+														/>
+													</FormControl>
+													<FormMessage />
+												</FormItem>
+											)}
+										/>
+									</div>
+								</div>
 								<Separator />
 								{guardianFields.map((field, index) => (
 									<div
