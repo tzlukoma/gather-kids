@@ -1077,6 +1077,8 @@ async function createEssayPrompt(cycleId, divisionMap) {
 			id: crypto.randomUUID(), // Generate UUID for id (not prompt_id)
 			bible_bee_cycle_id: cycleId, // Use bible_bee_cycle_id as per new schema
 			division_name: 'Senior',
+			title: 'Senior Division Essay',
+			prompt: promptText, // Add the old prompt field for backward compatibility
 			prompt_text: promptText,
 			due_date: '2026-06-05',
 			created_at: new Date().toISOString(),
