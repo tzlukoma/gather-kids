@@ -77,6 +77,8 @@ import type {
 	CustomQuestion,
 	RegistrationCycle,
 } from '@/lib/types';
+import { useDraftPersistence } from '@/hooks/useDraftPersistence';
+import { DraftStatusIndicator } from '@/components/ui/draft-status-indicator';
 import { useFeatureFlags } from '@/contexts/feature-flag-context';
 import { useAuth } from '@/contexts/auth-context';
 
@@ -532,45 +534,34 @@ function RegisterPageContent() {
 
 	// Get the active registration cycle to use for enrollments
 
-	// Form persistence key for localStorage
-	const FORM_PERSISTENCE_KEY = 'registration-form-data';
+	// Draft persistence for form data
+	const { loadDraft, saveDraft, clearDraft, draftStatus } = useDraftPersistence<RegistrationFormValues>({
+		formName: 'registration_v1',
+		version: 1,
+		autoSaveDelay: 1000,
+	});
 
-	// Load saved form data from localStorage
-	const loadSavedFormData = (): Partial<RegistrationFormValues> => {
+	// Load saved form data from draft
+	const [hasLoadedDraft, setHasLoadedDraft] = useState(false);
+	const loadSavedFormData = useCallback(async (): Promise<Partial<RegistrationFormValues>> => {
 		try {
-			if (typeof window !== 'undefined') {
-				const saved = localStorage.getItem(FORM_PERSISTENCE_KEY);
-				if (saved) {
-					return JSON.parse(saved);
-				}
-			}
+			const draftData = await loadDraft();
+			return draftData || {};
 		} catch (error) {
 			console.warn('Failed to load saved form data:', error);
 		}
 		return {};
-	};
+	}, [loadDraft]);
 
-	// Save form data to localStorage
-	const saveFormData = (data: RegistrationFormValues) => {
-		try {
-			if (typeof window !== 'undefined') {
-				localStorage.setItem(FORM_PERSISTENCE_KEY, JSON.stringify(data));
-			}
-		} catch (error) {
-			console.warn('Failed to save form data:', error);
-		}
-	};
+	// Save form data using draft persistence
+	const saveFormData = useCallback((data: RegistrationFormValues) => {
+		saveDraft(data);
+	}, [saveDraft]);
 
 	// Clear saved form data
-	const clearSavedFormData = () => {
-		try {
-			if (typeof window !== 'undefined') {
-				localStorage.removeItem(FORM_PERSISTENCE_KEY);
-			}
-		} catch (error) {
-			console.warn('Failed to clear saved form data:', error);
-		}
-	};
+	const clearSavedFormData = useCallback(() => {
+		clearDraft();
+	}, [clearDraft]);
 
 	const form = useForm<RegistrationFormValues>({
 		resolver: zodResolver(registrationSchema),
@@ -607,9 +598,60 @@ function RegisterPageContent() {
 				choir_communications_consent: undefined,
 				custom_consents: {},
 			},
-			...loadSavedFormData(), // Merge saved data with defaults
 		},
 	});
+
+	// Load draft data asynchronously and merge with form
+	useEffect(() => {
+		async function loadDraftData() {
+			if (!hasLoadedDraft) {
+				const draftData = await loadSavedFormData();
+				if (draftData && Object.keys(draftData).length > 0) {
+					// Reset form with merged default values and draft data
+					form.reset({
+						household: {
+							name: '',
+							address_line1: '',
+							address_line2: '',
+							city: '',
+							state: '',
+							zip: '',
+							preferredScriptureTranslation: 'NIV',
+							...draftData.household,
+						},
+						guardians: draftData.guardians?.length > 0 ? draftData.guardians : [
+							{
+								first_name: '',
+								last_name: '',
+								mobile_phone: '',
+								email: '',
+								relationship: 'Mother',
+								is_primary: true,
+							},
+						],
+						emergencyContact: {
+							first_name: '',
+							last_name: '',
+							mobile_phone: '',
+							relationship: '',
+							...draftData.emergencyContact,
+						},
+						children: draftData.children || [],
+						consents: {
+							liability: false,
+							photoRelease: false,
+							choir_communications_consent: undefined,
+							custom_consents: {},
+							...draftData.consents,
+						},
+					});
+				}
+				setHasLoadedDraft(true);
+			}
+		}
+
+		loadDraftData();
+	}, [hasLoadedDraft, loadSavedFormData, form]);
 
 	const {
 		fields: guardianFields,
@@ -631,10 +673,12 @@ function RegisterPageContent() {
 
 	const childrenData = useWatch({ control: form.control, name: 'children' });
 
-	// Watch form changes and save to localStorage
+	// Watch form changes and save drafts
 	useEffect(() => {
 		const subscription = form.watch((data) => {
-			// Only save if there's actual data (not just empty defaults)
+			// Only save if we've loaded the draft and there's actual data
+			if (!hasLoadedDraft) return;
+			
 			const hasData =
 				data.household?.address_line1 ||
 				data.household?.city ||
@@ -654,7 +698,7 @@ function RegisterPageContent() {
 		});
 
 		return () => subscription.unsubscribe();
-	}, [form]);
+	}, [form, hasLoadedDraft, saveFormData]);
 
 	const { enrolledPrograms, interestPrograms } = useMemo(() => {
 		if (!allMinistries) return { enrolledPrograms: [], interestPrograms: [] };
@@ -1185,13 +1229,23 @@ function RegisterPageContent() {
 	return (
 		<div className="max-w-4xl mx-auto">
 			<div className="mb-8">
-				<h1 className="text-3xl font-bold font-headline">
-					Family Registration Form
-				</h1>
-				<p className="text-muted-foreground">
-					Complete the form below to register your family for our
-					children&apos;s ministry programs.
-				</p>
+				<div className="flex justify-between items-start mb-4">
+					<div>
+						<h1 className="text-3xl font-bold font-headline">
+							Family Registration Form
+						</h1>
+						<p className="text-muted-foreground">
+							Complete the form below to register your family for our
+							children&apos;s ministry programs.
+						</p>
+					</div>
+					<DraftStatusIndicator
+						isSaving={draftStatus.isSaving}
+						lastSaved={draftStatus.lastSaved}
+						error={draftStatus.error}
+						className="mt-2"
+					/>
+				</div>
 			</div>
 
 			{verificationStep === 'enter_email' && (

@@ -23,6 +23,7 @@ import type {
 	EssayPrompt,
 	Enrollment,
 	EnrollmentOverride,
+	Scripture,
 } from '../types';
 
 export class IndexedDBAdapter implements DatabaseAdapter {
@@ -860,47 +861,47 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 		await this.db.bible_bee_years.delete(id);
 	}
 
-	// Bible Bee Cycles (new cycle-based system)
-	async getBibleBeeCycle(id: string): Promise<BibleBeeCycle | null> {
-		const result = await this.db.bible_bee_cycles.get(id);
+	// Bible Bee Cycles (new cycle-based system) - using bible_bee_years table
+	async getBibleBeeCycle(id: string): Promise<BibleBeeYear | null> {
+		const result = await this.db.bible_bee_years.get(id);
 		return result || null;
 	}
 
 	async createBibleBeeCycle(
-		data: Omit<BibleBeeCycle, 'id' | 'created_at' | 'updated_at'>
-	): Promise<BibleBeeCycle> {
-		const cycle: BibleBeeCycle = {
+		data: Omit<BibleBeeYear, 'id' | 'created_at' | 'updated_at'>
+	): Promise<BibleBeeYear> {
+		const cycle: BibleBeeYear = {
 			...data,
 			id: crypto.randomUUID(),
 			created_at: new Date().toISOString(),
 			updated_at: new Date().toISOString(),
 		};
-		await this.db.bible_bee_cycles.add(cycle);
+		await this.db.bible_bee_years.add(cycle);
 		return cycle;
 	}
 
 	async updateBibleBeeCycle(
 		id: string,
-		data: Partial<BibleBeeCycle>
-	): Promise<BibleBeeCycle> {
-		await this.db.bible_bee_cycles.update(id, {
+		data: Partial<BibleBeeYear>
+	): Promise<BibleBeeYear> {
+		await this.db.bible_bee_years.update(id, {
 			...data,
 			updated_at: new Date().toISOString(),
 		});
-		const result = await this.db.bible_bee_cycles.get(id);
+		const result = await this.db.bible_bee_years.get(id);
 		if (!result) throw new Error(`Bible Bee cycle ${id} not found after update`);
 		return result;
 	}
 
-	async listBibleBeeCycles(isActive?: boolean): Promise<BibleBeeCycle[]> {
+	async listBibleBeeCycles(isActive?: boolean): Promise<BibleBeeYear[]> {
 		if (isActive !== undefined) {
-			return this.db.bible_bee_cycles.where('is_active').equals(isActive).toArray();
+			return this.db.bible_bee_years.where('is_active').equals(isActive ? 1 : 0).toArray();
 		}
-		return this.db.bible_bee_cycles.toArray();
+		return this.db.bible_bee_years.toArray();
 	}
 
 	async deleteBibleBeeCycle(id: string): Promise<void> {
-		await this.db.bible_bee_cycles.delete(id);
+		await this.db.bible_bee_years.delete(id);
 	}
 
 	async getDivision(id: string): Promise<Division | null> {
@@ -951,12 +952,12 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 		return result || null;
 	}
 
-	async upsertScripture(data: Omit<Scripture, 'created_at' | 'updated_at'> & { id?: string }): Promise<Scripture> {
+	async upsertScripture(data: Omit<Scripture, 'createdAt' | 'updatedAt'> & { id?: string }): Promise<Scripture> {
 		const scripture: Scripture = {
 			...data,
 			id: data.id || crypto.randomUUID(),
-			created_at: new Date().toISOString(),
-			updated_at: new Date().toISOString(),
+			createdAt: new Date().toISOString(),
+			updatedAt: new Date().toISOString(),
 		};
 
 		await this.db.scriptures.put(scripture);
@@ -1150,10 +1151,36 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 				this.db.essay_prompts,
 				this.db.enrollments,
 				this.db.enrollment_overrides,
+				this.db.form_drafts,
 			],
 			async () => {
 				return callback();
 			}
 		);
+	}
+
+	// Form draft persistence methods
+	async getDraft(formName: string, userId: string): Promise<any | null> {
+		const id = `${formName}::${userId}`;
+		const draft = await this.db.form_drafts.get(id);
+		return draft ? draft.payload : null;
+	}
+
+	async saveDraft(formName: string, userId: string, payload: any, version = 1): Promise<void> {
+		const id = `${formName}::${userId}`;
+		const draft = {
+			id,
+			form_name: formName,
+			user_id: userId,
+			payload,
+			version,
+			updated_at: new Date().toISOString(),
+		};
+		await this.db.form_drafts.put(draft);
+	}
+
+	async clearDraft(formName: string, userId: string): Promise<void> {
+		const id = `${formName}::${userId}`;
+		await this.db.form_drafts.delete(id);
 	}
 }

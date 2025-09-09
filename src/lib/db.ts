@@ -1,6 +1,6 @@
 
 import Dexie, { type EntityTable } from 'dexie';
-import type { Household, Guardian, EmergencyContact, Child, RegistrationCycle, ChildYearProfile, Registration, Ministry, MinistryEnrollment, LeaderAssignment, LeaderProfile, MinistryLeaderMembership, MinistryAccount, User, Event, Attendance, Incident, AuditLog, CompetitionYear, Scripture, GradeRule, StudentScripture, StudentEssay, BrandingSettings, BibleBeeYear, Division, EssayPrompt, Enrollment, EnrollmentOverride, UserHousehold } from './types';
+import type { Household, Guardian, EmergencyContact, Child, RegistrationCycle, ChildYearProfile, Registration, Ministry, MinistryEnrollment, LeaderAssignment, LeaderProfile, MinistryLeaderMembership, MinistryAccount, User, Event, Attendance, Incident, AuditLog, CompetitionYear, Scripture, GradeRule, StudentScripture, StudentEssay, BrandingSettings, BibleBeeYear, Division, EssayPrompt, Enrollment, EnrollmentOverride, UserHousehold, FormDraft } from './types';
 
 // prettier-ignore
 class GatherKidsDB extends Dexie {
@@ -39,10 +39,12 @@ class GatherKidsDB extends Dexie {
     branding_settings!: EntityTable<BrandingSettings, 'setting_id'>;
     // User household mappings for Supabase auth
     user_households!: EntityTable<UserHousehold, 'user_household_id'>;
+    // Form drafts for persisting user form state
+    form_drafts!: EntityTable<FormDraft, 'id'>;
 
     constructor() {
         super('gatherKidsDB');
-        this.version(14).stores({
+        this.version(15).stores({
             households: 'household_id, created_at, [city+state+zip]',
             guardians: 'guardian_id, household_id, mobile_phone, email',
             emergency_contacts: 'contact_id, household_id, mobile_phone',
@@ -78,6 +80,8 @@ class GatherKidsDB extends Dexie {
             branding_settings: 'setting_id, org_id, created_at, updated_at',
             // User household mappings for Supabase auth
             user_households: 'user_household_id, [auth_user_id+household_id], auth_user_id, household_id',
+            // Form drafts for persisting user form state
+            form_drafts: 'id, [user_id+form_name], user_id, form_name, updated_at',
         });
     }
 }

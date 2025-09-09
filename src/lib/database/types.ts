@@ -261,16 +261,16 @@ export interface DatabaseAdapter {
 	listBibleBeeYears(): Promise<BibleBeeYear[]>;
 	deleteBibleBeeYear(id: string): Promise<void>;
 
-	// Bible Bee Cycles (new cycle-based system)
-	getBibleBeeCycle(id: string): Promise<BibleBeeCycle | null>;
+	// Bible Bee Cycles (new cycle-based system) - using BibleBeeYear for now
+	getBibleBeeCycle(id: string): Promise<BibleBeeYear | null>;
 	createBibleBeeCycle(
-		data: Omit<BibleBeeCycle, 'id' | 'created_at' | 'updated_at'>
-	): Promise<BibleBeeCycle>;
+		data: Omit<BibleBeeYear, 'id' | 'created_at' | 'updated_at'>
+	): Promise<BibleBeeYear>;
 	updateBibleBeeCycle(
 		id: string,
-		data: Partial<BibleBeeCycle>
-	): Promise<BibleBeeCycle>;
-	listBibleBeeCycles(isActive?: boolean): Promise<BibleBeeCycle[]>;
+		data: Partial<BibleBeeYear>
+	): Promise<BibleBeeYear>;
+	listBibleBeeCycles(isActive?: boolean): Promise<BibleBeeYear[]>;
 	deleteBibleBeeCycle(id: string): Promise<void>;
 
 	getDivision(id: string): Promise<Division | null>;
@@ -331,4 +331,9 @@ export interface DatabaseAdapter {
 
 	// Batch operations (optional for v1)
 	transaction<T>(callback: () => Promise<T>): Promise<T>;
+
+	// Form draft persistence
+	getDraft(formName: string, userId: string): Promise<any | null>;
+	saveDraft(formName: string, userId: string, payload: any, version?: number): Promise<void>;
+	clearDraft(formName: string, userId: string): Promise<void>;
 }
