@@ -11,8 +11,50 @@ import { FeatureFlagDialog } from '@/components/feature-flag-dialog';
 
 export default function Home() {
 	const { flags } = useFeatureFlags();
-	const { settings } = useBranding();
+	const { settings, loading } = useBranding();
 	const [isFlagDialogOpen, setIsFlagDialogOpen] = useState(false);
+
+	// Show skeleton loading state while branding is being fetched
+	if (loading) {
+		return (
+			<div className="flex flex-col min-h-screen">
+				<header className="p-4 border-b">
+					<div className="container mx-auto flex items-center justify-between gap-2">
+						<div className="flex items-center gap-2">
+							<div className="h-8 w-32 bg-muted animate-pulse rounded" />
+						</div>
+						<nav>
+							<div className="h-10 w-20 bg-muted animate-pulse rounded" />
+						</nav>
+					</div>
+				</header>
+				<main className="flex-1 flex items-center justify-center">
+					<div className="container mx-auto text-center px-4 py-16">
+						<div className="mx-auto h-16 w-16 bg-muted animate-pulse rounded mb-6" />
+						<div className="h-12 w-80 bg-muted animate-pulse rounded mx-auto mb-4" />
+						<div className="h-6 w-96 bg-muted animate-pulse rounded mx-auto mb-8" />
+						<div className="flex flex-col sm:flex-row gap-4 justify-center">
+							<div className="h-12 w-48 bg-muted animate-pulse rounded" />
+							{process.env.NEXT_PUBLIC_DATABASE_MODE !== 'supabase' && (
+								<div className="h-12 w-48 bg-muted animate-pulse rounded" />
+							)}
+							{flags.showDemoFeatures && (
+								<div className="h-12 w-32 bg-muted animate-pulse rounded" />
+							)}
+						</div>
+					</div>
+				</main>
+				<footer className="py-6 border-t">
+					<div className="container mx-auto flex justify-between items-center text-sm text-muted-foreground">
+						<div className="h-4 w-48 bg-muted animate-pulse rounded" />
+						{flags.showDemoFeatures && (
+							<div className="h-8 w-8 bg-muted animate-pulse rounded" />
+						)}
+					</div>
+				</footer>
+			</div>
+		);
+	}
 
 	return (
 		<div className="flex flex-col min-h-screen">
