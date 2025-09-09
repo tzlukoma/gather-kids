@@ -2985,11 +2985,15 @@ export async function getEssayPromptsForBibleBeeYear(yearId: string): Promise<an
 	if (shouldUseAdapter()) {
 		// Use Supabase adapter for live mode - filter by year/cycle ID
 		const allPrompts = await dbAdapter.listEssayPrompts();
+		
 		// Filter by year_id or bible_bee_cycle_id
-		return allPrompts.filter(prompt => 
-			prompt.year_id === yearId || 
-			(prompt as any).bible_bee_cycle_id === yearId
-		);
+		const filtered = allPrompts.filter(prompt => {
+			const matchesYearId = prompt.year_id === yearId;
+			const matchesCycleId = (prompt as any).bible_bee_cycle_id === yearId;
+			return matchesYearId || matchesCycleId;
+		});
+		
+		return filtered;
 	} else {
 		// Use legacy Dexie interface for demo mode
 		return db.essay_prompts.where('year_id').equals(yearId).toArray();

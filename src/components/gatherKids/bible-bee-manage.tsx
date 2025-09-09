@@ -1941,6 +1941,7 @@ function EssayManagement({
 		try {
 			const essayData = {
 				...formData,
+				year_id: selectedCycle._isNewSchema ? yearId : yearId, // Always use yearId for the main ID field
 				bible_bee_cycle_id: selectedCycle._isNewSchema ? yearId : null,
 				competitionYearId: selectedCycle._isNewSchema ? '' : yearId,
 				division_name:
