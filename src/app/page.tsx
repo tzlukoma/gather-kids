@@ -75,11 +75,13 @@ export default function Home() {
 								<ArrowRight className="ml-2" />
 							</Button>
 						</Link>
-						<Link href="/dashboard">
-							<Button size="lg" variant="secondary">
-								Go to Admin Dashboard
-							</Button>
-						</Link>
+						{process.env.NEXT_PUBLIC_DATABASE_MODE !== 'supabase' && (
+							<Link href="/dashboard">
+								<Button size="lg" variant="secondary">
+									Go to Admin Dashboard
+								</Button>
+							</Link>
+						)}
 						{flags.showDemoFeatures && (
 							<SimpleSeedButton size="lg" variant="outline" />
 						)}
