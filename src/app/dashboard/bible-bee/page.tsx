@@ -105,20 +105,43 @@ export default function BibleBeePage() {
 
 	useEffect(() => {
 		// set an initial selectedCycle once we have years info; prefer an
-		// explicitly active Bible Bee year when present
+		// explicitly active Bible Bee year when present, otherwise use most recent
 		if (selectedCycle) return; // don't override an existing selection
-		if (!bibleBeeYears) return;
-		const activeBB = (bibleBeeYears || []).find((y: any) => {
+		if (!bibleBeeYears || bibleBeeYears.length === 0) return;
+
+		// First, try to find an active Bible Bee year
+		const activeBB = bibleBeeYears.find((y: any) => {
 			const val: any = y?.is_active;
 			return val === true || val === 1 || String(val) === '1';
 		});
+
 		if (activeBB && activeBB.id) {
+			console.log('Setting selectedCycle to active year:', activeBB.id);
 			setSelectedCycle(String(activeBB.id));
 			return;
 		}
-		// If no active year, use the first available year
-		if (bibleBeeYears.length > 0) {
-			setSelectedCycle(String(bibleBeeYears[0].id));
+
+		// If no active year, use the most recent year (sorted by label or created_at)
+		const sortedYears = [...bibleBeeYears].sort((a: any, b: any) => {
+			// Try to sort by label first (e.g., "2025", "2024")
+			if (a.label && b.label) {
+				return b.label.localeCompare(a.label);
+			}
+			// Fallback to created_at
+			if (a.created_at && b.created_at) {
+				return (
+					new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+				);
+			}
+			return 0;
+		});
+
+		if (sortedYears.length > 0) {
+			console.log(
+				'Setting selectedCycle to most recent year:',
+				sortedYears[0].id
+			);
+			setSelectedCycle(String(sortedYears[0].id));
 		}
 	}, [bibleBeeYears, selectedCycle]);
 
@@ -333,5 +356,3 @@ export default function BibleBeePage() {
 		</div>
 	);
 }
-
-
