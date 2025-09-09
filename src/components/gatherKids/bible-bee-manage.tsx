@@ -150,6 +150,7 @@ export default function BibleBeeManage({ className }: BibleBeeManageProps) {
 
 	// Add refresh counters to trigger re-fetch when data changes
 	const [divisionsRefreshCounter, setDivisionsRefreshCounter] = useState(0);
+	const [scripturesRefreshCounter, setScripturesRefreshCounter] = useState(0);
 	const [essayPromptsRefreshCounter, setEssayPromptsRefreshCounter] =
 		useState(0);
 
@@ -1042,6 +1043,8 @@ function ScriptureManagement({
 					title: `Scripture ${scripture.scripture_number} Deleted`,
 					description: 'Scripture has been successfully deleted.',
 				});
+				// Trigger refresh of scriptures list
+				onRefresh();
 			} catch (error: any) {
 				console.error('Error deleting scripture:', error);
 				setError(error.message || 'Error deleting scripture');
