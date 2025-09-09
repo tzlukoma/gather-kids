@@ -1054,6 +1054,11 @@ async function createGradeRules(yearId, divisionMap) {
 async function createEssayPrompt(cycleId, divisionMap) {
 	try {
 		console.log(`📝 Creating essay prompt for Senior Division...`);
+		console.log(`📊 DEBUG - createEssayPrompt called with cycleId:`, cycleId);
+		console.log(
+			`📊 DEBUG - createEssayPrompt called with divisionMap:`,
+			divisionMap
+		);
 
 		// Only create essay prompt for Senior Division
 		const seniorDivisionId = divisionMap?.Senior;
@@ -1128,7 +1133,11 @@ async function createEssayPrompt(cycleId, divisionMap) {
 			counters.essay_prompts++;
 		}
 	} catch (error) {
-		console.log(`❌ Error creating essay prompt: ${error.message}`);
+		console.log(
+			`❌ FATAL ERROR: Failed to create essay prompt: ${error.message}`
+		);
+		console.log(`📊 DEBUG - Full error object:`, error);
+		console.log(`📊 DEBUG - Error stack:`, error.stack);
 		// Don't throw error, just log it since essay prompt is not critical
 	}
 }
@@ -3291,6 +3300,14 @@ async function seedUATData() {
 		await createScriptures(competitionYearId);
 
 		// Step 7: Create essay prompt for Senior division
+		console.log(
+			`📊 DEBUG - About to call createEssayPrompt with bibleBeeCycleId:`,
+			bibleBeeCycleId
+		);
+		console.log(
+			`📊 DEBUG - About to call createEssayPrompt with divisionMap:`,
+			divisionMap
+		);
 		await createEssayPrompt(bibleBeeCycleId, divisionMap);
 
 		// Create households, guardians, and children
