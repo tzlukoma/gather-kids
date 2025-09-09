@@ -1065,15 +1065,34 @@ async function createEssayPrompt(cycleId, divisionMap) {
 			return;
 		}
 
+		const promptText =
+			"Reflecting on Romans chapters 1-11, discuss how Paul's teachings on salvation through faith apply to modern Christian life. Include at least three specific scripture references from the assigned passages to support your analysis.";
+
 		const essayPromptData = {
 			id: crypto.randomUUID(), // Generate UUID for id (not prompt_id)
 			bible_bee_cycle_id: cycleId, // Use bible_bee_cycle_id as per new schema
 			division_name: 'Senior',
-			prompt_text:
-				"Reflecting on Romans chapters 1-11, discuss how Paul's teachings on salvation through faith apply to modern Christian life. Include at least three specific scripture references from the assigned passages to support your analysis.",
+			prompt_text: promptText,
 			due_date: '2026-06-05',
 			created_at: new Date().toISOString(),
 		};
+
+		console.log(
+			'📊 DEBUG - Essay prompt data:',
+			JSON.stringify(essayPromptData, null, 2)
+		);
+		console.log(
+			'📊 DEBUG - prompt_text value:',
+			JSON.stringify(essayPromptData.prompt_text)
+		);
+		console.log(
+			'📊 DEBUG - prompt_text type:',
+			typeof essayPromptData.prompt_text
+		);
+		console.log(
+			'📊 DEBUG - prompt_text length:',
+			essayPromptData.prompt_text?.length
+		);
 
 		// Check if essay prompt already exists
 		const { data: existingPrompt, error: checkError } = await supabase
@@ -1091,12 +1110,17 @@ async function createEssayPrompt(cycleId, divisionMap) {
 		if (existingPrompt) {
 			console.log(`✅ Essay prompt already exists for Senior Division`);
 		} else {
+			console.log(
+				'📊 DEBUG - About to insert essay prompt with data:',
+				essayPromptData
+			);
 			const { error: insertError } = await supabase
 				.from('essay_prompts')
 				.insert(essayPromptData);
 
 			if (insertError) {
 				console.log(`⚠️ Failed to create essay prompt: ${insertError.message}`);
+				console.log('📊 DEBUG - Insert error details:', insertError);
 				return;
 			}
 
