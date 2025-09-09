@@ -56,9 +56,7 @@ export function BibleBeeProgressList({
 	useEffect(() => {
 		const loadData = async () => {
 			try {
-				console.log('BibleBeeProgressList: Loading Bible Bee data...');
 				const bbYears = await getBibleBeeYears();
-				console.log('BibleBeeProgressList: Loaded Bible Bee years:', bbYears);
 				setBibleBeeYears(bbYears || []);
 			} catch (error) {
 				console.error(
@@ -190,12 +188,7 @@ export function BibleBeeProgressList({
 			) {
 				effectiveCycle = String(selectedCycle);
 			}
-			console.log(
-				'BibleBeeProgressList: Loading progress for cycle:',
-				effectiveCycle
-			);
 			const res = await getBibleBeeProgressForCycle(effectiveCycle);
-			console.log('BibleBeeProgressList: Loaded progress data:', res);
 			if (mounted) {
 				// Filter to specific children if provided
 				const filteredRes = filterChildIds

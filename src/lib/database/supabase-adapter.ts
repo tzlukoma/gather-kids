@@ -435,17 +435,10 @@ export class SupabaseAdapter implements DatabaseAdapter {
 	}
 
 	async listAllGuardians(): Promise<Guardian[]> {
-		console.log('SupabaseAdapter.listAllGuardians: Starting query');
 		try {
 			const { data, error } = await this.client
 				.from('guardians')
 				.select('*');
-
-			console.log('SupabaseAdapter.listAllGuardians: Query result', { 
-				hasError: !!error, 
-				errorMessage: error?.message, 
-				dataCount: data?.length || 0
-			});
 
 			if (error) {
 				console.error('SupabaseAdapter.listAllGuardians: Query failed', error);

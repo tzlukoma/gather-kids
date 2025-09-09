@@ -1563,15 +1563,15 @@ export async function getLeaderBibleBeeProgress(leaderId: string, cycleId: strin
 }
 
 export async function getBibleBeeProgressForCycle(cycleId: string) {
-    // Support both legacy (registration cycle id / numeric year) and new-schema
-    // bible-bee years. If cycleId matches a bible_bee_year id, use the new
-    // `enrollments` table; otherwise fall back to legacy ministry_enrollments.
+    // Use DAL pattern instead of direct Dexie calls
+    if (shouldUseAdapter()) {
+        // For Supabase mode, return empty array since we don't have Bible Bee cycles yet
+        // This prevents showing demo data when the database is empty
+        console.log('getBibleBeeProgressForCycle: Supabase mode - returning empty array (no Bible Bee cycles yet)');
+        return [];
+    }
 
-    // First, attempt to treat cycleId as a new-schema bible-bee year id by
-    // checking enrollments for that year. This handles the case where the
-    // bible_bee_year record might not yet exist at the time of the query but
-    // enrollments are present, and avoids accidental mapping to the active
-    // registration cycle which could show prior-year children.
+    // Legacy IndexedDB mode - keep existing logic for demo mode
     let childIds: string[] = [];
     let children: Child[] = [];
     let compYear: unknown | null = null;
@@ -1611,7 +1611,7 @@ export async function getBibleBeeProgressForCycle(cycleId: string) {
 
             // Find the competition year matching the numeric cycle year (if present)
             const yearNum = Number(cycleId);
-                                    compYear = (await db.competitionYears.where('year').equals(yearNum).first()) || null;
+            compYear = (await db.competitionYears.where('year').equals(yearNum).first()) || null;
         }
     }
 
@@ -3667,13 +3667,10 @@ export async function getIncidentsForDate(dateISO: string): Promise<Incident[]> 
  * Get all guardians
  */
 export async function getAllGuardians(): Promise<Guardian[]> {
-	console.log('DAL.getAllGuardians: Starting', { useAdapter: shouldUseAdapter() });
 	if (shouldUseAdapter()) {
 		// Use Supabase adapter for live mode
-		console.log('DAL.getAllGuardians: Using Supabase adapter');
 		try {
 			const result = await dbAdapter.listAllGuardians();
-			console.log('DAL.getAllGuardians: Supabase adapter result', { count: result.length });
 			return result;
 		} catch (error) {
 			console.error('DAL.getAllGuardians: Supabase adapter failed', error);
@@ -3681,7 +3678,6 @@ export async function getAllGuardians(): Promise<Guardian[]> {
 		}
 	} else {
 		// Use legacy Dexie interface for demo mode
-		console.log('DAL.getAllGuardians: Using Dexie interface');
 		return db.guardians.toArray();
 	}
 }
