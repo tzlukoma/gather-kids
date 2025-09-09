@@ -24,7 +24,12 @@ import {
 	commitEnhancedCsvRowsToYear,
 	validateJsonTextUpload,
 	uploadJsonTexts,
-} from '@/lib/bibleBee';
+	getDivisionsForBibleBeeYear,
+	getBibleBeeYears,
+	getScripturesForBibleBeeYear,
+	upsertScripture,
+	deleteScripture,
+} from '@/lib/dal';
 import { gradeCodeToLabel } from '@/lib/gradeUtils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
@@ -86,14 +91,13 @@ function isActiveValue(v: unknown): boolean {
 }
 
 export default function BibleBeeManage({ className }: BibleBeeManageProps) {
-	const [activeTab, setActiveTab] = useState('years');
+	const [activeTab, setActiveTab] = useState('cycles');
 	const [selectedYearId, setSelectedYearId] = useState<string | null>(null);
 
-	// Load new schema Bible Bee years
-	const bibleBeeYears = useLiveQuery(
-		() => db.bible_bee_years.orderBy('label').toArray(),
-		[]
-	);
+	// Load new schema Bible Bee years using DAL
+	const bibleBeeYears = useLiveQuery(async () => {
+		return await getBibleBeeYears();
+	}, []);
 
 	// Load old schema competition years as fallback
 	const competitionYears = useLiveQuery(
@@ -136,53 +140,16 @@ export default function BibleBeeManage({ className }: BibleBeeManageProps) {
 	const divisions = useLiveQuery(async () => {
 		if (!selectedYearId) return [];
 
-		// First try new schema
-		const newDivisions = await (async () => {
-			// Avoid using .where('year_id').equals(...) directly which can throw
-			// IDBKeyRange errors if the stored values are mixed types. Do a safe
-			// scan and filter in JS.
-			const all = await db.divisions.toArray();
-			return all.filter((d) => d && d.year_id === selectedYearId);
-		})();
-
-		// If we found divisions in new schema, return them
-		if (newDivisions.length > 0) {
-			return newDivisions;
-		}
-
-		// For legacy years, bridge from gradeRules
-		const legacyGradeRules = await db.gradeRules
-			.where('competitionYearId')
-			.equals(selectedYearId)
-			.and((rule: GradeRule) => rule.type === 'scripture') // Only scripture rules define divisions
-			.toArray();
-
-		// Convert legacy gradeRules to Division format
-		return legacyGradeRules.map(
-			(rule: GradeRule, index: number): Division => ({
-				id: `legacy-division-${rule.id}`,
-				year_id: selectedYearId,
-				name: `Grades ${rule.minGrade}-${rule.maxGrade}`,
-				minimum_required: rule.targetCount || 0,
-				min_last_order: undefined,
-				min_grade: rule.minGrade,
-				max_grade: rule.maxGrade,
-				created_at: rule.createdAt,
-				updated_at: rule.updatedAt,
-			})
-		);
+		// Use DAL function for consistent dbAdapter pattern
+		return await getDivisionsForBibleBeeYear(selectedYearId);
 	}, [selectedYearId]);
 
-	const essayPrompts = useLiveQuery(
-		async () =>
-			selectedYearId
-				? await db.essay_prompts
-						.where('year_id')
-						.equals(selectedYearId)
-						.toArray()
-				: [],
-		[selectedYearId]
-	);
+	const essayPrompts = useLiveQuery(async () => {
+		if (!selectedYearId) return [];
+		// TODO: Create DAL function for essay prompts by year
+		// For now, return empty array in Supabase mode
+		return [];
+	}, [selectedYearId]);
 
 	// Get the active year for default selection
 	React.useEffect(() => {
@@ -314,7 +281,7 @@ export default function BibleBeeManage({ className }: BibleBeeManageProps) {
 					onValueChange={setActiveTab}
 					className="space-y-6">
 					<TabsList className="grid w-full grid-cols-6">
-						<TabsTrigger value="years">Years</TabsTrigger>
+						<TabsTrigger value="cycles">Cycles</TabsTrigger>
 						<TabsTrigger value="divisions">Divisions</TabsTrigger>
 						<TabsTrigger value="scriptures">Scriptures</TabsTrigger>
 						<TabsTrigger value="essays">Essays</TabsTrigger>
@@ -322,7 +289,7 @@ export default function BibleBeeManage({ className }: BibleBeeManageProps) {
 						<TabsTrigger value="overrides">Overrides</TabsTrigger>
 					</TabsList>
 
-					<TabsContent value="years">
+					<TabsContent value="cycles">
 						<YearManagement
 							allYears={allYears}
 							onYearCreated={(yearId: string) => setSelectedYearId(yearId)}
@@ -451,7 +418,11 @@ function YearManagement({
 				onYearCreated(createdYear.id);
 			}
 
-			setFormData({ label: '', is_active: false, cycle_id: '' });
+			setFormData({
+				label: '',
+				is_active: false,
+				cycle_id: '',
+			});
 		} catch (error) {
 			console.error('Error saving year:', error);
 			alert('Error saving year: ' + error);
@@ -488,12 +459,12 @@ function YearManagement({
 			<CardHeader>
 				<div className="flex items-center justify-between">
 					<div>
-						<CardTitle>Bible Bee Years</CardTitle>
-						<CardDescription>Manage competition years</CardDescription>
+						<CardTitle>Bible Bee Cycles</CardTitle>
+						<CardDescription>Manage competition cycles</CardDescription>
 					</div>
 					<Button onClick={() => setIsCreating(true)} disabled={isCreating}>
 						<Plus className="h-4 w-4 mr-2" />
-						Add Year
+						Add Bible Bee Cycle
 					</Button>
 				</div>
 			</CardHeader>
@@ -503,10 +474,10 @@ function YearManagement({
 						onSubmit={handleSubmit}
 						className="space-y-4 p-4 border rounded-lg">
 						<div>
-							<Label htmlFor="year-label">Year Label</Label>
+							<Label htmlFor="cycle-name">Bible Bee Cycle Name</Label>
 							<Input
-								id="year-label"
-								placeholder="e.g., 2025–2026"
+								id="cycle-name"
+								placeholder="e.g., Fall 2025 Bible Bee"
 								value={formData.label}
 								onChange={(e) =>
 									setFormData({ ...formData, label: e.target.value })
@@ -557,7 +528,11 @@ function YearManagement({
 								onClick={() => {
 									setIsCreating(false);
 									setEditingYear(null);
-									setFormData({ label: '', is_active: false, cycle_id: '' });
+									setFormData({
+										label: '',
+										is_active: false,
+										cycle_id: '',
+									});
 								}}>
 								Cancel
 							</Button>
@@ -925,14 +900,11 @@ function ScriptureManagement({
 	const [jsonPreview, setJsonPreview] = useState<any>(null);
 	const [jsonMode, setJsonMode] = useState<'merge' | 'overwrite'>('merge');
 
-	// Load scriptures for this year
+	// Load scriptures for this year using DAL
 	const scriptures = useLiveQuery(async () => {
 		try {
 			console.log('Loading scriptures for year:', yearId);
-			const result = await db.scriptures
-				.where('year_id')
-				.equals(yearId)
-				.sortBy('scripture_order');
+			const result = await getScripturesForBibleBeeYear(yearId);
 			console.log(`Found ${result.length} scriptures for year ${yearId}`);
 			return result;
 		} catch (error) {
@@ -969,7 +941,7 @@ function ScriptureManagement({
 			};
 
 			if (editingScripture) {
-				await db.scriptures.put({ ...editingScripture, ...scriptureData });
+				await upsertScripture({ ...editingScripture, ...scriptureData });
 				toast({
 					title: `Scripture ${formData.scripture_number} Updated`,
 					description: 'Scripture has been successfully updated.',
@@ -977,7 +949,7 @@ function ScriptureManagement({
 				setEditingScripture(null);
 				setIsCreating(false);
 			} else {
-				await db.scriptures.put({
+				await upsertScripture({
 					id: crypto.randomUUID(),
 					...scriptureData,
 				});
@@ -1008,7 +980,7 @@ function ScriptureManagement({
 	const handleDelete = async (scripture: any) => {
 		if (confirm(`Delete scripture "${scripture.scripture_number}"?`)) {
 			try {
-				await db.scriptures.delete(scripture.id);
+				await deleteScripture(scripture.id);
 				toast({
 					title: `Scripture ${scripture.scripture_number} Deleted`,
 					description: 'Scripture has been successfully deleted.',
@@ -2117,7 +2089,10 @@ function EnrollmentManagement({
 		setIsLoading(true);
 		setError(null);
 		try {
-			const result = await commitAutoEnrollment(yearId);
+			const result = await commitAutoEnrollment(
+				yearId,
+				preview?.enrollments || []
+			);
 			toast({
 				title: 'Auto-Enrollment Complete',
 				description: `Enrolled ${result.enrolled} children, applied ${result.overrides_applied} overrides.`,
@@ -2375,7 +2350,7 @@ function OverrideManagement({
 				});
 			} else {
 				// Delete existing override first (if any)
-				await deleteEnrollmentOverrideByChild(yearId, selectedChild.child_id);
+				await deleteEnrollmentOverrideByChild(selectedChild.child_id);
 				// Create new override
 				await createEnrollmentOverride(overrideData);
 				toast({

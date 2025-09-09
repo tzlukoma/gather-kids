@@ -22,6 +22,7 @@ import type {
 	Enrollment,
 	EnrollmentOverride,
 	BrandingSettings,
+	Scripture,
 } from '../types';
 
 // Filter and query types (to be extended as needed)
@@ -268,7 +269,14 @@ export interface DatabaseAdapter {
 	listDivisions(bibleBeeYearId?: string): Promise<Division[]>;
 	deleteDivision(id: string): Promise<void>;
 
+	// Scriptures
+	getScripture(id: string): Promise<Scripture | null>;
+	upsertScripture(data: Omit<Scripture, 'created_at' | 'updated_at'> & { id?: string }): Promise<Scripture>;
+	deleteScripture(id: string): Promise<void>;
+	listScriptures(filters?: { yearId?: string }): Promise<Scripture[]>;
+
 	getEssayPrompt(id: string): Promise<EssayPrompt | null>;
+	getEssayPromptsForYearAndDivision(yearId: string, divisionName: string): Promise<EssayPrompt[]>;
 	createEssayPrompt(
 		data: Omit<EssayPrompt, 'created_at' | 'updated_at'>
 	): Promise<EssayPrompt>;

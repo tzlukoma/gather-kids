@@ -1908,6 +1908,97 @@ export class SupabaseAdapter implements DatabaseAdapter {
 		if (error) throw error;
 	}
 
+	// Scripture methods
+	async getScripture(id: string): Promise<Scripture | null> {
+		const { data, error } = await this.client
+			.from('scriptures')
+			.select('*')
+			.eq('id', id)
+			.single();
+
+		if (error) {
+			if (error.code === 'PGRST116') return null;
+			console.error('Error fetching scripture:', error);
+			throw error;
+		}
+
+		return data ? this.mapScripture(data) : null;
+	}
+
+	async upsertScripture(data: Omit<Scripture, 'created_at' | 'updated_at'> & { id?: string }): Promise<Scripture> {
+		const payload = {
+			id: data.id || crypto.randomUUID(),
+			year_id: data.year_id,
+			scripture_number: data.scripture_number,
+			scripture_order: data.scripture_order,
+			counts_for: data.counts_for,
+			reference: data.reference,
+			category: data.category,
+			text: data.text,
+			translation: data.translation,
+			texts: data.texts,
+			created_at: new Date().toISOString(),
+			updated_at: new Date().toISOString(),
+		};
+
+		const { data: result, error } = await this.client
+			.from('scriptures')
+			.upsert(payload)
+			.select()
+			.single();
+
+		if (error) {
+			console.error('Error upserting scripture:', error);
+			throw error;
+		}
+
+		return this.mapScripture(result);
+	}
+
+	async deleteScripture(id: string): Promise<void> {
+		const { error } = await this.client
+			.from('scriptures')
+			.delete()
+			.eq('id', id);
+
+		if (error) throw error;
+	}
+
+	async listScriptures(filters?: { yearId?: string }): Promise<Scripture[]> {
+		let query = this.client.from('scriptures').select('*');
+		
+		if (filters?.yearId) {
+			query = query.eq('year_id', filters.yearId);
+		}
+
+		const { data, error } = await query.order('scripture_order');
+
+		if (error) {
+			console.error('Error listing scriptures:', error);
+			return [];
+		}
+
+		return (data || []).map(this.mapScripture);
+	}
+
+	// Helper method to map Supabase scripture data to our Scripture type
+	private mapScripture(data: any): Scripture {
+		return {
+			id: data.id,
+			year_id: data.year_id,
+			scripture_number: data.scripture_number,
+			scripture_order: data.scripture_order,
+			counts_for: data.counts_for,
+			reference: data.reference,
+			category: data.category,
+			text: data.text,
+			translation: data.translation,
+			texts: data.texts,
+			created_at: data.created_at,
+			updated_at: data.updated_at,
+		};
+	}
+
 	async getEssayPrompt(id: string): Promise<EssayPrompt | null> {
 		const { data, error } = await this.client
 			.from('essay_prompts')
@@ -1920,6 +2011,21 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			throw error;
 		}
 		return data ? this.mapEssayPrompt(data) : null;
+	}
+
+	async getEssayPromptsForYearAndDivision(yearId: string, divisionName: string): Promise<EssayPrompt[]> {
+		const { data, error } = await this.supabase
+			.from('essay_prompts')
+			.select('*')
+			.eq('year_id', yearId)
+			.eq('division_name', divisionName);
+
+		if (error) {
+			console.error('Error fetching essay prompts:', error);
+			return [];
+		}
+
+		return data || [];
 	}
 
 	async createEssayPrompt(

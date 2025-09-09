@@ -3,15 +3,15 @@ import React from 'react';
 import { useParams } from 'next/navigation';
 import { db } from '@/lib/db';
 import {
-	upsertScripture,
-	validateCsvRows,
-	commitCsvRowsToYear,
-} from '@/lib/bibleBee';
-import {
 	useScripturesForYear,
 	useScripturesForYearQuery,
 	createGradeRule as hookCreateGradeRule,
 } from '@/lib/hooks/useBibleBee';
+import {
+	upsertScripture,
+	validateCsvRows,
+	commitCsvRowsToYear,
+} from '@/lib/dal';
 import {
 	Card,
 	CardHeader,

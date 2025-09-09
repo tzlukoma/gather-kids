@@ -89,6 +89,7 @@ const counters = {
 	ministries: 0,
 	ministry_accounts: 0,
 	registration_cycles: 0,
+	bible_bee_years: 0,
 	households: 0,
 	emergency_contacts: 0,
 	guardians: 0,
@@ -346,6 +347,52 @@ async function createMinistryAccountsData() {
 		}
 	} catch (error) {
 		console.error('❌ Error creating ministry accounts:', error.message);
+		throw error;
+	}
+}
+
+/**
+ * Create Bible Bee cycles using direct Supabase calls
+ */
+async function createBibleBeeCyclesData(activeCycleId) {
+	try {
+		console.log('📖 Creating Bible Bee cycles...');
+
+		const bibleBeeCycleData = {
+			id: crypto.randomUUID(),
+			cycle_id: activeCycleId, // Direct reference to registration cycle
+			name: 'Fall 2025 Bible Bee',
+			description: 'Bible Bee competition for Fall 2025 registration cycle',
+			is_active: true,
+		};
+
+		// Check if Bible Bee cycle already exists for this registration cycle
+		const { data: existing } = await client
+			.from('bible_bee_cycles')
+			.select('id')
+			.eq('cycle_id', activeCycleId)
+			.single();
+
+		if (existing) {
+			console.log(
+				`✅ Bible Bee cycle already exists for cycle ${activeCycleId}`
+			);
+		} else {
+			const { data, error } = await client
+				.from('bible_bee_cycles')
+				.insert(bibleBeeCycleData)
+				.select()
+				.single();
+
+			if (error) {
+				throw new Error(`Failed to create Bible Bee cycle: ${error.message}`);
+			}
+
+			console.log(`✅ Created Bible Bee cycle: ${bibleBeeCycleData.name}`);
+			counters.bible_bee_years++; // Keep same counter name for now
+		}
+	} catch (error) {
+		console.error('❌ Failed to create Bible Bee cycles:', error.message);
 		throw error;
 	}
 }
@@ -904,6 +951,9 @@ async function seedDevData() {
 		// Create ministry accounts
 		await createMinistryAccountsData();
 
+		// Create Bible Bee cycles
+		await createBibleBeeCyclesData(activeCycleId);
+
 		// Create events for check-in
 		await createEventsData();
 
@@ -923,6 +973,7 @@ async function seedDevData() {
 		console.log(
 			`- ${counters.registration_cycles} registration cycles created`
 		);
+		console.log(`- ${counters.bible_bee_years} Bible Bee cycles created`);
 		console.log(`- ${counters.households} households created`);
 		console.log(`- ${counters.guardians} guardians created`);
 		console.log(`- ${counters.children} children created`);

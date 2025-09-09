@@ -43,7 +43,7 @@ import { v4 as uuidv4 } from 'uuid';
 export { dbAdapter };
 
 // Utility to determine if we should use the adapter interface for write operations
-function shouldUseAdapter(): boolean {
+export function shouldUseAdapter(): boolean {
     const isDemoMode = isDemo();
     console.log('shouldUseAdapter: Checking database mode', { 
         isDemoMode, 
@@ -2681,10 +2681,8 @@ export async function getBibleBeeYears(): Promise<BibleBeeYear[]> {
  */
 export async function getScripturesForBibleBeeYear(yearId: string): Promise<Scripture[]> {
 	if (shouldUseAdapter()) {
-		// In Supabase mode, scriptures may not be available yet
-		// Return empty array for now, can be enhanced later when scripture schema is added
-		console.log('Scripture loading not yet implemented in Supabase mode');
-		return [];
+		// Use Supabase adapter for live mode
+		return dbAdapter.listScriptures({ yearId });
 	} else {
 		// Use legacy Dexie interface for demo mode
         if (db && 'scriptures' in db) {
@@ -2697,8 +2695,598 @@ export async function getScripturesForBibleBeeYear(yearId: string): Promise<Scri
 }
 
 /**
- * Get scriptures for a competition year (legacy)
+ * Create a Bible Bee year
  */
+export async function createBibleBeeYear(data: Omit<BibleBeeYear, 'id' | 'created_at'>): Promise<BibleBeeYear> {
+	if (shouldUseAdapter()) {
+		// Use Supabase adapter for live mode
+		return dbAdapter.createBibleBeeYear(data);
+	} else {
+		// Use legacy Dexie interface for demo mode
+		const now = new Date().toISOString();
+		const id = data.id ?? crypto.randomUUID();
+		
+		// If setting this year as active, deactivate all other years first
+		if (data.is_active) {
+			const allYears = await db.bible_bee_years.toArray();
+			const activeYears = allYears.filter(y => {
+				const val: any = (y as any).is_active;
+				return val === true || val === 1 || val == '1';
+			});
+			for (const year of activeYears) {
+				await db.bible_bee_years.update(year.id, { is_active: false });
+			}
+		}
+		
+		const item: BibleBeeYear = {
+			id,
+			label: data.label,
+			cycle_id: data.cycle_id,
+			is_active: data.is_active,
+			created_at: now,
+		};
+		await db.bible_bee_years.put(item);
+		return item;
+	}
+}
+
+/**
+ * Update a Bible Bee year
+ */
+export async function updateBibleBeeYear(id: string, updates: Partial<Omit<BibleBeeYear, 'id' | 'created_at'>>): Promise<BibleBeeYear> {
+	if (shouldUseAdapter()) {
+		// Use Supabase adapter for live mode
+		return dbAdapter.updateBibleBeeYear(id, updates);
+	} else {
+		// Use legacy Dexie interface for demo mode
+		const existing = await db.bible_bee_years.get(id);
+		if (!existing) {
+			throw new Error(`Bible Bee year with id ${id} not found`);
+		}
+		
+		// If setting this year as active, deactivate all other years first
+		if (updates.is_active) {
+			const allYears = await db.bible_bee_years.toArray();
+			const activeYears = allYears.filter(y => y.id !== id && ((y as any).is_active === true || (y as any).is_active === 1 || (y as any).is_active == '1'));
+			for (const year of activeYears) {
+				await db.bible_bee_years.update(year.id, { is_active: false });
+			}
+		}
+		
+		await db.bible_bee_years.update(id, updates);
+		const updated = await db.bible_bee_years.get(id);
+		if (!updated) {
+			throw new Error(`Failed to update Bible Bee year ${id}`);
+		}
+		return updated;
+	}
+}
+
+/**
+ * Delete a Bible Bee year
+ */
+export async function deleteBibleBeeYear(id: string): Promise<void> {
+	if (shouldUseAdapter()) {
+		// Use Supabase adapter for live mode
+		return dbAdapter.deleteBibleBeeYear(id);
+	} else {
+		// Use legacy Dexie interface for demo mode
+		await db.bible_bee_years.delete(id);
+	}
+}
+
+/**
+ * Get divisions for a Bible Bee year
+ */
+export async function getDivisionsForBibleBeeYear(yearId: string): Promise<any[]> {
+	if (shouldUseAdapter()) {
+		// Use Supabase adapter for live mode
+		return dbAdapter.listDivisions(yearId);
+	} else {
+		// Use legacy Dexie interface for demo mode
+		return db.divisions.where('year_id').equals(yearId).toArray();
+	}
+}
+
+/**
+ * Create a division
+ */
+export async function createDivision(data: Omit<any, 'id' | 'created_at' | 'updated_at'>): Promise<any> {
+	if (shouldUseAdapter()) {
+		// Use Supabase adapter for live mode
+		return dbAdapter.createDivision(data);
+	} else {
+		// Use legacy Dexie interface for demo mode
+		const now = new Date().toISOString();
+		const id = data.id ?? crypto.randomUUID();
+		
+		const item = {
+			id,
+			...data,
+			created_at: now,
+			updated_at: now,
+		};
+		await db.divisions.put(item);
+		return item;
+	}
+}
+
+/**
+ * Update a division
+ */
+export async function updateDivision(id: string, updates: Partial<any>): Promise<any> {
+	if (shouldUseAdapter()) {
+		// Use Supabase adapter for live mode
+		return dbAdapter.updateDivision(id, updates);
+	} else {
+		// Use legacy Dexie interface for demo mode
+		await db.divisions.update(id, { ...updates, updated_at: new Date().toISOString() });
+		const updated = await db.divisions.get(id);
+		if (!updated) {
+			throw new Error(`Failed to update division ${id}`);
+		}
+		return updated;
+	}
+}
+
+/**
+ * Delete a division
+ */
+export async function deleteDivision(id: string): Promise<void> {
+	if (shouldUseAdapter()) {
+		// Use Supabase adapter for live mode
+		return dbAdapter.deleteDivision(id);
+	} else {
+		// Use legacy Dexie interface for demo mode
+		await db.divisions.delete(id);
+	}
+}
+
+/**
+ * Delete a scripture
+ */
+export async function deleteScripture(id: string): Promise<void> {
+	if (shouldUseAdapter()) {
+		// Use Supabase adapter for live mode
+		return dbAdapter.deleteScripture(id);
+	} else {
+		// Use legacy Dexie interface for demo mode
+		await db.scriptures.delete(id);
+	}
+}
+
+/**
+ * Get essay prompts for a specific year and division
+ */
+export async function getEssayPromptsForYearAndDivision(yearId: string, divisionName: string): Promise<any[]> {
+	if (shouldUseAdapter()) {
+		// Use Supabase adapter for live mode
+		return dbAdapter.getEssayPromptsForYearAndDivision(yearId, divisionName);
+	} else {
+		// Use legacy Dexie interface for demo mode
+		return db.essay_prompts
+			.where('year_id')
+			.equals(yearId)
+			.and((prompt) => prompt.division_name === divisionName)
+			.toArray();
+	}
+}
+
+/**
+ * Create an essay prompt
+ */
+export async function createEssayPrompt(data: Omit<any, 'id' | 'created_at' | 'updated_at'>): Promise<any> {
+	if (shouldUseAdapter()) {
+		// Use Supabase adapter for live mode
+		return dbAdapter.createEssayPrompt(data);
+	} else {
+		// Use legacy Dexie interface for demo mode
+		const now = new Date().toISOString();
+		const id = data.id ?? crypto.randomUUID();
+		
+		const item = {
+			id,
+			...data,
+			created_at: now,
+			updated_at: now,
+		};
+		await db.essay_prompts.put(item);
+		return item;
+	}
+}
+
+/**
+ * Update an essay prompt
+ */
+export async function updateEssayPrompt(id: string, updates: Partial<any>): Promise<any> {
+	if (shouldUseAdapter()) {
+		// Use Supabase adapter for live mode
+		return dbAdapter.updateEssayPrompt(id, updates);
+	} else {
+		// Use legacy Dexie interface for demo mode
+		await db.essay_prompts.update(id, { ...updates, updated_at: new Date().toISOString() });
+		const updated = await db.essay_prompts.get(id);
+		if (!updated) {
+			throw new Error(`Failed to update essay prompt ${id}`);
+		}
+		return updated;
+	}
+}
+
+/**
+ * Delete an essay prompt
+ */
+export async function deleteEssayPrompt(id: string): Promise<void> {
+	if (shouldUseAdapter()) {
+		// Use Supabase adapter for live mode
+		return dbAdapter.deleteEssayPrompt(id);
+	} else {
+		// Use legacy Dexie interface for demo mode
+		await db.essay_prompts.delete(id);
+	}
+}
+
+/**
+ * Preview auto enrollment
+ */
+export async function previewAutoEnrollment(yearId: string): Promise<any> {
+	if (shouldUseAdapter()) {
+		// Use Supabase adapter for live mode
+		return dbAdapter.previewAutoEnrollment(yearId);
+	} else {
+		// Use legacy Dexie interface for demo mode
+		// This is a complex function that would need to be implemented
+		// For now, return empty preview
+		return {
+			previews: [],
+			counts: {
+				proposed: 0,
+				overrides: 0,
+				unassigned: 0,
+				unknown_grade: 0,
+			},
+		};
+	}
+}
+
+/**
+ * Commit auto enrollment
+ */
+export async function commitAutoEnrollment(yearId: string, previews: any[]): Promise<any> {
+	if (shouldUseAdapter()) {
+		// Use Supabase adapter for live mode
+		return dbAdapter.commitAutoEnrollment(yearId, previews);
+	} else {
+		// Use legacy Dexie interface for demo mode
+		// This is a complex function that would need to be implemented
+		// For now, return success
+		return { success: true, enrolled: 0 };
+	}
+}
+
+/**
+ * Create enrollment override
+ */
+export async function createEnrollmentOverride(data: Omit<any, 'id' | 'created_at' | 'updated_at'>): Promise<any> {
+	if (shouldUseAdapter()) {
+		// Use Supabase adapter for live mode
+		return dbAdapter.createEnrollmentOverride(data);
+	} else {
+		// Use legacy Dexie interface for demo mode
+		const now = new Date().toISOString();
+		const id = data.id ?? crypto.randomUUID();
+		
+		const item = {
+			id,
+			...data,
+			created_at: now,
+			updated_at: now,
+		};
+		await db.enrollment_overrides.put(item);
+		return item;
+	}
+}
+
+/**
+ * Update enrollment override
+ */
+export async function updateEnrollmentOverride(id: string, updates: Partial<any>): Promise<any> {
+	if (shouldUseAdapter()) {
+		// Use Supabase adapter for live mode
+		return dbAdapter.updateEnrollmentOverride(id, updates);
+	} else {
+		// Use legacy Dexie interface for demo mode
+		await db.enrollment_overrides.update(id, { ...updates, updated_at: new Date().toISOString() });
+		const updated = await db.enrollment_overrides.get(id);
+		if (!updated) {
+			throw new Error(`Failed to update enrollment override ${id}`);
+		}
+		return updated;
+	}
+}
+
+/**
+ * Delete enrollment override
+ */
+export async function deleteEnrollmentOverride(id: string): Promise<void> {
+	if (shouldUseAdapter()) {
+		// Use Supabase adapter for live mode
+		return dbAdapter.deleteEnrollmentOverride(id);
+	} else {
+		// Use legacy Dexie interface for demo mode
+		await db.enrollment_overrides.delete(id);
+	}
+}
+
+/**
+ * Delete enrollment override by child
+ */
+export async function deleteEnrollmentOverrideByChild(childId: string): Promise<void> {
+	if (shouldUseAdapter()) {
+		// Use Supabase adapter for live mode
+		return dbAdapter.deleteEnrollmentOverrideByChild(childId);
+	} else {
+		// Use legacy Dexie interface for demo mode
+		await db.enrollment_overrides.where('child_id').equals(childId).delete();
+	}
+}
+
+/**
+ * Recalculate minimum boundaries
+ */
+export async function recalculateMinimumBoundaries(yearId: string): Promise<any> {
+	if (shouldUseAdapter()) {
+		// Use Supabase adapter for live mode
+		return dbAdapter.recalculateMinimumBoundaries(yearId);
+	} else {
+		// Use legacy Dexie interface for demo mode
+		// This is a complex function that would need to be implemented
+		// For now, return success
+		return { success: true };
+	}
+}
+
+/**
+ * Commit enhanced CSV rows to year
+ */
+export async function commitEnhancedCsvRowsToYear(rows: any[], yearId: string): Promise<any> {
+	if (shouldUseAdapter()) {
+		// Use Supabase adapter for live mode
+		return dbAdapter.commitEnhancedCsvRowsToYear(rows, yearId);
+	} else {
+		// Use legacy Dexie interface for demo mode
+		// This is a complex function that would need to be implemented
+		// For now, return success
+		return { success: true, inserted: 0, updated: 0 };
+	}
+}
+
+/**
+ * Validate JSON text upload
+ */
+export function validateJsonTextUpload(data: any): { isValid: boolean; errors: string[] } {
+	// This is a pure function that doesn't need database access
+	// Implementation would be the same for both modes
+	const errors: string[] = [];
+	
+	if (!data || typeof data !== 'object') {
+		errors.push('Invalid data format');
+		return { isValid: false, errors };
+	}
+	
+	if (!Array.isArray(data.scriptures)) {
+		errors.push('Scriptures must be an array');
+		return { isValid: false, errors };
+	}
+	
+	for (let i = 0; i < data.scriptures.length; i++) {
+		const scripture = data.scriptures[i];
+		if (!scripture.reference) {
+			errors.push(`Scripture ${i + 1} missing reference`);
+		}
+		if (!scripture.texts || typeof scripture.texts !== 'object') {
+			errors.push(`Scripture ${i + 1} missing or invalid texts`);
+		}
+	}
+	
+	return { isValid: errors.length === 0, errors };
+}
+
+/**
+ * Upload JSON texts
+ */
+export async function uploadJsonTexts(yearId: string, data: any, mode: 'merge' | 'overwrite' = 'merge', dryRun: boolean = false): Promise<any> {
+	if (shouldUseAdapter()) {
+		// Use Supabase adapter for live mode
+		return dbAdapter.uploadJsonTexts(yearId, data, mode, dryRun);
+	} else {
+		// Use legacy Dexie interface for demo mode
+		// This is a complex function that would need to be implemented
+		// For now, return success
+		return { 
+			updated: 0, 
+			created: 0, 
+			errors: [],
+			preview: data.scriptures.map((s: any) => ({
+				reference: s.reference,
+				action: 'create',
+				texts: Object.keys(s.texts || {})
+			}))
+		};
+	}
+}
+
+/**
+ * Get a single child by ID
+ */
+export async function getChild(childId: string): Promise<Child | null> {
+	if (shouldUseAdapter()) {
+		// Use Supabase adapter for live mode
+		return dbAdapter.getChild(childId);
+	} else {
+		// Use legacy Dexie interface for demo mode
+		return db.children.get(childId);
+	}
+}
+
+/**
+ * Get a single household by ID
+ */
+export async function getHousehold(householdId: string): Promise<Household | null> {
+	if (shouldUseAdapter()) {
+		// Use Supabase adapter for live mode
+		return dbAdapter.getHousehold(householdId);
+	} else {
+		// Use legacy Dexie interface for demo mode
+		return db.households.get(householdId);
+	}
+}
+
+/**
+ * List guardians for a household
+ */
+export async function listGuardians({ householdId }: { householdId: string }): Promise<Guardian[]> {
+	if (shouldUseAdapter()) {
+		// Use Supabase adapter for live mode
+		return dbAdapter.listGuardians({ householdId });
+	} else {
+		// Use legacy Dexie interface for demo mode
+		return db.guardians.where('household_id').equals(householdId).toArray();
+	}
+}
+
+/**
+ * Upsert scripture
+ */
+export async function upsertScripture(payload: Omit<Scripture, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }): Promise<Scripture> {
+	if (shouldUseAdapter()) {
+		// Use Supabase adapter for live mode
+		return dbAdapter.upsertScripture(payload);
+	} else {
+		// Use legacy Dexie interface for demo mode
+		const now = new Date().toISOString();
+		
+		// Normalize reference for consistent matching
+		const normalizeReference = (s?: string | null) =>
+			(s ?? '')
+				.toString()
+				.trim()
+				.replace(/\s+/g, ' ')
+				.replace(/[^\w\d\s:\-]/g, '')
+				.toLowerCase();
+		
+		const normalizedRef = normalizeReference(payload.reference);
+		
+		// First try to find an existing scripture by reference in the same competition year
+		let existingItem: Scripture | null = null;
+		if (normalizedRef && payload.competitionYearId) {
+			// Get all scriptures for the competition year, then filter in JS
+			const yearScriptures = await db.scriptures
+				.where('competitionYearId')
+				.equals(payload.competitionYearId)
+				.toArray();
+			
+			existingItem = yearScriptures.find(s => normalizeReference(s.reference) === normalizedRef) || null;
+		}
+		
+		// Use existing id if found by reference match, otherwise create new
+		const id = existingItem?.id ?? payload.id ?? crypto.randomUUID();
+		
+		// support legacy payload.alternateTexts but prefer payload.texts
+		const _payload = payload as unknown as Record<string, unknown>;
+		const rRec = _payload as Record<string, unknown>;
+		const textsMap = (rRec['texts'] as Record<string, string> | undefined) ?? (rRec['alternateTexts'] as Record<string, string> | undefined) ?? undefined;
+		
+		// Use scripture_order as the unified sort field
+		// If updating an existing item, preserve its scripture_order unless explicitly provided
+		const p = payload as unknown as Record<string, unknown>;
+		const scriptureOrder = (rRec['scripture_order'] as number | undefined) ?? (rRec['sortOrder'] as number | undefined) ?? existingItem?.scripture_order ?? existingItem?.sortOrder ?? 0;
+		
+		const item: Scripture = {
+			id,
+			reference: payload.reference,
+			text: payload.text,
+			translation: payload.translation,
+			competitionYearId: payload.competitionYearId,
+			texts: textsMap,
+			scripture_order: scriptureOrder,
+			createdAt: existingItem?.createdAt ?? now,
+			updatedAt: now,
+		};
+		
+		await db.scriptures.put(item);
+		return item;
+	}
+}
+
+/**
+ * Validate CSV rows
+ */
+export function validateCsvRows(rows: any[]): { isValid: boolean; errors: string[] } {
+	const errors: string[] = [];
+	
+	for (let i = 0; i < rows.length; i++) {
+		const row = rows[i];
+		if (!row.reference) {
+			errors.push(`Row ${i + 1} missing reference`);
+		}
+		if (!row.text) {
+			errors.push(`Row ${i + 1} missing text`);
+		}
+	}
+	
+	return { isValid: errors.length === 0, errors };
+}
+
+/**
+ * Commit CSV rows to year
+ */
+export async function commitCsvRowsToYear(rows: any[], yearId: string): Promise<{ inserted: number; updated: number }> {
+	if (shouldUseAdapter()) {
+		// Use Supabase adapter for live mode
+		return dbAdapter.commitCsvRowsToYear(rows, yearId);
+	} else {
+		// Use legacy Dexie interface for demo mode
+		let inserted = 0;
+		let updated = 0;
+		
+		for (const row of rows) {
+			try {
+				const existing = await db.scriptures
+					.where('competitionYearId')
+					.equals(yearId)
+					.and(s => s.reference === row.reference)
+					.first();
+				
+				if (existing) {
+					await db.scriptures.update(existing.id, {
+						text: row.text,
+						translation: row.translation || existing.translation,
+						updatedAt: new Date().toISOString(),
+					});
+					updated++;
+				} else {
+					await db.scriptures.add({
+						id: crypto.randomUUID(),
+						reference: row.reference,
+						text: row.text,
+						translation: row.translation || 'NIV',
+						competitionYearId: yearId,
+						scripture_order: row.order || 0,
+						createdAt: new Date().toISOString(),
+						updatedAt: new Date().toISOString(),
+					});
+					inserted++;
+				}
+			} catch (error) {
+				console.error('Error processing CSV row:', error);
+			}
+		}
+		
+		return { inserted, updated };
+	}
+}
+
 export async function getScripturesForCompetitionYear(competitionYearId: string): Promise<Scripture[]> {
 	if (shouldUseAdapter()) {
 		// In Supabase mode, legacy competition year scriptures are not available

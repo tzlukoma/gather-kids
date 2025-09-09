@@ -899,9 +899,46 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 		await this.db.divisions.delete(id);
 	}
 
+	// Scripture methods
+	async getScripture(id: string): Promise<Scripture | null> {
+		const result = await this.db.scriptures.get(id);
+		return result || null;
+	}
+
+	async upsertScripture(data: Omit<Scripture, 'created_at' | 'updated_at'> & { id?: string }): Promise<Scripture> {
+		const scripture: Scripture = {
+			...data,
+			id: data.id || crypto.randomUUID(),
+			created_at: new Date().toISOString(),
+			updated_at: new Date().toISOString(),
+		};
+
+		await this.db.scriptures.put(scripture);
+		return scripture;
+	}
+
+	async deleteScripture(id: string): Promise<void> {
+		await this.db.scriptures.delete(id);
+	}
+
+	async listScriptures(filters?: { yearId?: string }): Promise<Scripture[]> {
+		if (filters?.yearId) {
+			return this.db.scriptures.where('year_id').equals(filters.yearId).sortBy('scripture_order');
+		}
+		return this.db.scriptures.orderBy('scripture_order').toArray();
+	}
+
 	async getEssayPrompt(id: string): Promise<EssayPrompt | null> {
 		const result = await this.db.essay_prompts.get(id);
 		return result || null;
+	}
+
+	async getEssayPromptsForYearAndDivision(yearId: string, divisionName: string): Promise<EssayPrompt[]> {
+		return this.db.essay_prompts
+			.where('year_id')
+			.equals(yearId)
+			.and((prompt) => prompt.division_name === divisionName)
+			.toArray();
 	}
 
 	async createEssayPrompt(

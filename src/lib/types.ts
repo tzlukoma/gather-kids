@@ -260,6 +260,18 @@ export interface CompetitionYear {
 }
 
 // New Bible Bee Year interface (enhanced CompetitionYear)
+// Bible Bee Cycle interface (replaces BibleBeeYear)
+export interface BibleBeeCycle {
+    id: string;
+    cycle_id: string; // FK to registration_cycles
+    name: string; // Human-readable name (e.g., "Fall 2025 Bible Bee")
+    description?: string;
+    is_active: boolean;
+    created_at: string;
+    updated_at?: string;
+}
+
+// Legacy BibleBeeYear interface - kept for backwards compatibility during transition
 export interface BibleBeeYear {
     id: string;
     year?: number;
@@ -280,7 +292,7 @@ export interface BibleBeeYear {
 // New Division interface
 export interface Division {
     id: string;
-    year_id: string; // FK to bible_bee_years
+    bible_bee_cycle_id: string; // FK to bible_bee_cycles (was year_id)
     name: string;
     minimum_required: number;
     min_last_order?: number; // calculated minimum boundary
@@ -292,8 +304,8 @@ export interface Division {
 
 export interface Scripture {
     id: string;
-    competitionYearId: string;
-    year_id?: string; // New FK for new system
+    competitionYearId: string; // Legacy field
+    bible_bee_cycle_id?: string; // New FK for bible_bee_cycles system
     reference: string;
     text: string;
     translation?: string;
