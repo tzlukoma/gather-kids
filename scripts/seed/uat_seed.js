@@ -1068,12 +1068,9 @@ async function createEssayPrompt(cycleId, divisionMap) {
 		const essayPromptData = {
 			id: crypto.randomUUID(), // Generate UUID for id (not prompt_id)
 			bible_bee_cycle_id: cycleId, // Use bible_bee_cycle_id as per new schema
-			title: 'Senior Division Essay',
-			prompt:
-				"Reflecting on Romans chapters 1-11, discuss how Paul's teachings on salvation through faith apply to modern Christian life. Include at least three specific scripture references from the assigned passages to support your analysis.",
+			division_name: 'Senior',
 			prompt_text:
 				"Reflecting on Romans chapters 1-11, discuss how Paul's teachings on salvation through faith apply to modern Christian life. Include at least three specific scripture references from the assigned passages to support your analysis.",
-			division_name: 'Senior',
 			due_date: '2026-06-05',
 			created_at: new Date().toISOString(),
 		};
