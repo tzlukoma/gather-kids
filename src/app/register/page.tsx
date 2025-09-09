@@ -528,6 +528,46 @@ function RegisterPageContent() {
 
 	// Get the active registration cycle to use for enrollments
 
+	// Form persistence key for localStorage
+	const FORM_PERSISTENCE_KEY = 'registration-form-data';
+
+	// Load saved form data from localStorage
+	const loadSavedFormData = (): Partial<RegistrationFormValues> => {
+		try {
+			if (typeof window !== 'undefined') {
+				const saved = localStorage.getItem(FORM_PERSISTENCE_KEY);
+				if (saved) {
+					return JSON.parse(saved);
+				}
+			}
+		} catch (error) {
+			console.warn('Failed to load saved form data:', error);
+		}
+		return {};
+	};
+
+	// Save form data to localStorage
+	const saveFormData = (data: RegistrationFormValues) => {
+		try {
+			if (typeof window !== 'undefined') {
+				localStorage.setItem(FORM_PERSISTENCE_KEY, JSON.stringify(data));
+			}
+		} catch (error) {
+			console.warn('Failed to save form data:', error);
+		}
+	};
+
+	// Clear saved form data
+	const clearSavedFormData = () => {
+		try {
+			if (typeof window !== 'undefined') {
+				localStorage.removeItem(FORM_PERSISTENCE_KEY);
+			}
+		} catch (error) {
+			console.warn('Failed to clear saved form data:', error);
+		}
+	};
+
 	const form = useForm<RegistrationFormValues>({
 		resolver: zodResolver(registrationSchema),
 		defaultValues: {
@@ -559,6 +599,7 @@ function RegisterPageContent() {
 				choir_communications_consent: undefined,
 				custom_consents: {},
 			},
+			...loadSavedFormData(), // Merge saved data with defaults
 		},
 	});
 
@@ -581,6 +622,28 @@ function RegisterPageContent() {
 	});
 
 	const childrenData = useWatch({ control: form.control, name: 'children' });
+
+	// Watch form changes and save to localStorage
+	useEffect(() => {
+		const subscription = form.watch((data) => {
+			// Only save if there's actual data (not just empty defaults)
+			const hasData =
+				data.household?.address_line1 ||
+				data.guardians?.some(
+					(g) => g.first_name || g.last_name || g.mobile_phone
+				) ||
+				data.children?.length > 0 ||
+				data.emergencyContact?.first_name ||
+				data.consents?.liability ||
+				data.consents?.photoRelease;
+
+			if (hasData) {
+				saveFormData(data as RegistrationFormValues);
+			}
+		});
+
+		return () => subscription.unsubscribe();
+	}, [form]);
 
 	const { enrolledPrograms, interestPrograms } = useMemo(() => {
 		if (!allMinistries) return { enrolledPrograms: [], interestPrograms: [] };
@@ -1018,6 +1081,9 @@ function RegisterPageContent() {
 				title: 'Registration Submitted!',
 				description: "Thank you! Your family's registration has been received.",
 			});
+
+			// Clear saved form data since registration was successful
+			clearSavedFormData();
 
 			// Check if user is authenticated and should be redirected to household page
 			console.log('DEBUG: Checking redirect conditions:', {
@@ -2153,20 +2219,25 @@ function RegisterPageContent() {
 							</CardContent>
 						</Card>
 
-						<Button
-							type="submit"
-							size="lg"
-							className="w-full md:w-auto"
-							disabled={isSubmitting}>
-							{isSubmitting ? (
-								<div className="flex items-center gap-2">
-									<div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-									{submissionStatus || 'Processing...'}
-								</div>
-							) : (
-								'Submit Registration'
-							)}
-						</Button>
+						<div className="flex flex-col gap-2">
+							<Button
+								type="submit"
+								size="lg"
+								className="w-full md:w-auto"
+								disabled={isSubmitting}>
+								{isSubmitting ? (
+									<div className="flex items-center gap-2">
+										<div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+										{submissionStatus || 'Processing...'}
+									</div>
+								) : (
+									'Submit Registration'
+								)}
+							</Button>
+							<p className="text-xs text-muted-foreground text-center">
+								Your form data is automatically saved as you type
+							</p>
+						</div>
 					</form>
 				</Form>
 			)}
