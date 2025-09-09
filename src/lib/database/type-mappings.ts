@@ -763,6 +763,11 @@ export function supabaseToBrandingSettings(
 		secondary_color: (record as unknown as Record<string, unknown>).secondary_color as string | undefined ?? (record as unknown as Record<string, unknown>).secondaryColor as string | undefined ?? undefined,
 		logo_url: record.logo_url ?? (record as unknown as Record<string, unknown>).logoUrl as string | undefined ?? undefined,
 		org_name: (record as unknown as Record<string, unknown>).org_name as string | undefined ?? (record as unknown as Record<string, unknown>).orgName as string | undefined ?? undefined,
+		app_name: record.app_name ?? undefined,
+		description: record.description ?? undefined,
+		use_logo_only: record.use_logo_only ?? undefined,
+		youtube_url: record.youtube_url ?? undefined,
+		instagram_url: record.instagram_url ?? undefined,
 		created_at: record.created_at || new Date().toISOString(),
 		updated_at: record.updated_at || new Date().toISOString(),
 	}) as BrandingSettingsEntity;

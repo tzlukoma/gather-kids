@@ -149,7 +149,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 									<img
 										src={settings.logo_url}
 										alt={`${settings.app_name || 'gatherKids'} Logo`}
-										className={`h-24 w-auto ${
+										className={`h-16 w-auto ${
 											settings.use_logo_only ? '' : 'max-w-[50%]'
 										} object-contain`}
 									/>

@@ -113,7 +113,8 @@ export default function CreateAccountPage() {
 			console.error('Signup error:', error);
 			toast({
 				title: 'Account Creation Failed',
-				description: error.message || 'Unable to create account. Please try again.',
+				description:
+					error.message || 'Unable to create account. Please try again.',
 				variant: 'destructive',
 			});
 		} finally {
@@ -179,9 +180,9 @@ export default function CreateAccountPage() {
 									<img
 										src={settings.logo_url}
 										alt={`${settings.app_name || 'gatherKids'} Logo`}
-										className={
-											`h-24 w-auto ${settings.use_logo_only ? '' : 'max-w-[50%]'} object-contain`
-										}
+										className={`h-24 w-auto ${
+											settings.use_logo_only ? '' : 'max-w-[50%]'
+										} object-contain`}
 									/>
 									{!settings.use_logo_only && (
 										<span>{settings.app_name || 'gatherKids'}</span>
@@ -255,7 +256,7 @@ export default function CreateAccountPage() {
 								<img
 									src={settings.logo_url}
 									alt={`${settings.app_name || 'gatherKids'} Logo`}
-									className="h-24 w-auto max-w-[50%] object-contain"
+									className="h-16 w-auto max-w-[50%] object-contain"
 								/>
 								{!settings.use_logo_only && (
 									<span>{settings.app_name || 'gatherKids'}</span>
