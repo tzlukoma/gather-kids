@@ -19,6 +19,7 @@ import type {
 	MinistryAccount,
 	BrandingSettings,
 	BibleBeeYear,
+	BibleBeeCycle,
 	Division,
 	EssayPrompt,
 	Enrollment,
@@ -861,47 +862,47 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 		await this.db.bible_bee_years.delete(id);
 	}
 
-	// Bible Bee Cycles (new cycle-based system) - using bible_bee_years table
-	async getBibleBeeCycle(id: string): Promise<BibleBeeYear | null> {
-		const result = await this.db.bible_bee_years.get(id);
+	// Bible Bee Cycles (new cycle-based system)
+	async getBibleBeeCycle(id: string): Promise<BibleBeeCycle | null> {
+		const result = await this.db.bible_bee_cycles.get(id);
 		return result || null;
 	}
 
 	async createBibleBeeCycle(
-		data: Omit<BibleBeeYear, 'id' | 'created_at' | 'updated_at'>
-	): Promise<BibleBeeYear> {
-		const cycle: BibleBeeYear = {
+		data: Omit<BibleBeeCycle, 'id' | 'created_at' | 'updated_at'>
+	): Promise<BibleBeeCycle> {
+		const cycle: BibleBeeCycle = {
 			...data,
 			id: crypto.randomUUID(),
 			created_at: new Date().toISOString(),
 			updated_at: new Date().toISOString(),
 		};
-		await this.db.bible_bee_years.add(cycle);
+		await this.db.bible_bee_cycles.add(cycle);
 		return cycle;
 	}
 
 	async updateBibleBeeCycle(
 		id: string,
-		data: Partial<BibleBeeYear>
-	): Promise<BibleBeeYear> {
-		await this.db.bible_bee_years.update(id, {
+		data: Partial<BibleBeeCycle>
+	): Promise<BibleBeeCycle> {
+		await this.db.bible_bee_cycles.update(id, {
 			...data,
 			updated_at: new Date().toISOString(),
 		});
-		const result = await this.db.bible_bee_years.get(id);
+		const result = await this.db.bible_bee_cycles.get(id);
 		if (!result) throw new Error(`Bible Bee cycle ${id} not found after update`);
 		return result;
 	}
 
-	async listBibleBeeCycles(isActive?: boolean): Promise<BibleBeeYear[]> {
+	async listBibleBeeCycles(isActive?: boolean): Promise<BibleBeeCycle[]> {
 		if (isActive !== undefined) {
-			return this.db.bible_bee_years.where('is_active').equals(isActive ? 1 : 0).toArray();
+			return this.db.bible_bee_cycles.where('is_active').equals(isActive).toArray();
 		}
-		return this.db.bible_bee_years.toArray();
+		return this.db.bible_bee_cycles.toArray();
 	}
 
 	async deleteBibleBeeCycle(id: string): Promise<void> {
-		await this.db.bible_bee_years.delete(id);
+		await this.db.bible_bee_cycles.delete(id);
 	}
 
 	async getDivision(id: string): Promise<Division | null> {
