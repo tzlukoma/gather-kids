@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { getBibleBeeYears, getAllGuardians } from '@/lib/dal';
+import { getAllGuardians, getBibleBeeYears } from '@/lib/dal';
 import {
 	Select,
 	SelectTrigger,
@@ -27,6 +27,8 @@ interface BibleBeeProgressListProps {
 	description?: string;
 	/** Show year selection */
 	showYearSelection?: boolean;
+	/** Bible Bee years data passed from parent to avoid duplicate loading */
+	bibleBeeYears?: any[];
 }
 
 export function BibleBeeProgressList({
@@ -37,6 +39,7 @@ export function BibleBeeProgressList({
 	title,
 	description,
 	showYearSelection = true,
+	bibleBeeYears: propBibleBeeYears,
 }: BibleBeeProgressListProps) {
 	// Helpers
 	function isActiveValue(v: unknown): boolean {
@@ -50,24 +53,37 @@ export function BibleBeeProgressList({
 	const [availableGradeGroups, setAvailableGradeGroups] = useState<string[]>(
 		[]
 	);
-	const [bibleBeeYears, setBibleBeeYears] = useState<any[]>([]);
 
-	// Load Bible Bee years using DAL functions (no longer need competition years)
+	// Use Bible Bee years from props, or load internally if not provided
+	const [internalBibleBeeYears, setInternalBibleBeeYears] = useState<any[]>([]);
+
+	// Load Bible Bee years internally if not provided via props
 	useEffect(() => {
+		if (propBibleBeeYears && propBibleBeeYears.length > 0) {
+			// Use data from props
+			return;
+		}
+
+		// Fallback: load data internally if props are empty/undefined
 		const loadData = async () => {
 			try {
 				const bbYears = await getBibleBeeYears();
-				setBibleBeeYears(bbYears || []);
+				setInternalBibleBeeYears(bbYears || []);
 			} catch (error) {
 				console.error(
 					'BibleBeeProgressList: Error loading Bible Bee data:',
 					error
 				);
-				setBibleBeeYears([]);
+				setInternalBibleBeeYears([]);
 			}
 		};
 		loadData();
-	}, []);
+	}, [propBibleBeeYears]);
+
+	const bibleBeeYears =
+		propBibleBeeYears && propBibleBeeYears.length > 0
+			? propBibleBeeYears
+			: internalBibleBeeYears;
 
 	// Initialize filters from localStorage when possible so tab switches keep state
 	const loadInitial = () => {

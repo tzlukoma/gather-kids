@@ -267,7 +267,10 @@ export default function BibleBeePage() {
 							</CardDescription>
 						</CardHeader>
 						<CardContent>
-							<LeaderBibleBeeProgress cycleId={selectedCycle} />
+							<LeaderBibleBeeProgress
+								cycleId={selectedCycle}
+								bibleBeeYears={bibleBeeYears}
+							/>
 						</CardContent>
 					</Card>
 				</TabsContent>
@@ -346,7 +349,7 @@ export default function BibleBeePage() {
 
 				{canManage && (
 					<TabsContent value="manage">
-						<BibleBeeManage />
+						<BibleBeeManage bibleBeeYears={bibleBeeYears} />
 					</TabsContent>
 				)}
 			</Tabs>

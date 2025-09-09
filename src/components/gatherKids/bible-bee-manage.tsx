@@ -92,6 +92,7 @@ import { useToast } from '@/hooks/use-toast';
 
 interface BibleBeeManageProps {
 	className?: string;
+	bibleBeeYears?: any[]; // Pass Bible Bee years from parent to avoid duplicate loading
 }
 
 // Module-level helper to normalize mixed-type active flags
@@ -99,27 +100,42 @@ function isActiveValue(v: unknown): boolean {
 	return v === true || v === 1 || String(v) === '1' || String(v) === 'true';
 }
 
-export default function BibleBeeManage({ className }: BibleBeeManageProps) {
+export default function BibleBeeManage({
+	className,
+	bibleBeeYears: propBibleBeeYears,
+}: BibleBeeManageProps) {
 	const [activeTab, setActiveTab] = useState('cycles');
 	const [selectedYearId, setSelectedYearId] = useState<string | null>(null);
 
-	// Load Bible Bee cycles using dbAdapter pattern
-	const [bibleBeeCycles, setBibleBeeCycles] = useState<any[]>([]);
+	// Use Bible Bee cycles from props, or load internally if not provided
+	const [internalBibleBeeCycles, setInternalBibleBeeCycles] = useState<any[]>(
+		[]
+	);
 
-	// Load Bible Bee cycles on component mount
+	// Load Bible Bee cycles internally if not provided via props
 	React.useEffect(() => {
+		if (propBibleBeeYears && propBibleBeeYears.length > 0) {
+			// Use data from props
+			return;
+		}
+
+		// Fallback: load data internally if props are empty/undefined
 		const loadBibleBeeCycles = async () => {
 			try {
 				const cycles = await getBibleBeeCycles();
-				setBibleBeeCycles(cycles);
+				setInternalBibleBeeCycles(cycles);
 			} catch (error) {
 				console.error('Error loading Bible Bee cycles:', error);
-				setBibleBeeCycles([]);
+				setInternalBibleBeeCycles([]);
 			}
 		};
-
 		loadBibleBeeCycles();
-	}, []);
+	}, [propBibleBeeYears]);
+
+	const bibleBeeCycles =
+		propBibleBeeYears && propBibleBeeYears.length > 0
+			? propBibleBeeYears
+			: internalBibleBeeCycles;
 
 	// Load old schema competition years as fallback using dbAdapter pattern
 	const [competitionYears, setCompetitionYears] = useState<any[]>([]);
