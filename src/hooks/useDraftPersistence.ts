@@ -6,6 +6,7 @@ interface UseDraftPersistenceOptions {
 	formName: string;
 	version?: number;
 	autoSaveDelay?: number; // debounce delay in ms
+	enabled?: boolean; // whether draft persistence is enabled
 }
 
 interface DraftStatus {
@@ -15,7 +16,7 @@ interface DraftStatus {
 }
 
 export function useDraftPersistence<T>(options: UseDraftPersistenceOptions) {
-	const { formName, version = 1, autoSaveDelay = 1000 } = options;
+	const { formName, version = 1, autoSaveDelay = 1000, enabled = true } = options;
 	const { user } = useAuth();
 	const [draftStatus, setDraftStatus] = useState<DraftStatus>({
 		isSaving: false,
@@ -44,6 +45,8 @@ export function useDraftPersistence<T>(options: UseDraftPersistenceOptions) {
 
 	// Load draft data
 	const loadDraft = useCallback(async (): Promise<T | null> => {
+		if (!enabled) return null;
+		
 		try {
 			const userId = getUserId();
 			const draftData = await dbAdapter.getDraft(formName, userId);
@@ -53,10 +56,12 @@ export function useDraftPersistence<T>(options: UseDraftPersistenceOptions) {
 			setDraftStatus(prev => ({ ...prev, error: 'Failed to load draft' }));
 			return null;
 		}
-	}, [formName, getUserId]);
+	}, [formName, getUserId, enabled]);
 
 	// Save draft data with debouncing
 	const saveDraft = useCallback(async (data: T, immediate = false) => {
+		if (!enabled) return;
+		
 		const dataString = JSON.stringify(data);
 		
 		// Skip saving if data hasn't changed
@@ -99,10 +104,12 @@ export function useDraftPersistence<T>(options: UseDraftPersistenceOptions) {
 			}
 			saveTimeoutRef.current = setTimeout(performSave, autoSaveDelay);
 		}
-	}, [formName, getUserId, version, autoSaveDelay]);
+	}, [formName, getUserId, version, autoSaveDelay, enabled]);
 
 	// Clear draft
 	const clearDraft = useCallback(async () => {
+		if (!enabled) return;
+		
 		try {
 			if (saveTimeoutRef.current) {
 				clearTimeout(saveTimeoutRef.current);
@@ -119,10 +126,12 @@ export function useDraftPersistence<T>(options: UseDraftPersistenceOptions) {
 			console.error('Failed to clear draft:', error);
 			setDraftStatus(prev => ({ ...prev, error: 'Failed to clear draft' }));
 		}
-	}, [formName, getUserId]);
+	}, [formName, getUserId, enabled]);
 
 	// Save on page unload/visibility change
 	useEffect(() => {
+		if (!enabled) return;
+		
 		const handleBeforeUnload = () => {
 			// Force immediate save on page unload
 			if (saveTimeoutRef.current) {
@@ -155,7 +164,7 @@ export function useDraftPersistence<T>(options: UseDraftPersistenceOptions) {
 				clearTimeout(saveTimeoutRef.current);
 			}
 		};
-	}, [formName, getUserId, version]);
+	}, [formName, getUserId, version, enabled]);
 
 	return {
 		loadDraft,

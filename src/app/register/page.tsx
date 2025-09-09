@@ -534,11 +534,12 @@ function RegisterPageContent() {
 
 	// Get the active registration cycle to use for enrollments
 
-	// Draft persistence for form data
+	// Draft persistence for form data (conditional based on feature flag)
 	const { loadDraft, saveDraft, clearDraft, draftStatus } = useDraftPersistence<RegistrationFormValues>({
 		formName: 'registration_v1',
 		version: 1,
 		autoSaveDelay: 1000,
+		enabled: flags.registrationDraftPersistenceEnabled,
 	});
 
 	// Load saved form data from draft
@@ -1239,12 +1240,14 @@ function RegisterPageContent() {
 							children&apos;s ministry programs.
 						</p>
 					</div>
-					<DraftStatusIndicator
-						isSaving={draftStatus.isSaving}
-						lastSaved={draftStatus.lastSaved}
-						error={draftStatus.error}
-						className="mt-2"
-					/>
+					{flags.registrationDraftPersistenceEnabled && (
+						<DraftStatusIndicator
+							isSaving={draftStatus.isSaving}
+							lastSaved={draftStatus.lastSaved}
+							error={draftStatus.error}
+							className="mt-2"
+						/>
+					)}
 				</div>
 			</div>
 

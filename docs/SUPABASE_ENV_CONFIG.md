@@ -55,8 +55,7 @@ NODE_ENV=development
 # Feature flags
 NEXT_PUBLIC_SHOW_DEMO_FEATURES=true
 NEXT_PUBLIC_ENABLE_AI_FEATURES=false
-
-# Supabase development instance
+NEXT_PUBLIC_REGISTRATION_DRAFT_PERSISTENCE_ENABLED=true
 NEXT_PUBLIC_USE_SUPABASE=true
 NEXT_PUBLIC_SUPABASE_URL=http://localhost:54321
 NEXT_PUBLIC_SUPABASE_ANON_KEY=<local-supabase-anon-key>
@@ -86,6 +85,7 @@ NODE_ENV=test
 # Feature flags - disable external dependencies for tests
 NEXT_PUBLIC_SHOW_DEMO_FEATURES=false
 NEXT_PUBLIC_ENABLE_AI_FEATURES=false
+NEXT_PUBLIC_REGISTRATION_DRAFT_PERSISTENCE_ENABLED=false
 
 # Supabase - use IndexedDB mock for most tests
 NEXT_PUBLIC_USE_SUPABASE=false
@@ -111,8 +111,7 @@ NODE_ENV=development
 # Feature flags
 NEXT_PUBLIC_SHOW_DEMO_FEATURES=true
 NEXT_PUBLIC_ENABLE_AI_FEATURES=false
-
-# Supabase development project
+NEXT_PUBLIC_REGISTRATION_DRAFT_PERSISTENCE_ENABLED=true
 NEXT_PUBLIC_USE_SUPABASE=true
 NEXT_PUBLIC_SUPABASE_URL=https://your-dev-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=<dev-anon-key>
@@ -133,8 +132,7 @@ NODE_ENV=production
 # Feature flags
 NEXT_PUBLIC_SHOW_DEMO_FEATURES=true
 NEXT_PUBLIC_ENABLE_AI_FEATURES=false
-
-# Supabase UAT project
+NEXT_PUBLIC_REGISTRATION_DRAFT_PERSISTENCE_ENABLED=true
 NEXT_PUBLIC_USE_SUPABASE=true
 NEXT_PUBLIC_SUPABASE_URL=https://your-uat-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=<uat-anon-key>
@@ -155,8 +153,7 @@ NODE_ENV=production
 # Feature flags
 NEXT_PUBLIC_SHOW_DEMO_FEATURES=false
 NEXT_PUBLIC_ENABLE_AI_FEATURES=false
-
-# Supabase production project
+NEXT_PUBLIC_REGISTRATION_DRAFT_PERSISTENCE_ENABLED=false
 NEXT_PUBLIC_USE_SUPABASE=true
 NEXT_PUBLIC_SUPABASE_URL=https://your-production-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=<production-anon-key>
@@ -208,6 +205,7 @@ jobs:
           echo "NODE_ENV=production" >> .env.preview
           echo "NEXT_PUBLIC_SHOW_DEMO_FEATURES=true" >> .env.preview
           echo "NEXT_PUBLIC_ENABLE_AI_FEATURES=false" >> .env.preview
+          echo "NEXT_PUBLIC_REGISTRATION_DRAFT_PERSISTENCE_ENABLED=true" >> .env.preview
           echo "NEXT_PUBLIC_USE_SUPABASE=true" >> .env.preview
           echo "NEXT_PUBLIC_SUPABASE_URL=${{ secrets.SUPABASE_UAT_URL }}" >> .env.preview
           echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.SUPABASE_UAT_ANON_KEY }}" >> .env.preview
