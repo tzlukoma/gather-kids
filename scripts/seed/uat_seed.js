@@ -1270,7 +1270,7 @@ async function createMinistries() {
 					type: 'checkbox',
 				},
 			],
-			is_active: true,
+			is_active: false,
 		},
 		{
 			ministry_id: `${EXTERNAL_ID_PREFIX}symphonic_orchestra`,
@@ -1352,7 +1352,7 @@ async function createMinistries() {
 			code: 'international-travel',
 			enrollment_type: 'expressed_interest',
 			data_profile: 'Basic',
-			is_active: true,
+			is_active: false,
 		},
 		{
 			ministry_id: `${EXTERNAL_ID_PREFIX}orators`,
