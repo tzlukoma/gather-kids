@@ -1,0 +1,225 @@
+# Daily Ministry/Admin Digest Emails
+
+This document describes the daily digest email system that automatically sends enrollment summaries to ministry leaders and administrators.
+
+## Overview
+
+The daily digest system sends two types of emails:
+
+1. **Per-Ministry Digest** → sent to each ministry's configured contact email
+2. **Admin Digest** → consolidated across all ministries, sent to all admin users
+
+The system runs via GitHub Actions on a daily schedule and uses Mailjet as the email transport.
+
+## Features
+
+- **Scheduled execution**: Runs daily at 7:00 AM ET (11:00 UTC)
+- **Manual trigger**: Can be triggered manually via GitHub Actions
+- **Checkpoint tracking**: Prevents duplicate sends by tracking last run timestamp
+- **Dry run mode**: Test functionality without sending actual emails
+- **Flexible transport**: Configurable email provider (Mailjet API currently supported)
+- **Error handling**: Failed sends don't advance checkpoint, allowing retry on next run
+
+## Setup Instructions
+
+### 1. Mailjet Account Setup
+
+1. **Sign up** at [mailjet.com](https://mailjet.com) (free plan: 200 emails/day)
+2. **Verify your domain** to send from custom addresses:
+   - Add DNS records for SPF + DKIM (Mailjet provides them)
+   - Once verified, you can use any @yourdomain.com address
+3. **Get API credentials**:
+   - Navigate to Account → API Keys
+   - Copy your `MJ_API_KEY` and `MJ_API_SECRET`
+
+### 2. GitHub Secrets Configuration
+
+Add the following secrets in your repository (Settings → Secrets and variables → Actions):
+
+| Secret Name | Description | Example |
+|-------------|-------------|---------|
+| `SUPABASE_URL` | Your Supabase project URL | `https://xxx.supabase.co` |
+| `SUPABASE_SERVICE_ROLE` | Service role key with read access | `eyJ...` |
+| `MJ_API_KEY` | Mailjet API public key | `abc123...` |
+| `MJ_API_SECRET` | Mailjet API private key | `def456...` |
+| `FROM_EMAIL` | Verified sender email address | `no-reply@yourdomain.com` |
+| `EMAIL_MODE` | Email transport mode (optional) | `mailjet` |
+
+### 3. Database Migration
+
+The system requires a checkpoint table to track the last run timestamp:
+
+```sql
+-- This migration is already included in the repository
+-- Run: supabase migration up
+-- File: supabase/migrations/20250910134652_add_daily_digest_checkpoints.sql
+```
+
+## Usage
+
+### Automated Execution
+
+The workflow runs automatically every day at 7:00 AM ET via GitHub Actions cron schedule:
+
+```yaml
+# .github/workflows/daily-digest.yml
+on:
+  schedule:
+    - cron: "0 11 * * *" # 7 AM ET (11:00 UTC during EDT)
+```
+
+### Manual Execution
+
+1. Go to your repository's **Actions** tab
+2. Select **Daily Digest** workflow
+3. Click **Run workflow** button
+4. Choose the branch and click **Run workflow**
+
+### Local Testing
+
+For local development and testing:
+
+1. **Copy environment template**:
+   ```bash
+   cp .env.digest.example .env.digest.local
+   ```
+
+2. **Update with your credentials**:
+   ```bash
+   # .env.digest.local
+   SUPABASE_URL=http://localhost:54321
+   SUPABASE_SERVICE_ROLE=your-local-service-key
+   MJ_API_KEY=your-mailjet-key
+   MJ_API_SECRET=your-mailjet-secret
+   FROM_EMAIL=no-reply@yourdomain.com
+   EMAIL_MODE=mailjet
+   ```
+
+3. **Run in dry mode** (no actual emails sent):
+   ```bash
+   DOTENV_CONFIG_PATH=.env.digest.local DRY_RUN=true node -r dotenv/config scripts/dailyDigest.js
+   ```
+
+4. **Run with actual sending**:
+   ```bash
+   DOTENV_CONFIG_PATH=.env.digest.local node -r dotenv/config scripts/dailyDigest.js
+   ```
+
+## Configuration
+
+### Environment Variables
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `SUPABASE_URL` | Yes | - | Supabase project URL |
+| `SUPABASE_SERVICE_ROLE` | Yes | - | Service role key with read access |
+| `MJ_API_KEY` | Yes* | - | Mailjet API public key |
+| `MJ_API_SECRET` | Yes* | - | Mailjet API private key |
+| `FROM_EMAIL` | Yes | - | Verified sender email address |
+| `EMAIL_MODE` | No | `mailjet` | Email transport (`mailjet` or `smtp`) |
+| `DRY_RUN` | No | `false` | Test mode - logs actions without sending |
+
+*Required when `EMAIL_MODE=mailjet`
+
+### Ministry Configuration
+
+Ministries must have a `contact_email` configured to receive digest emails:
+
+```sql
+UPDATE ministries 
+SET email = 'leader@yourdomain.com' 
+WHERE ministry_id = 'your-ministry-id';
+```
+
+### Admin Configuration
+
+Users with role `ADMIN` and `is_active = true` will receive the consolidated admin digest.
+
+## Email Templates
+
+### Ministry Digest Email
+
+- **Subject**: `New Enrollments for [Ministry Name] - Daily Digest`
+- **Content**: List of new child enrollments with:
+  - Child name and date of birth
+  - Household information and contact email
+  - Enrollment timestamp
+
+### Admin Digest Email
+
+- **Subject**: `New Ministry Enrollments - Admin Daily Digest ([X] total)`
+- **Content**: Consolidated view across all ministries with:
+  - Total enrollment count
+  - Breakdown by ministry
+  - All child and household details
+
+## Monitoring and Troubleshooting
+
+### GitHub Actions Logs
+
+1. Go to **Actions** tab in your repository
+2. Click on **Daily Digest** workflow
+3. View logs for specific runs to see:
+   - Number of enrollments processed
+   - Email sending results
+   - Any errors encountered
+
+### Common Issues
+
+| Issue | Cause | Solution |
+|-------|-------|----------|
+| "Checkpoint table not found" | Migration not run | Run `supabase migration up` |
+| "Missing required environment variables" | Secrets not configured | Add secrets in GitHub repository settings |
+| "No new enrollments found" | Normal operation | No action needed - checkpoint still updated |
+| Email sending failures | Invalid Mailjet credentials or domain not verified | Verify Mailjet setup and domain configuration |
+
+### Manual Checkpoint Reset
+
+If you need to re-send emails for a specific time period:
+
+```sql
+-- Reset checkpoint to send emails from 3 days ago
+UPDATE daily_digest_checkpoints 
+SET last_run_at = NOW() - INTERVAL '3 days'
+WHERE checkpoint_name = 'daily_digest';
+```
+
+## Testing
+
+### Automated Tests
+
+Run the test suite:
+
+```bash
+npm test -- --testPathPatterns="daily-digest"
+```
+
+### Manual Testing Checklist
+
+- [ ] Seed test data with new enrollments in multiple ministries
+- [ ] Trigger workflow manually
+- [ ] Verify ministry leaders receive only their enrollments
+- [ ] Verify admins receive consolidated digest
+- [ ] Test with no new enrollments (should skip sending)
+- [ ] Test with ministry missing contact email (should skip with log)
+- [ ] Test failure recovery (checkpoint not advanced on failure)
+
+## Future Enhancements
+
+- [ ] SMTP transport support for other email providers
+- [ ] Email template customization
+- [ ] Frequency configuration (weekly/monthly digests)
+- [ ] Unsubscribe functionality
+- [ ] Rich HTML email templates with branding
+- [ ] Attachment support for detailed reports
+
+## Support
+
+For issues or questions:
+
+1. Check GitHub Actions logs for error details
+2. Review this documentation for configuration requirements
+3. Create an issue in the repository with:
+   - Error messages from logs
+   - Environment configuration (without sensitive values)
+   - Steps to reproduce the issue

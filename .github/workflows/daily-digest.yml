@@ -1,0 +1,42 @@
+name: Daily Digest
+
+on:
+  schedule:
+    # Run at 7:00 AM ET (11:00 UTC during EDT, 12:00 UTC during EST)
+    # Using 11:00 UTC as it covers EDT; adjust for EST if needed
+    - cron: "0 11 * * *"
+  workflow_dispatch: {}
+
+jobs:
+  digest:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE: ${{ secrets.SUPABASE_SERVICE_ROLE }}
+      MJ_API_KEY: ${{ secrets.MJ_API_KEY }}
+      MJ_API_SECRET: ${{ secrets.MJ_API_SECRET }}
+      FROM_EMAIL: ${{ secrets.FROM_EMAIL }}
+      EMAIL_MODE: ${{ secrets.EMAIL_MODE || 'mailjet' }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run daily digest
+        run: node scripts/dailyDigest.js
+
+      - name: Log completion
+        if: success()
+        run: echo "Daily digest completed successfully at $(date)"
+
+      - name: Log failure
+        if: failure()
+        run: echo "Daily digest failed at $(date)"
