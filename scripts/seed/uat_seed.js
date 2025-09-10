@@ -2828,6 +2828,8 @@ async function verifyTableCleared(tableName, filterCondition) {
 	// Apply the same filter used for deletion
 	if (filterCondition.type === 'external_id') {
 		query = query.like('external_id', `${EXTERNAL_ID_PREFIX}%`);
+	} else if (filterCondition.type === 'ministry_id') {
+		query = query.like('ministry_id', `${EXTERNAL_ID_PREFIX}%`);
 	} else if (filterCondition.type === 'contact_id') {
 		query = query.like('contact_id', `${EXTERNAL_ID_PREFIX}%`);
 	} else if (filterCondition.type === 'cycle_id') {
@@ -3099,6 +3101,7 @@ async function resetUATData() {
 		{ table: 'households', filter: { type: 'external_id' } },
 
 		// Level 5: Ministry structure
+		{ table: 'ministry_accounts', filter: { type: 'ministry_id' } },
 		{ table: 'leader_assignments', filter: { type: 'all_records' } },
 		{ table: 'ministries', filter: { type: 'external_id' } },
 	];
@@ -3124,6 +3127,11 @@ async function resetUATData() {
 						.from(table)
 						.delete()
 						.like('external_id', `${EXTERNAL_ID_PREFIX}%`);
+				} else if (filter.type === 'ministry_id') {
+					result = await supabase
+						.from(table)
+						.delete()
+						.like('ministry_id', `${EXTERNAL_ID_PREFIX}%`);
 				} else if (filter.type === 'contact_id') {
 					result = await supabase
 						.from(table)
