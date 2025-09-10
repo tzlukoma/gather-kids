@@ -2879,7 +2879,7 @@ async function createMinistryEnrollments(activeCycleId) {
 /**
  * Create household registrations with multiple ministry enrollments
  */
-async function createHouseholdRegistrations() {
+async function createHouseholdRegistrations(registrationCycleId) {
 	try {
 		console.log(
 			'📋 Creating household registrations with ministry enrollments...'
@@ -2946,7 +2946,7 @@ async function createHouseholdRegistrations() {
 		);
 
 		// Create or get the registration cycle
-		const activeCycleId = await createRegistrationCycle();
+		const activeCycleId = registrationCycleId;
 
 		// Create registrations for each child in each household
 		for (const household of households) {
@@ -3650,7 +3650,7 @@ async function seedUATData() {
 		await createMinistryEnrollments(registrationCycleId);
 
 		// Create household registrations with multiple ministry enrollments
-		await createHouseholdRegistrations();
+		await createHouseholdRegistrations(registrationCycleId);
 
 		// Create events for check-in functionality
 		await createEvents();
