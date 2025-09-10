@@ -21,6 +21,7 @@ const { createMinistry, saveMinistryAccount } = require('../../src/lib/dal');
 // Initialize Supabase client
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const DRY_RUN = process.env.DRY_RUN === 'true';
 
 if (!supabaseUrl || !supabaseServiceKey) {
 	console.error('❌ Missing required environment variables:');
@@ -241,6 +242,11 @@ async function createMinistries() {
 	console.log('📋 Starting ministry creation for production...');
 	console.log(`📊 Found ${ministriesData.length} ministries to process`);
 
+	if (DRY_RUN) {
+		console.log('🧪 DRY RUN MODE - No changes will be made');
+		console.log('===============================================');
+	}
+
 	for (const ministryData of ministriesData) {
 		try {
 			// Check if ministry already exists by code
@@ -255,6 +261,27 @@ async function createMinistries() {
 					`⏭️  Ministry already exists: ${ministryData.name} (${ministryData.code})`
 				);
 				counters.skipped++;
+				continue;
+			}
+
+			if (DRY_RUN) {
+				console.log(`[DRY RUN] Would create ministry: ${ministryData.name}`);
+				console.log(`[DRY RUN] Code: ${ministryData.code}`);
+				console.log(`[DRY RUN] Active: ${ministryData.is_active}`);
+				console.log(
+					`[DRY RUN] Enrollment Type: ${ministryData.enrollment_type}`
+				);
+				console.log(`[DRY RUN] Data Profile: ${ministryData.data_profile}`);
+				if (ministryData.custom_questions) {
+					console.log(
+						`[DRY RUN] Custom Questions: ${ministryData.custom_questions.length} questions`
+					);
+				}
+				console.log(
+					`[DRY RUN] Ministry account would be created manually through UI`
+				);
+				console.log('---');
+				counters.ministries++;
 				continue;
 			}
 
@@ -289,6 +316,9 @@ async function main() {
 	console.log('🚀 Starting Production Ministry Seeding...');
 	console.log('📡 Connecting to:', supabaseUrl);
 	console.log('🔑 Using service role key');
+	if (DRY_RUN) {
+		console.log('🧪 DRY RUN MODE - No changes will be made');
+	}
 	console.log('');
 
 	try {
@@ -296,11 +326,19 @@ async function main() {
 
 		console.log('');
 		console.log('📊 Summary:');
-		console.log(`   ✅ Ministries created: ${counters.ministries}`);
-		console.log(
-			`   ⏭️  Ministries skipped (already exist): ${counters.skipped}`
-		);
-		console.log(`   ❌ Errors: ${counters.errors}`);
+		if (DRY_RUN) {
+			console.log(`   🧪 Would create ministries: ${counters.ministries}`);
+			console.log(
+				`   ⏭️  Ministries skipped (already exist): ${counters.skipped}`
+			);
+			console.log(`   ❌ Errors: ${counters.errors}`);
+		} else {
+			console.log(`   ✅ Ministries created: ${counters.ministries}`);
+			console.log(
+				`   ⏭️  Ministries skipped (already exist): ${counters.skipped}`
+			);
+			console.log(`   ❌ Errors: ${counters.errors}`);
+		}
 		console.log('');
 		console.log('📝 Next Steps:');
 		console.log('   1. Log into the production admin interface');
@@ -308,7 +346,11 @@ async function main() {
 		console.log('   3. Add email addresses for each ministry through the UI');
 		console.log('   4. Assign ministry leaders as needed');
 		console.log('');
-		console.log('✅ Production ministry seeding completed successfully!');
+		if (DRY_RUN) {
+			console.log('🧪 Dry run completed successfully!');
+		} else {
+			console.log('✅ Production ministry seeding completed successfully!');
+		}
 	} catch (error) {
 		console.error('❌ FATAL ERROR:', error.message);
 		console.error('Stack trace:', error.stack);
