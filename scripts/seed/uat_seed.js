@@ -7,7 +7,7 @@
  * - Bible Bee 2025-2026 year with divisions
  * - 32 scriptures with NIV, KJV, and NIV Spanish texts
  * - Senior Division essay prompt
- * - 12 households with 33 children
+ * - 10 households with 1-3 children each (20 total children)
  * - Ministry enrollments
  * - Optional auth user for portal testing
  *
@@ -1833,6 +1833,7 @@ async function createMinistryLeaders() {
  * Create households, guardians, and children
  */
 async function createHouseholdsAndFamilies() {
+	// Create 10 households with 1-3 children each for more realistic distribution
 	const householdsData = [
 		{
 			external_id: `${EXTERNAL_ID_PREFIX}household_1`,
@@ -1843,7 +1844,8 @@ async function createHouseholdsAndFamilies() {
 			state: 'CA',
 			zip: '12345',
 			primary_phone: '555-123-4567',
-			email: 'john.smith@example.com', // Match primary guardian's email
+			email: 'john.smith@example.com',
+			childrenCount: 2, // 2 children
 		},
 		{
 			external_id: `${EXTERNAL_ID_PREFIX}household_2`,
@@ -1854,7 +1856,8 @@ async function createHouseholdsAndFamilies() {
 			state: 'CA',
 			zip: '67890',
 			primary_phone: '555-234-5678',
-			email: 'bob.johnson@example.com', // Match primary guardian's email
+			email: 'bob.johnson@example.com',
+			childrenCount: 1, // 1 child
 		},
 		{
 			external_id: `${EXTERNAL_ID_PREFIX}household_3`,
@@ -1865,7 +1868,92 @@ async function createHouseholdsAndFamilies() {
 			state: 'CA',
 			zip: '54321',
 			primary_phone: '555-345-6789',
-			email: 'carol.davis@example.com', // Match primary guardian's email
+			email: 'carol.davis@example.com',
+			childrenCount: 3, // 3 children
+		},
+		{
+			external_id: `${EXTERNAL_ID_PREFIX}household_4`,
+			name: 'The Wilson Family',
+			address_line1: '321 Elm St',
+			address_line2: '',
+			city: 'Nowhere',
+			state: 'CA',
+			zip: '98765',
+			primary_phone: '555-456-7890',
+			email: 'mike.wilson@example.com',
+			childrenCount: 2, // 2 children
+		},
+		{
+			external_id: `${EXTERNAL_ID_PREFIX}household_5`,
+			name: 'The Brown Family',
+			address_line1: '654 Maple Ave',
+			address_line2: 'Unit 3',
+			city: 'Everywhere',
+			state: 'CA',
+			zip: '13579',
+			primary_phone: '555-567-8901',
+			email: 'sarah.brown@example.com',
+			childrenCount: 1, // 1 child
+		},
+		{
+			external_id: `${EXTERNAL_ID_PREFIX}household_6`,
+			name: 'The Garcia Family',
+			address_line1: '987 Cedar Ln',
+			address_line2: '',
+			city: 'Anywhere',
+			state: 'CA',
+			zip: '24680',
+			primary_phone: '555-678-9012',
+			email: 'carlos.garcia@example.com',
+			childrenCount: 3, // 3 children
+		},
+		{
+			external_id: `${EXTERNAL_ID_PREFIX}household_7`,
+			name: 'The Miller Family',
+			address_line1: '147 Birch Dr',
+			address_line2: '',
+			city: 'Somewhere',
+			state: 'CA',
+			zip: '97531',
+			primary_phone: '555-789-0123',
+			email: 'lisa.miller@example.com',
+			childrenCount: 2, // 2 children
+		},
+		{
+			external_id: `${EXTERNAL_ID_PREFIX}household_8`,
+			name: 'The Taylor Family',
+			address_line1: '258 Spruce Way',
+			address_line2: 'Apt 5',
+			city: 'Elsewhere',
+			state: 'CA',
+			zip: '86420',
+			primary_phone: '555-890-1234',
+			email: 'james.taylor@example.com',
+			childrenCount: 1, // 1 child
+		},
+		{
+			external_id: `${EXTERNAL_ID_PREFIX}household_9`,
+			name: 'The Anderson Family',
+			address_line1: '369 Willow St',
+			address_line2: '',
+			city: 'Nowhere',
+			state: 'CA',
+			zip: '75319',
+			primary_phone: '555-901-2345',
+			email: 'maria.anderson@example.com',
+			childrenCount: 3, // 3 children
+		},
+		{
+			external_id: `${EXTERNAL_ID_PREFIX}household_10`,
+			name: 'The Thomas Family',
+			address_line1: '741 Poplar Ave',
+			address_line2: '',
+			city: 'Everywhere',
+			state: 'CA',
+			zip: '64208',
+			primary_phone: '555-012-3456',
+			email: 'robert.thomas@example.com',
+			childrenCount: 2, // 2 children
 		},
 	];
 
@@ -1880,16 +1968,65 @@ async function createHouseholdsAndFamilies() {
 		},
 		{
 			external_id: `${EXTERNAL_ID_PREFIX}emergency_2`,
-			first_name: 'Bob',
+			first_name: 'Mary',
 			last_name: 'Johnson',
 			mobile_phone: '555-876-5432',
-			relationship: 'Father',
+			relationship: 'Mother',
 		},
 		{
 			external_id: `${EXTERNAL_ID_PREFIX}emergency_3`,
 			first_name: 'Carol',
 			last_name: 'Davis',
 			mobile_phone: '555-765-4321',
+			relationship: 'Mother',
+		},
+		{
+			external_id: `${EXTERNAL_ID_PREFIX}emergency_4`,
+			first_name: 'Susan',
+			last_name: 'Wilson',
+			mobile_phone: '555-654-3210',
+			relationship: 'Mother',
+		},
+		{
+			external_id: `${EXTERNAL_ID_PREFIX}emergency_5`,
+			first_name: 'Jennifer',
+			last_name: 'Brown',
+			mobile_phone: '555-543-2109',
+			relationship: 'Mother',
+		},
+		{
+			external_id: `${EXTERNAL_ID_PREFIX}emergency_6`,
+			first_name: 'Elena',
+			last_name: 'Garcia',
+			mobile_phone: '555-432-1098',
+			relationship: 'Mother',
+		},
+		{
+			external_id: `${EXTERNAL_ID_PREFIX}emergency_7`,
+			first_name: 'Patricia',
+			last_name: 'Miller',
+			mobile_phone: '555-321-0987',
+			relationship: 'Mother',
+		},
+		{
+			external_id: `${EXTERNAL_ID_PREFIX}emergency_8`,
+			first_name: 'Michelle',
+			last_name: 'Taylor',
+			mobile_phone: '555-210-9876',
+			relationship: 'Mother',
+		},
+		{
+			external_id: `${EXTERNAL_ID_PREFIX}emergency_9`,
+			first_name: 'Linda',
+			last_name: 'Anderson',
+			mobile_phone: '555-109-8765',
+			relationship: 'Mother',
+		},
+		{
+			external_id: `${EXTERNAL_ID_PREFIX}emergency_10`,
+			first_name: 'Nancy',
+			last_name: 'Thomas',
+			mobile_phone: '555-098-7654',
 			relationship: 'Mother',
 		},
 	];
@@ -1913,33 +2050,32 @@ async function createHouseholdsAndFamilies() {
 		if (DRY_RUN) {
 			// In dry run mode, use a mock UUID
 			const mockId = 'dry-run-household-id';
-			console.log(
-				`✅ [DRY RUN] Created household: ${householdData.household_name}`
-			);
+			console.log(`✅ [DRY RUN] Created household: ${householdData.name}`);
 			counters.households++;
 			householdIds.push(mockId);
 			continue;
 		}
 
+		// Remove childrenCount from the data before inserting (it's not a database column)
+		const { childrenCount, ...insertData } = householdData;
+
 		// In production mode, check if household exists
 		const { data: existing, error: checkError } = await supabase
 			.from('households')
 			.select('household_id')
-			.eq('external_id', householdData.external_id)
+			.eq('external_id', insertData.external_id)
 			.single();
 
 		if (checkError && checkError.code !== 'PGRST116') {
 			throw new Error(
-				`Error checking household ${householdData.household_name}: ${checkError.message}`
+				`Error checking household ${insertData.name}: ${checkError.message}`
 			);
 		}
 
 		let householdId;
 		if (existing) {
 			householdId = existing.household_id;
-			console.log(
-				`✅ Household already exists: ${householdData.household_name}`
-			);
+			console.log(`✅ Household already exists: ${insertData.name}`);
 			console.log(
 				`📊 DEBUG - Found existing household, ID: ${householdId}, type: ${typeof householdId}`
 			);
@@ -1992,22 +2128,22 @@ async function createHouseholdsAndFamilies() {
 		} else {
 			// Create a new household with a proper UUID
 			const uuid = generateUUID();
-			householdData.household_id = uuid;
+			insertData.household_id = uuid;
 
 			const { data: newHousehold, error: insertError } = await supabase
 				.from('households')
-				.insert(householdData)
+				.insert(insertData)
 				.select('household_id')
 				.single();
 
 			if (insertError) {
 				throw new Error(
-					`Failed to create household ${householdData.household_name}: ${insertError.message}`
+					`Failed to create household ${insertData.name}: ${insertError.message}`
 				);
 			}
 
 			householdId = newHousehold.household_id;
-			console.log(`✅ Created household: ${householdData.household_name}`);
+			console.log(`✅ Created household: ${insertData.name}`);
 			console.log(`📊 DEBUG - Created household with UUID: ${householdId}`);
 			counters.households++;
 		}
@@ -2060,8 +2196,9 @@ async function createHouseholdsAndFamilies() {
 		}
 	}
 
-	// Create guardians
+	// Create guardians (2 per household = 20 total)
 	const guardiansData = [
+		// Household 1 - Smith Family (2 children)
 		{
 			external_id: `${EXTERNAL_ID_PREFIX}guardian_1`,
 			household_id: householdIds[0],
@@ -2082,6 +2219,7 @@ async function createHouseholdsAndFamilies() {
 			relationship: 'Mother',
 			is_primary: false,
 		},
+		// Household 2 - Johnson Family (1 child)
 		{
 			external_id: `${EXTERNAL_ID_PREFIX}guardian_3`,
 			household_id: householdIds[1],
@@ -2102,6 +2240,7 @@ async function createHouseholdsAndFamilies() {
 			relationship: 'Mother',
 			is_primary: false,
 		},
+		// Household 3 - Davis Family (3 children)
 		{
 			external_id: `${EXTERNAL_ID_PREFIX}guardian_5`,
 			household_id: householdIds[2],
@@ -2110,7 +2249,7 @@ async function createHouseholdsAndFamilies() {
 			email: 'david.davis@example.com',
 			mobile_phone: '555-345-6789',
 			relationship: 'Father',
-			is_primary: false,
+			is_primary: true,
 		},
 		{
 			external_id: `${EXTERNAL_ID_PREFIX}guardian_6`,
@@ -2120,7 +2259,154 @@ async function createHouseholdsAndFamilies() {
 			email: 'carol.davis@example.com',
 			mobile_phone: '555-765-4321',
 			relationship: 'Mother',
+			is_primary: false,
+		},
+		// Household 4 - Wilson Family (2 children)
+		{
+			external_id: `${EXTERNAL_ID_PREFIX}guardian_7`,
+			household_id: householdIds[3],
+			first_name: 'Mike',
+			last_name: 'Wilson',
+			email: 'mike.wilson@example.com',
+			mobile_phone: '555-456-7890',
+			relationship: 'Father',
 			is_primary: true,
+		},
+		{
+			external_id: `${EXTERNAL_ID_PREFIX}guardian_8`,
+			household_id: householdIds[3],
+			first_name: 'Susan',
+			last_name: 'Wilson',
+			email: 'susan.wilson@example.com',
+			mobile_phone: '555-654-3210',
+			relationship: 'Mother',
+			is_primary: false,
+		},
+		// Household 5 - Brown Family (1 child)
+		{
+			external_id: `${EXTERNAL_ID_PREFIX}guardian_9`,
+			household_id: householdIds[4],
+			first_name: 'Tom',
+			last_name: 'Brown',
+			email: 'tom.brown@example.com',
+			mobile_phone: '555-567-8901',
+			relationship: 'Father',
+			is_primary: true,
+		},
+		{
+			external_id: `${EXTERNAL_ID_PREFIX}guardian_10`,
+			household_id: householdIds[4],
+			first_name: 'Jennifer',
+			last_name: 'Brown',
+			email: 'jennifer.brown@example.com',
+			mobile_phone: '555-543-2109',
+			relationship: 'Mother',
+			is_primary: false,
+		},
+		// Household 6 - Garcia Family (3 children)
+		{
+			external_id: `${EXTERNAL_ID_PREFIX}guardian_11`,
+			household_id: householdIds[5],
+			first_name: 'Carlos',
+			last_name: 'Garcia',
+			email: 'carlos.garcia@example.com',
+			mobile_phone: '555-678-9012',
+			relationship: 'Father',
+			is_primary: true,
+		},
+		{
+			external_id: `${EXTERNAL_ID_PREFIX}guardian_12`,
+			household_id: householdIds[5],
+			first_name: 'Elena',
+			last_name: 'Garcia',
+			email: 'elena.garcia@example.com',
+			mobile_phone: '555-432-1098',
+			relationship: 'Mother',
+			is_primary: false,
+		},
+		// Household 7 - Miller Family (2 children)
+		{
+			external_id: `${EXTERNAL_ID_PREFIX}guardian_13`,
+			household_id: householdIds[6],
+			first_name: 'Mark',
+			last_name: 'Miller',
+			email: 'mark.miller@example.com',
+			mobile_phone: '555-789-0123',
+			relationship: 'Father',
+			is_primary: true,
+		},
+		{
+			external_id: `${EXTERNAL_ID_PREFIX}guardian_14`,
+			household_id: householdIds[6],
+			first_name: 'Lisa',
+			last_name: 'Miller',
+			email: 'lisa.miller@example.com',
+			mobile_phone: '555-321-0987',
+			relationship: 'Mother',
+			is_primary: false,
+		},
+		// Household 8 - Taylor Family (1 child)
+		{
+			external_id: `${EXTERNAL_ID_PREFIX}guardian_15`,
+			household_id: householdIds[7],
+			first_name: 'James',
+			last_name: 'Taylor',
+			email: 'james.taylor@example.com',
+			mobile_phone: '555-890-1234',
+			relationship: 'Father',
+			is_primary: true,
+		},
+		{
+			external_id: `${EXTERNAL_ID_PREFIX}guardian_16`,
+			household_id: householdIds[7],
+			first_name: 'Michelle',
+			last_name: 'Taylor',
+			email: 'michelle.taylor@example.com',
+			mobile_phone: '555-210-9876',
+			relationship: 'Mother',
+			is_primary: false,
+		},
+		// Household 9 - Anderson Family (3 children)
+		{
+			external_id: `${EXTERNAL_ID_PREFIX}guardian_17`,
+			household_id: householdIds[8],
+			first_name: 'Paul',
+			last_name: 'Anderson',
+			email: 'paul.anderson@example.com',
+			mobile_phone: '555-901-2345',
+			relationship: 'Father',
+			is_primary: true,
+		},
+		{
+			external_id: `${EXTERNAL_ID_PREFIX}guardian_18`,
+			household_id: householdIds[8],
+			first_name: 'Maria',
+			last_name: 'Anderson',
+			email: 'maria.anderson@example.com',
+			mobile_phone: '555-109-8765',
+			relationship: 'Mother',
+			is_primary: false,
+		},
+		// Household 10 - Thomas Family (2 children)
+		{
+			external_id: `${EXTERNAL_ID_PREFIX}guardian_19`,
+			household_id: householdIds[9],
+			first_name: 'Robert',
+			last_name: 'Thomas',
+			email: 'robert.thomas@example.com',
+			mobile_phone: '555-012-3456',
+			relationship: 'Father',
+			is_primary: true,
+		},
+		{
+			external_id: `${EXTERNAL_ID_PREFIX}guardian_20`,
+			household_id: householdIds[9],
+			first_name: 'Nancy',
+			last_name: 'Thomas',
+			email: 'nancy.thomas@example.com',
+			mobile_phone: '555-098-7654',
+			relationship: 'Mother',
+			is_primary: false,
 		},
 	];
 
@@ -2173,28 +2459,31 @@ async function createHouseholdsAndFamilies() {
 		}
 	}
 
-	// Create children (11 per household)
+	// Create children (1-3 per household based on childrenCount)
+	let childCounter = 1;
 	for (let h = 0; h < householdIds.length; h++) {
 		const householdId = householdIds[h];
 		const lastName = guardiansData[h * 2].last_name;
+		const childrenCount = householdsData[h].childrenCount;
 
-		for (let i = 1; i <= 11; i++) {
-			const age = 4 + (i % 14); // ages 4 to 17
+		for (let i = 1; i <= childrenCount; i++) {
+			const age = 4 + (childCounter % 14); // ages 4 to 17
 			const birthYear = 2025 - age;
 
 			const childData = {
 				child_id: crypto.randomUUID(), // Explicitly set UUID
-				external_id: `${EXTERNAL_ID_PREFIX}child_${h * 11 + i}`,
+				external_id: `${EXTERNAL_ID_PREFIX}child_${childCounter}`,
 				household_id: householdId,
 				first_name: `Child${h + 1}-${i}`,
 				last_name: lastName,
 				dob: `${birthYear}-06-15`, // Use dob instead of birth_date
 				grade: `${Math.min(12, Math.max(0, age - 5))}`, // Calculate grade based on age
-				gender: i % 2 === 0 ? 'M' : 'F',
-				allergies: i % 3 === 0 ? 'None' : null, // Some children have allergies
-				medical_notes: i % 5 === 0 ? 'Regular checkups' : null, // Some children have medical notes
-				special_needs: i % 7 === 0, // Some children have special needs
-				special_needs_notes: i % 7 === 0 ? 'Requires additional support' : null,
+				gender: childCounter % 2 === 0 ? 'M' : 'F',
+				allergies: childCounter % 3 === 0 ? 'None' : null, // Some children have allergies
+				medical_notes: childCounter % 5 === 0 ? 'Regular checkups' : null, // Some children have medical notes
+				special_needs: childCounter % 7 === 0, // Some children have special needs
+				special_needs_notes:
+					childCounter % 7 === 0 ? 'Requires additional support' : null,
 				is_active: true,
 			};
 
@@ -2229,6 +2518,7 @@ async function createHouseholdsAndFamilies() {
 					`✅ Created child: ${childData.first_name} ${childData.last_name}`
 				);
 				counters.children++;
+				childCounter++;
 			}
 		}
 	}
@@ -2256,11 +2546,18 @@ async function createUserHouseholds() {
 			return;
 		}
 
-		// Create mock auth user IDs for testing
+		// Create mock auth user IDs for testing (10 households)
 		const mockAuthUserIds = [
 			'auth-user-smith-123',
 			'auth-user-johnson-456',
 			'auth-user-davis-789',
+			'auth-user-wilson-101',
+			'auth-user-brown-202',
+			'auth-user-garcia-303',
+			'auth-user-miller-404',
+			'auth-user-taylor-505',
+			'auth-user-anderson-606',
+			'auth-user-thomas-707',
 		];
 
 		// Create user_households records
@@ -3381,14 +3678,14 @@ async function seedUATData() {
 		);
 		console.log('- Essay prompt created for Senior division');
 		console.log(
-			'- 3 households with guardians and children (using separate address fields)'
+			'- 10 households with guardians and children (using separate address fields)'
 		);
-		console.log('- 3 user_households records for canonical DAL testing');
+		console.log('- 10 user_households records for canonical DAL testing');
 		console.log(
-			'- 10 children enrolled in Bible Bee ministry ready for division assignment'
+			'- 20 children enrolled in Bible Bee ministry ready for division assignment'
 		);
 		console.log(
-			'- 3 household registrations with 5+ ministries per child (linked to active cycle)'
+			'- 10 household registrations with 5+ ministries per child (linked to active cycle)'
 		);
 		console.log('- Ministry enrollments for children');
 		console.log('- Events for check-in functionality');
