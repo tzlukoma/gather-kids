@@ -44,6 +44,7 @@ Add the following secrets in your repository (Settings → Secrets and variables
 | `MJ_API_SECRET` | Mailjet API private key | `def456...` |
 | `FROM_EMAIL` | Verified sender email address | `no-reply@yourdomain.com` |
 | `EMAIL_MODE` | Email transport mode (optional) | `mailjet` |
+| `MONITOR_EMAILS` | Comma-separated BCC monitor emails (optional) | `admin@domain.com,monitor@domain.com` |
 
 ### 3. Database Migration
 
@@ -93,6 +94,7 @@ For local development and testing:
    MJ_API_SECRET=your-mailjet-secret
    FROM_EMAIL=no-reply@yourdomain.com
    EMAIL_MODE=mailjet
+   MONITOR_EMAILS=admin@yourdomain.com,monitoring@yourdomain.com
    ```
 
 3. **Run in dry mode** (no actual emails sent):
@@ -118,6 +120,7 @@ For local development and testing:
 | `FROM_EMAIL` | Yes | - | Verified sender email address |
 | `EMAIL_MODE` | No | `mailjet` | Email transport (`mailjet` or `smtp`) |
 | `DRY_RUN` | No | `false` | Test mode - logs actions without sending |
+| `MONITOR_EMAILS` | No | - | Comma-separated list of BCC monitor emails |
 
 *Required when `EMAIL_MODE=mailjet`
 
@@ -134,6 +137,27 @@ WHERE ministry_id = 'your-ministry-id';
 ### Admin Configuration
 
 Users with role `ADMIN` and `is_active = true` will receive the consolidated admin digest.
+
+### Monitor Email Configuration (Optional)
+
+You can configure monitor emails to receive BCC copies of all digest emails for auditing or backup purposes:
+
+```bash
+# Single monitor email
+MONITOR_EMAILS=admin@yourdomain.com
+
+# Multiple monitor emails (comma-separated)
+MONITOR_EMAILS=admin@yourdomain.com,backup@yourdomain.com,audit@yourdomain.com
+```
+
+Monitor emails will receive BCC copies of:
+- All ministry-specific digest emails
+- All admin digest emails
+
+This is useful for:
+- **Administrative oversight**: Admins can monitor all digest communications
+- **Backup delivery**: Ensure critical emails are received even if primary recipients have issues
+- **Audit trail**: Maintain records of all digest emails sent
 
 ## Email Templates
 

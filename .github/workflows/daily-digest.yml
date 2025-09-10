@@ -17,6 +17,7 @@ jobs:
       MJ_API_SECRET: ${{ secrets.MJ_API_SECRET }}
       FROM_EMAIL: ${{ secrets.FROM_EMAIL }}
       EMAIL_MODE: ${{ secrets.EMAIL_MODE || 'mailjet' }}
+      MONITOR_EMAILS: ${{ secrets.MONITOR_EMAILS }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4

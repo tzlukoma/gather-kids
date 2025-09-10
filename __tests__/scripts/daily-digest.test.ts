@@ -101,6 +101,37 @@ describe('Daily Digest Script', () => {
 				}
 			}).toThrow('Missing Mailjet credentials');
 		});
+
+		test('should parse MONITOR_EMAILS correctly', () => {
+			// Test single email
+			process.env.MONITOR_EMAILS = 'admin@example.com';
+			let monitorEmails = process.env.MONITOR_EMAILS 
+				? process.env.MONITOR_EMAILS.split(',').map((email: string) => email.trim()).filter((email: string) => email)
+				: [];
+			expect(monitorEmails).toEqual(['admin@example.com']);
+
+			// Test multiple emails with spaces
+			process.env.MONITOR_EMAILS = 'admin@example.com, monitor@example.com , audit@example.com';
+			monitorEmails = process.env.MONITOR_EMAILS 
+				? process.env.MONITOR_EMAILS.split(',').map((email: string) => email.trim()).filter((email: string) => email)
+				: [];
+			expect(monitorEmails).toEqual(['admin@example.com', 'monitor@example.com', 'audit@example.com']);
+
+			// Test empty string
+			process.env.MONITOR_EMAILS = '';
+			monitorEmails = process.env.MONITOR_EMAILS 
+				? process.env.MONITOR_EMAILS.split(',').map((email: string) => email.trim()).filter((email: string) => email)
+				: [];
+			expect(monitorEmails).toEqual([]);
+
+			// Test undefined
+			delete process.env.MONITOR_EMAILS;
+			const envVar = process.env.MONITOR_EMAILS as string | undefined;
+			monitorEmails = envVar 
+				? envVar.split(',').map((email: string) => email.trim()).filter((email: string) => email)
+				: [];
+			expect(monitorEmails).toEqual([]);
+		});
 	});
 
 	describe('Email content generation', () => {
@@ -192,7 +223,7 @@ describe('Daily Digest Script', () => {
 			];
 
 			// Test grouping logic
-			const grouped = {};
+			const grouped: Record<string, any> = {};
 			for (const enrollment of enrollments) {
 				const ministryId = enrollment.ministries.ministry_id;
 				if (!grouped[ministryId]) {
@@ -242,6 +273,69 @@ describe('Daily Digest Script', () => {
 			expect(consoleSpy).toHaveBeenCalledWith('[DRY RUN] Would send email');
 			
 			consoleSpy.mockRestore();
+		});
+
+		test('should log BCC monitor emails in dry run mode', () => {
+			const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+			
+			// Simulate dry run with monitor emails
+			const DRY_RUN = true;
+			const monitorEmails = ['admin@example.com', 'monitor@example.com'];
+			
+			if (DRY_RUN && monitorEmails.length > 0) {
+				console.log(`[DRY RUN] Would BCC: ${monitorEmails.join(', ')}`);
+			}
+			
+			expect(consoleSpy).toHaveBeenCalledWith('[DRY RUN] Would BCC: admin@example.com, monitor@example.com');
+			
+			consoleSpy.mockRestore();
+		});
+	});
+
+	describe('Email message structure', () => {
+		test('should create proper Mailjet message structure without BCC', () => {
+			const message: any = {
+				From: {
+					Email: 'no-reply@example.com',
+					Name: 'gatherKids System'
+				},
+				To: [{
+					Email: 'recipient@example.com'
+				}],
+				Subject: 'Test Subject',
+				TextPart: 'Test text content',
+				HTMLPart: '<p>Test HTML content</p>'
+			};
+
+			expect(message.From.Email).toBe('no-reply@example.com');
+			expect(message.To[0].Email).toBe('recipient@example.com');
+			expect(message.Bcc).toBeUndefined();
+		});
+
+		test('should create proper Mailjet message structure with BCC', () => {
+			const monitorEmails = ['admin@example.com', 'monitor@example.com'];
+			const message: any = {
+				From: {
+					Email: 'no-reply@example.com',
+					Name: 'gatherKids System'
+				},
+				To: [{
+					Email: 'recipient@example.com'
+				}],
+				Subject: 'Test Subject',
+				TextPart: 'Test text content',
+				HTMLPart: '<p>Test HTML content</p>'
+			};
+
+			// Add BCC if monitor emails are configured
+			if (monitorEmails.length > 0) {
+				message.Bcc = monitorEmails.map(email => ({ Email: email }));
+			}
+
+			expect(message.Bcc).toEqual([
+				{ Email: 'admin@example.com' },
+				{ Email: 'monitor@example.com' }
+			]);
 		});
 	});
 });

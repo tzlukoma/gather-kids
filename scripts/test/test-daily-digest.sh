@@ -15,6 +15,7 @@ export MJ_API_KEY="test-api-key"
 export MJ_API_SECRET="test-api-secret"
 export FROM_EMAIL="no-reply@test.com"
 export EMAIL_MODE="mailjet"
+export MONITOR_EMAILS="admin@test.com,monitor@test.com"
 export DRY_RUN="true"
 
 # Test 1: Environment validation
@@ -96,13 +97,18 @@ else
     exit 1
 fi
 
-required_secrets=("SUPABASE_URL" "SUPABASE_SERVICE_ROLE" "MJ_API_KEY" "MJ_API_SECRET" "FROM_EMAIL")
+required_secrets=("SUPABASE_URL" "SUPABASE_SERVICE_ROLE" "MJ_API_KEY" "MJ_API_SECRET" "FROM_EMAIL" "MONITOR_EMAILS")
 for secret in "${required_secrets[@]}"; do
     if grep -q "\${{ secrets\.$secret }}" "$workflow_file"; then
         echo "   ✓ Secret $secret referenced in workflow"
     else
-        echo "   ❌ Secret $secret not found in workflow"
-        exit 1
+        # MONITOR_EMAILS is optional, so we only warn for it
+        if [[ "$secret" == "MONITOR_EMAILS" ]]; then
+            echo "   ⚠ Optional secret $secret referenced in workflow"
+        else
+            echo "   ❌ Secret $secret not found in workflow"
+            exit 1
+        fi
     fi
 done
 

@@ -31,6 +31,11 @@ const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE || process.env.SUPABASE_SERVICE_ROLE_KEY;
 const fromEmail = process.env.FROM_EMAIL;
 
+// Monitor emails for BCC (optional)
+const monitorEmails = process.env.MONITOR_EMAILS 
+	? process.env.MONITOR_EMAILS.split(',').map(email => email.trim()).filter(email => email)
+	: [];
+
 if (!supabaseUrl || !serviceRoleKey) {
 	console.error('Missing required environment variables:');
 	console.error('- SUPABASE_URL (or NEXT_PUBLIC_SUPABASE_URL)');
@@ -337,31 +342,48 @@ async function sendEmailViaMailjet(to, subject, html, text) {
 	console.log(`Sending email to: ${to}`);
 	console.log(`Subject: ${subject}`);
 	
+	if (monitorEmails.length > 0) {
+		console.log(`BCC monitor emails: ${monitorEmails.join(', ')}`);
+	}
+	
 	if (DRY_RUN) {
 		console.log('[DRY RUN] Would send email');
 		console.log('Content preview:', text.substring(0, 200) + '...');
+		if (monitorEmails.length > 0) {
+			console.log(`[DRY RUN] Would BCC: ${monitorEmails.join(', ')}`);
+		}
 		return true;
 	}
 	
 	try {
+		const message = {
+			From: {
+				Email: fromEmail,
+				Name: 'gatherKids System'
+			},
+			To: [{
+				Email: to
+			}],
+			Subject: subject,
+			TextPart: text,
+			HTMLPart: html
+		};
+		
+		// Add BCC recipients if monitor emails are configured
+		if (monitorEmails.length > 0) {
+			message.Bcc = monitorEmails.map(email => ({ Email: email }));
+		}
+		
 		const result = await emailTransport.client
 			.post('send', { version: 'v3.1' })
 			.request({
-				Messages: [{
-					From: {
-						Email: fromEmail,
-						Name: 'gatherKids System'
-					},
-					To: [{
-						Email: to
-					}],
-					Subject: subject,
-					TextPart: text,
-					HTMLPart: html
-				}]
+				Messages: [message]
 			});
 		
 		console.log(`Email sent successfully to ${to}`);
+		if (monitorEmails.length > 0) {
+			console.log(`BCC sent to monitor emails: ${monitorEmails.join(', ')}`);
+		}
 		return true;
 	} catch (error) {
 		console.error(`Error sending email to ${to}:`, error);
@@ -436,6 +458,12 @@ async function main() {
 	console.log('Starting daily digest process...');
 	console.log(`Mode: ${DRY_RUN ? 'DRY RUN' : 'LIVE'}`);
 	console.log(`Email mode: ${EMAIL_MODE}`);
+	
+	if (monitorEmails.length > 0) {
+		console.log(`Monitor emails configured: ${monitorEmails.join(', ')}`);
+	} else {
+		console.log('No monitor emails configured');
+	}
 	
 	try {
 		// Verify checkpoint table exists
