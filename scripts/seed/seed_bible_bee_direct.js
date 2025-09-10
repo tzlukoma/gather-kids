@@ -8,6 +8,7 @@ import { createClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
 
 // Configuration - must be before client setup
+const RESET_MODE = process.env.RESET === 'true';
 const EXTERNAL_ID_PREFIX = 'uat_';
 
 // Supabase client setup
@@ -42,6 +43,86 @@ if (!serviceRoleKey) {
 }
 
 const supabase = createClient(supabaseUrl, serviceRoleKey);
+
+/**
+ * Reset Bible Bee specific data when RESET mode is enabled
+ */
+async function resetBibleBeeData() {
+	console.log('🗑️  Resetting Bible Bee data...');
+
+	// Delete in proper foreign key dependency order
+	const deletionPlan = [
+		// Level 1: Tables with no dependencies (child tables)
+		{ table: 'bible_bee_enrollments', filter: { type: 'all_records' } },
+		{ table: 'enrollment_overrides', filter: { type: 'all_records' } },
+
+		// Level 2: Bible Bee structure tables
+		{ table: 'essay_prompts', filter: { type: 'all_records' } },
+		{ table: 'grade_rules', filter: { type: 'all_records' } },
+		{ table: 'divisions', filter: { type: 'all_records' } },
+		{ table: 'scriptures', filter: { type: 'external_id' } },
+
+		// Level 3: Competition/cycle tables
+		{ table: 'competition_years', filter: { type: 'all_records' } },
+		{ table: 'bible_bee_cycles', filter: { type: 'all_records' } },
+	];
+
+	let deletionErrors = [];
+
+	for (const { table, filter } of deletionPlan) {
+		console.log(`🗑️  Deleting ${table}...`);
+
+		try {
+			let result;
+
+			// Apply the appropriate deletion filter
+			if (filter.type === 'external_id') {
+				result = await supabase
+					.from(table)
+					.delete()
+					.like('external_id', `${EXTERNAL_ID_PREFIX}%`);
+			} else if (filter.type === 'all_records') {
+				// For UAT-only tables, delete all records
+				// Handle tables with different timestamp column names
+				if (table === 'bible_bee_enrollments') {
+					// bible_bee_enrollments uses 'enrolled_at' instead of 'created_at'
+					result = await supabase
+						.from(table)
+						.delete()
+						.gte('enrolled_at', '1900-01-01');
+				} else {
+					// Most tables use 'created_at'
+					result = await supabase
+						.from(table)
+						.delete()
+						.gte('created_at', '1900-01-01');
+				}
+			}
+
+			if (result.error) {
+				console.warn(`⚠️ Could not reset ${table}: ${result.error.message}`);
+				deletionErrors.push({ table, error: result.error.message });
+			} else {
+				console.log(`✅ Cleared ${table}`);
+			}
+		} catch (error) {
+			console.warn(`⚠️ Exception while clearing ${table}: ${error.message}`);
+			deletionErrors.push({ table, error: error.message });
+		}
+	}
+
+	if (deletionErrors.length > 0) {
+		console.log('\n❌ Bible Bee reset completed with errors:');
+		deletionErrors.forEach(({ table, error }) => {
+			console.log(`   - ${table}: ${error}`);
+		});
+		throw new Error(
+			`Failed to completely reset Bible Bee data. ${deletionErrors.length} tables had issues.`
+		);
+	}
+
+	console.log('✅ Bible Bee reset complete - all Bible Bee data cleared');
+}
 
 /**
  * Finds the Bible Bee ministry ID using various strategies
@@ -119,6 +200,17 @@ async function findBibleBeeMinistryId() {
 async function main() {
 	try {
 		console.log('🏆 Bible Bee Direct Seed Starting...');
+		console.log(
+			`📊 Mode: ${
+				RESET_MODE ? 'RESET (delete and re-seed)' : 'IDEMPOTENT (upsert)'
+			}`
+		);
+
+		if (RESET_MODE) {
+			console.log('🗑️  Reset mode enabled, resetting Bible Bee data...');
+			await resetBibleBeeData();
+			console.log('✅ Reset completed, proceeding with seeding...');
+		}
 
 		// Verify connection to Supabase
 		try {

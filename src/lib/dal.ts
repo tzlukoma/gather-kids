@@ -2808,11 +2808,14 @@ export async function createBibleBeeCycle(data: Omit<BibleBeeCycle, 'id' | 'crea
 }
 
 export async function updateBibleBeeCycle(id: string, updates: Partial<Omit<BibleBeeCycle, 'id' | 'created_at' | 'updated_at'>>): Promise<BibleBeeCycle> {
+	console.log('updateBibleBeeCycle called:', { id, updates, shouldUseAdapter: shouldUseAdapter() });
 	if (shouldUseAdapter()) {
 		// Use Supabase adapter for live mode
+		console.log('Using Supabase adapter for updateBibleBeeCycle');
 		return dbAdapter.updateBibleBeeCycle(id, updates);
 	} else {
 		// Use legacy Dexie interface for demo mode
+		console.log('Using Dexie for updateBibleBeeCycle');
 		await db.bible_bee_cycles.update(id, {
 			...updates,
 			updated_at: new Date().toISOString(),
