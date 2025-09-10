@@ -3099,7 +3099,7 @@ async function resetUATData() {
 		{ table: 'households', filter: { type: 'external_id' } },
 
 		// Level 5: Ministry structure
-		{ table: 'ministry_leaders', filter: { type: 'all_records' } },
+		{ table: 'leader_assignments', filter: { type: 'all_records' } },
 		{ table: 'ministries', filter: { type: 'external_id' } },
 	];
 

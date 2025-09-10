@@ -63,30 +63,15 @@ jobs:
           if [ "${{ inputs.reset_mode }}" = "true" ]; then
             echo "⚠️ Running in FULL RESET mode - all existing data will be deleted!"
             echo "==============================================="
-            echo "     [1/3] Resetting all UAT data..."
+            echo "     [1/1] Resetting and seeding all UAT data..."
             echo "==============================================="
             npm run seed:uat:reset
-            
-            echo "==============================================="
-            echo "     [2/3] Seeding core UAT data..."
-            echo "==============================================="
-            npm run seed:uat
-            
-            echo "==============================================="
-            echo "     [3/3] Seeding Bible Bee data..."
-            echo "==============================================="
-            npm run seed:uat:bible-bee
           else
             echo "🔄 Running in IDEMPOTENT mode - safe to re-run"
             echo "==============================================="
-            echo "     [1/2] Seeding core UAT data..."
+            echo "     [1/1] Seeding all UAT data..."
             echo "==============================================="
             npm run seed:uat
-            
-            echo "==============================================="
-            echo "     [2/2] Seeding Bible Bee data..."
-            echo "==============================================="
-            npm run seed:uat:bible-bee
           fi
 
           echo "✅ UAT seed process completed successfully!"
@@ -107,11 +92,9 @@ jobs:
 
           if [ "${{ inputs.reset_mode }}" = "true" ]; then
             echo "1. ✅ Reset all UAT data (deleted existing records)" >> $GITHUB_STEP_SUMMARY
-            echo "2. ✅ Seeded core UAT data (ministries, scriptures, households, etc.)" >> $GITHUB_STEP_SUMMARY
-            echo "3. ✅ Seeded Bible Bee specific data (year, divisions, grade rules)" >> $GITHUB_STEP_SUMMARY
+            echo "2. ✅ Seeded all UAT data including Bible Bee (ministries, scriptures, households, etc.)" >> $GITHUB_STEP_SUMMARY
           else
-            echo "1. ✅ Seeded core UAT data (ministries, scriptures, households, etc.)" >> $GITHUB_STEP_SUMMARY
-            echo "2. ✅ Seeded Bible Bee specific data (year, divisions, grade rules)" >> $GITHUB_STEP_SUMMARY
+            echo "1. ✅ Seeded all UAT data including Bible Bee (ministries, scriptures, households, etc.)" >> $GITHUB_STEP_SUMMARY
           fi
 
           echo "" >> $GITHUB_STEP_SUMMARY
