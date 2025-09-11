@@ -209,8 +209,11 @@ gather-kids/
 - **Primary storage**: IndexedDB (Dexie.js) for demo/development mode
 - **Supabase integration**: Available for production environments
 - **Multiple adapters**: Unified DAL (Data Access Layer) supports multiple backends
-  -- **Migrations**: Raw SQL migrations in `supabase/migrations/` (apply with `supabase migration up` or the repo scripts)
--
+- **Migrations**: Raw SQL migrations in `supabase/migrations/` (apply with `supabase migration up` or the repo scripts)
+- **Row-Level Security (RLS)**: Database-level security policies enforce role-based access control
+  - **CRITICAL**: Any changes to RLS policies MUST be documented in `docs/ROLES_AND_ACCESS.md`
+  - **Policy updates**: Always update the roles documentation when modifying RLS policies
+  - **Testing**: Verify all role permissions work correctly after RLS changes
 
 ### Managing Issue Information
 
