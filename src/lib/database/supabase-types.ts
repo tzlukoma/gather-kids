@@ -1,7 +1,7 @@
 /**
  * This file contains types generated from the Supabase schema.
  * DO NOT EDIT MANUALLY. This file is auto-generated.
- * Generated on: 2025-09-11T06:22:54.797Z
+ * Generated on: 2025-09-11T06:28:15.795Z
  */
 
 export type SupabaseJson =
@@ -200,6 +200,7 @@ export type Database = {
           logo_url: string | null
           ministry_id: string | null
           org_id: string
+          organization_name: string | null
           primary_color: string | null
           secondary_color: string | null
           setting_id: string
@@ -216,6 +217,7 @@ export type Database = {
           logo_url?: string | null
           ministry_id?: string | null
           org_id: string
+          organization_name?: string | null
           primary_color?: string | null
           secondary_color?: string | null
           setting_id?: string
@@ -232,6 +234,7 @@ export type Database = {
           logo_url?: string | null
           ministry_id?: string | null
           org_id?: string
+          organization_name?: string | null
           primary_color?: string | null
           secondary_color?: string | null
           setting_id?: string
@@ -245,24 +248,30 @@ export type Database = {
         Row: {
           child_id: string | null
           created_at: string | null
+          cycle_id: string | null
           division_id: string | null
           grade: string | null
+          notes: string | null
           profile_id: string
           year_id: string | null
         }
         Insert: {
           child_id?: string | null
           created_at?: string | null
+          cycle_id?: string | null
           division_id?: string | null
           grade?: string | null
+          notes?: string | null
           profile_id?: string
           year_id?: string | null
         }
         Update: {
           child_id?: string | null
           created_at?: string | null
+          cycle_id?: string | null
           division_id?: string | null
           grade?: string | null
+          notes?: string | null
           profile_id?: string
           year_id?: string | null
         }
@@ -271,18 +280,23 @@ export type Database = {
       children: {
         Row: {
           allergies: string | null
+          birth_date: string | null
           child_id: string
           child_mobile: string | null
           created_at: string
           dob: string | null
           external_household_id: string | null
           external_id: string | null
+          first_name: string | null
+          gender: string | null
           grade: string | null
           household_id: string | null
           household_uuid: string | null
           id: number
           is_active: boolean | null
+          last_name: string | null
           medical_notes: string | null
+          mobile_phone: string | null
           notes: string | null
           special_needs: boolean | null
           special_needs_notes: string | null
@@ -290,18 +304,23 @@ export type Database = {
         }
         Insert: {
           allergies?: string | null
+          birth_date?: string | null
           child_id: string
           child_mobile?: string | null
           created_at?: string
           dob?: string | null
           external_household_id?: string | null
           external_id?: string | null
+          first_name?: string | null
+          gender?: string | null
           grade?: string | null
           household_id?: string | null
           household_uuid?: string | null
           id?: number
           is_active?: boolean | null
+          last_name?: string | null
           medical_notes?: string | null
+          mobile_phone?: string | null
           notes?: string | null
           special_needs?: boolean | null
           special_needs_notes?: string | null
@@ -309,18 +328,23 @@ export type Database = {
         }
         Update: {
           allergies?: string | null
+          birth_date?: string | null
           child_id?: string
           child_mobile?: string | null
           created_at?: string
           dob?: string | null
           external_household_id?: string | null
           external_id?: string | null
+          first_name?: string | null
+          gender?: string | null
           grade?: string | null
           household_id?: string | null
           household_uuid?: string | null
           id?: number
           is_active?: boolean | null
+          last_name?: string | null
           medical_notes?: string | null
+          mobile_phone?: string | null
           notes?: string | null
           special_needs?: boolean | null
           special_needs_notes?: string | null
@@ -347,25 +371,34 @@ export type Database = {
         Row: {
           active: boolean | null
           created_at: string | null
+          description: string | null
           division_id: string | null
           id: string
           name: string | null
+          updated_at: string | null
+          year: number | null
           year_id: string | null
         }
         Insert: {
           active?: boolean | null
           created_at?: string | null
+          description?: string | null
           division_id?: string | null
           id?: string
           name?: string | null
+          updated_at?: string | null
+          year?: number | null
           year_id?: string | null
         }
         Update: {
           active?: boolean | null
           created_at?: string | null
+          description?: string | null
           division_id?: string | null
           id?: string
           name?: string | null
+          updated_at?: string | null
+          year?: number | null
           year_id?: string | null
         }
         Relationships: [
@@ -381,36 +414,48 @@ export type Database = {
       divisions: {
         Row: {
           bible_bee_cycle_id: string | null
+          competition_year_id: string | null
           competitionYearId: string | null
           created_at: string | null
           description: string | null
           division_id: string
           id: string
           max_age: number | null
+          max_grade: number | null
           min_age: number | null
+          min_grade: number | null
           name: string | null
+          updated_at: string | null
         }
         Insert: {
           bible_bee_cycle_id?: string | null
+          competition_year_id?: string | null
           competitionYearId?: string | null
           created_at?: string | null
           description?: string | null
           division_id: string
           id?: string
           max_age?: number | null
+          max_grade?: number | null
           min_age?: number | null
+          min_grade?: number | null
           name?: string | null
+          updated_at?: string | null
         }
         Update: {
           bible_bee_cycle_id?: string | null
+          competition_year_id?: string | null
           competitionYearId?: string | null
           created_at?: string | null
           description?: string | null
           division_id?: string
           id?: string
           max_age?: number | null
+          max_grade?: number | null
           min_age?: number | null
+          min_grade?: number | null
           name?: string | null
+          updated_at?: string | null
         }
         Relationships: [
           {
@@ -514,11 +559,18 @@ export type Database = {
           competition_year_id: string | null
           competitionYearId: string | null
           created_at: string | null
+          division_id: string | null
           division_name: string | null
           due_date: string | null
           id: string
+          instructions: string | null
+          max_words: number | null
+          min_words: number | null
+          prompt: string | null
           prompt_id: string
           prompt_text: string | null
+          title: string | null
+          updated_at: string | null
           year_id: string | null
         }
         Insert: {
@@ -526,11 +578,18 @@ export type Database = {
           competition_year_id?: string | null
           competitionYearId?: string | null
           created_at?: string | null
+          division_id?: string | null
           division_name?: string | null
           due_date?: string | null
           id?: string
+          instructions?: string | null
+          max_words?: number | null
+          min_words?: number | null
+          prompt?: string | null
           prompt_id: string
           prompt_text?: string | null
+          title?: string | null
+          updated_at?: string | null
           year_id?: string | null
         }
         Update: {
@@ -538,11 +597,18 @@ export type Database = {
           competition_year_id?: string | null
           competitionYearId?: string | null
           created_at?: string | null
+          division_id?: string | null
           division_name?: string | null
           due_date?: string | null
           id?: string
+          instructions?: string | null
+          max_words?: number | null
+          min_words?: number | null
+          prompt?: string | null
           prompt_id?: string
           prompt_text?: string | null
+          title?: string | null
+          updated_at?: string | null
           year_id?: string | null
         }
         Relationships: [
@@ -712,6 +778,7 @@ export type Database = {
           household_name: string | null
           household_uuid: string
           name: string | null
+          phone: string | null
           preferred_scripture_translation: string | null
           primary_phone: string | null
           state: string | null
@@ -730,6 +797,7 @@ export type Database = {
           household_name?: string | null
           household_uuid?: string
           name?: string | null
+          phone?: string | null
           preferred_scripture_translation?: string | null
           primary_phone?: string | null
           state?: string | null
@@ -748,6 +816,7 @@ export type Database = {
           household_name?: string | null
           household_uuid?: string
           name?: string | null
+          phone?: string | null
           preferred_scripture_translation?: string | null
           primary_phone?: string | null
           state?: string | null
@@ -799,6 +868,7 @@ export type Database = {
         Row: {
           assignment_id: string
           created_at: string | null
+          cycle_id: string | null
           leader_id: string | null
           ministry_id: string | null
           role: string | null
@@ -806,6 +876,7 @@ export type Database = {
         Insert: {
           assignment_id: string
           created_at?: string | null
+          cycle_id?: string | null
           leader_id?: string | null
           ministry_id?: string | null
           role?: string | null
@@ -813,6 +884,7 @@ export type Database = {
         Update: {
           assignment_id?: string
           created_at?: string | null
+          cycle_id?: string | null
           leader_id?: string | null
           ministry_id?: string | null
           role?: string | null
@@ -970,6 +1042,7 @@ export type Database = {
           child_id: string | null
           created_at: string | null
           custom_fields: SupabaseJson | null
+          cycle_id: string | null
           enrollment_id: string
           ministry_id: string | null
           notes: string | null
@@ -979,6 +1052,7 @@ export type Database = {
           child_id?: string | null
           created_at?: string | null
           custom_fields?: SupabaseJson | null
+          cycle_id?: string | null
           enrollment_id: string
           ministry_id?: string | null
           notes?: string | null
@@ -988,6 +1062,7 @@ export type Database = {
           child_id?: string | null
           created_at?: string | null
           custom_fields?: SupabaseJson | null
+          cycle_id?: string | null
           enrollment_id?: string
           ministry_id?: string | null
           notes?: string | null
@@ -1051,25 +1126,40 @@ export type Database = {
       }
       registrations: {
         Row: {
+          child_id: string | null
+          consents: SupabaseJson | null
           created_at: string | null
+          cycle_id: string | null
           household_id: string | null
           notes: string | null
+          pre_registered_sunday_school: boolean | null
           registration_id: string
           status: string | null
+          submitted_at: string | null
         }
         Insert: {
+          child_id?: string | null
+          consents?: SupabaseJson | null
           created_at?: string | null
+          cycle_id?: string | null
           household_id?: string | null
           notes?: string | null
+          pre_registered_sunday_school?: boolean | null
           registration_id: string
           status?: string | null
+          submitted_at?: string | null
         }
         Update: {
+          child_id?: string | null
+          consents?: SupabaseJson | null
           created_at?: string | null
+          cycle_id?: string | null
           household_id?: string | null
           notes?: string | null
+          pre_registered_sunday_school?: boolean | null
           registration_id?: string
           status?: string | null
+          submitted_at?: string | null
         }
         Relationships: []
       }
@@ -1080,12 +1170,15 @@ export type Database = {
           competition_year_id: string | null
           counts_for: number | null
           created_at: string | null
+          division_id: string | null
           external_id: string | null
           id: string
           order: number
           reference: string
+          scripture_id: string | null
           scripture_number: string | null
           scripture_order: number | null
+          text: string | null
           texts: SupabaseJson
           updated_at: string | null
         }
@@ -1095,12 +1188,15 @@ export type Database = {
           competition_year_id?: string | null
           counts_for?: number | null
           created_at?: string | null
+          division_id?: string | null
           external_id?: string | null
           id?: string
           order: number
           reference: string
+          scripture_id?: string | null
           scripture_number?: string | null
           scripture_order?: number | null
+          text?: string | null
           texts: SupabaseJson
           updated_at?: string | null
         }
@@ -1110,12 +1206,15 @@ export type Database = {
           competition_year_id?: string | null
           counts_for?: number | null
           created_at?: string | null
+          division_id?: string | null
           external_id?: string | null
           id?: string
           order?: number
           reference?: string
+          scripture_id?: string | null
           scripture_number?: string | null
           scripture_order?: number | null
+          text?: string | null
           texts?: SupabaseJson
           updated_at?: string | null
         }
