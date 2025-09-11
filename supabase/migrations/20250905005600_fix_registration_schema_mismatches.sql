@@ -30,13 +30,42 @@ ALTER TABLE children ADD COLUMN IF NOT EXISTS dob date;
 ALTER TABLE children ADD COLUMN IF NOT EXISTS child_mobile text;
 
 -- Migrate data from old columns to new columns
-UPDATE children 
-SET dob = birth_date 
-WHERE dob IS NULL AND birth_date IS NOT NULL;
+-- Only migrate if the source column exists
+DO $$
+BEGIN
+    -- Check if birth_date column exists before trying to migrate
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'children' 
+        AND column_name = 'birth_date' 
+        AND table_schema = 'public'
+    ) THEN
+        UPDATE children 
+        SET dob = birth_date 
+        WHERE dob IS NULL AND birth_date IS NOT NULL;
+        RAISE NOTICE 'Migrated data from birth_date to dob column';
+    ELSE
+        RAISE NOTICE 'birth_date column does not exist, skipping migration to dob';
+    END IF;
+END $$;
 
-UPDATE children 
-SET child_mobile = mobile_phone 
-WHERE child_mobile IS NULL AND mobile_phone IS NOT NULL;
+DO $$
+BEGIN
+    -- Check if mobile_phone column exists before trying to migrate
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'children' 
+        AND column_name = 'mobile_phone' 
+        AND table_schema = 'public'
+    ) THEN
+        UPDATE children 
+        SET child_mobile = mobile_phone 
+        WHERE child_mobile IS NULL AND mobile_phone IS NOT NULL;
+        RAISE NOTICE 'Migrated data from mobile_phone to child_mobile column';
+    ELSE
+        RAISE NOTICE 'mobile_phone column does not exist, skipping migration to child_mobile';
+    END IF;
+END $$;
 
 -- 3. Fix emergency_contacts table data type mismatches
 -- 3. Fix emergency_contacts table data type mismatches
