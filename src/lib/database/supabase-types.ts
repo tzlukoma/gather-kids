@@ -1,7 +1,7 @@
 /**
  * This file contains types generated from the Supabase schema.
  * DO NOT EDIT MANUALLY. This file is auto-generated.
- * Generated on: 2025-09-11T16:16:09.548Z
+ * Generated on: 2025-09-11T16:19:13.260Z
  */
 
 export type SupabaseJson =
@@ -1428,6 +1428,14 @@ export type Database = {
           p_using_expr?: string
         }
         Returns: undefined
+      }
+      test_auth_context: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          auth_jwt_role: string
+          auth_uid_result: string
+          is_authenticated: boolean
+        }[]
       }
     }
     Enums: {
