@@ -624,11 +624,23 @@ function RegisterPageContent() {
 							state: '',
 							zip: '',
 							preferredScriptureTranslation: 'NIV',
-							...draftData.household,
+							...(draftData.household || {}),
+							// Ensure optional fields have proper defaults
+							name: draftData.household?.name || '',
+							address_line2: draftData.household?.address_line2 || '',
+							preferredScriptureTranslation:
+								draftData.household?.preferredScriptureTranslation || 'NIV',
 						},
 						guardians:
 							draftData.guardians?.length > 0
-								? draftData.guardians
+								? draftData.guardians.map((guardian) => ({
+										first_name: guardian.first_name || '',
+										last_name: guardian.last_name || '',
+										mobile_phone: guardian.mobile_phone || '',
+										email: guardian.email || '',
+										relationship: guardian.relationship || 'Mother',
+										is_primary: guardian.is_primary || false,
+								  }))
 								: [
 										{
 											first_name: '',
@@ -644,15 +656,39 @@ function RegisterPageContent() {
 							last_name: '',
 							mobile_phone: '',
 							relationship: '',
-							...draftData.emergencyContact,
+							...(draftData.emergencyContact || {}),
+							// Ensure all fields have proper defaults
+							first_name: draftData.emergencyContact?.first_name || '',
+							last_name: draftData.emergencyContact?.last_name || '',
+							mobile_phone: draftData.emergencyContact?.mobile_phone || '',
+							relationship: draftData.emergencyContact?.relationship || '',
 						},
-						children: draftData.children || [],
+						children: (draftData.children || []).map((child) => ({
+							...defaultChildValues,
+							...child,
+							// Ensure optional fields have proper defaults
+							child_id: child.child_id || '',
+							child_mobile: child.child_mobile || '',
+							allergies: child.allergies || '',
+							medical_notes: child.medical_notes || '',
+							special_needs: child.special_needs || false,
+							special_needs_notes: child.special_needs_notes || '',
+							ministrySelections: child.ministrySelections || {},
+							interestSelections: child.interestSelections || {},
+							customData: child.customData || {},
+						})),
 						consents: {
 							liability: false,
 							photoRelease: false,
 							choir_communications_consent: 'no',
 							custom_consents: {},
-							...draftData.consents,
+							...(draftData.consents || {}),
+							// Ensure optional fields have proper defaults
+							liability: draftData.consents?.liability || false,
+							photoRelease: draftData.consents?.photoRelease || false,
+							choir_communications_consent:
+								draftData.consents?.choir_communications_consent || 'no',
+							custom_consents: draftData.consents?.custom_consents || {},
 						},
 					});
 				}
@@ -703,7 +739,55 @@ function RegisterPageContent() {
 				data.consents?.photoRelease;
 
 			if (hasData) {
-				saveFormData(data as RegistrationFormValues);
+				// Clean the data to remove undefined values before saving
+				const cleanData = {
+					household: {
+						name: data.household?.name || '',
+						address_line1: data.household?.address_line1 || '',
+						address_line2: data.household?.address_line2 || '',
+						city: data.household?.city || '',
+						state: data.household?.state || '',
+						zip: data.household?.zip || '',
+						preferredScriptureTranslation:
+							data.household?.preferredScriptureTranslation || 'NIV',
+					},
+					guardians: (data.guardians || []).map((guardian) => ({
+						first_name: guardian.first_name || '',
+						last_name: guardian.last_name || '',
+						mobile_phone: guardian.mobile_phone || '',
+						email: guardian.email || '',
+						relationship: guardian.relationship || 'Mother',
+						is_primary: guardian.is_primary || false,
+					})),
+					emergencyContact: {
+						first_name: data.emergencyContact?.first_name || '',
+						last_name: data.emergencyContact?.last_name || '',
+						mobile_phone: data.emergencyContact?.mobile_phone || '',
+						relationship: data.emergencyContact?.relationship || '',
+					},
+					children: (data.children || []).map((child) => ({
+						...defaultChildValues,
+						...child,
+						// Ensure optional fields have proper defaults
+						child_id: child.child_id || '',
+						child_mobile: child.child_mobile || '',
+						allergies: child.allergies || '',
+						medical_notes: child.medical_notes || '',
+						special_needs: child.special_needs || false,
+						special_needs_notes: child.special_needs_notes || '',
+						ministrySelections: child.ministrySelections || {},
+						interestSelections: child.interestSelections || {},
+						customData: child.customData || {},
+					})),
+					consents: {
+						liability: data.consents?.liability || false,
+						photoRelease: data.consents?.photoRelease || false,
+						choir_communications_consent:
+							data.consents?.choir_communications_consent || 'no',
+						custom_consents: data.consents?.custom_consents || {},
+					},
+				};
+				saveFormData(cleanData as RegistrationFormValues);
 			}
 		});
 
@@ -750,18 +834,31 @@ function RegisterPageContent() {
 				const householdData = data.household;
 				const registrationData: Partial<RegistrationFormValues> = {
 					household: {
-						household_id: householdData?.household_id,
-						name: householdData?.name,
-						address_line1: householdData?.address_line1,
-						address_line2: householdData?.address_line2,
-						city: householdData?.city,
-						state: householdData?.state,
-						zip: householdData?.zip,
+						household_id: householdData?.household_id || '',
+						name: householdData?.name || '',
+						address_line1: householdData?.address_line1 || '',
+						address_line2: householdData?.address_line2 || '',
+						city: householdData?.city || '',
+						state: householdData?.state || '',
+						zip: householdData?.zip || '',
+						preferredScriptureTranslation:
+							householdData?.preferredScriptureTranslation || 'NIV',
 					},
-					guardians: data.guardians,
-					emergencyContact: data.emergencyContact,
-					children: data.children,
-					consents: data.consents,
+					guardians: data.guardians || [],
+					emergencyContact: {
+						first_name: data.emergencyContact?.first_name || '',
+						last_name: data.emergencyContact?.last_name || '',
+						mobile_phone: data.emergencyContact?.mobile_phone || '',
+						relationship: data.emergencyContact?.relationship || '',
+					},
+					children: data.children || [],
+					consents: {
+						liability: data.consents?.liability || false,
+						photoRelease: data.consents?.photoRelease || false,
+						choir_communications_consent:
+							data.consents?.choir_communications_consent || 'no',
+						custom_consents: data.consents?.custom_consents || {},
+					},
 				};
 				console.log('DEBUG: About to call form.reset');
 				form.reset(registrationData);
@@ -991,6 +1088,10 @@ function RegisterPageContent() {
 							household: {
 								name: '',
 								address_line1: '',
+								address_line2: '',
+								city: '',
+								state: '',
+								zip: '',
 								preferredScriptureTranslation: 'NIV',
 							},
 							guardians: [
