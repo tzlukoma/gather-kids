@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { dbAdapter } from '@/lib/dal';
 import { useAuth } from '@/contexts/auth-context';
+import { isDemo } from '@/lib/authGuards';
 
 interface UseDraftPersistenceOptions {
 	formName: string;
@@ -17,7 +18,7 @@ interface DraftStatus {
 
 export function useDraftPersistence<T>(options: UseDraftPersistenceOptions) {
 	const { formName, version = 1, autoSaveDelay = 1000, enabled = true } = options;
-	const { user } = useAuth();
+	const { user, loading } = useAuth();
 	const [draftStatus, setDraftStatus] = useState<DraftStatus>({
 		isSaving: false,
 		lastSaved: null,
@@ -28,10 +29,24 @@ export function useDraftPersistence<T>(options: UseDraftPersistenceOptions) {
 	const lastSavedDataRef = useRef<string>();
 
 	// Generate user ID for draft scoping
-	const getUserId = useCallback((): string => {
+	const getUserId = useCallback((): string | null => {
+		// Don't try to get user ID if auth is still loading
+		if (loading) {
+			return null;
+		}
+		
+		// In Supabase mode, require authenticated user (including GUEST role)
+		if (!isDemo()) {
+			if (user?.uid) return user.uid;
+			if (user?.id) return user.id;
+			// In Supabase mode, if no authenticated user, return null instead of throwing
+			return null;
+		}
+		
+		// For demo mode without a logged-in user, use a session-based ID
 		if (user?.uid) return user.uid;
 		if (user?.id) return user.id;
-		// For demo mode without a logged-in user, use a session-based ID
+		
 		if (typeof window !== 'undefined') {
 			let sessionUserId = sessionStorage.getItem('draft-user-id');
 			if (!sessionUserId) {
@@ -41,7 +56,7 @@ export function useDraftPersistence<T>(options: UseDraftPersistenceOptions) {
 			return sessionUserId;
 		}
 		return 'anonymous-user';
-	}, [user]);
+	}, [user, loading]);
 
 	// Load draft data
 	const loadDraft = useCallback(async (): Promise<T | null> => {
@@ -49,6 +64,10 @@ export function useDraftPersistence<T>(options: UseDraftPersistenceOptions) {
 		
 		try {
 			const userId = getUserId();
+			if (!userId) {
+				// No authenticated user in Supabase mode, skip loading
+				return null;
+			}
 			const draftData = await dbAdapter.getDraft(formName, userId);
 			return draftData as T | null;
 		} catch (error) {
@@ -62,6 +81,12 @@ export function useDraftPersistence<T>(options: UseDraftPersistenceOptions) {
 	const saveDraft = useCallback(async (data: T, immediate = false) => {
 		if (!enabled) return;
 		
+		const userId = getUserId();
+		if (!userId) {
+			// No authenticated user in Supabase mode, skip saving
+			return;
+		}
+		
 		const dataString = JSON.stringify(data);
 		
 		// Skip saving if data hasn't changed
@@ -72,7 +97,6 @@ export function useDraftPersistence<T>(options: UseDraftPersistenceOptions) {
 		const performSave = async () => {
 			try {
 				setDraftStatus(prev => ({ ...prev, isSaving: true, error: null }));
-				const userId = getUserId();
 				await dbAdapter.saveDraft(formName, userId, data, version);
 				lastSavedDataRef.current = dataString;
 				setDraftStatus(prev => ({
@@ -115,6 +139,10 @@ export function useDraftPersistence<T>(options: UseDraftPersistenceOptions) {
 				clearTimeout(saveTimeoutRef.current);
 			}
 			const userId = getUserId();
+			if (!userId) {
+				// No authenticated user in Supabase mode, skip clearing
+				return;
+			}
 			await dbAdapter.clearDraft(formName, userId);
 			lastSavedDataRef.current = undefined;
 			setDraftStatus(prev => ({

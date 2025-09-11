@@ -211,8 +211,8 @@ function VerificationStepTwoForm({
 	const form = useForm<VerificationFormValues>({
 		resolver: zodResolver(verificationSchema),
 		defaultValues: {
-			childDob: undefined,
-			streetNumber: undefined,
+			childDob: '',
+			streetNumber: '',
 			emergencyContactFirstName: '',
 		},
 	});
@@ -535,16 +535,19 @@ function RegisterPageContent() {
 	// Get the active registration cycle to use for enrollments
 
 	// Draft persistence for form data (conditional based on feature flag)
-	const { loadDraft, saveDraft, clearDraft, draftStatus } = useDraftPersistence<RegistrationFormValues>({
-		formName: 'registration_v1',
-		version: 1,
-		autoSaveDelay: 1000,
-		enabled: flags.registrationDraftPersistenceEnabled,
-	});
+	const { loadDraft, saveDraft, clearDraft, draftStatus } =
+		useDraftPersistence<RegistrationFormValues>({
+			formName: 'registration_v1',
+			version: 1,
+			autoSaveDelay: 1000,
+			enabled: flags.registrationDraftPersistenceEnabled,
+		});
 
 	// Load saved form data from draft
 	const [hasLoadedDraft, setHasLoadedDraft] = useState(false);
-	const loadSavedFormData = useCallback(async (): Promise<Partial<RegistrationFormValues>> => {
+	const loadSavedFormData = useCallback(async (): Promise<
+		Partial<RegistrationFormValues>
+	> => {
 		try {
 			const draftData = await loadDraft();
 			return draftData || {};
@@ -555,9 +558,12 @@ function RegisterPageContent() {
 	}, [loadDraft]);
 
 	// Save form data using draft persistence
-	const saveFormData = useCallback((data: RegistrationFormValues) => {
-		saveDraft(data);
-	}, [saveDraft]);
+	const saveFormData = useCallback(
+		(data: RegistrationFormValues) => {
+			saveDraft(data);
+		},
+		[saveDraft]
+	);
 
 	// Clear saved form data
 	const clearSavedFormData = useCallback(() => {
@@ -596,7 +602,7 @@ function RegisterPageContent() {
 			consents: {
 				liability: false,
 				photoRelease: false,
-				choir_communications_consent: undefined,
+				choir_communications_consent: 'no',
 				custom_consents: {},
 			},
 		},
@@ -620,16 +626,19 @@ function RegisterPageContent() {
 							preferredScriptureTranslation: 'NIV',
 							...draftData.household,
 						},
-						guardians: draftData.guardians?.length > 0 ? draftData.guardians : [
-							{
-								first_name: '',
-								last_name: '',
-								mobile_phone: '',
-								email: '',
-								relationship: 'Mother',
-								is_primary: true,
-							},
-						],
+						guardians:
+							draftData.guardians?.length > 0
+								? draftData.guardians
+								: [
+										{
+											first_name: '',
+											last_name: '',
+											mobile_phone: '',
+											email: '',
+											relationship: 'Mother',
+											is_primary: true,
+										},
+								  ],
 						emergencyContact: {
 							first_name: '',
 							last_name: '',
@@ -641,7 +650,7 @@ function RegisterPageContent() {
 						consents: {
 							liability: false,
 							photoRelease: false,
-							choir_communications_consent: undefined,
+							choir_communications_consent: 'no',
 							custom_consents: {},
 							...draftData.consents,
 						},
@@ -679,7 +688,7 @@ function RegisterPageContent() {
 		const subscription = form.watch((data) => {
 			// Only save if we've loaded the draft and there's actual data
 			if (!hasLoadedDraft) return;
-			
+
 			const hasData =
 				data.household?.address_line1 ||
 				data.household?.city ||
