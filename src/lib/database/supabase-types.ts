@@ -1,7 +1,7 @@
 /**
  * This file contains types generated from the Supabase schema.
  * DO NOT EDIT MANUALLY. This file is auto-generated.
- * Generated on: 2025-09-11T04:33:43.384Z
+ * Generated on: 2025-09-11T04:36:53.468Z
  */
 
 export type SupabaseJson =
@@ -87,34 +87,52 @@ export type Database = {
       }
       branding_settings: {
         Row: {
+          app_name: string | null
           created_at: string | null
+          description: string | null
           font_family: string | null
+          instagram_url: string | null
           logo_url: string | null
           ministry_id: string | null
+          org_id: string
           primary_color: string | null
           secondary_color: string | null
           setting_id: string
           updated_at: string | null
+          use_logo_only: boolean | null
+          youtube_url: string | null
         }
         Insert: {
+          app_name?: string | null
           created_at?: string | null
+          description?: string | null
           font_family?: string | null
+          instagram_url?: string | null
           logo_url?: string | null
           ministry_id?: string | null
+          org_id: string
           primary_color?: string | null
           secondary_color?: string | null
           setting_id?: string
           updated_at?: string | null
+          use_logo_only?: boolean | null
+          youtube_url?: string | null
         }
         Update: {
+          app_name?: string | null
           created_at?: string | null
+          description?: string | null
           font_family?: string | null
+          instagram_url?: string | null
           logo_url?: string | null
           ministry_id?: string | null
+          org_id?: string
           primary_color?: string | null
           secondary_color?: string | null
           setting_id?: string
           updated_at?: string | null
+          use_logo_only?: boolean | null
+          youtube_url?: string | null
         }
         Relationships: []
       }
