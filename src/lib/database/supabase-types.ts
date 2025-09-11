@@ -1,7 +1,7 @@
 /**
  * This file contains types generated from the Supabase schema.
  * DO NOT EDIT MANUALLY. This file is auto-generated.
- * Generated on: 2025-09-11T04:52:57.412Z
+ * Generated on: 2025-09-11T04:56:58.792Z
  */
 
 export type SupabaseJson =
@@ -24,31 +24,49 @@ export type Database = {
         Row: {
           attendance_id: string
           check_in_at: string | null
+          check_out_at: string | null
           checked_in_by: string | null
+          checked_out_by: string | null
           child_id: string | null
           created_at: string | null
           date: string | null
           event_id: string | null
+          first_time_flag: boolean | null
+          notes: string | null
+          picked_up_by: string | null
+          pickup_method: string | null
           timeslot_id: string | null
         }
         Insert: {
           attendance_id: string
           check_in_at?: string | null
+          check_out_at?: string | null
           checked_in_by?: string | null
+          checked_out_by?: string | null
           child_id?: string | null
           created_at?: string | null
           date?: string | null
           event_id?: string | null
+          first_time_flag?: boolean | null
+          notes?: string | null
+          picked_up_by?: string | null
+          pickup_method?: string | null
           timeslot_id?: string | null
         }
         Update: {
           attendance_id?: string
           check_in_at?: string | null
+          check_out_at?: string | null
           checked_in_by?: string | null
+          checked_out_by?: string | null
           child_id?: string | null
           created_at?: string | null
           date?: string | null
           event_id?: string | null
+          first_time_flag?: boolean | null
+          notes?: string | null
+          picked_up_by?: string | null
+          pickup_method?: string | null
           timeslot_id?: string | null
         }
         Relationships: [
@@ -58,6 +76,55 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "events"
             referencedColumns: ["event_id"]
+          },
+        ]
+      }
+      bible_bee_enrollments: {
+        Row: {
+          auto_enrolled: boolean
+          childId: string
+          competitionYearId: string
+          divisionId: string
+          enrolled_at: string
+          id: string
+        }
+        Insert: {
+          auto_enrolled?: boolean
+          childId: string
+          competitionYearId: string
+          divisionId: string
+          enrolled_at?: string
+          id?: string
+        }
+        Update: {
+          auto_enrolled?: boolean
+          childId?: string
+          competitionYearId?: string
+          divisionId?: string
+          enrolled_at?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bible_bee_enrollments_childId_fkey"
+            columns: ["childId"]
+            isOneToOne: false
+            referencedRelation: "children"
+            referencedColumns: ["child_id"]
+          },
+          {
+            foreignKeyName: "bible_bee_enrollments_competitionYearId_fkey"
+            columns: ["competitionYearId"]
+            isOneToOne: false
+            referencedRelation: "competition_years"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bible_bee_enrollments_divisionId_fkey"
+            columns: ["divisionId"]
+            isOneToOne: false
+            referencedRelation: "divisions"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -166,6 +233,7 @@ export type Database = {
       children: {
         Row: {
           allergies: string | null
+          child_id: string
           child_mobile: string | null
           created_at: string
           external_household_id: string | null
@@ -182,6 +250,7 @@ export type Database = {
         }
         Insert: {
           allergies?: string | null
+          child_id: string
           child_mobile?: string | null
           created_at?: string
           external_household_id?: string | null
@@ -198,6 +267,7 @@ export type Database = {
         }
         Update: {
           allergies?: string | null
+          child_id?: string
           child_mobile?: string | null
           created_at?: string
           external_household_id?: string | null
@@ -266,30 +336,44 @@ export type Database = {
       }
       divisions: {
         Row: {
+          competitionYearId: string | null
           created_at: string | null
           description: string | null
           division_id: string
+          id: string
           max_age: number | null
           min_age: number | null
           name: string | null
         }
         Insert: {
+          competitionYearId?: string | null
           created_at?: string | null
           description?: string | null
           division_id: string
+          id?: string
           max_age?: number | null
           min_age?: number | null
           name?: string | null
         }
         Update: {
+          competitionYearId?: string | null
           created_at?: string | null
           description?: string | null
           division_id?: string
+          id?: string
           max_age?: number | null
           min_age?: number | null
           name?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "divisions_competitionyearid_fkey"
+            columns: ["competitionYearId"]
+            isOneToOne: false
+            referencedRelation: "competition_years"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       emergency_contacts: {
         Row: {
@@ -360,9 +444,11 @@ export type Database = {
         Row: {
           bible_bee_cycle_id: string | null
           competition_year_id: string | null
+          competitionYearId: string | null
           created_at: string | null
           division_name: string | null
           due_date: string | null
+          id: string
           prompt_id: string
           prompt_text: string | null
           year_id: string | null
@@ -370,9 +456,11 @@ export type Database = {
         Insert: {
           bible_bee_cycle_id?: string | null
           competition_year_id?: string | null
+          competitionYearId?: string | null
           created_at?: string | null
           division_name?: string | null
           due_date?: string | null
+          id?: string
           prompt_id: string
           prompt_text?: string | null
           year_id?: string | null
@@ -380,14 +468,24 @@ export type Database = {
         Update: {
           bible_bee_cycle_id?: string | null
           competition_year_id?: string | null
+          competitionYearId?: string | null
           created_at?: string | null
           division_name?: string | null
           due_date?: string | null
+          id?: string
           prompt_id?: string
           prompt_text?: string | null
           year_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "essay_prompts_competitionyearid_fkey"
+            columns: ["competitionYearId"]
+            isOneToOne: false
+            referencedRelation: "competition_years"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       events: {
         Row: {
@@ -509,6 +607,8 @@ export type Database = {
       households: {
         Row: {
           address: string | null
+          address_line1: string | null
+          address_line2: string | null
           city: string | null
           created_at: string | null
           email: string | null
@@ -524,6 +624,8 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          address_line1?: string | null
+          address_line2?: string | null
           city?: string | null
           created_at?: string | null
           email?: string | null
@@ -539,6 +641,8 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          address_line1?: string | null
+          address_line2?: string | null
           city?: string | null
           created_at?: string | null
           email?: string | null
@@ -664,20 +768,26 @@ export type Database = {
       }
       ministries: {
         Row: {
+          allows_checkin: boolean | null
           created_at: string | null
           description: string | null
+          external_id: string | null
           ministry_id: string
           name: string | null
         }
         Insert: {
+          allows_checkin?: boolean | null
           created_at?: string | null
           description?: string | null
+          external_id?: string | null
           ministry_id: string
           name?: string | null
         }
         Update: {
+          allows_checkin?: boolean | null
           created_at?: string | null
           description?: string | null
+          external_id?: string | null
           ministry_id?: string
           name?: string | null
         }
@@ -798,32 +908,44 @@ export type Database = {
       }
       scriptures: {
         Row: {
-          competition_year_id: string
+          category: string | null
+          competition_year_id: string | null
+          counts_for: number | null
           created_at: string | null
           external_id: string | null
           id: string
           order: number
           reference: string
+          scripture_number: string | null
+          scripture_order: number | null
           texts: SupabaseJson
           updated_at: string | null
         }
         Insert: {
-          competition_year_id: string
+          category?: string | null
+          competition_year_id?: string | null
+          counts_for?: number | null
           created_at?: string | null
           external_id?: string | null
           id?: string
           order: number
           reference: string
+          scripture_number?: string | null
+          scripture_order?: number | null
           texts: SupabaseJson
           updated_at?: string | null
         }
         Update: {
-          competition_year_id?: string
+          category?: string | null
+          competition_year_id?: string | null
+          counts_for?: number | null
           created_at?: string | null
           external_id?: string | null
           id?: string
           order?: number
           reference?: string
+          scripture_number?: string | null
+          scripture_order?: number | null
           texts?: SupabaseJson
           updated_at?: string | null
         }
