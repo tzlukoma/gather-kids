@@ -1,48 +1,142 @@
 -- Add Bible Bee Divisions table
-CREATE TABLE IF NOT EXISTS public.divisions (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    "competitionYearId" TEXT NOT NULL REFERENCES public.competition_years(id) ON DELETE CASCADE,
-    name TEXT NOT NULL,
-    minimum_required INTEGER NOT NULL DEFAULT 0,
-    min_last_order INTEGER, -- calculated minimum boundary
-    min_grade INTEGER NOT NULL, -- 0-12
-    max_grade INTEGER NOT NULL, -- 0-12
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
-    UNIQUE("competitionYearId", name)
-);
+-- Handle both TEXT and UUID types for competition_years.id
+DO $$
+DECLARE
+    competition_years_id_type TEXT;
+BEGIN
+    -- Check the actual type of competition_years.id column
+    SELECT data_type INTO competition_years_id_type
+    FROM information_schema.columns 
+    WHERE table_name = 'competition_years' 
+    AND column_name = 'id' 
+    AND table_schema = 'public';
+    
+    -- Create the table with the appropriate type for competitionYearId
+    IF competition_years_id_type = 'uuid' THEN
+        EXECUTE '
+        CREATE TABLE IF NOT EXISTS public.divisions (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            "competitionYearId" UUID NOT NULL REFERENCES public.competition_years(id) ON DELETE CASCADE,
+            name TEXT NOT NULL,
+            minimum_required INTEGER NOT NULL DEFAULT 0,
+            min_last_order INTEGER,
+            min_grade INTEGER NOT NULL,
+            max_grade INTEGER NOT NULL,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
+            updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
+            UNIQUE("competitionYearId", name)
+        )';
+        RAISE NOTICE 'Created divisions table with UUID competitionYearId';
+    ELSE
+        EXECUTE '
+        CREATE TABLE IF NOT EXISTS public.divisions (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            "competitionYearId" TEXT NOT NULL REFERENCES public.competition_years(id) ON DELETE CASCADE,
+            name TEXT NOT NULL,
+            minimum_required INTEGER NOT NULL DEFAULT 0,
+            min_last_order INTEGER,
+            min_grade INTEGER NOT NULL,
+            max_grade INTEGER NOT NULL,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
+            updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
+            UNIQUE("competitionYearId", name)
+        )';
+        RAISE NOTICE 'Created divisions table with TEXT competitionYearId';
+    END IF;
+END $$;
 
 -- Add Essay Prompts table
-CREATE TABLE IF NOT EXISTS public.essay_prompts (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    "competitionYearId" TEXT NOT NULL REFERENCES public.competition_years(id) ON DELETE CASCADE,
-    division_name TEXT, -- optional, can be per division or general
-    prompt_text TEXT NOT NULL,
-    due_date TIMESTAMP WITH TIME ZONE NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL
-);
+-- Handle both TEXT and UUID types for competition_years.id
+DO $$
+DECLARE
+    competition_years_id_type TEXT;
+BEGIN
+    -- Check the actual type of competition_years.id column
+    SELECT data_type INTO competition_years_id_type
+    FROM information_schema.columns 
+    WHERE table_name = 'competition_years' 
+    AND column_name = 'id' 
+    AND table_schema = 'public';
+    
+    -- Create the table with the appropriate type for competitionYearId
+    IF competition_years_id_type = 'uuid' THEN
+        EXECUTE '
+        CREATE TABLE IF NOT EXISTS public.essay_prompts (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            "competitionYearId" UUID NOT NULL REFERENCES public.competition_years(id) ON DELETE CASCADE,
+            division_name TEXT,
+            prompt_text TEXT NOT NULL,
+            due_date TIMESTAMP WITH TIME ZONE NOT NULL,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
+            updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL
+        )';
+        RAISE NOTICE 'Created essay_prompts table with UUID competitionYearId';
+    ELSE
+        EXECUTE '
+        CREATE TABLE IF NOT EXISTS public.essay_prompts (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            "competitionYearId" TEXT NOT NULL REFERENCES public.competition_years(id) ON DELETE CASCADE,
+            division_name TEXT,
+            prompt_text TEXT NOT NULL,
+            due_date TIMESTAMP WITH TIME ZONE NOT NULL,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
+            updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL
+        )';
+        RAISE NOTICE 'Created essay_prompts table with TEXT competitionYearId';
+    END IF;
+END $$;
 
 -- Add Grade Rules table if it doesn't exist
 -- Note: We're checking since this may already exist in some environments
+-- Handle both TEXT and UUID types for competition_years.id
 DO $$
+DECLARE
+    competition_years_id_type TEXT;
 BEGIN
+    -- Only proceed if the grade_rules table doesn't exist
     IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'grade_rules') THEN
-        CREATE TABLE public.grade_rules (
-            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-            "competitionYearId" TEXT NOT NULL REFERENCES public.competition_years(id) ON DELETE CASCADE,
-            "minGrade" INTEGER NOT NULL, -- 0-12
-            "maxGrade" INTEGER NOT NULL, -- 0-12
-            type TEXT NOT NULL CHECK (type IN ('scripture', 'essay')),
-            "targetCount" INTEGER,
-            "promptText" TEXT,
-            instructions TEXT,
-            "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
-            "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL
-        );
+        
+        -- Check the actual type of competition_years.id column
+        SELECT data_type INTO competition_years_id_type
+        FROM information_schema.columns 
+        WHERE table_name = 'competition_years' 
+        AND column_name = 'id' 
+        AND table_schema = 'public';
+        
+        -- Create the table with the appropriate type for competitionYearId
+        IF competition_years_id_type = 'uuid' THEN
+            EXECUTE '
+            CREATE TABLE public.grade_rules (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                "competitionYearId" UUID NOT NULL REFERENCES public.competition_years(id) ON DELETE CASCADE,
+                "minGrade" INTEGER NOT NULL,
+                "maxGrade" INTEGER NOT NULL,
+                type TEXT NOT NULL CHECK (type IN (''scripture'', ''essay'')),
+                "targetCount" INTEGER,
+                "promptText" TEXT,
+                instructions TEXT,
+                "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
+                "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL
+            )';
+            RAISE NOTICE 'Created grade_rules table with UUID competitionYearId';
+        ELSE
+            EXECUTE '
+            CREATE TABLE public.grade_rules (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                "competitionYearId" TEXT NOT NULL REFERENCES public.competition_years(id) ON DELETE CASCADE,
+                "minGrade" INTEGER NOT NULL,
+                "maxGrade" INTEGER NOT NULL,
+                type TEXT NOT NULL CHECK (type IN (''scripture'', ''essay'')),
+                "targetCount" INTEGER,
+                "promptText" TEXT,
+                instructions TEXT,
+                "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
+                "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL
+            )';
+            RAISE NOTICE 'Created grade_rules table with TEXT competitionYearId';
+        END IF;
     END IF;
-END
-$$;
+END $$;
 
 -- Add trigger to update updated_at timestamp
 CREATE OR REPLACE FUNCTION update_modified_column()
@@ -73,24 +167,85 @@ END
 $$;
 
 -- Add Bible Bee enrollments table
-CREATE TABLE IF NOT EXISTS public.bible_bee_enrollments (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    "competitionYearId" TEXT NOT NULL REFERENCES public.competition_years(id) ON DELETE CASCADE,
-    "childId" TEXT NOT NULL REFERENCES public.children(child_id) ON DELETE CASCADE,
-    "divisionId" UUID NOT NULL REFERENCES public.divisions(id) ON DELETE CASCADE,
-    auto_enrolled BOOLEAN NOT NULL DEFAULT TRUE,
-    enrolled_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
-    UNIQUE("competitionYearId", "childId")
-);
+-- Handle both TEXT and UUID types for competition_years.id
+DO $$
+DECLARE
+    competition_years_id_type TEXT;
+BEGIN
+    -- Check the actual type of competition_years.id column
+    SELECT data_type INTO competition_years_id_type
+    FROM information_schema.columns 
+    WHERE table_name = 'competition_years' 
+    AND column_name = 'id' 
+    AND table_schema = 'public';
+    
+    -- Create the table with the appropriate type for competitionYearId
+    IF competition_years_id_type = 'uuid' THEN
+        EXECUTE '
+        CREATE TABLE IF NOT EXISTS public.bible_bee_enrollments (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            "competitionYearId" UUID NOT NULL REFERENCES public.competition_years(id) ON DELETE CASCADE,
+            "childId" TEXT NOT NULL REFERENCES public.children(child_id) ON DELETE CASCADE,
+            "divisionId" UUID NOT NULL REFERENCES public.divisions(id) ON DELETE CASCADE,
+            auto_enrolled BOOLEAN NOT NULL DEFAULT TRUE,
+            enrolled_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
+            UNIQUE("competitionYearId", "childId")
+        )';
+        RAISE NOTICE 'Created bible_bee_enrollments table with UUID competitionYearId';
+    ELSE
+        EXECUTE '
+        CREATE TABLE IF NOT EXISTS public.bible_bee_enrollments (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            "competitionYearId" TEXT NOT NULL REFERENCES public.competition_years(id) ON DELETE CASCADE,
+            "childId" TEXT NOT NULL REFERENCES public.children(child_id) ON DELETE CASCADE,
+            "divisionId" UUID NOT NULL REFERENCES public.divisions(id) ON DELETE CASCADE,
+            auto_enrolled BOOLEAN NOT NULL DEFAULT TRUE,
+            enrolled_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
+            UNIQUE("competitionYearId", "childId")
+        )';
+        RAISE NOTICE 'Created bible_bee_enrollments table with TEXT competitionYearId';
+    END IF;
+END $$;
 
 -- Add enrollment overrides table
-CREATE TABLE IF NOT EXISTS public.enrollment_overrides (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    "competitionYearId" TEXT NOT NULL REFERENCES public.competition_years(id) ON DELETE CASCADE,
-    "childId" TEXT NOT NULL REFERENCES public.children(child_id) ON DELETE CASCADE,
-    "divisionId" UUID NOT NULL REFERENCES public.divisions(id) ON DELETE CASCADE,
-    reason TEXT,
-    created_by TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
-    UNIQUE("competitionYearId", "childId")
-);
+-- Handle both TEXT and UUID types for competition_years.id
+DO $$
+DECLARE
+    competition_years_id_type TEXT;
+BEGIN
+    -- Check the actual type of competition_years.id column
+    SELECT data_type INTO competition_years_id_type
+    FROM information_schema.columns 
+    WHERE table_name = 'competition_years' 
+    AND column_name = 'id' 
+    AND table_schema = 'public';
+    
+    -- Create the table with the appropriate type for competitionYearId
+    IF competition_years_id_type = 'uuid' THEN
+        EXECUTE '
+        CREATE TABLE IF NOT EXISTS public.enrollment_overrides (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            "competitionYearId" UUID NOT NULL REFERENCES public.competition_years(id) ON DELETE CASCADE,
+            "childId" TEXT NOT NULL REFERENCES public.children(child_id) ON DELETE CASCADE,
+            "divisionId" UUID NOT NULL REFERENCES public.divisions(id) ON DELETE CASCADE,
+            reason TEXT,
+            created_by TEXT,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
+            UNIQUE("competitionYearId", "childId")
+        )';
+        RAISE NOTICE 'Created enrollment_overrides table with UUID competitionYearId';
+    ELSE
+        EXECUTE '
+        CREATE TABLE IF NOT EXISTS public.enrollment_overrides (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            "competitionYearId" TEXT NOT NULL REFERENCES public.competition_years(id) ON DELETE CASCADE,
+            "childId" TEXT NOT NULL REFERENCES public.children(child_id) ON DELETE CASCADE,
+            "divisionId" UUID NOT NULL REFERENCES public.divisions(id) ON DELETE CASCADE,
+            reason TEXT,
+            created_by TEXT,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
+            UNIQUE("competitionYearId", "childId")
+        )';
+        RAISE NOTICE 'Created enrollment_overrides table with TEXT competitionYearId';
+    END IF;
+END $$;
