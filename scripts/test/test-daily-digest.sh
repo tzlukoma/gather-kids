@@ -10,7 +10,7 @@ echo "================================="
 # Test environment setup
 echo "📋 Setting up test environment..."
 export SUPABASE_URL="https://test.supabase.co"
-export SUPABASE_SERVICE_ROLE="test-service-role-key"
+export SUPABASE_SERVICE_ROLE_KEY="test-service-role-key"
 export MJ_API_KEY="test-api-key"
 export MJ_API_SECRET="test-api-secret"
 export FROM_EMAIL="no-reply@test.com"
@@ -20,7 +20,7 @@ export DRY_RUN="true"
 
 # Test 1: Environment validation
 echo "✅ Test 1: Environment variable validation"
-if [[ -z "$SUPABASE_URL" ]] || [[ -z "$SUPABASE_SERVICE_ROLE" ]] || [[ -z "$MJ_API_KEY" ]] || [[ -z "$MJ_API_SECRET" ]] || [[ -z "$FROM_EMAIL" ]]; then
+if [[ -z "$SUPABASE_URL" ]] || [[ -z "$SUPABASE_SERVICE_ROLE_KEY" ]] || [[ -z "$MJ_API_KEY" ]] || [[ -z "$MJ_API_SECRET" ]] || [[ -z "$FROM_EMAIL" ]]; then
     echo "❌ Missing required environment variables"
     exit 1
 fi
@@ -97,7 +97,68 @@ else
     exit 1
 fi
 
-required_secrets=("SUPABASE_URL" "SUPABASE_SERVICE_ROLE" "MJ_API_KEY" "MJ_API_SECRET" "FROM_EMAIL" "MONITOR_EMAILS")
+required_secrets=("SUPABASE_URL" "SUPABASE_SERVICE_ROLE_KEY" "MJ_API_KEY" "MJ_API_SECRET" "FROM_EMAIL" "MONITOR_EMAILS")
+for secret in "${required_secrets[@]}"; do
+    if grep -q "$secret" "$workflow_file"; then
+        echo "   ✓ $secret configured in workflow"
+    else
+        echo "   ❌ $secret not found in workflow"
+        exit 1
+    fi
+done
+
+# Test 6: UAT Environment support
+echo "✅ Test 6: UAT Environment support"
+echo "📋 Setting up UAT test environment..."
+unset SUPABASE_URL SUPABASE_SERVICE_ROLE_KEY MJ_API_KEY MJ_API_SECRET FROM_EMAIL MONITOR_EMAILS
+export ENVIRONMENT="UAT"
+export UAT_SUPABASE_URL="https://uat-test.supabase.co"
+export UAT_SUPABASE_SERVICE_ROLE_KEY="uat-test-service-role-key"
+export UAT_MJ_API_KEY="uat-test-api-key"
+export UAT_MJ_API_SECRET="uat-test-api-secret"
+export UAT_FROM_EMAIL="no-reply-uat@test.com"
+export UAT_MONITOR_EMAILS="uat-admin@test.com,uat-monitor@test.com"
+export DRY_RUN="true"
+
+echo "   Testing UAT environment script execution..."
+if node scripts/dailyDigest.js > /tmp/digest-uat-test.log 2>&1; then
+    echo "   Script executed successfully with UAT environment"
+else
+    # Check if it failed due to expected database connection issue
+    if grep -q "Missing checkpoint table" /tmp/digest-uat-test.log; then
+        echo "   Script correctly detected missing UAT database (expected with dummy URL)"
+    elif grep -q "fetch failed" /tmp/digest-uat-test.log; then
+        echo "   Script correctly failed to connect to dummy UAT database (expected)"
+    else
+        echo "❌ UAT script execution failed unexpectedly"
+        cat /tmp/digest-uat-test.log
+        exit 1
+    fi
+fi
+
+# Verify UAT-specific configuration was loaded
+if grep -q "uat-admin@test.com" /tmp/digest-uat-test.log; then
+    echo "   ✓ UAT monitor emails loaded correctly"
+else
+    echo "   ❌ UAT monitor emails not detected"
+    exit 1
+fi
+
+# Test 7: Environment workflow validation
+echo "✅ Test 7: Environment workflow inputs"
+if grep -q "environment:" "$workflow_file" && grep -q "PROD" "$workflow_file" && grep -q "UAT" "$workflow_file"; then
+    echo "   ✓ Environment input options configured"
+else
+    echo "   ❌ Environment input options not found"
+    exit 1
+fi
+
+if grep -q "UAT_SUPABASE_URL" "$workflow_file" && grep -q "UAT_DATABASE_URL" "$workflow_file"; then
+    echo "   ✓ UAT environment variables configured in workflow"
+else
+    echo "   ❌ UAT environment variables not found in workflow"
+    exit 1
+fi
 for secret in "${required_secrets[@]}"; do
     if grep -q "\${{ secrets\.$secret }}" "$workflow_file"; then
         echo "   ✓ Secret $secret referenced in workflow"
@@ -112,8 +173,8 @@ for secret in "${required_secrets[@]}"; do
     fi
 done
 
-# Test 6: Package dependencies
-echo "✅ Test 6: Package dependencies validation"
+# Test 8: Package dependencies
+echo "✅ Test 8: Package dependencies validation"
 if grep -q '"node-mailjet"' package.json; then
     echo "   ✓ node-mailjet dependency present"
 else
@@ -128,8 +189,8 @@ else
     exit 1
 fi
 
-# Test 7: Migration file validation
-echo "✅ Test 7: Database migration validation"
+# Test 9: Database migration validation
+echo "✅ Test 9: Database migration validation"
 migration_file="supabase/migrations/20250910134652_add_daily_digest_checkpoints.sql"
 if grep -q "CREATE TABLE.*daily_digest_checkpoints" "$migration_file"; then
     echo "   ✓ Checkpoint table creation found"
@@ -145,8 +206,8 @@ else
     exit 1
 fi
 
-# Test 8: Documentation completeness
-echo "✅ Test 8: Documentation validation"
+# Test 10: Documentation completeness
+echo "✅ Test 10: Documentation validation"
 doc_file="docs/DAILY_DIGEST.md"
 required_sections=("Overview" "Setup Instructions" "Mailjet Account Setup" "GitHub Secrets" "Usage" "Troubleshooting")
 for section in "${required_sections[@]}"; do

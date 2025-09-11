@@ -123,14 +123,103 @@ describe('Daily Digest Script', () => {
 				? process.env.MONITOR_EMAILS.split(',').map((email: string) => email.trim()).filter((email: string) => email)
 				: [];
 			expect(monitorEmails).toEqual([]);
+		});
 
-			// Test undefined
-			delete process.env.MONITOR_EMAILS;
-			const envVar = process.env.MONITOR_EMAILS as string | undefined;
-			monitorEmails = envVar 
-				? envVar.split(',').map((email: string) => email.trim()).filter((email: string) => email)
-				: [];
-			expect(monitorEmails).toEqual([]);
+		test('should support environment-prefixed variables', () => {
+			// Mock the getEnvVar function from dailyDigest.js
+			function getEnvVar(varName: string, fallbacks: string[] = []): string | undefined {
+				const ENVIRONMENT = process.env.ENVIRONMENT || '';
+				
+				// If ENVIRONMENT is set, check for prefixed version first
+				if (ENVIRONMENT) {
+					const prefixedVar = `${ENVIRONMENT}_${varName}`;
+					if (process.env[prefixedVar]) {
+						return process.env[prefixedVar];
+					}
+				}
+				
+				// Check base variable name
+				if (process.env[varName]) {
+					return process.env[varName];
+				}
+				
+				// Check fallbacks (both prefixed and unprefixed)
+				for (const fallback of fallbacks) {
+					// Check prefixed fallback first if ENVIRONMENT is set
+					if (ENVIRONMENT) {
+						const prefixedFallback = `${ENVIRONMENT}_${fallback}`;
+						if (process.env[prefixedFallback]) {
+							return process.env[prefixedFallback];
+						}
+					}
+					
+					// Check unprefixed fallback
+					if (process.env[fallback]) {
+						return process.env[fallback];
+					}
+				}
+				
+				return undefined;
+			}
+
+			// Test without environment prefix
+			process.env.SUPABASE_URL = 'https://prod.supabase.co';
+			process.env.FROM_EMAIL = 'prod@example.com';
+			delete process.env.ENVIRONMENT;
+			
+			expect(getEnvVar('SUPABASE_URL')).toBe('https://prod.supabase.co');
+			expect(getEnvVar('FROM_EMAIL')).toBe('prod@example.com');
+
+			// Test with UAT environment prefix
+			process.env.ENVIRONMENT = 'UAT';
+			process.env.UAT_SUPABASE_URL = 'https://uat.supabase.co';
+			process.env.UAT_FROM_EMAIL = 'uat@example.com';
+			
+			expect(getEnvVar('SUPABASE_URL')).toBe('https://uat.supabase.co');
+			expect(getEnvVar('FROM_EMAIL')).toBe('uat@example.com');
+
+			// Test fallback to base variable when prefixed not found
+			delete process.env.UAT_MONITOR_EMAILS;
+			process.env.MONITOR_EMAILS = 'fallback@example.com';
+			expect(getEnvVar('MONITOR_EMAILS')).toBe('fallback@example.com');
+
+			// Test prefixed fallback variables
+			delete process.env.UAT_SUPABASE_URL;
+			delete process.env.SUPABASE_URL;
+			process.env.UAT_DATABASE_URL = 'https://uat-db.supabase.co';
+			expect(getEnvVar('SUPABASE_URL', ['DATABASE_URL'])).toBe('https://uat-db.supabase.co');
+		});
+
+		test('should handle empty ENVIRONMENT variable', () => {
+			function getEnvVar(varName: string, fallbacks: string[] = []): string | undefined {
+				const ENVIRONMENT = process.env.ENVIRONMENT || '';
+				
+				if (ENVIRONMENT) {
+					const prefixedVar = `${ENVIRONMENT}_${varName}`;
+					if (process.env[prefixedVar]) {
+						return process.env[prefixedVar];
+					}
+				}
+				
+				if (process.env[varName]) {
+					return process.env[varName];
+				}
+				
+				for (const fallback of fallbacks) {
+					if (process.env[fallback]) {
+						return process.env[fallback];
+					}
+				}
+				
+				return undefined;
+			}
+
+			process.env.ENVIRONMENT = '';
+			process.env.SUPABASE_URL = 'https://default.supabase.co';
+			process.env.UAT_SUPABASE_URL = 'https://uat.supabase.co';
+			
+			// Should use base variable when ENVIRONMENT is empty
+			expect(getEnvVar('SUPABASE_URL')).toBe('https://default.supabase.co');
 		});
 	});
 

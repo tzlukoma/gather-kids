@@ -5,19 +5,44 @@ on:
     # Run at 7:00 AM ET (11:00 UTC during EDT, 12:00 UTC during EST)
     # Using 11:00 UTC as it covers EDT; adjust for EST if needed
     - cron: "0 11 * * *"
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to run against'
+        required: false
+        default: 'PROD'
+        type: choice
+        options:
+          - 'PROD'
+          - 'UAT'
+      dry_run:
+        description: 'Run in dry mode (no emails sent)'
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   digest:
     runs-on: ubuntu-latest
     env:
+      ENVIRONMENT: ${{ inputs.environment || 'PROD' }}
+      DRY_RUN: ${{ inputs.dry_run && 'true' || 'false' }}
+      # Production environment variables (default)
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-      SUPABASE_SERVICE_ROLE: ${{ secrets.SUPABASE_SERVICE_ROLE }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       MJ_API_KEY: ${{ secrets.MJ_API_KEY }}
       MJ_API_SECRET: ${{ secrets.MJ_API_SECRET }}
       FROM_EMAIL: ${{ secrets.FROM_EMAIL }}
-      EMAIL_MODE: ${{ secrets.EMAIL_MODE || 'mailjet' }}
       MONITOR_EMAILS: ${{ secrets.MONITOR_EMAILS }}
+      # UAT environment variables (when ENVIRONMENT=UAT)
+      UAT_SUPABASE_URL: ${{ secrets.UAT_SUPABASE_URL }}
+      UAT_DATABASE_URL: ${{ secrets.UAT_DATABASE_URL }}
+      UAT_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.UAT_SUPABASE_SERVICE_ROLE_KEY }}
+      UAT_MJ_API_KEY: ${{ secrets.UAT_MJ_API_KEY }}
+      UAT_MJ_API_SECRET: ${{ secrets.UAT_MJ_API_SECRET }}
+      UAT_FROM_EMAIL: ${{ secrets.UAT_FROM_EMAIL }}
+      UAT_MONITOR_EMAILS: ${{ secrets.UAT_MONITOR_EMAILS }}
+      EMAIL_MODE: ${{ secrets.EMAIL_MODE || 'mailjet' }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -36,8 +61,14 @@ jobs:
 
       - name: Log completion
         if: success()
-        run: echo "Daily digest completed successfully at $(date)"
+        run: |
+          echo "Daily digest completed successfully at $(date)"
+          echo "Environment: ${{ env.ENVIRONMENT }}"
+          echo "Dry run: ${{ env.DRY_RUN }}"
 
       - name: Log failure
         if: failure()
-        run: echo "Daily digest failed at $(date)"
+        run: |
+          echo "Daily digest failed at $(date)"
+          echo "Environment: ${{ env.ENVIRONMENT }}"
+          echo "Dry run: ${{ env.DRY_RUN }}"
