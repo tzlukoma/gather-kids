@@ -137,6 +137,8 @@ const ministriesData = [
 		name: 'Youth Choirs- Joy Bells (Ages 4-8)',
 		code: 'joy-bells',
 		enrollment_type: 'enrolled',
+		min_age: 4,
+		max_age: 8,
 		details:
 			"Thank you for registering for Joy Bells.\n\nYou will receive information from ministry leaders regarding next steps for your child's participation.",
 		data_profile: 'Basic',
@@ -146,6 +148,8 @@ const ministriesData = [
 		name: 'Youth Choirs- Keita Praise Choir (Ages 9-12)',
 		code: 'keita-praise',
 		enrollment_type: 'enrolled',
+		min_age: 9,
+		max_age: 12,
 		details:
 			"Thank you for registering for Keita Praise Choir.\n\nYou will receive information from ministry leaders regarding next steps for your child's participation.",
 		data_profile: 'Basic',
@@ -155,6 +159,8 @@ const ministriesData = [
 		name: 'Youth Choirs- New Generation Teen Choir (Ages 13-18)',
 		code: 'teen-choir',
 		enrollment_type: 'enrolled',
+		min_age: 13,
+		max_age: 18,
 		details:
 			"Thank you for registering for New Generation Teen Choir.\n\nYou will receive information from ministry leaders regarding next steps for your child's participation.",
 		data_profile: 'Basic',
