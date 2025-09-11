@@ -466,7 +466,7 @@ const ProgramSection = ({
 function RegisterPageContent() {
 	const { toast } = useToast();
 	const { flags } = useFeatureFlags();
-	const { user } = useAuth();
+	const { user, loading: authLoading } = useAuth();
 	const router = useRouter();
 	const searchParams = useSearchParams();
 	const [verificationStep, setVerificationStep] =
@@ -611,7 +611,7 @@ function RegisterPageContent() {
 	// Load draft data asynchronously and merge with form
 	useEffect(() => {
 		async function loadDraftData() {
-			if (!hasLoadedDraft) {
+			if (!hasLoadedDraft && !authLoading) {
 				const draftData = await loadSavedFormData();
 				if (draftData && Object.keys(draftData).length > 0) {
 					// Reset form with merged default values and draft data
@@ -697,7 +697,7 @@ function RegisterPageContent() {
 		}
 
 		loadDraftData();
-	}, [hasLoadedDraft, loadSavedFormData, form]);
+	}, [hasLoadedDraft, loadSavedFormData, form, authLoading]);
 
 	const {
 		fields: guardianFields,
@@ -1143,9 +1143,17 @@ function RegisterPageContent() {
 				}
 			};
 
-			checkExistingData();
+			// Only run checkExistingData if we haven't loaded draft data yet
+			if (!hasLoadedDraft) {
+				checkExistingData();
+			} else {
+				console.log(
+					'DEBUG: Skipping checkExistingData because draft data was already loaded'
+				);
+				setVerificationStep('form_visible');
+			}
 		}
-	}, [user, flags.isDemoMode, toast, form, prefillForm]);
+	}, [user, flags.isDemoMode, toast, form, prefillForm, hasLoadedDraft]);
 
 	// Focus on the first field when the form becomes visible for authenticated users
 	useEffect(() => {
@@ -1350,23 +1358,23 @@ function RegisterPageContent() {
 	return (
 		<div className="max-w-4xl mx-auto">
 			<div className="mb-8">
-				<div className="flex justify-between items-start mb-4">
-					<div>
-						<h1 className="text-3xl font-bold font-headline">
-							Family Registration Form
-						</h1>
-						<p className="text-muted-foreground">
-							Complete the form below to register your family for our
-							children&apos;s ministry programs.
-						</p>
-					</div>
+				<div className="mb-4">
+					<h1 className="text-3xl font-bold font-headline">
+						Family Registration Form
+					</h1>
+					<p className="text-muted-foreground">
+						Complete the form below to register your family for our
+						children&apos;s ministry programs.
+					</p>
 					{flags.registrationDraftPersistenceEnabled && (
-						<DraftStatusIndicator
-							isSaving={draftStatus.isSaving}
-							lastSaved={draftStatus.lastSaved}
-							error={draftStatus.error}
-							className="mt-2"
-						/>
+						<div className="mt-3">
+							<DraftStatusIndicator
+								isSaving={draftStatus.isSaving}
+								lastSaved={draftStatus.lastSaved}
+								error={draftStatus.error}
+								className="inline-flex items-center px-3 py-1 rounded-full text-xs bg-gray-100 text-gray-600"
+							/>
+						</div>
 					)}
 				</div>
 			</div>
