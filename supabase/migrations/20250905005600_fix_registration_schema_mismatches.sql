@@ -112,28 +112,88 @@ BEGIN
 
     -- Migrate existing data if the old table exists and has data
     IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'emergency_contacts') THEN
-        IF ref_type = 'uuid' THEN
-            -- Convert textual UUIDs when possible, otherwise set NULL for household_id
-            EXECUTE $sql$
-            INSERT INTO emergency_contacts_new (contact_id, household_id, first_name, last_name, mobile_phone, relationship, created_at, updated_at)
-            SELECT
-                CASE WHEN contact_id ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' THEN contact_id::uuid ELSE gen_random_uuid() END,
-                CASE WHEN household_id ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' THEN household_id::uuid ELSE NULL END,
-                first_name, last_name, mobile_phone, relationship, COALESCE(created_at, now()), COALESCE(updated_at, now())
-            FROM emergency_contacts
-            ON CONFLICT (contact_id) DO NOTHING;
-            $sql$;
+        -- Check what columns actually exist in the emergency_contacts table
+        IF EXISTS (
+            SELECT 1 FROM information_schema.columns 
+            WHERE table_name = 'emergency_contacts' 
+            AND column_name = 'first_name' 
+            AND table_schema = 'public'
+        ) THEN
+            -- Table has first_name/last_name columns (old schema)
+            IF ref_type = 'uuid' THEN
+                -- Convert textual UUIDs when possible, otherwise set NULL for household_id
+                EXECUTE $sql$
+                INSERT INTO emergency_contacts_new (contact_id, household_id, first_name, last_name, mobile_phone, relationship, created_at, updated_at)
+                SELECT
+                    CASE WHEN contact_id ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' THEN contact_id::uuid ELSE gen_random_uuid() END,
+                    CASE WHEN household_id ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' THEN household_id::uuid ELSE NULL END,
+                    first_name, last_name, mobile_phone, relationship, COALESCE(created_at, now()), COALESCE(updated_at, now())
+                FROM emergency_contacts
+                ON CONFLICT (contact_id) DO NOTHING;
+                $sql$;
+            ELSE
+                -- Keep household_id as text if households keys are text
+                EXECUTE $sql$
+                INSERT INTO emergency_contacts_new (contact_id, household_id, first_name, last_name, mobile_phone, relationship, created_at, updated_at)
+                SELECT
+                    CASE WHEN contact_id ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' THEN contact_id::uuid ELSE gen_random_uuid() END,
+                    household_id,
+                    first_name, last_name, mobile_phone, relationship, COALESCE(created_at, now()), COALESCE(updated_at, now())
+                FROM emergency_contacts
+                ON CONFLICT (contact_id) DO NOTHING;
+                $sql$;
+            END IF;
         ELSE
-            -- Keep household_id as text if households keys are text
-            EXECUTE $sql$
-            INSERT INTO emergency_contacts_new (contact_id, household_id, first_name, last_name, mobile_phone, relationship, created_at, updated_at)
-            SELECT
-                CASE WHEN contact_id ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' THEN contact_id::uuid ELSE gen_random_uuid() END,
-                household_id,
-                first_name, last_name, mobile_phone, relationship, COALESCE(created_at, now()), COALESCE(updated_at, now())
-            FROM emergency_contacts
-            ON CONFLICT (contact_id) DO NOTHING;
-            $sql$;
+            -- Table has name/phone columns (incorrect schema) - attempt to split name into first/last
+            RAISE NOTICE 'emergency_contacts table has incorrect schema - attempting to split name field into first_name/last_name';
+            
+            IF ref_type = 'uuid' THEN
+                -- Convert textual UUIDs when possible, otherwise set NULL for household_id
+                EXECUTE $sql$
+                INSERT INTO emergency_contacts_new (contact_id, household_id, first_name, last_name, mobile_phone, relationship, created_at, updated_at)
+                SELECT
+                    CASE WHEN contact_id ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' THEN contact_id::uuid ELSE gen_random_uuid() END,
+                    CASE WHEN household_id ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' THEN household_id::uuid ELSE NULL END,
+                    -- Split name field: take first word as first_name, rest as last_name
+                    CASE 
+                        WHEN name IS NULL OR name = '' THEN ''
+                        WHEN position(' ' in name) = 0 THEN name
+                        ELSE substring(name from 1 for position(' ' in name) - 1)
+                    END,
+                    CASE 
+                        WHEN name IS NULL OR name = '' THEN ''
+                        WHEN position(' ' in name) = 0 THEN ''
+                        ELSE substring(name from position(' ' in name) + 1)
+                    END,
+                    phone, relationship, COALESCE(created_at, now()), COALESCE(updated_at, now())
+                FROM emergency_contacts
+                ON CONFLICT (contact_id) DO NOTHING;
+                $sql$;
+            ELSE
+                -- Keep household_id as text if households keys are text
+                EXECUTE $sql$
+                INSERT INTO emergency_contacts_new (contact_id, household_id, first_name, last_name, mobile_phone, relationship, created_at, updated_at)
+                SELECT
+                    CASE WHEN contact_id ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' THEN contact_id::uuid ELSE gen_random_uuid() END,
+                    household_id,
+                    -- Split name field: take first word as first_name, rest as last_name
+                    CASE 
+                        WHEN name IS NULL OR name = '' THEN ''
+                        WHEN position(' ' in name) = 0 THEN name
+                        ELSE substring(name from 1 for position(' ' in name) - 1)
+                    END,
+                    CASE 
+                        WHEN name IS NULL OR name = '' THEN ''
+                        WHEN position(' ' in name) = 0 THEN ''
+                        ELSE substring(name from position(' ' in name) + 1)
+                    END,
+                    phone, relationship, COALESCE(created_at, now()), COALESCE(updated_at, now())
+                FROM emergency_contacts
+                ON CONFLICT (contact_id) DO NOTHING;
+                $sql$;
+            END IF;
+            
+            RAISE NOTICE 'Migrated emergency_contacts data by splitting name field into first_name/last_name';
         END IF;
 
         -- Drop old table now that data is migrated
