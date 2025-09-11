@@ -248,6 +248,33 @@ async function createMinistries() {
 	console.log('📋 Starting ministry creation for production...');
 	console.log(`📊 Found ${ministriesData.length} ministries to process`);
 
+	// Validate database schema before proceeding
+	console.log('🔍 Validating database schema...');
+	try {
+		const { data: schemaTest, error: schemaError } = await supabase
+			.from('ministries')
+			.select('code, close_at, data_profile, enrollment_type, min_age, max_age')
+			.limit(1);
+
+		if (schemaError) {
+			console.error('❌ Database schema validation failed:');
+			console.error('   Error:', schemaError.message);
+			console.error('💡 The ministries table is missing required columns.');
+			console.error(
+				'   Please run the migration: 20250110000000_ensure_ministries_schema_complete.sql'
+			);
+			console.error(
+				'   Or contact the database administrator to apply missing migrations.'
+			);
+			throw new Error('Schema validation failed');
+		}
+
+		console.log('✅ Database schema validation passed');
+	} catch (err) {
+		console.error('❌ Failed to validate database schema:', err.message);
+		throw err;
+	}
+
 	if (DRY_RUN) {
 		console.log('🧪 DRY RUN MODE - No changes will be made');
 		console.log('===============================================');
@@ -317,6 +344,22 @@ async function createMinistries() {
 					`❌ Error creating ministry ${ministryData.name}:`,
 					error.message
 				);
+
+				// Provide helpful guidance for schema issues
+				if (
+					error.message.includes('column') &&
+					error.message.includes('does not exist')
+				) {
+					console.error('💡 This appears to be a database schema issue.');
+					console.error('   The ministries table is missing required columns.');
+					console.error(
+						'   Please run the migration: 20250110000000_ensure_ministries_schema_complete.sql'
+					);
+					console.error(
+						'   Or contact the database administrator to apply missing migrations.'
+					);
+				}
+
 				counters.errors++;
 				continue;
 			}

@@ -43,6 +43,7 @@
     "seed:dev:dry": "DOTENV_CONFIG_PATH=.env.local DRY_RUN=true node -r dotenv/config scripts/seed/dev_seed.js",
     "seed:prod:ministries": "node scripts/seed/prod_ministries.js",
     "seed:prod:ministries:dry": "DRY_RUN=true node scripts/seed/prod_ministries.js",
+    "audit:schema": "node scripts/audit/simple-schema-audit.js",
     "fix:inactive-ministries": "DOTENV_CONFIG_PATH=.env.uat node -r dotenv/config scripts/seed/fix_inactive_ministries.js",
     "import:grab-dexie": "node scripts/import/grabDexieExport.mjs",
     "import:dexie": "DOTENV_CONFIG_PATH=.env.local node -r dotenv/config scripts/import/importDexie.js",
