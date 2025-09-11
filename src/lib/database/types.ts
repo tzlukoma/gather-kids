@@ -331,4 +331,9 @@ export interface DatabaseAdapter {
 
 	// Batch operations (optional for v1)
 	transaction<T>(callback: () => Promise<T>): Promise<T>;
+
+	// Form draft persistence
+	getDraft(formName: string, userId: string): Promise<any | null>;
+	saveDraft(formName: string, userId: string, payload: any, version?: number): Promise<void>;
+	clearDraft(formName: string, userId: string): Promise<void>;
 }

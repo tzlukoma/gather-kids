@@ -8,7 +8,8 @@ export const ROLE_PRIORITY: Record<AuthRole, number> = {
   [AuthRole.ADMIN]: 1,           // Highest priority
   [AuthRole.MINISTRY_LEADER]: 2,
   [AuthRole.GUARDIAN]: 3,
-  [AuthRole.VOLUNTEER]: 4       // Lowest priority
+  [AuthRole.VOLUNTEER]: 4,
+  [AuthRole.GUEST]: 5            // Lowest priority - unregistered users
 } as const;
 
 /**
@@ -18,7 +19,8 @@ export const ROLE_ROUTES: Record<AuthRole, string> = {
   [AuthRole.ADMIN]: '/dashboard',
   [AuthRole.MINISTRY_LEADER]: '/dashboard/rosters', // Note: Issue specified '/roster' but app uses '/dashboard/rosters'
   [AuthRole.GUARDIAN]: '/household',
-  [AuthRole.VOLUNTEER]: '/dashboard' // Fallback to dashboard for volunteers
+  [AuthRole.VOLUNTEER]: '/dashboard', // Fallback to dashboard for volunteers
+  [AuthRole.GUEST]: '/register'        // Unregistered users go to registration
 } as const;
 
 /**

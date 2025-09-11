@@ -16,6 +16,7 @@ interface FeatureFlags {
 	loginPasswordEnabled: boolean;
 	loginGoogleEnabled: boolean;
 	isDemoMode: boolean;
+	registrationDraftPersistenceEnabled: boolean;
 }
 
 interface FeatureFlagContextType {
@@ -40,6 +41,7 @@ export function FeatureFlagProvider({ children }: { children: ReactNode }) {
 		loginPasswordEnabled: getFlag("LOGIN_PASSWORD_ENABLED") as boolean,
 		loginGoogleEnabled: getFlag("LOGIN_GOOGLE_ENABLED") as boolean,
 		isDemoMode: isDemo(),
+		registrationDraftPersistenceEnabled: getFlag("REGISTRATION_DRAFT_PERSISTENCE_ENABLED") as boolean,
 	});
 	const [loading, setLoading] = useState(true);
 

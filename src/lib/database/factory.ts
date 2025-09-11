@@ -2,6 +2,7 @@ import { SupabaseAdapter } from './supabase-adapter';
 import { IndexedDBAdapter } from './indexed-db-adapter';
 import type { DatabaseAdapter } from './types';
 import { getFlag } from '../featureFlags';
+import { supabase } from '../supabaseClient';
 
 export function createDatabaseAdapter(): DatabaseAdapter {
 	// Use feature flag system to determine database mode
@@ -32,7 +33,8 @@ export function createDatabaseAdapter(): DatabaseAdapter {
 		console.log('Creating Supabase adapter for live mode', {
 			url: supabaseUrl
 		});
-		return new SupabaseAdapter(supabaseUrl, supabaseKey);
+		// Use the authenticated Supabase client instead of creating a new one
+		return new SupabaseAdapter(supabaseUrl, supabaseKey, supabase);
 	}
 
 	// Default to IndexedDB for demo mode

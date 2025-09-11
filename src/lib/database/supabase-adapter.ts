@@ -2666,6 +2666,55 @@ export class SupabaseAdapter implements DatabaseAdapter {
 		// In the future, consider using pg connection to handle transactions
 		return callback();
 	}
+
+	// Form draft persistence methods
+	async getDraft(formName: string, userId: string): Promise<any | null> {
+		const id = `${formName}::${userId}`;
+		const { data, error } = await this.getClientAny()
+			.from('form_drafts')
+			.select('payload')
+			.eq('id', id)
+			.single();
+
+		if (error) {
+			if (error.code === 'PGRST116') return null; // No rows returned
+			throw error;
+		}
+
+		return data ? data.payload : null;
+	}
+
+	async saveDraft(formName: string, userId: string, payload: any, version = 1): Promise<void> {
+		const id = `${formName}::${userId}`;
+		const draft = {
+			id,
+			form_name: formName,
+			user_id: userId,
+			payload,
+			version,
+			updated_at: new Date().toISOString(),
+		};
+
+		const { error } = await this.getClientAny()
+			.from('form_drafts')
+			.upsert(draft);
+
+		if (error) {
+			throw error;
+		}
+	}
+
+	async clearDraft(formName: string, userId: string): Promise<void> {
+		const id = `${formName}::${userId}`;
+		const { error } = await this.getClientAny()
+			.from('form_drafts')
+			.delete()
+			.eq('id', id);
+
+		if (error) {
+			throw error;
+		}
+	}
     
 	// Temporary helper for tables missing from generated supabase types (see TODOs below).
 	// TODO: regenerate `src/lib/database/supabase-types.ts` so the Supabase client generic
