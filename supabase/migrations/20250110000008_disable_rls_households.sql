@@ -8,6 +8,7 @@ DO $$
 DECLARE
     rls_enabled boolean;
     policy_count integer;
+    policy_record RECORD;
 BEGIN
     -- Check if RLS is enabled
     SELECT relrowsecurity INTO rls_enabled
@@ -24,16 +25,16 @@ BEGIN
     RAISE NOTICE 'Current policy count on households: %', policy_count;
     
     -- List all policies
-    FOR policy_count IN 
+    FOR policy_record IN 
         SELECT policyname, cmd, qual, with_check
         FROM pg_policies 
         WHERE tablename = 'households'
     LOOP
         RAISE NOTICE 'Policy: % | Command: % | Qual: % | With Check: %', 
-            policy_count.policyname,
-            policy_count.cmd,
-            policy_count.qual,
-            policy_count.with_check;
+            policy_record.policyname,
+            policy_record.cmd,
+            policy_record.qual,
+            policy_record.with_check;
     END LOOP;
 END $$;
 
