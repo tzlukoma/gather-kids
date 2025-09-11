@@ -251,6 +251,9 @@ export function supabaseToHousehold(
 		city: record.city ?? '' ,
 		state: record.state ?? '' ,
 		zip: record.zip ?? '' ,
+		// Map email and phone fields from database columns to canonical DTO fields
+		primary_email: (r.email as string | undefined) ?? (r.primary_email as string | undefined) ?? undefined,
+		primary_phone: (r.phone as string | undefined) ?? (r.primary_phone as string | undefined) ?? undefined,
 		created_at: record.created_at ?? new Date().toISOString(),
 		updated_at: record.updated_at ?? new Date().toISOString(),
 	};
@@ -268,6 +271,9 @@ export function householdToSupabase(
 		city: household.city,
 		state: household.state,
 		zip: household.zip,
+		// Map canonical DTO fields to database column names
+		email: household.primary_email,
+		phone: household.primary_phone,
 	} as unknown as Omit<SupabaseHousehold, 'created_at' | 'updated_at'>;
 }
 

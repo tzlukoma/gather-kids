@@ -78,27 +78,23 @@ export class SupabaseAdapter implements DatabaseAdapter {
 	async createHousehold(
 		data: Omit<Household, 'household_id' | 'created_at' | 'updated_at'>
 	): Promise<Household> {
-		// Map frontend field names to database column names
+		// Map canonical DTO fields to database column names
 		const household = {
 			household_id: data.household_id || uuidv4(), // Use provided ID or generate new one
 			created_at: new Date().toISOString(),
 			updated_at: new Date().toISOString(),
-			// Map name field
+			// Direct field mappings (canonical DTOs use snake_case)
 			name: data.name,
-			// Use snake_case for database compatibility
-			preferred_scripture_translation: data.preferredScriptureTranslation,
-			// Direct field mappings
 			address_line1: data.address_line1,
 			address_line2: data.address_line2,
 			city: data.city,
 			state: data.state,
 			zip: data.zip,
-			// Fix field mapping - use correct database column names
-			email: data.primary_email,        // Map primary_email to email
-			phone: data.primary_phone,        // Map primary_phone to phone
-			// Remove fields that don't exist in database
-			// photo_url: data.photo_url,      // ❌ Field doesn't exist
-			// avatar_path: data.avatar_path, // ❌ Field doesn't exist
+			preferred_scripture_translation: data.preferred_scripture_translation,
+			// Map canonical DTO fields to database columns
+			email: data.primary_email,        // Map primary_email to email column
+			phone: data.primary_phone,        // Map primary_phone to phone column
+			// Note: photo_url and avatar_path are not in current database schema
 		};
 
 		const { data: result, error } = await this.client
@@ -122,9 +118,8 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			updateData.name = data.name;
 			updateData.household_name = data.name;
 		}
-		if (data.preferredScriptureTranslation !== undefined) {
-			updateData.preferredScriptureTranslation = data.preferredScriptureTranslation;
-			updateData.preferred_scripture_translation = data.preferredScriptureTranslation;
+		if (data.preferred_scripture_translation !== undefined) {
+			updateData.preferred_scripture_translation = data.preferred_scripture_translation;
 		}
 		if (data.address_line1 !== undefined) updateData.address_line1 = data.address_line1;
 		if (data.address_line2 !== undefined) updateData.address_line2 = data.address_line2;

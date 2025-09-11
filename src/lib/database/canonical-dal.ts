@@ -156,9 +156,10 @@ export async function registerHouseholdCanonical(data: Record<string, unknown>, 
         city: canonicalData.household.city,
         state: canonicalData.household.state,
         zip: canonicalData.household.zip,
-        // Use snake_case internally, but map to current DB schema as needed
-        preferredScriptureTranslation: canonicalData.household.preferred_scripture_translation,
-        email: canonicalData.household.primary_email, // Map primary_email to email field in DB
+        // Use canonical DTO field names (snake_case)
+        preferred_scripture_translation: canonicalData.household.preferred_scripture_translation,
+        primary_email: canonicalData.household.primary_email, // Use canonical field name
+        primary_phone: canonicalData.household.primary_phone,   // Use canonical field name
       };
 
       if (isUpdate) {
