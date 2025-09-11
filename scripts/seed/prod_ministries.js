@@ -278,6 +278,11 @@ async function createMinistries() {
 					`[DRY RUN] Enrollment Type: ${ministryData.enrollment_type}`
 				);
 				console.log(`[DRY RUN] Data Profile: ${ministryData.data_profile}`);
+				if (ministryData.min_age && ministryData.max_age) {
+					console.log(
+						`[DRY RUN] Age Range: ${ministryData.min_age}-${ministryData.max_age} years old`
+					);
+				}
 				if (ministryData.custom_questions) {
 					console.log(
 						`[DRY RUN] Custom Questions: ${ministryData.custom_questions.length} questions`
@@ -317,9 +322,11 @@ async function createMinistries() {
 			}
 
 			const ministryId = result.ministry_id;
-			console.log(
-				`✅ Created ministry: ${ministryData.name} (ID: ${ministryId})`
-			);
+			let successMessage = `✅ Created ministry: ${ministryData.name} (ID: ${ministryId})`;
+			if (ministryData.min_age && ministryData.max_age) {
+				successMessage += ` - Age Range: ${ministryData.min_age}-${ministryData.max_age} years old`;
+			}
+			console.log(successMessage);
 			counters.ministries++;
 
 			// Note: We intentionally do NOT create ministry accounts here
