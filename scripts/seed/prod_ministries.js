@@ -16,7 +16,7 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
-import { createMinistry, saveMinistryAccount } from '../../src/lib/dal.ts';
+import { v4 as uuidv4 } from 'uuid';
 
 // Initialize Supabase client
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -285,10 +285,32 @@ async function createMinistries() {
 				continue;
 			}
 
-			// Create ministry using the app's DAL function
+			// Create ministry using direct Supabase insert
 			console.log(`🔄 Creating ministry: ${ministryData.name}...`);
-			const ministryId = await createMinistry(ministryData);
 
+			const ministry = {
+				...ministryData,
+				ministry_id: uuidv4(),
+				created_at: new Date().toISOString(),
+				updated_at: new Date().toISOString(),
+			};
+
+			const { data: result, error } = await supabase
+				.from('ministries')
+				.insert(ministry)
+				.select()
+				.single();
+
+			if (error) {
+				console.error(
+					`❌ Error creating ministry ${ministryData.name}:`,
+					error.message
+				);
+				counters.errors++;
+				continue;
+			}
+
+			const ministryId = result.ministry_id;
 			console.log(
 				`✅ Created ministry: ${ministryData.name} (ID: ${ministryId})`
 			);
