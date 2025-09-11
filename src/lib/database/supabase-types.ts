@@ -1,7 +1,7 @@
 /**
  * This file contains types generated from the Supabase schema.
  * DO NOT EDIT MANUALLY. This file is auto-generated.
- * Generated on: 2025-09-11T06:18:09.924Z
+ * Generated on: 2025-09-11T06:22:54.797Z
  */
 
 export type SupabaseJson =
@@ -867,27 +867,63 @@ export type Database = {
       ministries: {
         Row: {
           allows_checkin: boolean | null
+          close_at: string | null
+          code: string | null
+          communicate_later: boolean | null
           created_at: string | null
+          custom_questions: SupabaseJson | null
+          data_profile: string | null
           description: string | null
+          enrollment_type: string | null
           external_id: string | null
+          is_active: boolean | null
+          max_age: number | null
+          min_age: number | null
           ministry_id: string
           name: string | null
+          open_at: string | null
+          optional_consent_text: string | null
+          updated_at: string | null
         }
         Insert: {
           allows_checkin?: boolean | null
+          close_at?: string | null
+          code?: string | null
+          communicate_later?: boolean | null
           created_at?: string | null
+          custom_questions?: SupabaseJson | null
+          data_profile?: string | null
           description?: string | null
+          enrollment_type?: string | null
           external_id?: string | null
+          is_active?: boolean | null
+          max_age?: number | null
+          min_age?: number | null
           ministry_id: string
           name?: string | null
+          open_at?: string | null
+          optional_consent_text?: string | null
+          updated_at?: string | null
         }
         Update: {
           allows_checkin?: boolean | null
+          close_at?: string | null
+          code?: string | null
+          communicate_later?: boolean | null
           created_at?: string | null
+          custom_questions?: SupabaseJson | null
+          data_profile?: string | null
           description?: string | null
+          enrollment_type?: string | null
           external_id?: string | null
+          is_active?: boolean | null
+          max_age?: number | null
+          min_age?: number | null
           ministry_id?: string
           name?: string | null
+          open_at?: string | null
+          optional_consent_text?: string | null
+          updated_at?: string | null
         }
         Relationships: []
       }
