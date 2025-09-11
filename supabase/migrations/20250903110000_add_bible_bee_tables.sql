@@ -1,3 +1,26 @@
+-- Ensure children table exists with correct schema before creating dependent tables
+CREATE TABLE IF NOT EXISTS children (
+  child_id text PRIMARY KEY,
+  external_id text,
+  household_id text,
+  external_household_id text,
+  first_name text,
+  last_name text,
+  birth_date date,
+  dob date,
+  grade text,
+  gender text,
+  mobile_phone text,
+  child_mobile text,
+  allergies text,
+  notes text,
+  medical_notes text,
+  special_needs boolean DEFAULT false,
+  special_needs_notes text,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz
+);
+
 -- Add Bible Bee Divisions table
 -- Handle both TEXT and UUID types for competition_years.id
 DO $$
@@ -168,6 +191,7 @@ $$;
 
 -- Add Bible Bee enrollments table
 -- Handle both TEXT and UUID types for competition_years.id
+-- children table is now guaranteed to exist with child_id text
 DO $$
 DECLARE
     competition_years_id_type TEXT;
@@ -209,6 +233,7 @@ END $$;
 
 -- Add enrollment overrides table
 -- Handle both TEXT and UUID types for competition_years.id
+-- children table is now guaranteed to exist with child_id text
 DO $$
 DECLARE
     competition_years_id_type TEXT;
