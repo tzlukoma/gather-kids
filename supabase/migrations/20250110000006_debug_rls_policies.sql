@@ -61,7 +61,10 @@ WITH CHECK (
     (auth.jwt() ->> 'role')::text = 'ADMIN'
 );
 
-RAISE NOTICE 'Households INSERT policy created: Allows auth.uid() IS NOT NULL';
+DO $$
+BEGIN
+    RAISE NOTICE 'Households INSERT policy created: Allows auth.uid() IS NOT NULL';
+END $$;
 
 -- Let's also verify the policy was created correctly
 DO $$
