@@ -1229,6 +1229,14 @@ function RegisterPageContent() {
 				length: data.emergencyContact.mobile_phone?.length,
 			},
 		});
+		console.log('DEBUG: Authentication status at submission:', {
+			isAuthenticatedUser,
+			userEmail: user?.email,
+			userRole: user?.metadata?.role,
+			userExists: !!user,
+			authContext: !!auth,
+			userId: user?.id,
+		});
 		setIsSubmitting(true);
 		setSubmissionStatus('Creating household...');
 
@@ -1324,10 +1332,60 @@ function RegisterPageContent() {
 			console.error('DEBUG: Error in onSubmit:', e);
 			setIsSubmitting(false);
 			setSubmissionStatus('');
+
+			// Provide more specific error messages based on error type
+			let errorTitle = 'Submission Error';
+			let errorDescription =
+				'There was an error processing your registration. Please try again.';
+
+			if (e instanceof Error) {
+				const errorMessage = e.message.toLowerCase();
+
+				// Check for authentication-related errors
+				if (
+					errorMessage.includes('row-level security policy') ||
+					errorMessage.includes('42501')
+				) {
+					console.error('DEBUG: RLS Policy violation detected:', {
+						errorMessage: e.message,
+						isAuthenticatedUser,
+						userEmail: user?.email,
+						userRole: user?.metadata?.role,
+						userExists: !!user,
+						userId: user?.id,
+						authContext: !!auth,
+					});
+
+					// Check if user is authenticated
+					if (!isAuthenticatedUser || !user) {
+						errorTitle = 'Authentication Required';
+						errorDescription =
+							'Your session has expired. Please refresh the page and log in again to complete your registration.';
+					} else {
+						errorTitle = 'Access Denied';
+						errorDescription =
+							'You do not have permission to complete this registration. Please contact support if this continues.';
+					}
+				} else if (
+					errorMessage.includes('network') ||
+					errorMessage.includes('fetch')
+				) {
+					errorTitle = 'Connection Error';
+					errorDescription =
+						'Unable to connect to the server. Please check your internet connection and try again.';
+				} else if (
+					errorMessage.includes('validation') ||
+					errorMessage.includes('required')
+				) {
+					errorTitle = 'Form Validation Error';
+					errorDescription =
+						'Please check that all required fields are filled out correctly.';
+				}
+			}
+
 			toast({
-				title: 'Submission Error',
-				description:
-					'There was an error processing your registration. Please try again.',
+				title: errorTitle,
+				description: errorDescription,
 				variant: 'destructive',
 			});
 		} finally {

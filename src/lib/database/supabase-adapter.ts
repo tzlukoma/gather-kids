@@ -93,10 +93,12 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			city: data.city,
 			state: data.state,
 			zip: data.zip,
-			primary_email: data.primary_email,
-			primary_phone: data.primary_phone,
-			photo_url: data.photo_url,
-			avatar_path: data.avatar_path,
+			// Fix field mapping - use correct database column names
+			email: data.primary_email,        // Map primary_email to email
+			phone: data.primary_phone,        // Map primary_phone to phone
+			// Remove fields that don't exist in database
+			// photo_url: data.photo_url,      // ❌ Field doesn't exist
+			// avatar_path: data.avatar_path, // ❌ Field doesn't exist
 		};
 
 		const { data: result, error } = await this.client
@@ -129,10 +131,12 @@ export class SupabaseAdapter implements DatabaseAdapter {
 		if (data.city !== undefined) updateData.city = data.city;
 		if (data.state !== undefined) updateData.state = data.state;
 		if (data.zip !== undefined) updateData.zip = data.zip;
-		if (data.primary_email !== undefined) updateData.primary_email = data.primary_email;
-		if (data.primary_phone !== undefined) updateData.primary_phone = data.primary_phone;
-		if (data.photo_url !== undefined) updateData.photo_url = data.photo_url;
-		if (data.avatar_path !== undefined) updateData.avatar_path = data.avatar_path;
+		// Fix field mapping - use correct database column names
+		if (data.primary_email !== undefined) updateData.email = data.primary_email;
+		if (data.primary_phone !== undefined) updateData.phone = data.primary_phone;
+		// Remove fields that don't exist in database
+		// if (data.photo_url !== undefined) updateData.photo_url = data.photo_url;
+		// if (data.avatar_path !== undefined) updateData.avatar_path = data.avatar_path;
 
 		const { data: result, error } = await this.client
 			.from('households')
