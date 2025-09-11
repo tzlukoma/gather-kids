@@ -26,9 +26,21 @@ ALTER TABLE branding_settings
 ADD COLUMN IF NOT EXISTS instagram_url text;
 
 -- Migrate data from organization_name to org_id if organization_name exists and org_id is null
-UPDATE branding_settings 
-SET org_id = COALESCE(organization_name, 'default')
-WHERE org_id IS NULL;
+-- Only attempt this migration if the organization_name column exists
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 
+        FROM information_schema.columns 
+        WHERE table_name = 'branding_settings' 
+        AND column_name = 'organization_name'
+        AND table_schema = 'public'
+    ) THEN
+        UPDATE branding_settings 
+        SET org_id = COALESCE(organization_name, 'default')
+        WHERE org_id IS NULL;
+    END IF;
+END $$;
 
 -- Set default values for org_id for any remaining null values
 UPDATE branding_settings 
