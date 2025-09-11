@@ -40,6 +40,7 @@ import {
 } from 'date-fns';
 import type { Incident, Child } from '@/lib/types';
 import { normalizeGradeDisplay } from '@/lib/gradeUtils';
+import { formatPhone } from '@/hooks/usePhoneFormat';
 
 interface ChildCardProps {
 	child: EnrichedChild;
@@ -155,7 +156,9 @@ export function ChildCard({
 									</p>
 									<p className="text-muted-foreground flex items-center gap-2">
 										<Smartphone size={14} />
-										{child.child_mobile}
+										{child.child_mobile
+											? formatPhone(child.child_mobile)
+											: 'N/A'}
 									</p>
 								</div>
 							</div>
@@ -168,7 +171,9 @@ export function ChildCard({
 										<p className="font-medium">
 											{g.first_name} {g.last_name} ({g.relationship})
 										</p>
-										<p className="text-muted-foreground">{g.mobile_phone}</p>
+										<p className="text-muted-foreground">
+											{g.mobile_phone ? formatPhone(g.mobile_phone) : 'N/A'}
+										</p>
 									</div>
 								))}
 								{!child.guardians?.length && (
@@ -191,7 +196,9 @@ export function ChildCard({
 										{child.emergencyContact.relationship})
 									</p>
 									<p className="text-muted-foreground">
-										{child.emergencyContact.mobile_phone}
+										{child.emergencyContact.mobile_phone
+											? formatPhone(child.emergencyContact.mobile_phone)
+											: 'N/A'}
 									</p>
 								</div>
 							) : (

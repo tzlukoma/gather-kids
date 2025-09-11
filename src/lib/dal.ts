@@ -18,6 +18,7 @@ import { getApplicableGradeRule } from './bibleBee';
 import { gradeToCode, doGradeRangesOverlap } from './gradeUtils';
 import { AuthRole } from './auth-types';
 import { isDemo } from './featureFlags';
+import { formatPhone } from '@/hooks/usePhoneFormat';
 import type { Attendance, Child, Guardian, Household, Incident, IncidentSeverity, Ministry, MinistryEnrollment, Registration, User, EmergencyContact, LeaderAssignment, LeaderProfile, MinistryLeaderMembership, MinistryAccount, BrandingSettings, BibleBeeYear, RegistrationCycle, Scripture, CompetitionYear, CustomQuestion } from './types';
 
 // Leader view result for Bible Bee progress summaries (used by multiple helpers)
@@ -1302,7 +1303,7 @@ export async function exportRosterCSV<T = unknown>(children: T[]): Promise<Blob>
             medical_notes: (childRec['medical_notes'] ?? 'None') as string,
             household: ((childRec['household'] as unknown) as { name?: string } )?.name || 'N/A',
             primary_guardian: primaryGuardian ? `${primaryGuardian.first_name} ${primaryGuardian.last_name}` : 'N/A',
-            guardian_phone: primaryGuardian ? primaryGuardian.mobile_phone : 'N/A',
+            guardian_phone: primaryGuardian ? formatPhone(primaryGuardian.mobile_phone) : 'N/A',
             guardian_email: primaryGuardian ? primaryGuardian.email : 'N/A',
         };
     });
@@ -1328,9 +1329,9 @@ export async function exportEmergencySnapshotCSV(dateISO: string): Promise<Blob>
         allergies: child.allergies,
         medical_notes: child.medical_notes,
         primary_guardian: guardianMap.get(child.household_id)?.first_name + ' ' + guardianMap.get(child.household_id)?.last_name,
-        guardian_phone: guardianMap.get(child.household_id)?.mobile_phone,
+        guardian_phone: guardianMap.get(child.household_id)?.mobile_phone ? formatPhone(guardianMap.get(child.household_id)!.mobile_phone!) : 'N/A',
         emergency_contact: contactMap.get(child.household_id)?.first_name + ' ' + contactMap.get(child.household_id)?.last_name,
-        emergency_phone: contactMap.get(child.household_id)?.mobile_phone,
+        emergency_phone: contactMap.get(child.household_id)?.mobile_phone ? formatPhone(contactMap.get(child.household_id)!.mobile_phone!) : 'N/A',
     }));
 
     const csv = convertToCSV(exportData);

@@ -31,8 +31,9 @@ import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Button } from '../ui/button';
 import { useState } from 'react';
 import { PhotoCaptureDialog } from './photo-capture-dialog';
-import type { Child } from '@/lib/types';
 import { PhotoViewerDialog } from './photo-viewer-dialog';
+import type { Child } from '@/lib/types';
+import { formatPhone } from '@/hooks/usePhoneFormat';
 
 const InfoItem = ({
 	icon,
@@ -285,7 +286,7 @@ export function HouseholdProfile({
 									<InfoItem
 										icon={<Phone size={16} />}
 										label="Phone"
-										value={g.mobile_phone}
+										value={g.mobile_phone ? formatPhone(g.mobile_phone) : 'N/A'}
 									/>
 								</div>
 							))}
@@ -299,7 +300,11 @@ export function HouseholdProfile({
 									<InfoItem
 										icon={<Phone size={16} />}
 										label="Phone"
-										value={emergencyContact.mobile_phone}
+										value={
+											emergencyContact.mobile_phone
+												? formatPhone(emergencyContact.mobile_phone)
+												: 'N/A'
+										}
 									/>
 									<InfoItem
 										icon={<User size={16} />}
