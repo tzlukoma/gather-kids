@@ -253,7 +253,9 @@ async function createMinistries() {
 	try {
 		const { data: schemaTest, error: schemaError } = await supabase
 			.from('ministries')
-			.select('code, close_at, data_profile, enrollment_type, min_age, max_age')
+			.select(
+				'code, close_at, data_profile, enrollment_type, min_age, max_age, details'
+			)
 			.limit(1);
 
 		if (schemaError) {
