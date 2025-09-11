@@ -65,7 +65,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 							...storedUser,
 							metadata: {
 								...storedUser.metadata,
-								role: storedUser.metadata?.role || AuthRole.ADMIN,
+								role: storedUser.metadata?.role || AuthRole.GUEST,
 							},
 							is_active:
 								typeof storedUser.is_active === 'boolean'
@@ -108,7 +108,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 						console.log('AuthProvider: Found active Supabase session');
 						// Convert Supabase user to BaseUser format
 						const supabaseUser = session.user;
-						const userRole = supabaseUser.user_metadata?.role || AuthRole.ADMIN;
+						const userRole = supabaseUser.user_metadata?.role || AuthRole.GUEST;
 
 						const finalUser: BaseUser = {
 							uid: supabaseUser.id,
@@ -164,7 +164,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 								console.log('AuthProvider: Session refresh successful!');
 								const recoveredUser = refreshResult.data.session.user;
 								const userRole =
-									recoveredUser.user_metadata?.role || AuthRole.ADMIN;
+									recoveredUser.user_metadata?.role || AuthRole.GUEST;
 
 								const finalUser: BaseUser = {
 									uid: recoveredUser.id,
@@ -240,7 +240,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 				) {
 					console.log('AuthProvider: Processing auth state change:', event);
 					const supabaseUser = session.user;
-					const userRole = supabaseUser.user_metadata?.role || AuthRole.ADMIN;
+					const userRole = supabaseUser.user_metadata?.role || AuthRole.GUEST;
 
 					console.log('AuthProvider: User metadata:', {
 						role: supabaseUser.user_metadata?.role,

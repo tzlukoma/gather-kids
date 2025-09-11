@@ -77,6 +77,8 @@ import type {
 	CustomQuestion,
 	RegistrationCycle,
 } from '@/lib/types';
+import { useDraftPersistence } from '@/hooks/useDraftPersistence';
+import { DraftStatusIndicator } from '@/components/ui/draft-status-indicator';
 import { useFeatureFlags } from '@/contexts/feature-flag-context';
 import { useAuth } from '@/contexts/auth-context';
 
@@ -464,7 +466,7 @@ const ProgramSection = ({
 function RegisterPageContent() {
 	const { toast } = useToast();
 	const { flags } = useFeatureFlags();
-	const { user } = useAuth();
+	const { user, loading: authLoading } = useAuth();
 	const router = useRouter();
 	const searchParams = useSearchParams();
 	const [verificationStep, setVerificationStep] =
@@ -532,45 +534,41 @@ function RegisterPageContent() {
 
 	// Get the active registration cycle to use for enrollments
 
-	// Form persistence key for localStorage
-	const FORM_PERSISTENCE_KEY = 'registration-form-data';
+	// Draft persistence for form data (conditional based on feature flag)
+	const { loadDraft, saveDraft, clearDraft, draftStatus } =
+		useDraftPersistence<RegistrationFormValues>({
+			formName: 'registration_v1',
+			version: 1,
+			autoSaveDelay: 1000,
+			enabled: flags.registrationDraftPersistenceEnabled,
+		});
 
-	// Load saved form data from localStorage
-	const loadSavedFormData = (): Partial<RegistrationFormValues> => {
+	// Load saved form data from draft
+	const [hasLoadedDraft, setHasLoadedDraft] = useState(false);
+	const loadSavedFormData = useCallback(async (): Promise<
+		Partial<RegistrationFormValues>
+	> => {
 		try {
-			if (typeof window !== 'undefined') {
-				const saved = localStorage.getItem(FORM_PERSISTENCE_KEY);
-				if (saved) {
-					return JSON.parse(saved);
-				}
-			}
+			const draftData = await loadDraft();
+			return draftData || {};
 		} catch (error) {
 			console.warn('Failed to load saved form data:', error);
 		}
 		return {};
-	};
+	}, [loadDraft]);
 
-	// Save form data to localStorage
-	const saveFormData = (data: RegistrationFormValues) => {
-		try {
-			if (typeof window !== 'undefined') {
-				localStorage.setItem(FORM_PERSISTENCE_KEY, JSON.stringify(data));
-			}
-		} catch (error) {
-			console.warn('Failed to save form data:', error);
-		}
-	};
+	// Save form data using draft persistence
+	const saveFormData = useCallback(
+		(data: RegistrationFormValues) => {
+			saveDraft(data);
+		},
+		[saveDraft]
+	);
 
 	// Clear saved form data
-	const clearSavedFormData = () => {
-		try {
-			if (typeof window !== 'undefined') {
-				localStorage.removeItem(FORM_PERSISTENCE_KEY);
-			}
-		} catch (error) {
-			console.warn('Failed to clear saved form data:', error);
-		}
-	};
+	const clearSavedFormData = useCallback(() => {
+		clearDraft();
+	}, [clearDraft]);
 
 	const form = useForm<RegistrationFormValues>({
 		resolver: zodResolver(registrationSchema),
@@ -610,6 +608,97 @@ function RegisterPageContent() {
 		},
 	});
 
+	// Load draft data asynchronously and merge with form
+	useEffect(() => {
+		async function loadDraftData() {
+			if (!hasLoadedDraft && !authLoading) {
+				const draftData = await loadSavedFormData();
+				if (draftData && Object.keys(draftData).length > 0) {
+					// Reset form with merged default values and draft data
+					form.reset({
+						household: {
+							name: '',
+							address_line1: '',
+							address_line2: '',
+							city: '',
+							state: '',
+							zip: '',
+							preferredScriptureTranslation: 'NIV',
+							...(draftData.household || {}),
+							// Ensure optional fields have proper defaults
+							name: draftData.household?.name || '',
+							address_line2: draftData.household?.address_line2 || '',
+							preferredScriptureTranslation:
+								draftData.household?.preferredScriptureTranslation || 'NIV',
+						},
+						guardians:
+							draftData.guardians?.length > 0
+								? draftData.guardians.map((guardian) => ({
+										first_name: guardian.first_name || '',
+										last_name: guardian.last_name || '',
+										mobile_phone: guardian.mobile_phone || '',
+										email: guardian.email || '',
+										relationship: guardian.relationship || 'Mother',
+										is_primary: guardian.is_primary || false,
+								  }))
+								: [
+										{
+											first_name: '',
+											last_name: '',
+											mobile_phone: '',
+											email: '',
+											relationship: 'Mother',
+											is_primary: true,
+										},
+								  ],
+						emergencyContact: {
+							first_name: '',
+							last_name: '',
+							mobile_phone: '',
+							relationship: '',
+							...(draftData.emergencyContact || {}),
+							// Ensure all fields have proper defaults
+							first_name: draftData.emergencyContact?.first_name || '',
+							last_name: draftData.emergencyContact?.last_name || '',
+							mobile_phone: draftData.emergencyContact?.mobile_phone || '',
+							relationship: draftData.emergencyContact?.relationship || '',
+						},
+						children: (draftData.children || []).map((child) => ({
+							...defaultChildValues,
+							...child,
+							// Ensure optional fields have proper defaults
+							child_id: child.child_id || '',
+							child_mobile: child.child_mobile || '',
+							allergies: child.allergies || '',
+							medical_notes: child.medical_notes || '',
+							special_needs: child.special_needs || false,
+							special_needs_notes: child.special_needs_notes || '',
+							ministrySelections: child.ministrySelections || {},
+							interestSelections: child.interestSelections || {},
+							customData: child.customData || {},
+						})),
+						consents: {
+							liability: false,
+							photoRelease: false,
+							choir_communications_consent: 'no',
+							custom_consents: {},
+							...(draftData.consents || {}),
+							// Ensure optional fields have proper defaults
+							liability: draftData.consents?.liability || false,
+							photoRelease: draftData.consents?.photoRelease || false,
+							choir_communications_consent:
+								draftData.consents?.choir_communications_consent || 'no',
+							custom_consents: draftData.consents?.custom_consents || {},
+						},
+					});
+				}
+				setHasLoadedDraft(true);
+			}
+		}
+
+		loadDraftData();
+	}, [hasLoadedDraft, loadSavedFormData, form, authLoading]);
+
 	const {
 		fields: guardianFields,
 		append: appendGuardian,
@@ -630,19 +719,12 @@ function RegisterPageContent() {
 
 	const childrenData = useWatch({ control: form.control, name: 'children' });
 
-	// Load saved form data only once when component mounts
-	useEffect(() => {
-		const savedData = loadSavedFormData();
-		if (Object.keys(savedData).length > 0) {
-			console.log('DEBUG: Loading saved form data:', savedData);
-			form.reset(savedData);
-		}
-	}, []); // Only run once on mount
-
-	// Watch form changes and save to localStorage
+	// Watch form changes and save drafts
 	useEffect(() => {
 		const subscription = form.watch((data) => {
-			// Only save if there's actual data (not just empty defaults)
+			// Only save if we've loaded the draft and there's actual data
+			if (!hasLoadedDraft) return;
+
 			const hasData =
 				data.household?.address_line1 ||
 				data.household?.city ||
@@ -657,12 +739,60 @@ function RegisterPageContent() {
 				data.consents?.photoRelease;
 
 			if (hasData) {
-				saveFormData(data as RegistrationFormValues);
+				// Clean the data to remove undefined values before saving
+				const cleanData = {
+					household: {
+						name: data.household?.name || '',
+						address_line1: data.household?.address_line1 || '',
+						address_line2: data.household?.address_line2 || '',
+						city: data.household?.city || '',
+						state: data.household?.state || '',
+						zip: data.household?.zip || '',
+						preferredScriptureTranslation:
+							data.household?.preferredScriptureTranslation || 'NIV',
+					},
+					guardians: (data.guardians || []).map((guardian) => ({
+						first_name: guardian.first_name || '',
+						last_name: guardian.last_name || '',
+						mobile_phone: guardian.mobile_phone || '',
+						email: guardian.email || '',
+						relationship: guardian.relationship || 'Mother',
+						is_primary: guardian.is_primary || false,
+					})),
+					emergencyContact: {
+						first_name: data.emergencyContact?.first_name || '',
+						last_name: data.emergencyContact?.last_name || '',
+						mobile_phone: data.emergencyContact?.mobile_phone || '',
+						relationship: data.emergencyContact?.relationship || '',
+					},
+					children: (data.children || []).map((child) => ({
+						...defaultChildValues,
+						...child,
+						// Ensure optional fields have proper defaults
+						child_id: child.child_id || '',
+						child_mobile: child.child_mobile || '',
+						allergies: child.allergies || '',
+						medical_notes: child.medical_notes || '',
+						special_needs: child.special_needs || false,
+						special_needs_notes: child.special_needs_notes || '',
+						ministrySelections: child.ministrySelections || {},
+						interestSelections: child.interestSelections || {},
+						customData: child.customData || {},
+					})),
+					consents: {
+						liability: data.consents?.liability || false,
+						photoRelease: data.consents?.photoRelease || false,
+						choir_communications_consent:
+							data.consents?.choir_communications_consent || 'no',
+						custom_consents: data.consents?.custom_consents || {},
+					},
+				};
+				saveFormData(cleanData as RegistrationFormValues);
 			}
 		});
 
 		return () => subscription.unsubscribe();
-	}, [form]);
+	}, [form, hasLoadedDraft, saveFormData]);
 
 	const { enrolledPrograms, interestPrograms } = useMemo(() => {
 		if (!allMinistries) return { enrolledPrograms: [], interestPrograms: [] };
@@ -704,18 +834,31 @@ function RegisterPageContent() {
 				const householdData = data.household;
 				const registrationData: Partial<RegistrationFormValues> = {
 					household: {
-						household_id: householdData?.household_id,
-						name: householdData?.name,
-						address_line1: householdData?.address_line1,
-						address_line2: householdData?.address_line2,
-						city: householdData?.city,
-						state: householdData?.state,
-						zip: householdData?.zip,
+						household_id: householdData?.household_id || '',
+						name: householdData?.name || '',
+						address_line1: householdData?.address_line1 || '',
+						address_line2: householdData?.address_line2 || '',
+						city: householdData?.city || '',
+						state: householdData?.state || '',
+						zip: householdData?.zip || '',
+						preferredScriptureTranslation:
+							householdData?.preferredScriptureTranslation || 'NIV',
 					},
-					guardians: data.guardians,
-					emergencyContact: data.emergencyContact,
-					children: data.children,
-					consents: data.consents,
+					guardians: data.guardians || [],
+					emergencyContact: {
+						first_name: data.emergencyContact?.first_name || '',
+						last_name: data.emergencyContact?.last_name || '',
+						mobile_phone: data.emergencyContact?.mobile_phone || '',
+						relationship: data.emergencyContact?.relationship || '',
+					},
+					children: data.children || [],
+					consents: {
+						liability: data.consents?.liability || false,
+						photoRelease: data.consents?.photoRelease || false,
+						choir_communications_consent:
+							data.consents?.choir_communications_consent || 'no',
+						custom_consents: data.consents?.custom_consents || {},
+					},
 				};
 				console.log('DEBUG: About to call form.reset');
 				form.reset(registrationData);
@@ -945,6 +1088,10 @@ function RegisterPageContent() {
 							household: {
 								name: '',
 								address_line1: '',
+								address_line2: '',
+								city: '',
+								state: '',
+								zip: '',
 								preferredScriptureTranslation: 'NIV',
 							},
 							guardians: [
@@ -996,9 +1143,17 @@ function RegisterPageContent() {
 				}
 			};
 
-			checkExistingData();
+			// Only run checkExistingData if we haven't loaded draft data yet
+			if (!hasLoadedDraft) {
+				checkExistingData();
+			} else {
+				console.log(
+					'DEBUG: Skipping checkExistingData because draft data was already loaded'
+				);
+				setVerificationStep('form_visible');
+			}
 		}
-	}, [user, flags.isDemoMode, toast, form, prefillForm]);
+	}, [user, flags.isDemoMode, toast, form, prefillForm, hasLoadedDraft]);
 
 	// Focus on the first field when the form becomes visible for authenticated users
 	useEffect(() => {
@@ -1203,13 +1358,25 @@ function RegisterPageContent() {
 	return (
 		<div className="max-w-4xl mx-auto">
 			<div className="mb-8">
-				<h1 className="text-3xl font-bold font-headline">
-					Family Registration Form
-				</h1>
-				<p className="text-muted-foreground">
-					Complete the form below to register your family for our
-					children&apos;s ministry programs.
-				</p>
+				<div className="mb-4">
+					<h1 className="text-3xl font-bold font-headline">
+						Family Registration Form
+					</h1>
+					<p className="text-muted-foreground">
+						Complete the form below to register your family for our
+						children&apos;s ministry programs.
+					</p>
+					{flags.registrationDraftPersistenceEnabled && (
+						<div className="mt-3">
+							<DraftStatusIndicator
+								isSaving={draftStatus.isSaving}
+								lastSaved={draftStatus.lastSaved}
+								error={draftStatus.error}
+								className="inline-flex items-center px-3 py-1 rounded-full text-xs bg-gray-100 text-gray-600"
+							/>
+						</div>
+					)}
+				</div>
 			</div>
 
 			{verificationStep === 'enter_email' && (

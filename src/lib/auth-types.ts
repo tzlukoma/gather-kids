@@ -2,7 +2,8 @@ export const AuthRole = {
     ADMIN: 'ADMIN',
     MINISTRY_LEADER: 'MINISTRY_LEADER',
     GUARDIAN: 'GUARDIAN',
-    VOLUNTEER: 'VOLUNTEER'
+    VOLUNTEER: 'VOLUNTEER',
+    GUEST: 'GUEST'
 } as const;
 
 export type AuthRole = typeof AuthRole[keyof typeof AuthRole];
