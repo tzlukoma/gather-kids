@@ -54,91 +54,159 @@ BEGIN
     END IF;
 END $$;
 
--- Add Bible Bee Divisions table
--- Handle both TEXT and UUID types for competition_years.id
+-- Ensure divisions table exists with correct schema
+-- First create the table if it doesn't exist
+CREATE TABLE IF NOT EXISTS divisions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  minimum_required INTEGER NOT NULL DEFAULT 0,
+  min_last_order INTEGER,
+  min_grade INTEGER NOT NULL,
+  max_grade INTEGER NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL
+);
+
+-- Now ensure the id column exists and is the primary key
 DO $$
 DECLARE
     competition_years_id_type TEXT;
 BEGIN
-    -- Check the actual type of competition_years.id column
-    SELECT data_type INTO competition_years_id_type
-    FROM information_schema.columns 
-    WHERE table_name = 'competition_years' 
-    AND column_name = 'id' 
-    AND table_schema = 'public';
-    
-    -- Create the table with the appropriate type for competitionYearId
-    IF competition_years_id_type = 'uuid' THEN
-        EXECUTE '
-        CREATE TABLE IF NOT EXISTS public.divisions (
-            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-            "competitionYearId" UUID NOT NULL REFERENCES public.competition_years(id) ON DELETE CASCADE,
-            name TEXT NOT NULL,
-            minimum_required INTEGER NOT NULL DEFAULT 0,
-            min_last_order INTEGER,
-            min_grade INTEGER NOT NULL,
-            max_grade INTEGER NOT NULL,
-            created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
-            updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
-            UNIQUE("competitionYearId", name)
-        )';
-        RAISE NOTICE 'Created divisions table with UUID competitionYearId';
+    -- Check if id column exists
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'divisions' 
+        AND column_name = 'id' 
+        AND table_schema = 'public'
+    ) THEN
+        -- Add id column if it doesn't exist
+        ALTER TABLE divisions ADD COLUMN id UUID DEFAULT gen_random_uuid();
+        
+        -- If there's an existing primary key, drop it
+        IF EXISTS (
+            SELECT 1 FROM information_schema.table_constraints 
+            WHERE table_name = 'divisions' 
+            AND constraint_type = 'PRIMARY KEY'
+            AND table_schema = 'public'
+        ) THEN
+            ALTER TABLE divisions DROP CONSTRAINT divisions_pkey;
+        END IF;
+        
+        -- Set id as primary key
+        ALTER TABLE divisions ADD PRIMARY KEY (id);
+        
+        RAISE NOTICE 'Added id column and set as primary key for divisions table';
     ELSE
-        EXECUTE '
-        CREATE TABLE IF NOT EXISTS public.divisions (
-            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-            "competitionYearId" TEXT NOT NULL REFERENCES public.competition_years(id) ON DELETE CASCADE,
-            name TEXT NOT NULL,
-            minimum_required INTEGER NOT NULL DEFAULT 0,
-            min_last_order INTEGER,
-            min_grade INTEGER NOT NULL,
-            max_grade INTEGER NOT NULL,
-            created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
-            updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
-            UNIQUE("competitionYearId", name)
-        )';
-        RAISE NOTICE 'Created divisions table with TEXT competitionYearId';
+        RAISE NOTICE 'id column already exists in divisions table';
+    END IF;
+    
+    -- Now add competitionYearId column if it doesn't exist
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'divisions' 
+        AND column_name = 'competitionYearId' 
+        AND table_schema = 'public'
+    ) THEN
+        -- Check the actual type of competition_years.id column
+        SELECT data_type INTO competition_years_id_type
+        FROM information_schema.columns 
+        WHERE table_name = 'competition_years' 
+        AND column_name = 'id' 
+        AND table_schema = 'public';
+        
+        -- Add competitionYearId column with appropriate type
+        IF competition_years_id_type = 'uuid' THEN
+            ALTER TABLE divisions ADD COLUMN "competitionYearId" UUID;
+            RAISE NOTICE 'Added competitionYearId UUID column to divisions table';
+        ELSE
+            ALTER TABLE divisions ADD COLUMN "competitionYearId" TEXT;
+            RAISE NOTICE 'Added competitionYearId TEXT column to divisions table';
+        END IF;
+        
+        -- Add foreign key constraint
+        ALTER TABLE divisions ADD CONSTRAINT divisions_competitionYearId_fkey 
+            FOREIGN KEY ("competitionYearId") REFERENCES competition_years(id) ON DELETE CASCADE;
+            
+        -- Add unique constraint
+        ALTER TABLE divisions ADD CONSTRAINT divisions_competitionYearId_name_unique 
+            UNIQUE("competitionYearId", name);
+    ELSE
+        RAISE NOTICE 'competitionYearId column already exists in divisions table';
     END IF;
 END $$;
 
--- Add Essay Prompts table
--- Handle both TEXT and UUID types for competition_years.id
+-- Ensure essay_prompts table exists with correct schema
+-- First create the table if it doesn't exist
+CREATE TABLE IF NOT EXISTS essay_prompts (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  division_name TEXT,
+  prompt_text TEXT NOT NULL,
+  due_date TIMESTAMP WITH TIME ZONE NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL
+);
+
+-- Now ensure the id column exists and add competitionYearId if needed
 DO $$
 DECLARE
     competition_years_id_type TEXT;
 BEGIN
-    -- Check the actual type of competition_years.id column
-    SELECT data_type INTO competition_years_id_type
-    FROM information_schema.columns 
-    WHERE table_name = 'competition_years' 
-    AND column_name = 'id' 
-    AND table_schema = 'public';
-    
-    -- Create the table with the appropriate type for competitionYearId
-    IF competition_years_id_type = 'uuid' THEN
-        EXECUTE '
-        CREATE TABLE IF NOT EXISTS public.essay_prompts (
-            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-            "competitionYearId" UUID NOT NULL REFERENCES public.competition_years(id) ON DELETE CASCADE,
-            division_name TEXT,
-            prompt_text TEXT NOT NULL,
-            due_date TIMESTAMP WITH TIME ZONE NOT NULL,
-            created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
-            updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL
-        )';
-        RAISE NOTICE 'Created essay_prompts table with UUID competitionYearId';
+    -- Check if id column exists
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'essay_prompts' 
+        AND column_name = 'id' 
+        AND table_schema = 'public'
+    ) THEN
+        -- Add id column if it doesn't exist
+        ALTER TABLE essay_prompts ADD COLUMN id UUID DEFAULT gen_random_uuid();
+        
+        -- If there's an existing primary key, drop it
+        IF EXISTS (
+            SELECT 1 FROM information_schema.table_constraints 
+            WHERE table_name = 'essay_prompts' 
+            AND constraint_type = 'PRIMARY KEY'
+            AND table_schema = 'public'
+        ) THEN
+            ALTER TABLE essay_prompts DROP CONSTRAINT essay_prompts_pkey;
+        END IF;
+        
+        -- Set id as primary key
+        ALTER TABLE essay_prompts ADD PRIMARY KEY (id);
+        
+        RAISE NOTICE 'Added id column and set as primary key for essay_prompts table';
     ELSE
-        EXECUTE '
-        CREATE TABLE IF NOT EXISTS public.essay_prompts (
-            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-            "competitionYearId" TEXT NOT NULL REFERENCES public.competition_years(id) ON DELETE CASCADE,
-            division_name TEXT,
-            prompt_text TEXT NOT NULL,
-            due_date TIMESTAMP WITH TIME ZONE NOT NULL,
-            created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
-            updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL
-        )';
-        RAISE NOTICE 'Created essay_prompts table with TEXT competitionYearId';
+        RAISE NOTICE 'id column already exists in essay_prompts table';
+    END IF;
+    
+    -- Now add competitionYearId column if it doesn't exist
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'essay_prompts' 
+        AND column_name = 'competitionYearId' 
+        AND table_schema = 'public'
+    ) THEN
+        -- Check the actual type of competition_years.id column
+        SELECT data_type INTO competition_years_id_type
+        FROM information_schema.columns 
+        WHERE table_name = 'competition_years' 
+        AND column_name = 'id' 
+        AND table_schema = 'public';
+        
+        -- Add competitionYearId column with appropriate type
+        IF competition_years_id_type = 'uuid' THEN
+            ALTER TABLE essay_prompts ADD COLUMN "competitionYearId" UUID;
+            RAISE NOTICE 'Added competitionYearId UUID column to essay_prompts table';
+        ELSE
+            ALTER TABLE essay_prompts ADD COLUMN "competitionYearId" TEXT;
+            RAISE NOTICE 'Added competitionYearId TEXT column to essay_prompts table';
+        END IF;
+        
+        -- Add foreign key constraint
+        ALTER TABLE essay_prompts ADD CONSTRAINT essay_prompts_competitionYearId_fkey 
+            FOREIGN KEY ("competitionYearId") REFERENCES competition_years(id) ON DELETE CASCADE;
+    ELSE
+        RAISE NOTICE 'competitionYearId column already exists in essay_prompts table';
     END IF;
 END $$;
 
