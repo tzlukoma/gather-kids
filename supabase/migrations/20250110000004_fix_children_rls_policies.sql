@@ -52,18 +52,15 @@ USING (
     (auth.jwt() ->> 'role')::text = 'MINISTRY_LEADER'
 );
 
--- Policy: Users can INSERT children into households they are associated with
--- Also allows ADMIN role to insert children anywhere
+-- Policy: Users can INSERT children (for new registrations)
+-- Allows any authenticated user to insert children during registration
+-- The user_households relationship will be created after children creation
 CREATE POLICY "users_can_insert_children"
 ON children
 FOR INSERT
 WITH CHECK (
-    -- Guardians can insert children into their households
-    EXISTS (
-        SELECT 1 FROM user_households 
-        WHERE user_households.household_id::text = children.household_id::text
-        AND user_households.auth_user_id = auth.uid()::text
-    )
+    -- All authenticated users can insert children (for registration)
+    auth.uid() IS NOT NULL
     OR
     -- Admins can insert children anywhere
     (auth.jwt() ->> 'role')::text = 'ADMIN'
@@ -156,7 +153,8 @@ USING (
 );
 
 -- Policy: Users can INSERT households (for new registrations)
--- Also allows ADMIN role to insert households
+-- Allows any authenticated user to create households (needed for registration flow)
+-- The user_households relationship will be created after household creation
 CREATE POLICY "users_can_insert_households"
 ON households
 FOR INSERT
@@ -237,18 +235,15 @@ USING (
     (auth.jwt() ->> 'role')::text = 'MINISTRY_LEADER'
 );
 
--- Policy: Users can INSERT guardians into households they are associated with
--- Also allows ADMIN role to insert guardians anywhere
+-- Policy: Users can INSERT guardians (for new registrations)
+-- Allows any authenticated user to insert guardians during registration
+-- The user_households relationship will be created after guardians creation
 CREATE POLICY "users_can_insert_guardians"
 ON guardians
 FOR INSERT
 WITH CHECK (
-    -- Guardians can insert guardians into their households
-    EXISTS (
-        SELECT 1 FROM user_households 
-        WHERE user_households.household_id::text = guardians.household_id::text
-        AND user_households.auth_user_id = auth.uid()::text
-    )
+    -- All authenticated users can insert guardians (for registration)
+    auth.uid() IS NOT NULL
     OR
     -- Admins can insert guardians anywhere
     (auth.jwt() ->> 'role')::text = 'ADMIN'
@@ -323,18 +318,15 @@ USING (
     (auth.jwt() ->> 'role')::text = 'MINISTRY_LEADER'
 );
 
--- Policy: Users can INSERT emergency_contacts into households they are associated with
--- Also allows ADMIN role to insert emergency_contacts anywhere
+-- Policy: Users can INSERT emergency_contacts (for new registrations)
+-- Allows any authenticated user to insert emergency_contacts during registration
+-- The user_households relationship will be created after emergency_contacts creation
 CREATE POLICY "users_can_insert_emergency_contacts"
 ON emergency_contacts
 FOR INSERT
 WITH CHECK (
-    -- Guardians can insert emergency_contacts into their households
-    EXISTS (
-        SELECT 1 FROM user_households 
-        WHERE user_households.household_id::text = emergency_contacts.household_id::text
-        AND user_households.auth_user_id = auth.uid()::text
-    )
+    -- All authenticated users can insert emergency_contacts (for registration)
+    auth.uid() IS NOT NULL
     OR
     -- Admins can insert emergency_contacts anywhere
     (auth.jwt() ->> 'role')::text = 'ADMIN'

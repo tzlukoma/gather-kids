@@ -140,6 +140,18 @@ System Administrator → Manually assign ADMIN role
 Admin → Full system access
 ```
 
+## Registration Flow Security
+
+**During Registration:**
+
+- **New users** can create households, children, guardians, and emergency contacts
+- **user_households** relationship is created after household creation
+- **GUARDIAN role** is assigned after successful registration
+- **RLS policies** allow authenticated users to insert during registration flow
+
+**Important Security Note:**
+The INSERT policies for households, children, guardians, and emergency_contacts allow any authenticated user to create records during registration. This is necessary because the `user_households` relationship (which links users to their households) is created AFTER the household data is inserted. The UPDATE policies still enforce proper access control based on household relationships.
+
 ## Row-Level Security (RLS) Policies
 
 ### Policy Structure
