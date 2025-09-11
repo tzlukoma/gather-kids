@@ -17,13 +17,26 @@ DECLARE
   has_legacy_household BOOLEAN := FALSE;
   has_birth_date BOOLEAN := FALSE;
   has_mobile_phone BOOLEAN := FALSE;
+  has_consents_column BOOLEAN := FALSE;
   legacy_colname TEXT := NULL; -- actual legacy column name (preserve case if quoted)
 BEGIN
-  -- Check for remaining legacy photoRelease consent types
-  SELECT COUNT(*) INTO legacy_consents
-  FROM public.registrations r,
-       jsonb_array_elements(r.consents) e
-  WHERE e->>'type' = 'photoRelease';
+  -- Check if consents column exists before attempting validation
+  SELECT EXISTS(
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_schema = 'public' 
+    AND table_name = 'registrations' 
+    AND column_name = 'consents'
+  ) INTO has_consents_column;
+
+  IF has_consents_column THEN
+    -- Check for remaining legacy photoRelease consent types
+    SELECT COUNT(*) INTO legacy_consents
+    FROM public.registrations r,
+         jsonb_array_elements(r.consents) e
+    WHERE e->>'type' = 'photoRelease';
+  ELSE
+    legacy_consents := 0;
+  END IF;
 
   -- Detect presence of legacy household camelCase column
   SELECT EXISTS(
@@ -199,6 +212,7 @@ DECLARE
   households_canonical BOOLEAN;
   children_canonical BOOLEAN;
   registrations_jsonb BOOLEAN;
+  has_consents_column BOOLEAN := FALSE;
 BEGIN
   -- Verify households table has canonical fields only
   SELECT NOT EXISTS (
@@ -212,10 +226,22 @@ BEGIN
     WHERE table_name = 'children' AND column_name IN ('birth_date', 'mobile_phone')
   ) INTO children_canonical;
 
-  -- Verify registrations.consents is jsonb
-  SELECT data_type = 'jsonb' INTO registrations_jsonb
-  FROM information_schema.columns 
-  WHERE table_name = 'registrations' AND column_name = 'consents';
+  -- Check if consents column exists before validation
+  SELECT EXISTS(
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_schema = 'public' 
+    AND table_name = 'registrations' 
+    AND column_name = 'consents'
+  ) INTO has_consents_column;
+
+  IF has_consents_column THEN
+    -- Verify registrations.consents is jsonb
+    SELECT data_type = 'jsonb' INTO registrations_jsonb
+    FROM information_schema.columns 
+    WHERE table_name = 'registrations' AND column_name = 'consents';
+  ELSE
+    registrations_jsonb := TRUE; -- Skip validation if column doesn't exist
+  END IF;
 
   RAISE NOTICE 'Schema Validation:';
   RAISE NOTICE '  - Households canonical: %', households_canonical;

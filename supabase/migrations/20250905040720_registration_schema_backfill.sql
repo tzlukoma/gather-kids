@@ -79,26 +79,40 @@ END $$;
 DO $$
 DECLARE
   consent_count INTEGER;
+  has_consents_column BOOLEAN := FALSE;
 BEGIN
-  -- Update consent objects to use snake_case for photo_release type
-  -- Only update registrations that have photoRelease consent types
-  UPDATE public.registrations
-     SET consents = (
-       SELECT jsonb_agg(
-         CASE WHEN e->>'type' = 'photoRelease'
-              THEN jsonb_set(e, '{type}', '"photo_release"')
-              ELSE e
-         END
-       )
-       FROM jsonb_array_elements(consents) AS e
-     )
-   WHERE EXISTS (
-     SELECT 1 FROM jsonb_array_elements(consents) e
-     WHERE e->>'type' = 'photoRelease'
-   );
+  -- Check if consents column exists before attempting update
+  SELECT EXISTS(
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_schema = 'public' 
+    AND table_name = 'registrations' 
+    AND column_name = 'consents'
+  ) INTO has_consents_column;
 
-  GET DIAGNOSTICS consent_count = ROW_COUNT;
-  RAISE NOTICE 'Registrations: Updated % rows to convert photoRelease -> photo_release', consent_count;
+  IF has_consents_column THEN
+    -- Update consent objects to use snake_case for photo_release type
+    -- Only update registrations that have photoRelease consent types
+    UPDATE public.registrations
+       SET consents = (
+         SELECT jsonb_agg(
+           CASE WHEN e->>'type' = 'photoRelease'
+                THEN jsonb_set(e, '{type}', '"photo_release"')
+                ELSE e
+           END
+         )
+         FROM jsonb_array_elements(consents) AS e
+       )
+     WHERE EXISTS (
+       SELECT 1 FROM jsonb_array_elements(consents) e
+       WHERE e->>'type' = 'photoRelease'
+     );
+
+    GET DIAGNOSTICS consent_count = ROW_COUNT;
+    RAISE NOTICE 'Registrations: Updated % rows to convert photoRelease -> photo_release', consent_count;
+  ELSE
+    RAISE NOTICE 'Registrations: consents column not found; skipping photoRelease -> photo_release conversion';
+    consent_count := 0;
+  END IF;
 END $$;
 
 -- =====================================
@@ -111,6 +125,7 @@ DECLARE
   children_with_dob INTEGER;
   children_with_mobile INTEGER;
   registrations_with_legacy_consent INTEGER;
+  has_consents_column BOOLEAN := FALSE;
 BEGIN
   -- Count successful backfills
   SELECT COUNT(*) INTO households_with_preferred_scripture
@@ -125,11 +140,23 @@ BEGIN
   FROM public.children
   WHERE child_mobile IS NOT NULL;
 
-  -- Count any remaining legacy consent types (should be 0)
-  SELECT COUNT(*) INTO registrations_with_legacy_consent
-  FROM public.registrations r,
-       jsonb_array_elements(r.consents) e
-  WHERE e->>'type' = 'photoRelease';
+  -- Check if consents column exists before attempting validation
+  SELECT EXISTS(
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_schema = 'public' 
+    AND table_name = 'registrations' 
+    AND column_name = 'consents'
+  ) INTO has_consents_column;
+
+  IF has_consents_column THEN
+    -- Count any remaining legacy consent types (should be 0)
+    SELECT COUNT(*) INTO registrations_with_legacy_consent
+    FROM public.registrations r,
+         jsonb_array_elements(r.consents) e
+    WHERE e->>'type' = 'photoRelease';
+  ELSE
+    registrations_with_legacy_consent := 0;
+  END IF;
 
   RAISE NOTICE 'Backfill Summary:';
   RAISE NOTICE '  - Households with preferred_scripture_translation: %', households_with_preferred_scripture;
