@@ -41,7 +41,7 @@ USING (
     -- Guardians can access children from their households
     EXISTS (
         SELECT 1 FROM user_households 
-        WHERE user_households.household_id = children.household_id 
+        WHERE user_households.household_id::text = children.household_id::text
         AND user_households.auth_user_id = auth.uid()
     )
     OR
@@ -61,7 +61,7 @@ WITH CHECK (
     -- Guardians can insert children into their households
     EXISTS (
         SELECT 1 FROM user_households 
-        WHERE user_households.household_id = children.household_id 
+        WHERE user_households.household_id::text = children.household_id::text
         AND user_households.auth_user_id = auth.uid()
     )
     OR
@@ -78,7 +78,7 @@ USING (
     -- Guardians can update children from their households
     EXISTS (
         SELECT 1 FROM user_households 
-        WHERE user_households.household_id = children.household_id 
+        WHERE user_households.household_id::text = children.household_id::text
         AND user_households.auth_user_id = auth.uid()
     )
     OR
@@ -89,7 +89,7 @@ WITH CHECK (
     -- Guardians can update children in their households
     EXISTS (
         SELECT 1 FROM user_households 
-        WHERE user_households.household_id = children.household_id 
+        WHERE user_households.household_id::text = children.household_id::text
         AND user_households.auth_user_id = auth.uid()
     )
     OR
@@ -106,7 +106,7 @@ USING (
     -- Guardians can delete children from their households
     EXISTS (
         SELECT 1 FROM user_households 
-        WHERE user_households.household_id = children.household_id 
+        WHERE user_households.household_id::text = children.household_id::text
         AND user_households.auth_user_id = auth.uid()
     )
     OR
@@ -144,7 +144,7 @@ USING (
     -- Guardians can access households they're associated with
     EXISTS (
         SELECT 1 FROM user_households 
-        WHERE user_households.household_id = households.household_id 
+        WHERE user_households.household_id::text = households.household_id::text
         AND user_households.auth_user_id = auth.uid()
     )
     OR
@@ -177,7 +177,7 @@ USING (
     -- Guardians can update households they're associated with
     EXISTS (
         SELECT 1 FROM user_households 
-        WHERE user_households.household_id = households.household_id 
+        WHERE user_households.household_id::text = households.household_id::text
         AND user_households.auth_user_id = auth.uid()
     )
     OR
@@ -188,7 +188,7 @@ WITH CHECK (
     -- Guardians can update households they're associated with
     EXISTS (
         SELECT 1 FROM user_households 
-        WHERE user_households.household_id = households.household_id 
+        WHERE user_households.household_id::text = households.household_id::text
         AND user_households.auth_user_id = auth.uid()
     )
     OR
@@ -226,7 +226,7 @@ USING (
     -- Guardians can access guardians from their households
     EXISTS (
         SELECT 1 FROM user_households 
-        WHERE user_households.household_id = guardians.household_id 
+        WHERE user_households.household_id::text = guardians.household_id::text
         AND user_households.auth_user_id = auth.uid()
     )
     OR
@@ -246,7 +246,7 @@ WITH CHECK (
     -- Guardians can insert guardians into their households
     EXISTS (
         SELECT 1 FROM user_households 
-        WHERE user_households.household_id = guardians.household_id 
+        WHERE user_households.household_id::text = guardians.household_id::text
         AND user_households.auth_user_id = auth.uid()
     )
     OR
@@ -263,7 +263,7 @@ USING (
     -- Guardians can update guardians from their households
     EXISTS (
         SELECT 1 FROM user_households 
-        WHERE user_households.household_id = guardians.household_id 
+        WHERE user_households.household_id::text = guardians.household_id::text
         AND user_households.auth_user_id = auth.uid()
     )
     OR
@@ -274,7 +274,7 @@ WITH CHECK (
     -- Guardians can update guardians in their households
     EXISTS (
         SELECT 1 FROM user_households 
-        WHERE user_households.household_id = guardians.household_id 
+        WHERE user_households.household_id::text = guardians.household_id::text
         AND user_households.auth_user_id = auth.uid()
     )
     OR
@@ -312,7 +312,7 @@ USING (
     -- Guardians can access emergency_contacts from their households
     EXISTS (
         SELECT 1 FROM user_households 
-        WHERE user_households.household_id = emergency_contacts.household_id 
+        WHERE user_households.household_id::text = emergency_contacts.household_id::text
         AND user_households.auth_user_id = auth.uid()
     )
     OR
@@ -332,7 +332,7 @@ WITH CHECK (
     -- Guardians can insert emergency_contacts into their households
     EXISTS (
         SELECT 1 FROM user_households 
-        WHERE user_households.household_id = emergency_contacts.household_id 
+        WHERE user_households.household_id::text = emergency_contacts.household_id::text
         AND user_households.auth_user_id = auth.uid()
     )
     OR
@@ -349,7 +349,7 @@ USING (
     -- Guardians can update emergency_contacts from their households
     EXISTS (
         SELECT 1 FROM user_households 
-        WHERE user_households.household_id = emergency_contacts.household_id 
+        WHERE user_households.household_id::text = emergency_contacts.household_id::text
         AND user_households.auth_user_id = auth.uid()
     )
     OR
@@ -360,7 +360,7 @@ WITH CHECK (
     -- Guardians can update emergency_contacts in their households
     EXISTS (
         SELECT 1 FROM user_households 
-        WHERE user_households.household_id = emergency_contacts.household_id 
+        WHERE user_households.household_id::text = emergency_contacts.household_id::text
         AND user_households.auth_user_id = auth.uid()
     )
     OR
