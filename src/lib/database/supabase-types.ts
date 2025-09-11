@@ -1,7 +1,7 @@
 /**
  * This file contains types generated from the Supabase schema.
  * DO NOT EDIT MANUALLY. This file is auto-generated.
- * Generated on: 2025-09-11T01:15:52.339Z
+ * Generated on: 2025-09-11T03:17:04.720Z
  */
 
 export type SupabaseJson =
@@ -654,6 +654,33 @@ export type Database = {
           event_id?: string
           name?: string | null
           timeslots?: SupabaseJson | null
+        }
+        Relationships: []
+      }
+      form_drafts: {
+        Row: {
+          form_name: string
+          id: string
+          payload: SupabaseJson
+          updated_at: string
+          user_id: string
+          version: number
+        }
+        Insert: {
+          form_name: string
+          id: string
+          payload: SupabaseJson
+          updated_at?: string
+          user_id: string
+          version?: number
+        }
+        Update: {
+          form_name?: string
+          id?: string
+          payload?: SupabaseJson
+          updated_at?: string
+          user_id?: string
+          version?: number
         }
         Relationships: []
       }
