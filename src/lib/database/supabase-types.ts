@@ -1,7 +1,7 @@
 /**
  * This file contains types generated from the Supabase schema.
  * DO NOT EDIT MANUALLY. This file is auto-generated.
- * Generated on: 2025-09-11T06:28:15.795Z
+ * Generated on: 2025-09-11T06:41:02.747Z
  */
 
 export type SupabaseJson =
@@ -946,6 +946,7 @@ export type Database = {
           custom_questions: SupabaseJson | null
           data_profile: string | null
           description: string | null
+          details: string | null
           enrollment_type: string | null
           external_id: string | null
           is_active: boolean | null
@@ -966,6 +967,7 @@ export type Database = {
           custom_questions?: SupabaseJson | null
           data_profile?: string | null
           description?: string | null
+          details?: string | null
           enrollment_type?: string | null
           external_id?: string | null
           is_active?: boolean | null
@@ -986,6 +988,7 @@ export type Database = {
           custom_questions?: SupabaseJson | null
           data_profile?: string | null
           description?: string | null
+          details?: string | null
           enrollment_type?: string | null
           external_id?: string | null
           is_active?: boolean | null
