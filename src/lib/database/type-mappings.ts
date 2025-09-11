@@ -263,7 +263,9 @@ export function supabaseToHousehold(
 export function householdToSupabase(
 	household: CreateHouseholdDTO
 ): Omit<SupabaseHousehold, 'created_at' | 'updated_at'> {
-	return {
+	console.log('🔍 DEBUG householdToSupabase - Input household:', household);
+	
+	const result = {
 		household_id: household.household_id,
 		name: household.name,
 		preferredScriptureTranslation: household.preferredScriptureTranslation,
@@ -280,6 +282,9 @@ export function householdToSupabase(
 		email: household.primary_email,  // Fallback for legacy schema
 		phone: household.primary_phone, // Fallback for legacy schema
 	} as unknown as Omit<SupabaseHousehold, 'created_at' | 'updated_at'>;
+	
+	console.log('🔍 DEBUG householdToSupabase - Output result:', result);
+	return result;
 }
 
 // =====================================

@@ -44,14 +44,21 @@ function convertFormDataToCanonical(data: Record<string, unknown>): {
     custom_consents?: Record<string, boolean>;
   }>;
 } {
+  console.log('🔍 DEBUG convertFormDataToCanonical - Raw input data:', data);
+  
   const d = data as Record<string, unknown>;
   // Convert household data to canonical format
   const householdSrc = toRecord(d['household']);
+  console.log('🔍 DEBUG convertFormDataToCanonical - householdSrc:', householdSrc);
   
   // Convert guardians to get primary guardian's email for household primary_email
   const guardiansSrc = toArrayRecords(d['guardians']);
+  console.log('🔍 DEBUG convertFormDataToCanonical - guardiansSrc:', guardiansSrc);
+  
   const primaryGuardian = guardiansSrc.find(g => g['is_primary'] === true) || guardiansSrc[0];
   const primaryGuardianEmail = primaryGuardian?.['email'] as string | undefined;
+  console.log('🔍 DEBUG convertFormDataToCanonical - primaryGuardian:', primaryGuardian);
+  console.log('🔍 DEBUG convertFormDataToCanonical - primaryGuardianEmail:', primaryGuardianEmail);
   
   const household = CanonicalDtos.HouseholdWriteDto.parse({
     household_id: householdSrc['household_id'] as string | undefined,
@@ -66,6 +73,8 @@ function convertFormDataToCanonical(data: Record<string, unknown>): {
     primary_phone: householdSrc['primary_phone'] as string | undefined,
     photo_url: householdSrc['photo_url'] as string | undefined,
   });
+  
+  console.log('🔍 DEBUG convertFormDataToCanonical - Parsed household:', household);
 
   // Convert guardians to canonical format
   const householdIdToUse = (householdSrc['household_id'] as string | undefined) || uuidv4();
@@ -148,6 +157,8 @@ export async function registerHouseholdCanonical(data: Record<string, unknown>, 
     // Use Supabase adapter with canonical data
     return await dbAdapter.transaction(async () => {
       // Handle household with canonical data
+      console.log('🔍 DEBUG registerHouseholdCanonical - canonicalData.household:', canonicalData.household);
+      
       const household = {
         household_id: householdId,
         name: canonicalData.household.name || `${canonicalData.guardians[0].last_name} Household`,
@@ -161,6 +172,8 @@ export async function registerHouseholdCanonical(data: Record<string, unknown>, 
         primary_email: canonicalData.household.primary_email, // Use canonical field name
         primary_phone: canonicalData.household.primary_phone,   // Use canonical field name
       };
+      
+      console.log('🔍 DEBUG registerHouseholdCanonical - household object:', household);
 
       if (isUpdate) {
         await dbAdapter.updateHousehold(householdId, household);

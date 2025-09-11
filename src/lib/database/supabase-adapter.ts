@@ -78,6 +78,20 @@ export class SupabaseAdapter implements DatabaseAdapter {
 	async createHousehold(
 		data: Omit<Household, 'household_id' | 'created_at' | 'updated_at'>
 	): Promise<Household> {
+		console.log('🔍 DEBUG createHousehold - Input data:', {
+			household_id: data.household_id,
+			name: data.name,
+			address_line1: data.address_line1,
+			address_line2: data.address_line2,
+			city: data.city,
+			state: data.state,
+			zip: data.zip,
+			preferredScriptureTranslation: data.preferredScriptureTranslation,
+			primary_email: data.primary_email,
+			primary_phone: data.primary_phone,
+			fullData: data
+		});
+
 		// Use type mapping to convert canonical DTO to database format
 		const household = householdToSupabase({
 			household_id: data.household_id || uuidv4(),
@@ -92,13 +106,19 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			primary_phone: data.primary_phone,
 		});
 
+		console.log('🔍 DEBUG createHousehold - Mapped household data:', household);
+
 		const { data: result, error } = await this.client
 			.from('households')
 			.insert(household)
 			.select()
 			.single();
 
-		if (error) throw error;
+		if (error) {
+			console.error('❌ DEBUG createHousehold - Database error:', error);
+			throw error;
+		}
+		console.log('✅ DEBUG createHousehold - Success result:', result);
 		return supabaseToHousehold(result as Database['public']['Tables']['households']['Row']);
 	}
 
