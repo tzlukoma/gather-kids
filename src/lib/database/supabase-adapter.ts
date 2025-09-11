@@ -1878,6 +1878,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 		id: string,
 		data: Partial<BibleBeeCycle>
 	): Promise<BibleBeeCycle> {
+		console.log('SupabaseAdapter.updateBibleBeeCycle called:', { id, data });
 		const updatePayload: Record<string, unknown> = {
 			updated_at: new Date().toISOString(),
 		};
@@ -1887,6 +1888,8 @@ export class SupabaseAdapter implements DatabaseAdapter {
 		if (data.description !== undefined) updatePayload.description = data.description;
 		if (data.is_active !== undefined) updatePayload.is_active = data.is_active;
 
+		console.log('SupabaseAdapter.updateBibleBeeCycle payload:', updatePayload);
+
 		const { data: result, error } = await this.client
 			.from('bible_bee_cycles')
 			.update(updatePayload)
@@ -1894,7 +1897,11 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			.select()
 			.single();
 
-		if (error) throw error;
+		if (error) {
+			console.error('SupabaseAdapter.updateBibleBeeCycle error:', error);
+			throw error;
+		}
+		console.log('SupabaseAdapter.updateBibleBeeCycle success:', result);
 		return this.mapBibleBeeCycle(result);
 	}
 

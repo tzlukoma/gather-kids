@@ -1109,7 +1109,17 @@ function RegisterPageContent() {
 	}, [verificationStep, handleEmailLookup]);
 
 	async function onSubmit(data: RegistrationFormValues) {
-		console.log('DEBUG: onSubmit called');
+		console.log('DEBUG: onSubmit called with data:', data);
+		console.log('DEBUG: Phone validation check:', {
+			guardianPhones: data.guardians.map((g) => ({
+				phone: g.mobile_phone,
+				length: g.mobile_phone?.length,
+			})),
+			emergencyPhone: {
+				phone: data.emergencyContact.mobile_phone,
+				length: data.emergencyContact.mobile_phone?.length,
+			},
+		});
 		setIsSubmitting(true);
 		setSubmissionStatus('Creating household...');
 
@@ -1440,7 +1450,17 @@ function RegisterPageContent() {
 
 			{verificationStep === 'form_visible' && (
 				<Form {...form}>
-					<form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+					<form
+						onSubmit={form.handleSubmit(onSubmit, (errors) => {
+							console.log('DEBUG: Form validation errors:', errors);
+							console.log('DEBUG: First error field:', Object.keys(errors)[0]);
+							console.log('DEBUG: Current form values:', form.getValues());
+							console.log(
+								'DEBUG: Saved data in localStorage:',
+								loadSavedFormData()
+							);
+						})}
+						className="space-y-8">
 						{isCurrentYearOverwrite && (
 							<Alert variant="destructive">
 								<AlertTriangle className="h-4 w-4" />
@@ -1536,7 +1556,7 @@ function RegisterPageContent() {
 												<FormItem>
 													<FormLabel>State</FormLabel>
 													<FormControl>
-														<Input placeholder="CA" maxLength={2} {...field} />
+														<Input placeholder="NJ" maxLength={2} {...field} />
 													</FormControl>
 													<FormMessage />
 												</FormItem>

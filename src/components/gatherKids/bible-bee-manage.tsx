@@ -517,12 +517,15 @@ function YearManagement({
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
+		console.log('Form submission started:', { editingYear, formData });
 		try {
 			let createdCycle;
 			if (editingYear) {
+				console.log('Updating Bible Bee cycle:', editingYear.id, formData);
 				await updateBibleBeeCycle(editingYear.id, formData);
 				setEditingYear(null);
 			} else {
+				console.log('Creating new Bible Bee cycle:', formData);
 				createdCycle = await createBibleBeeCycle(formData);
 				setIsCreating(false);
 			}
@@ -538,9 +541,20 @@ function YearManagement({
 				is_active: false,
 				cycle_id: '',
 			});
+			console.log('Form submission completed successfully');
 		} catch (error) {
 			console.error('Error saving cycle:', error);
-			alert('Error saving cycle: ' + error);
+			console.error('Error details:', {
+				message: error.message,
+				stack: error.stack,
+				name: error.name,
+				formData,
+				editingYear,
+			});
+			alert(
+				'Error saving cycle: ' +
+					(error instanceof Error ? error.message : String(error))
+			);
 		}
 	};
 
@@ -554,7 +568,10 @@ function YearManagement({
 				await deleteBibleBeeCycle(cycle.id);
 			} catch (error) {
 				console.error('Error deleting cycle:', error);
-				alert('Error deleting cycle: ' + error);
+				alert(
+					'Error deleting cycle: ' +
+						(error instanceof Error ? error.message : String(error))
+				);
 			}
 		}
 	};
@@ -562,7 +579,7 @@ function YearManagement({
 	const startEdit = (cycle: any) => {
 		setEditingYear(cycle);
 		setFormData({
-			name: cycle.label,
+			name: cycle.name || cycle.label, // Use name field, fallback to label for legacy data
 			is_active: cycle.is_active,
 			cycle_id: cycle.cycle_id || '',
 		});
