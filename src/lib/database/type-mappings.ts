@@ -251,9 +251,10 @@ export function supabaseToHousehold(
 		city: record.city ?? '' ,
 		state: record.state ?? '' ,
 		zip: record.zip ?? '' ,
-		// Map email and phone fields from database columns to canonical DTO fields
-		primary_email: (r.email as string | undefined) ?? (r.primary_email as string | undefined) ?? undefined,
-		primary_phone: (r.phone as string | undefined) ?? (r.primary_phone as string | undefined) ?? undefined,
+		// Map from database columns to canonical DTO fields
+		// Handle both naming conventions during transition
+		primary_email: (r.primary_email as string | undefined) ?? (r.email as string | undefined) ?? undefined,
+		primary_phone: (r.primary_phone as string | undefined) ?? (r.phone as string | undefined) ?? undefined,
 		created_at: record.created_at ?? new Date().toISOString(),
 		updated_at: record.updated_at ?? new Date().toISOString(),
 	};
@@ -272,8 +273,12 @@ export function householdToSupabase(
 		state: household.state,
 		zip: household.zip,
 		// Map canonical DTO fields to database column names
-		email: household.primary_email,
-		phone: household.primary_phone,
+		// The database may have either naming convention, so we'll include both
+		// The actual database schema will determine which ones are used
+		primary_email: household.primary_email,
+		primary_phone: household.primary_phone,
+		email: household.primary_email,  // Fallback for legacy schema
+		phone: household.primary_phone, // Fallback for legacy schema
 	} as unknown as Omit<SupabaseHousehold, 'created_at' | 'updated_at'>;
 }
 
@@ -302,9 +307,11 @@ export function supabaseToChild(record: SupabaseChild): ChildEntity {
 	household_id: record.household_id ?? '',
 	first_name: record.first_name ?? '',
 	last_name: record.last_name ?? '',
-		dob: record.dob ?? undefined,
+		// Handle both birth_date and dob fields (database has both)
+		dob: record.dob ?? record.birth_date ?? undefined,
 	grade: record.grade ?? undefined,
-	child_mobile: record.child_mobile ?? undefined,
+		// Handle both mobile_phone and child_mobile fields (database has both)
+		child_mobile: record.child_mobile ?? record.mobile_phone ?? undefined,
 	allergies: record.allergies ?? undefined,
 	medical_notes: record.medical_notes ?? undefined,
 	special_needs: record.special_needs ?? false,
@@ -312,7 +319,8 @@ export function supabaseToChild(record: SupabaseChild): ChildEntity {
 	is_active: record.is_active ?? true,
 	created_at: record.created_at ?? new Date().toISOString(),
 	updated_at: record.updated_at ?? new Date().toISOString(),
-	photo_url: (rChild.photo_url as string | undefined) ?? (rChild.photoUrl as string | undefined) ?? undefined,
+		// Handle photo_url field mapping
+		photo_url: (rChild.photo_url as string | undefined) ?? (rChild.photoUrl as string | undefined) ?? undefined,
 	};
 }
 
@@ -510,9 +518,14 @@ export function childToSupabase(
 		household_id: child.household_id,
 		first_name: child.first_name,
 		last_name: child.last_name,
+		// Map canonical DTO fields to database columns
+		// Handle both dob and birth_date fields (database has both)
 		dob: child.dob,
+		birth_date: child.dob, // Also populate birth_date for compatibility
 		grade: child.grade,
+		// Handle both child_mobile and mobile_phone fields (database has both)
 		child_mobile: child.child_mobile,
+		mobile_phone: child.child_mobile, // Also populate mobile_phone for compatibility
 		allergies: child.allergies,
 		medical_notes: child.medical_notes,
 		special_needs: child.special_needs,
@@ -561,6 +574,10 @@ export function guardianToSupabase(
 		email: guardian.email,
 		relationship: guardian.relationship,
 		is_primary: guardian.is_primary,
+		// Include additional database fields for compatibility
+		external_id: undefined, // Not used in canonical DTOs
+		external_household_id: undefined, // Not used in canonical DTOs
+		household_uuid: undefined, // Not used in canonical DTOs
 	} as unknown as Omit<SupabaseGuardian, 'created_at' | 'updated_at'>;
 }
 
