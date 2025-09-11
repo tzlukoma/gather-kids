@@ -42,7 +42,7 @@ USING (
     EXISTS (
         SELECT 1 FROM user_households 
         WHERE user_households.household_id::text = children.household_id::text
-        AND user_households.auth_user_id = auth.uid()
+        AND user_households.auth_user_id = auth.uid()::text
     )
     OR
     -- Admins can access all children
@@ -62,7 +62,7 @@ WITH CHECK (
     EXISTS (
         SELECT 1 FROM user_households 
         WHERE user_households.household_id::text = children.household_id::text
-        AND user_households.auth_user_id = auth.uid()
+        AND user_households.auth_user_id = auth.uid()::text
     )
     OR
     -- Admins can insert children anywhere
@@ -79,7 +79,7 @@ USING (
     EXISTS (
         SELECT 1 FROM user_households 
         WHERE user_households.household_id::text = children.household_id::text
-        AND user_households.auth_user_id = auth.uid()
+        AND user_households.auth_user_id = auth.uid()::text
     )
     OR
     -- Admins can update any children
@@ -90,7 +90,7 @@ WITH CHECK (
     EXISTS (
         SELECT 1 FROM user_households 
         WHERE user_households.household_id::text = children.household_id::text
-        AND user_households.auth_user_id = auth.uid()
+        AND user_households.auth_user_id = auth.uid()::text
     )
     OR
     -- Admins can update any children
@@ -107,7 +107,7 @@ USING (
     EXISTS (
         SELECT 1 FROM user_households 
         WHERE user_households.household_id::text = children.household_id::text
-        AND user_households.auth_user_id = auth.uid()
+        AND user_households.auth_user_id = auth.uid()::text
     )
     OR
     -- Admins can delete any children
@@ -145,7 +145,7 @@ USING (
     EXISTS (
         SELECT 1 FROM user_households 
         WHERE user_households.household_id::text = households.household_id::text
-        AND user_households.auth_user_id = auth.uid()
+        AND user_households.auth_user_id = auth.uid()::text
     )
     OR
     -- Admins can access all households
@@ -178,7 +178,7 @@ USING (
     EXISTS (
         SELECT 1 FROM user_households 
         WHERE user_households.household_id::text = households.household_id::text
-        AND user_households.auth_user_id = auth.uid()
+        AND user_households.auth_user_id = auth.uid()::text
     )
     OR
     -- Admins can update any households
@@ -189,7 +189,7 @@ WITH CHECK (
     EXISTS (
         SELECT 1 FROM user_households 
         WHERE user_households.household_id::text = households.household_id::text
-        AND user_households.auth_user_id = auth.uid()
+        AND user_households.auth_user_id = auth.uid()::text
     )
     OR
     -- Admins can update any households
@@ -227,7 +227,7 @@ USING (
     EXISTS (
         SELECT 1 FROM user_households 
         WHERE user_households.household_id::text = guardians.household_id::text
-        AND user_households.auth_user_id = auth.uid()
+        AND user_households.auth_user_id = auth.uid()::text
     )
     OR
     -- Admins can access all guardians
@@ -247,7 +247,7 @@ WITH CHECK (
     EXISTS (
         SELECT 1 FROM user_households 
         WHERE user_households.household_id::text = guardians.household_id::text
-        AND user_households.auth_user_id = auth.uid()
+        AND user_households.auth_user_id = auth.uid()::text
     )
     OR
     -- Admins can insert guardians anywhere
@@ -264,7 +264,7 @@ USING (
     EXISTS (
         SELECT 1 FROM user_households 
         WHERE user_households.household_id::text = guardians.household_id::text
-        AND user_households.auth_user_id = auth.uid()
+        AND user_households.auth_user_id = auth.uid()::text
     )
     OR
     -- Admins can update any guardians
@@ -275,7 +275,7 @@ WITH CHECK (
     EXISTS (
         SELECT 1 FROM user_households 
         WHERE user_households.household_id::text = guardians.household_id::text
-        AND user_households.auth_user_id = auth.uid()
+        AND user_households.auth_user_id = auth.uid()::text
     )
     OR
     -- Admins can update any guardians
@@ -313,7 +313,7 @@ USING (
     EXISTS (
         SELECT 1 FROM user_households 
         WHERE user_households.household_id::text = emergency_contacts.household_id::text
-        AND user_households.auth_user_id = auth.uid()
+        AND user_households.auth_user_id = auth.uid()::text
     )
     OR
     -- Admins can access all emergency_contacts
@@ -333,7 +333,7 @@ WITH CHECK (
     EXISTS (
         SELECT 1 FROM user_households 
         WHERE user_households.household_id::text = emergency_contacts.household_id::text
-        AND user_households.auth_user_id = auth.uid()
+        AND user_households.auth_user_id = auth.uid()::text
     )
     OR
     -- Admins can insert emergency_contacts anywhere
@@ -350,7 +350,7 @@ USING (
     EXISTS (
         SELECT 1 FROM user_households 
         WHERE user_households.household_id::text = emergency_contacts.household_id::text
-        AND user_households.auth_user_id = auth.uid()
+        AND user_households.auth_user_id = auth.uid()::text
     )
     OR
     -- Admins can update any emergency_contacts
@@ -361,7 +361,7 @@ WITH CHECK (
     EXISTS (
         SELECT 1 FROM user_households 
         WHERE user_households.household_id::text = emergency_contacts.household_id::text
-        AND user_households.auth_user_id = auth.uid()
+        AND user_households.auth_user_id = auth.uid()::text
     )
     OR
     -- Admins can update any emergency_contacts
