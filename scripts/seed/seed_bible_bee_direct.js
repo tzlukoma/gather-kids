@@ -8,6 +8,7 @@ import { createClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
 
 // Configuration - must be before client setup
+const RESET_MODE = process.env.RESET === 'true';
 const EXTERNAL_ID_PREFIX = 'uat_';
 
 // Supabase client setup
@@ -42,6 +43,86 @@ if (!serviceRoleKey) {
 }
 
 const supabase = createClient(supabaseUrl, serviceRoleKey);
+
+/**
+ * Reset Bible Bee specific data when RESET mode is enabled
+ */
+async function resetBibleBeeData() {
+	console.log('🗑️  Resetting Bible Bee data...');
+
+	// Delete in proper foreign key dependency order
+	const deletionPlan = [
+		// Level 1: Tables with no dependencies (child tables)
+		{ table: 'bible_bee_enrollments', filter: { type: 'all_records' } },
+		{ table: 'enrollment_overrides', filter: { type: 'all_records' } },
+
+		// Level 2: Bible Bee structure tables
+		{ table: 'essay_prompts', filter: { type: 'all_records' } },
+		{ table: 'grade_rules', filter: { type: 'all_records' } },
+		{ table: 'divisions', filter: { type: 'all_records' } },
+		{ table: 'scriptures', filter: { type: 'external_id' } },
+
+		// Level 3: Competition/cycle tables
+		{ table: 'competition_years', filter: { type: 'all_records' } },
+		{ table: 'bible_bee_cycles', filter: { type: 'all_records' } },
+	];
+
+	let deletionErrors = [];
+
+	for (const { table, filter } of deletionPlan) {
+		console.log(`🗑️  Deleting ${table}...`);
+
+		try {
+			let result;
+
+			// Apply the appropriate deletion filter
+			if (filter.type === 'external_id') {
+				result = await supabase
+					.from(table)
+					.delete()
+					.like('external_id', `${EXTERNAL_ID_PREFIX}%`);
+			} else if (filter.type === 'all_records') {
+				// For UAT-only tables, delete all records
+				// Handle tables with different timestamp column names
+				if (table === 'bible_bee_enrollments') {
+					// bible_bee_enrollments uses 'enrolled_at' instead of 'created_at'
+					result = await supabase
+						.from(table)
+						.delete()
+						.gte('enrolled_at', '1900-01-01');
+				} else {
+					// Most tables use 'created_at'
+					result = await supabase
+						.from(table)
+						.delete()
+						.gte('created_at', '1900-01-01');
+				}
+			}
+
+			if (result.error) {
+				console.warn(`⚠️ Could not reset ${table}: ${result.error.message}`);
+				deletionErrors.push({ table, error: result.error.message });
+			} else {
+				console.log(`✅ Cleared ${table}`);
+			}
+		} catch (error) {
+			console.warn(`⚠️ Exception while clearing ${table}: ${error.message}`);
+			deletionErrors.push({ table, error: error.message });
+		}
+	}
+
+	if (deletionErrors.length > 0) {
+		console.log('\n❌ Bible Bee reset completed with errors:');
+		deletionErrors.forEach(({ table, error }) => {
+			console.log(`   - ${table}: ${error}`);
+		});
+		throw new Error(
+			`Failed to completely reset Bible Bee data. ${deletionErrors.length} tables had issues.`
+		);
+	}
+
+	console.log('✅ Bible Bee reset complete - all Bible Bee data cleared');
+}
 
 /**
  * Finds the Bible Bee ministry ID using various strategies
@@ -119,6 +200,17 @@ async function findBibleBeeMinistryId() {
 async function main() {
 	try {
 		console.log('🏆 Bible Bee Direct Seed Starting...');
+		console.log(
+			`📊 Mode: ${
+				RESET_MODE ? 'RESET (delete and re-seed)' : 'IDEMPOTENT (upsert)'
+			}`
+		);
+
+		if (RESET_MODE) {
+			console.log('🗑️  Reset mode enabled, resetting Bible Bee data...');
+			await resetBibleBeeData();
+			console.log('✅ Reset completed, proceeding with seeding...');
+		}
 
 		// Verify connection to Supabase
 		try {
@@ -148,11 +240,10 @@ async function main() {
 
 		// 1. Find Bible Bee Competition Year...
 		console.log('📅 Finding Bible Bee Competition Year...');
-		const { data: yearData, error: yearError } = await supabase
+		const { data: yearDataArray, error: yearError } = await supabase
 			.from('competition_years')
 			.select('id')
-			.eq('name', 'Bible Bee 2025-2026')
-			.single();
+			.eq('name', '2025-2026 Competition Year');
 
 		if (yearError) {
 			console.error(`❌ Error finding competition year: ${yearError.message}`);
@@ -161,7 +252,18 @@ async function main() {
 			);
 			process.exit(1);
 		}
-		const yearId = yearData.id;
+
+		if (!yearDataArray || yearDataArray.length === 0) {
+			console.error(
+				`❌ No competition year found with name '2025-2026 Competition Year'`
+			);
+			console.error(
+				'Make sure the UAT seed script has been run first to create the competition year.'
+			);
+			process.exit(1);
+		}
+
+		const yearId = yearDataArray[0].id;
 		console.log(`✅ Found competition year ID: ${yearId}`);
 
 		// 1b. Create Bible Bee Year
@@ -419,14 +521,18 @@ async function main() {
 
 		const essayPromptData = {
 			id: crypto.randomUUID(),
-			division_id: seniorDivisionId,
+			bible_bee_cycle_id: yearId, // Use bible_bee_cycle_id as per new schema
+			division_name: 'Senior',
 			title: 'Romans Essay',
 			prompt:
 				"Reflecting on Romans chapters 1-11, discuss how Paul's teachings on salvation through faith apply to modern Christian life.",
+			prompt_text:
+				"Reflecting on Romans chapters 1-11, discuss how Paul's teachings on salvation through faith apply to modern Christian life. Include at least three specific scripture references from the assigned passages to support your analysis.",
 			instructions:
 				'Include at least three specific scripture references from the assigned passages to support your analysis.',
 			min_words: 500,
 			max_words: 1000,
+			due_date: '2026-06-05',
 			created_at: new Date().toISOString(),
 			updated_at: new Date().toISOString(),
 		};
@@ -435,7 +541,8 @@ async function main() {
 		const { data: existingPrompt, error: checkPromptError } = await supabase
 			.from('essay_prompts')
 			.select('id')
-			.eq('division_id', seniorDivisionId)
+			.eq('bible_bee_cycle_id', yearId)
+			.eq('division_name', 'Senior')
 			.maybeSingle();
 
 		if (existingPrompt) {

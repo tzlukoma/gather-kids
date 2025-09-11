@@ -62,16 +62,18 @@ export class TestDatabaseFactory {
 
 		// Create a ministry
 		const ministry = await adapter.createMinistry({
+			code: 'TEST_MIN',
 			name: 'Test Ministry',
 			description: 'A ministry for testing',
 			min_age: 3,
 			max_age: 12,
 			is_active: true,
+			enrollment_type: 'enrolled',
+			data_profile: 'Basic',
 		});
 
 		// Create a registration cycle
 		const cycle = await adapter.createRegistrationCycle({
-			name: 'Test Cycle 2024',
 			start_date: '2024-01-01',
 			end_date: '2024-12-31',
 			is_active: true,
@@ -82,6 +84,10 @@ export class TestDatabaseFactory {
 			child_id: child.child_id,
 			cycle_id: cycle.cycle_id,
 			status: 'active',
+			pre_registered_sunday_school: false,
+			consents: [],
+			submitted_via: 'web',
+			submitted_at: new Date().toISOString(),
 		});
 
 		// Create a ministry enrollment
@@ -89,15 +95,13 @@ export class TestDatabaseFactory {
 			child_id: child.child_id,
 			ministry_id: ministry.ministry_id,
 			cycle_id: cycle.cycle_id,
-			enrolled_at: new Date().toISOString(),
+			status: 'enrolled',
 		});
 
 		// Create an event
 		const event = await adapter.createEvent({
 			name: 'Test Event',
-			date: new Date().toISOString().split('T')[0],
-			start_time: '09:00',
-			end_time: '11:00',
+			timeslots: [{ id: crypto.randomUUID(), start_local: '09:00', end_local: '11:00' }],
 		});
 
 		// Create an attendance record

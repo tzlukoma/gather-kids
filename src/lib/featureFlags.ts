@@ -27,5 +27,13 @@ export function getFlag(name: FlagName): boolean | string {
 }
 
 export function isDemo(): boolean {
-  return getFlag("DATABASE_MODE") === "demo";
+  const mode = getFlag("DATABASE_MODE");
+  console.log('isDemo: Checking database mode flag', { 
+    mode, 
+    isDemo: mode === "demo",
+    env: typeof window !== 'undefined' ? 'browser' : 'server',
+    NEXT_PUBLIC_DATABASE_MODE: process.env.NEXT_PUBLIC_DATABASE_MODE,
+    NEXT_PUBLIC_SHOW_DEMO_FEATURES: process.env.NEXT_PUBLIC_SHOW_DEMO_FEATURES
+  });
+  return mode === "demo";
 }

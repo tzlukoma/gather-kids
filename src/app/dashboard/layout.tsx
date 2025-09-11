@@ -2,7 +2,6 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { DatabaseAdapterBadge } from '@/components/gatherKids/database-adapter-badge';
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -72,24 +71,64 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 
 	const menuItems = getMenuItems();
 
+	function renderIcon(Icon: any) {
+		// Handle React elements (like the Bible Bee SVG)
+		if (React.isValidElement(Icon)) return Icon;
+
+		// Handle Lucide React components (they are objects with forwardRef)
+		if (Icon && typeof Icon === 'object' && Icon.$$typeof) {
+			const C = Icon as React.ComponentType<{ className?: string }>;
+			return <C className="w-4 h-4" />;
+		}
+
+		// Handle function components (fallback)
+		if (typeof Icon === 'function') {
+			const C = Icon as React.ComponentType<{ className?: string }>;
+			return <C className="w-4 h-4" />;
+		}
+
+		return null;
+	}
+
 	React.useEffect(() => {
 		if (loading) return;
 
 		if (!user) {
+			console.log('DashboardLayout: No user, redirecting to login');
 			router.push('/login');
 			return;
 		}
 
+		// If user exists but has no authorized menu items, redirect to login
+		if (menuItems.length === 0) {
+			console.log(
+				'DashboardLayout: User has no authorized menu items, redirecting to login'
+			);
+			router.push('/login');
+			return;
+		}
+
+		// Redirect to first authorized page if on base dashboard
 		if (menuItems.length > 0) {
 			const topMenuItem = menuItems[0];
 			// Only redirect if the user is at the base dashboard and not already on their target page
 			if (pathname === '/dashboard' && topMenuItem.href !== '/dashboard') {
+				console.log(
+					'DashboardLayout: Redirecting to first authorized page:',
+					topMenuItem.href
+				);
 				router.replace(topMenuItem.href);
 			}
 		}
 	}, [user, loading, router, menuItems, pathname]);
 
-	if (!user) return null;
+	if (loading) {
+		return <AdminSkeleton />;
+	}
+
+	if (!user) {
+		return <AdminSkeleton />; // Show loading while redirecting to login
+	}
 
 	const handleLogout = () => {
 		logout();
@@ -110,7 +149,9 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 									<img
 										src={settings.logo_url}
 										alt={`${settings.app_name || 'gatherKids'} Logo`}
-										className="h-24 w-auto max-w-[50%] object-contain"
+										className={`h-16 w-auto ${
+											settings.use_logo_only ? '' : 'max-w-[50%]'
+										} object-contain`}
 									/>
 									{!settings.use_logo_only && (
 										<div className="font-headline text-2xl font-bold">
@@ -193,11 +234,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 													(item.href !== '/dashboard' ||
 														pathname === '/dashboard')
 												}>
-												{React.isValidElement(item.icon)
-													? item.icon
-													: React.createElement(item.icon as any, {
-															className: 'w-4 h-4',
-													  })}
+												{renderIcon(item.icon)}
 												<span>{item.label}</span>
 											</SidebarMenuButton>
 										</Link>
@@ -205,9 +242,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 								))}
 							</SidebarMenu>
 						</SidebarContent>
-						<SidebarFooter className="p-2 flex justify-center">
-							<DatabaseAdapterBadge />
-						</SidebarFooter>
+						<SidebarFooter className="p-2 flex justify-center"></SidebarFooter>
 					</Sidebar>
 					<SidebarInset>
 						<main className="p-4 md:p-6 lg:p-8">{children}</main>

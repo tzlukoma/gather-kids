@@ -64,8 +64,10 @@ export function PhotoCaptureDialog({ child, onClose }: PhotoCaptureDialogProps) 
 
 
     useEffect(() => {
+        let mounted = true;
         if (activeTab === 'camera' && child && !imageData) {
             navigator.mediaDevices.enumerateDevices().then(devices => {
+                if (!mounted) return;
                 const videoInputs = devices.filter(device => device.kind === 'videoinput');
                 setVideoDevices(videoInputs);
                 if (videoInputs.length > 0) {
@@ -78,11 +80,14 @@ export function PhotoCaptureDialog({ child, onClose }: PhotoCaptureDialogProps) 
                         startCamera(initialDeviceId);
                     }
                 }
+            }).catch(() => {
+                /* ignore enumeration errors */
             });
         } else {
             stopCamera();
         }
-    }, [activeTab, child, imageData, startCamera]);
+        return () => { mounted = false; };
+    }, [activeTab, child, imageData, startCamera, stopCamera, selectedDeviceId]);
     
     useEffect(() => {
         if (selectedDeviceId && activeTab === 'camera' && !imageData) {

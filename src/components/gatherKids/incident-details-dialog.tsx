@@ -73,7 +73,7 @@ export function IncidentDetailsDialog({ incidents, onClose }: IncidentDetailsDia
                                 </div>
                                 <div className="flex justify-between items-center">
                                     <span className="text-sm text-muted-foreground">Status</span>
-                                    <Badge variant={incident.admin_acknowledged_at ? "default" : "destructive"} className={incident.admin_acknowledged_at ? 'bg-green-500 hover:bg-green-600' : ''}>
+                                    <Badge variant={incident.admin_acknowledged_at ? "default" : "destructive"} className={incident.admin_acknowledged_at ? 'bg-brand-aqua hover:opacity-90' : ''}>
                                         {incident.admin_acknowledged_at ? "Acknowledged" : "Pending"}
                                     </Badge>
                                 </div>

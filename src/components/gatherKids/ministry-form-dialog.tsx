@@ -37,7 +37,7 @@ import { useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { PlusCircle, Trash2 } from 'lucide-react';
 import { Separator } from '../ui/separator';
-import { db } from '@/lib/db';
+import { dbAdapter } from '@/lib/db-utils';
 import { Switch } from '../ui/switch';
 
 const customQuestionSchema = z.object({
@@ -56,7 +56,11 @@ const ministryFormSchema = z.object({
 			/^[a-z0-9-]+$/,
 			'Code can only contain lowercase letters, numbers, and hyphens.'
 		),
-	email: z.string().email('Please enter a valid email address').optional().or(z.literal('')),
+	email: z
+		.string()
+		.email('Please enter a valid email address')
+		.optional()
+		.or(z.literal('')),
 	enrollment_type: z.enum(['enrolled', 'expressed_interest']),
 	is_active: z.boolean().default(true),
 	open_at: z.string().optional(),
@@ -72,12 +76,14 @@ interface MinistryFormDialogProps {
 	isOpen: boolean;
 	onCloseAction: () => void;
 	ministry: Ministry | null;
+	onMinistryUpdated?: () => void; // Callback to refresh the parent component
 }
 
 export function MinistryFormDialog({
 	isOpen,
 	onCloseAction,
 	ministry,
+	onMinistryUpdated,
 }: MinistryFormDialogProps) {
 	const { toast } = useToast();
 
@@ -103,59 +109,44 @@ export function MinistryFormDialog({
 	});
 
 	useEffect(() => {
-		const loadMinistryData = async () => {
-			if (ministry) {
-				// Load the email from ministry_accounts table
-				let email = '';
-				try {
-					const account = await db.ministry_accounts.get(ministry.ministry_id);
-					email = account?.email || '';
-				} catch (e) {
-					console.warn('Could not load ministry account email:', e);
-				}
-				
-				form.reset({
-					name: ministry.name,
-					code: ministry.code,
-					email: email,
-					enrollment_type: ministry.enrollment_type,
-					is_active: ministry.is_active ?? true,
-					open_at: ministry.open_at || undefined,
-					close_at: ministry.close_at || undefined,
-					description: ministry.description,
-					details: ministry.details,
-					custom_questions:
-						ministry.custom_questions?.map((q) => ({
-							...q,
-							options: q.options || [],
-						})) || [],
-				});
-			} else {
-				form.reset({
-					name: '',
-					code: '',
-					email: '',
-					enrollment_type: 'enrolled',
-					is_active: true,
-					open_at: undefined,
-					close_at: undefined,
-					description: '',
-					details: '',
-					custom_questions: [],
-				});
-			}
-		};
-		
-		loadMinistryData();
+		if (ministry) {
+			form.reset({
+				name: ministry.name,
+				code: ministry.code,
+				email: ministry.email || '', // Get email directly from ministry
+				enrollment_type: ministry.enrollment_type,
+				is_active: ministry.is_active ?? true,
+				open_at: ministry.open_at || undefined,
+				close_at: ministry.close_at || undefined,
+				description: ministry.description,
+				details: ministry.details,
+				custom_questions:
+					ministry.custom_questions?.map((q) => ({
+						...q,
+						options: q.options || [],
+					})) || [],
+			});
+		} else {
+			form.reset({
+				name: '',
+				code: '',
+				email: '',
+				enrollment_type: 'enrolled',
+				is_active: true,
+				open_at: undefined,
+				close_at: undefined,
+				description: '',
+				details: '',
+				custom_questions: [],
+			});
+		}
 	}, [ministry, form, isOpen]);
 
 	const onSubmit = async (data: MinistryFormValues) => {
 		try {
-			// Check for duplicate code
-			const existingMinistry = await db.ministries
-				.where('code')
-				.equals(data.code)
-				.first();
+			// Check for duplicate code using dbAdapter
+			const allMinistries = await dbAdapter.listMinistries();
+			const existingMinistry = allMinistries.find((m) => m.code === data.code);
 			if (
 				existingMinistry &&
 				existingMinistry.ministry_id !== ministry?.ministry_id
@@ -168,43 +159,96 @@ export function MinistryFormDialog({
 				return;
 			}
 
-			const { email, ...ministryData } = data;
-			
+			const ministryData = data;
+
+			function toDbMinistryPayload(md: Partial<MinistryFormValues>) {
+				// Remove email from ministry payload since it goes to ministry_accounts table
+				const { email, ...ministryData } = md;
+				return {
+					name: ministryData.name || '',
+					code: ministryData.code || '',
+					enrollment_type:
+						(ministryData.enrollment_type as
+							| 'enrolled'
+							| 'expressed_interest') || 'enrolled',
+					is_active: ministryData.is_active ?? true,
+					open_at: ministryData.open_at ?? undefined,
+					close_at: ministryData.close_at ?? undefined,
+					description: ministryData.description ?? undefined,
+					details: ministryData.details ?? undefined,
+					custom_questions: ministryData.custom_questions ?? [],
+				};
+			}
+
+			let ministryId: string;
+
 			if (ministry) {
-				await updateMinistry(ministry.ministry_id, ministryData as any);
-				
-				// Handle ministry account email
-				if (email && email.trim()) {
-					await saveMinistryAccount({
-						ministry_id: ministry.ministry_id,
-						email: email.trim(),
-						display_name: data.name,
-						is_active: true,
-					});
-				}
-				
+				await updateMinistry(ministry.ministry_id, toDbMinistryPayload(data));
+				ministryId = ministry.ministry_id;
+
 				toast({
 					title: 'Ministry Updated',
 					description: 'The ministry has been successfully updated.',
 				});
 			} else {
-				const ministryId = await createMinistry(ministryData as any);
-				
-				// Handle ministry account email for new ministry
-				if (email && email.trim()) {
-					await saveMinistryAccount({
-						ministry_id: ministryId,
-						email: email.trim(),
-						display_name: data.name,
-						is_active: true,
-					});
-				}
-				
+				ministryId = await createMinistry(toDbMinistryPayload(data));
+
 				toast({
 					title: 'Ministry Created',
 					description: 'The new ministry has been created.',
 				});
 			}
+
+			// Handle ministry account (email) separately
+			if (data.email && data.email.trim() !== '') {
+				try {
+					console.log('🔍 MinistryFormDialog: Saving ministry account', {
+						ministryId: ministryId,
+						email: data.email.trim(),
+						displayName: data.name,
+						isUpdate: !!ministry,
+					});
+
+					await saveMinistryAccount({
+						ministry_id: ministryId,
+						email: data.email.trim(),
+						display_name: data.name,
+						is_active: true,
+					});
+
+					console.log(
+						'✅ MinistryFormDialog: Ministry account saved successfully'
+					);
+				} catch (error) {
+					console.error(
+						'❌ MinistryFormDialog: Failed to save ministry account:',
+						error
+					);
+					toast({
+						title: 'Warning',
+						description:
+							'Ministry saved but email account could not be updated. You may need to set up the ministry account separately.',
+						variant: 'destructive',
+					});
+				}
+			} else if (ministry) {
+				// If updating a ministry and email is empty, we might want to delete the ministry account
+				// For now, just log this case
+				console.log(
+					'🔍 MinistryFormDialog: Email field is empty for existing ministry',
+					{
+						ministryId: ministryId,
+						originalEmail: ministry.email,
+					}
+				);
+			}
+
+			// Notify parent component to refresh the ministries list
+			if (onMinistryUpdated) {
+				console.log('🔍 MinistryFormDialog: Triggering parent refresh');
+				onMinistryUpdated();
+			}
+
 			onCloseAction();
 		} catch (error) {
 			console.error('Failed to save ministry', error);
@@ -272,7 +316,11 @@ export function MinistryFormDialog({
 								<FormItem>
 									<FormLabel>Ministry Email</FormLabel>
 									<FormControl>
-										<Input type="email" placeholder="ministry@example.com" {...field} />
+										<Input
+											type="email"
+											placeholder="ministry@example.com"
+											{...field}
+										/>
 									</FormControl>
 									<FormDescription>
 										Email address for this ministry account (optional).

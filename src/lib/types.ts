@@ -66,6 +66,7 @@ export interface Child {
 
 export interface RegistrationCycle {
     cycle_id: string; // PK (e.g., "2026")
+    name: string; // Display name (e.g., "Fall 2026")
     start_date: string; // ISO
     end_date: string; // ISO
     is_active: boolean;
@@ -104,6 +105,7 @@ export interface Ministry {
     ministry_id: string; // PK
     name: string;
     code: string;
+    email?: string; // Email address for the ministry
     enrollment_type: 'enrolled' | 'expressed_interest';
     min_age?: number;
     max_age?: number;
@@ -152,6 +154,7 @@ export interface LeaderProfile {
     avatar_path?: string; // Alternative avatar field name
     notes?: string; // nullable
     background_check_complete?: boolean; // nullable, default false
+    ministryCount?: number;
     is_active: boolean; // default true
     created_at: string;
     updated_at: string;
@@ -257,10 +260,25 @@ export interface CompetitionYear {
 }
 
 // New Bible Bee Year interface (enhanced CompetitionYear)
+// Bible Bee Cycle interface (replaces BibleBeeYear)
+export interface BibleBeeCycle {
+    id: string;
+    cycle_id: string; // FK to registration_cycles
+    name: string; // Human-readable name (e.g., "Fall 2025 Bible Bee")
+    description?: string;
+    is_active: boolean;
+    created_at: string;
+    updated_at?: string;
+}
+
+// Legacy BibleBeeYear interface - kept for backwards compatibility during transition
 export interface BibleBeeYear {
     id: string;
-    year: number;
-    name: string; // The human-readable name for the Bible Bee year
+    year?: number;
+    name?: string; // The human-readable name for the Bible Bee year
+    // Backwards-compatible fields: some code and generated types use `label` and `cycle_id`.
+    label?: string;
+    cycle_id?: string;
     description?: string;
     is_active: boolean;
     registration_open_date?: string;
@@ -274,7 +292,7 @@ export interface BibleBeeYear {
 // New Division interface
 export interface Division {
     id: string;
-    year_id: string; // FK to bible_bee_years
+    bible_bee_cycle_id: string; // FK to bible_bee_cycles (was year_id)
     name: string;
     minimum_required: number;
     min_last_order?: number; // calculated minimum boundary
@@ -286,8 +304,8 @@ export interface Division {
 
 export interface Scripture {
     id: string;
-    competitionYearId: string;
-    year_id?: string; // New FK for new system
+    competitionYearId: string; // Legacy field
+    bible_bee_cycle_id?: string; // New FK for bible_bee_cycles system
     reference: string;
     text: string;
     translation?: string;

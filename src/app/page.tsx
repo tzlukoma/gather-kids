@@ -11,8 +11,50 @@ import { FeatureFlagDialog } from '@/components/feature-flag-dialog';
 
 export default function Home() {
 	const { flags } = useFeatureFlags();
-	const { settings } = useBranding();
+	const { settings, loading } = useBranding();
 	const [isFlagDialogOpen, setIsFlagDialogOpen] = useState(false);
+
+	// Show skeleton loading state while branding is being fetched
+	if (loading) {
+		return (
+			<div className="flex flex-col min-h-screen">
+				<header className="p-4 border-b">
+					<div className="container mx-auto flex items-center justify-between gap-2">
+						<div className="flex items-center gap-2">
+							<div className="h-8 w-32 bg-muted animate-pulse rounded" />
+						</div>
+						<nav>
+							<div className="h-10 w-20 bg-muted animate-pulse rounded" />
+						</nav>
+					</div>
+				</header>
+				<main className="flex-1 flex items-center justify-center">
+					<div className="container mx-auto text-center px-4 py-16">
+						<div className="mx-auto h-16 w-16 bg-muted animate-pulse rounded mb-6" />
+						<div className="h-12 w-80 bg-muted animate-pulse rounded mx-auto mb-4" />
+						<div className="h-6 w-96 bg-muted animate-pulse rounded mx-auto mb-8" />
+						<div className="flex flex-col sm:flex-row gap-4 justify-center">
+							<div className="h-12 w-48 bg-muted animate-pulse rounded" />
+							{process.env.NEXT_PUBLIC_DATABASE_MODE !== 'supabase' && (
+								<div className="h-12 w-48 bg-muted animate-pulse rounded" />
+							)}
+							{flags.showDemoFeatures && (
+								<div className="h-12 w-32 bg-muted animate-pulse rounded" />
+							)}
+						</div>
+					</div>
+				</main>
+				<footer className="py-6 border-t">
+					<div className="container mx-auto flex justify-between items-center text-sm text-muted-foreground">
+						<div className="h-4 w-48 bg-muted animate-pulse rounded" />
+						{flags.showDemoFeatures && (
+							<div className="h-8 w-8 bg-muted animate-pulse rounded" />
+						)}
+					</div>
+				</footer>
+			</div>
+		);
+	}
 
 	return (
 		<div className="flex flex-col min-h-screen">
@@ -24,7 +66,9 @@ export default function Home() {
 								<img
 									src={settings.logo_url}
 									alt={`${settings.app_name || 'gatherKids'} Logo`}
-									className="h-24 w-auto max-w-[50%] object-contain"
+									className={`h-16 w-auto ${
+										settings.use_logo_only ? '' : 'max-w-[50%]'
+									} object-contain`}
 								/>
 								{!settings.use_logo_only && (
 									<div className="font-headline text-2xl font-bold text-foreground">
@@ -51,7 +95,9 @@ export default function Home() {
 						<img
 							src={settings.logo_url}
 							alt={`${settings.app_name || 'gatherKids'} Logo`}
-							className="mx-auto h-24 w-auto max-w-[50%] mb-6 object-contain"
+							className={`mx-auto h-16 w-auto ${
+								settings.use_logo_only ? '' : 'max-w-[50%]'
+							} mb-6 object-contain`}
 						/>
 					) : !settings.logo_url ? (
 						<Church className="mx-auto h-16 w-16 text-primary mb-6" />
@@ -60,39 +106,42 @@ export default function Home() {
 						Welcome to {settings.app_name || 'gatherKids'}
 					</h1>
 					<p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-8">
-						{settings.description || 
-							"The simple, secure, and smart way to manage your children's ministry. Streamline check-ins, track attendance, and keep your community connected."
-						}
+						{settings.description ||
+							'The simple, secure, and smart way to manage your children&apos;s ministry. Streamline check-ins, track attendance, and keep your community connected.'}
 					</p>
 					<div className="flex flex-col sm:flex-row gap-4 justify-center">
-						<Link href={flags.loginMagicEnabled ? "/register" : "/create-account"}>
+						<Link
+							href={flags.loginMagicEnabled ? '/register' : '/create-account'}>
 							<Button size="lg">
 								Register Your Family
 								<ArrowRight className="ml-2" />
 							</Button>
 						</Link>
-						<Link href="/dashboard">
-							<Button size="lg" variant="secondary">
-								Go to Admin Dashboard
-							</Button>
-						</Link>
+						{process.env.NEXT_PUBLIC_DATABASE_MODE !== 'supabase' && (
+							<Link href="/dashboard">
+								<Button size="lg" variant="secondary">
+									Go to Admin Dashboard
+								</Button>
+							</Link>
+						)}
 						{flags.showDemoFeatures && (
 							<SimpleSeedButton size="lg" variant="outline" />
 						)}
 					</div>
-					
+
 					{/* Social Media Links */}
 					{(settings.youtube_url || settings.instagram_url) && (
 						<div className="mt-12 pt-8 border-t">
-							<p className="text-sm text-muted-foreground mb-4">Connect with us</p>
+							<p className="text-sm text-muted-foreground mb-4">
+								Connect with us
+							</p>
 							<div className="flex justify-center gap-4">
 								{settings.youtube_url && (
 									<a
 										href={settings.youtube_url}
 										target="_blank"
 										rel="noopener noreferrer"
-										className="flex items-center justify-center w-12 h-12 border border-border rounded-full hover:bg-accent transition-colors"
-									>
+										className="flex items-center justify-center w-12 h-12 border border-border rounded-full hover:bg-accent transition-colors">
 										<Youtube className="h-6 w-6" />
 										<span className="sr-only">YouTube</span>
 									</a>
@@ -102,8 +151,7 @@ export default function Home() {
 										href={settings.instagram_url}
 										target="_blank"
 										rel="noopener noreferrer"
-										className="flex items-center justify-center w-12 h-12 border border-border rounded-full hover:bg-accent transition-colors"
-									>
+										className="flex items-center justify-center w-12 h-12 border border-border rounded-full hover:bg-accent transition-colors">
 										<Instagram className="h-6 w-6" />
 										<span className="sr-only">Instagram</span>
 									</a>
@@ -116,7 +164,8 @@ export default function Home() {
 			<footer className="py-6 border-t">
 				<div className="container mx-auto flex justify-between items-center text-sm text-muted-foreground">
 					<p>
-						&copy; {new Date().getFullYear()} {settings.app_name || 'gatherKids'}. All rights reserved.
+						&copy; {new Date().getFullYear()}{' '}
+						{settings.app_name || 'gatherKids'}. All rights reserved.
 					</p>
 					{flags.showDemoFeatures && (
 						<Button

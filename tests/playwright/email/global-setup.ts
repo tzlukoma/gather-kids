@@ -17,7 +17,8 @@ async function globalSetup(config: FullConfig) {
     console.log('MailHog is ready for testing');
   } catch (error) {
     // Only fail setup if MailHog itself is not available
-    if (error.message.includes('not available within')) {
+  const errAny = error as any;
+  if (errAny.message && errAny.message.includes('not available within')) {
       console.error('Failed to setup MailHog - service not available:', error);
       throw error;
     } else {

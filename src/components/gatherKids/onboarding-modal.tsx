@@ -56,7 +56,7 @@ export function OnboardingModal({ isOpen, onClose }: OnboardingModalProps) {
 						Make future sign-ins faster
 					</DialogTitle>
 					<DialogDescription className="text-base">
-						You're all set with magic link. Prefer a password next time? You can
+						You&apos;re all set with magic link. Prefer a password next time? You can
 						still use a magic link anytime.
 					</DialogDescription>
 				</DialogHeader>

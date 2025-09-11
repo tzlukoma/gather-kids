@@ -308,7 +308,7 @@ export default function OnboardingPage() {
 					</CardHeader>
 					<CardContent className="space-y-4 text-center">
 						<p className="text-muted-foreground">
-							We're having trouble setting up your account. This sometimes
+							We&apos;re having trouble setting up your account. This sometimes
 							happens when authentication was partially successful.
 						</p>
 						<div className="flex flex-col gap-2">
@@ -331,7 +331,7 @@ export default function OnboardingPage() {
 						Make future sign-ins faster
 					</CardTitle>
 					<p className="text-base text-muted-foreground">
-						You're all set with magic link. Prefer a password next time? You can
+						You&apos;re all set with magic link. Prefer a password next time? You can
 						still use a magic link anytime.
 					</p>
 				</CardHeader>

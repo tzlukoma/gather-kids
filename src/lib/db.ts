@@ -86,6 +86,6 @@ export const db = new GatherKidsDB();
 
 // Make database available in window for debugging
 if (typeof window !== 'undefined') {
-  // @ts-ignore
-  window.gatherKidsDB = db;
+    // @ts-expect-error - expose Dexie DB for debugging in dev only
+    window.gatherKidsDB = db;
 }

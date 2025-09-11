@@ -22,6 +22,7 @@ import type {
 	Enrollment,
 	EnrollmentOverride,
 	BrandingSettings,
+	Scripture,
 } from '../types';
 
 // Filter and query types (to be extended as needed)
@@ -70,6 +71,7 @@ export interface DatabaseAdapter {
 	updateHousehold(id: string, data: Partial<Household>): Promise<Household>;
 	listHouseholds(filters?: HouseholdFilters): Promise<Household[]>;
 	deleteHousehold(id: string): Promise<void>;
+	getHouseholdForUser(authUserId: string): Promise<string | null>;
 
 	// Children
 	getChild(id: string): Promise<Child | null>;
@@ -259,6 +261,18 @@ export interface DatabaseAdapter {
 	listBibleBeeYears(): Promise<BibleBeeYear[]>;
 	deleteBibleBeeYear(id: string): Promise<void>;
 
+	// Bible Bee Cycles (new cycle-based system)
+	getBibleBeeCycle(id: string): Promise<BibleBeeCycle | null>;
+	createBibleBeeCycle(
+		data: Omit<BibleBeeCycle, 'id' | 'created_at' | 'updated_at'>
+	): Promise<BibleBeeCycle>;
+	updateBibleBeeCycle(
+		id: string,
+		data: Partial<BibleBeeCycle>
+	): Promise<BibleBeeCycle>;
+	listBibleBeeCycles(isActive?: boolean): Promise<BibleBeeCycle[]>;
+	deleteBibleBeeCycle(id: string): Promise<void>;
+
 	getDivision(id: string): Promise<Division | null>;
 	createDivision(
 		data: Omit<Division, 'created_at' | 'updated_at'>
@@ -267,7 +281,16 @@ export interface DatabaseAdapter {
 	listDivisions(bibleBeeYearId?: string): Promise<Division[]>;
 	deleteDivision(id: string): Promise<void>;
 
+	// Scriptures
+	getScripture(id: string): Promise<Scripture | null>;
+	upsertScripture(data: Omit<Scripture, 'created_at' | 'updated_at'> & { id?: string }): Promise<Scripture>;
+	deleteScripture(id: string): Promise<void>;
+	listScriptures(filters?: { yearId?: string }): Promise<Scripture[]>;
+	commitEnhancedCsvRowsToYear(rows: any[], yearId: string): Promise<any>;
+	uploadJsonTexts(yearId: string, data: any, mode: 'merge' | 'overwrite', dryRun: boolean): Promise<any>;
+
 	getEssayPrompt(id: string): Promise<EssayPrompt | null>;
+	getEssayPromptsForYearAndDivision(yearId: string, divisionName: string): Promise<EssayPrompt[]>;
 	createEssayPrompt(
 		data: Omit<EssayPrompt, 'created_at' | 'updated_at'>
 	): Promise<EssayPrompt>;

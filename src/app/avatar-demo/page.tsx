@@ -10,7 +10,6 @@ import { v4 as uuidv4 } from 'uuid';
 
 export default function AvatarTestPage() {
 	const [testChildId, setTestChildId] = useState<string>('');
-	const [avatarUrl, setAvatarUrl] = useState<string>('');
 
 	const createTestChild = async () => {
 		const childId = uuidv4();
@@ -35,7 +34,7 @@ export default function AvatarTestPage() {
 	};
 
 	const handleAvatarUpload = (url: string) => {
-		setAvatarUrl(url);
+		// keep a light-weight log for demo uploads; no local state needed here
 		console.log('Avatar uploaded:', url);
 	};
 
@@ -128,11 +127,11 @@ export default function AvatarTestPage() {
 					<CardTitle>Demo Instructions</CardTitle>
 				</CardHeader>
 				<CardContent className="space-y-2">
-					<p>1. Click "Create Test Child" to create a test record</p>
+					<p>1. Click &quot;Create Test Child&quot; to create a test record</p>
 					<p>2. Upload an image file (max 512KB) using the avatar upload component</p>
 					<p>3. See the avatar displayed in different sizes below</p>
 					<p>4. Try uploading different images to see the update functionality</p>
-					<p>5. Use the "Remove" button to delete the avatar</p>
+					<p>5. Use the &quot;Remove&quot; button to delete the avatar</p>
 					<div className="mt-4 p-4 bg-muted rounded">
 						<p className="text-sm">
 							<strong>Technical Details:</strong> This demo uses IndexedDB (demo mode) to store 

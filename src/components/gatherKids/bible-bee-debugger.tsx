@@ -2,12 +2,17 @@
 
 import { useEffect } from 'react';
 import { useAuth } from '@/contexts/auth-context';
-import { db } from '@/lib/db';
+// db import unused in this debugger; rely on adapter helpers instead
 import { dbAdapter, isSupabase, getDatabaseMode } from '@/lib/db-utils';
 import { getFlag } from '@/lib/featureFlags';
 
 export default function BibleBeeDebugger() {
 	const { user } = useAuth();
+
+	function getUserId(u: unknown) {
+		const user = u as { uid?: string; id?: string; user_id?: string } | null;
+		return user?.uid || user?.id || user?.user_id || null;
+	}
 
 	useEffect(() => {
 		console.group('🔍 Bible Bee Debug Information');
@@ -17,15 +22,18 @@ export default function BibleBeeDebugger() {
 		console.log('- DATABASE_MODE flag:', getFlag('DATABASE_MODE'));
 		console.log('- Detected Mode:', getDatabaseMode());
 		console.log('- Using Supabase:', isSupabase() ? '✅ Yes' : '❌ No');
-		console.log('- DB Adapter Type:', (dbAdapter as any).constructor.name);
+		console.log(
+			'- DB Adapter Type:',
+			dbAdapter?.constructor?.name || 'unknown'
+		);
 
 		// Check auth status
 		console.log('👤 Auth Status:');
 		console.log('- User logged in:', user ? '✅ Yes' : '❌ No');
 		if (user) {
-			console.log('- User ID:', user.uid);
-			console.log('- User Role:', user.metadata?.role);
-			console.log('- Assigned Ministries:', user.assignedMinistryIds);
+			console.log('- User ID:', getUserId(user));
+			console.log('- User Role:', user?.metadata?.role);
+			console.log('- Assigned Ministries:', user?.assignedMinistryIds);
 		}
 
 		// Check localStorage

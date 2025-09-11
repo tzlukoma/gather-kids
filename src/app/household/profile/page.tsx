@@ -44,7 +44,7 @@ const changePasswordSchema = z
 		confirmPassword: z.string(),
 	})
 	.refine((data) => data.newPassword === data.confirmPassword, {
-		message: "Passwords don't match",
+		message: "Passwords don\'t match",
 		path: ['confirmPassword'],
 	});
 
@@ -249,7 +249,7 @@ export default function ProfilePage() {
 											<AlertCircle className="h-4 w-4" />
 											<AlertDescription>
 												<strong>Demo Mode:</strong> Password changes are simulated. 
-												Use "password" as the current password to test the flow.
+												Use &quot;password&quot; as the current password to test the flow.
 											</AlertDescription>
 										</Alert>
 									)}

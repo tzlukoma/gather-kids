@@ -16,7 +16,9 @@ import {
 	CardHeader,
 	CardTitle,
 } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { queryHouseholdList, getMinistries } from '@/lib/dal';
+import { dbAdapter } from '@/lib/db-utils';
 import { format } from 'date-fns';
 import { ChevronRight, Filter } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
@@ -31,25 +33,86 @@ export default function RegistrationsPage() {
 	const [ministryFilter, setMinistryFilter] = useState<string | null>(null);
 
 	// State management for data loading
-	const [households, setHouseholds] = useState<(Household & { children: (Child & { age: number | null })[] })[]>([]);
+	const [households, setHouseholds] = useState<
+		(Household & { children: (Child & { age: number | null })[] })[]
+	>([]);
 	const [allMinistries, setAllMinistries] = useState<Ministry[]>([]);
 	const [loading, setLoading] = useState(true);
 
-	// For leaders, pass their assigned ministry IDs to the query
-	const leaderMinistryIds =
-		user?.metadata?.role === AuthRole.MINISTRY_LEADER
-			? user.assignedMinistryIds
-			: undefined;
+	// For ministry leaders, find which ministry their email is associated with
+	const [leaderMinistryId, setLeaderMinistryId] = useState<string | null>(null);
+	const [noMinistryAssigned, setNoMinistryAssigned] = useState(false);
 
 	// Load data using DAL functions
 	useEffect(() => {
 		const loadData = async () => {
 			try {
 				setLoading(true);
+
+				// For ministry leaders, find their associated ministry
+				let ministryFilterIds: string[] | undefined = undefined;
+				if (user?.metadata?.role === AuthRole.MINISTRY_LEADER && user.email) {
+					console.log(
+						'🔍 RegistrationsPage: Finding ministry for leader email',
+						user.email
+					);
+
+					// Get all ministry accounts to find which ministry this email belongs to
+					const ministryAccounts = await dbAdapter.listMinistryAccounts();
+					console.log(
+						'🔍 RegistrationsPage: All ministry accounts',
+						ministryAccounts.map((acc) => ({
+							email: acc.email,
+							ministry_id: acc.ministry_id,
+							display_name: acc.display_name,
+						}))
+					);
+					console.log('🔍 RegistrationsPage: Looking for email', user.email);
+					const matchingAccount = ministryAccounts.find(
+						(account) =>
+							account.email.toLowerCase() === user.email.toLowerCase()
+					);
+
+					if (matchingAccount) {
+						console.log(
+							'🔍 RegistrationsPage: Found matching ministry account',
+							{
+								ministryId: matchingAccount.ministry_id,
+								displayName: matchingAccount.display_name,
+							}
+						);
+						ministryFilterIds = [matchingAccount.ministry_id];
+						setLeaderMinistryId(matchingAccount.ministry_id);
+						console.log(
+							'🔍 RegistrationsPage: Set ministryFilterIds to',
+							ministryFilterIds
+						);
+					} else {
+						console.warn(
+							'⚠️ RegistrationsPage: No ministry account found for leader email',
+							user.email
+						);
+						setNoMinistryAssigned(true);
+						console.log(
+							'🔍 RegistrationsPage: ministryFilterIds remains',
+							ministryFilterIds
+						);
+					}
+				}
+
 				const [householdsData, ministriesData] = await Promise.all([
-					queryHouseholdList(leaderMinistryIds, ministryFilter ?? undefined),
-					getMinistries()
+					queryHouseholdList(ministryFilterIds, ministryFilter ?? undefined),
+					getMinistries(),
 				]);
+
+				console.log('🔍 RegistrationsPage: Filtering results', {
+					ministryFilterIds,
+					ministryFilter,
+					householdsCount: householdsData.length,
+					userRole: user?.metadata?.role,
+					userEmail: user?.email,
+				});
+
 				setHouseholds(householdsData);
 				setAllMinistries(ministriesData);
 			} catch (error) {
@@ -60,7 +123,7 @@ export default function RegistrationsPage() {
 		};
 
 		loadData();
-	}, [leaderMinistryIds, ministryFilter]);
+	}, [user, ministryFilter]);
 
 	const handleRowClick = (householdId: string) => {
 		router.push(`/dashboard/registrations/${householdId}`);
@@ -68,6 +131,37 @@ export default function RegistrationsPage() {
 
 	if (loading) {
 		return <div>Loading registrations...</div>;
+	}
+
+	console.log('🔍 RegistrationsPage: State check before empty state', {
+		userRole: user?.metadata?.role,
+		userEmail: user?.email,
+		noMinistryAssigned,
+		loading,
+	});
+
+	// Show empty state for ministry leaders without assigned ministry
+	if (user?.metadata?.role === AuthRole.MINISTRY_LEADER && noMinistryAssigned) {
+		console.log('🔍 RegistrationsPage: Showing empty state', {
+			userRole: user?.metadata?.role,
+			userEmail: user?.email,
+			noMinistryAssigned,
+		});
+		return (
+			<div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
+				<div className="text-center space-y-2">
+					<h2 className="text-2xl font-semibold">No Ministry Assigned</h2>
+					<p className="text-muted-foreground max-w-md">
+						Your email address ({user.email}) is not currently associated with
+						any active ministry. Please contact your administrator to assign you
+						to a ministry.
+					</p>
+				</div>
+				<Button variant="outline" onClick={() => window.location.reload()}>
+					Refresh Page
+				</Button>
+			</div>
+		);
 	}
 
 	const ministryOptions =

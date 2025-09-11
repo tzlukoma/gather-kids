@@ -35,6 +35,7 @@ import {
 	getMinistries,
 	getMinistryEnrollmentsByCycle,
 } from '@/lib/dal';
+import { dbAdapter } from '@/lib/db-utils';
 import { useMemo } from 'react';
 import type {
 	Child,
@@ -75,13 +76,13 @@ import { ChildCard } from '@/components/gatherKids/child-card';
 import { IncidentDetailsDialog } from '@/components/gatherKids/incident-details-dialog';
 import { PhotoCaptureDialog } from '@/components/gatherKids/photo-capture-dialog';
 
-export interface RosterChild extends EnrichedChild {}
+export type RosterChild = EnrichedChild;
 
 type SortDirection = 'asc' | 'desc' | 'none';
 
 const eventOptions = [
 	{ id: 'evt_sunday_school', name: 'Sunday School' },
-	{ id: 'evt_childrens_church', name: "Children's Church" },
+	{ id: 'evt_childrens_church', name: 'Children&apos;s Church' },
 	{ id: 'evt_teen_church', name: 'Teen Church' },
 ];
 
@@ -152,32 +153,77 @@ export default function RostersPage() {
 		useState<Child | null>(null);
 
 	// State management for data loading
-	const [allMinistryEnrollments, setAllMinistryEnrollments] = useState<MinistryEnrollment[]>([]);
+	const [allMinistryEnrollments, setAllMinistryEnrollments] = useState<
+		MinistryEnrollment[]
+	>([]);
 	const [allChildren, setAllChildren] = useState<Child[]>([]);
 	const [todaysAttendance, setTodaysAttendance] = useState<Attendance[]>([]);
 	const [todaysIncidents, setTodaysIncidents] = useState<Incident[]>([]);
 	const [allGuardians, setAllGuardians] = useState<Guardian[]>([]);
 	const [allHouseholds, setAllHouseholds] = useState<Household[]>([]);
-	const [allEmergencyContacts, setAllEmergencyContacts] = useState<EmergencyContact[]>([]);
+	const [allEmergencyContacts, setAllEmergencyContacts] = useState<
+		EmergencyContact[]
+	>([]);
 	const [allMinistries, setAllMinistries] = useState<Ministry[]>([]);
 	const [dataLoading, setDataLoading] = useState(true);
+	const [leaderMinistryId, setLeaderMinistryId] = useState<string | null>(null);
+	const [noMinistryAssigned, setNoMinistryAssigned] = useState(false);
 
 	// Load data using DAL functions
 	useEffect(() => {
 		const loadData = async () => {
 			if (!user) return;
-			
+
 			try {
 				setDataLoading(true);
 				const today = getTodayIsoDate();
-				
+
+				// Get the active registration cycle
+				const cycles = await dbAdapter.listRegistrationCycles();
+				const activeCycle = cycles.find(
+					(cycle) => cycle.is_active === true || Number(cycle.is_active) === 1
+				);
+
+				if (!activeCycle) {
+					console.warn('⚠️ RostersPage: No active registration cycle found');
+					return;
+				}
+
+				console.log('🔍 RostersPage: Using active cycle', activeCycle.cycle_id);
+
 				// Load children based on user role
-				let childrenData: Child[];
-				if (user?.metadata?.role === AuthRole.MINISTRY_LEADER) {
-					if (!user.is_active || !user.assignedMinistryIds || user.assignedMinistryIds.length === 0) {
-						childrenData = [];
+				let childrenData: Child[] = [];
+				if (user?.metadata?.role === AuthRole.MINISTRY_LEADER && user.email) {
+					console.log(
+						'🔍 RostersPage: Finding ministry for leader email',
+						user.email
+					);
+
+					// Get all ministry accounts to find which ministry this email belongs to
+					const ministryAccounts = await dbAdapter.listMinistryAccounts();
+					const matchingAccount = ministryAccounts.find(
+						(account) =>
+							account.email.toLowerCase() === user.email.toLowerCase()
+					);
+
+					if (matchingAccount) {
+						console.log('🔍 RostersPage: Found matching ministry account', {
+							ministryId: matchingAccount.ministry_id,
+							displayName: matchingAccount.display_name,
+						});
+						childrenData = await getChildrenForLeader(
+							[matchingAccount.ministry_id],
+							activeCycle.cycle_id
+						);
+						setLeaderMinistryId(matchingAccount.ministry_id);
 					} else {
-						childrenData = await getChildrenForLeader(user.assignedMinistryIds, '2025');
+						console.warn(
+							'⚠️ RostersPage: No ministry account found for leader email',
+							user.email
+						);
+						childrenData = [];
+						setLeaderMinistryId(null);
+						setNoMinistryAssigned(true);
 					}
 				} else {
 					childrenData = await getAllChildren();
@@ -191,15 +237,15 @@ export default function RostersPage() {
 					guardians,
 					households,
 					emergencyContacts,
-					ministries
+					ministries,
 				] = await Promise.all([
-					getMinistryEnrollmentsByCycle('2025'),
+					getMinistryEnrollmentsByCycle(activeCycle.cycle_id),
 					getAttendanceForDate(today),
 					getIncidentsForDate(today),
 					getAllGuardians(),
 					getAllHouseholds(),
 					getAllEmergencyContacts(),
-					getMinistries(true) // Only get active ministries
+					getMinistries(true), // Only get active ministries
 				]);
 
 				setAllChildren(childrenData);
@@ -228,18 +274,15 @@ export default function RostersPage() {
 
 	useEffect(() => {
 		if (!loading && user) {
-			if (
-				user.metadata.role === AuthRole.MINISTRY_LEADER &&
-				(!user.is_active ||
-					!user.assignedMinistryIds ||
-					user.assignedMinistryIds.length === 0)
-			) {
-				router.push('/dashboard/incidents');
-			} else {
-				setIsAuthorized(true);
-			}
+			console.log('🔍 RostersPage: Authorization check', {
+				userRole: user?.metadata?.role,
+				userEmail: user?.email,
+				loading,
+			});
+			// Always authorize ministry leaders - let the empty state handle no ministry assignment
+			setIsAuthorized(true);
 		}
-	}, [user, loading, router]);
+	}, [user, loading]);
 
 	useEffect(() => {
 		const statusParam = searchParams.get('status');
@@ -250,13 +293,10 @@ export default function RostersPage() {
 	}, [searchParams]);
 
 	useEffect(() => {
-		if (
-			user?.metadata?.role === AuthRole.MINISTRY_LEADER &&
-			user.assignedMinistryIds?.length === 1
-		) {
-			setSelectedMinistryFilter(user.assignedMinistryIds[0]);
+		if (user?.metadata?.role === AuthRole.MINISTRY_LEADER && leaderMinistryId) {
+			setSelectedMinistryFilter(leaderMinistryId);
 		}
-	}, [user]);
+	}, [user, leaderMinistryId]);
 
 	const childrenWithDetails: RosterChild[] = useMemo(() => {
 		if (dataLoading) return [];
@@ -302,31 +342,44 @@ export default function RostersPage() {
 		allHouseholds,
 		allEmergencyContacts,
 		todaysIncidents,
+		dataLoading,
 	]);
 
 	const ministryFilterOptions = useMemo(() => {
 		if (dataLoading) return [];
 
-		let relevantMinistryIds: Set<string>;
-
-		if (
-			user?.metadata?.role === AuthRole.MINISTRY_LEADER &&
-			user.assignedMinistryIds
-		) {
-			relevantMinistryIds = new Set(user.assignedMinistryIds);
-		} else {
-			const childIdsInView = new Set(allChildren.map((c) => c.child_id));
-			relevantMinistryIds = new Set(
-				allMinistryEnrollments
-					.filter((e) => childIdsInView.has(e.child_id))
-					.map((e) => e.ministry_id)
-			);
+		// For ADMIN users, show all ministries
+		// For MINISTRY_LEADER users, show only their assigned ministry
+		if (user?.metadata?.role === AuthRole.ADMIN) {
+			return allMinistries.sort((a, b) => a.name.localeCompare(b.name));
 		}
+
+		if (user?.metadata?.role === AuthRole.MINISTRY_LEADER && leaderMinistryId) {
+			return allMinistries
+				.filter((m) => m.ministry_id === leaderMinistryId)
+				.sort((a, b) => a.name.localeCompare(b.name));
+		}
+
+		// Fallback: show ministries that have enrollments for loaded children
+		const relevantMinistryIds: Set<string> = new Set(
+			allMinistryEnrollments
+				.filter((e) =>
+					new Set(allChildren.map((c) => c.child_id)).has(e.child_id)
+				)
+				.map((e) => e.ministry_id)
+		);
 
 		return allMinistries
 			.filter((m) => relevantMinistryIds.has(m.ministry_id))
 			.sort((a, b) => a.name.localeCompare(b.name));
-	}, [allChildren, allMinistryEnrollments, allMinistries, user]);
+	}, [
+		allChildren,
+		allMinistryEnrollments,
+		allMinistries,
+		user,
+		dataLoading,
+		leaderMinistryId,
+	]);
 
 	const displayChildren = useMemo(() => {
 		let filtered = childrenWithDetails;
@@ -447,6 +500,11 @@ export default function RostersPage() {
 	const handleCheckIn = async (childId: string) => {
 		try {
 			await recordCheckIn(childId, selectedEvent, undefined, user?.id);
+
+			// Refresh attendance data to update UI immediately
+			const refreshedAttendance = await getAttendanceForDate(today);
+			setTodaysAttendance(refreshedAttendance);
+
 			const child = childrenWithDetails.find((c) => c.child_id === childId);
 			toast({
 				title: 'Checked In',
@@ -472,6 +530,11 @@ export default function RostersPage() {
 	) => {
 		try {
 			await recordCheckOut(attendanceId, verifier, user?.id);
+
+			// Refresh attendance data to update UI immediately
+			const refreshedAttendance = await getAttendanceForDate(today);
+			setTodaysAttendance(refreshedAttendance);
+
 			const child = childrenWithDetails.find((c) => c.child_id === childId);
 			const eventName = getEventName(child?.activeAttendance?.event_id || null);
 			toast({
@@ -510,6 +573,25 @@ export default function RostersPage() {
 
 	if (loading || !isAuthorized || dataLoading) {
 		return <div>Loading rosters...</div>;
+	}
+
+	// Show empty state for ministry leaders without assigned ministry
+	if (user?.metadata?.role === AuthRole.MINISTRY_LEADER && noMinistryAssigned) {
+		return (
+			<div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
+				<div className="text-center space-y-2">
+					<h2 className="text-2xl font-semibold">No Ministry Assigned</h2>
+					<p className="text-muted-foreground max-w-md">
+						Your email address ({user.email}) is not currently associated with
+						any active ministry. Please contact your administrator to assign you
+						to a ministry.
+					</p>
+				</div>
+				<Button variant="outline" onClick={() => window.location.reload()}>
+					Refresh Page
+				</Button>
+			</div>
+		);
 	}
 
 	const showBulkActions =
@@ -579,7 +661,7 @@ export default function RostersPage() {
 							<TableCell>{child.grade}</TableCell>
 							<TableCell>
 								{child.activeAttendance ? (
-									<Badge className="bg-green-500 hover:bg-green-600">
+									<Badge className="bg-brand-aqua hover:opacity-90">
 										Checked In
 									</Badge>
 								) : (
@@ -667,7 +749,7 @@ export default function RostersPage() {
 										<TableCell>{child.grade}</TableCell>
 										<TableCell>
 											{child.activeAttendance ? (
-												<Badge className="bg-green-500 hover:bg-green-600">
+												<Badge className="bg-brand-aqua hover:opacity-90">
 													Checked In
 												</Badge>
 											) : (

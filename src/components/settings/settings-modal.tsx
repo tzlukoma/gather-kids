@@ -11,20 +11,29 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from '@/components/ui/dialog';
-import {
-	Tabs,
-	TabsContent,
-	TabsList,
-	TabsTrigger,
-} from '@/components/ui/tabs';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle,
+} from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
-import { Upload, User, Eye, EyeOff, Loader2, Mail, AlertCircle } from 'lucide-react';
+import {
+	Upload,
+	User,
+	Eye,
+	EyeOff,
+	Loader2,
+	Mail,
+	AlertCircle,
+} from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
 import { useToast } from '@/hooks/use-toast';
 import { getMeProfile, saveProfile, getActiveProfileTarget } from '@/lib/dal';
@@ -36,14 +45,18 @@ const profileSchema = z.object({
 	phone: z.string().optional(),
 });
 
-const passwordSchema = z.object({
-	currentPassword: z.string().min(1, 'Current password is required'),
-	newPassword: z.string().min(6, 'Password must be at least 6 characters long'),
-	confirmPassword: z.string().min(1, 'Please confirm your password'),
-}).refine((data) => data.newPassword === data.confirmPassword, {
-	message: "Passwords don't match",
-	path: ["confirmPassword"],
-});
+const passwordSchema = z
+	.object({
+		currentPassword: z.string().min(1, 'Current password is required'),
+		newPassword: z
+			.string()
+			.min(6, 'Password must be at least 6 characters long'),
+		confirmPassword: z.string().min(1, 'Please confirm your password'),
+	})
+	.refine((data) => data.newPassword === data.confirmPassword, {
+		message: "Passwords don't match",
+		path: ['confirmPassword'],
+	});
 
 type ProfileFormValues = z.infer<typeof profileSchema>;
 type PasswordFormValues = z.infer<typeof passwordSchema>;
@@ -54,14 +67,23 @@ interface SettingsModalProps {
 	defaultTab?: 'profile' | 'security';
 }
 
-export function SettingsModal({ isOpen, onClose, defaultTab = 'profile' }: SettingsModalProps) {
+export function SettingsModal({
+	isOpen,
+	onClose,
+	defaultTab = 'profile',
+}: SettingsModalProps) {
 	const { user } = useAuth();
 	const { toast } = useToast();
 	const [activeTab, setActiveTab] = useState(defaultTab);
 	const [loading, setLoading] = useState(true);
 	const [saving, setSaving] = useState(false);
-	const [profileTarget, setProfileTarget] = useState<{ target_table: string; target_id: string } | null>(null);
-	const [pendingEmailChange, setPendingEmailChange] = useState<string | null>(null);
+	const [profileTarget, setProfileTarget] = useState<{
+		target_table: string;
+		target_id: string;
+	} | null>(null);
+	const [pendingEmailChange, setPendingEmailChange] = useState<string | null>(
+		null
+	);
 	const [avatarFile, setAvatarFile] = useState<File | null>(null);
 	const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
 	const [showCurrentPassword, setShowCurrentPassword] = useState(false);
@@ -93,7 +115,7 @@ export function SettingsModal({ isOpen, onClose, defaultTab = 'profile' }: Setti
 
 	const loadProfileData = async () => {
 		if (!user) return;
-		
+
 		setLoading(true);
 		try {
 			// Get the active profile target
@@ -102,15 +124,15 @@ export function SettingsModal({ isOpen, onClose, defaultTab = 'profile' }: Setti
 
 			// Get profile data
 			const profile = await getMeProfile(user.uid || user.id || '', user.email);
-			
+
 			// Always use the authenticated user's email as primary, fallback to profile email
 			const emailToUse = user.email || profile?.email || '';
-			
+
 			profileForm.reset({
 				email: emailToUse,
 				phone: profile?.phone || '',
 			});
-			
+
 			// Set avatar preview if available
 			if (profile?.photo_url || profile?.avatar_path) {
 				setAvatarPreview(profile.photo_url || profile.avatar_path || null);
@@ -151,7 +173,7 @@ export function SettingsModal({ isOpen, onClose, defaultTab = 'profile' }: Setti
 			}
 
 			setAvatarFile(file);
-			
+
 			// Create preview
 			const reader = new FileReader();
 			reader.onload = (e) => {
@@ -173,7 +195,7 @@ export function SettingsModal({ isOpen, onClose, defaultTab = 'profile' }: Setti
 				const userId = user.uid || user.id || '';
 				const timestamp = Date.now();
 				const extension = avatarFile.name.split('.').pop() || 'jpg';
-				
+
 				// In demo mode, just use a mock path and store the preview URL
 				if (isDemo()) {
 					photoPath = `demo-avatars/${userId}/demo-${timestamp}.${extension}`;
@@ -185,10 +207,12 @@ export function SettingsModal({ isOpen, onClose, defaultTab = 'profile' }: Setti
 					// For production mode, currently skip Supabase upload due to bucket configuration
 					// TODO: Configure Supabase storage bucket properly
 					photoPath = `avatars/${userId}/${timestamp}.${extension}`;
-					
+
 					// Skip actual upload for now - this prevents the "bucket not found" error
-					console.warn('Avatar upload skipped: Supabase storage bucket not configured');
-					
+					console.warn(
+						'Avatar upload skipped: Supabase storage bucket not configured'
+					);
+
 					// For now, use the preview URL as the path in non-demo mode too
 					if (avatarPreview) {
 						photoPath = avatarPreview;
@@ -210,7 +234,7 @@ export function SettingsModal({ isOpen, onClose, defaultTab = 'profile' }: Setti
 
 					// Set pending email change state
 					setPendingEmailChange(data.email);
-					
+
 					toast({
 						title: 'Verification Email Sent',
 						description: `We sent a verification link to ${data.email}. Your profile will update after you confirm.`,
@@ -237,12 +261,12 @@ export function SettingsModal({ isOpen, onClose, defaultTab = 'profile' }: Setti
 
 			// Clear avatar file after successful save
 			setAvatarFile(null);
-
 		} catch (error: any) {
 			console.error('Error saving profile:', error);
 			toast({
 				title: 'Error Saving Profile',
-				description: error.message || 'Failed to save your profile. Please try again.',
+				description:
+					error.message || 'Failed to save your profile. Please try again.',
 				variant: 'destructive',
 			});
 		} finally {
@@ -284,7 +308,8 @@ export function SettingsModal({ isOpen, onClose, defaultTab = 'profile' }: Setti
 			console.error('Error changing password:', error);
 			toast({
 				title: 'Error Changing Password',
-				description: error.message || 'Failed to change password. Please try again.',
+				description:
+					error.message || 'Failed to change password. Please try again.',
 				variant: 'destructive',
 			});
 		} finally {
@@ -319,7 +344,8 @@ export function SettingsModal({ isOpen, onClose, defaultTab = 'profile' }: Setti
 			console.error('Error sending password reset:', error);
 			toast({
 				title: 'Error Sending Reset Email',
-				description: error.message || 'Failed to send reset email. Please try again.',
+				description:
+					error.message || 'Failed to send reset email. Please try again.',
 				variant: 'destructive',
 			});
 		} finally {
@@ -336,7 +362,12 @@ export function SettingsModal({ isOpen, onClose, defaultTab = 'profile' }: Setti
 
 	const getUserInitials = () => {
 		const name = user.displayName || user.name || user.email || '';
-		return name.split(' ').map(part => part[0]).join('').toUpperCase().slice(0, 2);
+		return name
+			.split(' ')
+			.map((part) => part[0])
+			.join('')
+			.toUpperCase()
+			.slice(0, 2);
 	};
 
 	const isProfileDirty = profileForm.formState.isDirty || avatarFile !== null;
@@ -352,7 +383,11 @@ export function SettingsModal({ isOpen, onClose, defaultTab = 'profile' }: Setti
 					</DialogDescription>
 				</DialogHeader>
 
-				<Tabs value={activeTab} onValueChange={setActiveTab}>
+				<Tabs
+					value={activeTab}
+					onValueChange={(v: string) =>
+						setActiveTab(v as 'profile' | 'security')
+					}>
 					<TabsList className="grid w-full grid-cols-2">
 						<TabsTrigger value="profile">Profile</TabsTrigger>
 						<TabsTrigger value="security">Security</TabsTrigger>
@@ -364,7 +399,9 @@ export function SettingsModal({ isOpen, onClose, defaultTab = 'profile' }: Setti
 								<Loader2 className="h-6 w-6 animate-spin" />
 							</div>
 						) : (
-							<form onSubmit={profileForm.handleSubmit(handleProfileSave)} className="space-y-6">
+							<form
+								onSubmit={profileForm.handleSubmit(handleProfileSave)}
+								className="space-y-6">
 								{/* Profile Target Info */}
 								{profileTarget && (
 									<Alert>
@@ -403,8 +440,9 @@ export function SettingsModal({ isOpen, onClose, defaultTab = 'profile' }: Setti
 														type="button"
 														variant="outline"
 														size="sm"
-														onClick={() => document.getElementById('avatar-upload')?.click()}
-													>
+														onClick={() =>
+															document.getElementById('avatar-upload')?.click()
+														}>
 														<Upload className="h-4 w-4 mr-2" />
 														{avatarPreview ? 'Replace' : 'Upload'}
 													</Button>
@@ -413,8 +451,7 @@ export function SettingsModal({ isOpen, onClose, defaultTab = 'profile' }: Setti
 															type="button"
 															variant="outline"
 															size="sm"
-															onClick={removeAvatar}
-														>
+															onClick={removeAvatar}>
 															Remove
 														</Button>
 													)}
@@ -437,8 +474,9 @@ export function SettingsModal({ isOpen, onClose, defaultTab = 'profile' }: Setti
 											<Alert>
 												<Mail className="h-4 w-4" />
 												<AlertDescription>
-													We sent a verification link to <strong>{pendingEmailChange}</strong>. 
-													Your profile will update after you confirm.
+													We sent a verification link to{' '}
+													<strong>{pendingEmailChange}</strong>. Your profile
+													will update after you confirm.
 												</AlertDescription>
 											</Alert>
 										)}
@@ -482,14 +520,10 @@ export function SettingsModal({ isOpen, onClose, defaultTab = 'profile' }: Setti
 										type="button"
 										variant="outline"
 										onClick={onClose}
-										disabled={saving}
-									>
+										disabled={saving}>
 										Cancel
 									</Button>
-									<Button
-										type="submit"
-										disabled={saving || !isProfileDirty}
-									>
+									<Button type="submit" disabled={saving || !isProfileDirty}>
 										{saving ? (
 											<>
 												<Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -514,7 +548,9 @@ export function SettingsModal({ isOpen, onClose, defaultTab = 'profile' }: Setti
 								</CardDescription>
 							</CardHeader>
 							<CardContent>
-								<form onSubmit={passwordForm.handleSubmit(handlePasswordChange)} className="space-y-4">
+								<form
+									onSubmit={passwordForm.handleSubmit(handlePasswordChange)}
+									className="space-y-4">
 									{!isDemo() && (
 										<div className="space-y-2">
 											<Label htmlFor="currentPassword">Current Password</Label>
@@ -531,8 +567,9 @@ export function SettingsModal({ isOpen, onClose, defaultTab = 'profile' }: Setti
 													variant="ghost"
 													size="icon"
 													className="absolute right-0 top-0 h-full px-3"
-													onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-												>
+													onClick={() =>
+														setShowCurrentPassword(!showCurrentPassword)
+													}>
 													{showCurrentPassword ? (
 														<EyeOff className="h-4 w-4" />
 													) : (
@@ -542,7 +579,10 @@ export function SettingsModal({ isOpen, onClose, defaultTab = 'profile' }: Setti
 											</div>
 											{passwordForm.formState.errors.currentPassword && (
 												<p className="text-sm text-destructive">
-													{passwordForm.formState.errors.currentPassword.message}
+													{
+														passwordForm.formState.errors.currentPassword
+															.message
+													}
 												</p>
 											)}
 										</div>
@@ -563,8 +603,7 @@ export function SettingsModal({ isOpen, onClose, defaultTab = 'profile' }: Setti
 												variant="ghost"
 												size="icon"
 												className="absolute right-0 top-0 h-full px-3"
-												onClick={() => setShowNewPassword(!showNewPassword)}
-											>
+												onClick={() => setShowNewPassword(!showNewPassword)}>
 												{showNewPassword ? (
 													<EyeOff className="h-4 w-4" />
 												) : (
@@ -580,7 +619,9 @@ export function SettingsModal({ isOpen, onClose, defaultTab = 'profile' }: Setti
 									</div>
 
 									<div className="space-y-2">
-										<Label htmlFor="confirmPassword">Confirm New Password</Label>
+										<Label htmlFor="confirmPassword">
+											Confirm New Password
+										</Label>
 										<Input
 											id="confirmPassword"
 											type="password"
@@ -597,8 +638,7 @@ export function SettingsModal({ isOpen, onClose, defaultTab = 'profile' }: Setti
 									<Button
 										type="submit"
 										disabled={saving || !isPasswordDirty}
-										className="w-full"
-									>
+										className="w-full">
 										{saving ? (
 											<>
 												<Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -625,8 +665,7 @@ export function SettingsModal({ isOpen, onClose, defaultTab = 'profile' }: Setti
 									variant="outline"
 									onClick={handlePasswordReset}
 									disabled={saving}
-									className="w-full"
-								>
+									className="w-full">
 									{saving ? (
 										<>
 											<Loader2 className="h-4 w-4 mr-2 animate-spin" />

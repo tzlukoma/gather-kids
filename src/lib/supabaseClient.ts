@@ -85,14 +85,23 @@ export const supabaseBrowser = () => {
 // (which can happen during SSR) because the server-created client may not
 // include browser-only helpers like `getSessionFromUrl`.
 let _supabase: ReturnType<typeof supabaseBrowser> | null = null;
-export const supabase = (() => {
+// Exported with a non-null assertion cast to satisfy calling sites that expect a client
+// Runtime behavior unchanged: may still be null during SSR, but most callers are browser-only.
+const _maybeSupabase = (() => {
   // In test environment, we want to create a client even if window is undefined
   const isTestEnv = process.env.NODE_ENV === 'test';
   
-  if (typeof window === 'undefined' && !isTestEnv) return null as any;
+  if (typeof window === 'undefined' && !isTestEnv) return null;
   if (!_supabase) _supabase = supabaseBrowser();
   return _supabase;
 })();
+
+// Export `supabase` as a non-null client type for convenience in browser-only modules.
+// Callers should ensure they're running in a browser context; this cast keeps call sites concise.
+export const supabase = _maybeSupabase as unknown as ReturnType<typeof supabaseBrowser>;
+
+// Backwards-compatible alias
+export const supabaseClient = supabase;
 
 /**
  * Helper function to explicitly handle PKCE auth flow code exchange
@@ -124,7 +133,9 @@ export const handlePKCECodeExchange = async (code: string) => {
     console.log('- Has existing Supabase tokens:', hasSupabaseTokens);
 
     // Check if we might already be signed in (this could happen if auth worked but callback handling failed)
-    const { data: sessionData } = await supabase.auth.getSession();
+    const client = supabase;
+    if (!client) throw new Error('Supabase client not available in this environment');
+    const { data: sessionData } = await client.auth.getSession();
     if (sessionData?.session) {
       console.log('- Already have active session:', sessionData.session.user.id);
       return { data: sessionData, error: null };
@@ -133,7 +144,7 @@ export const handlePKCECodeExchange = async (code: string) => {
     // If we have tokens but no session, try to refresh the session first
     if (hasSupabaseTokens && !sessionData?.session) {
       console.log('- Found tokens but no session, attempting session refresh...');
-      const refreshResult = await supabase.auth.refreshSession();
+  const refreshResult = await client.auth.refreshSession();
       if (refreshResult.data?.session) {
         console.log('- Session refresh succeeded!', refreshResult.data.session.user.id);
         return refreshResult;
@@ -144,7 +155,7 @@ export const handlePKCECodeExchange = async (code: string) => {
     
     // Attempt the exchange
     console.log('- Starting code exchange...');
-    const result = await supabase.auth.exchangeCodeForSession(code);
+  const result = await client.auth.exchangeCodeForSession(code);
     console.log('- Exchange completed', result);
     
     // Check for Supabase-created auth tokens even if there was an error
@@ -157,7 +168,7 @@ export const handlePKCECodeExchange = async (code: string) => {
         
         // If we see tokens but got an error, make one more attempt to get a session
         console.log('- Attempting to recover session after partial success...');
-        const recoveryResult = await supabase.auth.refreshSession();
+  const recoveryResult = await client.auth.refreshSession();
         if (recoveryResult.data?.session) {
           console.log('- Session recovery succeeded after partial success!');
           return recoveryResult;

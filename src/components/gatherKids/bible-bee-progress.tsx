@@ -5,10 +5,10 @@ import { BibleBeeProgressList } from './bible-bee-progress-list';
 
 export function LeaderBibleBeeProgress({
 	cycleId,
-	canUpload = false,
+	bibleBeeYears,
 }: {
 	cycleId: string;
-	canUpload?: boolean;
+	bibleBeeYears?: any[];
 }) {
 	return (
 		<BibleBeeProgressList
@@ -16,6 +16,7 @@ export function LeaderBibleBeeProgress({
 			showGuardianInfo={true}
 			showFilters={true}
 			showYearSelection={true}
+			bibleBeeYears={bibleBeeYears}
 		/>
 	);
 }

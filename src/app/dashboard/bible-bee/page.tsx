@@ -3,14 +3,11 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { AuthRole } from '@/lib/auth-types';
-import { canLeaderManageBibleBee, getBibleBeeYears, getScripturesForBibleBeeYear } from '@/lib/dal';
 import {
-	Select,
-	SelectTrigger,
-	SelectValue,
-	SelectContent,
-	SelectItem,
-} from '@/components/ui/select';
+	canLeaderManageBibleBee,
+	getBibleBeeYears,
+	getScripturesForBibleBeeYear,
+} from '@/lib/dal';
 import LeaderBibleBeeProgress from '@/components/gatherKids/bible-bee-progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
@@ -66,7 +63,7 @@ export default function BibleBeePage() {
 		const fetchData = async () => {
 			try {
 				console.log('Loading Bible Bee data...');
-				
+
 				// Get Bible Bee years using DAL function with adapter support
 				const beeYears = await getBibleBeeYears();
 				console.log('Bible Bee years loaded:', beeYears);
@@ -108,20 +105,43 @@ export default function BibleBeePage() {
 
 	useEffect(() => {
 		// set an initial selectedCycle once we have years info; prefer an
-		// explicitly active Bible Bee year when present
+		// explicitly active Bible Bee year when present, otherwise use most recent
 		if (selectedCycle) return; // don't override an existing selection
-		if (!bibleBeeYears) return;
-		const activeBB = (bibleBeeYears || []).find((y: any) => {
+		if (!bibleBeeYears || bibleBeeYears.length === 0) return;
+
+		// First, try to find an active Bible Bee year
+		const activeBB = bibleBeeYears.find((y: any) => {
 			const val: any = y?.is_active;
 			return val === true || val === 1 || String(val) === '1';
 		});
+
 		if (activeBB && activeBB.id) {
+			console.log('Setting selectedCycle to active year:', activeBB.id);
 			setSelectedCycle(String(activeBB.id));
 			return;
 		}
-		// If no active year, use the first available year
-		if (bibleBeeYears.length > 0) {
-			setSelectedCycle(String(bibleBeeYears[0].id));
+
+		// If no active year, use the most recent year (sorted by label or created_at)
+		const sortedYears = [...bibleBeeYears].sort((a: any, b: any) => {
+			// Try to sort by label first (e.g., "2025", "2024")
+			if (a.label && b.label) {
+				return b.label.localeCompare(a.label);
+			}
+			// Fallback to created_at
+			if (a.created_at && b.created_at) {
+				return (
+					new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+				);
+			}
+			return 0;
+		});
+
+		if (sortedYears.length > 0) {
+			console.log(
+				'Setting selectedCycle to most recent year:',
+				sortedYears[0].id
+			);
+			setSelectedCycle(String(sortedYears[0].id));
 		}
 	}, [bibleBeeYears, selectedCycle]);
 
@@ -183,7 +203,14 @@ export default function BibleBeePage() {
 		return () => {
 			mounted = false;
 		};
-	}, [selectedCycle, bibleBeeYears, scriptureRefreshTrigger]);
+	}, [selectedCycle, bibleBeeYears, scriptureRefreshTrigger, displayVersion]);
+
+	const extractUserInfo = React.useCallback((u: any) => {
+		return {
+			id: u?.id || u?.uid || u?.user_id || u?.userId || null,
+			email: u?.email || u?.user_email || u?.mail || null,
+		};
+	}, []);
 
 	useEffect(() => {
 		// determine manage permission: Admins can manage; Ministry leaders with Primary assignment can manage
@@ -194,13 +221,7 @@ export default function BibleBeePage() {
 		}
 		if (user?.metadata?.role === AuthRole.MINISTRY_LEADER) {
 			(async () => {
-				const uid =
-					(user as any).id ||
-					(user as any).uid ||
-					(user as any).user_id ||
-					(user as any).userId;
-				const email =
-					(user as any).email || (user as any).user_email || (user as any).mail;
+				const { id: uid, email } = extractUserInfo(user);
 				if (!uid && !email) return;
 				const can = await canLeaderManageBibleBee({
 					leaderId: uid,
@@ -210,7 +231,7 @@ export default function BibleBeePage() {
 				setCanManage(Boolean(can));
 			})();
 		}
-	}, [user, selectedCycle, bibleBeeYears]);
+	}, [user, selectedCycle, extractUserInfo]);
 
 	return (
 		<div className="flex flex-col gap-6">
@@ -246,7 +267,10 @@ export default function BibleBeePage() {
 							</CardDescription>
 						</CardHeader>
 						<CardContent>
-							<LeaderBibleBeeProgress cycleId={selectedCycle} />
+							<LeaderBibleBeeProgress
+								cycleId={selectedCycle}
+								bibleBeeYears={bibleBeeYears}
+							/>
 						</CardContent>
 					</Card>
 				</TabsContent>
@@ -325,52 +349,13 @@ export default function BibleBeePage() {
 
 				{canManage && (
 					<TabsContent value="manage">
-						<BibleBeeManage />
+						<BibleBeeManage bibleBeeYears={bibleBeeYears} />
 					</TabsContent>
 				)}
 			</Tabs>
 
 			{!loading && user && <AuthLoader user={user} setAllowed={setAllowed} />}
 			<BibleBeeDebugger />
-		</div>
-	);
-}
-
-function YearList() {
-	const [years, setYears] = useState<any[]>([]);
-
-	useEffect(() => {
-		const fetchYears = async () => {
-			try {
-				const data = await getBibleBeeYears();
-				setYears(data);
-			} catch (error) {
-				console.error('Error loading Bible Bee years:', error);
-			}
-		};
-		fetchYears();
-	}, []);
-	if (!years) return <div>Loading years...</div>;
-	if (years.length === 0) return <div>No Bible Bee years defined.</div>;
-	return (
-		<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-			{years.map((y: any) => (
-				<Card key={y.id}>
-					<CardHeader>
-						<CardTitle>{y.name ?? y.year}</CardTitle>
-					</CardHeader>
-					<CardContent>
-						<div className="text-sm text-muted-foreground">{y.description}</div>
-						<div className="mt-2">
-							<Link
-								href={`/dashboard/bible-bee/year/${y.id}`}
-								className="text-primary underline">
-								Manage
-							</Link>
-						</div>
-					</CardContent>
-				</Card>
-			))}
 		</div>
 	);
 }

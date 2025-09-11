@@ -15,6 +15,8 @@ import {
 	FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { PhoneInput } from '@/components/ui/phone-input';
+import { cleanPhone } from '@/hooks/usePhoneFormat';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
 	Card,
@@ -36,7 +38,7 @@ import { useState, useMemo, useEffect, useCallback, Suspense } from 'react';
 import { Textarea } from '@/components/ui/textarea';
 import {
 	findHouseholdByEmail,
-	registerHousehold,
+	registerHouseholdCanonical,
 	getMinistries,
 	getRegistrationCycles,
 } from '@/lib/dal';
@@ -59,6 +61,7 @@ import {
 	isValid,
 } from 'date-fns';
 import { DanceMinistryForm } from '@/components/gatherKids/dance-ministry-form';
+import { BibleBeeMinistryForm } from '@/components/gatherKids/bible-bee-ministry-form';
 import { TeenFellowshipForm } from '@/components/gatherKids/teen-fellowship-form';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import {
@@ -135,6 +138,10 @@ const registrationSchema = z
 		household: z.object({
 			name: z.string().optional(),
 			address_line1: z.string().min(1, 'Address is required.'),
+			address_line2: z.string().optional(),
+			city: z.string().min(1, 'City is required.'),
+			state: z.string().min(1, 'State is required.'),
+			zip: z.string().min(1, 'ZIP code is required.'),
 			household_id: z.string().optional(), // To track for overwrites
 			preferredScriptureTranslation: z.string().optional(),
 		}),
@@ -232,7 +239,7 @@ function VerificationStepTwoForm({
 					continue.
 				</CardDescription>
 			</CardHeader>
-			<CardContent>
+			<CardContent className="space-y-4">
 				<Form {...form}>
 					<form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
 						<Alert>
@@ -254,7 +261,7 @@ function VerificationStepTwoForm({
 							name="childDob"
 							render={({ field }) => (
 								<FormItem>
-									<FormLabel>Oldest Child's Date of Birth</FormLabel>
+									<FormLabel>Oldest Child&apos;s Date of Birth</FormLabel>
 									<FormControl>
 										<Input type="date" {...field} />
 									</FormControl>
@@ -280,7 +287,7 @@ function VerificationStepTwoForm({
 							name="emergencyContactFirstName"
 							render={({ field }) => (
 								<FormItem>
-									<FormLabel>Emergency Contact's First Name</FormLabel>
+									<FormLabel>Emergency Contact&apos;s First Name</FormLabel>
 									<FormControl>
 										<Input placeholder="e.g., Jane" {...field} />
 									</FormControl>
@@ -302,6 +309,7 @@ function VerificationStepTwoForm({
 }
 
 const defaultChildValues = {
+	child_id: '', // Will be generated when child is added
 	first_name: '',
 	last_name: '',
 	dob: '',
@@ -409,6 +417,9 @@ const ProgramSection = ({
 			{isAnyChildSelected && program.code === 'dance' && (
 				<DanceMinistryForm control={control} />
 			)}
+			{isAnyChildSelected && program.code === 'bible-bee' && (
+				<BibleBeeMinistryForm control={control} />
+			)}
 			{childFields.map((field, index) => {
 				const child = childrenData[index];
 				if (!child) return null;
@@ -463,6 +474,8 @@ function RegisterPageContent() {
 	const [isCurrentYearOverwrite, setIsCurrentYearOverwrite] = useState(false);
 	const [isPrefill, setIsPrefill] = useState(false);
 	const [isAuthenticatedUser, setIsAuthenticatedUser] = useState(false);
+	const [isSubmitting, setIsSubmitting] = useState(false);
+	const [submissionStatus, setSubmissionStatus] = useState<string>('');
 
 	const [allMinistries, setAllMinistries] = useState<Ministry[]>([]);
 	const [activeRegistrationCycle, setActiveRegistrationCycle] = useState<
@@ -476,23 +489,30 @@ function RegisterPageContent() {
 				console.log(
 					'DEBUG: Loading ministries and registration cycles for registration form'
 				);
-				const [ministries, cycles] = await Promise.all([
-					getMinistries(),
-					getRegistrationCycles(),
-				]);
+				console.log(
+					'DEBUG: Before calling getMinistries() and getRegistrationCycles()'
+				);
+
+				// Load ministries first to better debug any issues
+				console.log('DEBUG: Calling getMinistries()');
+				const ministries = await getMinistries();
 				console.log(
 					'DEBUG: Loaded',
 					ministries.length,
-					'ministries and',
-					cycles.length,
-					'registration cycles'
+					'ministries',
+					ministries.length > 0 ? JSON.stringify(ministries[0]) : 'none'
 				);
+
+				console.log('DEBUG: Calling getRegistrationCycles()');
+				const cycles = await getRegistrationCycles();
+				console.log('DEBUG: Loaded', cycles.length, 'registration cycles');
 
 				setAllMinistries(ministries);
 
 				// Find active cycle
 				const activeCycle = cycles.find((c) => {
-					const val: any = (c as any)?.is_active;
+					const rec = c as unknown as Record<string, unknown>;
+					const val = rec['is_active'];
 					return val === true || val === 1 || String(val) === '1';
 				});
 				console.log(
@@ -512,12 +532,56 @@ function RegisterPageContent() {
 
 	// Get the active registration cycle to use for enrollments
 
+	// Form persistence key for localStorage
+	const FORM_PERSISTENCE_KEY = 'registration-form-data';
+
+	// Load saved form data from localStorage
+	const loadSavedFormData = (): Partial<RegistrationFormValues> => {
+		try {
+			if (typeof window !== 'undefined') {
+				const saved = localStorage.getItem(FORM_PERSISTENCE_KEY);
+				if (saved) {
+					return JSON.parse(saved);
+				}
+			}
+		} catch (error) {
+			console.warn('Failed to load saved form data:', error);
+		}
+		return {};
+	};
+
+	// Save form data to localStorage
+	const saveFormData = (data: RegistrationFormValues) => {
+		try {
+			if (typeof window !== 'undefined') {
+				localStorage.setItem(FORM_PERSISTENCE_KEY, JSON.stringify(data));
+			}
+		} catch (error) {
+			console.warn('Failed to save form data:', error);
+		}
+	};
+
+	// Clear saved form data
+	const clearSavedFormData = () => {
+		try {
+			if (typeof window !== 'undefined') {
+				localStorage.removeItem(FORM_PERSISTENCE_KEY);
+			}
+		} catch (error) {
+			console.warn('Failed to clear saved form data:', error);
+		}
+	};
+
 	const form = useForm<RegistrationFormValues>({
 		resolver: zodResolver(registrationSchema),
 		defaultValues: {
 			household: {
 				name: '',
 				address_line1: '',
+				address_line2: '',
+				city: '',
+				state: '',
+				zip: '',
 				preferredScriptureTranslation: 'NIV',
 			},
 			guardians: [
@@ -543,6 +607,7 @@ function RegisterPageContent() {
 				choir_communications_consent: undefined,
 				custom_consents: {},
 			},
+			...loadSavedFormData(), // Merge saved data with defaults
 		},
 	});
 
@@ -565,6 +630,31 @@ function RegisterPageContent() {
 	});
 
 	const childrenData = useWatch({ control: form.control, name: 'children' });
+
+	// Watch form changes and save to localStorage
+	useEffect(() => {
+		const subscription = form.watch((data) => {
+			// Only save if there's actual data (not just empty defaults)
+			const hasData =
+				data.household?.address_line1 ||
+				data.household?.city ||
+				data.household?.state ||
+				data.household?.zip ||
+				data.guardians?.some(
+					(g) => g.first_name || g.last_name || g.mobile_phone
+				) ||
+				data.children?.length > 0 ||
+				data.emergencyContact?.first_name ||
+				data.consents?.liability ||
+				data.consents?.photoRelease;
+
+			if (hasData) {
+				saveFormData(data as RegistrationFormValues);
+			}
+		});
+
+		return () => subscription.unsubscribe();
+	}, [form]);
 
 	const { enrolledPrograms, interestPrograms } = useMemo(() => {
 		if (!allMinistries) return { enrolledPrograms: [], interestPrograms: [] };
@@ -609,6 +699,10 @@ function RegisterPageContent() {
 						household_id: householdData?.household_id,
 						name: householdData?.name,
 						address_line1: householdData?.address_line1,
+						address_line2: householdData?.address_line2,
+						city: householdData?.city,
+						state: householdData?.state,
+						zip: householdData?.zip,
 					},
 					guardians: data.guardians,
 					emergencyContact: data.emergencyContact,
@@ -644,7 +738,14 @@ function RegisterPageContent() {
 			setIsPrefill(false);
 			console.log('DEBUG: State flags set');
 			form.reset({
-				household: { name: '', address_line1: '' },
+				household: {
+					name: '',
+					address_line1: '',
+					address_line2: '',
+					city: '',
+					state: '',
+					zip: '',
+				},
 				guardians: [
 					{
 						first_name: '',
@@ -661,7 +762,12 @@ function RegisterPageContent() {
 					mobile_phone: '',
 					relationship: '',
 				},
-				children: [defaultChildValues],
+				children: [
+					{
+						...defaultChildValues,
+						child_id: crypto.randomUUID(), // Generate fresh ID for initial child
+					},
+				],
 				consents: {
 					liability: false,
 					photoRelease: false,
@@ -849,7 +955,12 @@ function RegisterPageContent() {
 								mobile_phone: '',
 								relationship: '',
 							},
-							children: [defaultChildValues],
+							children: [
+								{
+									...defaultChildValues,
+									child_id: crypto.randomUUID(), // Generate fresh ID for initial child
+								},
+							],
 							consents: {
 								liability: false,
 								photoRelease: false,
@@ -945,24 +1056,87 @@ function RegisterPageContent() {
 
 	async function onSubmit(data: RegistrationFormValues) {
 		console.log('DEBUG: onSubmit called');
+		setIsSubmitting(true);
+		setSubmissionStatus('Creating household...');
+
 		try {
+			// Clean phone numbers before submission (remove formatting, keep digits only)
+			const cleanedData = {
+				...data,
+				guardians: data.guardians.map((guardian) => ({
+					...guardian,
+					mobile_phone: cleanPhone(guardian.mobile_phone),
+				})),
+				emergencyContact: {
+					...data.emergencyContact,
+					mobile_phone: cleanPhone(data.emergencyContact.mobile_phone),
+				},
+				children: data.children.map((child) => ({
+					...child,
+					child_mobile: child.child_mobile
+						? cleanPhone(child.child_mobile)
+						: child.child_mobile,
+				})),
+			};
+
 			// Use the active registration cycle instead of hardcoded '2025'
 			const cycleId = activeRegistrationCycle?.cycle_id || '2025'; // fallback to '2025' if no active cycle found
 			console.log('DEBUG: Registering household for cycle:', cycleId);
-			const result = await registerHousehold(data, cycleId, isPrefill);
+
+			setSubmissionStatus('Processing registration...');
+			const result = await registerHouseholdCanonical(
+				cleanedData,
+				cycleId,
+				isPrefill
+			);
 			console.log('DEBUG: Registration result:', result);
+			console.log('DEBUG: Result type check:', {
+				hasResult: !!result,
+				resultType: typeof result,
+				resultKeys: result ? Object.keys(result) : 'no result',
+				isComplete: result?.isComplete,
+				userHouseholdsCreated: result?.userHouseholdsCreated,
+				roleAssigned: result?.roleAssigned,
+			});
+
 			toast({
 				title: 'Registration Submitted!',
 				description: "Thank you! Your family's registration has been received.",
 			});
 
+			// Clear saved form data since registration was successful
+			clearSavedFormData();
+
 			// Check if user is authenticated and should be redirected to household page
+			console.log('DEBUG: Checking redirect conditions:', {
+				isAuthenticatedUser,
+				userEmail: user?.email,
+				userRole: user?.metadata?.role,
+				userExists: !!user,
+				registrationComplete: result.isComplete,
+			});
+
 			if (isAuthenticatedUser && user?.email) {
-				console.log('DEBUG: Authenticated user, redirecting to household page');
-				// For authenticated users, redirect to household page after successful registration
-				// The registerHousehold function will have assigned the GUARDIAN role
-				router.push('/household');
-				return;
+				if (result.isComplete) {
+					console.log(
+						'DEBUG: Registration complete, redirecting to household page'
+					);
+					setSubmissionStatus('Redirecting to household...');
+					router.push('/household');
+					return;
+				} else {
+					console.warn('DEBUG: Registration incomplete:', {
+						userHouseholdsCreated: result.userHouseholdsCreated,
+						roleAssigned: result.roleAssigned,
+					});
+					// Even if incomplete, try to redirect after a short delay
+					setSubmissionStatus('Finalizing setup...');
+					setTimeout(() => {
+						console.log('DEBUG: Redirecting to household page after delay');
+						router.push('/household');
+					}, 2000);
+					return;
+				}
 			}
 
 			console.log('DEBUG: Non-authenticated user, resetting form');
@@ -975,12 +1149,20 @@ function RegisterPageContent() {
 			setIsPrefill(false);
 		} catch (e) {
 			console.error('DEBUG: Error in onSubmit:', e);
+			setIsSubmitting(false);
+			setSubmissionStatus('');
 			toast({
 				title: 'Submission Error',
 				description:
 					'There was an error processing your registration. Please try again.',
 				variant: 'destructive',
 			});
+		} finally {
+			// Reset loading state for non-authenticated users
+			if (!isAuthenticatedUser) {
+				setIsSubmitting(false);
+				setSubmissionStatus('');
+			}
 		}
 	}
 
@@ -1007,8 +1189,8 @@ function RegisterPageContent() {
 					Family Registration Form
 				</h1>
 				<p className="text-muted-foreground">
-					Complete the form below to register your family for our children's
-					ministry programs.
+					Complete the form below to register your family for our
+					children&apos;s ministry programs.
 				</p>
 			</div>
 
@@ -1017,9 +1199,9 @@ function RegisterPageContent() {
 					<CardHeader>
 						<CardTitle className="font-headline">Household Lookup</CardTitle>
 						<CardDescription>
-							Enter your primary household email address. If you've registered
-							with us before, we'll pre-fill your information for you. If not,
-							you can start a new registration.
+							Enter your primary household email address. If you&apos;ve
+							registered with us before, we&apos;ll pre-fill your information
+							for you. If not, you can start a new registration.
 						</CardDescription>
 					</CardHeader>
 					<CardContent className="space-y-4">
@@ -1059,7 +1241,7 @@ function RegisterPageContent() {
 												}>
 												{MOCK_EMAILS.PREFILL_NO_OVERWRITE}
 											</button>{' '}
-											to pre-fill from a prior year's registration.
+											to pre-fill from a prior year&apos;s registration.
 										</li>
 										<li>
 											Use{' '}
@@ -1104,7 +1286,7 @@ function RegisterPageContent() {
 					<CardHeader>
 						<CardTitle className="font-headline">Check Your Email</CardTitle>
 						<CardDescription>
-							We've sent a verification link to your email address.
+							We&apos;ve sent a verification link to your email address.
 						</CardDescription>
 					</CardHeader>
 					<CardContent className="space-y-4">
@@ -1113,7 +1295,7 @@ function RegisterPageContent() {
 							<AlertTitle>Verification Email Sent</AlertTitle>
 							<AlertDescription>
 								<p>
-									We've sent a magic link to{' '}
+									We&apos;ve sent a magic link to{' '}
 									<strong>{verificationEmail}</strong>
 								</p>
 								<p className="mt-2">
@@ -1147,7 +1329,7 @@ function RegisterPageContent() {
 											toast({
 												title: 'Email Resent',
 												description:
-													"We've sent another verification email to your address.",
+													'We&apos;ve sent another verification email to your address.',
 											});
 										} else {
 											toast({
@@ -1237,62 +1419,82 @@ function RegisterPageContent() {
 								</CardDescription>
 							</CardHeader>
 							<CardContent className="space-y-6">
-								<FormField
-									control={form.control}
-									name="household.address_line1"
-									render={({ field }) => (
-										<FormItem>
-											<FormLabel>Street Address</FormLabel>
-											<FormControl>
-												<Input
-													placeholder="123 Main St, Anytown, USA"
-													{...field}
-												/>
-											</FormControl>
-											<FormMessage />
-										</FormItem>
-									)}
-								/>
-								<FormField
-									control={form.control}
-									name="household.preferredScriptureTranslation"
-									render={({ field }) => (
-										<FormItem>
-											<FormLabel>Preferred Bible Translation</FormLabel>
-											<FormDescription>
-												Select the Bible translation your family prefers for
-												scripture memorization.
-											</FormDescription>
-											<Select
-												onValueChange={field.onChange}
-												defaultValue={field.value}>
+								<div className="space-y-4">
+									<FormField
+										control={form.control}
+										name="household.address_line1"
+										render={({ field }) => (
+											<FormItem>
+												<FormLabel>Street Address</FormLabel>
 												<FormControl>
-													<SelectTrigger>
-														<SelectValue placeholder="Select a Bible translation" />
-													</SelectTrigger>
+													<Input placeholder="123 Main St" {...field} />
 												</FormControl>
-												<SelectContent>
-													<SelectItem value="NIV">
-														NIV - New International Version
-													</SelectItem>
-													<SelectItem value="KJV">
-														KJV - King James Version
-													</SelectItem>
-													<SelectItem value="ESV">
-														ESV - English Standard Version
-													</SelectItem>
-													<SelectItem value="NASB">
-														NASB - New American Standard Bible
-													</SelectItem>
-													<SelectItem value="NLT">
-														NLT - New Living Translation
-													</SelectItem>
-												</SelectContent>
-											</Select>
-											<FormMessage />
-										</FormItem>
-									)}
-								/>
+												<FormMessage />
+											</FormItem>
+										)}
+									/>
+									<FormField
+										control={form.control}
+										name="household.address_line2"
+										render={({ field }) => (
+											<FormItem>
+												<FormLabel>Address Line 2 (Optional)</FormLabel>
+												<FormControl>
+													<Input
+														placeholder="Apartment, suite, unit, etc."
+														{...field}
+													/>
+												</FormControl>
+												<FormMessage />
+											</FormItem>
+										)}
+									/>
+									<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+										<FormField
+											control={form.control}
+											name="household.city"
+											render={({ field }) => (
+												<FormItem>
+													<FormLabel>City</FormLabel>
+													<FormControl>
+														<Input placeholder="Anytown" {...field} />
+													</FormControl>
+													<FormMessage />
+												</FormItem>
+											)}
+										/>
+										<FormField
+											control={form.control}
+											name="household.state"
+											render={({ field }) => (
+												<FormItem>
+													<FormLabel>State</FormLabel>
+													<FormControl>
+														<Input placeholder="CA" maxLength={2} {...field} />
+													</FormControl>
+													<FormMessage />
+												</FormItem>
+											)}
+										/>
+										<FormField
+											control={form.control}
+											name="household.zip"
+											render={({ field }) => (
+												<FormItem>
+													<FormLabel>ZIP Code</FormLabel>
+													<FormControl>
+														<Input
+															placeholder="12345"
+															maxLength={10}
+															{...field}
+														/>
+													</FormControl>
+													<FormMessage />
+												</FormItem>
+											)}
+										/>
+									</div>
+								</div>
 								<Separator />
 								{guardianFields.map((field, index) => (
 									<div
@@ -1335,7 +1537,10 @@ function RegisterPageContent() {
 													<FormItem>
 														<FormLabel>Phone</FormLabel>
 														<FormControl>
-															<Input type="tel" {...field} />
+															<PhoneInput
+																value={field.value}
+																onChange={field.onChange}
+															/>
 														</FormControl>
 														<FormMessage />
 													</FormItem>
@@ -1508,7 +1713,10 @@ function RegisterPageContent() {
 											<FormItem>
 												<FormLabel>Phone</FormLabel>
 												<FormControl>
-													<Input type="tel" {...field} />
+													<PhoneInput
+														value={field.value}
+														onChange={field.onChange}
+													/>
 												</FormControl>
 												<FormMessage />
 											</FormItem>
@@ -1613,10 +1821,13 @@ function RegisterPageContent() {
 															render={({ field }) => (
 																<FormItem>
 																	<FormLabel>
-																		Child's Phone (Optional)
+																		Child&apos;s Phone (Optional)
 																	</FormLabel>
 																	<FormControl>
-																		<Input type="tel" {...field} />
+																		<PhoneInput
+																			value={field.value}
+																			onChange={field.onChange}
+																		/>
 																	</FormControl>
 																	<FormMessage />
 																</FormItem>
@@ -1719,8 +1930,8 @@ function RegisterPageContent() {
 																		<AlertDialogDescription>
 																			This will mark{' '}
 																			{childFirstName || 'this child'} as
-																			inactive for this year's registration and
-																			remove them from this form. Their
+																			inactive for this year&apos;s registration
+																			and remove them from this form. Their
 																			historical data from previous years will
 																			be retained.
 																			<br />
@@ -1761,7 +1972,10 @@ function RegisterPageContent() {
 									size="sm"
 									className="mt-4"
 									onClick={() => {
-										appendChild(defaultChildValues);
+										appendChild({
+											...defaultChildValues,
+											child_id: crypto.randomUUID(), // Generate fresh ID for each child
+										});
 										setOpenAccordionItems((prev) => [
 											...prev,
 											`item-${childFields.length}`,
@@ -1786,7 +2000,7 @@ function RegisterPageContent() {
 									<CardContent className="space-y-6">
 										<div className="p-4 border rounded-md bg-muted/50">
 											<h4 className="font-semibold">
-												Sunday School / Children's Church
+												Sunday School / Children&apos;s Church
 											</h4>
 											<div className="text-sm text-muted-foreground mb-2 space-y-2 whitespace-pre-wrap">
 												<p>
@@ -1795,8 +2009,8 @@ function RegisterPageContent() {
 													the 9:30 AM Service. Sunday School serves ages 4-18.
 												</p>
 												<p>
-													Children's Church, for ages 4-12, will take place on
-													3rd Sundays in the same location during the 9:30 AM
+													Children&apos;s Church, for ages 4-12, will take place
+													on 3rd Sundays in the same location during the 9:30 AM
 													service.
 												</p>
 												<p>
@@ -1905,9 +2119,9 @@ function RegisterPageContent() {
 											Expressed Interest Activities
 										</CardTitle>
 										<CardDescription>
-											Let us know if you're interested. This does not register
-											you for these activities but helps us gauge interest for
-											future planning.
+											Let us know if you&apos;re interested. This does not
+											register you for these activities but helps us gauge
+											interest for future planning.
 										</CardDescription>
 									</CardHeader>
 									<CardContent className="space-y-6">
@@ -2031,24 +2245,28 @@ function RegisterPageContent() {
 											<div className="space-y-1 leading-none">
 												<FormLabel>Photo Release</FormLabel>
 												<FormDescription className="whitespace-pre-wrap leading-relaxed">
-													I hereby grant Cathedral International permission to
-													use my photograph/​video image in any and all
-													publications for Cathedral International including
-													website and social media entries, without payment or
-													any other consideration in perpetuity. I hereby
-													authorize Cathedral International to edit, alter,
-													copy, exhibit, publish or distribute all photos and
-													images. I waive the right to inspect or approve the
-													finished product, including a written or electronic
-													copy, wherein my photo appears. Additionally, I waive
-													any right to royalties or other compensation arising
-													or related to the use of the photograph or video
-													images. I hereby hold harmless and release and forever
-													discharge Cathedral International from all claims,
-													demands, and causes of action which I, my heirs,
-													representatives, executors, administrators, or any
-													other persons acting on my behalf or on behalf of my
-													estate may have.
+													I freely sign this Agreement and Release of Liability
+													Form. Photo/Video Release and I hereby grant Cathedral
+													International permission to use my photograph/video
+													image in any and all publications for Cathedral
+													International including website and social media
+													entries, without payment or any other consideration in
+													perpetuity. I hereby authorize Cathedral International
+													to edit, alter, copy, exhibit, publish, or distribute
+													all photos and images. I waive the right to inspect or
+													approve the finished product, including a written or
+													electronic copy, wherein my photo appears.
+													Additionally, I waive any right to royalties or other
+													compensation arising or related to the use of the
+													photograph or video images. I hereby hold harmless and
+													release and forever discharge Cathedral International
+													from all claims, demands, and causes of action which
+													I, my heirs, representatives, executors,
+													administrators, or any other persons acting on my
+													behalf or on behalf of my estate may have. I have read
+													the above photo/video release and fully understand its
+													contents. I voluntarily agree to the terms and
+													conditions stated above.
 												</FormDescription>
 												<FormMessage />
 											</div>
@@ -2083,9 +2301,25 @@ function RegisterPageContent() {
 							</CardContent>
 						</Card>
 
-						<Button type="submit" size="lg" className="w-full md:w-auto">
-							Submit Registration
-						</Button>
+						<div className="flex flex-col gap-2">
+							<Button
+								type="submit"
+								size="lg"
+								className="w-full md:w-auto"
+								disabled={isSubmitting}>
+								{isSubmitting ? (
+									<div className="flex items-center gap-2">
+										<div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+										{submissionStatus || 'Processing...'}
+									</div>
+								) : (
+									'Submit Registration'
+								)}
+							</Button>
+							<p className="text-xs text-muted-foreground text-center">
+								Your form data is automatically saved as you type
+							</p>
+						</div>
 					</form>
 				</Form>
 			)}

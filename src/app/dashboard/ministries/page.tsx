@@ -1,6 +1,6 @@
 'use client';
 
-import type { Ministry, RegistrationCycle, MinistryAccount } from '@/lib/types';
+import type { Ministry, RegistrationCycle } from '@/lib/types';
 import {
 	Card,
 	CardContent,
@@ -24,7 +24,6 @@ import { PlusCircle, Edit, Trash2, Calendar } from 'lucide-react';
 import { MinistryFormDialog } from '@/components/gatherKids/ministry-form-dialog';
 import RegistrationCycles from '@/components/gatherKids/registration-cycles';
 import { deleteMinistry, getMinistries } from '@/lib/dal';
-import { dbAdapter } from '@/lib/db-utils';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { Switch } from '@/components/ui/switch';
@@ -54,7 +53,7 @@ function MinistryTable({
 }: {
 	title: string;
 	description: string;
-	ministries: Ministry[];
+	ministries: (Ministry & { email?: string | null })[];
 	onEdit: (ministry: Ministry) => void;
 	onDelete: (ministryId: string) => void;
 }) {
@@ -84,12 +83,12 @@ function MinistryTable({
 									<Badge variant="outline">{m.code}</Badge>
 								</TableCell>
 								<TableCell className="text-muted-foreground">
-									{(m as any).email || '—'}
+									{m.email ?? '—'}
 								</TableCell>
 								<TableCell>
 									<Badge
 										variant={m.is_active ? 'default' : 'secondary'}
-										className={m.is_active ? 'bg-green-500' : ''}>
+										className={m.is_active ? 'bg-brand-aqua' : ''}>
 										{m.is_active ? 'Active' : 'Inactive'}
 									</Badge>
 								</TableCell>
@@ -155,7 +154,6 @@ export default function MinistryPage() {
 	const [isAdmin, setIsAdmin] = useState(false);
 	const [activeTab, setActiveTab] = useState<string>('ministries');
 	const [allMinistries, setAllMinistries] = useState<Ministry[]>([]);
-	const [allMinistryAccounts, setAllMinistryAccounts] = useState<MinistryAccount[]>([]);
 	const [isLoadingData, setIsLoadingData] = useState(true);
 	const { toast } = useToast();
 
@@ -167,12 +165,8 @@ export default function MinistryPage() {
 		if (isAuthorized) {
 			const loadData = async () => {
 				try {
-					const [ministries, accounts] = await Promise.all([
-						getMinistries(),
-						dbAdapter.listMinistryAccounts()
-					]);
+					const ministries = await getMinistries();
 					setAllMinistries(ministries);
-					setAllMinistryAccounts(accounts);
 				} catch (error) {
 					console.error('Error loading ministry data:', error);
 					toast({
@@ -205,31 +199,19 @@ export default function MinistryPage() {
 	}, [user, loading, router]);
 
 	const { enrolledPrograms, interestPrograms } = useMemo(() => {
-		if (!allMinistries || !allMinistryAccounts)
-			return { enrolledPrograms: [], interestPrograms: [] };
+		if (!allMinistries) return { enrolledPrograms: [], interestPrograms: [] };
 
-		// Create a map of ministry_id to email from ministry accounts
-		const emailMap = new Map(
-			allMinistryAccounts.map((account) => [account.ministry_id, account.email])
-		);
-
-		// Add email to ministries
-		const ministriesWithEmail = allMinistries.map((m) => ({
-			...m,
-			email: emailMap.get(m.ministry_id) || null,
-		}));
-
-		const enrolled = ministriesWithEmail
+		const enrolled = allMinistries
 			.filter(
 				(m) =>
 					m.enrollment_type === 'enrolled' && !m.code.startsWith('min_sunday')
 			)
 			.sort((a, b) => a.name.localeCompare(b.name));
-		const interest = ministriesWithEmail
+		const interest = allMinistries
 			.filter((m) => m.enrollment_type === 'expressed_interest')
 			.sort((a, b) => a.name.localeCompare(b.name));
 		return { enrolledPrograms: enrolled, interestPrograms: interest };
-	}, [allMinistries, allMinistryAccounts]);
+	}, [allMinistries]);
 
 	const handleAddNew = () => {
 		setEditingMinistry(null);
@@ -244,30 +226,38 @@ export default function MinistryPage() {
 	const handleDelete = async (ministryId: string) => {
 		try {
 			await deleteMinistry(ministryId);
-			// Also clean up the ministry account if it exists
-			try {
-				await dbAdapter.deleteMinistryAccount(ministryId);
-			} catch (e) {
-				// Ignore if account doesn't exist
-				console.warn('No ministry account to delete for:', ministryId);
-			}
 			toast({
 				title: 'Ministry Deleted',
 				description: 'The ministry has been successfully deleted.',
 			});
-			
+
 			// Reload data
-			const [ministries, accounts] = await Promise.all([
-				getMinistries(),
-				dbAdapter.listMinistryAccounts()
-			]);
+			const ministries = await getMinistries();
 			setAllMinistries(ministries);
-			setAllMinistryAccounts(accounts);
 		} catch (error) {
 			console.error('Failed to delete ministry', error);
 			toast({
 				title: 'Error Deleting Ministry',
 				description: 'Could not delete the ministry. Please try again.',
+				variant: 'destructive',
+			});
+		}
+	};
+
+	const handleMinistryUpdated = async () => {
+		console.log('🔍 MinistryPage: Refreshing ministries list after update');
+		try {
+			const ministries = await getMinistries();
+			setAllMinistries(ministries);
+			console.log('✅ MinistryPage: Ministries list refreshed successfully');
+		} catch (error) {
+			console.error(
+				'❌ MinistryPage: Failed to refresh ministries list',
+				error
+			);
+			toast({
+				title: 'Error',
+				description: 'Failed to refresh ministry data',
 				variant: 'destructive',
 			});
 		}
@@ -343,6 +333,7 @@ export default function MinistryPage() {
 				isOpen={isDialogOpen}
 				onCloseAction={() => setIsDialogOpen(false)}
 				ministry={editingMinistry}
+				onMinistryUpdated={handleMinistryUpdated}
 			/>
 		</div>
 	);
