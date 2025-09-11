@@ -336,6 +336,10 @@ CREATE TABLE IF NOT EXISTS enrollment_overrides (
   updated_at timestamptz DEFAULT now()
 );
 
-RAISE NOTICE 'Comprehensive schema alignment completed successfully';
+-- Final success message
+DO $$
+BEGIN
+    RAISE NOTICE 'Comprehensive schema alignment completed successfully';
+END $$;
 
 COMMIT;
