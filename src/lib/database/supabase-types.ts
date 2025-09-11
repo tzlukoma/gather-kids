@@ -1,7 +1,7 @@
 /**
  * This file contains types generated from the Supabase schema.
  * DO NOT EDIT MANUALLY. This file is auto-generated.
- * Generated on: 2025-09-11T05:23:37.932Z
+ * Generated on: 2025-09-11T05:30:28.080Z
  */
 
 export type SupabaseJson =
@@ -245,7 +245,6 @@ export type Database = {
           id: number
           is_active: boolean | null
           medical_notes: string | null
-          mobile_phone: string | null
           notes: string | null
           special_needs: boolean | null
           special_needs_notes: string | null
@@ -265,7 +264,6 @@ export type Database = {
           id?: number
           is_active?: boolean | null
           medical_notes?: string | null
-          mobile_phone?: string | null
           notes?: string | null
           special_needs?: boolean | null
           special_needs_notes?: string | null
@@ -285,7 +283,6 @@ export type Database = {
           id?: number
           is_active?: boolean | null
           medical_notes?: string | null
-          mobile_phone?: string | null
           notes?: string | null
           special_needs?: boolean | null
           special_needs_notes?: string | null
@@ -415,7 +412,15 @@ export type Database = {
           relationship?: string | null
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "emergency_contacts_household_id_fkey"
+            columns: ["household_id"]
+            isOneToOne: false
+            referencedRelation: "households"
+            referencedColumns: ["household_id"]
+          },
+        ]
       }
       enrollment_overrides: {
         Row: {
@@ -622,7 +627,6 @@ export type Database = {
           household_uuid: string
           name: string | null
           preferred_scripture_translation: string | null
-          preferredScriptureTranslation: string | null
           primary_phone: string | null
           state: string | null
           updated_at: string | null
@@ -641,7 +645,6 @@ export type Database = {
           household_uuid?: string
           name?: string | null
           preferred_scripture_translation?: string | null
-          preferredScriptureTranslation?: string | null
           primary_phone?: string | null
           state?: string | null
           updated_at?: string | null
@@ -660,7 +663,6 @@ export type Database = {
           household_uuid?: string
           name?: string | null
           preferred_scripture_translation?: string | null
-          preferredScriptureTranslation?: string | null
           primary_phone?: string | null
           state?: string | null
           updated_at?: string | null
