@@ -1,7 +1,7 @@
 /**
  * This file contains types generated from the Supabase schema.
  * DO NOT EDIT MANUALLY. This file is auto-generated.
- * Generated on: 2025-09-11T17:29:38.866Z
+ * Generated on: 2025-09-11T17:32:22.084Z
  */
 
 export type SupabaseJson =
@@ -1393,6 +1393,17 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      debug_auth_context: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          auth_jwt_full: string
+          auth_jwt_role: string
+          auth_uid_result: string
+          current_user_name: string
+          is_authenticated: boolean
+          session_user_name: string
+        }[]
+      }
       safe_add_column: {
         Args: {
           p_column_def: string
