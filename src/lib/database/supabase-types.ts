@@ -1,7 +1,7 @@
 /**
  * This file contains types generated from the Supabase schema.
  * DO NOT EDIT MANUALLY. This file is auto-generated.
- * Generated on: 2025-09-11T05:09:34.075Z
+ * Generated on: 2025-09-11T05:13:55.360Z
  */
 
 export type SupabaseJson =
