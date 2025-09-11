@@ -1,4 +1,5 @@
 -- Ensure children table exists with correct schema before creating dependent tables
+-- First create the table if it doesn't exist
 CREATE TABLE IF NOT EXISTS children (
   child_id text PRIMARY KEY,
   external_id text,
@@ -20,6 +21,38 @@ CREATE TABLE IF NOT EXISTS children (
   created_at timestamptz DEFAULT now(),
   updated_at timestamptz
 );
+
+-- Now ensure the child_id column exists and is the primary key
+DO $$
+BEGIN
+    -- Check if child_id column exists
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'children' 
+        AND column_name = 'child_id' 
+        AND table_schema = 'public'
+    ) THEN
+        -- Add child_id column if it doesn't exist
+        ALTER TABLE children ADD COLUMN child_id text;
+        
+        -- If there's an existing primary key, drop it
+        IF EXISTS (
+            SELECT 1 FROM information_schema.table_constraints 
+            WHERE table_name = 'children' 
+            AND constraint_type = 'PRIMARY KEY'
+            AND table_schema = 'public'
+        ) THEN
+            ALTER TABLE children DROP CONSTRAINT children_pkey;
+        END IF;
+        
+        -- Set child_id as primary key
+        ALTER TABLE children ADD PRIMARY KEY (child_id);
+        
+        RAISE NOTICE 'Added child_id column and set as primary key for children table';
+    ELSE
+        RAISE NOTICE 'child_id column already exists in children table';
+    END IF;
+END $$;
 
 -- Add Bible Bee Divisions table
 -- Handle both TEXT and UUID types for competition_years.id
