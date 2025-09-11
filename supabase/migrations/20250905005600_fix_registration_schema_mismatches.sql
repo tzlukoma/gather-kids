@@ -120,44 +120,48 @@ BEGIN
             AND table_schema = 'public'
         ) THEN
             -- Table has first_name/last_name columns (old schema)
+            RAISE NOTICE 'emergency_contacts table has first_name/last_name columns - migrating directly';
+            
             IF ref_type = 'uuid' THEN
                 -- Convert textual UUIDs when possible, otherwise set NULL for household_id
-                EXECUTE $sql$
+                EXECUTE format('
                 INSERT INTO emergency_contacts_new (contact_id, household_id, first_name, last_name, mobile_phone, relationship, created_at, updated_at)
                 SELECT
-                    CASE WHEN contact_id ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' THEN contact_id::uuid ELSE gen_random_uuid() END,
-                    CASE WHEN household_id ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' THEN household_id::uuid ELSE NULL END,
+                    CASE WHEN contact_id ~ ''^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'' THEN contact_id::uuid ELSE gen_random_uuid() END,
+                    CASE WHEN household_id ~ ''^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'' THEN household_id::uuid ELSE NULL END,
                     first_name, last_name, mobile_phone, relationship, 
-                    CASE WHEN EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'emergency_contacts' AND column_name = 'created_at' AND table_schema = 'public') 
-                         THEN COALESCE(created_at, now()) 
-                         ELSE now() 
-                    END, 
-                    CASE WHEN EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'emergency_contacts' AND column_name = 'updated_at' AND table_schema = 'public') 
-                         THEN COALESCE(updated_at, now()) 
-                         ELSE now() 
-                    END
+                    %s, %s
                 FROM emergency_contacts
-                ON CONFLICT (contact_id) DO NOTHING;
-                $sql$;
+                ON CONFLICT (contact_id) DO NOTHING',
+                    CASE WHEN EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'emergency_contacts' AND column_name = 'created_at' AND table_schema = 'public') 
+                         THEN 'COALESCE(created_at, now())' 
+                         ELSE 'now()' 
+                    END,
+                    CASE WHEN EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'emergency_contacts' AND column_name = 'updated_at' AND table_schema = 'public') 
+                         THEN 'COALESCE(updated_at, now())' 
+                         ELSE 'now()' 
+                    END
+                );
             ELSE
                 -- Keep household_id as text if households keys are text
-                EXECUTE $sql$
+                EXECUTE format('
                 INSERT INTO emergency_contacts_new (contact_id, household_id, first_name, last_name, mobile_phone, relationship, created_at, updated_at)
                 SELECT
-                    CASE WHEN contact_id ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' THEN contact_id::uuid ELSE gen_random_uuid() END,
+                    CASE WHEN contact_id ~ ''^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'' THEN contact_id::uuid ELSE gen_random_uuid() END,
                     household_id,
                     first_name, last_name, mobile_phone, relationship, 
-                    CASE WHEN EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'emergency_contacts' AND column_name = 'created_at' AND table_schema = 'public') 
-                         THEN COALESCE(created_at, now()) 
-                         ELSE now() 
-                    END, 
-                    CASE WHEN EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'emergency_contacts' AND column_name = 'updated_at' AND table_schema = 'public') 
-                         THEN COALESCE(updated_at, now()) 
-                         ELSE now() 
-                    END
+                    %s, %s
                 FROM emergency_contacts
-                ON CONFLICT (contact_id) DO NOTHING;
-                $sql$;
+                ON CONFLICT (contact_id) DO NOTHING',
+                    CASE WHEN EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'emergency_contacts' AND column_name = 'created_at' AND table_schema = 'public') 
+                         THEN 'COALESCE(created_at, now())' 
+                         ELSE 'now()' 
+                    END,
+                    CASE WHEN EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'emergency_contacts' AND column_name = 'updated_at' AND table_schema = 'public') 
+                         THEN 'COALESCE(updated_at, now())' 
+                         ELSE 'now()' 
+                    END
+                );
             END IF;
         ELSE
             -- Table has name/phone columns (incorrect schema) - attempt to split name into first/last
@@ -165,67 +169,69 @@ BEGIN
             
             IF ref_type = 'uuid' THEN
                 -- Convert textual UUIDs when possible, otherwise set NULL for household_id
-                EXECUTE $sql$
+                EXECUTE format('
                 INSERT INTO emergency_contacts_new (contact_id, household_id, first_name, last_name, mobile_phone, relationship, created_at, updated_at)
                 SELECT
-                    CASE WHEN contact_id ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' THEN contact_id::uuid ELSE gen_random_uuid() END,
-                    CASE WHEN household_id ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' THEN household_id::uuid ELSE NULL END,
+                    CASE WHEN contact_id ~ ''^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'' THEN contact_id::uuid ELSE gen_random_uuid() END,
+                    CASE WHEN household_id ~ ''^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'' THEN household_id::uuid ELSE NULL END,
                     -- Split name field: take first word as first_name, rest as last_name
                     CASE 
-                        WHEN name IS NULL OR name = '' THEN ''
-                        WHEN position(' ' in name) = 0 THEN name
-                        ELSE substring(name from 1 for position(' ' in name) - 1)
+                        WHEN name IS NULL OR name = '''' THEN ''''
+                        WHEN position('' '' in name) = 0 THEN name
+                        ELSE substring(name from 1 for position('' '' in name) - 1)
                     END,
                     CASE 
-                        WHEN name IS NULL OR name = '' THEN ''
-                        WHEN position(' ' in name) = 0 THEN ''
-                        ELSE substring(name from position(' ' in name) + 1)
+                        WHEN name IS NULL OR name = '''' THEN ''''
+                        WHEN position('' '' in name) = 0 THEN ''''
+                        ELSE substring(name from position('' '' in name) + 1)
                     END,
-                    phone, relationship, CASE WHEN EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'emergency_contacts' AND column_name = 'created_at' AND table_schema = 'public') 
-                         THEN COALESCE(created_at, now()) 
-                         ELSE now() 
-                    END, 
-                    CASE WHEN EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'emergency_contacts' AND column_name = 'updated_at' AND table_schema = 'public') 
-                         THEN COALESCE(updated_at, now()) 
-                         ELSE now() 
-                    END
+                    phone, relationship, %s, %s
                 FROM emergency_contacts
-                ON CONFLICT (contact_id) DO NOTHING;
-                $sql$;
+                ON CONFLICT (contact_id) DO NOTHING',
+                    CASE WHEN EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'emergency_contacts' AND column_name = 'created_at' AND table_schema = 'public') 
+                         THEN 'COALESCE(created_at, now())' 
+                         ELSE 'now()' 
+                    END,
+                    CASE WHEN EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'emergency_contacts' AND column_name = 'updated_at' AND table_schema = 'public') 
+                         THEN 'COALESCE(updated_at, now())' 
+                         ELSE 'now()' 
+                    END
+                );
             ELSE
                 -- Keep household_id as text if households keys are text
-                EXECUTE $sql$
+                EXECUTE format('
                 INSERT INTO emergency_contacts_new (contact_id, household_id, first_name, last_name, mobile_phone, relationship, created_at, updated_at)
                 SELECT
-                    CASE WHEN contact_id ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' THEN contact_id::uuid ELSE gen_random_uuid() END,
+                    CASE WHEN contact_id ~ ''^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'' THEN contact_id::uuid ELSE gen_random_uuid() END,
                     household_id,
                     -- Split name field: take first word as first_name, rest as last_name
                     CASE 
-                        WHEN name IS NULL OR name = '' THEN ''
-                        WHEN position(' ' in name) = 0 THEN name
-                        ELSE substring(name from 1 for position(' ' in name) - 1)
+                        WHEN name IS NULL OR name = '''' THEN ''''
+                        WHEN position('' '' in name) = 0 THEN name
+                        ELSE substring(name from 1 for position('' '' in name) - 1)
                     END,
                     CASE 
-                        WHEN name IS NULL OR name = '' THEN ''
-                        WHEN position(' ' in name) = 0 THEN ''
-                        ELSE substring(name from position(' ' in name) + 1)
+                        WHEN name IS NULL OR name = '''' THEN ''''
+                        WHEN position('' '' in name) = 0 THEN ''''
+                        ELSE substring(name from position('' '' in name) + 1)
                     END,
-                    phone, relationship, CASE WHEN EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'emergency_contacts' AND column_name = 'created_at' AND table_schema = 'public') 
-                         THEN COALESCE(created_at, now()) 
-                         ELSE now() 
-                    END, 
-                    CASE WHEN EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'emergency_contacts' AND column_name = 'updated_at' AND table_schema = 'public') 
-                         THEN COALESCE(updated_at, now()) 
-                         ELSE now() 
-                    END
+                    phone, relationship, %s, %s
                 FROM emergency_contacts
-                ON CONFLICT (contact_id) DO NOTHING;
-                $sql$;
+                ON CONFLICT (contact_id) DO NOTHING',
+                    CASE WHEN EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'emergency_contacts' AND column_name = 'created_at' AND table_schema = 'public') 
+                         THEN 'COALESCE(created_at, now())' 
+                         ELSE 'now()' 
+                    END,
+                    CASE WHEN EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'emergency_contacts' AND column_name = 'updated_at' AND table_schema = 'public') 
+                         THEN 'COALESCE(updated_at, now())' 
+                         ELSE 'now()' 
+                    END
+                );
             END IF;
             
             RAISE NOTICE 'Migrated emergency_contacts data by splitting name field into first_name/last_name';
         END IF;
-
+        
         -- Drop old table now that data is migrated
         EXECUTE 'DROP TABLE emergency_contacts';
     END IF;
