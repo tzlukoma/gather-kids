@@ -1,7 +1,7 @@
 /**
  * This file contains types generated from the Supabase schema.
  * DO NOT EDIT MANUALLY. This file is auto-generated.
- * Generated on: 2025-09-11T20:22:56.796Z
+ * Generated on: 2025-09-11T20:28:27.898Z
  */
 
 export type SupabaseJson =
@@ -780,6 +780,7 @@ export type Database = {
           name: string | null
           phone: string | null
           preferred_scripture_translation: string | null
+          primary_email: string | null
           primary_phone: string | null
           state: string | null
           updated_at: string | null
@@ -799,6 +800,7 @@ export type Database = {
           name?: string | null
           phone?: string | null
           preferred_scripture_translation?: string | null
+          primary_email?: string | null
           primary_phone?: string | null
           state?: string | null
           updated_at?: string | null
@@ -818,6 +820,7 @@ export type Database = {
           name?: string | null
           phone?: string | null
           preferred_scripture_translation?: string | null
+          primary_email?: string | null
           primary_phone?: string | null
           state?: string | null
           updated_at?: string | null
