@@ -1,7 +1,7 @@
 /**
  * This file contains types generated from the Supabase schema.
  * DO NOT EDIT MANUALLY. This file is auto-generated.
- * Generated on: 2025-09-11T03:21:04.666Z
+ * Generated on: 2025-09-11T04:33:43.384Z
  */
 
 export type SupabaseJson =
@@ -340,22 +340,34 @@ export type Database = {
       }
       essay_prompts: {
         Row: {
+          bible_bee_cycle_id: string | null
           competition_year_id: string | null
           created_at: string | null
+          division_name: string | null
+          due_date: string | null
           prompt_id: string
           prompt_text: string | null
+          year_id: string | null
         }
         Insert: {
+          bible_bee_cycle_id?: string | null
           competition_year_id?: string | null
           created_at?: string | null
+          division_name?: string | null
+          due_date?: string | null
           prompt_id: string
           prompt_text?: string | null
+          year_id?: string | null
         }
         Update: {
+          bible_bee_cycle_id?: string | null
           competition_year_id?: string | null
           created_at?: string | null
+          division_name?: string | null
+          due_date?: string | null
           prompt_id?: string
           prompt_text?: string | null
+          year_id?: string | null
         }
         Relationships: []
       }
@@ -899,6 +911,35 @@ export type Database = {
           timeslot_id?: string
         }
         Relationships: []
+      }
+      user_households: {
+        Row: {
+          auth_user_id: string
+          created_at: string | null
+          household_id: string
+          user_household_id: string
+        }
+        Insert: {
+          auth_user_id: string
+          created_at?: string | null
+          household_id: string
+          user_household_id?: string
+        }
+        Update: {
+          auth_user_id?: string
+          created_at?: string | null
+          household_id?: string
+          user_household_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_households_household_id_fkey"
+            columns: ["household_id"]
+            isOneToOne: false
+            referencedRelation: "households"
+            referencedColumns: ["household_id"]
+          },
+        ]
       }
       users: {
         Row: {
