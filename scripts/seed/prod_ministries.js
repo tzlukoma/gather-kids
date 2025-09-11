@@ -15,8 +15,8 @@
  *   - SUPABASE_SERVICE_ROLE_KEY: Production service role key
  */
 
-const { createClient } = require('@supabase/supabase-js');
-const { createMinistry, saveMinistryAccount } = require('../../src/lib/dal');
+import { createClient } from '@supabase/supabase-js';
+import { createMinistry, saveMinistryAccount } from '../../src/lib/dal.ts';
 
 // Initialize Supabase client
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -359,11 +359,9 @@ async function main() {
 }
 
 // Run the script
-if (require.main === module) {
-	main().catch((error) => {
-		console.error('❌ Unhandled error:', error);
-		process.exit(1);
-	});
-}
+main().catch((error) => {
+	console.error('❌ Unhandled error:', error);
+	process.exit(1);
+});
 
-module.exports = { createMinistries, ministriesData };
+export { createMinistries, ministriesData };
