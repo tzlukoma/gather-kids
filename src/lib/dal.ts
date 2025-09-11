@@ -827,6 +827,10 @@ export async function getHouseholdForUser(authUserId: string): Promise<string | 
                 household_id: householdId,
                 name: input.household?.name || `${(input.guardians && (input.guardians[0] as Partial<Guardian>)?.last_name) || 'Household'} Household`,
                 address_line1: input.household?.address_line1,
+                address_line2: input.household?.address_line2,
+                city: input.household?.city,
+                state: input.household?.state,
+                zip: input.household?.zip,
                 preferredScriptureTranslation: input.household?.preferredScriptureTranslation, // Keep camelCase for adapter interface
             };
 
@@ -1028,6 +1032,10 @@ export async function getHouseholdForUser(authUserId: string): Promise<string | 
             household_id: householdId,
             name: input.household?.name || `${guardianLastName} Household`,
             address_line1: input.household?.address_line1,
+            address_line2: input.household?.address_line2,
+            city: input.household?.city,
+            state: input.household?.state,
+            zip: input.household?.zip,
             preferredScriptureTranslation: input.household?.preferredScriptureTranslation,
             created_at: isUpdate ? (await db.households.get(householdId))!.created_at : now,
             updated_at: now,

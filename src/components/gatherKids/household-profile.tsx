@@ -47,13 +47,17 @@ const InfoItem = ({
 		<div className="text-muted-foreground mt-1">{icon}</div>
 		<div>
 			<p className="text-sm text-muted-foreground">{label}</p>
-			<p className="font-medium">{value}</p>
+			{typeof value === 'string' ? (
+				<p className="font-medium">{value}</p>
+			) : (
+				<div className="font-medium">{value}</div>
+			)}
 		</div>
 	</div>
 );
 
 const formatAddress = (household: any) => {
-	if (!household) return 'N/A';
+	if (!household) return ['N/A'];
 
 	const addressParts = [];
 
@@ -74,7 +78,7 @@ const formatAddress = (household: any) => {
 		addressParts.push(cityStateZip.join(', '));
 	}
 
-	return addressParts.length > 0 ? addressParts.join('\n') : 'N/A';
+	return addressParts.length > 0 ? addressParts : ['N/A'];
 };
 
 const ProgramEnrollmentCard = ({
@@ -311,8 +315,10 @@ export function HouseholdProfile({
 									icon={<Home size={16} />}
 									label="Address"
 									value={
-										<div className="whitespace-pre-line">
-											{formatAddress(household)}
+										<div>
+											{formatAddress(household).map((line, index) => (
+												<div key={index}>{line}</div>
+											))}
 										</div>
 									}
 								/>
