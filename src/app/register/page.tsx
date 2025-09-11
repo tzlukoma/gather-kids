@@ -1234,7 +1234,6 @@ function RegisterPageContent() {
 			userEmail: user?.email,
 			userRole: user?.metadata?.role,
 			userExists: !!user,
-			authContext: !!auth,
 			userId: user?.id,
 		});
 		setIsSubmitting(true);
@@ -1353,7 +1352,6 @@ function RegisterPageContent() {
 						userRole: user?.metadata?.role,
 						userExists: !!user,
 						userId: user?.id,
-						authContext: !!auth,
 					});
 
 					// Check if user is authenticated
