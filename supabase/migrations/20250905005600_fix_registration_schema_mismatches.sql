@@ -127,7 +127,15 @@ BEGIN
                 SELECT
                     CASE WHEN contact_id ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' THEN contact_id::uuid ELSE gen_random_uuid() END,
                     CASE WHEN household_id ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' THEN household_id::uuid ELSE NULL END,
-                    first_name, last_name, mobile_phone, relationship, COALESCE(created_at, now()), COALESCE(updated_at, now())
+                    first_name, last_name, mobile_phone, relationship, 
+                    CASE WHEN EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'emergency_contacts' AND column_name = 'created_at' AND table_schema = 'public') 
+                         THEN COALESCE(created_at, now()) 
+                         ELSE now() 
+                    END, 
+                    CASE WHEN EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'emergency_contacts' AND column_name = 'updated_at' AND table_schema = 'public') 
+                         THEN COALESCE(updated_at, now()) 
+                         ELSE now() 
+                    END
                 FROM emergency_contacts
                 ON CONFLICT (contact_id) DO NOTHING;
                 $sql$;
@@ -138,7 +146,15 @@ BEGIN
                 SELECT
                     CASE WHEN contact_id ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' THEN contact_id::uuid ELSE gen_random_uuid() END,
                     household_id,
-                    first_name, last_name, mobile_phone, relationship, COALESCE(created_at, now()), COALESCE(updated_at, now())
+                    first_name, last_name, mobile_phone, relationship, 
+                    CASE WHEN EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'emergency_contacts' AND column_name = 'created_at' AND table_schema = 'public') 
+                         THEN COALESCE(created_at, now()) 
+                         ELSE now() 
+                    END, 
+                    CASE WHEN EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'emergency_contacts' AND column_name = 'updated_at' AND table_schema = 'public') 
+                         THEN COALESCE(updated_at, now()) 
+                         ELSE now() 
+                    END
                 FROM emergency_contacts
                 ON CONFLICT (contact_id) DO NOTHING;
                 $sql$;
@@ -165,7 +181,14 @@ BEGIN
                         WHEN position(' ' in name) = 0 THEN ''
                         ELSE substring(name from position(' ' in name) + 1)
                     END,
-                    phone, relationship, COALESCE(created_at, now()), COALESCE(updated_at, now())
+                    phone, relationship, CASE WHEN EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'emergency_contacts' AND column_name = 'created_at' AND table_schema = 'public') 
+                         THEN COALESCE(created_at, now()) 
+                         ELSE now() 
+                    END, 
+                    CASE WHEN EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'emergency_contacts' AND column_name = 'updated_at' AND table_schema = 'public') 
+                         THEN COALESCE(updated_at, now()) 
+                         ELSE now() 
+                    END
                 FROM emergency_contacts
                 ON CONFLICT (contact_id) DO NOTHING;
                 $sql$;
@@ -187,7 +210,14 @@ BEGIN
                         WHEN position(' ' in name) = 0 THEN ''
                         ELSE substring(name from position(' ' in name) + 1)
                     END,
-                    phone, relationship, COALESCE(created_at, now()), COALESCE(updated_at, now())
+                    phone, relationship, CASE WHEN EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'emergency_contacts' AND column_name = 'created_at' AND table_schema = 'public') 
+                         THEN COALESCE(created_at, now()) 
+                         ELSE now() 
+                    END, 
+                    CASE WHEN EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'emergency_contacts' AND column_name = 'updated_at' AND table_schema = 'public') 
+                         THEN COALESCE(updated_at, now()) 
+                         ELSE now() 
+                    END
                 FROM emergency_contacts
                 ON CONFLICT (contact_id) DO NOTHING;
                 $sql$;
