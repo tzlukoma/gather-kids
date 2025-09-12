@@ -56,11 +56,13 @@ Always reference these instructions first and fallback to search or bash command
   -- Database reset: `supabase db reset` followed by the project seed scripts (for example `npm run seed:uat:reset`)
   -- Generate types: `npm run gen:types` (generates TypeScript types from Supabase schema)
 - **Database migrations**:
-  - Prefer timestamp-based naming: `YYYYMMDDHHMMSS_name_of_change.sql` (e.g. `20250903123456_add_new_table.sql`)
-  - ALWAYS use timestamp format to avoid version conflicts
-  - NEVER use sequential numbering (0001, 0002, etc.) for new migrations
-  - Example creation: `supabase migration new name_of_change` (automatically adds timestamp)
-- For manual migration files: `date +%Y%m%d%H%M%S`\_name_of_change.sql to generate proper timestamp format
+  - **CRITICAL**: ALWAYS use timestamp-based naming: `YYYYMMDDHHMMSS_name_of_change.sql` (e.g. `20250911210203_production_clean_schema.sql`)
+  - **MANDATORY**: Use timestamp format to ensure proper ordering and avoid version conflicts
+  - **FORBIDDEN**: NEVER use sequential numbering (0001, 0002, etc.) for new migrations
+  - **Example creation**: `supabase migration new name_of_change` (automatically adds timestamp)
+  - **Manual files**: Use `date +%Y%m%d%H%M%S`\_name_of_change.sql to generate proper timestamp format
+  - **Migration ordering**: Timestamps ensure migrations are applied in chronological order across all environments
+  - **IMPORTANT**: ALWAYS use the `date +%Y%m%d%H%M%S` command to generate timestamps - NEVER manually type them to avoid date errors
 
 ### Type Generation (CRITICAL after schema changes)
 

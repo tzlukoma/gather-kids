@@ -57,8 +57,10 @@ function convertFormDataToCanonical(data: Record<string, unknown>): {
   
   const primaryGuardian = guardiansSrc.find(g => g['is_primary'] === true) || guardiansSrc[0];
   const primaryGuardianEmail = primaryGuardian?.['email'] as string | undefined;
+  const primaryGuardianPhone = primaryGuardian?.['mobile_phone'] as string | undefined;
   console.log('🔍 DEBUG convertFormDataToCanonical - primaryGuardian:', primaryGuardian);
   console.log('🔍 DEBUG convertFormDataToCanonical - primaryGuardianEmail:', primaryGuardianEmail);
+  console.log('🔍 DEBUG convertFormDataToCanonical - primaryGuardianPhone:', primaryGuardianPhone);
   
   const household = CanonicalDtos.HouseholdWriteDto.parse({
     household_id: householdSrc['household_id'] as string | undefined,
@@ -70,7 +72,7 @@ function convertFormDataToCanonical(data: Record<string, unknown>): {
     zip: householdSrc['zip'] as string | undefined,
     preferred_scripture_translation: householdSrc['preferredScriptureTranslation'] as string | undefined, // camelCase -> snake_case
     primary_email: primaryGuardianEmail, // Derive from primary guardian's email
-    primary_phone: householdSrc['primary_phone'] as string | undefined,
+    primary_phone: primaryGuardianPhone, // Derive from primary guardian's phone
     photo_url: householdSrc['photo_url'] as string | undefined,
   });
   
@@ -168,7 +170,7 @@ export async function registerHouseholdCanonical(data: Record<string, unknown>, 
         state: canonicalData.household.state,
         zip: canonicalData.household.zip,
         // Use canonical DTO field names (snake_case)
-        preferred_scripture_translation: canonicalData.household.preferred_scripture_translation,
+        preferredScriptureTranslation: canonicalData.household.preferred_scripture_translation,
         primary_email: canonicalData.household.primary_email, // Use canonical field name
         primary_phone: canonicalData.household.primary_phone,   // Use canonical field name
       };

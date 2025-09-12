@@ -268,19 +268,20 @@ export function householdToSupabase(
 	const result = {
 		household_id: household.household_id,
 		name: household.name,
-		preferredScriptureTranslation: household.preferredScriptureTranslation,
+		// Convert camelCase to snake_case for database
+		preferred_scripture_translation: household.preferredScriptureTranslation,
 		address_line1: household.address_line1,
 		address_line2: household.address_line2,
 		city: household.city,
 		state: household.state,
 		zip: household.zip,
-		// Map canonical DTO fields to database column names
-		// The database may have either naming convention, so we'll include both
-		// The actual database schema will determine which ones are used
-		primary_email: household.primary_email,
-		primary_phone: household.primary_phone,
-		email: household.primary_email,  // Fallback for legacy schema
-		phone: household.primary_phone, // Fallback for legacy schema
+		// Use the fields that definitely exist in the current schema
+		// Based on Supabase types, both canonical and legacy fields exist
+		// Only include fields that have values to avoid null/undefined issues
+		...(household.primary_email && { primary_email: household.primary_email }),
+		...(household.primary_phone && { primary_phone: household.primary_phone }),
+		...(household.primary_email && { email: household.primary_email }),  // Fallback for legacy schema
+		...(household.primary_phone && { phone: household.primary_phone }), // Fallback for legacy schema
 	} as unknown as Omit<SupabaseHousehold, 'created_at' | 'updated_at'>;
 	
 	console.log('🔍 DEBUG householdToSupabase - Output result:', result);
