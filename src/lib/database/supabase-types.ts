@@ -1,7 +1,7 @@
 /**
  * This file contains types generated from the Supabase schema.
  * DO NOT EDIT MANUALLY. This file is auto-generated.
- * Generated on: 2025-09-12T01:07:43.206Z
+ * Generated on: 2025-09-12T01:10:32.456Z
  */
 
 export type SupabaseJson =
@@ -144,13 +144,6 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "bible_bee_enrollments_childId_fkey"
-            columns: ["childId"]
-            isOneToOne: false
-            referencedRelation: "children"
-            referencedColumns: ["child_id"]
-          },
-          {
             foreignKeyName: "bible_bee_enrollments_competitionYearId_fkey"
             columns: ["competitionYearId"]
             isOneToOne: false
@@ -280,72 +273,51 @@ export type Database = {
       children: {
         Row: {
           allergies: string | null
-          birth_date: string | null
           child_id: string
           child_mobile: string | null
-          created_at: string
+          created_at: string | null
           dob: string | null
-          external_household_id: string | null
-          external_id: string | null
-          first_name: string | null
-          gender: string | null
+          first_name: string
           grade: string | null
           household_id: string | null
-          household_uuid: string | null
-          id: number
           is_active: boolean | null
-          last_name: string | null
+          last_name: string
           medical_notes: string | null
-          mobile_phone: string | null
-          notes: string | null
+          photo_url: string | null
           special_needs: boolean | null
           special_needs_notes: string | null
           updated_at: string | null
         }
         Insert: {
           allergies?: string | null
-          birth_date?: string | null
           child_id: string
           child_mobile?: string | null
-          created_at?: string
+          created_at?: string | null
           dob?: string | null
-          external_household_id?: string | null
-          external_id?: string | null
-          first_name?: string | null
-          gender?: string | null
+          first_name: string
           grade?: string | null
           household_id?: string | null
-          household_uuid?: string | null
-          id?: number
           is_active?: boolean | null
-          last_name?: string | null
+          last_name: string
           medical_notes?: string | null
-          mobile_phone?: string | null
-          notes?: string | null
+          photo_url?: string | null
           special_needs?: boolean | null
           special_needs_notes?: string | null
           updated_at?: string | null
         }
         Update: {
           allergies?: string | null
-          birth_date?: string | null
           child_id?: string
           child_mobile?: string | null
-          created_at?: string
+          created_at?: string | null
           dob?: string | null
-          external_household_id?: string | null
-          external_id?: string | null
-          first_name?: string | null
-          gender?: string | null
+          first_name?: string
           grade?: string | null
           household_id?: string | null
-          household_uuid?: string | null
-          id?: number
           is_active?: boolean | null
-          last_name?: string | null
+          last_name?: string
           medical_notes?: string | null
-          mobile_phone?: string | null
-          notes?: string | null
+          photo_url?: string | null
           special_needs?: boolean | null
           special_needs_notes?: string | null
           updated_at?: string | null
@@ -357,13 +329,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "households"
             referencedColumns: ["household_id"]
-          },
-          {
-            foreignKeyName: "children_household_uuid_fkey"
-            columns: ["household_uuid"]
-            isOneToOne: false
-            referencedRelation: "households"
-            referencedColumns: ["household_uuid"]
           },
         ]
       }
@@ -478,31 +443,31 @@ export type Database = {
         Row: {
           contact_id: string
           created_at: string | null
-          first_name: string | null
+          first_name: string
           household_id: string | null
-          last_name: string | null
-          mobile_phone: string | null
-          relationship: string | null
+          last_name: string
+          mobile_phone: string
+          relationship: string
           updated_at: string | null
         }
         Insert: {
-          contact_id?: string
+          contact_id: string
           created_at?: string | null
-          first_name?: string | null
+          first_name: string
           household_id?: string | null
-          last_name?: string | null
-          mobile_phone?: string | null
-          relationship?: string | null
+          last_name: string
+          mobile_phone: string
+          relationship: string
           updated_at?: string | null
         }
         Update: {
           contact_id?: string
           created_at?: string | null
-          first_name?: string | null
+          first_name?: string
           household_id?: string | null
-          last_name?: string | null
-          mobile_phone?: string | null
-          relationship?: string | null
+          last_name?: string
+          mobile_phone?: string
+          relationship?: string
           updated_at?: string | null
         }
         Relationships: [
@@ -703,49 +668,37 @@ export type Database = {
         Row: {
           created_at: string | null
           email: string | null
-          external_household_id: string | null
-          external_id: string | null
-          first_name: string | null
+          first_name: string
           guardian_id: string
           household_id: string | null
-          household_id_uuid: string | null
-          household_uuid: string | null
           is_primary: boolean | null
-          last_name: string | null
-          mobile_phone: string | null
-          relationship: string | null
+          last_name: string
+          mobile_phone: string
+          relationship: string
           updated_at: string | null
         }
         Insert: {
           created_at?: string | null
           email?: string | null
-          external_household_id?: string | null
-          external_id?: string | null
-          first_name?: string | null
+          first_name: string
           guardian_id: string
           household_id?: string | null
-          household_id_uuid?: string | null
-          household_uuid?: string | null
           is_primary?: boolean | null
-          last_name?: string | null
-          mobile_phone?: string | null
-          relationship?: string | null
+          last_name: string
+          mobile_phone: string
+          relationship: string
           updated_at?: string | null
         }
         Update: {
           created_at?: string | null
           email?: string | null
-          external_household_id?: string | null
-          external_id?: string | null
-          first_name?: string | null
+          first_name?: string
           guardian_id?: string
           household_id?: string | null
-          household_id_uuid?: string | null
-          household_uuid?: string | null
           is_primary?: boolean | null
-          last_name?: string | null
-          mobile_phone?: string | null
-          relationship?: string | null
+          last_name?: string
+          mobile_phone?: string
+          relationship?: string
           updated_at?: string | null
         }
         Relationships: [
@@ -756,29 +709,17 @@ export type Database = {
             referencedRelation: "households"
             referencedColumns: ["household_id"]
           },
-          {
-            foreignKeyName: "guardians_household_uuid_fkey"
-            columns: ["household_uuid"]
-            isOneToOne: false
-            referencedRelation: "households"
-            referencedColumns: ["household_uuid"]
-          },
         ]
       }
       households: {
         Row: {
-          address: string | null
           address_line1: string | null
           address_line2: string | null
           city: string | null
           created_at: string | null
-          email: string | null
-          external_id: string | null
           household_id: string
-          household_name: string | null
-          household_uuid: string
           name: string | null
-          phone: string | null
+          photo_url: string | null
           preferred_scripture_translation: string | null
           primary_email: string | null
           primary_phone: string | null
@@ -787,18 +728,13 @@ export type Database = {
           zip: string | null
         }
         Insert: {
-          address?: string | null
           address_line1?: string | null
           address_line2?: string | null
           city?: string | null
           created_at?: string | null
-          email?: string | null
-          external_id?: string | null
           household_id: string
-          household_name?: string | null
-          household_uuid?: string
           name?: string | null
-          phone?: string | null
+          photo_url?: string | null
           preferred_scripture_translation?: string | null
           primary_email?: string | null
           primary_phone?: string | null
@@ -807,18 +743,13 @@ export type Database = {
           zip?: string | null
         }
         Update: {
-          address?: string | null
           address_line1?: string | null
           address_line2?: string | null
           city?: string | null
           created_at?: string | null
-          email?: string | null
-          external_id?: string | null
           household_id?: string
-          household_name?: string | null
-          household_uuid?: string
           name?: string | null
-          phone?: string | null
+          photo_url?: string | null
           preferred_scripture_translation?: string | null
           primary_email?: string | null
           primary_phone?: string | null
@@ -1354,15 +1285,7 @@ export type Database = {
           household_id?: string
           user_household_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "user_households_household_id_fkey"
-            columns: ["household_id"]
-            isOneToOne: false
-            referencedRelation: "households"
-            referencedColumns: ["household_id"]
-          },
-        ]
+        Relationships: []
       }
       users: {
         Row: {
