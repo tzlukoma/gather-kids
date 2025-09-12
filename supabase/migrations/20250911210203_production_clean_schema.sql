@@ -97,6 +97,34 @@ CREATE TABLE registrations (
 );
 
 -- ============================================================================
+-- USER_HOUSEHOLDS TABLE - Links authenticated users to households
+-- ============================================================================
+CREATE TABLE user_households (
+  user_household_id text PRIMARY KEY,
+  auth_user_id text NOT NULL,
+  household_id text NOT NULL REFERENCES households(household_id) ON DELETE CASCADE,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now(),
+  
+  -- Ensure one household per user (for now)
+  UNIQUE(auth_user_id)
+);
+
+-- ============================================================================
+-- MINISTRY_ENROLLMENTS TABLE - Child enrollments in specific ministries
+-- ============================================================================
+CREATE TABLE ministry_enrollments (
+  enrollment_id text PRIMARY KEY,
+  child_id text REFERENCES children(child_id) ON DELETE CASCADE,
+  cycle_id text NOT NULL,
+  ministry_id text NOT NULL,
+  status text NOT NULL,
+  custom_fields jsonb DEFAULT '{}'::jsonb,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
+-- ============================================================================
 -- INDEXES FOR PERFORMANCE
 -- ============================================================================
 CREATE INDEX IF NOT EXISTS idx_guardians_household_id ON guardians(household_id);
@@ -106,6 +134,11 @@ CREATE INDEX IF NOT EXISTS idx_guardians_is_primary ON guardians(is_primary);
 CREATE INDEX IF NOT EXISTS idx_registrations_child_id ON registrations(child_id);
 CREATE INDEX IF NOT EXISTS idx_registrations_cycle_id ON registrations(cycle_id);
 CREATE INDEX IF NOT EXISTS idx_registrations_status ON registrations(status);
+CREATE INDEX IF NOT EXISTS idx_user_households_auth_user_id ON user_households(auth_user_id);
+CREATE INDEX IF NOT EXISTS idx_user_households_household_id ON user_households(household_id);
+CREATE INDEX IF NOT EXISTS idx_ministry_enrollments_child_id ON ministry_enrollments(child_id);
+CREATE INDEX IF NOT EXISTS idx_ministry_enrollments_cycle_id ON ministry_enrollments(cycle_id);
+CREATE INDEX IF NOT EXISTS idx_ministry_enrollments_ministry_id ON ministry_enrollments(ministry_id);
 
 -- ============================================================================
 -- RLS POLICIES (Disabled for MVP)
@@ -119,6 +152,8 @@ ALTER TABLE guardians ENABLE ROW LEVEL SECURITY;
 ALTER TABLE children ENABLE ROW LEVEL SECURITY;
 ALTER TABLE emergency_contacts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE registrations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_households ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ministry_enrollments ENABLE ROW LEVEL SECURITY;
 
 -- Create permissive policies for MVP (allows all operations)
 CREATE POLICY "Allow all operations on households" ON households FOR ALL USING (true);
@@ -126,6 +161,8 @@ CREATE POLICY "Allow all operations on guardians" ON guardians FOR ALL USING (tr
 CREATE POLICY "Allow all operations on children" ON children FOR ALL USING (true);
 CREATE POLICY "Allow all operations on emergency_contacts" ON emergency_contacts FOR ALL USING (true);
 CREATE POLICY "Allow all operations on registrations" ON registrations FOR ALL USING (true);
+CREATE POLICY "Allow all operations on user_households" ON user_households FOR ALL USING (true);
+CREATE POLICY "Allow all operations on ministry_enrollments" ON ministry_enrollments FOR ALL USING (true);
 
 -- ============================================================================
 -- LOGGING
