@@ -81,12 +81,31 @@ CREATE TABLE emergency_contacts (
 );
 
 -- ============================================================================
+-- REGISTRATIONS TABLE - Clean schema matching canonical DTOs
+-- ============================================================================
+CREATE TABLE registrations (
+  registration_id text PRIMARY KEY,
+  child_id text REFERENCES children(child_id) ON DELETE CASCADE,
+  cycle_id text NOT NULL,
+  status text NOT NULL,
+  pre_registered_sunday_school boolean DEFAULT false,
+  consents jsonb DEFAULT '[]'::jsonb,
+  submitted_at timestamptz DEFAULT now(),
+  submitted_via text DEFAULT 'web',
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
+-- ============================================================================
 -- INDEXES FOR PERFORMANCE
 -- ============================================================================
 CREATE INDEX IF NOT EXISTS idx_guardians_household_id ON guardians(household_id);
 CREATE INDEX IF NOT EXISTS idx_children_household_id ON children(household_id);
 CREATE INDEX IF NOT EXISTS idx_emergency_contacts_household_id ON emergency_contacts(household_id);
 CREATE INDEX IF NOT EXISTS idx_guardians_is_primary ON guardians(is_primary);
+CREATE INDEX IF NOT EXISTS idx_registrations_child_id ON registrations(child_id);
+CREATE INDEX IF NOT EXISTS idx_registrations_cycle_id ON registrations(cycle_id);
+CREATE INDEX IF NOT EXISTS idx_registrations_status ON registrations(status);
 
 -- ============================================================================
 -- RLS POLICIES (Disabled for MVP)
@@ -99,12 +118,14 @@ ALTER TABLE households ENABLE ROW LEVEL SECURITY;
 ALTER TABLE guardians ENABLE ROW LEVEL SECURITY;
 ALTER TABLE children ENABLE ROW LEVEL SECURITY;
 ALTER TABLE emergency_contacts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE registrations ENABLE ROW LEVEL SECURITY;
 
 -- Create permissive policies for MVP (allows all operations)
 CREATE POLICY "Allow all operations on households" ON households FOR ALL USING (true);
 CREATE POLICY "Allow all operations on guardians" ON guardians FOR ALL USING (true);
 CREATE POLICY "Allow all operations on children" ON children FOR ALL USING (true);
 CREATE POLICY "Allow all operations on emergency_contacts" ON emergency_contacts FOR ALL USING (true);
+CREATE POLICY "Allow all operations on registrations" ON registrations FOR ALL USING (true);
 
 -- ============================================================================
 -- LOGGING
