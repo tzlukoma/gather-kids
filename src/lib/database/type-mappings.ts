@@ -275,13 +275,10 @@ export function householdToSupabase(
 		city: household.city,
 		state: household.state,
 		zip: household.zip,
-		// Use the fields that definitely exist in the current schema
-		// Based on Supabase types, both canonical and legacy fields exist
-		// Only include fields that have values to avoid null/undefined issues
-		...(household.primary_email && { primary_email: household.primary_email }),
-		...(household.primary_phone && { primary_phone: household.primary_phone }),
-		...(household.primary_email && { email: household.primary_email }),  // Fallback for legacy schema
-		...(household.primary_phone && { phone: household.primary_phone }), // Fallback for legacy schema
+		// Clean schema only has canonical fields - no legacy fields
+		primary_email: household.primary_email,
+		primary_phone: household.primary_phone,
+		photo_url: household.photo_url,
 	} as unknown as Omit<SupabaseHousehold, 'created_at' | 'updated_at'>;
 	
 	console.log('🔍 DEBUG householdToSupabase - Output result:', result);
@@ -524,14 +521,10 @@ export function childToSupabase(
 		household_id: child.household_id,
 		first_name: child.first_name,
 		last_name: child.last_name,
-		// Map canonical DTO fields to database columns
-		// Handle both dob and birth_date fields (database has both)
+		// Clean schema only has canonical fields
 		dob: child.dob,
-		birth_date: child.dob, // Also populate birth_date for compatibility
 		grade: child.grade,
-		// Handle both child_mobile and mobile_phone fields (database has both)
 		child_mobile: child.child_mobile,
-		mobile_phone: child.child_mobile, // Also populate mobile_phone for compatibility
 		allergies: child.allergies,
 		medical_notes: child.medical_notes,
 		special_needs: child.special_needs,
@@ -580,10 +573,6 @@ export function guardianToSupabase(
 		email: guardian.email,
 		relationship: guardian.relationship,
 		is_primary: guardian.is_primary,
-		// Include additional database fields for compatibility
-		external_id: undefined, // Not used in canonical DTOs
-		external_household_id: undefined, // Not used in canonical DTOs
-		household_uuid: undefined, // Not used in canonical DTOs
 	} as unknown as Omit<SupabaseGuardian, 'created_at' | 'updated_at'>;
 }
 
