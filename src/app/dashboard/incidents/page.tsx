@@ -47,7 +47,7 @@ export default function IncidentsPage() {
 	useEffect(() => {
 		const loadIncidents = async () => {
 			if (!user) return;
-			
+
 			try {
 				setLoading(true);
 				const incidentsData = await getIncidentsForUser(user);
@@ -76,9 +76,7 @@ export default function IncidentsPage() {
 	const displayedIncidents = useMemo(() => {
 		if (loading) return [];
 		if (showPendingOnly) {
-			return incidents.filter(
-				(incident) => !incident.admin_acknowledged_at
-			);
+			return incidents.filter((incident) => !incident.admin_acknowledged_at);
 		}
 		return incidents;
 	}, [incidents, showPendingOnly, loading]);
@@ -86,11 +84,11 @@ export default function IncidentsPage() {
 	const handleAcknowledge = async (incidentId: string) => {
 		try {
 			await acknowledgeIncident(incidentId);
-			
+
 			// Refresh incidents after acknowledging
 			const updatedIncidents = await getIncidentsForUser(user);
 			setIncidents(updatedIncidents);
-			
+
 			toast({
 				title: 'Incident Acknowledged',
 				description: 'The incident has been marked as acknowledged.',
@@ -200,9 +198,16 @@ export default function IncidentsPage() {
 	return (
 		<div className="flex flex-col gap-8">
 			<div>
-				<h1 className="text-3xl font-bold font-headline">
-					Incident Management
-				</h1>
+				<div className="flex items-center gap-2">
+					<h1 className="text-3xl font-bold font-headline">
+						Incident Management
+					</h1>
+					<Badge
+						variant="secondary"
+						className="text-xs bg-blue-100 text-blue-800 border border-blue-200">
+						Beta
+					</Badge>
+				</div>
 				<p className="text-muted-foreground">
 					Log new incidents and review past occurrences.
 				</p>

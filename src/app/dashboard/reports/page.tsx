@@ -17,6 +17,7 @@ import {
 	CardHeader,
 	CardTitle,
 } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { Calendar as CalendarIcon, FileDown } from 'lucide-react';
 import { format, startOfMonth } from 'date-fns';
@@ -29,7 +30,6 @@ import {
 	TableHeader,
 	TableRow,
 } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
 import {
 	exportAttendanceRollupCSV,
 	exportEmergencySnapshotCSV,
@@ -139,7 +139,16 @@ export default function ReportsPage() {
 	return (
 		<div className="flex flex-col gap-8">
 			<div>
-				<h1 className="text-3xl font-bold font-headline">Reports & Exports</h1>
+				<div className="flex items-center gap-2">
+					<h1 className="text-3xl font-bold font-headline">
+						Reports & Exports
+					</h1>
+					<Badge
+						variant="secondary"
+						className="text-xs bg-blue-100 text-blue-800 border border-blue-200">
+						Beta
+					</Badge>
+				</div>
 				<p className="text-muted-foreground">
 					Generate reports and export data for ministry records.
 				</p>

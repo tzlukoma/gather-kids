@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/sidebar';
 import { getLeaderAssignmentsForCycle, getRegistrationCycles } from '@/lib/dal';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -178,6 +179,12 @@ export function DashboardNav({ children }: DashboardNavProps) {
 								const Icon = item.icon as
 									| React.ComponentType<any>
 									| React.ReactNode;
+								console.log(
+									'Rendering menu item:',
+									item.label,
+									'isBeta:',
+									item.isBeta
+								);
 								return (
 									<SidebarMenuItem
 										key={item.href}
@@ -185,9 +192,16 @@ export function DashboardNav({ children }: DashboardNavProps) {
 										<SidebarMenuButton asChild>
 											<Link
 												href={item.href}
-												className="flex items-center gap-2">
+												className="flex items-center gap-2 w-full">
 												{renderIcon(Icon)}
-												<span>{item.label}</span>
+												<span className="flex-1">{item.label}</span>
+												{item.isBeta && (
+													<Badge
+														variant="secondary"
+														className="text-xs px-1.5 py-0.5 ml-auto bg-blue-100 text-blue-800 border border-blue-200">
+														Beta
+													</Badge>
+												)}
 											</Link>
 										</SidebarMenuButton>
 									</SidebarMenuItem>

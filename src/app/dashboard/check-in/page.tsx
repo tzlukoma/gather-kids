@@ -18,7 +18,12 @@ import { useAuth } from '@/contexts/auth-context';
 import { useSearchParams } from 'next/navigation';
 import { Users, Filter, Edit } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { getTodayIsoDate, getAllChildren, getAttendanceForDate } from '@/lib/dal';
+import { Badge } from '@/components/ui/badge';
+import {
+	getTodayIsoDate,
+	getAllChildren,
+	getAttendanceForDate,
+} from '@/lib/dal';
 import type { Child, Attendance } from '@/lib/types';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { normalizeGradeDisplay, getGradeSortOrder } from '@/lib/gradeUtils';
@@ -37,7 +42,7 @@ export type StatusFilter = 'all' | 'checkedIn' | 'checkedOut';
 
 const eventOptions = [
 	{ id: 'evt_sunday_school', name: 'Sunday School' },
-	{ id: 'evt_childrens_church', name: "Children&apos;s Church" },
+	{ id: 'evt_childrens_church', name: 'Children&apos;s Church' },
 	{ id: 'evt_teen_church', name: 'Teen Church' },
 ];
 
@@ -51,7 +56,7 @@ function CheckInContent() {
 	const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
 	const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
 	const [isEventDialogOpen, setIsEventDialogOpen] = useState(false);
-	
+
 	// State management for data loading
 	const [children, setChildren] = useState<Child[]>([]);
 	const [todaysAttendance, setTodaysAttendance] = useState<Attendance[]>([]);
@@ -66,7 +71,7 @@ function CheckInContent() {
 				setLoading(true);
 				const [childrenData, attendanceData] = await Promise.all([
 					getAllChildren(),
-					getAttendanceForDate(today)
+					getAttendanceForDate(today),
 				]);
 				setChildren(childrenData);
 				setTodaysAttendance(attendanceData);
@@ -94,7 +99,9 @@ function CheckInContent() {
 	const availableGrades = useMemo(() => {
 		if (!children) return [];
 		const grades = new Set(
-			children.map((c) => normalizeGradeDisplay(c.grade)).filter(Boolean) as string[]
+			children
+				.map((c) => normalizeGradeDisplay(c.grade))
+				.filter(Boolean) as string[]
 		);
 		return Array.from(grades).sort(
 			(a, b) => getGradeSortOrder(a) - getGradeSortOrder(b)
@@ -180,7 +187,9 @@ function CheckInContent() {
 	if (loading) {
 		return (
 			<div className="flex flex-col items-center justify-center h-64">
-				<p className="text-muted-foreground mb-4">Loading children&apos;s data...</p>
+				<p className="text-muted-foreground mb-4">
+					Loading children&apos;s data...
+				</p>
 			</div>
 		);
 	}
@@ -189,9 +198,16 @@ function CheckInContent() {
 		<div className="flex flex-col gap-4">
 			<div className="flex items-start justify-between gap-4">
 				<div>
-					<h1 className="text-xl font-bold font-headline text-muted-foreground">
-						Child Check-In & Out
-					</h1>
+					<div className="flex items-center gap-2">
+						<h1 className="text-xl font-bold font-headline text-muted-foreground">
+							Child Check-In & Out
+						</h1>
+						<Badge
+							variant="secondary"
+							className="text-xs bg-blue-100 text-blue-800 border border-blue-200">
+							Beta
+						</Badge>
+					</div>
 					<Dialog open={isEventDialogOpen} onOpenChange={setIsEventDialogOpen}>
 						<DialogTrigger asChild>
 							<Button

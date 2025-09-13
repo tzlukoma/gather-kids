@@ -39,6 +39,7 @@ import {
 	Trash2,
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { SeedDataButton } from '@/components/gatherKids/seed-data-button';
 import { useAuth, AuthProvider } from '@/contexts/auth-context';
@@ -242,7 +243,14 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 														pathname === '/dashboard')
 												}>
 												{renderIcon(item.icon)}
-												<span>{item.label}</span>
+												<span className="flex-1">{item.label}</span>
+												{item.isBeta && (
+													<Badge
+														variant="secondary"
+														className="text-xs px-1.5 py-0.5 ml-auto bg-blue-100 text-blue-800 border border-blue-200">
+														Beta
+													</Badge>
+												)}
 											</SidebarMenuButton>
 										</Link>
 									</SidebarMenuItem>
