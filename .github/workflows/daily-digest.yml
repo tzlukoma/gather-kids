@@ -97,6 +97,7 @@ jobs:
   digest-uat:
     if: ${{ inputs.environment == 'UAT' }}
     runs-on: ubuntu-latest
+    environment: uat
     env:
       ENVIRONMENT: UAT
       DRY_RUN: ${{ inputs.dry_run && 'true' || 'false' }}
