@@ -242,8 +242,11 @@ async function getNewEnrollments(since) {
 				dob,
 				households!children_household_id_fkey (
 					household_id,
-					email,
-					name
+					name,
+					guardians!guardians_household_id_fkey (
+						email,
+						is_primary
+					)
 				)
 			)
 		`
@@ -263,14 +266,17 @@ async function getNewEnrollments(since) {
 	if (data && data.length > 0) {
 		console.log('Debug: Ministry information from enrollments:');
 		data.forEach((enrollment, index) => {
+			// Find primary guardian email
+			const primaryGuardian = enrollment.children?.households?.guardians?.find(g => g.is_primary);
+			const householdEmail = primaryGuardian?.email || 'NO HOUSEHOLD EMAIL';
+			
 			console.log(`Enrollment ${index + 1}:`, {
 				ministry_id: enrollment.ministries?.ministry_id,
 				ministry_name: enrollment.ministries?.name,
 				ministry_email:
 					enrollment.ministries?.ministry_accounts?.email || 'NO EMAIL',
 				child_name: `${enrollment.children?.first_name} ${enrollment.children?.last_name}`,
-				household_email:
-					enrollment.children?.households?.email || 'NO HOUSEHOLD EMAIL',
+				household_email: householdEmail,
 			});
 		});
 	}
@@ -354,6 +360,10 @@ function generateMinistryEmailContent(ministry, enrollments) {
 		const child = enrollment.children;
 		const household = child.households;
 		const enrolledAt = new Date(enrollment.created_at).toLocaleDateString();
+		
+		// Find primary guardian email
+		const primaryGuardian = household.guardians?.find(g => g.is_primary);
+		const primaryEmail = primaryGuardian?.email;
 
 		html += `
 			<li>
@@ -361,7 +371,7 @@ function generateMinistryEmailContent(ministry, enrollments) {
 				${child.dob ? ` (DOB: ${child.dob})` : ''}
 				<br>
 				Household: ${household.name || 'N/A'}
-				${household.primary_email ? ` (${household.primary_email})` : ''}
+				${primaryEmail ? ` (${primaryEmail})` : ''}
 				<br>
 				Enrolled: ${enrolledAt}
 			</li>
@@ -370,7 +380,7 @@ function generateMinistryEmailContent(ministry, enrollments) {
 		text += `• ${child.first_name} ${child.last_name}`;
 		if (child.dob) text += ` (DOB: ${child.dob})`;
 		text += `\n  Household: ${household.name || 'N/A'}`;
-		if (household.primary_email) text += ` (${household.primary_email})`;
+		if (primaryEmail) text += ` (${primaryEmail})`;
 		text += `\n  Enrolled: ${enrolledAt}\n\n`;
 	}
 
@@ -418,13 +428,17 @@ function generateAdminEmailContent(enrollmentsByMinistry, totalCount) {
 			const child = enrollment.children;
 			const household = child.households;
 			const enrolledAt = new Date(enrollment.created_at).toLocaleDateString();
+			
+			// Find primary guardian email
+			const primaryGuardian = household.guardians?.find(g => g.is_primary);
+			const primaryEmail = primaryGuardian?.email;
 
 			html += `
 				<li>
 					${child.first_name} ${child.last_name}
 					${child.dob ? ` (DOB: ${child.dob})` : ''}
 					- ${household.name || 'N/A'}
-					${household.primary_email ? ` (${household.primary_email})` : ''}
+					${primaryEmail ? ` (${primaryEmail})` : ''}
 					- ${enrolledAt}
 				</li>
 			`;
@@ -432,7 +446,7 @@ function generateAdminEmailContent(enrollmentsByMinistry, totalCount) {
 			text += `  • ${child.first_name} ${child.last_name}`;
 			if (child.dob) text += ` (DOB: ${child.dob})`;
 			text += ` - ${household.name || 'N/A'}`;
-			if (household.primary_email) text += ` (${household.primary_email})`;
+			if (primaryEmail) text += ` (${primaryEmail})`;
 			text += ` - ${enrolledAt}\n`;
 		}
 
