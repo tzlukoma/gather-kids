@@ -15,8 +15,7 @@
  *   - SUPABASE_SERVICE_ROLE_KEY: Production service role key
  */
 
-const { createClient } = require('@supabase/supabase-js');
-const { createMinistry, saveMinistryAccount } = require('../../src/lib/dal');
+import { createClient } from '@supabase/supabase-js';
 
 // Initialize Supabase client
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -140,6 +139,8 @@ const ministriesData = [
 		details:
 			"Thank you for registering for Joy Bells.\n\nYou will receive information from ministry leaders regarding next steps for your child's participation.",
 		data_profile: 'Basic',
+		min_age: 4,
+		max_age: 8,
 		is_active: true,
 	},
 	{
@@ -149,6 +150,8 @@ const ministriesData = [
 		details:
 			"Thank you for registering for Keita Praise Choir.\n\nYou will receive information from ministry leaders regarding next steps for your child's participation.",
 		data_profile: 'Basic',
+		min_age: 9,
+		max_age: 12,
 		is_active: true,
 	},
 	{
@@ -158,6 +161,8 @@ const ministriesData = [
 		details:
 			"Thank you for registering for New Generation Teen Choir.\n\nYou will receive information from ministry leaders regarding next steps for your child's participation.",
 		data_profile: 'Basic',
+		min_age: 13,
+		max_age: 18,
 		is_active: true,
 	},
 	{
@@ -236,11 +241,33 @@ const counters = {
 };
 
 /**
- * Create ministries using the app's DAL functions
+ * Create ministries using direct Supabase calls
  */
 async function createMinistries() {
 	console.log('📋 Starting ministry creation for production...');
 	console.log(`📊 Found ${ministriesData.length} ministries to process`);
+
+	// Validate schema first
+	console.log('🔍 Validating ministries table schema...');
+	const { data: columns, error: schemaError } = await supabase
+		.rpc('get_table_columns', { table_name: 'ministries' })
+		.single();
+
+	if (schemaError) {
+		// Fallback: check if we can query the table
+		const { error: testError } = await supabase
+			.from('ministries')
+			.select('*')
+			.limit(1);
+
+		if (testError) {
+			console.error('❌ Cannot access ministries table:', testError.message);
+			throw new Error(`Schema validation failed: ${testError.message}`);
+		}
+		console.log('✅ Ministries table is accessible');
+	} else {
+		console.log('✅ Schema validation passed');
+	}
 
 	if (DRY_RUN) {
 		console.log('🧪 DRY RUN MODE - No changes will be made');
@@ -272,6 +299,11 @@ async function createMinistries() {
 					`[DRY RUN] Enrollment Type: ${ministryData.enrollment_type}`
 				);
 				console.log(`[DRY RUN] Data Profile: ${ministryData.data_profile}`);
+				if (ministryData.min_age && ministryData.max_age) {
+					console.log(
+						`[DRY RUN] Age Range: ${ministryData.min_age}-${ministryData.max_age}`
+					);
+				}
 				if (ministryData.custom_questions) {
 					console.log(
 						`[DRY RUN] Custom Questions: ${ministryData.custom_questions.length} questions`
@@ -285,12 +317,46 @@ async function createMinistries() {
 				continue;
 			}
 
-			// Create ministry using the app's DAL function
+			// Create ministry using direct Supabase call
 			console.log(`🔄 Creating ministry: ${ministryData.name}...`);
-			const ministryId = await createMinistry(ministryData);
+
+			// Prepare data for insertion
+			const insertData = {
+				name: ministryData.name,
+				code: ministryData.code,
+				enrollment_type: ministryData.enrollment_type,
+				data_profile: ministryData.data_profile,
+				is_active: ministryData.is_active,
+				created_at: new Date().toISOString(),
+			};
+
+			// Add optional fields if they exist
+			if (ministryData.description)
+				insertData.description = ministryData.description;
+			if (ministryData.details) insertData.details = ministryData.details;
+			if (ministryData.open_at) insertData.open_at = ministryData.open_at;
+			if (ministryData.close_at) insertData.close_at = ministryData.close_at;
+			if (ministryData.min_age) insertData.min_age = ministryData.min_age;
+			if (ministryData.max_age) insertData.max_age = ministryData.max_age;
+			if (ministryData.custom_questions)
+				insertData.custom_questions = ministryData.custom_questions;
+			if (ministryData.communicate_later !== undefined)
+				insertData.communicate_later = ministryData.communicate_later;
+			if (ministryData.optional_consent_text)
+				insertData.optional_consent_text = ministryData.optional_consent_text;
+
+			const { data: newMinistry, error: createError } = await supabase
+				.from('ministries')
+				.insert(insertData)
+				.select('ministry_id')
+				.single();
+
+			if (createError) {
+				throw new Error(`Database error: ${createError.message}`);
+			}
 
 			console.log(
-				`✅ Created ministry: ${ministryData.name} (ID: ${ministryId})`
+				`✅ Created ministry: ${ministryData.name} (ID: ${newMinistry.ministry_id})`
 			);
 			counters.ministries++;
 
@@ -359,11 +425,9 @@ async function main() {
 }
 
 // Run the script
-if (require.main === module) {
-	main().catch((error) => {
-		console.error('❌ Unhandled error:', error);
-		process.exit(1);
-	});
-}
+main().catch((error) => {
+	console.error('❌ Unhandled error:', error);
+	process.exit(1);
+});
 
-module.exports = { createMinistries, ministriesData };
+export { createMinistries, ministriesData };
