@@ -523,18 +523,26 @@ function RegisterPageContent() {
 				setMinistryGroups(groups);
 
 				setAllMinistries(ministries);
-				
+
 				// Load choir ministries using ministry groups if enabled
 				if (getFlag('SHOW_MINISTRY_GROUPS')) {
 					console.log('DEBUG: Loading choir ministries using ministry groups');
 					const choirs = await getMinistriesByGroupCode('choirs');
-					console.log('DEBUG: Loaded', choirs.length, 'choir ministries via groups');
+					console.log(
+						'DEBUG: Loaded',
+						choirs.length,
+						'choir ministries via groups'
+					);
 					setChoirMinistries(choirs);
 				} else {
 					// Fallback to prefix logic
 					console.log('DEBUG: Using legacy choir prefix logic');
-					const choirs = ministries.filter(m => m.code.startsWith('choir-'));
-					console.log('DEBUG: Loaded', choirs.length, 'choir ministries via prefix');
+					const choirs = ministries.filter((m) => m.code.startsWith('choir-'));
+					console.log(
+						'DEBUG: Loaded',
+						choirs.length,
+						'choir ministries via prefix'
+					);
 					setChoirMinistries(choirs);
 				}
 
@@ -839,7 +847,7 @@ function RegisterPageContent() {
 			return { otherMinistryPrograms: [], choirPrograms: [] };
 
 		// Use choir ministries loaded from groups or fallback
-		const choirIds = new Set(choirMinistries.map(c => c.ministry_id));
+		const choirIds = new Set(choirMinistries.map((c) => c.ministry_id));
 		const choir = enrolledPrograms.filter((program) =>
 			choirIds.has(program.ministry_id)
 		);
@@ -853,7 +861,9 @@ function RegisterPageContent() {
 
 	// Get ministry groups that require consent
 	const groupsRequiringConsent = useMemo(() => {
-		return ministryGroups.filter(group => group.custom_consent_required && group.custom_consent_text);
+		return ministryGroups.filter(
+			(group) => group.custom_consent_required && group.custom_consent_text
+		);
 	}, [ministryGroups]);
 
 	const prefillForm = useCallback(
@@ -2286,15 +2296,19 @@ function RegisterPageContent() {
 										{/* Dynamic Group Consent Sections */}
 										{groupsRequiringConsent.map((group) => {
 											// Check if any ministries in this group are selected
-											const groupMinistries = choirPrograms.filter(program => 
-												choirMinistries.some(choir => choir.ministry_id === program.ministry_id)
+											const groupMinistries = choirPrograms.filter((program) =>
+												choirMinistries.some(
+													(choir) => choir.ministry_id === program.ministry_id
+												)
 											);
-											
+
 											// For now, we'll show consent for groups that have choir ministries
 											// In the future, this could be more sophisticated
 											if (group.code === 'choirs' && choirPrograms.length > 0) {
 												return (
-													<div key={group.id} className="p-4 border rounded-md space-y-4">
+													<div
+														key={group.id}
+														className="p-4 border rounded-md space-y-4">
 														<h3 className="text-lg font-semibold font-headline">
 															{group.name}
 														</h3>

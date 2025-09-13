@@ -114,7 +114,7 @@ export function MinistryGroupFormDialog({
 				description: '',
 				email: '',
 				custom_consent_text: '',
-				custom_consent_required: 'no',
+				custom_consent_required: false,
 			});
 			setMinistriesInGroup([]);
 			setIsLoadingMinistries(false);
