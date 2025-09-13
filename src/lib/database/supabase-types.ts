@@ -1,7 +1,7 @@
 /**
  * This file contains types generated from the Supabase schema.
  * DO NOT EDIT MANUALLY. This file is auto-generated.
- * Generated on: 2025-09-13T15:58:10.315Z
+ * Generated on: 2025-09-13T17:35:06.751Z
  */
 
 export type SupabaseJson =
@@ -1125,6 +1125,13 @@ export type Database = {
           status?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_ministry_enrollments_child_id"
+            columns: ["child_id"]
+            isOneToOne: false
+            referencedRelation: "children"
+            referencedColumns: ["child_id"]
+          },
           {
             foreignKeyName: "fk_ministry_enrollments_cycle_id"
             columns: ["cycle_id"]
