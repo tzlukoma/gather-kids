@@ -238,7 +238,7 @@ async function getNewEnrollments(since) {
 				first_name,
 				last_name,
 				dob,
-				households!inner (
+				households!children_household_id_fkey (
 					household_id,
 					primary_email,
 					name
