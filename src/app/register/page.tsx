@@ -319,7 +319,7 @@ const defaultChildValues = {
 	child_id: '', // Will be generated when child is added
 	first_name: '',
 	last_name: '',
-	dob: '2015-06-15', // Age 9-10, eligible for Keita Choir (ages 9-12)
+	dob: '',
 	grade: '',
 	child_mobile: '',
 	allergies: '',
@@ -380,6 +380,26 @@ const ProgramSection = ({
 		const age = getAgeFromDob(child.dob);
 		return checkEligibility(program, age);
 	});
+
+	// Show ministries even if no children are eligible yet, but disable checkboxes
+	const hasChildrenWithDob = childrenData.some((child) => child.dob && child.dob.trim() !== '');
+	
+	if (!hasChildrenWithDob) {
+		// Show ministry but with disabled state and helpful message
+		return (
+			<div className="p-4 border rounded-md opacity-60">
+				<h4 className="font-semibold">{program.name}</h4>
+				{program.description && (
+					<p className="text-sm text-muted-foreground mb-2">
+						{program.description}
+					</p>
+				)}
+				<div className="text-sm text-muted-foreground italic">
+					Add children with birth dates to see eligibility for this ministry
+				</div>
+			</div>
+		);
+	}
 
 	if (!anyChildEligible) return null;
 
