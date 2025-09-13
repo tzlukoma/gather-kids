@@ -284,7 +284,7 @@ async function getAdminUsers() {
 
 	const { data, error } = await supabase
 		.from('users')
-		.select('user_id, name, email')
+		.select('user_id, name, email, role, is_active')
 		.eq('role', 'ADMIN')
 		.eq('is_active', true);
 
@@ -294,6 +294,16 @@ async function getAdminUsers() {
 	}
 
 	console.log(`Found ${data?.length || 0} admin users`);
+	
+	// Debug: Let's also check what users exist in the table
+	const { data: allUsers, error: allUsersError } = await supabase
+		.from('users')
+		.select('user_id, name, email, role, is_active');
+	
+	if (!allUsersError && allUsers) {
+		console.log(`Total users in database: ${allUsers.length}`);
+		console.log('All users:', allUsers.map(u => ({ email: u.email, role: u.role, is_active: u.is_active })));
+	}
 	return data || [];
 }
 
