@@ -459,9 +459,7 @@ async function sendEmailViaMailjet(to, subject, html, text) {
 			console.log('[TEST MODE] No monitor emails configured - skipping');
 			return true;
 		}
-		// Override the 'to' address with monitor emails
-		to = monitorEmails.join(', ');
-		console.log(`[TEST MODE] Sending to monitor emails: ${to}`);
+		console.log(`[TEST MODE] Sending to monitor emails: ${monitorEmails.join(', ')}`);
 	}
 
 	try {
@@ -470,11 +468,9 @@ async function sendEmailViaMailjet(to, subject, html, text) {
 				Email: fromEmail || 'dry-run@example.com',
 				Name: 'gatherKids System',
 			},
-			To: [
-				{
-					Email: to,
-				},
-			],
+			To: TEST_MODE 
+				? monitorEmails.map(email => ({ Email: email }))
+				: [{ Email: to }],
 			Subject: subject,
 			TextPart: text,
 			HTMLPart: html,
@@ -491,13 +487,13 @@ async function sendEmailViaMailjet(to, subject, html, text) {
 				Messages: [message],
 			});
 
-		console.log(`Email sent successfully to ${to}`);
+		console.log(`Email sent successfully to ${TEST_MODE ? monitorEmails.join(', ') : to}`);
 		if (monitorEmails.length > 0 && !TEST_MODE) {
 			console.log(`BCC sent to monitor emails: ${monitorEmails.join(', ')}`);
 		}
 		return true;
 	} catch (error) {
-		console.error(`Error sending email to ${to}:`, error);
+		console.error(`Error sending email to ${TEST_MODE ? monitorEmails.join(', ') : to}:`, error);
 		return false;
 	}
 }
