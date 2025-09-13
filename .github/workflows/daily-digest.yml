@@ -107,7 +107,7 @@ jobs:
       MJ_API_SECRET: ${{ secrets.UAT_MJ_API_SECRET }}
       FROM_EMAIL: ${{ secrets.UAT_FROM_EMAIL }}
       MONITOR_EMAILS: ${{ secrets.UAT_MONITOR_EMAILS }}
-      EMAIL_MODE: ${{ secrets.UAT_EMAIL_MODE || 'mailjet' }}
+      EMAIL_MODE: ${{ secrets.EMAIL_MODE || 'mailjet' }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -143,7 +143,12 @@ jobs:
           echo "UAT_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.UAT_SUPABASE_SERVICE_ROLE_KEY != '' && 'YES' || 'NO' }}"
           echo "UAT_MJ_API_KEY: ${{ secrets.UAT_MJ_API_KEY != '' && 'YES' || 'NO' }}"
           echo "UAT_MJ_API_SECRET: ${{ secrets.UAT_MJ_API_SECRET != '' && 'YES' || 'NO' }}"
-          echo "UAT_EMAIL_MODE: ${{ secrets.UAT_EMAIL_MODE != '' && 'YES' || 'NO' }}"
+          echo "EMAIL_MODE: ${{ secrets.EMAIL_MODE != '' && 'YES' || 'NO' }}"
+          echo "Testing secret access with different methods:"
+          echo "UAT_FROM_EMAIL length: ${{ length(secrets.UAT_FROM_EMAIL) }}"
+          echo "UAT_MONITOR_EMAILS length: ${{ length(secrets.UAT_MONITOR_EMAILS) }}"
+          echo "UAT_MJ_API_KEY length: ${{ length(secrets.UAT_MJ_API_KEY) }}"
+          echo "UAT_MJ_API_SECRET length: ${{ length(secrets.UAT_MJ_API_SECRET) }}"
 
       - name: Run daily digest (UAT)
         run: |
