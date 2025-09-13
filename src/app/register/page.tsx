@@ -42,6 +42,7 @@ import {
 	getMinistries,
 	getRegistrationCycles,
 	getMinistriesByGroupCode,
+	getMinistryGroups,
 } from '@/lib/dal';
 import { getFlag } from '@/lib/featureFlags';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -166,7 +167,8 @@ const registrationSchema = z
 			photoRelease: z.boolean().refine((val) => val === true, {
 				message: 'Photo release consent is required.',
 			}),
-			choir_communications_consent: z.enum(['yes', 'no']).optional(),
+			// Dynamic group consents - will be populated based on ministry groups
+			group_consents: z.record(z.enum(['yes', 'no'])).optional(),
 			custom_consents: z.record(z.boolean().optional()).optional(),
 		}),
 	})
@@ -484,6 +486,7 @@ function RegisterPageContent() {
 
 	const [allMinistries, setAllMinistries] = useState<Ministry[]>([]);
 	const [choirMinistries, setChoirMinistries] = useState<Ministry[]>([]);
+	const [ministryGroups, setMinistryGroups] = useState<MinistryGroup[]>([]);
 	const [activeRegistrationCycle, setActiveRegistrationCycle] = useState<
 		RegistrationCycle | undefined
 	>();
@@ -512,6 +515,12 @@ function RegisterPageContent() {
 				console.log('DEBUG: Calling getRegistrationCycles()');
 				const cycles = await getRegistrationCycles();
 				console.log('DEBUG: Loaded', cycles.length, 'registration cycles');
+
+				// Load ministry groups for consent management
+				console.log('DEBUG: Calling getMinistryGroups()');
+				const groups = await getMinistryGroups();
+				console.log('DEBUG: Loaded', groups.length, 'ministry groups');
+				setMinistryGroups(groups);
 
 				setAllMinistries(ministries);
 				
@@ -620,7 +629,7 @@ function RegisterPageContent() {
 			consents: {
 				liability: false,
 				photoRelease: false,
-				choir_communications_consent: 'no',
+				group_consents: {},
 				custom_consents: {},
 			},
 		},
@@ -698,14 +707,13 @@ function RegisterPageContent() {
 						consents: {
 							liability: false,
 							photoRelease: false,
-							choir_communications_consent: 'no',
+							group_consents: {},
 							custom_consents: {},
 							...(draftData.consents || {}),
 							// Ensure optional fields have proper defaults
 							liability: draftData.consents?.liability || false,
 							photoRelease: draftData.consents?.photoRelease || false,
-							choir_communications_consent:
-								draftData.consents?.choir_communications_consent || 'no',
+							group_consents: draftData.consents?.group_consents || {},
 							custom_consents: draftData.consents?.custom_consents || {},
 						},
 					});
@@ -800,8 +808,7 @@ function RegisterPageContent() {
 					consents: {
 						liability: data.consents?.liability || false,
 						photoRelease: data.consents?.photoRelease || false,
-						choir_communications_consent:
-							data.consents?.choir_communications_consent || 'no',
+						group_consents: data.consents?.group_consents || {},
 						custom_consents: data.consents?.custom_consents || {},
 					},
 				};
@@ -844,6 +851,11 @@ function RegisterPageContent() {
 		return { otherMinistryPrograms: otherMinistries, choirPrograms: choir };
 	}, [enrolledPrograms, choirMinistries]);
 
+	// Get ministry groups that require consent
+	const groupsRequiringConsent = useMemo(() => {
+		return ministryGroups.filter(group => group.custom_consent_required && group.custom_consent_text);
+	}, [ministryGroups]);
+
 	const prefillForm = useCallback(
 		(data: any) => {
 			console.log('DEBUG: prefillForm called with data:', {
@@ -875,8 +887,7 @@ function RegisterPageContent() {
 					consents: {
 						liability: data.consents?.liability || false,
 						photoRelease: data.consents?.photoRelease || false,
-						choir_communications_consent:
-							data.consents?.choir_communications_consent || 'no',
+						group_consents: data.consents?.group_consents || {},
 						custom_consents: data.consents?.custom_consents || {},
 					},
 				};
@@ -2272,63 +2283,72 @@ function RegisterPageContent() {
 												/>
 											))}
 
-										{choirPrograms.length > 0 && (
-											<div className="p-4 border rounded-md space-y-4">
-												<h3 className="text-lg font-semibold font-headline">
-													Youth Choirs
-												</h3>
-												<FormField
-													control={form.control}
-													name="consents.choir_communications_consent"
-													render={({ field }) => (
-														<FormItem className="space-y-3 p-4 border rounded-md bg-muted/50">
-															<FormLabel className="font-normal leading-relaxed">
-																Cathedral International youth choirs communicate
-																using the Planning Center app. By clicking yes,
-																you agree to be added into the app, which will
-																enable you to download the app, receive emails
-																and push communications.
-															</FormLabel>
-															<FormControl>
-																<RadioGroup
-																	onValueChange={field.onChange}
-																	defaultValue={field.value}
-																	className="flex flex-col space-y-1">
-																	<FormItem className="flex items-center space-x-3 space-y-0">
-																		<FormControl>
-																			<RadioGroupItem value="yes" />
-																		</FormControl>
-																		<FormLabel className="font-normal">
-																			Yes
-																		</FormLabel>
-																	</FormItem>
-																	<FormItem className="flex items-center space-x-3 space-y-0">
-																		<FormControl>
-																			<RadioGroupItem value="no" />
-																		</FormControl>
-																		<FormLabel className="font-normal">
-																			No
-																		</FormLabel>
-																	</FormItem>
-																</RadioGroup>
-															</FormControl>
-															<FormMessage />
-														</FormItem>
-													)}
-												/>
-												<div className="space-y-6">
-													{choirPrograms.map((program) => (
-														<ProgramSection
-															key={program.ministry_id}
+										{/* Dynamic Group Consent Sections */}
+										{groupsRequiringConsent.map((group) => {
+											// Check if any ministries in this group are selected
+											const groupMinistries = choirPrograms.filter(program => 
+												choirMinistries.some(choir => choir.ministry_id === program.ministry_id)
+											);
+											
+											// For now, we'll show consent for groups that have choir ministries
+											// In the future, this could be more sophisticated
+											if (group.code === 'choirs' && choirPrograms.length > 0) {
+												return (
+													<div key={group.id} className="p-4 border rounded-md space-y-4">
+														<h3 className="text-lg font-semibold font-headline">
+															{group.name}
+														</h3>
+														<FormField
 															control={form.control}
-															childrenData={childrenData}
-															program={program}
-															childFields={childFields}
+															name={`consents.group_consents.${group.code}`}
+															render={({ field }) => (
+																<FormItem className="space-y-3 p-4 border rounded-md bg-muted/50">
+																	<FormLabel className="font-normal leading-relaxed">
+																		{group.custom_consent_text}
+																	</FormLabel>
+																	<FormControl>
+																		<RadioGroup
+																			onValueChange={field.onChange}
+																			defaultValue={field.value}
+																			className="flex flex-col space-y-1">
+																			<FormItem className="flex items-center space-x-3 space-y-0">
+																				<FormControl>
+																					<RadioGroupItem value="yes" />
+																				</FormControl>
+																				<FormLabel className="font-normal">
+																					Yes
+																				</FormLabel>
+																			</FormItem>
+																			<FormItem className="flex items-center space-x-3 space-y-0">
+																				<FormControl>
+																					<RadioGroupItem value="no" />
+																				</FormControl>
+																				<FormLabel className="font-normal">
+																					No
+																				</FormLabel>
+																			</FormItem>
+																		</RadioGroup>
+																	</FormControl>
+																	<FormMessage />
+																</FormItem>
+															)}
 														/>
-													))}
-												</div>
-											</div>
-										)}
+														<div className="space-y-6">
+															{choirPrograms.map((program) => (
+																<ProgramSection
+																	key={program.ministry_id}
+																	control={form.control}
+																	childrenData={childrenData}
+																	program={program}
+																	childFields={childFields}
+																/>
+															))}
+														</div>
+													</div>
+												);
+											}
+											return null;
+										})}
 									</CardContent>
 								</Card>
 

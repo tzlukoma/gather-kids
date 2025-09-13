@@ -28,11 +28,21 @@ import { Separator } from '@/components/ui/separator';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import type { MinistryGroup, Ministry } from '@/lib/types';
-import { createMinistryGroup, updateMinistryGroup, getMinistriesInGroup } from '@/lib/dal';
+import {
+	createMinistryGroup,
+	updateMinistryGroup,
+	getMinistriesInGroup,
+} from '@/lib/dal';
 import { useEffect, useState } from 'react';
 
 const ministryGroupFormSchema = z.object({
-	code: z.string().min(1, 'Code is required').regex(/^[a-z0-9_-]+$/, 'Code must contain only lowercase letters, numbers, underscores, and hyphens'),
+	code: z
+		.string()
+		.min(1, 'Code is required')
+		.regex(
+			/^[a-z0-9_-]+$/,
+			'Code must contain only lowercase letters, numbers, underscores, and hyphens'
+		),
 	name: z.string().min(1, 'Name is required'),
 	description: z.string().optional(),
 	email: z.string().email('Invalid email format').optional().or(z.literal('')),
@@ -83,7 +93,7 @@ export function MinistryGroupFormDialog({
 				custom_consent_text: group.custom_consent_text || '',
 				custom_consent_required: group.custom_consent_required || false,
 			});
-			
+
 			// Load ministries in this group
 			setIsLoadingMinistries(true);
 			getMinistriesInGroup(group.id)
@@ -104,7 +114,7 @@ export function MinistryGroupFormDialog({
 				description: '',
 				email: '',
 				custom_consent_text: '',
-				custom_consent_required: false,
+				custom_consent_required: 'no',
 			});
 			setMinistriesInGroup([]);
 			setIsLoadingMinistries(false);
@@ -116,7 +126,10 @@ export function MinistryGroupFormDialog({
 			console.log('🔍 MinistryGroupFormDialog: Submitting form data', data);
 
 			if (isEditing && group) {
-				console.log('🔄 MinistryGroupFormDialog: Updating existing group', group.id);
+				console.log(
+					'🔄 MinistryGroupFormDialog: Updating existing group',
+					group.id
+				);
 				await updateMinistryGroup(group.id, data);
 				toast({
 					title: 'Group Updated',
@@ -131,11 +144,16 @@ export function MinistryGroupFormDialog({
 				});
 			}
 
-			console.log('✅ MinistryGroupFormDialog: Operation completed successfully');
+			console.log(
+				'✅ MinistryGroupFormDialog: Operation completed successfully'
+			);
 			onCloseAction();
 			onGroupUpdated();
 		} catch (error) {
-			console.error('❌ MinistryGroupFormDialog: Error during form submission', error);
+			console.error(
+				'❌ MinistryGroupFormDialog: Error during form submission',
+				error
+			);
 			toast({
 				title: 'Error',
 				description: isEditing
@@ -176,15 +194,16 @@ export function MinistryGroupFormDialog({
 								<FormItem>
 									<FormLabel>Code*</FormLabel>
 									<FormControl>
-										<Input 
-											placeholder="e.g. choirs, youth-ministry" 
-											{...field} 
+										<Input
+											placeholder="e.g. choirs, youth-ministry"
+											{...field}
 											disabled={isEditing} // Don't allow changing code on edit
 										/>
 									</FormControl>
 									<FormDescription>
-										Unique identifier for this group. Use lowercase letters, numbers, underscores, and hyphens only.
-										{isEditing && " (Cannot be changed after creation)"}
+										Unique identifier for this group. Use lowercase letters,
+										numbers, underscores, and hyphens only.
+										{isEditing && ' (Cannot be changed after creation)'}
 									</FormDescription>
 									<FormMessage />
 								</FormItem>
@@ -198,7 +217,10 @@ export function MinistryGroupFormDialog({
 								<FormItem>
 									<FormLabel>Name*</FormLabel>
 									<FormControl>
-										<Input placeholder="e.g. Choirs, Youth Ministry" {...field} />
+										<Input
+											placeholder="e.g. Choirs, Youth Ministry"
+											{...field}
+										/>
 									</FormControl>
 									<FormDescription>
 										Display name for this group that will be shown in the UI.
@@ -222,7 +244,8 @@ export function MinistryGroupFormDialog({
 										/>
 									</FormControl>
 									<FormDescription>
-										Optional description to help identify the purpose of this group.
+										Optional description to help identify the purpose of this
+										group.
 									</FormDescription>
 									<FormMessage />
 								</FormItem>
@@ -236,14 +259,15 @@ export function MinistryGroupFormDialog({
 								<FormItem>
 									<FormLabel>Contact Email</FormLabel>
 									<FormControl>
-										<Input 
-											placeholder="e.g. choirs@example.com" 
+										<Input
+											placeholder="e.g. choirs@example.com"
 											type="email"
-											{...field} 
+											{...field}
 										/>
 									</FormControl>
 									<FormDescription>
-										Optional email address that will receive digest notifications for all ministries in this group.
+										Optional email address that will receive digest
+										notifications for all ministries in this group.
 									</FormDescription>
 									<FormMessage />
 								</FormItem>
@@ -251,10 +275,12 @@ export function MinistryGroupFormDialog({
 						/>
 
 						<Separator />
-						
+
 						<div className="space-y-4">
 							<div>
-								<h4 className="text-sm font-medium">Custom Consent Management</h4>
+								<h4 className="text-sm font-medium">
+									Custom Consent Management
+								</h4>
 								<p className="text-xs text-muted-foreground">
 									Define custom consent text and requirements for this group
 								</p>
@@ -276,7 +302,8 @@ export function MinistryGroupFormDialog({
 												Require custom consent for this group
 											</FormLabel>
 											<FormDescription>
-												When enabled, families will be asked to provide consent when registering for ministries in this group.
+												When enabled, families will be asked to provide consent
+												when registering for ministries in this group.
 											</FormDescription>
 										</div>
 									</FormItem>
@@ -297,7 +324,8 @@ export function MinistryGroupFormDialog({
 											/>
 										</FormControl>
 										<FormDescription>
-											This text will be displayed in the registration form when families register for ministries in this group.
+											This text will be displayed in the registration form when
+											families register for ministries in this group.
 										</FormDescription>
 										<FormMessage />
 									</FormItem>
@@ -310,27 +338,32 @@ export function MinistryGroupFormDialog({
 								<Separator />
 								<div className="space-y-3">
 									<div>
-										<h4 className="text-sm font-medium">Ministries in this Group</h4>
+										<h4 className="text-sm font-medium">
+											Ministries in this Group
+										</h4>
 										<p className="text-xs text-muted-foreground">
 											These ministries are currently assigned to this group
 										</p>
 									</div>
 									{isLoadingMinistries ? (
-										<div className="text-sm text-muted-foreground">Loading ministries...</div>
+										<div className="text-sm text-muted-foreground">
+											Loading ministries...
+										</div>
 									) : ministriesInGroup.length > 0 ? (
 										<div className="flex flex-wrap gap-2">
 											{ministriesInGroup.map((ministry) => (
-												<Badge 
-													key={ministry.ministry_id} 
+												<Badge
+													key={ministry.ministry_id}
 													variant="secondary"
-													className="text-xs"
-												>
+													className="text-xs">
 													{ministry.name}
 												</Badge>
 											))}
 										</div>
 									) : (
-										<div className="text-sm text-muted-foreground">No ministries assigned to this group</div>
+										<div className="text-sm text-muted-foreground">
+											No ministries assigned to this group
+										</div>
 									)}
 								</div>
 							</>
