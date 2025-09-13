@@ -67,14 +67,38 @@ function getEnvVar(varName, fallbacks = []) {
 	return undefined;
 }
 
-// Supabase client setup - use standard environment variables
-const supabaseUrl = process.env.SUPABASE_URL;
-const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const fromEmail = process.env.FROM_EMAIL;
+// Supabase client setup - use standard environment variables with fallbacks
+const supabaseUrl =
+	process.env.SUPABASE_URL ||
+	(ENVIRONMENT === 'PROD'
+		? process.env.PROD_SUPABASE_URL
+		: process.env.UAT_SUPABASE_URL);
+const serviceRoleKey =
+	process.env.SUPABASE_SERVICE_ROLE_KEY ||
+	(ENVIRONMENT === 'PROD'
+		? process.env.PROD_SUPABASE_SERVICE_ROLE_KEY
+		: process.env.UAT_SUPABASE_SERVICE_ROLE_KEY);
+const fromEmail =
+	process.env.FROM_EMAIL ||
+	(ENVIRONMENT === 'PROD'
+		? process.env.PROD_FROM_EMAIL
+		: process.env.UAT_FROM_EMAIL);
 
 // Monitor emails for BCC (optional)
 const monitorEmails = process.env.MONITOR_EMAILS
 	? process.env.MONITOR_EMAILS.split(',')
+			.map((email) => email.trim())
+			.filter((email) => email)
+	: (
+			ENVIRONMENT === 'PROD'
+				? process.env.PROD_MONITOR_EMAILS
+				: process.env.UAT_MONITOR_EMAILS
+	  )
+	? (ENVIRONMENT === 'PROD'
+			? process.env.PROD_MONITOR_EMAILS
+			: process.env.UAT_MONITOR_EMAILS
+	  )
+			.split(',')
 			.map((email) => email.trim())
 			.filter((email) => email)
 	: [];

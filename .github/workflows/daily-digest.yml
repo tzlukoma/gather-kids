@@ -71,21 +71,21 @@ jobs:
           echo "Selected environment: $ENV"
 
           if [ "$ENV" = "PROD" ]; then
-            echo "SUPABASE_URL=$PROD_SUPABASE_URL" >> $GITHUB_ENV
-            echo "SUPABASE_SERVICE_ROLE_KEY=$PROD_SUPABASE_SERVICE_ROLE_KEY" >> $GITHUB_ENV
-            echo "MJ_API_KEY=$MJ_API_KEY" >> $GITHUB_ENV
-            echo "MJ_API_SECRET=$MJ_API_SECRET" >> $GITHUB_ENV
-            echo "FROM_EMAIL=$FROM_EMAIL" >> $GITHUB_ENV
-            echo "MONITOR_EMAILS=$MONITOR_EMAILS" >> $GITHUB_ENV
-            echo "EMAIL_MODE=$PROD_EMAIL_MODE" >> $GITHUB_ENV
+            echo "SUPABASE_URL=${{ env.PROD_SUPABASE_URL }}" >> $GITHUB_ENV
+            echo "SUPABASE_SERVICE_ROLE_KEY=${{ env.PROD_SUPABASE_SERVICE_ROLE_KEY }}" >> $GITHUB_ENV
+            echo "MJ_API_KEY=${{ env.MJ_API_KEY }}" >> $GITHUB_ENV
+            echo "MJ_API_SECRET=${{ env.MJ_API_SECRET }}" >> $GITHUB_ENV
+            echo "FROM_EMAIL=${{ env.FROM_EMAIL }}" >> $GITHUB_ENV
+            echo "MONITOR_EMAILS=${{ env.MONITOR_EMAILS }}" >> $GITHUB_ENV
+            echo "EMAIL_MODE=${{ env.PROD_EMAIL_MODE }}" >> $GITHUB_ENV
           else
-            echo "SUPABASE_URL=$UAT_SUPABASE_URL" >> $GITHUB_ENV
-            echo "SUPABASE_SERVICE_ROLE_KEY=$UAT_SUPABASE_SERVICE_ROLE_KEY" >> $GITHUB_ENV
-            echo "MJ_API_KEY=$UAT_MJ_API_KEY" >> $GITHUB_ENV
-            echo "MJ_API_SECRET=$UAT_MJ_API_SECRET" >> $GITHUB_ENV
-            echo "FROM_EMAIL=$UAT_FROM_EMAIL" >> $GITHUB_ENV
-            echo "MONITOR_EMAILS=$UAT_MONITOR_EMAILS" >> $GITHUB_ENV
-            echo "EMAIL_MODE=$UAT_EMAIL_MODE" >> $GITHUB_ENV
+            echo "SUPABASE_URL=${{ env.UAT_SUPABASE_URL }}" >> $GITHUB_ENV
+            echo "SUPABASE_SERVICE_ROLE_KEY=${{ env.UAT_SUPABASE_SERVICE_ROLE_KEY }}" >> $GITHUB_ENV
+            echo "MJ_API_KEY=${{ env.UAT_MJ_API_KEY }}" >> $GITHUB_ENV
+            echo "MJ_API_SECRET=${{ env.UAT_MJ_API_SECRET }}" >> $GITHUB_ENV
+            echo "FROM_EMAIL=${{ env.UAT_FROM_EMAIL }}" >> $GITHUB_ENV
+            echo "MONITOR_EMAILS=${{ env.UAT_MONITOR_EMAILS }}" >> $GITHUB_ENV
+            echo "EMAIL_MODE=${{ env.UAT_EMAIL_MODE }}" >> $GITHUB_ENV
           fi
 
       - name: Run daily digest
