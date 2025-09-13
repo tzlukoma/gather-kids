@@ -242,7 +242,7 @@ async function getNewEnrollments(since) {
 				dob,
 				households!children_household_id_fkey (
 					household_id,
-					primary_email,
+					email,
 					name
 				)
 			)
