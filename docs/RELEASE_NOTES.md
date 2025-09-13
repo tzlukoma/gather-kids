@@ -1,10 +1,37 @@
-# Release Notes - gatherKids v1.0.0
+# Release Notes - gatherKids
 
-## Overview
+## v1.1.0 - Daily Digest & Enhanced Communication
+
+### 🆕 New Features
+
+#### Daily Digest System
+- **Automated daily enrollment notifications** - Ministry leaders receive daily emails summarizing new enrollments
+- **Admin digest emails** - System administrators get comprehensive daily reports across all ministries
+- **Primary guardian contact information** - Digest emails include correct household contact emails from primary guardians
+- **Ministry-specific notifications** - Each ministry leader receives only their relevant enrollment information
+- **Professional email templates** - Clean, branded email formatting for both HTML and text versions
+- **Automated scheduling** - Daily digest runs automatically via GitHub Actions workflow
+
+#### Enhanced Data Management
+- **Improved guardian email handling** - System now correctly identifies and uses primary guardian emails for household contact
+- **Better enrollment tracking** - Enhanced querying to provide accurate enrollment data in digest emails
+- **Debug logging improvements** - Better visibility into enrollment data processing for troubleshooting
+
+### 🔧 Technical Improvements
+- **Database query optimization** - Updated enrollment queries to properly join guardian data
+- **Email content generation** - Refactored email templates to use correct data sources
+- **Error handling** - Improved error handling and logging for email delivery
+- **Data validation** - Enhanced validation of guardian and household data
+
+---
+
+## v1.0.0 - Initial Release
+
+### Overview
 
 This release introduces the core functionality of gatherKids, a comprehensive ministry management system designed to streamline registration, attendance tracking, and ministry operations for churches and religious organizations.
 
-## 🎯 Core Features
+### 🎯 Core Features
 
 ### Registration System
 
@@ -21,9 +48,7 @@ This release introduces the core functionality of gatherKids, a comprehensive mi
 - **Registration cycle tracking** with seasonal organization
 - **Comprehensive data export** capabilities for reporting and record-keeping
 
----
-
-## 👨‍👩‍👧‍👦 Family Features (GUARDIAN Role)
+### 👨‍👩‍👧‍👦 Family Features (GUARDIAN Role)
 
 ### Registration & Enrollment
 
@@ -41,15 +66,11 @@ This release introduces the core functionality of gatherKids, a comprehensive mi
 
 _Note: Profile editing, consent status viewing, and update capabilities are planned for future releases_
 
----
-
-## 👥 Leader Features (MINISTRY_LEADER Role)
+### 👥 Leader Features (MINISTRY_LEADER Role)
 
 _All leader features are currently in Beta status. See the Beta Features section below for detailed information._
 
----
-
-## 🔧 Administrator Features (ADMIN Role)
+### 🔧 Administrator Features (ADMIN Role)
 
 ### System Management
 
@@ -89,9 +110,7 @@ _All leader features are currently in Beta status. See the Beta Features section
 - **Cross-cycle reporting** - Ability to analyze data across multiple registration cycles
 - **Cycle transitions** - Smooth transitions between registration periods
 
----
-
-## 🚧 Features in Development (Beta Status)
+### 🚧 Features in Development (Beta Status)
 
 The following features are currently in **Beta** status, meaning they are functional but may have limited features or require additional testing:
 
@@ -136,9 +155,7 @@ The following features are currently in **Beta** status, meaning they are functi
 - Emergency snapshots and basic analytics
 - _Note: Additional report types and customization options in development_
 
----
-
-## 🛡️ Security & Privacy
+### 🛡️ Security & Privacy
 
 ### Data Protection
 
@@ -154,9 +171,7 @@ The following features are currently in **Beta** status, meaning they are functi
 - **Session security** - Automatic logout and session timeout for security
 - **Access logging** - Comprehensive logging of system access and changes
 
----
-
-## 📱 Technical Features
+### 📱 Technical Features
 
 ### Database Management
 
@@ -179,9 +194,7 @@ The following features are currently in **Beta** status, meaning they are functi
 - **Data portability** - Easy data export for migration or backup purposes
 - **Reporting integration** - Built-in reporting capabilities with export options
 
----
-
-## 🎉 Getting Started
+### 🎉 Getting Started
 
 ### For Families
 
@@ -204,9 +217,7 @@ The following features are currently in **Beta** status, meaning they are functi
 3. **Manage registration cycles** - Control when registrations are open
 4. **Generate reports** - Use reporting tools to analyze participation and attendance
 
----
-
-## 📞 Support & Feedback
+### 📞 Support & Feedback
 
 ### Beta Feature Feedback
 
