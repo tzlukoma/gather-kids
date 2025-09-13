@@ -126,10 +126,12 @@ const ProgramEnrollmentCard = ({
 
 const ChildCard = ({
 	child,
+	cycleNames,
 	onPhotoClick,
 	onPhotoViewClick,
 }: {
 	child: HouseholdProfileData['children'][0];
+	cycleNames: Record<string, string>;
 	onPhotoClick: (child: Child) => void;
 	onPhotoViewClick: (photo: { name: string; url: string }) => void;
 }) => {
@@ -204,10 +206,11 @@ const ChildCard = ({
 						className="w-full">
 						{sortedCycleIds.map((cycleId) => {
 							const enrollments = child.enrollmentsByCycle[cycleId];
+							const cycleName = cycleNames[cycleId] || cycleId; // Fallback to cycleId if name not found
 							return (
 								<AccordionItem key={cycleId} value={cycleId}>
 									<AccordionTrigger>
-										{cycleId} Registration Year
+										{cycleName} Registration Year
 									</AccordionTrigger>
 									<AccordionContent>
 										<div className="space-y-3">
@@ -240,7 +243,8 @@ export function HouseholdProfile({
 }: {
 	profileData: HouseholdProfileData;
 }) {
-	const { household, guardians, emergencyContact, children } = profileData;
+	const { household, guardians, emergencyContact, children, cycleNames } =
+		profileData;
 	const [selectedChildForPhoto, setSelectedChildForPhoto] =
 		useState<Child | null>(null);
 	const [viewingPhoto, setViewingPhoto] = useState<{
@@ -336,6 +340,7 @@ export function HouseholdProfile({
 							<ChildCard
 								key={child.child_id}
 								child={child}
+								cycleNames={cycleNames}
 								onPhotoClick={setSelectedChildForPhoto}
 								onPhotoViewClick={setViewingPhoto}
 							/>
@@ -357,6 +362,7 @@ export function HouseholdProfile({
 									<ChildCard
 										key={child.child_id}
 										child={child}
+										cycleNames={cycleNames}
 										onPhotoClick={setSelectedChildForPhoto}
 										onPhotoViewClick={setViewingPhoto}
 									/>

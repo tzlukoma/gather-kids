@@ -349,6 +349,7 @@ export interface HouseholdProfileData {
     guardians: Guardian[];
     emergencyContact: EmergencyContact | null;
     children: (Child & { age: number | null, enrollmentsByCycle: Record<string, EnrichedEnrollment[]> })[];
+    cycleNames: Record<string, string>; // Map of cycle_id to cycle name
 }
 
 export async function getHouseholdProfile(householdId: string): Promise<HouseholdProfileData> {
@@ -371,6 +372,13 @@ export async function getHouseholdProfile(householdId: string): Promise<Househol
         const allMinistries = await dbAdapter.listMinistries();
         console.log('DEBUG: getHouseholdProfile - allMinistries count:', allMinistries.length);
         const ministryMap = new Map(allMinistries.map(m => [m.ministry_id, m]));
+
+        // Get all registration cycles to map cycle IDs to names
+        const allCycles = await dbAdapter.listRegistrationCycles();
+        const cycleNames: Record<string, string> = {};
+        allCycles.forEach(cycle => {
+            cycleNames[cycle.cycle_id] = cycle.name;
+        });
 
         const childrenWithEnrollments = children.map(child => {
             const enrollmentsByCycle = childEnrollments
@@ -404,6 +412,7 @@ export async function getHouseholdProfile(householdId: string): Promise<Househol
             guardians,
             emergencyContact,
             children: childrenWithEnrollments,
+            cycleNames,
         };
     } else {
         // Use legacy Dexie interface for demo mode
@@ -416,6 +425,13 @@ export async function getHouseholdProfile(householdId: string): Promise<Househol
         const allEnrollments = await db.ministry_enrollments.where('child_id').anyOf(childIds).toArray();
         const allMinistries = await db.ministries.toArray();
         const ministryMap = new Map(allMinistries.map(m => [m.ministry_id, m]));
+
+        // Get all registration cycles to map cycle IDs to names
+        const allCycles = await db.registration_cycles.toArray();
+        const cycleNames: Record<string, string> = {};
+        allCycles.forEach(cycle => {
+            cycleNames[cycle.cycle_id] = cycle.name;
+        });
 
         const childrenWithEnrollments = children.map(child => {
             const enrollmentsByCycle = allEnrollments
@@ -449,6 +465,7 @@ export async function getHouseholdProfile(householdId: string): Promise<Househol
             guardians,
             emergencyContact,
             children: childrenWithEnrollments,
+            cycleNames,
         };
     }
 }

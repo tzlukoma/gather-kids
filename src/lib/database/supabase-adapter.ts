@@ -627,6 +627,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 		const r = row ?? {} as Record<string, unknown>;
 		return {
 			cycle_id: (r['cycle_id'] as string) || '',
+			name: (r['name'] as string) || '',
 			start_date: (r['start_date'] as string) || '',
 			end_date: (r['end_date'] as string) || '',
 			is_active: r['is_active'] === null || r['is_active'] === undefined ? false : !!r['is_active'],
