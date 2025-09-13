@@ -27,30 +27,20 @@ on:
         type: boolean
 
 jobs:
-  digest:
+  digest-prod:
+    if: ${{ inputs.environment == 'PROD' || inputs.environment == '' }}
     runs-on: ubuntu-latest
     env:
-      ENVIRONMENT: ${{ inputs.environment || 'PROD' }}
+      ENVIRONMENT: PROD
       DRY_RUN: ${{ inputs.dry_run && 'true' || 'false' }}
       TEST_MODE: ${{ inputs.test_mode && 'true' || 'false' }}
-      # Production environment variables (default)
-      PROD_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-      PROD_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-      MJ_API_KEY: ${{ secrets.MJ_API_KEY }}
-      MJ_API_SECRET: ${{ secrets.MJ_API_SECRET }}
-      FROM_EMAIL: ${{ secrets.FROM_EMAIL }}
-      MONITOR_EMAILS: ${{ secrets.MONITOR_EMAILS }}
-      # UAT environment variables (when ENVIRONMENT=UAT)
-      UAT_SUPABASE_URL: ${{ secrets.UAT_SUPABASE_URL }}
-      UAT_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.UAT_SUPABASE_SERVICE_ROLE_KEY }}
-      UAT_MJ_API_KEY: ${{ secrets.UAT_MJ_API_KEY }}
-      UAT_MJ_API_SECRET: ${{ secrets.UAT_MJ_API_SECRET }}
-      UAT_FROM_EMAIL: ${{ secrets.UAT_FROM_EMAIL }}
-      UAT_MONITOR_EMAILS: ${{ secrets.UAT_MONITOR_EMAILS }}
-      # Email mode configuration
-      PROD_EMAIL_MODE: ${{ secrets.PROD_EMAIL_MODE || 'mailjet' }}
-      UAT_EMAIL_MODE: ${{ secrets.UAT_EMAIL_MODE || 'mailjet' }}
-      EMAIL_MODE: ${{ secrets.EMAIL_MODE || 'mailjet' }}
+      SUPABASE_URL: ${{ secrets.PROD_SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.PROD_SUPABASE_SERVICE_ROLE_KEY }}
+      MJ_API_KEY: ${{ secrets.PROD_MJ_API_KEY }}
+      MJ_API_SECRET: ${{ secrets.PROD_MJ_API_SECRET }}
+      FROM_EMAIL: ${{ secrets.PROD_FROM_EMAIL }}
+      MONITOR_EMAILS: ${{ secrets.PROD_MONITOR_EMAILS }}
+      EMAIL_MODE: ${{ secrets.PROD_EMAIL_MODE || 'mailjet' }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -64,39 +54,73 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run daily digest
-        env:
-          SUPABASE_URL: ${{ env.ENVIRONMENT == 'PROD' && env.PROD_SUPABASE_URL || env.UAT_SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ env.ENVIRONMENT == 'PROD' && env.PROD_SUPABASE_SERVICE_ROLE_KEY || env.UAT_SUPABASE_SERVICE_ROLE_KEY }}
-          MJ_API_KEY: ${{ env.ENVIRONMENT == 'PROD' && env.MJ_API_KEY || env.UAT_MJ_API_KEY }}
-          MJ_API_SECRET: ${{ env.ENVIRONMENT == 'PROD' && env.MJ_API_SECRET || env.UAT_MJ_API_SECRET }}
-          FROM_EMAIL: ${{ env.ENVIRONMENT == 'PROD' && env.PROD_FROM_EMAIL || env.UAT_FROM_EMAIL }}
-          MONITOR_EMAILS: ${{ env.ENVIRONMENT == 'PROD' && env.PROD_MONITOR_EMAILS || env.UAT_MONITOR_EMAILS }}
-          EMAIL_MODE: ${{ env.ENVIRONMENT == 'PROD' && env.PROD_EMAIL_MODE || env.UAT_EMAIL_MODE }}
+      - name: Run daily digest (PROD)
         run: |
-          echo "Debug: Environment variables in step:"
-          echo "ENVIRONMENT: $ENVIRONMENT"
-          echo "SUPABASE_URL: ${SUPABASE_URL:0:20}..."
-          echo "FROM_EMAIL: $FROM_EMAIL"
-          echo "MONITOR_EMAILS: $MONITOR_EMAILS"
-          echo "MJ_API_KEY: ${MJ_API_KEY:0:10}..."
-          echo "MJ_API_SECRET: ${MJ_API_SECRET:0:10}..."
-          echo "EMAIL_MODE: $EMAIL_MODE"
-          echo ""
+          echo "Running PROD daily digest..."
+          echo "Environment: $ENVIRONMENT"
+          echo "Dry run: $DRY_RUN"
+          echo "Test mode: $TEST_MODE"
           node scripts/dailyDigest.js
 
       - name: Log completion
         if: success()
         run: |
-          echo "Daily digest completed successfully at $(date)"
-          echo "Environment: ${{ env.ENVIRONMENT }}"
-          echo "Dry run: ${{ env.DRY_RUN }}"
-          echo "Test mode: ${{ env.TEST_MODE }}"
+          echo "PROD daily digest completed successfully at $(date)"
+          echo "Dry run: $DRY_RUN"
+          echo "Test mode: $TEST_MODE"
 
       - name: Log failure
         if: failure()
         run: |
-          echo "Daily digest failed at $(date)"
-          echo "Environment: ${{ env.ENVIRONMENT }}"
-          echo "Dry run: ${{ env.DRY_RUN }}"
-          echo "Test mode: ${{ env.TEST_MODE }}"
+          echo "PROD daily digest failed at $(date)"
+          echo "Dry run: $DRY_RUN"
+          echo "Test mode: $TEST_MODE"
+
+  digest-uat:
+    if: ${{ inputs.environment == 'UAT' }}
+    runs-on: ubuntu-latest
+    env:
+      ENVIRONMENT: UAT
+      DRY_RUN: ${{ inputs.dry_run && 'true' || 'false' }}
+      TEST_MODE: ${{ inputs.test_mode && 'true' || 'false' }}
+      SUPABASE_URL: ${{ secrets.UAT_SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.UAT_SUPABASE_SERVICE_ROLE_KEY }}
+      MJ_API_KEY: ${{ secrets.UAT_MJ_API_KEY }}
+      MJ_API_SECRET: ${{ secrets.UAT_MJ_API_SECRET }}
+      FROM_EMAIL: ${{ secrets.UAT_FROM_EMAIL }}
+      MONITOR_EMAILS: ${{ secrets.UAT_MONITOR_EMAILS }}
+      EMAIL_MODE: ${{ secrets.UAT_EMAIL_MODE || 'mailjet' }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run daily digest (UAT)
+        run: |
+          echo "Running UAT daily digest..."
+          echo "Environment: $ENVIRONMENT"
+          echo "Dry run: $DRY_RUN"
+          echo "Test mode: $TEST_MODE"
+          node scripts/dailyDigest.js
+
+      - name: Log completion
+        if: success()
+        run: |
+          echo "UAT daily digest completed successfully at $(date)"
+          echo "Dry run: $DRY_RUN"
+          echo "Test mode: $TEST_MODE"
+
+      - name: Log failure
+        if: failure()
+        run: |
+          echo "UAT daily digest failed at $(date)"
+          echo "Dry run: $DRY_RUN"
+          echo "Test mode: $TEST_MODE"
