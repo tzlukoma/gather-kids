@@ -319,7 +319,7 @@ const defaultChildValues = {
 	child_id: '', // Will be generated when child is added
 	first_name: '',
 	last_name: '',
-	dob: '',
+	dob: '2015-06-15', // Age 9-10, eligible for Keita Choir (ages 9-12)
 	grade: '',
 	child_mobile: '',
 	allergies: '',
