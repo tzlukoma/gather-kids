@@ -30,6 +30,7 @@ jobs:
   digest-prod:
     if: ${{ inputs.environment == 'PROD' || inputs.environment == '' }}
     runs-on: ubuntu-latest
+    environment: production
     env:
       ENVIRONMENT: PROD
       DRY_RUN: ${{ inputs.dry_run && 'true' || 'false' }}
@@ -97,6 +98,7 @@ jobs:
   digest-uat:
     if: ${{ inputs.environment == 'UAT' }}
     runs-on: ubuntu-latest
+    environment: uat
     env:
       ENVIRONMENT: UAT
       DRY_RUN: ${{ inputs.dry_run && 'true' || 'false' }}
