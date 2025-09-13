@@ -134,7 +134,7 @@ const ministriesData = [
 	},
 	{
 		name: 'Youth Choirs- Joy Bells (Ages 4-8)',
-		code: 'joy-bells',
+		code: 'choir-joy-bells',
 		enrollment_type: 'enrolled',
 		details:
 			"Thank you for registering for Joy Bells.\n\nYou will receive information from ministry leaders regarding next steps for your child's participation.",
@@ -145,7 +145,7 @@ const ministriesData = [
 	},
 	{
 		name: 'Youth Choirs- Keita Praise Choir (Ages 9-12)',
-		code: 'keita-praise',
+		code: 'choir-keita-praise',
 		enrollment_type: 'enrolled',
 		details:
 			"Thank you for registering for Keita Praise Choir.\n\nYou will receive information from ministry leaders regarding next steps for your child's participation.",
@@ -156,7 +156,7 @@ const ministriesData = [
 	},
 	{
 		name: 'Youth Choirs- New Generation Teen Choir (Ages 13-18)',
-		code: 'teen-choir',
+		code: 'choir-teen-choir',
 		enrollment_type: 'enrolled',
 		details:
 			"Thank you for registering for New Generation Teen Choir.\n\nYou will receive information from ministry leaders regarding next steps for your child's participation.",
