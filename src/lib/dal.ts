@@ -3535,6 +3535,38 @@ export async function getMinistries(isActive?: boolean): Promise<Ministry[]> {
 	}
 }
 
+/**
+ * Get ministries by group code (e.g., 'choirs')
+ */
+export async function getMinistriesByGroupCode(groupCode: string): Promise<Ministry[]> {
+	if (shouldUseAdapter()) {
+		// Use Supabase adapter for live mode
+		const group = await dbAdapter.getMinistryGroupByCode(groupCode);
+		if (!group) return [];
+		return await dbAdapter.listMinistriesByGroup(group.id);
+	} else {
+		// Use Dexie database for demo mode
+		const group = await db.ministry_groups.where('code').equals(groupCode).first();
+		if (!group) return [];
+		
+		const memberships = await db.ministry_group_members.where('group_id').equals(group.id).toArray();
+		const ministryIds = memberships.map(m => m.ministry_id);
+		
+		if (ministryIds.length === 0) return [];
+		
+		const ministries = await db.ministries.where('ministry_id').anyOf(ministryIds).toArray();
+		return ministries;
+	}
+}
+
+/**
+ * Check if a ministry is part of a group by code (e.g., for choir grouping)
+ */
+export async function isMinistryInGroup(ministryId: string, groupCode: string): Promise<boolean> {
+	const groupMinistries = await getMinistriesByGroupCode(groupCode);
+	return groupMinistries.some(m => m.ministry_id === ministryId);
+}
+
 export async function getRegistrationCycles(isActive?: boolean): Promise<RegistrationCycle[]> {
 	if (shouldUseAdapter()) {
 		// Use Supabase adapter for live mode

@@ -182,6 +182,35 @@ export interface MinistryAccount {
     updated_at: string;
 }
 
+// NEW: Ministry Groups (for grouping ministries with shared RBAC)
+export interface MinistryGroup {
+    id: string; // PK
+    code: string; // unique, e.g., 'choirs'
+    name: string; // display name, e.g., 'Choirs'
+    description?: string;
+    created_at: string;
+    updated_at: string;
+}
+
+// NEW: Ministry Group Members (many-to-many: ministries ↔ groups)
+export interface MinistryGroupMember {
+    group_id: string; // FK to ministry_groups.id
+    ministry_id: string; // FK to ministries.ministry_id
+    created_at: string;
+}
+
+// NEW: Ministry Group Contacts (group-level email RBAC and digest recipients)
+export interface MinistryGroupContact {
+    id: string; // PK
+    group_id: string; // FK to ministry_groups.id
+    email: string; // case-insensitive
+    display_name?: string;
+    role: 'ADMIN' | 'VIEWER';
+    is_active: boolean;
+    created_at: string;
+    updated_at: string;
+}
+
 export interface User {
     user_id: string; // PK
     name: string;
