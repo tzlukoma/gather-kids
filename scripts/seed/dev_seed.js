@@ -146,12 +146,17 @@ async function createRegistrationCycleData() {
 		const cycleId = `${EXTERNAL_ID_PREFIX}cycle_${year}_${season.toLowerCase()}`;
 
 		// Force create a new cycle with a unique ID by appending a timestamp
-		const timestamp = new Date()
+		const now = new Date();
+		const timestamp = now
 			.toISOString()
 			.replace(/[^0-9]/g, '')
 			.substring(0, 14);
+		const humanReadableDate = `${String(now.getMonth() + 1).padStart(
+			2,
+			'0'
+		)}-${String(now.getDate()).padStart(2, '0')}-${now.getFullYear()}`;
 		const uniqueCycleId = `${cycleId}_${timestamp}`;
-		const uniqueCycleName = `${cycleName} (${timestamp})`;
+		const uniqueCycleName = `${cycleName} (${humanReadableDate})`;
 
 		console.log(
 			`🔄 Creating a new unique registration cycle: ${uniqueCycleName}`

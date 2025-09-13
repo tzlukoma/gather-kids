@@ -13,7 +13,7 @@ import {
 	SidebarMenuButton,
 	SidebarTrigger,
 } from '@/components/ui/sidebar';
-import { getLeaderAssignmentsForCycle } from '@/lib/dal';
+import { getLeaderAssignmentsForCycle, getRegistrationCycles } from '@/lib/dal';
 import { Button } from '@/components/ui/button';
 import {
 	DropdownMenu,

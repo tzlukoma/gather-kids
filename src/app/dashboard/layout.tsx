@@ -91,6 +91,13 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 	}
 
 	React.useEffect(() => {
+		console.log('DashboardLayout: useEffect triggered', {
+			loading,
+			user: user ? { uid: user.uid, role: user.metadata?.role } : null,
+			menuItemsLength: menuItems.length,
+			pathname,
+		});
+
 		if (loading) return;
 
 		if (!user) {
