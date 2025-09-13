@@ -75,8 +75,8 @@ jobs:
             echo "SUPABASE_SERVICE_ROLE_KEY=${{ env.PROD_SUPABASE_SERVICE_ROLE_KEY }}" >> $GITHUB_ENV
             echo "MJ_API_KEY=${{ env.MJ_API_KEY }}" >> $GITHUB_ENV
             echo "MJ_API_SECRET=${{ env.MJ_API_SECRET }}" >> $GITHUB_ENV
-            echo "FROM_EMAIL=${{ env.FROM_EMAIL }}" >> $GITHUB_ENV
-            echo "MONITOR_EMAILS=${{ env.MONITOR_EMAILS }}" >> $GITHUB_ENV
+            echo "FROM_EMAIL=${{ env.PROD_FROM_EMAIL }}" >> $GITHUB_ENV
+            echo "MONITOR_EMAILS=${{ env.PROD_MONITOR_EMAILS }}" >> $GITHUB_ENV
             echo "EMAIL_MODE=${{ env.PROD_EMAIL_MODE }}" >> $GITHUB_ENV
           else
             echo "SUPABASE_URL=${{ env.UAT_SUPABASE_URL }}" >> $GITHUB_ENV
