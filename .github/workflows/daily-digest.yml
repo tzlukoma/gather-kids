@@ -145,10 +145,10 @@ jobs:
           echo "UAT_MJ_API_SECRET: ${{ secrets.UAT_MJ_API_SECRET != '' && 'YES' || 'NO' }}"
           echo "EMAIL_MODE: ${{ secrets.EMAIL_MODE != '' && 'YES' || 'NO' }}"
           echo "Testing secret access with different methods:"
-          echo "UAT_FROM_EMAIL length: ${{ length(secrets.UAT_FROM_EMAIL) }}"
-          echo "UAT_MONITOR_EMAILS length: ${{ length(secrets.UAT_MONITOR_EMAILS) }}"
-          echo "UAT_MJ_API_KEY length: ${{ length(secrets.UAT_MJ_API_KEY) }}"
-          echo "UAT_MJ_API_SECRET length: ${{ length(secrets.UAT_MJ_API_SECRET) }}"
+          echo "UAT_FROM_EMAIL has value: ${{ secrets.UAT_FROM_EMAIL != '' && 'YES' || 'NO' }}"
+          echo "UAT_MONITOR_EMAILS has value: ${{ secrets.UAT_MONITOR_EMAILS != '' && 'YES' || 'NO' }}"
+          echo "UAT_MJ_API_KEY has value: ${{ secrets.UAT_MJ_API_KEY != '' && 'YES' || 'NO' }}"
+          echo "UAT_MJ_API_SECRET has value: ${{ secrets.UAT_MJ_API_SECRET != '' && 'YES' || 'NO' }}"
 
       - name: Run daily digest (UAT)
         run: |
