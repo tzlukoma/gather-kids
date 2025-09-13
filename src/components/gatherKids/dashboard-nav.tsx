@@ -13,8 +13,9 @@ import {
 	SidebarMenuButton,
 	SidebarTrigger,
 } from '@/components/ui/sidebar';
-import { getLeaderAssignmentsForCycle } from '@/lib/dal';
+import { getLeaderAssignmentsForCycle, getRegistrationCycles } from '@/lib/dal';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -92,9 +93,17 @@ export function DashboardNav({ children }: DashboardNavProps) {
 				try {
 					const leaderId = getUserId(user) as string | undefined;
 					if (!leaderId) return;
+
+					// Get active registration cycle
+					const cycles = await getRegistrationCycles(true); // Get only active cycles
+					const activeCycle = cycles.find(
+						(c) => c.is_active === true || Number(c.is_active) === 1
+					);
+					const cycleId = activeCycle?.cycle_id || '2025'; // fallback to '2025' if no active cycle found
+
 					const dbAssignments = await getLeaderAssignmentsForCycle(
 						leaderId,
-						'2025'
+						cycleId
 					);
 					if (!mounted) return;
 					setAssignmentsFromDb(dbAssignments.map((a) => a.ministry_id));
@@ -170,6 +179,12 @@ export function DashboardNav({ children }: DashboardNavProps) {
 								const Icon = item.icon as
 									| React.ComponentType<any>
 									| React.ReactNode;
+								console.log(
+									'Rendering menu item:',
+									item.label,
+									'isBeta:',
+									item.isBeta
+								);
 								return (
 									<SidebarMenuItem
 										key={item.href}
@@ -177,9 +192,16 @@ export function DashboardNav({ children }: DashboardNavProps) {
 										<SidebarMenuButton asChild>
 											<Link
 												href={item.href}
-												className="flex items-center gap-2">
+												className="flex items-center gap-2 w-full">
 												{renderIcon(Icon)}
-												<span>{item.label}</span>
+												<span className="flex-1">{item.label}</span>
+												{item.isBeta && (
+													<Badge
+														variant="secondary"
+														className="text-xs px-1.5 py-0.5 ml-auto bg-blue-100 text-blue-800 border border-blue-200">
+														Beta
+													</Badge>
+												)}
 											</Link>
 										</SidebarMenuButton>
 									</SidebarMenuItem>

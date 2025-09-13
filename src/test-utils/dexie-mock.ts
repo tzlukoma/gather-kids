@@ -266,6 +266,7 @@ export function createInMemoryDB() {
         audit_logs: createTable('log_id'),
         // Additional Bible Bee tables needed by IndexedDBAdapter
         bible_bee_years: createTable('year_id'),
+        bible_bee_cycles: createTable('id'),
         divisions: createTable('division_id'),
         essay_prompts: createTable('prompt_id'),
         enrollments: createTable('id'),

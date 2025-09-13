@@ -410,3 +410,12 @@ export interface UserHousehold {
     household_id: string; // FK to households
     created_at: string;
 }
+
+export interface FormDraft {
+    id: string; // `${form_name}::${user_id}`
+    form_name: string;
+    user_id: string;
+    payload: any; // JSON object containing form data
+    version: number;
+    updated_at: string;
+}

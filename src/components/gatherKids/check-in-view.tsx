@@ -189,16 +189,20 @@ export function CheckInView({
 						new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
 				);
 
+				const emergencyContact =
+					emergencyContactMap.get(c.household_id) || null;
+
 				return {
 					...c,
 					activeAttendance: activeAttendance,
 					guardians: guardianMap.get(c.household_id) || [],
 					household: householdMap.get(c.household_id) || null,
-					emergencyContact: emergencyContactMap.get(c.household_id) || null,
+					emergencyContact: emergencyContact,
 					incidents: childIncidents,
 					age: c.dob ? differenceInYears(new Date(), parseISO(c.dob)) : null,
 				};
 			});
+
 			setChildren(enriched);
 		};
 		enrichChildren();

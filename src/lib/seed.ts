@@ -77,7 +77,7 @@ const generateHouseholdsAndChildren = (): { households: Household[], children: C
             name: `${family.lastName} Household`,
             address_line1: `${householdCounter * 123} Main St`,
             city: 'Anytown',
-            state: 'CA',
+            state: 'NJ',
             zip: '12345',
             // randomly assign a preferred scripture translation for demo purposes
             preferredScriptureTranslation: Math.random() < 0.33 ? 'NIV' : Math.random() < 0.5 ? 'KJV' : 'NLT',

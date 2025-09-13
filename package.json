@@ -1,6 +1,6 @@
 {
   "name": "nextn",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -41,6 +41,9 @@
     "seed:dev:ministries:dry": "DOTENV_CONFIG_PATH=.env.local DRY_RUN=true node -r dotenv/config scripts/seed/dev_ministries_seed.js",
     "seed:dev": "DOTENV_CONFIG_PATH=.env.local node -r dotenv/config scripts/seed/dev_seed.js",
     "seed:dev:dry": "DOTENV_CONFIG_PATH=.env.local DRY_RUN=true node -r dotenv/config scripts/seed/dev_seed.js",
+    "seed:prod:ministries": "node scripts/seed/prod_ministries.js",
+    "seed:prod:ministries:dry": "DRY_RUN=true node scripts/seed/prod_ministries.js",
+    "fix:inactive-ministries": "DOTENV_CONFIG_PATH=.env.uat node -r dotenv/config scripts/seed/fix_inactive_ministries.js",
     "import:grab-dexie": "node scripts/import/grabDexieExport.mjs",
     "import:dexie": "DOTENV_CONFIG_PATH=.env.local node -r dotenv/config scripts/import/importDexie.js",
     "import:dexie:dry": "DOTENV_CONFIG_PATH=.env.local node -r dotenv/config scripts/import/importDexie.js --dry-run",

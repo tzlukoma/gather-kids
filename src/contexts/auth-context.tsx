@@ -65,7 +65,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 							...storedUser,
 							metadata: {
 								...storedUser.metadata,
-								role: storedUser.metadata?.role || AuthRole.ADMIN,
+								role: storedUser.metadata?.role || AuthRole.GUEST,
 							},
 							is_active:
 								typeof storedUser.is_active === 'boolean'
@@ -77,9 +77,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 						if (finalUser.metadata.role === AuthRole.MINISTRY_LEADER) {
 							const leaderId = getUserId(storedUser);
 							if (leaderId) {
+								// Get active registration cycle
+								const cycles = await getRegistrationCycles(true); // Get only active cycles
+								const activeCycle = cycles.find(
+									(c) => c.is_active === true || Number(c.is_active) === 1
+								);
+								const cycleId = activeCycle?.cycle_id || '2025'; // fallback to '2025' if no active cycle found
+
 								const assignments = await getLeaderAssignmentsForCycle(
 									leaderId,
-									'2025'
+									cycleId
 								);
 								finalUser.assignedMinistryIds = assignments.map(
 									(a) => a.ministry_id
@@ -108,7 +115,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 						console.log('AuthProvider: Found active Supabase session');
 						// Convert Supabase user to BaseUser format
 						const supabaseUser = session.user;
-						const userRole = supabaseUser.user_metadata?.role || AuthRole.ADMIN;
+						const userRole = supabaseUser.user_metadata?.role || AuthRole.GUEST;
 
 						const finalUser: BaseUser = {
 							uid: supabaseUser.id,
@@ -128,9 +135,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 						if (finalUser.metadata.role === AuthRole.MINISTRY_LEADER) {
 							const leaderId = getUserId(finalUser);
 							if (typeof leaderId === 'string' && leaderId.length > 0) {
+								// Get active registration cycle
+								const cycles = await getRegistrationCycles(true); // Get only active cycles
+								const activeCycle = cycles.find(
+									(c) => c.is_active === true || Number(c.is_active) === 1
+								);
+								const cycleId = activeCycle?.cycle_id || '2025'; // fallback to '2025' if no active cycle found
+
 								const assignments = await getLeaderAssignmentsForCycle(
 									leaderId,
-									'2025'
+									cycleId
 								);
 								finalUser.assignedMinistryIds = assignments.map(
 									(a) => a.ministry_id
@@ -164,7 +178,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 								console.log('AuthProvider: Session refresh successful!');
 								const recoveredUser = refreshResult.data.session.user;
 								const userRole =
-									recoveredUser.user_metadata?.role || AuthRole.ADMIN;
+									recoveredUser.user_metadata?.role || AuthRole.GUEST;
 
 								const finalUser: BaseUser = {
 									uid: recoveredUser.id,
@@ -240,7 +254,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 				) {
 					console.log('AuthProvider: Processing auth state change:', event);
 					const supabaseUser = session.user;
-					const userRole = supabaseUser.user_metadata?.role || AuthRole.ADMIN;
+					const userRole = supabaseUser.user_metadata?.role || AuthRole.GUEST;
 
 					console.log('AuthProvider: User metadata:', {
 						role: supabaseUser.user_metadata?.role,

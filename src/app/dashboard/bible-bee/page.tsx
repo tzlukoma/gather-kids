@@ -17,6 +17,7 @@ import {
 	CardTitle,
 	CardDescription,
 } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import ScriptureCard from '@/components/gatherKids/scripture-card';
 import BibleBeeManage from '@/components/gatherKids/bible-bee-manage';
@@ -236,7 +237,14 @@ export default function BibleBeePage() {
 	return (
 		<div className="flex flex-col gap-6">
 			<div>
-				<h1 className="text-3xl font-bold font-headline">Bible Bee</h1>
+				<div className="flex items-center gap-2">
+					<h1 className="text-3xl font-bold font-headline">Bible Bee</h1>
+					<Badge
+						variant="secondary"
+						className="text-xs bg-blue-100 text-blue-800 border border-blue-200">
+						Beta
+					</Badge>
+				</div>
 				<p className="text-muted-foreground">
 					Progress and scriptures for the selected year.
 				</p>

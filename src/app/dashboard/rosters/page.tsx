@@ -859,9 +859,16 @@ export default function RostersPage() {
 			<div className="flex flex-col gap-8">
 				<div className="flex items-start justify-between gap-4">
 					<div>
-						<h1 className="text-xl font-bold font-headline text-muted-foreground">
-							Ministry Rosters
-						</h1>
+						<div className="flex items-center gap-2">
+							<h1 className="text-xl font-bold font-headline text-muted-foreground">
+								Ministry Rosters
+							</h1>
+							<Badge
+								variant="secondary"
+								className="text-xs bg-blue-100 text-blue-800 border border-blue-200">
+								Beta
+							</Badge>
+						</div>
 						<Dialog
 							open={isEventDialogOpen}
 							onOpenChange={setIsEventDialogOpen}>

@@ -19,10 +19,12 @@ import type {
 	MinistryAccount,
 	BrandingSettings,
 	BibleBeeYear,
+	BibleBeeCycle,
 	Division,
 	EssayPrompt,
 	Enrollment,
 	EnrollmentOverride,
+	Scripture,
 } from '../types';
 
 export class IndexedDBAdapter implements DatabaseAdapter {
@@ -951,12 +953,12 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 		return result || null;
 	}
 
-	async upsertScripture(data: Omit<Scripture, 'created_at' | 'updated_at'> & { id?: string }): Promise<Scripture> {
+	async upsertScripture(data: Omit<Scripture, 'createdAt' | 'updatedAt'> & { id?: string }): Promise<Scripture> {
 		const scripture: Scripture = {
 			...data,
 			id: data.id || crypto.randomUUID(),
-			created_at: new Date().toISOString(),
-			updated_at: new Date().toISOString(),
+			createdAt: new Date().toISOString(),
+			updatedAt: new Date().toISOString(),
 		};
 
 		await this.db.scriptures.put(scripture);
@@ -1150,10 +1152,36 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 				this.db.essay_prompts,
 				this.db.enrollments,
 				this.db.enrollment_overrides,
+				this.db.form_drafts,
 			],
 			async () => {
 				return callback();
 			}
 		);
+	}
+
+	// Form draft persistence methods
+	async getDraft(formName: string, userId: string): Promise<any | null> {
+		const id = `${formName}::${userId}`;
+		const draft = await this.db.form_drafts.get(id);
+		return draft ? draft.payload : null;
+	}
+
+	async saveDraft(formName: string, userId: string, payload: any, version = 1): Promise<void> {
+		const id = `${formName}::${userId}`;
+		const draft = {
+			id,
+			form_name: formName,
+			user_id: userId,
+			payload,
+			version,
+			updated_at: new Date().toISOString(),
+		};
+		await this.db.form_drafts.put(draft);
+	}
+
+	async clearDraft(formName: string, userId: string): Promise<void> {
+		const id = `${formName}::${userId}`;
+		await this.db.form_drafts.delete(id);
 	}
 }

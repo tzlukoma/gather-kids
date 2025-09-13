@@ -1,0 +1,143 @@
+# .github/workflows/prod-ministries-seed.yml
+name: Production Ministry Seeding
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_production:
+        description: 'Confirm this is for PRODUCTION environment'
+        required: true
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+      dry_run:
+        description: 'Dry run mode - show what would be created without making changes'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+
+permissions:
+  contents: read
+
+jobs:
+  seed-prod-ministries:
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify Production environment variables
+        run: |
+          if [ -z "${{ secrets.PROD_SUPABASE_URL }}" ]; then
+            echo "ERROR: PROD_SUPABASE_URL secret is not set!"
+            exit 1
+          fi
+          if [ -z "${{ secrets.PROD_SUPABASE_SERVICE_ROLE_KEY }}" ]; then
+            echo "ERROR: PROD_SUPABASE_SERVICE_ROLE_KEY secret is not set!"
+            exit 1
+          fi
+          echo "✅ Production environment variables verified"
+
+      - name: Pre-flight checks
+        run: |
+          echo "🔍 Pre-flight checks..."
+          echo "📊 Confirm Production: ${{ inputs.confirm_production }}"
+          echo "🧪 Dry Run Mode: ${{ inputs.dry_run }}"
+
+          if [ "${{ inputs.confirm_production }}" != "true" ]; then
+            echo "❌ ERROR: You must confirm this is for PRODUCTION environment!"
+            echo "   Please set 'Confirm this is for PRODUCTION environment' to 'true'"
+            exit 1
+          fi
+
+          echo "✅ Pre-flight checks passed"
+
+      - name: Run Production Ministry Seeding
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.PROD_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.PROD_SUPABASE_SERVICE_ROLE_KEY }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          echo "🌱 Starting Production Ministry Seeding..."
+          echo "📊 Dry Run Mode: ${{ inputs.dry_run }}"
+          echo "🔗 Supabase URL: ${{ secrets.PROD_SUPABASE_URL }}"
+          echo ""
+
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            echo "🧪 Running in DRY RUN mode - no changes will be made"
+            echo "==============================================="
+            echo "     [DRY RUN] Would create ministries..."
+            echo "==============================================="
+            npm run seed:prod:ministries:dry
+          else
+            echo "🚀 Running in LIVE mode - ministries will be created!"
+            echo "==============================================="
+            echo "     [LIVE] Creating production ministries..."
+            echo "==============================================="
+            npm run seed:prod:ministries
+          fi
+
+          echo "✅ Production ministry seeding completed!"
+
+      - name: Summary
+        run: |
+          echo "## 🎉 Production Ministry Seeding Completed!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            echo "**Mode:** 🧪 **Dry Run** (no changes made)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "**Mode:** 🚀 **Live Production** (ministries created)" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Ministries Created:**" >> $GITHUB_STEP_SUMMARY
+          echo "- ⛪ **18 Active Ministries** (Sunday School, Bible Bee, Dance, etc.)" >> $GITHUB_STEP_SUMMARY
+          echo "- ⏸️ **2 Inactive Ministries** (New Generation Teen Fellowship, International Travel)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Next Steps:**" >> $GITHUB_STEP_SUMMARY
+          echo "1. 🔐 Log into the production admin interface" >> $GITHUB_STEP_SUMMARY
+          echo "2. 📧 Navigate to Ministries page" >> $GITHUB_STEP_SUMMARY
+          echo "3. ✉️ Add email addresses for each ministry through the UI" >> $GITHUB_STEP_SUMMARY
+          echo "4. 👥 Assign ministry leaders as needed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Important Notes:**" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Ministries use auto-generated UUIDs (no test prefixes)" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Same ministry codes as UAT for consistency" >> $GITHUB_STEP_SUMMARY
+          echo "- ⚠️ Email fields are intentionally left blank for manual UI entry" >> $GITHUB_STEP_SUMMARY
+          echo "- 🔄 Script is idempotent (safe to re-run)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "The production database now has the core ministry structure ready for configuration!" >> $GITHUB_STEP_SUMMARY
+
+      - name: Security Notice
+        if: inputs.dry_run == 'false'
+        run: |
+          echo "## 🔒 Security Notice" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Production Data Created:**" >> $GITHUB_STEP_SUMMARY
+          echo "- ⚠️ This workflow created data in the **PRODUCTION** database" >> $GITHUB_STEP_SUMMARY
+          echo "- 🔐 Ensure proper access controls are in place" >> $GITHUB_STEP_SUMMARY
+          echo "- 📋 Review and configure ministry settings as needed" >> $GITHUB_STEP_SUMMARY
+          echo "- 👥 Assign appropriate ministry leaders" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Audit Trail:**" >> $GITHUB_STEP_SUMMARY
+          echo "- 📅 Workflow run: ${{ github.run_id }}" >> $GITHUB_STEP_SUMMARY
+          echo "- 👤 Triggered by: ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+          echo "- 🕐 Completed at: $(date -u)" >> $GITHUB_STEP_SUMMARY

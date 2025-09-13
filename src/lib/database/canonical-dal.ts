@@ -152,6 +152,10 @@ export async function registerHouseholdCanonical(data: Record<string, unknown>, 
         household_id: householdId,
         name: canonicalData.household.name || `${canonicalData.guardians[0].last_name} Household`,
         address_line1: canonicalData.household.address_line1,
+        address_line2: canonicalData.household.address_line2,
+        city: canonicalData.household.city,
+        state: canonicalData.household.state,
+        zip: canonicalData.household.zip,
         // Use snake_case internally, but map to current DB schema as needed
         preferredScriptureTranslation: canonicalData.household.preferred_scripture_translation,
         email: canonicalData.household.primary_email, // Map primary_email to email field in DB
@@ -527,6 +531,10 @@ export async function registerHouseholdCanonical(data: Record<string, unknown>, 
         household_id: householdId,
         name: canonicalData.household.name || `${canonicalData.guardians[0].last_name} Household`,
         address_line1: canonicalData.household.address_line1,
+        address_line2: canonicalData.household.address_line2,
+        city: canonicalData.household.city,
+        state: canonicalData.household.state,
+        zip: canonicalData.household.zip,
         preferredScriptureTranslation: canonicalData.household.preferred_scripture_translation,
         email: canonicalData.household.primary_email, // Map primary_email to email field in DB
       };

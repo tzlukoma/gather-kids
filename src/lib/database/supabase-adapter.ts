@@ -627,6 +627,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 		const r = row ?? {} as Record<string, unknown>;
 		return {
 			cycle_id: (r['cycle_id'] as string) || '',
+			name: (r['name'] as string) || '',
 			start_date: (r['start_date'] as string) || '',
 			end_date: (r['end_date'] as string) || '',
 			is_active: r['is_active'] === null || r['is_active'] === undefined ? false : !!r['is_active'],
@@ -1878,6 +1879,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 		id: string,
 		data: Partial<BibleBeeCycle>
 	): Promise<BibleBeeCycle> {
+		console.log('SupabaseAdapter.updateBibleBeeCycle called:', { id, data });
 		const updatePayload: Record<string, unknown> = {
 			updated_at: new Date().toISOString(),
 		};
@@ -1887,6 +1889,8 @@ export class SupabaseAdapter implements DatabaseAdapter {
 		if (data.description !== undefined) updatePayload.description = data.description;
 		if (data.is_active !== undefined) updatePayload.is_active = data.is_active;
 
+		console.log('SupabaseAdapter.updateBibleBeeCycle payload:', updatePayload);
+
 		const { data: result, error } = await this.client
 			.from('bible_bee_cycles')
 			.update(updatePayload)
@@ -1894,7 +1898,11 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			.select()
 			.single();
 
-		if (error) throw error;
+		if (error) {
+			console.error('SupabaseAdapter.updateBibleBeeCycle error:', error);
+			throw error;
+		}
+		console.log('SupabaseAdapter.updateBibleBeeCycle success:', result);
 		return this.mapBibleBeeCycle(result);
 	}
 
@@ -2658,6 +2666,55 @@ export class SupabaseAdapter implements DatabaseAdapter {
 		// For now, just execute the callback
 		// In the future, consider using pg connection to handle transactions
 		return callback();
+	}
+
+	// Form draft persistence methods
+	async getDraft(formName: string, userId: string): Promise<any | null> {
+		const id = `${formName}::${userId}`;
+		const { data, error } = await this.getClientAny()
+			.from('form_drafts')
+			.select('payload')
+			.eq('id', id)
+			.single();
+
+		if (error) {
+			if (error.code === 'PGRST116') return null; // No rows returned
+			throw error;
+		}
+
+		return data ? data.payload : null;
+	}
+
+	async saveDraft(formName: string, userId: string, payload: any, version = 1): Promise<void> {
+		const id = `${formName}::${userId}`;
+		const draft = {
+			id,
+			form_name: formName,
+			user_id: userId,
+			payload,
+			version,
+			updated_at: new Date().toISOString(),
+		};
+
+		const { error } = await this.getClientAny()
+			.from('form_drafts')
+			.upsert(draft);
+
+		if (error) {
+			throw error;
+		}
+	}
+
+	async clearDraft(formName: string, userId: string): Promise<void> {
+		const id = `${formName}::${userId}`;
+		const { error } = await this.getClientAny()
+			.from('form_drafts')
+			.delete()
+			.eq('id', id);
+
+		if (error) {
+			throw error;
+		}
 	}
     
 	// Temporary helper for tables missing from generated supabase types (see TODOs below).

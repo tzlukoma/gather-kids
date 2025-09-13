@@ -67,11 +67,16 @@ async function createRegistrationCycle() {
 		};
 
 		// Force create a new cycle with a unique name by appending a timestamp
-		const timestamp = new Date()
+		const now = new Date();
+		const timestamp = now
 			.toISOString()
 			.replace(/[^0-9]/g, '')
 			.substring(0, 14);
-		const uniqueCycleName = `${cycleName} (${timestamp})`;
+		const humanReadableDate = `${String(now.getMonth() + 1).padStart(
+			2,
+			'0'
+		)}-${String(now.getDate()).padStart(2, '0')}-${now.getFullYear()}`;
+		const uniqueCycleName = `${cycleName} (${humanReadableDate})`;
 		const uniqueCycleId = `${cycleId}_${timestamp}`;
 
 		console.log(
