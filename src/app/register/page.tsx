@@ -41,7 +41,9 @@ import {
 	registerHouseholdCanonical,
 	getMinistries,
 	getRegistrationCycles,
+	getMinistriesByGroupCode,
 } from '@/lib/dal';
+import { getFlag } from '@/lib/featureFlags';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import {
 	AlertDialog,
@@ -481,6 +483,7 @@ function RegisterPageContent() {
 	const [submissionStatus, setSubmissionStatus] = useState<string>('');
 
 	const [allMinistries, setAllMinistries] = useState<Ministry[]>([]);
+	const [choirMinistries, setChoirMinistries] = useState<Ministry[]>([]);
 	const [activeRegistrationCycle, setActiveRegistrationCycle] = useState<
 		RegistrationCycle | undefined
 	>();
@@ -511,6 +514,20 @@ function RegisterPageContent() {
 				console.log('DEBUG: Loaded', cycles.length, 'registration cycles');
 
 				setAllMinistries(ministries);
+				
+				// Load choir ministries using ministry groups if enabled
+				if (getFlag('SHOW_MINISTRY_GROUPS')) {
+					console.log('DEBUG: Loading choir ministries using ministry groups');
+					const choirs = await getMinistriesByGroupCode('choirs');
+					console.log('DEBUG: Loaded', choirs.length, 'choir ministries via groups');
+					setChoirMinistries(choirs);
+				} else {
+					// Fallback to prefix logic
+					console.log('DEBUG: Using legacy choir prefix logic');
+					const choirs = ministries.filter(m => m.code.startsWith('choir-'));
+					console.log('DEBUG: Loaded', choirs.length, 'choir ministries via prefix');
+					setChoirMinistries(choirs);
+				}
 
 				// Find active cycle
 				const activeCycle = cycles.find((c) => {
@@ -814,16 +831,18 @@ function RegisterPageContent() {
 		if (!enrolledPrograms)
 			return { otherMinistryPrograms: [], choirPrograms: [] };
 
+		// Use choir ministries loaded from groups or fallback
+		const choirIds = new Set(choirMinistries.map(c => c.ministry_id));
 		const choir = enrolledPrograms.filter((program) =>
-			program.code.startsWith('choir-')
+			choirIds.has(program.ministry_id)
 		);
 
 		const otherMinistries = enrolledPrograms.filter(
-			(program) => !program.code.startsWith('choir-')
+			(program) => !choirIds.has(program.ministry_id)
 		);
 
 		return { otherMinistryPrograms: otherMinistries, choirPrograms: choir };
-	}, [enrolledPrograms]);
+	}, [enrolledPrograms, choirMinistries]);
 
 	const prefillForm = useCallback(
 		(data: any) => {
