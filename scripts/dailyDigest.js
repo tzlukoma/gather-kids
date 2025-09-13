@@ -231,7 +231,9 @@ async function getNewEnrollments(since) {
 			ministries!inner (
 				ministry_id,
 				name,
-				email
+				ministry_accounts!inner (
+					email
+				)
 			),
 			children!inner (
 				child_id,
