@@ -23,10 +23,12 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
-import type { MinistryGroup } from '@/lib/types';
-import { createMinistryGroup, updateMinistryGroup } from '@/lib/dal';
-import { useEffect } from 'react';
+import type { MinistryGroup, Ministry } from '@/lib/types';
+import { createMinistryGroup, updateMinistryGroup, getMinistriesInGroup } from '@/lib/dal';
+import { useEffect, useState } from 'react';
 
 const ministryGroupFormSchema = z.object({
 	code: z.string().min(1, 'Code is required').regex(/^[a-z0-9_-]+$/, 'Code must contain only lowercase letters, numbers, underscores, and hyphens'),
@@ -51,6 +53,8 @@ export function MinistryGroupFormDialog({
 }: MinistryGroupFormDialogProps) {
 	const { toast } = useToast();
 	const isEditing = Boolean(group);
+	const [ministriesInGroup, setMinistriesInGroup] = useState<Ministry[]>([]);
+	const [isLoadingMinistries, setIsLoadingMinistries] = useState(false);
 
 	const form = useForm<FormData>({
 		resolver: zodResolver(ministryGroupFormSchema),
@@ -69,12 +73,28 @@ export function MinistryGroupFormDialog({
 				name: group.name,
 				description: group.description || '',
 			});
+			
+			// Load ministries in this group
+			setIsLoadingMinistries(true);
+			getMinistriesInGroup(group.id)
+				.then((ministries) => {
+					setMinistriesInGroup(ministries);
+				})
+				.catch((error) => {
+					console.warn('Failed to load ministries for group:', error);
+					setMinistriesInGroup([]);
+				})
+				.finally(() => {
+					setIsLoadingMinistries(false);
+				});
 		} else if (isOpen && !group) {
 			form.reset({
 				code: '',
 				name: '',
 				description: '',
 			});
+			setMinistriesInGroup([]);
+			setIsLoadingMinistries(false);
 		}
 	}, [isOpen, group, form]);
 
@@ -115,6 +135,8 @@ export function MinistryGroupFormDialog({
 
 	const handleClose = () => {
 		form.reset();
+		setMinistriesInGroup([]);
+		setIsLoadingMinistries(false);
 		onCloseAction();
 	};
 
@@ -193,6 +215,37 @@ export function MinistryGroupFormDialog({
 								</FormItem>
 							)}
 						/>
+
+						{isEditing && (
+							<>
+								<Separator />
+								<div className="space-y-3">
+									<div>
+										<h4 className="text-sm font-medium">Ministries in this Group</h4>
+										<p className="text-xs text-muted-foreground">
+											These ministries are currently assigned to this group
+										</p>
+									</div>
+									{isLoadingMinistries ? (
+										<div className="text-sm text-muted-foreground">Loading ministries...</div>
+									) : ministriesInGroup.length > 0 ? (
+										<div className="flex flex-wrap gap-2">
+											{ministriesInGroup.map((ministry) => (
+												<Badge 
+													key={ministry.ministry_id} 
+													variant="secondary"
+													className="text-xs"
+												>
+													{ministry.name}
+												</Badge>
+											))}
+										</div>
+									) : (
+										<div className="text-sm text-muted-foreground">No ministries assigned to this group</div>
+									)}
+								</div>
+							</>
+						)}
 
 						<DialogFooter>
 							<Button type="button" variant="outline" onClick={handleClose}>

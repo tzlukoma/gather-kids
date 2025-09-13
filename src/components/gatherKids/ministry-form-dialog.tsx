@@ -31,12 +31,13 @@ import {
 	SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import type { Ministry } from '@/lib/types';
-import { createMinistry, updateMinistry, saveMinistryAccount } from '@/lib/dal';
-import { useEffect } from 'react';
+import type { Ministry, MinistryGroup } from '@/lib/types';
+import { createMinistry, updateMinistry, saveMinistryAccount, getGroupsForMinistry } from '@/lib/dal';
+import { useEffect, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { PlusCircle, Trash2 } from 'lucide-react';
 import { Separator } from '../ui/separator';
+import { Badge } from '@/components/ui/badge';
 import { dbAdapter } from '@/lib/db-utils';
 import { Switch } from '../ui/switch';
 
@@ -86,6 +87,8 @@ export function MinistryFormDialog({
 	onMinistryUpdated,
 }: MinistryFormDialogProps) {
 	const { toast } = useToast();
+	const [groupsForMinistry, setGroupsForMinistry] = useState<MinistryGroup[]>([]);
+	const [isLoadingGroups, setIsLoadingGroups] = useState(false);
 
 	const form = useForm<MinistryFormValues>({
 		resolver: zodResolver(ministryFormSchema),
@@ -126,6 +129,20 @@ export function MinistryFormDialog({
 						options: q.options || [],
 					})) || [],
 			});
+
+			// Load groups for this ministry
+			setIsLoadingGroups(true);
+			getGroupsForMinistry(ministry.ministry_id)
+				.then((groups) => {
+					setGroupsForMinistry(groups);
+				})
+				.catch((error) => {
+					console.warn('Failed to load groups for ministry:', error);
+					setGroupsForMinistry([]);
+				})
+				.finally(() => {
+					setIsLoadingGroups(false);
+				});
 		} else {
 			form.reset({
 				name: '',
@@ -139,6 +156,8 @@ export function MinistryFormDialog({
 				details: '',
 				custom_questions: [],
 			});
+			setGroupsForMinistry([]);
+			setIsLoadingGroups(false);
 		}
 	}, [ministry, form, isOpen]);
 
@@ -449,6 +468,38 @@ export function MinistryFormDialog({
 						</div>
 
 						<Separator />
+
+						{ministry && (
+							<>
+								<div className="space-y-3">
+									<div>
+										<h3 className="text-lg font-medium">Groups</h3>
+										<p className="text-sm text-muted-foreground">
+											Groups that this ministry belongs to
+										</p>
+									</div>
+									{isLoadingGroups ? (
+										<div className="text-sm text-muted-foreground">Loading groups...</div>
+									) : groupsForMinistry.length > 0 ? (
+										<div className="flex flex-wrap gap-2">
+											{groupsForMinistry.map((group) => (
+												<Badge 
+													key={group.id} 
+													variant="secondary"
+													className="text-xs"
+												>
+													{group.name}
+												</Badge>
+											))}
+										</div>
+									) : (
+										<div className="text-sm text-muted-foreground">Not assigned to any groups</div>
+									)}
+								</div>
+
+								<Separator />
+							</>
+						)}
 
 						<div>
 							<h3 className="text-lg font-medium mb-2">Custom Questions</h3>

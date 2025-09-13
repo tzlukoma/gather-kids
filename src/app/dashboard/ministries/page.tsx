@@ -25,7 +25,7 @@ import { MinistryFormDialog } from '@/components/gatherKids/ministry-form-dialog
 import { MinistryGroupFormDialog } from '@/components/gatherKids/ministry-group-form-dialog';
 import { MinistryAssignmentDialog } from '@/components/gatherKids/ministry-assignment-dialog';
 import RegistrationCycles from '@/components/gatherKids/registration-cycles';
-import { deleteMinistry, getMinistries, getMinistryGroups, deleteMinistryGroup, getMinistriesInGroup } from '@/lib/dal';
+import { deleteMinistry, getMinistries, getMinistryGroups, deleteMinistryGroup, getMinistriesInGroup, getGroupsForMinistry } from '@/lib/dal';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { Switch } from '@/components/ui/switch';
@@ -52,12 +52,14 @@ function MinistryTable({
 	ministries,
 	onEdit,
 	onDelete,
+	groupsForMinistries,
 }: {
 	title: string;
 	description: string;
 	ministries: (Ministry & { email?: string | null })[];
 	onEdit: (ministry: Ministry) => void;
 	onDelete: (ministryId: string) => void;
+	groupsForMinistries?: Map<string, MinistryGroup[]>;
 }) {
 	return (
 		<Card>
@@ -72,71 +74,92 @@ function MinistryTable({
 							<TableHead>Name</TableHead>
 							<TableHead>Code</TableHead>
 							<TableHead>Email</TableHead>
+							<TableHead>Groups</TableHead>
 							<TableHead>Status</TableHead>
 							<TableHead>Eligibility</TableHead>
 							<TableHead className="text-right">Actions</TableHead>
 						</TableRow>
 					</TableHeader>
 					<TableBody>
-						{ministries.map((m) => (
-							<TableRow key={m.ministry_id}>
-								<TableCell className="font-medium">{m.name}</TableCell>
-								<TableCell>
-									<Badge variant="outline">{m.code}</Badge>
-								</TableCell>
-								<TableCell className="text-muted-foreground">
-									{m.email ?? '—'}
-								</TableCell>
-								<TableCell>
-									<Badge
-										variant={m.is_active ? 'default' : 'secondary'}
-										className={m.is_active ? 'bg-brand-aqua' : ''}>
-										{m.is_active ? 'Active' : 'Inactive'}
-									</Badge>
-								</TableCell>
-								<TableCell>
-									{m.min_age || m.max_age
-										? `Ages ${m.min_age ?? '?'} - ${m.max_age ?? '?'}`
-										: 'All ages'}
-								</TableCell>
-								<TableCell className="text-right">
-									<Button variant="ghost" size="icon" onClick={() => onEdit(m)}>
-										<Edit className="h-4 w-4" />
-									</Button>
-									<AlertDialog>
-										<AlertDialogTrigger asChild>
-											<Button
-												variant="ghost"
-												size="icon"
-												className="text-destructive hover:text-destructive">
-												<Trash2 className="h-4 w-4" />
-											</Button>
-										</AlertDialogTrigger>
-										<AlertDialogContent>
-											<AlertDialogHeader>
-												<AlertDialogTitle>Are you sure?</AlertDialogTitle>
-												<AlertDialogDescription>
-													This action cannot be undone. This will permanently
-													delete the ministry.
-												</AlertDialogDescription>
-											</AlertDialogHeader>
-											<AlertDialogFooter>
-												<AlertDialogCancel>Cancel</AlertDialogCancel>
-												<AlertDialogAction
-													onClick={() => onDelete(m.ministry_id)}
-													className="bg-destructive hover:bg-destructive/90">
-													Delete
-												</AlertDialogAction>
-											</AlertDialogFooter>
-										</AlertDialogContent>
-									</AlertDialog>
-								</TableCell>
-							</TableRow>
-						))}
+						{ministries.map((m) => {
+							const groups = groupsForMinistries?.get(m.ministry_id) || [];
+							return (
+								<TableRow key={m.ministry_id}>
+									<TableCell className="font-medium">{m.name}</TableCell>
+									<TableCell>
+										<Badge variant="outline">{m.code}</Badge>
+									</TableCell>
+									<TableCell className="text-muted-foreground">
+										{m.email ?? '—'}
+									</TableCell>
+									<TableCell>
+										{groups.length > 0 ? (
+											<div className="flex flex-wrap gap-1">
+												{groups.map((group) => (
+													<Badge
+														key={group.id}
+														variant="secondary"
+														className="text-xs"
+													>
+														{group.name}
+													</Badge>
+												))}
+											</div>
+										) : (
+											<span className="text-muted-foreground text-sm">—</span>
+										)}
+									</TableCell>
+									<TableCell>
+										<Badge
+											variant={m.is_active ? 'default' : 'secondary'}
+											className={m.is_active ? 'bg-brand-aqua' : ''}>
+											{m.is_active ? 'Active' : 'Inactive'}
+										</Badge>
+									</TableCell>
+									<TableCell>
+										{m.min_age || m.max_age
+											? `Ages ${m.min_age ?? '?'} - ${m.max_age ?? '?'}`
+											: 'All ages'}
+									</TableCell>
+									<TableCell className="text-right">
+										<Button variant="ghost" size="icon" onClick={() => onEdit(m)}>
+											<Edit className="h-4 w-4" />
+										</Button>
+										<AlertDialog>
+											<AlertDialogTrigger asChild>
+												<Button
+													variant="ghost"
+													size="icon"
+													className="text-destructive hover:text-destructive">
+													<Trash2 className="h-4 w-4" />
+												</Button>
+											</AlertDialogTrigger>
+											<AlertDialogContent>
+												<AlertDialogHeader>
+													<AlertDialogTitle>Are you sure?</AlertDialogTitle>
+													<AlertDialogDescription>
+														This action cannot be undone. This will permanently
+														delete the ministry.
+													</AlertDialogDescription>
+												</AlertDialogHeader>
+												<AlertDialogFooter>
+													<AlertDialogCancel>Cancel</AlertDialogCancel>
+													<AlertDialogAction
+														onClick={() => onDelete(m.ministry_id)}
+														className="bg-destructive hover:bg-destructive/90">
+														Delete
+													</AlertDialogAction>
+												</AlertDialogFooter>
+											</AlertDialogContent>
+										</AlertDialog>
+									</TableCell>
+								</TableRow>
+							);
+						})}
 						{ministries.length === 0 && (
 							<TableRow>
 								<TableCell
-									colSpan={6}
+									colSpan={7}
 									className="text-center h-24 text-muted-foreground">
 									No ministries of this type found.
 								</TableCell>
@@ -154,11 +177,13 @@ function MinistryGroupTable({
 	onEdit,
 	onDelete,
 	onAssignMinistries,
+	ministriesInGroups,
 }: {
 	groups: MinistryGroup[];
 	onEdit: (group: MinistryGroup) => void;
 	onDelete: (groupId: string) => void;
 	onAssignMinistries: (group: MinistryGroup) => void;
+	ministriesInGroups?: Map<string, Ministry[]>;
 }) {
 	return (
 		<Card>
@@ -174,77 +199,98 @@ function MinistryGroupTable({
 						<TableRow>
 							<TableHead>Name</TableHead>
 							<TableHead>Code</TableHead>
+							<TableHead>Ministries</TableHead>
 							<TableHead>Description</TableHead>
 							<TableHead>Created</TableHead>
 							<TableHead className="text-right">Actions</TableHead>
 						</TableRow>
 					</TableHeader>
 					<TableBody>
-						{groups.map((group) => (
-							<TableRow key={group.id}>
-								<TableCell className="font-medium">{group.name}</TableCell>
-								<TableCell>
-									<Badge variant="outline">{group.code}</Badge>
-								</TableCell>
-								<TableCell className="text-muted-foreground">
-									{group.description || '—'}
-								</TableCell>
-								<TableCell className="text-muted-foreground">
-									{format(new Date(group.created_at), 'MMM d, yyyy')}
-								</TableCell>
-								<TableCell className="text-right">
-									<Button
-										variant="ghost"
-										size="icon"
-										onClick={() => onAssignMinistries(group)}
-										title="Assign Ministries"
-									>
-										<Users className="h-4 w-4" />
-									</Button>
-									<Button 
-										variant="ghost" 
-										size="icon" 
-										onClick={() => onEdit(group)}
-										title="Edit Group"
-									>
-										<Edit className="h-4 w-4" />
-									</Button>
-									<AlertDialog>
-										<AlertDialogTrigger asChild>
-											<Button
-												variant="ghost"
-												size="icon"
-												className="text-destructive hover:text-destructive"
-												title="Delete Group"
-											>
-												<Trash2 className="h-4 w-4" />
-											</Button>
-										</AlertDialogTrigger>
-										<AlertDialogContent>
-											<AlertDialogHeader>
-												<AlertDialogTitle>Are you sure?</AlertDialogTitle>
-												<AlertDialogDescription>
-													This action cannot be undone. This will permanently delete the 
-													ministry group "{group.name}" and all its assignments.
-												</AlertDialogDescription>
-											</AlertDialogHeader>
-											<AlertDialogFooter>
-												<AlertDialogCancel>Cancel</AlertDialogCancel>
-												<AlertDialogAction
-													onClick={() => onDelete(group.id)}
-													className="bg-destructive hover:bg-destructive/90">
-													Delete Group
-												</AlertDialogAction>
-											</AlertDialogFooter>
-										</AlertDialogContent>
-									</AlertDialog>
-								</TableCell>
-							</TableRow>
-						))}
+						{groups.map((group) => {
+							const ministries = ministriesInGroups?.get(group.id) || [];
+							return (
+								<TableRow key={group.id}>
+									<TableCell className="font-medium">{group.name}</TableCell>
+									<TableCell>
+										<Badge variant="outline">{group.code}</Badge>
+									</TableCell>
+									<TableCell>
+										{ministries.length > 0 ? (
+											<div className="flex flex-wrap gap-1 max-w-xs">
+												{ministries.map((ministry) => (
+													<Badge
+														key={ministry.ministry_id}
+														variant="secondary"
+														className="text-xs"
+													>
+														{ministry.name}
+													</Badge>
+												))}
+											</div>
+										) : (
+											<span className="text-muted-foreground text-sm">No ministries</span>
+										)}
+									</TableCell>
+									<TableCell className="text-muted-foreground">
+										{group.description || '—'}
+									</TableCell>
+									<TableCell className="text-muted-foreground">
+										{format(new Date(group.created_at), 'MMM d, yyyy')}
+									</TableCell>
+									<TableCell className="text-right">
+										<Button
+											variant="ghost"
+											size="icon"
+											onClick={() => onAssignMinistries(group)}
+											title="Assign Ministries"
+										>
+											<Users className="h-4 w-4" />
+										</Button>
+										<Button 
+											variant="ghost" 
+											size="icon" 
+											onClick={() => onEdit(group)}
+											title="Edit Group"
+										>
+											<Edit className="h-4 w-4" />
+										</Button>
+										<AlertDialog>
+											<AlertDialogTrigger asChild>
+												<Button
+													variant="ghost"
+													size="icon"
+													className="text-destructive hover:text-destructive"
+													title="Delete Group"
+												>
+													<Trash2 className="h-4 w-4" />
+												</Button>
+											</AlertDialogTrigger>
+											<AlertDialogContent>
+												<AlertDialogHeader>
+													<AlertDialogTitle>Are you sure?</AlertDialogTitle>
+													<AlertDialogDescription>
+														This action cannot be undone. This will permanently delete the 
+														ministry group "{group.name}" and all its assignments.
+													</AlertDialogDescription>
+												</AlertDialogHeader>
+												<AlertDialogFooter>
+													<AlertDialogCancel>Cancel</AlertDialogCancel>
+													<AlertDialogAction
+														onClick={() => onDelete(group.id)}
+														className="bg-destructive hover:bg-destructive/90">
+														Delete Group
+													</AlertDialogAction>
+												</AlertDialogFooter>
+											</AlertDialogContent>
+										</AlertDialog>
+									</TableCell>
+								</TableRow>
+							);
+						})}
 						{groups.length === 0 && (
 							<TableRow>
 								<TableCell
-									colSpan={5}
+									colSpan={6}
 									className="text-center h-24 text-muted-foreground">
 									No ministry groups found. Create your first group to get started.
 								</TableCell>
@@ -266,6 +312,8 @@ export default function MinistryPage() {
 	const [allMinistries, setAllMinistries] = useState<Ministry[]>([]);
 	const [ministryGroups, setMinistryGroups] = useState<MinistryGroup[]>([]);
 	const [isLoadingData, setIsLoadingData] = useState(true);
+	const [ministriesInGroups, setMinistriesInGroups] = useState<Map<string, Ministry[]>>(new Map());
+	const [groupsForMinistries, setGroupsForMinistries] = useState<Map<string, MinistryGroup[]>>(new Map());
 	const { toast } = useToast();
 
 	const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -288,6 +336,35 @@ export default function MinistryPage() {
 					]);
 					setAllMinistries(ministries);
 					setMinistryGroups(groups);
+
+					// Load relationship data
+					const ministriesInGroupsMap = new Map<string, Ministry[]>();
+					const groupsForMinistriesMap = new Map<string, MinistryGroup[]>();
+
+					// Get ministries for each group
+					for (const group of groups) {
+						try {
+							const groupMinistries = await getMinistriesInGroup(group.id);
+							ministriesInGroupsMap.set(group.id, groupMinistries);
+						} catch (error) {
+							console.warn(`Failed to load ministries for group ${group.id}:`, error);
+							ministriesInGroupsMap.set(group.id, []);
+						}
+					}
+
+					// Get groups for each ministry
+					for (const ministry of ministries) {
+						try {
+							const ministryGroups = await getGroupsForMinistry(ministry.ministry_id);
+							groupsForMinistriesMap.set(ministry.ministry_id, ministryGroups);
+						} catch (error) {
+							console.warn(`Failed to load groups for ministry ${ministry.ministry_id}:`, error);
+							groupsForMinistriesMap.set(ministry.ministry_id, []);
+						}
+					}
+
+					setMinistriesInGroups(ministriesInGroupsMap);
+					setGroupsForMinistries(groupsForMinistriesMap);
 				} catch (error) {
 					console.error('Error loading ministry data:', error);
 					toast({
@@ -370,6 +447,20 @@ export default function MinistryPage() {
 		try {
 			const ministries = await getMinistries();
 			setAllMinistries(ministries);
+
+			// Refresh groups for ministries
+			const groupsForMinistriesMap = new Map<string, MinistryGroup[]>();
+			for (const ministry of ministries) {
+				try {
+					const ministryGroups = await getGroupsForMinistry(ministry.ministry_id);
+					groupsForMinistriesMap.set(ministry.ministry_id, ministryGroups);
+				} catch (error) {
+					console.warn(`Failed to load groups for ministry ${ministry.ministry_id}:`, error);
+					groupsForMinistriesMap.set(ministry.ministry_id, []);
+				}
+			}
+			setGroupsForMinistries(groupsForMinistriesMap);
+
 			console.log('✅ MinistryPage: Ministries list refreshed successfully');
 		} catch (error) {
 			console.error(
@@ -426,6 +517,33 @@ export default function MinistryPage() {
 		try {
 			const groups = await getMinistryGroups();
 			setMinistryGroups(groups);
+
+			// Refresh ministries in groups
+			const ministriesInGroupsMap = new Map<string, Ministry[]>();
+			for (const group of groups) {
+				try {
+					const groupMinistries = await getMinistriesInGroup(group.id);
+					ministriesInGroupsMap.set(group.id, groupMinistries);
+				} catch (error) {
+					console.warn(`Failed to load ministries for group ${group.id}:`, error);
+					ministriesInGroupsMap.set(group.id, []);
+				}
+			}
+			setMinistriesInGroups(ministriesInGroupsMap);
+
+			// Also refresh groups for ministries since assignments may have changed
+			const groupsForMinistriesMap = new Map<string, MinistryGroup[]>();
+			for (const ministry of allMinistries) {
+				try {
+					const ministryGroups = await getGroupsForMinistry(ministry.ministry_id);
+					groupsForMinistriesMap.set(ministry.ministry_id, ministryGroups);
+				} catch (error) {
+					console.warn(`Failed to load groups for ministry ${ministry.ministry_id}:`, error);
+					groupsForMinistriesMap.set(ministry.ministry_id, []);
+				}
+			}
+			setGroupsForMinistries(groupsForMinistriesMap);
+
 			console.log('✅ MinistryPage: Groups list refreshed successfully');
 		} catch (error) {
 			console.error(
@@ -485,6 +603,7 @@ export default function MinistryPage() {
 						ministries={enrolledPrograms}
 						onEdit={handleEdit}
 						onDelete={handleDelete}
+						groupsForMinistries={groupsForMinistries}
 					/>
 
 					<MinistryTable
@@ -493,6 +612,7 @@ export default function MinistryPage() {
 						ministries={interestPrograms}
 						onEdit={handleEdit}
 						onDelete={handleDelete}
+						groupsForMinistries={groupsForMinistries}
 					/>
 				</TabsContent>
 
@@ -502,6 +622,7 @@ export default function MinistryPage() {
 						onEdit={handleEditGroup}
 						onDelete={handleDeleteGroup}
 						onAssignMinistries={handleAssignMinistries}
+						ministriesInGroups={ministriesInGroups}
 					/>
 				</TabsContent>
 
