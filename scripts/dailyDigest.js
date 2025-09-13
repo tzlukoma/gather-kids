@@ -26,7 +26,7 @@ const Mailjet = require('node-mailjet');
 const ENVIRONMENT = process.env.ENVIRONMENT || ''; // 'UAT', 'PROD', or empty for default
 const DRY_RUN = process.env.DRY_RUN === 'true';
 const TEST_MODE = process.env.TEST_MODE === 'true';
-const EMAIL_MODE = getEnvVar('EMAIL_MODE', []) || 'mailjet'; // 'mailjet' or 'smtp'
+const EMAIL_MODE = process.env.EMAIL_MODE || 'mailjet'; // 'mailjet' or 'smtp'
 
 /**
  * Get environment variable with optional environment prefix support
@@ -67,20 +67,14 @@ function getEnvVar(varName, fallbacks = []) {
 	return undefined;
 }
 
-// Supabase client setup with environment-aware variable loading
-const supabaseUrl = getEnvVar('SUPABASE_URL', [
-	'DATABASE_URL',
-	'NEXT_PUBLIC_SUPABASE_URL',
-]);
-const serviceRoleKey = getEnvVar('SUPABASE_SERVICE_ROLE_KEY', [
-	'SUPABASE_SERVICE_ROLE',
-]);
-const fromEmail = getEnvVar('FROM_EMAIL', ['FROM_ADDRESS', 'SENDER_EMAIL']);
+// Supabase client setup - use standard environment variables
+const supabaseUrl = process.env.SUPABASE_URL;
+const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const fromEmail = process.env.FROM_EMAIL;
 
 // Monitor emails for BCC (optional)
-const monitorEmails = getEnvVar('MONITOR_EMAILS')
-	? getEnvVar('MONITOR_EMAILS')
-			.split(',')
+const monitorEmails = process.env.MONITOR_EMAILS
+	? process.env.MONITOR_EMAILS.split(',')
 			.map((email) => email.trim())
 			.filter((email) => email)
 	: [];
@@ -116,20 +110,13 @@ Object.keys(process.env)
 
 if (!supabaseUrl || !serviceRoleKey) {
 	console.error('Missing required environment variables:');
-	if (ENVIRONMENT) {
-		console.error(
-			`- ${ENVIRONMENT}_SUPABASE_URL (or ${ENVIRONMENT}_DATABASE_URL)`
-		);
-		console.error(`- ${ENVIRONMENT}_SUPABASE_SERVICE_ROLE_KEY`);
-	}
-	console.error('- SUPABASE_URL (or DATABASE_URL, NEXT_PUBLIC_SUPABASE_URL)');
-	console.error('- SUPABASE_SERVICE_ROLE_KEY (or SUPABASE_SERVICE_ROLE)');
+	console.error('- SUPABASE_URL');
+	console.error('- SUPABASE_SERVICE_ROLE_KEY');
 	process.exit(1);
 }
 
 if (!fromEmail && !DRY_RUN) {
-	const varName = ENVIRONMENT ? `${ENVIRONMENT}_FROM_EMAIL` : 'FROM_EMAIL';
-	console.error(`Missing ${varName} environment variable`);
+	console.error('Missing FROM_EMAIL environment variable');
 	process.exit(1);
 }
 
@@ -145,15 +132,11 @@ const supabase = createClient(supabaseUrl, serviceRoleKey, {
 // Email configuration
 let emailTransport;
 if (EMAIL_MODE === 'mailjet') {
-	const mjApiKey = getEnvVar('MJ_API_KEY');
-	const mjApiSecret = getEnvVar('MJ_API_SECRET');
+	const mjApiKey = process.env.MJ_API_KEY;
+	const mjApiSecret = process.env.MJ_API_SECRET;
 
 	if (!mjApiKey || !mjApiSecret) {
 		console.error('Missing Mailjet credentials:');
-		if (ENVIRONMENT) {
-			console.error(`- ${ENVIRONMENT}_MJ_API_KEY`);
-			console.error(`- ${ENVIRONMENT}_MJ_API_SECRET`);
-		}
 		console.error('- MJ_API_KEY');
 		console.error('- MJ_API_SECRET');
 		process.exit(1);
