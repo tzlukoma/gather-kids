@@ -77,9 +77,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 						if (finalUser.metadata.role === AuthRole.MINISTRY_LEADER) {
 							const leaderId = getUserId(storedUser);
 							if (leaderId) {
+								// Get active registration cycle
+								const cycles = await getRegistrationCycles(true); // Get only active cycles
+								const activeCycle = cycles.find(
+									(c) => c.is_active === true || Number(c.is_active) === 1
+								);
+								const cycleId = activeCycle?.cycle_id || '2025'; // fallback to '2025' if no active cycle found
+
 								const assignments = await getLeaderAssignmentsForCycle(
 									leaderId,
-									'2025'
+									cycleId
 								);
 								finalUser.assignedMinistryIds = assignments.map(
 									(a) => a.ministry_id
@@ -128,9 +135,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 						if (finalUser.metadata.role === AuthRole.MINISTRY_LEADER) {
 							const leaderId = getUserId(finalUser);
 							if (typeof leaderId === 'string' && leaderId.length > 0) {
+								// Get active registration cycle
+								const cycles = await getRegistrationCycles(true); // Get only active cycles
+								const activeCycle = cycles.find(
+									(c) => c.is_active === true || Number(c.is_active) === 1
+								);
+								const cycleId = activeCycle?.cycle_id || '2025'; // fallback to '2025' if no active cycle found
+
 								const assignments = await getLeaderAssignmentsForCycle(
 									leaderId,
-									'2025'
+									cycleId
 								);
 								finalUser.assignedMinistryIds = assignments.map(
 									(a) => a.ministry_id
