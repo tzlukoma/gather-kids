@@ -75,7 +75,7 @@ const supabaseUrl = getEnvVar('SUPABASE_URL', [
 const serviceRoleKey = getEnvVar('SUPABASE_SERVICE_ROLE_KEY', [
 	'SUPABASE_SERVICE_ROLE',
 ]);
-const fromEmail = getEnvVar('FROM_EMAIL');
+const fromEmail = getEnvVar('FROM_EMAIL', ['FROM_ADDRESS', 'SENDER_EMAIL']);
 
 // Monitor emails for BCC (optional)
 const monitorEmails = getEnvVar('MONITOR_EMAILS')
@@ -84,6 +84,19 @@ const monitorEmails = getEnvVar('MONITOR_EMAILS')
 			.map((email) => email.trim())
 			.filter((email) => email)
 	: [];
+
+// Debug logging for environment variables
+console.log('Environment variables debug:');
+console.log(`- ENVIRONMENT: ${ENVIRONMENT}`);
+console.log(`- DRY_RUN: ${DRY_RUN}`);
+console.log(`- TEST_MODE: ${TEST_MODE}`);
+console.log(`- EMAIL_MODE: ${EMAIL_MODE}`);
+console.log(`- FROM_EMAIL: ${fromEmail || 'NOT SET'}`);
+console.log(
+	`- MONITOR_EMAILS: ${
+		monitorEmails.length > 0 ? monitorEmails.join(', ') : 'NOT SET'
+	}`
+);
 
 if (!supabaseUrl || !serviceRoleKey) {
 	console.error('Missing required environment variables:');
@@ -98,10 +111,14 @@ if (!supabaseUrl || !serviceRoleKey) {
 	process.exit(1);
 }
 
-if (!fromEmail) {
+if (!fromEmail && !DRY_RUN) {
 	const varName = ENVIRONMENT ? `${ENVIRONMENT}_FROM_EMAIL` : 'FROM_EMAIL';
 	console.error(`Missing ${varName} environment variable`);
 	process.exit(1);
+}
+
+if (!fromEmail && DRY_RUN) {
+	console.log('[DRY RUN] FROM_EMAIL not set - using placeholder for dry run');
 }
 
 // Initialize Supabase client
@@ -445,7 +462,7 @@ async function sendEmailViaMailjet(to, subject, html, text) {
 	try {
 		const message = {
 			From: {
-				Email: fromEmail,
+				Email: fromEmail || 'dry-run@example.com',
 				Name: 'gatherKids System',
 			},
 			To: [
