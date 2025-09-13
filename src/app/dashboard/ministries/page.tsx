@@ -1,6 +1,6 @@
 'use client';
 
-import type { Ministry, RegistrationCycle } from '@/lib/types';
+import type { Ministry, RegistrationCycle, MinistryGroup } from '@/lib/types';
 import {
 	Card,
 	CardContent,
@@ -20,10 +20,12 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { useMemo, useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, Edit, Trash2, Calendar } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Calendar, Users, Settings } from 'lucide-react';
 import { MinistryFormDialog } from '@/components/gatherKids/ministry-form-dialog';
+import { MinistryGroupFormDialog } from '@/components/gatherKids/ministry-group-form-dialog';
+import { MinistryAssignmentDialog } from '@/components/gatherKids/ministry-assignment-dialog';
 import RegistrationCycles from '@/components/gatherKids/registration-cycles';
-import { deleteMinistry, getMinistries } from '@/lib/dal';
+import { deleteMinistry, getMinistries, getMinistryGroups, deleteMinistryGroup, getMinistriesInGroup } from '@/lib/dal';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { Switch } from '@/components/ui/switch';
@@ -147,6 +149,114 @@ function MinistryTable({
 	);
 }
 
+function MinistryGroupTable({
+	groups,
+	onEdit,
+	onDelete,
+	onAssignMinistries,
+}: {
+	groups: MinistryGroup[];
+	onEdit: (group: MinistryGroup) => void;
+	onDelete: (groupId: string) => void;
+	onAssignMinistries: (group: MinistryGroup) => void;
+}) {
+	return (
+		<Card>
+			<CardHeader>
+				<CardTitle className="font-headline">Ministry Groups</CardTitle>
+				<CardDescription>
+					Organize ministries into groups for easier management and group-level permissions.
+				</CardDescription>
+			</CardHeader>
+			<CardContent>
+				<Table>
+					<TableHeader>
+						<TableRow>
+							<TableHead>Name</TableHead>
+							<TableHead>Code</TableHead>
+							<TableHead>Description</TableHead>
+							<TableHead>Created</TableHead>
+							<TableHead className="text-right">Actions</TableHead>
+						</TableRow>
+					</TableHeader>
+					<TableBody>
+						{groups.map((group) => (
+							<TableRow key={group.id}>
+								<TableCell className="font-medium">{group.name}</TableCell>
+								<TableCell>
+									<Badge variant="outline">{group.code}</Badge>
+								</TableCell>
+								<TableCell className="text-muted-foreground">
+									{group.description || '—'}
+								</TableCell>
+								<TableCell className="text-muted-foreground">
+									{format(new Date(group.created_at), 'MMM d, yyyy')}
+								</TableCell>
+								<TableCell className="text-right">
+									<Button
+										variant="ghost"
+										size="icon"
+										onClick={() => onAssignMinistries(group)}
+										title="Assign Ministries"
+									>
+										<Users className="h-4 w-4" />
+									</Button>
+									<Button 
+										variant="ghost" 
+										size="icon" 
+										onClick={() => onEdit(group)}
+										title="Edit Group"
+									>
+										<Edit className="h-4 w-4" />
+									</Button>
+									<AlertDialog>
+										<AlertDialogTrigger asChild>
+											<Button
+												variant="ghost"
+												size="icon"
+												className="text-destructive hover:text-destructive"
+												title="Delete Group"
+											>
+												<Trash2 className="h-4 w-4" />
+											</Button>
+										</AlertDialogTrigger>
+										<AlertDialogContent>
+											<AlertDialogHeader>
+												<AlertDialogTitle>Are you sure?</AlertDialogTitle>
+												<AlertDialogDescription>
+													This action cannot be undone. This will permanently delete the 
+													ministry group "{group.name}" and all its assignments.
+												</AlertDialogDescription>
+											</AlertDialogHeader>
+											<AlertDialogFooter>
+												<AlertDialogCancel>Cancel</AlertDialogCancel>
+												<AlertDialogAction
+													onClick={() => onDelete(group.id)}
+													className="bg-destructive hover:bg-destructive/90">
+													Delete Group
+												</AlertDialogAction>
+											</AlertDialogFooter>
+										</AlertDialogContent>
+									</AlertDialog>
+								</TableCell>
+							</TableRow>
+						))}
+						{groups.length === 0 && (
+							<TableRow>
+								<TableCell
+									colSpan={5}
+									className="text-center h-24 text-muted-foreground">
+									No ministry groups found. Create your first group to get started.
+								</TableCell>
+							</TableRow>
+						)}
+					</TableBody>
+				</Table>
+			</CardContent>
+		</Card>
+	);
+}
+
 export default function MinistryPage() {
 	const router = useRouter();
 	const { user, loading } = useAuth();
@@ -154,19 +264,30 @@ export default function MinistryPage() {
 	const [isAdmin, setIsAdmin] = useState(false);
 	const [activeTab, setActiveTab] = useState<string>('ministries');
 	const [allMinistries, setAllMinistries] = useState<Ministry[]>([]);
+	const [ministryGroups, setMinistryGroups] = useState<MinistryGroup[]>([]);
 	const [isLoadingData, setIsLoadingData] = useState(true);
 	const { toast } = useToast();
 
 	const [isDialogOpen, setIsDialogOpen] = useState(false);
 	const [editingMinistry, setEditingMinistry] = useState<Ministry | null>(null);
+	
+	// Ministry Group dialogs
+	const [isGroupDialogOpen, setIsGroupDialogOpen] = useState(false);
+	const [editingGroup, setEditingGroup] = useState<MinistryGroup | null>(null);
+	const [isAssignmentDialogOpen, setIsAssignmentDialogOpen] = useState(false);
+	const [assigningGroup, setAssigningGroup] = useState<MinistryGroup | null>(null);
 
 	// Load data when authorized
 	useEffect(() => {
 		if (isAuthorized) {
 			const loadData = async () => {
 				try {
-					const ministries = await getMinistries();
+					const [ministries, groups] = await Promise.all([
+						getMinistries(),
+						getMinistryGroups()
+					]);
 					setAllMinistries(ministries);
+					setMinistryGroups(groups);
 				} catch (error) {
 					console.error('Error loading ministry data:', error);
 					toast({
@@ -263,6 +384,62 @@ export default function MinistryPage() {
 		}
 	};
 
+	// Ministry Group handlers
+	const handleAddNewGroup = () => {
+		setEditingGroup(null);
+		setIsGroupDialogOpen(true);
+	};
+
+	const handleEditGroup = (group: MinistryGroup) => {
+		setEditingGroup(group);
+		setIsGroupDialogOpen(true);
+	};
+
+	const handleDeleteGroup = async (groupId: string) => {
+		try {
+			await deleteMinistryGroup(groupId);
+			toast({
+				title: 'Group Deleted',
+				description: 'The ministry group has been successfully deleted.',
+			});
+
+			// Reload groups
+			const groups = await getMinistryGroups();
+			setMinistryGroups(groups);
+		} catch (error) {
+			console.error('Failed to delete ministry group', error);
+			toast({
+				title: 'Error Deleting Group',
+				description: 'Could not delete the ministry group. Please try again.',
+				variant: 'destructive',
+			});
+		}
+	};
+
+	const handleAssignMinistries = (group: MinistryGroup) => {
+		setAssigningGroup(group);
+		setIsAssignmentDialogOpen(true);
+	};
+
+	const handleGroupUpdated = async () => {
+		console.log('🔍 MinistryPage: Refreshing groups list after update');
+		try {
+			const groups = await getMinistryGroups();
+			setMinistryGroups(groups);
+			console.log('✅ MinistryPage: Groups list refreshed successfully');
+		} catch (error) {
+			console.error(
+				'❌ MinistryPage: Failed to refresh groups list',
+				error
+			);
+			toast({
+				title: 'Error',
+				description: 'Failed to refresh groups data',
+				variant: 'destructive',
+			});
+		}
+	};
+
 	if (loading || !isAuthorized || isLoadingData) {
 		return <div>Loading configuration...</div>;
 	}
@@ -282,11 +459,18 @@ export default function MinistryPage() {
 						Add New Program
 					</Button>
 				)}
+				{activeTab === 'groups' && (
+					<Button onClick={handleAddNewGroup}>
+						<PlusCircle className="mr-2" />
+						Add New Group
+					</Button>
+				)}
 			</div>
 
 			<Tabs value={activeTab} onValueChange={setActiveTab}>
 				<TabsList className="inline-flex items-center gap-2">
 					<TabsTrigger value="ministries">Ministries</TabsTrigger>
+					<TabsTrigger value="groups">Ministry Groups</TabsTrigger>
 					{isAdmin && (
 						<TabsTrigger value="registration-cycles">
 							Registration Cycles
@@ -312,6 +496,15 @@ export default function MinistryPage() {
 					/>
 				</TabsContent>
 
+				<TabsContent value="groups" className="mt-6">
+					<MinistryGroupTable
+						groups={ministryGroups}
+						onEdit={handleEditGroup}
+						onDelete={handleDeleteGroup}
+						onAssignMinistries={handleAssignMinistries}
+					/>
+				</TabsContent>
+
 				{isAdmin && (
 					<TabsContent value="registration-cycles" className="mt-6">
 						<Card>
@@ -334,6 +527,20 @@ export default function MinistryPage() {
 				onCloseAction={() => setIsDialogOpen(false)}
 				ministry={editingMinistry}
 				onMinistryUpdated={handleMinistryUpdated}
+			/>
+			
+			<MinistryGroupFormDialog
+				isOpen={isGroupDialogOpen}
+				onCloseAction={() => setIsGroupDialogOpen(false)}
+				group={editingGroup}
+				onGroupUpdated={handleGroupUpdated}
+			/>
+			
+			<MinistryAssignmentDialog
+				isOpen={isAssignmentDialogOpen}
+				onCloseAction={() => setIsAssignmentDialogOpen(false)}
+				group={assigningGroup}
+				onAssignmentUpdated={handleGroupUpdated}
 			/>
 		</div>
 	);

@@ -19,7 +19,7 @@ import { gradeToCode, doGradeRangesOverlap } from './gradeUtils';
 import { AuthRole } from './auth-types';
 import { isDemo } from './featureFlags';
 import { formatPhone } from '@/hooks/usePhoneFormat';
-import type { Attendance, Child, Guardian, Household, Incident, IncidentSeverity, Ministry, MinistryEnrollment, Registration, User, EmergencyContact, LeaderAssignment, LeaderProfile, MinistryLeaderMembership, MinistryAccount, BrandingSettings, BibleBeeYear, RegistrationCycle, Scripture, CompetitionYear, CustomQuestion } from './types';
+import type { Attendance, Child, Guardian, Household, Incident, IncidentSeverity, Ministry, MinistryEnrollment, Registration, User, EmergencyContact, LeaderAssignment, LeaderProfile, MinistryLeaderMembership, MinistryAccount, BrandingSettings, BibleBeeYear, RegistrationCycle, Scripture, CompetitionYear, CustomQuestion, MinistryGroup, MinistryGroupMember, MinistryGroupContact } from './types';
 
 // Leader view result for Bible Bee progress summaries (used by multiple helpers)
 type LeaderBibleBeeResult = {
@@ -3565,6 +3565,144 @@ export async function getMinistriesByGroupCode(groupCode: string): Promise<Minis
 export async function isMinistryInGroup(ministryId: string, groupCode: string): Promise<boolean> {
 	const groupMinistries = await getMinistriesByGroupCode(groupCode);
 	return groupMinistries.some(m => m.ministry_id === ministryId);
+}
+
+// ===== MINISTRY GROUPS CRUD OPERATIONS =====
+
+/**
+ * Get all ministry groups
+ */
+export async function getMinistryGroups(): Promise<MinistryGroup[]> {
+	if (shouldUseAdapter()) {
+		return await dbAdapter.listMinistryGroups();
+	} else {
+		return await db.ministry_groups.toArray();
+	}
+}
+
+/**
+ * Get ministry group by ID
+ */
+export async function getMinistryGroup(id: string): Promise<MinistryGroup | null> {
+	if (shouldUseAdapter()) {
+		return await dbAdapter.getMinistryGroup(id);
+	} else {
+		return await db.ministry_groups.get(id) || null;
+	}
+}
+
+/**
+ * Create a new ministry group
+ */
+export async function createMinistryGroup(data: Omit<MinistryGroup, 'id' | 'created_at' | 'updated_at'>): Promise<MinistryGroup> {
+	if (shouldUseAdapter()) {
+		return await dbAdapter.createMinistryGroup(data);
+	} else {
+		const now = new Date().toISOString();
+		const newGroup: MinistryGroup = {
+			id: uuidv4(),
+			...data,
+			created_at: now,
+			updated_at: now,
+		};
+		await db.ministry_groups.add(newGroup);
+		return newGroup;
+	}
+}
+
+/**
+ * Update an existing ministry group
+ */
+export async function updateMinistryGroup(id: string, data: Partial<MinistryGroup>): Promise<MinistryGroup> {
+	if (shouldUseAdapter()) {
+		return await dbAdapter.updateMinistryGroup(id, data);
+	} else {
+		await db.ministry_groups.update(id, {
+			...data,
+			updated_at: new Date().toISOString(),
+		});
+		const updated = await db.ministry_groups.get(id);
+		if (!updated) throw new Error('Ministry group not found after update');
+		return updated;
+	}
+}
+
+/**
+ * Delete a ministry group
+ */
+export async function deleteMinistryGroup(id: string): Promise<void> {
+	if (shouldUseAdapter()) {
+		await dbAdapter.deleteMinistryGroup(id);
+	} else {
+		// Delete group members first
+		await db.ministry_group_members.where('group_id').equals(id).delete();
+		// Delete group contacts
+		await db.ministry_group_contacts.where('group_id').equals(id).delete();
+		// Delete the group
+		await db.ministry_groups.delete(id);
+	}
+}
+
+/**
+ * Add a ministry to a group
+ */
+export async function addMinistryToGroup(groupId: string, ministryId: string): Promise<MinistryGroupMember> {
+	if (shouldUseAdapter()) {
+		return await dbAdapter.addMinistryToGroup(groupId, ministryId);
+	} else {
+		const membership: MinistryGroupMember = {
+			group_id: groupId,
+			ministry_id: ministryId,
+			created_at: new Date().toISOString(),
+		};
+		await db.ministry_group_members.add(membership);
+		return membership;
+	}
+}
+
+/**
+ * Remove a ministry from a group
+ */
+export async function removeMinistryFromGroup(groupId: string, ministryId: string): Promise<void> {
+	if (shouldUseAdapter()) {
+		await dbAdapter.removeMinistryFromGroup(groupId, ministryId);
+	} else {
+		await db.ministry_group_members
+			.where({ group_id: groupId, ministry_id: ministryId })
+			.delete();
+	}
+}
+
+/**
+ * Get all ministries in a specific group
+ */
+export async function getMinistriesInGroup(groupId: string): Promise<Ministry[]> {
+	if (shouldUseAdapter()) {
+		return await dbAdapter.listMinistriesByGroup(groupId);
+	} else {
+		const memberships = await db.ministry_group_members.where('group_id').equals(groupId).toArray();
+		const ministryIds = memberships.map(m => m.ministry_id);
+		
+		if (ministryIds.length === 0) return [];
+		
+		return await db.ministries.where('ministry_id').anyOf(ministryIds).toArray();
+	}
+}
+
+/**
+ * Get all groups for a specific ministry
+ */
+export async function getGroupsForMinistry(ministryId: string): Promise<MinistryGroup[]> {
+	if (shouldUseAdapter()) {
+		return await dbAdapter.listGroupsByMinistry(ministryId);
+	} else {
+		const memberships = await db.ministry_group_members.where('ministry_id').equals(ministryId).toArray();
+		const groupIds = memberships.map(m => m.group_id);
+		
+		if (groupIds.length === 0) return [];
+		
+		return await db.ministry_groups.where('id').anyOf(groupIds).toArray();
+	}
 }
 
 export async function getRegistrationCycles(isActive?: boolean): Promise<RegistrationCycle[]> {
