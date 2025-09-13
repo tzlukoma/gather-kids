@@ -219,9 +219,10 @@ function VerificationStepTwoForm({
 
 	async function onSubmit() {
 		// This is a mock verification. In a real app this would hit a server.
+		const cycleId = activeRegistrationCycle?.cycle_id || '2025'; // fallback to '2025' if no active cycle found
 		const householdData = await findHouseholdByEmail(
 			MOCK_EMAILS.PREFILL_OVERWRITE,
-			'2025'
+			cycleId
 		);
 		if (householdData) {
 			onVerifySuccess();
@@ -948,8 +949,9 @@ function RegisterPageContent() {
 
 		try {
 			console.log('DEBUG: About to find household by email');
-			// Use current year for lookup
-			const result = await findHouseholdByEmail(verificationEmail, '2025');
+			// Use active registration cycle for lookup
+			const cycleId = activeRegistrationCycle?.cycle_id || '2025'; // fallback to '2025' if no active cycle found
+			const result = await findHouseholdByEmail(verificationEmail, cycleId);
 			console.log('DEBUG: findHouseholdByEmail result:', {
 				found: !!result,
 				isCurrentYear: result?.isCurrentYear,
@@ -1053,7 +1055,9 @@ function RegisterPageContent() {
 			const checkExistingData = async () => {
 				console.log('DEBUG: checkExistingData starting');
 				try {
-					const result = await findHouseholdByEmail(user.email, '2025');
+					// Use active registration cycle for lookup
+					const cycleId = activeRegistrationCycle?.cycle_id || '2025'; // fallback to '2025' if no active cycle found
+					const result = await findHouseholdByEmail(user.email, cycleId);
 					console.log('DEBUG: checkExistingData result:', {
 						found: !!result,
 						isCurrentYear: result?.isCurrentYear,
@@ -1451,9 +1455,10 @@ function RegisterPageContent() {
 			{verificationStep === 'verify_identity' && (
 				<VerificationStepTwoForm
 					onVerifySuccess={async () => {
+						const cycleId = activeRegistrationCycle?.cycle_id || '2025'; // fallback to '2025' if no active cycle found
 						const result = await findHouseholdByEmail(
 							MOCK_EMAILS.PREFILL_OVERWRITE,
-							'2025'
+							cycleId
 						);
 						if (result) {
 							prefillForm(result.data);
