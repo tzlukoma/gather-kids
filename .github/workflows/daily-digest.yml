@@ -143,6 +143,12 @@ jobs:
           echo "=========================================="
           echo "All environment variables starting with MJ, FROM, MONITOR:"
           env | grep -E "^(MJ_|FROM_|MONITOR_)" | head -10
+          echo "=========================================="
+          echo "Testing direct secret access in workflow:"
+          echo "UAT_FROM_EMAIL: '${{ secrets.UAT_FROM_EMAIL }}'"
+          echo "UAT_MONITOR_EMAILS: '${{ secrets.UAT_MONITOR_EMAILS }}'"
+          echo "UAT_MJ_API_KEY: '${{ secrets.UAT_MJ_API_KEY }}'"
+          echo "UAT_MJ_API_SECRET: '${{ secrets.UAT_MJ_API_SECRET }}'"
 
       - name: Run daily digest (UAT)
         run: |
