@@ -70,7 +70,12 @@ jobs:
           ENV="${{ env.ENVIRONMENT }}"
           echo "Selected environment: $ENV"
 
+          # Debug: Show what environment variables are available
+          echo "Available environment variables:"
+          env | grep -E "(UAT_|PROD_|FROM_|MONITOR_|MJ_)" | sort
+
           if [ "$ENV" = "PROD" ]; then
+            echo "Setting PROD environment variables..."
             echo "SUPABASE_URL=${{ env.PROD_SUPABASE_URL }}" >> $GITHUB_ENV
             echo "SUPABASE_SERVICE_ROLE_KEY=${{ env.PROD_SUPABASE_SERVICE_ROLE_KEY }}" >> $GITHUB_ENV
             echo "MJ_API_KEY=${{ env.MJ_API_KEY }}" >> $GITHUB_ENV
@@ -79,6 +84,7 @@ jobs:
             echo "MONITOR_EMAILS=${{ env.PROD_MONITOR_EMAILS }}" >> $GITHUB_ENV
             echo "EMAIL_MODE=${{ env.PROD_EMAIL_MODE }}" >> $GITHUB_ENV
           else
+            echo "Setting UAT environment variables..."
             echo "SUPABASE_URL=${{ env.UAT_SUPABASE_URL }}" >> $GITHUB_ENV
             echo "SUPABASE_SERVICE_ROLE_KEY=${{ env.UAT_SUPABASE_SERVICE_ROLE_KEY }}" >> $GITHUB_ENV
             echo "MJ_API_KEY=${{ env.UAT_MJ_API_KEY }}" >> $GITHUB_ENV
@@ -87,6 +93,12 @@ jobs:
             echo "MONITOR_EMAILS=${{ env.UAT_MONITOR_EMAILS }}" >> $GITHUB_ENV
             echo "EMAIL_MODE=${{ env.UAT_EMAIL_MODE }}" >> $GITHUB_ENV
           fi
+
+          echo "Environment variables set for script:"
+          echo "SUPABASE_URL=${{ env.UAT_SUPABASE_URL }}"
+          echo "FROM_EMAIL=${{ env.UAT_FROM_EMAIL }}"
+          echo "MONITOR_EMAILS=${{ env.UAT_MONITOR_EMAILS }}"
+          echo "MJ_API_KEY=${{ env.UAT_MJ_API_KEY }}"
 
       - name: Run daily digest
         run: node scripts/dailyDigest.js
