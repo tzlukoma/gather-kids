@@ -490,7 +490,6 @@ async function seedMinistryGroups() {
 		// Create ministry groups
 		const groupsData = [
 			{
-				id: `${EXTERNAL_ID_PREFIX}choirs-group`,
 				code: 'choirs',
 				name: 'Choirs',
 				description:
@@ -500,7 +499,6 @@ async function seedMinistryGroups() {
 				custom_consent_required: true,
 			},
 			{
-				id: `${EXTERNAL_ID_PREFIX}music-group`,
 				code: 'music',
 				name: 'Music Ministries',
 				description:
@@ -510,14 +508,19 @@ async function seedMinistryGroups() {
 			},
 		];
 
+		// Create ministry groups and collect their IDs
+		const createdGroups = new Map(); // code -> id mapping
+		
 		for (const groupData of groupsData) {
 			if (DRY_RUN) {
 				console.log(`[DRY RUN] Would create ministry group: ${groupData.name}`);
 				counters.ministry_groups++;
 			} else {
-				const { error } = await supabase
+				const { data, error } = await supabase
 					.from('ministry_groups')
-					.upsert(groupData, { onConflict: 'id' });
+					.upsert(groupData, { onConflict: 'code' })
+					.select('id, code')
+					.single();
 
 				if (error) {
 					console.error(
@@ -527,40 +530,41 @@ async function seedMinistryGroups() {
 					throw error;
 				}
 				console.log(`✅ Created ministry group: ${groupData.name}`);
+				createdGroups.set(groupData.code, data.id);
 				counters.ministry_groups++;
 			}
 		}
 
-		// Assign ministries to groups
+		// Assign ministries to groups using the generated UUIDs
 		const groupMemberships = [
 			// Choirs group - all three youth choirs
 			{
-				group_id: `${EXTERNAL_ID_PREFIX}choirs-group`,
+				group_id: createdGroups.get('choirs'),
 				ministry_id: `${EXTERNAL_ID_PREFIX}joy_bells`,
 			},
 			{
-				group_id: `${EXTERNAL_ID_PREFIX}choirs-group`,
+				group_id: createdGroups.get('choirs'),
 				ministry_id: `${EXTERNAL_ID_PREFIX}keita_choir`,
 			},
 			{
-				group_id: `${EXTERNAL_ID_PREFIX}choirs-group`,
+				group_id: createdGroups.get('choirs'),
 				ministry_id: `${EXTERNAL_ID_PREFIX}teen_choir`,
 			},
 			// Music group - all music ministries
 			{
-				group_id: `${EXTERNAL_ID_PREFIX}music-group`,
+				group_id: createdGroups.get('music'),
 				ministry_id: `${EXTERNAL_ID_PREFIX}symphonic_orchestra`,
 			},
 			{
-				group_id: `${EXTERNAL_ID_PREFIX}music-group`,
+				group_id: createdGroups.get('music'),
 				ministry_id: `${EXTERNAL_ID_PREFIX}joy_bells`,
 			},
 			{
-				group_id: `${EXTERNAL_ID_PREFIX}music-group`,
+				group_id: createdGroups.get('music'),
 				ministry_id: `${EXTERNAL_ID_PREFIX}keita_choir`,
 			},
 			{
-				group_id: `${EXTERNAL_ID_PREFIX}music-group`,
+				group_id: createdGroups.get('music'),
 				ministry_id: `${EXTERNAL_ID_PREFIX}teen_choir`,
 			},
 		];
