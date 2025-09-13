@@ -305,7 +305,10 @@ function groupEnrollmentsByMinistry(enrollments) {
 		const ministryId = enrollment.ministries.ministry_id;
 		if (!grouped[ministryId]) {
 			grouped[ministryId] = {
-				ministry: enrollment.ministries,
+				ministry: {
+					...enrollment.ministries,
+					email: enrollment.ministries.ministry_accounts?.email,
+				},
 				enrollments: [],
 			};
 		}
