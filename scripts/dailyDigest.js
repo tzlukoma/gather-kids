@@ -231,7 +231,7 @@ async function getNewEnrollments(since) {
 			ministries!inner (
 				ministry_id,
 				name,
-				ministry_accounts!inner (
+				ministry_accounts (
 					email
 				)
 			),
@@ -258,6 +258,23 @@ async function getNewEnrollments(since) {
 	}
 
 	console.log(`Found ${data?.length || 0} new enrollments`);
+
+	// Debug: Log ministry information
+	if (data && data.length > 0) {
+		console.log('Debug: Ministry information from enrollments:');
+		data.forEach((enrollment, index) => {
+			console.log(`Enrollment ${index + 1}:`, {
+				ministry_id: enrollment.ministries?.ministry_id,
+				ministry_name: enrollment.ministries?.name,
+				ministry_email:
+					enrollment.ministries?.ministry_accounts?.email || 'NO EMAIL',
+				child_name: `${enrollment.children?.first_name} ${enrollment.children?.last_name}`,
+				household_email:
+					enrollment.children?.households?.email || 'NO HOUSEHOLD EMAIL',
+			});
+		});
+	}
+
 	return data || [];
 }
 
