@@ -188,6 +188,7 @@ export interface MinistryGroup {
     code: string; // unique, e.g., 'choirs'
     name: string; // display name, e.g., 'Choirs'
     description?: string;
+    email?: string; // contact email for digest notifications
     created_at: string;
     updated_at: string;
 }

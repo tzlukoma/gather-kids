@@ -34,6 +34,7 @@ const ministryGroupFormSchema = z.object({
 	code: z.string().min(1, 'Code is required').regex(/^[a-z0-9_-]+$/, 'Code must contain only lowercase letters, numbers, underscores, and hyphens'),
 	name: z.string().min(1, 'Name is required'),
 	description: z.string().optional(),
+	email: z.string().email('Invalid email format').optional().or(z.literal('')),
 });
 
 type FormData = z.infer<typeof ministryGroupFormSchema>;
@@ -62,6 +63,7 @@ export function MinistryGroupFormDialog({
 			code: '',
 			name: '',
 			description: '',
+			email: '',
 		},
 	});
 
@@ -72,6 +74,7 @@ export function MinistryGroupFormDialog({
 				code: group.code,
 				name: group.name,
 				description: group.description || '',
+				email: group.email || '',
 			});
 			
 			// Load ministries in this group
@@ -92,6 +95,7 @@ export function MinistryGroupFormDialog({
 				code: '',
 				name: '',
 				description: '',
+				email: '',
 			});
 			setMinistriesInGroup([]);
 			setIsLoadingMinistries(false);
@@ -210,6 +214,27 @@ export function MinistryGroupFormDialog({
 									</FormControl>
 									<FormDescription>
 										Optional description to help identify the purpose of this group.
+									</FormDescription>
+									<FormMessage />
+								</FormItem>
+							)}
+						/>
+
+						<FormField
+							control={form.control}
+							name="email"
+							render={({ field }) => (
+								<FormItem>
+									<FormLabel>Contact Email</FormLabel>
+									<FormControl>
+										<Input 
+											placeholder="e.g. choirs@example.com" 
+											type="email"
+											{...field} 
+										/>
+									</FormControl>
+									<FormDescription>
+										Optional email address that will receive digest notifications for all ministries in this group.
 									</FormDescription>
 									<FormMessage />
 								</FormItem>

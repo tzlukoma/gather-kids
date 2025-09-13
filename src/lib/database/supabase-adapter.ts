@@ -1705,6 +1705,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			code: data.code,
 			name: data.name,
 			description: data.description || undefined,
+			email: data.email || undefined,
 			created_at: data.created_at,
 			updated_at: data.updated_at,
 		};
@@ -1725,6 +1726,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			code: data.code,
 			name: data.name,
 			description: data.description || undefined,
+			email: data.email || undefined,
 			created_at: data.created_at,
 			updated_at: data.updated_at,
 		};
@@ -1737,6 +1739,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 				code: data.code,
 				name: data.name,
 				description: data.description || null,
+				email: data.email || null,
 			})
 			.select()
 			.single();
@@ -1748,6 +1751,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			code: inserted.code,
 			name: inserted.name,
 			description: inserted.description || undefined,
+			email: inserted.email || undefined,
 			created_at: inserted.created_at,
 			updated_at: inserted.updated_at,
 		};
@@ -1758,6 +1762,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 		if (data.code !== undefined) updates.code = data.code;
 		if (data.name !== undefined) updates.name = data.name;
 		if (data.description !== undefined) updates.description = data.description;
+		if (data.email !== undefined) updates.email = data.email;
 
 		const { data: updated, error } = await this.client
 			.from('ministry_groups')
@@ -1773,6 +1778,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			code: updated.code,
 			name: updated.name,
 			description: updated.description || undefined,
+			email: updated.email || undefined,
 			created_at: updated.created_at,
 			updated_at: updated.updated_at,
 		};
@@ -1791,6 +1797,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			code: row.code,
 			name: row.name,
 			description: row.description || undefined,
+			email: row.email || undefined,
 			created_at: row.created_at,
 			updated_at: row.updated_at,
 		}));
