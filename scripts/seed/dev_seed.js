@@ -470,7 +470,7 @@ async function createHouseholdsAndFamiliesData() {
 	try {
 		console.log('🏠 Creating households and families...');
 
-		// Create households using canonical DTO format
+		// Create households using database schema format
 		const householdsData = [
 			{
 				household_id: crypto.randomUUID(),
@@ -480,6 +480,8 @@ async function createHouseholdsAndFamiliesData() {
 				state: 'NJ',
 				zip: '12345',
 				primary_phone: '555-123-4567',
+				email: 'smith@example.com', // Add email field
+				created_at: new Date().toISOString(),
 			},
 			{
 				household_id: crypto.randomUUID(),
@@ -489,6 +491,8 @@ async function createHouseholdsAndFamiliesData() {
 				state: 'NJ',
 				zip: '12345',
 				primary_phone: '555-234-5678',
+				email: 'johnson@example.com', // Add email field
+				created_at: new Date().toISOString(),
 			},
 		];
 
@@ -537,6 +541,7 @@ async function createHouseholdsAndFamiliesData() {
 				last_name: 'Contact1',
 				mobile_phone: '555-111-1111',
 				relationship: 'Grandmother',
+				created_at: new Date().toISOString(),
 			},
 			{
 				contact_id: crypto.randomUUID(),
@@ -545,6 +550,7 @@ async function createHouseholdsAndFamiliesData() {
 				last_name: 'Contact2',
 				mobile_phone: '555-222-2222',
 				relationship: 'Aunt',
+				created_at: new Date().toISOString(),
 			},
 		];
 
@@ -584,6 +590,7 @@ async function createHouseholdsAndFamiliesData() {
 				mobile_phone: '555-123-4567',
 				relationship: 'Father',
 				is_primary: true,
+				created_at: new Date().toISOString(),
 			},
 			{
 				guardian_id: crypto.randomUUID(),
@@ -594,6 +601,7 @@ async function createHouseholdsAndFamiliesData() {
 				mobile_phone: '555-987-6543',
 				relationship: 'Mother',
 				is_primary: false,
+				created_at: new Date().toISOString(),
 			},
 			{
 				guardian_id: crypto.randomUUID(),
@@ -604,6 +612,7 @@ async function createHouseholdsAndFamiliesData() {
 				mobile_phone: '555-234-5678',
 				relationship: 'Father',
 				is_primary: true,
+				created_at: new Date().toISOString(),
 			},
 			{
 				guardian_id: crypto.randomUUID(),
@@ -614,6 +623,7 @@ async function createHouseholdsAndFamiliesData() {
 				mobile_phone: '555-876-5432',
 				relationship: 'Mother',
 				is_primary: false,
+				created_at: new Date().toISOString(),
 			},
 		];
 
@@ -656,6 +666,7 @@ async function createHouseholdsAndFamiliesData() {
 				special_needs: false,
 				special_needs_notes: null,
 				is_active: true,
+				created_at: new Date().toISOString(),
 			},
 			{
 				child_id: crypto.randomUUID(),
@@ -670,6 +681,7 @@ async function createHouseholdsAndFamiliesData() {
 				special_needs: false,
 				special_needs_notes: null,
 				is_active: true,
+				created_at: new Date().toISOString(),
 			},
 			// Johnson family children
 			{
@@ -685,6 +697,7 @@ async function createHouseholdsAndFamiliesData() {
 				special_needs: false,
 				special_needs_notes: null,
 				is_active: true,
+				created_at: new Date().toISOString(),
 			},
 			{
 				child_id: crypto.randomUUID(),
@@ -699,6 +712,7 @@ async function createHouseholdsAndFamiliesData() {
 				special_needs: true,
 				special_needs_notes: 'Requires additional support',
 				is_active: true,
+				created_at: new Date().toISOString(),
 			},
 		];
 
