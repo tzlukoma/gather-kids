@@ -54,6 +54,21 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Debug environment variables
+        run: |
+          echo "=== PROD Job Environment Variables Debug ==="
+          echo "ENVIRONMENT: $ENVIRONMENT"
+          echo "DRY_RUN: $DRY_RUN"
+          echo "TEST_MODE: $TEST_MODE"
+          echo "SUPABASE_URL: ${SUPABASE_URL:0:20}..."
+          echo "SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:0:10}..."
+          echo "FROM_EMAIL: $FROM_EMAIL"
+          echo "MONITOR_EMAILS: $MONITOR_EMAILS"
+          echo "MJ_API_KEY: ${MJ_API_KEY:0:10}..."
+          echo "MJ_API_SECRET: ${MJ_API_SECRET:0:10}..."
+          echo "EMAIL_MODE: $EMAIL_MODE"
+          echo "=========================================="
+
       - name: Run daily digest (PROD)
         run: |
           echo "Running PROD daily digest..."
@@ -102,6 +117,21 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Debug environment variables
+        run: |
+          echo "=== UAT Job Environment Variables Debug ==="
+          echo "ENVIRONMENT: $ENVIRONMENT"
+          echo "DRY_RUN: $DRY_RUN"
+          echo "TEST_MODE: $TEST_MODE"
+          echo "SUPABASE_URL: ${SUPABASE_URL:0:20}..."
+          echo "SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:0:10}..."
+          echo "FROM_EMAIL: $FROM_EMAIL"
+          echo "MONITOR_EMAILS: $MONITOR_EMAILS"
+          echo "MJ_API_KEY: ${MJ_API_KEY:0:10}..."
+          echo "MJ_API_SECRET: ${MJ_API_SECRET:0:10}..."
+          echo "EMAIL_MODE: $EMAIL_MODE"
+          echo "=========================================="
 
       - name: Run daily digest (UAT)
         run: |
