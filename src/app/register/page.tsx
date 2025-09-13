@@ -382,8 +382,10 @@ const ProgramSection = ({
 	});
 
 	// Show ministries even if no children are eligible yet, but disable checkboxes
-	const hasChildrenWithDob = childrenData.some((child) => child.dob && child.dob.trim() !== '');
-	
+	const hasChildrenWithDob = childrenData.some(
+		(child) => child.dob && child.dob.trim() !== ''
+	);
+
 	if (!hasChildrenWithDob) {
 		// Show ministry but with disabled state and helpful message
 		return (
