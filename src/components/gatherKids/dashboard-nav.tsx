@@ -92,9 +92,17 @@ export function DashboardNav({ children }: DashboardNavProps) {
 				try {
 					const leaderId = getUserId(user) as string | undefined;
 					if (!leaderId) return;
+
+					// Get active registration cycle
+					const cycles = await getRegistrationCycles(true); // Get only active cycles
+					const activeCycle = cycles.find(
+						(c) => c.is_active === true || Number(c.is_active) === 1
+					);
+					const cycleId = activeCycle?.cycle_id || '2025'; // fallback to '2025' if no active cycle found
+
 					const dbAssignments = await getLeaderAssignmentsForCycle(
 						leaderId,
-						'2025'
+						cycleId
 					);
 					if (!mounted) return;
 					setAssignmentsFromDb(dbAssignments.map((a) => a.ministry_id));
