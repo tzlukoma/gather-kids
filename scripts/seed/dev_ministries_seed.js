@@ -493,13 +493,19 @@ async function seedMinistryGroups() {
 				id: `${EXTERNAL_ID_PREFIX}choirs-group`,
 				code: 'choirs',
 				name: 'Choirs',
-				description: 'Youth choir ministries grouped together for shared management and notifications',
+				description:
+					'Youth choir ministries grouped together for shared management and notifications',
+				custom_consent_text: 'Cathedral International youth choirs communicate using the Planning Center app. By clicking yes, you agree to be added into the app, which will enable you to download the app, receive emails and push communications.',
+				custom_consent_required: true,
 			},
 			{
 				id: `${EXTERNAL_ID_PREFIX}music-group`,
 				code: 'music',
 				name: 'Music Ministries',
-				description: 'All music-related ministries including choirs and orchestra',
+				description:
+					'All music-related ministries including choirs and orchestra',
+				custom_consent_text: '',
+				custom_consent_required: false,
 			},
 		];
 
@@ -513,7 +519,10 @@ async function seedMinistryGroups() {
 					.upsert(groupData, { onConflict: 'id' });
 
 				if (error) {
-					console.error(`Error creating ministry group ${groupData.name}:`, error);
+					console.error(
+						`Error creating ministry group ${groupData.name}:`,
+						error
+					);
 					throw error;
 				}
 				console.log(`✅ Created ministry group: ${groupData.name}`);
@@ -557,7 +566,9 @@ async function seedMinistryGroups() {
 
 		for (const membership of groupMemberships) {
 			if (DRY_RUN) {
-				console.log(`[DRY RUN] Would assign ministry ${membership.ministry_id} to group ${membership.group_id}`);
+				console.log(
+					`[DRY RUN] Would assign ministry ${membership.ministry_id} to group ${membership.group_id}`
+				);
 				counters.ministry_group_members++;
 			} else {
 				const { error } = await supabase
@@ -573,8 +584,9 @@ async function seedMinistryGroups() {
 		}
 
 		console.log(`✅ Created ${counters.ministry_groups} ministry groups`);
-		console.log(`✅ Created ${counters.ministry_group_members} ministry group memberships`);
-
+		console.log(
+			`✅ Created ${counters.ministry_group_members} ministry group memberships`
+		);
 	} catch (error) {
 		console.error('❌ Error seeding ministry groups:', error);
 		throw error;

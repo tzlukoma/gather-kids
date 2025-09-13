@@ -25,6 +25,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import type { MinistryGroup, Ministry } from '@/lib/types';
 import { createMinistryGroup, updateMinistryGroup, getMinistriesInGroup } from '@/lib/dal';
@@ -35,6 +36,8 @@ const ministryGroupFormSchema = z.object({
 	name: z.string().min(1, 'Name is required'),
 	description: z.string().optional(),
 	email: z.string().email('Invalid email format').optional().or(z.literal('')),
+	custom_consent_text: z.string().optional(),
+	custom_consent_required: z.boolean().default(false),
 });
 
 type FormData = z.infer<typeof ministryGroupFormSchema>;
@@ -64,6 +67,8 @@ export function MinistryGroupFormDialog({
 			name: '',
 			description: '',
 			email: '',
+			custom_consent_text: '',
+			custom_consent_required: false,
 		},
 	});
 
@@ -75,6 +80,8 @@ export function MinistryGroupFormDialog({
 				name: group.name,
 				description: group.description || '',
 				email: group.email || '',
+				custom_consent_text: group.custom_consent_text || '',
+				custom_consent_required: group.custom_consent_required || false,
 			});
 			
 			// Load ministries in this group
@@ -96,6 +103,8 @@ export function MinistryGroupFormDialog({
 				name: '',
 				description: '',
 				email: '',
+				custom_consent_text: '',
+				custom_consent_required: false,
 			});
 			setMinistriesInGroup([]);
 			setIsLoadingMinistries(false);
@@ -240,6 +249,61 @@ export function MinistryGroupFormDialog({
 								</FormItem>
 							)}
 						/>
+
+						<Separator />
+						
+						<div className="space-y-4">
+							<div>
+								<h4 className="text-sm font-medium">Custom Consent Management</h4>
+								<p className="text-xs text-muted-foreground">
+									Define custom consent text and requirements for this group
+								</p>
+							</div>
+
+							<FormField
+								control={form.control}
+								name="custom_consent_required"
+								render={({ field }) => (
+									<FormItem className="flex flex-row items-start space-x-3 space-y-0">
+										<FormControl>
+											<Checkbox
+												checked={field.value}
+												onCheckedChange={field.onChange}
+											/>
+										</FormControl>
+										<div className="space-y-1 leading-none">
+											<FormLabel>
+												Require custom consent for this group
+											</FormLabel>
+											<FormDescription>
+												When enabled, families will be asked to provide consent when registering for ministries in this group.
+											</FormDescription>
+										</div>
+									</FormItem>
+								)}
+							/>
+
+							<FormField
+								control={form.control}
+								name="custom_consent_text"
+								render={({ field }) => (
+									<FormItem>
+										<FormLabel>Custom Consent Text</FormLabel>
+										<FormControl>
+											<Textarea
+												placeholder="Enter the consent text that will be displayed to families during registration..."
+												rows={4}
+												{...field}
+											/>
+										</FormControl>
+										<FormDescription>
+											This text will be displayed in the registration form when families register for ministries in this group.
+										</FormDescription>
+										<FormMessage />
+									</FormItem>
+								)}
+							/>
+						</div>
 
 						{isEditing && (
 							<>

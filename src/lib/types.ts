@@ -189,6 +189,9 @@ export interface MinistryGroup {
     name: string; // display name, e.g., 'Choirs'
     description?: string;
     email?: string; // contact email for digest notifications
+    // Group-level consent management
+    custom_consent_text?: string; // Custom consent text for this group
+    custom_consent_required?: boolean; // Whether consent is required for this group
     created_at: string;
     updated_at: string;
 }
