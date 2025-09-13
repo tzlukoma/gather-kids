@@ -98,6 +98,22 @@ console.log(
 	}`
 );
 
+// Debug: Show all environment variables that start with UAT_
+console.log('\nAll UAT_ environment variables:');
+Object.keys(process.env)
+	.filter((key) => key.startsWith('UAT_'))
+	.forEach((key) =>
+		console.log(`- ${key}: ${process.env[key] ? 'SET' : 'NOT SET'}`)
+	);
+
+// Debug: Show all environment variables that start with FROM or MONITOR
+console.log('\nAll FROM/MONITOR environment variables:');
+Object.keys(process.env)
+	.filter((key) => key.includes('FROM') || key.includes('MONITOR'))
+	.forEach((key) =>
+		console.log(`- ${key}: ${process.env[key] ? 'SET' : 'NOT SET'}`)
+	);
+
 if (!supabaseUrl || !serviceRoleKey) {
 	console.error('Missing required environment variables:');
 	if (ENVIRONMENT) {
