@@ -5,6 +5,7 @@
 ### 🆕 New Features
 
 #### Daily Digest System
+
 - **Automated daily enrollment notifications** - Ministry leaders receive daily emails summarizing new enrollments
 - **Admin digest emails** - System administrators get comprehensive daily reports across all ministries
 - **Primary guardian contact information** - Digest emails include correct household contact emails from primary guardians
@@ -13,11 +14,13 @@
 - **Automated scheduling** - Daily digest runs automatically via GitHub Actions workflow
 
 #### Enhanced Data Management
+
 - **Improved guardian email handling** - System now correctly identifies and uses primary guardian emails for household contact
 - **Better enrollment tracking** - Enhanced querying to provide accurate enrollment data in digest emails
 - **Debug logging improvements** - Better visibility into enrollment data processing for troubleshooting
 
 ### 🔧 Technical Improvements
+
 - **Database query optimization** - Updated enrollment queries to properly join guardian data
 - **Email content generation** - Refactored email templates to use correct data sources
 - **Error handling** - Improved error handling and logging for email delivery
