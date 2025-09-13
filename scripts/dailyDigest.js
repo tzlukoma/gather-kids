@@ -67,38 +67,14 @@ function getEnvVar(varName, fallbacks = []) {
 	return undefined;
 }
 
-// Supabase client setup - use standard environment variables with fallbacks
-const supabaseUrl =
-	process.env.SUPABASE_URL ||
-	(ENVIRONMENT === 'PROD'
-		? process.env.PROD_SUPABASE_URL
-		: process.env.UAT_SUPABASE_URL);
-const serviceRoleKey =
-	process.env.SUPABASE_SERVICE_ROLE_KEY ||
-	(ENVIRONMENT === 'PROD'
-		? process.env.PROD_SUPABASE_SERVICE_ROLE_KEY
-		: process.env.UAT_SUPABASE_SERVICE_ROLE_KEY);
-const fromEmail =
-	process.env.FROM_EMAIL ||
-	(ENVIRONMENT === 'PROD'
-		? process.env.PROD_FROM_EMAIL
-		: process.env.UAT_FROM_EMAIL);
+// Supabase client setup - use direct environment variables from workflow
+const supabaseUrl = process.env.SUPABASE_URL;
+const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const fromEmail = process.env.FROM_EMAIL;
 
 // Monitor emails for BCC (optional)
 const monitorEmails = process.env.MONITOR_EMAILS
 	? process.env.MONITOR_EMAILS.split(',')
-			.map((email) => email.trim())
-			.filter((email) => email)
-	: (
-			ENVIRONMENT === 'PROD'
-				? process.env.PROD_MONITOR_EMAILS
-				: process.env.UAT_MONITOR_EMAILS
-	  )
-	? (ENVIRONMENT === 'PROD'
-			? process.env.PROD_MONITOR_EMAILS
-			: process.env.UAT_MONITOR_EMAILS
-	  )
-			.split(',')
 			.map((email) => email.trim())
 			.filter((email) => email)
 	: [];
@@ -115,22 +91,6 @@ console.log(
 		monitorEmails.length > 0 ? monitorEmails.join(', ') : 'NOT SET'
 	}`
 );
-
-// Debug: Show all environment variables that start with UAT_
-console.log('\nAll UAT_ environment variables:');
-Object.keys(process.env)
-	.filter((key) => key.startsWith('UAT_'))
-	.forEach((key) =>
-		console.log(`- ${key}: ${process.env[key] ? 'SET' : 'NOT SET'}`)
-	);
-
-// Debug: Show all environment variables that start with FROM or MONITOR
-console.log('\nAll FROM/MONITOR environment variables:');
-Object.keys(process.env)
-	.filter((key) => key.includes('FROM') || key.includes('MONITOR'))
-	.forEach((key) =>
-		console.log(`- ${key}: ${process.env[key] ? 'SET' : 'NOT SET'}`)
-	);
 
 if (!supabaseUrl || !serviceRoleKey) {
 	console.error('Missing required environment variables:');
