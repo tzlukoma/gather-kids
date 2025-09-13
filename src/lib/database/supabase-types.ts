@@ -1,7 +1,7 @@
 /**
  * This file contains types generated from the Supabase schema.
  * DO NOT EDIT MANUALLY. This file is auto-generated.
- * Generated on: 2025-09-13T18:54:50.262Z
+ * Generated on: 2025-09-13T19:01:44.771Z
  */
 
 export type SupabaseJson =
@@ -402,6 +402,30 @@ export type Database = {
           name?: string | null
           updated_at?: string | null
           year?: number | null
+        }
+        Relationships: []
+      }
+      daily_digest_checkpoints: {
+        Row: {
+          checkpoint_name: string
+          created_at: string | null
+          id: number
+          last_run_at: string
+          updated_at: string | null
+        }
+        Insert: {
+          checkpoint_name: string
+          created_at?: string | null
+          id?: number
+          last_run_at: string
+          updated_at?: string | null
+        }
+        Update: {
+          checkpoint_name?: string
+          created_at?: string | null
+          id?: number
+          last_run_at?: string
+          updated_at?: string | null
         }
         Relationships: []
       }
@@ -1101,6 +1125,13 @@ export type Database = {
           status?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_ministry_enrollments_child_id"
+            columns: ["child_id"]
+            isOneToOne: false
+            referencedRelation: "children"
+            referencedColumns: ["child_id"]
+          },
           {
             foreignKeyName: "fk_ministry_enrollments_cycle_id"
             columns: ["cycle_id"]
