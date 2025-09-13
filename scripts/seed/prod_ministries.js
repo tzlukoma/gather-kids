@@ -238,6 +238,7 @@ const counters = {
 	ministries: 0,
 	skipped: 0,
 	errors: 0,
+	events: 0,
 };
 
 /**
@@ -382,6 +383,80 @@ async function createMinistries() {
 }
 
 /**
+ * Create events for check-in functionality
+ */
+async function createEvents() {
+	try {
+		console.log('🎪 Creating events for check-in functionality...');
+
+		// Define the events that the check-in system expects
+		const events = [
+			{
+				event_id: 'evt_sunday_school',
+				name: 'Sunday School',
+				description: 'Sunday School check-in event',
+			},
+			{
+				event_id: 'evt_childrens_church',
+				name: "Children's Church",
+				description: "Children's Church check-in event",
+			},
+			{
+				event_id: 'evt_teen_church',
+				name: 'Teen Church',
+				description: 'Teen Church check-in event',
+			},
+		];
+
+		for (const event of events) {
+			// Check if event already exists
+			const { data: existing, error: checkError } = await supabase
+				.from('events')
+				.select('event_id')
+				.eq('event_id', event.event_id)
+				.single();
+
+			if (checkError && checkError.code !== 'PGRST116') {
+				throw new Error(
+					`Error checking event ${event.event_id}: ${checkError.message}`
+				);
+			}
+
+			if (existing) {
+				console.log(`✅ Event already exists: ${event.event_id}`);
+			} else {
+				if (DRY_RUN) {
+					console.log(
+						`[DRY RUN] Would create event: ${event.name} (${event.event_id})`
+					);
+					counters.events++;
+				} else {
+					const { error: insertError } = await supabase
+						.from('events')
+						.insert(event);
+
+					if (insertError) {
+						throw new Error(
+							`Failed to create event ${event.event_id}: ${insertError.message}`
+						);
+					}
+
+					console.log(`✅ Created event: ${event.name} (${event.event_id})`);
+					counters.events++;
+				}
+			}
+		}
+
+		console.log(
+			`✅ Created ${counters.events} events for check-in functionality`
+		);
+	} catch (error) {
+		console.error('❌ Failed to create events:', error.message);
+		throw error;
+	}
+}
+
+/**
  * Main execution function
  */
 async function main() {
@@ -395,17 +470,20 @@ async function main() {
 
 	try {
 		await createMinistries();
+		await createEvents();
 
 		console.log('');
 		console.log('📊 Summary:');
 		if (DRY_RUN) {
 			console.log(`   🧪 Would create ministries: ${counters.ministries}`);
+			console.log(`   🧪 Would create events: ${counters.events}`);
 			console.log(
 				`   ⏭️  Ministries skipped (already exist): ${counters.skipped}`
 			);
 			console.log(`   ❌ Errors: ${counters.errors}`);
 		} else {
 			console.log(`   ✅ Ministries created: ${counters.ministries}`);
+			console.log(`   ✅ Events created: ${counters.events}`);
 			console.log(
 				`   ⏭️  Ministries skipped (already exist): ${counters.skipped}`
 			);
@@ -417,6 +495,7 @@ async function main() {
 		console.log('   2. Navigate to Ministries page');
 		console.log('   3. Add email addresses for each ministry through the UI');
 		console.log('   4. Assign ministry leaders as needed');
+		console.log('   5. Events for check-in functionality have been created');
 		console.log('');
 		if (DRY_RUN) {
 			console.log('🧪 Dry run completed successfully!');
@@ -436,4 +515,4 @@ main().catch((error) => {
 	process.exit(1);
 });
 
-export { createMinistries, ministriesData };
+export { createMinistries, createEvents, ministriesData };
