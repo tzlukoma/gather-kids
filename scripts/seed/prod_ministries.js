@@ -320,8 +320,14 @@ async function createMinistries() {
 			// Create ministry using direct Supabase call
 			console.log(`🔄 Creating ministry: ${ministryData.name}...`);
 
+			// Generate a unique ministry_id
+			const ministryId = `min_${Date.now()}_${Math.random()
+				.toString(36)
+				.substr(2, 9)}`;
+
 			// Prepare data for insertion
 			const insertData = {
+				ministry_id: ministryId,
 				name: ministryData.name,
 				code: ministryData.code,
 				enrollment_type: ministryData.enrollment_type,
@@ -356,7 +362,7 @@ async function createMinistries() {
 			}
 
 			console.log(
-				`✅ Created ministry: ${ministryData.name} (ID: ${newMinistry.ministry_id})`
+				`✅ Created ministry: ${ministryData.name} (ID: ${ministryId})`
 			);
 			counters.ministries++;
 
