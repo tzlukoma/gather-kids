@@ -282,9 +282,29 @@ async function getNewEnrollments(since) {
 async function getAdminUsers() {
 	console.log('Getting admin users...');
 
+	// First, let's see what users exist in the table
+	const { data: allUsers, error: allUsersError } = await supabase
+		.from('users')
+		.select('user_id, name, email, role, is_active');
+	
+	if (allUsersError) {
+		console.error('Error querying all users:', allUsersError);
+	} else {
+		console.log(`Total users in database: ${allUsers?.length || 0}`);
+		if (allUsers && allUsers.length > 0) {
+			console.log('All users:', allUsers.map(u => ({ 
+				email: u.email, 
+				role: u.role, 
+				is_active: u.is_active,
+				name: u.name 
+			})));
+		}
+	}
+
+	// Now query for admin users specifically
 	const { data, error } = await supabase
 		.from('users')
-		.select('user_id, name, email, role, is_active')
+		.select('user_id, name, email')
 		.eq('role', 'ADMIN')
 		.eq('is_active', true);
 
@@ -294,15 +314,8 @@ async function getAdminUsers() {
 	}
 
 	console.log(`Found ${data?.length || 0} admin users`);
-	
-	// Debug: Let's also check what users exist in the table
-	const { data: allUsers, error: allUsersError } = await supabase
-		.from('users')
-		.select('user_id, name, email, role, is_active');
-	
-	if (!allUsersError && allUsers) {
-		console.log(`Total users in database: ${allUsers.length}`);
-		console.log('All users:', allUsers.map(u => ({ email: u.email, role: u.role, is_active: u.is_active })));
+	if (data && data.length > 0) {
+		console.log('Admin users:', data.map(u => ({ email: u.email, name: u.name })));
 	}
 	return data || [];
 }
@@ -542,7 +555,7 @@ async function sendDigestEmails(enrollmentsByMinistry, adminUsers) {
 	}
 
 	// Send admin digest
-	if (adminUsers.length > 0 || TEST_MODE) {
+	if (adminUsers.length > 0) {
 		const totalEnrollments = Object.values(enrollmentsByMinistry).reduce(
 			(sum, group) => sum + group.enrollments.length,
 			0
@@ -553,11 +566,14 @@ async function sendDigestEmails(enrollmentsByMinistry, adminUsers) {
 			totalEnrollments
 		);
 
-		if (TEST_MODE && adminUsers.length === 0) {
-			// In test mode with no admin users, send to monitor emails
-			console.log('[TEST MODE] No admin users found, sending admin digest to monitor emails');
+		for (const admin of adminUsers) {
+			if (!admin.email) {
+				console.log(`Skipping admin ${admin.name} - no email configured`);
+				continue;
+			}
+
 			const success = await sendEmailViaMailjet(
-				'monitor@test.com', // This will be redirected to monitor emails by sendEmailViaMailjet
+				admin.email,
 				emailContent.subject,
 				emailContent.html,
 				emailContent.text
@@ -567,27 +583,6 @@ async function sendDigestEmails(enrollmentsByMinistry, adminUsers) {
 				results.admin.sent++;
 			} else {
 				results.admin.failed++;
-			}
-		} else {
-			// Normal admin email sending
-			for (const admin of adminUsers) {
-				if (!admin.email) {
-					console.log(`Skipping admin ${admin.name} - no email configured`);
-					continue;
-				}
-
-				const success = await sendEmailViaMailjet(
-					admin.email,
-					emailContent.subject,
-					emailContent.html,
-					emailContent.text
-				);
-
-				if (success) {
-					results.admin.sent++;
-				} else {
-					results.admin.failed++;
-				}
 			}
 		}
 	}
