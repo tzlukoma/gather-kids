@@ -14,7 +14,6 @@ import type {
 	MinistryAccount,
 	MinistryGroup,
 	MinistryGroupMember,
-	MinistryGroupContact,
 	User,
 	Event,
 	Attendance,
@@ -258,18 +257,6 @@ export interface DatabaseAdapter {
 	removeMinistryFromGroup(groupId: string, ministryId: string): Promise<void>;
 	listMinistriesByGroup(groupId: string): Promise<Ministry[]>;
 	listGroupsByMinistry(ministryId: string): Promise<MinistryGroup[]>;
-
-	// Ministry Group Contacts  
-	getMinistryGroupContact(id: string): Promise<MinistryGroupContact | null>;
-	createMinistryGroupContact(
-		data: Omit<MinistryGroupContact, 'id' | 'created_at' | 'updated_at'>
-	): Promise<MinistryGroupContact>;
-	updateMinistryGroupContact(
-		id: string,
-		data: Partial<MinistryGroupContact>
-	): Promise<MinistryGroupContact>;
-	listGroupContacts(groupId: string): Promise<MinistryGroupContact[]>;
-	deleteMinistryGroupContact(id: string): Promise<void>;
 
 	// Ministry Group RBAC helpers
 	listAccessibleMinistriesForEmail(email: string): Promise<Ministry[]>;

@@ -22,7 +22,6 @@ import type {
 	MinistryAccount,
 	MinistryGroup,
 	MinistryGroupMember,
-	MinistryGroupContact,
 	BrandingSettings,
 	BibleBeeYear,
 	Division,
@@ -1876,114 +1875,6 @@ export class SupabaseAdapter implements DatabaseAdapter {
 					updated_at: group.updated_at,
 				};
 			});
-	}
-
-	// Ministry Group Contacts
-	async getMinistryGroupContact(id: string): Promise<MinistryGroupContact | null> {
-		const { data, error } = await this.client
-			.from('ministry_group_contacts')
-			.select('*')
-			.eq('id', id)
-			.single();
-
-		if (error) throw error;
-		if (!data) return null;
-
-		return {
-			id: data.id,
-			group_id: data.group_id,
-			email: data.email,
-			display_name: data.display_name || undefined,
-			role: data.role as 'ADMIN' | 'VIEWER',
-			is_active: data.is_active,
-			created_at: data.created_at,
-			updated_at: data.updated_at,
-		};
-	}
-
-	async createMinistryGroupContact(data: Omit<MinistryGroupContact, 'id' | 'created_at' | 'updated_at'>): Promise<MinistryGroupContact> {
-		const { data: inserted, error } = await this.client
-			.from('ministry_group_contacts')
-			.insert({
-				group_id: data.group_id,
-				email: data.email,
-				display_name: data.display_name || null,
-				role: data.role,
-				is_active: data.is_active,
-			})
-			.select()
-			.single();
-
-		if (error) throw error;
-
-		return {
-			id: inserted.id,
-			group_id: inserted.group_id,
-			email: inserted.email,
-			display_name: inserted.display_name || undefined,
-			role: inserted.role as 'ADMIN' | 'VIEWER',
-			is_active: inserted.is_active,
-			created_at: inserted.created_at,
-			updated_at: inserted.updated_at,
-		};
-	}
-
-	async updateMinistryGroupContact(id: string, data: Partial<MinistryGroupContact>): Promise<MinistryGroupContact> {
-		const updates: any = {};
-		if (data.email !== undefined) updates.email = data.email;
-		if (data.display_name !== undefined) updates.display_name = data.display_name;
-		if (data.role !== undefined) updates.role = data.role;
-		if (data.is_active !== undefined) updates.is_active = data.is_active;
-
-		const { data: updated, error } = await this.client
-			.from('ministry_group_contacts')
-			.update(updates)
-			.eq('id', id)
-			.select()
-			.single();
-
-		if (error) throw error;
-
-		return {
-			id: updated.id,
-			group_id: updated.group_id,
-			email: updated.email,
-			display_name: updated.display_name || undefined,
-			role: updated.role as 'ADMIN' | 'VIEWER',
-			is_active: updated.is_active,
-			created_at: updated.created_at,
-			updated_at: updated.updated_at,
-		};
-	}
-
-	async listGroupContacts(groupId: string): Promise<MinistryGroupContact[]> {
-		const { data, error } = await this.client
-			.from('ministry_group_contacts')
-			.select('*')
-			.eq('group_id', groupId)
-			.order('email');
-
-		if (error) throw error;
-
-		return (data || []).map(row => ({
-			id: row.id,
-			group_id: row.group_id,
-			email: row.email,
-			display_name: row.display_name || undefined,
-			role: row.role as 'ADMIN' | 'VIEWER',
-			is_active: row.is_active,
-			created_at: row.created_at,
-			updated_at: row.updated_at,
-		}));
-	}
-
-	async deleteMinistryGroupContact(id: string): Promise<void> {
-		const { error } = await this.client
-			.from('ministry_group_contacts')
-			.delete()
-			.eq('id', id);
-
-		if (error) throw error;
 	}
 
 	// Ministry Group RBAC helpers

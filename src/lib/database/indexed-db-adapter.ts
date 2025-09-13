@@ -19,7 +19,6 @@ import type {
 	MinistryAccount,
 	MinistryGroup,
 	MinistryGroupMember,
-	MinistryGroupContact,
 	BrandingSettings,
 	BibleBeeYear,
 	BibleBeeCycle,
@@ -871,47 +870,6 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 		return groups;
 	}
 
-	// Ministry Group Contacts
-	async getMinistryGroupContact(id: string): Promise<MinistryGroupContact | null> {
-		const result = await this.db.ministry_group_contacts.get(id);
-		return result || null;
-	}
-
-	async createMinistryGroupContact(data: Omit<MinistryGroupContact, 'id' | 'created_at' | 'updated_at'>): Promise<MinistryGroupContact> {
-		const contact: MinistryGroupContact = {
-			...data,
-			id: uuidv4(),
-			created_at: new Date().toISOString(),
-			updated_at: new Date().toISOString(),
-		};
-
-		await this.db.ministry_group_contacts.add(contact);
-		return contact;
-	}
-
-	async updateMinistryGroupContact(id: string, data: Partial<MinistryGroupContact>): Promise<MinistryGroupContact> {
-		const existing = await this.db.ministry_group_contacts.get(id);
-		if (!existing) throw new Error(`Ministry group contact with id ${id} not found`);
-
-		const updated: MinistryGroupContact = {
-			...existing,
-			...data,
-			id, // preserve ID
-			updated_at: new Date().toISOString(),
-		};
-
-		await this.db.ministry_group_contacts.update(id, updated);
-		return updated;
-	}
-
-	async listGroupContacts(groupId: string): Promise<MinistryGroupContact[]> {
-		return this.db.ministry_group_contacts.where('group_id').equals(groupId).sortBy('email');
-	}
-
-	async deleteMinistryGroupContact(id: string): Promise<void> {
-		await this.db.ministry_group_contacts.delete(id);
-	}
-
 	// Ministry Group RBAC helpers - IndexedDB implementation
 	async listAccessibleMinistriesForEmail(email: string): Promise<Ministry[]> {
 		const normalizedEmail = email.toLowerCase().trim();
@@ -921,13 +879,12 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 			.where('email').equals(normalizedEmail)
 			.toArray();
 		
-		// Get ministries via group contacts
-		const groupContacts = await this.db.ministry_group_contacts
-			.where('email').equalsIgnoreCase(normalizedEmail)
-			.and(contact => contact.is_active)
+		// Get ministries via group email
+		const groups = await this.db.ministry_groups
+			.filter(group => group.email && group.email.toLowerCase() === normalizedEmail)
 			.toArray();
 			
-		const groupIds = groupContacts.map(c => c.group_id);
+		const groupIds = groups.map(g => g.id);
 		const groupMemberships = groupIds.length > 0 
 			? await this.db.ministry_group_members.where('group_id').anyOf(groupIds).toArray()
 			: [];

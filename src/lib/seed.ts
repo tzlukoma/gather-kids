@@ -258,6 +258,7 @@ export const seedDB = async () => {
                 code: 'choirs',
                 name: 'Choirs',
                 description: 'Youth Choirs Ministry Group - includes Joy Bells, Keita Praise, and Teen Choir',
+                email: 'cathedralchoirs@example.com', // Contact email for digest notifications
                 created_at: now,
                 updated_at: now,
             };
@@ -268,32 +269,8 @@ export const seedDB = async () => {
                 { group_id: choirGroupId, ministry_id: MINISTRY_IDS['choir-teen'], created_at: now },
             ];
 
-            const choirGroupContacts = [
-                {
-                    id: uuidv4(),
-                    group_id: choirGroupId,
-                    email: 'cathedralchoirs@example.com',
-                    display_name: 'Cathedral Choirs Director',
-                    role: 'ADMIN' as const,
-                    is_active: true,
-                    created_at: now,
-                    updated_at: now,
-                },
-                {
-                    id: uuidv4(),
-                    group_id: choirGroupId,
-                    email: 'youth.music.director@example.com',
-                    display_name: 'Youth Music Director',
-                    role: 'ADMIN' as const,
-                    is_active: true,
-                    created_at: now,
-                    updated_at: now,
-                },
-            ];
-
             await db.ministry_groups.bulkPut([choirGroup]);
             await db.ministry_group_members.bulkPut(choirGroupMembers);
-            await db.ministry_group_contacts.bulkPut(choirGroupContacts);
 
             await db.events.bulkPut([
                 { event_id: EVENT_IDS.sundaySchool, name: 'Sunday School', timeslots: [{ id: 'ts_0900', start_local: '09:00', end_local: '10:30' }] },

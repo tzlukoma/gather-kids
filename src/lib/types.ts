@@ -200,17 +200,7 @@ export interface MinistryGroupMember {
     created_at: string;
 }
 
-// NEW: Ministry Group Contacts (group-level email RBAC and digest recipients)
-export interface MinistryGroupContact {
-    id: string; // PK
-    group_id: string; // FK to ministry_groups.id
-    email: string; // case-insensitive
-    display_name?: string;
-    role: 'ADMIN' | 'VIEWER';
-    is_active: boolean;
-    created_at: string;
-    updated_at: string;
-}
+
 
 export interface User {
     user_id: string; // PK

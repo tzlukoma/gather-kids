@@ -1,6 +1,6 @@
 
 import Dexie, { type EntityTable } from 'dexie';
-import type { Household, Guardian, EmergencyContact, Child, RegistrationCycle, ChildYearProfile, Registration, Ministry, MinistryEnrollment, LeaderAssignment, LeaderProfile, MinistryLeaderMembership, MinistryAccount, MinistryGroup, MinistryGroupMember, MinistryGroupContact, User, Event, Attendance, Incident, AuditLog, CompetitionYear, Scripture, GradeRule, StudentScripture, StudentEssay, BrandingSettings, BibleBeeYear, BibleBeeCycle, Division, EssayPrompt, Enrollment, EnrollmentOverride, UserHousehold, FormDraft } from './types';
+import type { Household, Guardian, EmergencyContact, Child, RegistrationCycle, ChildYearProfile, Registration, Ministry, MinistryEnrollment, LeaderAssignment, LeaderProfile, MinistryLeaderMembership, MinistryAccount, MinistryGroup, MinistryGroupMember, User, Event, Attendance, Incident, AuditLog, CompetitionYear, Scripture, GradeRule, StudentScripture, StudentEssay, BrandingSettings, BibleBeeYear, BibleBeeCycle, Division, EssayPrompt, Enrollment, EnrollmentOverride, UserHousehold, FormDraft } from './types';
 
 // prettier-ignore
 class GatherKidsDB extends Dexie {
@@ -21,7 +21,6 @@ class GatherKidsDB extends Dexie {
     // NEW: Ministry Groups Tables
     ministry_groups!: EntityTable<MinistryGroup, 'id'>;
     ministry_group_members!: EntityTable<MinistryGroupMember, 'group_id'>;
-    ministry_group_contacts!: EntityTable<MinistryGroupContact, 'id'>;
     users!: EntityTable<User, 'user_id'>;
     events!: EntityTable<Event, 'event_id'>;
     attendance!: EntityTable<Attendance, 'attendance_id'>;
@@ -150,7 +149,6 @@ class GatherKidsDB extends Dexie {
             // NEW: Ministry Groups Tables
             ministry_groups: 'id, code, name, is_active',
             ministry_group_members: '[group_id+ministry_id], group_id, ministry_id',
-            ministry_group_contacts: 'id, group_id, email, is_active',
             users: 'user_id, email, role, is_active, [last_name+first_name]',
             events: 'event_id, name',
             attendance: 'attendance_id, date, [event_id+date], [child_id+date]',

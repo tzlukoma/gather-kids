@@ -3636,8 +3636,6 @@ export async function deleteMinistryGroup(id: string): Promise<void> {
 	} else {
 		// Delete group members first
 		await db.ministry_group_members.where('group_id').equals(id).delete();
-		// Delete group contacts
-		await db.ministry_group_contacts.where('group_id').equals(id).delete();
 		// Delete the group
 		await db.ministry_groups.delete(id);
 	}
