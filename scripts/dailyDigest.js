@@ -542,7 +542,7 @@ async function sendDigestEmails(enrollmentsByMinistry, adminUsers) {
 	}
 
 	// Send admin digest
-	if (adminUsers.length > 0) {
+	if (adminUsers.length > 0 || TEST_MODE) {
 		const totalEnrollments = Object.values(enrollmentsByMinistry).reduce(
 			(sum, group) => sum + group.enrollments.length,
 			0
@@ -553,14 +553,11 @@ async function sendDigestEmails(enrollmentsByMinistry, adminUsers) {
 			totalEnrollments
 		);
 
-		for (const admin of adminUsers) {
-			if (!admin.email) {
-				console.log(`Skipping admin ${admin.name} - no email configured`);
-				continue;
-			}
-
+		if (TEST_MODE && adminUsers.length === 0) {
+			// In test mode with no admin users, send to monitor emails
+			console.log('[TEST MODE] No admin users found, sending admin digest to monitor emails');
 			const success = await sendEmailViaMailjet(
-				admin.email,
+				'monitor@test.com', // This will be redirected to monitor emails by sendEmailViaMailjet
 				emailContent.subject,
 				emailContent.html,
 				emailContent.text
@@ -570,6 +567,27 @@ async function sendDigestEmails(enrollmentsByMinistry, adminUsers) {
 				results.admin.sent++;
 			} else {
 				results.admin.failed++;
+			}
+		} else {
+			// Normal admin email sending
+			for (const admin of adminUsers) {
+				if (!admin.email) {
+					console.log(`Skipping admin ${admin.name} - no email configured`);
+					continue;
+				}
+
+				const success = await sendEmailViaMailjet(
+					admin.email,
+					emailContent.subject,
+					emailContent.html,
+					emailContent.text
+				);
+
+				if (success) {
+					results.admin.sent++;
+				} else {
+					results.admin.failed++;
+				}
 			}
 		}
 	}
