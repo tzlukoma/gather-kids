@@ -1797,6 +1797,8 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			name: row.name,
 			description: row.description || undefined,
 			email: row.email || undefined,
+			custom_consent_text: row.custom_consent_text || undefined,
+			custom_consent_required: row.custom_consent_required || false,
 			created_at: row.created_at,
 			updated_at: row.updated_at,
 		}));

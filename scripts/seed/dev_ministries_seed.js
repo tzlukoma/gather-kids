@@ -510,7 +510,7 @@ async function seedMinistryGroups() {
 
 		// Create ministry groups and collect their IDs
 		const createdGroups = new Map(); // code -> id mapping
-		
+
 		for (const groupData of groupsData) {
 			if (DRY_RUN) {
 				console.log(`[DRY RUN] Would create ministry group: ${groupData.name}`);
