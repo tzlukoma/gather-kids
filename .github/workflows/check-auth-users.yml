@@ -37,13 +37,15 @@ jobs:
           // Load environment variables
           config({ path: '.env.local' });
 
-          const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-          const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+          const supabaseUrl = process.env.PROD_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+          const supabaseServiceKey = process.env.PROD_SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
 
           if (!supabaseUrl || !supabaseServiceKey) {
               console.error('❌ Missing required environment variables:');
-              console.error('   NEXT_PUBLIC_SUPABASE_URL');
-              console.error('   SUPABASE_SERVICE_ROLE_KEY');
+              console.error('   For Production: PROD_SUPABASE_URL, PROD_SUPABASE_SERVICE_ROLE_KEY');
+              console.error('   For Local/Dev: NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY');
+              console.error('');
+              console.error('Make sure these are set in your environment');
               process.exit(1);
           }
 
@@ -143,8 +145,8 @@ jobs:
 
       - name: Run auth users check
         env:
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          PROD_SUPABASE_URL: ${{ secrets.PROD_SUPABASE_URL }}
+          PROD_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.PROD_SUPABASE_SERVICE_ROLE_KEY }}
         run: node check-auth-users.js
 
       - name: Cleanup

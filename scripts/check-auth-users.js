@@ -10,8 +10,8 @@
  *   node scripts/check-auth-users.js
  *
  * Environment Variables Required:
- *   - NEXT_PUBLIC_SUPABASE_URL: Supabase project URL
- *   - SUPABASE_SERVICE_ROLE_KEY: Supabase service role key
+ *   - PROD_SUPABASE_URL: Production Supabase project URL (or NEXT_PUBLIC_SUPABASE_URL for local)
+ *   - PROD_SUPABASE_SERVICE_ROLE_KEY: Production Supabase service role key (or SUPABASE_SERVICE_ROLE_KEY for local)
  */
 
 import { createClient } from '@supabase/supabase-js';
@@ -20,15 +20,22 @@ import { config } from 'dotenv';
 // Load environment variables from .env.local
 config({ path: '.env.local' });
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const supabaseUrl =
+	process.env.PROD_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseServiceKey =
+	process.env.PROD_SUPABASE_SERVICE_ROLE_KEY ||
+	process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 if (!supabaseUrl || !supabaseServiceKey) {
 	console.error('❌ Missing required environment variables:');
-	console.error('   NEXT_PUBLIC_SUPABASE_URL');
-	console.error('   SUPABASE_SERVICE_ROLE_KEY');
+	console.error(
+		'   For Production: PROD_SUPABASE_URL, PROD_SUPABASE_SERVICE_ROLE_KEY'
+	);
+	console.error(
+		'   For Local/Dev: NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY'
+	);
 	console.error('');
-	console.error('Make sure these are set in your .env.local file');
+	console.error('Make sure these are set in your environment file');
 	process.exit(1);
 }
 
