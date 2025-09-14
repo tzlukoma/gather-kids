@@ -494,6 +494,7 @@ async function seedMinistryGroups() {
 				name: 'Choirs',
 				description:
 					'Youth choir ministries grouped together for shared management and notifications',
+				email: 'choirs@morethanahut.com',
 				custom_consent_text:
 					'Cathedral International youth choirs communicate using the Planning Center app. By clicking yes, you agree to be added into the app, which will enable you to download the app, receive emails and push communications.',
 				custom_consent_required: true,
@@ -503,6 +504,7 @@ async function seedMinistryGroups() {
 				name: 'Music Ministries',
 				description:
 					'All music-related ministries including choirs and orchestra',
+				email: 'music@morethanahut.com',
 				custom_consent_text: '',
 				custom_consent_required: false,
 			},
