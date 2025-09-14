@@ -20,12 +20,26 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { useMemo, useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, Edit, Trash2, Calendar, Users, Settings } from 'lucide-react';
+import {
+	PlusCircle,
+	Edit,
+	Trash2,
+	Calendar,
+	Users,
+	Settings,
+} from 'lucide-react';
 import { MinistryFormDialog } from '@/components/gatherKids/ministry-form-dialog';
 import { MinistryGroupFormDialog } from '@/components/gatherKids/ministry-group-form-dialog';
 import { MinistryAssignmentDialog } from '@/components/gatherKids/ministry-assignment-dialog';
 import RegistrationCycles from '@/components/gatherKids/registration-cycles';
-import { deleteMinistry, getMinistries, getMinistryGroups, deleteMinistryGroup, getMinistriesInGroup, getGroupsForMinistry } from '@/lib/dal';
+import {
+	deleteMinistry,
+	getMinistries,
+	getMinistryGroups,
+	deleteMinistryGroup,
+	getMinistriesInGroup,
+	getGroupsForMinistry,
+} from '@/lib/dal';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { Switch } from '@/components/ui/switch';
@@ -94,17 +108,9 @@ function MinistryTable({
 									</TableCell>
 									<TableCell>
 										{groups.length > 0 ? (
-											<div className="flex flex-wrap gap-1">
-												{groups.map((group) => (
-													<Badge
-														key={group.id}
-														variant="secondary"
-														className="text-xs"
-													>
-														{group.name}
-													</Badge>
-												))}
-											</div>
+											<span className="text-sm">
+												{groups.map((group) => group.name).join(', ')}
+											</span>
 										) : (
 											<span className="text-muted-foreground text-sm">—</span>
 										)}
@@ -122,7 +128,10 @@ function MinistryTable({
 											: 'All ages'}
 									</TableCell>
 									<TableCell className="text-right">
-										<Button variant="ghost" size="icon" onClick={() => onEdit(m)}>
+										<Button
+											variant="ghost"
+											size="icon"
+											onClick={() => onEdit(m)}>
 											<Edit className="h-4 w-4" />
 										</Button>
 										<AlertDialog>
@@ -190,7 +199,8 @@ function MinistryGroupTable({
 			<CardHeader>
 				<CardTitle className="font-headline">Ministry Groups</CardTitle>
 				<CardDescription>
-					Organize ministries into groups for easier management and group-level permissions.
+					Organize ministries into groups for easier management and group-level
+					permissions.
 				</CardDescription>
 			</CardHeader>
 			<CardContent>
@@ -216,19 +226,13 @@ function MinistryGroupTable({
 									</TableCell>
 									<TableCell>
 										{ministries.length > 0 ? (
-											<div className="flex flex-wrap gap-1 max-w-xs">
-												{ministries.map((ministry) => (
-													<Badge
-														key={ministry.ministry_id}
-														variant="secondary"
-														className="text-xs"
-													>
-														{ministry.name}
-													</Badge>
-												))}
-											</div>
+											<span className="text-sm">
+												{ministries.map((ministry) => ministry.name).join(', ')}
+											</span>
 										) : (
-											<span className="text-muted-foreground text-sm">No ministries</span>
+											<span className="text-muted-foreground text-sm">
+												No ministries
+											</span>
 										)}
 									</TableCell>
 									<TableCell className="text-muted-foreground">
@@ -242,16 +246,14 @@ function MinistryGroupTable({
 											variant="ghost"
 											size="icon"
 											onClick={() => onAssignMinistries(group)}
-											title="Assign Ministries"
-										>
+											title="Assign Ministries">
 											<Users className="h-4 w-4" />
 										</Button>
-										<Button 
-											variant="ghost" 
-											size="icon" 
+										<Button
+											variant="ghost"
+											size="icon"
 											onClick={() => onEdit(group)}
-											title="Edit Group"
-										>
+											title="Edit Group">
 											<Edit className="h-4 w-4" />
 										</Button>
 										<AlertDialog>
@@ -260,8 +262,7 @@ function MinistryGroupTable({
 													variant="ghost"
 													size="icon"
 													className="text-destructive hover:text-destructive"
-													title="Delete Group"
-												>
+													title="Delete Group">
 													<Trash2 className="h-4 w-4" />
 												</Button>
 											</AlertDialogTrigger>
@@ -269,8 +270,9 @@ function MinistryGroupTable({
 												<AlertDialogHeader>
 													<AlertDialogTitle>Are you sure?</AlertDialogTitle>
 													<AlertDialogDescription>
-														This action cannot be undone. This will permanently delete the 
-														ministry group "{group.name}" and all its assignments.
+														This action cannot be undone. This will permanently
+														delete the ministry group "{group.name}" and all its
+														assignments.
 													</AlertDialogDescription>
 												</AlertDialogHeader>
 												<AlertDialogFooter>
@@ -292,7 +294,8 @@ function MinistryGroupTable({
 								<TableCell
 									colSpan={6}
 									className="text-center h-24 text-muted-foreground">
-									No ministry groups found. Create your first group to get started.
+									No ministry groups found. Create your first group to get
+									started.
 								</TableCell>
 							</TableRow>
 						)}
@@ -312,18 +315,24 @@ export default function MinistryPage() {
 	const [allMinistries, setAllMinistries] = useState<Ministry[]>([]);
 	const [ministryGroups, setMinistryGroups] = useState<MinistryGroup[]>([]);
 	const [isLoadingData, setIsLoadingData] = useState(true);
-	const [ministriesInGroups, setMinistriesInGroups] = useState<Map<string, Ministry[]>>(new Map());
-	const [groupsForMinistries, setGroupsForMinistries] = useState<Map<string, MinistryGroup[]>>(new Map());
+	const [ministriesInGroups, setMinistriesInGroups] = useState<
+		Map<string, Ministry[]>
+	>(new Map());
+	const [groupsForMinistries, setGroupsForMinistries] = useState<
+		Map<string, MinistryGroup[]>
+	>(new Map());
 	const { toast } = useToast();
 
 	const [isDialogOpen, setIsDialogOpen] = useState(false);
 	const [editingMinistry, setEditingMinistry] = useState<Ministry | null>(null);
-	
+
 	// Ministry Group dialogs
 	const [isGroupDialogOpen, setIsGroupDialogOpen] = useState(false);
 	const [editingGroup, setEditingGroup] = useState<MinistryGroup | null>(null);
 	const [isAssignmentDialogOpen, setIsAssignmentDialogOpen] = useState(false);
-	const [assigningGroup, setAssigningGroup] = useState<MinistryGroup | null>(null);
+	const [assigningGroup, setAssigningGroup] = useState<MinistryGroup | null>(
+		null
+	);
 
 	// Load data when authorized
 	useEffect(() => {
@@ -332,7 +341,7 @@ export default function MinistryPage() {
 				try {
 					const [ministries, groups] = await Promise.all([
 						getMinistries(),
-						getMinistryGroups()
+						getMinistryGroups(),
 					]);
 					setAllMinistries(ministries);
 					setMinistryGroups(groups);
@@ -347,7 +356,10 @@ export default function MinistryPage() {
 							const groupMinistries = await getMinistriesInGroup(group.id);
 							ministriesInGroupsMap.set(group.id, groupMinistries);
 						} catch (error) {
-							console.warn(`Failed to load ministries for group ${group.id}:`, error);
+							console.warn(
+								`Failed to load ministries for group ${group.id}:`,
+								error
+							);
 							ministriesInGroupsMap.set(group.id, []);
 						}
 					}
@@ -355,10 +367,15 @@ export default function MinistryPage() {
 					// Get groups for each ministry
 					for (const ministry of ministries) {
 						try {
-							const ministryGroups = await getGroupsForMinistry(ministry.ministry_id);
+							const ministryGroups = await getGroupsForMinistry(
+								ministry.ministry_id
+							);
 							groupsForMinistriesMap.set(ministry.ministry_id, ministryGroups);
 						} catch (error) {
-							console.warn(`Failed to load groups for ministry ${ministry.ministry_id}:`, error);
+							console.warn(
+								`Failed to load groups for ministry ${ministry.ministry_id}:`,
+								error
+							);
 							groupsForMinistriesMap.set(ministry.ministry_id, []);
 						}
 					}
@@ -452,10 +469,15 @@ export default function MinistryPage() {
 			const groupsForMinistriesMap = new Map<string, MinistryGroup[]>();
 			for (const ministry of ministries) {
 				try {
-					const ministryGroups = await getGroupsForMinistry(ministry.ministry_id);
+					const ministryGroups = await getGroupsForMinistry(
+						ministry.ministry_id
+					);
 					groupsForMinistriesMap.set(ministry.ministry_id, ministryGroups);
 				} catch (error) {
-					console.warn(`Failed to load groups for ministry ${ministry.ministry_id}:`, error);
+					console.warn(
+						`Failed to load groups for ministry ${ministry.ministry_id}:`,
+						error
+					);
 					groupsForMinistriesMap.set(ministry.ministry_id, []);
 				}
 			}
@@ -525,7 +547,10 @@ export default function MinistryPage() {
 					const groupMinistries = await getMinistriesInGroup(group.id);
 					ministriesInGroupsMap.set(group.id, groupMinistries);
 				} catch (error) {
-					console.warn(`Failed to load ministries for group ${group.id}:`, error);
+					console.warn(
+						`Failed to load ministries for group ${group.id}:`,
+						error
+					);
 					ministriesInGroupsMap.set(group.id, []);
 				}
 			}
@@ -535,10 +560,15 @@ export default function MinistryPage() {
 			const groupsForMinistriesMap = new Map<string, MinistryGroup[]>();
 			for (const ministry of allMinistries) {
 				try {
-					const ministryGroups = await getGroupsForMinistry(ministry.ministry_id);
+					const ministryGroups = await getGroupsForMinistry(
+						ministry.ministry_id
+					);
 					groupsForMinistriesMap.set(ministry.ministry_id, ministryGroups);
 				} catch (error) {
-					console.warn(`Failed to load groups for ministry ${ministry.ministry_id}:`, error);
+					console.warn(
+						`Failed to load groups for ministry ${ministry.ministry_id}:`,
+						error
+					);
 					groupsForMinistriesMap.set(ministry.ministry_id, []);
 				}
 			}
@@ -546,10 +576,7 @@ export default function MinistryPage() {
 
 			console.log('✅ MinistryPage: Groups list refreshed successfully');
 		} catch (error) {
-			console.error(
-				'❌ MinistryPage: Failed to refresh groups list',
-				error
-			);
+			console.error('❌ MinistryPage: Failed to refresh groups list', error);
 			toast({
 				title: 'Error',
 				description: 'Failed to refresh groups data',
@@ -649,14 +676,14 @@ export default function MinistryPage() {
 				ministry={editingMinistry}
 				onMinistryUpdated={handleMinistryUpdated}
 			/>
-			
+
 			<MinistryGroupFormDialog
 				isOpen={isGroupDialogOpen}
 				onCloseAction={() => setIsGroupDialogOpen(false)}
 				group={editingGroup}
 				onGroupUpdated={handleGroupUpdated}
 			/>
-			
+
 			<MinistryAssignmentDialog
 				isOpen={isAssignmentDialogOpen}
 				onCloseAction={() => setIsAssignmentDialogOpen(false)}
