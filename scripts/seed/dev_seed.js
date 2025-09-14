@@ -255,6 +255,43 @@ async function createMinistriesData() {
 				data_profile: 'Basic',
 				is_active: true,
 			},
+			// Youth Choir ministries with age restrictions
+			{
+				ministry_id: `${EXTERNAL_ID_PREFIX}joy_bells`,
+				name: 'Youth Choirs- Joy Bells (Ages 4-8)',
+				code: 'choir-joy-bells',
+				enrollment_type: 'enrolled',
+				min_age: 4,
+				max_age: 8,
+				details:
+					'Joy Bells is our introductory choir for the youngest voices. Practices are held after the 11 AM service.',
+				data_profile: 'Basic',
+				is_active: true,
+			},
+			{
+				ministry_id: `${EXTERNAL_ID_PREFIX}keita_choir`,
+				name: 'Youth Choirs- Keita Praise Choir (Ages 9-12)',
+				code: 'choir-keita',
+				enrollment_type: 'enrolled',
+				min_age: 9,
+				max_age: 12,
+				details:
+					'Keita Praise Choir builds on foundational skills and performs once a month. Practices are on Wednesdays.',
+				data_profile: 'Basic',
+				is_active: true,
+			},
+			{
+				ministry_id: `${EXTERNAL_ID_PREFIX}teen_choir`,
+				name: 'Youth Choirs- New Generation Teen Choir (Ages 13-18)',
+				code: 'choir-teen',
+				enrollment_type: 'enrolled',
+				min_age: 13,
+				max_age: 18,
+				details:
+					'The Teen Choir performs contemporary gospel music and leads worship during Youth Sundays.',
+				data_profile: 'Basic',
+				is_active: true,
+			},
 		];
 
 		for (const ministryData of ministriesData) {
@@ -306,6 +343,18 @@ async function createMinistryAccountsData() {
 			{ ministry_id: `${EXTERNAL_ID_PREFIX}bible_bee`, name: 'Bible Bee' },
 			{ ministry_id: `${EXTERNAL_ID_PREFIX}acolyte`, name: 'Acolyte Ministry' },
 			{ ministry_id: `${EXTERNAL_ID_PREFIX}dance`, name: 'Dance Ministry' },
+			{
+				ministry_id: `${EXTERNAL_ID_PREFIX}joy_bells`,
+				name: 'Youth Choirs- Joy Bells (Ages 4-8)',
+			},
+			{
+				ministry_id: `${EXTERNAL_ID_PREFIX}keita_choir`,
+				name: 'Youth Choirs- Keita Praise Choir (Ages 9-12)',
+			},
+			{
+				ministry_id: `${EXTERNAL_ID_PREFIX}teen_choir`,
+				name: 'Youth Choirs- New Generation Teen Choir (Ages 13-18)',
+			},
 		];
 
 		for (const ministry of ministries) {
@@ -352,6 +401,100 @@ async function createMinistryAccountsData() {
 		}
 	} catch (error) {
 		console.error('❌ Error creating ministry accounts:', error.message);
+		throw error;
+	}
+}
+
+/**
+ * Create ministry groups and assign choir ministries
+ */
+async function createMinistryGroupsData() {
+	try {
+		console.log(
+			'🎵 Creating ministry groups and assigning choir ministries...'
+		);
+
+		// Create the 'choirs' ministry group
+		const groupData = {
+			code: 'choirs',
+			name: 'Choirs',
+			description:
+				'Youth choir ministries grouped together for shared management and notifications',
+			email: 'choirs@morethanahut.com',
+			custom_consent_text:
+				'Cathedral International youth choirs communicate using the Planning Center app. By clicking yes, you agree to be added into the app, which will enable you to download the app, receive emails and push communications.',
+			custom_consent_required: true,
+		};
+
+		// Check if group already exists
+		const { data: existingGroup } = await client
+			.from('ministry_groups')
+			.select('id')
+			.eq('code', 'choirs')
+			.single();
+
+		let groupId;
+		if (existingGroup) {
+			console.log('✅ Ministry group already exists: Choirs');
+			groupId = existingGroup.id;
+		} else {
+			const { data, error } = await client
+				.from('ministry_groups')
+				.insert(groupData)
+				.select('id')
+				.single();
+
+			if (error) {
+				throw new Error(`Failed to create ministry group: ${error.message}`);
+			}
+
+			console.log('✅ Created ministry group: Choirs');
+			groupId = data.id;
+		}
+
+		// Assign choir ministries to the group
+		const choirMinistries = [
+			`${EXTERNAL_ID_PREFIX}joy_bells`,
+			`${EXTERNAL_ID_PREFIX}keita_choir`,
+			`${EXTERNAL_ID_PREFIX}teen_choir`,
+		];
+
+		for (const ministryId of choirMinistries) {
+			try {
+				// Check if membership already exists
+				const { data: existingMembership } = await client
+					.from('ministry_group_members')
+					.select('group_id')
+					.eq('group_id', groupId)
+					.eq('ministry_id', ministryId)
+					.single();
+
+				if (existingMembership) {
+					console.log(
+						`✅ Ministry ${ministryId} already assigned to Choirs group`
+					);
+				} else {
+					const { error } = await client.from('ministry_group_members').insert({
+						group_id: groupId,
+						ministry_id: ministryId,
+					});
+
+					if (error) {
+						throw new Error(
+							`Failed to assign ministry to group: ${error.message}`
+						);
+					}
+
+					console.log(`✅ Assigned ${ministryId} to Choirs group`);
+				}
+			} catch (error) {
+				console.log(
+					`⚠️ Failed to assign ${ministryId} to Choirs group: ${error.message}`
+				);
+			}
+		}
+	} catch (error) {
+		console.error('❌ Error creating ministry groups:', error.message);
 		throw error;
 	}
 }
@@ -969,6 +1112,9 @@ async function seedDevData() {
 
 		// Create ministry accounts
 		await createMinistryAccountsData();
+
+		// Create ministry groups and assign choir ministries
+		await createMinistryGroupsData();
 
 		// Create Bible Bee cycles
 		await createBibleBeeCyclesData(activeCycleId);

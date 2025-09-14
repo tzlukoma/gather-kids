@@ -46,6 +46,8 @@ const counters = {
 	leader_profiles: 0,
 	leader_assignments: 0,
 	ministry_accounts: 0,
+	ministry_groups: 0,
+	ministry_group_members: 0,
 	bible_bee_years: 0,
 	competition_years: 0,
 	registration_cycles: 0,
@@ -1578,6 +1580,104 @@ async function createMinistryAccounts() {
 		}
 	} catch (error) {
 		console.log(`❌ Error creating ministry accounts: ${error.message}`);
+		throw error;
+	}
+}
+
+/**
+ * Create ministry groups and assign choir ministries
+ */
+async function createMinistryGroups() {
+	try {
+		console.log(
+			'🎵 Creating ministry groups and assigning choir ministries...'
+		);
+
+		// Create the 'choirs' ministry group
+		const groupData = {
+			code: 'choirs',
+			name: 'Choirs',
+			description:
+				'Youth choir ministries grouped together for shared management and notifications',
+			email: 'choirs@example.com',
+			custom_consent_text:
+				'Cathedral International youth choirs communicate using the Planning Center app. By clicking yes, you agree to be added into the app, which will enable you to download the app, receive emails and push communications.',
+			custom_consent_required: true,
+		};
+
+		// Check if group already exists
+		const { data: existingGroup } = await supabase
+			.from('ministry_groups')
+			.select('id')
+			.eq('code', 'choirs')
+			.single();
+
+		let groupId;
+		if (existingGroup) {
+			console.log('✅ Ministry group already exists: Choirs');
+			groupId = existingGroup.id;
+		} else {
+			const { data, error } = await supabase
+				.from('ministry_groups')
+				.insert(groupData)
+				.select('id')
+				.single();
+
+			if (error) {
+				throw new Error(`Failed to create ministry group: ${error.message}`);
+			}
+
+			console.log('✅ Created ministry group: Choirs');
+			groupId = data.id;
+			counters.ministry_groups++;
+		}
+
+		// Assign choir ministries to the group
+		const choirMinistries = [
+			`${EXTERNAL_ID_PREFIX}joy_bells`,
+			`${EXTERNAL_ID_PREFIX}keita_choir`,
+			`${EXTERNAL_ID_PREFIX}teen_choir`,
+		];
+
+		for (const ministryId of choirMinistries) {
+			try {
+				// Check if membership already exists
+				const { data: existingMembership } = await supabase
+					.from('ministry_group_members')
+					.select('group_id')
+					.eq('group_id', groupId)
+					.eq('ministry_id', ministryId)
+					.single();
+
+				if (existingMembership) {
+					console.log(
+						`✅ Ministry ${ministryId} already assigned to Choirs group`
+					);
+				} else {
+					const { error } = await supabase
+						.from('ministry_group_members')
+						.insert({
+							group_id: groupId,
+							ministry_id: ministryId,
+						});
+
+					if (error) {
+						throw new Error(
+							`Failed to assign ministry to group: ${error.message}`
+						);
+					}
+
+					console.log(`✅ Assigned ${ministryId} to Choirs group`);
+					counters.ministry_group_members++;
+				}
+			} catch (error) {
+				console.log(
+					`⚠️ Failed to assign ${ministryId} to Choirs group: ${error.message}`
+				);
+			}
+		}
+	} catch (error) {
+		console.error('❌ Error creating ministry groups:', error.message);
 		throw error;
 	}
 }
@@ -3177,6 +3277,8 @@ function displaySeedingSummary() {
 	console.log(`Leader Profiles: ${counters.leader_profiles}`);
 	console.log(`Leader Assignments: ${counters.leader_assignments}`);
 	console.log(`Ministry Accounts: ${counters.ministry_accounts}`);
+	console.log(`Ministry Groups: ${counters.ministry_groups}`);
+	console.log(`Ministry Group Members: ${counters.ministry_group_members}`);
 	console.log(`Bible Bee Years: ${counters.bible_bee_years}`);
 	console.log(`Competition Years: ${counters.competition_years}`);
 	console.log(`Registration Cycles: ${counters.registration_cycles}`);
@@ -3403,6 +3505,8 @@ async function resetUATData() {
 		{ table: 'households', filter: { type: 'external_id' } },
 
 		// Level 5: Ministry structure
+		{ table: 'ministry_group_members', filter: { type: 'all_records' } },
+		{ table: 'ministry_groups', filter: { type: 'all_records' } },
 		{ table: 'ministry_accounts', filter: { type: 'ministry_id' } },
 		{ table: 'leader_assignments', filter: { type: 'all_records' } },
 		{ table: 'ministries', filter: { type: 'external_id' } },
@@ -3583,6 +3687,7 @@ async function seedUATData() {
 		await createMinistries();
 		console.log(`📊 DEBUG - Ministries created`);
 		await createMinistryAccounts();
+		await createMinistryGroups();
 		await createMinistryLeaders();
 
 		// Follow proper Bible Bee business workflow:

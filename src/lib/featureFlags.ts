@@ -4,7 +4,8 @@ type FlagName =
   | "LOGIN_GOOGLE_ENABLED"
   | "DATABASE_MODE" // demo | supabase
   | "SHOW_DEMO_FEATURES"
-  | "REGISTRATION_DRAFT_PERSISTENCE_ENABLED";
+  | "REGISTRATION_DRAFT_PERSISTENCE_ENABLED"
+  | "SHOW_MINISTRY_GROUPS";
 
 export function getFlag(name: FlagName): boolean | string {
   switch (name) {
@@ -18,6 +19,8 @@ export function getFlag(name: FlagName): boolean | string {
       return process.env.NEXT_PUBLIC_SHOW_DEMO_FEATURES === "true";
     case "REGISTRATION_DRAFT_PERSISTENCE_ENABLED":
       return process.env.NEXT_PUBLIC_REGISTRATION_DRAFT_PERSISTENCE_ENABLED === "true";
+    case "SHOW_MINISTRY_GROUPS":
+      return process.env.NEXT_PUBLIC_SHOW_MINISTRY_GROUPS === "true";
     case "DATABASE_MODE":
       // Force supabase mode when demo features are disabled
       if (process.env.NEXT_PUBLIC_SHOW_DEMO_FEATURES === "false") {

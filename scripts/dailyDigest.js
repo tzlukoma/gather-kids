@@ -233,6 +233,13 @@ async function getNewEnrollments(since) {
 				name,
 				ministry_accounts (
 					email
+				),
+				ministry_group_members (
+					ministry_groups (
+						id,
+						name,
+						email
+					)
 				)
 			),
 			children!inner (
@@ -267,14 +274,25 @@ async function getNewEnrollments(since) {
 		console.log('Debug: Ministry information from enrollments:');
 		data.forEach((enrollment, index) => {
 			// Find primary guardian email
-			const primaryGuardian = enrollment.children?.households?.guardians?.find(g => g.is_primary);
+			const primaryGuardian = enrollment.children?.households?.guardians?.find(
+				(g) => g.is_primary
+			);
 			const householdEmail = primaryGuardian?.email || 'NO HOUSEHOLD EMAIL';
-			
+
+			// Get ministry group information
+			const groups =
+				enrollment.ministries?.ministry_group_members?.map((mgm) => ({
+					id: mgm.ministry_groups?.id,
+					name: mgm.ministry_groups?.name,
+					email: mgm.ministry_groups?.email,
+				})) || [];
+
 			console.log(`Enrollment ${index + 1}:`, {
 				ministry_id: enrollment.ministries?.ministry_id,
 				ministry_name: enrollment.ministries?.name,
 				ministry_email:
 					enrollment.ministries?.ministry_accounts?.email || 'NO EMAIL',
+				ministry_groups: groups,
 				child_name: `${enrollment.children?.first_name} ${enrollment.children?.last_name}`,
 				household_email: householdEmail,
 			});
@@ -297,28 +315,31 @@ async function getAdminUsers() {
 	}
 
 	// Filter for admin users based on user_metadata
-	const adminUsers = data.users.filter(user => {
+	const adminUsers = data.users.filter((user) => {
 		const metadata = user.user_metadata || {};
 		return metadata.role === 'ADMIN' && user.email_confirmed_at;
 	});
 
 	console.log(`Found ${adminUsers.length} admin users in auth.users`);
 	if (adminUsers.length > 0) {
-		console.log('Admin users:', adminUsers.map(u => ({ 
-			email: u.email, 
-			name: u.user_metadata?.full_name || u.email,
-			role: u.user_metadata?.role 
-		})));
+		console.log(
+			'Admin users:',
+			adminUsers.map((u) => ({
+				email: u.email,
+				name: u.user_metadata?.full_name || u.email,
+				role: u.user_metadata?.role,
+			}))
+		);
 	}
 
-	return adminUsers.map(user => ({
+	return adminUsers.map((user) => ({
 		user_id: user.id,
 		name: user.user_metadata?.full_name || user.email,
-		email: user.email
+		email: user.email,
 	}));
 }
 
-// Group enrollments by ministry
+// Group enrollments by ministry and ministry groups
 function groupEnrollmentsByMinistry(enrollments) {
 	const grouped = {};
 
@@ -329,6 +350,10 @@ function groupEnrollmentsByMinistry(enrollments) {
 				ministry: {
 					...enrollment.ministries,
 					email: enrollment.ministries.ministry_accounts?.email,
+					groups:
+						enrollment.ministries.ministry_group_members?.map(
+							(mgm) => mgm.ministry_groups
+						) || [],
 				},
 				enrollments: [],
 			};
@@ -337,6 +362,42 @@ function groupEnrollmentsByMinistry(enrollments) {
 	}
 
 	return grouped;
+}
+
+// Group enrollments by ministry groups
+function groupEnrollmentsByMinistryGroups(enrollmentsByMinistry) {
+	const groupEnrollments = {};
+
+	for (const [ministryId, group] of Object.entries(enrollmentsByMinistry)) {
+		const { ministry, enrollments } = group;
+
+		// Add to individual ministry group if it has groups
+		if (ministry.groups && ministry.groups.length > 0) {
+			for (const groupInfo of ministry.groups) {
+				if (groupInfo.email) {
+					if (!groupEnrollments[groupInfo.id]) {
+						groupEnrollments[groupInfo.id] = {
+							group: groupInfo,
+							ministries: {},
+						};
+					}
+
+					// Add this ministry's enrollments to the group
+					if (!groupEnrollments[groupInfo.id].ministries[ministryId]) {
+						groupEnrollments[groupInfo.id].ministries[ministryId] = {
+							ministry: ministry,
+							enrollments: [],
+						};
+					}
+					groupEnrollments[groupInfo.id].ministries[
+						ministryId
+					].enrollments.push(...enrollments);
+				}
+			}
+		}
+	}
+
+	return groupEnrollments;
 }
 
 // Generate email content for ministry digest
@@ -360,9 +421,9 @@ function generateMinistryEmailContent(ministry, enrollments) {
 		const child = enrollment.children;
 		const household = child.households;
 		const enrolledAt = new Date(enrollment.created_at).toLocaleDateString();
-		
+
 		// Find primary guardian email
-		const primaryGuardian = household.guardians?.find(g => g.is_primary);
+		const primaryGuardian = household.guardians?.find((g) => g.is_primary);
 		const primaryEmail = primaryGuardian?.email;
 
 		html += `
@@ -386,6 +447,90 @@ function generateMinistryEmailContent(ministry, enrollments) {
 
 	html += `
 		</ul>
+		<p>Please review these enrollments in your ministry dashboard.</p>
+		<hr>
+		<p><small>This is an automated daily digest from gatherKids. If you no longer wish to receive these emails, please contact your system administrator.</small></p>
+	`;
+
+	text += '\nPlease review these enrollments in your ministry dashboard.\n\n';
+	text +=
+		'This is an automated daily digest from gatherKids. If you no longer wish to receive these emails, please contact your system administrator.';
+
+	return { subject, html, text };
+}
+
+// Generate email content for ministry group digest
+function generateMinistryGroupEmailContent(group, ministriesData) {
+	const totalEnrollments = Object.values(ministriesData).reduce(
+		(sum, ministryData) => sum + ministryData.enrollments.length,
+		0
+	);
+
+	const subject = `New Enrollments for ${group.name} Group - Daily Digest (${totalEnrollments} total)`;
+
+	let html = `
+		<h2>Daily Enrollment Digest - ${group.name} Group</h2>
+		<p>You have received <strong>${totalEnrollments}</strong> new enrollment${
+		totalEnrollments !== 1 ? 's' : ''
+	} across ${Object.keys(ministriesData).length} ministr${
+		Object.keys(ministriesData).length !== 1 ? 'ies' : 'y'
+	} since yesterday:</p>
+	`;
+
+	let text = `Daily Enrollment Digest - ${group.name} Group\n\n`;
+	text += `You have received ${totalEnrollments} new enrollment${
+		totalEnrollments !== 1 ? 's' : ''
+	} across ${Object.keys(ministriesData).length} ministr${
+		Object.keys(ministriesData).length !== 1 ? 'ies' : 'y'
+	} since yesterday:\n\n`;
+
+	for (const [ministryId, ministryData] of Object.entries(ministriesData)) {
+		const { ministry, enrollments } = ministryData;
+
+		html += `
+			<h3>${ministry.name} (${enrollments.length} enrollment${
+			enrollments.length !== 1 ? 's' : ''
+		})</h3>
+			<ul>
+		`;
+
+		text += `${ministry.name} (${enrollments.length} enrollment${
+			enrollments.length !== 1 ? 's' : ''
+		}):\n`;
+
+		for (const enrollment of enrollments) {
+			const child = enrollment.children;
+			const household = child.households;
+			const enrolledAt = new Date(enrollment.created_at).toLocaleDateString();
+
+			// Find primary guardian email
+			const primaryGuardian = household.guardians?.find((g) => g.is_primary);
+			const primaryEmail = primaryGuardian?.email;
+
+			html += `
+				<li>
+					<strong>${child.first_name} ${child.last_name}</strong>
+					${child.dob ? ` (DOB: ${child.dob})` : ''}
+					<br>
+					Household: ${household.name || 'N/A'}
+					${primaryEmail ? ` (${primaryEmail})` : ''}
+					<br>
+					Enrolled: ${enrolledAt}
+				</li>
+			`;
+
+			text += `  • ${child.first_name} ${child.last_name}`;
+			if (child.dob) text += ` (DOB: ${child.dob})`;
+			text += `\n    Household: ${household.name || 'N/A'}`;
+			if (primaryEmail) text += ` (${primaryEmail})`;
+			text += `\n    Enrolled: ${enrolledAt}\n`;
+		}
+
+		html += '</ul>';
+		text += '\n';
+	}
+
+	html += `
 		<p>Please review these enrollments in your ministry dashboard.</p>
 		<hr>
 		<p><small>This is an automated daily digest from gatherKids. If you no longer wish to receive these emails, please contact your system administrator.</small></p>
@@ -428,9 +573,9 @@ function generateAdminEmailContent(enrollmentsByMinistry, totalCount) {
 			const child = enrollment.children;
 			const household = child.households;
 			const enrolledAt = new Date(enrollment.created_at).toLocaleDateString();
-			
+
 			// Find primary guardian email
-			const primaryGuardian = household.guardians?.find(g => g.is_primary);
+			const primaryGuardian = household.guardians?.find((g) => g.is_primary);
 			const primaryEmail = primaryGuardian?.email;
 
 			html += `
@@ -488,7 +633,9 @@ async function sendEmailViaMailjet(to, subject, html, text) {
 			console.log('[TEST MODE] No monitor emails configured - skipping');
 			return true;
 		}
-		console.log(`[TEST MODE] Sending to monitor emails: ${monitorEmails.join(', ')}`);
+		console.log(
+			`[TEST MODE] Sending to monitor emails: ${monitorEmails.join(', ')}`
+		);
 	}
 
 	try {
@@ -497,8 +644,8 @@ async function sendEmailViaMailjet(to, subject, html, text) {
 				Email: fromEmail || 'dry-run@example.com',
 				Name: 'gatherKids System',
 			},
-			To: TEST_MODE 
-				? monitorEmails.map(email => ({ Email: email }))
+			To: TEST_MODE
+				? monitorEmails.map((email) => ({ Email: email }))
 				: [{ Email: to }],
 			Subject: subject,
 			TextPart: text,
@@ -516,13 +663,18 @@ async function sendEmailViaMailjet(to, subject, html, text) {
 				Messages: [message],
 			});
 
-		console.log(`Email sent successfully to ${TEST_MODE ? monitorEmails.join(', ') : to}`);
+		console.log(
+			`Email sent successfully to ${TEST_MODE ? monitorEmails.join(', ') : to}`
+		);
 		if (monitorEmails.length > 0 && !TEST_MODE) {
 			console.log(`BCC sent to monitor emails: ${monitorEmails.join(', ')}`);
 		}
 		return true;
 	} catch (error) {
-		console.error(`Error sending email to ${TEST_MODE ? monitorEmails.join(', ') : to}:`, error);
+		console.error(
+			`Error sending email to ${TEST_MODE ? monitorEmails.join(', ') : to}:`,
+			error
+		);
 		return false;
 	}
 }
@@ -531,6 +683,7 @@ async function sendEmailViaMailjet(to, subject, html, text) {
 async function sendDigestEmails(enrollmentsByMinistry, adminUsers) {
 	const results = {
 		ministry: { sent: 0, failed: 0 },
+		ministryGroup: { sent: 0, failed: 0 },
 		admin: { sent: 0, failed: 0 },
 	};
 
@@ -557,6 +710,35 @@ async function sendDigestEmails(enrollmentsByMinistry, adminUsers) {
 			results.ministry.sent++;
 		} else {
 			results.ministry.failed++;
+		}
+	}
+
+	// Send ministry group digests
+	const groupEnrollments = groupEnrollmentsByMinistryGroups(
+		enrollmentsByMinistry
+	);
+	for (const [groupId, groupData] of Object.entries(groupEnrollments)) {
+		const { group, ministries } = groupData;
+
+		if (!group.email) {
+			console.log(
+				`Skipping ministry group ${group.name} - no contact email configured`
+			);
+			continue;
+		}
+
+		const emailContent = generateMinistryGroupEmailContent(group, ministries);
+		const success = await sendEmailViaMailjet(
+			group.email,
+			emailContent.subject,
+			emailContent.html,
+			emailContent.text
+		);
+
+		if (success) {
+			results.ministryGroup.sent++;
+		} else {
+			results.ministryGroup.failed++;
 		}
 	}
 
@@ -652,11 +834,17 @@ async function main() {
 			`- Ministry emails: ${results.ministry.sent} sent, ${results.ministry.failed} failed`
 		);
 		console.log(
+			`- Ministry group emails: ${results.ministryGroup.sent} sent, ${results.ministryGroup.failed} failed`
+		);
+		console.log(
 			`- Admin emails: ${results.admin.sent} sent, ${results.admin.failed} failed`
 		);
 
 		// Update checkpoint only if all emails succeeded (and not in test mode)
-		const totalFailed = results.ministry.failed + results.admin.failed;
+		const totalFailed =
+			results.ministry.failed +
+			results.ministryGroup.failed +
+			results.admin.failed;
 		if (totalFailed === 0) {
 			if (TEST_MODE) {
 				console.log('Test mode: Checkpoint not updated - this was a test run');
