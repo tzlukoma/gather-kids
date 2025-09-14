@@ -167,6 +167,7 @@ jobs:
           if [ -n "$PROD_SUPABASE_URL" ]; then
             echo "✅ PROD_SUPABASE_URL is set (length: ${#PROD_SUPABASE_URL})"
             echo "URL starts with: ${PROD_SUPABASE_URL:0:20}..."
+            echo "Full URL: $PROD_SUPABASE_URL"
           else
             echo "❌ PROD_SUPABASE_URL is not set"
           fi
@@ -175,6 +176,23 @@ jobs:
             echo "Key starts with: ${PROD_SUPABASE_SERVICE_ROLE_KEY:0:20}..."
           else
             echo "❌ PROD_SUPABASE_SERVICE_ROLE_KEY is not set"
+          fi
+
+          # Also check for old variables that might be interfering
+          echo ""
+          echo "Checking for old environment variables..."
+          if [ -n "$NEXT_PUBLIC_SUPABASE_URL" ]; then
+            echo "⚠️  NEXT_PUBLIC_SUPABASE_URL is still set (length: ${#NEXT_PUBLIC_SUPABASE_URL})"
+            echo "Old URL starts with: ${NEXT_PUBLIC_SUPABASE_URL:0:20}..."
+            echo "Full old URL: $NEXT_PUBLIC_SUPABASE_URL"
+          else
+            echo "✅ NEXT_PUBLIC_SUPABASE_URL is not set (good)"
+          fi
+          if [ -n "$SUPABASE_SERVICE_ROLE_KEY" ]; then
+            echo "⚠️  SUPABASE_SERVICE_ROLE_KEY is still set (length: ${#SUPABASE_SERVICE_ROLE_KEY})"
+            echo "Old key starts with: ${SUPABASE_SERVICE_ROLE_KEY:0:20}..."
+          else
+            echo "✅ SUPABASE_SERVICE_ROLE_KEY is not set (good)"
           fi
 
       - name: Test network connectivity

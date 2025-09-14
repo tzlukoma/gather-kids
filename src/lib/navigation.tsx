@@ -11,6 +11,7 @@ import {
 	Settings,
 	Book,
 	Palette,
+	UserCog,
 } from 'lucide-react';
 import { AuthRole } from './auth-types';
 
@@ -93,6 +94,12 @@ export const MENU_ITEMS: MenuItem[] = [
 		href: '/dashboard/leaders',
 		icon: Contact,
 		label: 'Leaders',
+		roles: [AuthRole.ADMIN],
+	},
+	{
+		href: '/dashboard/users',
+		icon: UserCog,
+		label: 'Users',
 		roles: [AuthRole.ADMIN],
 	},
 	{
