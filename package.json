@@ -48,6 +48,7 @@
     "import:dexie": "DOTENV_CONFIG_PATH=.env.local node -r dotenv/config scripts/import/importDexie.js",
     "import:dexie:dry": "DOTENV_CONFIG_PATH=.env.local node -r dotenv/config scripts/import/importDexie.js --dry-run",
     "debug:auth": "node scripts/debug/check-auth-config.js",
+    "check:auth-users": "node scripts/check-auth-users.js",
     "debug:auth:uat": "source .env.uat && node scripts/debug/check-auth-config.js",
     "debug:keys": "./scripts/debug/check-supabase-keys.sh",
     "debug:create-registration-cycles": "DOTENV_CONFIG_PATH=.env.local node -r dotenv/config scripts/debug/create-registration-cycles-table.js",
