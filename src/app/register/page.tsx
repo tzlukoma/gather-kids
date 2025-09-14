@@ -381,28 +381,6 @@ const ProgramSection = ({
 		return checkEligibility(program, age);
 	});
 
-	// Show ministries even if no children are eligible yet, but disable checkboxes
-	const hasChildrenWithDob = childrenData.some(
-		(child) => child.dob && child.dob.trim() !== ''
-	);
-
-	if (!hasChildrenWithDob) {
-		// Show ministry but with disabled state and helpful message
-		return (
-			<div className="p-4 border rounded-md opacity-60">
-				<h4 className="font-semibold">{program.name}</h4>
-				{program.description && (
-					<p className="text-sm text-muted-foreground mb-2">
-						{program.description}
-					</p>
-				)}
-				<div className="text-sm text-muted-foreground italic">
-					Add children with birth dates to see eligibility for this ministry
-				</div>
-			</div>
-		);
-	}
-
 	if (!anyChildEligible) return null;
 
 	return (
@@ -424,7 +402,7 @@ const ProgramSection = ({
 					return (
 						<FormField
 							key={`${program.code}-${field.id}`}
-							control={control}
+							control={form.control}
 							name={`children.${index}.ministrySelections.${program.code}`}
 							render={({ field }) => (
 								<FormItem className="flex flex-row items-start space-x-3 space-y-0">
@@ -2316,75 +2294,138 @@ function RegisterPageContent() {
 											))}
 
 										{/* Dynamic Group Consent Sections */}
-										{groupsRequiringConsent.map((group) => {
-											// Check if any ministries in this group are selected
-											const groupMinistries = choirPrograms.filter((program) =>
-												choirMinistries.some(
-													(choir) => choir.ministry_id === program.ministry_id
-												)
-											);
+										{groupsRequiringConsent.length > 0 && choirPrograms.length > 0 && (
+											<div className="p-4 border rounded-md space-y-4">
+												<h3 className="text-lg font-semibold font-headline">
+													Choirs
+												</h3>
+												<FormField
+													control={form.control}
+													name="consents.group_consents.choirs"
+													render={({ field }) => (
+														<FormItem className="space-y-3 p-4 border rounded-md bg-muted/50">
+															<FormLabel className="font-normal leading-relaxed">
+																Cathedral International youth choirs communicate using the Planning Center app. By clicking yes, you agree to be added into the app, which will enable you to download the app, receive emails and push communications.
+															</FormLabel>
+															<FormControl>
+																<RadioGroup
+																	onValueChange={field.onChange}
+																	defaultValue={field.value}
+																	className="flex flex-col space-y-1">
+																	<FormItem className="flex items-center space-x-3 space-y-0">
+																		<FormControl>
+																			<RadioGroupItem value="yes" />
+																		</FormControl>
+																		<FormLabel className="font-normal">
+																			Yes
+																		</FormLabel>
+																	</FormItem>
+																	<FormItem className="flex items-center space-x-3 space-y-0">
+																		<FormControl>
+																			<RadioGroupItem value="no" />
+																		</FormControl>
+																		<FormLabel className="font-normal">
+																			No
+																		</FormLabel>
+																	</FormItem>
+																</RadioGroup>
+															</FormControl>
+															<FormMessage />
+														</FormItem>
+													)}
+												/>
+												<div className="space-y-6">
+													{choirPrograms.map((program) => {
+														// Show choir ministries regardless of age eligibility
+														// but with appropriate messaging
+														const anyChildEligible = childrenData.some(
+															(child) => {
+																const age = getAgeFromDob(child.dob);
+																return checkEligibility(program, age);
+															}
+														);
 
-											// For now, we'll show consent for groups that have choir ministries
-											// In the future, this could be more sophisticated
-											if (group.code === 'choirs' && choirPrograms.length > 0) {
-												return (
-													<div
-														key={group.id}
-														className="p-4 border rounded-md space-y-4">
-														<h3 className="text-lg font-semibold font-headline">
-															{group.name}
-														</h3>
-														<FormField
-															control={form.control}
-															name={`consents.group_consents.${group.code}`}
-															render={({ field }) => (
-																<FormItem className="space-y-3 p-4 border rounded-md bg-muted/50">
-																	<FormLabel className="font-normal leading-relaxed">
-																		{group.custom_consent_text}
-																	</FormLabel>
-																	<FormControl>
-																		<RadioGroup
-																			onValueChange={field.onChange}
-																			defaultValue={field.value}
-																			className="flex flex-col space-y-1">
-																			<FormItem className="flex items-center space-x-3 space-y-0">
-																				<FormControl>
-																					<RadioGroupItem value="yes" />
-																				</FormControl>
-																				<FormLabel className="font-normal">
-																					Yes
-																				</FormLabel>
-																			</FormItem>
-																			<FormItem className="flex items-center space-x-3 space-y-0">
-																				<FormControl>
-																					<RadioGroupItem value="no" />
-																				</FormControl>
-																				<FormLabel className="font-normal">
-																					No
-																				</FormLabel>
-																			</FormItem>
-																		</RadioGroup>
-																	</FormControl>
-																	<FormMessage />
-																</FormItem>
-															)}
-														/>
-														<div className="space-y-6">
-															{choirPrograms.map((program) => (
-																<ProgramSection
-																	key={program.ministry_id}
-																	control={form.control}
-																	childrenData={childrenData}
-																	program={program}
-																	childFields={childFields}
-																/>
-															))}
-														</div>
-													</div>
-												);
-											}
-											return null;
-										})}
+														return (
+															<div
+																key={program.ministry_id}
+																className="p-4 border rounded-md">
+																<h4 className="font-semibold">
+																	{program.name}
+																</h4>
+																{program.description && (
+																	<p className="text-sm text-muted-foreground mb-2">
+																		{program.description}
+																	</p>
+																)}
+																{!anyChildEligible &&
+																	childrenData.length > 0 && (
+																		<div className="text-sm text-muted-foreground italic mb-2">
+																			No children are currently eligible for
+																			this ministry based on age
+																			requirements.
+																		</div>
+																	)}
+																<div className="flex flex-col sm:flex-row sm:flex-wrap gap-x-6 gap-y-2 mt-2">
+																	{childFields.map((field, index) => {
+																		const child = childrenData[index];
+																		if (!child) return null;
+
+																		const age = getAgeFromDob(child.dob);
+																		const isEligible = checkEligibility(
+																			program,
+																			age
+																		);
+
+																		return (
+																			<FormField
+																				key={`${program.code}-${field.id}`}
+																				control={form.control}
+																				name={`children.${index}.ministrySelections.${program.code}`}
+																				render={({ field }) => (
+																					<FormItem className="flex flex-row items-start space-x-3 space-y-0">
+																						<FormControl>
+																							<Checkbox
+																								checked={field.value}
+																								onCheckedChange={
+																									field.onChange
+																								}
+																								disabled={!isEligible}
+																							/>
+																						</FormControl>
+																						<FormLabel
+																							className={`font-normal ${
+																								!isEligible
+																									? 'text-muted-foreground'
+																									: ''
+																							}`}>
+																							{child.first_name ||
+																`Child ${index + 1}`}
+															{!isEligible &&
+																age !== null && (
+																	<span className="text-xs ml-1">
+																		(age {age}, requires
+																		ages{' '}
+																		{program.min_age ||
+																			'none'}
+																		-
+																		{program.max_age ||
+																			'none'}
+																		)
+																	</span>
+																)}
+														</FormLabel>
+													</FormItem>
+												)}
+											/>
+										);
+									})}
+								</div>
+							</div>
+						);
+					})}
+				</div>
+			</div>
+		)}
 									</CardContent>
 								</Card>
 
