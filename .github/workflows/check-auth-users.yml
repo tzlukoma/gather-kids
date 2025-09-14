@@ -20,7 +20,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '20'
           cache: 'npm'
 
       - name: Install dependencies
@@ -60,10 +60,25 @@ jobs:
                   // Get all auth users
                   const { data, error } = await supabase.auth.admin.listUsers();
                   
-                  if (error) {
-                      console.error('❌ Error fetching users:', error.message);
-                      process.exit(1);
-                  }
+          if (error) {
+              console.error('❌ Error fetching users:', error.message);
+              console.error('Error details:', error);
+              
+              // Provide helpful debugging information
+              if (error.message.includes('fetch failed') || error.message.includes('ENOTFOUND')) {
+                  console.error('');
+                  console.error('🔍 Troubleshooting suggestions:');
+                  console.error('   1. Check if PROD_SUPABASE_URL is correct and accessible');
+                  console.error('   2. Verify the Supabase project is active and not paused');
+                  console.error('   3. Check if PROD_SUPABASE_SERVICE_ROLE_KEY is valid');
+                  console.error('   4. Ensure network connectivity to Supabase');
+                  console.error('');
+                  console.error('Current URL:', supabaseUrl);
+                  console.error('URL starts with:', supabaseUrl?.substring(0, 30) + '...');
+              }
+              
+              process.exit(1);
+          }
                   
                   const users = data.users.map(user => ({
                       id: user.id,
@@ -142,6 +157,44 @@ jobs:
 
           checkAuthUsers();
           EOF
+
+      - name: Debug environment variables
+        env:
+          PROD_SUPABASE_URL: ${{ secrets.PROD_SUPABASE_URL }}
+          PROD_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.PROD_SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          echo "Checking environment variables..."
+          if [ -n "$PROD_SUPABASE_URL" ]; then
+            echo "✅ PROD_SUPABASE_URL is set (length: ${#PROD_SUPABASE_URL})"
+            echo "URL starts with: ${PROD_SUPABASE_URL:0:20}..."
+          else
+            echo "❌ PROD_SUPABASE_URL is not set"
+          fi
+          if [ -n "$PROD_SUPABASE_SERVICE_ROLE_KEY" ]; then
+            echo "✅ PROD_SUPABASE_SERVICE_ROLE_KEY is set (length: ${#PROD_SUPABASE_SERVICE_ROLE_KEY})"
+            echo "Key starts with: ${PROD_SUPABASE_SERVICE_ROLE_KEY:0:20}..."
+          else
+            echo "❌ PROD_SUPABASE_SERVICE_ROLE_KEY is not set"
+          fi
+
+      - name: Test network connectivity
+        env:
+          PROD_SUPABASE_URL: ${{ secrets.PROD_SUPABASE_URL }}
+        run: |
+          if [ -n "$PROD_SUPABASE_URL" ]; then
+            echo "Testing network connectivity to Supabase..."
+            # Extract hostname from URL
+            HOSTNAME=$(echo "$PROD_SUPABASE_URL" | sed 's|https\?://||' | sed 's|/.*||')
+            echo "Testing connection to: $HOSTNAME"
+            if ping -c 3 "$HOSTNAME" > /dev/null 2>&1; then
+              echo "✅ Network connectivity to Supabase is working"
+            else
+              echo "❌ Network connectivity to Supabase failed"
+              echo "This might be a DNS or network issue"
+            fi
+          else
+            echo "⚠️ Cannot test connectivity - PROD_SUPABASE_URL not set"
+          fi
 
       - name: Run auth users check
         env:

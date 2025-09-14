@@ -52,6 +52,31 @@ async function checkAuthUsers() {
 
 		if (error) {
 			console.error('❌ Error fetching users:', error.message);
+			console.error('Error details:', error);
+
+			// Provide helpful debugging information
+			if (
+				error.message.includes('fetch failed') ||
+				error.message.includes('ENOTFOUND')
+			) {
+				console.error('');
+				console.error('🔍 Troubleshooting suggestions:');
+				console.error(
+					'   1. Check if PROD_SUPABASE_URL is correct and accessible'
+				);
+				console.error(
+					'   2. Verify the Supabase project is active and not paused'
+				);
+				console.error('   3. Check if PROD_SUPABASE_SERVICE_ROLE_KEY is valid');
+				console.error('   4. Ensure network connectivity to Supabase');
+				console.error('');
+				console.error('Current URL:', supabaseUrl);
+				console.error(
+					'URL starts with:',
+					supabaseUrl?.substring(0, 30) + '...'
+				);
+			}
+
 			process.exit(1);
 		}
 
