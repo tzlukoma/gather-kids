@@ -12,6 +12,8 @@ import type {
 	LeaderProfile,
 	MinistryLeaderMembership,
 	MinistryAccount,
+	MinistryGroup,
+	MinistryGroupMember,
 	User,
 	Event,
 	Attendance,
@@ -236,6 +238,29 @@ export interface DatabaseAdapter {
 	): Promise<MinistryAccount>;
 	listMinistryAccounts(): Promise<MinistryAccount[]>;
 	deleteMinistryAccount(id: string): Promise<void>;
+
+	// Ministry Groups
+	getMinistryGroup(id: string): Promise<MinistryGroup | null>;
+	getMinistryGroupByCode(code: string): Promise<MinistryGroup | null>;
+	createMinistryGroup(
+		data: Omit<MinistryGroup, 'id' | 'created_at' | 'updated_at'>
+	): Promise<MinistryGroup>;
+	updateMinistryGroup(
+		id: string,
+		data: Partial<MinistryGroup>
+	): Promise<MinistryGroup>;
+	listMinistryGroups(): Promise<MinistryGroup[]>;
+	deleteMinistryGroup(id: string): Promise<void>;
+
+	// Ministry Group Members
+	addMinistryToGroup(groupId: string, ministryId: string): Promise<MinistryGroupMember>;
+	removeMinistryFromGroup(groupId: string, ministryId: string): Promise<void>;
+	listMinistriesByGroup(groupId: string): Promise<Ministry[]>;
+	listGroupsByMinistry(ministryId: string): Promise<MinistryGroup[]>;
+
+	// Ministry Group RBAC helpers
+	listAccessibleMinistriesForEmail(email: string): Promise<Ministry[]>;
+	listAccessibleMinistriesForAccount(accountId: string): Promise<Ministry[]>;
 
 	// Branding Settings
 	getBrandingSettings(settingId: string): Promise<BrandingSettings | null>;

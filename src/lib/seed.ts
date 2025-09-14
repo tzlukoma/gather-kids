@@ -251,6 +251,27 @@ export const seedDB = async () => {
             ];
             await db.ministry_accounts.bulkPut(demoMinistryAccounts);
 
+            // Ministry Groups - Seed the Choirs group and its members
+            const choirGroupId = uuidv4();
+            const choirGroup = {
+                id: choirGroupId,
+                code: 'choirs',
+                name: 'Choirs',
+                description: 'Youth Choirs Ministry Group - includes Joy Bells, Keita Praise, and Teen Choir',
+                email: 'cathedralchoirs@example.com', // Contact email for digest notifications
+                created_at: now,
+                updated_at: now,
+            };
+
+            const choirGroupMembers = [
+                { group_id: choirGroupId, ministry_id: MINISTRY_IDS['choir-joy-bells'], created_at: now },
+                { group_id: choirGroupId, ministry_id: MINISTRY_IDS['choir-keita'], created_at: now },
+                { group_id: choirGroupId, ministry_id: MINISTRY_IDS['choir-teen'], created_at: now },
+            ];
+
+            await db.ministry_groups.bulkPut([choirGroup]);
+            await db.ministry_group_members.bulkPut(choirGroupMembers);
+
             await db.events.bulkPut([
                 { event_id: EVENT_IDS.sundaySchool, name: 'Sunday School', timeslots: [{ id: 'ts_0900', start_local: '09:00', end_local: '10:30' }] },
                 { event_id: EVENT_IDS.childrensChurch, name: "Children's Church", timeslots: [{ id: 'ts_0900', start_local: '09:00', end_local: '10:30' }] },

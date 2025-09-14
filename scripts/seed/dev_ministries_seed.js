@@ -11,6 +11,7 @@
  * - Different enrollment types (enrolled vs expressed_interest)
  * - Communicate later flag (for future ministries)
  * - Open/close dates (Bible Bee with registration window)
+ * - Ministry groups (Choirs group with all three youth choirs, Music group with all music ministries)
  *
  * Usage:
  *   npm run seed:dev:ministries
@@ -27,6 +28,8 @@ const EXTERNAL_ID_PREFIX = 'dev-';
 const counters = {
 	ministries: 0,
 	registration_cycles: 0,
+	ministry_groups: 0,
+	ministry_group_members: 0,
 };
 
 // Create Supabase client
@@ -478,6 +481,123 @@ async function seedMinistries() {
 	}
 }
 
+async function seedMinistryGroups() {
+	console.log('🌱 Seeding ministry groups...');
+
+	try {
+		const supabase = await initSupabase();
+
+		// Create ministry groups
+		const groupsData = [
+			{
+				code: 'choirs',
+				name: 'Choirs',
+				description:
+					'Youth choir ministries grouped together for shared management and notifications',
+				custom_consent_text:
+					'Cathedral International youth choirs communicate using the Planning Center app. By clicking yes, you agree to be added into the app, which will enable you to download the app, receive emails and push communications.',
+				custom_consent_required: true,
+			},
+			{
+				code: 'music',
+				name: 'Music Ministries',
+				description:
+					'All music-related ministries including choirs and orchestra',
+				custom_consent_text: '',
+				custom_consent_required: false,
+			},
+		];
+
+		// Create ministry groups and collect their IDs
+		const createdGroups = new Map(); // code -> id mapping
+
+		for (const groupData of groupsData) {
+			if (DRY_RUN) {
+				console.log(`[DRY RUN] Would create ministry group: ${groupData.name}`);
+				counters.ministry_groups++;
+			} else {
+				const { data, error } = await supabase
+					.from('ministry_groups')
+					.upsert(groupData, { onConflict: 'code' })
+					.select('id, code')
+					.single();
+
+				if (error) {
+					console.error(
+						`Error creating ministry group ${groupData.name}:`,
+						error
+					);
+					throw error;
+				}
+				console.log(`✅ Created ministry group: ${groupData.name}`);
+				createdGroups.set(groupData.code, data.id);
+				counters.ministry_groups++;
+			}
+		}
+
+		// Assign ministries to groups using the generated UUIDs
+		const groupMemberships = [
+			// Choirs group - all three youth choirs
+			{
+				group_id: createdGroups.get('choirs'),
+				ministry_id: `${EXTERNAL_ID_PREFIX}joy_bells`,
+			},
+			{
+				group_id: createdGroups.get('choirs'),
+				ministry_id: `${EXTERNAL_ID_PREFIX}keita_choir`,
+			},
+			{
+				group_id: createdGroups.get('choirs'),
+				ministry_id: `${EXTERNAL_ID_PREFIX}teen_choir`,
+			},
+			// Music group - all music ministries
+			{
+				group_id: createdGroups.get('music'),
+				ministry_id: `${EXTERNAL_ID_PREFIX}symphonic_orchestra`,
+			},
+			{
+				group_id: createdGroups.get('music'),
+				ministry_id: `${EXTERNAL_ID_PREFIX}joy_bells`,
+			},
+			{
+				group_id: createdGroups.get('music'),
+				ministry_id: `${EXTERNAL_ID_PREFIX}keita_choir`,
+			},
+			{
+				group_id: createdGroups.get('music'),
+				ministry_id: `${EXTERNAL_ID_PREFIX}teen_choir`,
+			},
+		];
+
+		for (const membership of groupMemberships) {
+			if (DRY_RUN) {
+				console.log(
+					`[DRY RUN] Would assign ministry ${membership.ministry_id} to group ${membership.group_id}`
+				);
+				counters.ministry_group_members++;
+			} else {
+				const { error } = await supabase
+					.from('ministry_group_members')
+					.upsert(membership, { onConflict: 'group_id,ministry_id' });
+
+				if (error) {
+					console.error(`Error assigning ministry to group:`, error);
+					throw error;
+				}
+				counters.ministry_group_members++;
+			}
+		}
+
+		console.log(`✅ Created ${counters.ministry_groups} ministry groups`);
+		console.log(
+			`✅ Created ${counters.ministry_group_members} ministry group memberships`
+		);
+	} catch (error) {
+		console.error('❌ Error seeding ministry groups:', error);
+		throw error;
+	}
+}
+
 // Run the seeding process
 async function runSeeding() {
 	console.log('🚀 Starting ministry development seed script');
@@ -493,6 +613,9 @@ async function runSeeding() {
 		// Then seed ministries
 		await seedMinistries();
 
+		// Finally seed ministry groups and assign ministries to them
+		await seedMinistryGroups();
+
 		console.log('✨ Dev seeding completed successfully!');
 		console.log('📊 Summary:');
 		console.log('- 20+ ministries with various enrollment types');
@@ -501,6 +624,8 @@ async function runSeeding() {
 		console.log('- Custom consent text for New Jersey Orators');
 		console.log('- Registration window testing for Bible Bee');
 		console.log('- Both enrolled and expressed_interest ministries');
+		console.log('- Ministry groups with three youth choirs grouped together');
+		console.log('- Music ministries grouped for shared management');
 	} catch (error) {
 		console.error('❌ Seeding failed:', error);
 		process.exit(1);

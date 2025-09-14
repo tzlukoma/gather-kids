@@ -17,6 +17,8 @@ import type {
 	LeaderProfile,
 	MinistryLeaderMembership,
 	MinistryAccount,
+	MinistryGroup,
+	MinistryGroupMember,
 	BrandingSettings,
 	BibleBeeYear,
 	BibleBeeCycle,
@@ -784,6 +786,128 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 
 	async deleteMinistryAccount(id: string): Promise<void> {
 		await this.db.ministry_accounts.delete(id);
+	}
+
+	// Ministry Groups
+	async getMinistryGroup(id: string): Promise<MinistryGroup | null> {
+		const result = await this.db.ministry_groups.get(id);
+		return result || null;
+	}
+
+	async getMinistryGroupByCode(code: string): Promise<MinistryGroup | null> {
+		const result = await this.db.ministry_groups.where('code').equals(code).first();
+		return result || null;
+	}
+
+	async createMinistryGroup(data: Omit<MinistryGroup, 'id' | 'created_at' | 'updated_at'>): Promise<MinistryGroup> {
+		const group: MinistryGroup = {
+			...data,
+			id: uuidv4(),
+			created_at: new Date().toISOString(),
+			updated_at: new Date().toISOString(),
+		};
+
+		await this.db.ministry_groups.add(group);
+		return group;
+	}
+
+	async updateMinistryGroup(id: string, data: Partial<MinistryGroup>): Promise<MinistryGroup> {
+		const existing = await this.db.ministry_groups.get(id);
+		if (!existing) throw new Error(`Ministry group with id ${id} not found`);
+
+		const updated: MinistryGroup = {
+			...existing,
+			...data,
+			id, // preserve ID
+			updated_at: new Date().toISOString(),
+		};
+
+		await this.db.ministry_groups.update(id, updated);
+		return updated;
+	}
+
+	async listMinistryGroups(): Promise<MinistryGroup[]> {
+		return this.db.ministry_groups.orderBy('name').toArray();
+	}
+
+	async deleteMinistryGroup(id: string): Promise<void> {
+		await this.db.ministry_groups.delete(id);
+	}
+
+	// Ministry Group Members
+	async addMinistryToGroup(groupId: string, ministryId: string): Promise<MinistryGroupMember> {
+		const member: MinistryGroupMember = {
+			group_id: groupId,
+			ministry_id: ministryId,
+			created_at: new Date().toISOString(),
+		};
+
+		await this.db.ministry_group_members.add(member);
+		return member;
+	}
+
+	async removeMinistryFromGroup(groupId: string, ministryId: string): Promise<void> {
+		await this.db.ministry_group_members.where('[group_id+ministry_id]').equals([groupId, ministryId]).delete();
+	}
+
+	async listMinistriesByGroup(groupId: string): Promise<Ministry[]> {
+		const memberships = await this.db.ministry_group_members.where('group_id').equals(groupId).toArray();
+		const ministryIds = memberships.map(m => m.ministry_id);
+		
+		if (ministryIds.length === 0) return [];
+		
+		const ministries = await this.db.ministries.where('ministry_id').anyOf(ministryIds).toArray();
+		return ministries;
+	}
+
+	async listGroupsByMinistry(ministryId: string): Promise<MinistryGroup[]> {
+		const memberships = await this.db.ministry_group_members.where('ministry_id').equals(ministryId).toArray();
+		const groupIds = memberships.map(m => m.group_id);
+		
+		if (groupIds.length === 0) return [];
+		
+		const groups = await this.db.ministry_groups.where('id').anyOf(groupIds).toArray();
+		return groups;
+	}
+
+	// Ministry Group RBAC helpers - IndexedDB implementation
+	async listAccessibleMinistriesForEmail(email: string): Promise<Ministry[]> {
+		const normalizedEmail = email.toLowerCase().trim();
+		
+		// Get ministries via direct accounts
+		const directAccounts = await this.db.ministry_accounts
+			.where('email').equals(normalizedEmail)
+			.toArray();
+		
+		// Get ministries via group email
+		const groups = await this.db.ministry_groups
+			.filter(group => group.email && group.email.toLowerCase() === normalizedEmail)
+			.toArray();
+			
+		const groupIds = groups.map(g => g.id);
+		const groupMemberships = groupIds.length > 0 
+			? await this.db.ministry_group_members.where('group_id').anyOf(groupIds).toArray()
+			: [];
+		
+		// Collect all ministry IDs
+		const directMinistryIds = directAccounts
+			.filter(account => account.ministry_id)
+			.map(account => account.ministry_id!);
+		const groupMinistryIds = groupMemberships.map(m => m.ministry_id);
+		
+		const allMinistryIds = [...new Set([...directMinistryIds, ...groupMinistryIds])];
+		
+		if (allMinistryIds.length === 0) return [];
+		
+		return this.db.ministries.where('ministry_id').anyOf(allMinistryIds).toArray();
+	}
+
+	async listAccessibleMinistriesForAccount(accountId: string): Promise<Ministry[]> {
+		// For IndexedDB, we'll use the account to get the email and then use the email method
+		const account = await this.db.ministry_accounts.get(accountId);
+		if (!account || !account.email) return [];
+		
+		return this.listAccessibleMinistriesForEmail(account.email);
 	}
 
 	// Branding Settings

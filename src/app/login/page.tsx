@@ -189,9 +189,32 @@ export default function LoginPage() {
 						title: 'Login Successful',
 						description: `Welcome back!`,
 					});
-					// Use the same role-based redirect logic
+
+					// Set up the user in the auth context
 					const userRole = data.session.user?.user_metadata?.role as AuthRole;
+					const loginData = {
+						uid: data.session.user.id,
+						displayName:
+							data.session.user.user_metadata?.full_name ||
+							data.session.user.email,
+						email: data.session.user.email || '',
+						is_active: true,
+						metadata: {
+							role: userRole,
+						},
+					};
+
+					console.log('Supabase login - Calling login with data:', loginData);
+					await login(loginData);
+
+					// Use the same role-based redirect logic
 					const target = getPostLoginRoute(userRole);
+					console.log(
+						'Supabase login - Redirecting to:',
+						target,
+						'for role:',
+						userRole
+					);
 					router.push(target);
 				}
 			} else {
