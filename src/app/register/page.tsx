@@ -2373,85 +2373,15 @@ function RegisterPageContent() {
 													)}
 												/>
 												<div className="space-y-6">
-													{choirPrograms.map((program) => {
-														// Show choir ministries regardless of age eligibility
-														// but with appropriate messaging
-														const anyChildEligible = childrenData.some(
-															(child) => {
-																const age = getAgeFromDob(child.dob);
-																return checkEligibility(program, age);
-															}
-														);
-
-														return (
-															<div
-																key={program.ministry_id}
-																className="p-4 border rounded-md">
-																<h4 className="font-semibold">
-																	{program.name}
-																</h4>
-																{program.description && (
-																	<p className="text-sm text-muted-foreground mb-2">
-																		{program.description}
-																	</p>
-																)}
-																{!anyChildEligible &&
-																	childrenData.length > 0 && (
-																		<div className="text-sm text-muted-foreground italic mb-2">
-																			No children are currently eligible for
-																			this ministry based on age requirements.
-																		</div>
-																	)}
-																<div className="flex flex-col sm:flex-row sm:flex-wrap gap-x-6 gap-y-2 mt-2">
-																	{childFields.map((field, index) => {
-																		const child = childrenData[index];
-																		if (!child) return null;
-
-																		const age = getAgeFromDob(child.dob);
-																		const isEligible = checkEligibility(
-																			program,
-																			age
-																		);
-
-																		return (
-																			<FormField
-																				key={`${program.code}-${field.id}`}
-																				control={form.control}
-																				name={`children.${index}.ministrySelections.${program.code}`}
-																				render={({ field }) => (
-																					<FormItem className="flex flex-row items-start space-x-3 space-y-0">
-																						<FormControl>
-																							<Checkbox
-																								checked={field.value}
-																								onCheckedChange={field.onChange}
-																								disabled={!isEligible}
-																							/>
-																						</FormControl>
-																						<FormLabel
-																							className={`font-normal ${
-																								!isEligible
-																									? 'text-muted-foreground'
-																									: ''
-																							}`}>
-																							{child.first_name ||
-																								`Child ${index + 1}`}
-																							{!isEligible && age !== null && (
-																								<span className="text-xs ml-1">
-																									(age {age}, requires ages{' '}
-																									{program.min_age || 'none'}-
-																									{program.max_age || 'none'})
-																								</span>
-																							)}
-																						</FormLabel>
-																					</FormItem>
-																				)}
-																			/>
-																		);
-																	})}
-																</div>
-															</div>
-														);
-													})}
+													{choirPrograms.map((program) => (
+														<ProgramSection
+															key={program.ministry_id}
+															control={form.control}
+															childrenData={childrenData}
+															program={program}
+															childFields={childFields}
+														/>
+													))}
 												</div>
 											</div>
 										)}
