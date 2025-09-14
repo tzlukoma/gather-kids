@@ -1605,7 +1605,7 @@ async function createMinistryGroups() {
 		};
 
 		// Check if group already exists
-		const { data: existingGroup } = await client
+		const { data: existingGroup } = await supabase
 			.from('ministry_groups')
 			.select('id')
 			.eq('code', 'choirs')
@@ -1616,7 +1616,7 @@ async function createMinistryGroups() {
 			console.log('✅ Ministry group already exists: Choirs');
 			groupId = existingGroup.id;
 		} else {
-			const { data, error } = await client
+			const { data, error } = await supabase
 				.from('ministry_groups')
 				.insert(groupData)
 				.select('id')
@@ -1641,7 +1641,7 @@ async function createMinistryGroups() {
 		for (const ministryId of choirMinistries) {
 			try {
 				// Check if membership already exists
-				const { data: existingMembership } = await client
+				const { data: existingMembership } = await supabase
 					.from('ministry_group_members')
 					.select('group_id')
 					.eq('group_id', groupId)
@@ -1653,10 +1653,12 @@ async function createMinistryGroups() {
 						`✅ Ministry ${ministryId} already assigned to Choirs group`
 					);
 				} else {
-					const { error } = await client.from('ministry_group_members').insert({
-						group_id: groupId,
-						ministry_id: ministryId,
-					});
+					const { error } = await supabase
+						.from('ministry_group_members')
+						.insert({
+							group_id: groupId,
+							ministry_id: ministryId,
+						});
 
 					if (error) {
 						throw new Error(
