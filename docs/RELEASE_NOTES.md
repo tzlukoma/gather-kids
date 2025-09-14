@@ -1,5 +1,42 @@
 # Release Notes - gatherKids
 
+## v1.3.0 - Admin User Management
+
+### 🆕 New Features
+
+#### Admin User Management System
+
+- **User overview dashboard** - Admins can view all registered users with their roles, email confirmation status, and account details
+- **Role promotion interface** - Admins can promote users to ADMIN role directly from the web interface
+- **User status monitoring** - Track email confirmation status, last sign-in dates, and account creation dates
+- **Secure user management** - Server-side API routes protect sensitive operations using Supabase service role key
+- **Real-time user updates** - User list updates immediately after role changes without page refresh
+
+### 🔧 Technical Improvements
+
+- **Secure API endpoints** - New `/api/users` route handles user fetching and role updates securely
+- **Enhanced authentication** - Proper server-side authentication using Supabase Admin API
+- **Role-based navigation** - New "Users" menu item visible only to ADMIN users
+- **Toast notifications** - User-friendly feedback for successful operations and error handling
+- **Environment variable support** - Production-ready configuration with `PROD_SUPABASE_URL` and `PROD_SUPABASE_SERVICE_ROLE_KEY`
+
+### 🎯 User Experience Improvements
+
+- **Intuitive user interface** - Clean table layout with badges for role and email confirmation status
+- **One-click role promotion** - Simple button interface for promoting users to ADMIN
+- **Comprehensive user information** - Display user names, emails, roles, confirmation status, and timestamps
+- **Responsive design** - User management interface works seamlessly on all device sizes
+- **Error handling** - Clear error messages and loading states for better user experience
+
+### 🛡️ Security Features
+
+- **Admin-only access** - User management features are restricted to ADMIN role users
+- **Server-side validation** - All user operations are validated and executed server-side
+- **Secure key management** - Service role keys are never exposed to client-side code
+- **Audit trail** - User role changes are logged and tracked through Supabase
+
+---
+
 ## v1.2.0 - Ministry Groups & Enhanced Communication
 
 ### 🆕 New Features
