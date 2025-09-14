@@ -1,7 +1,7 @@
 /**
  * This file contains types generated from the Supabase schema.
  * DO NOT EDIT MANUALLY. This file is auto-generated.
- * Generated on: 2025-09-14T02:59:45.426Z
+ * Generated on: 2025-09-14T03:06:04.198Z
  */
 
 export type SupabaseJson =
@@ -1148,6 +1148,75 @@ export type Database = {
           },
         ]
       }
+      ministry_group_members: {
+        Row: {
+          created_at: string
+          group_id: string
+          ministry_id: string
+        }
+        Insert: {
+          created_at?: string
+          group_id: string
+          ministry_id: string
+        }
+        Update: {
+          created_at?: string
+          group_id?: string
+          ministry_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ministry_group_members_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "ministry_groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ministry_group_members_ministry_id_fkey"
+            columns: ["ministry_id"]
+            isOneToOne: false
+            referencedRelation: "ministries"
+            referencedColumns: ["ministry_id"]
+          },
+        ]
+      }
+      ministry_groups: {
+        Row: {
+          code: string
+          created_at: string
+          custom_consent_required: boolean | null
+          custom_consent_text: string | null
+          description: string | null
+          email: string | null
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          custom_consent_required?: boolean | null
+          custom_consent_text?: string | null
+          description?: string | null
+          email?: string | null
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          custom_consent_required?: boolean | null
+          custom_consent_text?: string | null
+          description?: string | null
+          email?: string | null
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       registration_cycles: {
         Row: {
           created_at: string | null
@@ -1429,6 +1498,42 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      citext: {
+        Args: { "": boolean } | { "": string } | { "": unknown }
+        Returns: string
+      }
+      citext_hash: {
+        Args: { "": string }
+        Returns: number
+      }
+      citextin: {
+        Args: { "": unknown }
+        Returns: string
+      }
+      citextout: {
+        Args: { "": string }
+        Returns: unknown
+      }
+      citextrecv: {
+        Args: { "": unknown }
+        Returns: string
+      }
+      citextsend: {
+        Args: { "": string }
+        Returns: string
+      }
+      fn_ministry_ids_email_can_access: {
+        Args: { p_email: string }
+        Returns: {
+          ministry_id: string
+        }[]
+      }
+      fn_ministry_ids_ministry_account_can_access: {
+        Args: { p_account_id: string }
+        Returns: {
+          ministry_id: string
+        }[]
+      }
       safe_add_column: {
         Args: {
           p_column_def: string
