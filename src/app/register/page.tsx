@@ -41,7 +41,10 @@ import {
 	registerHouseholdCanonical,
 	getMinistries,
 	getRegistrationCycles,
+	getMinistriesByGroupCode,
+	getMinistryGroups,
 } from '@/lib/dal';
+import { getFlag } from '@/lib/featureFlags';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import {
 	AlertDialog,
@@ -164,7 +167,8 @@ const registrationSchema = z
 			photoRelease: z.boolean().refine((val) => val === true, {
 				message: 'Photo release consent is required.',
 			}),
-			choir_communications_consent: z.enum(['yes', 'no']).optional(),
+			// Dynamic group consents - will be populated based on ministry groups
+			group_consents: z.record(z.enum(['yes', 'no'])).optional(),
 			custom_consents: z.record(z.boolean().optional()).optional(),
 		}),
 	})
@@ -481,6 +485,8 @@ function RegisterPageContent() {
 	const [submissionStatus, setSubmissionStatus] = useState<string>('');
 
 	const [allMinistries, setAllMinistries] = useState<Ministry[]>([]);
+	const [choirMinistries, setChoirMinistries] = useState<Ministry[]>([]);
+	const [ministryGroups, setMinistryGroups] = useState<MinistryGroup[]>([]);
 	const [activeRegistrationCycle, setActiveRegistrationCycle] = useState<
 		RegistrationCycle | undefined
 	>();
@@ -510,7 +516,41 @@ function RegisterPageContent() {
 				const cycles = await getRegistrationCycles();
 				console.log('DEBUG: Loaded', cycles.length, 'registration cycles');
 
+				// Load ministry groups for consent management
+				console.log('DEBUG: Calling getMinistryGroups()');
+				const groups = await getMinistryGroups();
+				console.log('DEBUG: Loaded', groups.length, 'ministry groups');
+				console.log('DEBUG: ministryGroups details:', groups);
+				setMinistryGroups(groups);
+
 				setAllMinistries(ministries);
+
+				// Load choir ministries using ministry groups if enabled
+				const showMinistryGroups = getFlag('SHOW_MINISTRY_GROUPS');
+				console.log('DEBUG: SHOW_MINISTRY_GROUPS flag:', showMinistryGroups);
+
+				if (showMinistryGroups) {
+					console.log('DEBUG: Loading choir ministries using ministry groups');
+					const choirs = await getMinistriesByGroupCode('choirs');
+					console.log(
+						'DEBUG: Loaded',
+						choirs.length,
+						'choir ministries via groups:',
+						choirs
+					);
+					setChoirMinistries(choirs);
+				} else {
+					// Fallback to prefix logic
+					console.log('DEBUG: Using legacy choir prefix logic');
+					const choirs = ministries.filter((m) => m.code.startsWith('choir-'));
+					console.log(
+						'DEBUG: Loaded',
+						choirs.length,
+						'choir ministries via prefix:',
+						choirs
+					);
+					setChoirMinistries(choirs);
+				}
 
 				// Find active cycle
 				const activeCycle = cycles.find((c) => {
@@ -603,7 +643,7 @@ function RegisterPageContent() {
 			consents: {
 				liability: false,
 				photoRelease: false,
-				choir_communications_consent: 'no',
+				group_consents: {},
 				custom_consents: {},
 			},
 		},
@@ -681,14 +721,13 @@ function RegisterPageContent() {
 						consents: {
 							liability: false,
 							photoRelease: false,
-							choir_communications_consent: 'no',
+							group_consents: {},
 							custom_consents: {},
 							...(draftData.consents || {}),
 							// Ensure optional fields have proper defaults
 							liability: draftData.consents?.liability || false,
 							photoRelease: draftData.consents?.photoRelease || false,
-							choir_communications_consent:
-								draftData.consents?.choir_communications_consent || 'no',
+							group_consents: draftData.consents?.group_consents || {},
 							custom_consents: draftData.consents?.custom_consents || {},
 						},
 					});
@@ -783,8 +822,7 @@ function RegisterPageContent() {
 					consents: {
 						liability: data.consents?.liability || false,
 						photoRelease: data.consents?.photoRelease || false,
-						choir_communications_consent:
-							data.consents?.choir_communications_consent || 'no',
+						group_consents: data.consents?.group_consents || {},
 						custom_consents: data.consents?.custom_consents || {},
 					},
 				};
@@ -811,19 +849,37 @@ function RegisterPageContent() {
 	}, [allMinistries]);
 
 	const { otherMinistryPrograms, choirPrograms } = useMemo(() => {
+		console.log('DEBUG: enrolledPrograms:', enrolledPrograms);
+		console.log('DEBUG: choirMinistries:', choirMinistries);
+
 		if (!enrolledPrograms)
 			return { otherMinistryPrograms: [], choirPrograms: [] };
 
+		// Use choir ministries loaded from groups or fallback
+		const choirIds = new Set(choirMinistries.map((c) => c.ministry_id));
+		console.log('DEBUG: choirIds:', Array.from(choirIds));
+
 		const choir = enrolledPrograms.filter((program) =>
-			program.code.startsWith('choir-')
+			choirIds.has(program.ministry_id)
 		);
+		console.log('DEBUG: choir programs found:', choir);
 
 		const otherMinistries = enrolledPrograms.filter(
-			(program) => !program.code.startsWith('choir-')
+			(program) => !choirIds.has(program.ministry_id)
 		);
 
 		return { otherMinistryPrograms: otherMinistries, choirPrograms: choir };
-	}, [enrolledPrograms]);
+	}, [enrolledPrograms, choirMinistries]);
+
+	// Get ministry groups that require consent
+	const groupsRequiringConsent = useMemo(() => {
+		console.log('DEBUG: ministryGroups:', ministryGroups);
+		const filtered = ministryGroups.filter(
+			(group) => group.custom_consent_required && group.custom_consent_text
+		);
+		console.log('DEBUG: groupsRequiringConsent:', filtered);
+		return filtered;
+	}, [ministryGroups]);
 
 	const prefillForm = useCallback(
 		(data: any) => {
@@ -856,8 +912,7 @@ function RegisterPageContent() {
 					consents: {
 						liability: data.consents?.liability || false,
 						photoRelease: data.consents?.photoRelease || false,
-						choir_communications_consent:
-							data.consents?.choir_communications_consent || 'no',
+						group_consents: data.consents?.group_consents || {},
 						custom_consents: data.consents?.custom_consents || {},
 					},
 				};
@@ -2253,14 +2308,34 @@ function RegisterPageContent() {
 												/>
 											))}
 
-										{choirPrograms.length > 0 && (
+										{/* Dynamic Group Consent Sections */}
+										{(() => {
+											console.log('DEBUG: Checking choir section visibility:');
+											console.log(
+												'  - groupsRequiringConsent.length:',
+												groupsRequiringConsent.length
+											);
+											console.log(
+												'  - choirPrograms.length:',
+												choirPrograms.length
+											);
+											console.log(
+												'  - groupsRequiringConsent:',
+												groupsRequiringConsent
+											);
+											console.log('  - choirPrograms:', choirPrograms);
+											return (
+												groupsRequiringConsent.length > 0 &&
+												choirPrograms.length > 0
+											);
+										})() && (
 											<div className="p-4 border rounded-md space-y-4">
 												<h3 className="text-lg font-semibold font-headline">
-													Youth Choirs
+													Choirs
 												</h3>
 												<FormField
 													control={form.control}
-													name="consents.choir_communications_consent"
+													name="consents.group_consents.choirs"
 													render={({ field }) => (
 														<FormItem className="space-y-3 p-4 border rounded-md bg-muted/50">
 															<FormLabel className="font-normal leading-relaxed">

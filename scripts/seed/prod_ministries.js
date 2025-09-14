@@ -239,6 +239,8 @@ const counters = {
 	skipped: 0,
 	errors: 0,
 	events: 0,
+	ministry_groups: 0,
+	ministry_group_members: 0,
 };
 
 /**
@@ -457,6 +459,133 @@ async function createEvents() {
 }
 
 /**
+ * Create ministry groups and assign choir ministries
+ */
+async function createMinistryGroups() {
+	try {
+		console.log(
+			'🎵 Creating ministry groups and assigning choir ministries...'
+		);
+
+		// Create the 'choirs' ministry group
+		const groupData = {
+			code: 'choirs',
+			name: 'Choirs',
+			description:
+				'Youth choir ministries grouped together for shared management and notifications',
+			email: '', // Left blank for manual entry through UI
+			custom_consent_text:
+				'Cathedral International youth choirs communicate using the Planning Center app. By clicking yes, you agree to be added into the app, which will enable you to download the app, receive emails and push communications.',
+			custom_consent_required: true,
+		};
+
+		// Check if group already exists
+		const { data: existingGroup } = await supabase
+			.from('ministry_groups')
+			.select('id')
+			.eq('code', 'choirs')
+			.single();
+
+		let groupId;
+		if (existingGroup) {
+			console.log('✅ Ministry group already exists: Choirs');
+			groupId = existingGroup.id;
+		} else {
+			if (DRY_RUN) {
+				console.log('[DRY RUN] Would create ministry group: Choirs');
+				console.log('[DRY RUN] Code: choirs');
+				console.log('[DRY RUN] Custom consent required: true');
+				console.log('[DRY RUN] Email: (blank - to be set manually)');
+				counters.ministry_groups++;
+			} else {
+				const { data, error } = await supabase
+					.from('ministry_groups')
+					.insert(groupData)
+					.select('id')
+					.single();
+
+				if (error) {
+					throw new Error(`Failed to create ministry group: ${error.message}`);
+				}
+
+				console.log('✅ Created ministry group: Choirs');
+				groupId = data.id;
+				counters.ministry_groups++;
+			}
+		}
+
+		// Assign choir ministries to the group
+		const choirMinistries = [
+			'choir-joy-bells',
+			'choir-keita-praise',
+			'choir-teen-choir',
+		];
+
+		for (const ministryCode of choirMinistries) {
+			try {
+				// Get the ministry_id for this code
+				const { data: ministry, error: ministryError } = await supabase
+					.from('ministries')
+					.select('ministry_id')
+					.eq('code', ministryCode)
+					.single();
+
+				if (ministryError) {
+					console.log(
+						`⚠️ Ministry not found: ${ministryCode} - skipping group assignment`
+					);
+					continue;
+				}
+
+				// Check if membership already exists
+				const { data: existingMembership } = await supabase
+					.from('ministry_group_members')
+					.select('group_id')
+					.eq('group_id', groupId)
+					.eq('ministry_id', ministry.ministry_id)
+					.single();
+
+				if (existingMembership) {
+					console.log(
+						`✅ Ministry ${ministryCode} already assigned to Choirs group`
+					);
+				} else {
+					if (DRY_RUN) {
+						console.log(
+							`[DRY RUN] Would assign ${ministryCode} to Choirs group`
+						);
+						counters.ministry_group_members++;
+					} else {
+						const { error } = await supabase
+							.from('ministry_group_members')
+							.insert({
+								group_id: groupId,
+								ministry_id: ministry.ministry_id,
+							});
+
+						if (error) {
+							throw new Error(
+								`Failed to assign ministry to group: ${error.message}`
+							);
+						}
+
+						console.log(`✅ Assigned ${ministryCode} to Choirs group`);
+						counters.ministry_group_members++;
+					}
+				}
+			} catch (error) {
+				console.log(
+					`⚠️ Failed to assign ${ministryCode} to Choirs group: ${error.message}`
+				);
+			}
+		}
+	} catch (error) {
+		console.error('❌ Error creating ministry groups:', error.message);
+		throw error;
+	}
+}
+
+/**
  * Main execution function
  */
 async function main() {
@@ -470,12 +599,19 @@ async function main() {
 
 	try {
 		await createMinistries();
+		await createMinistryGroups();
 		await createEvents();
 
 		console.log('');
 		console.log('📊 Summary:');
 		if (DRY_RUN) {
 			console.log(`   🧪 Would create ministries: ${counters.ministries}`);
+			console.log(
+				`   🧪 Would create ministry groups: ${counters.ministry_groups}`
+			);
+			console.log(
+				`   🧪 Would create ministry group members: ${counters.ministry_group_members}`
+			);
 			console.log(`   🧪 Would create events: ${counters.events}`);
 			console.log(
 				`   ⏭️  Ministries skipped (already exist): ${counters.skipped}`
@@ -483,6 +619,10 @@ async function main() {
 			console.log(`   ❌ Errors: ${counters.errors}`);
 		} else {
 			console.log(`   ✅ Ministries created: ${counters.ministries}`);
+			console.log(`   ✅ Ministry groups created: ${counters.ministry_groups}`);
+			console.log(
+				`   ✅ Ministry group members created: ${counters.ministry_group_members}`
+			);
 			console.log(`   ✅ Events created: ${counters.events}`);
 			console.log(
 				`   ⏭️  Ministries skipped (already exist): ${counters.skipped}`
@@ -494,8 +634,10 @@ async function main() {
 		console.log('   1. Log into the production admin interface');
 		console.log('   2. Navigate to Ministries page');
 		console.log('   3. Add email addresses for each ministry through the UI');
-		console.log('   4. Assign ministry leaders as needed');
-		console.log('   5. Events for check-in functionality have been created');
+		console.log('   4. Navigate to Ministry Groups page');
+		console.log('   5. Add email address for the Choirs ministry group');
+		console.log('   6. Assign ministry leaders as needed');
+		console.log('   7. Events for check-in functionality have been created');
 		console.log('');
 		if (DRY_RUN) {
 			console.log('🧪 Dry run completed successfully!');
@@ -515,4 +657,4 @@ main().catch((error) => {
 	process.exit(1);
 });
 
-export { createMinistries, createEvents, ministriesData };
+export { createMinistries, createMinistryGroups, createEvents, ministriesData };

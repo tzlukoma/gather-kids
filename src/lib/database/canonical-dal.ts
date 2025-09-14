@@ -41,6 +41,7 @@ function convertFormDataToCanonical(data: Record<string, unknown>): {
   consents: Array<{
     liability: boolean;
     photo_release: boolean; // Convert from photoRelease
+    group_consents?: Record<string, string>; // 'yes'/'no' values
     custom_consents?: Record<string, boolean>;
   }>;
 } {
@@ -118,6 +119,7 @@ function convertFormDataToCanonical(data: Record<string, unknown>): {
   const consents = [{
     liability: Boolean(consentsSrc['liability']),
     photo_release: Boolean(consentsSrc['photoRelease']), // camelCase -> snake_case
+    group_consents: consentsSrc['group_consents'] as Record<string, string> | undefined,
     custom_consents: consentsSrc['custom_consents'] as Record<string, boolean> | undefined,
   }];
 
@@ -641,25 +643,55 @@ export async function registerHouseholdCanonical(data: Record<string, unknown>, 
 
         // Create registration with canonical consent types
         const primaryGuardian = createdGuardians[0];
+        
+        // Build consents array including group consents
+        const consentEntries = [
+          { 
+            type: 'liability' as const, 
+            accepted_at: canonicalData.consents[0].liability ? now : null, 
+            signer_id: primaryGuardian.guardian_id, 
+            signer_name: `${primaryGuardian.first_name} ${primaryGuardian.last_name}` 
+          },
+          { 
+            type: 'photo_release' as const, // Canonical snake_case
+            accepted_at: canonicalData.consents[0].photo_release ? now : null, 
+            signer_id: primaryGuardian.guardian_id, 
+            signer_name: `${primaryGuardian.first_name} ${primaryGuardian.last_name}` 
+          }
+        ];
+        
+        // Add group consents as custom consents
+        if (canonicalData.consents[0].group_consents) {
+          for (const [groupCode, consentValue] of Object.entries(canonicalData.consents[0].group_consents)) {
+            consentEntries.push({
+              type: 'custom' as const,
+              accepted_at: consentValue === 'yes' ? now : null,
+              signer_id: primaryGuardian.guardian_id,
+              signer_name: `${primaryGuardian.first_name} ${primaryGuardian.last_name}`,
+              text: `Group consent for ${groupCode}: ${consentValue}`
+            });
+          }
+        }
+        
+        // Add custom consents
+        if (canonicalData.consents[0].custom_consents) {
+          for (const [consentKey, consentValue] of Object.entries(canonicalData.consents[0].custom_consents)) {
+            consentEntries.push({
+              type: 'custom' as const,
+              accepted_at: consentValue ? now : null,
+              signer_id: primaryGuardian.guardian_id,
+              signer_name: `${primaryGuardian.first_name} ${primaryGuardian.last_name}`,
+              text: `Custom consent for ${consentKey}: ${consentValue}`
+            });
+          }
+        }
+        
         const registrationData = CanonicalDtos.RegistrationWriteDto.parse({
           child_id: childId,
           cycle_id: cycle_id,
           status: 'active',
           pre_registered_sunday_school: true,
-          consents: [
-            { 
-              type: 'liability' as const, 
-              accepted_at: canonicalData.consents[0].liability ? now : null, 
-              signer_id: primaryGuardian.guardian_id, 
-              signer_name: `${primaryGuardian.first_name} ${primaryGuardian.last_name}` 
-            },
-            { 
-              type: 'photo_release' as const, // Canonical snake_case
-              accepted_at: canonicalData.consents[0].photo_release ? now : null, 
-              signer_id: primaryGuardian.guardian_id, 
-              signer_name: `${primaryGuardian.first_name} ${primaryGuardian.last_name}` 
-            }
-          ],
+          consents: consentEntries,
           submitted_via: 'web',
           submitted_at: now, // Set submitted_at in canonical format
         });
