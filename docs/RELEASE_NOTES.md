@@ -1,5 +1,44 @@
 # Release Notes - gatherKids
 
+## v1.2.0 - Ministry Groups & Enhanced Communication
+
+### 🆕 New Features
+
+#### Ministry Groups System
+
+- **Grouped ministry management** - Organize related ministries (like choirs) into logical groups for shared administration
+- **Group-level custom consents** - Define specific consent requirements at the ministry group level (e.g., Planning Center app consent for choirs)
+- **Consolidated notifications** - Ministry groups can receive single digest emails covering all ministries in the group
+- **Shared RBAC** - Role-based access control can be managed at the group level for related ministries
+- **Group email addresses** - Dedicated email addresses for ministry groups to receive consolidated communications
+- **Registration form integration** - Group-level consents appear in the registration form when applicable
+
+#### Enhanced Daily Digest System
+
+- **Ministry group email support** - Daily digest now sends consolidated emails to ministry group contacts
+- **Intelligent email routing** - System automatically determines whether to send individual ministry emails or group emails
+- **Group enrollment consolidation** - Multiple enrollments within the same ministry group are combined into single digest emails
+- **Enhanced email templates** - Updated templates support both individual ministry and group-level notifications
+- **Flexible notification preferences** - Ministry groups can choose between individual ministry emails or consolidated group emails
+
+### 🔧 Technical Improvements
+
+- **Database schema enhancements** - Added `ministry_groups` and `ministry_group_members` tables for group management
+- **Custom consent fields** - Added `custom_consent_text` and `custom_consent_required` fields to ministry groups
+- **Group email field** - Added `email` field to ministry groups for consolidated notifications
+- **Enhanced data access layer** - Updated DAL functions to support ministry group operations
+- **Registration form updates** - Dynamic loading of group-level consents in the registration process
+- **Seeding script improvements** - Updated all seeding scripts to include ministry group creation and assignment
+
+### 🎯 User Experience Improvements
+
+- **Cleaner registration flow** - Group-level consents are presented clearly in the registration form
+- **Consistent UI patterns** - Ministry group management follows the same patterns as individual ministry management
+- **Better organization** - Related ministries are now logically grouped for easier management
+- **Streamlined communications** - Ministry leaders can receive consolidated notifications for related programs
+
+---
+
 ## v1.1.0 - Daily Digest & Enhanced Communication
 
 ### 🆕 New Features
