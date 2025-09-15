@@ -7,6 +7,11 @@ on:
     - cron: '0 11 * * *'
   workflow_dispatch:
     inputs:
+      branch:
+        description: 'Branch to run the workflow on'
+        required: false
+        default: 'main'
+        type: string
       environment:
         description: 'Environment to run against'
         required: false
@@ -45,6 +50,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.branch || 'main' }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -113,6 +120,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.branch || 'main' }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
