@@ -545,9 +545,9 @@ function YearManagement({
 		} catch (error) {
 			console.error('Error saving cycle:', error);
 			console.error('Error details:', {
-				message: error.message,
-				stack: error.stack,
-				name: error.name,
+				message: (error as Error).message,
+				stack: (error as Error).stack,
+				name: (error as Error).name,
 				formData,
 				editingYear,
 			});
@@ -887,15 +887,18 @@ function DivisionManagement({
 								<Label htmlFor="minimum-required">Minimum Required</Label>
 								<Input
 									id="minimum-required"
-									type="number"
-									min="0"
-									value={formData.minimum_required}
-									onChange={(e) =>
+									type="text"
+									inputMode="numeric"
+									pattern="[0-9]*"
+									value={formData.minimum_required.toString()}
+									onChange={(e) => {
+										// Only allow numeric characters and remove leading zeros
+										const cleanValue = e.target.value.replace(/[^0-9]/g, '').replace(/^0+/, '') || '0';
 										setFormData({
 											...formData,
-											minimum_required: parseInt(e.target.value) || 0,
-										})
-									}
+											minimum_required: parseInt(cleanValue) || 0,
+										});
+									}}
 									required
 								/>
 							</div>

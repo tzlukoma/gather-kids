@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bible Bee Input Fix Demo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .demo-section {
+            border: 1px solid #ddd;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+        }
+        .input-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        .problem {
+            background-color: #ffebee;
+            border-color: #e57373;
+        }
+        .solution {
+            background-color: #e8f5e8;
+            border-color: #4caf50;
+        }
+        .note {
+            font-size: 14px;
+            color: #666;
+            margin-top: 5px;
+            font-style: italic;
+        }
+        .comparison {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin: 20px 0;
+        }
+        @media (max-width: 768px) {
+            .comparison {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>Bible Bee Minimum Required Field - Mobile Input Fix</h1>
+    
+    <p>This demo shows the before and after behavior of the "Minimum Required" input field in the Bible Bee Divisions section.</p>
+    
+    <div class="comparison">
+        <div class="demo-section problem">
+            <h2>❌ Before (Problem)</h2>
+            <div class="input-group">
+                <label for="before-input">Minimum Required (Original)</label>
+                <input 
+                    id="before-input" 
+                    type="number" 
+                    min="0" 
+                    placeholder="Try typing 05 or 012"
+                />
+                <div class="note">Uses type="number" - can show leading zeros on mobile that are hard to remove</div>
+            </div>
+            <div id="before-output">Value: 0</div>
+        </div>
+        
+        <div class="demo-section solution">
+            <h2>✅ After (Fixed)</h2>
+            <div class="input-group">
+                <label for="after-input">Minimum Required (Fixed)</label>
+                <input 
+                    id="after-input" 
+                    type="text" 
+                    inputmode="numeric" 
+                    pattern="[0-9]*"
+                    placeholder="Try typing 05 or 012"
+                />
+                <div class="note">Uses type="text" with inputMode="numeric" - automatically removes leading zeros</div>
+            </div>
+            <div id="after-output">Value: 0</div>
+        </div>
+    </div>
+    
+    <div class="demo-section">
+        <h2>Test Cases</h2>
+        <p>Try these inputs in both fields to see the difference:</p>
+        <ul>
+            <li><strong>05</strong> - Should become 5 (fixed version removes leading zero)</li>
+            <li><strong>012</strong> - Should become 12 (fixed version removes leading zeros)</li>
+            <li><strong>0</strong> - Should stay 0 (both work correctly)</li>
+            <li><strong>abc123</strong> - Should become 123 (fixed version filters non-numeric)</li>
+            <li><strong>000</strong> - Should become 0 (fixed version handles all zeros)</li>
+        </ul>
+    </div>
+    
+    <script>
+        // Before input (original behavior with type="number")
+        const beforeInput = document.getElementById('before-input');
+        const beforeOutput = document.getElementById('before-output');
+        
+        beforeInput.addEventListener('input', (e) => {
+            const value = parseInt(e.target.value) || 0;
+            beforeOutput.textContent = `Value: ${value}`;
+        });
+        
+        // After input (fixed behavior with type="text" and input filtering)
+        const afterInput = document.getElementById('after-input');
+        const afterOutput = document.getElementById('after-output');
+        
+        afterInput.addEventListener('input', (e) => {
+            // Apply the same logic as the React component
+            const cleanValue = e.target.value.replace(/[^0-9]/g, '').replace(/^0+/, '') || '0';
+            const numValue = parseInt(cleanValue) || 0;
+            
+            // Update the input field to show the cleaned value
+            e.target.value = cleanValue;
+            
+            afterOutput.textContent = `Value: ${numValue}`;
+        });
+        
+        // Initialize display
+        beforeOutput.textContent = 'Value: 0';
+        afterOutput.textContent = 'Value: 0';
+    </script>
+</body>
+</html>
