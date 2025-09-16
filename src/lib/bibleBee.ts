@@ -674,7 +674,7 @@ export async function createDivision(payload: Omit<Division, 'id' | 'created_at'
     }
     
     // Check for overlapping ranges in the same year
-    const existingDivisions = await db.divisions.where('year_id').equals(payload.year_id).toArray();
+    const existingDivisions = await db.divisions.where('bible_bee_cycle_id').equals(payload.bible_bee_cycle_id).toArray();
     for (const existing of existingDivisions) {
         if (doGradeRangesOverlap(payload.min_grade, payload.max_grade, existing.min_grade, existing.max_grade)) {
             throw new Error(`Grade range ${payload.min_grade}-${payload.max_grade} overlaps with existing division "${existing.name}" (${existing.min_grade}-${existing.max_grade})`);
@@ -685,7 +685,7 @@ export async function createDivision(payload: Omit<Division, 'id' | 'created_at'
     const id = payload.id ?? crypto.randomUUID();
     const item: Division = {
         id,
-        year_id: payload.year_id,
+        bible_bee_cycle_id: payload.bible_bee_cycle_id,
         name: payload.name,
         minimum_required: payload.minimum_required,
         min_last_order: payload.min_last_order,
@@ -718,7 +718,7 @@ export async function updateDivision(id: string, updates: Partial<Omit<Division,
         }
         
         // Check overlap with other divisions (excluding current one)
-        const otherDivisions = await db.divisions.where('year_id').equals(existing.year_id).and(div => div.id !== id).toArray();
+        const otherDivisions = await db.divisions.where('bible_bee_cycle_id').equals(existing.bible_bee_cycle_id).and(div => div.id !== id).toArray();
         for (const other of otherDivisions) {
             if (doGradeRangesOverlap(newMinGrade, newMaxGrade, other.min_grade, other.max_grade)) {
                 throw new Error(`Grade range ${newMinGrade}-${newMaxGrade} overlaps with existing division "${other.name}" (${other.min_grade}-${other.max_grade})`);

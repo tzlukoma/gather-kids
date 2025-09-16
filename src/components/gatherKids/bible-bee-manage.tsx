@@ -775,10 +775,7 @@ function DivisionManagement({
 			} else {
 				await createDivision({
 					...formData,
-					bible_bee_cycle_id: selectedCycle._isNewSchema ? yearId : null,
-					competitionYearId: selectedCycle._isNewSchema
-						? ''
-						: (yearId as string),
+					bible_bee_cycle_id: yearId,
 				});
 				setIsCreating(false);
 				// Trigger refresh of divisions list

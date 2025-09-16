@@ -2179,15 +2179,13 @@ export class SupabaseAdapter implements DatabaseAdapter {
 	): Promise<Division> {
 		const insertPayload = {
 			name: data.name,
-			bible_bee_year_id: ((data as unknown) as Record<string, unknown>)['year_id'] as string ?? null,
 			bible_bee_cycle_id: data.bible_bee_cycle_id ?? null,
 			description: (((data as unknown) as Record<string, unknown>)['description'] as string) ?? null,
-			min_age: (((data as unknown) as Record<string, unknown>)['min_age'] as number) ?? null,
-			max_age: (((data as unknown) as Record<string, unknown>)['max_age'] as number) ?? null,
+			minimum_required: data.minimum_required ?? 0,
+			min_last_order: (((data as unknown) as Record<string, unknown>)['min_last_order'] as number) ?? null,
 			min_grade: data.min_grade ?? null,
 			max_grade: data.max_grade ?? null,
-			min_scriptures: data.minimum_required ?? null,
-			requires_essay: (((data as unknown) as Record<string, unknown>)['requires_essay'] as boolean) ?? null,
+			requires_essay: (((data as unknown) as Record<string, unknown>)['requires_essay'] as boolean) ?? false,
 			created_at: new Date().toISOString(),
 			updated_at: new Date().toISOString(),
 		};
@@ -2221,8 +2219,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 		let query = this.client.from('divisions').select('*');
 
 		if (bibleBeeYearId) {
-			// Check both bible_bee_year_id (legacy) and bible_bee_cycle_id (new)
-			query = query.or(`bible_bee_year_id.eq.${bibleBeeYearId},bible_bee_cycle_id.eq.${bibleBeeYearId}`);
+			query = query.eq('bible_bee_cycle_id', bibleBeeYearId);
 		}
 
 		const { data, error } = await query;
@@ -2784,7 +2781,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			query = query.eq('child_id', childId);
 		}
 		if (bibleBeeYearId) {
-			query = query.eq('bible_bee_year_id', bibleBeeYearId);
+			query = query.eq('bible_bee_cycle_id', bibleBeeYearId);
 		}
 
 	const { data, error } = await query;

@@ -2884,7 +2884,7 @@ export async function getDivisionsForBibleBeeYear(yearId: string): Promise<any[]
 		return dbAdapter.listDivisions(yearId);
 	} else {
 		// Use legacy Dexie interface for demo mode
-		return db.divisions.where('year_id').equals(yearId).toArray();
+		return db.divisions.where('bible_bee_cycle_id').equals(yearId).toArray();
 	}
 }
 

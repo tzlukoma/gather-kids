@@ -1059,10 +1059,7 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 
 	async listDivisions(bibleBeeYearId?: string): Promise<Division[]> {
 		if (bibleBeeYearId) {
-			// Check both bible_bee_year_id (legacy) and bible_bee_cycle_id (new)
-			return this.db.divisions.where('bible_bee_year_id').equals(bibleBeeYearId)
-				.or('bible_bee_cycle_id').equals(bibleBeeYearId)
-				.toArray();
+			return this.db.divisions.where('bible_bee_cycle_id').equals(bibleBeeYearId).toArray();
 		}
 		return this.db.divisions.toArray();
 	}
