@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { AuthRole } from '@/lib/auth-types';
 import {
 	canLeaderManageBibleBee,
-	getBibleBeeYears,
+	getBibleBeeCycles,
 	getScripturesForBibleBeeYear,
 } from '@/lib/dal';
 import LeaderBibleBeeProgress from '@/components/gatherKids/bible-bee-progress';
@@ -55,9 +55,9 @@ export default function BibleBeePage() {
 	const [selectedLeader, setSelectedLeader] = useState<string | null>(null);
 
 	// Add the debugger component to help troubleshoot
-	// start empty and pick a sensible default once years data is available
+	// start empty and pick a sensible default once cycles data is available
 	const [selectedCycle, setSelectedCycle] = useState<string>('');
-	const [bibleBeeYears, setBibleBeeYears] = useState<any[]>([]);
+	const [bibleBeeCycles, setBibleBeeCycles] = useState<any[]>([]);
 
 	// Load data on component mount
 	useEffect(() => {
@@ -65,13 +65,13 @@ export default function BibleBeePage() {
 			try {
 				console.log('Loading Bible Bee data...');
 
-				// Get Bible Bee years using DAL function with adapter support
-				const beeYears = await getBibleBeeYears();
-				console.log('Bible Bee years loaded:', beeYears);
-				setBibleBeeYears(beeYears || []);
+				// Get Bible Bee cycles using DAL function with adapter support
+				const beeCycles = await getBibleBeeCycles();
+				console.log('Bible Bee cycles loaded:', beeCycles);
+				setBibleBeeCycles(beeCycles || []);
 			} catch (error) {
 				console.error('Failed to load Bible Bee data:', error);
-				setBibleBeeYears([]);
+				setBibleBeeCycles([]);
 			}
 		};
 
@@ -88,45 +88,45 @@ export default function BibleBeePage() {
 
 	// Compute the proper year label for display
 	const yearLabel = React.useMemo(() => {
-		// Use Bible Bee years for new schema
-		if (bibleBeeYears && bibleBeeYears.length > 0) {
-			const bibleBeeYear = bibleBeeYears.find(
-				(y: any) => y.id === selectedCycle
+		// Use Bible Bee cycles for new schema
+		if (bibleBeeCycles && bibleBeeCycles.length > 0) {
+			const bibleBeeCycle = bibleBeeCycles.find(
+				(c: any) => c.id === selectedCycle
 			);
-			if (bibleBeeYear && bibleBeeYear.name) {
-				return bibleBeeYear.name;
+			if (bibleBeeCycle && bibleBeeCycle.name) {
+				return bibleBeeCycle.name;
 			}
 		}
 
 		// Default fallback
 		return `Bible Bee ${selectedCycle}`;
-	}, [selectedCycle, bibleBeeYears]);
+	}, [selectedCycle, bibleBeeCycles]);
 
 	// leader list removed — Admin no longer filters by leader
 
 	useEffect(() => {
-		// set an initial selectedCycle once we have years info; prefer an
-		// explicitly active Bible Bee year when present, otherwise use most recent
+		// set an initial selectedCycle once we have cycles info; prefer an
+		// explicitly active Bible Bee cycle when present, otherwise use most recent
 		if (selectedCycle) return; // don't override an existing selection
-		if (!bibleBeeYears || bibleBeeYears.length === 0) return;
+		if (!bibleBeeCycles || bibleBeeCycles.length === 0) return;
 
-		// First, try to find an active Bible Bee year
-		const activeBB = bibleBeeYears.find((y: any) => {
-			const val: any = y?.is_active;
+		// First, try to find an active Bible Bee cycle
+		const activeBB = bibleBeeCycles.find((c: any) => {
+			const val: any = c?.is_active;
 			return val === true || val === 1 || String(val) === '1';
 		});
 
 		if (activeBB && activeBB.id) {
-			console.log('Setting selectedCycle to active year:', activeBB.id);
+			console.log('Setting selectedCycle to active cycle:', activeBB.id);
 			setSelectedCycle(String(activeBB.id));
 			return;
 		}
 
-		// If no active year, use the most recent year (sorted by label or created_at)
-		const sortedYears = [...bibleBeeYears].sort((a: any, b: any) => {
-			// Try to sort by label first (e.g., "2025", "2024")
-			if (a.label && b.label) {
-				return b.label.localeCompare(a.label);
+		// If no active cycle, use the most recent cycle (sorted by created_at)
+		const sortedCycles = [...bibleBeeCycles].sort((a: any, b: any) => {
+			// Try to sort by name first (e.g., "Fall 2025", "Spring 2025")
+			if (a.name && b.name) {
+				return b.name.localeCompare(a.name);
 			}
 			// Fallback to created_at
 			if (a.created_at && b.created_at) {
@@ -137,36 +137,36 @@ export default function BibleBeePage() {
 			return 0;
 		});
 
-		if (sortedYears.length > 0) {
+		if (sortedCycles.length > 0) {
 			console.log(
-				'Setting selectedCycle to most recent year:',
-				sortedYears[0].id
+				'Setting selectedCycle to most recent cycle:',
+				sortedCycles[0].id
 			);
-			setSelectedCycle(String(sortedYears[0].id));
+			setSelectedCycle(String(sortedCycles[0].id));
 		}
-	}, [bibleBeeYears, selectedCycle]);
+	}, [bibleBeeCycles, selectedCycle]);
 
 	useEffect(() => {
 		// load scriptures for selected cycle
 		let mounted = true;
 		const load = async () => {
 			console.log('Loading scriptures for cycle:', selectedCycle);
-			console.log('Available Bible Bee years:', bibleBeeYears);
+			console.log('Available Bible Bee cycles:', bibleBeeCycles);
 
 			let scriptures: any[] = [];
 
-			// First try the new Bible Bee year system
-			if (bibleBeeYears && bibleBeeYears.length > 0) {
-				const bibleBeeYear = bibleBeeYears.find(
-					(y: any) => y.id === selectedCycle
+			// First try the new Bible Bee cycle system
+			if (bibleBeeCycles && bibleBeeCycles.length > 0) {
+				const bibleBeeCycle = bibleBeeCycles.find(
+					(c: any) => c.id === selectedCycle
 				);
 
-				if (bibleBeeYear) {
-					console.log('Found Bible Bee year:', bibleBeeYear);
+				if (bibleBeeCycle) {
+					console.log('Found Bible Bee cycle:', bibleBeeCycle);
 					try {
-						scriptures = await getScripturesForBibleBeeYear(bibleBeeYear.id);
+						scriptures = await getScripturesForBibleBeeYear(bibleBeeCycle.id);
 						console.log(
-							'Loaded scriptures from Bible Bee year:',
+							'Loaded scriptures from Bible Bee cycle:',
 							scriptures.length
 						);
 					} catch (error) {
@@ -204,7 +204,7 @@ export default function BibleBeePage() {
 		return () => {
 			mounted = false;
 		};
-	}, [selectedCycle, bibleBeeYears, scriptureRefreshTrigger, displayVersion]);
+	}, [selectedCycle, bibleBeeCycles, scriptureRefreshTrigger, displayVersion]);
 
 	const extractUserInfo = React.useCallback((u: any) => {
 		return {
@@ -277,7 +277,7 @@ export default function BibleBeePage() {
 						<CardContent>
 							<LeaderBibleBeeProgress
 								cycleId={selectedCycle}
-								bibleBeeYears={bibleBeeYears}
+								bibleBeeYears={bibleBeeCycles}
 							/>
 						</CardContent>
 					</Card>
@@ -357,7 +357,7 @@ export default function BibleBeePage() {
 
 				{canManage && (
 					<TabsContent value="manage">
-						<BibleBeeManage bibleBeeYears={bibleBeeYears} />
+						<BibleBeeManage bibleBeeYears={bibleBeeCycles} />
 					</TabsContent>
 				)}
 			</Tabs>
