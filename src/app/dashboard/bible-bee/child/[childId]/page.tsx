@@ -81,6 +81,8 @@ export default function DashboardChildBibleBeePage() {
 		essayAssigned?: boolean;
 	} | null>(null);
 
+	const [isComputingStats, setIsComputingStats] = useState(false);
+
 	const [essaySummary, setEssaySummary] = useState<{
 		count: number;
 		submitted: number;
@@ -94,8 +96,11 @@ export default function DashboardChildBibleBeePage() {
 			if (!data) {
 				setBbStats(null);
 				setEssaySummary(null);
+				setIsComputingStats(false);
 				return;
 			}
+
+			setIsComputingStats(true);
 
 			const scriptures = data.scriptures || [];
 			const essays = data.essays || [];
@@ -181,9 +186,9 @@ export default function DashboardChildBibleBeePage() {
 				// ignore and fallback to total scriptures
 			}
 
-			const completed = scriptures.filter(
-				(s: any) => s.status === 'completed'
-			).length;
+			const completed = scriptures
+				.filter((s: any) => s.status === 'completed')
+				.reduce((sum: number, s: any) => sum + (s.counts_for || 1), 0);
 			const percent = required > 0 ? (completed / required) * 100 : 0;
 			const bonus = Math.max(0, completed - required);
 
@@ -227,6 +232,8 @@ export default function DashboardChildBibleBeePage() {
 					: undefined,
 				essayAssigned,
 			});
+
+			setIsComputingStats(false);
 		};
 		compute();
 	}, [data, childCore]);
@@ -272,6 +279,7 @@ export default function DashboardChildBibleBeePage() {
 				onViewPhoto={handleViewPhoto}
 				bibleBeeStats={bbStats?.essayAssigned ? null : bbStats} // Hide scripture stats when essays are assigned
 				essaySummary={bbStats?.essayAssigned ? essaySummary : null} // Show essay summary only when essays are assigned
+				isComputingStats={isComputingStats}
 			/>
 
 			{/* Show different content based on whether the child's division has essays assigned */}

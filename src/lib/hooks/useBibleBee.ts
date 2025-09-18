@@ -261,6 +261,7 @@ export function useStudentAssignmentsQuery(childId: string) {
                         translation: scripture.translation,
                         scripture_number: scripture.scripture_number,
                         scripture_order: scripture.scripture_order,
+                        counts_for: scripture.counts_for,
                         texts: scripture.texts
                     });
                     
@@ -279,6 +280,7 @@ export function useStudentAssignmentsQuery(childId: string) {
                                 bible_bee_cycle_id: scripture.bible_bee_cycle_id,
                                 status: existingRecord.is_completed ? 'completed' : 'not_started',
                                 scripture: scripture,
+                                counts_for: scripture.counts_for || 1, // Copy counts_for to top level for easier access
                                 verseText: scripture.text,
                                 displayTranslation: scripture.translation || 'NIV',
                                 completedAt: existingRecord.completed_at,
@@ -313,6 +315,7 @@ export function useStudentAssignmentsQuery(childId: string) {
                                 bible_bee_cycle_id: scripture.bible_bee_cycle_id,
                                 status: 'not_started' as const,
                                 scripture: scripture,
+                                counts_for: scripture.counts_for || 1, // Copy counts_for to top level for easier access
                                 verseText: verseText,
                                 displayTranslation: scripture.translation || 'NIV',
                                 completedAt: null,
