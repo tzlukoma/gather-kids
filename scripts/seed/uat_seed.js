@@ -559,7 +559,7 @@ async function createBibleBeeCycle(registrationCycleId) {
 
 	// Create new Bible Bee cycle using direct Supabase call with canonical schema
 	const bibleBeeCycleData = {
-		id: crypto.randomUUID(),
+		id: 'c2792991-eb47-4a7e-baa6-ab410f1b78a6', // Fixed UUID for UAT testing
 		cycle_id: registrationCycleId, // Direct reference to registration cycle
 		name: 'Fall 2025 Bible Bee',
 		description: 'Bible Bee competition for Fall 2025 registration cycle',
@@ -1343,7 +1343,7 @@ async function createMinistries() {
 		{
 			ministry_id: `${EXTERNAL_ID_PREFIX}keita_choir`,
 			name: 'Youth Choirs- Keita Praise Choir (Ages 9-12)',
-			code: 'choir-keita',
+			code: 'choir-keita-praise',
 			enrollment_type: 'enrolled',
 			min_age: 9,
 			max_age: 12,
@@ -1355,7 +1355,7 @@ async function createMinistries() {
 		{
 			ministry_id: `${EXTERNAL_ID_PREFIX}teen_choir`,
 			name: 'Youth Choirs- New Generation Teen Choir (Ages 13-18)',
-			code: 'choir-teen',
+			code: 'choir-teen-choir',
 			enrollment_type: 'enrolled',
 			min_age: 13,
 			max_age: 18,
@@ -1673,31 +1673,45 @@ async function createMinistryGroups() {
 
 		// Assign choir ministries to the group
 		const choirMinistries = [
-			`${EXTERNAL_ID_PREFIX}joy_bells`,
-			`${EXTERNAL_ID_PREFIX}keita_choir`,
-			`${EXTERNAL_ID_PREFIX}teen_choir`,
+			'choir-joy-bells',
+			'choir-keita-praise',
+			'choir-teen-choir',
 		];
 
-		for (const ministryId of choirMinistries) {
+		for (const ministryCode of choirMinistries) {
 			try {
+				// Get the ministry_id for this code
+				const { data: ministry, error: ministryError } = await supabase
+					.from('ministries')
+					.select('ministry_id')
+					.eq('code', ministryCode)
+					.single();
+
+				if (ministryError) {
+					console.log(
+						`⚠️ Ministry not found: ${ministryCode} - skipping group assignment`
+					);
+					continue;
+				}
+
 				// Check if membership already exists
 				const { data: existingMembership } = await supabase
 					.from('ministry_group_members')
 					.select('group_id')
 					.eq('group_id', groupId)
-					.eq('ministry_id', ministryId)
+					.eq('ministry_id', ministry.ministry_id)
 					.single();
 
 				if (existingMembership) {
 					console.log(
-						`✅ Ministry ${ministryId} already assigned to Choirs group`
+						`✅ Ministry ${ministryCode} already assigned to Choirs group`
 					);
 				} else {
 					const { error } = await supabase
 						.from('ministry_group_members')
 						.insert({
 							group_id: groupId,
-							ministry_id: ministryId,
+							ministry_id: ministry.ministry_id,
 						});
 
 					if (error) {
@@ -1706,12 +1720,12 @@ async function createMinistryGroups() {
 						);
 					}
 
-					console.log(`✅ Assigned ${ministryId} to Choirs group`);
+					console.log(`✅ Assigned ${ministryCode} to Choirs group`);
 					counters.ministry_group_members++;
 				}
 			} catch (error) {
 				console.log(
-					`⚠️ Failed to assign ${ministryId} to Choirs group: ${error.message}`
+					`⚠️ Failed to assign ${ministryCode} to Choirs group: ${error.message}`
 				);
 			}
 		}
@@ -2843,7 +2857,7 @@ async function createMinistryEnrollments(activeCycleId) {
 				`${EXTERNAL_ID_PREFIX}bible_bee`,
 			cycle_id: activeCycleId, // Use the actual active cycle ID
 			enrollment_date: '2025-01-01',
-			is_active: true,
+			status: 'enrolled',
 		},
 		{
 			external_id: `${EXTERNAL_ID_PREFIX}enrollment_2_bb`,
@@ -2855,7 +2869,7 @@ async function createMinistryEnrollments(activeCycleId) {
 				`${EXTERNAL_ID_PREFIX}bible_bee`,
 			cycle_id: activeCycleId, // Use the actual active cycle ID
 			enrollment_date: '2025-01-01',
-			is_active: true,
+			status: 'enrolled',
 		},
 		{
 			external_id: `${EXTERNAL_ID_PREFIX}enrollment_3_bb`,
@@ -2867,7 +2881,7 @@ async function createMinistryEnrollments(activeCycleId) {
 				`${EXTERNAL_ID_PREFIX}bible_bee`,
 			cycle_id: activeCycleId, // Use the actual active cycle ID
 			enrollment_date: '2025-01-01',
-			is_active: true,
+			status: 'enrolled',
 		},
 
 		// Junior division children (3rd-7th grade, ages 8-13)
@@ -2881,7 +2895,7 @@ async function createMinistryEnrollments(activeCycleId) {
 				`${EXTERNAL_ID_PREFIX}bible_bee`,
 			cycle_id: activeCycleId, // Use the actual active cycle ID
 			enrollment_date: '2025-01-01',
-			is_active: true,
+			status: 'enrolled',
 		},
 		{
 			external_id: `${EXTERNAL_ID_PREFIX}enrollment_6_bb`,
@@ -2893,7 +2907,7 @@ async function createMinistryEnrollments(activeCycleId) {
 				`${EXTERNAL_ID_PREFIX}bible_bee`,
 			cycle_id: activeCycleId, // Use the actual active cycle ID
 			enrollment_date: '2025-01-01',
-			is_active: true,
+			status: 'enrolled',
 		},
 		{
 			external_id: `${EXTERNAL_ID_PREFIX}enrollment_7_bb`,
@@ -2905,7 +2919,7 @@ async function createMinistryEnrollments(activeCycleId) {
 				`${EXTERNAL_ID_PREFIX}bible_bee`,
 			cycle_id: activeCycleId, // Use the actual active cycle ID
 			enrollment_date: '2025-01-01',
-			is_active: true,
+			status: 'enrolled',
 		},
 
 		// Senior division children (8th-12th grade, ages 13-18)
@@ -2919,7 +2933,7 @@ async function createMinistryEnrollments(activeCycleId) {
 				`${EXTERNAL_ID_PREFIX}bible_bee`,
 			cycle_id: activeCycleId, // Use the actual active cycle ID
 			enrollment_date: '2025-01-01',
-			is_active: true,
+			status: 'enrolled',
 		},
 		{
 			external_id: `${EXTERNAL_ID_PREFIX}enrollment_10_bb`,
@@ -2931,7 +2945,7 @@ async function createMinistryEnrollments(activeCycleId) {
 				`${EXTERNAL_ID_PREFIX}bible_bee`,
 			cycle_id: activeCycleId, // Use the actual active cycle ID
 			enrollment_date: '2025-01-01',
-			is_active: true,
+			status: 'enrolled',
 		},
 		{
 			external_id: `${EXTERNAL_ID_PREFIX}enrollment_11_bb`,
@@ -2943,7 +2957,7 @@ async function createMinistryEnrollments(activeCycleId) {
 				`${EXTERNAL_ID_PREFIX}bible_bee`,
 			cycle_id: activeCycleId, // Use the actual active cycle ID
 			enrollment_date: '2025-01-01',
-			is_active: true,
+			status: 'enrolled',
 		},
 		{
 			external_id: `${EXTERNAL_ID_PREFIX}enrollment_12_bb`,
@@ -2955,7 +2969,7 @@ async function createMinistryEnrollments(activeCycleId) {
 				`${EXTERNAL_ID_PREFIX}bible_bee`,
 			cycle_id: activeCycleId, // Use the actual active cycle ID
 			enrollment_date: '2025-01-01',
-			is_active: true,
+			status: 'enrolled',
 		},
 	];
 
@@ -2974,7 +2988,7 @@ async function createMinistryEnrollments(activeCycleId) {
 			ministry_id:
 				ministryMap[originalEnrollment.ministry_id] ||
 				originalEnrollment.ministry_id,
-			status: 'active',
+			status: 'enrolled',
 		};
 
 		const { data: existing, error: checkError } = await supabase
@@ -3469,7 +3483,7 @@ async function createHouseholdRegistrations(registrationCycleId) {
 						child_id: child.child_id,
 						ministry_id: ministry.ministry_id,
 						cycle_id: activeCycleId, // Add cycle_id for filtering
-						status: 'active',
+						status: 'enrolled',
 						created_at: new Date().toISOString(),
 					};
 
@@ -3818,7 +3832,7 @@ async function resetUATData() {
 		{ table: 'ministry_groups', filter: { type: 'all_records' } },
 		{ table: 'ministry_accounts', filter: { type: 'ministry_id' } },
 		{ table: 'leader_assignments', filter: { type: 'all_records' } },
-		{ table: 'ministries', filter: { type: 'external_id' } },
+		{ table: 'ministries', filter: { type: 'ministry_id' } },
 	];
 
 	let deletionErrors = [];
@@ -4067,18 +4081,18 @@ async function seedUATData() {
 		await createStudentEssays(bibleBeeCycleId, divisionMap);
 		console.log(`📊 DEBUG - Created Student Essays`);
 
-		// Step 9: Create Bible Bee enrollments for children in Bible Bee ministry
+		// Step 9: Create user_households records for canonical DAL
+		await createUserHouseholds();
+
+		// Step 10: Create ministry enrollments
+		await createMinistryEnrollments(registrationCycleId);
+
+		// Step 11: Create Bible Bee enrollments for children in Bible Bee ministry
 		console.log(`📊 DEBUG - About to create Bible Bee Enrollments...`);
 		await createBibleBeeEnrollments(bibleBeeCycleId, divisionMap);
 		console.log(`📊 DEBUG - Created Bible Bee Enrollments`);
 
-		// Create user_households records for canonical DAL
-		await createUserHouseholds();
-
-		// Create ministry enrollments
-		await createMinistryEnrollments(registrationCycleId);
-
-		// Create household registrations with multiple ministry enrollments
+		// Step 12: Create household registrations with multiple ministry enrollments
 		await createHouseholdRegistrations(registrationCycleId);
 
 		// Create events for check-in functionality
