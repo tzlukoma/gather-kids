@@ -1638,9 +1638,14 @@ export async function getBibleBeeProgressForCycle(cycleId: string) {
                     const essayPrompts = await dbAdapter.listEssayPrompts(division.id, cycleId);
                     hasEssays = essayPrompts.length > 0;
                     if (hasEssays) {
-                        // For now, just mark as assigned if division has essay prompts
-                        // TODO: Check actual student essay submissions when student_essays table is updated
-                        essayStatus = 'assigned';
+                        // Check actual student essay submissions
+                        const studentEssays = await dbAdapter.listStudentEssays(child.child_id, cycleId);
+                        const relevantEssay = studentEssays.find(e => e.essay_prompt_id === essayPrompts[0].id);
+                        if (relevantEssay) {
+                            essayStatus = relevantEssay.status;
+                        } else {
+                            essayStatus = 'assigned'; // Essay prompt exists but no student essay record yet
+                        }
                     }
                 }
                 

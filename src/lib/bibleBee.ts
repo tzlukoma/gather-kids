@@ -419,14 +419,43 @@ export async function toggleScriptureCompletion(studentScriptureId: string, comp
 
 export async function submitEssay(childId: string, bibleBeeCycleId: string) {
     const now = new Date().toISOString();
-    const essay = await db.studentEssays.where({ childId, bible_bee_cycle_id: bibleBeeCycleId }).first();
-    if (!essay) return null;
-    await db.studentEssays.update(essay.id, {
-        status: 'submitted',
-        submittedAt: now,
-        updatedAt: now,
-    });
-    return { submitted: true };
+    
+    // Use adapter pattern for database operations
+    const { dbAdapter, shouldUseAdapter } = await import('@/lib/dal');
+    
+    if (shouldUseAdapter()) {
+        // Use Supabase adapter for live mode
+        console.log(`Submitting essay for child ${childId}, cycle ${bibleBeeCycleId}`);
+        
+        // Find the student essay record
+        const studentEssays = await dbAdapter.listStudentEssays(childId, bibleBeeCycleId);
+        if (studentEssays.length === 0) {
+            console.warn(`No essay found for child ${childId}, cycle ${bibleBeeCycleId}`);
+            return null;
+        }
+        
+        // Update the first essay (assuming one essay per child per cycle)
+        const essay = studentEssays[0];
+        await dbAdapter.updateStudentEssay(essay.id, {
+            status: 'submitted',
+            submitted_at: now,
+        });
+        
+        return { submitted: true };
+    } else {
+        // Use legacy Dexie interface for demo mode
+        const essay = await db.studentEssays.where({ childId, bible_bee_cycle_id: bibleBeeCycleId }).first();
+        if (!essay) {
+            console.warn(`No essay found for child ${childId}, cycle ${bibleBeeCycleId}`);
+            return null;
+        }
+        await db.studentEssays.update(essay.id, {
+            status: 'submitted',
+            submittedAt: now,
+            updatedAt: now,
+        });
+        return { submitted: true };
+    }
 }
 
 // CSV parsing & validation (browser-only). Return preview rows and errors.

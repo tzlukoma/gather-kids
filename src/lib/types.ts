@@ -404,14 +404,13 @@ export interface StudentScripture {
 
 export interface StudentEssay {
     id: string;
-    childId: string;
-    competitionYearId: string;
+    child_id: string; // FK to children
+    bible_bee_cycle_id: string; // FK to bible_bee_cycles (canonical)
+    essay_prompt_id: string; // FK to essay_prompts
     status: 'assigned' | 'submitted';
-    submittedAt?: string;
-    promptText: string;
-    instructions?: string;
-    createdAt: string;
-    updatedAt: string;
+    submitted_at?: string;
+    created_at: string;
+    updated_at: string;
 }
 
 // --- Branding Settings ---

@@ -6,6 +6,7 @@ import { db } from '@/lib/db';
 import type { CompetitionYear, GradeRule, Scripture } from '@/lib/types';
 import { createCompetitionYear, upsertScripture, createGradeRule as createRule, toggleScriptureCompletion, submitEssay } from '@/lib/bibleBee';
 import { getBibleBeeYears, getScripturesForBibleBeeYear, getChild, getHousehold } from '@/lib/dal';
+import { v4 as uuidv4 } from 'uuid';
 
 export function useCompetitionYears() {
     const [years, setYears] = useState<CompetitionYear[]>([]);
@@ -331,15 +332,79 @@ export function useStudentAssignmentsQuery(childId: string) {
                 console.log('✅ Created student scripture assignments:', scriptures.length, scriptures);
                 
                 // Get essays for the child's Bible Bee cycles
-                console.log('🔍 Fetching essays for cycles...');
-                const allEssays = await Promise.all(
-                    bibleBeeCycleIds.map(cycleId => dbAdapter.listEssayPrompts(undefined, cycleId))
+                console.log('🔍 Fetching student essays for cycles...');
+                const allStudentEssays = await Promise.all(
+                    bibleBeeCycleIds.map(cycleId => dbAdapter.listStudentEssays(childId, cycleId))
                 );
-                const essays = allEssays.flat();
-                console.log('📝 Essays for child:', essays.length, essays);
+                const existingEssays = allStudentEssays.flat();
+                console.log('📝 Existing student essays for child:', existingEssays.length, existingEssays);
                 
-                console.log('✅ Returning data:', { scriptures: scriptures.length, essays: essays.length });
-                return { scriptures, essays };
+                // Create student essays on-the-fly for divisions that have essay prompts
+                console.log('🔍 Creating student essays on-the-fly...');
+                const essays = await Promise.all(enrollments.map(async enrollment => {
+                    try {
+                        // Check if this division has essay prompts
+                        const essayPrompts = await dbAdapter.listEssayPrompts(enrollment.division_id, enrollment.bible_bee_cycle_id);
+                        console.log(`Division ${enrollment.division_id} has ${essayPrompts.length} essay prompts`);
+                        
+                        if (essayPrompts.length === 0) {
+                            return null; // No essays for this division
+                        }
+                        
+                        // Check if student essay already exists
+                        const existingEssay = existingEssays.find(e => 
+                            e.bible_bee_cycle_id === enrollment.bible_bee_cycle_id && 
+                            e.essay_prompt_id === essayPrompts[0].id
+                        );
+                        
+                        if (existingEssay) {
+                            console.log(`Student essay already exists for child ${childId}, cycle ${enrollment.bible_bee_cycle_id}`);
+                            return {
+                                id: existingEssay.id,
+                                childId: childId,
+                                bible_bee_cycle_id: existingEssay.bible_bee_cycle_id,
+                                essay_prompt_id: existingEssay.essay_prompt_id,
+                                status: existingEssay.status,
+                                submitted_at: existingEssay.submitted_at,
+                                essayPrompt: essayPrompts[0], // Include the essay prompt for display
+                                created_at: existingEssay.created_at,
+                                updated_at: existingEssay.updated_at,
+                            };
+                        }
+                        
+                        // Create new student essay
+                        console.log(`Creating new student essay for child ${childId}, cycle ${enrollment.bible_bee_cycle_id}`);
+                        const newStudentEssay = await dbAdapter.createStudentEssay({
+                            id: uuidv4(),
+                            child_id: childId,
+                            bible_bee_cycle_id: enrollment.bible_bee_cycle_id,
+                            essay_prompt_id: essayPrompts[0].id,
+                            status: 'assigned',
+                            submitted_at: null,
+                        });
+                        
+                        return {
+                            id: newStudentEssay.id,
+                            childId: childId,
+                            bible_bee_cycle_id: newStudentEssay.bible_bee_cycle_id,
+                            essay_prompt_id: newStudentEssay.essay_prompt_id,
+                            status: newStudentEssay.status,
+                            submitted_at: newStudentEssay.submitted_at,
+                            essayPrompt: essayPrompts[0], // Include the essay prompt for display
+                            created_at: newStudentEssay.created_at,
+                            updated_at: newStudentEssay.updated_at,
+                        };
+                    } catch (error) {
+                        console.error('❌ Error processing essay for enrollment:', enrollment.id, error);
+                        throw error;
+                    }
+                }));
+                
+                const validEssays = essays.filter(e => e !== null);
+                console.log('📝 Final essays for child:', validEssays.length, validEssays);
+                
+                console.log('✅ Returning data:', { scriptures: scriptures.length, essays: validEssays.length });
+                return { scriptures, essays: validEssays };
             } else {
                 // Use legacy Dexie for demo mode only
             // First, check if child is enrolled in any Bible Bee years but missing scriptures
