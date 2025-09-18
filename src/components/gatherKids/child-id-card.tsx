@@ -131,13 +131,29 @@ export function ChildIdCard({
 					<div className="text-sm text-muted-foreground">
 						<div className="font-semibold">Guardian:</div>
 						{child.guardians?.length ? (
-							<ul className="list-disc pl-5">
-								{child.guardians.map((g) => (
-									<li key={g.guardian_id} className="text-sm">
-										{g.first_name} {g.last_name} ({g.relationship})
-									</li>
-								))}
-							</ul>
+							(() => {
+								// Filter for primary guardian only
+								const primaryGuardian = child.guardians.find(
+									(g) => g.is_primary
+								);
+								if (primaryGuardian) {
+									return (
+										<div className="text-sm">
+											{primaryGuardian.first_name} {primaryGuardian.last_name} (
+											{primaryGuardian.relationship})
+										</div>
+									);
+								} else {
+									// Fallback to first guardian if no primary is marked
+									const firstGuardian = child.guardians[0];
+									return (
+										<div className="text-sm">
+											{firstGuardian.first_name} {firstGuardian.last_name} (
+											{firstGuardian.relationship})
+										</div>
+									);
+								}
+							})()
 						) : (
 							<div className="text-sm text-muted-foreground">
 								No guardian info available.

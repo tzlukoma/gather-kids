@@ -3391,7 +3391,7 @@ export async function getHousehold(householdId: string): Promise<Household | nul
 export async function listGuardians({ householdId }: { householdId: string }): Promise<Guardian[]> {
 	if (shouldUseAdapter()) {
 		// Use Supabase adapter for live mode
-		return dbAdapter.listGuardians({ householdId });
+		return dbAdapter.listGuardians(householdId);
 	} else {
 		// Use legacy Dexie interface for demo mode
 		return db.guardians.where('household_id').equals(householdId).toArray();
