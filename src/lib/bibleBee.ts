@@ -109,7 +109,9 @@ export async function getApplicableGradeRule(competitionYearId: string, gradeNum
 // Helper function to get division information for a child based on their grade and the year
 export async function getChildDivisionInfo(childId: string, yearId: string) {
     try {
-        const child = await db.children.get(childId);
+        // Use DAL function instead of direct Dexie calls
+        const { getChild } = await import('@/lib/dal');
+        const child = await getChild(childId);
         if (!child || !child.grade) {
             console.log(`getChildDivisionInfo: Child ${childId} not found or has no grade`);
             return { division: null, target: null, gradeGroup: 'N/A' };
@@ -133,15 +135,23 @@ export async function getChildDivisionInfo(childId: string, yearId: string) {
         console.log(`getChildDivisionInfo: Processing child ${childId} with grade ${gradeNum} for year ${yearId}`);
 
         // First try to find divisions for this year (new system)
-    let divisions: Division[] = [];
+        let divisions: Division[] = [];
         try {
-            divisions = await db.divisions.where('bible_bee_cycle_id').equals(yearId).toArray();
+            // Use adapter pattern instead of direct Dexie calls
+            const { dbAdapter, shouldUseAdapter } = await import('@/lib/dal');
+            if (shouldUseAdapter()) {
+                // Use Supabase adapter for live mode
+                divisions = await dbAdapter.listDivisions(yearId);
+            } else {
+                // Use legacy Dexie interface for demo mode
+                divisions = await db.divisions.where('bible_bee_cycle_id').equals(yearId).toArray();
+            }
             console.log(`getChildDivisionInfo: Found ${divisions.length} divisions for year ${yearId}`, divisions.map(d => ({
                 name: d.name,
                 min_grade: d.min_grade,
                 max_grade: d.max_grade,
                 minimum_required: d.minimum_required,
-                year_id: d.year_id
+                bible_bee_cycle_id: d.bible_bee_cycle_id
             })));
         } catch (error) {
             // divisions table might not exist in some test environments
