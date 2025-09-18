@@ -35,6 +35,8 @@ import { PhotoViewerDialog } from './photo-viewer-dialog';
 import type { Child } from '@/lib/types';
 import { formatPhone } from '@/hooks/usePhoneFormat';
 import { normalizeGradeDisplay } from '@/lib/gradeUtils';
+import { useAuth } from '@/contexts/auth-context';
+import { canUpdateChildPhoto } from '@/lib/permissions';
 
 const InfoItem = ({
 	icon,
@@ -130,11 +132,13 @@ const ChildCard = ({
 	cycleNames,
 	onPhotoClick,
 	onPhotoViewClick,
+	user,
 }: {
 	child: HouseholdProfileData['children'][0];
 	cycleNames: Record<string, string>;
 	onPhotoClick: (child: Child) => void;
 	onPhotoViewClick: (photo: { name: string; url: string }) => void;
+	user: any; // BaseUser type
 }) => {
 	const sortedCycleIds = Object.keys(child.enrollmentsByCycle).sort((a, b) =>
 		b.localeCompare(a)
@@ -163,13 +167,15 @@ const ChildCard = ({
 							</AvatarFallback>
 						</Avatar>
 					</Button>
-					<Button
-						variant="outline"
-						size="icon"
-						className="absolute -bottom-1 -right-1 h-7 w-7 rounded-full bg-background"
-						onClick={() => onPhotoClick(child)}>
-						<Camera className="h-4 w-4" />
-					</Button>
+					{canUpdateChildPhoto(user, child) && (
+						<Button
+							variant="outline"
+							size="icon"
+							className="absolute -bottom-1 -right-1 h-7 w-7 rounded-full bg-background"
+							onClick={() => onPhotoClick(child)}>
+							<Camera className="h-4 w-4" />
+						</Button>
+					)}
 				</div>
 				<div>
 					<CardTitle className="font-headline flex items-center gap-2">
@@ -246,6 +252,7 @@ export function HouseholdProfile({
 }) {
 	const { household, guardians, emergencyContact, children, cycleNames } =
 		profileData;
+	const { user } = useAuth();
 	const [selectedChildForPhoto, setSelectedChildForPhoto] =
 		useState<Child | null>(null);
 	const [viewingPhoto, setViewingPhoto] = useState<{
@@ -344,6 +351,7 @@ export function HouseholdProfile({
 								cycleNames={cycleNames}
 								onPhotoClick={setSelectedChildForPhoto}
 								onPhotoViewClick={setViewingPhoto}
+								user={user}
 							/>
 						))}
 
@@ -366,6 +374,7 @@ export function HouseholdProfile({
 										cycleNames={cycleNames}
 										onPhotoClick={setSelectedChildForPhoto}
 										onPhotoViewClick={setViewingPhoto}
+										user={user}
 									/>
 								))}
 							</>

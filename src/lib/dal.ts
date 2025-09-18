@@ -18,7 +18,7 @@ import { getApplicableGradeRule } from './bibleBee';
 import { gradeToCode, doGradeRangesOverlap } from './gradeUtils';
 import { AuthRole } from './auth-types';
 import { isDemo } from './featureFlags';
-import { formatPhone } from '@/hooks/usePhoneFormat';
+import { formatPhone } from '@/lib/phone-utils';
 import type { Attendance, Child, Guardian, Household, Incident, IncidentSeverity, Ministry, MinistryEnrollment, Registration, User, EmergencyContact, LeaderAssignment, LeaderProfile, MinistryLeaderMembership, MinistryAccount, BrandingSettings, BibleBeeYear, RegistrationCycle, Scripture, CompetitionYear, CustomQuestion, MinistryGroup, MinistryGroupMember } from './types';
 
 // Leader view result for Bible Bee progress summaries (used by multiple helpers)

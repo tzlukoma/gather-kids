@@ -32,6 +32,8 @@ import { parseISO, differenceInYears } from 'date-fns';
 import { ChildCard } from './child-card';
 import { CheckoutDialog } from './checkout-dialog';
 import { normalizeGradeDisplay } from '@/lib/gradeUtils';
+import { useAuth } from '@/contexts/auth-context';
+import { canUpdateChildPhoto } from '@/lib/permissions';
 
 interface CheckInViewProps {
 	initialChildren: Child[];
@@ -74,6 +76,7 @@ export function CheckInView({
 	);
 	const [searchQuery, setSearchQuery] = useState('');
 	const { toast } = useToast();
+	const { user } = useAuth();
 	const [selectedIncidents, setSelectedIncidents] = useState<Incident[] | null>(
 		null
 	);
@@ -331,6 +334,7 @@ export function CheckInView({
 						onViewIncidents={setSelectedIncidents}
 						onUpdatePhoto={setSelectedChildForPhoto}
 						onViewPhoto={setViewingPhoto}
+						canUpdatePhoto={canUpdateChildPhoto(user, child)}
 					/>
 				))}
 			</div>

@@ -8,6 +8,7 @@ import { ChildCard } from '@/components/gatherKids/child-card';
 import type { Child } from '@/lib/types';
 import { PhotoCaptureDialog } from '@/components/gatherKids/photo-capture-dialog';
 import { PhotoViewerDialog } from '@/components/gatherKids/photo-viewer-dialog';
+import { canUpdateChildPhoto } from '@/lib/permissions';
 
 export default function ChildProfilePage() {
 	const params = useParams();
@@ -63,6 +64,7 @@ export default function ChildProfilePage() {
 					onViewIncidents={() => {}}
 					onUpdatePhoto={(c: any) => handleUpdatePhoto(c)}
 					onViewPhoto={(p) => setViewPhoto(p)}
+					canUpdatePhoto={canUpdateChildPhoto(user, child)}
 				/>
 			</div>
 
