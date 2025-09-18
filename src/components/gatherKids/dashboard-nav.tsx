@@ -26,6 +26,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { MENU_ITEMS } from '@/lib/navigation';
 import { useAuth } from '@/contexts/auth-context';
+import { useBranding } from '@/contexts/branding-context';
 import { LogOut } from 'lucide-react';
 import Image from 'next/image';
 import { AuthRole } from '@/lib/auth-types';
@@ -39,6 +40,7 @@ export function DashboardNav({ children }: DashboardNavProps) {
 	const pathname = usePathname();
 	const router = useRouter();
 	const { user, userRole, logout } = useAuth();
+	const { settings } = useBranding();
 
 	// Small helper to safely render icons stored as either a component or node
 	function renderIcon(
@@ -163,13 +165,30 @@ export function DashboardNav({ children }: DashboardNavProps) {
 				<Sidebar className="border-r">
 					<SidebarHeader>
 						<Link href="/" className="flex items-center gap-2">
-							<Image
-								src="/logos/gatherKids.png"
-								alt="gatherKids Logo"
-								width={32}
-								height={32}
-							/>
-							<span className="font-bold">gatherKids</span>
+							{settings.logo_url ? (
+								<>
+									<img
+										src={settings.logo_url}
+										alt={`${settings.app_name || 'gatherKids'} Logo`}
+										className="w-8 h-8 object-contain"
+									/>
+									{!settings.use_logo_only && (
+										<span className="font-bold">
+											{settings.app_name || 'gatherKids'}
+										</span>
+									)}
+								</>
+							) : (
+								<>
+									<Image
+										src="/logos/gatherKids.png"
+										alt="gatherKids Logo"
+										width={32}
+										height={32}
+									/>
+									<span className="font-bold">gatherKids</span>
+								</>
+							)}
 						</Link>
 						<SidebarTrigger />
 					</SidebarHeader>

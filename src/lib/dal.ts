@@ -1531,8 +1531,10 @@ export async function getLeaderBibleBeeProgress(leaderId: string, cycleId: strin
         }
 
         const totalScriptures = scriptures.length;
-        const completedScriptures = scriptures.filter((s): s is { status?: string } => typeof (s as unknown as { status?: unknown })?.status === 'string')
-            .filter(s => s.status === 'completed').length;
+        const completedScriptures = scriptures
+            .filter((s): s is { status?: string; counts_for?: number } => typeof (s as unknown as { status?: unknown })?.status === 'string')
+            .filter(s => s.status === 'completed')
+            .reduce((sum: number, s) => sum + (s.counts_for || 1), 0);
         const essayStatus = essays.length ? (typeof (essays[0] as unknown as { status?: unknown })?.status === 'string' ? (essays[0] as { status?: string }).status : 'none') : 'none';
 
     const childEnrolls = allEnrollmentsForChildren.filter(e => e.child_id === child.child_id).map(e => ({ ...e, ministryName: ministryMap.get(e.ministry_id)?.name || 'Unknown' }));
@@ -1591,10 +1593,108 @@ export async function getLeaderBibleBeeProgress(leaderId: string, cycleId: strin
 export async function getBibleBeeProgressForCycle(cycleId: string) {
     // Use DAL pattern instead of direct Dexie calls
     if (shouldUseAdapter()) {
-        // For Supabase mode, return empty array since we don't have Bible Bee cycles yet
-        // This prevents showing demo data when the database is empty
-        console.log('getBibleBeeProgressForCycle: Supabase mode - returning empty array (no Bible Bee cycles yet)');
-        return [];
+        // For Supabase mode, use the adapter to get enrolled children
+        console.log('getBibleBeeProgressForCycle: Supabase mode - querying enrolled children for cycleId:', cycleId);
+        
+        try {
+            // Get enrolled children for this Bible Bee cycle
+            const enrollments = await dbAdapter.listEnrollments();
+            console.log('All enrollments:', enrollments);
+            
+            const cycleEnrollments = enrollments.filter(e => e.bible_bee_cycle_id === cycleId);
+            console.log('Enrollments for cycle', cycleId, ':', cycleEnrollments);
+            
+            if (cycleEnrollments.length === 0) {
+                console.log('No enrollments found for cycle:', cycleId);
+                return [];
+            }
+            
+            const childIds = [...new Set(cycleEnrollments.map(e => e.child_id))];
+            console.log('Child IDs from enrollments:', childIds);
+            
+            const children = await dbAdapter.listChildren();
+            console.log('All children:', children);
+            
+            const enrolledChildren = children.filter(c => childIds.includes(c.child_id));
+            console.log('Enrolled children:', enrolledChildren);
+            
+            console.log(`Found ${enrolledChildren.length} enrolled children for cycle ${cycleId}`);
+            
+            // Get divisions for this cycle to map division IDs to names
+            const divisions = await dbAdapter.listDivisions(cycleId);
+            console.log('Divisions for cycle:', divisions);
+            
+            // Get actual progress data for enrolled children
+            const progressData = await Promise.all(enrolledChildren.map(async (child) => {
+                // Find the enrollment for this child to get division info
+                const enrollment = cycleEnrollments.find(e => e.child_id === child.child_id);
+                const division = enrollment ? divisions.find(d => d.id === enrollment.division_id) : null;
+                const divisionName = division ? division.name : 'Unknown Division';
+                
+                // Check if division has essay prompts assigned first
+                let essayStatus = 'none';
+                let hasEssays = false;
+                if (division) {
+                    const essayPrompts = await dbAdapter.listEssayPrompts(division.id, cycleId);
+                    hasEssays = essayPrompts.length > 0;
+                    if (hasEssays) {
+                        // Check actual student essay submissions
+                        const studentEssays = await dbAdapter.listStudentEssays(child.child_id, cycleId);
+                        const relevantEssay = studentEssays.find(e => e.essay_prompt_id === essayPrompts[0].id);
+                        if (relevantEssay) {
+                            essayStatus = relevantEssay.status;
+                        } else {
+                            essayStatus = 'assigned'; // Essay prompt exists but no student essay record yet
+                        }
+                    }
+                }
+                
+                // Only get scripture progress if division doesn't have essays
+                let totalScriptures = 0;
+                let completedScriptures = 0;
+                let requiredScriptures = 0;
+                
+                if (!hasEssays) {
+                    const studentScriptures = await dbAdapter.listStudentScriptures(child.child_id, cycleId);
+                    totalScriptures = studentScriptures.length;
+                    completedScriptures = studentScriptures
+                        .filter(s => s.is_completed)
+                        .reduce((sum, s) => sum + (s.counts_for || 1), 0);
+                    
+                    // Get required scriptures from division
+                    requiredScriptures = division ? division.minimum_required || totalScriptures : totalScriptures;
+                }
+                
+                // Determine Bible Bee status
+                let bibleBeeStatus = 'Not Started';
+                if (hasEssays) {
+                    bibleBeeStatus = essayStatus === 'submitted' ? 'Complete' : 'In Progress';
+                } else if (totalScriptures > 0) {
+                    const progressPercent = (completedScriptures / requiredScriptures) * 100;
+                    bibleBeeStatus = progressPercent >= 100 ? 'Complete' : 
+                                   completedScriptures > 0 ? 'In Progress' : 'Not Started';
+                }
+                
+                return {
+                    childId: child.child_id,
+                    childName: `${child.first_name} ${child.last_name}`,
+                    child: child,
+                    totalScriptures: hasEssays ? 0 : totalScriptures,
+                    completedScriptures: hasEssays ? 0 : completedScriptures,
+                    requiredScriptures: hasEssays ? 0 : requiredScriptures,
+                    bibleBeeStatus,
+                    gradeGroup: divisionName,
+                    essayStatus: hasEssays ? essayStatus : undefined, // Only show if division has essays
+                    ministries: [],
+                    primaryGuardian: null,
+                };
+            }));
+            
+            return progressData;
+        } catch (error) {
+            console.error('Error getting Bible Bee progress for cycle:', error);
+            return [];
+        }
     }
 
     // Legacy IndexedDB mode - keep existing logic for demo mode
@@ -1656,8 +1756,10 @@ export async function getBibleBeeProgressForCycle(cycleId: string) {
         }
 
         const totalScriptures = scriptures.length;
-    const completedScriptures = scriptures.filter((s): s is { status?: string } => typeof (s as unknown as { status?: unknown })?.status === 'string')
-            .filter(s => s.status === 'completed').length;
+        const completedScriptures = scriptures
+            .filter((s): s is { status?: string; counts_for?: number } => typeof (s as unknown as { status?: unknown })?.status === 'string')
+            .filter(s => s.status === 'completed')
+            .reduce((sum: number, s) => sum + (s.counts_for || 1), 0);
         
         // Check essay status - look for essay prompts assigned to the child's division
         let essayStatus = 'none';
@@ -2379,7 +2481,7 @@ export async function saveBrandingSettings(
 export async function getDefaultBrandingSettings(): Promise<Partial<BrandingSettings>> {
     return {
         app_name: 'gatherKids',
-    description: "The simple, secure, and smart way to manage your children&apos;s ministry. Streamline check-ins, track attendance, and keep your community connected.",
+        description: "The simple, secure, and smart way to manage your children's ministry. Streamline check-ins, track attendance, and keep your community connected.",
         logo_url: undefined, // Will use default cross icon
         use_logo_only: false, // Show app name with logo by default
         youtube_url: undefined,
@@ -2692,11 +2794,27 @@ export async function getRegistrationStats(): Promise<{ householdCount: number; 
 
 /**
  * Get Bible Bee years for ministry management
+ * Note: This now uses Bible Bee cycles instead of the old years table
  */
 export async function getBibleBeeYears(): Promise<BibleBeeYear[]> {
 	if (shouldUseAdapter()) {
-		// Use Supabase adapter for live mode
-		return dbAdapter.listBibleBeeYears();
+		// Use Supabase adapter for live mode - get cycles and map to BibleBeeYear format
+		const cycles = await dbAdapter.listBibleBeeCycles();
+		return cycles.map(cycle => ({
+			id: cycle.id,
+			year: undefined, // No longer used in new schema
+			name: cycle.name,
+			label: cycle.name, // Use name as label for backwards compatibility
+			cycle_id: cycle.cycle_id,
+			description: cycle.description,
+			is_active: cycle.is_active,
+			registration_open_date: undefined, // Not in cycles table
+			registration_close_date: undefined, // Not in cycles table
+			competition_start_date: undefined, // Not in cycles table
+			competition_end_date: undefined, // Not in cycles table
+			created_at: cycle.created_at,
+			updated_at: cycle.updated_at || cycle.created_at,
+		}));
 	} else {
 		// Use legacy Dexie interface for demo mode
 		return db.bible_bee_years.toArray();
@@ -2884,7 +3002,7 @@ export async function getDivisionsForBibleBeeYear(yearId: string): Promise<any[]
 		return dbAdapter.listDivisions(yearId);
 	} else {
 		// Use legacy Dexie interface for demo mode
-		return db.divisions.where('year_id').equals(yearId).toArray();
+		return db.divisions.where('bible_bee_cycle_id').equals(yearId).toArray();
 	}
 }
 
@@ -3102,40 +3220,24 @@ export async function deleteEssayPrompt(id: string): Promise<void> {
 
 /**
  * Preview auto enrollment
+ * Uses adapter pattern for both Supabase and Dexie modes
  */
 export async function previewAutoEnrollment(yearId: string): Promise<any> {
-	if (shouldUseAdapter()) {
-		// Use Supabase adapter for live mode
-		return dbAdapter.previewAutoEnrollment(yearId);
-	} else {
-		// Use legacy Dexie interface for demo mode
-		// This is a complex function that would need to be implemented
-		// For now, return empty preview
-		return {
-			previews: [],
-			counts: {
-				proposed: 0,
-				overrides: 0,
-				unassigned: 0,
-				unknown_grade: 0,
-			},
-		};
-	}
+	// Use adapter for both modes
+	return dbAdapter.previewAutoEnrollment(yearId);
 }
 
 /**
  * Commit auto enrollment
  */
 export async function commitAutoEnrollment(yearId: string, previews: any[]): Promise<any> {
-	if (shouldUseAdapter()) {
-		// Use Supabase adapter for live mode
-		return dbAdapter.commitAutoEnrollment(yearId, previews);
-	} else {
-		// Use legacy Dexie interface for demo mode
-		// This is a complex function that would need to be implemented
-		// For now, return success
-		return { success: true, enrolled: 0 };
-	}
+	console.log(`DEBUG: DAL commitAutoEnrollment called with yearId: ${yearId}, previews: ${previews.length}`);
+	console.log(`DEBUG: Using adapter: ${shouldUseAdapter() ? 'Supabase' : 'IndexedDB'}`);
+	
+	// Use adapter for both modes
+	const result = await dbAdapter.commitAutoEnrollment(yearId, previews);
+	console.log(`DEBUG: DAL commitAutoEnrollment result:`, result);
+	return result;
 }
 
 /**
@@ -3212,14 +3314,13 @@ export async function getEnrollmentOverridesForYear(yearId: string): Promise<any
 	if (shouldUseAdapter()) {
 		// Use Supabase adapter for live mode
 		const allOverrides = await dbAdapter.listEnrollmentOverrides();
-		// Filter by year_id or bible_bee_cycle_id
+		// Filter by bible_bee_cycle_id
 		return allOverrides.filter(override => 
-			override.year_id === yearId || 
-			(override as any).bible_bee_cycle_id === yearId
+			override.bible_bee_cycle_id === yearId
 		);
 	} else {
 		// Use legacy Dexie interface for demo mode
-		return db.enrollment_overrides.where('year_id').equals(yearId).toArray();
+		return db.enrollment_overrides.where('bible_bee_cycle_id').equals(yearId).toArray();
 	}
 }
 
@@ -3340,7 +3441,7 @@ export async function getHousehold(householdId: string): Promise<Household | nul
 export async function listGuardians({ householdId }: { householdId: string }): Promise<Guardian[]> {
 	if (shouldUseAdapter()) {
 		// Use Supabase adapter for live mode
-		return dbAdapter.listGuardians({ householdId });
+		return dbAdapter.listGuardians(householdId);
 	} else {
 		// Use legacy Dexie interface for demo mode
 		return db.guardians.where('household_id').equals(householdId).toArray();

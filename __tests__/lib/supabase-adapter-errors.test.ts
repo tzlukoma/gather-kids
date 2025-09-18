@@ -18,6 +18,9 @@ describe('Supabase Adapter Error Handling', () => {
 	test('getHousehold handles PGRST116 error correctly', async () => {
 		// Create a mock that explicitly returns the PGRST116 error
 		const errorMockClient = {
+			auth: {
+				getSession: () => Promise.resolve({ data: { session: null }, error: null })
+			},
 			from: () => ({
 				select: () => ({
 					eq: () => ({

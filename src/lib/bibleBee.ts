@@ -109,7 +109,9 @@ export async function getApplicableGradeRule(competitionYearId: string, gradeNum
 // Helper function to get division information for a child based on their grade and the year
 export async function getChildDivisionInfo(childId: string, yearId: string) {
     try {
-        const child = await db.children.get(childId);
+        // Use DAL function instead of direct Dexie calls
+        const { getChild } = await import('@/lib/dal');
+        const child = await getChild(childId);
         if (!child || !child.grade) {
             console.log(`getChildDivisionInfo: Child ${childId} not found or has no grade`);
             return { division: null, target: null, gradeGroup: 'N/A' };
@@ -133,15 +135,23 @@ export async function getChildDivisionInfo(childId: string, yearId: string) {
         console.log(`getChildDivisionInfo: Processing child ${childId} with grade ${gradeNum} for year ${yearId}`);
 
         // First try to find divisions for this year (new system)
-    let divisions: Division[] = [];
+        let divisions: Division[] = [];
         try {
-            divisions = await db.divisions.where('year_id').equals(yearId).toArray();
+            // Use adapter pattern instead of direct Dexie calls
+            const { dbAdapter, shouldUseAdapter } = await import('@/lib/dal');
+            if (shouldUseAdapter()) {
+                // Use Supabase adapter for live mode
+                divisions = await dbAdapter.listDivisions(yearId);
+            } else {
+                // Use legacy Dexie interface for demo mode
+                divisions = await db.divisions.where('bible_bee_cycle_id').equals(yearId).toArray();
+            }
             console.log(`getChildDivisionInfo: Found ${divisions.length} divisions for year ${yearId}`, divisions.map(d => ({
                 name: d.name,
                 min_grade: d.min_grade,
                 max_grade: d.max_grade,
                 minimum_required: d.minimum_required,
-                year_id: d.year_id
+                bible_bee_cycle_id: d.bible_bee_cycle_id
             })));
         } catch (error) {
             // divisions table might not exist in some test environments
@@ -168,7 +178,31 @@ export async function getChildDivisionInfo(childId: string, yearId: string) {
             console.log(`getChildDivisionInfo: Final matching division:`, matchingDivision);
             
             if (matchingDivision) {
-                const gradeLabel = (grade: number) => grade === 0 ? 'Kindergarten' : `${grade}th Grade`;
+                const gradeLabel = (grade: number) => {
+                    if (grade === 0) return 'Kindergarten';
+                    if (grade === 1) return '1st Grade';
+                    if (grade === 2) return '2nd Grade';
+                    if (grade === 3) return '3rd Grade';
+                    
+                    // Handle grades 4-12 with proper ordinal formatting
+                    if (grade >= 4 && grade <= 12) {
+                        const lastDigit = grade % 10;
+                        const lastTwoDigits = grade % 100;
+                        
+                        // Special cases for 11th, 12th, 13th (though 13th won't occur in grades)
+                        if (lastTwoDigits >= 11 && lastTwoDigits <= 13) {
+                            return `${grade}th Grade`;
+                        }
+                        
+                        // Regular ordinal rules
+                        if (lastDigit === 1) return `${grade}st Grade`;
+                        if (lastDigit === 2) return `${grade}nd Grade`;
+                        if (lastDigit === 3) return `${grade}rd Grade`;
+                        return `${grade}th Grade`;
+                    }
+                    
+                    return `Grade ${grade}`;
+                };
                 const gradeRange = matchingDivision.min_grade === matchingDivision.max_grade 
                     ? gradeLabel(matchingDivision.min_grade)
                     : `${gradeLabel(matchingDivision.min_grade)} to ${gradeLabel(matchingDivision.max_grade)}`;
@@ -236,7 +270,7 @@ export async function enrollChildInBibleBee(childId: string, competitionYearId: 
     let hasNewSystem = false;
     
     try {
-        divisions = await db.divisions.where('year_id').equals(competitionYearId).toArray();
+        divisions = await db.divisions.where('bible_bee_cycle_id').equals(competitionYearId).toArray();
         hasNewSystem = divisions.length > 0;
     } catch (error) {
         // divisions table might not exist in some test environments
@@ -257,8 +291,8 @@ export async function enrollChildInBibleBee(childId: string, competitionYearId: 
         // Get scriptures for this year - try both field names for compatibility
     let scriptures: Scripture[] = [];
         try {
-            // Try new schema first (year_id)
-            scriptures = await db.scriptures.where('year_id').equals(competitionYearId).toArray();
+            // Try new schema first (bible_bee_cycle_id)
+            scriptures = await db.scriptures.where('bible_bee_cycle_id').equals(competitionYearId).toArray();
             if (scriptures.length === 0) {
                 // Fall back to legacy schema (competitionYearId)
                 scriptures = await db.scriptures.where('competitionYearId').equals(competitionYearId).toArray();
@@ -362,24 +396,66 @@ export async function enrollChildInBibleBee(childId: string, competitionYearId: 
 }
 
 export async function toggleScriptureCompletion(studentScriptureId: string, complete: boolean) {
-    const now = new Date().toISOString();
-    await db.studentScriptures.update(studentScriptureId, {
-        status: complete ? 'completed' : 'assigned',
-        completedAt: complete ? now : undefined,
-        updatedAt: now,
-    });
+	const now = new Date().toISOString();
+	
+	// Use adapter instead of direct Dexie calls
+	const { dbAdapter, shouldUseAdapter } = await import('@/lib/dal');
+	
+	if (shouldUseAdapter()) {
+		// Use Supabase adapter
+		await dbAdapter.updateStudentScripture(studentScriptureId, {
+			is_completed: complete,
+			completed_at: complete ? now : undefined,
+		});
+	} else {
+		// Use legacy Dexie for demo mode
+		await db.studentScriptures.update(studentScriptureId, {
+			status: complete ? 'completed' : 'assigned',
+			completedAt: complete ? now : undefined,
+			updatedAt: now,
+		});
+	}
 }
 
-export async function submitEssay(childId: string, competitionYearId: string) {
+export async function submitEssay(childId: string, bibleBeeCycleId: string) {
     const now = new Date().toISOString();
-    const essay = await db.studentEssays.where({ childId, competitionYearId }).first();
-    if (!essay) return null;
-    await db.studentEssays.update(essay.id, {
-        status: 'submitted',
-        submittedAt: now,
-        updatedAt: now,
-    });
-    return { submitted: true };
+    
+    // Use adapter pattern for database operations
+    const { dbAdapter, shouldUseAdapter } = await import('@/lib/dal');
+    
+    if (shouldUseAdapter()) {
+        // Use Supabase adapter for live mode
+        console.log(`Submitting essay for child ${childId}, cycle ${bibleBeeCycleId}`);
+        
+        // Find the student essay record
+        const studentEssays = await dbAdapter.listStudentEssays(childId, bibleBeeCycleId);
+        if (studentEssays.length === 0) {
+            console.warn(`No essay found for child ${childId}, cycle ${bibleBeeCycleId}`);
+            return null;
+        }
+        
+        // Update the first essay (assuming one essay per child per cycle)
+        const essay = studentEssays[0];
+        await dbAdapter.updateStudentEssay(essay.id, {
+            status: 'submitted',
+            submitted_at: now,
+        });
+        
+        return { submitted: true };
+    } else {
+        // Use legacy Dexie interface for demo mode
+        const essay = await db.studentEssays.where({ childId, bible_bee_cycle_id: bibleBeeCycleId }).first();
+        if (!essay) {
+            console.warn(`No essay found for child ${childId}, cycle ${bibleBeeCycleId}`);
+            return null;
+        }
+        await db.studentEssays.update(essay.id, {
+            status: 'submitted',
+            submittedAt: now,
+            updatedAt: now,
+        });
+        return { submitted: true };
+    }
 }
 
 // CSV parsing & validation (browser-only). Return preview rows and errors.
@@ -653,10 +729,10 @@ export async function updateBibleBeeYear(id: string, updates: Partial<Omit<Bible
 export async function deleteBibleBeeYear(id: string) {
     await db.bible_bee_years.delete(id);
     // Also delete related divisions, enrollments, overrides, etc.
-    await db.divisions.where('year_id').equals(id).delete();
-    await db.essay_prompts.where('year_id').equals(id).delete();
-    await db.enrollments.where('year_id').equals(id).delete();
-    await db.enrollment_overrides.where('year_id').equals(id).delete();
+    await db.divisions.where('bible_bee_cycle_id').equals(id).delete();
+    await db.essay_prompts.where('bible_bee_cycle_id').equals(id).delete();
+    await db.bible_bee_enrollments.where('bible_bee_cycle_id').equals(id).delete();
+    await db.enrollment_overrides.where('bible_bee_cycle_id').equals(id).delete();
 }
 
 // === Division Management ===
@@ -674,7 +750,7 @@ export async function createDivision(payload: Omit<Division, 'id' | 'created_at'
     }
     
     // Check for overlapping ranges in the same year
-    const existingDivisions = await db.divisions.where('year_id').equals(payload.year_id).toArray();
+    const existingDivisions = await db.divisions.where('bible_bee_cycle_id').equals(payload.bible_bee_cycle_id).toArray();
     for (const existing of existingDivisions) {
         if (doGradeRangesOverlap(payload.min_grade, payload.max_grade, existing.min_grade, existing.max_grade)) {
             throw new Error(`Grade range ${payload.min_grade}-${payload.max_grade} overlaps with existing division "${existing.name}" (${existing.min_grade}-${existing.max_grade})`);
@@ -685,7 +761,7 @@ export async function createDivision(payload: Omit<Division, 'id' | 'created_at'
     const id = payload.id ?? crypto.randomUUID();
     const item: Division = {
         id,
-        year_id: payload.year_id,
+        bible_bee_cycle_id: payload.bible_bee_cycle_id,
         name: payload.name,
         minimum_required: payload.minimum_required,
         min_last_order: payload.min_last_order,
@@ -718,7 +794,7 @@ export async function updateDivision(id: string, updates: Partial<Omit<Division,
         }
         
         // Check overlap with other divisions (excluding current one)
-        const otherDivisions = await db.divisions.where('year_id').equals(existing.year_id).and(div => div.id !== id).toArray();
+        const otherDivisions = await db.divisions.where('bible_bee_cycle_id').equals(existing.bible_bee_cycle_id).and(div => div.id !== id).toArray();
         for (const other of otherDivisions) {
             if (doGradeRangesOverlap(newMinGrade, newMaxGrade, other.min_grade, other.max_grade)) {
                 throw new Error(`Grade range ${newMinGrade}-${newMaxGrade} overlaps with existing division "${other.name}" (${other.min_grade}-${other.max_grade})`);
@@ -749,9 +825,11 @@ export async function createEssayPrompt(payload: Omit<EssayPrompt, 'id' | 'creat
     const id = payload.id ?? crypto.randomUUID();
     const item: EssayPrompt = {
         id,
-        year_id: payload.year_id,
-        division_name: payload.division_name,
-        prompt_text: payload.prompt_text,
+        bible_bee_cycle_id: payload.bible_bee_cycle_id,
+        division_id: payload.division_id,
+        title: payload.title,
+        prompt: payload.prompt,
+        instructions: payload.instructions,
         due_date: payload.due_date,
         created_at: now,
         updated_at: now,
@@ -805,39 +883,24 @@ export async function previewAutoEnrollment(yearId: string): Promise<{
         unknown_grade: number;
     };
 }> {
-    // Get the Bible Bee year to determine which registration cycle to use
-    const bibleYear = await db.bible_bee_years.get(yearId);
-    if (!bibleYear) {
-        throw new Error(`Bible Bee year ${yearId} not found`);
+    // Get the Bible Bee cycle (yearId is actually a cycle ID in the new schema)
+    const bibleCycle = await db.bible_bee_cycles.get(yearId);
+    if (!bibleCycle) {
+        throw new Error(`Bible Bee cycle ${yearId} not found`);
     }
     
-    // If the Bible Bee year has a cycle_id, use that specific cycle
-    // Otherwise fall back to the active cycle (legacy behavior)
+    // Use the cycle_id from the Bible Bee cycle to get the registration cycle
     let currentCycle = null;
     
-    console.log('DEBUG: Bible Bee year being processed:', bibleYear);
+    console.log('DEBUG: Bible Bee cycle being processed:', bibleCycle);
     
-    if (bibleYear.cycle_id) {
-        console.log('DEBUG: Using Bible Bee year linked cycle_id:', bibleYear.cycle_id);
-        currentCycle = await db.registration_cycles.get(bibleYear.cycle_id);
-        if (!currentCycle) {
-            console.error(`DEBUG: Registration cycle ${bibleYear.cycle_id} linked to Bible Bee year not found`);
-            throw new Error(`Registration cycle ${bibleYear.cycle_id} linked to Bible Bee year not found`);
-        }
-        console.log('DEBUG: Found linked registration cycle:', currentCycle);
-    } else {
-        console.log('DEBUG: No cycle_id found on Bible Bee year, falling back to active cycle');
-        // Fall back to active cycle for backward compatibility
-        currentCycle = (await db.registration_cycles.toArray()).find(c => {
-            const val: any = (c as any)?.is_active;
-            return val === true || val === 1 || String(val) === '1';
-        }) ?? null;
-        if (!currentCycle) {
-            console.error('DEBUG: No active registration cycle found and Bible Bee year has no linked cycle');
-            throw new Error('No active registration cycle found and Bible Bee year has no linked cycle');
-        }
-        console.log('DEBUG: Using active registration cycle as fallback:', currentCycle);
+    console.log('DEBUG: Using Bible Bee cycle linked cycle_id:', bibleCycle.cycle_id);
+    currentCycle = await db.registration_cycles.get(bibleCycle.cycle_id);
+    if (!currentCycle) {
+        console.error(`DEBUG: Registration cycle ${bibleCycle.cycle_id} linked to Bible Bee cycle not found`);
+        throw new Error(`Registration cycle ${bibleCycle.cycle_id} linked to Bible Bee cycle not found`);
     }
+    console.log('DEBUG: Found linked registration cycle:', currentCycle);
     
     // Get Bible Bee ministry
     const bibleBeeMinistry = await db.ministries.where('code').equals('bible-bee').first();
@@ -960,7 +1023,7 @@ export async function previewAutoEnrollment(yearId: string): Promise<{
     }
     
     // Get divisions for this year
-    const divisions = await db.divisions.where('year_id').equals(yearId).toArray();
+    const divisions = await db.divisions.where('bible_bee_cycle_id').equals(yearId).toArray();
     console.log(`DEBUG: Divisions for this year: ${divisions.length}`, divisions);
     
     // Check if any divisions cover grade 9
@@ -968,7 +1031,7 @@ export async function previewAutoEnrollment(yearId: string): Promise<{
     console.log(`DEBUG: Divisions that include grade 9: ${grade9Divisions.length}`, grade9Divisions);
     
     // Get existing overrides
-    const overrides = await db.enrollment_overrides.where('year_id').equals(yearId).toArray();
+    const overrides = await db.enrollment_overrides.where('bible_bee_cycle_id').equals(yearId).toArray();
     const overrideMap = new Map(overrides.map(o => [o.child_id, o]));
     console.log(`DEBUG: Enrollment overrides: ${overrides.length}`, overrides);
     
@@ -1058,7 +1121,7 @@ export async function syncScripturesForEnrolledChildren(yearId: string): Promise
     
     try {
         // Get all enrollments for this year
-        const enrollments = await db.enrollments.where('year_id').equals(yearId).toArray();
+        const enrollments = await db.bible_bee_enrollments.where('bible_bee_cycle_id').equals(yearId).toArray();
         
         for (const enrollment of enrollments) {
             try {
@@ -1100,13 +1163,15 @@ export async function commitAutoEnrollment(yearId: string): Promise<{
         try {
             // Apply overrides first
             if (p.status === 'override' && p.override_division) {
-                await db.enrollments.put({
+                await db.bible_bee_enrollments.put({
                     id: crypto.randomUUID(),
-                    year_id: yearId,
+                    bible_bee_cycle_id: yearId,
                     child_id: p.child_id,
                     division_id: p.override_division.id,
                     auto_enrolled: false,
                     enrolled_at: now,
+                    created_at: now,
+                    updated_at: now,
                 });
                 
                 // Also assign scriptures for the child using the legacy system
@@ -1121,13 +1186,15 @@ export async function commitAutoEnrollment(yearId: string): Promise<{
             }
             // Apply proposed auto-enrollments
             else if (p.status === 'proposed' && p.proposed_division) {
-                await db.enrollments.put({
+                await db.bible_bee_enrollments.put({
                     id: crypto.randomUUID(),
-                    year_id: yearId,
+                    bible_bee_cycle_id: yearId,
                     child_id: p.child_id,
                     division_id: p.proposed_division.id,
                     auto_enrolled: true,
                     enrolled_at: now,
+                    created_at: now,
+                    updated_at: now,
                 });
                 
                 // Also assign scriptures for the child using the legacy system
@@ -1155,7 +1222,7 @@ export async function createEnrollmentOverride(payload: Omit<EnrollmentOverride,
     const id = payload.id ?? crypto.randomUUID();
     const item: EnrollmentOverride = {
         id,
-        year_id: payload.year_id,
+        bible_bee_cycle_id: payload.bible_bee_cycle_id,
         child_id: payload.child_id,
         division_id: payload.division_id,
         reason: payload.reason,
@@ -1183,7 +1250,7 @@ export async function deleteEnrollmentOverrideByChild(yearId: string, childId: s
     // Avoid using compound .equals([...]) which can throw if stored key types
     // are mixed. Perform a safe scan and delete matching overrides.
     const all = await db.enrollment_overrides.toArray();
-    const matches = all.filter(o => String(o.year_id) === String(yearId) && String(o.child_id) === String(childId));
+    const matches = all.filter(o => String(o.bible_bee_cycle_id) === String(yearId) && String(o.child_id) === String(childId));
     for (const m of matches) {
         await db.enrollment_overrides.delete(m.id);
     }
@@ -1192,7 +1259,7 @@ export async function deleteEnrollmentOverrideByChild(yearId: string, childId: s
 // === Minimum Boundary Calculation ===
 
 export async function recalculateMinimumBoundaries(yearId: string) {
-    const divisions = await db.divisions.where('year_id').equals(yearId).toArray();
+    const divisions = await db.divisions.where('bible_bee_cycle_id').equals(yearId).toArray();
     // Try both field names for backward compatibility
     const scriptures = await db.scriptures
         .where('competitionYearId').equals(yearId)
@@ -1300,7 +1367,7 @@ export async function commitEnhancedCsvRowsToYear(rows: EnhancedCsvRow[], yearId
         }
         
         const scriptureData: Partial<Scripture> = {
-            year_id: yearId,
+            bible_bee_cycle_id: yearId,
             scripture_number: row.scripture_number,
             scripture_order: row.scripture_order,
             counts_for: row.counts_for || 1,
@@ -1461,8 +1528,8 @@ export async function uploadJsonTexts(
                     
                     await db.scriptures.put({
                         id: crypto.randomUUID(),
-                        year_id: yearId, // For backward compatibility
-                        competitionYearId: yearId, // Primary field
+                        bible_bee_cycle_id: yearId, // Primary field
+                        competitionYearId: yearId, // Legacy field
                         reference: scriptureData.reference,
                         scripture_order: nextOrder, // Use next available order, not from JSON
                         sortOrder: nextOrder, // Keep sortOrder in sync

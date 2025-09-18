@@ -25,6 +25,7 @@ import type {
 	EnrollmentOverride,
 	BrandingSettings,
 	Scripture,
+	StudentEssay,
 } from '../types';
 
 // Filter and query types (to be extended as needed)
@@ -323,7 +324,7 @@ export interface DatabaseAdapter {
 		id: string,
 		data: Partial<EssayPrompt>
 	): Promise<EssayPrompt>;
-	listEssayPrompts(divisionId?: string): Promise<EssayPrompt[]>;
+	listEssayPrompts(divisionId?: string, cycleId?: string): Promise<EssayPrompt[]>;
 	deleteEssayPrompt(id: string): Promise<void>;
 
 	getEnrollment(id: string): Promise<Enrollment | null>;
@@ -345,8 +346,15 @@ export interface DatabaseAdapter {
 		id: string,
 		data: Partial<EnrollmentOverride>
 	): Promise<EnrollmentOverride>;
-	listEnrollmentOverrides(enrollmentId?: string): Promise<EnrollmentOverride[]>;
+	listEnrollmentOverrides(yearId?: string): Promise<EnrollmentOverride[]>;
 	deleteEnrollmentOverride(id: string): Promise<void>;
+
+	// Student Scripture methods
+	getStudentScripture(id: string): Promise<StudentScripture | null>;
+	createStudentScripture(data: Omit<StudentScripture, 'created_at' | 'updated_at'>): Promise<StudentScripture>;
+	updateStudentScripture(id: string, data: Partial<StudentScripture>): Promise<StudentScripture>;
+	listStudentScriptures(childId?: string, bibleBeeCycleId?: string): Promise<StudentScripture[]>;
+	deleteStudentScripture(id: string): Promise<void>;
 
 	// Realtime (can be no-op in IndexedDB implementation)
 	subscribeToTable<T>(
@@ -361,4 +369,15 @@ export interface DatabaseAdapter {
 	getDraft(formName: string, userId: string): Promise<any | null>;
 	saveDraft(formName: string, userId: string, payload: any, version?: number): Promise<void>;
 	clearDraft(formName: string, userId: string): Promise<void>;
+
+	// Bible Bee auto-enrollment methods
+	previewAutoEnrollment(yearId: string): Promise<any>;
+	commitAutoEnrollment(yearId: string, previews: any[]): Promise<any>;
+
+	// Student Essay methods
+	getStudentEssay(id: string): Promise<StudentEssay | null>;
+	createStudentEssay(data: Omit<StudentEssay, 'created_at' | 'updated_at'>): Promise<StudentEssay>;
+	updateStudentEssay(id: string, data: Partial<StudentEssay>): Promise<StudentEssay>;
+	listStudentEssays(childId?: string, bibleBeeCycleId?: string): Promise<StudentEssay[]>;
+	deleteStudentEssay(id: string): Promise<void>;
 }

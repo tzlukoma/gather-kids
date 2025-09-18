@@ -53,19 +53,34 @@ export default function ChildBibleBeePage() {
 					{data.essays.map((e: any) => (
 						<Card key={e.id}>
 							<CardHeader>
-								<CardTitle>Essay for {e.year?.year}</CardTitle>
-								<CardDescription>{e.promptText}</CardDescription>
+								<CardTitle>
+									{e.essayPrompt?.title || 'Essay Assignment'}
+								</CardTitle>
+								<CardDescription>
+									{e.essayPrompt?.prompt || 'Essay prompt for this division'}
+								</CardDescription>
 							</CardHeader>
 							<CardContent>
 								<div className="flex items-center gap-4">
-									<div className="text-sm text-muted-foreground">
-										Status: {e.status}
-									</div>
+									<span
+										className={`px-2 py-1 rounded text-xs ${
+											e.status === 'submitted'
+												? 'bg-green-100 text-green-800'
+												: e.status === 'assigned'
+												? 'bg-yellow-100 text-yellow-800'
+												: 'bg-gray-100 text-gray-800'
+										}`}>
+										{e.status === 'submitted'
+											? 'Submitted'
+											: e.status === 'assigned'
+											? 'Assigned'
+											: 'Not Started'}
+									</span>
 									{e.status !== 'submitted' && (
 										<Button
 											onClick={() =>
 												essayMutation.mutate({
-													competitionYearId: e.competitionYearId,
+													bibleBeeCycleId: e.bible_bee_cycle_id,
 												})
 											}
 											size="sm">

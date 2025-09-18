@@ -256,45 +256,6 @@ export default function BibleBeeManage({
 
 	const selectedCycle = allCycles?.find((c) => c.id === selectedYearId);
 
-	// Auto-run repro when ?repro is present (dev only)
-	React.useEffect(() => {
-		if (process.env.NODE_ENV === 'production') return;
-		try {
-			const params = new URLSearchParams(window.location.search);
-			if (params.has('repro')) {
-				(async () => {
-					try {
-						console.log('Auto-repro: creating active Bible Bee year...');
-						// Get the active cycle to link to this Bible Bee year
-						const allCycles = await getRegistrationCycles();
-						const activeCycle = allCycles.find((c) => {
-							const val = c.is_active;
-							return val === true || Number(val) === 1 || String(val) === '1';
-						});
-
-						const created = await createBibleBeeCycle({
-							name: 'Auto Repro Cycle',
-							is_active: true,
-							cycle_id: activeCycle?.cycle_id || '', // Use active cycle if available
-						});
-						setSelectedYearId(created.id);
-						setActiveTab('enrollment');
-						console.log(
-							'Auto-repro: calling previewAutoEnrollment for year',
-							created.id
-						);
-						const preview = await previewAutoEnrollment(created.id);
-						console.log('Auto-repro: preview result', preview);
-					} catch (err) {
-						console.error('Auto-repro error:', err);
-					}
-				})();
-			}
-		} catch (err) {
-			// Ignore in non-browser contexts
-		}
-	}, []);
-
 	return (
 		<TooltipProvider>
 			<div className={className}>
@@ -305,49 +266,6 @@ export default function BibleBeeManage({
 							Configure competition years, divisions, and enrollment
 						</p>
 					</div>
-
-					{/* Dev-only repro helper: creates an active year, opens Enrollment tab, and
-					    calls previewAutoEnrollment to capture errors in the browser console. */}
-					{process.env.NODE_ENV !== 'production' && (
-						<div className="flex items-center gap-2">
-							<Button
-								variant="outline"
-								size="sm"
-								onClick={async () => {
-									try {
-										console.log(
-											'Repro helper: creating active Bible Bee year...'
-										);
-										// Get the active cycle to link to this Bible Bee year
-										const allCycles = await getRegistrationCycles();
-										const activeCycle = allCycles.find((c) => {
-											const val = c.is_active;
-											return (
-												val === true || Number(val) === 1 || String(val) === '1'
-											);
-										});
-
-										const created = await createBibleBeeCycle({
-											name: 'Repro Test Cycle',
-											is_active: true,
-											cycle_id: activeCycle?.cycle_id || '', // Use active cycle if available
-										});
-										setSelectedYearId(created.id);
-										setActiveTab('enrollment');
-										console.log(
-											'Repro helper: calling previewAutoEnrollment for year',
-											created.id
-										);
-										const preview = await previewAutoEnrollment(created.id);
-										console.log('Repro helper: preview result', preview);
-									} catch (err) {
-										console.error('Repro helper error:', err);
-									}
-								}}>
-								Run Repro
-							</Button>
-						</div>
-					)}
 
 					{/* Year Selector */}
 					<div className="flex items-center gap-4">
@@ -775,10 +693,7 @@ function DivisionManagement({
 			} else {
 				await createDivision({
 					...formData,
-					bible_bee_cycle_id: selectedCycle._isNewSchema ? yearId : null,
-					competitionYearId: selectedCycle._isNewSchema
-						? ''
-						: (yearId as string),
+					bible_bee_cycle_id: yearId,
 				});
 				setIsCreating(false);
 				// Trigger refresh of divisions list
@@ -1949,8 +1864,10 @@ function EssayManagement({
 	const [isCreating, setIsCreating] = useState(false);
 	const [editingEssay, setEditingEssay] = useState<any>(null);
 	const [formData, setFormData] = useState({
-		division_name: 'all',
-		prompt_text: '',
+		division_id: '',
+		title: '',
+		prompt: '',
+		instructions: '',
 		due_date: '',
 	});
 	const [error, setError] = useState<string | null>(null);
@@ -1961,11 +1878,8 @@ function EssayManagement({
 		try {
 			const essayData = {
 				...formData,
-				year_id: selectedCycle._isNewSchema ? yearId : yearId, // Always use yearId for the main ID field
-				bible_bee_cycle_id: selectedCycle._isNewSchema ? yearId : null,
-				competitionYearId: selectedCycle._isNewSchema ? '' : yearId,
-				division_name:
-					formData.division_name === 'all' ? '' : formData.division_name,
+				bible_bee_cycle_id: yearId,
+				division_id: formData.division_id || undefined, // Optional for cycle-wide prompts
 				due_date: formData.due_date || new Date().toISOString().split('T')[0], // Default to today if not provided
 			};
 
@@ -1990,8 +1904,10 @@ function EssayManagement({
 				onRefresh();
 			}
 			setFormData({
-				division_name: 'all',
-				prompt_text: '',
+				division_id: '',
+				title: '',
+				prompt: '',
+				instructions: '',
 				due_date: '',
 			});
 		} catch (error: any) {
@@ -2001,10 +1917,13 @@ function EssayManagement({
 	};
 
 	const handleDelete = async (essay: any) => {
+		// Look up division name for confirmation message
+		const divisionName = essay.division_id
+			? divisions.find((d) => d.id === essay.division_id)?.name
+			: undefined;
+
 		if (
-			confirm(
-				`Delete essay prompt for ${essay.division_name || 'All Divisions'}?`
-			)
+			confirm(`Delete essay prompt for ${divisionName || 'All Divisions'}?`)
 		) {
 			try {
 				await deleteEssayPrompt(essay.id);
@@ -2024,9 +1943,11 @@ function EssayManagement({
 	const startEdit = (essay: any) => {
 		setEditingEssay(essay);
 		setFormData({
-			division_name: essay.division_name || 'all',
-			prompt_text: essay.prompt_text || '',
-			due_date: essay.due_date || '',
+			division_id: essay.division_id || '',
+			title: essay.title || '',
+			prompt: essay.prompt || '',
+			instructions: essay.instructions || '',
+			due_date: essay.due_date ? essay.due_date.split('T')[0] : '',
 		});
 		setIsCreating(true);
 		setError(null);
@@ -2063,19 +1984,22 @@ function EssayManagement({
 						className="space-y-4 p-4 border rounded-lg">
 						<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 							<div>
-								<Label htmlFor="division-name">Division (Optional)</Label>
+								<Label htmlFor="division-id">Division (Optional)</Label>
 								<Select
-									value={formData.division_name || 'all'}
+									value={formData.division_id || 'all'}
 									onValueChange={(value) =>
-										setFormData({ ...formData, division_name: value })
+										setFormData({
+											...formData,
+											division_id: value === 'all' ? '' : value,
+										})
 									}>
-									<SelectTrigger id="division-name">
+									<SelectTrigger id="division-id">
 										<SelectValue placeholder="All Divisions" />
 									</SelectTrigger>
 									<SelectContent>
 										<SelectItem value="all">All Divisions</SelectItem>
 										{divisions.map((division) => (
-											<SelectItem key={division.id} value={division.name}>
+											<SelectItem key={division.id} value={division.id}>
 												{division.name}
 											</SelectItem>
 										))}
@@ -2095,16 +2019,40 @@ function EssayManagement({
 							</div>
 						</div>
 						<div>
-							<Label htmlFor="prompt-text">Essay Prompt</Label>
-							<Textarea
-								id="prompt-text"
-								placeholder="Enter the essay prompt text..."
-								value={formData.prompt_text}
+							<Label htmlFor="title">Essay Title</Label>
+							<Input
+								id="title"
+								placeholder="Enter essay title..."
+								value={formData.title}
 								onChange={(e) =>
-									setFormData({ ...formData, prompt_text: e.target.value })
+									setFormData({ ...formData, title: e.target.value })
+								}
+								required
+							/>
+						</div>
+						<div>
+							<Label htmlFor="prompt">Essay Prompt</Label>
+							<Textarea
+								id="prompt"
+								placeholder="Enter the essay prompt text..."
+								value={formData.prompt}
+								onChange={(e) =>
+									setFormData({ ...formData, prompt: e.target.value })
 								}
 								required
 								rows={4}
+							/>
+						</div>
+						<div>
+							<Label htmlFor="instructions">Instructions (Optional)</Label>
+							<Textarea
+								id="instructions"
+								placeholder="Enter additional instructions..."
+								value={formData.instructions}
+								onChange={(e) =>
+									setFormData({ ...formData, instructions: e.target.value })
+								}
+								rows={2}
 							/>
 						</div>
 						<div className="flex gap-2">
@@ -2132,39 +2080,46 @@ function EssayManagement({
 
 				{essayPrompts && essayPrompts.length > 0 ? (
 					<div className="space-y-2">
-						{essayPrompts.map((essay) => (
-							<div
-								key={essay.id}
-								className="flex items-start justify-between p-3 border rounded-lg">
-								<div className="space-y-1 flex-1">
-									<h3 className="font-medium">
-										{essay.division_name || 'All Divisions'}
-									</h3>
-									<p className="text-sm text-muted-foreground">
-										{essay.prompt_text}
-									</p>
-									{essay.due_date && (
-										<div className="text-sm text-muted-foreground">
-											Due: {new Date(essay.due_date).toLocaleDateString()}
-										</div>
-									)}
+						{essayPrompts.map((essay) => {
+							// Look up division name from divisions array
+							const divisionName = essay.division_id
+								? divisions.find((d) => d.id === essay.division_id)?.name
+								: undefined;
+
+							return (
+								<div
+									key={essay.id}
+									className="flex items-start justify-between p-3 border rounded-lg">
+									<div className="space-y-1 flex-1">
+										<h3 className="font-medium">
+											{divisionName || 'All Divisions'}
+										</h3>
+										<p className="text-sm text-muted-foreground">
+											{essay.prompt}
+										</p>
+										{essay.due_date && (
+											<div className="text-sm text-muted-foreground">
+												Due: {essay.due_date.split('T')[0]}
+											</div>
+										)}
+									</div>
+									<div className="flex gap-2">
+										<Button
+											variant="ghost"
+											size="sm"
+											onClick={() => startEdit(essay)}>
+											<Edit2 className="h-4 w-4" />
+										</Button>
+										<Button
+											variant="ghost"
+											size="sm"
+											onClick={() => handleDelete(essay)}>
+											<Trash2 className="h-4 w-4" />
+										</Button>
+									</div>
 								</div>
-								<div className="flex gap-2">
-									<Button
-										variant="ghost"
-										size="sm"
-										onClick={() => startEdit(essay)}>
-										<Edit2 className="h-4 w-4" />
-									</Button>
-									<Button
-										variant="ghost"
-										size="sm"
-										onClick={() => handleDelete(essay)}>
-										<Trash2 className="h-4 w-4" />
-									</Button>
-								</div>
-							</div>
-						))}
+							);
+						})}
 					</div>
 				) : (
 					<div className="text-center py-8 text-muted-foreground">
@@ -2277,20 +2232,38 @@ function EnrollmentManagement({
 	};
 
 	const handleCommit = async () => {
-		if (!preview) return;
+		console.log(`DEBUG: handleCommit called, preview exists: ${!!preview}`);
+		if (!preview) {
+			console.log(`DEBUG: No preview data, returning early`);
+			return;
+		}
+
+		console.log(`DEBUG: Preview data:`, preview);
+		console.log(
+			`DEBUG: Preview previews count: ${preview?.previews?.length || 0}`
+		);
 
 		setIsLoading(true);
 		setError(null);
 		try {
+			console.log(`DEBUG: Calling commitAutoEnrollment with yearId: ${yearId}`);
 			const result = await commitAutoEnrollment(
 				yearId,
-				preview?.enrollments || []
+				preview?.previews || []
 			);
+			console.log(`DEBUG: commitAutoEnrollment result:`, result);
+
 			toast({
 				title: 'Auto-Enrollment Complete',
-				description: `Enrolled ${result.enrolled} children, applied ${result.overrides_applied} overrides.`,
+				description: `Enrolled ${result.enrolled} children, updated ${
+					result.updated || 0
+				} existing enrollments, applied ${
+					result.overrides_applied
+				} overrides, updated ${
+					result.overrides_updated || 0
+				} existing overrides.`,
 			});
-			if (result.errors.length > 0) {
+			if (result.errors && result.errors.length > 0) {
 				setError('Some enrollments failed: ' + result.errors.join(', '));
 			}
 			// Refresh preview

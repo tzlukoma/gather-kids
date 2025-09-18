@@ -14,7 +14,7 @@ import {
 	listGuardians,
 	getEssayPromptsForYearAndDivision,
 } from '@/lib/dal';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useTransition } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
 import { Button } from '@/components/ui/button';
@@ -56,6 +56,8 @@ export default function DashboardChildBibleBeePage() {
 					]);
 					setHousehold(householdData);
 					setGuardiansForHousehold(guardiansData);
+					console.log('Loaded guardians for child:', guardiansData);
+					console.log('Loaded household for child:', householdData);
 				}
 			} catch (error) {
 				console.error('Error loading child data:', error);
@@ -79,6 +81,9 @@ export default function DashboardChildBibleBeePage() {
 		essayAssigned?: boolean;
 	} | null>(null);
 
+	const [isComputingStats, setIsComputingStats] = useState(false);
+	const [isPending, startTransition] = useTransition();
+
 	const [essaySummary, setEssaySummary] = useState<{
 		count: number;
 		submitted: number;
@@ -92,8 +97,13 @@ export default function DashboardChildBibleBeePage() {
 			if (!data) {
 				setBbStats(null);
 				setEssaySummary(null);
+				setIsComputingStats(false);
 				return;
 			}
+
+			startTransition(() => {
+				setIsComputingStats(true);
+			});
 
 			const scriptures = data.scriptures || [];
 			const essays = data.essays || [];
@@ -117,14 +127,14 @@ export default function DashboardChildBibleBeePage() {
 				setBbStats(null);
 				return;
 			}
-			// Get the year ID for division lookup - from scripture assignments it should be in competitionYearId
-			const yearId = scriptures[0].competitionYearId;
+			// Get the year ID for division lookup - from scripture assignments it should be in bible_bee_cycle_id
+			const yearId = scriptures[0].bible_bee_cycle_id;
 			let required = scriptures.length;
 			let matchingDivision = null;
 
 			console.log('Computing Bible Bee stats for child:', childCore?.child_id);
 			console.log('Child grade:', childCore?.grade);
-			console.log('Scripture year ID (competitionYearId):', yearId);
+			console.log('Scripture year ID (bible_bee_cycle_id):', yearId);
 			console.log('First scripture assignment:', scriptures[0]);
 
 			try {
@@ -179,9 +189,9 @@ export default function DashboardChildBibleBeePage() {
 				// ignore and fallback to total scriptures
 			}
 
-			const completed = scriptures.filter(
-				(s: any) => s.status === 'completed'
-			).length;
+			const completed = scriptures
+				.filter((s: any) => s.status === 'completed')
+				.reduce((sum: number, s: any) => sum + (s.counts_for || 1), 0);
 			const percent = required > 0 ? (completed / required) * 100 : 0;
 			const bonus = Math.max(0, completed - required);
 
@@ -211,19 +221,23 @@ export default function DashboardChildBibleBeePage() {
 				setDivisionEssayPrompts([]);
 			}
 
-			setBbStats({
-				requiredScriptures: required,
-				completedScriptures: completed,
-				percentDone: percent,
-				bonus,
-				division: matchingDivision
-					? {
-							name: matchingDivision.name,
-							min_grade: matchingDivision.min_grade,
-							max_grade: matchingDivision.max_grade,
-					  }
-					: undefined,
-				essayAssigned,
+			startTransition(() => {
+				setBbStats({
+					requiredScriptures: required,
+					completedScriptures: completed,
+					percentDone: percent,
+					bonus,
+					division: matchingDivision
+						? {
+								name: matchingDivision.name,
+								min_grade: matchingDivision.min_grade,
+								max_grade: matchingDivision.max_grade,
+						  }
+						: undefined,
+					essayAssigned,
+				});
+
+				setIsComputingStats(false);
 			});
 		};
 		compute();
@@ -244,6 +258,9 @@ export default function DashboardChildBibleBeePage() {
 					: null,
 		  }
 		: null;
+
+	console.log('Enriched child for display:', enrichedChild);
+	console.log('Guardians count:', enrichedChild?.guardians?.length || 0);
 
 	const handleUpdatePhoto = async (c: any) => {
 		// delegate to DAL if available
@@ -267,6 +284,7 @@ export default function DashboardChildBibleBeePage() {
 				onViewPhoto={handleViewPhoto}
 				bibleBeeStats={bbStats?.essayAssigned ? null : bbStats} // Hide scripture stats when essays are assigned
 				essaySummary={bbStats?.essayAssigned ? essaySummary : null} // Show essay summary only when essays are assigned
+				isComputingStats={isComputingStats || isPending}
 			/>
 
 			{/* Show different content based on whether the child's division has essays assigned */}
@@ -290,19 +308,35 @@ export default function DashboardChildBibleBeePage() {
 										{data.essays.map((e: any) => (
 											<Card key={e.id}>
 												<CardHeader>
-													<CardTitle>Essay for {e.year?.year}</CardTitle>
-													<CardDescription>{e.promptText}</CardDescription>
+													<CardTitle>
+														{e.essayPrompt?.title || 'Essay Assignment'}
+													</CardTitle>
+													<CardDescription>
+														{e.essayPrompt?.prompt ||
+															'Essay prompt for this division'}
+													</CardDescription>
 												</CardHeader>
 												<CardContent>
 													<div className="flex items-center gap-4">
-														<div className="text-sm text-muted-foreground">
-															Status: {e.status}
-														</div>
+														<span
+															className={`px-2 py-1 rounded text-xs ${
+																e.status === 'submitted'
+																	? 'bg-green-100 text-green-800'
+																	: e.status === 'assigned'
+																	? 'bg-yellow-100 text-yellow-800'
+																	: 'bg-gray-100 text-gray-800'
+															}`}>
+															{e.status === 'submitted'
+																? 'Submitted'
+																: e.status === 'assigned'
+																? 'Assigned'
+																: 'Not Started'}
+														</span>
 														{e.status !== 'submitted' && (
 															<Button
 																onClick={() =>
 																	essayMutation.mutate({
-																		competitionYearId: e.competitionYearId,
+																		bibleBeeCycleId: e.bible_bee_cycle_id,
 																	})
 																}
 																size="sm">
