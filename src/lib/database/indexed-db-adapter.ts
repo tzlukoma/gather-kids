@@ -1665,4 +1665,50 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 		console.log(`DEBUG: IndexedDB commitAutoEnrollment completed - enrolled: ${enrolled}, updated: ${updated}, overrides: ${overrides_applied}, overrides_updated: ${overrides_updated}, errors: ${errors.length}`);
 		return { enrolled, updated, overrides_applied, overrides_updated, errors };
 	}
+
+	// Student Essay methods
+	async getStudentEssay(id: string): Promise<StudentEssay | null> {
+		const result = await this.db.studentEssays.get(id);
+		return result || null;
+	}
+
+	async createStudentEssay(data: Omit<StudentEssay, 'created_at' | 'updated_at'>): Promise<StudentEssay> {
+		const item = {
+			...data,
+			created_at: new Date().toISOString(),
+			updated_at: new Date().toISOString(),
+		};
+		await this.db.studentEssays.put(item);
+		return item;
+	}
+
+	async updateStudentEssay(id: string, data: Partial<StudentEssay>): Promise<StudentEssay> {
+		await this.db.studentEssays.update(id, { 
+			...data, 
+			updated_at: new Date().toISOString() 
+		});
+		const updated = await this.db.studentEssays.get(id);
+		if (!updated) throw new Error(`Student essay ${id} not found after update`);
+		return updated;
+	}
+
+	async listStudentEssays(childId?: string, bibleBeeCycleId?: string): Promise<StudentEssay[]> {
+		let query = this.db.studentEssays.toCollection();
+		
+		if (childId && bibleBeeCycleId) {
+			return query.filter(essay => 
+				essay.child_id === childId && essay.bible_bee_cycle_id === bibleBeeCycleId
+			).toArray();
+		} else if (childId) {
+			return query.filter(essay => essay.child_id === childId).toArray();
+		} else if (bibleBeeCycleId) {
+			return query.filter(essay => essay.bible_bee_cycle_id === bibleBeeCycleId).toArray();
+		} else {
+			return query.toArray();
+		}
+	}
+
+	async deleteStudentEssay(id: string): Promise<void> {
+		await this.db.studentEssays.delete(id);
+	}
 }

@@ -25,6 +25,7 @@ import type {
 	EnrollmentOverride,
 	BrandingSettings,
 	Scripture,
+	StudentEssay,
 } from '../types';
 
 // Filter and query types (to be extended as needed)
@@ -372,4 +373,11 @@ export interface DatabaseAdapter {
 	// Bible Bee auto-enrollment methods
 	previewAutoEnrollment(yearId: string): Promise<any>;
 	commitAutoEnrollment(yearId: string, previews: any[]): Promise<any>;
+
+	// Student Essay methods
+	getStudentEssay(id: string): Promise<StudentEssay | null>;
+	createStudentEssay(data: Omit<StudentEssay, 'created_at' | 'updated_at'>): Promise<StudentEssay>;
+	updateStudentEssay(id: string, data: Partial<StudentEssay>): Promise<StudentEssay>;
+	listStudentEssays(childId?: string, bibleBeeCycleId?: string): Promise<StudentEssay[]>;
+	deleteStudentEssay(id: string): Promise<void>;
 }

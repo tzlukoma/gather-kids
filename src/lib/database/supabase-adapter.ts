@@ -2543,18 +2543,28 @@ export class SupabaseAdapter implements DatabaseAdapter {
 	}
 
 	async getEssayPromptsForYearAndDivision(yearId: string, divisionName: string): Promise<EssayPrompt[]> {
-		const { data, error } = await this.supabase
+		// First, get the division ID from the division name
+		const divisions = await this.listDivisions(yearId);
+		const division = divisions.find(d => d.name === divisionName);
+		
+		if (!division) {
+			console.warn(`Division "${divisionName}" not found for cycle ${yearId}`);
+			return [];
+		}
+		
+		// Now query essay prompts using the correct schema fields
+		const { data, error } = await this.client
 			.from('essay_prompts')
 			.select('*')
-			.eq('year_id', yearId)
-			.eq('division_name', divisionName);
+			.eq('bible_bee_cycle_id', yearId)
+			.eq('division_id', division.id);
 
 		if (error) {
 			console.error('Error fetching essay prompts:', error);
 			return [];
 		}
 
-		return data || [];
+		return (data || []).map((d: unknown) => this.mapEssayPrompt(d));
 	}
 
 	async createEssayPrompt(
@@ -3232,5 +3242,96 @@ export class SupabaseAdapter implements DatabaseAdapter {
 		const gradeNum = parseInt(gradeStr, 10);
 		if (isNaN(gradeNum)) return null;
 		return gradeNum;
+	}
+
+	// Student Essay methods
+	async getStudentEssay(id: string): Promise<StudentEssay | null> {
+		const { data, error } = await this.client
+			.from('student_essays')
+			.select('*')
+			.eq('id', id)
+			.single();
+
+		if (error) {
+			if (error.code === 'PGRST116') return null; // Not found
+			throw error;
+		}
+		return data ? this.mapStudentEssay(data) : null;
+	}
+
+	async createStudentEssay(data: Omit<StudentEssay, 'created_at' | 'updated_at'>): Promise<StudentEssay> {
+		const insertPayload: Database['public']['Tables']['student_essays']['Insert'] = {
+			id: data.id,
+			child_id: data.child_id,
+			bible_bee_cycle_id: data.bible_bee_cycle_id,
+			essay_prompt_id: data.essay_prompt_id,
+			status: data.status,
+			submitted_at: data.submitted_at || null,
+		};
+
+		const { data: result, error } = await this.client
+			.from('student_essays')
+			.insert(insertPayload)
+			.select()
+			.single();
+
+		if (error) throw error;
+		return this.mapStudentEssay(result as Database['public']['Tables']['student_essays']['Row']);
+	}
+
+	async updateStudentEssay(id: string, data: Partial<StudentEssay>): Promise<StudentEssay> {
+		const payload = {
+			...(data as Database['public']['Tables']['student_essays']['Update']),
+			updated_at: new Date().toISOString(),
+		} as unknown as Database['public']['Tables']['student_essays']['Update'];
+
+		const { data: result, error } = await this.client
+			.from('student_essays')
+			.update(payload)
+			.eq('id', id)
+			.select()
+			.single();
+
+		if (error) throw error;
+		return this.mapStudentEssay(result as Database['public']['Tables']['student_essays']['Row']);
+	}
+
+	async listStudentEssays(childId?: string, bibleBeeCycleId?: string): Promise<StudentEssay[]> {
+		let query = this.client.from('student_essays').select('*');
+
+		if (childId) {
+			query = query.eq('child_id', childId);
+		}
+		
+		if (bibleBeeCycleId) {
+			query = query.eq('bible_bee_cycle_id', bibleBeeCycleId);
+		}
+
+		const { data, error } = await query;
+		if (error) throw error;
+		return (data || []).map((d: unknown) => this.mapStudentEssay(d));
+	}
+
+	async deleteStudentEssay(id: string): Promise<void> {
+		const { error } = await this.client
+			.from('student_essays')
+			.delete()
+			.eq('id', id);
+
+		if (error) throw error;
+	}
+
+	private mapStudentEssay(row: unknown): StudentEssay {
+		const r = (row ?? {}) as Record<string, unknown>;
+		return {
+			id: (r['id'] as string) || '',
+			child_id: (r['child_id'] as string) || '',
+			bible_bee_cycle_id: (r['bible_bee_cycle_id'] as string) || '',
+			essay_prompt_id: (r['essay_prompt_id'] as string) || '',
+			status: (r['status'] as 'assigned' | 'submitted') || 'assigned',
+			submitted_at: (r['submitted_at'] as string) || undefined,
+			created_at: (r['created_at'] as string) || '',
+			updated_at: (r['updated_at'] as string) || '',
+		};
 	}
 }
