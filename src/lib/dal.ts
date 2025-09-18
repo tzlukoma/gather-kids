@@ -2692,11 +2692,27 @@ export async function getRegistrationStats(): Promise<{ householdCount: number; 
 
 /**
  * Get Bible Bee years for ministry management
+ * Note: This now uses Bible Bee cycles instead of the old years table
  */
 export async function getBibleBeeYears(): Promise<BibleBeeYear[]> {
 	if (shouldUseAdapter()) {
-		// Use Supabase adapter for live mode
-		return dbAdapter.listBibleBeeYears();
+		// Use Supabase adapter for live mode - get cycles and map to BibleBeeYear format
+		const cycles = await dbAdapter.listBibleBeeCycles();
+		return cycles.map(cycle => ({
+			id: cycle.id,
+			year: undefined, // No longer used in new schema
+			name: cycle.name,
+			label: cycle.name, // Use name as label for backwards compatibility
+			cycle_id: cycle.cycle_id,
+			description: cycle.description,
+			is_active: cycle.is_active,
+			registration_open_date: undefined, // Not in cycles table
+			registration_close_date: undefined, // Not in cycles table
+			competition_start_date: undefined, // Not in cycles table
+			competition_end_date: undefined, // Not in cycles table
+			created_at: cycle.created_at,
+			updated_at: cycle.updated_at || cycle.created_at,
+		}));
 	} else {
 		// Use legacy Dexie interface for demo mode
 		return db.bible_bee_years.toArray();
@@ -3102,40 +3118,19 @@ export async function deleteEssayPrompt(id: string): Promise<void> {
 
 /**
  * Preview auto enrollment
+ * Uses adapter pattern for both Supabase and Dexie modes
  */
 export async function previewAutoEnrollment(yearId: string): Promise<any> {
-	if (shouldUseAdapter()) {
-		// Use Supabase adapter for live mode
-		return dbAdapter.previewAutoEnrollment(yearId);
-	} else {
-		// Use legacy Dexie interface for demo mode
-		// This is a complex function that would need to be implemented
-		// For now, return empty preview
-		return {
-			previews: [],
-			counts: {
-				proposed: 0,
-				overrides: 0,
-				unassigned: 0,
-				unknown_grade: 0,
-			},
-		};
-	}
+	// Use adapter for both modes
+	return dbAdapter.previewAutoEnrollment(yearId);
 }
 
 /**
  * Commit auto enrollment
  */
 export async function commitAutoEnrollment(yearId: string, previews: any[]): Promise<any> {
-	if (shouldUseAdapter()) {
-		// Use Supabase adapter for live mode
-		return dbAdapter.commitAutoEnrollment(yearId, previews);
-	} else {
-		// Use legacy Dexie interface for demo mode
-		// This is a complex function that would need to be implemented
-		// For now, return success
-		return { success: true, enrolled: 0 };
-	}
+	// Use adapter for both modes
+	return dbAdapter.commitAutoEnrollment(yearId, previews);
 }
 
 /**

@@ -361,4 +361,8 @@ export interface DatabaseAdapter {
 	getDraft(formName: string, userId: string): Promise<any | null>;
 	saveDraft(formName: string, userId: string, payload: any, version?: number): Promise<void>;
 	clearDraft(formName: string, userId: string): Promise<void>;
+
+	// Bible Bee auto-enrollment methods
+	previewAutoEnrollment(yearId: string): Promise<any>;
+	commitAutoEnrollment(yearId: string, previews: any[]): Promise<any>;
 }

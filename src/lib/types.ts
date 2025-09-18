@@ -361,9 +361,11 @@ export interface GradeRule {
 // New Essay Prompt interface
 export interface EssayPrompt {
     id: string;
-    year_id: string; // FK to bible_bee_years
-    division_name?: string; // optional, can be per division or general
-    prompt_text: string;
+    bible_bee_cycle_id: string; // FK to bible_bee_cycles
+    division_id?: string; // FK to divisions (optional for cycle-wide prompts)
+    title: string; // Essay title
+    prompt: string; // Essay prompt text
+    instructions?: string; // Additional instructions
     due_date: string; // ISO date
     created_at: string;
     updated_at: string;

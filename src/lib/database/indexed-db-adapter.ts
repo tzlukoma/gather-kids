@@ -1,5 +1,6 @@
 import { db as dexieDb } from '../db'; // Import existing Dexie instance
 import { v4 as uuidv4 } from 'uuid';
+import { gradeToCode } from '../gradeUtils';
 import type { DatabaseAdapter, HouseholdFilters, ChildFilters, RegistrationFilters, AttendanceFilters, IncidentFilters } from './types';
 import type {
 	Household,
@@ -1304,5 +1305,231 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 	async clearDraft(formName: string, userId: string): Promise<void> {
 		const id = `${formName}::${userId}`;
 		await this.db.form_drafts.delete(id);
+	}
+
+	// Bible Bee auto-enrollment methods
+	async previewAutoEnrollment(yearId: string): Promise<any> {
+		// Get the Bible Bee cycle (yearId is actually a cycle ID in the new schema)
+		const bibleCycle = await this.db.bible_bee_cycles.get(yearId);
+		if (!bibleCycle) {
+			throw new Error(`Bible Bee cycle ${yearId} not found`);
+		}
+		
+		// Use the cycle_id from the Bible Bee cycle to get the registration cycle
+		let currentCycle = null;
+		
+		console.log('DEBUG: Bible Bee cycle being processed:', bibleCycle);
+		
+		console.log('DEBUG: Using Bible Bee cycle linked cycle_id:', bibleCycle.cycle_id);
+		currentCycle = await this.db.registration_cycles.get(bibleCycle.cycle_id);
+		if (!currentCycle) {
+			console.error(`DEBUG: Registration cycle ${bibleCycle.cycle_id} linked to Bible Bee cycle not found`);
+			throw new Error(`Registration cycle ${bibleCycle.cycle_id} linked to Bible Bee cycle not found`);
+		}
+		console.log('DEBUG: Found linked registration cycle:', currentCycle);
+		
+		// Get Bible Bee ministry
+		const bibleBeeMinistry = await this.db.ministries.where('code').equals('bible-bee').first();
+		if (!bibleBeeMinistry) {
+			throw new Error('Bible Bee ministry not found');
+		}
+		
+		// Get children enrolled in Bible Bee for the current registration cycle
+		console.log('Current cycle:', currentCycle);
+		console.log('Bible Bee ministry:', bibleBeeMinistry);
+		
+		// Validate that we have valid IDs for the compound key
+		if (!currentCycle?.cycle_id || !bibleBeeMinistry?.ministry_id) {
+			const errorMsg = `Invalid IDs for ministry enrollment query: cycle_id=${currentCycle?.cycle_id}, ministry_id=${bibleBeeMinistry?.ministry_id}. Both values must be non-null for IndexedDB compound key query.`;
+			console.error(errorMsg);
+			throw new Error(errorMsg);
+		}
+		
+		// Double-check that values are not undefined, null, or empty strings
+		const cycleId = currentCycle.cycle_id;
+		const ministryId = bibleBeeMinistry.ministry_id;
+		
+		if (typeof cycleId !== 'string' || cycleId.trim() === '' || typeof ministryId !== 'string' || ministryId.trim() === '') {
+			const errorMsg = `Invalid key types for IndexedDB compound key: cycle_id="${cycleId}" (${typeof cycleId}), ministry_id="${ministryId}" (${typeof ministryId}). Both must be non-empty strings.`;
+			console.error(errorMsg);
+			throw new Error(errorMsg);
+		}
+		
+		console.log('Compound key values:', [ministryId, cycleId]);
+		
+		// Note: The compound index is [ministry_id+cycle_id], not [cycle_id+ministry_id]
+		// Avoid using a compound .equals(...) query here because historic data may contain
+		// mixed-type keys (numbers/strings/booleans) which can cause IDBKeyRange DataError.
+		// Instead, perform a safe in-JS filter after loading enrollments.
+		let bibleBeeEnrollments: any[] = [];
+		try {
+			const allEnrollments = await this.db.ministry_enrollments.toArray();
+			console.log(`DEBUG: Total ministry enrollments in database: ${allEnrollments.length}`);
+			
+			// Log a sample of enrollments to check their structure
+			if (allEnrollments.length > 0) {
+				console.log('DEBUG: Sample ministry enrollment:', allEnrollments[0]);
+			}
+			
+			bibleBeeEnrollments = allEnrollments.filter((e: any) => {
+				// Compare as strings to be tolerant of mixed stored representations
+				const matchesMinistry = String(e.ministry_id) === String(ministryId);
+				const matchesCycle = String(e.cycle_id) === String(cycleId);
+				const isEnrolled = e.status === 'enrolled';
+				
+				const matches = matchesMinistry && matchesCycle && isEnrolled;
+				
+				// Debug output for enrollments that match ministry but not cycle
+				if (matchesMinistry && !matchesCycle && isEnrolled) {
+					console.log(`DEBUG: Found enrollment for Bible Bee ministry but wrong cycle. Expected: ${cycleId}, Found: ${e.cycle_id}`, e);
+				}
+				
+				return matches;
+			});
+
+			console.log(`DEBUG: Bible Bee enrollments found (filtered): ${bibleBeeEnrollments.length} out of ${allEnrollments.length} total enrollments`);
+			
+			// If no enrollments were found, check what cycles are being used in ministry_enrollments
+			if (bibleBeeEnrollments.length === 0) {
+				const uniqueCycles = [...new Set(allEnrollments.map(e => e.cycle_id))];
+				console.log('DEBUG: Unique cycle_ids in ministry_enrollments:', uniqueCycles);
+				
+				// Check enrollments specifically for Bible Bee ministry regardless of cycle
+				const bibleBeeMinistryEnrollments = allEnrollments.filter(e => 
+					String(e.ministry_id) === String(ministryId) && 
+					e.status === 'enrolled'
+				);
+				console.log(`DEBUG: Bible Bee ministry enrollments (any cycle): ${bibleBeeMinistryEnrollments.length}`);
+				
+				if (bibleBeeMinistryEnrollments.length > 0) {
+					const cyclesWithBibleBeeEnrollments = [...new Set(bibleBeeMinistryEnrollments.map(e => e.cycle_id))];
+					console.log('DEBUG: Cycles with Bible Bee enrollments:', cyclesWithBibleBeeEnrollments);
+				}
+			}
+		} catch (error) {
+			console.error('Error scanning ministry_enrollments for Bible Bee enrollments:', error);
+			throw error;
+		}
+
+		const childIds = bibleBeeEnrollments.map((e: any) => e.child_id).filter(Boolean);
+		console.log(`DEBUG: Child IDs from Bible Bee enrollments: ${childIds.length}`, childIds);
+		
+		let children: any[] = [];
+		if (childIds.length > 0) {
+			try {
+				// anyOf can still fail if keys are invalid; attempt it but fall back to a full scan
+				children = await this.db.children.where('child_id').anyOf(childIds).toArray();
+				console.log(`DEBUG: Children retrieved: ${children.length} out of ${childIds.length} child IDs`);
+				
+				// Log any missing children
+				if (children.length < childIds.length) {
+					const foundIds = children.map(c => c.child_id);
+					const missingIds = childIds.filter(id => !foundIds.includes(id));
+					console.log(`DEBUG: Missing children IDs: ${missingIds.length}`, missingIds);
+				}
+				
+				// Log grades of found children
+				const grades = children.map(c => c.grade);
+				console.log('DEBUG: Grades of children found:', grades);
+				
+				// Check if any children are in grade 9 specifically
+				const grade9Children = children.filter(c => String(c.grade) === '9');
+				console.log(`DEBUG: Children in grade 9: ${grade9Children.length}`, grade9Children);
+				
+			} catch (error) {
+				console.warn('anyOf(childIds) failed, falling back to full children scan:', error);
+				const allChildren = await this.db.children.toArray();
+				console.log(`DEBUG: Total children in database: ${allChildren.length}`);
+				children = allChildren.filter(c => childIds.includes(c.child_id));
+				console.log(`DEBUG: Children filtered from full scan: ${children.length}`);
+			}
+		} else {
+			console.log('DEBUG: No child IDs found in Bible Bee enrollments');
+			children = [];
+		}
+		
+		// Get divisions for this year
+		const divisions = await this.db.divisions.where('bible_bee_cycle_id').equals(yearId).toArray();
+		console.log(`DEBUG: Divisions for this year: ${divisions.length}`, divisions);
+		
+		// Check if any divisions cover grade 9
+		const grade9Divisions = divisions.filter(d => d.min_grade <= 9 && d.max_grade >= 9);
+		console.log(`DEBUG: Divisions that include grade 9: ${grade9Divisions.length}`, grade9Divisions);
+		
+		// Get existing overrides
+		const overrides = await this.db.enrollment_overrides.where('bible_bee_cycle_id').equals(yearId).toArray();
+		const overrideMap = new Map(overrides.map(o => [o.child_id, o]));
+		console.log(`DEBUG: Enrollment overrides: ${overrides.length}`, overrides);
+		
+		const previews: any[] = [];
+		const counts = { proposed: 0, overrides: 0, unassigned: 0, unknown_grade: 0 };
+		
+		for (const child of children) {
+			const gradeCode = gradeToCode(child.grade);
+			const preview: any = {
+				child_id: child.child_id,
+				child_name: `${child.first_name} ${child.last_name}`,
+				grade_text: child.grade || '',
+				grade_code: gradeCode,
+				status: 'unassigned',
+			};
+			
+			// Check for override first
+			const override = overrideMap.get(child.child_id);
+			if (override) {
+				const overrideDivision = divisions.find(d => d.id === override.division_id);
+				if (overrideDivision) {
+					preview.override_division = {
+						id: overrideDivision.id,
+						name: overrideDivision.name,
+						reason: override.reason,
+					};
+					preview.status = 'override';
+					counts.overrides++;
+					previews.push(preview);
+					continue;
+				}
+			}
+			
+			// Handle unknown grade
+			if (gradeCode === null) {
+				console.log(`DEBUG: Child ${child.child_id} has unknown grade code`);
+				preview.status = 'unknown_grade';
+				counts.unknown_grade++;
+				previews.push(preview);
+				continue;
+			}
+			
+			// Find matching divisions
+			const matchingDivisions = divisions.filter(d => 
+				gradeCode >= d.min_grade && gradeCode <= d.max_grade
+			);
+			
+			if (matchingDivisions.length === 0) {
+				preview.status = 'unassigned';
+				counts.unassigned++;
+			} else if (matchingDivisions.length === 1) {
+				preview.proposed_division = {
+					id: matchingDivisions[0].id,
+					name: matchingDivisions[0].name,
+				};
+				preview.status = 'proposed';
+				counts.proposed++;
+			} else {
+				// Multiple matches shouldn't happen due to non-overlap constraint
+				preview.status = 'multiple_matches';
+				counts.unassigned++;
+			}
+			
+			previews.push(preview);
+		}
+		
+		return { previews, counts };
+	}
+
+	async commitAutoEnrollment(yearId: string, previews: any[]): Promise<any> {
+		// This is a complex function that would need to be implemented
+		// For now, return success
+		return { success: true, enrolled: 0 };
 	}
 }

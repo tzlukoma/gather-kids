@@ -27,6 +27,7 @@ import {
 import { Home, Book, User, LogOut, Settings } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuth } from '@/contexts/auth-context';
+import { useBranding } from '@/contexts/branding-context';
 import { ProtectedRoute } from '@/components/auth/protected-route';
 import { ROLES } from '@/lib/constants/roles';
 import { GuardianSkeleton } from '@/components/skeletons/guardian-skeleton';
@@ -38,6 +39,7 @@ function HouseholdLayoutContent({ children }: { children: React.ReactNode }) {
 	const pathname = usePathname();
 	const router = useRouter();
 	const { user, logout } = useAuth();
+	const { settings } = useBranding();
 	const [hasBibleBeeEnrollment, setHasBibleBeeEnrollment] = useState(false);
 	const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
 
@@ -129,7 +131,26 @@ function HouseholdLayoutContent({ children }: { children: React.ReactNode }) {
 						<Link
 							href="/household"
 							className="flex items-center gap-2 text-foreground">
-							<div className="font-headline text-2xl font-bold">gatherKids</div>
+							{settings.logo_url ? (
+								<>
+									<img
+										src={settings.logo_url}
+										alt={`${settings.app_name || 'gatherKids'} Logo`}
+										className={`h-16 w-auto ${
+											settings.use_logo_only ? '' : 'max-w-[50%]'
+										} object-contain`}
+									/>
+									{!settings.use_logo_only && (
+										<div className="font-headline text-2xl font-bold">
+											{settings.app_name || 'gatherKids'}
+										</div>
+									)}
+								</>
+							) : (
+								<div className="font-headline text-2xl font-bold">
+									{settings.app_name || 'gatherKids'}
+								</div>
+							)}
 						</Link>
 					</div>
 					<div className="flex items-center gap-4">

@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/auth-context';
 // db import unused in this debugger; rely on adapter helpers instead
 import { dbAdapter, isSupabase, getDatabaseMode } from '@/lib/db-utils';
 import { getFlag } from '@/lib/featureFlags';
+import { getBibleBeeYears } from '@/lib/dal';
 
 export default function BibleBeeDebugger() {
 	const { user } = useAuth();
@@ -52,12 +53,17 @@ export default function BibleBeeDebugger() {
 			supabaseTokens.length > 0 ? '✅ Present' : '❌ Missing'
 		);
 
-		// Check Bible Bee data availability using adapter
+		// Check Bible Bee data availability using DAL function
 		console.log('📚 Bible Bee Data Check:');
-		dbAdapter
-			.listBibleBeeYears()
+		getBibleBeeYears()
 			.then((years) => {
-				console.log(`- Bible Bee Years in DB: ${years.length}`);
+				console.log(`- Bible Bee Years/Cycles in DB: ${years.length}`);
+				if (years.length > 0) {
+					console.log(
+						'  - Available cycles:',
+						years.map((y) => y.name || y.label || y.id)
+					);
+				}
 			})
 			.catch((err) => {
 				console.error('Error fetching Bible Bee years:', err);
