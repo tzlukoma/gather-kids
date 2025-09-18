@@ -879,30 +879,30 @@ async function createDivisions(yearId) {
 				id: crypto.randomUUID(), // Use id instead of division_id
 				name: 'Primary',
 				description: 'Primary Division (Kindergarten - 2nd Grade)',
-				min_age: 5, // Approx. Kindergarten age
-				max_age: 8, // Approx. 2nd grade age
 				min_grade: 0, // Kindergarten
 				max_grade: 2, // 2nd grade
+				minimum_required: 0, // Default minimum scriptures
+				requires_essay: false,
 				created_at: new Date().toISOString(),
 			},
 			{
 				id: crypto.randomUUID(), // Use id instead of division_id
 				name: 'Junior',
 				description: 'Junior Division (3rd - 7th Grade)',
-				min_age: 8,
-				max_age: 13,
 				min_grade: 3, // 3rd grade
 				max_grade: 7, // 7th grade
+				minimum_required: 0, // Default minimum scriptures
+				requires_essay: false,
 				created_at: new Date().toISOString(),
 			},
 			{
 				id: crypto.randomUUID(), // Use id instead of division_id
 				name: 'Senior',
 				description: 'Senior Division (8th - 12th Grade)',
-				min_age: 13,
-				max_age: 18,
 				min_grade: 8, // 8th grade
 				max_grade: 12, // 12th grade
+				minimum_required: 0, // Default minimum scriptures
+				requires_essay: true, // Senior division requires essays
 				created_at: new Date().toISOString(),
 			},
 		];
@@ -935,16 +935,15 @@ async function createDivisions(yearId) {
 			} else {
 				// Format division data for canonical schema
 				const insertData = {
-					id: crypto.randomUUID(),
+					id: divisionData.id,
 					name: divisionData.name,
 					description: divisionData.description,
 					bible_bee_cycle_id: yearId, // Use canonical field
 					min_grade: divisionData.min_grade,
 					max_grade: divisionData.max_grade,
-					min_age: divisionData.min_age,
-					max_age: divisionData.max_age,
-					minimum_required: 0, // Default minimum scriptures
-					created_at: new Date().toISOString(),
+					minimum_required: divisionData.minimum_required,
+					requires_essay: divisionData.requires_essay,
+					created_at: divisionData.created_at,
 					updated_at: new Date().toISOString(),
 				};
 
