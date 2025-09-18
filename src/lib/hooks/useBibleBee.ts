@@ -428,20 +428,40 @@ export function useToggleScriptureMutation(childId: string) {
     const qc = useQueryClient();
     const key = ['studentAssignments', childId];
     return useMutation(async ({ id, complete }: { id: string; complete: boolean }) => toggleScriptureCompletion(id, complete), {
-        onMutate: async ({ id, complete }: { id: string; complete: boolean }) => {
+        onMutate: async ({ id, complete }) => {
+            // Cancel any outgoing refetches (so they don't overwrite our optimistic update)
             await qc.cancelQueries(key);
-            const previous = qc.getQueryData<any>(key);
+
+            // Snapshot the previous value
+            const previousData = qc.getQueryData(key);
+
+            // Optimistically update the cache
             qc.setQueryData(key, (old: any) => {
                 if (!old) return old;
-                const newScriptures = old.scriptures.map((s: any) => s.id === id ? { ...s, status: complete ? 'completed' : 'assigned', completedAt: complete ? new Date().toISOString() : undefined } : s);
-                return { ...old, scriptures: newScriptures };
+                
+                return {
+                    ...old,
+                    scriptures: old.scriptures.map((scripture: any) => 
+                        scripture.id === id 
+                            ? { ...scripture, status: complete ? 'completed' : 'pending' }
+                            : scripture
+                    )
+                };
             });
-            return { previous };
+
+            // Return a context object with the snapshotted value
+            return { previousData };
         },
-        onError: (_err: unknown, _vars: { id: string; complete: boolean } | undefined, context: any) => {
-            if (context?.previous) qc.setQueryData(key, context.previous);
+        onError: (err, variables, context) => {
+            // If the mutation fails, use the context returned from onMutate to roll back
+            if (context?.previousData) {
+                qc.setQueryData(key, context.previousData);
+            }
         },
-        onSettled: () => qc.invalidateQueries(key),
+        onSuccess: () => {
+            // No refetch needed - optimistic update is sufficient
+            // The database operation succeeded, so our optimistic update was correct
+        },
     });
 }
 

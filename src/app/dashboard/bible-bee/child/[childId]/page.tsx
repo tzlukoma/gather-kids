@@ -14,7 +14,7 @@ import {
 	listGuardians,
 	getEssayPromptsForYearAndDivision,
 } from '@/lib/dal';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useTransition } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
 import { Button } from '@/components/ui/button';
@@ -82,6 +82,7 @@ export default function DashboardChildBibleBeePage() {
 	} | null>(null);
 
 	const [isComputingStats, setIsComputingStats] = useState(false);
+	const [isPending, startTransition] = useTransition();
 
 	const [essaySummary, setEssaySummary] = useState<{
 		count: number;
@@ -100,7 +101,9 @@ export default function DashboardChildBibleBeePage() {
 				return;
 			}
 
-			setIsComputingStats(true);
+			startTransition(() => {
+				setIsComputingStats(true);
+			});
 
 			const scriptures = data.scriptures || [];
 			const essays = data.essays || [];
@@ -218,22 +221,24 @@ export default function DashboardChildBibleBeePage() {
 				setDivisionEssayPrompts([]);
 			}
 
-			setBbStats({
-				requiredScriptures: required,
-				completedScriptures: completed,
-				percentDone: percent,
-				bonus,
-				division: matchingDivision
-					? {
-							name: matchingDivision.name,
-							min_grade: matchingDivision.min_grade,
-							max_grade: matchingDivision.max_grade,
-					  }
-					: undefined,
-				essayAssigned,
-			});
+			startTransition(() => {
+				setBbStats({
+					requiredScriptures: required,
+					completedScriptures: completed,
+					percentDone: percent,
+					bonus,
+					division: matchingDivision
+						? {
+								name: matchingDivision.name,
+								min_grade: matchingDivision.min_grade,
+								max_grade: matchingDivision.max_grade,
+						  }
+						: undefined,
+					essayAssigned,
+				});
 
-			setIsComputingStats(false);
+				setIsComputingStats(false);
+			});
 		};
 		compute();
 	}, [data, childCore]);
@@ -279,7 +284,7 @@ export default function DashboardChildBibleBeePage() {
 				onViewPhoto={handleViewPhoto}
 				bibleBeeStats={bbStats?.essayAssigned ? null : bbStats} // Hide scripture stats when essays are assigned
 				essaySummary={bbStats?.essayAssigned ? essaySummary : null} // Show essay summary only when essays are assigned
-				isComputingStats={isComputingStats}
+				isComputingStats={isComputingStats || isPending}
 			/>
 
 			{/* Show different content based on whether the child's division has essays assigned */}
