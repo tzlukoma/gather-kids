@@ -53,8 +53,12 @@ export default function ChildBibleBeePage() {
 					{data.essays.map((e: any) => (
 						<Card key={e.id}>
 							<CardHeader>
-								<CardTitle>Essay for {e.year?.year}</CardTitle>
-								<CardDescription>{e.promptText}</CardDescription>
+								<CardTitle>
+									{e.essayPrompt?.title || 'Essay Assignment'}
+								</CardTitle>
+								<CardDescription>
+									{e.essayPrompt?.prompt || 'Essay prompt for this division'}
+								</CardDescription>
 							</CardHeader>
 							<CardContent>
 								<div className="flex items-center gap-4">
@@ -65,7 +69,7 @@ export default function ChildBibleBeePage() {
 										<Button
 											onClick={() =>
 												essayMutation.mutate({
-													competitionYearId: e.competitionYearId,
+													bibleBeeCycleId: e.bible_bee_cycle_id,
 												})
 											}
 											size="sm">
