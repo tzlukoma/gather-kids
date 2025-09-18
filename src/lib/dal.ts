@@ -1531,8 +1531,10 @@ export async function getLeaderBibleBeeProgress(leaderId: string, cycleId: strin
         }
 
         const totalScriptures = scriptures.length;
-        const completedScriptures = scriptures.filter((s): s is { status?: string } => typeof (s as unknown as { status?: unknown })?.status === 'string')
-            .filter(s => s.status === 'completed').length;
+        const completedScriptures = scriptures
+            .filter((s): s is { status?: string; counts_for?: number } => typeof (s as unknown as { status?: unknown })?.status === 'string')
+            .filter(s => s.status === 'completed')
+            .reduce((sum: number, s) => sum + (s.counts_for || 1), 0);
         const essayStatus = essays.length ? (typeof (essays[0] as unknown as { status?: unknown })?.status === 'string' ? (essays[0] as { status?: string }).status : 'none') : 'none';
 
     const childEnrolls = allEnrollmentsForChildren.filter(e => e.child_id === child.child_id).map(e => ({ ...e, ministryName: ministryMap.get(e.ministry_id)?.name || 'Unknown' }));
@@ -1708,8 +1710,10 @@ export async function getBibleBeeProgressForCycle(cycleId: string) {
         }
 
         const totalScriptures = scriptures.length;
-    const completedScriptures = scriptures.filter((s): s is { status?: string } => typeof (s as unknown as { status?: unknown })?.status === 'string')
-            .filter(s => s.status === 'completed').length;
+        const completedScriptures = scriptures
+            .filter((s): s is { status?: string; counts_for?: number } => typeof (s as unknown as { status?: unknown })?.status === 'string')
+            .filter(s => s.status === 'completed')
+            .reduce((sum: number, s) => sum + (s.counts_for || 1), 0);
         
         // Check essay status - look for essay prompts assigned to the child's division
         let essayStatus = 'none';

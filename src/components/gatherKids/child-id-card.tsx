@@ -9,6 +9,7 @@ import {
 } from '@/components/ui/card';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import { User, Camera, Cake } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import type { EnrichedChild } from './check-in-view';
@@ -61,6 +62,7 @@ interface ChildIdCardProps {
 		submitted: number;
 		pending: number;
 	} | null;
+	isComputingStats?: boolean;
 }
 
 export function ChildIdCard({
@@ -69,6 +71,7 @@ export function ChildIdCard({
 	onViewPhoto,
 	bibleBeeStats,
 	essaySummary,
+	isComputingStats = false,
 }: ChildIdCardProps) {
 	if (!child) return <div>Loading child...</div>;
 
@@ -183,33 +186,58 @@ export function ChildIdCard({
 				</CardContent>
 			</Card>
 
-			{bibleBeeStats ? (
+			{bibleBeeStats || isComputingStats ? (
 				<div className="mt-3">
 					<div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-						<div className="p-3 bg-background border rounded text-center">
-							<div className="text-xs text-muted-foreground">Target</div>
-							<div className="font-semibold text-lg">
-								{bibleBeeStats!.requiredScriptures}
-							</div>
-						</div>
-						<div className="p-3 bg-background border rounded text-center">
-							<div className="text-xs text-muted-foreground">Completed</div>
-							<div className="font-semibold text-lg">
-								{bibleBeeStats!.completedScriptures}
-							</div>
-						</div>
-						<div className="p-3 bg-background border rounded text-center">
-							<div className="text-xs text-muted-foreground">% Done</div>
-							<div className="font-semibold text-lg">
-								{Math.round(bibleBeeStats!.percentDone)}%
-							</div>
-						</div>
-						<div className="p-3 bg-background border rounded text-center">
-							<div className="text-xs text-muted-foreground">Bonus</div>
-							<div className="font-semibold text-lg">
-								{bibleBeeStats!.bonus}
-							</div>
-						</div>
+						{isComputingStats ? (
+							// Loading skeleton
+							<>
+								<div className="p-3 bg-background border rounded text-center">
+									<div className="text-xs text-muted-foreground">Target</div>
+									<Skeleton className="h-6 w-8 mx-auto mt-1" />
+								</div>
+								<div className="p-3 bg-background border rounded text-center">
+									<div className="text-xs text-muted-foreground">Completed</div>
+									<Skeleton className="h-6 w-8 mx-auto mt-1" />
+								</div>
+								<div className="p-3 bg-background border rounded text-center">
+									<div className="text-xs text-muted-foreground">% Done</div>
+									<Skeleton className="h-6 w-12 mx-auto mt-1" />
+								</div>
+								<div className="p-3 bg-background border rounded text-center">
+									<div className="text-xs text-muted-foreground">Bonus</div>
+									<Skeleton className="h-6 w-8 mx-auto mt-1" />
+								</div>
+							</>
+						) : (
+							// Actual metrics
+							<>
+								<div className="p-3 bg-background border rounded text-center">
+									<div className="text-xs text-muted-foreground">Target</div>
+									<div className="font-semibold text-lg">
+										{bibleBeeStats!.requiredScriptures}
+									</div>
+								</div>
+								<div className="p-3 bg-background border rounded text-center">
+									<div className="text-xs text-muted-foreground">Completed</div>
+									<div className="font-semibold text-lg">
+										{bibleBeeStats!.completedScriptures}
+									</div>
+								</div>
+								<div className="p-3 bg-background border rounded text-center">
+									<div className="text-xs text-muted-foreground">% Done</div>
+									<div className="font-semibold text-lg">
+										{Math.round(bibleBeeStats!.percentDone)}%
+									</div>
+								</div>
+								<div className="p-3 bg-background border rounded text-center">
+									<div className="text-xs text-muted-foreground">Bonus</div>
+									<div className="font-semibold text-lg">
+										{bibleBeeStats!.bonus}
+									</div>
+								</div>
+							</>
+						)}
 					</div>
 				</div>
 			) : essaySummary ? (
