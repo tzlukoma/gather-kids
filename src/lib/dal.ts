@@ -1618,20 +1618,31 @@ export async function getBibleBeeProgressForCycle(cycleId: string) {
             
             console.log(`Found ${enrolledChildren.length} enrolled children for cycle ${cycleId}`);
             
+            // Get divisions for this cycle to map division IDs to names
+            const divisions = await dbAdapter.listDivisions(cycleId);
+            console.log('Divisions for cycle:', divisions);
+            
             // Return basic progress data for enrolled children
-            return enrolledChildren.map(child => ({
-                childId: child.child_id,
-                childName: `${child.first_name} ${child.last_name}`,
-                child: child,
-                totalScriptures: 0,
-                completedScriptures: 0,
-                requiredScriptures: 0,
-                bibleBeeStatus: 'Not Started' as const,
-                gradeGroup: child.grade ? `Grade ${child.grade}` : 'Unknown Grade',
-                essayStatus: 'Not Started',
-                ministries: [],
-                primaryGuardian: null,
-            }));
+            return enrolledChildren.map(child => {
+                // Find the enrollment for this child to get division info
+                const enrollment = cycleEnrollments.find(e => e.child_id === child.child_id);
+                const division = enrollment ? divisions.find(d => d.id === enrollment.division_id) : null;
+                const divisionName = division ? division.name : 'Unknown Division';
+                
+                return {
+                    childId: child.child_id,
+                    childName: `${child.first_name} ${child.last_name}`,
+                    child: child,
+                    totalScriptures: 0,
+                    completedScriptures: 0,
+                    requiredScriptures: 0,
+                    bibleBeeStatus: 'Not Started' as const,
+                    gradeGroup: divisionName, // Use actual division name
+                    essayStatus: 'Not Started',
+                    ministries: [],
+                    primaryGuardian: null,
+                };
+            });
         } catch (error) {
             console.error('Error getting Bible Bee progress for cycle:', error);
             return [];

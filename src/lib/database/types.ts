@@ -323,7 +323,7 @@ export interface DatabaseAdapter {
 		id: string,
 		data: Partial<EssayPrompt>
 	): Promise<EssayPrompt>;
-	listEssayPrompts(divisionId?: string): Promise<EssayPrompt[]>;
+	listEssayPrompts(divisionId?: string, cycleId?: string): Promise<EssayPrompt[]>;
 	deleteEssayPrompt(id: string): Promise<void>;
 
 	getEnrollment(id: string): Promise<Enrollment | null>;
@@ -347,6 +347,13 @@ export interface DatabaseAdapter {
 	): Promise<EnrollmentOverride>;
 	listEnrollmentOverrides(yearId?: string): Promise<EnrollmentOverride[]>;
 	deleteEnrollmentOverride(id: string): Promise<void>;
+
+	// Student Scripture methods
+	getStudentScripture(id: string): Promise<StudentScripture | null>;
+	createStudentScripture(data: Omit<StudentScripture, 'created_at' | 'updated_at'>): Promise<StudentScripture>;
+	updateStudentScripture(id: string, data: Partial<StudentScripture>): Promise<StudentScripture>;
+	listStudentScriptures(childId?: string, bibleBeeCycleId?: string): Promise<StudentScripture[]>;
+	deleteStudentScripture(id: string): Promise<void>;
 
 	// Realtime (can be no-op in IndexedDB implementation)
 	subscribeToTable<T>(

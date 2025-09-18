@@ -56,6 +56,8 @@ export default function DashboardChildBibleBeePage() {
 					]);
 					setHousehold(householdData);
 					setGuardiansForHousehold(guardiansData);
+					console.log('Loaded guardians for child:', guardiansData);
+					console.log('Loaded household for child:', householdData);
 				}
 			} catch (error) {
 				console.error('Error loading child data:', error);
@@ -117,14 +119,14 @@ export default function DashboardChildBibleBeePage() {
 				setBbStats(null);
 				return;
 			}
-			// Get the year ID for division lookup - from scripture assignments it should be in competitionYearId
-			const yearId = scriptures[0].competitionYearId;
+			// Get the year ID for division lookup - from scripture assignments it should be in bible_bee_cycle_id
+			const yearId = scriptures[0].bible_bee_cycle_id;
 			let required = scriptures.length;
 			let matchingDivision = null;
 
 			console.log('Computing Bible Bee stats for child:', childCore?.child_id);
 			console.log('Child grade:', childCore?.grade);
-			console.log('Scripture year ID (competitionYearId):', yearId);
+			console.log('Scripture year ID (bible_bee_cycle_id):', yearId);
 			console.log('First scripture assignment:', scriptures[0]);
 
 			try {
@@ -245,6 +247,9 @@ export default function DashboardChildBibleBeePage() {
 		  }
 		: null;
 
+	console.log('Enriched child for display:', enrichedChild);
+	console.log('Guardians count:', enrichedChild?.guardians?.length || 0);
+
 	const handleUpdatePhoto = async (c: any) => {
 		// delegate to DAL if available
 		if (!c || !c.child_id) return;
@@ -302,7 +307,7 @@ export default function DashboardChildBibleBeePage() {
 															<Button
 																onClick={() =>
 																	essayMutation.mutate({
-																		competitionYearId: e.competitionYearId,
+																		bibleBeeCycleId: e.bible_bee_cycle_id,
 																	})
 																}
 																size="sm">

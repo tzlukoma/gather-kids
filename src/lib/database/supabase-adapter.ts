@@ -2501,16 +2501,27 @@ export class SupabaseAdapter implements DatabaseAdapter {
 
 	// Helper method to map Supabase scripture data to our Scripture type
 	private mapScripture(data: any): Scripture {
+		// Extract text from texts field - it might be a JSON object with translations
+		let text = '';
+		if (data.texts) {
+			if (typeof data.texts === 'string') {
+				text = data.texts;
+			} else if (typeof data.texts === 'object') {
+				// If it's an object with translations, use NIV as default or first available
+				text = data.texts.NIV || data.texts.KJV || Object.values(data.texts)[0] || '';
+			}
+		}
+		
 		return {
 			id: data.id,
-			year_id: data.competition_year_id || data.year_id,
+			bible_bee_cycle_id: data.bible_bee_cycle_id || data.competition_year_id || data.year_id,
 			scripture_number: data.scripture_number,
 			scripture_order: data.scripture_order || data.order || 1, // Map order field back to scripture_order
 			counts_for: data.counts_for,
 			reference: data.reference,
 			category: data.category,
-			text: data.text || '', // Provide default if missing
-			translation: data.translation || '', // Provide default if missing
+			text: text,
+			translation: 'NIV', // Default translation since it's not stored in the database
 			texts: data.texts,
 			created_at: data.created_at,
 			updated_at: data.updated_at,
@@ -2591,12 +2602,17 @@ export class SupabaseAdapter implements DatabaseAdapter {
 		return this.mapEssayPrompt(result);
 	}
 
-	async listEssayPrompts(divisionId?: string): Promise<EssayPrompt[]> {
+	async listEssayPrompts(divisionId?: string, cycleId?: string): Promise<EssayPrompt[]> {
 		let query = this.client.from('essay_prompts').select('*');
 
 		if (divisionId) {
 			// If divisionId is provided, filter by it
 			query = query.eq('division_id', divisionId);
+		}
+		
+		if (cycleId) {
+			// If cycleId is provided, filter by bible_bee_cycle_id
+			query = query.eq('bible_bee_cycle_id', cycleId);
 		}
 
 		const { data, error } = await query;
@@ -2788,6 +2804,97 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			.eq('id', id);
 
 		if (error) throw error;
+	}
+
+	// Student Scripture methods
+	async getStudentScripture(id: string): Promise<StudentScripture | null> {
+		const { data, error } = await this.client
+			.from('student_scriptures')
+			.select('*')
+			.eq('id', id)
+			.single();
+
+		if (error) {
+			if (error.code === 'PGRST116') return null;
+			throw error;
+		}
+
+		return data ? this.mapStudentScripture(data) : null;
+	}
+
+	async createStudentScripture(data: Omit<StudentScripture, 'created_at' | 'updated_at'>): Promise<StudentScripture> {
+		const insertPayload: Database['public']['Tables']['student_scriptures']['Insert'] = {
+			child_id: data.child_id,
+			bible_bee_cycle_id: data.bible_bee_cycle_id,
+			scripture_id: data.scripture_id,
+			is_completed: data.is_completed,
+			completed_at: data.completed_at,
+			// Don't include id - let the database generate it
+		};
+
+		const { data: result, error } = await this.client
+			.from('student_scriptures')
+			.insert(insertPayload)
+			.select()
+			.single();
+
+		if (error) throw error;
+		return this.mapStudentScripture(result as Database['public']['Tables']['student_scriptures']['Row']);
+	}
+
+	async updateStudentScripture(id: string, data: Partial<StudentScripture>): Promise<StudentScripture> {
+		const updatePayload: Database['public']['Tables']['student_scriptures']['Update'] = {
+			is_completed: data.is_completed,
+			completed_at: data.completed_at,
+			updated_at: new Date().toISOString(),
+		};
+
+		const { data: result, error } = await this.client
+			.from('student_scriptures')
+			.update(updatePayload)
+			.eq('id', id)
+			.select()
+			.single();
+
+		if (error) throw error;
+		return this.mapStudentScripture(result as Database['public']['Tables']['student_scriptures']['Row']);
+	}
+
+	async listStudentScriptures(childId?: string, bibleBeeCycleId?: string): Promise<StudentScripture[]> {
+		let query = this.client.from('student_scriptures').select('*');
+
+		if (childId) {
+			query = query.eq('child_id', childId);
+		}
+		if (bibleBeeCycleId) {
+			query = query.eq('bible_bee_cycle_id', bibleBeeCycleId);
+		}
+
+		const { data, error } = await query;
+		if (error) throw error;
+		return (data || []).map((d) => this.mapStudentScripture(d as Database['public']['Tables']['student_scriptures']['Row']));
+	}
+
+	async deleteStudentScripture(id: string): Promise<void> {
+		const { error } = await this.client
+			.from('student_scriptures')
+			.delete()
+			.eq('id', id);
+
+		if (error) throw error;
+	}
+
+	private mapStudentScripture(data: Database['public']['Tables']['student_scriptures']['Row']): StudentScripture {
+		return {
+			id: data.id,
+			child_id: data.child_id,
+			bible_bee_cycle_id: data.bible_bee_cycle_id,
+			scripture_id: data.scripture_id,
+			is_completed: data.is_completed ?? false,
+			completed_at: data.completed_at ?? undefined,
+			created_at: data.created_at ?? new Date().toISOString(),
+			updated_at: data.updated_at ?? new Date().toISOString(),
+		};
 	}
 
 	// Realtime subscription implementation

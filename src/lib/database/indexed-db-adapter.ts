@@ -1152,9 +1152,12 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 		return result;
 	}
 
-	async listEssayPrompts(divisionId?: string): Promise<EssayPrompt[]> {
+	async listEssayPrompts(divisionId?: string, cycleId?: string): Promise<EssayPrompt[]> {
 		if (divisionId) {
 			return this.db.essay_prompts.where('division_id').equals(divisionId).toArray();
+		}
+		if (cycleId) {
+			return this.db.essay_prompts.where('bible_bee_cycle_id').equals(cycleId).toArray();
 		}
 		return this.db.essay_prompts.toArray();
 	}
@@ -1241,6 +1244,55 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 
 	async deleteEnrollmentOverride(id: string): Promise<void> {
 		await this.db.enrollment_overrides.delete(id);
+	}
+
+	// Student Scripture methods
+	async getStudentScripture(id: string): Promise<StudentScripture | null> {
+		const result = await this.db.studentScriptures.get(id);
+		return result || null;
+	}
+
+	async createStudentScripture(data: Omit<StudentScripture, 'created_at' | 'updated_at'>): Promise<StudentScripture> {
+		const now = new Date().toISOString();
+		const studentScripture: StudentScripture = {
+			id: uuidv4(), // Generate proper UUID
+			...data,
+			created_at: now,
+			updated_at: now,
+		};
+		
+		await this.db.studentScriptures.add(studentScripture);
+		return studentScripture;
+	}
+
+	async updateStudentScripture(id: string, data: Partial<StudentScripture>): Promise<StudentScripture> {
+		const now = new Date().toISOString();
+		const updateData = {
+			...data,
+			updated_at: now,
+		};
+		
+		await this.db.studentScriptures.update(id, updateData);
+		const result = await this.db.studentScriptures.get(id);
+		if (!result) throw new Error(`Student scripture ${id} not found after update`);
+		return result;
+	}
+
+	async listStudentScriptures(childId?: string, bibleBeeCycleId?: string): Promise<StudentScripture[]> {
+		let collection = this.db.studentScriptures.toCollection();
+		
+		if (childId) {
+			collection = collection.and((s: StudentScripture | unknown) => (s as StudentScripture).child_id === childId);
+		}
+		if (bibleBeeCycleId) {
+			collection = collection.and((s: StudentScripture | unknown) => (s as StudentScripture).bible_bee_cycle_id === bibleBeeCycleId);
+		}
+
+		return collection.toArray();
+	}
+
+	async deleteStudentScripture(id: string): Promise<void> {
+		await this.db.studentScriptures.delete(id);
 	}
 
 	// No-op for realtime subscriptions in demo mode

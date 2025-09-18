@@ -216,15 +216,127 @@ export function useStudentAssignmentsQuery(childId: string) {
     const key = ['studentAssignments', childId];
     return useQuery(key, async () => {
         try {
+            console.log('🚀 Starting useStudentAssignmentsQuery for child:', childId);
+            
             if (shouldUseAdapter()) {
-                // Use dbAdapter for live mode - for now, return empty data
-                // TODO: Implement full Supabase support for student assignments
-                console.log('🔍 useStudentAssignmentsQuery: Using Supabase mode - returning empty student assignments for now', {
-                    childId,
-                    shouldUseAdapter: shouldUseAdapter(),
-                    databaseMode: process.env.NEXT_PUBLIC_DATABASE_MODE
-                });
-                return { scriptures: [], essays: [] };
+                // Use dbAdapter for live mode
+                console.log('🔍 useStudentAssignmentsQuery: Using Supabase mode for child:', childId);
+                console.log('🔍 Database mode:', process.env.NEXT_PUBLIC_DATABASE_MODE);
+                console.log('🔍 Should use adapter:', shouldUseAdapter());
+                
+                // Get enrollments for this child
+                console.log('🔍 Fetching enrollments for child:', childId);
+                const enrollments = await dbAdapter.listEnrollments(childId);
+                console.log('Child enrollments:', enrollments);
+                
+                if (enrollments.length === 0) {
+                    console.log('❌ No enrollments found for child:', childId);
+                    return { scriptures: [], essays: [] };
+                }
+                
+                // Get scriptures for the child's Bible Bee cycles
+                const bibleBeeCycleIds = [...new Set(enrollments.map(e => e.bible_bee_cycle_id))];
+                console.log('Bible Bee cycle IDs for child:', bibleBeeCycleIds);
+                
+                console.log('🔍 Fetching scriptures for cycles...');
+                const allScriptures = await Promise.all(
+                    bibleBeeCycleIds.map(async cycleId => {
+                        console.log(`🔍 Fetching scriptures for cycle: ${cycleId}`);
+                        const scriptures = await dbAdapter.listScriptures({ yearId: cycleId });
+                        console.log(`📖 Found ${scriptures.length} scriptures for cycle ${cycleId}:`, scriptures);
+                        return scriptures;
+                    })
+                );
+                const rawScriptures = allScriptures.flat();
+                console.log('📚 Total raw scriptures for child:', rawScriptures.length, rawScriptures);
+                
+                // Create student scripture assignments for enrolled children
+                // This creates actual student scripture records in the database
+                console.log('🔍 Creating student scripture assignments...');
+                const scriptures = await Promise.all(rawScriptures.map(async scripture => {
+                    console.log('Processing scripture:', {
+                        id: scripture.id,
+                        reference: scripture.reference,
+                        text: scripture.text,
+                        translation: scripture.translation,
+                        scripture_number: scripture.scripture_number,
+                        scripture_order: scripture.scripture_order,
+                        texts: scripture.texts
+                    });
+                    
+                    try {
+                        // Check if student scripture record already exists
+                        const existingStudentScriptures = await dbAdapter.listStudentScriptures(childId, scripture.bible_bee_cycle_id);
+                        const existingRecord = existingStudentScriptures.find(ss => ss.scripture_id === scripture.id);
+                        
+                        if (existingRecord) {
+                            // Return existing record with enriched data
+                            console.log('Found existing student scripture record:', existingRecord);
+                            return {
+                                id: existingRecord.id,
+                                childId: childId,
+                                scriptureId: scripture.id,
+                                bible_bee_cycle_id: scripture.bible_bee_cycle_id,
+                                status: existingRecord.is_completed ? 'completed' : 'not_started',
+                                scripture: scripture,
+                                verseText: scripture.text,
+                                displayTranslation: scripture.translation || 'NIV',
+                                completedAt: existingRecord.completed_at,
+                                createdAt: existingRecord.created_at,
+                                updatedAt: existingRecord.updated_at,
+                            };
+                        } else {
+                            // Create new student scripture record
+                            console.log('Creating new student scripture record for:', scripture.id);
+                            console.log('Using bible_bee_cycle_id:', scripture.bible_bee_cycle_id);
+                            const studentScriptureData = {
+                                child_id: childId,
+                                bible_bee_cycle_id: scripture.bible_bee_cycle_id,
+                                scripture_id: scripture.id,
+                                is_completed: false,
+                                completed_at: undefined,
+                            };
+                            
+                            const newStudentScripture = await dbAdapter.createStudentScripture(studentScriptureData);
+                            console.log('Created student scripture record:', newStudentScripture);
+                            
+                            // Extract verse text from texts field if available
+                            let verseText = scripture.text || '';
+                            if (scripture.texts && typeof scripture.texts === 'object') {
+                                verseText = scripture.texts.NIV || scripture.texts.KJV || Object.values(scripture.texts)[0] || verseText;
+                            }
+                            
+                            return {
+                                id: newStudentScripture.id,
+                                childId: childId,
+                                scriptureId: scripture.id,
+                                bible_bee_cycle_id: scripture.bible_bee_cycle_id,
+                                status: 'not_started' as const,
+                                scripture: scripture,
+                                verseText: verseText,
+                                displayTranslation: scripture.translation || 'NIV',
+                                completedAt: null,
+                                createdAt: newStudentScripture.created_at,
+                                updatedAt: newStudentScripture.updated_at,
+                            };
+                        }
+                    } catch (error) {
+                        console.error('❌ Error processing scripture:', scripture.id, error);
+                        throw error;
+                    }
+                }));
+                console.log('✅ Created student scripture assignments:', scriptures.length, scriptures);
+                
+                // Get essays for the child's Bible Bee cycles
+                console.log('🔍 Fetching essays for cycles...');
+                const allEssays = await Promise.all(
+                    bibleBeeCycleIds.map(cycleId => dbAdapter.listEssayPrompts(undefined, cycleId))
+                );
+                const essays = allEssays.flat();
+                console.log('📝 Essays for child:', essays.length, essays);
+                
+                console.log('✅ Returning data:', { scriptures: scriptures.length, essays: essays.length });
+                return { scriptures, essays };
             } else {
                 // Use legacy Dexie for demo mode only
             // First, check if child is enrolled in any Bible Bee years but missing scriptures
@@ -298,7 +410,12 @@ export function useStudentAssignmentsQuery(childId: string) {
             return { scriptures: enrichedScriptures, essays: enrichedEssays };
             }
         } catch (error) {
-            console.error('Error loading student assignments:', error);
+            console.error('❌ Error loading student assignments:', error);
+            console.error('❌ Error details:', {
+                message: error instanceof Error ? error.message : 'Unknown error',
+                stack: error instanceof Error ? error.stack : undefined,
+                error: error
+            });
             return { scriptures: [], essays: [] };
         }
     });
@@ -328,18 +445,18 @@ export function useToggleScriptureMutation(childId: string) {
 export function useSubmitEssayMutation(childId: string) {
     const qc = useQueryClient();
     const key = ['studentAssignments', childId];
-    return useMutation(async ({ competitionYearId }: { competitionYearId: string }) => submitEssay(childId, competitionYearId), {
-        onMutate: async ({ competitionYearId }: { competitionYearId: string }) => {
+    return useMutation(async ({ bibleBeeCycleId }: { bibleBeeCycleId: string }) => submitEssay(childId, bibleBeeCycleId), {
+        onMutate: async ({ bibleBeeCycleId }: { bibleBeeCycleId: string }) => {
             await qc.cancelQueries(key);
             const previous = qc.getQueryData<any>(key);
             qc.setQueryData(key, (old: any) => {
                 if (!old) return old;
-                const newEssays = old.essays.map((e: any) => e.competitionYearId === competitionYearId ? { ...e, status: 'submitted', submittedAt: new Date().toISOString() } : e);
+                const newEssays = old.essays.map((e: any) => e.bible_bee_cycle_id === bibleBeeCycleId ? { ...e, status: 'submitted', submittedAt: new Date().toISOString() } : e);
                 return { ...old, essays: newEssays };
             });
             return { previous };
         },
-        onError: (_err: unknown, _vars: { competitionYearId?: string } | undefined, context: any) => {
+        onError: (_err: unknown, _vars: { bibleBeeCycleId?: string } | undefined, context: any) => {
             if (context?.previous) qc.setQueryData(key, context.previous);
         },
         onSettled: () => qc.invalidateQueries(key),

@@ -327,8 +327,7 @@ export interface Division {
 
 export interface Scripture {
     id: string;
-    competitionYearId: string; // Legacy field
-    bible_bee_cycle_id?: string; // New FK for bible_bee_cycles system
+    bible_bee_cycle_id: string; // FK to bible_bee_cycles (canonical)
     reference: string;
     text: string;
     translation?: string;
@@ -341,8 +340,8 @@ export interface Scripture {
     scripture_order?: number; // controls display & min cut-offs
     counts_for?: number; // how many this entry counts for
     category?: string; // e.g., "Primary Minimum", "Competition"
-    createdAt: string;
-    updatedAt: string;
+    created_at: string;
+    updated_at: string;
 }
 
 export interface GradeRule {
@@ -394,13 +393,13 @@ export interface EnrollmentOverride {
 
 export interface StudentScripture {
     id: string;
-    childId: string;
-    competitionYearId: string;
-    scriptureId: string;
-    status: 'assigned' | 'completed';
-    completedAt?: string;
-    createdAt: string;
-    updatedAt: string;
+    child_id: string; // FK to children
+    bible_bee_cycle_id: string; // FK to bible_bee_cycles
+    scripture_id: string; // FK to scriptures
+    is_completed: boolean;
+    completed_at?: string;
+    created_at: string;
+    updated_at: string;
 }
 
 export interface StudentEssay {

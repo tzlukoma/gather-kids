@@ -362,17 +362,30 @@ export async function enrollChildInBibleBee(childId: string, competitionYearId: 
 }
 
 export async function toggleScriptureCompletion(studentScriptureId: string, complete: boolean) {
-    const now = new Date().toISOString();
-    await db.studentScriptures.update(studentScriptureId, {
-        status: complete ? 'completed' : 'assigned',
-        completedAt: complete ? now : undefined,
-        updatedAt: now,
-    });
+	const now = new Date().toISOString();
+	
+	// Use adapter instead of direct Dexie calls
+	const { dbAdapter, shouldUseAdapter } = await import('@/lib/dal');
+	
+	if (shouldUseAdapter()) {
+		// Use Supabase adapter
+		await dbAdapter.updateStudentScripture(studentScriptureId, {
+			is_completed: complete,
+			completed_at: complete ? now : undefined,
+		});
+	} else {
+		// Use legacy Dexie for demo mode
+		await db.studentScriptures.update(studentScriptureId, {
+			status: complete ? 'completed' : 'assigned',
+			completedAt: complete ? now : undefined,
+			updatedAt: now,
+		});
+	}
 }
 
-export async function submitEssay(childId: string, competitionYearId: string) {
+export async function submitEssay(childId: string, bibleBeeCycleId: string) {
     const now = new Date().toISOString();
-    const essay = await db.studentEssays.where({ childId, competitionYearId }).first();
+    const essay = await db.studentEssays.where({ childId, bible_bee_cycle_id: bibleBeeCycleId }).first();
     if (!essay) return null;
     await db.studentEssays.update(essay.id, {
         status: 'submitted',
