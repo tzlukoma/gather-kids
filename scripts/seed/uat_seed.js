@@ -2844,7 +2844,6 @@ async function createMinistryEnrollments(activeCycleId) {
 			cycle_id: activeCycleId, // Use the actual active cycle ID
 			enrollment_date: '2025-01-01',
 			is_active: true,
-			division: 'primary', // K-2nd grade
 		},
 		{
 			external_id: `${EXTERNAL_ID_PREFIX}enrollment_2_bb`,
@@ -2857,7 +2856,6 @@ async function createMinistryEnrollments(activeCycleId) {
 			cycle_id: activeCycleId, // Use the actual active cycle ID
 			enrollment_date: '2025-01-01',
 			is_active: true,
-			division: 'primary', // K-2nd grade
 		},
 		{
 			external_id: `${EXTERNAL_ID_PREFIX}enrollment_3_bb`,
@@ -2870,7 +2868,6 @@ async function createMinistryEnrollments(activeCycleId) {
 			cycle_id: activeCycleId, // Use the actual active cycle ID
 			enrollment_date: '2025-01-01',
 			is_active: true,
-			division: 'primary', // K-2nd grade
 		},
 
 		// Junior division children (3rd-7th grade, ages 8-13)
@@ -2885,7 +2882,6 @@ async function createMinistryEnrollments(activeCycleId) {
 			cycle_id: activeCycleId, // Use the actual active cycle ID
 			enrollment_date: '2025-01-01',
 			is_active: true,
-			division: 'junior', // 3rd-7th grade
 		},
 		{
 			external_id: `${EXTERNAL_ID_PREFIX}enrollment_6_bb`,
@@ -2898,7 +2894,6 @@ async function createMinistryEnrollments(activeCycleId) {
 			cycle_id: activeCycleId, // Use the actual active cycle ID
 			enrollment_date: '2025-01-01',
 			is_active: true,
-			division: 'junior', // 3rd-7th grade
 		},
 		{
 			external_id: `${EXTERNAL_ID_PREFIX}enrollment_7_bb`,
@@ -2911,7 +2906,6 @@ async function createMinistryEnrollments(activeCycleId) {
 			cycle_id: activeCycleId, // Use the actual active cycle ID
 			enrollment_date: '2025-01-01',
 			is_active: true,
-			division: 'junior', // 3rd-7th grade
 		},
 
 		// Senior division children (8th-12th grade, ages 13-18)
@@ -2926,7 +2920,6 @@ async function createMinistryEnrollments(activeCycleId) {
 			cycle_id: activeCycleId, // Use the actual active cycle ID
 			enrollment_date: '2025-01-01',
 			is_active: true,
-			division: 'senior', // 8th-12th grade
 		},
 		{
 			external_id: `${EXTERNAL_ID_PREFIX}enrollment_10_bb`,
@@ -2939,7 +2932,6 @@ async function createMinistryEnrollments(activeCycleId) {
 			cycle_id: activeCycleId, // Use the actual active cycle ID
 			enrollment_date: '2025-01-01',
 			is_active: true,
-			division: 'senior', // 8th-12th grade
 		},
 		{
 			external_id: `${EXTERNAL_ID_PREFIX}enrollment_11_bb`,
@@ -2952,7 +2944,6 @@ async function createMinistryEnrollments(activeCycleId) {
 			cycle_id: activeCycleId, // Use the actual active cycle ID
 			enrollment_date: '2025-01-01',
 			is_active: true,
-			division: 'senior', // 8th-12th grade
 		},
 		{
 			external_id: `${EXTERNAL_ID_PREFIX}enrollment_12_bb`,
@@ -2965,7 +2956,6 @@ async function createMinistryEnrollments(activeCycleId) {
 			cycle_id: activeCycleId, // Use the actual active cycle ID
 			enrollment_date: '2025-01-01',
 			is_active: true,
-			division: 'senior', // 8th-12th grade
 		},
 	];
 
@@ -3051,18 +3041,18 @@ async function createStudentEssays(bibleBeeCycleId, divisionMap) {
 			return;
 		}
 
-		// Get children enrolled in Bible Bee Senior division
+		// Get children enrolled in Bible Bee ministry who are in Senior division (grades 8-12)
 		const { data: enrollments, error: enrollmentError } = await supabase
 			.from('ministry_enrollments')
 			.select(
 				`
 				child_id,
-				children!inner(child_id, first_name, last_name)
+				children!inner(child_id, first_name, last_name, grade)
 			`
 			)
 			.eq('ministry_id', `${EXTERNAL_ID_PREFIX}bible_bee`)
-			.eq('division', 'senior')
-			.eq('is_active', true);
+			.gte('children.grade', '8')
+			.lte('children.grade', '12');
 
 		if (enrollmentError) {
 			console.log(
@@ -3174,12 +3164,10 @@ async function createBibleBeeEnrollments(bibleBeeCycleId, divisionMap) {
 			.select(
 				`
 				child_id,
-				division,
-				children!inner(child_id, first_name, last_name)
+				children!inner(child_id, first_name, last_name, grade)
 			`
 			)
-			.eq('ministry_id', `${EXTERNAL_ID_PREFIX}bible_bee`)
-			.eq('is_active', true);
+			.eq('ministry_id', `${EXTERNAL_ID_PREFIX}bible_bee`);
 
 		if (enrollmentError) {
 			console.log(
@@ -3206,13 +3194,27 @@ async function createBibleBeeEnrollments(bibleBeeCycleId, divisionMap) {
 		for (const enrollment of enrollments) {
 			const childId = enrollment.child_id;
 			const child = enrollment.children;
-			const divisionName = enrollment.division;
 
-			// Get the division ID from the division map
-			const divisionId =
-				divisionMap?.[
-					divisionName.charAt(0).toUpperCase() + divisionName.slice(1)
-				];
+			// Determine division based on child's grade
+			const grade = parseInt(child.grade) || 0;
+			let divisionName;
+			let divisionId;
+
+			if (grade >= 0 && grade <= 2) {
+				divisionName = 'Primary';
+				divisionId = divisionMap?.Primary;
+			} else if (grade >= 3 && grade <= 7) {
+				divisionName = 'Junior';
+				divisionId = divisionMap?.Junior;
+			} else if (grade >= 8 && grade <= 12) {
+				divisionName = 'Senior';
+				divisionId = divisionMap?.Senior;
+			} else {
+				// Default to Primary for unknown grades
+				divisionName = 'Primary';
+				divisionId = divisionMap?.Primary;
+			}
+
 			if (!divisionId) {
 				console.warn(
 					`⚠️ Division ID not found for ${divisionName}, skipping ${child.first_name} ${child.last_name}`
