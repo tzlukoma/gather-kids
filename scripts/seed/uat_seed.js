@@ -28,21 +28,6 @@ import { createClient } from '@supabase/supabase-js';
 import { fileURLToPath } from 'url';
 import crypto from 'crypto';
 
-// Import DAL methods for consistent data creation
-import {
-	createBibleBeeCycle,
-	createDivision,
-	createEssayPrompt,
-	upsertScripture,
-	createEnrollment,
-	createStudentEssay,
-	createRegistrationCycle,
-	createMinistry,
-	createHousehold,
-	createChild,
-	createGuardian,
-} from '../../src/lib/dal.js';
-
 // ES module equivalent of __dirname
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -121,6 +106,19 @@ function createDryRunProxy(realClient) {
 										limit: (count) => {
 											console.log(`[DRY RUN] LIMIT ${count}`);
 											return { data: [], error: null };
+										},
+										eq: (column2, value2) => {
+											console.log(`[DRY RUN] AND ${column2} = ${value2}`);
+											return {
+												single: () => ({
+													data: null,
+													error: { code: 'PGRST116' },
+												}),
+												limit: (count) => {
+													console.log(`[DRY RUN] LIMIT ${count}`);
+													return { data: [], error: null };
+												},
+											};
 										},
 									};
 								},
@@ -449,60 +447,66 @@ async function createRegistrationCycle() {
 		cycleData.cycle_id = uniqueCycleId;
 		cycleData.name = uniqueCycleName;
 
-		// Before inserting, make sure no other cycles are active
-		try {
-			const { data: activeCycles, error: activeCheckError } = await supabase
-				.from('registration_cycles')
-				.select('cycle_id')
-				.eq('is_active', true);
+		if (DRY_RUN) {
+			console.log(`[DRY RUN] Would create registration cycle:`, cycleData);
+			counters.registration_cycles++;
+			return cycleData.cycle_id;
+		} else {
+			// Before inserting, make sure no other cycles are active
+			try {
+				const { data: activeCycles, error: activeCheckError } = await supabase
+					.from('registration_cycles')
+					.select('cycle_id')
+					.eq('is_active', true);
 
-			if (activeCheckError && activeCheckError.code !== 'PGRST116') {
-				throw new Error(
-					`Error checking active registration cycles: ${activeCheckError.message}`
-				);
-			}
+				if (activeCheckError && activeCheckError.code !== 'PGRST116') {
+					throw new Error(
+						`Error checking active registration cycles: ${activeCheckError.message}`
+					);
+				}
 
-			// If there are active cycles, deactivate them
-			if (activeCycles && activeCycles.length > 0) {
-				console.log(
-					`📝 Deactivating ${activeCycles.length} previously active cycle(s)...`
-				);
+				// If there are active cycles, deactivate them
+				if (activeCycles && activeCycles.length > 0) {
+					console.log(
+						`📝 Deactivating ${activeCycles.length} previously active cycle(s)...`
+					);
 
-				for (const cycle of activeCycles) {
-					const { error: updateError } = await supabase
-						.from('registration_cycles')
-						.update({ is_active: false })
-						.eq('cycle_id', cycle.cycle_id);
+					for (const cycle of activeCycles) {
+						const { error: updateError } = await supabase
+							.from('registration_cycles')
+							.update({ is_active: false })
+							.eq('cycle_id', cycle.cycle_id);
 
-					if (updateError) {
-						console.warn(
-							`⚠️ Could not deactivate cycle ${cycle.cycle_id}: ${updateError.message}`
-						);
+						if (updateError) {
+							console.warn(
+								`⚠️ Could not deactivate cycle ${cycle.cycle_id}: ${updateError.message}`
+							);
+						}
 					}
 				}
-			}
 
-			// Now insert our new active cycle
-			const { data: newCycle, error: insertError } = await supabase
-				.from('registration_cycles')
-				.insert(cycleData)
-				.select()
-				.single();
+				// Now insert our new active cycle
+				const { data: newCycle, error: insertError } = await supabase
+					.from('registration_cycles')
+					.insert(cycleData)
+					.select()
+					.single();
 
-			if (insertError) {
-				throw new Error(
-					`Failed to create registration cycle: ${insertError.message}`
+				if (insertError) {
+					throw new Error(
+						`Failed to create registration cycle: ${insertError.message}`
+					);
+				}
+
+				console.log(
+					`✅ Created registration cycle: ${cycleName} (${startDateString} to ${endDateString})`
 				);
+				counters.registration_cycles++;
+				return newCycle.cycle_id;
+			} catch (error) {
+				console.error(`❌ Error creating registration cycle: ${error.message}`);
+				throw error;
 			}
-
-			console.log(
-				`✅ Created registration cycle: ${cycleName} (${startDateString} to ${endDateString})`
-			);
-			counters.registration_cycles++;
-			return newCycle.cycle_id;
-		} catch (error) {
-			console.error(`❌ Error creating registration cycle: ${error.message}`);
-			throw error;
 		}
 	} catch (outerError) {
 		console.error(
@@ -553,12 +557,15 @@ async function createBibleBeeCycle(registrationCycleId) {
 		}
 	}
 
-	// Create new Bible Bee cycle using DAL method
+	// Create new Bible Bee cycle using direct Supabase call with canonical schema
 	const bibleBeeCycleData = {
+		id: crypto.randomUUID(),
 		cycle_id: registrationCycleId, // Direct reference to registration cycle
 		name: 'Fall 2025 Bible Bee',
 		description: 'Bible Bee competition for Fall 2025 registration cycle',
 		is_active: true,
+		created_at: new Date().toISOString(),
+		updated_at: new Date().toISOString(),
 	};
 
 	if (DRY_RUN) {
@@ -566,14 +573,21 @@ async function createBibleBeeCycle(registrationCycleId) {
 		counters.bible_bee_years++; // Keep same counter name for now
 		return 'test-bible-bee-cycle-uuid';
 	} else {
-		try {
-			const newCycle = await createBibleBeeCycle(bibleBeeCycleData);
-			console.log(`✅ Created Bible Bee cycle: ${bibleBeeCycleData.name}`);
-			counters.bible_bee_years++; // Keep same counter name for now
-			return newCycle.id;
-		} catch (error) {
-			throw new Error(`Failed to create Bible Bee cycle: ${error.message}`);
+		const { data: newCycle, error: insertError } = await supabase
+			.from('bible_bee_cycles')
+			.insert(bibleBeeCycleData)
+			.select('id')
+			.single();
+
+		if (insertError) {
+			throw new Error(
+				`Failed to create Bible Bee cycle: ${insertError.message}`
+			);
 		}
+
+		console.log(`✅ Created Bible Bee cycle: ${bibleBeeCycleData.name}`);
+		counters.bible_bee_years++; // Keep same counter name for now
+		return newCycle.id;
 	}
 }
 
@@ -789,36 +803,27 @@ async function createScriptures(yearId) {
 					}
 				}
 
-				// Create the scripture using DAL method
+				// Create the scripture using direct Supabase call with canonical schema
 				if (DRY_RUN) {
 					console.log(
 						`[DRY RUN] Would create scripture: ${scriptureData.reference}`
 					);
 					createdCount++;
 				} else {
-					try {
-						// Format data for DAL method
-						const dalScriptureData = {
-							external_id: scriptureData.external_id,
-							bible_bee_cycle_id: scriptureData.bible_bee_cycle_id,
-							reference: scriptureData.reference,
-							texts: JSON.parse(scriptureData.texts), // Parse JSON for DAL
-							scripture_number: scriptureData.scripture_number,
-							scripture_order: scriptureData.scripture_order,
-							counts_for: scriptureData.counts_for,
-							category: scriptureData.category,
-						};
+					const { error: insertError } = await supabase
+						.from('scriptures')
+						.insert(scriptureData);
 
-						await upsertScripture(dalScriptureData);
-						console.log(`✅ Created scripture: ${scriptureData.reference}`);
-						createdCount++;
-					} catch (error) {
+					if (insertError) {
 						console.warn(
-							`⚠️ Failed to create scripture ${scriptureData.reference}: ${error.message}`
+							`⚠️ Failed to create scripture ${scriptureData.reference}: ${insertError.message}`
 						);
 						errorCount++;
 						continue;
 					}
+
+					console.log(`✅ Created scripture: ${scriptureData.reference}`);
+					createdCount++;
 				}
 			} catch (rowError) {
 				console.warn(
@@ -928,8 +933,9 @@ async function createDivisions(yearId) {
 				divisionId = existingDivision.id;
 				console.log(`✅ Division already exists: ${divisionData.name}`);
 			} else {
-				// Format division data for DAL method
+				// Format division data for canonical schema
 				const insertData = {
+					id: crypto.randomUUID(),
 					name: divisionData.name,
 					description: divisionData.description,
 					bible_bee_cycle_id: yearId, // Use canonical field
@@ -938,6 +944,8 @@ async function createDivisions(yearId) {
 					min_age: divisionData.min_age,
 					max_age: divisionData.max_age,
 					minimum_required: 0, // Default minimum scriptures
+					created_at: new Date().toISOString(),
+					updated_at: new Date().toISOString(),
 				};
 
 				if (DRY_RUN) {
@@ -945,17 +953,22 @@ async function createDivisions(yearId) {
 					divisionId = `test-${divisionData.name.toLowerCase()}-division-id`;
 					counters.divisions++;
 				} else {
-					try {
-						const newDivision = await createDivision(insertData);
-						divisionId = newDivision.id;
-						console.log(`✅ Created division: ${divisionData.name}`);
-						counters.divisions++;
-					} catch (error) {
+					const { data: newDivision, error: insertError } = await supabase
+						.from('divisions')
+						.insert(insertData)
+						.select('id')
+						.single();
+
+					if (insertError) {
 						console.log(
-							`⚠️ Failed to create division ${divisionData.name}: ${error.message}`
+							`⚠️ Failed to create division ${divisionData.name}: ${insertError.message}`
 						);
 						continue;
 					}
+
+					divisionId = newDivision.id;
+					console.log(`✅ Created division: ${divisionData.name}`);
+					counters.divisions++;
 				}
 			}
 
@@ -1135,8 +1148,9 @@ async function createEssayPrompt(cycleId, divisionMap) {
 		if (existingPrompt) {
 			console.log(`✅ Essay prompt already exists for Senior Division`);
 		} else {
-			// Create essay prompt using DAL method
+			// Create essay prompt using direct Supabase call with canonical schema
 			const essayPromptData = {
+				id: crypto.randomUUID(),
 				bible_bee_cycle_id: cycleId, // Use bible_bee_cycle_id as per canonical schema
 				division_id: seniorDivisionId, // Use division_id instead of division_name (canonical)
 				title: 'Senior Division Essay',
@@ -1144,20 +1158,27 @@ async function createEssayPrompt(cycleId, divisionMap) {
 				instructions:
 					'Please write a well-structured essay with clear introduction, body paragraphs, and conclusion. Use proper grammar and cite specific scripture references.',
 				due_date: '2026-06-05',
+				created_at: new Date().toISOString(),
+				updated_at: new Date().toISOString(),
 			};
 
 			if (DRY_RUN) {
 				console.log(`[DRY RUN] Would create essay prompt:`, essayPromptData);
 				counters.essay_prompts++;
 			} else {
-				try {
-					await createEssayPrompt(essayPromptData);
-					console.log(`✅ Created essay prompt for Senior Division`);
-					counters.essay_prompts++;
-				} catch (error) {
-					console.log(`⚠️ Failed to create essay prompt: ${error.message}`);
+				const { error: insertError } = await supabase
+					.from('essay_prompts')
+					.insert(essayPromptData);
+
+				if (insertError) {
+					console.log(
+						`⚠️ Failed to create essay prompt: ${insertError.message}`
+					);
 					return;
 				}
+
+				console.log(`✅ Created essay prompt for Senior Division`);
+				counters.essay_prompts++;
 			}
 		}
 	} catch (error) {
@@ -3092,7 +3113,7 @@ async function createStudentEssays(bibleBeeCycleId, divisionMap) {
 				continue;
 			}
 
-			// Create new student essay using DAL method
+			// Create new student essay using direct Supabase call with canonical schema
 			const studentEssayData = {
 				id: crypto.randomUUID(),
 				child_id: childId,
@@ -3100,6 +3121,8 @@ async function createStudentEssays(bibleBeeCycleId, divisionMap) {
 				essay_prompt_id: essayPrompt.id,
 				status: 'assigned',
 				submitted_at: null,
+				created_at: new Date().toISOString(),
+				updated_at: new Date().toISOString(),
 			};
 
 			if (DRY_RUN) {
@@ -3108,18 +3131,21 @@ async function createStudentEssays(bibleBeeCycleId, divisionMap) {
 				);
 				createdCount++;
 			} else {
-				try {
-					await createStudentEssay(studentEssayData);
-					console.log(
-						`✅ Created student essay for ${child.first_name} ${child.last_name}`
-					);
-					createdCount++;
-				} catch (error) {
+				const { error: insertError } = await supabase
+					.from('student_essays')
+					.insert(studentEssayData);
+
+				if (insertError) {
 					console.warn(
-						`⚠️ Failed to create student essay for ${child.first_name} ${child.last_name}: ${error.message}`
+						`⚠️ Failed to create student essay for ${child.first_name} ${child.last_name}: ${insertError.message}`
 					);
 					continue;
 				}
+
+				console.log(
+					`✅ Created student essay for ${child.first_name} ${child.last_name}`
+				);
+				createdCount++;
 			}
 		}
 
@@ -3218,13 +3244,15 @@ async function createBibleBeeEnrollments(bibleBeeCycleId, divisionMap) {
 				continue;
 			}
 
-			// Create new Bible Bee enrollment using DAL method
+			// Create new Bible Bee enrollment using direct Supabase call with canonical schema
 			const bibleBeeEnrollmentData = {
 				id: crypto.randomUUID(),
 				child_id: childId,
 				bible_bee_cycle_id: bibleBeeCycleId,
 				division_id: divisionId,
 				enrolled_at: new Date().toISOString(),
+				created_at: new Date().toISOString(),
+				updated_at: new Date().toISOString(),
 			};
 
 			if (DRY_RUN) {
@@ -3233,18 +3261,21 @@ async function createBibleBeeEnrollments(bibleBeeCycleId, divisionMap) {
 				);
 				createdCount++;
 			} else {
-				try {
-					await createEnrollment(bibleBeeEnrollmentData);
-					console.log(
-						`✅ Created Bible Bee enrollment for ${child.first_name} ${child.last_name} in ${divisionName} division`
-					);
-					createdCount++;
-				} catch (error) {
+				const { error: insertError } = await supabase
+					.from('bible_bee_enrollments')
+					.insert(bibleBeeEnrollmentData);
+
+				if (insertError) {
 					console.warn(
-						`⚠️ Failed to create Bible Bee enrollment for ${child.first_name} ${child.last_name}: ${error.message}`
+						`⚠️ Failed to create Bible Bee enrollment for ${child.first_name} ${child.last_name}: ${insertError.message}`
 					);
 					continue;
 				}
+
+				console.log(
+					`✅ Created Bible Bee enrollment for ${child.first_name} ${child.last_name} in ${divisionName} division`
+				);
+				createdCount++;
 			}
 		}
 
