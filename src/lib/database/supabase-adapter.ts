@@ -1,5 +1,6 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { v4 as uuidv4 } from 'uuid';
+import crypto from 'crypto';
 import type { DatabaseAdapter, HouseholdFilters, ChildFilters, RegistrationFilters, AttendanceFilters, IncidentFilters } from './types';
 import type { Database } from './supabase-types';
 import { supabaseToHousehold, householdToSupabase, supabaseToChild, childToSupabase, supabaseToMinistry, supabaseToMinistryEnrollment, ministryEnrollmentToSupabase, supabaseToEnrollment, enrollmentToSupabase, supabaseToEnrollmentOverride, supabaseToRegistration, registrationToSupabase, supabaseToAttendance, supabaseToIncident, supabaseToEvent, supabaseToUser, supabaseToMinistryLeaderMembership, supabaseToMinistryAccount, supabaseToGuardian, supabaseToEmergencyContact, supabaseToBrandingSettings } from './type-mappings';
@@ -2645,12 +2646,12 @@ export class SupabaseAdapter implements DatabaseAdapter {
 	async createEnrollment(
 		data: Omit<Enrollment, 'created_at' | 'updated_at'>
 	): Promise<Enrollment> {
-		if (!data.child_id || !data.year_id || !data.division_id) throw new Error('child_id, year_id and division_id are required for enrollment');
+		if (!data.child_id || !data.bible_bee_cycle_id || !data.division_id) throw new Error('child_id, bible_bee_cycle_id and division_id are required for enrollment');
 
 		const insertPayload: Database['public']['Tables']['bible_bee_enrollments']['Insert'] = {
-			childId: data.child_id!,
-			competitionYearId: data.year_id!,
-			divisionId: data.division_id!,
+			child_id: data.child_id!,
+			bible_bee_cycle_id: data.bible_bee_cycle_id!,
+			division_id: data.division_id!,
 			auto_enrolled: data.auto_enrolled ?? false,
 			enrolled_at: data.enrolled_at ?? new Date().toISOString(),
 			id: ((data as unknown) as Record<string, unknown>)['id'] as string ?? undefined,
@@ -2687,6 +2688,8 @@ export class SupabaseAdapter implements DatabaseAdapter {
 		childId?: string,
 		bibleBeeYearId?: string
 	): Promise<Enrollment[]> {
+		console.log(`DEBUG: listEnrollments called with childId: ${childId}, bibleBeeYearId: ${bibleBeeYearId}`);
+		
 	// Note: client typing may lack some table names; use narrow cast only for the query builder here
 	let query = (this.client as unknown as SupabaseClient<Database>).from('bible_bee_enrollments').select('*');
 
@@ -2698,6 +2701,10 @@ export class SupabaseAdapter implements DatabaseAdapter {
 		}
 
 	const { data, error } = await query;
+	
+	console.log(`DEBUG: listEnrollments query result - data:`, data);
+	console.log(`DEBUG: listEnrollments query result - error:`, error);
+	
 	if (error) throw error;
 	return (data || []).map((d) => supabaseToEnrollment(d as Database['public']['Tables']['bible_bee_enrollments']['Row']));
 	}
@@ -2995,9 +3002,61 @@ export class SupabaseAdapter implements DatabaseAdapter {
 	}
 
 	async commitAutoEnrollment(yearId: string, previews: any[]): Promise<any> {
-		// This is a complex function that would need to be implemented
-		// For now, return success
-		return { success: true, enrolled: 0 };
+		const errors: string[] = [];
+		let enrolled = 0;
+		let overrides_applied = 0;
+		
+		const now = new Date().toISOString();
+		
+		console.log(`DEBUG: commitAutoEnrollment called with ${previews.length} previews`);
+		
+		for (const p of previews) {
+			console.log(`DEBUG: Processing preview for ${p.child_name}, status: ${p.status}`);
+			try {
+				// Apply overrides first
+				if (p.status === 'override' && p.override_division) {
+					const enrollmentData = {
+						id: uuidv4(),
+						bible_bee_cycle_id: yearId,
+						child_id: p.child_id,
+						division_id: p.override_division.id,
+						auto_enrolled: false,
+						enrolled_at: now,
+					};
+					
+					console.log(`DEBUG: Creating override enrollment:`, enrollmentData);
+					await this.createEnrollment(enrollmentData);
+					overrides_applied++;
+					console.log(`DEBUG: Override enrollment created successfully`);
+				}
+				// Apply proposed auto-enrollments
+				else if (p.status === 'proposed' && p.proposed_division) {
+					const enrollmentData = {
+						id: uuidv4(),
+						bible_bee_cycle_id: yearId,
+						child_id: p.child_id,
+						division_id: p.proposed_division.id,
+						auto_enrolled: true,
+						enrolled_at: now,
+					};
+					
+					console.log(`DEBUG: Creating proposed enrollment:`, enrollmentData);
+					await this.createEnrollment(enrollmentData);
+					enrolled++;
+					console.log(`DEBUG: Proposed enrollment created successfully`);
+				}
+				// Skip unassigned and unknown_grade children
+				else {
+					console.log(`DEBUG: Skipping child ${p.child_name} with status: ${p.status}`);
+				}
+			} catch (error: any) {
+				console.error(`DEBUG: Error enrolling ${p.child_name}:`, error);
+				errors.push(`Error enrolling ${p.child_name}: ${error.message || error}`);
+			}
+		}
+		
+		console.log(`DEBUG: commitAutoEnrollment completed - enrolled: ${enrolled}, overrides: ${overrides_applied}, errors: ${errors.length}`);
+		return { enrolled, overrides_applied, errors };
 	}
 
 	// Helper method for grade conversion

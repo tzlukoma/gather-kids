@@ -1,6 +1,7 @@
 import { db as dexieDb } from '../db'; // Import existing Dexie instance
 import { v4 as uuidv4 } from 'uuid';
 import { gradeToCode } from '../gradeUtils';
+import crypto from 'crypto';
 import type { DatabaseAdapter, HouseholdFilters, ChildFilters, RegistrationFilters, AttendanceFilters, IncidentFilters } from './types';
 import type {
 	Household,
@@ -998,7 +999,7 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 	): Promise<BibleBeeCycle> {
 		const cycle: BibleBeeCycle = {
 			...data,
-			id: crypto.randomUUID(),
+			id: uuidv4(),
 			created_at: new Date().toISOString(),
 			updated_at: new Date().toISOString(),
 		};
@@ -1078,7 +1079,7 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 	async upsertScripture(data: Omit<Scripture, 'createdAt' | 'updatedAt'> & { id?: string }): Promise<Scripture> {
 		const scripture: Scripture = {
 			...data,
-			id: data.id || crypto.randomUUID(),
+			id: data.id || uuidv4(),
 			createdAt: new Date().toISOString(),
 			updatedAt: new Date().toISOString(),
 		};
@@ -1528,8 +1529,58 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 	}
 
 	async commitAutoEnrollment(yearId: string, previews: any[]): Promise<any> {
-		// This is a complex function that would need to be implemented
-		// For now, return success
-		return { success: true, enrolled: 0 };
+		const errors: string[] = [];
+		let enrolled = 0;
+		let overrides_applied = 0;
+		
+		const now = new Date().toISOString();
+		
+		console.log(`DEBUG: IndexedDB commitAutoEnrollment called with ${previews.length} previews`);
+		
+		for (const p of previews) {
+			console.log(`DEBUG: Processing preview for ${p.child_name}, status: ${p.status}`);
+			try {
+				// Apply overrides first
+				if (p.status === 'override' && p.override_division) {
+					const enrollmentData = {
+						bible_bee_cycle_id: yearId,
+						child_id: p.child_id,
+						division_id: p.override_division.id,
+						auto_enrolled: false,
+						enrolled_at: now,
+					};
+					
+					console.log(`DEBUG: Creating override enrollment:`, enrollmentData);
+					await this.createEnrollment(enrollmentData);
+					overrides_applied++;
+					console.log(`DEBUG: Override enrollment created successfully`);
+				}
+				// Apply proposed auto-enrollments
+				else if (p.status === 'proposed' && p.proposed_division) {
+					const enrollmentData = {
+						bible_bee_cycle_id: yearId,
+						child_id: p.child_id,
+						division_id: p.proposed_division.id,
+						auto_enrolled: true,
+						enrolled_at: now,
+					};
+					
+					console.log(`DEBUG: Creating proposed enrollment:`, enrollmentData);
+					await this.createEnrollment(enrollmentData);
+					enrolled++;
+					console.log(`DEBUG: Proposed enrollment created successfully`);
+				}
+				// Skip unassigned and unknown_grade children
+				else {
+					console.log(`DEBUG: Skipping child ${p.child_name} with status: ${p.status}`);
+				}
+			} catch (error: any) {
+				console.error(`DEBUG: Error enrolling ${p.child_name}:`, error);
+				errors.push(`Error enrolling ${p.child_name}: ${error.message || error}`);
+			}
+		}
+		
+		console.log(`DEBUG: IndexedDB commitAutoEnrollment completed - enrolled: ${enrolled}, overrides: ${overrides_applied}, errors: ${errors.length}`);
+		return { enrolled, overrides_applied, errors };
 	}
 }

@@ -785,7 +785,7 @@ export function supabaseToEnrollment(record: Record<string, unknown> | null | un
 	const r = (record ?? {}) as Record<string, unknown>;
 	return {
 		id: (r['id'] as string) || (r['enrollment_id'] as string) || '',
-		year_id: (r['year_id'] as string) ?? (r['competitionYearId'] as string) ?? (r['bible_bee_year_id'] as string) ?? '',
+		bible_bee_cycle_id: (r['bible_bee_cycle_id'] as string) ?? '',
 		child_id: (r['child_id'] as string) ?? (r['childId'] as string) ?? '',
 		division_id: (r['division_id'] as string) ?? (r['divisionId'] as string) ?? '',
 		auto_enrolled: (r['auto_enrolled'] as boolean) ?? false,

@@ -2229,20 +2229,32 @@ function EnrollmentManagement({
 	};
 
 	const handleCommit = async () => {
-		if (!preview) return;
+		console.log(`DEBUG: handleCommit called, preview exists: ${!!preview}`);
+		if (!preview) {
+			console.log(`DEBUG: No preview data, returning early`);
+			return;
+		}
+
+		console.log(`DEBUG: Preview data:`, preview);
+		console.log(
+			`DEBUG: Preview previews count: ${preview?.previews?.length || 0}`
+		);
 
 		setIsLoading(true);
 		setError(null);
 		try {
+			console.log(`DEBUG: Calling commitAutoEnrollment with yearId: ${yearId}`);
 			const result = await commitAutoEnrollment(
 				yearId,
-				preview?.enrollments || []
+				preview?.previews || []
 			);
+			console.log(`DEBUG: commitAutoEnrollment result:`, result);
+
 			toast({
 				title: 'Auto-Enrollment Complete',
 				description: `Enrolled ${result.enrolled} children, applied ${result.overrides_applied} overrides.`,
 			});
-			if (result.errors.length > 0) {
+			if (result.errors && result.errors.length > 0) {
 				setError('Some enrollments failed: ' + result.errors.join(', '));
 			}
 			// Refresh preview

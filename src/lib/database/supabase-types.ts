@@ -1,7 +1,7 @@
 /**
  * This file contains types generated from the Supabase schema.
  * DO NOT EDIT MANUALLY. This file is auto-generated.
- * Generated on: 2025-09-14T03:06:04.198Z
+ * Generated on: 2025-09-18T03:55:43.086Z
  */
 
 export type SupabaseJson =
@@ -13,11 +13,6 @@ export type SupabaseJson =
   | SupabaseJson[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "13.0.5"
-  }
   public: {
     Tables: {
       attendance: {
@@ -119,94 +114,58 @@ export type Database = {
       }
       bible_bee_enrollments: {
         Row: {
-          auto_enrolled: boolean
-          childId: string
-          competitionYearId: string
-          divisionId: string
-          enrolled_at: string
+          auto_enrolled: boolean | null
+          bible_bee_cycle_id: string
+          child_id: string
+          created_at: string | null
+          division_id: string
+          enrolled_at: string | null
           id: string
+          updated_at: string | null
         }
         Insert: {
-          auto_enrolled?: boolean
-          childId: string
-          competitionYearId: string
-          divisionId: string
-          enrolled_at?: string
+          auto_enrolled?: boolean | null
+          bible_bee_cycle_id: string
+          child_id: string
+          created_at?: string | null
+          division_id: string
+          enrolled_at?: string | null
           id?: string
+          updated_at?: string | null
         }
         Update: {
-          auto_enrolled?: boolean
-          childId?: string
-          competitionYearId?: string
-          divisionId?: string
-          enrolled_at?: string
+          auto_enrolled?: boolean | null
+          bible_bee_cycle_id?: string
+          child_id?: string
+          created_at?: string | null
+          division_id?: string
+          enrolled_at?: string | null
           id?: string
+          updated_at?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "bible_bee_enrollments_childId_fkey"
-            columns: ["childId"]
+            foreignKeyName: "bible_bee_enrollments_bible_bee_cycle_id_fkey"
+            columns: ["bible_bee_cycle_id"]
+            isOneToOne: false
+            referencedRelation: "bible_bee_cycles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bible_bee_enrollments_child_id_fkey"
+            columns: ["child_id"]
             isOneToOne: false
             referencedRelation: "children"
             referencedColumns: ["child_id"]
           },
           {
-            foreignKeyName: "bible_bee_enrollments_competitionYearId_fkey"
-            columns: ["competitionYearId"]
-            isOneToOne: false
-            referencedRelation: "competition_years"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "bible_bee_enrollments_divisionId_fkey"
-            columns: ["divisionId"]
+            foreignKeyName: "bible_bee_enrollments_division_id_fkey"
+            columns: ["division_id"]
             isOneToOne: false
             referencedRelation: "divisions"
             referencedColumns: ["id"]
           },
         ]
-      }
-      bible_bee_years: {
-        Row: {
-          competition_end_date: string | null
-          competition_start_date: string | null
-          created_at: string | null
-          description: string | null
-          id: string
-          is_active: boolean | null
-          name: string
-          registration_close_date: string | null
-          registration_open_date: string | null
-          updated_at: string | null
-          year: number
-        }
-        Insert: {
-          competition_end_date?: string | null
-          competition_start_date?: string | null
-          created_at?: string | null
-          description?: string | null
-          id?: string
-          is_active?: boolean | null
-          name: string
-          registration_close_date?: string | null
-          registration_open_date?: string | null
-          updated_at?: string | null
-          year: number
-        }
-        Update: {
-          competition_end_date?: string | null
-          competition_start_date?: string | null
-          created_at?: string | null
-          description?: string | null
-          id?: string
-          is_active?: boolean | null
-          name?: string
-          registration_close_date?: string | null
-          registration_open_date?: string | null
-          updated_at?: string | null
-          year?: number
-        }
-        Relationships: []
       }
       branding_settings: {
         Row: {
@@ -431,46 +390,40 @@ export type Database = {
       }
       divisions: {
         Row: {
-          bible_bee_cycle_id: string | null
-          bible_bee_year_id: string | null
+          bible_bee_cycle_id: string
           created_at: string | null
           description: string | null
           id: string
-          max_age: number | null
-          max_grade: number | null
-          min_age: number | null
-          min_grade: number | null
-          min_scriptures: number | null
+          max_grade: number
+          min_grade: number
+          min_last_order: number | null
+          minimum_required: number
           name: string
           requires_essay: boolean | null
           updated_at: string | null
         }
         Insert: {
-          bible_bee_cycle_id?: string | null
-          bible_bee_year_id?: string | null
+          bible_bee_cycle_id: string
           created_at?: string | null
           description?: string | null
           id?: string
-          max_age?: number | null
-          max_grade?: number | null
-          min_age?: number | null
-          min_grade?: number | null
-          min_scriptures?: number | null
+          max_grade: number
+          min_grade: number
+          min_last_order?: number | null
+          minimum_required?: number
           name: string
           requires_essay?: boolean | null
           updated_at?: string | null
         }
         Update: {
-          bible_bee_cycle_id?: string | null
-          bible_bee_year_id?: string | null
+          bible_bee_cycle_id?: string
           created_at?: string | null
           description?: string | null
           id?: string
-          max_age?: number | null
-          max_grade?: number | null
-          min_age?: number | null
-          min_grade?: number | null
-          min_scriptures?: number | null
+          max_grade?: number
+          min_grade?: number
+          min_last_order?: number | null
+          minimum_required?: number
           name?: string
           requires_essay?: boolean | null
           updated_at?: string | null
@@ -481,13 +434,6 @@ export type Database = {
             columns: ["bible_bee_cycle_id"]
             isOneToOne: false
             referencedRelation: "bible_bee_cycles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "divisions_bible_bee_year_id_fkey"
-            columns: ["bible_bee_year_id"]
-            isOneToOne: false
-            referencedRelation: "bible_bee_years"
             referencedColumns: ["id"]
           },
         ]
@@ -535,34 +481,31 @@ export type Database = {
       }
       enrollment_overrides: {
         Row: {
-          bible_bee_cycle_id: string | null
-          bible_bee_year_id: string | null
-          child_id: string | null
+          bible_bee_cycle_id: string
+          child_id: string
           created_at: string | null
           created_by: string | null
-          division_id: string | null
+          division_id: string
           id: string
           reason: string | null
           updated_at: string | null
         }
         Insert: {
-          bible_bee_cycle_id?: string | null
-          bible_bee_year_id?: string | null
-          child_id?: string | null
+          bible_bee_cycle_id: string
+          child_id: string
           created_at?: string | null
           created_by?: string | null
-          division_id?: string | null
+          division_id: string
           id?: string
           reason?: string | null
           updated_at?: string | null
         }
         Update: {
-          bible_bee_cycle_id?: string | null
-          bible_bee_year_id?: string | null
-          child_id?: string | null
+          bible_bee_cycle_id?: string
+          child_id?: string
           created_at?: string | null
           created_by?: string | null
-          division_id?: string | null
+          division_id?: string
           id?: string
           reason?: string | null
           updated_at?: string | null
@@ -573,13 +516,6 @@ export type Database = {
             columns: ["bible_bee_cycle_id"]
             isOneToOne: false
             referencedRelation: "bible_bee_cycles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "enrollment_overrides_bible_bee_year_id_fkey"
-            columns: ["bible_bee_year_id"]
-            isOneToOne: false
-            referencedRelation: "bible_bee_years"
             referencedColumns: ["id"]
           },
           {
@@ -600,54 +536,46 @@ export type Database = {
       }
       essay_prompts: {
         Row: {
-          bible_bee_cycle_id: string | null
+          bible_bee_cycle_id: string
           created_at: string | null
           division_id: string | null
-          division_name: string | null
-          due_date: string
+          due_date: string | null
           id: string
           instructions: string | null
-          max_words: number | null
-          min_words: number | null
           prompt: string
-          prompt_text: string
           title: string
           updated_at: string | null
-          year_id: string | null
         }
         Insert: {
-          bible_bee_cycle_id?: string | null
+          bible_bee_cycle_id: string
           created_at?: string | null
           division_id?: string | null
-          division_name?: string | null
-          due_date: string
+          due_date?: string | null
           id?: string
           instructions?: string | null
-          max_words?: number | null
-          min_words?: number | null
           prompt: string
-          prompt_text: string
           title: string
           updated_at?: string | null
-          year_id?: string | null
         }
         Update: {
-          bible_bee_cycle_id?: string | null
+          bible_bee_cycle_id?: string
           created_at?: string | null
           division_id?: string | null
-          division_name?: string | null
-          due_date?: string
+          due_date?: string | null
           id?: string
           instructions?: string | null
-          max_words?: number | null
-          min_words?: number | null
           prompt?: string
-          prompt_text?: string
           title?: string
           updated_at?: string | null
-          year_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "essay_prompts_bible_bee_cycle_id_fkey"
+            columns: ["bible_bee_cycle_id"]
+            isOneToOne: false
+            referencedRelation: "bible_bee_cycles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "essay_prompts_division_id_fkey"
             columns: ["division_id"]
@@ -1342,13 +1270,6 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "scriptures_bible_bee_cycle_id_fkey"
-            columns: ["bible_bee_cycle_id"]
-            isOneToOne: false
-            referencedRelation: "bible_bee_cycles"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "scriptures_competition_year_id_fkey"
             columns: ["competition_year_id"]
             isOneToOne: false
@@ -1392,39 +1313,53 @@ export type Database = {
       }
       student_scriptures: {
         Row: {
-          child_id: string | null
-          competition_year_id: string | null
+          bible_bee_cycle_id: string
+          child_id: string
+          completed_at: string | null
           created_at: string | null
           id: string
-          scripture_id: string | null
-          scripture_id_uuid: string | null
-          status: string | null
+          is_completed: boolean | null
+          scripture_id: string
           updated_at: string | null
         }
         Insert: {
-          child_id?: string | null
-          competition_year_id?: string | null
+          bible_bee_cycle_id: string
+          child_id: string
+          completed_at?: string | null
           created_at?: string | null
-          id: string
-          scripture_id?: string | null
-          scripture_id_uuid?: string | null
-          status?: string | null
+          id?: string
+          is_completed?: boolean | null
+          scripture_id: string
           updated_at?: string | null
         }
         Update: {
-          child_id?: string | null
-          competition_year_id?: string | null
+          bible_bee_cycle_id?: string
+          child_id?: string
+          completed_at?: string | null
           created_at?: string | null
           id?: string
-          scripture_id?: string | null
-          scripture_id_uuid?: string | null
-          status?: string | null
+          is_completed?: boolean | null
+          scripture_id?: string
           updated_at?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "fk_student_scriptures_scripture"
-            columns: ["scripture_id_uuid"]
+            foreignKeyName: "student_scriptures_bible_bee_cycle_id_fkey"
+            columns: ["bible_bee_cycle_id"]
+            isOneToOne: false
+            referencedRelation: "bible_bee_cycles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_scriptures_child_id_fkey"
+            columns: ["child_id"]
+            isOneToOne: false
+            referencedRelation: "children"
+            referencedColumns: ["child_id"]
+          },
+          {
+            foreignKeyName: "student_scriptures_scripture_id_fkey"
+            columns: ["scripture_id"]
             isOneToOne: false
             referencedRelation: "scriptures"
             referencedColumns: ["id"]
@@ -1498,73 +1433,102 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      citext: {
-        Args: { "": boolean } | { "": string } | { "": unknown }
-        Returns: string
-      }
+      citext:
+        | {
+            Args: {
+              "": boolean
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              "": string
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              "": unknown
+            }
+            Returns: string
+          }
       citext_hash: {
-        Args: { "": string }
+        Args: {
+          "": string
+        }
         Returns: number
       }
       citextin: {
-        Args: { "": unknown }
+        Args: {
+          "": unknown
+        }
         Returns: string
       }
       citextout: {
-        Args: { "": string }
+        Args: {
+          "": string
+        }
         Returns: unknown
       }
       citextrecv: {
-        Args: { "": unknown }
+        Args: {
+          "": unknown
+        }
         Returns: string
       }
       citextsend: {
-        Args: { "": string }
+        Args: {
+          "": string
+        }
         Returns: string
       }
       fn_ministry_ids_email_can_access: {
-        Args: { p_email: string }
+        Args: {
+          p_email: string
+        }
         Returns: {
           ministry_id: string
         }[]
       }
       fn_ministry_ids_ministry_account_can_access: {
-        Args: { p_account_id: string }
+        Args: {
+          p_account_id: string
+        }
         Returns: {
           ministry_id: string
         }[]
       }
       safe_add_column: {
         Args: {
-          p_column_def: string
-          p_column_name: string
           p_table_name: string
+          p_column_name: string
+          p_column_def: string
         }
         Returns: undefined
       }
       safe_add_foreign_key: {
         Args: {
+          p_table_name: string
           p_column_name: string
+          p_ref_table: string
+          p_ref_column: string
           p_constraint_name: string
           p_on_delete?: string
-          p_ref_column: string
-          p_ref_table: string
-          p_table_name: string
         }
         Returns: undefined
       }
       safe_alter_column: {
         Args: {
-          p_alter_command: string
-          p_column_name: string
           p_table_name: string
+          p_column_name: string
+          p_alter_command: string
         }
         Returns: undefined
       }
       safe_alter_column_type: {
         Args: {
-          p_column_name: string
           p_table_name: string
+          p_column_name: string
           p_type: string
           p_using_expr?: string
         }
@@ -1580,33 +1544,27 @@ export type Database = {
   }
 }
 
-type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
-
-type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
+type PublicSchema = Database[Extract<keyof Database, "public">]
 
 export type Tables<
-  DefaultSchemaTableNameOrOptions extends
-    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
-    | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
-  }
-    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+  PublicTableNameOrOptions extends
+    | keyof (PublicSchema["Tables"] & PublicSchema["Views"])
+    | { schema: keyof Database },
+  TableName extends PublicTableNameOrOptions extends { schema: keyof Database }
+    ? keyof (Database[PublicTableNameOrOptions["schema"]]["Tables"] &
+        Database[PublicTableNameOrOptions["schema"]]["Views"])
     : never = never,
-> = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
-  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+> = PublicTableNameOrOptions extends { schema: keyof Database }
+  ? (Database[PublicTableNameOrOptions["schema"]]["Tables"] &
+      Database[PublicTableNameOrOptions["schema"]]["Views"])[TableName] extends {
       Row: infer R
     }
     ? R
     : never
-  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
-        DefaultSchema["Views"])
-    ? (DefaultSchema["Tables"] &
-        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+  : PublicTableNameOrOptions extends keyof (PublicSchema["Tables"] &
+        PublicSchema["Views"])
+    ? (PublicSchema["Tables"] &
+        PublicSchema["Views"])[PublicTableNameOrOptions] extends {
         Row: infer R
       }
       ? R
@@ -1614,24 +1572,20 @@ export type Tables<
     : never
 
 export type TablesInsert<
-  DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema["Tables"]
-    | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
-  }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+  PublicTableNameOrOptions extends
+    | keyof PublicSchema["Tables"]
+    | { schema: keyof Database },
+  TableName extends PublicTableNameOrOptions extends { schema: keyof Database }
+    ? keyof Database[PublicTableNameOrOptions["schema"]]["Tables"]
     : never = never,
-> = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
-  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+> = PublicTableNameOrOptions extends { schema: keyof Database }
+  ? Database[PublicTableNameOrOptions["schema"]]["Tables"][TableName] extends {
       Insert: infer I
     }
     ? I
     : never
-  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
-    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+  : PublicTableNameOrOptions extends keyof PublicSchema["Tables"]
+    ? PublicSchema["Tables"][PublicTableNameOrOptions] extends {
         Insert: infer I
       }
       ? I
@@ -1639,24 +1593,20 @@ export type TablesInsert<
     : never
 
 export type TablesUpdate<
-  DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema["Tables"]
-    | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
-  }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+  PublicTableNameOrOptions extends
+    | keyof PublicSchema["Tables"]
+    | { schema: keyof Database },
+  TableName extends PublicTableNameOrOptions extends { schema: keyof Database }
+    ? keyof Database[PublicTableNameOrOptions["schema"]]["Tables"]
     : never = never,
-> = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
-  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+> = PublicTableNameOrOptions extends { schema: keyof Database }
+  ? Database[PublicTableNameOrOptions["schema"]]["Tables"][TableName] extends {
       Update: infer U
     }
     ? U
     : never
-  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
-    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+  : PublicTableNameOrOptions extends keyof PublicSchema["Tables"]
+    ? PublicSchema["Tables"][PublicTableNameOrOptions] extends {
         Update: infer U
       }
       ? U
@@ -1664,41 +1614,30 @@ export type TablesUpdate<
     : never
 
 export type Enums<
-  DefaultSchemaEnumNameOrOptions extends
-    | keyof DefaultSchema["Enums"]
-    | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
-  }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+  PublicEnumNameOrOptions extends
+    | keyof PublicSchema["Enums"]
+    | { schema: keyof Database },
+  EnumName extends PublicEnumNameOrOptions extends { schema: keyof Database }
+    ? keyof Database[PublicEnumNameOrOptions["schema"]]["Enums"]
     : never = never,
-> = DefaultSchemaEnumNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
-  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
-  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
-    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+> = PublicEnumNameOrOptions extends { schema: keyof Database }
+  ? Database[PublicEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : PublicEnumNameOrOptions extends keyof PublicSchema["Enums"]
+    ? PublicSchema["Enums"][PublicEnumNameOrOptions]
     : never
 
 export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
-    | keyof DefaultSchema["CompositeTypes"]
-    | { schema: keyof DatabaseWithoutInternals },
+    | keyof PublicSchema["CompositeTypes"]
+    | { schema: keyof Database },
   CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
+    schema: keyof Database
   }
-    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    ? keyof Database[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
     : never = never,
-> = PublicCompositeTypeNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
-  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
-  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
-    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+> = PublicCompositeTypeNameOrOptions extends { schema: keyof Database }
+  ? Database[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof PublicSchema["CompositeTypes"]
+    ? PublicSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
     : never
 
-export const Constants = {
-  public: {
-    Enums: {},
-  },
-} as const

@@ -1591,10 +1591,51 @@ export async function getLeaderBibleBeeProgress(leaderId: string, cycleId: strin
 export async function getBibleBeeProgressForCycle(cycleId: string) {
     // Use DAL pattern instead of direct Dexie calls
     if (shouldUseAdapter()) {
-        // For Supabase mode, return empty array since we don't have Bible Bee cycles yet
-        // This prevents showing demo data when the database is empty
-        console.log('getBibleBeeProgressForCycle: Supabase mode - returning empty array (no Bible Bee cycles yet)');
-        return [];
+        // For Supabase mode, use the adapter to get enrolled children
+        console.log('getBibleBeeProgressForCycle: Supabase mode - querying enrolled children for cycleId:', cycleId);
+        
+        try {
+            // Get enrolled children for this Bible Bee cycle
+            const enrollments = await dbAdapter.listEnrollments();
+            console.log('All enrollments:', enrollments);
+            
+            const cycleEnrollments = enrollments.filter(e => e.bible_bee_cycle_id === cycleId);
+            console.log('Enrollments for cycle', cycleId, ':', cycleEnrollments);
+            
+            if (cycleEnrollments.length === 0) {
+                console.log('No enrollments found for cycle:', cycleId);
+                return [];
+            }
+            
+            const childIds = [...new Set(cycleEnrollments.map(e => e.child_id))];
+            console.log('Child IDs from enrollments:', childIds);
+            
+            const children = await dbAdapter.listChildren();
+            console.log('All children:', children);
+            
+            const enrolledChildren = children.filter(c => childIds.includes(c.child_id));
+            console.log('Enrolled children:', enrolledChildren);
+            
+            console.log(`Found ${enrolledChildren.length} enrolled children for cycle ${cycleId}`);
+            
+            // Return basic progress data for enrolled children
+            return enrolledChildren.map(child => ({
+                childId: child.child_id,
+                childName: `${child.first_name} ${child.last_name}`,
+                child: child,
+                totalScriptures: 0,
+                completedScriptures: 0,
+                requiredScriptures: 0,
+                bibleBeeStatus: 'Not Started' as const,
+                gradeGroup: child.grade ? `Grade ${child.grade}` : 'Unknown Grade',
+                essayStatus: 'Not Started',
+                ministries: [],
+                primaryGuardian: null,
+            }));
+        } catch (error) {
+            console.error('Error getting Bible Bee progress for cycle:', error);
+            return [];
+        }
     }
 
     // Legacy IndexedDB mode - keep existing logic for demo mode
@@ -3129,8 +3170,13 @@ export async function previewAutoEnrollment(yearId: string): Promise<any> {
  * Commit auto enrollment
  */
 export async function commitAutoEnrollment(yearId: string, previews: any[]): Promise<any> {
+	console.log(`DEBUG: DAL commitAutoEnrollment called with yearId: ${yearId}, previews: ${previews.length}`);
+	console.log(`DEBUG: Using adapter: ${shouldUseAdapter() ? 'Supabase' : 'IndexedDB'}`);
+	
 	// Use adapter for both modes
-	return dbAdapter.commitAutoEnrollment(yearId, previews);
+	const result = await dbAdapter.commitAutoEnrollment(yearId, previews);
+	console.log(`DEBUG: DAL commitAutoEnrollment result:`, result);
+	return result;
 }
 
 /**
