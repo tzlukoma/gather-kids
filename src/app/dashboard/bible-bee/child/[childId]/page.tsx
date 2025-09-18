@@ -318,9 +318,20 @@ export default function DashboardChildBibleBeePage() {
 												</CardHeader>
 												<CardContent>
 													<div className="flex items-center gap-4">
-														<div className="text-sm text-muted-foreground">
-															Status: {e.status}
-														</div>
+														<span
+															className={`px-2 py-1 rounded text-xs ${
+																e.status === 'submitted'
+																	? 'bg-green-100 text-green-800'
+																	: e.status === 'assigned'
+																	? 'bg-yellow-100 text-yellow-800'
+																	: 'bg-gray-100 text-gray-800'
+															}`}>
+															{e.status === 'submitted'
+																? 'Submitted'
+																: e.status === 'assigned'
+																? 'Assigned'
+																: 'Not Started'}
+														</span>
 														{e.status !== 'submitted' && (
 															<Button
 																onClick={() =>
