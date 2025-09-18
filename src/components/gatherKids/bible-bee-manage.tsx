@@ -2252,7 +2252,13 @@ function EnrollmentManagement({
 
 			toast({
 				title: 'Auto-Enrollment Complete',
-				description: `Enrolled ${result.enrolled} children, applied ${result.overrides_applied} overrides.`,
+				description: `Enrolled ${result.enrolled} children, updated ${
+					result.updated || 0
+				} existing enrollments, applied ${
+					result.overrides_applied
+				} overrides, updated ${
+					result.overrides_updated || 0
+				} existing overrides.`,
 			});
 			if (result.errors && result.errors.length > 0) {
 				setError('Some enrollments failed: ' + result.errors.join(', '));

@@ -2662,7 +2662,13 @@ export class SupabaseAdapter implements DatabaseAdapter {
 	async createEnrollment(
 		data: Omit<Enrollment, 'created_at' | 'updated_at'>
 	): Promise<Enrollment> {
-		if (!data.child_id || !data.bible_bee_cycle_id || !data.division_id) throw new Error('child_id, bible_bee_cycle_id and division_id are required for enrollment');
+		console.log(`DEBUG: createEnrollment called with data:`, data);
+		
+		if (!data.child_id || !data.bible_bee_cycle_id || !data.division_id) {
+			const error = new Error('child_id, bible_bee_cycle_id and division_id are required for enrollment');
+			console.error(`DEBUG: createEnrollment validation error:`, error.message);
+			throw error;
+		}
 
 		const insertPayload: Database['public']['Tables']['bible_bee_enrollments']['Insert'] = {
 			child_id: data.child_id!,
@@ -2673,14 +2679,27 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			id: ((data as unknown) as Record<string, unknown>)['id'] as string ?? undefined,
 		};
 
+		console.log(`DEBUG: createEnrollment insertPayload:`, insertPayload);
+
 		const { data: result, error } = await this.client
 			.from('bible_bee_enrollments')
 			.insert(insertPayload)
 			.select()
 			.single();
 
-	if (error) throw error;
-	return supabaseToEnrollment(result as Database['public']['Tables']['bible_bee_enrollments']['Row']);
+		if (error) {
+			console.error(`DEBUG: createEnrollment Supabase error:`, {
+				message: error.message,
+				code: error.code,
+				details: error.details,
+				hint: error.hint,
+				error: error
+			});
+			throw error;
+		}
+		
+		console.log(`DEBUG: createEnrollment success, result:`, result);
+		return supabaseToEnrollment(result as Database['public']['Tables']['bible_bee_enrollments']['Row']);
 	}
 
 	async updateEnrollment(id: string, data: Partial<Enrollment>): Promise<Enrollment> {
@@ -3111,19 +3130,30 @@ export class SupabaseAdapter implements DatabaseAdapter {
 	async commitAutoEnrollment(yearId: string, previews: any[]): Promise<any> {
 		const errors: string[] = [];
 		let enrolled = 0;
+		let updated = 0;
 		let overrides_applied = 0;
+		let overrides_updated = 0;
 		
 		const now = new Date().toISOString();
 		
 		console.log(`DEBUG: commitAutoEnrollment called with ${previews.length} previews`);
 		
+		// Get existing enrollments for this cycle to check for duplicates
+		const existingEnrollments = await this.listEnrollments();
+		const cycleEnrollments = existingEnrollments.filter(e => e.bible_bee_cycle_id === yearId);
+		const enrollmentMap = new Map(cycleEnrollments.map(e => [e.child_id, e]));
+		
+		console.log(`DEBUG: Found ${cycleEnrollments.length} existing enrollments for cycle ${yearId}`);
+		
 		for (const p of previews) {
 			console.log(`DEBUG: Processing preview for ${p.child_name}, status: ${p.status}`);
 			try {
+				// Check if child already has an enrollment
+				const existingEnrollment = enrollmentMap.get(p.child_id);
+				
 				// Apply overrides first
 				if (p.status === 'override' && p.override_division) {
 					const enrollmentData = {
-						id: uuidv4(),
 						bible_bee_cycle_id: yearId,
 						child_id: p.child_id,
 						division_id: p.override_division.id,
@@ -3131,15 +3161,26 @@ export class SupabaseAdapter implements DatabaseAdapter {
 						enrolled_at: now,
 					};
 					
-					console.log(`DEBUG: Creating override enrollment:`, enrollmentData);
-					await this.createEnrollment(enrollmentData);
-					overrides_applied++;
-					console.log(`DEBUG: Override enrollment created successfully`);
+					if (existingEnrollment) {
+						// Update existing enrollment
+						console.log(`DEBUG: Updating existing override enrollment for ${p.child_name}:`, enrollmentData);
+						await this.updateEnrollment(existingEnrollment.id, enrollmentData);
+						overrides_updated++;
+						console.log(`DEBUG: Override enrollment updated successfully`);
+					} else {
+						// Create new enrollment
+						console.log(`DEBUG: Creating new override enrollment:`, enrollmentData);
+						await this.createEnrollment({
+							...enrollmentData,
+							id: uuidv4(),
+						});
+						overrides_applied++;
+						console.log(`DEBUG: Override enrollment created successfully`);
+					}
 				}
 				// Apply proposed auto-enrollments
 				else if (p.status === 'proposed' && p.proposed_division) {
 					const enrollmentData = {
-						id: uuidv4(),
 						bible_bee_cycle_id: yearId,
 						child_id: p.child_id,
 						division_id: p.proposed_division.id,
@@ -3147,23 +3188,41 @@ export class SupabaseAdapter implements DatabaseAdapter {
 						enrolled_at: now,
 					};
 					
-					console.log(`DEBUG: Creating proposed enrollment:`, enrollmentData);
-					await this.createEnrollment(enrollmentData);
-					enrolled++;
-					console.log(`DEBUG: Proposed enrollment created successfully`);
+					if (existingEnrollment) {
+						// Update existing enrollment
+						console.log(`DEBUG: Updating existing proposed enrollment for ${p.child_name}:`, enrollmentData);
+						await this.updateEnrollment(existingEnrollment.id, enrollmentData);
+						updated++;
+						console.log(`DEBUG: Proposed enrollment updated successfully`);
+					} else {
+						// Create new enrollment
+						console.log(`DEBUG: Creating new proposed enrollment:`, enrollmentData);
+						await this.createEnrollment({
+							...enrollmentData,
+							id: uuidv4(),
+						});
+						enrolled++;
+						console.log(`DEBUG: Proposed enrollment created successfully`);
+					}
 				}
 				// Skip unassigned and unknown_grade children
 				else {
 					console.log(`DEBUG: Skipping child ${p.child_name} with status: ${p.status}`);
 				}
 			} catch (error: any) {
-				console.error(`DEBUG: Error enrolling ${p.child_name}:`, error);
-				errors.push(`Error enrolling ${p.child_name}: ${error.message || error}`);
+				console.error(`DEBUG: Error enrolling ${p.child_name}:`, {
+					message: error?.message,
+					code: error?.code,
+					details: error?.details,
+					hint: error?.hint,
+					error: error
+				});
+				errors.push(`Error enrolling ${p.child_name}: ${error?.message || JSON.stringify(error) || 'Unknown error'}`);
 			}
 		}
 		
-		console.log(`DEBUG: commitAutoEnrollment completed - enrolled: ${enrolled}, overrides: ${overrides_applied}, errors: ${errors.length}`);
-		return { enrolled, overrides_applied, errors };
+		console.log(`DEBUG: commitAutoEnrollment completed - enrolled: ${enrolled}, updated: ${updated}, overrides: ${overrides_applied}, overrides_updated: ${overrides_updated}, errors: ${errors.length}`);
+		return { enrolled, updated, overrides_applied, overrides_updated, errors };
 	}
 
 	// Helper method for grade conversion

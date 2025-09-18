@@ -1624,27 +1624,68 @@ export async function getBibleBeeProgressForCycle(cycleId: string) {
             const divisions = await dbAdapter.listDivisions(cycleId);
             console.log('Divisions for cycle:', divisions);
             
-            // Return basic progress data for enrolled children
-            return enrolledChildren.map(child => {
+            // Get actual progress data for enrolled children
+            const progressData = await Promise.all(enrolledChildren.map(async (child) => {
                 // Find the enrollment for this child to get division info
                 const enrollment = cycleEnrollments.find(e => e.child_id === child.child_id);
                 const division = enrollment ? divisions.find(d => d.id === enrollment.division_id) : null;
                 const divisionName = division ? division.name : 'Unknown Division';
                 
+                // Check if division has essay prompts assigned first
+                let essayStatus = 'none';
+                let hasEssays = false;
+                if (division) {
+                    const essayPrompts = await dbAdapter.listEssayPrompts(division.id, cycleId);
+                    hasEssays = essayPrompts.length > 0;
+                    if (hasEssays) {
+                        // For now, just mark as assigned if division has essay prompts
+                        // TODO: Check actual student essay submissions when student_essays table is updated
+                        essayStatus = 'assigned';
+                    }
+                }
+                
+                // Only get scripture progress if division doesn't have essays
+                let totalScriptures = 0;
+                let completedScriptures = 0;
+                let requiredScriptures = 0;
+                
+                if (!hasEssays) {
+                    const studentScriptures = await dbAdapter.listStudentScriptures(child.child_id, cycleId);
+                    totalScriptures = studentScriptures.length;
+                    completedScriptures = studentScriptures
+                        .filter(s => s.is_completed)
+                        .reduce((sum, s) => sum + (s.counts_for || 1), 0);
+                    
+                    // Get required scriptures from division
+                    requiredScriptures = division ? division.minimum_required || totalScriptures : totalScriptures;
+                }
+                
+                // Determine Bible Bee status
+                let bibleBeeStatus = 'Not Started';
+                if (hasEssays) {
+                    bibleBeeStatus = essayStatus === 'submitted' ? 'Complete' : 'In Progress';
+                } else if (totalScriptures > 0) {
+                    const progressPercent = (completedScriptures / requiredScriptures) * 100;
+                    bibleBeeStatus = progressPercent >= 100 ? 'Complete' : 
+                                   completedScriptures > 0 ? 'In Progress' : 'Not Started';
+                }
+                
                 return {
                     childId: child.child_id,
                     childName: `${child.first_name} ${child.last_name}`,
                     child: child,
-                    totalScriptures: 0,
-                    completedScriptures: 0,
-                    requiredScriptures: 0,
-                    bibleBeeStatus: 'Not Started' as const,
-                    gradeGroup: divisionName, // Use actual division name
-                    essayStatus: 'Not Started',
+                    totalScriptures: hasEssays ? 0 : totalScriptures,
+                    completedScriptures: hasEssays ? 0 : completedScriptures,
+                    requiredScriptures: hasEssays ? 0 : requiredScriptures,
+                    bibleBeeStatus,
+                    gradeGroup: divisionName,
+                    essayStatus: hasEssays ? essayStatus : undefined, // Only show if division has essays
                     ministries: [],
                     primaryGuardian: null,
                 };
-            });
+            }));
+            
+            return progressData;
         } catch (error) {
             console.error('Error getting Bible Bee progress for cycle:', error);
             return [];
