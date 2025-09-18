@@ -345,7 +345,7 @@ export interface DatabaseAdapter {
 		id: string,
 		data: Partial<EnrollmentOverride>
 	): Promise<EnrollmentOverride>;
-	listEnrollmentOverrides(enrollmentId?: string): Promise<EnrollmentOverride[]>;
+	listEnrollmentOverrides(yearId?: string): Promise<EnrollmentOverride[]>;
 	deleteEnrollmentOverride(id: string): Promise<void>;
 
 	// Realtime (can be no-op in IndexedDB implementation)

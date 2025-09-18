@@ -3207,14 +3207,13 @@ export async function getEnrollmentOverridesForYear(yearId: string): Promise<any
 	if (shouldUseAdapter()) {
 		// Use Supabase adapter for live mode
 		const allOverrides = await dbAdapter.listEnrollmentOverrides();
-		// Filter by year_id or bible_bee_cycle_id
+		// Filter by bible_bee_cycle_id
 		return allOverrides.filter(override => 
-			override.year_id === yearId || 
-			(override as any).bible_bee_cycle_id === yearId
+			override.bible_bee_cycle_id === yearId
 		);
 	} else {
 		// Use legacy Dexie interface for demo mode
-		return db.enrollment_overrides.where('year_id').equals(yearId).toArray();
+		return db.enrollment_overrides.where('bible_bee_cycle_id').equals(yearId).toArray();
 	}
 }
 

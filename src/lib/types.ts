@@ -384,7 +384,7 @@ export interface Enrollment {
 // New Enrollment Override interface
 export interface EnrollmentOverride {
     id: string;
-    year_id: string; // FK to bible_bee_years
+    bible_bee_cycle_id: string; // FK to bible_bee_cycles
     child_id: string; // FK to children
     division_id: string; // FK to divisions
     reason?: string;

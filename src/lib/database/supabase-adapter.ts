@@ -2762,16 +2762,16 @@ export class SupabaseAdapter implements DatabaseAdapter {
 	return supabaseToEnrollmentOverride(result as Database['public']['Tables']['enrollment_overrides']['Row']);
 	}
 
-	async listEnrollmentOverrides(enrollmentId?: string): Promise<EnrollmentOverride[]> {
-	let query = (this.client as unknown as SupabaseClient<Database>).from('enrollment_overrides').select('*');
+	async listEnrollmentOverrides(yearId?: string): Promise<EnrollmentOverride[]> {
+		let query = (this.client as unknown as SupabaseClient<Database>).from('enrollment_overrides').select('*');
 
-		if (enrollmentId) {
-			query = query.eq('enrollment_id', enrollmentId);
+		if (yearId) {
+			query = query.eq('bible_bee_cycle_id', yearId);
 		}
 
-	const { data, error } = await query;
-	if (error) throw error;
-	return (data || []).map((d: Database['public']['Tables']['enrollment_overrides']['Row']) => supabaseToEnrollmentOverride(d));
+		const { data, error } = await query;
+		if (error) throw error;
+		return (data || []).map((d: Database['public']['Tables']['enrollment_overrides']['Row']) => supabaseToEnrollmentOverride(d));
 	}
 
 	async deleteEnrollmentOverride(id: string): Promise<void> {

@@ -1231,9 +1231,9 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 		return result;
 	}
 
-	async listEnrollmentOverrides(enrollmentId?: string): Promise<EnrollmentOverride[]> {
-		if (enrollmentId) {
-			return this.db.enrollment_overrides.where('enrollment_id').equals(enrollmentId).toArray();
+	async listEnrollmentOverrides(yearId?: string): Promise<EnrollmentOverride[]> {
+		if (yearId) {
+			return this.db.enrollment_overrides.where('bible_bee_cycle_id').equals(yearId).toArray();
 		}
 		return this.db.enrollment_overrides.toArray();
 	}
