@@ -34,7 +34,7 @@ export function BibleBeeProgressCard({
 	ministries = [],
 	primaryGuardian,
 	showGuardianInfo = true,
-	linkPath
+	linkPath,
 }: BibleBeeProgressCardProps) {
 	const { userRole } = useAuth();
 
@@ -42,7 +42,8 @@ export function BibleBeeProgressCard({
 	const progressPct = denom === 0 ? 0 : (completedScriptures / denom) * 100;
 
 	// Determine the appropriate link path
-	const href = linkPath || 
+	const href =
+		linkPath ||
 		(userRole === AuthRole.GUARDIAN
 			? `/household/children/${childId}/bible-bee`
 			: `/dashboard/bible-bee/child/${childId}`);
@@ -57,27 +58,20 @@ export function BibleBeeProgressCard({
 				</div>
 
 				<div className="text-sm text-muted-foreground mt-1">
-					{((totalScriptures || 0) > 0 || (requiredScriptures || 0) > 0) ? (
-						<>
-							Scriptures: {completedScriptures}/
-							{totalScriptures || requiredScriptures}
-						</>
-					) : (
-						<>Essay: {essayStatus || 'none'}</>
-					)}
+					{(totalScriptures || 0) > 0 || (requiredScriptures || 0) > 0
+						? 'Scriptures'
+						: 'Essay'}
 				</div>
 
 				<div className="text-xs text-muted-foreground mt-1">
 					Division: {gradeGroup || 'N/A'} • Ministries:{' '}
-					{ministries
-						.map((m: any) => m.ministryName)
-						.join(', ')}
+					{ministries.map((m: any) => m.ministryName).join(', ')}
 				</div>
 
 				{showGuardianInfo && primaryGuardian && (
 					<div className="text-sm text-muted-foreground mt-1">
-						Guardian: {primaryGuardian.first_name} {primaryGuardian.last_name}{' '}
-						• {primaryGuardian.mobile_phone || 'no phone'}
+						Guardian: {primaryGuardian.first_name} {primaryGuardian.last_name} •{' '}
+						{primaryGuardian.mobile_phone || 'no phone'}
 					</div>
 				)}
 
@@ -89,7 +83,34 @@ export function BibleBeeProgressCard({
 			</div>
 
 			<div className="text-sm text-muted-foreground">
-				{Math.round(progressPct)}%
+				{(totalScriptures || 0) > 0 || (requiredScriptures || 0) > 0 ? (
+					<span
+						className={`px-2 py-1 rounded text-xs ${
+							progressPct === 0
+								? 'bg-gray-100 text-gray-800'
+								: progressPct === 100
+								? 'bg-green-100 text-green-800'
+								: 'bg-yellow-100 text-yellow-800'
+						}`}>
+						{completedScriptures}/{totalScriptures || requiredScriptures} |{' '}
+						{Math.round(progressPct)}%
+					</span>
+				) : (
+					<span
+						className={`px-2 py-1 rounded text-xs ${
+							essayStatus === 'submitted'
+								? 'bg-green-100 text-green-800'
+								: essayStatus === 'assigned'
+								? 'bg-yellow-100 text-yellow-800'
+								: 'bg-gray-100 text-gray-800'
+						}`}>
+						{essayStatus === 'submitted'
+							? 'Submitted'
+							: essayStatus === 'assigned'
+							? 'Assigned'
+							: 'Not Started'}
+					</span>
+				)}
 			</div>
 		</div>
 	);
