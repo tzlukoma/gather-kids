@@ -1,7 +1,7 @@
 /**
  * This file contains types generated from the Supabase schema.
  * DO NOT EDIT MANUALLY. This file is auto-generated.
- * Generated on: 2025-09-18T03:55:43.086Z
+ * Generated on: 2025-09-18T05:52:33.295Z
  */
 
 export type SupabaseJson =
@@ -1280,36 +1280,58 @@ export type Database = {
       }
       student_essays: {
         Row: {
-          child_id: string | null
-          competition_year_id: string | null
+          bible_bee_cycle_id: string
+          child_id: string
           created_at: string | null
+          essay_prompt_id: string
           id: string
-          instructions: string | null
-          prompt_text: string | null
-          status: string | null
+          status: string
+          submitted_at: string | null
           updated_at: string | null
         }
         Insert: {
-          child_id?: string | null
-          competition_year_id?: string | null
+          bible_bee_cycle_id: string
+          child_id: string
           created_at?: string | null
-          id: string
-          instructions?: string | null
-          prompt_text?: string | null
-          status?: string | null
+          essay_prompt_id: string
+          id?: string
+          status?: string
+          submitted_at?: string | null
           updated_at?: string | null
         }
         Update: {
-          child_id?: string | null
-          competition_year_id?: string | null
+          bible_bee_cycle_id?: string
+          child_id?: string
           created_at?: string | null
+          essay_prompt_id?: string
           id?: string
-          instructions?: string | null
-          prompt_text?: string | null
-          status?: string | null
+          status?: string
+          submitted_at?: string | null
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "student_essays_bible_bee_cycle_id_fkey"
+            columns: ["bible_bee_cycle_id"]
+            isOneToOne: false
+            referencedRelation: "bible_bee_cycles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_essays_child_id_fkey"
+            columns: ["child_id"]
+            isOneToOne: false
+            referencedRelation: "children"
+            referencedColumns: ["child_id"]
+          },
+          {
+            foreignKeyName: "student_essays_essay_prompt_id_fkey"
+            columns: ["essay_prompt_id"]
+            isOneToOne: false
+            referencedRelation: "essay_prompts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       student_scriptures: {
         Row: {
@@ -1500,37 +1522,37 @@ export type Database = {
       }
       safe_add_column: {
         Args: {
-          p_table_name: string
-          p_column_name: string
           p_column_def: string
+          p_column_name: string
+          p_table_name: string
         }
         Returns: undefined
       }
       safe_add_foreign_key: {
         Args: {
-          p_table_name: string
           p_column_name: string
-          p_ref_table: string
-          p_ref_column: string
-          p_constraint_name: string
+          p_table_name: string
           p_on_delete?: string
+          p_constraint_name: string
+          p_ref_column: string
+          p_ref_table: string
         }
         Returns: undefined
       }
       safe_alter_column: {
         Args: {
+          p_alter_command: string
           p_table_name: string
           p_column_name: string
-          p_alter_command: string
         }
         Returns: undefined
       }
       safe_alter_column_type: {
         Args: {
+          p_using_expr?: string
           p_table_name: string
           p_column_name: string
           p_type: string
-          p_using_expr?: string
         }
         Returns: undefined
       }

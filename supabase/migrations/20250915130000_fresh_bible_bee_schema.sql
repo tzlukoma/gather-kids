@@ -104,6 +104,19 @@ CREATE TABLE public.student_scriptures (
     UNIQUE(bible_bee_cycle_id, child_id, scripture_id)
 );
 
+-- Create student_essays table (canonical)
+CREATE TABLE public.student_essays (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    child_id TEXT NOT NULL REFERENCES public.children(child_id) ON DELETE CASCADE,
+    bible_bee_cycle_id UUID NOT NULL REFERENCES public.bible_bee_cycles(id) ON DELETE CASCADE,
+    essay_prompt_id UUID NOT NULL REFERENCES public.essay_prompts(id) ON DELETE CASCADE,
+    status TEXT NOT NULL DEFAULT 'assigned' CHECK (status IN ('assigned', 'submitted')),
+    submitted_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+    UNIQUE(child_id, essay_prompt_id)
+);
+
 -- ============================================================================
 -- 3. UPDATE EXISTING SCRIPTURES TABLE
 -- ============================================================================
@@ -161,6 +174,12 @@ CREATE INDEX idx_student_scriptures_child_id ON public.student_scriptures(child_
 CREATE INDEX idx_student_scriptures_scripture_id ON public.student_scriptures(scripture_id);
 CREATE INDEX idx_student_scriptures_completed ON public.student_scriptures(is_completed);
 
+-- Indexes for student_essays
+CREATE INDEX idx_student_essays_child_id ON public.student_essays(child_id);
+CREATE INDEX idx_student_essays_bible_bee_cycle_id ON public.student_essays(bible_bee_cycle_id);
+CREATE INDEX idx_student_essays_essay_prompt_id ON public.student_essays(essay_prompt_id);
+CREATE INDEX idx_student_essays_status ON public.student_essays(status);
+
 -- Indexes for scriptures
 CREATE INDEX idx_scriptures_bible_bee_cycle_id ON public.scriptures(bible_bee_cycle_id);
 CREATE INDEX idx_scriptures_scripture_order ON public.scriptures(scripture_order);
@@ -175,6 +194,7 @@ COMMENT ON TABLE public.bible_bee_enrollments IS 'Child enrollments in Bible Bee
 COMMENT ON TABLE public.enrollment_overrides IS 'Manual division placement overrides for children';
 COMMENT ON TABLE public.essay_prompts IS 'Essay requirements for divisions';
 COMMENT ON TABLE public.student_scriptures IS 'Individual child progress on specific scriptures';
+COMMENT ON TABLE public.student_essays IS 'Individual child essay submissions and progress';
 
 COMMENT ON COLUMN public.divisions.minimum_required IS 'Minimum number of scriptures required for this division';
 COMMENT ON COLUMN public.divisions.min_last_order IS 'Calculated minimum boundary for progress tracking';
