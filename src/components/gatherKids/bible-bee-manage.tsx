@@ -256,45 +256,6 @@ export default function BibleBeeManage({
 
 	const selectedCycle = allCycles?.find((c) => c.id === selectedYearId);
 
-	// Auto-run repro when ?repro is present (dev only)
-	React.useEffect(() => {
-		if (process.env.NODE_ENV === 'production') return;
-		try {
-			const params = new URLSearchParams(window.location.search);
-			if (params.has('repro')) {
-				(async () => {
-					try {
-						console.log('Auto-repro: creating active Bible Bee year...');
-						// Get the active cycle to link to this Bible Bee year
-						const allCycles = await getRegistrationCycles();
-						const activeCycle = allCycles.find((c) => {
-							const val = c.is_active;
-							return val === true || Number(val) === 1 || String(val) === '1';
-						});
-
-						const created = await createBibleBeeCycle({
-							name: 'Auto Repro Cycle',
-							is_active: true,
-							cycle_id: activeCycle?.cycle_id || '', // Use active cycle if available
-						});
-						setSelectedYearId(created.id);
-						setActiveTab('enrollment');
-						console.log(
-							'Auto-repro: calling previewAutoEnrollment for year',
-							created.id
-						);
-						const preview = await previewAutoEnrollment(created.id);
-						console.log('Auto-repro: preview result', preview);
-					} catch (err) {
-						console.error('Auto-repro error:', err);
-					}
-				})();
-			}
-		} catch (err) {
-			// Ignore in non-browser contexts
-		}
-	}, []);
-
 	return (
 		<TooltipProvider>
 			<div className={className}>
@@ -305,49 +266,6 @@ export default function BibleBeeManage({
 							Configure competition years, divisions, and enrollment
 						</p>
 					</div>
-
-					{/* Dev-only repro helper: creates an active year, opens Enrollment tab, and
-					    calls previewAutoEnrollment to capture errors in the browser console. */}
-					{process.env.NODE_ENV !== 'production' && (
-						<div className="flex items-center gap-2">
-							<Button
-								variant="outline"
-								size="sm"
-								onClick={async () => {
-									try {
-										console.log(
-											'Repro helper: creating active Bible Bee year...'
-										);
-										// Get the active cycle to link to this Bible Bee year
-										const allCycles = await getRegistrationCycles();
-										const activeCycle = allCycles.find((c) => {
-											const val = c.is_active;
-											return (
-												val === true || Number(val) === 1 || String(val) === '1'
-											);
-										});
-
-										const created = await createBibleBeeCycle({
-											name: 'Repro Test Cycle',
-											is_active: true,
-											cycle_id: activeCycle?.cycle_id || '', // Use active cycle if available
-										});
-										setSelectedYearId(created.id);
-										setActiveTab('enrollment');
-										console.log(
-											'Repro helper: calling previewAutoEnrollment for year',
-											created.id
-										);
-										const preview = await previewAutoEnrollment(created.id);
-										console.log('Repro helper: preview result', preview);
-									} catch (err) {
-										console.error('Repro helper error:', err);
-									}
-								}}>
-								Run Repro
-							</Button>
-						</div>
-					)}
 
 					{/* Year Selector */}
 					<div className="flex items-center gap-4">
