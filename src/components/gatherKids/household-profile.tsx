@@ -34,6 +34,7 @@ import { PhotoCaptureDialog } from './photo-capture-dialog';
 import { PhotoViewerDialog } from './photo-viewer-dialog';
 import type { Child } from '@/lib/types';
 import { formatPhone } from '@/hooks/usePhoneFormat';
+import { normalizeGradeDisplay } from '@/lib/gradeUtils';
 
 const InfoItem = ({
 	icon,
@@ -176,7 +177,7 @@ const ChildCard = ({
 						{!child.is_active && <Badge variant="outline">Inactive</Badge>}
 					</CardTitle>
 					<CardDescription>
-						{child.grade} (Age {child.age})
+						{normalizeGradeDisplay(child.grade)} (Age {child.age})
 					</CardDescription>
 				</div>
 			</CardHeader>

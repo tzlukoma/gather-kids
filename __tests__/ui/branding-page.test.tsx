@@ -293,6 +293,7 @@ describe('BrandingPage', () => {
                     logo_url: undefined,
                     youtube_url: undefined,
                     instagram_url: undefined,
+                    use_logo_only: false,
                 });
             });
 
@@ -360,7 +361,7 @@ describe('BrandingPage', () => {
             await user.click(resetButton);
 
             expect(screen.getByDisplayValue('gatherKids')).toBeInTheDocument();
-            expect(screen.getByDisplayValue(defaultBrandingSettings.description)).toBeInTheDocument();
+            expect(screen.getByDisplayValue(/The simple, secure, and smart way to manage your children.*ministry/)).toBeInTheDocument();
             
             // Check YouTube and Instagram URLs are empty using more specific queries
             const youtubeInput = screen.getByLabelText('YouTube URL');

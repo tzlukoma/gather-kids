@@ -118,11 +118,11 @@ describe('Database Adapter Interface Compliance', () => {
 		'deleteBrandingSettings',
 		
 		// Bible Bee methods
-		'getBibleBeeYear',
-		'createBibleBeeYear',
-		'updateBibleBeeYear',
-		'listBibleBeeYears',
-		'deleteBibleBeeYear',
+		'getBibleBeeCycle',
+		'createBibleBeeCycle',
+		'updateBibleBeeCycle',
+		'listBibleBeeCycles',
+		'deleteBibleBeeCycle',
 		
 		'getDivision',
 		'createDivision',
@@ -147,6 +147,20 @@ describe('Database Adapter Interface Compliance', () => {
 		'updateEnrollmentOverride',
 		'listEnrollmentOverrides',
 		'deleteEnrollmentOverride',
+		
+		// Student Scripture methods
+		'getStudentScripture',
+		'createStudentScripture',
+		'updateStudentScripture',
+		'listStudentScriptures',
+		'deleteStudentScripture',
+		
+		// Student Essay methods
+		'getStudentEssay',
+		'createStudentEssay',
+		'updateStudentEssay',
+		'listStudentEssays',
+		'deleteStudentEssay',
 		
 		// Special methods
 		'subscribeToTable',

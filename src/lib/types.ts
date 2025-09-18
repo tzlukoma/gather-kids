@@ -327,8 +327,7 @@ export interface Division {
 
 export interface Scripture {
     id: string;
-    competitionYearId: string; // Legacy field
-    bible_bee_cycle_id?: string; // New FK for bible_bee_cycles system
+    bible_bee_cycle_id: string; // FK to bible_bee_cycles (canonical)
     reference: string;
     text: string;
     translation?: string;
@@ -341,8 +340,8 @@ export interface Scripture {
     scripture_order?: number; // controls display & min cut-offs
     counts_for?: number; // how many this entry counts for
     category?: string; // e.g., "Primary Minimum", "Competition"
-    createdAt: string;
-    updatedAt: string;
+    created_at: string;
+    updated_at: string;
 }
 
 export interface GradeRule {
@@ -361,9 +360,11 @@ export interface GradeRule {
 // New Essay Prompt interface
 export interface EssayPrompt {
     id: string;
-    year_id: string; // FK to bible_bee_years
-    division_name?: string; // optional, can be per division or general
-    prompt_text: string;
+    bible_bee_cycle_id: string; // FK to bible_bee_cycles
+    division_id?: string; // FK to divisions (optional for cycle-wide prompts)
+    title: string; // Essay title
+    prompt: string; // Essay prompt text
+    instructions?: string; // Additional instructions
     due_date: string; // ISO date
     created_at: string;
     updated_at: string;
@@ -372,7 +373,7 @@ export interface EssayPrompt {
 // New Enrollment interface (join table)
 export interface Enrollment {
     id: string;
-    year_id: string; // FK to bible_bee_years
+    bible_bee_cycle_id: string; // FK to bible_bee_cycles
     child_id: string; // FK to children
     division_id: string; // FK to divisions
     auto_enrolled: boolean;
@@ -382,7 +383,7 @@ export interface Enrollment {
 // New Enrollment Override interface
 export interface EnrollmentOverride {
     id: string;
-    year_id: string; // FK to bible_bee_years
+    bible_bee_cycle_id: string; // FK to bible_bee_cycles
     child_id: string; // FK to children
     division_id: string; // FK to divisions
     reason?: string;
@@ -392,25 +393,24 @@ export interface EnrollmentOverride {
 
 export interface StudentScripture {
     id: string;
-    childId: string;
-    competitionYearId: string;
-    scriptureId: string;
-    status: 'assigned' | 'completed';
-    completedAt?: string;
-    createdAt: string;
-    updatedAt: string;
+    child_id: string; // FK to children
+    bible_bee_cycle_id: string; // FK to bible_bee_cycles
+    scripture_id: string; // FK to scriptures
+    is_completed: boolean;
+    completed_at?: string;
+    created_at: string;
+    updated_at: string;
 }
 
 export interface StudentEssay {
     id: string;
-    childId: string;
-    competitionYearId: string;
+    child_id: string; // FK to children
+    bible_bee_cycle_id: string; // FK to bible_bee_cycles (canonical)
+    essay_prompt_id: string; // FK to essay_prompts
     status: 'assigned' | 'submitted';
-    submittedAt?: string;
-    promptText: string;
-    instructions?: string;
-    createdAt: string;
-    updatedAt: string;
+    submitted_at?: string;
+    created_at: string;
+    updated_at: string;
 }
 
 // --- Branding Settings ---

@@ -1,5 +1,6 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { v4 as uuidv4 } from 'uuid';
+import crypto from 'crypto';
 import type { DatabaseAdapter, HouseholdFilters, ChildFilters, RegistrationFilters, AttendanceFilters, IncidentFilters } from './types';
 import type { Database } from './supabase-types';
 import { supabaseToHousehold, householdToSupabase, supabaseToChild, childToSupabase, supabaseToMinistry, supabaseToMinistryEnrollment, ministryEnrollmentToSupabase, supabaseToEnrollment, enrollmentToSupabase, supabaseToEnrollmentOverride, supabaseToRegistration, registrationToSupabase, supabaseToAttendance, supabaseToIncident, supabaseToEvent, supabaseToUser, supabaseToMinistryLeaderMembership, supabaseToMinistryAccount, supabaseToGuardian, supabaseToEmergencyContact, supabaseToBrandingSettings } from './type-mappings';
@@ -1991,84 +1992,9 @@ export class SupabaseAdapter implements DatabaseAdapter {
 		if (error) throw error;
 	}
 
-	// Bible Bee entities (simplified implementations)
-	async getBibleBeeYear(id: string): Promise<BibleBeeYear | null> {
-		const { data, error } = await this.client
-			.from('bible_bee_years')
-			.select('*')
-			.eq('id', id)
-			.single();
-
-		if (error) {
-			if (error.code === 'PGRST116') return null;
-			throw error;
-		}
-		return data ? this.mapBibleBeeYear(data) : null;
-	}
-
-	async createBibleBeeYear(
-		data: Omit<BibleBeeYear, 'created_at' | 'updated_at'>
-	): Promise<BibleBeeYear> {
-		if (data.year === undefined || data.year === null) throw new Error('year is required for bible bee year');
-
-		const insertPayload = {
-			name: data.name ?? '',
-			year: data.year,
-			description: data.description ?? null,
-			is_active: data.is_active ?? null,
-			registration_open_date: data.registration_open_date ?? null,
-			registration_close_date: data.registration_close_date ?? null,
-			competition_start_date: data.competition_start_date ?? null,
-			competition_end_date: data.competition_end_date ?? null,
-			created_at: new Date().toISOString(),
-			updated_at: new Date().toISOString(),
-		};
-
-		const { data: result, error } = await this.client
-			.from('bible_bee_years')
-			.insert(insertPayload)
-			.select()
-			.single();
-
-		if (error) throw error;
-		return this.mapBibleBeeYear(result);
-	}
-
-	async updateBibleBeeYear(
-		id: string,
-		data: Partial<BibleBeeYear>
-	): Promise<BibleBeeYear> {
-		const { data: result, error } = await this.client
-			.from('bible_bee_years')
-			.update({
-				...data,
-				updated_at: new Date().toISOString(),
-			})
-			.eq('id', id)
-			.select()
-			.single();
-
-		if (error) throw error;
-		return this.mapBibleBeeYear(result);
-	}
-
-	async listBibleBeeYears(): Promise<BibleBeeYear[]> {
-		const { data, error } = await this.client
-			.from('bible_bee_years')
-			.select('*');
-
-	if (error) throw error;
-	return (data || []).map((d: unknown) => this.mapBibleBeeYear(d));
-	}
-
-	async deleteBibleBeeYear(id: string): Promise<void> {
-		const { error } = await this.client
-			.from('bible_bee_years')
-			.delete()
-			.eq('id', id);
-
-		if (error) throw error;
-	}
+	// Note: Bible Bee Year methods removed - use Bible Bee Cycle methods instead
+	// The bible_bee_years table was replaced with bible_bee_cycles in the fresh schema
+	// Use getBibleBeeCycle(), createBibleBeeCycle(), updateBibleBeeCycle(), deleteBibleBeeCycle(), listBibleBeeCycles() instead
 
 	// Bible Bee Cycles (new cycle-based system)
 	async getBibleBeeCycle(id: string): Promise<BibleBeeCycle | null> {
@@ -2179,15 +2105,13 @@ export class SupabaseAdapter implements DatabaseAdapter {
 	): Promise<Division> {
 		const insertPayload = {
 			name: data.name,
-			bible_bee_year_id: ((data as unknown) as Record<string, unknown>)['year_id'] as string ?? null,
 			bible_bee_cycle_id: data.bible_bee_cycle_id ?? null,
 			description: (((data as unknown) as Record<string, unknown>)['description'] as string) ?? null,
-			min_age: (((data as unknown) as Record<string, unknown>)['min_age'] as number) ?? null,
-			max_age: (((data as unknown) as Record<string, unknown>)['max_age'] as number) ?? null,
+			minimum_required: data.minimum_required ?? 0,
+			min_last_order: (((data as unknown) as Record<string, unknown>)['min_last_order'] as number) ?? null,
 			min_grade: data.min_grade ?? null,
 			max_grade: data.max_grade ?? null,
-			min_scriptures: data.minimum_required ?? null,
-			requires_essay: (((data as unknown) as Record<string, unknown>)['requires_essay'] as boolean) ?? null,
+			requires_essay: (((data as unknown) as Record<string, unknown>)['requires_essay'] as boolean) ?? false,
 			created_at: new Date().toISOString(),
 			updated_at: new Date().toISOString(),
 		};
@@ -2221,8 +2145,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 		let query = this.client.from('divisions').select('*');
 
 		if (bibleBeeYearId) {
-			// Check both bible_bee_year_id (legacy) and bible_bee_cycle_id (new)
-			query = query.or(`bible_bee_year_id.eq.${bibleBeeYearId},bible_bee_cycle_id.eq.${bibleBeeYearId}`);
+			query = query.eq('bible_bee_cycle_id', bibleBeeYearId);
 		}
 
 		const { data, error } = await query;
@@ -2578,16 +2501,27 @@ export class SupabaseAdapter implements DatabaseAdapter {
 
 	// Helper method to map Supabase scripture data to our Scripture type
 	private mapScripture(data: any): Scripture {
+		// Extract text from texts field - it might be a JSON object with translations
+		let text = '';
+		if (data.texts) {
+			if (typeof data.texts === 'string') {
+				text = data.texts;
+			} else if (typeof data.texts === 'object') {
+				// If it's an object with translations, use NIV as default or first available
+				text = data.texts.NIV || data.texts.KJV || Object.values(data.texts)[0] || '';
+			}
+		}
+		
 		return {
 			id: data.id,
-			year_id: data.competition_year_id || data.year_id,
+			bible_bee_cycle_id: data.bible_bee_cycle_id || data.competition_year_id || data.year_id,
 			scripture_number: data.scripture_number,
 			scripture_order: data.scripture_order || data.order || 1, // Map order field back to scripture_order
 			counts_for: data.counts_for,
 			reference: data.reference,
 			category: data.category,
-			text: data.text || '', // Provide default if missing
-			translation: data.translation || '', // Provide default if missing
+			text: text,
+			translation: 'NIV', // Default translation since it's not stored in the database
 			texts: data.texts,
 			created_at: data.created_at,
 			updated_at: data.updated_at,
@@ -2609,45 +2543,44 @@ export class SupabaseAdapter implements DatabaseAdapter {
 	}
 
 	async getEssayPromptsForYearAndDivision(yearId: string, divisionName: string): Promise<EssayPrompt[]> {
-		const { data, error } = await this.supabase
+		// First, get the division ID from the division name
+		const divisions = await this.listDivisions(yearId);
+		const division = divisions.find(d => d.name === divisionName);
+		
+		if (!division) {
+			console.warn(`Division "${divisionName}" not found for cycle ${yearId}`);
+			return [];
+		}
+		
+		// Now query essay prompts using the correct schema fields
+		const { data, error } = await this.client
 			.from('essay_prompts')
 			.select('*')
-			.eq('year_id', yearId)
-			.eq('division_name', divisionName);
+			.eq('bible_bee_cycle_id', yearId)
+			.eq('division_id', division.id);
 
 		if (error) {
 			console.error('Error fetching essay prompts:', error);
 			return [];
 		}
 
-		return data || [];
+		return (data || []).map((d: unknown) => this.mapEssayPrompt(d));
 	}
 
 	async createEssayPrompt(
 		data: Omit<EssayPrompt, 'created_at' | 'updated_at'>
 	): Promise<EssayPrompt> {
-		// Determine if we're using a Bible Bee cycle ID or competition year ID
-		const isBibleBeeCycleId = data.year_id && data.year_id.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
-		
 		const insertPayload: any = {
 			id: uuidv4(),
-			title: data.division_name || 'Essay Prompt', // Provide title field for backward compatibility
-			prompt: data.prompt_text, // Also provide prompt field for backward compatibility
-			prompt_text: data.prompt_text,
-			division_name: data.division_name || null,
+			bible_bee_cycle_id: data.bible_bee_cycle_id,
+			division_id: data.division_id || null,
+			title: data.title,
+			prompt: data.prompt,
+			instructions: data.instructions || null,
 			due_date: data.due_date,
 			created_at: new Date().toISOString(),
 			updated_at: new Date().toISOString(),
 		};
-		
-		// Use the appropriate field based on whether it's a cycle ID or competition year ID
-		if (isBibleBeeCycleId) {
-			insertPayload.bible_bee_cycle_id = data.year_id;
-			insertPayload.year_id = null;
-		} else {
-			insertPayload.year_id = data.year_id;
-			insertPayload.bible_bee_cycle_id = null;
-		}
 
 		const { data: result, error } = await this.client
 			.from('essay_prompts')
@@ -2663,12 +2596,14 @@ export class SupabaseAdapter implements DatabaseAdapter {
 		id: string,
 		data: Partial<EssayPrompt>
 	): Promise<EssayPrompt> {
+		const updatePayload: any = {
+			...data,
+			updated_at: new Date().toISOString(),
+		};
+
 		const { data: result, error } = await this.client
 			.from('essay_prompts')
-			.update({
-				...data,
-				updated_at: new Date().toISOString(),
-			})
+			.update(updatePayload)
 			.eq('id', id)
 			.select()
 			.single();
@@ -2677,12 +2612,17 @@ export class SupabaseAdapter implements DatabaseAdapter {
 		return this.mapEssayPrompt(result);
 	}
 
-	async listEssayPrompts(divisionId?: string): Promise<EssayPrompt[]> {
+	async listEssayPrompts(divisionId?: string, cycleId?: string): Promise<EssayPrompt[]> {
 		let query = this.client.from('essay_prompts').select('*');
 
 		if (divisionId) {
 			// If divisionId is provided, filter by it
 			query = query.eq('division_id', divisionId);
+		}
+		
+		if (cycleId) {
+			// If cycleId is provided, filter by bible_bee_cycle_id
+			query = query.eq('bible_bee_cycle_id', cycleId);
 		}
 
 		const { data, error } = await query;
@@ -2693,18 +2633,15 @@ export class SupabaseAdapter implements DatabaseAdapter {
 		const r = (row ?? {}) as Record<string, unknown>;
 		const mapped = {
 			id: (r['id'] as string) || '',
-			year_id: (r['year_id'] as string) || (r['bible_bee_year_id'] as string) || (r['bible_bee_cycle_id'] as string) || '',
-			division_name: (r['division_name'] as string) || undefined,
-			prompt_text: (r['prompt_text'] as string) || (r['prompt'] as string) || '',
+			bible_bee_cycle_id: (r['bible_bee_cycle_id'] as string) || '',
+			division_id: (r['division_id'] as string) || undefined,
+			title: (r['title'] as string) || '',
+			prompt: (r['prompt'] as string) || '',
+			instructions: (r['instructions'] as string) || undefined,
 			due_date: (r['due_date'] as string) || '',
 			created_at: (r['created_at'] as string) || new Date().toISOString(),
 			updated_at: (r['updated_at'] as string) || new Date().toISOString(),
 		};
-		
-		// Preserve the original bible_bee_cycle_id for filtering purposes
-		if (r['bible_bee_cycle_id']) {
-			(mapped as any).bible_bee_cycle_id = r['bible_bee_cycle_id'] as string;
-		}
 		
 		return mapped;
 	}
@@ -2735,16 +2672,24 @@ export class SupabaseAdapter implements DatabaseAdapter {
 	async createEnrollment(
 		data: Omit<Enrollment, 'created_at' | 'updated_at'>
 	): Promise<Enrollment> {
-		if (!data.child_id || !data.year_id || !data.division_id) throw new Error('child_id, year_id and division_id are required for enrollment');
+		console.log(`DEBUG: createEnrollment called with data:`, data);
+		
+		if (!data.child_id || !data.bible_bee_cycle_id || !data.division_id) {
+			const error = new Error('child_id, bible_bee_cycle_id and division_id are required for enrollment');
+			console.error(`DEBUG: createEnrollment validation error:`, error.message);
+			throw error;
+		}
 
 		const insertPayload: Database['public']['Tables']['bible_bee_enrollments']['Insert'] = {
-			childId: data.child_id!,
-			competitionYearId: data.year_id!,
-			divisionId: data.division_id!,
+			child_id: data.child_id!,
+			bible_bee_cycle_id: data.bible_bee_cycle_id!,
+			division_id: data.division_id!,
 			auto_enrolled: data.auto_enrolled ?? false,
 			enrolled_at: data.enrolled_at ?? new Date().toISOString(),
 			id: ((data as unknown) as Record<string, unknown>)['id'] as string ?? undefined,
 		};
+
+		console.log(`DEBUG: createEnrollment insertPayload:`, insertPayload);
 
 		const { data: result, error } = await this.client
 			.from('bible_bee_enrollments')
@@ -2752,8 +2697,19 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			.select()
 			.single();
 
-	if (error) throw error;
-	return supabaseToEnrollment(result as Database['public']['Tables']['bible_bee_enrollments']['Row']);
+		if (error) {
+			console.error(`DEBUG: createEnrollment Supabase error:`, {
+				message: error.message,
+				code: error.code,
+				details: error.details,
+				hint: error.hint,
+				error: error
+			});
+			throw error;
+		}
+		
+		console.log(`DEBUG: createEnrollment success, result:`, result);
+		return supabaseToEnrollment(result as Database['public']['Tables']['bible_bee_enrollments']['Row']);
 	}
 
 	async updateEnrollment(id: string, data: Partial<Enrollment>): Promise<Enrollment> {
@@ -2777,6 +2733,8 @@ export class SupabaseAdapter implements DatabaseAdapter {
 		childId?: string,
 		bibleBeeYearId?: string
 	): Promise<Enrollment[]> {
+		console.log(`DEBUG: listEnrollments called with childId: ${childId}, bibleBeeYearId: ${bibleBeeYearId}`);
+		
 	// Note: client typing may lack some table names; use narrow cast only for the query builder here
 	let query = (this.client as unknown as SupabaseClient<Database>).from('bible_bee_enrollments').select('*');
 
@@ -2784,10 +2742,14 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			query = query.eq('child_id', childId);
 		}
 		if (bibleBeeYearId) {
-			query = query.eq('bible_bee_year_id', bibleBeeYearId);
+			query = query.eq('bible_bee_cycle_id', bibleBeeYearId);
 		}
 
 	const { data, error } = await query;
+	
+	console.log(`DEBUG: listEnrollments query result - data:`, data);
+	console.log(`DEBUG: listEnrollments query result - error:`, error);
+	
 	if (error) throw error;
 	return (data || []).map((d) => supabaseToEnrollment(d as Database['public']['Tables']['bible_bee_enrollments']['Row']));
 	}
@@ -2852,16 +2814,16 @@ export class SupabaseAdapter implements DatabaseAdapter {
 	return supabaseToEnrollmentOverride(result as Database['public']['Tables']['enrollment_overrides']['Row']);
 	}
 
-	async listEnrollmentOverrides(enrollmentId?: string): Promise<EnrollmentOverride[]> {
-	let query = (this.client as unknown as SupabaseClient<Database>).from('enrollment_overrides').select('*');
+	async listEnrollmentOverrides(yearId?: string): Promise<EnrollmentOverride[]> {
+		let query = (this.client as unknown as SupabaseClient<Database>).from('enrollment_overrides').select('*');
 
-		if (enrollmentId) {
-			query = query.eq('enrollment_id', enrollmentId);
+		if (yearId) {
+			query = query.eq('bible_bee_cycle_id', yearId);
 		}
 
-	const { data, error } = await query;
-	if (error) throw error;
-	return (data || []).map((d: Database['public']['Tables']['enrollment_overrides']['Row']) => supabaseToEnrollmentOverride(d));
+		const { data, error } = await query;
+		if (error) throw error;
+		return (data || []).map((d: Database['public']['Tables']['enrollment_overrides']['Row']) => supabaseToEnrollmentOverride(d));
 	}
 
 	async deleteEnrollmentOverride(id: string): Promise<void> {
@@ -2871,6 +2833,97 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			.eq('id', id);
 
 		if (error) throw error;
+	}
+
+	// Student Scripture methods
+	async getStudentScripture(id: string): Promise<StudentScripture | null> {
+		const { data, error } = await this.client
+			.from('student_scriptures')
+			.select('*')
+			.eq('id', id)
+			.single();
+
+		if (error) {
+			if (error.code === 'PGRST116') return null;
+			throw error;
+		}
+
+		return data ? this.mapStudentScripture(data) : null;
+	}
+
+	async createStudentScripture(data: Omit<StudentScripture, 'created_at' | 'updated_at'>): Promise<StudentScripture> {
+		const insertPayload: Database['public']['Tables']['student_scriptures']['Insert'] = {
+			child_id: data.child_id,
+			bible_bee_cycle_id: data.bible_bee_cycle_id,
+			scripture_id: data.scripture_id,
+			is_completed: data.is_completed,
+			completed_at: data.completed_at,
+			// Don't include id - let the database generate it
+		};
+
+		const { data: result, error } = await this.client
+			.from('student_scriptures')
+			.insert(insertPayload)
+			.select()
+			.single();
+
+		if (error) throw error;
+		return this.mapStudentScripture(result as Database['public']['Tables']['student_scriptures']['Row']);
+	}
+
+	async updateStudentScripture(id: string, data: Partial<StudentScripture>): Promise<StudentScripture> {
+		const updatePayload: Database['public']['Tables']['student_scriptures']['Update'] = {
+			is_completed: data.is_completed,
+			completed_at: data.completed_at,
+			updated_at: new Date().toISOString(),
+		};
+
+		const { data: result, error } = await this.client
+			.from('student_scriptures')
+			.update(updatePayload)
+			.eq('id', id)
+			.select()
+			.single();
+
+		if (error) throw error;
+		return this.mapStudentScripture(result as Database['public']['Tables']['student_scriptures']['Row']);
+	}
+
+	async listStudentScriptures(childId?: string, bibleBeeCycleId?: string): Promise<StudentScripture[]> {
+		let query = this.client.from('student_scriptures').select('*');
+
+		if (childId) {
+			query = query.eq('child_id', childId);
+		}
+		if (bibleBeeCycleId) {
+			query = query.eq('bible_bee_cycle_id', bibleBeeCycleId);
+		}
+
+		const { data, error } = await query;
+		if (error) throw error;
+		return (data || []).map((d) => this.mapStudentScripture(d as Database['public']['Tables']['student_scriptures']['Row']));
+	}
+
+	async deleteStudentScripture(id: string): Promise<void> {
+		const { error } = await this.client
+			.from('student_scriptures')
+			.delete()
+			.eq('id', id);
+
+		if (error) throw error;
+	}
+
+	private mapStudentScripture(data: Database['public']['Tables']['student_scriptures']['Row']): StudentScripture {
+		return {
+			id: data.id,
+			child_id: data.child_id,
+			bible_bee_cycle_id: data.bible_bee_cycle_id,
+			scripture_id: data.scripture_id,
+			is_completed: data.is_completed ?? false,
+			completed_at: data.completed_at ?? undefined,
+			created_at: data.created_at ?? new Date().toISOString(),
+			updated_at: data.updated_at ?? new Date().toISOString(),
+		};
 	}
 
 	// Realtime subscription implementation
@@ -2967,5 +3020,318 @@ export class SupabaseAdapter implements DatabaseAdapter {
 	/* eslint-disable-next-line @typescript-eslint/no-explicit-any */
 	private getClientAny(): any {
 		return this.client as any;
+	}
+
+	// Bible Bee auto-enrollment methods
+	async previewAutoEnrollment(yearId: string): Promise<any> {
+		// Get the Bible Bee cycle first
+		const bibleCycle = await this.getBibleBeeCycle(yearId);
+		if (!bibleCycle) {
+			throw new Error(`Bible Bee cycle ${yearId} not found`);
+		}
+
+		// Get the registration cycle linked to this Bible Bee cycle
+		const registrationCycles = await this.listRegistrationCycles();
+		const currentCycle = registrationCycles.find(c => c.cycle_id === bibleCycle.cycle_id);
+		if (!currentCycle) {
+			throw new Error(`Registration cycle ${bibleCycle.cycle_id} linked to Bible Bee cycle not found`);
+		}
+
+		// Get Bible Bee ministry
+		const ministries = await this.listMinistries();
+		const bibleBeeMinistry = ministries.find(m => m.code === 'bible-bee');
+		if (!bibleBeeMinistry) {
+			throw new Error('Bible Bee ministry not found');
+		}
+
+		// Get children enrolled in Bible Bee for the current registration cycle
+		const allEnrollments = await this.listMinistryEnrollments();
+		const bibleBeeEnrollments = allEnrollments.filter(e => 
+			e.cycle_id === currentCycle.cycle_id && 
+			e.ministry_id === bibleBeeMinistry.ministry_id && 
+			e.status === 'enrolled'
+		);
+
+		if (bibleBeeEnrollments.length === 0) {
+			throw new Error('No children enrolled in Bible Bee ministry for the current registration cycle');
+		}
+
+		// Get children data
+		const allChildren = await this.listChildren();
+		const enrolledChildren = allChildren.filter(child => 
+			bibleBeeEnrollments.some(enrollment => enrollment.child_id === child.child_id)
+		);
+
+		// Get divisions for this Bible Bee cycle
+		const divisions = await this.listDivisions(yearId);
+		if (divisions.length === 0) {
+			throw new Error('No divisions found for this year');
+		}
+
+		// Get existing overrides
+		const overrides = await this.listEnrollmentOverrides(yearId);
+		const overrideMap = new Map(overrides.map(o => [o.child_id, o]));
+
+		const previews: any[] = [];
+		const counts = { proposed: 0, overrides: 0, unassigned: 0, unknown_grade: 0 };
+
+		for (const child of enrolledChildren) {
+			const gradeCode = this.gradeToCode(child.grade);
+			const preview: any = {
+				child_id: child.child_id,
+				child_name: `${child.first_name} ${child.last_name}`,
+				grade_text: child.grade || '',
+				grade_code: gradeCode,
+				status: 'unassigned',
+			};
+
+			// Check for override first
+			const override = overrideMap.get(child.child_id);
+			if (override) {
+				const overrideDivision = divisions.find(d => d.id === override.division_id);
+				if (overrideDivision) {
+					preview.override_division = {
+						id: overrideDivision.id,
+						name: overrideDivision.name,
+						reason: override.reason,
+					};
+					preview.status = 'override';
+					counts.overrides++;
+					previews.push(preview);
+					continue;
+				}
+			}
+
+			// Handle unknown grade
+			if (gradeCode === null) {
+				preview.status = 'unknown_grade';
+				counts.unknown_grade++;
+				previews.push(preview);
+				continue;
+			}
+
+			// Find matching divisions
+			const matchingDivisions = divisions.filter(d => 
+				gradeCode >= d.min_grade && gradeCode <= d.max_grade
+			);
+
+			if (matchingDivisions.length === 0) {
+				preview.status = 'unassigned';
+				counts.unassigned++;
+			} else if (matchingDivisions.length === 1) {
+				preview.proposed_division = {
+					id: matchingDivisions[0].id,
+					name: matchingDivisions[0].name,
+				};
+				preview.status = 'proposed';
+				counts.proposed++;
+			} else {
+				// Multiple matches shouldn't happen due to non-overlap constraint
+				preview.status = 'multiple_matches';
+				counts.unassigned++;
+			}
+
+			previews.push(preview);
+		}
+
+		return { previews, counts };
+	}
+
+	async commitAutoEnrollment(yearId: string, previews: any[]): Promise<any> {
+		const errors: string[] = [];
+		let enrolled = 0;
+		let updated = 0;
+		let overrides_applied = 0;
+		let overrides_updated = 0;
+		
+		const now = new Date().toISOString();
+		
+		console.log(`DEBUG: commitAutoEnrollment called with ${previews.length} previews`);
+		
+		// Get existing enrollments for this cycle to check for duplicates
+		const existingEnrollments = await this.listEnrollments();
+		const cycleEnrollments = existingEnrollments.filter(e => e.bible_bee_cycle_id === yearId);
+		const enrollmentMap = new Map(cycleEnrollments.map(e => [e.child_id, e]));
+		
+		console.log(`DEBUG: Found ${cycleEnrollments.length} existing enrollments for cycle ${yearId}`);
+		
+		for (const p of previews) {
+			console.log(`DEBUG: Processing preview for ${p.child_name}, status: ${p.status}`);
+			try {
+				// Check if child already has an enrollment
+				const existingEnrollment = enrollmentMap.get(p.child_id);
+				
+				// Apply overrides first
+				if (p.status === 'override' && p.override_division) {
+					const enrollmentData = {
+						bible_bee_cycle_id: yearId,
+						child_id: p.child_id,
+						division_id: p.override_division.id,
+						auto_enrolled: false,
+						enrolled_at: now,
+					};
+					
+					if (existingEnrollment) {
+						// Update existing enrollment
+						console.log(`DEBUG: Updating existing override enrollment for ${p.child_name}:`, enrollmentData);
+						await this.updateEnrollment(existingEnrollment.id, enrollmentData);
+						overrides_updated++;
+						console.log(`DEBUG: Override enrollment updated successfully`);
+					} else {
+						// Create new enrollment
+						console.log(`DEBUG: Creating new override enrollment:`, enrollmentData);
+						await this.createEnrollment({
+							...enrollmentData,
+							id: uuidv4(),
+						});
+						overrides_applied++;
+						console.log(`DEBUG: Override enrollment created successfully`);
+					}
+				}
+				// Apply proposed auto-enrollments
+				else if (p.status === 'proposed' && p.proposed_division) {
+					const enrollmentData = {
+						bible_bee_cycle_id: yearId,
+						child_id: p.child_id,
+						division_id: p.proposed_division.id,
+						auto_enrolled: true,
+						enrolled_at: now,
+					};
+					
+					if (existingEnrollment) {
+						// Update existing enrollment
+						console.log(`DEBUG: Updating existing proposed enrollment for ${p.child_name}:`, enrollmentData);
+						await this.updateEnrollment(existingEnrollment.id, enrollmentData);
+						updated++;
+						console.log(`DEBUG: Proposed enrollment updated successfully`);
+					} else {
+						// Create new enrollment
+						console.log(`DEBUG: Creating new proposed enrollment:`, enrollmentData);
+						await this.createEnrollment({
+							...enrollmentData,
+							id: uuidv4(),
+						});
+						enrolled++;
+						console.log(`DEBUG: Proposed enrollment created successfully`);
+					}
+				}
+				// Skip unassigned and unknown_grade children
+				else {
+					console.log(`DEBUG: Skipping child ${p.child_name} with status: ${p.status}`);
+				}
+			} catch (error: any) {
+				console.error(`DEBUG: Error enrolling ${p.child_name}:`, {
+					message: error?.message,
+					code: error?.code,
+					details: error?.details,
+					hint: error?.hint,
+					error: error
+				});
+				errors.push(`Error enrolling ${p.child_name}: ${error?.message || JSON.stringify(error) || 'Unknown error'}`);
+			}
+		}
+		
+		console.log(`DEBUG: commitAutoEnrollment completed - enrolled: ${enrolled}, updated: ${updated}, overrides: ${overrides_applied}, overrides_updated: ${overrides_updated}, errors: ${errors.length}`);
+		return { enrolled, updated, overrides_applied, overrides_updated, errors };
+	}
+
+	// Helper method for grade conversion
+	private gradeToCode(grade: string | number | null | undefined): number | null {
+		if (!grade) return null;
+		const gradeStr = String(grade).trim();
+		const gradeNum = parseInt(gradeStr, 10);
+		if (isNaN(gradeNum)) return null;
+		return gradeNum;
+	}
+
+	// Student Essay methods
+	async getStudentEssay(id: string): Promise<StudentEssay | null> {
+		const { data, error } = await this.client
+			.from('student_essays')
+			.select('*')
+			.eq('id', id)
+			.single();
+
+		if (error) {
+			if (error.code === 'PGRST116') return null; // Not found
+			throw error;
+		}
+		return data ? this.mapStudentEssay(data) : null;
+	}
+
+	async createStudentEssay(data: Omit<StudentEssay, 'created_at' | 'updated_at'>): Promise<StudentEssay> {
+		const insertPayload: Database['public']['Tables']['student_essays']['Insert'] = {
+			id: data.id,
+			child_id: data.child_id,
+			bible_bee_cycle_id: data.bible_bee_cycle_id,
+			essay_prompt_id: data.essay_prompt_id,
+			status: data.status,
+			submitted_at: data.submitted_at || null,
+		};
+
+		const { data: result, error } = await this.client
+			.from('student_essays')
+			.insert(insertPayload)
+			.select()
+			.single();
+
+		if (error) throw error;
+		return this.mapStudentEssay(result as Database['public']['Tables']['student_essays']['Row']);
+	}
+
+	async updateStudentEssay(id: string, data: Partial<StudentEssay>): Promise<StudentEssay> {
+		const payload = {
+			...(data as Database['public']['Tables']['student_essays']['Update']),
+			updated_at: new Date().toISOString(),
+		} as unknown as Database['public']['Tables']['student_essays']['Update'];
+
+		const { data: result, error } = await this.client
+			.from('student_essays')
+			.update(payload)
+			.eq('id', id)
+			.select()
+			.single();
+
+		if (error) throw error;
+		return this.mapStudentEssay(result as Database['public']['Tables']['student_essays']['Row']);
+	}
+
+	async listStudentEssays(childId?: string, bibleBeeCycleId?: string): Promise<StudentEssay[]> {
+		let query = this.client.from('student_essays').select('*');
+
+		if (childId) {
+			query = query.eq('child_id', childId);
+		}
+		
+		if (bibleBeeCycleId) {
+			query = query.eq('bible_bee_cycle_id', bibleBeeCycleId);
+		}
+
+		const { data, error } = await query;
+		if (error) throw error;
+		return (data || []).map((d: unknown) => this.mapStudentEssay(d));
+	}
+
+	async deleteStudentEssay(id: string): Promise<void> {
+		const { error } = await this.client
+			.from('student_essays')
+			.delete()
+			.eq('id', id);
+
+		if (error) throw error;
+	}
+
+	private mapStudentEssay(row: unknown): StudentEssay {
+		const r = (row ?? {}) as Record<string, unknown>;
+		return {
+			id: (r['id'] as string) || '',
+			child_id: (r['child_id'] as string) || '',
+			bible_bee_cycle_id: (r['bible_bee_cycle_id'] as string) || '',
+			essay_prompt_id: (r['essay_prompt_id'] as string) || '',
+			status: (r['status'] as 'assigned' | 'submitted') || 'assigned',
+			submitted_at: (r['submitted_at'] as string) || undefined,
+			created_at: (r['created_at'] as string) || '',
+			updated_at: (r['updated_at'] as string) || '',
+		};
 	}
 }
