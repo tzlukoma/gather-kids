@@ -766,11 +766,11 @@ async function createScriptures(yearId) {
 					bible_bee_cycle_id: yearId, // Use bible_bee_cycle_id (canonical schema)
 					order: parseInt(csvRow.scripture_order), // Use order from CSV
 					reference: csvRow.reference,
-					texts: JSON.stringify({
+					texts: {
 						NIV: matchingJsonEntry.texts.NIV || '',
 						KJV: matchingJsonEntry.texts.KJV || '',
 						'NIV-Spanish': matchingJsonEntry.texts.NVI || '', // Map NVI to NIV-Spanish
-					}),
+					}, // Pass as object, not stringified JSON
 					// Enhanced scripture fields from CSV
 					scripture_number: csvRow.scripture_number,
 					scripture_order: parseInt(csvRow.scripture_order),
