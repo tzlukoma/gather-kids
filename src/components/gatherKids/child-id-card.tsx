@@ -16,7 +16,27 @@ import type { EnrichedChild } from './check-in-view';
 // Helper function to convert grade numbers to readable labels
 function getGradeLabel(grade: number): string {
 	if (grade === 0) return 'Kindergarten';
-	if (grade <= 12) return `${grade}th Grade`;
+	if (grade === 1) return '1st Grade';
+	if (grade === 2) return '2nd Grade';
+	if (grade === 3) return '3rd Grade';
+
+	// Handle grades 4-12 with proper ordinal formatting
+	if (grade >= 4 && grade <= 12) {
+		const lastDigit = grade % 10;
+		const lastTwoDigits = grade % 100;
+
+		// Special cases for 11th, 12th, 13th (though 13th won't occur in grades)
+		if (lastTwoDigits >= 11 && lastTwoDigits <= 13) {
+			return `${grade}th Grade`;
+		}
+
+		// Regular ordinal rules
+		if (lastDigit === 1) return `${grade}st Grade`;
+		if (lastDigit === 2) return `${grade}nd Grade`;
+		if (lastDigit === 3) return `${grade}rd Grade`;
+		return `${grade}th Grade`;
+	}
+
 	return `Grade ${grade}`;
 }
 

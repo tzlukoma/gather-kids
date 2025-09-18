@@ -93,7 +93,24 @@ export function gradeCodeToLabel(gradeCode: number): string {
     if (gradeCode === 1) return '1st Grade';
     if (gradeCode === 2) return '2nd Grade';
     if (gradeCode === 3) return '3rd Grade';
-    if (gradeCode >= 4 && gradeCode <= 12) return `${gradeCode}th Grade`;
+    
+    // Handle grades 4-12 with proper ordinal formatting
+    if (gradeCode >= 4 && gradeCode <= 12) {
+        const lastDigit = gradeCode % 10;
+        const lastTwoDigits = gradeCode % 100;
+        
+        // Special cases for 11th, 12th, 13th (though 13th won't occur in grades)
+        if (lastTwoDigits >= 11 && lastTwoDigits <= 13) {
+            return `${gradeCode}th Grade`;
+        }
+        
+        // Regular ordinal rules
+        if (lastDigit === 1) return `${gradeCode}st Grade`;
+        if (lastDigit === 2) return `${gradeCode}nd Grade`;
+        if (lastDigit === 3) return `${gradeCode}rd Grade`;
+        return `${gradeCode}th Grade`;
+    }
+    
     return `Grade ${gradeCode}`;
 }
 
