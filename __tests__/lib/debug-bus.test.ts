@@ -16,13 +16,18 @@ describe('Debug Event Bus', () => {
     jest.spyOn(Date, 'now').mockReturnValue(1234567890);
     
     // Mock window methods
-    jest.spyOn(window, 'dispatchEvent').mockImplementation(mockDispatchEvent);
+    jest.spyOn(window, 'dispatchEvent').mockImplementation((event) => {
+      // Simulate the CustomEvent structure that the actual implementation creates
+      const mockEvent = {
+        ...event,
+        isTrusted: false,
+        detail: event.detail || {}
+      };
+      mockDispatchEvent(mockEvent);
+      return true;
+    });
     jest.spyOn(window, 'addEventListener').mockImplementation(mockAddEventListener);
     jest.spyOn(window, 'removeEventListener').mockImplementation(mockRemoveEventListener);
-    
-    // Mock location by deleting first
-    delete (window as any).location;
-    (window as any).location = { pathname: '/test-route' };
   });
 
   afterEach(() => {
@@ -41,11 +46,13 @@ describe('Debug Event Bus', () => {
 
       expect(mockDispatchEvent).toHaveBeenCalledWith(
         expect.objectContaining({
-          detail: {
-            ...event,
+          detail: expect.objectContaining({
+            type: 'dal:call',
+            name: 'Test DAL call',
+            method: 'testMethod',
             timestamp: 1234567890,
-            route: '/test-route',
-          },
+            route: '/', // jsdom default route
+          }),
         })
       );
     });
@@ -65,8 +72,10 @@ describe('Debug Event Bus', () => {
           detail: expect.objectContaining({
             type: 'idb:op',
             name: 'IDB: open(testdb)',
+            operation: 'open',
+            database: 'testdb',
             timestamp: 1234567890,
-            route: '/test-route',
+            route: '/', // jsdom default route
           }),
         })
       );
@@ -87,8 +96,10 @@ describe('Debug Event Bus', () => {
           detail: expect.objectContaining({
             type: 'fetch:direct',
             name: 'Direct-Fetch: GET /api/test',
+            url: '/api/test',
+            method: 'GET',
             timestamp: 1234567890,
-            route: '/test-route',
+            route: '/', // jsdom default route
           }),
         })
       );

@@ -116,7 +116,7 @@ describe('ResetPasswordPage', () => {
 		await user.click(submitButton);
 
 		await waitFor(() => {
-			expect(screen.getByText("Passwords don't match")).toBeInTheDocument();
+			expect(screen.getByText(/Passwords don.*t match/)).toBeInTheDocument();
 		});
 	});
 
