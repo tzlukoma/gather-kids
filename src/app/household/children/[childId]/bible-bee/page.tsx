@@ -27,7 +27,7 @@ import {
 	CardDescription,
 } from '@/components/ui/card';
 import ScriptureCard from '@/components/gatherKids/scripture-card';
-import EssayCard from '@/components/gatherKids/essay-card';
+import { EssaySubmissions } from '@/components/gatherKids/essay-submissions';
 
 export default function ChildBibleBeePage() {
 	const params = useParams();
@@ -100,19 +100,21 @@ export default function ChildBibleBeePage() {
 			try {
 				// Check if this child has essays assigned (essay track)
 				const hasEssays = data.essays && data.essays.length > 0;
-				
+
 				if (hasEssays) {
 					// Essay track - compute essay summary
 					const essayCount = data.essays.length;
-					const submittedCount = data.essays.filter((e: any) => e.status === 'submitted').length;
+					const submittedCount = data.essays.filter(
+						(e: any) => e.status === 'submitted'
+					).length;
 					const pendingCount = essayCount - submittedCount;
-					
+
 					setEssaySummary({
 						count: essayCount,
 						submitted: submittedCount,
 						pending: pendingCount,
 					});
-					
+
 					// Set essay assigned flag
 					setBbStats({
 						requiredScriptures: 0,
@@ -125,15 +127,19 @@ export default function ChildBibleBeePage() {
 					// Scripture track - compute scripture stats
 					const totalScriptures = data.scriptures?.length || 0;
 					// Check both 'complete' property and 'status' property for compatibility
-					const completedScriptures = data.scriptures?.filter((s: any) => 
-						s.complete === true || s.status === 'completed'
-					).length || 0;
-					const percentDone = totalScriptures > 0 ? (completedScriptures / totalScriptures) * 100 : 0;
-					
+					const completedScriptures =
+						data.scriptures?.filter(
+							(s: any) => s.complete === true || s.status === 'completed'
+						).length || 0;
+					const percentDone =
+						totalScriptures > 0
+							? (completedScriptures / totalScriptures) * 100
+							: 0;
+
 					// Calculate bonus (scriptures completed beyond required)
 					const requiredScriptures = totalScriptures; // For now, all scriptures are required
 					const bonus = Math.max(0, completedScriptures - requiredScriptures);
-					
+
 					setBbStats({
 						requiredScriptures,
 						completedScriptures,
@@ -141,7 +147,7 @@ export default function ChildBibleBeePage() {
 						bonus,
 						essayAssigned: false,
 					});
-					
+
 					setEssaySummary(null);
 				}
 			} catch (error) {
@@ -157,7 +163,7 @@ export default function ChildBibleBeePage() {
 	// Create enriched child object for ChildIdCard
 	const enrichedChild = useMemo(() => {
 		if (!childCore) return null;
-		
+
 		return {
 			...childCore,
 			household: household,
@@ -179,7 +185,9 @@ export default function ChildBibleBeePage() {
 
 	return (
 		<div className="space-y-6">
-			<h1 className="text-3xl font-bold font-headline">Bible Bee Assignments</h1>
+			<h1 className="text-3xl font-bold font-headline">
+				Bible Bee Assignments
+			</h1>
 
 			<ChildIdCard
 				child={enrichedChild}
@@ -196,19 +204,12 @@ export default function ChildBibleBeePage() {
 					{/* Show essays content */}
 					<div>
 						<h2 className="font-semibold text-2xl mb-3">Essays</h2>
-						<div className="space-y-2">
-							{data.essays.map((e: any) => (
-								<EssayCard
-									key={e.id}
-									essay={e}
-									onSubmit={() =>
-										essayMutation.mutate({
-											bibleBeeCycleId: e.bible_bee_cycle_id,
-										})
-									}
-								/>
-							))}
-						</div>
+						<EssaySubmissions
+							essays={data.essays}
+							onSubmitEssay={(bibleBeeCycleId) =>
+								essayMutation.mutate({ bibleBeeCycleId })
+							}
+						/>
 					</div>
 				</>
 			) : (

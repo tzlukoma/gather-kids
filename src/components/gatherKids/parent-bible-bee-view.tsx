@@ -1,23 +1,10 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { getBibleBeeProgressForCycle, getBibleBeeCycles } from '@/lib/dal';
-import {
-	Card,
-	CardContent,
-	CardDescription,
-	CardHeader,
-	CardTitle,
-} from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
-import { Badge } from '@/components/ui/badge';
-import {
-	Collapsible,
-	CollapsibleContent,
-	CollapsibleTrigger,
-} from '@/components/ui/collapsible';
-import { ChevronDown, BookOpen, FileText, Trophy, ExternalLink } from 'lucide-react';
+import { Trophy, BookOpen } from 'lucide-react';
+import { BibleBeeProgressCard } from './bible-bee-progress-card';
 import type { HouseholdProfileData } from '@/lib/dal';
 
 interface ParentBibleBeeViewProps {
@@ -29,63 +16,80 @@ export function ParentBibleBeeView({
 	householdId,
 	children,
 }: ParentBibleBeeViewProps) {
-	const router = useRouter();
 	const [progressData, setProgressData] = useState<any[] | null>(null);
 	const [loading, setLoading] = useState(true);
 	const [bibleBeeCycles, setBibleBeeCycles] = useState<any[]>([]);
 	const [selectedCycle, setSelectedCycle] = useState<string>('');
 
-	const handleCardClick = (childId: string) => {
-		router.push(`/household/children/${childId}/bible-bee`);
-	};
+	// Create a stable reference for child IDs to avoid unnecessary re-renders
+	const childIds = useMemo(
+		() => children.map((child) => child.child_id),
+		[children]
+	);
 
 	// Load Bible Bee cycles and determine active cycle
 	useEffect(() => {
 		const loadCycles = async () => {
 			try {
+				console.log('Loading Bible Bee cycles...');
 				const cycles = await getBibleBeeCycles();
+				console.log('Loaded cycles:', cycles);
 				setBibleBeeCycles(cycles);
-				
+
 				// Find active cycle or use most recent
 				const activeCycle = cycles.find((c: any) => c.is_active);
 				if (activeCycle) {
+					console.log('Found active cycle:', activeCycle.id);
 					setSelectedCycle(activeCycle.id);
 				} else if (cycles.length > 0) {
 					// Use most recent cycle if no active one
 					const sortedCycles = [...cycles].sort((a: any, b: any) => {
 						if (a.created_at && b.created_at) {
-							return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+							return (
+								new Date(b.created_at).getTime() -
+								new Date(a.created_at).getTime()
+							);
 						}
 						return 0;
 					});
+					console.log('Using most recent cycle:', sortedCycles[0].id);
 					setSelectedCycle(sortedCycles[0].id);
+				} else {
+					console.log('No cycles found');
 				}
 			} catch (error) {
 				console.error('Failed to load Bible Bee cycles:', error);
 			}
 		};
-		
+
 		loadCycles();
 	}, []);
 
 	useEffect(() => {
 		const loadProgress = async () => {
-			if (!selectedCycle) return;
-			
+			console.log('Progress effect triggered:', {
+				selectedCycle,
+				householdId,
+				childIds,
+			});
+			if (!selectedCycle) {
+				console.log('No selected cycle, skipping progress load');
+				return;
+			}
+
 			try {
 				setLoading(true);
 				console.log('Loading Bible Bee progress for cycle:', selectedCycle);
-				
+
 				// Get Bible Bee progress for the selected cycle
 				const allProgress = await getBibleBeeProgressForCycle(selectedCycle);
 				console.log('All progress data:', allProgress);
 
 				// Filter to only this household's children
-				const householdChildIds = children.map((child) => child.child_id);
-				console.log('Household child IDs:', householdChildIds);
-				
+				console.log('Household child IDs:', childIds);
+
 				const householdProgress = allProgress.filter((progress: any) =>
-					householdChildIds.includes(progress.childId)
+					childIds.includes(progress.childId)
 				);
 				console.log('Filtered household progress:', householdProgress);
 
@@ -99,9 +103,14 @@ export function ParentBibleBeeView({
 		};
 
 		loadProgress();
-	}, [selectedCycle, householdId, children]);
+	}, [selectedCycle, householdId, childIds]);
 
 	if (loading) {
+		console.log('Rendering loading state:', {
+			loading,
+			selectedCycle,
+			progressData,
+		});
 		return <div>Loading Bible Bee progress...</div>;
 	}
 
@@ -122,146 +131,30 @@ export function ParentBibleBeeView({
 				<Trophy className="h-6 w-6 text-primary" />
 				<h2 className="text-2xl font-bold">Bible Bee Progress</h2>
 			</div>
-			
+
 			<div className="text-sm text-muted-foreground mb-4">
-				Click on any card below to view detailed progress and assignments for that child.
+				Click on any card below to view detailed progress and assignments for
+				that child.
 			</div>
 
-			{progressData.map((child: any) => {
-				const requiredScriptures = child.requiredScriptures || 0;
-				const completedScriptures = child.completedScriptures || 0;
-				const progressPercent =
-					requiredScriptures > 0
-						? Math.round((completedScriptures / requiredScriptures) * 100)
-						: 0;
-
-				// Determine if this is essay track vs scripture track
-				const isEssayTrack = requiredScriptures === 0 && child.essayStatus;
-
-				return (
-					<Card 
-						key={child.childId} 
-						className="w-full cursor-pointer hover:shadow-md transition-shadow duration-200"
-						onClick={() => handleCardClick(child.childId)}
-					>
-						<CardHeader>
-							<div className="flex items-center justify-between">
-								<div className="flex-1">
-									<CardTitle className="text-xl flex items-center gap-2">
-										{child.childName}
-										<ExternalLink className="h-4 w-4 text-muted-foreground" />
-									</CardTitle>
-									<CardDescription>
-										Grade Group: {child.gradeGroup || 'N/A'} • Status:{' '}
-										{child.bibleBeeStatus || 'Not Started'}
-									</CardDescription>
-								</div>
-								<Badge
-									variant={
-										child.bibleBeeStatus === 'Complete'
-											? 'default'
-											: 'secondary'
-									}>
-									{isEssayTrack ? 'Essay Track' : 'Scripture Track'}
-								</Badge>
-							</div>
-						</CardHeader>
-						<CardContent className="space-y-4">
-							{isEssayTrack ? (
-								// Essay track display
-								<div className="space-y-4">
-									<div className="flex items-center gap-3">
-										<FileText className="h-5 w-5 text-muted-foreground" />
-										<div className="flex-1">
-											<p className="font-medium">Essay Assignment</p>
-											<p className="text-sm text-muted-foreground">
-												Status:{' '}
-												<Badge
-													variant={
-														child.essayStatus === 'submitted'
-															? 'default'
-															: 'outline'
-													}>
-													{child.essayStatus || 'Not Started'}
-												</Badge>
-											</p>
-										</div>
-									</div>
-									{child.essayPrompt && (
-										<div className="p-3 bg-muted rounded-lg">
-											<p className="text-sm font-medium mb-1">Essay Prompt:</p>
-											<p className="text-sm text-muted-foreground">
-												{child.essayPrompt}
-											</p>
-										</div>
-									)}
-								</div>
-							) : (
-								// Scripture track display
-								<div className="space-y-4">
-									<div className="flex items-center justify-between">
-										<div className="flex items-center gap-3">
-											<BookOpen className="h-5 w-5 text-muted-foreground" />
-											<div>
-												<p className="font-medium">Scripture Progress</p>
-												<p className="text-sm text-muted-foreground">
-													{completedScriptures} of {requiredScriptures} completed
-												</p>
-											</div>
-										</div>
-										<div className="text-right">
-											<p className="text-2xl font-bold">{progressPercent}%</p>
-											<p className="text-xs text-muted-foreground">Complete</p>
-										</div>
-									</div>
-									<Progress value={progressPercent} className="h-2" />
-
-									{child.scriptures && child.scriptures.length > 0 && (
-										<Collapsible>
-											<CollapsibleTrigger className="flex items-center gap-2 text-sm font-medium hover:underline">
-												<ChevronDown className="h-4 w-4" />
-												View Scripture List ({child.scriptures.length}{' '}
-												scriptures)
-											</CollapsibleTrigger>
-											<CollapsibleContent className="mt-3">
-												<div className="space-y-2 max-h-60 overflow-y-auto">
-													{child.scriptures.map(
-														(scripture: any, index: number) => (
-															<div
-																key={scripture.id}
-																className="flex items-center justify-between p-2 bg-muted/50 rounded text-sm">
-																<div>
-																	<span className="font-medium">
-																		{scripture.reference}
-																	</span>
-																	{scripture.text && (
-																		<p className="text-muted-foreground text-xs mt-1 line-clamp-2">
-																			{scripture.text}
-																		</p>
-																	)}
-																</div>
-																<Badge
-																	variant={
-																		scripture.status === 'completed'
-																			? 'default'
-																			: 'outline'
-																	}
-																	className="text-xs">
-																	{scripture.status === 'completed' ? '✓' : '○'}
-																</Badge>
-															</div>
-														)
-													)}
-												</div>
-											</CollapsibleContent>
-										</Collapsible>
-									)}
-								</div>
-							)}
-						</CardContent>
-					</Card>
-				);
-			})}
+			<div className="space-y-2">
+				{progressData.map((child: any) => (
+					<BibleBeeProgressCard
+						key={child.childId}
+						childId={child.childId}
+						childName={child.childName}
+						completedScriptures={child.completedScriptures}
+						totalScriptures={child.totalScriptures}
+						requiredScriptures={child.requiredScriptures}
+						essayStatus={child.essayStatus}
+						gradeGroup={child.gradeGroup}
+						ministries={child.ministries}
+						primaryGuardian={child.primaryGuardian}
+						showGuardianInfo={false} // Hide guardian info in household view since it's the current user's children
+						linkPath={`/household/children/${child.childId}/bible-bee`}
+					/>
+				))}
+			</div>
 		</div>
 	);
 }

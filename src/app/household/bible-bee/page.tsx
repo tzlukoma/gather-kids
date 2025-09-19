@@ -2,7 +2,11 @@
 
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/auth-context';
-import { getHouseholdProfile, getBibleBeeMinistry } from '@/lib/dal';
+import {
+	getHouseholdProfile,
+	getBibleBeeMinistry,
+	getHouseholdForUser,
+} from '@/lib/dal';
 import { ParentBibleBeeView } from '@/components/gatherKids/parent-bible-bee-view';
 import { BookOpen, Calendar } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
@@ -49,14 +53,44 @@ export default function HouseholdBibleBeePage() {
 
 	useEffect(() => {
 		const load = async () => {
-			if (!user?.metadata?.household_id) return;
-			const data = await getHouseholdProfile(user.metadata.household_id);
-			setProfileData(data);
+			console.log('Bible Bee page: Starting profile load, user:', user);
+			if (!user) return;
+
+			// First try to get household_id from user metadata
+			let targetHouseholdId = user.metadata?.household_id ?? undefined;
+
+			// If not available, try to find it using user_households table
+			if (!targetHouseholdId && user?.uid) {
+				console.log(
+					'Bible Bee page: No household_id in metadata, checking user_households table'
+				);
+				targetHouseholdId = (await getHouseholdForUser(user.uid)) ?? undefined;
+			}
+
+			if (!targetHouseholdId) {
+				console.log('Bible Bee page: No household_id found for user');
+				return;
+			}
+
+			console.log(
+				'Bible Bee page: Loading profile for household_id:',
+				targetHouseholdId
+			);
+			try {
+				const data = await getHouseholdProfile(targetHouseholdId);
+				console.log('Bible Bee page: Profile loaded successfully:', data);
+				setProfileData(data);
+			} catch (error) {
+				console.error('Bible Bee page: Failed to load profile:', error);
+			}
 		};
 		load();
 	}, [user]);
 
-	if (!profileData) return <div>Loading Bible Bee progress...</div>;
+	if (!profileData) {
+		console.log('Bible Bee page: profileData not loaded yet');
+		return <div>Loading Bible Bee progress...</div>;
+	}
 
 	// Check for enrolled children in this household
 	const enrolledChildren = profileData.children.filter((child: any) =>
@@ -67,7 +101,14 @@ export default function HouseholdBibleBeePage() {
 		)
 	);
 
+	console.log(
+		'Bible Bee page: enrolledChildren count:',
+		enrolledChildren.length
+	);
+	console.log('Bible Bee page: profileData.children:', profileData.children);
+
 	if (enrolledChildren.length === 0) {
+		console.log('Bible Bee page: No enrolled children found');
 		return (
 			<div className="text-center py-8">
 				<BookOpen className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
@@ -80,6 +121,7 @@ export default function HouseholdBibleBeePage() {
 
 	// If before open date, show message instead of cards
 	if (isBeforeOpenDate) {
+		console.log('Bible Bee page: Before open date, showing message');
 		return (
 			<div className="flex flex-col gap-6">
 				<div>
@@ -108,6 +150,11 @@ export default function HouseholdBibleBeePage() {
 	}
 
 	// Show the parent Bible Bee view with household children
+	console.log(
+		'Bible Bee page: Rendering ParentBibleBeeView with',
+		enrolledChildren.length,
+		'children'
+	);
 	return (
 		<div className="flex flex-col gap-6">
 			<div>
