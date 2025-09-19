@@ -343,7 +343,7 @@ export async function queryHouseholdList(leaderMinistryIds?: string[], ministryI
     }
 }
 
-type EnrichedEnrollment = MinistryEnrollment & { ministryName?: string; customQuestions?: CustomQuestion[] };
+type EnrichedEnrollment = MinistryEnrollment & { ministryName?: string; ministry_code?: string; customQuestions?: CustomQuestion[] };
 export interface HouseholdProfileData {
     household: Household | null;
     guardians: Guardian[];
@@ -390,6 +390,7 @@ export async function getHouseholdProfile(householdId: string): Promise<Househol
                     const enrichedEnrollment: EnrichedEnrollment = {
                         ...e,
                         ministryName: ministry.name,
+                        ministry_code: ministry.code,
                         customQuestions: ministry.custom_questions
                     };
 
@@ -443,6 +444,7 @@ export async function getHouseholdProfile(householdId: string): Promise<Househol
                     const enrichedEnrollment: EnrichedEnrollment = {
                         ...e,
                         ministryName: ministry.name,
+                        ministry_code: ministry.code,
                         customQuestions: ministry.custom_questions
                     };
 

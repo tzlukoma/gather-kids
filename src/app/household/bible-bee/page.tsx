@@ -2,7 +2,11 @@
 
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/auth-context';
-import { getHouseholdProfile, getBibleBeeMinistry, getCompetitionYears } from '@/lib/dal';
+import {
+	getHouseholdProfile,
+	getBibleBeeMinistry,
+	getCompetitionYears,
+} from '@/lib/dal';
 import { BibleBeeProgressList } from '@/components/gatherKids/bible-bee-progress-list';
 import { db } from '@/lib/db';
 import {
@@ -36,7 +40,9 @@ export default function HouseholdBibleBeePage() {
 		undefined
 	);
 	const [availableVersions, setAvailableVersions] = useState<string[]>([]);
-	const [bibleBeeMinistry, setBibleBeeMinistry] = useState<Ministry | null>(null);
+	const [bibleBeeMinistry, setBibleBeeMinistry] = useState<Ministry | null>(
+		null
+	);
 	const [isBeforeOpenDate, setIsBeforeOpenDate] = useState<boolean>(false);
 	const [openDateFormatted, setOpenDateFormatted] = useState<string>('');
 	const [competitionYears, setCompetitionYears] = useState<any[]>([]);
@@ -52,7 +58,7 @@ export default function HouseholdBibleBeePage() {
 				setCompetitionYears([]);
 			}
 		};
-		
+
 		loadCompetitionYears();
 	}, []);
 
@@ -62,7 +68,7 @@ export default function HouseholdBibleBeePage() {
 			try {
 				const ministry = await getBibleBeeMinistry();
 				setBibleBeeMinistry(ministry);
-				
+
 				if (ministry?.open_at) {
 					const now = new Date();
 					const beforeOpen = !isOnOrAfterInET(now, ministry.open_at);
@@ -81,7 +87,7 @@ export default function HouseholdBibleBeePage() {
 				setIsBeforeOpenDate(false);
 			}
 		};
-		
+
 		loadMinistry();
 	}, []);
 
@@ -109,7 +115,7 @@ export default function HouseholdBibleBeePage() {
 				setScriptures([]);
 				return;
 			}
-			
+
 			// Check if scriptures are available - this is a legacy feature
 			if (typeof db !== 'undefined' && 'scriptures' in db) {
 				const s = await (db as any).scriptures
@@ -158,7 +164,7 @@ export default function HouseholdBibleBeePage() {
 	const enrolledChildren = profileData.children.filter((child: any) =>
 		Object.values(child.enrollmentsByCycle).some((enrollments: any) =>
 			enrollments.some(
-				(enrollment: any) => enrollment.ministry_id === 'bible-bee'
+				(enrollment: any) => enrollment.ministry_code === 'bible-bee'
 			)
 		)
 	);
@@ -181,15 +187,18 @@ export default function HouseholdBibleBeePage() {
 				<div>
 					<h1 className="text-3xl font-bold font-headline">Bible Bee</h1>
 					<p className="text-muted-foreground">
-						View progress and resources for your children enrolled in the Bible Bee.
+						View progress and resources for your children enrolled in the Bible
+						Bee.
 					</p>
 				</div>
-				
+
 				<Card className="text-center py-12">
 					<CardContent className="flex flex-col items-center gap-4">
 						<Calendar className="h-16 w-16 text-muted-foreground" />
 						<div>
-							<h2 className="text-xl font-semibold mb-2">Bible Bee Opening Soon</h2>
+							<h2 className="text-xl font-semibold mb-2">
+								Bible Bee Opening Soon
+							</h2>
 							<p className="text-muted-foreground text-lg">
 								The Bible Bee will begin on {openDateFormatted}.
 							</p>
