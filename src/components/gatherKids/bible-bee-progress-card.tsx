@@ -38,7 +38,7 @@ export function BibleBeeProgressCard({
 }: BibleBeeProgressCardProps) {
 	const { userRole } = useAuth();
 
-	const denom = requiredScriptures || totalScriptures || 1;
+	const denom = requiredScriptures || 1; // Use requiredScriptures as the denominator (division target)
 	const progressPct = denom === 0 ? 0 : (completedScriptures / denom) * 100;
 
 	// Determine the appropriate link path
@@ -58,9 +58,7 @@ export function BibleBeeProgressCard({
 				</div>
 
 				<div className="text-sm text-muted-foreground mt-1">
-					{(totalScriptures || 0) > 0 || (requiredScriptures || 0) > 0
-						? 'Scriptures'
-						: 'Essay'}
+					{(requiredScriptures || 0) > 0 ? 'Scriptures' : 'Essay'}
 				</div>
 
 				<div className="text-xs text-muted-foreground mt-1">
@@ -83,7 +81,7 @@ export function BibleBeeProgressCard({
 			</div>
 
 			<div className="text-sm text-muted-foreground">
-				{(totalScriptures || 0) > 0 || (requiredScriptures || 0) > 0 ? (
+				{(requiredScriptures || 0) > 0 ? (
 					<span
 						className={`px-2 py-1 rounded text-xs ${
 							progressPct === 0
@@ -92,7 +90,7 @@ export function BibleBeeProgressCard({
 								? 'bg-green-100 text-green-800'
 								: 'bg-yellow-100 text-yellow-800'
 						}`}>
-						{completedScriptures}/{totalScriptures || requiredScriptures} |{' '}
+						{completedScriptures}/{requiredScriptures} |{' '}
 						{Math.round(progressPct)}%
 					</span>
 				) : (

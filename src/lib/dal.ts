@@ -1596,35 +1596,25 @@ export async function getBibleBeeProgressForCycle(cycleId: string) {
     // Use DAL pattern instead of direct Dexie calls
     if (shouldUseAdapter()) {
         // For Supabase mode, use the adapter to get enrolled children
-        console.log('getBibleBeeProgressForCycle: Supabase mode - querying enrolled children for cycleId:', cycleId);
         
         try {
             // Get enrolled children for this Bible Bee cycle
             const enrollments = await dbAdapter.listEnrollments();
-            console.log('All enrollments:', enrollments);
             
             const cycleEnrollments = enrollments.filter(e => e.bible_bee_cycle_id === cycleId);
-            console.log('Enrollments for cycle', cycleId, ':', cycleEnrollments);
             
             if (cycleEnrollments.length === 0) {
-                console.log('No enrollments found for cycle:', cycleId);
                 return [];
             }
             
             const childIds = [...new Set(cycleEnrollments.map(e => e.child_id))];
-            console.log('Child IDs from enrollments:', childIds);
             
             const children = await dbAdapter.listChildren();
-            console.log('All children:', children);
             
             const enrolledChildren = children.filter(c => childIds.includes(c.child_id));
-            console.log('Enrolled children:', enrolledChildren);
-            
-            console.log(`Found ${enrolledChildren.length} enrolled children for cycle ${cycleId}`);
             
             // Get divisions for this cycle to map division IDs to names
             const divisions = await dbAdapter.listDivisions(cycleId);
-            console.log('Divisions for cycle:', divisions);
             
             // Get actual progress data for enrolled children
             const progressData = await Promise.all(enrolledChildren.map(async (child) => {
@@ -1657,14 +1647,26 @@ export async function getBibleBeeProgressForCycle(cycleId: string) {
                 let requiredScriptures = 0;
                 
                 if (!hasEssays) {
+                    // Get student scriptures and join with scriptures table to get counts_for (same as individual child page)
                     const studentScriptures = await dbAdapter.listStudentScriptures(child.child_id, cycleId);
-                    totalScriptures = studentScriptures.length;
+                    
+                    // Get all scriptures for this cycle to get counts_for values
+                    const allScriptures = await dbAdapter.listScriptures({ yearId: cycleId });
+                    
+                    // Calculate completed scriptures using counts_for (same as individual child page)
                     completedScriptures = studentScriptures
                         .filter(s => s.is_completed)
-                        .reduce((sum, s) => sum + (s.counts_for || 1), 0);
+                        .reduce((sum, s) => {
+                            const scripture = allScriptures.find(sc => sc.id === s.scripture_id);
+                            return sum + (scripture?.counts_for || 1);
+                        }, 0);
                     
-                    // Get required scriptures from division
-                    requiredScriptures = division ? division.minimum_required || totalScriptures : totalScriptures;
+                    // Get required scriptures from division - this should be the minimum required for the division
+                    requiredScriptures = division ? division.minimum_required : 0;
+                    
+                    // totalScriptures should represent the total scriptures available in the cycle
+                    // For progress calculation, we use requiredScriptures as the target
+                    totalScriptures = requiredScriptures;
                 }
                 
                 // Determine Bible Bee status

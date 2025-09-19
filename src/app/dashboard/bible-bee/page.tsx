@@ -67,7 +67,6 @@ export default function BibleBeePage() {
 
 				// Get Bible Bee cycles using DAL function with adapter support
 				const beeCycles = await getBibleBeeCycles();
-				console.log('Bible Bee cycles loaded:', beeCycles);
 				setBibleBeeCycles(beeCycles || []);
 			} catch (error) {
 				console.error('Failed to load Bible Bee data:', error);

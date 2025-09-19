@@ -55,6 +55,7 @@ const counters = {
 	grade_rules: 0,
 	scriptures: 0,
 	essay_prompts: 0,
+	student_essays: 0,
 	households: 0,
 	emergency_contacts: 0,
 	guardians: 0,
@@ -105,6 +106,19 @@ function createDryRunProxy(realClient) {
 										limit: (count) => {
 											console.log(`[DRY RUN] LIMIT ${count}`);
 											return { data: [], error: null };
+										},
+										eq: (column2, value2) => {
+											console.log(`[DRY RUN] AND ${column2} = ${value2}`);
+											return {
+												single: () => ({
+													data: null,
+													error: { code: 'PGRST116' },
+												}),
+												limit: (count) => {
+													console.log(`[DRY RUN] LIMIT ${count}`);
+													return { data: [], error: null };
+												},
+											};
 										},
 									};
 								},
@@ -433,60 +447,66 @@ async function createRegistrationCycle() {
 		cycleData.cycle_id = uniqueCycleId;
 		cycleData.name = uniqueCycleName;
 
-		// Before inserting, make sure no other cycles are active
-		try {
-			const { data: activeCycles, error: activeCheckError } = await supabase
-				.from('registration_cycles')
-				.select('cycle_id')
-				.eq('is_active', true);
+		if (DRY_RUN) {
+			console.log(`[DRY RUN] Would create registration cycle:`, cycleData);
+			counters.registration_cycles++;
+			return cycleData.cycle_id;
+		} else {
+			// Before inserting, make sure no other cycles are active
+			try {
+				const { data: activeCycles, error: activeCheckError } = await supabase
+					.from('registration_cycles')
+					.select('cycle_id')
+					.eq('is_active', true);
 
-			if (activeCheckError && activeCheckError.code !== 'PGRST116') {
-				throw new Error(
-					`Error checking active registration cycles: ${activeCheckError.message}`
-				);
-			}
+				if (activeCheckError && activeCheckError.code !== 'PGRST116') {
+					throw new Error(
+						`Error checking active registration cycles: ${activeCheckError.message}`
+					);
+				}
 
-			// If there are active cycles, deactivate them
-			if (activeCycles && activeCycles.length > 0) {
-				console.log(
-					`📝 Deactivating ${activeCycles.length} previously active cycle(s)...`
-				);
+				// If there are active cycles, deactivate them
+				if (activeCycles && activeCycles.length > 0) {
+					console.log(
+						`📝 Deactivating ${activeCycles.length} previously active cycle(s)...`
+					);
 
-				for (const cycle of activeCycles) {
-					const { error: updateError } = await supabase
-						.from('registration_cycles')
-						.update({ is_active: false })
-						.eq('cycle_id', cycle.cycle_id);
+					for (const cycle of activeCycles) {
+						const { error: updateError } = await supabase
+							.from('registration_cycles')
+							.update({ is_active: false })
+							.eq('cycle_id', cycle.cycle_id);
 
-					if (updateError) {
-						console.warn(
-							`⚠️ Could not deactivate cycle ${cycle.cycle_id}: ${updateError.message}`
-						);
+						if (updateError) {
+							console.warn(
+								`⚠️ Could not deactivate cycle ${cycle.cycle_id}: ${updateError.message}`
+							);
+						}
 					}
 				}
-			}
 
-			// Now insert our new active cycle
-			const { data: newCycle, error: insertError } = await supabase
-				.from('registration_cycles')
-				.insert(cycleData)
-				.select()
-				.single();
+				// Now insert our new active cycle
+				const { data: newCycle, error: insertError } = await supabase
+					.from('registration_cycles')
+					.insert(cycleData)
+					.select()
+					.single();
 
-			if (insertError) {
-				throw new Error(
-					`Failed to create registration cycle: ${insertError.message}`
+				if (insertError) {
+					throw new Error(
+						`Failed to create registration cycle: ${insertError.message}`
+					);
+				}
+
+				console.log(
+					`✅ Created registration cycle: ${cycleName} (${startDateString} to ${endDateString})`
 				);
+				counters.registration_cycles++;
+				return newCycle.cycle_id;
+			} catch (error) {
+				console.error(`❌ Error creating registration cycle: ${error.message}`);
+				throw error;
 			}
-
-			console.log(
-				`✅ Created registration cycle: ${cycleName} (${startDateString} to ${endDateString})`
-			);
-			counters.registration_cycles++;
-			return newCycle.cycle_id;
-		} catch (error) {
-			console.error(`❌ Error creating registration cycle: ${error.message}`);
-			throw error;
 		}
 	} catch (outerError) {
 		console.error(
@@ -518,19 +538,6 @@ async function createBibleBeeCycle(registrationCycleId) {
 	console.log('📅 Creating Bible Bee Cycle following proper business flow...');
 	console.log(`✅ Using provided registration cycle: ${registrationCycleId}`);
 
-	// Step 1: Create Bible Bee Cycle linked to registration cycle
-	const bibleBeeCycleId = DRY_RUN
-		? 'test-bible-bee-cycle-uuid'
-		: generateUUID();
-
-	const bibleBeeCycleData = {
-		id: bibleBeeCycleId,
-		cycle_id: registrationCycleId, // Direct reference to registration cycle
-		name: 'Fall 2025 Bible Bee',
-		description: 'Bible Bee competition for Fall 2025 registration cycle',
-		is_active: true,
-	};
-
 	// Check if Bible Bee cycle already exists for this registration cycle
 	if (!DRY_RUN) {
 		const { data: existingCycles, error: checkError } = await supabase
@@ -550,11 +557,21 @@ async function createBibleBeeCycle(registrationCycleId) {
 		}
 	}
 
-	// Create new Bible Bee cycle
+	// Create new Bible Bee cycle using direct Supabase call with canonical schema
+	const bibleBeeCycleData = {
+		id: 'c2792991-eb47-4a7e-baa6-ab410f1b78a6', // Fixed UUID for UAT testing
+		cycle_id: registrationCycleId, // Direct reference to registration cycle
+		name: 'Fall 2025 Bible Bee',
+		description: 'Bible Bee competition for Fall 2025 registration cycle',
+		is_active: true,
+		created_at: new Date().toISOString(),
+		updated_at: new Date().toISOString(),
+	};
+
 	if (DRY_RUN) {
 		console.log(`[DRY RUN] Would create Bible Bee cycle:`, bibleBeeCycleData);
 		counters.bible_bee_years++; // Keep same counter name for now
-		return bibleBeeCycleId;
+		return 'test-bible-bee-cycle-uuid';
 	} else {
 		const { data: newCycle, error: insertError } = await supabase
 			.from('bible_bee_cycles')
@@ -746,14 +763,14 @@ async function createScriptures(yearId) {
 					external_id: `${EXTERNAL_ID_PREFIX}scripture_${parseInt(
 						csvRow.scripture_order
 					)}`,
-					competition_year_id: yearId,
+					bible_bee_cycle_id: yearId, // Use bible_bee_cycle_id (canonical schema)
 					order: parseInt(csvRow.scripture_order), // Use order from CSV
 					reference: csvRow.reference,
-					texts: JSON.stringify({
+					texts: {
 						NIV: matchingJsonEntry.texts.NIV || '',
 						KJV: matchingJsonEntry.texts.KJV || '',
 						'NIV-Spanish': matchingJsonEntry.texts.NVI || '', // Map NVI to NIV-Spanish
-					}),
+					}, // Pass as object, not stringified JSON
 					// Enhanced scripture fields from CSV
 					scripture_number: csvRow.scripture_number,
 					scripture_order: parseInt(csvRow.scripture_order),
@@ -786,7 +803,7 @@ async function createScriptures(yearId) {
 					}
 				}
 
-				// Create the scripture
+				// Create the scripture using direct Supabase call with canonical schema
 				if (DRY_RUN) {
 					console.log(
 						`[DRY RUN] Would create scripture: ${scriptureData.reference}`
@@ -862,30 +879,30 @@ async function createDivisions(yearId) {
 				id: crypto.randomUUID(), // Use id instead of division_id
 				name: 'Primary',
 				description: 'Primary Division (Kindergarten - 2nd Grade)',
-				min_age: 5, // Approx. Kindergarten age
-				max_age: 8, // Approx. 2nd grade age
 				min_grade: 0, // Kindergarten
 				max_grade: 2, // 2nd grade
+				minimum_required: 0, // Default minimum scriptures
+				requires_essay: false,
 				created_at: new Date().toISOString(),
 			},
 			{
 				id: crypto.randomUUID(), // Use id instead of division_id
 				name: 'Junior',
 				description: 'Junior Division (3rd - 7th Grade)',
-				min_age: 8,
-				max_age: 13,
 				min_grade: 3, // 3rd grade
 				max_grade: 7, // 7th grade
+				minimum_required: 0, // Default minimum scriptures
+				requires_essay: false,
 				created_at: new Date().toISOString(),
 			},
 			{
 				id: crypto.randomUUID(), // Use id instead of division_id
 				name: 'Senior',
 				description: 'Senior Division (8th - 12th Grade)',
-				min_age: 13,
-				max_age: 18,
 				min_grade: 8, // 8th grade
 				max_grade: 12, // 12th grade
+				minimum_required: 0, // Default minimum scriptures
+				requires_essay: true, // Senior division requires essays
 				created_at: new Date().toISOString(),
 			},
 		];
@@ -893,13 +910,14 @@ async function createDivisions(yearId) {
 		// Store created division IDs for use in grade rules
 		const divisionMap = {};
 
-		// Create or update divisions
+		// Create or update divisions using DAL method
 		for (const divisionData of divisionsData) {
 			// Check if division already exists
 			const { data: existingDivision, error: checkError } = await supabase
 				.from('divisions')
 				.select('id, name')
 				.eq('name', divisionData.name)
+				.eq('bible_bee_cycle_id', yearId)
 				.single();
 
 			if (checkError && checkError.code !== 'PGRST116') {
@@ -915,38 +933,42 @@ async function createDivisions(yearId) {
 				divisionId = existingDivision.id;
 				console.log(`✅ Division already exists: ${divisionData.name}`);
 			} else {
-				// Format division data according to schema using generated types
+				// Format division data for canonical schema
 				const insertData = {
-					id: divisionData.id, // Include the id field
+					id: divisionData.id,
 					name: divisionData.name,
-					bible_bee_cycle_id: yearId, // snake_case as per generated types - links to bible_bee_cycles.id
+					description: divisionData.description,
+					bible_bee_cycle_id: yearId, // Use canonical field
 					min_grade: divisionData.min_grade,
 					max_grade: divisionData.max_grade,
-					min_scriptures: 0, // Use min_scriptures field as per generated types
+					minimum_required: divisionData.minimum_required,
+					requires_essay: divisionData.requires_essay,
+					created_at: divisionData.created_at,
+					updated_at: new Date().toISOString(),
 				};
 
-				console.log(
-					`📊 DEBUG - Inserting division with data: ${JSON.stringify(
-						insertData
-					)}`
-				);
+				if (DRY_RUN) {
+					console.log(`[DRY RUN] Would create division:`, insertData);
+					divisionId = `test-${divisionData.name.toLowerCase()}-division-id`;
+					counters.divisions++;
+				} else {
+					const { data: newDivision, error: insertError } = await supabase
+						.from('divisions')
+						.insert(insertData)
+						.select('id')
+						.single();
 
-				const { data: newDivision, error: insertError } = await supabase
-					.from('divisions')
-					.insert(insertData)
-					.select('id')
-					.single();
+					if (insertError) {
+						console.log(
+							`⚠️ Failed to create division ${divisionData.name}: ${insertError.message}`
+						);
+						continue;
+					}
 
-				if (insertError) {
-					console.log(
-						`⚠️ Failed to create division ${divisionData.name}: ${insertError.message}`
-					);
-					continue;
+					divisionId = newDivision.id;
+					console.log(`✅ Created division: ${divisionData.name}`);
+					counters.divisions++;
 				}
-
-				divisionId = newDivision.id;
-				console.log(`✅ Created division: ${divisionData.name}`);
-				counters.divisions++;
 			}
 
 			// Store division ID in map
@@ -1082,11 +1104,12 @@ async function createEssayPrompt(cycleId, divisionMap) {
 
 		const essayPromptData = {
 			id: crypto.randomUUID(), // Generate UUID for id (not prompt_id)
-			bible_bee_cycle_id: cycleId, // Use bible_bee_cycle_id as per new schema
-			division_name: 'Senior',
+			bible_bee_cycle_id: cycleId, // Use bible_bee_cycle_id as per canonical schema
+			division_id: seniorDivisionId, // Use division_id instead of division_name (canonical)
 			title: 'Senior Division Essay',
-			prompt: promptText, // Add the old prompt field for backward compatibility
-			prompt_text: promptText,
+			prompt: promptText, // Canonical prompt field
+			instructions:
+				'Please write a well-structured essay with clear introduction, body paragraphs, and conclusion. Use proper grammar and cite specific scripture references.',
 			due_date: '2026-06-05',
 			created_at: new Date().toISOString(),
 		};
@@ -1113,7 +1136,7 @@ async function createEssayPrompt(cycleId, divisionMap) {
 			.from('essay_prompts')
 			.select('*')
 			.eq('bible_bee_cycle_id', cycleId)
-			.eq('division_name', 'Senior')
+			.eq('division_id', seniorDivisionId)
 			.single();
 
 		if (checkError && checkError.code !== 'PGRST116') {
@@ -1124,22 +1147,38 @@ async function createEssayPrompt(cycleId, divisionMap) {
 		if (existingPrompt) {
 			console.log(`✅ Essay prompt already exists for Senior Division`);
 		} else {
-			console.log(
-				'📊 DEBUG - About to insert essay prompt with data:',
-				essayPromptData
-			);
-			const { error: insertError } = await supabase
-				.from('essay_prompts')
-				.insert(essayPromptData);
+			// Create essay prompt using direct Supabase call with canonical schema
+			const essayPromptData = {
+				id: crypto.randomUUID(),
+				bible_bee_cycle_id: cycleId, // Use bible_bee_cycle_id as per canonical schema
+				division_id: seniorDivisionId, // Use division_id instead of division_name (canonical)
+				title: 'Senior Division Essay',
+				prompt: promptText, // Canonical prompt field
+				instructions:
+					'Please write a well-structured essay with clear introduction, body paragraphs, and conclusion. Use proper grammar and cite specific scripture references.',
+				due_date: '2026-06-05',
+				created_at: new Date().toISOString(),
+				updated_at: new Date().toISOString(),
+			};
 
-			if (insertError) {
-				console.log(`⚠️ Failed to create essay prompt: ${insertError.message}`);
-				console.log('📊 DEBUG - Insert error details:', insertError);
-				return;
+			if (DRY_RUN) {
+				console.log(`[DRY RUN] Would create essay prompt:`, essayPromptData);
+				counters.essay_prompts++;
+			} else {
+				const { error: insertError } = await supabase
+					.from('essay_prompts')
+					.insert(essayPromptData);
+
+				if (insertError) {
+					console.log(
+						`⚠️ Failed to create essay prompt: ${insertError.message}`
+					);
+					return;
+				}
+
+				console.log(`✅ Created essay prompt for Senior Division`);
+				counters.essay_prompts++;
 			}
-
-			console.log(`✅ Created essay prompt for Senior Division`);
-			counters.essay_prompts++;
 		}
 	} catch (error) {
 		console.log(
@@ -1304,7 +1343,7 @@ async function createMinistries() {
 		{
 			ministry_id: `${EXTERNAL_ID_PREFIX}keita_choir`,
 			name: 'Youth Choirs- Keita Praise Choir (Ages 9-12)',
-			code: 'choir-keita',
+			code: 'choir-keita-praise',
 			enrollment_type: 'enrolled',
 			min_age: 9,
 			max_age: 12,
@@ -1316,7 +1355,7 @@ async function createMinistries() {
 		{
 			ministry_id: `${EXTERNAL_ID_PREFIX}teen_choir`,
 			name: 'Youth Choirs- New Generation Teen Choir (Ages 13-18)',
-			code: 'choir-teen',
+			code: 'choir-teen-choir',
 			enrollment_type: 'enrolled',
 			min_age: 13,
 			max_age: 18,
@@ -1634,31 +1673,45 @@ async function createMinistryGroups() {
 
 		// Assign choir ministries to the group
 		const choirMinistries = [
-			`${EXTERNAL_ID_PREFIX}joy_bells`,
-			`${EXTERNAL_ID_PREFIX}keita_choir`,
-			`${EXTERNAL_ID_PREFIX}teen_choir`,
+			'choir-joy-bells',
+			'choir-keita-praise',
+			'choir-teen-choir',
 		];
 
-		for (const ministryId of choirMinistries) {
+		for (const ministryCode of choirMinistries) {
 			try {
+				// Get the ministry_id for this code
+				const { data: ministry, error: ministryError } = await supabase
+					.from('ministries')
+					.select('ministry_id')
+					.eq('code', ministryCode)
+					.single();
+
+				if (ministryError) {
+					console.log(
+						`⚠️ Ministry not found: ${ministryCode} - skipping group assignment`
+					);
+					continue;
+				}
+
 				// Check if membership already exists
 				const { data: existingMembership } = await supabase
 					.from('ministry_group_members')
 					.select('group_id')
 					.eq('group_id', groupId)
-					.eq('ministry_id', ministryId)
+					.eq('ministry_id', ministry.ministry_id)
 					.single();
 
 				if (existingMembership) {
 					console.log(
-						`✅ Ministry ${ministryId} already assigned to Choirs group`
+						`✅ Ministry ${ministryCode} already assigned to Choirs group`
 					);
 				} else {
 					const { error } = await supabase
 						.from('ministry_group_members')
 						.insert({
 							group_id: groupId,
-							ministry_id: ministryId,
+							ministry_id: ministry.ministry_id,
 						});
 
 					if (error) {
@@ -1667,12 +1720,12 @@ async function createMinistryGroups() {
 						);
 					}
 
-					console.log(`✅ Assigned ${ministryId} to Choirs group`);
+					console.log(`✅ Assigned ${ministryCode} to Choirs group`);
 					counters.ministry_group_members++;
 				}
 			} catch (error) {
 				console.log(
-					`⚠️ Failed to assign ${ministryId} to Choirs group: ${error.message}`
+					`⚠️ Failed to assign ${ministryCode} to Choirs group: ${error.message}`
 				);
 			}
 		}
@@ -2804,8 +2857,7 @@ async function createMinistryEnrollments(activeCycleId) {
 				`${EXTERNAL_ID_PREFIX}bible_bee`,
 			cycle_id: activeCycleId, // Use the actual active cycle ID
 			enrollment_date: '2025-01-01',
-			is_active: true,
-			division: 'primary', // K-2nd grade
+			status: 'enrolled',
 		},
 		{
 			external_id: `${EXTERNAL_ID_PREFIX}enrollment_2_bb`,
@@ -2817,8 +2869,7 @@ async function createMinistryEnrollments(activeCycleId) {
 				`${EXTERNAL_ID_PREFIX}bible_bee`,
 			cycle_id: activeCycleId, // Use the actual active cycle ID
 			enrollment_date: '2025-01-01',
-			is_active: true,
-			division: 'primary', // K-2nd grade
+			status: 'enrolled',
 		},
 		{
 			external_id: `${EXTERNAL_ID_PREFIX}enrollment_3_bb`,
@@ -2830,8 +2881,7 @@ async function createMinistryEnrollments(activeCycleId) {
 				`${EXTERNAL_ID_PREFIX}bible_bee`,
 			cycle_id: activeCycleId, // Use the actual active cycle ID
 			enrollment_date: '2025-01-01',
-			is_active: true,
-			division: 'primary', // K-2nd grade
+			status: 'enrolled',
 		},
 
 		// Junior division children (3rd-7th grade, ages 8-13)
@@ -2845,8 +2895,7 @@ async function createMinistryEnrollments(activeCycleId) {
 				`${EXTERNAL_ID_PREFIX}bible_bee`,
 			cycle_id: activeCycleId, // Use the actual active cycle ID
 			enrollment_date: '2025-01-01',
-			is_active: true,
-			division: 'junior', // 3rd-7th grade
+			status: 'enrolled',
 		},
 		{
 			external_id: `${EXTERNAL_ID_PREFIX}enrollment_6_bb`,
@@ -2858,8 +2907,7 @@ async function createMinistryEnrollments(activeCycleId) {
 				`${EXTERNAL_ID_PREFIX}bible_bee`,
 			cycle_id: activeCycleId, // Use the actual active cycle ID
 			enrollment_date: '2025-01-01',
-			is_active: true,
-			division: 'junior', // 3rd-7th grade
+			status: 'enrolled',
 		},
 		{
 			external_id: `${EXTERNAL_ID_PREFIX}enrollment_7_bb`,
@@ -2871,8 +2919,7 @@ async function createMinistryEnrollments(activeCycleId) {
 				`${EXTERNAL_ID_PREFIX}bible_bee`,
 			cycle_id: activeCycleId, // Use the actual active cycle ID
 			enrollment_date: '2025-01-01',
-			is_active: true,
-			division: 'junior', // 3rd-7th grade
+			status: 'enrolled',
 		},
 
 		// Senior division children (8th-12th grade, ages 13-18)
@@ -2886,8 +2933,7 @@ async function createMinistryEnrollments(activeCycleId) {
 				`${EXTERNAL_ID_PREFIX}bible_bee`,
 			cycle_id: activeCycleId, // Use the actual active cycle ID
 			enrollment_date: '2025-01-01',
-			is_active: true,
-			division: 'senior', // 8th-12th grade
+			status: 'enrolled',
 		},
 		{
 			external_id: `${EXTERNAL_ID_PREFIX}enrollment_10_bb`,
@@ -2899,8 +2945,7 @@ async function createMinistryEnrollments(activeCycleId) {
 				`${EXTERNAL_ID_PREFIX}bible_bee`,
 			cycle_id: activeCycleId, // Use the actual active cycle ID
 			enrollment_date: '2025-01-01',
-			is_active: true,
-			division: 'senior', // 8th-12th grade
+			status: 'enrolled',
 		},
 		{
 			external_id: `${EXTERNAL_ID_PREFIX}enrollment_11_bb`,
@@ -2912,8 +2957,7 @@ async function createMinistryEnrollments(activeCycleId) {
 				`${EXTERNAL_ID_PREFIX}bible_bee`,
 			cycle_id: activeCycleId, // Use the actual active cycle ID
 			enrollment_date: '2025-01-01',
-			is_active: true,
-			division: 'senior', // 8th-12th grade
+			status: 'enrolled',
 		},
 		{
 			external_id: `${EXTERNAL_ID_PREFIX}enrollment_12_bb`,
@@ -2925,8 +2969,7 @@ async function createMinistryEnrollments(activeCycleId) {
 				`${EXTERNAL_ID_PREFIX}bible_bee`,
 			cycle_id: activeCycleId, // Use the actual active cycle ID
 			enrollment_date: '2025-01-01',
-			is_active: true,
-			division: 'senior', // 8th-12th grade
+			status: 'enrolled',
 		},
 	];
 
@@ -2945,7 +2988,7 @@ async function createMinistryEnrollments(activeCycleId) {
 			ministry_id:
 				ministryMap[originalEnrollment.ministry_id] ||
 				originalEnrollment.ministry_id,
-			status: 'active',
+			status: 'enrolled',
 		};
 
 		const { data: existing, error: checkError } = await supabase
@@ -2978,6 +3021,286 @@ async function createMinistryEnrollments(activeCycleId) {
 			console.log(`✅ Created enrollment: ${enrollmentData.enrollment_id}`);
 			counters.ministry_enrollments++;
 		}
+	}
+}
+
+/**
+ * Create student essays for children enrolled in essay divisions
+ */
+async function createStudentEssays(bibleBeeCycleId, divisionMap) {
+	try {
+		console.log(`📝 Creating student essays for Senior Division children...`);
+
+		// Get the Senior division ID
+		const seniorDivisionId = divisionMap?.Senior;
+		if (!seniorDivisionId) {
+			console.log(
+				'⚠️ Senior Division ID not found, skipping student essay creation'
+			);
+			return;
+		}
+
+		// Get the essay prompt for Senior division
+		const { data: essayPrompt, error: promptError } = await supabase
+			.from('essay_prompts')
+			.select('id')
+			.eq('bible_bee_cycle_id', bibleBeeCycleId)
+			.eq('division_id', seniorDivisionId)
+			.single();
+
+		if (promptError || !essayPrompt) {
+			console.log(
+				'⚠️ No essay prompt found for Senior Division, skipping student essay creation'
+			);
+			return;
+		}
+
+		// Get children enrolled in Bible Bee ministry who are in Senior division (grades 8-12)
+		const { data: enrollments, error: enrollmentError } = await supabase
+			.from('ministry_enrollments')
+			.select(
+				`
+				child_id,
+				children!inner(child_id, first_name, last_name, grade)
+			`
+			)
+			.eq('ministry_id', `${EXTERNAL_ID_PREFIX}bible_bee`)
+			.gte('children.grade', '8')
+			.lte('children.grade', '12');
+
+		if (enrollmentError) {
+			console.log(
+				`⚠️ Error fetching Senior division enrollments: ${enrollmentError.message}`
+			);
+			return;
+		}
+
+		if (!enrollments || enrollments.length === 0) {
+			console.log(
+				'⚠️ No children found in Senior division, skipping student essay creation'
+			);
+			return;
+		}
+
+		console.log(`📝 Found ${enrollments.length} children in Senior division`);
+
+		let createdCount = 0;
+		let existingCount = 0;
+
+		// Create student essays for each child
+		for (const enrollment of enrollments) {
+			const childId = enrollment.child_id;
+			const child = enrollment.children;
+
+			// Check if student essay already exists
+			const { data: existingEssay, error: checkError } = await supabase
+				.from('student_essays')
+				.select('id')
+				.eq('child_id', childId)
+				.eq('bible_bee_cycle_id', bibleBeeCycleId)
+				.eq('essay_prompt_id', essayPrompt.id)
+				.single();
+
+			if (checkError && checkError.code !== 'PGRST116') {
+				console.warn(
+					`⚠️ Error checking student essay for ${child.first_name} ${child.last_name}: ${checkError.message}`
+				);
+				continue;
+			}
+
+			if (existingEssay) {
+				console.log(
+					`✅ Student essay already exists for ${child.first_name} ${child.last_name}`
+				);
+				existingCount++;
+				continue;
+			}
+
+			// Create new student essay using direct Supabase call with canonical schema
+			const studentEssayData = {
+				id: crypto.randomUUID(),
+				child_id: childId,
+				bible_bee_cycle_id: bibleBeeCycleId,
+				essay_prompt_id: essayPrompt.id,
+				status: 'assigned',
+				submitted_at: null,
+				created_at: new Date().toISOString(),
+				updated_at: new Date().toISOString(),
+			};
+
+			if (DRY_RUN) {
+				console.log(
+					`[DRY RUN] Would create student essay for ${child.first_name} ${child.last_name}`
+				);
+				createdCount++;
+			} else {
+				const { error: insertError } = await supabase
+					.from('student_essays')
+					.insert(studentEssayData);
+
+				if (insertError) {
+					console.warn(
+						`⚠️ Failed to create student essay for ${child.first_name} ${child.last_name}: ${insertError.message}`
+					);
+					continue;
+				}
+
+				console.log(
+					`✅ Created student essay for ${child.first_name} ${child.last_name}`
+				);
+				createdCount++;
+			}
+		}
+
+		console.log(`📊 Student essay creation complete:`);
+		console.log(`   - Created: ${createdCount}`);
+		console.log(`   - Already existed: ${existingCount}`);
+		console.log(`   - Total processed: ${createdCount + existingCount}`);
+
+		// Update global counter
+		counters.student_essays += createdCount;
+	} catch (error) {
+		console.error(`❌ Error creating student essays: ${error.message}`);
+		// Don't throw error, just log it since student essays are not critical
+	}
+}
+
+/**
+ * Create Bible Bee enrollments for children enrolled in Bible Bee ministry
+ */
+async function createBibleBeeEnrollments(bibleBeeCycleId, divisionMap) {
+	try {
+		console.log(`📚 Creating Bible Bee enrollments for children...`);
+
+		// Get children enrolled in Bible Bee ministry
+		const { data: enrollments, error: enrollmentError } = await supabase
+			.from('ministry_enrollments')
+			.select(
+				`
+				child_id,
+				children!inner(child_id, first_name, last_name, grade)
+			`
+			)
+			.eq('ministry_id', `${EXTERNAL_ID_PREFIX}bible_bee`);
+
+		if (enrollmentError) {
+			console.log(
+				`⚠️ Error fetching Bible Bee enrollments: ${enrollmentError.message}`
+			);
+			return;
+		}
+
+		if (!enrollments || enrollments.length === 0) {
+			console.log(
+				'⚠️ No children found in Bible Bee ministry, skipping Bible Bee enrollment creation'
+			);
+			return;
+		}
+
+		console.log(
+			`📚 Found ${enrollments.length} children in Bible Bee ministry`
+		);
+
+		let createdCount = 0;
+		let existingCount = 0;
+
+		// Create Bible Bee enrollments for each child
+		for (const enrollment of enrollments) {
+			const childId = enrollment.child_id;
+			const child = enrollment.children;
+
+			// Determine division based on child's grade
+			const grade = parseInt(child.grade) || 0;
+			let divisionName;
+			let divisionId;
+
+			if (grade >= 0 && grade <= 2) {
+				divisionName = 'Primary';
+				divisionId = divisionMap?.Primary;
+			} else if (grade >= 3 && grade <= 7) {
+				divisionName = 'Junior';
+				divisionId = divisionMap?.Junior;
+			} else if (grade >= 8 && grade <= 12) {
+				divisionName = 'Senior';
+				divisionId = divisionMap?.Senior;
+			} else {
+				// Default to Primary for unknown grades
+				divisionName = 'Primary';
+				divisionId = divisionMap?.Primary;
+			}
+
+			if (!divisionId) {
+				console.warn(
+					`⚠️ Division ID not found for ${divisionName}, skipping ${child.first_name} ${child.last_name}`
+				);
+				continue;
+			}
+
+			// Check if Bible Bee enrollment already exists
+			const { data: existingEnrollment, error: checkError } = await supabase
+				.from('bible_bee_enrollments')
+				.select('id')
+				.eq('child_id', childId)
+				.eq('bible_bee_cycle_id', bibleBeeCycleId)
+				.single();
+
+			if (checkError && checkError.code !== 'PGRST116') {
+				console.warn(
+					`⚠️ Error checking Bible Bee enrollment for ${child.first_name} ${child.last_name}: ${checkError.message}`
+				);
+				continue;
+			}
+
+			if (existingEnrollment) {
+				console.log(
+					`✅ Bible Bee enrollment already exists for ${child.first_name} ${child.last_name}`
+				);
+				existingCount++;
+				continue;
+			}
+
+			// Create new Bible Bee enrollment using direct Supabase call with canonical schema
+			const bibleBeeEnrollmentData = {
+				id: crypto.randomUUID(),
+				child_id: childId,
+				bible_bee_cycle_id: bibleBeeCycleId,
+				division_id: divisionId,
+				enrolled_at: new Date().toISOString(),
+				created_at: new Date().toISOString(),
+				updated_at: new Date().toISOString(),
+			};
+
+			if (DRY_RUN) {
+				console.log(
+					`[DRY RUN] Would create Bible Bee enrollment for ${child.first_name} ${child.last_name} in ${divisionName} division`
+				);
+				createdCount++;
+			} else {
+				const { error: insertError } = await supabase
+					.from('bible_bee_enrollments')
+					.insert(bibleBeeEnrollmentData);
+
+				if (insertError) {
+					console.warn(
+						`⚠️ Failed to create Bible Bee enrollment for ${child.first_name} ${child.last_name}: ${insertError.message}`
+					);
+					continue;
+				}
+
+				console.log(
+					`✅ Created Bible Bee enrollment for ${child.first_name} ${child.last_name} in ${divisionName} division`
+				);
+				createdCount++;
+			}
+		}
+
+		console.log(`📊 Bible Bee enrollment creation complete:`);
+		console.log(`   - Created: ${createdCount}`);
+		console.log(`   - Already existed: ${existingCount}`);
+		console.log(`   - Total processed: ${createdCount + existingCount}`);
+	} catch (error) {
+		console.error(`❌ Error creating Bible Bee enrollments: ${error.message}`);
+		// Don't throw error, just log it since Bible Bee enrollments are not critical
 	}
 }
 
@@ -3160,7 +3483,7 @@ async function createHouseholdRegistrations(registrationCycleId) {
 						child_id: child.child_id,
 						ministry_id: ministry.ministry_id,
 						cycle_id: activeCycleId, // Add cycle_id for filtering
-						status: 'active',
+						status: 'enrolled',
 						created_at: new Date().toISOString(),
 					};
 
@@ -3509,7 +3832,7 @@ async function resetUATData() {
 		{ table: 'ministry_groups', filter: { type: 'all_records' } },
 		{ table: 'ministry_accounts', filter: { type: 'ministry_id' } },
 		{ table: 'leader_assignments', filter: { type: 'all_records' } },
-		{ table: 'ministries', filter: { type: 'external_id' } },
+		{ table: 'ministries', filter: { type: 'ministry_id' } },
 	];
 
 	let deletionErrors = [];
@@ -3734,9 +4057,9 @@ async function seedUATData() {
 		await createGradeRules(competitionYearId, divisionMap);
 		console.log(`📊 DEBUG - Created Grade Rules`);
 
-		// Step 6: Load scriptures from actual data files linked to competition year (per generated types)
+		// Step 6: Load scriptures from actual data files linked to Bible Bee cycle (canonical schema)
 		console.log(`📊 DEBUG - About to create Scriptures...`);
-		await createScriptures(competitionYearId);
+		await createScriptures(bibleBeeCycleId);
 		console.log(`📊 DEBUG - Created Scriptures`);
 
 		// Step 7: Create essay prompt for Senior division
@@ -3753,13 +4076,23 @@ async function seedUATData() {
 		// Create households, guardians, and children
 		await createHouseholdsAndFamilies();
 
-		// Create user_households records for canonical DAL
+		// Step 8: Create student essays for children in essay divisions
+		console.log(`📊 DEBUG - About to create Student Essays...`);
+		await createStudentEssays(bibleBeeCycleId, divisionMap);
+		console.log(`📊 DEBUG - Created Student Essays`);
+
+		// Step 9: Create user_households records for canonical DAL
 		await createUserHouseholds();
 
-		// Create ministry enrollments
+		// Step 10: Create ministry enrollments
 		await createMinistryEnrollments(registrationCycleId);
 
-		// Create household registrations with multiple ministry enrollments
+		// Step 11: Create Bible Bee enrollments for children in Bible Bee ministry
+		console.log(`📊 DEBUG - About to create Bible Bee Enrollments...`);
+		await createBibleBeeEnrollments(bibleBeeCycleId, divisionMap);
+		console.log(`📊 DEBUG - Created Bible Bee Enrollments`);
+
+		// Step 12: Create household registrations with multiple ministry enrollments
 		await createHouseholdRegistrations(registrationCycleId);
 
 		// Create events for check-in functionality
