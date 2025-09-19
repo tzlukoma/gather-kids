@@ -12,7 +12,9 @@ import type { Ministry } from '@/lib/types';
 export default function HouseholdBibleBeePage() {
 	const { user } = useAuth();
 	const [profileData, setProfileData] = useState<any>(null);
-	const [bibleBeeMinistry, setBibleBeeMinistry] = useState<Ministry | null>(null);
+	const [bibleBeeMinistry, setBibleBeeMinistry] = useState<Ministry | null>(
+		null
+	);
 	const [isBeforeOpenDate, setIsBeforeOpenDate] = useState<boolean>(false);
 	const [openDateFormatted, setOpenDateFormatted] = useState<string>('');
 
