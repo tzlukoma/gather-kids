@@ -206,12 +206,7 @@ export function BibleBeeProgressList({
 			) {
 				effectiveCycle = String(selectedCycle);
 			}
-			console.log(
-				'🔍 BibleBeeProgressList calling getBibleBeeProgressForCycle with effectiveCycle:',
-				effectiveCycle
-			);
 			const res = await getBibleBeeProgressForCycle(effectiveCycle);
-			console.log('🔍 BibleBeeProgressList received res:', res);
 			if (mounted) {
 				// Filter to specific children if provided
 				const filteredRes = filterChildIds
