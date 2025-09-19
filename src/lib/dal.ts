@@ -4070,6 +4070,20 @@ export async function getCheckedInChildren(dateISO: string): Promise<Child[]> {
 }
 
 /**
+ * Get Bible Bee ministry by code
+ */
+export async function getBibleBeeMinistry(): Promise<Ministry | null> {
+    if (shouldUseAdapter()) {
+        // Use Supabase adapter for live mode
+        const ministries = await dbAdapter.listMinistries();
+        return ministries.find(m => m.code === 'bible-bee') || null;
+    } else {
+        // Use legacy Dexie interface for demo mode
+        return await db.ministries.where('code').equals('bible-bee').first() || null;
+    }
+}
+
+/**
  * Get all competition years for Bible Bee
  */
 export async function getCompetitionYears(): Promise<CompetitionYear[]> {
