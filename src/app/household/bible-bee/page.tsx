@@ -2,9 +2,8 @@
 
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/auth-context';
-import { getHouseholdProfile, getBibleBeeMinistry } from '@/lib/dal';
+import { getHouseholdProfile, getBibleBeeMinistry, getCompetitionYears } from '@/lib/dal';
 import { BibleBeeProgressList } from '@/components/gatherKids/bible-bee-progress-list';
-import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
 import {
 	Select,
@@ -40,11 +39,22 @@ export default function HouseholdBibleBeePage() {
 	const [bibleBeeMinistry, setBibleBeeMinistry] = useState<Ministry | null>(null);
 	const [isBeforeOpenDate, setIsBeforeOpenDate] = useState<boolean>(false);
 	const [openDateFormatted, setOpenDateFormatted] = useState<string>('');
+	const [competitionYears, setCompetitionYears] = useState<any[]>([]);
 
-	const competitionYears = useLiveQuery(
-		() => db.competitionYears.orderBy('year').reverse().toArray(),
-		[]
-	);
+	// Load competition years using DAL
+	useEffect(() => {
+		const loadCompetitionYears = async () => {
+			try {
+				const years = await getCompetitionYears();
+				setCompetitionYears(years);
+			} catch (error) {
+				console.error('Failed to load competition years:', error);
+				setCompetitionYears([]);
+			}
+		};
+		
+		loadCompetitionYears();
+	}, []);
 
 	// Load Bible Bee ministry and check open date
 	useEffect(() => {
@@ -91,7 +101,7 @@ export default function HouseholdBibleBeePage() {
 		// load scriptures for selected cycle
 		let mounted = true;
 		const load = async () => {
-			if (!competitionYears) return;
+			if (!competitionYears || competitionYears.length === 0) return;
 			const yearObj = competitionYears.find(
 				(y: any) => String(y.year) === String(selectedCycle)
 			);
@@ -99,31 +109,41 @@ export default function HouseholdBibleBeePage() {
 				setScriptures([]);
 				return;
 			}
-			const s = await db.scriptures
-				.where('competitionYearId')
-				.equals(yearObj.id)
-				.toArray();
-			if (mounted) {
-				const sorted = s.sort(
-					(a: any, b: any) =>
-						Number(a.sortOrder ?? a.scripture_order ?? 0) -
-						Number(b.sortOrder ?? b.scripture_order ?? 0)
-				);
-				setScriptures(sorted);
-				// collect available versions from scriptures texts maps and translation fields
-				const versions = new Set<string>();
-				for (const item of sorted) {
-					if (item.texts)
-						Object.keys(item.texts).forEach((k) =>
-							versions.add(k.toUpperCase())
-						);
-					if (item.translation)
-						versions.add(String(item.translation).toUpperCase());
+			
+			// Check if scriptures are available - this is a legacy feature
+			if (typeof db !== 'undefined' && 'scriptures' in db) {
+				const s = await (db as any).scriptures
+					.where('competitionYearId')
+					.equals(yearObj.id)
+					.toArray();
+				if (mounted) {
+					const sorted = s.sort(
+						(a: any, b: any) =>
+							Number(a.sortOrder ?? a.scripture_order ?? 0) -
+							Number(b.sortOrder ?? b.scripture_order ?? 0)
+					);
+					setScriptures(sorted);
+					// collect available versions from scriptures texts maps and translation fields
+					const versions = new Set<string>();
+					for (const item of sorted) {
+						if (item.texts)
+							Object.keys(item.texts).forEach((k) =>
+								versions.add(k.toUpperCase())
+							);
+						if (item.translation)
+							versions.add(String(item.translation).toUpperCase());
+					}
+					const vlist = Array.from(versions);
+					setAvailableVersions(vlist);
+					// default to first available
+					if (!displayVersion && vlist.length) setDisplayVersion(vlist[0]);
 				}
-				const vlist = Array.from(versions);
-				setAvailableVersions(vlist);
-				// default to first available
-				if (!displayVersion && vlist.length) setDisplayVersion(vlist[0]);
+			} else {
+				// Scriptures table not available, set empty state
+				if (mounted) {
+					setScriptures([]);
+					setAvailableVersions([]);
+				}
 			}
 		};
 		load();
