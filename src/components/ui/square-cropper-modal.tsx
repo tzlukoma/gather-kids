@@ -4,8 +4,10 @@ import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { toast } from '@/hooks/use-toast';
-import { Upload, ZoomIn, ZoomOut, RotateCw, X, Save } from 'lucide-react';
+import { Upload, ZoomIn, ZoomOut, RotateCw, X, Save, Camera, AlertTriangle, RefreshCw } from 'lucide-react';
 
 interface SquareCropperModalProps {
 	isOpen: boolean;
@@ -48,6 +50,7 @@ export function SquareCropperModal({
 	maxFileSize = 10 * 1024 * 1024, // 10MB
 	outputSize = 512,
 }: SquareCropperModalProps) {
+	const [activeTab, setActiveTab] = useState('camera');
 	const [file, setFile] = useState<File | null>(null);
 	const [imageUrl, setImageUrl] = useState<string>('');
 	const [crop, setCrop] = useState<CropData>({
@@ -62,20 +65,147 @@ export function SquareCropperModal({
 	const [isSaving, setIsSaving] = useState(false);
 	const [progress, setProgress] = useState(0);
 
+	// Camera-specific states
+	const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
+	const [videoDevices, setVideoDevices] = useState<MediaDeviceInfo[]>([]);
+	const [selectedDeviceId, setSelectedDeviceId] = useState<string | undefined>(undefined);
+
 	const canvasRef = useRef<HTMLCanvasElement>(null);
 	const imageRef = useRef<HTMLImageElement>(null);
 	const fileInputRef = useRef<HTMLInputElement>(null);
 	const containerRef = useRef<HTMLDivElement>(null);
+	
+	// Camera-specific refs
+	const videoRef = useRef<HTMLVideoElement>(null);
+	const photoRef = useRef<HTMLCanvasElement>(null);
+	const streamRef = useRef<MediaStream | null>(null);
 
 	// Reset state when modal opens/closes
 	useEffect(() => {
 		if (!isOpen) {
+			setActiveTab('camera');
 			setFile(null);
 			setImageUrl('');
 			setCrop({ x: 0, y: 0, size: 0, scale: 1, rotation: 0 });
 			setProgress(0);
+			stopCamera();
 		}
 	}, [isOpen]);
+
+	// Camera functions
+	const stopCamera = useCallback(() => {
+		if (streamRef.current) {
+			streamRef.current.getTracks().forEach(track => track.stop());
+			streamRef.current = null;
+		}
+	}, []);
+
+	const startCamera = useCallback(async (deviceId?: string) => {
+		stopCamera();
+		try {
+			const constraints: MediaStreamConstraints = {
+				video: {
+					deviceId: deviceId ? { exact: deviceId } : undefined
+				}
+			};
+			const stream = await navigator.mediaDevices.getUserMedia(constraints);
+			setHasCameraPermission(true);
+			streamRef.current = stream;
+			if (videoRef.current) {
+				videoRef.current.srcObject = stream;
+			}
+		} catch (error) {
+			console.error('Error accessing camera:', error);
+			setHasCameraPermission(false);
+			toast({
+				variant: 'destructive',
+				title: 'Camera Access Denied',
+				description: 'Please enable camera permissions in your browser settings.',
+			});
+		}
+	}, [stopCamera, toast]);
+
+	// Camera initialization effect
+	useEffect(() => {
+		let mounted = true;
+		if (activeTab === 'camera' && isOpen && !imageUrl) {
+			navigator.mediaDevices.enumerateDevices().then(devices => {
+				if (!mounted) return;
+				const videoInputs = devices.filter(device => device.kind === 'videoinput');
+				setVideoDevices(videoInputs);
+				if (videoInputs.length > 0) {
+					// Prefer back camera by looking for 'facing back' in the label
+					const backCamera = videoInputs.find(d => d.label.toLowerCase().includes('back'));
+					const initialDeviceId = backCamera?.deviceId || videoInputs[0].deviceId;
+					if (selectedDeviceId !== initialDeviceId) {
+						setSelectedDeviceId(initialDeviceId);
+					} else {
+						startCamera(initialDeviceId);
+					}
+				}
+			}).catch(() => {
+				/* ignore enumeration errors */
+			});
+		} else {
+			stopCamera();
+		}
+		return () => { 
+			mounted = false; 
+		};
+	}, [activeTab, isOpen, imageUrl, startCamera, stopCamera, selectedDeviceId]);
+
+	// Camera device selection effect
+	useEffect(() => {
+		if (selectedDeviceId && activeTab === 'camera' && !imageUrl) {
+			startCamera(selectedDeviceId);
+		}
+		return () => {
+			if (activeTab === 'camera') {
+				stopCamera();
+			}
+		};
+	}, [selectedDeviceId, activeTab, imageUrl, startCamera, stopCamera]);
+
+	const takePhoto = () => {
+		if (videoRef.current && photoRef.current) {
+			const video = videoRef.current;
+			const photo = photoRef.current;
+			const context = photo.getContext('2d');
+
+			const width = video.videoWidth;
+			const height = video.videoHeight;
+			
+			photo.width = width;
+			photo.height = height;
+
+			if (context) {
+				context.drawImage(video, 0, 0, width, height);
+				const dataUrl = photo.toDataURL('image/jpeg');
+				
+				// Create a file-like object for consistency with file upload path
+				fetch(dataUrl)
+					.then(res => res.blob())
+					.then(blob => {
+						const file = new File([blob], 'camera-photo.jpg', {
+							type: 'image/jpeg',
+							lastModified: Date.now(),
+						});
+						setFile(file);
+						handleFileSelect(file, dataUrl);
+					});
+				
+				stopCamera();
+			}
+		}
+	};
+
+	const switchCamera = () => {
+		if (videoDevices.length > 1) {
+			const currentIndex = videoDevices.findIndex(device => device.deviceId === selectedDeviceId);
+			const nextIndex = (currentIndex + 1) % videoDevices.length;
+			setSelectedDeviceId(videoDevices[nextIndex].deviceId);
+		}
+	};
 
 	// Auto-rotate based on EXIF data
 	const getExifRotation = async (file: File): Promise<number> => {
@@ -130,7 +260,7 @@ export function SquareCropperModal({
 		});
 	};
 
-	const handleFileSelect = async (selectedFile: File) => {
+	const handleFileSelect = async (selectedFile: File, existingDataUrl?: string) => {
 		// Validate file type
 		if (!acceptedTypes.includes(selectedFile.type)) {
 			toast({
@@ -158,8 +288,8 @@ export function SquareCropperModal({
 			// Get EXIF rotation
 			const exifRotation = await getExifRotation(selectedFile);
 			
-			// Create image URL
-			const url = URL.createObjectURL(selectedFile);
+			// Use existing data URL (from camera) or create new one
+			const url = existingDataUrl || URL.createObjectURL(selectedFile);
 			setImageUrl(url);
 			setProgress(30);
 
@@ -417,11 +547,33 @@ export function SquareCropperModal({
 	};
 
 	const handleRemove = () => {
+		stopCamera();
 		onClose();
 	};
 
+	const handleRetake = () => {
+		setFile(null);
+		setImageUrl('');
+		setCrop({ x: 0, y: 0, size: 0, scale: 1, rotation: 0 });
+		setProgress(0);
+		
+		// Restart camera if on camera tab
+		if (activeTab === 'camera' && selectedDeviceId) {
+			startCamera(selectedDeviceId);
+		}
+	};
+
+	const handleTabChange = (newTab: string) => {
+		setActiveTab(newTab);
+		// Reset image data when switching tabs
+		setFile(null);
+		setImageUrl('');
+		setCrop({ x: 0, y: 0, size: 0, scale: 1, rotation: 0 });
+		setProgress(0);
+	};
+
 	return (
-		<Dialog open={isOpen} onOpenChange={onClose}>
+		<Dialog open={isOpen} onOpenChange={handleRemove}>
 			<DialogContent className="sm:max-w-md" aria-describedby="cropper-description">
 				<DialogHeader>
 					<DialogTitle className="font-headline">{title}</DialogTitle>
@@ -432,112 +584,189 @@ export function SquareCropperModal({
 					)}
 				</DialogHeader>
 
-				<div className="space-y-4">
-					{/* File upload area */}
-					{!file && (
-						<div
-							className="border-2 border-dashed rounded-lg p-6 text-center cursor-pointer hover:border-primary/50 transition-colors"
-							onDragOver={handleDragOver}
-							onDrop={handleDrop}
-							onClick={() => fileInputRef.current?.click()}
-						>
-							<Upload className="mx-auto h-8 w-8 text-muted-foreground mb-2" />
-							<p className="text-sm text-muted-foreground">
-								<span className="font-medium">Click to upload</span> or drag and drop
-							</p>
-							<p className="text-xs text-muted-foreground mt-1">
-								{acceptedTypes.map(type => type.split('/')[1]).join(', ')} up to {Math.round(maxFileSize / (1024 * 1024))}MB
-							</p>
-							<input
-								ref={fileInputRef}
-								type="file"
-								accept={acceptedTypes.join(',')}
-								onChange={handleFileChange}
-								className="hidden"
-							/>
-						</div>
-					)}
+				<Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+					<TabsList className="grid w-full grid-cols-2">
+						<TabsTrigger value="camera">
+							<Camera className="mr-2 h-4 w-4" />
+							Camera
+						</TabsTrigger>
+						<TabsTrigger value="upload">
+							<Upload className="mr-2 h-4 w-4" />
+							Upload
+						</TabsTrigger>
+					</TabsList>
 
-					{/* Loading progress */}
-					{file && progress < 100 && (
-						<div className="space-y-2">
-							<p className="text-sm text-muted-foreground">Processing image...</p>
-							<Progress value={progress} className="w-full" />
-						</div>
-					)}
-
-					{/* Image cropper */}
-					{file && progress === 100 && imageUrl && (
+					<TabsContent value="camera">
 						<div className="space-y-4">
-							{/* Crop area */}
-							<div
-								ref={containerRef}
-								className="relative w-full h-96 bg-black rounded-lg overflow-hidden"
-								tabIndex={0}
-								onKeyDown={handleKeyDown}
-								role="img"
-								aria-label="Image cropping area. Use arrow keys to move, +/- to zoom"
-							>
-								<img
-									ref={imageRef}
-									src={imageUrl}
-									alt="Preview"
-									className="absolute inset-0 w-full h-full object-contain"
-									style={{
-										transform: `scale(${crop.scale}) rotate(${crop.rotation}deg)`,
-									}}
-								/>
-								
-								{/* Crop overlay */}
-								<div
-									className="absolute border-2 border-white shadow-lg cursor-move bg-black/20"
-									style={{
-										left: crop.x,
-										top: crop.y,
-										width: crop.size,
-										height: crop.size,
-									}}
-									onMouseDown={handleCropMouseDown}
-									role="button"
-									tabIndex={-1}
-									aria-label="Crop area - drag to reposition"
-								>
-									{/* Corner handles */}
-									<div className="absolute top-0 left-0 w-3 h-3 bg-white border border-gray-400"></div>
-									<div className="absolute top-0 right-0 w-3 h-3 bg-white border border-gray-400"></div>
-									<div className="absolute bottom-0 left-0 w-3 h-3 bg-white border border-gray-400"></div>
-									<div className="absolute bottom-0 right-0 w-3 h-3 bg-white border border-gray-400"></div>
-								</div>
-							</div>
+							{hasCameraPermission === false && (
+								<Alert variant="destructive">
+									<AlertTriangle className="h-4 w-4" />
+									<AlertTitle>Camera Access Required</AlertTitle>
+									<AlertDescription>
+										Please allow camera access in your browser to use this feature.
+									</AlertDescription>
+								</Alert>
+							)}
 
-							{/* Controls */}
-							<div className="flex justify-center gap-2">
-								<Button
-									variant="outline"
-									size="sm"
-									onClick={handleZoomOut}
-									disabled={crop.scale <= 0.1}
-									aria-label="Zoom out"
-								>
-									<ZoomOut className="h-4 w-4" />
+							{/* Camera preview or captured image */}
+							{!imageUrl ? (
+								<div className="relative aspect-video w-full bg-muted rounded-md overflow-hidden flex items-center justify-center">
+									<video ref={videoRef} className="w-full h-full object-cover" autoPlay muted playsInline />
+									<canvas ref={photoRef} className="hidden" />
+								</div>
+							) : null}
+
+							{/* Camera controls */}
+							{!imageUrl && (
+								<div className="flex gap-2">
+									<Button 
+										className="flex-1" 
+										onClick={takePhoto} 
+										disabled={!hasCameraPermission}
+									>
+										<Camera className="mr-2 h-4 w-4" />
+										Take Photo
+									</Button>
+									{videoDevices.length > 1 && (
+										<Button 
+											variant="outline" 
+											size="icon" 
+											onClick={switchCamera} 
+											disabled={!hasCameraPermission}
+										>
+											<RefreshCw className="h-4 w-4" />
+										</Button>
+									)}
+								</div>
+							)}
+
+							{/* Show retake button if image captured */}
+							{imageUrl && (
+								<Button className="w-full" variant="outline" onClick={handleRetake}>
+									Retake Photo
 								</Button>
-								<Button
-									variant="outline"
-									size="sm"
-									onClick={handleZoomIn}
-									disabled={crop.scale >= 3}
-									aria-label="Zoom in"
+							)}
+						</div>
+					</TabsContent>
+
+					<TabsContent value="upload">
+						<div className="space-y-4">
+							{/* File upload area */}
+							{!file && (
+								<div
+									className="border-2 border-dashed rounded-lg p-6 text-center cursor-pointer hover:border-primary/50 transition-colors"
+									onDragOver={handleDragOver}
+									onDrop={handleDrop}
+									onClick={() => fileInputRef.current?.click()}
 								>
-									<ZoomIn className="h-4 w-4" />
+									<Upload className="mx-auto h-8 w-8 text-muted-foreground mb-2" />
+									<p className="text-sm text-muted-foreground">
+										<span className="font-medium">Click to upload</span> or drag and drop
+									</p>
+									<p className="text-xs text-muted-foreground mt-1">
+										{acceptedTypes.map(type => type.split('/')[1]).join(', ')} up to {Math.round(maxFileSize / (1024 * 1024))}MB
+									</p>
+									<input
+										ref={fileInputRef}
+										type="file"
+										accept={acceptedTypes.join(',')}
+										onChange={handleFileChange}
+										className="hidden"
+									/>
+								</div>
+							)}
+
+							{/* Clear and re-upload button */}
+							{file && (
+								<Button className="w-full" variant="outline" onClick={handleRetake}>
+									Clear and re-upload
 								</Button>
-								<Button
-									variant="outline"
-									size="sm"
-									onClick={handleRotate}
-									aria-label="Rotate 90 degrees"
-								>
-									<RotateCw className="h-4 w-4" />
-								</Button>
+							)}
+						</div>
+					</TabsContent>
+				</Tabs>
+
+				{/* Loading progress */}
+				{file && progress < 100 && (
+					<div className="space-y-2">
+						<p className="text-sm text-muted-foreground">Processing image...</p>
+						<Progress value={progress} className="w-full" />
+					</div>
+				)}
+
+				{/* Image cropper */}
+				{file && progress === 100 && imageUrl && (
+					<div className="space-y-4">
+						{/* Crop area */}
+						<div
+							ref={containerRef}
+							className="relative w-full h-96 bg-black rounded-lg overflow-hidden"
+							tabIndex={0}
+							onKeyDown={handleKeyDown}
+							role="img"
+							aria-label="Image cropping area. Use arrow keys to move, +/- to zoom"
+						>
+							<img
+								ref={imageRef}
+								src={imageUrl}
+								alt="Preview"
+								className="absolute inset-0 w-full h-full object-contain"
+								style={{
+									transform: `scale(${crop.scale}) rotate(${crop.rotation}deg)`,
+								}}
+							/>
+							
+							{/* Crop overlay */}
+							<div
+								className="absolute border-2 border-white shadow-lg cursor-move bg-black/20"
+								style={{
+									left: crop.x,
+									top: crop.y,
+									width: crop.size,
+									height: crop.size,
+								}}
+								onMouseDown={handleCropMouseDown}
+								role="button"
+								tabIndex={-1}
+								aria-label="Crop area - drag to reposition"
+							>
+								{/* Corner handles */}
+								<div className="absolute top-0 left-0 w-3 h-3 bg-white border border-gray-400"></div>
+								<div className="absolute top-0 right-0 w-3 h-3 bg-white border border-gray-400"></div>
+								<div className="absolute bottom-0 left-0 w-3 h-3 bg-white border border-gray-400"></div>
+								<div className="absolute bottom-0 right-0 w-3 h-3 bg-white border border-gray-400"></div>
+							</div>
+						</div>
+
+						{/* Controls */}
+						<div className="flex justify-center gap-2">
+							<Button
+								variant="outline"
+								size="sm"
+								onClick={handleZoomOut}
+								disabled={crop.scale <= 0.1}
+								aria-label="Zoom out"
+							>
+								<ZoomOut className="h-4 w-4" />
+							</Button>
+							<Button
+								variant="outline"
+								size="sm"
+								onClick={handleZoomIn}
+								disabled={crop.scale >= 3}
+								aria-label="Zoom in"
+							>
+								<ZoomIn className="h-4 w-4" />
+							</Button>
+							<Button
+								variant="outline"
+								size="sm"
+								onClick={handleRotate}
+								aria-label="Rotate 90 degrees"
+							>
+								<RotateCw className="h-4 w-4" />
+							</Button>
+							{activeTab === 'upload' && (
 								<Button
 									variant="outline"
 									size="sm"
@@ -546,14 +775,14 @@ export function SquareCropperModal({
 								>
 									<Upload className="h-4 w-4" />
 								</Button>
-							</div>
-
-							<p className="text-xs text-muted-foreground text-center">
-								Use arrow keys to move crop area, +/- keys to zoom
-							</p>
+							)}
 						</div>
-					)}
-				</div>
+
+						<p className="text-xs text-muted-foreground text-center">
+							Use arrow keys to move crop area, +/- keys to zoom
+						</p>
+					</div>
+				)}
 
 				{/* Hidden canvas for image processing */}
 				<canvas ref={canvasRef} style={{ display: 'none' }} />

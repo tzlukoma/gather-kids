@@ -8,6 +8,19 @@ jest.mock('@/hooks/use-toast', () => ({
   toast: jest.fn(),
 }));
 
+// Mock navigator.mediaDevices
+Object.defineProperty(global.navigator, 'mediaDevices', {
+  writable: true,
+  value: {
+    enumerateDevices: jest.fn().mockResolvedValue([]),
+    getUserMedia: jest.fn().mockResolvedValue({
+      getTracks: jest.fn().mockReturnValue([{
+        stop: jest.fn()
+      }])
+    })
+  }
+});
+
 describe('SquareCropperModal', () => {
   const mockOnClose = jest.fn();
   const mockOnSave = jest.fn();
@@ -55,8 +68,10 @@ describe('SquareCropperModal', () => {
       />
     );
 
-    expect(screen.getByText('Click to upload')).toBeInTheDocument();
-    expect(screen.getByText(/jpg, png, webp up to 10MB/i)).toBeInTheDocument();
+    expect(screen.getByText('Camera')).toBeInTheDocument();
+    expect(screen.getByText('Upload')).toBeInTheDocument();
+    // Camera tab should be active by default
+    expect(screen.getByText('Take Photo')).toBeInTheDocument();
   });
 
   it('calls onClose when cancel button is clicked', () => {
@@ -87,6 +102,8 @@ describe('SquareCropperModal', () => {
       />
     );
 
+    // Click on Upload tab to see the file type restrictions
+    fireEvent.click(screen.getByText('Upload'));
     expect(screen.getByText(/jpeg up to 5MB/i)).toBeInTheDocument();
   });
 
@@ -104,6 +121,41 @@ describe('SquareCropperModal', () => {
     const dialog = screen.getByRole('dialog');
     expect(dialog).toBeInTheDocument();
     expect(dialog).toHaveAttribute('aria-describedby', 'cropper-description');
+  });
+
+  it('shows camera and upload tabs', () => {
+    render(
+      <SquareCropperModal
+        isOpen={true}
+        onClose={mockOnClose}
+        onSave={mockOnSave}
+        title="Test Upload"
+      />
+    );
+
+    expect(screen.getByRole('tab', { name: /camera/i })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /upload/i })).toBeInTheDocument();
+  });
+
+  it('switches between camera and upload tabs', async () => {
+    render(
+      <SquareCropperModal
+        isOpen={true}
+        onClose={mockOnClose}
+        onSave={mockOnSave}
+        title="Test Upload"
+      />
+    );
+
+    // Initially camera tab should be active
+    expect(screen.getByText('Take Photo')).toBeInTheDocument();
+
+    // Switch to upload tab
+    fireEvent.click(screen.getByRole('tab', { name: /upload/i }));
+    
+    await waitFor(() => {
+      expect(screen.getByText('Click to upload')).toBeInTheDocument();
+    });
   });
 
   // Note: Testing file upload, cropping, and EXIF processing would require more complex mocking
