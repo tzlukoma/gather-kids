@@ -1,7 +1,7 @@
 /**
  * This file contains types generated from the Supabase schema.
  * DO NOT EDIT MANUALLY. This file is auto-generated.
- * Generated on: 2025-09-18T06:55:58.861Z
+ * Generated on: 2025-09-20T06:52:42.058Z
  */
 
 export type SupabaseJson =
@@ -78,6 +78,36 @@ export type Database = {
             referencedColumns: ["event_id"]
           },
         ]
+      }
+      avatars: {
+        Row: {
+          created_at: string
+          entity_id: string
+          entity_type: string
+          id: string
+          media_type: string
+          storage_path: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          entity_id: string
+          entity_type: string
+          id?: string
+          media_type?: string
+          storage_path: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          entity_id?: string
+          entity_type?: string
+          id?: string
+          media_type?: string
+          storage_path?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       bible_bee_cycles: {
         Row: {
