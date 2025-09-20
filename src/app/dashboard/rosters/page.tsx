@@ -75,6 +75,7 @@ import { PhotoViewerDialog } from '@/components/gatherKids/photo-viewer-dialog';
 import { ChildCard } from '@/components/gatherKids/child-card';
 import { IncidentDetailsDialog } from '@/components/gatherKids/incident-details-dialog';
 import { PhotoCaptureDialog } from '@/components/gatherKids/photo-capture-dialog';
+import { canUpdateChildPhoto } from '@/lib/permissions';
 
 export type RosterChild = EnrichedChild;
 
@@ -829,6 +830,7 @@ export default function RostersPage() {
 									onViewIncidents={setSelectedIncidents}
 									onUpdatePhoto={setSelectedChildForPhoto}
 									onViewPhoto={setViewingPhoto}
+									canUpdatePhoto={canUpdateChildPhoto(user, child)}
 								/>
 							))}
 						</React.Fragment>
@@ -844,6 +846,7 @@ export default function RostersPage() {
 						onViewIncidents={setSelectedIncidents}
 						onUpdatePhoto={setSelectedChildForPhoto}
 						onViewPhoto={setViewingPhoto}
+						canUpdatePhoto={canUpdateChildPhoto(user, child)}
 					/>
 				))}
 			{displayChildren.length === 0 && (

@@ -34,7 +34,7 @@ import type {
 export class SupabaseAdapter implements DatabaseAdapter {
 	// Use strict Database typing for the Supabase client. If the generated
 	// `Database` type is incomplete, typecheck will reveal the mismatches to fix.
-	private client: SupabaseClient<Database>;
+	public client: SupabaseClient<Database>;
 
 
 	constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: SupabaseClient<Database>) {

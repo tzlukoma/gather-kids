@@ -18,12 +18,9 @@ import { useAuth } from '@/contexts/auth-context';
 import { useSearchParams } from 'next/navigation';
 import { Users, Filter, Edit } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useChildren, useAttendance } from '@/lib/hooks/useData';
 import { Badge } from '@/components/ui/badge';
-import {
-	getTodayIsoDate,
-	getAllChildren,
-	getAttendanceForDate,
-} from '@/lib/dal';
+import { getTodayIsoDate } from '@/lib/dal';
 import type { Child, Attendance } from '@/lib/types';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { normalizeGradeDisplay, getGradeSortOrder } from '@/lib/gradeUtils';
@@ -57,33 +54,14 @@ function CheckInContent() {
 	const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
 	const [isEventDialogOpen, setIsEventDialogOpen] = useState(false);
 
-	// State management for data loading
-	const [children, setChildren] = useState<Child[]>([]);
-	const [todaysAttendance, setTodaysAttendance] = useState<Attendance[]>([]);
-	const [loading, setLoading] = useState(true);
-
 	const today = getTodayIsoDate();
 
-	// Load data using DAL functions
-	useEffect(() => {
-		const loadData = async () => {
-			try {
-				setLoading(true);
-				const [childrenData, attendanceData] = await Promise.all([
-					getAllChildren(),
-					getAttendanceForDate(today),
-				]);
-				setChildren(childrenData);
-				setTodaysAttendance(attendanceData);
-			} catch (error) {
-				console.error('Error loading check-in data:', error);
-			} finally {
-				setLoading(false);
-			}
-		};
+	// Use React Query hooks for data fetching
+	const { data: children = [], isLoading: childrenLoading } = useChildren();
+	const { data: todaysAttendance = [], isLoading: attendanceLoading } =
+		useAttendance(today);
 
-		loadData();
-	}, [today]);
+	const loading = childrenLoading || attendanceLoading;
 
 	const checkedInCount = useMemo(() => {
 		if (!todaysAttendance) return 0;
@@ -305,7 +283,8 @@ function CheckInContent() {
 			</div>
 
 			<CheckInView
-				initialChildren={children}
+				children={children}
+				todaysAttendance={todaysAttendance}
 				selectedEvent={selectedEvent}
 				selectedGrades={Array.from(selectedGrades)}
 				statusFilter={statusFilter}

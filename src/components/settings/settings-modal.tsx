@@ -39,6 +39,7 @@ import { useToast } from '@/hooks/use-toast';
 import { getMeProfile, saveProfile, getActiveProfileTarget } from '@/lib/dal';
 import { supabase } from '@/lib/supabaseClient';
 import { isDemo } from '@/lib/authGuards';
+import { SquareCropperModal } from '@/components/ui/square-cropper-modal';
 
 const profileSchema = z.object({
 	email: z.string().email('Please enter a valid email address'),
@@ -86,6 +87,7 @@ export function SettingsModal({
 	);
 	const [avatarFile, setAvatarFile] = useState<File | null>(null);
 	const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+	const [showCropper, setShowCropper] = useState(false);
 	const [showCurrentPassword, setShowCurrentPassword] = useState(false);
 	const [showNewPassword, setShowNewPassword] = useState(false);
 
@@ -149,37 +151,33 @@ export function SettingsModal({
 		}
 	};
 
-	const handleAvatarChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-		const file = event.target.files?.[0];
-		if (file) {
-			// Validate file size (512KB max as per requirements)
-			if (file.size > 512 * 1024) {
-				toast({
-					title: 'File Too Large',
-					description: 'Please select an image smaller than 512KB.',
-					variant: 'destructive',
-				});
-				return;
-			}
+	const handleAvatarUpload = () => {
+		setShowCropper(true);
+	};
 
-			// Validate file type
-			if (!file.type.startsWith('image/')) {
-				toast({
-					title: 'Invalid File Type',
-					description: 'Please select a valid image file.',
-					variant: 'destructive',
-				});
-				return;
-			}
+	const handleAvatarSave = async (croppedBlob: Blob, croppedDataUrl: string) => {
+		try {
+			// Convert blob to File object for consistency
+			const file = new File([croppedBlob], 'avatar.webp', {
+				type: croppedBlob.type,
+				lastModified: Date.now(),
+			});
 
 			setAvatarFile(file);
+			setAvatarPreview(croppedDataUrl);
 
-			// Create preview
-			const reader = new FileReader();
-			reader.onload = (e) => {
-				setAvatarPreview(e.target?.result as string);
-			};
-			reader.readAsDataURL(file);
+			toast({
+				title: 'Avatar Updated',
+				description: 'Your profile photo has been updated. Remember to save your changes.',
+			});
+		} catch (error) {
+			console.error('Error processing avatar:', error);
+			toast({
+				title: 'Error',
+				description: 'Failed to process the avatar. Please try again.',
+				variant: 'destructive',
+			});
+			throw error;
 		}
 	};
 
@@ -192,31 +190,31 @@ export function SettingsModal({
 
 			// Handle avatar upload if there's a new file
 			if (avatarFile) {
-				const userId = user.uid || user.id || '';
-				const timestamp = Date.now();
-				const extension = avatarFile.name.split('.').pop() || 'jpg';
-
-				// In demo mode, just use a mock path and store the preview URL
-				if (isDemo()) {
-					photoPath = `demo-avatars/${userId}/demo-${timestamp}.${extension}`;
-					// In demo mode, we'll use the preview URL directly
-					if (avatarPreview) {
+				try {
+					if (isDemo()) {
+						// In demo mode, the preview already contains the processed image
 						photoPath = avatarPreview;
-					}
-				} else {
-					// For production mode, currently skip Supabase upload due to bucket configuration
-					// TODO: Configure Supabase storage bucket properly
-					photoPath = `avatars/${userId}/${timestamp}.${extension}`;
+					} else {
+						// In production mode, upload via API
+						const formData = new FormData();
+						formData.append('file', avatarFile, 'avatar.webp');
+						formData.append('userData', JSON.stringify(user));
 
-					// Skip actual upload for now - this prevents the "bucket not found" error
-					console.warn(
-						'Avatar upload skipped: Supabase storage bucket not configured'
-					);
+						const response = await fetch('/api/me/photo', {
+							method: 'POST',
+							body: formData,
+						});
 
-					// For now, use the preview URL as the path in non-demo mode too
-					if (avatarPreview) {
-						photoPath = avatarPreview;
+						if (!response.ok) {
+							const errorData = await response.json();
+							throw new Error(errorData.error || 'Failed to upload avatar');
+						}
+
+						const { photoUrl } = await response.json();
+						photoPath = photoUrl;
 					}
+				} catch (error: any) {
+					throw new Error(`Avatar upload failed: ${error.message}`);
 				}
 			}
 
@@ -428,21 +426,12 @@ export function SettingsModal({
 												</AvatarFallback>
 											</Avatar>
 											<div className="space-y-2">
-												<input
-													id="avatar-upload"
-													type="file"
-													accept="image/*"
-													onChange={handleAvatarChange}
-													className="hidden"
-												/>
 												<div className="flex gap-2">
 													<Button
 														type="button"
 														variant="outline"
 														size="sm"
-														onClick={() =>
-															document.getElementById('avatar-upload')?.click()
-														}>
+														onClick={handleAvatarUpload}>
 														<Upload className="h-4 w-4 mr-2" />
 														{avatarPreview ? 'Replace' : 'Upload'}
 													</Button>
@@ -457,7 +446,7 @@ export function SettingsModal({
 													)}
 												</div>
 												<p className="text-xs text-muted-foreground">
-													Max file size: 512KB. Supported formats: JPG, PNG, GIF
+													Max file size: 10MB. Supported formats: JPG, PNG, WebP
 												</p>
 											</div>
 										</div>
@@ -683,6 +672,18 @@ export function SettingsModal({
 					</TabsContent>
 				</Tabs>
 			</DialogContent>
+
+			{/* Square Cropper Modal */}
+			<SquareCropperModal
+				isOpen={showCropper}
+				onClose={() => setShowCropper(false)}
+				onSave={handleAvatarSave}
+				title="Update Profile Photo"
+				description="Select and crop a square photo for your profile."
+				acceptedTypes={['image/jpeg', 'image/jpg', 'image/png', 'image/webp']}
+				maxFileSize={10 * 1024 * 1024} // 10MB
+				outputSize={512}
+			/>
 		</Dialog>
 	);
 }

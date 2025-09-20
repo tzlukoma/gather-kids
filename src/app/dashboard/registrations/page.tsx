@@ -17,7 +17,7 @@ import {
 	CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { queryHouseholdList, getMinistries } from '@/lib/dal';
+import { getMinistries } from '@/lib/dal';
 import { dbAdapter } from '@/lib/db-utils';
 import { format } from 'date-fns';
 import { ChevronRight, Filter } from 'lucide-react';
@@ -25,6 +25,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { AuthRole } from '@/lib/auth-types';
 import { useState, useEffect } from 'react';
 import { Combobox } from '@/components/ui/combobox';
+import { useHouseholdList } from '@/lib/hooks/useData';
 import type { Household, Child, Ministry } from '@/lib/types';
 
 export default function RegistrationsPage() {
@@ -33,24 +34,37 @@ export default function RegistrationsPage() {
 	const [ministryFilter, setMinistryFilter] = useState<string | null>(null);
 
 	// State management for data loading
-	const [households, setHouseholds] = useState<
-		(Household & { children: (Child & { age: number | null })[] })[]
-	>([]);
 	const [allMinistries, setAllMinistries] = useState<Ministry[]>([]);
-	const [loading, setLoading] = useState(true);
 
 	// For ministry leaders, find which ministry their email is associated with
 	const [leaderMinistryId, setLeaderMinistryId] = useState<string | null>(null);
 	const [noMinistryAssigned, setNoMinistryAssigned] = useState(false);
 
+	// Load ministries data
+	useEffect(() => {
+		const loadMinistries = async () => {
+			try {
+				const ministriesData = await getMinistries();
+				setAllMinistries(ministriesData);
+			} catch (error) {
+				console.error('Error loading ministries:', error);
+			}
+		};
+
+		loadMinistries();
+	}, []);
+
+	// Determine ministry filter IDs for React Query
+	const [ministryFilterIds, setMinistryFilterIds] = useState<
+		string[] | undefined
+	>(undefined);
+
 	// Load data using DAL functions
 	useEffect(() => {
 		const loadData = async () => {
 			try {
-				setLoading(true);
-
 				// For ministry leaders, find their associated ministry
-				let ministryFilterIds: string[] | undefined = undefined;
+				let filterIds: string[] | undefined = undefined;
 				if (user?.metadata?.role === AuthRole.MINISTRY_LEADER && user.email) {
 					console.log(
 						'🔍 RegistrationsPage: Finding ministry for leader email',
@@ -81,11 +95,11 @@ export default function RegistrationsPage() {
 								displayName: matchingAccount.display_name,
 							}
 						);
-						ministryFilterIds = [matchingAccount.ministry_id];
+						filterIds = [matchingAccount.ministry_id];
 						setLeaderMinistryId(matchingAccount.ministry_id);
 						console.log(
 							'🔍 RegistrationsPage: Set ministryFilterIds to',
-							ministryFilterIds
+							filterIds
 						);
 					} else {
 						console.warn(
@@ -95,35 +109,25 @@ export default function RegistrationsPage() {
 						setNoMinistryAssigned(true);
 						console.log(
 							'🔍 RegistrationsPage: ministryFilterIds remains',
-							ministryFilterIds
+							filterIds
 						);
 					}
 				}
 
-				const [householdsData, ministriesData] = await Promise.all([
-					queryHouseholdList(ministryFilterIds, ministryFilter ?? undefined),
-					getMinistries(),
-				]);
-
-				console.log('🔍 RegistrationsPage: Filtering results', {
-					ministryFilterIds,
-					ministryFilter,
-					householdsCount: householdsData.length,
-					userRole: user?.metadata?.role,
-					userEmail: user?.email,
-				});
-
-				setHouseholds(householdsData);
-				setAllMinistries(ministriesData);
+				setMinistryFilterIds(filterIds);
 			} catch (error) {
 				console.error('Error loading registrations data:', error);
-			} finally {
-				setLoading(false);
 			}
 		};
 
 		loadData();
-	}, [user, ministryFilter]);
+	}, [user]);
+
+	// Use React Query hook for household list
+	const { data: households = [], isLoading: loading } = useHouseholdList(
+		ministryFilterIds,
+		ministryFilter ?? undefined
+	);
 
 	const handleRowClick = (householdId: string) => {
 		router.push(`/dashboard/registrations/${householdId}`);

@@ -2,53 +2,36 @@
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { getHouseholdProfile, updateChildPhoto } from '@/lib/dal';
 import { useAuth } from '@/contexts/auth-context';
 import { ChildCard } from '@/components/gatherKids/child-card';
 import type { Child } from '@/lib/types';
 import { PhotoCaptureDialog } from '@/components/gatherKids/photo-capture-dialog';
 import { PhotoViewerDialog } from '@/components/gatherKids/photo-viewer-dialog';
+import { canUpdateChildPhoto } from '@/lib/permissions';
+import { useHouseholdProfile } from '@/lib/hooks/useData';
 
 export default function ChildProfilePage() {
 	const params = useParams();
 	const { user } = useAuth();
 	const childId = params.childId as string;
 
-	const [child, setChild] = useState<Child | null>(null);
-	const [updatingPhoto, setUpdatingPhoto] = useState(false);
 	const [showCapture, setShowCapture] = useState<Child | null>(null);
 	const [viewPhoto, setViewPhoto] = useState<{
 		name: string;
 		url: string;
 	} | null>(null);
 
-	useEffect(() => {
-		const load = async () => {
-			if (!user?.metadata?.household_id) return;
-			const data = await getHouseholdProfile(user.metadata.household_id);
-			const found = data.children.find((c) => c.child_id === childId);
-			if (found) setChild(found as Child);
-		};
-		load();
-	}, [user, childId]);
+	// Use React Query hook for household profile data
+	const { data: profileData, isLoading } = useHouseholdProfile(user?.metadata?.household_id || '');
 
-	if (!child) return <div>Loading child...</div>;
+	// Find the specific child from the profile data
+	const child = profileData?.children.find((c) => c.child_id === childId) || null;
 
 	const handleUpdatePhoto = async (c: Child) => {
 		setShowCapture(c as any);
 	};
 
-	const handlePhotoCaptured = async (dataUrl: string) => {
-		if (!child) return;
-		setUpdatingPhoto(true);
-		try {
-			await updateChildPhoto(child.child_id, dataUrl);
-			setChild({ ...child, photo_url: dataUrl });
-		} finally {
-			setUpdatingPhoto(false);
-			setShowCapture(null);
-		}
-	};
+	if (isLoading || !child) return <div>Loading child...</div>;
 
 	return (
 		<div>
@@ -63,6 +46,7 @@ export default function ChildProfilePage() {
 					onViewIncidents={() => {}}
 					onUpdatePhoto={(c: any) => handleUpdatePhoto(c)}
 					onViewPhoto={(p) => setViewPhoto(p)}
+					canUpdatePhoto={canUpdateChildPhoto(user, child)}
 				/>
 			</div>
 

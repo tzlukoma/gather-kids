@@ -5,7 +5,7 @@ import { shouldUseAdapter } from '@/lib/dal';
 import { db } from '@/lib/db';
 import type { CompetitionYear, GradeRule, Scripture } from '@/lib/types';
 import { createCompetitionYear, upsertScripture, createGradeRule as createRule, toggleScriptureCompletion, submitEssay } from '@/lib/bibleBee';
-import { getBibleBeeCycles, getScripturesForBibleBeeCycle, getChild, getHousehold } from '@/lib/dal';
+import { getBibleBeeCycles, getScripturesForBibleBeeCycle, getChild, getHousehold, updateChildPhoto } from '@/lib/dal';
 import { v4 as uuidv4 } from 'uuid';
 
 export function useCompetitionYears() {
@@ -549,4 +549,42 @@ export function useSubmitEssayMutation(childId: string) {
         },
         onSettled: () => qc.invalidateQueries(key),
     });
+}
+
+// Custom hook to listen for photo updates
+export function useChildPhotoUpdateListener() {
+    const [photoUpdates, setPhotoUpdates] = useState<Map<string, string>>(new Map());
+    
+    useEffect(() => {
+        const handlePhotoUpdate = (event: CustomEvent) => {
+            const { childId, photoDataUrl } = event.detail;
+            setPhotoUpdates(prev => new Map(prev).set(childId, photoDataUrl));
+        };
+        
+        window.addEventListener('childPhotoUpdated', handlePhotoUpdate as EventListener);
+        
+        return () => {
+            window.removeEventListener('childPhotoUpdated', handlePhotoUpdate as EventListener);
+        };
+    }, []);
+    
+    return photoUpdates;
+}
+
+// Photo update mutation that dispatches custom events for immediate updates
+export function useUpdateChildPhotoMutation() {
+    return useMutation(
+        async ({ childId, photoDataUrl }: { childId: string; photoDataUrl: string }) => {
+            return await updateChildPhoto(childId, photoDataUrl);
+        },
+        {
+            onSuccess: (_, { childId, photoDataUrl }) => {
+                // Dispatch custom event for immediate updates across all components
+                const event = new CustomEvent('childPhotoUpdated', {
+                    detail: { childId, photoDataUrl }
+                });
+                window.dispatchEvent(event);
+            },
+        }
+    );
 }

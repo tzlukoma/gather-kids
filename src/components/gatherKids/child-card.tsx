@@ -50,6 +50,7 @@ interface ChildCardProps {
 	onViewIncidents: (incidents: Incident[]) => void;
 	onUpdatePhoto: (child: Child) => void;
 	onViewPhoto: (photo: { name: string; url: string }) => void;
+	canUpdatePhoto?: boolean; // New prop to control photo update visibility
 }
 
 const isBirthdayThisWeek = (dob?: string): boolean => {
@@ -115,6 +116,7 @@ export function ChildCard({
 	onViewIncidents,
 	onUpdatePhoto,
 	onViewPhoto,
+	canUpdatePhoto = true, // Default to true for backward compatibility
 }: ChildCardProps) {
 	const canSelfCheckout = child.age !== null && child.age >= 13;
 	const checkedInEvent = child.activeAttendance?.event_id;
@@ -229,13 +231,15 @@ export function ChildCard({
 							</AvatarFallback>
 						</Avatar>
 					</Button>
-					<Button
-						variant="outline"
-						size="icon"
-						className="absolute -bottom-1 -right-1 h-7 w-7 rounded-full bg-background"
-						onClick={() => onUpdatePhoto(child)}>
-						<Camera className="h-4 w-4" />
-					</Button>
+					{canUpdatePhoto && (
+						<Button
+							variant="outline"
+							size="icon"
+							className="absolute -bottom-1 -right-1 h-7 w-7 rounded-full bg-background"
+							onClick={() => onUpdatePhoto(child)}>
+							<Camera className="h-4 w-4" />
+						</Button>
+					)}
 				</div>
 				<div className="flex-1">
 					<CardTitle className="font-headline text-lg">{`${child.first_name} ${child.last_name}`}</CardTitle>

@@ -5,6 +5,7 @@ import {
 	getHouseholdProfile,
 	getHouseholdForUser,
 } from '@/lib/dal';
+import { useHouseholdProfile } from '@/lib/hooks/useData';
 import HouseholdBibleBeePage from '@/app/household/bible-bee/page';
 
 // Mock the ParentBibleBeeView component since it has complex data dependencies
@@ -23,6 +24,9 @@ jest.mock('@/components/gatherKids/scripture-card', () => ({
 // Mock dependencies
 jest.mock('@/contexts/auth-context');
 jest.mock('@/lib/dal');
+jest.mock('@/lib/hooks/useData', () => ({
+	useHouseholdProfile: jest.fn(),
+}));
 jest.mock('dexie-react-hooks', () => ({
 	useLiveQuery: jest.fn(() => [{ id: '1', year: 2025 }]),
 }));
@@ -36,6 +40,9 @@ const mockGetHouseholdProfile = getHouseholdProfile as jest.MockedFunction<
 >;
 const mockGetHouseholdForUser = getHouseholdForUser as jest.MockedFunction<
 	typeof getHouseholdForUser
+>;
+const mockUseHouseholdProfile = useHouseholdProfile as jest.MockedFunction<
+	typeof useHouseholdProfile
 >;
 
 describe('HouseholdBibleBeePage', () => {
@@ -68,7 +75,10 @@ describe('HouseholdBibleBeePage', () => {
 			userRole: 'GUARDIAN',
 		} as any);
 
-		mockGetHouseholdProfile.mockResolvedValue(mockHouseholdProfile as any);
+		mockUseHouseholdProfile.mockReturnValue({
+			data: mockHouseholdProfile,
+			isLoading: false,
+		} as any);
 		mockGetHouseholdForUser.mockResolvedValue('test-household');
 		jest.clearAllMocks();
 	});
@@ -142,21 +152,24 @@ describe('HouseholdBibleBeePage', () => {
 	});
 
 	it('shows "no children enrolled" message when household has no Bible Bee enrollments', async () => {
-		mockGetHouseholdProfile.mockResolvedValue({
-			children: [
-				{
-					child_id: 'child1',
-					enrollmentsByCycle: {
-						'2025': [
-							{
-								ministry_id: 'other-ministry',
-								ministry_code: 'other-ministry',
-								status: 'enrolled',
-							},
-						],
+		mockUseHouseholdProfile.mockReturnValue({
+			data: {
+				children: [
+					{
+						child_id: 'child1',
+						enrollmentsByCycle: {
+							'2025': [
+								{
+									ministry_id: 'other-ministry',
+									ministry_code: 'other-ministry',
+									status: 'enrolled',
+								},
+							],
+						},
 					},
-				},
-			],
+				],
+			},
+			isLoading: false,
 		} as any);
 
 		mockGetBibleBeeMinistry.mockResolvedValue({

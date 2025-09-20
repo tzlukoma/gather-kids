@@ -29,14 +29,20 @@ import {
 import { CheckCircle } from 'lucide-react';
 import ScriptureCard from '@/components/gatherKids/scripture-card';
 import { EssaySubmissions } from '@/components/gatherKids/essay-submissions';
+import { SquareCropperModal } from '@/components/ui/square-cropper-modal';
+import { useAuth } from '@/contexts/auth-context';
+import { canUpdateChildPhoto } from '@/lib/permissions';
+import { toast } from '@/hooks/use-toast';
 
 export default function DashboardChildBibleBeePage() {
 	const params = useParams();
 	const childId = params.childId as string;
+	const { user } = useAuth();
 	const { data, isLoading } = useStudentAssignmentsQuery(childId);
 	const [childCore, setChildCore] = useState<any>(null);
 	const [guardiansForHousehold, setGuardiansForHousehold] = useState<any[]>([]);
 	const [household, setHousehold] = useState<any>(null);
+	const [showPhotoCapture, setShowPhotoCapture] = useState<any>(null);
 	const toggleMutation = useToggleScriptureMutation(childId);
 	const essayMutation = useSubmitEssayMutation(childId);
 
@@ -261,9 +267,43 @@ export default function DashboardChildBibleBeePage() {
 	console.log('Guardians count:', enrichedChild?.guardians?.length || 0);
 
 	const handleUpdatePhoto = async (c: any) => {
-		// delegate to DAL if available
-		if (!c || !c.child_id) return;
-		// Show capture handled elsewhere; for now, open a placeholder
+		if (!c?.child_id || !user) return;
+		
+		// Check if user has permission to update this child's photo
+		const hasPermission = canUpdateChildPhoto(user, c);
+		if (!hasPermission) {
+			toast({
+				title: 'Permission Denied',
+				description: 'You do not have permission to update this child\'s photo.',
+				variant: 'destructive',
+			});
+			return;
+		}
+		
+		setShowPhotoCapture(c);
+	};
+
+	const handlePhotoSave = async (croppedBlob: Blob, croppedDataUrl: string) => {
+		if (!showPhotoCapture?.child_id) return;
+
+		try {
+			await updateChildPhoto(showPhotoCapture.child_id, croppedDataUrl);
+			
+			// Update the local child state with the new photo URL
+			setChildCore((prev: any) => prev ? { ...prev, photo_url: croppedDataUrl } : prev);
+			
+			toast({
+				title: 'Photo Updated',
+				description: `Photo updated successfully for ${showPhotoCapture.first_name}.`,
+			});
+		} catch (error) {
+			console.error('Failed to update photo:', error);
+			toast({
+				title: 'Update Failed',
+				description: 'Could not update the photo. Please try again.',
+				variant: 'destructive',
+			});
+		}
 	};
 
 	const handleViewPhoto = (p: any) => {
@@ -334,6 +374,15 @@ export default function DashboardChildBibleBeePage() {
 			)}
 
 			{/* duplicate essays block removed; page shows either Scriptures or Essays above */}
+
+			{/* Photo Capture Modal */}
+			<SquareCropperModal
+				isOpen={!!showPhotoCapture}
+				onClose={() => setShowPhotoCapture(null)}
+				onSave={handlePhotoSave}
+				title={showPhotoCapture ? `Update Photo for ${showPhotoCapture.first_name}` : ''}
+				description="Use your camera to take a new photo or upload an existing one."
+			/>
 		</div>
 	);
 }

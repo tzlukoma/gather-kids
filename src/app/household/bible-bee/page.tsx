@@ -3,10 +3,10 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import {
-	getHouseholdProfile,
 	getBibleBeeMinistry,
 	getHouseholdForUser,
 } from '@/lib/dal';
+import { useHouseholdProfile } from '@/lib/hooks/useData';
 import { ParentBibleBeeView } from '@/components/gatherKids/parent-bible-bee-view';
 import { BookOpen, Calendar } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
@@ -15,12 +15,15 @@ import type { Ministry } from '@/lib/types';
 
 export default function HouseholdBibleBeePage() {
 	const { user } = useAuth();
-	const [profileData, setProfileData] = useState<any>(null);
 	const [bibleBeeMinistry, setBibleBeeMinistry] = useState<Ministry | null>(
 		null
 	);
 	const [isBeforeOpenDate, setIsBeforeOpenDate] = useState<boolean>(false);
 	const [openDateFormatted, setOpenDateFormatted] = useState<string>('');
+	const [householdId, setHouseholdId] = useState<string | null>(null);
+
+	// Use React Query hook for household profile data
+	const { data: profileData, isLoading } = useHouseholdProfile(householdId || '');
 
 	// Load Bible Bee ministry and check open date
 	useEffect(() => {
@@ -76,18 +79,12 @@ export default function HouseholdBibleBeePage() {
 				'Bible Bee page: Loading profile for household_id:',
 				targetHouseholdId
 			);
-			try {
-				const data = await getHouseholdProfile(targetHouseholdId);
-				console.log('Bible Bee page: Profile loaded successfully:', data);
-				setProfileData(data);
-			} catch (error) {
-				console.error('Bible Bee page: Failed to load profile:', error);
-			}
+			setHouseholdId(targetHouseholdId);
 		};
 		load();
 	}, [user]);
 
-	if (!profileData) {
+	if (isLoading || !profileData) {
 		console.log('Bible Bee page: profileData not loaded yet');
 		return <div>Loading Bible Bee progress...</div>;
 	}
@@ -165,7 +162,7 @@ export default function HouseholdBibleBeePage() {
 			</div>
 
 			<ParentBibleBeeView
-				householdId={user?.metadata?.household_id || ''}
+				householdId={householdId || ''}
 				children={enrolledChildren}
 			/>
 		</div>

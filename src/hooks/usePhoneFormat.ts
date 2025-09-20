@@ -1,4 +1,7 @@
+'use client';
+
 import { useState, useCallback, ChangeEvent } from 'react';
+import { extractDigits, formatPhone as formatPhoneNumber, cleanPhone } from '@/lib/phone-utils';
 
 /**
  * Custom hook for phone number formatting
@@ -9,18 +12,6 @@ export function usePhoneFormat(initialValue: string = '') {
   // Store the raw digits (for form submission)
   const [rawValue, setRawValue] = useState(() => extractDigits(initialValue));
   
-  // Format digits into (###) ###-#### format
-  const formatPhoneNumber = useCallback((digits: string): string => {
-    // Remove all non-digits
-    const cleaned = digits.replace(/\D/g, '');
-    
-    // Apply formatting based on length
-    if (cleaned.length === 0) return '';
-    if (cleaned.length <= 3) return `(${cleaned}`;
-    if (cleaned.length <= 6) return `(${cleaned.slice(0, 3)}) ${cleaned.slice(3)}`;
-    return `(${cleaned.slice(0, 3)}) ${cleaned.slice(3, 6)}-${cleaned.slice(6, 10)}`;
-  }, []);
-
   // Get formatted display value
   const displayValue = formatPhoneNumber(rawValue);
 
@@ -54,29 +45,5 @@ export function usePhoneFormat(initialValue: string = '') {
   };
 }
 
-/**
- * Extract only digits from a string
- */
-function extractDigits(value: string): string {
-  return value.replace(/\D/g, '');
-}
-
-/**
- * Utility function to format a phone number string
- * Can be used outside of the hook for one-off formatting
- */
-export function formatPhone(value: string): string {
-  const digits = extractDigits(value);
-  if (digits.length === 0) return '';
-  if (digits.length <= 3) return `(${digits}`;
-  if (digits.length <= 6) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
-  return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6, 10)}`;
-}
-
-/**
- * Utility function to clean phone number (extract digits only)
- * Use this before form submission
- */
-export function cleanPhone(value: string): string {
-  return extractDigits(value);
-}
+// Re-export utility functions from phone-utils for backward compatibility
+export { formatPhone, cleanPhone } from '@/lib/phone-utils';
