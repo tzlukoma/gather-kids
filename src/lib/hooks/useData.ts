@@ -31,7 +31,8 @@ export const queryKeys = {
         return parts;
     },
     emergencyContacts: ['emergencyContacts'] as const,
-    attendance: (date: string) => ['attendance', date] as const,
+    attendance: (date: string, eventId?: string) =>
+        eventId ? (['attendance', date, eventId] as const) : (['attendance', date] as const),
     incidents: (date: string) => ['incidents', date] as const,
 };
 
@@ -118,6 +119,16 @@ export function useAttendance(date: string) {
     });
 }
 
+// Event-scoped attendance queries
+export function useAttendanceForEvent({ date, eventId }: { date: string; eventId?: string }) {
+    return useQuery({
+        queryKey: queryKeys.attendance(date, eventId),
+        queryFn: () => getAttendanceForDate(date),
+        enabled: !!date,
+        staleTime: 1 * 60 * 1000, // 1 minute
+    });
+}
+
 // Incidents queries
 export function useIncidents(date: string) {
     return useQuery({
@@ -163,8 +174,14 @@ export function useCheckInMutation() {
             userId?: string;
         }) => recordCheckIn(childId, eventId, notes, userId),
         onSuccess: (_, { eventId }) => {
-            // Invalidate attendance queries for today
             const today = new Date().toISOString().split('T')[0];
+            
+            // Invalidate event-scoped attendance first (most specific)
+            if (eventId) {
+                queryClient.invalidateQueries({ queryKey: ['attendance', today, eventId] });
+            }
+            
+            // Fallback: invalidate date-scoped attendance
             queryClient.invalidateQueries({ queryKey: ['attendance', today] });
             
             // Also invalidate children queries in case attendance affects child display
@@ -184,8 +201,12 @@ export function useCheckOutMutation() {
             userId?: string;
         }) => recordCheckOut(attendanceId, verifier, userId),
         onSuccess: () => {
-            // Invalidate attendance queries for today
             const today = new Date().toISOString().split('T')[0];
+            
+            // For check-out, we don't have the eventId directly, so invalidate both
+            // TODO: In the future, we could enhance this by getting eventId from the attendanceId
+            
+            // Invalidate date-scoped attendance (broader scope since we don't have eventId)
             queryClient.invalidateQueries({ queryKey: ['attendance', today] });
             
             // Also invalidate children queries in case attendance affects child display
