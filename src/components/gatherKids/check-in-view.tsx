@@ -1,7 +1,5 @@
 'use client';
 
-'use client';
-
 import { useState, useMemo, useEffect } from 'react';
 import type {
 	Child,
@@ -14,16 +12,7 @@ import type {
 import { useToast } from '@/hooks/use-toast';
 import { Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import {
-	getTodayIsoDate,
-	recordCheckIn,
-	recordCheckOut,
-	getAttendanceForDate,
-	getIncidentsForDate,
-	getAllGuardians,
-	getAllHouseholds,
-	getAllEmergencyContacts,
-} from '@/lib/dal';
+import { getTodayIsoDate, getIncidentsForDate } from '@/lib/dal';
 import type { StatusFilter } from '@/app/dashboard/check-in/page';
 import { IncidentDetailsDialog } from './incident-details-dialog';
 import { PhotoCaptureDialog } from './photo-capture-dialog';
@@ -34,9 +23,17 @@ import { CheckoutDialog } from './checkout-dialog';
 import { normalizeGradeDisplay } from '@/lib/gradeUtils';
 import { useAuth } from '@/contexts/auth-context';
 import { canUpdateChildPhoto } from '@/lib/permissions';
+import {
+	useGuardians,
+	useHouseholds,
+	useEmergencyContacts,
+	useCheckInMutation,
+	useCheckOutMutation,
+} from '@/lib/hooks/useData';
 
 interface CheckInViewProps {
-	initialChildren: Child[];
+	children: Child[];
+	todaysAttendance: Attendance[];
 	selectedEvent: string;
 	selectedGrades: string[];
 	statusFilter: StatusFilter;
@@ -46,31 +43,29 @@ const eventNames: { [key: string]: string } = {
 	evt_sunday_school: 'Sunday School',
 	evt_childrens_church: 'Children&apos;s Church',
 	evt_teen_church: 'Teen Church',
-	min_choir_kids: 'Children&apos;s Choir Practice',
-	min_youth_group: 'Youth Group',
 };
 
-const getEventName = (eventId: string | null) => {
-	if (!eventId) return '';
-	return eventNames[eventId] || 'an event';
-};
+function getEventName(eventId: string): string {
+	return eventNames[eventId] || eventId;
+}
 
-export interface EnrichedChild extends Child {
+type EnrichedChild = Child & {
 	activeAttendance: Attendance | null;
 	guardians: Guardian[];
 	household: Household | null;
 	emergencyContact: EmergencyContact | null;
 	incidents: Incident[];
 	age: number | null;
-}
+};
 
 export function CheckInView({
-	initialChildren,
+	children,
+	todaysAttendance,
 	selectedEvent,
 	selectedGrades,
 	statusFilter,
 }: CheckInViewProps) {
-	const [children, setChildren] = useState<EnrichedChild[]>([]);
+	const [enrichedChildren, setEnrichedChildren] = useState<EnrichedChild[]>([]);
 	const [childToCheckout, setChildToCheckout] = useState<EnrichedChild | null>(
 		null
 	);
@@ -87,138 +82,135 @@ export function CheckInView({
 		url: string;
 	} | null>(null);
 
-	// State for attendance and incidents data
-	const [todaysAttendance, setTodaysAttendance] = useState<Attendance[]>([]);
+	// Use React Query hooks for additional data
+	const { data: allGuardians = [] } = useGuardians();
+	const { data: allHouseholds = [] } = useHouseholds();
+	const { data: allEmergencyContacts = [] } = useEmergencyContacts();
+
+	// Use React Query mutations for check-in/check-out
+	const checkInMutation = useCheckInMutation();
+	const checkOutMutation = useCheckOutMutation();
+
+	// State for incidents data
 	const [todaysIncidents, setTodaysIncidents] = useState<Incident[]>([]);
 	const [enrichedDataLoading, setEnrichedDataLoading] = useState(true);
 
 	const today = getTodayIsoDate();
 
-	// Load attendance and incidents data using DAL functions
+	// Load incidents data
 	useEffect(() => {
-		const loadAttendanceAndIncidents = async () => {
+		const loadIncidents = async () => {
 			try {
 				setEnrichedDataLoading(true);
-				const [attendanceData, incidentsData] = await Promise.all([
-					getAttendanceForDate(today),
-					getIncidentsForDate(today),
-				]);
-				setTodaysAttendance(attendanceData);
+				const incidentsData = await getIncidentsForDate(today);
 				setTodaysIncidents(incidentsData);
 			} catch (error) {
-				console.error('Error loading attendance and incidents:', error);
-				setTodaysAttendance([]);
+				console.error('Error loading incidents:', error);
 				setTodaysIncidents([]);
 			} finally {
 				setEnrichedDataLoading(false);
 			}
 		};
 
-		loadAttendanceAndIncidents();
+		loadIncidents();
 	}, [today]);
 
+	// Enrich children with additional data
 	useEffect(() => {
-		const enrichChildren = async () => {
-			if (!todaysAttendance || !todaysIncidents || enrichedDataLoading) return;
+		if (
+			!children ||
+			!todaysAttendance ||
+			!todaysIncidents ||
+			enrichedDataLoading
+		)
+			return;
 
-			const attendanceByChild = new Map<string, Attendance[]>();
-			todaysAttendance.forEach((a) => {
-				if (!attendanceByChild.has(a.child_id)) {
-					attendanceByChild.set(a.child_id, []);
-				}
-				attendanceByChild.get(a.child_id)!.push(a);
-			});
+		const attendanceByChild = new Map<string, Attendance[]>();
+		todaysAttendance.forEach((a) => {
+			if (!attendanceByChild.has(a.child_id)) {
+				attendanceByChild.set(a.child_id, []);
+			}
+			attendanceByChild.get(a.child_id)!.push(a);
+		});
 
-			const incidentsByChild = new Map<string, Incident[]>();
-			todaysIncidents.forEach((i) => {
-				if (!incidentsByChild.has(i.child_id)) {
-					incidentsByChild.set(i.child_id, []);
-				}
-				incidentsByChild.get(i.child_id)!.push(i);
-			});
+		const incidentsByChild = new Map<string, Incident[]>();
+		todaysIncidents.forEach((i) => {
+			if (!incidentsByChild.has(i.child_id)) {
+				incidentsByChild.set(i.child_id, []);
+			}
+			incidentsByChild.get(i.child_id)!.push(i);
+		});
 
-			const householdIds = initialChildren.map((c) => c.household_id);
-			// Load additional data using DAL functions
-			const [allGuardians, allHouseholds, allEmergencyContacts] =
-				await Promise.all([
-					getAllGuardians(),
-					getAllHouseholds(),
-					getAllEmergencyContacts(),
-				]);
+		const householdIds = children.map((c) => c.household_id);
 
-			// Filter to only relevant households for better performance
-			const relevantGuardians = allGuardians.filter((g: Guardian) =>
-				householdIds.includes(g.household_id)
-			);
-			const relevantHouseholds = allHouseholds.filter((h: Household) =>
-				householdIds.includes(h.household_id)
-			);
-			const relevantEmergencyContacts = allEmergencyContacts.filter(
-				(ec: EmergencyContact) => householdIds.includes(ec.household_id)
-			);
+		// Filter to only relevant households for better performance
+		const relevantGuardians = allGuardians.filter((g: Guardian) =>
+			householdIds.includes(g.household_id)
+		);
+		const relevantHouseholds = allHouseholds.filter((h: Household) =>
+			householdIds.includes(h.household_id)
+		);
+		const relevantEmergencyContacts = allEmergencyContacts.filter(
+			(ec: EmergencyContact) => householdIds.includes(ec.household_id)
+		);
 
-			const guardianMap = new Map<string, Guardian[]>();
-			relevantGuardians.forEach((g: Guardian) => {
-				if (!guardianMap.has(g.household_id)) {
-					guardianMap.set(g.household_id, []);
-				}
-				guardianMap.get(g.household_id)!.push(g);
-			});
+		const guardianMap = new Map<string, Guardian[]>();
+		relevantGuardians.forEach((g: Guardian) => {
+			if (!guardianMap.has(g.household_id)) {
+				guardianMap.set(g.household_id, []);
+			}
+			guardianMap.get(g.household_id)!.push(g);
+		});
 
-			const householdMap = new Map<string, Household>();
-			relevantHouseholds.forEach((h: Household) => {
-				householdMap.set(h.household_id, h);
-			});
+		const householdMap = new Map<string, Household>();
+		relevantHouseholds.forEach((h: Household) => {
+			householdMap.set(h.household_id, h);
+		});
 
-			const emergencyContactMap = new Map<string, EmergencyContact>();
-			relevantEmergencyContacts.forEach((ec: EmergencyContact) => {
-				emergencyContactMap.set(ec.household_id, ec);
-			});
+		const emergencyContactMap = new Map<string, EmergencyContact>();
+		relevantEmergencyContacts.forEach((ec: EmergencyContact) => {
+			emergencyContactMap.set(ec.household_id, ec);
+		});
 
-			const enriched = initialChildren.map((c) => {
-				const childAttendance = attendanceByChild.get(c.child_id) || [];
-				// Find the most recent check-in that has not been checked out yet.
-				const activeAttendance =
-					childAttendance
-						.filter((a) => !a.check_out_at)
-						.sort(
-							(a, b) =>
-								new Date(b.check_in_at!).getTime() -
-								new Date(a.check_in_at!).getTime()
-						)[0] || null;
+		const enriched = children.map((c) => {
+			const activeAttendance =
+				attendanceByChild.get(c.child_id)?.find((a) => !a.check_out_at) || null;
+			const childIncidents = incidentsByChild.get(c.child_id) || [];
+			const guardians = guardianMap.get(c.household_id) || [];
+			const household = householdMap.get(c.household_id) || null;
+			const emergencyContact = emergencyContactMap.get(c.household_id) || null;
 
-				const childIncidents = (incidentsByChild.get(c.child_id) || []).sort(
-					(a, b) =>
-						new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-				);
+			return {
+				...c,
+				activeAttendance: activeAttendance,
+				guardians: guardians,
+				household: household,
+				emergencyContact: emergencyContact,
+				incidents: childIncidents,
+				age: c.dob ? differenceInYears(new Date(), parseISO(c.dob)) : null,
+			};
+		});
 
-				const emergencyContact =
-					emergencyContactMap.get(c.household_id) || null;
-
-				return {
-					...c,
-					activeAttendance: activeAttendance,
-					guardians: guardianMap.get(c.household_id) || [],
-					household: householdMap.get(c.household_id) || null,
-					emergencyContact: emergencyContact,
-					incidents: childIncidents,
-					age: c.dob ? differenceInYears(new Date(), parseISO(c.dob)) : null,
-				};
-			});
-
-			setChildren(enriched);
-		};
-		enrichChildren();
-	}, [initialChildren, todaysAttendance, todaysIncidents, enrichedDataLoading]);
+		setEnrichedChildren(enriched);
+	}, [
+		children,
+		todaysAttendance,
+		todaysIncidents,
+		enrichedDataLoading,
+		allGuardians,
+		allHouseholds,
+		allEmergencyContacts,
+	]);
 
 	const handleCheckIn = async (childId: string) => {
 		try {
-			await recordCheckIn(childId, selectedEvent, undefined, 'user_admin');
-			const child = children.find((c) => c.child_id === childId);
+			await checkInMutation.mutateAsync({
+				childId,
+				eventId: selectedEvent,
+				userId: 'user_admin',
+			});
 
-			// Refresh attendance data to update UI immediately
-			const refreshedAttendance = await getAttendanceForDate(today);
-			setTodaysAttendance(refreshedAttendance);
+			const child = enrichedChildren.find((c) => c.child_id === childId);
 
 			toast({
 				title: 'Checked In',
@@ -231,40 +223,47 @@ export function CheckInView({
 			toast({
 				title: 'Check-in Failed',
 				description:
-					e.message || 'Could not check in the child. Please try again.',
-				variant: 'destructive',
+					e?.message || 'Failed to check in child. Please try again.',
 			});
 		}
 	};
 
-	const handleCheckout = async (
+	const handleCheckOut = async (
 		childId: string,
 		attendanceId: string,
 		verifier: { method: 'PIN' | 'other'; value: string }
 	) => {
 		try {
-			await recordCheckOut(attendanceId, verifier);
-			const child = children.find((c) => c.child_id === childId);
-			// Find the original event name from the attendance record before it gets cleared
-			const todaysRecord = todaysAttendance?.find(
-				(a) => a.attendance_id === attendanceId
-			);
-			const eventName = getEventName(todaysRecord?.event_id || null);
+			await checkOutMutation.mutateAsync({
+				attendanceId,
+				verifier,
+			});
 
-			// Refresh attendance data to update UI immediately
-			const refreshedAttendance = await getAttendanceForDate(today);
-			setTodaysAttendance(refreshedAttendance);
+			const child = enrichedChildren.find((c) => c.child_id === childId);
 
 			toast({
 				title: 'Checked Out',
-				description: `${child?.first_name} ${child?.last_name} has been checked out from ${eventName}.`,
+				description: `${child?.first_name} ${child?.last_name} has been checked out successfully.`,
 			});
-		} catch (e) {
+
+			// Update the child's attendance status
+			setEnrichedChildren((prevChildren) =>
+				prevChildren.map((c) => {
+					if (c.child_id === childId) {
+						return {
+							...c,
+							activeAttendance: null,
+						};
+					}
+					return c;
+				})
+			);
+		} catch (e: any) {
 			console.error(e);
 			toast({
 				title: 'Check-out Failed',
-				description: 'Could not check out the child. Please try again.',
-				variant: 'destructive',
+				description:
+					e?.message || 'Failed to check out child. Please try again.',
 			});
 		}
 	};
@@ -278,7 +277,7 @@ export function CheckInView({
 	};
 
 	const filteredChildren = useMemo(() => {
-		let results = children;
+		let results = enrichedChildren;
 
 		if (searchQuery) {
 			const lowercasedQuery = searchQuery.toLowerCase();
@@ -309,21 +308,21 @@ export function CheckInView({
 		}
 
 		return results;
-	}, [searchQuery, children, selectedGrades, statusFilter]);
+	}, [searchQuery, enrichedChildren, selectedGrades, statusFilter]);
 
 	return (
 		<>
 			<div className="relative">
 				<Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
 				<Input
-					type="search"
-					placeholder="Search by name or family name (e.g. Jackson)..."
-					className="w-full pl-10"
+					placeholder="Search children..."
 					value={searchQuery}
 					onChange={(e) => setSearchQuery(e.target.value)}
+					className="pl-10"
 				/>
 			</div>
-			<div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+
+			<div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
 				{filteredChildren.map((child) => (
 					<ChildCard
 						key={child.child_id}
@@ -341,23 +340,32 @@ export function CheckInView({
 			{filteredChildren.length === 0 && (
 				<div className="text-center col-span-full py-12">
 					<p className="text-muted-foreground">
-						No children found matching your search or filters.
+						{searchQuery || selectedGrades.length > 0 || statusFilter !== 'all'
+							? 'No children match your current filters.'
+							: 'No children found.'}
 					</p>
 				</div>
 			)}
+
+			{/* Dialogs */}
 			<CheckoutDialog
 				child={childToCheckout}
 				onClose={closeCheckoutDialog}
-				onCheckout={handleCheckout}
+				onCheckout={(childId, attendanceId, verifier) =>
+					handleCheckOut(childId, attendanceId, verifier)
+				}
 			/>
+
 			<IncidentDetailsDialog
 				incidents={selectedIncidents}
 				onClose={() => setSelectedIncidents(null)}
 			/>
+
 			<PhotoCaptureDialog
 				child={selectedChildForPhoto}
 				onClose={() => setSelectedChildForPhoto(null)}
 			/>
+
 			<PhotoViewerDialog
 				photo={viewingPhoto}
 				onClose={() => setViewingPhoto(null)}
