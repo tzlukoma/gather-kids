@@ -1092,8 +1092,10 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 		await this.db.scriptures.delete(id);
 	}
 
-	async listScriptures(filters?: { yearId?: string }): Promise<Scripture[]> {
-		if (filters?.yearId) {
+	async listScriptures(filters?: { yearId?: string; cycleId?: string }): Promise<Scripture[]> {
+		if (filters?.cycleId) {
+			return this.db.scriptures.where('bible_bee_cycle_id').equals(filters.cycleId).sortBy('scripture_order');
+		} else if (filters?.yearId) {
 			return this.db.scriptures.where('year_id').equals(filters.yearId).sortBy('scripture_order');
 		}
 		return this.db.scriptures.orderBy('scripture_order').toArray();

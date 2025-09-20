@@ -338,8 +338,8 @@ export function BibleBeeProgressList({
 			const pct = r.essayStatus === 'submitted' ? 100 : 0;
 			return { ...r, progressPct: pct };
 		} else {
-			// Scripture tracks: normal percentage calculation
-			const denom = r.requiredScriptures || r.totalScriptures || 1;
+			// Scripture tracks: normal percentage calculation using requiredScriptures as denominator
+			const denom = r.requiredScriptures || 1;
 			const pct = denom === 0 ? 0 : (r.completedScriptures / denom) * 100;
 			return { ...r, progressPct: pct };
 		}

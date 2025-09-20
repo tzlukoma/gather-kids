@@ -15,8 +15,6 @@ import {
 	getEssayPromptsForYearAndDivision,
 } from '@/lib/dal';
 import { useEffect, useState, useTransition } from 'react';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '@/lib/db';
 import { Button } from '@/components/ui/button';
 import { getApplicableGradeRule } from '@/lib/bibleBee';
 import { gradeToCode } from '@/lib/gradeUtils';
@@ -30,7 +28,7 @@ import {
 } from '@/components/ui/card';
 import { CheckCircle } from 'lucide-react';
 import ScriptureCard from '@/components/gatherKids/scripture-card';
-import EssayCard from '@/components/gatherKids/essay-card';
+import { EssaySubmissions } from '@/components/gatherKids/essay-submissions';
 import { SquareCropperModal } from '@/components/ui/square-cropper-modal';
 import { useAuth } from '@/contexts/auth-context';
 import { canUpdateChildPhoto } from '@/lib/permissions';
@@ -334,62 +332,12 @@ export default function DashboardChildBibleBeePage() {
 					<div>
 						<h2 className="font-semibold text-2xl mb-3">Essays</h2>
 						{divisionEssayPrompts && divisionEssayPrompts.length > 0 ? (
-							<div className="space-y-2">
-								{divisionEssayPrompts.map((prompt: any) => (
-									<EssayCard key={prompt.id} essayPrompt={prompt} />
-								))}
-
-								{/* Show existing essay submissions if any */}
-								{data.essays && data.essays.length > 0 && (
-									<div className="mt-4">
-										<h3 className="font-medium text-lg mb-2">
-											Your Submissions
-										</h3>
-										{data.essays.map((e: any) => (
-											<Card key={e.id}>
-												<CardHeader>
-													<CardTitle>
-														{e.essayPrompt?.title || 'Essay Assignment'}
-													</CardTitle>
-													<CardDescription>
-														{e.essayPrompt?.prompt ||
-															'Essay prompt for this division'}
-													</CardDescription>
-												</CardHeader>
-												<CardContent>
-													<div className="flex items-center gap-4">
-														<span
-															className={`px-2 py-1 rounded text-xs ${
-																e.status === 'submitted'
-																	? 'bg-green-100 text-green-800'
-																	: e.status === 'assigned'
-																	? 'bg-yellow-100 text-yellow-800'
-																	: 'bg-gray-100 text-gray-800'
-															}`}>
-															{e.status === 'submitted'
-																? 'Submitted'
-																: e.status === 'assigned'
-																? 'Assigned'
-																: 'Not Started'}
-														</span>
-														{e.status !== 'submitted' && (
-															<Button
-																onClick={() =>
-																	essayMutation.mutate({
-																		bibleBeeCycleId: e.bible_bee_cycle_id,
-																	})
-																}
-																size="sm">
-																Mark Submitted
-															</Button>
-														)}
-													</div>
-												</CardContent>
-											</Card>
-										))}
-									</div>
-								)}
-							</div>
+							<EssaySubmissions
+								essays={data.essays}
+								onSubmitEssay={(bibleBeeCycleId) =>
+									essayMutation.mutate({ bibleBeeCycleId })
+								}
+							/>
 						) : (
 							<div className="text-center text-muted-foreground py-8">
 								Essays are assigned to this division. Essays will appear here

@@ -6,7 +6,7 @@ import { AuthRole } from '@/lib/auth-types';
 import {
 	canLeaderManageBibleBee,
 	getBibleBeeCycles,
-	getScripturesForBibleBeeYear,
+	getScripturesForBibleBeeCycle,
 } from '@/lib/dal';
 import LeaderBibleBeeProgress from '@/components/gatherKids/bible-bee-progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -67,7 +67,6 @@ export default function BibleBeePage() {
 
 				// Get Bible Bee cycles using DAL function with adapter support
 				const beeCycles = await getBibleBeeCycles();
-				console.log('Bible Bee cycles loaded:', beeCycles);
 				setBibleBeeCycles(beeCycles || []);
 			} catch (error) {
 				console.error('Failed to load Bible Bee data:', error);
@@ -164,7 +163,7 @@ export default function BibleBeePage() {
 				if (bibleBeeCycle) {
 					console.log('Found Bible Bee cycle:', bibleBeeCycle);
 					try {
-						scriptures = await getScripturesForBibleBeeYear(bibleBeeCycle.id);
+						scriptures = await getScripturesForBibleBeeCycle(bibleBeeCycle.id);
 						console.log(
 							'Loaded scriptures from Bible Bee cycle:',
 							scriptures.length

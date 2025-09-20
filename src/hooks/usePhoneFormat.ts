@@ -1,3 +1,5 @@
+'use client';
+
 import { useState, useCallback, ChangeEvent } from 'react';
 import { extractDigits, formatPhone as formatPhoneNumber, cleanPhone } from '@/lib/phone-utils';
 
