@@ -1,5 +1,96 @@
 # Release Notes - gatherKids
 
+## v1.4.0 - Bible Bee Household Features & Infrastructure Improvements
+
+### 🆕 New Features
+
+#### Bible Bee Household Guardian Experience
+
+- **Complete household Bible Bee view** - Parents can view Bible Bee progress for all enrolled children
+- **Date-gated access** - Content only shown after program's official open date
+- **Individual child progress tracking** - Detailed progress pages showing scripture completion and essay status
+- **Essay submission interface** - Parents can mark essays as submitted directly from household interface
+- **Conditional navigation** - Bible Bee navigation only appears for households with enrolled children
+
+#### Bible Bee Admin Management Features
+
+- **Enhanced Bible Bee administration** - Complete cycle-based management system for Bible Bee programs
+- **Essay prompt management** - Create and manage essay assignments for different divisions
+- **Scripture progress tracking** - Monitor individual student progress with detailed metrics
+- **Division management** - Organize participants by age groups with custom requirements
+- **Student assignment interface** - Assign scriptures and essays to individual students
+- **Progress analytics** - Comprehensive reporting on program participation and completion rates
+
+#### Generic Avatar Storage System
+
+- **Universal avatar support** - New system supports children, guardians, leaders, and users
+- **Immediate photo updates** - Photos update instantly across all views without page refresh
+- **Square cropping functionality** - Built-in photo cropping with camera and upload support
+- **Flexible storage backend** - Base64 in demo mode, Supabase Storage in production
+
+#### React Query Data Management
+
+- **Modern data fetching** - Migrated to React Query for better state management
+- **Optimistic updates** - Immediate UI feedback for check-in/check-out operations
+- **Automatic cache invalidation** - Data stays fresh across all views and components
+
+### 🔧 Technical Improvements
+
+#### Authentication & Security
+
+- **Magic link authentication fixes** - Resolved PKCE flow errors and cross-tab compatibility issues
+- **Simplified PKCE storage** - Replaced complex monitoring systems with clean NextJSStorage adapter
+- **Enhanced error handling** - Clear, actionable error messages for authentication issues
+- **Consistent redirect behavior** - All auth flows now redirect to `/register` consistently
+
+#### Bible Bee System Migration
+
+- **Complete cycle migration** - Migrated from BibleBeeYear to BibleBeeCycle system
+- **Enhanced data consistency** - All Bible Bee operations use canonical cycle-based approach
+- **Essay system integration** - Full essay assignment and submission tracking
+
+#### Infrastructure & Monitoring
+
+- **Sentry error tracking** - Comprehensive error monitoring and performance tracking in production
+- **User session replay** - Session replay functionality for debugging user issues
+- **Production-only monitoring** - Sentry only runs in production environments
+
+### 🎯 User Experience Improvements
+
+#### Household Guardian Interface
+
+- **Intuitive Bible Bee navigation** - Clear progress overview with clickable child cards
+- **Consistent design language** - Progress cards match overall application design system
+- **Loading states** - Proper loading indicators and skeleton screens
+
+#### Photo Management
+
+- **Streamlined photo upload** - Simple camera and file upload interface
+- **Real-time updates** - Photos appear immediately after upload across all views
+- **Consistent avatar display** - Same avatar shown consistently across all views
+
+#### Authentication Experience
+
+- **Improved magic link flow** - More reliable authentication with better error messages
+- **Cross-browser compatibility** - Magic links work consistently across different browsers
+- **Clear error guidance** - Helpful messages explaining common authentication issues
+
+### 🛡️ Security & Reliability
+
+#### Authentication Security
+
+- **PKCE flow implementation** - Secure authentication using Proof Key for Code Exchange
+- **Session persistence** - Reliable session management across browser tabs
+- **Storage security** - Secure handling of authentication tokens and verifiers
+
+#### Data Protection
+
+- **Avatar access control** - Row-level security policies for avatar data
+- **Household data isolation** - Users only see data for their own household
+- **Secure file uploads** - Proper validation and processing of uploaded images
+
+---
+
 ## v1.3.0 - Admin User Management
 
 ### 🆕 New Features
@@ -14,11 +105,20 @@
 
 ### 🔧 Technical Improvements
 
-- **Secure API endpoints** - New `/api/users` route handles user fetching and role updates securely
+#### Secure API Endpoints
+
+- **New `/api/users` route** - Handles user fetching and role updates securely
 - **Enhanced authentication** - Proper server-side authentication using Supabase Admin API
 - **Role-based navigation** - New "Users" menu item visible only to ADMIN users
 - **Toast notifications** - User-friendly feedback for successful operations and error handling
 - **Environment variable support** - Production-ready configuration with `PROD_SUPABASE_URL` and `PROD_SUPABASE_SERVICE_ROLE_KEY`
+
+#### Bible Bee System Architecture
+
+- **Cycle-based data model** - Migrated from year-based to cycle-based system for better flexibility
+- **Enhanced DAL functions** - Updated data access layer with cycle-based operations
+- **Improved data consistency** - Better handling of enrollment data and ministry relationships
+- **Optimized queries** - More efficient database queries for student and progress data
 
 ### 🎯 User Experience Improvements
 
