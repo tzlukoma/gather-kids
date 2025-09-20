@@ -2,13 +2,14 @@
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { getHouseholdProfile, updateChildPhoto } from '@/lib/dal';
+import { getHouseholdProfile } from '@/lib/dal';
 import { useAuth } from '@/contexts/auth-context';
 import { ChildCard } from '@/components/gatherKids/child-card';
 import type { Child } from '@/lib/types';
 import { PhotoCaptureDialog } from '@/components/gatherKids/photo-capture-dialog';
 import { PhotoViewerDialog } from '@/components/gatherKids/photo-viewer-dialog';
 import { canUpdateChildPhoto } from '@/lib/permissions';
+import { useChildPhotoUpdateListener } from '@/lib/hooks/useBibleBee';
 
 export default function ChildProfilePage() {
 	const params = useParams();
@@ -16,12 +17,24 @@ export default function ChildProfilePage() {
 	const childId = params.childId as string;
 
 	const [child, setChild] = useState<Child | null>(null);
-	const [updatingPhoto, setUpdatingPhoto] = useState(false);
 	const [showCapture, setShowCapture] = useState<Child | null>(null);
 	const [viewPhoto, setViewPhoto] = useState<{
 		name: string;
 		url: string;
 	} | null>(null);
+
+	// Listen for photo updates
+	const photoUpdates = useChildPhotoUpdateListener();
+
+	// Update child when photo is updated
+	useEffect(() => {
+		if (child && photoUpdates.has(child.child_id)) {
+			const photoUrl = photoUpdates.get(child.child_id);
+			if (photoUrl) {
+				setChild({ ...child, photo_url: photoUrl });
+			}
+		}
+	}, [photoUpdates, child]);
 
 	useEffect(() => {
 		const load = async () => {
@@ -37,18 +50,6 @@ export default function ChildProfilePage() {
 
 	const handleUpdatePhoto = async (c: Child) => {
 		setShowCapture(c as any);
-	};
-
-	const handlePhotoCaptured = async (dataUrl: string) => {
-		if (!child) return;
-		setUpdatingPhoto(true);
-		try {
-			await updateChildPhoto(child.child_id, dataUrl);
-			setChild({ ...child, photo_url: dataUrl });
-		} finally {
-			setUpdatingPhoto(false);
-			setShowCapture(null);
-		}
 	};
 
 	return (

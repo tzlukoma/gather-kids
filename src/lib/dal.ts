@@ -380,6 +380,25 @@ export async function getHouseholdProfile(householdId: string): Promise<Househol
             cycleNames[cycle.cycle_id] = cycle.name;
         });
 
+        // Get avatar data for all children
+        const { data: avatars, error } = await dbAdapter.client
+            .from('avatars')
+            .select('entity_id, storage_path')
+            .eq('entity_type', 'child')
+            .in('entity_id', childIds);
+        
+        if (error) {
+            console.warn('Failed to load avatars for household children:', error);
+        }
+        
+        // Create a map of child_id to avatar URL
+        const avatarMap = new Map<string, string>();
+        if (avatars) {
+            avatars.forEach(avatar => {
+                avatarMap.set(avatar.entity_id, avatar.storage_path);
+            });
+        }
+
         const childrenWithEnrollments = children.map(child => {
             const enrollmentsByCycle = childEnrollments
                 .filter(e => e.child_id === child.child_id)
@@ -405,6 +424,7 @@ export async function getHouseholdProfile(householdId: string): Promise<Househol
                 ...child,
                 age: child.dob ? ageOn(new Date().toISOString(), child.dob) : null,
                 enrollmentsByCycle: enrollmentsByCycle,
+                photo_url: avatarMap.get(child.child_id) || undefined,
             };
         });
 
@@ -2411,15 +2431,113 @@ export async function saveMinistryAccount(accountData: Omit<MinistryAccount, 'cr
     }
 }
 
-export async function updateChildPhoto(childId: string, photoDataUrl: string): Promise<number | string> {
+// Generic function to update any entity's avatar
+export async function updateEntityAvatar(
+    entityType: 'child' | 'guardian' | 'leader' | 'user',
+    entityId: string,
+    photoDataUrl: string
+): Promise<string> {
     if (shouldUseAdapter()) {
-        // Use Supabase adapter for live mode
-        const updatedChild = await dbAdapter.updateChild(childId, { photo_url: photoDataUrl });
-        return updatedChild.child_id;
+        // Use Supabase adapter for live mode with generic avatars table
+        try {
+            console.log('updateEntityAvatar: Starting update for', { entityType, entityId, photoDataUrlLength: photoDataUrl.length });
+            
+            // Extract storage path from photoDataUrl if it's a Supabase Storage URL
+            let storagePath: string;
+            if (photoDataUrl.startsWith('data:')) {
+                // Base64 data URL - store directly in avatars table
+                storagePath = photoDataUrl;
+            } else if (photoDataUrl.includes('/storage/v1/object/public/')) {
+                // Supabase Storage URL - extract the path
+                const urlParts = photoDataUrl.split('/storage/v1/object/public/');
+                storagePath = urlParts[1] || photoDataUrl;
+            } else {
+                // Fallback to storing the full URL
+                storagePath = photoDataUrl;
+            }
+            
+            console.log('updateEntityAvatar: Prepared data for upsert', { entityType, entityId, storagePathLength: storagePath.length });
+            
+            // Upsert into generic avatars table
+            const { data, error } = await dbAdapter.client.from('avatars').upsert({
+                entity_type: entityType,
+                entity_id: entityId,
+                storage_path: storagePath,
+                media_type: photoDataUrl.startsWith('data:') ? 'image/jpeg' : 'image/webp',
+                updated_at: new Date().toISOString()
+            }, {
+                onConflict: 'entity_type,entity_id'
+            }).select();
+            
+            console.log('updateEntityAvatar: Supabase response', { data, error });
+            
+            if (error) {
+                console.error('Failed to update avatars table:', error);
+                throw error;
+            }
+            
+            console.log('updateEntityAvatar: Successfully updated avatar');
+            return entityId;
+        } catch (error) {
+            console.error('Error updating entity avatar via avatars table:', error);
+            throw error;
+        }
     } else {
         // Use legacy Dexie interface for demo mode
-        return db.children.update(childId, { photo_url: photoDataUrl });
+        // For demo mode, we still use the old approach for backward compatibility
+        if (entityType === 'child') {
+            return db.children.update(entityId, { photo_url: photoDataUrl });
+        } else {
+            // For other entity types in demo mode, we could extend this
+            console.warn(`Demo mode avatar update not implemented for entity type: ${entityType}`);
+            return entityId;
+        }
     }
+}
+
+// Function to get an entity's avatar
+export async function getEntityAvatar(
+    entityType: 'child' | 'guardian' | 'leader' | 'user',
+    entityId: string
+): Promise<string | null> {
+    if (shouldUseAdapter()) {
+        try {
+            const { data, error } = await dbAdapter.client
+                .from('avatars')
+                .select('storage_path')
+                .eq('entity_type', entityType)
+                .eq('entity_id', entityId)
+                .single();
+            
+            if (error) {
+                if (error.code === 'PGRST116') {
+                    // No rows returned - no avatar exists
+                    return null;
+                }
+                console.error('Failed to get avatar:', error);
+                return null;
+            }
+            
+            return data?.storage_path || null;
+        } catch (error) {
+            console.error('Error getting entity avatar:', error);
+            return null;
+        }
+    } else {
+        // Use legacy Dexie interface for demo mode
+        if (entityType === 'child') {
+            const child = await db.children.get(entityId);
+            return child?.photo_url || null;
+        } else {
+            console.warn(`Demo mode avatar retrieval not implemented for entity type: ${entityType}`);
+            return null;
+        }
+    }
+}
+
+// Legacy function for backward compatibility
+export async function updateChildPhoto(childId: string, photoDataUrl: string): Promise<number | string> {
+    return updateEntityAvatar('child', childId, photoDataUrl);
 }
 
 // Branding Settings CRUD
@@ -3474,7 +3592,26 @@ export async function uploadJsonTexts(yearId: string, data: any, mode: 'merge' |
 export async function getChild(childId: string): Promise<Child | null> {
 	if (shouldUseAdapter()) {
 		// Use Supabase adapter for live mode
-		return dbAdapter.getChild(childId);
+		const child = await dbAdapter.getChild(childId);
+		if (!child) return null;
+		
+		// Get avatar data for this child
+		const { data: avatar, error } = await dbAdapter.client
+			.from('avatars')
+			.select('storage_path')
+			.eq('entity_type', 'child')
+			.eq('entity_id', childId)
+			.single();
+		
+		if (error && error.code !== 'PGRST116') {
+			console.warn('Failed to load avatar for child:', error);
+		}
+		
+		// Return child with photo_url from avatar
+		return {
+			...child,
+			photo_url: avatar?.storage_path || undefined
+		};
 	} else {
 		// Use legacy Dexie interface for demo mode
 		return db.children.get(childId);
@@ -3886,7 +4023,33 @@ export async function getRegistrationCycles(isActive?: boolean): Promise<Registr
 export async function getAllChildren(): Promise<Child[]> {
 	if (shouldUseAdapter()) {
 		// Use Supabase adapter for live mode
-		return dbAdapter.listChildren();
+		const children = await dbAdapter.listChildren();
+		
+		// Get avatar data for all children
+		const childIds = children.map(c => c.child_id);
+		const { data: avatars, error } = await dbAdapter.client
+			.from('avatars')
+			.select('entity_id, storage_path')
+			.eq('entity_type', 'child')
+			.in('entity_id', childIds);
+		
+		if (error) {
+			console.warn('Failed to load avatars for children:', error);
+		}
+		
+		// Create a map of child_id to avatar URL
+		const avatarMap = new Map<string, string>();
+		if (avatars) {
+			avatars.forEach(avatar => {
+				avatarMap.set(avatar.entity_id, avatar.storage_path);
+			});
+		}
+		
+		// Enrich children with photo_url from avatars
+		return children.map(child => ({
+			...child,
+			photo_url: avatarMap.get(child.child_id) || undefined
+		}));
 	} else {
 		// Use legacy Dexie interface for demo mode
 		return db.children.toArray();
@@ -3996,7 +4159,32 @@ export async function getChildrenForLeader(assignedMinistryIds: string[], cycleI
 		if (childIds.length === 0) return [];
 		
 		const allChildren = await dbAdapter.listChildren();
-		return allChildren.filter(c => childIds.includes(c.child_id));
+		const children = allChildren.filter(c => childIds.includes(c.child_id));
+		
+		// Get avatar data for these children
+		const { data: avatars, error } = await dbAdapter.client
+			.from('avatars')
+			.select('entity_id, storage_path')
+			.eq('entity_type', 'child')
+			.in('entity_id', childIds);
+		
+		if (error) {
+			console.warn('Failed to load avatars for children:', error);
+		}
+		
+		// Create a map of child_id to avatar URL
+		const avatarMap = new Map<string, string>();
+		if (avatars) {
+			avatars.forEach(avatar => {
+				avatarMap.set(avatar.entity_id, avatar.storage_path);
+			});
+		}
+		
+		// Enrich children with photo_url from avatars
+		return children.map(child => ({
+			...child,
+			photo_url: avatarMap.get(child.child_id) || undefined
+		}));
 	} else {
 		// Use legacy Dexie interface for demo mode
 		const enrollments = await db.ministry_enrollments

@@ -29,13 +29,14 @@ import {
 } from '@/components/ui/accordion';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Button } from '../ui/button';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { PhotoCaptureDialog } from './photo-capture-dialog';
 import { PhotoViewerDialog } from './photo-viewer-dialog';
 import type { Child } from '@/lib/types';
 import { formatPhone } from '@/hooks/usePhoneFormat';
 import { normalizeGradeDisplay } from '@/lib/gradeUtils';
 import { useAuth } from '@/contexts/auth-context';
+import { useChildPhotoUpdateListener } from '@/lib/hooks/useBibleBee';
 import { canUpdateChildPhoto } from '@/lib/permissions';
 
 const InfoItem = ({
@@ -259,9 +260,25 @@ export function HouseholdProfile({
 		name: string;
 		url: string;
 	} | null>(null);
+	const [localChildren, setLocalChildren] = useState<Child[]>(children);
 
-	const activeChildren = children.filter((c) => c.is_active);
-	const inactiveChildren = children.filter((c) => !c.is_active);
+	// Listen for photo updates
+	const photoUpdates = useChildPhotoUpdateListener();
+
+	// Update children when photos are updated
+	useEffect(() => {
+		if (photoUpdates.size > 0) {
+			setLocalChildren(prevChildren => 
+				prevChildren.map(child => {
+					const photoUrl = photoUpdates.get(child.child_id);
+					return photoUrl ? { ...child, photo_url: photoUrl } : child;
+				})
+			);
+		}
+	}, [photoUpdates]);
+
+	const activeChildren = localChildren.filter((c) => c.is_active);
+	const inactiveChildren = localChildren.filter((c) => !c.is_active);
 
 	return (
 		<>
