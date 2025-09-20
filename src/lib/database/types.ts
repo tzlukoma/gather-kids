@@ -311,7 +311,7 @@ export interface DatabaseAdapter {
 	getScripture(id: string): Promise<Scripture | null>;
 	upsertScripture(data: Omit<Scripture, 'created_at' | 'updated_at'> & { id?: string }): Promise<Scripture>;
 	deleteScripture(id: string): Promise<void>;
-	listScriptures(filters?: { yearId?: string }): Promise<Scripture[]>;
+	listScriptures(filters?: { yearId?: string; cycleId?: string }): Promise<Scripture[]>;
 	commitEnhancedCsvRowsToYear(rows: any[], yearId: string): Promise<any>;
 	uploadJsonTexts(yearId: string, data: any, mode: 'merge' | 'overwrite', dryRun: boolean): Promise<any>;
 

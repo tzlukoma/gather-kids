@@ -69,13 +69,26 @@ function HouseholdLayoutContent({ children }: { children: React.ReactNode }) {
 
 			try {
 				const profileData = await getHouseholdProfile(targetHouseholdId);
+				console.log('🔍 Bible Bee Nav Check - Household Profile:', {
+					householdId: targetHouseholdId,
+					childrenCount: profileData.children.length,
+					childrenWithEnrollments: profileData.children.map((child) => ({
+						childId: child.child_id,
+						enrollmentsByCycle: child.enrollmentsByCycle,
+					})),
+				});
+
 				const hasEnrollment = profileData.children.some((child) =>
 					Object.values(child.enrollmentsByCycle).some((enrollments) =>
-						enrollments.some(
-							(enrollment) => enrollment.ministry_id === 'bible-bee'
-						)
+						enrollments.some((enrollment) => {
+							console.log('🔍 Checking enrollment:', enrollment);
+							// Check ministry code for Bible Bee
+							return enrollment.ministry_code === 'bible-bee';
+						})
 					)
 				);
+
+				console.log('🔍 Bible Bee Nav Check - Result:', { hasEnrollment });
 				setHasBibleBeeEnrollment(hasEnrollment);
 			} catch (error) {
 				console.error('Failed to check Bible Bee enrollment:', error);

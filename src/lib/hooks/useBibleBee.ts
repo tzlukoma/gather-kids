@@ -5,7 +5,7 @@ import { shouldUseAdapter } from '@/lib/dal';
 import { db } from '@/lib/db';
 import type { CompetitionYear, GradeRule, Scripture } from '@/lib/types';
 import { createCompetitionYear, upsertScripture, createGradeRule as createRule, toggleScriptureCompletion, submitEssay } from '@/lib/bibleBee';
-import { getBibleBeeYears, getScripturesForBibleBeeYear, getChild, getHousehold } from '@/lib/dal';
+import { getBibleBeeCycles, getScripturesForBibleBeeCycle, getChild, getHousehold } from '@/lib/dal';
 import { v4 as uuidv4 } from 'uuid';
 
 export function useCompetitionYears() {
@@ -20,13 +20,13 @@ export function useCompetitionYears() {
                         shouldUseAdapter: shouldUseAdapter(),
                         databaseMode: process.env.NEXT_PUBLIC_DATABASE_MODE
                     });
-                    const bibleBeeYears = await getBibleBeeYears();
-                    // Convert BibleBeeYear to CompetitionYear format for compatibility
-                    const convertedYears = bibleBeeYears.map(year => ({
-                        id: year.id,
-                        year: parseInt(year.label?.split(' ').pop() || '2025'),
-                        createdAt: year.created_at,
-                        updatedAt: year.created_at,
+                    const bibleBeeCycles = await getBibleBeeCycles();
+                    // Convert BibleBeeCycle to CompetitionYear format for compatibility
+                    const convertedYears = bibleBeeCycles.map(cycle => ({
+                        id: cycle.id,
+                        year: parseInt(cycle.name?.split(' ').pop() || '2025'),
+                        createdAt: cycle.created_at,
+                        updatedAt: cycle.updated_at || cycle.created_at,
                     }));
                     if (mounted) setYears(convertedYears.sort((a, b) => b.year - a.year));
                 } else {
@@ -51,12 +51,12 @@ export function useCompetitionYears() {
                         shouldUseAdapter: shouldUseAdapter(),
                         databaseMode: process.env.NEXT_PUBLIC_DATABASE_MODE
                     });
-                    const bibleBeeYears = await getBibleBeeYears();
-                    const convertedYears = bibleBeeYears.map(year => ({
-                        id: year.id,
-                        year: parseInt(year.label?.split(' ').pop() || '2025'),
-                        createdAt: year.created_at,
-                        updatedAt: year.created_at,
+                    const bibleBeeCycles = await getBibleBeeCycles();
+                    const convertedYears = bibleBeeCycles.map(cycle => ({
+                        id: cycle.id,
+                        year: parseInt(cycle.name?.split(' ').pop() || '2025'),
+                        createdAt: cycle.created_at,
+                        updatedAt: cycle.updated_at || cycle.created_at,
                     }));
                     setYears(convertedYears);
                 } else {
@@ -84,7 +84,7 @@ export function useScripturesForYear(yearId: string) {
                         shouldUseAdapter: shouldUseAdapter(),
                         databaseMode: process.env.NEXT_PUBLIC_DATABASE_MODE
                     });
-                    const s = await getScripturesForBibleBeeYear(yearId);
+                    const s = await getScripturesForBibleBeeCycle(yearId);
                     if (mounted) {
                         // Sort by scripture_order, then fall back to sortOrder
                         const sorted = s.sort((a: Scripture, b: Scripture) => {
@@ -124,7 +124,7 @@ export function useScripturesForYear(yearId: string) {
         refresh: async () => { 
             try {
                 if (shouldUseAdapter()) {
-                    const s = await getScripturesForBibleBeeYear(yearId);
+                    const s = await getScripturesForBibleBeeCycle(yearId);
                     const sorted = s.sort((a: Scripture, b: Scripture) => {
                         const aRec = a as unknown as Record<string, unknown>;
                         const bRec = b as unknown as Record<string, unknown>;

@@ -26,10 +26,9 @@ import {
 	commitEnhancedCsvRowsToYear,
 	validateJsonTextUpload,
 	uploadJsonTexts,
-	getDivisionsForBibleBeeYear,
-	getBibleBeeYears,
-	getScripturesForBibleBeeYear,
-	getEssayPromptsForBibleBeeYear,
+	getDivisionsForBibleBeeCycle,
+	getScripturesForBibleBeeCycle,
+	getEssayPromptsForBibleBeeCycle,
 	upsertScripture,
 	deleteScripture,
 	getCompetitionYears,
@@ -212,7 +211,7 @@ export default function BibleBeeManage({
 
 		const loadDivisions = async () => {
 			try {
-				const divs = await getDivisionsForBibleBeeYear(selectedYearId);
+				const divs = await getDivisionsForBibleBeeCycle(selectedYearId);
 				setDivisions(divs);
 			} catch (error) {
 				console.error('Error loading divisions:', error);
@@ -235,7 +234,7 @@ export default function BibleBeeManage({
 
 		const loadEssayPrompts = async () => {
 			try {
-				const prompts = await getEssayPromptsForBibleBeeYear(selectedYearId);
+				const prompts = await getEssayPromptsForBibleBeeCycle(selectedYearId);
 				setEssayPrompts(prompts);
 			} catch (error) {
 				console.error('Error loading essay prompts:', error);
@@ -808,7 +807,10 @@ function DivisionManagement({
 									value={formData.minimum_required.toString()}
 									onChange={(e) => {
 										// Only allow numeric characters and remove leading zeros
-										const cleanValue = e.target.value.replace(/[^0-9]/g, '').replace(/^0+/, '') || '0';
+										const cleanValue =
+											e.target.value
+												.replace(/[^0-9]/g, '')
+												.replace(/^0+/, '') || '0';
 										setFormData({
 											...formData,
 											minimum_required: parseInt(cleanValue) || 0,
@@ -982,7 +984,7 @@ function ScriptureManagement({
 
 		const loadScriptures = async () => {
 			try {
-				const result = await getScripturesForBibleBeeYear(yearId);
+				const result = await getScripturesForBibleBeeCycle(yearId);
 				setScriptures(result);
 			} catch (error) {
 				console.error('Error loading scriptures:', error);
@@ -1158,7 +1160,7 @@ function ScriptureManagement({
 					.toLowerCase();
 
 			// Get all existing scriptures for this year
-			const existingScriptures = await getScripturesForBibleBeeYear(yearId);
+			const existingScriptures = await getScripturesForBibleBeeCycle(yearId);
 
 			// Track references with missing texts and their details
 			const referencesWithoutTexts = preview.filter((row) => {
@@ -1241,7 +1243,7 @@ function ScriptureManagement({
 			onRefresh();
 
 			// Check if scriptures were actually created
-			const allScriptures = await getScripturesForBibleBeeYear(yearId);
+			const allScriptures = await getScripturesForBibleBeeCycle(yearId);
 			const scriptureCount = allScriptures.length;
 			console.log(
 				`Total scriptures for year ${yearId} after CSV import:`,
@@ -1330,7 +1332,7 @@ function ScriptureManagement({
 			setError(null);
 
 			// Check if scriptures were actually created/updated
-			const allScriptures = await getScripturesForBibleBeeYear(yearId);
+			const allScriptures = await getScripturesForBibleBeeCycle(yearId);
 			const scriptureCount = allScriptures.length;
 			console.log(`Total scriptures for year ${yearId}:`, scriptureCount);
 		} catch (error: any) {
