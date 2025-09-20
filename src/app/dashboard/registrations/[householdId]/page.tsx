@@ -1,11 +1,10 @@
 'use client';
 
-import { useLiveQuery } from 'dexie-react-hooks';
 import { useParams, useRouter } from 'next/navigation';
-import { getHouseholdProfile } from '@/lib/dal';
 import { HouseholdProfile } from '@/components/gatherKids/household-profile';
 import { useAuth } from '@/contexts/auth-context';
 import { useEffect, useState } from 'react';
+import { useHouseholdProfile } from '@/lib/hooks/useData';
 
 export default function HouseholdProfilePage() {
 	const params = useParams();
@@ -15,10 +14,8 @@ export default function HouseholdProfilePage() {
 
 	const householdId = params.householdId as string;
 
-	const profileData = useLiveQuery(
-		() => getHouseholdProfile(householdId),
-		[householdId]
-	);
+	// Use React Query hook for household profile data
+	const { data: profileData, isLoading } = useHouseholdProfile(householdId);
 
 	useEffect(() => {
 		if (!loading && user) {
@@ -29,7 +26,7 @@ export default function HouseholdProfilePage() {
 		}
 	}, [user, loading, router]);
 
-	if (loading || !isAuthorized || !profileData) {
+	if (loading || !isAuthorized || isLoading || !profileData) {
 		return <div>Loading household profile...</div>;
 	}
 

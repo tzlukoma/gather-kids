@@ -36,7 +36,6 @@ import type { Child } from '@/lib/types';
 import { formatPhone } from '@/hooks/usePhoneFormat';
 import { normalizeGradeDisplay } from '@/lib/gradeUtils';
 import { useAuth } from '@/contexts/auth-context';
-import { useChildPhotoUpdateListener } from '@/lib/hooks/useBibleBee';
 import { canUpdateChildPhoto } from '@/lib/permissions';
 
 const InfoItem = ({
@@ -260,25 +259,9 @@ export function HouseholdProfile({
 		name: string;
 		url: string;
 	} | null>(null);
-	const [localChildren, setLocalChildren] = useState<Child[]>(children);
 
-	// Listen for photo updates
-	const photoUpdates = useChildPhotoUpdateListener();
-
-	// Update children when photos are updated
-	useEffect(() => {
-		if (photoUpdates.size > 0) {
-			setLocalChildren(prevChildren => 
-				prevChildren.map(child => {
-					const photoUrl = photoUpdates.get(child.child_id);
-					return photoUrl ? { ...child, photo_url: photoUrl } : child;
-				})
-			);
-		}
-	}, [photoUpdates]);
-
-	const activeChildren = localChildren.filter((c) => c.is_active);
-	const inactiveChildren = localChildren.filter((c) => !c.is_active);
+	const activeChildren = children.filter((c) => c.is_active);
+	const inactiveChildren = children.filter((c) => !c.is_active);
 
 	return (
 		<>

@@ -11,7 +11,8 @@ import {
     getHousehold,
     updateChildPhoto,
     recordCheckIn,
-    recordCheckOut
+    recordCheckOut,
+    queryHouseholdList
 } from '@/lib/dal';
 import type { Child, Guardian, Household, EmergencyContact, Attendance, Incident } from '@/lib/types';
 
@@ -23,6 +24,12 @@ export const queryKeys = {
     householdProfile: (id: string) => ['householdProfile', id] as const,
     guardians: ['guardians'] as const,
     households: ['households'] as const,
+    householdList: (leaderMinistryIds?: string[], ministryId?: string) => {
+        const parts: string[] = ['householdList'];
+        if (leaderMinistryIds) parts.push('leaderMinistryIds', ...leaderMinistryIds);
+        if (ministryId) parts.push('ministryId', ministryId);
+        return parts;
+    },
     emergencyContacts: ['emergencyContacts'] as const,
     attendance: (date: string) => ['attendance', date] as const,
     incidents: (date: string) => ['incidents', date] as const,
@@ -80,6 +87,15 @@ export function useHouseholds() {
         queryKey: queryKeys.households,
         queryFn: getAllHouseholds,
         staleTime: 10 * 60 * 1000,
+    });
+}
+
+// Household list query (for registrations page)
+export function useHouseholdList(leaderMinistryIds?: string[], ministryId?: string) {
+    return useQuery({
+        queryKey: queryKeys.householdList(leaderMinistryIds, ministryId),
+        queryFn: () => queryHouseholdList(leaderMinistryIds, ministryId),
+        staleTime: 5 * 60 * 1000,
     });
 }
 

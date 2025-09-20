@@ -5,16 +5,19 @@ import { HouseholdProfile } from '@/components/gatherKids/household-profile';
 import { OnboardingModal } from '@/components/gatherKids/onboarding-modal';
 import AuthDebug from '@/components/AuthDebug';
 import { useEffect, useState } from 'react';
-import { getHouseholdProfile } from '@/lib/dal';
+import { useHouseholdProfile } from '@/lib/hooks/useData';
+import { getHouseholdForUser } from '@/lib/dal';
 import type { HouseholdProfileData } from '@/lib/dal';
 
 export default function GuardianHouseholdPage() {
 	const { user } = useAuth();
-	const [profileData, setProfileData] = useState<HouseholdProfileData | null>(
-		null
-	);
 	const [showOnboarding, setShowOnboarding] = useState(false);
 	const [householdId, setHouseholdId] = useState<string | null>(null);
+
+	// Use React Query hook for household profile data
+	const { data: profileData, isLoading } = useHouseholdProfile(
+		householdId || ''
+	);
 
 	useEffect(() => {
 		const load = async () => {
@@ -25,24 +28,12 @@ export default function GuardianHouseholdPage() {
 
 			// If not available, try to find it using user_households table
 			if (!targetHouseholdId && user?.uid) {
-				const { getHouseholdForUser } = await import('@/lib/dal');
 				targetHouseholdId = (await getHouseholdForUser(user.uid)) ?? undefined;
 			}
 
 			if (!targetHouseholdId) return;
 
 			setHouseholdId(targetHouseholdId);
-			const data = await getHouseholdProfile(targetHouseholdId);
-			console.log('DEBUG: Household profile data:', data);
-			console.log(
-				'DEBUG: Children with enrollments:',
-				data.children.map((c) => ({
-					childName: `${c.first_name} ${c.last_name}`,
-					enrollmentsByCycle: c.enrollmentsByCycle,
-					enrollmentCount: Object.values(c.enrollmentsByCycle).flat().length,
-				}))
-			);
-			setProfileData(data);
 		};
 		load();
 	}, [user]);
@@ -65,7 +56,7 @@ export default function GuardianHouseholdPage() {
 		}
 	}, [user]);
 
-	if (!profileData) return <div>Loading household...</div>;
+	if (isLoading || !profileData) return <div>Loading household...</div>;
 
 	return (
 		<div>

@@ -2,55 +2,36 @@
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { getHouseholdProfile } from '@/lib/dal';
 import { useAuth } from '@/contexts/auth-context';
 import { ChildCard } from '@/components/gatherKids/child-card';
 import type { Child } from '@/lib/types';
 import { PhotoCaptureDialog } from '@/components/gatherKids/photo-capture-dialog';
 import { PhotoViewerDialog } from '@/components/gatherKids/photo-viewer-dialog';
 import { canUpdateChildPhoto } from '@/lib/permissions';
-import { useChildPhotoUpdateListener } from '@/lib/hooks/useBibleBee';
+import { useHouseholdProfile } from '@/lib/hooks/useData';
 
 export default function ChildProfilePage() {
 	const params = useParams();
 	const { user } = useAuth();
 	const childId = params.childId as string;
 
-	const [child, setChild] = useState<Child | null>(null);
 	const [showCapture, setShowCapture] = useState<Child | null>(null);
 	const [viewPhoto, setViewPhoto] = useState<{
 		name: string;
 		url: string;
 	} | null>(null);
 
-	// Listen for photo updates
-	const photoUpdates = useChildPhotoUpdateListener();
+	// Use React Query hook for household profile data
+	const { data: profileData, isLoading } = useHouseholdProfile(user?.metadata?.household_id || '');
 
-	// Update child when photo is updated
-	useEffect(() => {
-		if (child && photoUpdates.has(child.child_id)) {
-			const photoUrl = photoUpdates.get(child.child_id);
-			if (photoUrl) {
-				setChild({ ...child, photo_url: photoUrl });
-			}
-		}
-	}, [photoUpdates, child]);
-
-	useEffect(() => {
-		const load = async () => {
-			if (!user?.metadata?.household_id) return;
-			const data = await getHouseholdProfile(user.metadata.household_id);
-			const found = data.children.find((c) => c.child_id === childId);
-			if (found) setChild(found as Child);
-		};
-		load();
-	}, [user, childId]);
-
-	if (!child) return <div>Loading child...</div>;
+	// Find the specific child from the profile data
+	const child = profileData?.children.find((c) => c.child_id === childId) || null;
 
 	const handleUpdatePhoto = async (c: Child) => {
 		setShowCapture(c as any);
 	};
+
+	if (isLoading || !child) return <div>Loading child...</div>;
 
 	return (
 		<div>
