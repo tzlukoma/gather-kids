@@ -866,11 +866,6 @@ export default function RostersPage() {
 							<h1 className="text-xl font-bold font-headline text-muted-foreground">
 								Ministry Rosters
 							</h1>
-							<Badge
-								variant="secondary"
-								className="text-xs bg-blue-100 text-blue-800 border border-blue-200">
-								Beta
-							</Badge>
 						</div>
 						<Dialog
 							open={isEventDialogOpen}

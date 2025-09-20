@@ -247,7 +247,28 @@ _Note: Profile editing, consent status viewing, and update capabilities are plan
 
 ### 👥 Leader Features (MINISTRY_LEADER Role)
 
-_All leader features are currently in Beta status. See the Beta Features section below for detailed information._
+### Check-In/Out System
+
+- **Digital attendance tracking** - Record children's arrival and departure times
+- **Event-based check-ins** - Organize attendance by specific events (Sunday School, Children's Church, Teen Church)
+- **Real-time attendance monitoring** - See who's currently checked in at any time
+- **Attendance history** - Review past attendance records and patterns
+
+### Roster Management
+
+- **Ministry rosters** - View and manage lists of enrolled children
+- **Age-based organization** - Sort children by grade and age for appropriate grouping
+- **Contact information access** - Quick access to parent/guardian contact details
+- **Enrollment status tracking** - Monitor which children are actively participating
+- **Export capabilities** - Generate roster reports for planning and communication
+
+### Incident Reporting
+
+- **Incident logging** - Document and report incidents that occur during ministry activities
+- **Detailed incident forms** - Capture comprehensive information about incidents
+- **Incident history** - Review past incidents and follow-up actions
+- **Acknowledgment system** - Track which incidents have been reviewed and addressed
+- **Privacy controls** - Secure incident reporting with appropriate access controls
 
 ### 🔧 Administrator Features (ADMIN Role)
 
@@ -258,6 +279,17 @@ _All leader features are currently in Beta status. See the Beta Features section
 - **Registration cycle management** - Control when registrations are open/closed
 - **User role management** - Backend system for managing user permissions and access levels (_Frontend interface planned for future releases_)
 - **System settings** - Configure application-wide settings and preferences
+
+### Bible Bee Management
+
+- **Program administration** - Manage Bible Bee competitions and activities
+- **Scripture management** - Organize and distribute scripture memorization materials
+- **Progress tracking** - Monitor participants' progress through the program
+- **Division management** - Organize participants by age groups and skill levels
+- **Competition coordination** - Manage competition schedules and logistics
+- **Essay prompt management** - Create and manage essay assignments for different divisions
+- **Student assignment interface** - Assign scriptures and essays to individual students
+- **Progress analytics** - Comprehensive reporting on program participation and completion rates
 
 ### Reports & Analytics
 
@@ -293,40 +325,14 @@ _All leader features are currently in Beta status. See the Beta Features section
 
 The following features are currently in **Beta** status, meaning they are functional but may have limited features or require additional testing:
 
-### Check-In/Out System
+### User Management
 
-- **Digital attendance tracking** - Record children's arrival and departure times
-- **Event-based check-ins** - Organize attendance by specific events (Sunday School, Children's Church, Teen Church)
-- **Real-time attendance monitoring** - See who's currently checked in at any time
-- **Attendance history** - Review past attendance records and patterns
-- _Note: Additional features and refinements are being developed_
-
-### Roster Management
-
-- **Ministry rosters** - View and manage lists of enrolled children
-- **Age-based organization** - Sort children by grade and age for appropriate grouping
-- **Contact information access** - Quick access to parent/guardian contact details
-- **Enrollment status tracking** - Monitor which children are actively participating
-- **Export capabilities** - Generate roster reports for planning and communication
-- _Note: Enhanced filtering and sorting options coming soon_
-
-### Incident Reporting
-
-- **Incident logging** - Document and report incidents that occur during ministry activities
-- **Detailed incident forms** - Capture comprehensive information about incidents
-- **Incident history** - Review past incidents and follow-up actions
-- **Acknowledgment system** - Track which incidents have been reviewed and addressed
-- **Privacy controls** - Secure incident reporting with appropriate access controls
-- _Note: Advanced reporting and analytics features in development_
-
-### Bible Bee Management
-
-- **Program administration** - Manage Bible Bee competitions and activities
-- **Scripture management** - Organize and distribute scripture memorization materials
-- **Progress tracking** - Monitor participants' progress through the program
-- **Division management** - Organize participants by age groups and skill levels
-- **Competition coordination** - Manage competition schedules and logistics
-- _Note: Additional competition features and reporting tools being added_
+- **User overview dashboard** - Admins can view all registered users with their roles, email confirmation status, and account details
+- **Role promotion interface** - Admins can promote users to ADMIN role directly from the web interface
+- **User status monitoring** - Track email confirmation status, last sign-in dates, and account creation dates
+- **Secure user management** - Server-side API routes protect sensitive operations using Supabase service role key
+- **Real-time user updates** - User list updates immediately after role changes without page refresh
+- _Note: Additional user management features and bulk operations in development_
 
 ### Reports & Analytics
 

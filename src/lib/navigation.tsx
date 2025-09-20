@@ -38,7 +38,6 @@ export const MENU_ITEMS: MenuItem[] = [
 		label: 'Check-In/Out',
 		roles: [AuthRole.ADMIN, AuthRole.MINISTRY_LEADER, AuthRole.GUARDIAN],
 		requiresActive: true,
-		isBeta: true,
 		// Only show check-in to admins or leaders assigned to Sunday School
 		ministryCheck: (ministryIds: string[], userRole?: AuthRole) =>
 			userRole === AuthRole.ADMIN || ministryIds.includes('min_sunday_school'),
@@ -49,7 +48,6 @@ export const MENU_ITEMS: MenuItem[] = [
 		label: 'Rosters',
 		roles: [AuthRole.ADMIN, AuthRole.MINISTRY_LEADER],
 		requiresActive: true,
-		isBeta: true,
 	},
 	{
 		href: '/dashboard/registrations',
@@ -86,7 +84,6 @@ export const MENU_ITEMS: MenuItem[] = [
 		label: 'Bible Bee',
 		roles: [AuthRole.ADMIN, AuthRole.MINISTRY_LEADER],
 		requiresActive: true,
-		isBeta: true,
 		ministryCheck: (ministryIds: string[], userRole?: AuthRole) =>
 			userRole === AuthRole.ADMIN || ministryIds.includes('bible-bee'),
 	},
@@ -101,6 +98,7 @@ export const MENU_ITEMS: MenuItem[] = [
 		icon: UserCog,
 		label: 'Users',
 		roles: [AuthRole.ADMIN],
+		isBeta: true,
 	},
 	{
 		href: '/dashboard/reports',

@@ -168,7 +168,14 @@ export default function UsersManagementPage() {
 	return (
 		<div className="container mx-auto py-8">
 			<div className="mb-8">
-				<h1 className="text-3xl font-bold">User Management</h1>
+				<div className="flex items-center gap-2">
+					<h1 className="text-3xl font-bold">User Management</h1>
+					<Badge
+						variant="secondary"
+						className="text-xs bg-blue-100 text-blue-800 border border-blue-200">
+						Beta
+					</Badge>
+				</div>
 				<p className="text-muted-foreground mt-2">
 					Manage user accounts and roles in the system
 				</p>
