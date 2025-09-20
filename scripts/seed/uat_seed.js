@@ -659,7 +659,7 @@ async function createCompetitionYear(bibleBeeCycleId) {
  * Parse CSV scripture metadata from the data file
  */
 function parseScriptureMetadata() {
-	const csvPath = path.join(__dirname, '../data/bible_bee_corrected.csv');
+	const csvPath = path.join(__dirname, '../data/bible_bee_final.csv');
 
 	if (!fs.existsSync(csvPath)) {
 		throw new Error(`Scripture metadata file not found: ${csvPath}`);
@@ -693,7 +693,7 @@ function parseScriptureMetadata() {
 function parseScriptureTexts() {
 	const jsonPath = path.join(
 		__dirname,
-		'../data/bible-bee-2025-scriptures2.json'
+		'../data/bible-bee-2025-scriptures-final.json'
 	);
 
 	if (!fs.existsSync(jsonPath)) {
