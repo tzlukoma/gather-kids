@@ -1,3 +1,5 @@
+'use client';
+
 import { useQuery } from '@tanstack/react-query';
 import { getAllChildren, getChild } from '@/lib/dal';
 import type { Child } from '@/lib/types';

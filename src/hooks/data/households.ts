@@ -1,3 +1,5 @@
+'use client';
+
 import { useQuery } from '@tanstack/react-query';
 import { getAllGuardians, getAllHouseholds, getHousehold, getHouseholdProfile, queryHouseholdList } from '@/lib/dal';
 import type { Guardian, Household } from '@/lib/types';

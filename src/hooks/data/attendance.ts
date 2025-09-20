@@ -1,3 +1,5 @@
+'use client';
+
 import { useQuery } from '@tanstack/react-query';
 import { getAttendanceForDate, getIncidentsForDate } from '@/lib/dal';
 import type { Attendance, Incident } from '@/lib/types';

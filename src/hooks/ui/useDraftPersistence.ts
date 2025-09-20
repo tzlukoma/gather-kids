@@ -1,3 +1,5 @@
+'use client';
+
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { dbAdapter } from '@/lib/dal';
 import { useAuth } from '@/contexts/auth-context';

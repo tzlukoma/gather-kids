@@ -1,3 +1,5 @@
+'use client';
+
 import { useQuery } from '@tanstack/react-query';
 import { getAllEmergencyContacts, getMinistries, getMinistryEnrollmentsByCycle } from '@/lib/dal';
 import type { EmergencyContact, Ministry, MinistryEnrollment } from '@/lib/types';

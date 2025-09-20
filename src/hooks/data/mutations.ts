@@ -1,3 +1,5 @@
+'use client';
+
 import { useQueryClient, useMutation } from '@tanstack/react-query';
 import { updateChildPhoto, recordCheckIn, recordCheckOut } from '@/lib/dal';
 import { childrenKeys } from './children';
