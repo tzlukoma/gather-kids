@@ -30,7 +30,6 @@ import {
 } from '@/components/ui/card';
 import { CheckCircle } from 'lucide-react';
 import ScriptureCard from '@/components/gatherKids/scripture-card';
-import EssayCard from '@/components/gatherKids/essay-card';
 import { EssaySubmissions } from '@/components/gatherKids/essay-submissions';
 
 export default function DashboardChildBibleBeePage() {
@@ -295,18 +294,12 @@ export default function DashboardChildBibleBeePage() {
 					<div>
 						<h2 className="font-semibold text-2xl mb-3">Essays</h2>
 						{divisionEssayPrompts && divisionEssayPrompts.length > 0 ? (
-							<div className="space-y-2">
-								{divisionEssayPrompts.map((prompt: any) => (
-									<EssayCard key={prompt.id} essayPrompt={prompt} />
-								))}
-
-								<EssaySubmissions
-									essays={data.essays}
-									onSubmitEssay={(bibleBeeCycleId) =>
-										essayMutation.mutate({ bibleBeeCycleId })
-									}
-								/>
-							</div>
+							<EssaySubmissions
+								essays={data.essays}
+								onSubmitEssay={(bibleBeeCycleId) =>
+									essayMutation.mutate({ bibleBeeCycleId })
+								}
+							/>
 						) : (
 							<div className="text-center text-muted-foreground py-8">
 								Essays are assigned to this division. Essays will appear here
