@@ -384,12 +384,12 @@ export async function registerHouseholdCanonical(data: Record<string, unknown>, 
               // Handle Bible Bee enrollment through new system
               if (ministry.code === 'bible-bee') {
                 try {
-                  const bibleBeeYears = await dbAdapter.listBibleBeeYears();
-                  const bibleBeeYear = bibleBeeYears.find(year => year.is_active);
+                  const bibleBeeCycles = await dbAdapter.listBibleBeeCycles(true);
+                  const bibleBeeCycle = bibleBeeCycles.find(cycle => cycle.is_active);
                   
-                  if (bibleBeeYear) {
+                  if (bibleBeeCycle) {
                     const gradeNum = child.grade ? gradeToCode(child.grade) : 0;
-                    const divisions = await dbAdapter.listDivisions(bibleBeeYear.id);
+                      const divisions = await dbAdapter.listDivisions(bibleBeeCycle.id);
                     
                     const appropriateDivision = divisions.find(d => 
                       gradeNum !== null && gradeNum >= d.min_grade && gradeNum <= d.max_grade
@@ -399,7 +399,7 @@ export async function registerHouseholdCanonical(data: Record<string, unknown>, 
                       await dbAdapter.createEnrollment({
                         id: uuidv4(),
                         child_id: childId,
-                        year_id: bibleBeeYear.id,
+                          year_id: bibleBeeCycle.id,
                         division_id: appropriateDivision.id,
                         auto_enrolled: false,
                         enrolled_at: now,
@@ -408,7 +408,7 @@ export async function registerHouseholdCanonical(data: Record<string, unknown>, 
                       
                       // Also assign scriptures for the child
                       try {
-                        await enrollChildInBibleBee(childId, bibleBeeYear.id);
+                        await enrollChildInBibleBee(childId, bibleBeeCycle.id);
                       } catch (scriptureError) {
                         console.warn(`Warning: Failed to assign scriptures for child ${child.first_name}:`, scriptureError);
                         // Don't fail the entire registration if scripture assignment fails
@@ -790,12 +790,12 @@ export async function registerHouseholdCanonical(data: Record<string, unknown>, 
               // Handle Bible Bee enrollment through new system
               if (ministry.code === 'bible-bee') {
                 try {
-                  const bibleBeeYears = await dbAdapter.listBibleBeeYears();
-                  const bibleBeeYear = bibleBeeYears.find(year => year.is_active);
+                  const bibleBeeCycles = await dbAdapter.listBibleBeeCycles(true);
+                  const bibleBeeCycle = bibleBeeCycles.find(cycle => cycle.is_active);
                   
-                  if (bibleBeeYear) {
+                  if (bibleBeeCycle) {
                     const gradeNum = child.grade ? gradeToCode(child.grade) : 0;
-                    const divisions = await dbAdapter.listDivisions(bibleBeeYear.id);
+                      const divisions = await dbAdapter.listDivisions(bibleBeeCycle.id);
                     
                     const appropriateDivision = divisions.find(d => 
                       gradeNum !== null && gradeNum >= d.min_grade && gradeNum <= d.max_grade
@@ -805,7 +805,7 @@ export async function registerHouseholdCanonical(data: Record<string, unknown>, 
                       await dbAdapter.createEnrollment({
                         id: uuidv4(),
                         child_id: childId,
-                        year_id: bibleBeeYear.id,
+                          year_id: bibleBeeCycle.id,
                         division_id: appropriateDivision.id,
                         auto_enrolled: false,
                         enrolled_at: now,
@@ -814,7 +814,7 @@ export async function registerHouseholdCanonical(data: Record<string, unknown>, 
                       
                       // Also assign scriptures for the child
                       try {
-                        await enrollChildInBibleBee(childId, bibleBeeYear.id);
+                        await enrollChildInBibleBee(childId, bibleBeeCycle.id);
                       } catch (scriptureError) {
                         console.warn(`Warning: Failed to assign scriptures for child ${child.first_name}:`, scriptureError);
                         // Don't fail the entire registration if scripture assignment fails

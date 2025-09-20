@@ -19,7 +19,7 @@ import { gradeToCode, doGradeRangesOverlap } from './gradeUtils';
 import { AuthRole } from './auth-types';
 import { isDemo } from './featureFlags';
 import { formatPhone } from '@/hooks/usePhoneFormat';
-import type { Attendance, Child, Guardian, Household, Incident, IncidentSeverity, Ministry, MinistryEnrollment, Registration, User, EmergencyContact, LeaderAssignment, LeaderProfile, MinistryLeaderMembership, MinistryAccount, BrandingSettings, BibleBeeYear, RegistrationCycle, Scripture, CompetitionYear, CustomQuestion, MinistryGroup, MinistryGroupMember } from './types';
+import type { Attendance, Child, Guardian, Household, Incident, IncidentSeverity, Ministry, MinistryEnrollment, Registration, User, EmergencyContact, LeaderAssignment, LeaderProfile, MinistryLeaderMembership, MinistryAccount, BrandingSettings, BibleBeeYear, BibleBeeCycle, RegistrationCycle, Scripture, CompetitionYear, CustomQuestion, MinistryGroup, MinistryGroupMember } from './types';
 
 // Leader view result for Bible Bee progress summaries (used by multiple helpers)
 type LeaderBibleBeeResult = {
@@ -2826,7 +2826,26 @@ export async function getBibleBeeYears(): Promise<BibleBeeYear[]> {
 }
 
 /**
- * Get scriptures for a Bible Bee year
+ * Get scriptures for a Bible Bee cycle
+ */
+export async function getScripturesForBibleBeeCycle(cycleId: string): Promise<Scripture[]> {
+	if (shouldUseAdapter()) {
+		// Use Supabase adapter for live mode
+		return dbAdapter.listScriptures({ cycleId });
+	} else {
+		// Use legacy Dexie interface for demo mode
+        if (db && 'scriptures' in db) {
+            // scriptures is an optional legacy table; cast carefully to avoid `any` leaking out
+            const tbl = (db as unknown as { scriptures?: { where: (k: string) => { equals: (v: string) => { toArray: () => Scripture[] } } } }).scriptures;
+            return (tbl?.where('bible_bee_cycle_id')?.equals(cycleId)?.toArray()) || [];
+        }
+		return [];
+	}
+}
+
+/**
+ * Get scriptures for a Bible Bee year (legacy - use getScripturesForBibleBeeCycle instead)
+ * @deprecated Use getScripturesForBibleBeeCycle instead
  */
 export async function getScripturesForBibleBeeYear(yearId: string): Promise<Scripture[]> {
 	if (shouldUseAdapter()) {
@@ -2998,7 +3017,21 @@ export async function getDivision(id: string): Promise<any | null> {
 }
 
 /**
- * Get divisions for a Bible Bee year
+ * Get divisions for a Bible Bee cycle
+ */
+export async function getDivisionsForBibleBeeCycle(cycleId: string): Promise<any[]> {
+	if (shouldUseAdapter()) {
+		// Use Supabase adapter for live mode
+		return dbAdapter.listDivisions(cycleId);
+	} else {
+		// Use legacy Dexie interface for demo mode
+		return db.divisions.where('bible_bee_cycle_id').equals(cycleId).toArray();
+	}
+}
+
+/**
+ * Get divisions for a Bible Bee year (legacy - use getDivisionsForBibleBeeCycle instead)
+ * @deprecated Use getDivisionsForBibleBeeCycle instead
  */
 export async function getDivisionsForBibleBeeYear(yearId: string): Promise<any[]> {
 	if (shouldUseAdapter()) {
@@ -3130,7 +3163,29 @@ export async function deleteScripture(id: string): Promise<void> {
 }
 
 /**
- * Get essay prompts for a Bible Bee year
+ * Get essay prompts for a Bible Bee cycle
+ */
+export async function getEssayPromptsForBibleBeeCycle(cycleId: string): Promise<any[]> {
+	if (shouldUseAdapter()) {
+		// Use Supabase adapter for live mode - filter by cycle ID
+		const allPrompts = await dbAdapter.listEssayPrompts();
+		
+		// Filter by bible_bee_cycle_id
+		const filtered = allPrompts.filter(prompt => {
+			const matchesCycleId = (prompt as any).bible_bee_cycle_id === cycleId;
+			return matchesCycleId;
+		});
+		
+		return filtered;
+	} else {
+		// Use legacy Dexie interface for demo mode
+		return db.essay_prompts.where('bible_bee_cycle_id').equals(cycleId).toArray();
+	}
+}
+
+/**
+ * Get essay prompts for a Bible Bee year (legacy - use getEssayPromptsForBibleBeeCycle instead)
+ * @deprecated Use getEssayPromptsForBibleBeeCycle instead
  */
 export async function getEssayPromptsForBibleBeeYear(yearId: string): Promise<any[]> {
 	if (shouldUseAdapter()) {

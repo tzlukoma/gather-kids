@@ -2347,10 +2347,14 @@ export class SupabaseAdapter implements DatabaseAdapter {
 		return { success: true, inserted, updated };
 	}
 
-	async listScriptures(filters?: { yearId?: string }): Promise<Scripture[]> {
+	async listScriptures(filters?: { yearId?: string; cycleId?: string }): Promise<Scripture[]> {
 		let query = this.client.from('scriptures').select('*');
 		
-		if (filters?.yearId) {
+		if (filters?.cycleId) {
+			// Query by bible_bee_cycle_id for cycle-based queries
+			console.log('listScriptures - cycleId:', filters.cycleId);
+			query = query.eq('bible_bee_cycle_id', filters.cycleId);
+		} else if (filters?.yearId) {
 			// Determine if we're using a Bible Bee cycle ID or competition year ID
 			const isBibleBeeCycleId = filters.yearId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
 			

@@ -15,8 +15,6 @@ import {
 	getEssayPromptsForYearAndDivision,
 } from '@/lib/dal';
 import { useEffect, useState, useTransition } from 'react';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '@/lib/db';
 import { Button } from '@/components/ui/button';
 import { getApplicableGradeRule } from '@/lib/bibleBee';
 import { gradeToCode } from '@/lib/gradeUtils';
