@@ -6,7 +6,7 @@ import {
 	useScripturesForYear,
 	useScripturesForYearQuery,
 	createGradeRule as hookCreateGradeRule,
-} from '@/lib/hooks/useBibleBee';
+} from '@/hooks';
 import {
 	upsertScripture,
 	validateCsvRows,

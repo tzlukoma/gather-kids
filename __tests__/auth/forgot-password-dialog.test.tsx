@@ -2,10 +2,10 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 import { ForgotPasswordDialog } from '@/components/auth/forgot-password-dialog';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks';
 
 // Mock the toast hook
-jest.mock('@/hooks/use-toast');
+jest.mock('@/hooks');
 const mockToast = jest.fn();
 (useToast as jest.Mock).mockReturnValue({ toast: mockToast });
 

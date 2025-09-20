@@ -5,7 +5,7 @@ import {
 	getHouseholdProfile,
 	getHouseholdForUser,
 } from '@/lib/dal';
-import { useHouseholdProfile } from '@/lib/hooks/useData';
+import { useHouseholdProfile } from '@/hooks';
 import HouseholdBibleBeePage from '@/app/household/bible-bee/page';
 
 // Mock the ParentBibleBeeView component since it has complex data dependencies
@@ -24,7 +24,7 @@ jest.mock('@/components/gatherKids/scripture-card', () => ({
 // Mock dependencies
 jest.mock('@/contexts/auth-context');
 jest.mock('@/lib/dal');
-jest.mock('@/lib/hooks/useData', () => ({
+jest.mock('@/hooks', () => ({
 	useHouseholdProfile: jest.fn(),
 }));
 jest.mock('dexie-react-hooks', () => ({

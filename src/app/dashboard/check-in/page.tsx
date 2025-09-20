@@ -18,11 +18,11 @@ import { useAuth } from '@/contexts/auth-context';
 import { useSearchParams } from 'next/navigation';
 import { Users, Filter, Edit } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { useChildren, useAttendance } from '@/lib/hooks/useData';
+import { useChildren, useAttendance } from '@/hooks';
 import { Badge } from '@/components/ui/badge';
 import { getTodayIsoDate } from '@/lib/dal';
 import type { Child, Attendance } from '@/lib/types';
-import { useIsMobile } from '@/hooks/use-mobile';
+import { useIsMobile } from '@/hooks';
 import { normalizeGradeDisplay, getGradeSortOrder } from '@/lib/gradeUtils';
 import {
 	Sheet,

@@ -24,7 +24,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks';
 import { useEffect, useState, useMemo } from 'react';
 import type { LeaderAssignment, LeaderProfile, User as LeaderUser, MinistryLeaderMembership } from '@/lib/types';
 import { Switch } from '@/components/ui/switch';

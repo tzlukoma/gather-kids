@@ -8,7 +8,7 @@ import type { Child } from '@/lib/types';
 import { PhotoCaptureDialog } from '@/components/gatherKids/photo-capture-dialog';
 import { PhotoViewerDialog } from '@/components/gatherKids/photo-viewer-dialog';
 import { canUpdateChildPhoto } from '@/lib/permissions';
-import { useHouseholdProfile } from '@/lib/hooks/useData';
+import { useHouseholdProfile } from '@/hooks';
 
 export default function ChildProfilePage() {
 	const params = useParams();

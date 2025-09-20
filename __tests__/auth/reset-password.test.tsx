@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 import ResetPasswordPage from '@/app/auth/reset-password/page';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks';
 
 // Mock Next.js hooks
 jest.mock('next/navigation', () => ({
@@ -12,7 +12,7 @@ jest.mock('next/navigation', () => ({
 }));
 
 // Mock the toast hook
-jest.mock('@/hooks/use-toast');
+jest.mock('@/hooks');
 
 // Mock the auth guards
 jest.mock('@/lib/authGuards', () => ({

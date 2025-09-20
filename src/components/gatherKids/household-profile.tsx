@@ -33,7 +33,7 @@ import { useState, useEffect } from 'react';
 import { PhotoCaptureDialog } from './photo-capture-dialog';
 import { PhotoViewerDialog } from './photo-viewer-dialog';
 import type { Child } from '@/lib/types';
-import { formatPhone } from '@/hooks/usePhoneFormat';
+import { formatPhone } from '@/hooks';
 import { normalizeGradeDisplay } from '@/lib/gradeUtils';
 import { useAuth } from '@/contexts/auth-context';
 import { canUpdateChildPhoto } from '@/lib/permissions';

@@ -9,10 +9,10 @@ import type {
 	EmergencyContact,
 	Incident,
 } from '@/lib/types';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks';
 import { Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { getTodayIsoDate, getIncidentsForDate } from '@/lib/dal';
+import { getTodayIsoDate } from '@/lib/dal';
 import type { StatusFilter } from '@/app/dashboard/check-in/page';
 import { IncidentDetailsDialog } from './incident-details-dialog';
 import { PhotoCaptureDialog } from './photo-capture-dialog';
@@ -29,7 +29,8 @@ import {
 	useEmergencyContacts,
 	useCheckInMutation,
 	useCheckOutMutation,
-} from '@/lib/hooks/useData';
+	useIncidents,
+} from '@/hooks';
 
 interface CheckInViewProps {
 	children: Child[];
@@ -57,6 +58,9 @@ type EnrichedChild = Child & {
 	incidents: Incident[];
 	age: number | null;
 };
+
+// Export EnrichedChild type for use in other components
+export type { EnrichedChild };
 
 export function CheckInView({
 	children,
@@ -86,34 +90,15 @@ export function CheckInView({
 	const { data: allGuardians = [] } = useGuardians();
 	const { data: allHouseholds = [] } = useHouseholds();
 	const { data: allEmergencyContacts = [] } = useEmergencyContacts();
+	
+	const today = getTodayIsoDate();
+	
+	// Use React Query for incidents (replacing manual useEffect + getIncidentsForDate)
+	const { data: todaysIncidents = [], isLoading: incidentsLoading } = useIncidents(today);
 
 	// Use React Query mutations for check-in/check-out
 	const checkInMutation = useCheckInMutation();
 	const checkOutMutation = useCheckOutMutation();
-
-	// State for incidents data
-	const [todaysIncidents, setTodaysIncidents] = useState<Incident[]>([]);
-	const [enrichedDataLoading, setEnrichedDataLoading] = useState(true);
-
-	const today = getTodayIsoDate();
-
-	// Load incidents data
-	useEffect(() => {
-		const loadIncidents = async () => {
-			try {
-				setEnrichedDataLoading(true);
-				const incidentsData = await getIncidentsForDate(today);
-				setTodaysIncidents(incidentsData);
-			} catch (error) {
-				console.error('Error loading incidents:', error);
-				setTodaysIncidents([]);
-			} finally {
-				setEnrichedDataLoading(false);
-			}
-		};
-
-		loadIncidents();
-	}, [today]);
 
 	// Enrich children with additional data
 	useEffect(() => {
@@ -121,7 +106,7 @@ export function CheckInView({
 			!children ||
 			!todaysAttendance ||
 			!todaysIncidents ||
-			enrichedDataLoading
+			incidentsLoading
 		)
 			return;
 
@@ -196,7 +181,7 @@ export function CheckInView({
 		children,
 		todaysAttendance,
 		todaysIncidents,
-		enrichedDataLoading,
+		incidentsLoading,
 		allGuardians,
 		allHouseholds,
 		allEmergencyContacts,

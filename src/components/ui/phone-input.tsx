@@ -1,6 +1,6 @@
 import React, { forwardRef, useEffect, useState } from 'react';
 import { Input } from '@/components/ui/input';
-import { formatPhone, cleanPhone } from '@/hooks/usePhoneFormat';
+import { formatPhone, cleanPhone } from '@/hooks';
 import { cn } from '@/lib/utils';
 
 interface PhoneInputProps extends Omit<React.ComponentProps<'input'>, 'onChange' | 'value' | 'type'> {

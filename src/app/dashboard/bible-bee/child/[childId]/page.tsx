@@ -5,7 +5,7 @@ import {
 	useStudentAssignmentsQuery,
 	useToggleScriptureMutation,
 	useSubmitEssayMutation,
-} from '@/lib/hooks/useBibleBee';
+} from '@/hooks';
 import { ChildIdCard } from '@/components/gatherKids/child-id-card';
 import {
 	updateChildPhoto,
@@ -32,7 +32,7 @@ import { EssaySubmissions } from '@/components/gatherKids/essay-submissions';
 import { SquareCropperModal } from '@/components/ui/square-cropper-modal';
 import { useAuth } from '@/contexts/auth-context';
 import { canUpdateChildPhoto } from '@/lib/permissions';
-import { toast } from '@/hooks/use-toast';
+import { toast } from '@/hooks';
 
 export default function DashboardChildBibleBeePage() {
 	const params = useParams();

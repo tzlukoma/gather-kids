@@ -40,7 +40,7 @@ import {
 	getMinistriesInGroup,
 	getGroupsForMinistry,
 } from '@/lib/dal';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks';
 import { format } from 'date-fns';
 import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';

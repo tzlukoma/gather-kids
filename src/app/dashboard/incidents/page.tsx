@@ -24,7 +24,7 @@ import {
 } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks';
 import type { Incident } from '@/lib/types';
 import { format } from 'date-fns';
 import { acknowledgeIncident, getIncidentsForUser } from '@/lib/dal';

@@ -21,7 +21,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Button } from '@/components/ui/button';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks';
 import { useEffect, useState, useMemo } from 'react';
 import type { MinistryLeaderMembership, LeaderProfile, Ministry } from '@/lib/types';
 import { Switch } from '@/components/ui/switch';

@@ -26,7 +26,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Checkbox } from '@/components/ui/checkbox';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks';
 import type { MinistryGroup, Ministry } from '@/lib/types';
 import {
 	createMinistryGroup,

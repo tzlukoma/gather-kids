@@ -4,7 +4,7 @@ import '@testing-library/jest-dom';
 import { SquareCropperModal } from '@/components/ui/square-cropper-modal';
 
 // Mock toast hook
-jest.mock('@/hooks/use-toast', () => ({
+jest.mock('@/hooks', () => ({
 	toast: jest.fn(),
 }));
 

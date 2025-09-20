@@ -36,7 +36,7 @@ import {
 	getTodayIsoDate,
 	getCheckedInChildren,
 } from '@/lib/dal';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks';
 import { useAuth } from '@/contexts/auth-context';
 import { useRouter } from 'next/navigation';
 import type { Child } from '@/lib/types';

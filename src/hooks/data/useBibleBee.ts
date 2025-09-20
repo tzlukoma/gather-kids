@@ -1,3 +1,5 @@
+'use client';
+
 import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { dbAdapter } from '@/lib/db-utils';
@@ -572,19 +574,3 @@ export function useChildPhotoUpdateListener() {
 }
 
 // Photo update mutation that dispatches custom events for immediate updates
-export function useUpdateChildPhotoMutation() {
-    return useMutation(
-        async ({ childId, photoDataUrl }: { childId: string; photoDataUrl: string }) => {
-            return await updateChildPhoto(childId, photoDataUrl);
-        },
-        {
-            onSuccess: (_, { childId, photoDataUrl }) => {
-                // Dispatch custom event for immediate updates across all components
-                const event = new CustomEvent('childPhotoUpdated', {
-                    detail: { childId, photoDataUrl }
-                });
-                window.dispatchEvent(event);
-            },
-        }
-    );
-}
