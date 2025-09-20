@@ -18,7 +18,7 @@ import {
 	Mail,
 	ArrowLeft,
 } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks';
 import { AuthDebug } from '@/components/auth/auth-debug';
 
 export default function SecuritySettingsPage() {

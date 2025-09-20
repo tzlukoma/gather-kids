@@ -30,7 +30,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from '@/components/ui/select';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks';
 import type { Ministry, MinistryGroup } from '@/lib/types';
 import { createMinistry, updateMinistry, saveMinistryAccount, getGroupsForMinistry } from '@/lib/dal';
 import { useEffect, useState } from 'react';

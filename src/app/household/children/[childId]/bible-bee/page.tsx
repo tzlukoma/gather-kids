@@ -5,7 +5,7 @@ import {
 	useStudentAssignmentsQuery,
 	useToggleScriptureMutation,
 	useSubmitEssayMutation,
-} from '@/lib/hooks/useBibleBee';
+} from '@/hooks';
 import { ChildIdCard } from '@/components/gatherKids/child-id-card';
 import {
 	updateChildPhoto,

@@ -9,7 +9,7 @@ import type {
 	EmergencyContact,
 	Incident,
 } from '@/lib/types';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks';
 import { Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { getTodayIsoDate } from '@/lib/dal';
@@ -30,7 +30,7 @@ import {
 	useCheckInMutation,
 	useCheckOutMutation,
 	useIncidents,
-} from '@/lib/hooks/useData';
+} from '@/hooks';
 
 interface CheckInViewProps {
 	children: Child[];

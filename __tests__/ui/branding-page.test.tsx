@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import BrandingPage from '@/app/dashboard/branding/page';
 import { renderWithAuth, mockUsers } from '@/test-utils/auth/test-utils';
 import { useBranding } from '@/contexts/branding-context';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks';
 import { saveBrandingSettings } from '@/lib/dal';
 
 // Mock dependencies
@@ -17,7 +17,7 @@ jest.mock('@/contexts/branding-context', () => ({
     useBranding: jest.fn(),
 }));
 
-jest.mock('@/hooks/use-toast', () => ({
+jest.mock('@/hooks', () => ({
     useToast: jest.fn(),
 }));
 

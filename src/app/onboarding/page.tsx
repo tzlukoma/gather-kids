@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import Link from 'next/link';
 import { AlertCircle, Eye, EyeOff, Loader2 } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks';
 import { AuthDebug } from '@/components/auth/auth-debug';
 
 export default function OnboardingPage() {

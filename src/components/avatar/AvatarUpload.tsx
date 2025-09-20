@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
 import { AvatarService, MAX_AVATAR_SIZE } from '@/lib/avatar/avatar-service';
 import type { AvatarType } from '@/lib/avatar/types';
-import { toast } from '@/hooks/use-toast';
+import { toast } from '@/hooks';
 import { Button } from '@/components/ui/button';
 import { Loader2, Upload, X } from 'lucide-react';
 import Image from 'next/image';

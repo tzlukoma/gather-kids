@@ -17,7 +17,7 @@ import { useBranding } from '@/contexts/branding-context';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Info, Settings, Church, AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks';
 import { useFeatureFlags } from '@/contexts/feature-flag-context';
 import { FeatureFlagDialog } from '@/components/feature-flag-dialog';
 import { ForgotPasswordDialog } from '@/components/auth/forgot-password-dialog';

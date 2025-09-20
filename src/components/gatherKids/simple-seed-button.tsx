@@ -3,7 +3,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@/hooks";
 import { resetDB, seedDB } from "@/lib/seed";
 import { Database, LoaderCircle } from "lucide-react";
 import type { VariantProps } from "class-variance-authority";

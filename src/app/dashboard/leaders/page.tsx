@@ -26,7 +26,7 @@ import type { LeaderProfile } from '@/lib/types';
 import { useAuth } from '@/contexts/auth-context';
 import { AuthRole } from '@/lib/auth-types';
 import { LeaderProfileDialog } from './leader-profile-dialog';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks';
 
 export default function LeadersPage() {
 	const router = useRouter();

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import type { RegistrationCycle } from '@/lib/types';

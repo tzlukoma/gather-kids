@@ -18,7 +18,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { saveLeaderProfile } from '@/lib/dal';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks';
 import { v4 as uuidv4 } from 'uuid';
 import type { LeaderProfile } from '@/lib/types';
 

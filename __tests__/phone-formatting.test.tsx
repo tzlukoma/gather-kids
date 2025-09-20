@@ -1,6 +1,6 @@
 import { renderHook, act } from '@testing-library/react';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { usePhoneFormat, formatPhone, cleanPhone } from '@/hooks/usePhoneFormat';
+import { usePhoneFormat, formatPhone, cleanPhone } from '@/hooks';
 import { PhoneInput } from '@/components/ui/phone-input';
 
 describe('usePhoneFormat hook', () => {

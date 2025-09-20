@@ -13,9 +13,9 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Camera, Upload, AlertTriangle, RefreshCw } from 'lucide-react';
 import { Input } from '../ui/input';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks';
 import type { Child } from '@/lib/types';
-import { useUpdateChildPhotoMutation } from '@/lib/hooks/useData';
+import { useUpdateChildPhotoMutation } from '@/hooks';
 import { Alert, AlertTitle, AlertDescription } from '../ui/alert';
 
 interface PhotoCaptureDialogProps {

@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { toast } from '@/hooks/use-toast';
+import { toast } from '@/hooks';
 import { Upload, ZoomIn, ZoomOut, RotateCw, X, Save, Camera, AlertTriangle, RefreshCw } from 'lucide-react';
 
 interface SquareCropperModalProps {

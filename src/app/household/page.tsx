@@ -5,7 +5,7 @@ import { HouseholdProfile } from '@/components/gatherKids/household-profile';
 import { OnboardingModal } from '@/components/gatherKids/onboarding-modal';
 import AuthDebug from '@/components/AuthDebug';
 import { useEffect, useState } from 'react';
-import { useHouseholdProfile } from '@/lib/hooks/useData';
+import { useHouseholdProfile } from '@/hooks';
 import { getHouseholdForUser } from '@/lib/dal';
 import type { HouseholdProfileData } from '@/lib/dal';
 

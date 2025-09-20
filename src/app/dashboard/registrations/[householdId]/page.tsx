@@ -4,7 +4,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { HouseholdProfile } from '@/components/gatherKids/household-profile';
 import { useAuth } from '@/contexts/auth-context';
 import { useEffect, useState } from 'react';
-import { useHouseholdProfile } from '@/lib/hooks/useData';
+import { useHouseholdProfile } from '@/hooks';
 
 export default function HouseholdProfilePage() {
 	const params = useParams();

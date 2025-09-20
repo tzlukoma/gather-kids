@@ -40,7 +40,7 @@ import {
 } from 'date-fns';
 import type { Incident, Child } from '@/lib/types';
 import { normalizeGradeDisplay } from '@/lib/gradeUtils';
-import { formatPhone } from '@/hooks/usePhoneFormat';
+import { formatPhone } from '@/hooks';
 
 interface ChildCardProps {
 	child: EnrichedChild;

@@ -29,7 +29,7 @@ import {
 	Calendar,
 	Shield,
 } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks';
 
 interface AuthUser {
 	id: string;

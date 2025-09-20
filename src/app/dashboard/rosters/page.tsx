@@ -43,7 +43,7 @@ import {
 	useMinistryEnrollments,
 	useCheckInMutation,
 	useCheckOutMutation,
-} from '@/lib/hooks/useData';
+} from '@/hooks';
 import { dbAdapter } from '@/lib/db-utils';
 import { useMemo } from 'react';
 import type {
@@ -57,7 +57,7 @@ import type {
 	Incident,
 } from '@/lib/types';
 import { CheckoutDialog } from '@/components/gatherKids/checkout-dialog';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks';
 import type { EnrichedChild } from '@/components/gatherKids/check-in-view';
 import { Label } from '@/components/ui/label';
 import {
@@ -68,7 +68,7 @@ import {
 	SelectValue,
 } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { useIsMobile } from '@/hooks/use-mobile';
+import { useIsMobile } from '@/hooks';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import {

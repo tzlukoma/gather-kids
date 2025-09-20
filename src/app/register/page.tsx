@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { PhoneInput } from '@/components/ui/phone-input';
-import { cleanPhone } from '@/hooks/usePhoneFormat';
+import { cleanPhone } from '@/hooks';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
 	Card,
@@ -32,7 +32,7 @@ import {
 	AccordionItem,
 	AccordionTrigger,
 } from '@/components/ui/accordion';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks';
 import { PlusCircle, Trash2, AlertTriangle, Info } from 'lucide-react';
 import { useState, useMemo, useEffect, useCallback, Suspense } from 'react';
 import { Textarea } from '@/components/ui/textarea';
@@ -80,7 +80,7 @@ import type {
 	CustomQuestion,
 	RegistrationCycle,
 } from '@/lib/types';
-import { useDraftPersistence } from '@/hooks/useDraftPersistence';
+import { useDraftPersistence } from '@/hooks';
 import { DraftStatusIndicator } from '@/components/ui/draft-status-indicator';
 import { useFeatureFlags } from '@/contexts/feature-flag-context';
 import { useAuth } from '@/contexts/auth-context';

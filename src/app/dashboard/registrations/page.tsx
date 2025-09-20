@@ -25,7 +25,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { AuthRole } from '@/lib/auth-types';
 import { useState, useEffect } from 'react';
 import { Combobox } from '@/components/ui/combobox';
-import { useHouseholdList } from '@/lib/hooks/useData';
+import { useHouseholdList } from '@/hooks';
 import type { Household, Child, Ministry } from '@/lib/types';
 
 export default function RegistrationsPage() {

@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks';
 import { Lock, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { isDemo } from '@/lib/authGuards';
 import { supabase } from '@/lib/supabaseClient';

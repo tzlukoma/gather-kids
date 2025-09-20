@@ -35,7 +35,7 @@ import {
 	AlertCircle,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks';
 import { getMeProfile, saveProfile, getActiveProfileTarget } from '@/lib/dal';
 import { supabase } from '@/lib/supabaseClient';
 import { isDemo } from '@/lib/authGuards';
