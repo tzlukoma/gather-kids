@@ -59,6 +59,9 @@ type EnrichedChild = Child & {
 	age: number | null;
 };
 
+// Export EnrichedChild type for use in other components
+export type { EnrichedChild };
+
 export function CheckInView({
 	children,
 	todaysAttendance,

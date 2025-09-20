@@ -22,19 +22,28 @@ import { FileDown, ArrowUpDown, Edit, Camera } from 'lucide-react';
 import { format, parseISO, differenceInYears } from 'date-fns';
 import {
 	getTodayIsoDate,
-	recordCheckIn,
-	recordCheckOut,
 	exportRosterCSV,
 	getAllChildren,
 	getChildrenForLeader,
-	getAttendanceForDate,
-	getIncidentsForDate,
 	getAllGuardians,
 	getAllHouseholds,
 	getAllEmergencyContacts,
 	getMinistries,
 	getMinistryEnrollmentsByCycle,
+	recordCheckIn,
+	recordCheckOut,
 } from '@/lib/dal';
+import {
+	useGuardians,
+	useHouseholds,
+	useEmergencyContacts,
+	useAttendance,
+	useIncidents,
+	useMinistries,
+	useMinistryEnrollments,
+	useCheckInMutation,
+	useCheckOutMutation,
+} from '@/lib/hooks/useData';
 import { dbAdapter } from '@/lib/db-utils';
 import { useMemo } from 'react';
 import type {
@@ -158,14 +167,20 @@ export default function RostersPage() {
 		MinistryEnrollment[]
 	>([]);
 	const [allChildren, setAllChildren] = useState<Child[]>([]);
-	const [todaysAttendance, setTodaysAttendance] = useState<Attendance[]>([]);
-	const [todaysIncidents, setTodaysIncidents] = useState<Incident[]>([]);
 	const [allGuardians, setAllGuardians] = useState<Guardian[]>([]);
 	const [allHouseholds, setAllHouseholds] = useState<Household[]>([]);
 	const [allEmergencyContacts, setAllEmergencyContacts] = useState<
 		EmergencyContact[]
 	>([]);
 	const [allMinistries, setAllMinistries] = useState<Ministry[]>([]);
+	
+	// Use React Query for attendance and incidents (to replace direct DAL calls)
+	const { data: todaysAttendance = [] } = useAttendance(today);
+	const { data: todaysIncidents = [] } = useIncidents(today);
+	
+	// Use React Query mutations for check-in/check-out
+	const checkInMutation = useCheckInMutation();
+	const checkOutMutation = useCheckOutMutation();
 	const [dataLoading, setDataLoading] = useState(true);
 	const [leaderMinistryId, setLeaderMinistryId] = useState<string | null>(null);
 	const [noMinistryAssigned, setNoMinistryAssigned] = useState(false);
@@ -230,19 +245,15 @@ export default function RostersPage() {
 					childrenData = await getAllChildren();
 				}
 
-				// Load all other data in parallel
+				// Load all other data in parallel (attendance/incidents now via React Query)
 				const [
 					enrollments,
-					attendance,
-					incidents,
 					guardians,
 					households,
 					emergencyContacts,
 					ministries,
 				] = await Promise.all([
 					getMinistryEnrollmentsByCycle(activeCycle.cycle_id),
-					getAttendanceForDate(today),
-					getIncidentsForDate(today),
 					getAllGuardians(),
 					getAllHouseholds(),
 					getAllEmergencyContacts(),
@@ -251,8 +262,6 @@ export default function RostersPage() {
 
 				setAllChildren(childrenData);
 				setAllMinistryEnrollments(enrollments);
-				setTodaysAttendance(attendance);
-				setTodaysIncidents(incidents);
 				setAllGuardians(guardians);
 				setAllHouseholds(households);
 				setAllEmergencyContacts(emergencyContacts);
@@ -500,12 +509,13 @@ export default function RostersPage() {
 
 	const handleCheckIn = async (childId: string) => {
 		try {
-			await recordCheckIn(childId, selectedEvent, undefined, user?.id);
+			await checkInMutation.mutateAsync({
+				childId,
+				eventId: selectedEvent,
+				userId: user?.id,
+			});
 
-			// Refresh attendance data to update UI immediately
-			const refreshedAttendance = await getAttendanceForDate(today);
-			setTodaysAttendance(refreshedAttendance);
-
+			// React Query will handle cache invalidation automatically
 			const child = childrenWithDetails.find((c) => c.child_id === childId);
 			toast({
 				title: 'Checked In',
@@ -530,12 +540,13 @@ export default function RostersPage() {
 		verifier: { method: 'PIN' | 'other'; value: string }
 	) => {
 		try {
-			await recordCheckOut(attendanceId, verifier, user?.id);
+			await checkOutMutation.mutateAsync({
+				attendanceId,
+				verifier,
+				userId: user?.id,
+			});
 
-			// Refresh attendance data to update UI immediately
-			const refreshedAttendance = await getAttendanceForDate(today);
-			setTodaysAttendance(refreshedAttendance);
-
+			// React Query will handle cache invalidation automatically
 			const child = childrenWithDetails.find((c) => c.child_id === childId);
 			const eventName = getEventName(child?.activeAttendance?.event_id || null);
 			toast({
