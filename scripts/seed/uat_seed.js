@@ -5,7 +5,7 @@
  * Seeds the Supabase UAT database with deterministic test data including:
  * - Ministries and leaders from mock seed data
  * - Bible Bee 2025-2026 year with divisions
- * - 32 scriptures with NIV, KJV, and NIV Spanish texts
+ * - 32 scriptures with NIV, KJV, and NVI texts
  * - Senior Division essay prompt
  * - 10 households with 1-3 children each (20 total children)
  * - Ministry enrollments
@@ -769,7 +769,7 @@ async function createScriptures(yearId) {
 					texts: {
 						NIV: matchingJsonEntry.texts.NIV || '',
 						KJV: matchingJsonEntry.texts.KJV || '',
-						'NIV-Spanish': matchingJsonEntry.texts.NVI || '', // Map NVI to NIV-Spanish
+						NVI: matchingJsonEntry.texts.NVI || '', // Use NVI directly as in JSON
 					}, // Pass as object, not stringified JSON
 					// Enhanced scripture fields from CSV
 					scripture_number: csvRow.scripture_number,
@@ -4117,7 +4117,7 @@ async function seedUATData() {
 			'- Grade rules for scripture memorization and Senior division essay'
 		);
 		console.log(
-			'- Scriptures loaded from data files with NIV, KJV, and NIV-Spanish texts'
+			'- Scriptures loaded from data files with NIV, KJV, and NVI texts'
 		);
 		console.log('- Essay prompt created for Senior division');
 		console.log(
