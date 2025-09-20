@@ -90,6 +90,11 @@ The authentication process is taking longer than expected. This can happen if:
 					return;
 				}
 
+				// Determine the intended redirect destination based on the auth context
+				// For any auth callback (magic link or signup verification), the user should 
+				// ultimately end up at the registration page to complete their profile
+				const targetRedirect = '/register';
+
 				// Try to use exchangeCodeForSession for PKCE flow, which is the modern approach
 				let data: any, authError: any;
 
@@ -125,11 +130,9 @@ The authentication process is taking longer than expected. This can happen if:
 									);
 
 									// Redirect to registration form with verified email
-									router.push(
-										`/register?verified_email=${encodeURIComponent(
-											decoded.email
-										)}`
-									);
+									const redirectUrl = `${targetRedirect}?verified_email=${encodeURIComponent(decoded.email)}`;
+									console.log('Magic link redirect to:', redirectUrl);
+									router.push(redirectUrl);
 									return;
 								} else {
 									throw new Error('Invalid email verification link format');
@@ -209,7 +212,7 @@ Authentication was successful with Supabase, but there was an issue completing t
 ${authError.message || 'Error handling the authentication response'}
 
 **You can try:**
-1. Clicking the "Continue to App" button below to proceed
+1. Clicking the "Continue to Registration" button below to proceed
 2. Refreshing this page to see if you're already logged in
 3. Going back to the login page if needed
 
@@ -269,13 +272,13 @@ The verification code required for magic links was not found. This happens when:
 				} else if (data.session) {
 					setSuccess(true);
 					console.log(
-						'Auth successful! Redirecting to /register in 1.5 seconds...'
+						`Auth successful! Redirecting to ${targetRedirect} in 1.5 seconds...`
 					);
 
 					// Set up redirect with timeout fallback
 					setTimeout(() => {
-						console.log('Executing redirect to /register');
-						router.push('/register');
+						console.log(`Executing redirect to ${targetRedirect}`);
+						router.push(targetRedirect);
 					}, 1500);
 
 					// Fallback timeout in case redirect doesn't work
@@ -287,8 +290,20 @@ The verification code required for magic links was not found. This happens when:
 						setLoading(false);
 					}, 8000);
 				} else {
+					// No session was created - could be due to email not yet verified or other issues
+					console.log('Auth callback completed but no session created');
 					setError(
-						'Authentication completed but no session was created. Please try again.'
+						`Authentication link processed, but no active session was created.
+
+This can happen if:
+• The verification link was already used
+• The link has expired 
+• Email verification is still required
+
+**Next steps:**
+1. Try clicking "Continue to Registration" to check if you're already signed in
+2. Check your email for additional verification messages
+3. Request a new verification email if needed`
 					);
 				}
 			} catch (err) {
