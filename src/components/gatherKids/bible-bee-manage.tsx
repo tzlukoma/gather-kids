@@ -547,7 +547,7 @@ function YearManagement({
 								<option value="">Select a registration cycle</option>
 								{registrationCycles?.map((cycle) => (
 									<option key={cycle.cycle_id} value={cycle.cycle_id}>
-										{cycle.cycle_id} ({cycle.is_active ? 'Active' : 'Inactive'})
+										{cycle.name} ({cycle.is_active ? 'Active' : 'Inactive'})
 									</option>
 								))}
 							</select>
