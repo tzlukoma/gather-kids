@@ -198,7 +198,7 @@ async function getEnrollmentsForMinistries(targetMinistries) {
 				last_name,
 				date_of_birth,
 				household_id,
-				households!inner (
+				households!children_household_id_fkey (
 					household_id,
 					household_name,
 					primary_email,
