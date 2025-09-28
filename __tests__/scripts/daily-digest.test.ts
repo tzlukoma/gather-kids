@@ -386,7 +386,7 @@ describe('Daily Digest Script', () => {
 			const message: any = {
 				From: {
 					Email: 'no-reply@example.com',
-					Name: 'gatherKids System'
+					Name: 'CI Nation Reports'
 				},
 				To: [{
 					Email: 'recipient@example.com'
@@ -406,7 +406,7 @@ describe('Daily Digest Script', () => {
 			const message: any = {
 				From: {
 					Email: 'no-reply@example.com',
-					Name: 'gatherKids System'
+					Name: 'CI Nation Reports'
 				},
 				To: [{
 					Email: 'recipient@example.com'

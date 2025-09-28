@@ -420,7 +420,7 @@ async function sendEmailWithMailjet(
 			{
 				From: {
 					Email: config.fromEmail,
-					Name: 'GatherKids Ministry Report',
+					Name: 'CI Nation Ministry Report',
 				},
 				To: toEmails.map((email) => ({ Email: email })),
 				Bcc: bccEmails.map((email) => ({ Email: email })),

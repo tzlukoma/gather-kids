@@ -642,7 +642,7 @@ async function sendEmailViaMailjet(to, subject, html, text) {
 		const message = {
 			From: {
 				Email: fromEmail || 'dry-run@example.com',
-				Name: 'gatherKids System',
+				Name: 'CI Nation Reports',
 			},
 			To: TEST_MODE
 				? monitorEmails.map((email) => ({ Email: email }))
