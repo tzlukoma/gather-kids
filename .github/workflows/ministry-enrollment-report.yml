@@ -20,8 +20,8 @@ on:
         description: 'Email addresses to send the report to (comma-separated)'
         required: true
         type: string
-      ministry_ids:
-        description: 'Ministry IDs to include (comma-separated, leave empty for all ministries)'
+      ministry_codes:
+        description: 'Ministry codes to include (comma-separated, leave empty for all ministries)'
         required: false
         default: ''
         type: string
@@ -46,7 +46,7 @@ jobs:
       DRY_RUN: ${{ inputs.dry_run && 'true' || 'false' }}
       TEST_MODE: ${{ inputs.test_mode && 'true' || 'false' }}
       RECIPIENT_EMAILS: ${{ inputs.recipient_emails }}
-      MINISTRY_IDS: ${{ inputs.ministry_ids }}
+      MINISTRY_CODES: ${{ inputs.ministry_codes }}
       SUPABASE_URL: ${{ secrets.PROD_SUPABASE_URL }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.PROD_SUPABASE_SERVICE_ROLE_KEY }}
       MJ_API_KEY: ${{ secrets.PROD_MJ_API_KEY }}
@@ -93,7 +93,7 @@ jobs:
           echo "Dry run: $DRY_RUN"
           echo "Test mode: $TEST_MODE"
           echo "Recipients: $RECIPIENT_EMAILS"
-          echo "Ministry IDs: $MINISTRY_IDS"
+          echo "Ministry Codes: $MINISTRY_CODES"
           echo "Current directory: $(pwd)"
           echo "Listing scripts directory:"
           ls -la scripts/
@@ -124,7 +124,7 @@ jobs:
       DRY_RUN: ${{ inputs.dry_run && 'true' || 'false' }}
       TEST_MODE: ${{ inputs.test_mode && 'true' || 'false' }}
       RECIPIENT_EMAILS: ${{ inputs.recipient_emails }}
-      MINISTRY_IDS: ${{ inputs.ministry_ids }}
+      MINISTRY_CODES: ${{ inputs.ministry_codes }}
       SUPABASE_URL: ${{ secrets.UAT_SUPABASE_URL }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.UAT_SUPABASE_SERVICE_ROLE_KEY }}
       MJ_API_KEY: ${{ secrets.UAT_MJ_API_KEY }}
@@ -171,7 +171,7 @@ jobs:
           echo "Dry run: $DRY_RUN"
           echo "Test mode: $TEST_MODE"
           echo "Recipients: $RECIPIENT_EMAILS"
-          echo "Ministry IDs: $MINISTRY_IDS"
+          echo "Ministry Codes: $MINISTRY_CODES"
           echo "Current directory: $(pwd)"
           echo "Listing scripts directory:"
           ls -la scripts/

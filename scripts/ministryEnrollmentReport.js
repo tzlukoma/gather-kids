@@ -68,7 +68,7 @@ const config = {
 	fromEmail: getEnvVar('FROM_EMAIL'),
 	monitorEmails: getEnvVar('MONITOR_EMAILS'),
 	recipientEmails: process.env.RECIPIENT_EMAILS,
-	ministryIds: process.env.MINISTRY_IDS,
+	ministryCodes: process.env.MINISTRY_CODES,
 };
 
 // Validate required configuration
@@ -100,11 +100,11 @@ const recipientEmails = config.recipientEmails
 	.map((email) => email.trim())
 	.filter((email) => email.length > 0);
 
-const ministryIds = config.ministryIds
-	? config.ministryIds
+const ministryCodes = config.ministryCodes
+	? config.ministryCodes
 			.split(',')
-			.map((id) => id.trim())
-			.filter((id) => id.length > 0)
+			.map((code) => code.trim())
+			.filter((code) => code.length > 0)
 	: []; // Empty array means all ministries
 
 console.log('📧 Ministry Enrollment Report Configuration:');
@@ -114,8 +114,8 @@ console.log(`Test mode: ${TEST_MODE}`);
 console.log(`Email mode: ${EMAIL_MODE}`);
 console.log(`Recipients: ${recipientEmails.join(', ')}`);
 console.log(
-	`Ministry IDs: ${
-		ministryIds.length > 0 ? ministryIds.join(', ') : 'ALL MINISTRIES'
+	`Ministry Codes: ${
+		ministryCodes.length > 0 ? ministryCodes.join(', ') : 'ALL MINISTRIES'
 	}`
 );
 console.log(`From email: ${config.fromEmail}`);
@@ -444,16 +444,16 @@ async function generateMinistryEnrollmentReport() {
 		// Get all ministries
 		const allMinistries = await getAllMinistries();
 
-		// Filter to target ministries if specified
-		const targetMinistries =
-			ministryIds.length > 0
-				? allMinistries.filter((ministry) =>
-						ministryIds.includes(ministry.ministry_id)
-				  )
-				: allMinistries;
+	// Filter to target ministries if specified
+	const targetMinistries =
+		ministryCodes.length > 0
+			? allMinistries.filter((ministry) =>
+					ministryCodes.includes(ministry.code)
+			  )
+			: allMinistries;
 
 		if (targetMinistries.length === 0) {
-			console.error('❌ No matching ministries found for the specified IDs');
+			console.error('❌ No matching ministries found for the specified codes');
 			process.exit(1);
 		}
 
