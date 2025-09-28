@@ -1,5 +1,61 @@
 # Release Notes - gatherKids
 
+## v1.5.0 - Ministry Leadership & Reporting Enhancements
+
+### 🆕 New Features
+
+#### Automatic Ministry Leader Role Assignment
+
+- **Email-based role assignment** - Users with email addresses assigned to ministries automatically receive `MINISTRY_LEADER` role
+- **Ministry group support** - Users with emails assigned to ministry groups get access to all ministries in the group
+- **Role preservation** - Existing higher-priority roles (like `ADMIN`) are preserved when ministry access is detected
+- **Automatic filtering** - Ministry leaders see only children from their assigned ministries in rosters and registrations
+- **Demo user support** - Added `cathedralchoirs@example.com` demo user to test ministry group functionality
+
+#### Ministry Enrollment Report System
+
+- **On-demand reporting** - New GitHub workflow for generating ministry enrollment reports
+- **Flexible ministry selection** - Specify ministry codes (e.g., `choir-joy-bells,choir-keita`) or include all ministries
+- **HTML email reports** - Professional email reports with children grouped by ministry
+- **Unique child counting** - Prevents double-counting children enrolled in multiple ministries
+- **Environment support** - Works with both PROD and UAT environments
+- **Dry run mode** - Test functionality without sending actual emails
+
+### 🔧 Technical Improvements
+
+#### Authentication & Role Management
+
+- **Enhanced AuthContext** - Improved role assignment logic with ministry access detection
+- **Consistent initialization** - Role assignment works across all authentication paths (login, session recovery, demo mode)
+- **Ministry ID population** - `assignedMinistryIds` automatically populated for users with ministry access
+
+#### User Interface Improvements
+
+- **Bible Bee cycle selection** - Registration cycle dropdown now shows meaningful names (e.g., "Fall 2026") instead of cryptic IDs
+- **Ministry dropdown filtering** - Roster page ministry filter shows all assigned ministries for ministry leaders
+- **Debug logging** - Enhanced logging for ministry access and role assignment troubleshooting
+
+#### Database & Query Optimizations
+
+- **Supabase query fixes** - Resolved relationship ambiguity and nested field ordering issues
+- **Data consistency** - Ministry enrollment reports use same query structure as daily digest
+- **Error handling** - Improved error messages and debugging for database operations
+
+### 🐛 Bug Fixes
+
+- **Ministry group access** - Fixed issue where ministry group users only saw one ministry instead of all group ministries
+- **Role assignment consistency** - Ensured ministry leader role assignment works in all authentication scenarios
+- **Dropdown display** - Fixed Bible Bee cycle dropdown to show user-friendly names
+- **Email sender branding** - Updated email sender name to "CI Nation Ministry Report"
+
+### 📊 Infrastructure
+
+- **GitHub workflow** - New `ministry-enrollment-report.yml` workflow for on-demand reports
+- **Environment variables** - Consistent environment variable structure matching daily digest workflow
+- **Script organization** - New `ministryEnrollmentReport.js` script with comprehensive error handling
+
+---
+
 ## v1.4.0 - Bible Bee Household Features & Infrastructure Improvements
 
 ### 🆕 New Features
