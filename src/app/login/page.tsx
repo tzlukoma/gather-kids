@@ -114,6 +114,16 @@ const DEMO_USERS = {
 		role: null, // No role assigned
 		metadata: {},
 	},
+	// Test user with ministry group email - should get MINISTRY_LEADER role automatically
+	choirGroupUser: {
+		email: 'cathedralchoirs@example.com',
+		password: 'password',
+		is_active: true,
+		name: 'Choir Group Leader',
+		uid: 'user_choir_group',
+		role: null, // No role assigned - should be auto-assigned MINISTRY_LEADER
+		metadata: {},
+	},
 };
 
 export default function LoginPage() {
@@ -377,6 +387,16 @@ export default function LoginPage() {
 													prefillDemoCredentials('inactiveLeader')
 												}>
 												{DEMO_USERS.inactiveLeader.email}
+											</button>
+										</li>
+										<li>
+											Choir Group (Auto-assigned):{' '}
+											<button
+												className="text-left font-semibold underline"
+												onClick={() =>
+													prefillDemoCredentials('choirGroupUser')
+												}>
+												{DEMO_USERS.choirGroupUser.email}
 											</button>
 										</li>
 										<li>

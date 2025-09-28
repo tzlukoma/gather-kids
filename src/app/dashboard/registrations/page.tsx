@@ -63,55 +63,30 @@ export default function RegistrationsPage() {
 	useEffect(() => {
 		const loadData = async () => {
 			try {
-				// For ministry leaders, find their associated ministry
+				// For ministry leaders, use their assigned ministry IDs
 				let filterIds: string[] | undefined = undefined;
-				if (user?.metadata?.role === AuthRole.MINISTRY_LEADER && user.email) {
+				if (user?.metadata?.role === AuthRole.MINISTRY_LEADER && user.assignedMinistryIds && user.assignedMinistryIds.length > 0) {
 					console.log(
-						'🔍 RegistrationsPage: Finding ministry for leader email',
+						'🔍 RegistrationsPage: Using assigned ministry IDs for leader',
+						user.assignedMinistryIds
+					);
+
+					filterIds = user.assignedMinistryIds;
+					setLeaderMinistryId(user.assignedMinistryIds[0]); // Use first ministry ID for display
+					console.log(
+						'🔍 RegistrationsPage: Set ministryFilterIds to',
+						filterIds
+					);
+				} else if (user?.metadata?.role === AuthRole.MINISTRY_LEADER) {
+					console.warn(
+						'⚠️ RegistrationsPage: Ministry leader has no assigned ministries',
 						user.email
 					);
-
-					// Get all ministry accounts to find which ministry this email belongs to
-					const ministryAccounts = await dbAdapter.listMinistryAccounts();
+					setNoMinistryAssigned(true);
 					console.log(
-						'🔍 RegistrationsPage: All ministry accounts',
-						ministryAccounts.map((acc) => ({
-							email: acc.email,
-							ministry_id: acc.ministry_id,
-							display_name: acc.display_name,
-						}))
+						'🔍 RegistrationsPage: ministryFilterIds remains',
+						filterIds
 					);
-					console.log('🔍 RegistrationsPage: Looking for email', user.email);
-					const matchingAccount = ministryAccounts.find(
-						(account) =>
-							account.email.toLowerCase() === user.email.toLowerCase()
-					);
-
-					if (matchingAccount) {
-						console.log(
-							'🔍 RegistrationsPage: Found matching ministry account',
-							{
-								ministryId: matchingAccount.ministry_id,
-								displayName: matchingAccount.display_name,
-							}
-						);
-						filterIds = [matchingAccount.ministry_id];
-						setLeaderMinistryId(matchingAccount.ministry_id);
-						console.log(
-							'🔍 RegistrationsPage: Set ministryFilterIds to',
-							filterIds
-						);
-					} else {
-						console.warn(
-							'⚠️ RegistrationsPage: No ministry account found for leader email',
-							user.email
-						);
-						setNoMinistryAssigned(true);
-						console.log(
-							'🔍 RegistrationsPage: ministryFilterIds remains',
-							filterIds
-						);
-					}
 				}
 
 				setMinistryFilterIds(filterIds);
