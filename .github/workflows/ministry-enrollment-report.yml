@@ -94,6 +94,11 @@ jobs:
           echo "Test mode: $TEST_MODE"
           echo "Recipients: $RECIPIENT_EMAILS"
           echo "Ministry IDs: $MINISTRY_IDS"
+          echo "Current directory: $(pwd)"
+          echo "Listing scripts directory:"
+          ls -la scripts/
+          echo "Checking if ministryEnrollmentReport.js exists:"
+          ls -la scripts/ministryEnrollmentReport.js
           node scripts/ministryEnrollmentReport.js
 
       - name: Log completion
@@ -167,6 +172,11 @@ jobs:
           echo "Test mode: $TEST_MODE"
           echo "Recipients: $RECIPIENT_EMAILS"
           echo "Ministry IDs: $MINISTRY_IDS"
+          echo "Current directory: $(pwd)"
+          echo "Listing scripts directory:"
+          ls -la scripts/
+          echo "Checking if ministryEnrollmentReport.js exists:"
+          ls -la scripts/ministryEnrollmentReport.js
           node scripts/ministryEnrollmentReport.js
 
       - name: Log completion
