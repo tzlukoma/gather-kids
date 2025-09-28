@@ -319,8 +319,8 @@ export interface Division {
     name: string;
     minimum_required: number;
     min_last_order?: number; // calculated minimum boundary
-    min_grade: number; // 0-12
-    max_grade: number; // 0-12
+    min_grade: number; // -1 to 12
+    max_grade: number; // -1 to 12
     created_at: string;
     updated_at: string;
 }

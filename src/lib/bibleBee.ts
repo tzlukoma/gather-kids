@@ -739,11 +739,11 @@ export async function deleteBibleBeeYear(id: string) {
 
 export async function createDivision(payload: Omit<Division, 'id' | 'created_at' | 'updated_at'> & { id?: string }) {
     // Validate grade ranges
-    if (payload.min_grade < 0 || payload.min_grade > 12) {
-        throw new Error('min_grade must be between 0 and 12');
+    if (payload.min_grade < -1 || payload.min_grade > 12) {
+        throw new Error('min_grade must be between -1 and 12');
     }
-    if (payload.max_grade < 0 || payload.max_grade > 12) {
-        throw new Error('max_grade must be between 0 and 12');
+    if (payload.max_grade < -1 || payload.max_grade > 12) {
+        throw new Error('max_grade must be between -1 and 12');
     }
     if (payload.min_grade > payload.max_grade) {
         throw new Error('min_grade must be <= max_grade');

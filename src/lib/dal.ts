@@ -3166,11 +3166,11 @@ export async function getDivisionsForBibleBeeYear(yearId: string): Promise<any[]
  */
 export async function createDivision(data: Omit<any, 'id' | 'created_at' | 'updated_at'>): Promise<any> {
 	// Validate grade ranges
-	if (data.min_grade < 0 || data.min_grade > 12) {
-		throw new Error('min_grade must be between 0 and 12');
+	if (data.min_grade < -1 || data.min_grade > 12) {
+		throw new Error('min_grade must be between -1 and 12');
 	}
-	if (data.max_grade < 0 || data.max_grade > 12) {
-		throw new Error('max_grade must be between 0 and 12');
+	if (data.max_grade < -1 || data.max_grade > 12) {
+		throw new Error('max_grade must be between -1 and 12');
 	}
 	if (data.min_grade > data.max_grade) {
 		throw new Error('min_grade must be <= max_grade');
@@ -3220,11 +3220,11 @@ export async function updateDivision(id: string, updates: Partial<any>): Promise
 		const newMaxGrade = updates.max_grade !== undefined ? updates.max_grade : existing.max_grade;
 		
 		// Validate grade ranges
-		if (newMinGrade < 0 || newMinGrade > 12) {
-			throw new Error('min_grade must be between 0 and 12');
+		if (newMinGrade < -1 || newMinGrade > 12) {
+			throw new Error('min_grade must be between -1 and 12');
 		}
-		if (newMaxGrade < 0 || newMaxGrade > 12) {
-			throw new Error('max_grade must be between 0 and 12');
+		if (newMaxGrade < -1 || newMaxGrade > 12) {
+			throw new Error('max_grade must be between -1 and 12');
 		}
 		if (newMinGrade > newMaxGrade) {
 			throw new Error('min_grade must be <= max_grade');
