@@ -196,13 +196,15 @@ async function getEnrollmentsForMinistries(targetMinistries) {
 				child_id,
 				first_name,
 				last_name,
-				date_of_birth,
+				dob,
 				household_id,
 				households!children_household_id_fkey (
 					household_id,
-					household_name,
-					primary_email,
-					primary_phone
+					name,
+					guardians!guardians_household_id_fkey (
+						email,
+						is_primary
+					)
 				)
 			)
 		`
@@ -331,20 +333,25 @@ function generateEmailContent(groupedEnrollments, reportDate) {
 				enrollments.forEach((enrollment) => {
 					const child = enrollment.children;
 					const household = child.households;
-					const age = child.date_of_birth
+					const age = child.dob
 						? Math.floor(
-								(new Date() - new Date(child.date_of_birth)) /
+								(new Date() - new Date(child.dob)) /
 									(365.25 * 24 * 60 * 60 * 1000)
 						  )
 						: 'Unknown';
+
+					// Find primary guardian email
+					const primaryGuardian = household?.guardians?.find(
+						(g) => g.is_primary
+					);
+					const householdEmail = primaryGuardian?.email || 'Not provided';
 
 					html += `
 						<div class="child-row">
 							<div class="child-name">${child.first_name} ${child.last_name}</div>
 							<div class="child-details">
-								Age: ${age} | Household: ${household.household_name} | 
-								Email: ${household.primary_email || 'Not provided'} | 
-								Phone: ${household.primary_phone || 'Not provided'}
+								Age: ${age} | Household: ${household.name || 'Unknown'} | 
+								Email: ${householdEmail}
 							</div>
 						</div>
 					`;
