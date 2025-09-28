@@ -671,7 +671,7 @@ function DivisionManagement({
 		name: '',
 		minimum_required: 0,
 		min_grade: 0,
-		max_grade: 12,
+		max_grade: 13,
 	});
 	const [error, setError] = useState<string | null>(null);
 
@@ -832,7 +832,7 @@ function DivisionManagement({
 										<SelectValue />
 									</SelectTrigger>
 									<SelectContent>
-										{Array.from({ length: 13 }, (_, i) => (
+										{Array.from({ length: 14 }, (_, i) => (
 											<SelectItem key={i} value={i.toString()}>
 												{gradeCodeToLabel(i)}
 											</SelectItem>
@@ -853,7 +853,7 @@ function DivisionManagement({
 										<SelectValue />
 									</SelectTrigger>
 									<SelectContent>
-										{Array.from({ length: 13 }, (_, i) => (
+										{Array.from({ length: 14 }, (_, i) => (
 											<SelectItem key={i} value={i.toString()}>
 												{gradeCodeToLabel(i)}
 											</SelectItem>

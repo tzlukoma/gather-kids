@@ -15,14 +15,20 @@ export function gradeToCode(gradeText?: string): number | null {
     const t = gradeText.toLowerCase().trim();
     console.log(`DEBUG: gradeToCode - normalized grade text: "${t}"`);
     
-    // Direct kindergarten matches
-    if (['k', 'kg', 'kinder', 'kindergarten'].includes(t)) {
-        console.log('DEBUG: gradeToCode - matched kindergarten pattern');
+    // Direct Pre-K matches
+    if (['pre-k', 'prek', 'pre-kinder', 'pre-kindergarten'].includes(t)) {
+        console.log('DEBUG: gradeToCode - matched pre-k pattern');
         return 0;
     }
     
-    // Simple numeric grades 0-12 (0 maps to Kindergarten)
-    const numMatch = t.match(/^(0|[1-9]|1[0-2])$/);
+    // Direct kindergarten matches
+    if (['k', 'kg', 'kinder', 'kindergarten'].includes(t)) {
+        console.log('DEBUG: gradeToCode - matched kindergarten pattern');
+        return 1;
+    }
+    
+    // Simple numeric grades 0-13 (0 maps to Pre-K, 1 maps to Kindergarten)
+    const numMatch = t.match(/^(0|[1-9]|1[0-3])$/);
     if (numMatch) {
         const result = parseInt(numMatch[1], 10);
         console.log(`DEBUG: gradeToCode - matched simple numeric pattern: ${result}`);
@@ -45,6 +51,7 @@ export function gradeToCode(gradeText?: string): number | null {
         '10th': 10, 'tenth': 10,
         '11th': 11, 'eleventh': 11,
         '12th': 12, 'twelfth': 12,
+        '13th': 13, 'thirteenth': 13,
     };
     
     if (ordinalMap[t] !== undefined) {
@@ -53,15 +60,22 @@ export function gradeToCode(gradeText?: string): number | null {
         return result;
     }
     
+    // Grade + pre-k patterns
+    const gradePreKMatch = t.match(/^grade\s*(pre-k|prek|pre-kindergarten)$/);
+    if (gradePreKMatch) {
+        console.log('DEBUG: gradeToCode - matched grade+pre-k pattern');
+        return 0;
+    }
+    
     // Grade + kindergarten patterns
     const gradeKMatch = t.match(/^grade\s*(k|kindergarten)$/);
     if (gradeKMatch) {
         console.log('DEBUG: gradeToCode - matched grade+kindergarten pattern');
-        return 0;
+        return 1;
     }
     
     // Grade + number patterns
-    const gradeNumMatch = t.match(/^grade\s*(0|[1-9]|1[0-2])$/);
+    const gradeNumMatch = t.match(/^grade\s*(0|[1-9]|1[0-3])$/);
     if (gradeNumMatch) {
         const result = parseInt(gradeNumMatch[1], 10);
         console.log(`DEBUG: gradeToCode - matched grade+number pattern: ${result}`);
@@ -69,7 +83,7 @@ export function gradeToCode(gradeText?: string): number | null {
     }
     
     // Number + ordinal + grade patterns (e.g., "1st grade", "2nd grade")
-    const ordinalGradeMatch = t.match(/^(0|[1-9]|1[0-2])(st|nd|rd|th)\s*grade$/);
+    const ordinalGradeMatch = t.match(/^(0|[1-9]|1[0-3])(st|nd|rd|th)\s*grade$/);
     if (ordinalGradeMatch) {
         const result = parseInt(ordinalGradeMatch[1], 10);
         console.log(`DEBUG: gradeToCode - matched ordinal+grade pattern: ${result}`);
@@ -78,7 +92,8 @@ export function gradeToCode(gradeText?: string): number | null {
     
     // Special case for grade 9
     if (t === '9' || t === '9th' || t === 'ninth' || t === 'grade 9' || t === '9th grade') {
-        console.log('DEBUG: gradeToCode - SPECIAL ATTENTION for grade 9: 9');
+        console.log('DEBUG: gradeToCode - SPECIAL ATTENTION for grade 9: 10');
+        return 10;
     }
     
     console.log(`DEBUG: gradeToCode - all parsing methods failed for "${gradeText}"`);
@@ -89,13 +104,14 @@ export function gradeToCode(gradeText?: string): number | null {
  * Convert numeric grade code to human-friendly label
  */
 export function gradeCodeToLabel(gradeCode: number): string {
-    if (gradeCode === 0) return 'Kindergarten';
-    if (gradeCode === 1) return '1st Grade';
-    if (gradeCode === 2) return '2nd Grade';
-    if (gradeCode === 3) return '3rd Grade';
+    if (gradeCode === 0) return 'Pre-K';
+    if (gradeCode === 1) return 'Kindergarten';
+    if (gradeCode === 2) return '1st Grade';
+    if (gradeCode === 3) return '2nd Grade';
+    if (gradeCode === 4) return '3rd Grade';
     
-    // Handle grades 4-12 with proper ordinal formatting
-    if (gradeCode >= 4 && gradeCode <= 12) {
+    // Handle grades 5-12 with proper ordinal formatting
+    if (gradeCode >= 5 && gradeCode <= 12) {
         const lastDigit = gradeCode % 10;
         const lastTwoDigits = gradeCode % 100;
         
@@ -139,23 +155,24 @@ export function normalizeGradeDisplay(gradeText?: string | number): string {
         'pre-k': 'Pre-K',
         'prek': 'Pre-K',
         'preK': 'Pre-K',
+        '0': 'Pre-K',
         'k': 'Kindergarten',
         'kg': 'Kindergarten',
         'kinder': 'Kindergarten',
         'kindergarten': 'Kindergarten',
-        '0': 'Kindergarten',
-        '1': '1st Grade',
-        '2': '2nd Grade', 
-        '3': '3rd Grade',
-        '4': '4th Grade',
-        '5': '5th Grade',
-        '6': '6th Grade',
-        '7': '7th Grade',
-        '8': '8th Grade',
-        '9': '9th Grade',
-        '10': '10th Grade',
-        '11': '11th Grade',
-        '12': '12th Grade',
+        '1': 'Kindergarten',
+        '2': '1st Grade',
+        '3': '2nd Grade', 
+        '4': '3rd Grade',
+        '5': '4th Grade',
+        '6': '5th Grade',
+        '7': '6th Grade',
+        '8': '7th Grade',
+        '9': '8th Grade',
+        '10': '9th Grade',
+        '11': '10th Grade',
+        '12': '11th Grade',
+        '13': '12th Grade',
     };
     
     const key = normalized.toLowerCase();
@@ -178,41 +195,39 @@ export function getGradeSortOrder(gradeText?: string | number): number {
     }
     
     if (gradeCode !== null) {
-        // Special handling for Pre-K
-        if (gradeCode === -1) return -1; 
         return gradeCode;
     }
     
     // Fallback for common grade variations
     const normalized = gradeText.toString().toLowerCase().trim();
     const fallbackOrder: Record<string, number> = {
-        'pre-k': -1,
-        'prek': -1,
-        'kindergarten': 0,
-        'k': 0,
-        'kg': 0,
-        '1st grade': 1,
-        '2nd grade': 2,
-        '3rd grade': 3,
-        '4th grade': 4,
-        '5th grade': 5,
-        '6th grade': 6,
-        '7th grade': 7,
-        '8th grade': 8,
-        '9th grade': 9,
-        '10th grade': 10,
-        '11th grade': 11,
-        '12th grade': 12,
+        'pre-k': 0,
+        'prek': 0,
+        'kindergarten': 1,
+        'k': 1,
+        'kg': 1,
+        '1st grade': 2,
+        '2nd grade': 3,
+        '3rd grade': 4,
+        '4th grade': 5,
+        '5th grade': 6,
+        '6th grade': 7,
+        '7th grade': 8,
+        '8th grade': 9,
+        '9th grade': 10,
+        '10th grade': 11,
+        '11th grade': 12,
+        '12th grade': 13,
     };
     
     return fallbackOrder[normalized] ?? 99;
 }
 
 /**
- * Validate grade code is in valid range (0-12)
+ * Validate grade code is in valid range (0-13)
  */
 export function isValidGradeCode(gradeCode: number): boolean {
-    return Number.isInteger(gradeCode) && gradeCode >= 0 && gradeCode <= 12;
+    return Number.isInteger(gradeCode) && gradeCode >= 0 && gradeCode <= 13;
 }
 
 /**
