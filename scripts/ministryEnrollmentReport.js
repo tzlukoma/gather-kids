@@ -187,17 +187,18 @@ async function getEnrollmentsForMinistries(targetMinistries) {
 		.from('ministry_enrollments')
 		.select(
 			`
+			created_at,
 			enrollment_id,
-			child_id,
-			ministry_id,
 			status,
-			enrolled_at,
+			ministries!inner (
+				ministry_id,
+				name
+			),
 			children!inner (
 				child_id,
 				first_name,
 				last_name,
 				dob,
-				household_id,
 				households!children_household_id_fkey (
 					household_id,
 					name,
@@ -259,8 +260,9 @@ function groupEnrollmentsByMinistry(enrollments, ministries) {
 
 	// Group enrollments
 	enrollments.forEach((enrollment) => {
-		if (grouped[enrollment.ministry_id]) {
-			grouped[enrollment.ministry_id].enrollments.push(enrollment);
+		const ministryId = enrollment.ministries.ministry_id;
+		if (grouped[ministryId]) {
+			grouped[ministryId].enrollments.push(enrollment);
 		}
 	});
 
