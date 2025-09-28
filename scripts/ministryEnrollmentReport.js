@@ -210,7 +210,8 @@ async function getEnrollmentsForMinistries(targetMinistries) {
 		.eq('cycle_id', activeCycleId)
 		.in('ministry_id', ministryIds)
 		.eq('status', 'enrolled')
-		.order('children.last_name, children.first_name');
+		.order('children.last_name', { ascending: true })
+		.order('children.first_name', { ascending: true });
 
 	if (error) {
 		console.error('❌ Error fetching enrollments:', error);
