@@ -444,13 +444,13 @@ async function generateMinistryEnrollmentReport() {
 		// Get all ministries
 		const allMinistries = await getAllMinistries();
 
-	// Filter to target ministries if specified
-	const targetMinistries =
-		ministryCodes.length > 0
-			? allMinistries.filter((ministry) =>
-					ministryCodes.includes(ministry.code)
-			  )
-			: allMinistries;
+		// Filter to target ministries if specified
+		const targetMinistries =
+			ministryCodes.length > 0
+				? allMinistries.filter((ministry) =>
+						ministryCodes.includes(ministry.code)
+				  )
+				: allMinistries;
 
 		if (targetMinistries.length === 0) {
 			console.error('❌ No matching ministries found for the specified codes');
