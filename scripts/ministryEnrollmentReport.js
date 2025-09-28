@@ -277,10 +277,16 @@ function groupEnrollmentsByMinistry(enrollments, ministries) {
  */
 function generateEmailContent(groupedEnrollments, reportDate) {
 	const ministryEntries = Object.values(groupedEnrollments);
-	const totalChildren = ministryEntries.reduce(
-		(sum, group) => sum + group.enrollments.length,
-		0
-	);
+
+	// Calculate unique children across all ministries to avoid double counting
+	const uniqueChildIds = new Set();
+	ministryEntries.forEach((group) => {
+		group.enrollments.forEach((enrollment) => {
+			uniqueChildIds.add(enrollment.children.child_id);
+		});
+	});
+	const totalChildren = uniqueChildIds.size;
+
 	const totalMinistries = ministryEntries.filter(
 		(group) => group.enrollments.length > 0
 	).length;
@@ -490,10 +496,13 @@ async function generateMinistryEnrollmentReport() {
 		}
 
 		// Generate subject
-		const totalChildren = Object.values(groupedEnrollments).reduce(
-			(sum, group) => sum + group.enrollments.length,
-			0
-		);
+		const uniqueChildIds = new Set();
+		Object.values(groupedEnrollments).forEach((group) => {
+			group.enrollments.forEach((enrollment) => {
+				uniqueChildIds.add(enrollment.children.child_id);
+			});
+		});
+		const totalChildren = uniqueChildIds.size;
 		const subject = `Ministry Enrollment Report - ${totalChildren} Children Across ${targetMinistries.length} Ministries`;
 
 		// Send email
