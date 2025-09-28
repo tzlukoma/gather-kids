@@ -450,10 +450,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 			console.log('Auth Context - Login - Input userData:', userData);
 
 			// Check if user has ministry access based on email
+			// Skip ministry access check if user already has a role (e.g., from registration form)
 			let userRole = userData.metadata?.role || null;
 			let assignedMinistryIds: string[] = [];
 
-			if (userData.email) {
+			// Only check ministry access if user doesn't already have a role
+			// This prevents blocking registration form submissions where users are GUARDIANs
+			if (userData.email && !userRole) {
 				try {
 					const accessibleMinistries =
 						await dbAdapter.listAccessibleMinistriesForEmail(userData.email);
@@ -495,6 +498,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 						error
 					);
 				}
+			} else if (userRole) {
+				console.log(
+					'Auth Context - Skipping ministry access check, user already has role:',
+					userRole
+				);
 			}
 
 			const finalUser: BaseUser = {
