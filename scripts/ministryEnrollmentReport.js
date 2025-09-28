@@ -209,9 +209,7 @@ async function getEnrollmentsForMinistries(targetMinistries) {
 		)
 		.eq('cycle_id', activeCycleId)
 		.in('ministry_id', ministryIds)
-		.eq('status', 'enrolled')
-		.order('children.last_name', { ascending: true })
-		.order('children.first_name', { ascending: true });
+		.eq('status', 'enrolled');
 
 	if (error) {
 		console.error('❌ Error fetching enrollments:', error);
@@ -219,6 +217,24 @@ async function getEnrollmentsForMinistries(targetMinistries) {
 	}
 
 	console.log(`✅ Found ${enrollments.length} enrollments`);
+	
+	// Sort enrollments by child name (last name, then first name)
+	enrollments.sort((a, b) => {
+		const aLastName = a.children.last_name || '';
+		const bLastName = b.children.last_name || '';
+		const aFirstName = a.children.first_name || '';
+		const bFirstName = b.children.first_name || '';
+		
+		// First sort by last name
+		const lastNameComparison = aLastName.localeCompare(bLastName);
+		if (lastNameComparison !== 0) {
+			return lastNameComparison;
+		}
+		
+		// Then by first name
+		return aFirstName.localeCompare(bFirstName);
+	});
+	
 	return enrollments;
 }
 
