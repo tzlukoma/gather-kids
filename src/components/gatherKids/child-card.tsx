@@ -277,7 +277,7 @@ export function ChildCard({
 						</p>
 					)}
 				</div>
-				{child.allergies && (
+				{child.allergies && child.allergies.toLowerCase() !== 'none' && (
 					<Badge
 						variant="outline"
 						className="w-full justify-center text-base py-1 border-destructive text-destructive rounded-sm">
