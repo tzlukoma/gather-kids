@@ -875,21 +875,25 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 	// Ministry Group RBAC helpers - IndexedDB implementation
 	async listAccessibleMinistriesForEmail(email: string): Promise<Ministry[]> {
 		const normalizedEmail = email.toLowerCase().trim();
+		console.log('🔍 IndexedDBAdapter.listAccessibleMinistriesForEmail: Starting lookup for', normalizedEmail);
 		
 		// Get ministries via direct accounts
 		const directAccounts = await this.db.ministry_accounts
 			.where('email').equals(normalizedEmail)
 			.toArray();
+		console.log('🔍 IndexedDBAdapter: Direct accounts found:', directAccounts.length, directAccounts);
 		
 		// Get ministries via group email
 		const groups = await this.db.ministry_groups
 			.filter(group => group.email && group.email.toLowerCase() === normalizedEmail)
 			.toArray();
+		console.log('🔍 IndexedDBAdapter: Groups found:', groups.length, groups);
 			
 		const groupIds = groups.map(g => g.id);
 		const groupMemberships = groupIds.length > 0 
 			? await this.db.ministry_group_members.where('group_id').anyOf(groupIds).toArray()
 			: [];
+		console.log('🔍 IndexedDBAdapter: Group memberships found:', groupMemberships.length, groupMemberships);
 		
 		// Collect all ministry IDs
 		const directMinistryIds = directAccounts
@@ -898,10 +902,16 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 		const groupMinistryIds = groupMemberships.map(m => m.ministry_id);
 		
 		const allMinistryIds = [...new Set([...directMinistryIds, ...groupMinistryIds])];
+		console.log('🔍 IndexedDBAdapter: All ministry IDs:', allMinistryIds);
 		
-		if (allMinistryIds.length === 0) return [];
+		if (allMinistryIds.length === 0) {
+			console.log('🔍 IndexedDBAdapter: No ministry IDs found, returning empty array');
+			return [];
+		}
 		
-		return this.db.ministries.where('ministry_id').anyOf(allMinistryIds).toArray();
+		const ministries = await this.db.ministries.where('ministry_id').anyOf(allMinistryIds).toArray();
+		console.log('🔍 IndexedDBAdapter: Final ministries found:', ministries.length, ministries.map(m => ({ id: m.ministry_id, name: m.name })));
+		return ministries;
 	}
 
 	async listAccessibleMinistriesForAccount(accountId: string): Promise<Ministry[]> {

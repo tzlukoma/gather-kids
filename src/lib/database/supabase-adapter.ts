@@ -1882,22 +1882,40 @@ export class SupabaseAdapter implements DatabaseAdapter {
 
 	// Ministry Group RBAC helpers
 	async listAccessibleMinistriesForEmail(email: string): Promise<Ministry[]> {
+		const normalizedEmail = email.toLowerCase().trim();
+		console.log('🔍 SupabaseAdapter.listAccessibleMinistriesForEmail: Starting lookup for', normalizedEmail);
+		
 		const { data, error } = await this.client
-			.rpc('fn_ministry_ids_email_can_access', { p_email: email });
+			.rpc('fn_ministry_ids_email_can_access', { p_email: normalizedEmail });
 
-		if (error) throw error;
+		if (error) {
+			console.error('🔍 SupabaseAdapter: Error calling fn_ministry_ids_email_can_access:', error);
+			throw error;
+		}
 
-		if (!data || data.length === 0) return [];
+		console.log('🔍 SupabaseAdapter: RPC function returned:', data?.length || 0, 'ministry IDs', data);
+
+		if (!data || data.length === 0) {
+			console.log('🔍 SupabaseAdapter: No ministry IDs found, returning empty array');
+			return [];
+		}
 
 		const ministryIds = data.map(row => row.ministry_id);
+		console.log('🔍 SupabaseAdapter: Extracted ministry IDs:', ministryIds);
+		
 		const { data: ministries, error: ministriesError } = await this.client
 			.from('ministries')
 			.select('*')
 			.in('ministry_id', ministryIds);
 
-		if (ministriesError) throw ministriesError;
+		if (ministriesError) {
+			console.error('🔍 SupabaseAdapter: Error fetching ministries:', ministriesError);
+			throw ministriesError;
+		}
 
-		return (ministries || []).map(row => supabaseToMinistry(row));
+		const result = (ministries || []).map(row => supabaseToMinistry(row));
+		console.log('🔍 SupabaseAdapter: Final ministries found:', result.length, result.map(m => ({ id: m.ministry_id, name: m.name })));
+		return result;
 	}
 
 	async listAccessibleMinistriesForAccount(accountId: string): Promise<Ministry[]> {
