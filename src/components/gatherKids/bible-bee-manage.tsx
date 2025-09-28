@@ -670,8 +670,8 @@ function DivisionManagement({
 	const [formData, setFormData] = useState({
 		name: '',
 		minimum_required: 0,
-		min_grade: 0,
-		max_grade: 13,
+		min_grade: -1,
+		max_grade: 12,
 	});
 	const [error, setError] = useState<string | null>(null);
 
@@ -701,7 +701,7 @@ function DivisionManagement({
 			setFormData({
 				name: '',
 				minimum_required: 0,
-				min_grade: 0,
+				min_grade: -1,
 				max_grade: 12,
 			});
 		} catch (error: any) {
@@ -833,8 +833,8 @@ function DivisionManagement({
 									</SelectTrigger>
 									<SelectContent>
 										{Array.from({ length: 14 }, (_, i) => (
-											<SelectItem key={i} value={i.toString()}>
-												{gradeCodeToLabel(i)}
+											<SelectItem key={i} value={(i - 1).toString()}>
+												{gradeCodeToLabel(i - 1)}
 											</SelectItem>
 										))}
 									</SelectContent>
@@ -854,8 +854,8 @@ function DivisionManagement({
 									</SelectTrigger>
 									<SelectContent>
 										{Array.from({ length: 14 }, (_, i) => (
-											<SelectItem key={i} value={i.toString()}>
-												{gradeCodeToLabel(i)}
+											<SelectItem key={i} value={(i - 1).toString()}>
+												{gradeCodeToLabel(i - 1)}
 											</SelectItem>
 										))}
 									</SelectContent>

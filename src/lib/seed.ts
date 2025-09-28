@@ -24,15 +24,15 @@ const EVENT_IDS = {
 const HOUSEHOLD_IDS: { [key: string]: string } = {};
 
 // Return a numeric grade string so Bible Bee grade rules can be applied reliably:
-// Pre-K -> 0, Kindergarten -> 1, 1st grade -> 2, etc. Cap at 13.
+// Pre-K -> -1, Kindergarten -> 0, 1st grade -> 1, etc. Cap at 12.
 const getGradeFromAge = (age: number): string => {
-    if (age <= 3) return '0'; // Pre-K
-    if (age === 4) return '1'; // Kindergarten
+    if (age <= 3) return '-1'; // Pre-K
+    if (age === 4) return '0'; // Kindergarten
     if (age >= 5) {
-        const grade = age - 3;
-        return String(Math.min(13, grade));
+        const grade = age - 4;
+        return String(Math.min(12, grade));
     }
-    return '0';
+    return '-1';
 }
 
 const generateHouseholdsAndChildren = (): { households: Household[], children: Child[], guardians: Guardian[], emergencyContacts: EmergencyContact[] } => {
@@ -302,8 +302,8 @@ export const seedDB = async () => {
                     year_id: bibleBeeYearId,
                     name: 'Primary (Pre-K - 3rd)',
                     minimum_required: 15,
-                    min_grade: 0,
-                    max_grade: 4,
+                    min_grade: -1,
+                    max_grade: 3,
                     created_at: now,
                     updated_at: now,
                 },
@@ -312,8 +312,8 @@ export const seedDB = async () => {
                     year_id: bibleBeeYearId,
                     name: 'Elementary (4th - 6th)',
                     minimum_required: 25,
-                    min_grade: 5,
-                    max_grade: 7,
+                    min_grade: 4,
+                    max_grade: 6,
                     created_at: now,
                     updated_at: now,
                 },
@@ -322,8 +322,8 @@ export const seedDB = async () => {
                     year_id: bibleBeeYearId,
                     name: 'Middle School (7th - 9th)',
                     minimum_required: 35,
-                    min_grade: 8,
-                    max_grade: 10,
+                    min_grade: 7,
+                    max_grade: 9,
                     created_at: now,
                     updated_at: now,
                 },
@@ -332,8 +332,8 @@ export const seedDB = async () => {
                     year_id: bibleBeeYearId,
                     name: 'High School (10th - 12th)',
                     minimum_required: 35,
-                    min_grade: 11,
-                    max_grade: 13,
+                    min_grade: 10,
+                    max_grade: 12,
                     created_at: now,
                     updated_at: now,
                 },

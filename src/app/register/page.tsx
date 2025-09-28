@@ -2070,20 +2070,20 @@ function RegisterPageContent() {
 																			</SelectTrigger>
 																		</FormControl>
 																		<SelectContent>
-																			<SelectItem value="0">Pre-K</SelectItem>
-																			<SelectItem value="1">Kindergarten</SelectItem>
-																			<SelectItem value="2">1st Grade</SelectItem>
-																			<SelectItem value="3">2nd Grade</SelectItem>
-																			<SelectItem value="4">3rd Grade</SelectItem>
-																			<SelectItem value="5">4th Grade</SelectItem>
-																			<SelectItem value="6">5th Grade</SelectItem>
-																			<SelectItem value="7">6th Grade</SelectItem>
-																			<SelectItem value="8">7th Grade</SelectItem>
-																			<SelectItem value="9">8th Grade</SelectItem>
-																			<SelectItem value="10">9th Grade</SelectItem>
-																			<SelectItem value="11">10th Grade</SelectItem>
-																			<SelectItem value="12">11th Grade</SelectItem>
-																			<SelectItem value="13">12th Grade</SelectItem>
+																			<SelectItem value="-1">Pre-K</SelectItem>
+																			<SelectItem value="0">Kindergarten</SelectItem>
+																			<SelectItem value="1">1st Grade</SelectItem>
+																			<SelectItem value="2">2nd Grade</SelectItem>
+																			<SelectItem value="3">3rd Grade</SelectItem>
+																			<SelectItem value="4">4th Grade</SelectItem>
+																			<SelectItem value="5">5th Grade</SelectItem>
+																			<SelectItem value="6">6th Grade</SelectItem>
+																			<SelectItem value="7">7th Grade</SelectItem>
+																			<SelectItem value="8">8th Grade</SelectItem>
+																			<SelectItem value="9">9th Grade</SelectItem>
+																			<SelectItem value="10">10th Grade</SelectItem>
+																			<SelectItem value="11">11th Grade</SelectItem>
+																			<SelectItem value="12">12th Grade</SelectItem>
 																		</SelectContent>
 																	</Select>
 																	<FormMessage />
