@@ -217,24 +217,24 @@ async function getEnrollmentsForMinistries(targetMinistries) {
 	}
 
 	console.log(`✅ Found ${enrollments.length} enrollments`);
-	
+
 	// Sort enrollments by child name (last name, then first name)
 	enrollments.sort((a, b) => {
 		const aLastName = a.children.last_name || '';
 		const bLastName = b.children.last_name || '';
 		const aFirstName = a.children.first_name || '';
 		const bFirstName = b.children.first_name || '';
-		
+
 		// First sort by last name
 		const lastNameComparison = aLastName.localeCompare(bLastName);
 		if (lastNameComparison !== 0) {
 			return lastNameComparison;
 		}
-		
+
 		// Then by first name
 		return aFirstName.localeCompare(bFirstName);
 	});
-	
+
 	return enrollments;
 }
 
