@@ -212,7 +212,7 @@ async function getEnrollmentsForMinistries(targetMinistries) {
 		)
 		.eq('cycle_id', activeCycleId)
 		.in('ministry_id', ministryIds)
-		.eq('status', 'enrolled');
+		.in('status', ['enrolled', 'expressed_interest']);
 
 	if (error) {
 		console.error('❌ Error fetching enrollments:', error);
