@@ -19,15 +19,21 @@ export function BrandingProvider({ children }: { children: React.ReactNode }) {
 	const loadSettings = async () => {
 		try {
 			console.log('BrandingProvider: Loading branding settings...');
-			
+
 			// Add timeout to prevent hanging in UAT
 			const timeoutPromise = new Promise((_, reject) => {
-				setTimeout(() => reject(new Error('Branding settings load timeout')), 5000);
+				setTimeout(
+					() => reject(new Error('Branding settings load timeout')),
+					5000
+				);
 			});
-			
+
 			const brandingSettingsPromise = getBrandingSettings();
-			const brandingSettings = await Promise.race([brandingSettingsPromise, timeoutPromise]) as any;
-			
+			const brandingSettings = (await Promise.race([
+				brandingSettingsPromise,
+				timeoutPromise,
+			])) as any;
+
 			console.log('BrandingProvider: Got branding settings:', brandingSettings);
 			if (brandingSettings) {
 				setSettings(brandingSettings);
