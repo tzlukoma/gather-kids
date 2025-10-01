@@ -4,6 +4,7 @@ import { useForm, useFieldArray, useWatch } from 'react-hook-form';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import {
 	Form,
@@ -484,14 +485,27 @@ function RegisterPageContent() {
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [submissionStatus, setSubmissionStatus] = useState<string>('');
 
-	const [allMinistries, setAllMinistries] = useState<Ministry[]>([]);
-	const [choirMinistries, setChoirMinistries] = useState<Ministry[]>([]);
-	const [ministryGroups, setMinistryGroups] = useState<MinistryGroup[]>([]);
-	const [activeRegistrationCycle, setActiveRegistrationCycle] = useState<
-		RegistrationCycle | undefined
-	>();
+	// Data loading state - revert to direct async calls like release branch
+	const [allMinistries, setAllMinistries] = useState<any[]>([]);
+	const [registrationCycles, setRegistrationCycles] = useState<any[]>([]);
+	const [ministryGroups, setMinistryGroups] = useState<any[]>([]);
+	const [ministriesLoading, setMinistriesLoading] = useState(false);
+	const [cyclesLoading, setCyclesLoading] = useState(false);
+	const [groupsLoading, setGroupsLoading] = useState(false);
+	const [ministriesError, setMinistriesError] = useState<Error | null>(null);
+	const [cyclesError, setCyclesError] = useState<Error | null>(null);
+	const [groupsError, setGroupsError] = useState<Error | null>(null);
 
-	// Load ministries and registration cycles using adapter pattern
+	// Find active registration cycle
+	const activeRegistrationCycle = useMemo(() => {
+		return registrationCycles.find((c) => {
+			const rec = c as unknown as Record<string, unknown>;
+			const val = rec['is_active'];
+			return val === true || val === 1 || String(val) === '1';
+		});
+	}, [registrationCycles]);
+
+	// Load data using direct async calls like release branch
 	useEffect(() => {
 		const loadData = async () => {
 			try {
@@ -502,76 +516,69 @@ function RegisterPageContent() {
 					'DEBUG: Before calling getMinistries() and getRegistrationCycles()'
 				);
 
-				// Load ministries first to better debug any issues
+				// Load ministries first
 				console.log('DEBUG: Calling getMinistries()');
+				setMinistriesLoading(true);
 				const ministries = await getMinistries();
-				console.log(
-					'DEBUG: Loaded',
-					ministries.length,
-					'ministries',
-					ministries.length > 0 ? JSON.stringify(ministries[0]) : 'none'
-				);
+				console.log('DEBUG: Loaded', ministries.length, 'ministries');
+				setAllMinistries(ministries);
+				setMinistriesLoading(false);
 
+				// Load registration cycles
 				console.log('DEBUG: Calling getRegistrationCycles()');
+				setCyclesLoading(true);
 				const cycles = await getRegistrationCycles();
 				console.log('DEBUG: Loaded', cycles.length, 'registration cycles');
+				setRegistrationCycles(cycles);
+				setCyclesLoading(false);
 
-				// Load ministry groups for consent management
-				console.log('DEBUG: Calling getMinistryGroups()');
-				const groups = await getMinistryGroups();
-				console.log('DEBUG: Loaded', groups.length, 'ministry groups');
-				console.log('DEBUG: ministryGroups details:', groups);
-				setMinistryGroups(groups);
-
-				setAllMinistries(ministries);
-
-				// Load choir ministries using ministry groups if enabled
+				// Load ministry groups if needed
 				const showMinistryGroups = getFlag('SHOW_MINISTRY_GROUPS');
 				console.log('DEBUG: SHOW_MINISTRY_GROUPS flag:', showMinistryGroups);
 
 				if (showMinistryGroups) {
-					console.log('DEBUG: Loading choir ministries using ministry groups');
-					const choirs = await getMinistriesByGroupCode('choirs');
-					console.log(
-						'DEBUG: Loaded',
-						choirs.length,
-						'choir ministries via groups:',
-						choirs
-					);
-					setChoirMinistries(choirs);
-				} else {
-					// Fallback to prefix logic
-					console.log('DEBUG: Using legacy choir prefix logic');
-					const choirs = ministries.filter((m) => m.code.startsWith('choir-'));
-					console.log(
-						'DEBUG: Loaded',
-						choirs.length,
-						'choir ministries via prefix:',
-						choirs
-					);
-					setChoirMinistries(choirs);
+					console.log('DEBUG: Loading ministry groups');
+					setGroupsLoading(true);
+					const groups = await getMinistryGroups();
+					console.log('DEBUG: Loaded', groups.length, 'ministry groups');
+					setMinistryGroups(groups);
+					setGroupsLoading(false);
 				}
-
-				// Find active cycle
-				const activeCycle = cycles.find((c) => {
-					const rec = c as unknown as Record<string, unknown>;
-					const val = rec['is_active'];
-					return val === true || val === 1 || String(val) === '1';
-				});
-				console.log(
-					'DEBUG: Active registration cycle:',
-					activeCycle?.cycle_id || 'none found'
-				);
-				setActiveRegistrationCycle(activeCycle);
 			} catch (error) {
-				console.error('Error loading data for registration form:', error);
-				setAllMinistries([]);
-				setActiveRegistrationCycle(undefined);
+				console.error('DEBUG: Error loading data:', error);
+				setMinistriesError(error as Error);
+				setCyclesError(error as Error);
+				setGroupsError(error as Error);
+				setMinistriesLoading(false);
+				setCyclesLoading(false);
+				setGroupsLoading(false);
 			}
 		};
 
 		loadData();
 	}, []);
+
+	// Process choir ministries
+	const choirMinistries = useMemo(() => {
+		const showMinistryGroups = getFlag('SHOW_MINISTRY_GROUPS');
+
+		if (showMinistryGroups) {
+			// Filter ministries that belong to choir groups
+			const choirGroupIds = new Set(
+				ministryGroups
+					.filter((group) => group.code === 'choirs')
+					.map((group) => group.ministry_id)
+			);
+			return allMinistries.filter((ministry) =>
+				choirGroupIds.has(ministry.ministry_id)
+			);
+		} else {
+			// Fallback to prefix logic
+			return allMinistries.filter((m) => m.code.startsWith('choir-'));
+		}
+	}, [allMinistries, ministryGroups]);
+
+	// Data loading is now handled by React Query above
 
 	// Get the active registration cycle to use for enrollments
 
@@ -1089,8 +1096,29 @@ function RegisterPageContent() {
 			'DEBUG: Main useEffect triggered with user:',
 			user?.email,
 			'isDemoMode:',
-			flags.isDemoMode
+			flags.isDemoMode,
+			'authLoading:',
+			authLoading,
+			'ministriesLoading:',
+			ministriesLoading,
+			'cyclesLoading:',
+			cyclesLoading,
+			'activeRegistrationCycle:',
+			activeRegistrationCycle?.cycle_id
 		);
+
+		// Don't run this effect until all data is loaded
+		if (
+			authLoading ||
+			ministriesLoading ||
+			cyclesLoading ||
+			!activeRegistrationCycle
+		) {
+			console.log(
+				'DEBUG: Skipping effect - data still loading or no active cycle'
+			);
+			return;
+		}
 
 		// Redirect MINISTRY_LEADER users to their dashboard instead of registration
 		if (user?.metadata?.role === 'MINISTRY_LEADER') {
@@ -1103,15 +1131,21 @@ function RegisterPageContent() {
 
 		// Check if user has ministry email access but no role assigned yet (first-time login)
 		// This handles the case where the auth context hasn't finished assigning the role
-		if (user?.email && (!user?.metadata?.role || user?.metadata?.role === 'GUEST')) {
+		if (
+			user?.email &&
+			(!user?.metadata?.role || user?.metadata?.role === 'GUEST')
+		) {
 			const checkMinistryAccess = async () => {
 				try {
 					console.log('DEBUG: Checking ministry access for email:', user.email);
 					const { dbAdapter } = await import('@/lib/dal');
-					const accessibleMinistries = await dbAdapter.listAccessibleMinistriesForEmail(user.email);
-					
+					const accessibleMinistries =
+						await dbAdapter.listAccessibleMinistriesForEmail(user.email);
+
 					if (accessibleMinistries.length > 0) {
-						console.log('DEBUG: Ministry access found, redirecting to /dashboard/rosters');
+						console.log(
+							'DEBUG: Ministry access found, redirecting to /dashboard/rosters'
+						);
 						router.push('/dashboard/rosters');
 						return;
 					}
@@ -1119,7 +1153,7 @@ function RegisterPageContent() {
 					console.error('DEBUG: Error checking ministry access:', error);
 				}
 			};
-			
+
 			checkMinistryAccess();
 		}
 
@@ -1244,7 +1278,18 @@ function RegisterPageContent() {
 				setVerificationStep('form_visible');
 			}
 		}
-	}, [user, flags.isDemoMode, toast, form, prefillForm, hasLoadedDraft]);
+	}, [
+		user,
+		flags.isDemoMode,
+		toast,
+		form,
+		prefillForm,
+		hasLoadedDraft,
+		authLoading,
+		ministriesLoading,
+		cyclesLoading,
+		activeRegistrationCycle,
+	]);
 
 	// Focus on the first field when the form becomes visible for authenticated users
 	useEffect(() => {
@@ -1445,6 +1490,91 @@ function RegisterPageContent() {
 				watchedChildren.some((child) => child.interestSelections?.[p.code])
 			);
 	}, [interestPrograms, watchedChildren]);
+
+	// Show loading state while data is being fetched, but with timeout
+	const [loadingTimeout, setLoadingTimeout] = useState(false);
+
+	useEffect(() => {
+		if (authLoading || ministriesLoading || cyclesLoading || groupsLoading) {
+			const timer = setTimeout(() => {
+				setLoadingTimeout(true);
+			}, 10000); // 10 second timeout
+
+			return () => clearTimeout(timer);
+		} else {
+			setLoadingTimeout(false);
+		}
+	}, [authLoading, ministriesLoading, cyclesLoading, groupsLoading]);
+
+	// Show loading state while data is being fetched
+	if (
+		(authLoading || ministriesLoading || cyclesLoading || groupsLoading) &&
+		!loadingTimeout
+	) {
+		return (
+			<div className="max-w-4xl mx-auto">
+				<div className="mb-8">
+					<div className="mb-4">
+						<h1 className="text-3xl font-bold font-headline">
+							Family Registration Form
+						</h1>
+						<p className="text-muted-foreground">
+							Loading registration form...
+						</p>
+					</div>
+				</div>
+				<div className="flex items-center justify-center py-12">
+					<div className="flex items-center gap-2">
+						<div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+						<span>Loading registration data...</span>
+					</div>
+				</div>
+			</div>
+		);
+	}
+
+	// Show error state if data loading failed
+	if (loadingTimeout || ministriesError || cyclesError || groupsError) {
+		console.log('🔍 Register Page: Data loading failed or timed out', {
+			loadingTimeout,
+			ministriesError: ministriesError?.message,
+			cyclesError: cyclesError?.message,
+			groupsError: groupsError?.message,
+			authLoading,
+			ministriesLoading,
+			cyclesLoading,
+			groupsLoading,
+		});
+
+		return (
+			<div className="max-w-4xl mx-auto">
+				<div className="mb-8">
+					<div className="mb-4">
+						<h1 className="text-3xl font-bold font-headline">
+							Family Registration Form
+						</h1>
+						<p className="text-muted-foreground">
+							{loadingTimeout
+								? 'Loading is taking longer than expected...'
+								: 'Unable to load registration data'}
+						</p>
+					</div>
+				</div>
+				<div className="flex items-center justify-center py-12">
+					<div className="text-center space-y-4">
+						<p className="text-muted-foreground">
+							{loadingTimeout
+								? 'The registration form is taking longer than expected to load. This might be due to a temporary connection issue.'
+								: 'There was an error loading the registration form. Please try refreshing the page.'}
+						</p>
+						<Button onClick={() => window.location.reload()}>
+							Refresh Page
+						</Button>
+					</div>
+				</div>
+			</div>
+		);
+	}
 
 	return (
 		<div className="max-w-4xl mx-auto">

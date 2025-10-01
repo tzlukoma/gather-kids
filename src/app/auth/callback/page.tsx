@@ -29,7 +29,28 @@ function AuthCallbackContent() {
 		const timeoutTimer = setTimeout(() => {
 			if (loading && !error && !success) {
 				console.error('Auth callback timeout - user stuck in loading state');
-				setError(`⏰ Authentication Timeout
+
+				// Check if we have any Supabase tokens that might indicate partial success
+				const hasSupabaseTokens =
+					typeof window !== 'undefined' &&
+					Object.keys(localStorage).some((key) => key && key.startsWith('sb-'));
+
+				if (hasSupabaseTokens) {
+					setError(`⚠️ Authentication Partially Successful
+
+The authentication process is taking longer than expected, but we detected that you may already be signed in.
+
+**This can happen when:**
+• The authentication worked but the redirect is delayed
+• There's a temporary network issue
+• The page is taking longer to load
+
+**Please try:**
+1. Click "Continue to Registration" below to proceed
+2. Refresh this page to check if you're already signed in
+3. Request a new magic link if needed`);
+				} else {
+					setError(`⏰ Authentication Timeout
 
 The authentication process is taking longer than expected. This can happen if:
 
@@ -41,9 +62,10 @@ The authentication process is taking longer than expected. This can happen if:
 1. Check your internet connection
 2. Request a new magic link
 3. Contact support if the issue persists`);
+				}
 				setLoading(false);
 			}
-		}, 15000); // 15 second timeout
+		}, 10000); // Reduced to 10 second timeout
 
 		return () => clearTimeout(timeoutTimer);
 	}, [mounted, loading, error, success]);
@@ -91,8 +113,19 @@ The authentication process is taking longer than expected. This can happen if:
 				}
 
 				// Determine the intended redirect destination based on the auth context
-				// Always redirect to household first - it will handle redirecting to registration if needed
-				const targetRedirect = '/household';
+				// Check if this is a local development environment with email confirmations disabled
+				const isLocalDev =
+					process.env.NEXT_PUBLIC_SUPABASE_URL?.includes('127.0.0.1') ||
+					process.env.NEXT_PUBLIC_SUPABASE_URL?.includes('localhost');
+				const isEmailConfirmationsDisabled =
+					process.env.NODE_ENV === 'development';
+
+				// For local dev with email confirmations disabled, redirect directly to register
+				// Otherwise, redirect to household first - it will handle redirecting to registration if needed
+				const targetRedirect =
+					isLocalDev && isEmailConfirmationsDisabled
+						? '/register'
+						: '/household';
 
 				// Try to use exchangeCodeForSession for PKCE flow, which is the modern approach
 				let data: any, authError: any;
@@ -129,7 +162,9 @@ The authentication process is taking longer than expected. This can happen if:
 									);
 
 									// Redirect to registration form with verified email
-									const redirectUrl = `${targetRedirect}?verified_email=${encodeURIComponent(decoded.email)}`;
+									const redirectUrl = `${targetRedirect}?verified_email=${encodeURIComponent(
+										decoded.email
+									)}`;
 									console.log('Magic link redirect to:', redirectUrl);
 									router.push(redirectUrl);
 									return;
@@ -285,14 +320,33 @@ The verification code required for magic links was not found. This happens when:
 						console.error(
 							'Redirect may have failed, offering manual navigation'
 						);
-						setError(`✅ Authentication Successful!\n\nYou\'ve been successfully signed in, but the automatic redirect to the registration form didn\'t work.\n\n**Please click the button below to continue:**`);
+						setError(
+							`✅ Authentication Successful!\n\nYou\'ve been successfully signed in, but the automatic redirect to the registration form didn\'t work.\n\n**Please click the button below to continue:**`
+						);
 						setLoading(false);
 					}, 8000);
 				} else {
 					// No session was created - could be due to email not yet verified or other issues
 					console.log('Auth callback completed but no session created');
-					setError(
-						`Authentication link processed, but no active session was created.
+
+					// Check if this is local development with email confirmations disabled
+					const isLocalDev =
+						process.env.NEXT_PUBLIC_SUPABASE_URL?.includes('127.0.0.1') ||
+						process.env.NEXT_PUBLIC_SUPABASE_URL?.includes('localhost');
+
+					if (isLocalDev) {
+						// In local dev, try to redirect anyway as email confirmations might be disabled
+						console.log(
+							'Local dev detected - attempting redirect despite no session'
+						);
+						setSuccess(true);
+						setTimeout(() => {
+							console.log('Executing local dev redirect to register');
+							router.push('/register');
+						}, 1500);
+					} else {
+						setError(
+							`Authentication link processed, but no active session was created.
 
 This can happen if:
 • The verification link was already used
@@ -303,7 +357,8 @@ This can happen if:
 1. Try clicking "Continue to Registration" to check if you're already signed in
 2. Check your email for additional verification messages
 3. Request a new verification email if needed`
-					);
+						);
+					}
 				}
 			} catch (err) {
 				console.error('Unexpected error in auth callback:', err);
@@ -402,7 +457,8 @@ This can happen if:
 							</div>
 							<div className="flex flex-col gap-2">
 								{error.includes('⚠️ Almost there!') ||
-								error.includes('✅ Authentication Successful!') ? (
+								error.includes('✅ Authentication Successful!') ||
+								error.includes('⚠️ Authentication Partially Successful') ? (
 									<>
 										<Button asChild className="bg-amber-600 hover:bg-amber-700">
 											<Link href="/register">Continue to Registration</Link>

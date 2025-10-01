@@ -825,7 +825,9 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			
 			console.log('🔍 SupabaseAdapter.listMinistries: Ministries query result', { 
 				hasError: !!ministriesError, 
-				errorMessage: ministriesError?.message, 
+				errorMessage: ministriesError?.message,
+				errorCode: ministriesError?.code,
+				errorDetails: ministriesError?.details,
 				dataCount: ministries?.length || 0,
 				ministries: ministries?.map(m => ({ 
 					ministry_id: m.ministry_id, 
@@ -834,7 +836,14 @@ export class SupabaseAdapter implements DatabaseAdapter {
 				}))
 			});
 			
-			if (ministriesError) throw ministriesError;
+			if (ministriesError) {
+				console.error('❌ SupabaseAdapter.listMinistries: Ministries query failed', {
+					error: ministriesError,
+					query: query.toString(),
+					clientUrl: this.client.supabaseUrl
+				});
+				throw ministriesError;
+			}
 
 			if (!ministries || ministries.length === 0) {
 				console.warn('⚠️ SupabaseAdapter.listMinistries: No ministries found in the database');
@@ -933,7 +942,13 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			});
 			return result;
 		} catch (queryError) {
-			console.error('SupabaseAdapter.listMinistries: Query failed', queryError);
+			console.error('❌ SupabaseAdapter.listMinistries: Query failed', {
+				error: queryError,
+				errorMessage: queryError instanceof Error ? queryError.message : 'Unknown error',
+				errorStack: queryError instanceof Error ? queryError.stack : undefined,
+				clientUrl: this.client.supabaseUrl,
+				timestamp: new Date().toISOString()
+			});
 			throw queryError;
 		}
 	}
