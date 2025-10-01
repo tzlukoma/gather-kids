@@ -2019,11 +2019,17 @@ export class SupabaseAdapter implements DatabaseAdapter {
 	}
 
 	async listBrandingSettings(): Promise<BrandingSettings[]> {
+		console.log('SupabaseAdapter: Loading branding settings...');
 		const { data, error } = await this.client
 			.from('branding_settings')
 			.select('*');
 
-		if (error) throw error;
+		if (error) {
+			console.error('SupabaseAdapter: Error loading branding settings:', error);
+			throw error;
+		}
+		
+		console.log('SupabaseAdapter: Loaded branding settings:', data);
 		return (data || []).map((d) => supabaseToBrandingSettings(d as Database['public']['Tables']['branding_settings']['Row']));
 	}
 

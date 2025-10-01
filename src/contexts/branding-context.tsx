@@ -46,6 +46,11 @@ export function BrandingProvider({ children }: { children: React.ReactNode }) {
 			}
 		} catch (error) {
 			console.error('Failed to load branding settings:', error);
+			console.error('Error details:', {
+				message: error instanceof Error ? error.message : 'Unknown error',
+				stack: error instanceof Error ? error.stack : undefined,
+				name: error instanceof Error ? error.name : undefined,
+			});
 			// Fall back to defaults
 			console.log('BrandingProvider: Error occurred, falling back to defaults');
 			try {

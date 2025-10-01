@@ -2652,13 +2652,20 @@ export async function updateChildPhoto(childId: string, photoDataUrl: string): P
 
 // Branding Settings CRUD
 export async function getBrandingSettings(orgId: string = 'default'): Promise<BrandingSettings | null> {
+    console.log('DAL: getBrandingSettings called with orgId:', orgId);
     if (shouldUseAdapter()) {
         // Use Supabase adapter for live mode
+        console.log('DAL: Using Supabase adapter for branding settings');
         const settings = await dbAdapter.listBrandingSettings();
-        return settings.find(s => s.org_id === orgId) || null;
+        console.log('DAL: Got branding settings from adapter:', settings);
+        const result = settings.find(s => s.org_id === orgId) || null;
+        console.log('DAL: Found branding settings for orgId:', result);
+        return result;
     } else {
         // Use legacy Dexie interface for demo mode
+        console.log('DAL: Using Dexie interface for branding settings');
         const settings = await db.branding_settings.where({ org_id: orgId }).first();
+        console.log('DAL: Got branding settings from Dexie:', settings);
         return settings || null;
     }
 }
