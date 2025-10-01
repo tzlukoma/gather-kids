@@ -1,7 +1,7 @@
 /**
  * This file contains types generated from the Supabase schema.
  * DO NOT EDIT MANUALLY. This file is auto-generated.
- * Generated on: 2025-09-20T07:21:37.032Z
+ * Generated on: 2025-10-01T05:36:34.614Z
  */
 
 export type SupabaseJson =
@@ -16,7 +16,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "13.0.5"
+    PostgrestVersion: "13.0.4"
   }
   public: {
     Tables: {
@@ -880,25 +880,34 @@ export type Database = {
           assignment_id: string
           created_at: string | null
           cycle_id: string | null
+          is_active: boolean | null
           leader_id: string | null
           ministry_id: string | null
+          notes: string | null
           role: string | null
+          updated_at: string | null
         }
         Insert: {
           assignment_id: string
           created_at?: string | null
           cycle_id?: string | null
+          is_active?: boolean | null
           leader_id?: string | null
           ministry_id?: string | null
+          notes?: string | null
           role?: string | null
+          updated_at?: string | null
         }
         Update: {
           assignment_id?: string
           created_at?: string | null
           cycle_id?: string | null
+          is_active?: boolean | null
           leader_id?: string | null
           ministry_id?: string | null
+          notes?: string | null
           role?: string | null
+          updated_at?: string | null
         }
         Relationships: [
           {
@@ -1180,33 +1189,63 @@ export type Database = {
         }
         Relationships: []
       }
-      registration_cycles: {
+      ministry_leaders: {
         Row: {
           created_at: string | null
-          cycle_id: string
+          id: string
+          ministry_id: string | null
+          role: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          ministry_id?: string | null
+          role?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          ministry_id?: string | null
+          role?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      registration_cycles: {
+        Row: {
+          active: boolean
+          created_at: string | null
+          cycle_id: string | null
           description: string | null
           end_date: string
-          is_active: boolean
+          id: string
+          is_active: boolean | null
           name: string
           start_date: string
           updated_at: string | null
         }
         Insert: {
+          active?: boolean
           created_at?: string | null
-          cycle_id: string
+          cycle_id?: string | null
           description?: string | null
           end_date: string
-          is_active?: boolean
+          id?: string
+          is_active?: boolean | null
           name: string
           start_date: string
           updated_at?: string | null
         }
         Update: {
+          active?: boolean
           created_at?: string | null
-          cycle_id?: string
+          cycle_id?: string | null
           description?: string | null
           end_date?: string
-          is_active?: boolean
+          id?: string
+          is_active?: boolean | null
           name?: string
           start_date?: string
           updated_at?: string | null
@@ -1422,6 +1461,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      timeslots: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          end_time: string | null
+          event_id: string | null
+          start_time: string | null
+          timeslot_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          end_time?: string | null
+          event_id?: string | null
+          start_time?: string | null
+          timeslot_id: string
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          end_time?: string | null
+          event_id?: string | null
+          start_time?: string | null
+          timeslot_id?: string
+        }
+        Relationships: []
       }
       user_households: {
         Row: {
