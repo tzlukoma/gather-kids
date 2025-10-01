@@ -1491,7 +1491,14 @@ export async function getLeaderProfile(leaderId: string, cycleId: string) {
 }
 
 export async function getLeaderAssignmentsForCycle(leaderId: string, cycleId: string) {
-    return db.leader_assignments.where({ leader_id: leaderId, cycle_id: cycleId }).toArray();
+    if (shouldUseAdapter()) {
+        // Use Supabase adapter for live mode
+        const assignments = await dbAdapter.listLeaderAssignments(undefined, leaderId);
+        return assignments.filter(a => a.cycle_id === cycleId);
+    } else {
+        // Use legacy Dexie interface for demo mode
+        return db.leader_assignments.where({ leader_id: leaderId, cycle_id: cycleId }).toArray();
+    }
 }
 
 export async function getLeaderBibleBeeProgress(leaderId: string, cycleId: string) {
@@ -2069,13 +2076,26 @@ export async function canLeaderManageBibleBee(opts: { leaderId?: string; email?:
     let effectiveCycle = selectedCycle;
     if (selectedCycle) {
         try {
-            const bb = await db.bible_bee_years.get(selectedCycle);
-            if (bb) {
+            if (shouldUseAdapter()) {
+                // Use Supabase adapter for live mode
+                const bb = await dbAdapter.getBibleBeeYear(selectedCycle);
+                if (bb) {
+                    const allCycles = await dbAdapter.listRegistrationCycles();
+                    const active = allCycles.find((c: unknown) => {
+                        return isActiveValue((c as unknown as Record<string, unknown>)?.is_active);
+                    });
+                    if (active && active.cycle_id) effectiveCycle = active.cycle_id;
+                }
+            } else {
+                // Use legacy Dexie interface for demo mode
+                const bb = await db.bible_bee_years.get(selectedCycle);
+                if (bb) {
                     const allCycles = await db.registration_cycles.toArray();
                     const active = allCycles.find((c: unknown) => {
-                            return isActiveValue((c as unknown as Record<string, unknown>)?.is_active);
-                        });
-                if (active && active.cycle_id) effectiveCycle = active.cycle_id;
+                        return isActiveValue((c as unknown as Record<string, unknown>)?.is_active);
+                    });
+                    if (active && active.cycle_id) effectiveCycle = active.cycle_id;
+                }
             }
         } catch (err) {
             // ignore and proceed
@@ -2084,8 +2104,23 @@ export async function canLeaderManageBibleBee(opts: { leaderId?: string; email?:
 
     // 1) Legacy leader_assignments check
     if (leaderId && effectiveCycle) {
-        const assignments = await db.leader_assignments.where({ leader_id: leaderId, cycle_id: effectiveCycle }).toArray();
-    if (assignments.some((a: LeaderAssignment) => a.ministry_id === 'bible-bee' && a.role === 'Primary')) return true;
+        if (shouldUseAdapter()) {
+            // Use Supabase adapter for live mode
+            const assignments = await dbAdapter.listLeaderAssignments(undefined, leaderId);
+            const filteredAssignments = assignments.filter(a => a.cycle_id === effectiveCycle);
+            const ministries = await dbAdapter.listMinistries();
+            const bibleBeeMinistries = ministries.filter(m => m.code === 'bible-bee');
+            const bibleBeeMinistryIds = bibleBeeMinistries.map(m => m.ministry_id);
+            if (filteredAssignments.some((a: LeaderAssignment) => bibleBeeMinistryIds.includes(a.ministry_id) && a.role === 'Primary')) return true;
+        } else {
+            // Use legacy Dexie interface for demo mode
+            const assignments = await db.leader_assignments.where({ leader_id: leaderId, cycle_id: effectiveCycle }).toArray();
+            // Check by ministry code instead of ministry_id
+            const ministries = await db.ministries.toArray();
+            const bibleBeeMinistries = ministries.filter(m => m.code === 'bible-bee');
+            const bibleBeeMinistryIds = bibleBeeMinistries.map(m => m.ministry_id);
+            if (assignments.some((a: LeaderAssignment) => bibleBeeMinistryIds.includes(a.ministry_id) && a.role === 'Primary')) return true;
+        }
     }
 
     // 2) New management system: ministry_leader_memberships
@@ -2093,11 +2128,17 @@ export async function canLeaderManageBibleBee(opts: { leaderId?: string; email?:
         if (shouldUseAdapter()) {
             // Use Supabase adapter for live mode
             const memberships = await dbAdapter.listMinistryLeaderMemberships(undefined, leaderId);
-            if (memberships.some((m: MinistryLeaderMembership) => (m.ministry_id === 'bible-bee') && isActiveValue(m.is_active))) return true;
+            const ministries = await dbAdapter.listMinistries();
+            const bibleBeeMinistries = ministries.filter(m => m.code === 'bible-bee');
+            const bibleBeeMinistryIds = bibleBeeMinistries.map(m => m.ministry_id);
+            if (memberships.some((m: MinistryLeaderMembership) => bibleBeeMinistryIds.includes(m.ministry_id) && isActiveValue(m.is_active))) return true;
         } else {
             // Use legacy Dexie interface for demo mode
             const memberships = await db.ministry_leader_memberships.where('leader_id').equals(leaderId).toArray();
-            if (memberships.some((m: MinistryLeaderMembership) => (m.ministry_id === 'bible-bee') && isActiveValue(m.is_active))) return true;
+            const ministries = await db.ministries.toArray();
+            const bibleBeeMinistries = ministries.filter(m => m.code === 'bible-bee');
+            const bibleBeeMinistryIds = bibleBeeMinistries.map(m => m.ministry_id);
+            if (memberships.some((m: MinistryLeaderMembership) => bibleBeeMinistryIds.includes(m.ministry_id) && isActiveValue(m.is_active))) return true;
         }
     }
 
@@ -2106,11 +2147,17 @@ export async function canLeaderManageBibleBee(opts: { leaderId?: string; email?:
         if (shouldUseAdapter()) {
             // Use Supabase adapter for live mode
             const accounts = await dbAdapter.listMinistryAccounts();
-            if (accounts.some((a: MinistryAccount) => a.ministry_id === 'bible-bee' && a.email === String(email))) return true;
+            const ministries = await dbAdapter.listMinistries();
+            const bibleBeeMinistries = ministries.filter(m => m.code === 'bible-bee');
+            const bibleBeeMinistryIds = bibleBeeMinistries.map(m => m.ministry_id);
+            if (accounts.some((a: MinistryAccount) => bibleBeeMinistryIds.includes(a.ministry_id) && a.email === String(email))) return true;
         } else {
             // Use legacy Dexie interface for demo mode
             const accounts = await db.ministry_accounts.where('email').equals(String(email)).toArray();
-            if (accounts.some((a: MinistryAccount) => a.ministry_id === 'bible-bee')) return true;
+            const ministries = await db.ministries.toArray();
+            const bibleBeeMinistries = ministries.filter(m => m.code === 'bible-bee');
+            const bibleBeeMinistryIds = bibleBeeMinistries.map(m => m.ministry_id);
+            if (accounts.some((a: MinistryAccount) => bibleBeeMinistryIds.includes(a.ministry_id))) return true;
         }
     }
 
@@ -3272,11 +3319,11 @@ export async function getDivisionsForBibleBeeYear(yearId: string): Promise<any[]
  */
 export async function createDivision(data: Omit<any, 'id' | 'created_at' | 'updated_at'>): Promise<any> {
 	// Validate grade ranges
-	if (data.min_grade < -1 || data.min_grade > 12) {
-		throw new Error('min_grade must be between -1 and 12');
+	if (data.min_grade < 0 || data.min_grade > 12) {
+		throw new Error('min_grade must be between 0 and 12');
 	}
-	if (data.max_grade < -1 || data.max_grade > 12) {
-		throw new Error('max_grade must be between -1 and 12');
+	if (data.max_grade < 0 || data.max_grade > 12) {
+		throw new Error('max_grade must be between 0 and 12');
 	}
 	if (data.min_grade > data.max_grade) {
 		throw new Error('min_grade must be <= max_grade');
@@ -3326,11 +3373,11 @@ export async function updateDivision(id: string, updates: Partial<any>): Promise
 		const newMaxGrade = updates.max_grade !== undefined ? updates.max_grade : existing.max_grade;
 		
 		// Validate grade ranges
-		if (newMinGrade < -1 || newMinGrade > 12) {
-			throw new Error('min_grade must be between -1 and 12');
+		if (newMinGrade < 0 || newMinGrade > 12) {
+			throw new Error('min_grade must be between 0 and 12');
 		}
-		if (newMaxGrade < -1 || newMaxGrade > 12) {
-			throw new Error('max_grade must be between -1 and 12');
+		if (newMaxGrade < 0 || newMaxGrade > 12) {
+			throw new Error('max_grade must be between 0 and 12');
 		}
 		if (newMinGrade > newMaxGrade) {
 			throw new Error('min_grade must be <= max_grade');

@@ -1091,6 +1091,38 @@ function RegisterPageContent() {
 			'isDemoMode:',
 			flags.isDemoMode
 		);
+
+		// Redirect MINISTRY_LEADER users to their dashboard instead of registration
+		if (user?.metadata?.role === 'MINISTRY_LEADER') {
+			console.log(
+				'DEBUG: MINISTRY_LEADER user detected, redirecting to /dashboard/rosters'
+			);
+			router.push('/dashboard/rosters');
+			return;
+		}
+
+		// Check if user has ministry email access but no role assigned yet (first-time login)
+		// This handles the case where the auth context hasn't finished assigning the role
+		if (user?.email && (!user?.metadata?.role || user?.metadata?.role === 'GUEST')) {
+			const checkMinistryAccess = async () => {
+				try {
+					console.log('DEBUG: Checking ministry access for email:', user.email);
+					const { dbAdapter } = await import('@/lib/dal');
+					const accessibleMinistries = await dbAdapter.listAccessibleMinistriesForEmail(user.email);
+					
+					if (accessibleMinistries.length > 0) {
+						console.log('DEBUG: Ministry access found, redirecting to /dashboard/rosters');
+						router.push('/dashboard/rosters');
+						return;
+					}
+				} catch (error) {
+					console.error('DEBUG: Error checking ministry access:', error);
+				}
+			};
+			
+			checkMinistryAccess();
+		}
+
 		// Check if user is authenticated and skip email lookup if so
 		// For live mode: check for authenticated users with email
 		// For demo mode: check for authenticated users with GUARDIAN role (parents) or null role (new users needing registration)
@@ -2063,7 +2095,9 @@ function RegisterPageContent() {
 															render={({ field }) => (
 																<FormItem>
 																	<FormLabel>Grade</FormLabel>
-																	<Select onValueChange={field.onChange} defaultValue={field.value}>
+																	<Select
+																		onValueChange={field.onChange}
+																		defaultValue={field.value}>
 																		<FormControl>
 																			<SelectTrigger>
 																				<SelectValue placeholder="Select grade" />
@@ -2071,19 +2105,45 @@ function RegisterPageContent() {
 																		</FormControl>
 																		<SelectContent>
 																			<SelectItem value="-1">Pre-K</SelectItem>
-																			<SelectItem value="0">Kindergarten</SelectItem>
-																			<SelectItem value="1">1st Grade</SelectItem>
-																			<SelectItem value="2">2nd Grade</SelectItem>
-																			<SelectItem value="3">3rd Grade</SelectItem>
-																			<SelectItem value="4">4th Grade</SelectItem>
-																			<SelectItem value="5">5th Grade</SelectItem>
-																			<SelectItem value="6">6th Grade</SelectItem>
-																			<SelectItem value="7">7th Grade</SelectItem>
-																			<SelectItem value="8">8th Grade</SelectItem>
-																			<SelectItem value="9">9th Grade</SelectItem>
-																			<SelectItem value="10">10th Grade</SelectItem>
-																			<SelectItem value="11">11th Grade</SelectItem>
-																			<SelectItem value="12">12th Grade</SelectItem>
+																			<SelectItem value="0">
+																				Kindergarten
+																			</SelectItem>
+																			<SelectItem value="1">
+																				1st Grade
+																			</SelectItem>
+																			<SelectItem value="2">
+																				2nd Grade
+																			</SelectItem>
+																			<SelectItem value="3">
+																				3rd Grade
+																			</SelectItem>
+																			<SelectItem value="4">
+																				4th Grade
+																			</SelectItem>
+																			<SelectItem value="5">
+																				5th Grade
+																			</SelectItem>
+																			<SelectItem value="6">
+																				6th Grade
+																			</SelectItem>
+																			<SelectItem value="7">
+																				7th Grade
+																			</SelectItem>
+																			<SelectItem value="8">
+																				8th Grade
+																			</SelectItem>
+																			<SelectItem value="9">
+																				9th Grade
+																			</SelectItem>
+																			<SelectItem value="10">
+																				10th Grade
+																			</SelectItem>
+																			<SelectItem value="11">
+																				11th Grade
+																			</SelectItem>
+																			<SelectItem value="12">
+																				12th Grade
+																			</SelectItem>
 																		</SelectContent>
 																	</Select>
 																	<FormMessage />
