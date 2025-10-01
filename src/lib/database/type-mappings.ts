@@ -459,7 +459,7 @@ export function supabaseToMinistryLeaderMembership(row: Record<string, unknown> 
 	})();
 
 	return {
-		membership_id: (r['membership_id'] as string) || (r['id'] as string) || '',
+		membership_id: (r['membership_id'] as string) || (r['assignment_id'] as string) || (r['id'] as string) || '',
 		ministry_id: (r['ministry_id'] as string) || '',
 		leader_id: (r['leader_id'] as string) || (r['user_id'] as string) || '',
 		role_type,

@@ -1491,7 +1491,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 		const { data, error } = await this.client
 			.from('leader_assignments')
 			.select('*')
-			.eq('membership_id', id)
+			.eq('assignment_id', id)
 			.single();
 
 		if (error) {
@@ -1516,6 +1516,11 @@ export class SupabaseAdapter implements DatabaseAdapter {
 		const dbPayload: Record<string, unknown> = { ...membership } as Record<string, unknown>;
 		// leader_assignments table expects assignment_id as PK; map membership_id to assignment_id
 		if (dbPayload['membership_id']) dbPayload['assignment_id'] = dbPayload['membership_id'];
+		// Map role_type to role for database compatibility
+		if (dbPayload['role_type']) dbPayload['role'] = dbPayload['role_type'];
+		// Remove fields that don't exist in leader_assignments table
+		delete dbPayload['membership_id'];
+		delete dbPayload['role_type'];
 		if (dbPayload.roles && typeof dbPayload.roles !== 'string') {
 			dbPayload.roles = JSON.stringify(dbPayload.roles as unknown);
 		}
@@ -1536,7 +1541,13 @@ export class SupabaseAdapter implements DatabaseAdapter {
 	): Promise<MinistryLeaderMembership> {
 
 		const dbPayload: Record<string, unknown> = { ...(data as Record<string, unknown>), updated_at: new Date().toISOString() };
+		// Map membership_id to assignment_id for database compatibility
 		if (dbPayload['membership_id']) dbPayload['assignment_id'] = dbPayload['membership_id'];
+		// Map role_type to role for database compatibility
+		if (dbPayload['role_type']) dbPayload['role'] = dbPayload['role_type'];
+		// Remove fields that don't exist in leader_assignments table
+		delete dbPayload['membership_id'];
+		delete dbPayload['role_type'];
 		if (dbPayload.roles && typeof dbPayload.roles !== 'string') {
 			dbPayload.roles = JSON.stringify(dbPayload.roles as unknown);
 		}
@@ -1544,7 +1555,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 		const { data: result, error } = await this.client
 			.from('leader_assignments')
 			.update(dbPayload as Database['public']['Tables']['leader_assignments']['Update'])
-			.eq('membership_id', id)
+			.eq('assignment_id', id)
 			.select()
 			.single();
 
@@ -1575,7 +1586,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 		const { error } = await this.client
 			.from('leader_assignments')
 			.delete()
-			.eq('membership_id', id);
+			.eq('assignment_id', id);
 
 		if (error) throw error;
 	}

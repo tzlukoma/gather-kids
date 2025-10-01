@@ -1,13 +1,12 @@
 'use client';
 
-import { useLiveQuery } from 'dexie-react-hooks';
 import { useParams, useRouter } from 'next/navigation';
 import {
-	getLeaderProfileWithMemberships,
-	saveLeaderMemberships,
-	updateLeaderProfileStatus,
-	saveLeaderProfile,
-} from '@/lib/dal';
+	useLeader,
+	useUpdateLeaderStatusMutation,
+	useSaveLeaderMembershipsMutation,
+	useSaveLeaderProfileMutation,
+} from '@/lib/hooks/useData';
 import {
 	Card,
 	CardContent,
@@ -17,7 +16,16 @@ import {
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Mail, Phone, User, CheckCircle2, ShieldQuestion, Edit3, Save, X } from 'lucide-react';
+import {
+	Mail,
+	Phone,
+	User,
+	CheckCircle2,
+	ShieldQuestion,
+	Edit3,
+	Save,
+	X,
+} from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -26,7 +34,12 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { useEffect, useState, useMemo } from 'react';
-import type { LeaderAssignment, LeaderProfile, User as LeaderUser, MinistryLeaderMembership } from '@/lib/types';
+import type {
+	LeaderAssignment,
+	LeaderProfile,
+	User as LeaderUser,
+	MinistryLeaderMembership,
+} from '@/lib/types';
 import { Switch } from '@/components/ui/switch';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useAuth } from '@/contexts/auth-context';
@@ -54,7 +67,11 @@ const InfoItem = ({
 		<div className="text-muted-foreground mt-1">{icon}</div>
 		<div>
 			<p className="text-sm text-muted-foreground">{label}</p>
-			<p className="font-medium">{value}</p>
+			{typeof value === 'string' ? (
+				<p className="font-medium">{value}</p>
+			) : (
+				<div className="font-medium">{value}</div>
+			)}
 		</div>
 	</div>
 );
@@ -75,10 +92,15 @@ export default function LeaderProfilePage() {
 	const leaderId = params.leaderId as string;
 	const { toast } = useToast();
 
-	const profileData = useLiveQuery(
-		() => getLeaderProfileWithMemberships(leaderId),
-		[leaderId]
-	);
+	// Use React Query hooks
+	const {
+		data: profileData,
+		isLoading: profileLoading,
+		error: profileError,
+	} = useLeader(leaderId);
+	const updateStatusMutation = useUpdateLeaderStatusMutation();
+	const saveMembershipsMutation = useSaveLeaderMembershipsMutation();
+	const saveProfileMutation = useSaveLeaderProfileMutation();
 
 	const [assignments, setAssignments] = useState<AssignmentState>({});
 	const [isSaving, setIsSaving] = useState(false);
@@ -117,11 +139,15 @@ export default function LeaderProfilePage() {
 			const initialAssignments: AssignmentState = {};
 			profileData.allMinistries.forEach((m) => {
 				const existingMembership = profileData.memberships.find(
-					(membership) => membership.ministry_id === m.ministry_id && membership.is_active
+					(membership) =>
+						membership.ministry_id === m.ministry_id && membership.is_active
 				);
 				initialAssignments[m.ministry_id] = {
 					assigned: !!existingMembership,
-					role: existingMembership?.role_type === 'PRIMARY' ? 'Primary' : 'Volunteer',
+					role:
+						existingMembership?.role_type === 'PRIMARY'
+							? 'Primary'
+							: 'Volunteer',
 				};
 			});
 			setAssignments(initialAssignments);
@@ -135,7 +161,8 @@ export default function LeaderProfilePage() {
 					email: profileData.profile.email || '',
 					phone: profileData.profile.phone || '',
 					notes: profileData.profile.notes || '',
-					background_check_complete: profileData.profile.background_check_complete || false,
+					background_check_complete:
+						profileData.profile.background_check_complete || false,
 				});
 			}
 		}
@@ -162,7 +189,7 @@ export default function LeaderProfilePage() {
 
 	const handleSaveProfile = async () => {
 		if (!profileData?.profile) return;
-		
+
 		setIsSavingProfile(true);
 		try {
 			const updatedProfile: LeaderProfile = {
@@ -178,13 +205,17 @@ export default function LeaderProfilePage() {
 				updated_at: new Date().toISOString(),
 			};
 
-			await saveLeaderProfile(updatedProfile);
+			await saveProfileMutation.mutateAsync({
+				leaderId,
+				profileData: updatedProfile,
+			});
 			setIsEditingProfile(false);
 
 			// Use fallback for display name in case of empty fields
-			const displayName = profileForm.first_name && profileForm.last_name 
-				? `${profileForm.first_name} ${profileForm.last_name}`
-				: 'the leader';
+			const displayName =
+				profileForm.first_name && profileForm.last_name
+					? `${profileForm.first_name} ${profileForm.last_name}`
+					: 'the leader';
 
 			toast({
 				title: 'Profile Updated',
@@ -210,7 +241,8 @@ export default function LeaderProfilePage() {
 				email: profileData.profile.email || '',
 				phone: profileData.profile.phone || '',
 				notes: profileData.profile.notes || '',
-				background_check_complete: profileData.profile.background_check_complete || false,
+				background_check_complete:
+					profileData.profile.background_check_complete || false,
 			});
 		}
 		setIsEditingProfile(false);
@@ -219,17 +251,23 @@ export default function LeaderProfilePage() {
 	const handleSaveChanges = async () => {
 		setIsSaving(true);
 		try {
-			const finalMemberships: Omit<MinistryLeaderMembership, 'membership_id' | 'created_at' | 'updated_at'>[] =
-				Object.entries(assignments)
-					.filter(([, val]) => val.assigned)
-					.map(([ministryId, val]) => ({
-						leader_id: leaderId,
-						ministry_id: ministryId,
-						role_type: val.role === 'Primary' ? 'PRIMARY' : 'VOLUNTEER',
-						is_active: true,
-						notes: undefined,
-					}));
-			await saveLeaderMemberships(leaderId, finalMemberships);
+			const finalMemberships: Omit<
+				MinistryLeaderMembership,
+				'membership_id' | 'created_at' | 'updated_at'
+			>[] = Object.entries(assignments)
+				.filter(([, val]) => val.assigned)
+				.map(([ministryId, val]) => ({
+					leader_id: leaderId,
+					ministry_id: ministryId,
+					role_type: val.role === 'Primary' ? 'PRIMARY' : 'VOLUNTEER',
+					is_active: true,
+					notes: undefined,
+				}));
+
+			await saveMembershipsMutation.mutateAsync({
+				leaderId,
+				memberships: finalMemberships,
+			});
 
 			toast({
 				title: 'Assignments Saved',
@@ -240,7 +278,8 @@ export default function LeaderProfilePage() {
 			if (finalMemberships.length === 0 && isActive) {
 				toast({
 					title: 'Status Update Recommended',
-					description: 'Consider setting the leader to inactive since they have no ministry assignments.',
+					description:
+						'Consider setting the leader to inactive since they have no ministry assignments.',
 					variant: 'default',
 				});
 			}
@@ -259,7 +298,7 @@ export default function LeaderProfilePage() {
 	const handleStatusChange = async (newStatus: boolean) => {
 		setIsActive(newStatus);
 		try {
-			await updateLeaderProfileStatus(leaderId, newStatus);
+			await updateStatusMutation.mutateAsync({ leaderId, isActive: newStatus });
 			toast({
 				title: 'Status Updated',
 				description: `Leader has been set to ${
@@ -294,8 +333,20 @@ export default function LeaderProfilePage() {
 			.sort((a, b) => a.ministryName.localeCompare(b.ministryName));
 	}, [profileData]);
 
-	if (loading || !isAuthorized || !profileData) {
+	if (loading || !isAuthorized) {
+		return <div>Loading...</div>;
+	}
+
+	if (profileLoading) {
 		return <div>Loading leader profile...</div>;
+	}
+
+	if (profileError) {
+		return <div>Error loading leader profile</div>;
+	}
+
+	if (!profileData) {
+		return <div>Leader not found</div>;
 	}
 
 	const { profile, allMinistries } = profileData;
@@ -308,10 +359,9 @@ export default function LeaderProfilePage() {
 		<div className="flex flex-col gap-8">
 			<div>
 				<h1 className="text-3xl font-bold font-headline">
-					{isEditingProfile && profileForm.first_name && profileForm.last_name 
+					{isEditingProfile && profileForm.first_name && profileForm.last_name
 						? `${profileForm.first_name} ${profileForm.last_name}`
-						: `${profile.first_name} ${profile.last_name}`
-					}
+						: `${profile.first_name} ${profile.last_name}`}
 				</h1>
 				<div className="flex items-center gap-2 mt-2 flex-wrap">
 					<Badge
@@ -395,17 +445,27 @@ export default function LeaderProfilePage() {
 									<Input
 										id="first_name"
 										value={profileForm.first_name}
-										onChange={(e) => setProfileForm(prev => ({ ...prev, first_name: e.target.value }))}
+										onChange={(e) =>
+											setProfileForm((prev) => ({
+												...prev,
+												first_name: e.target.value,
+											}))
+										}
 										disabled={isSavingProfile}
 									/>
 								</div>
-								
+
 								<div className="space-y-2">
 									<Label htmlFor="last_name">Last Name</Label>
 									<Input
 										id="last_name"
 										value={profileForm.last_name}
-										onChange={(e) => setProfileForm(prev => ({ ...prev, last_name: e.target.value }))}
+										onChange={(e) =>
+											setProfileForm((prev) => ({
+												...prev,
+												last_name: e.target.value,
+											}))
+										}
 										disabled={isSavingProfile}
 									/>
 								</div>
@@ -416,7 +476,12 @@ export default function LeaderProfilePage() {
 										id="email"
 										type="email"
 										value={profileForm.email}
-										onChange={(e) => setProfileForm(prev => ({ ...prev, email: e.target.value }))}
+										onChange={(e) =>
+											setProfileForm((prev) => ({
+												...prev,
+												email: e.target.value,
+											}))
+										}
 										disabled={isSavingProfile}
 										placeholder="leader@example.com"
 									/>
@@ -427,7 +492,12 @@ export default function LeaderProfilePage() {
 									<Input
 										id="phone"
 										value={profileForm.phone}
-										onChange={(e) => setProfileForm(prev => ({ ...prev, phone: e.target.value }))}
+										onChange={(e) =>
+											setProfileForm((prev) => ({
+												...prev,
+												phone: e.target.value,
+											}))
+										}
 										disabled={isSavingProfile}
 										placeholder="(555) 123-4567"
 									/>
@@ -438,7 +508,12 @@ export default function LeaderProfilePage() {
 									<Textarea
 										id="notes"
 										value={profileForm.notes}
-										onChange={(e) => setProfileForm(prev => ({ ...prev, notes: e.target.value }))}
+										onChange={(e) =>
+											setProfileForm((prev) => ({
+												...prev,
+												notes: e.target.value,
+											}))
+										}
 										disabled={isSavingProfile}
 										placeholder="Additional notes about this leader..."
 										rows={3}
@@ -449,7 +524,12 @@ export default function LeaderProfilePage() {
 									<Checkbox
 										id="background-check"
 										checked={profileForm.background_check_complete}
-										onCheckedChange={(checked) => setProfileForm(prev => ({ ...prev, background_check_complete: !!checked }))}
+										onCheckedChange={(checked) =>
+											setProfileForm((prev) => ({
+												...prev,
+												background_check_complete: !!checked,
+											}))
+										}
 										disabled={isSavingProfile}
 									/>
 									<Label htmlFor="background-check" className="font-medium">
@@ -491,8 +571,16 @@ export default function LeaderProfilePage() {
 									label="Background Check"
 									value={
 										<div className="flex items-center gap-2">
-											<div className={`w-2 h-2 rounded-full ${profile.background_check_complete ? 'bg-green-500' : 'bg-gray-300'}`} />
-											{profile.background_check_complete ? 'Complete' : 'Not Complete'}
+											<div
+												className={`w-2 h-2 rounded-full ${
+													profile.background_check_complete
+														? 'bg-green-500'
+														: 'bg-gray-300'
+												}`}
+											/>
+											{profile.background_check_complete
+												? 'Complete'
+												: 'Not Complete'}
 										</div>
 									}
 								/>

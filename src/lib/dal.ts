@@ -1972,8 +1972,7 @@ export async function queryLeaderProfiles() {
             
             const result = profiles.map(profile => ({
                 ...profile,
-                ministryCount: membershipCounts[profile.leader_id] || 0,
-                is_active: profile.is_active && (membershipCounts[profile.leader_id] || 0) > 0
+                ministryCount: membershipCounts[profile.leader_id] || 0
             }));
             
             console.log('Final processed leader profiles:', result);
@@ -2005,31 +2004,52 @@ export async function queryLeaderProfiles() {
         
         return profiles.map(profile => ({
             ...profile,
-            ministryCount: membershipCounts[profile.leader_id] || 0,
-            is_active: profile.is_active && (membershipCounts[profile.leader_id] || 0) > 0
+            ministryCount: membershipCounts[profile.leader_id] || 0
         }));
     }
 }
 
 // Get leader profile with all memberships
 export async function getLeaderProfileWithMemberships(leaderId: string) {
-    const profile = await db.leader_profiles.get(leaderId);
-    if (!profile) return null;
+    if (shouldUseAdapter()) {
+        // Use Supabase adapter for live mode
+        const profile = await dbAdapter.getLeaderProfile(leaderId);
+        if (!profile) return null;
 
-    const memberships = await db.ministry_leader_memberships.where('leader_id').equals(leaderId).toArray();
-    const ministries = await db.ministries.toArray();
-    const ministryMap = new Map(ministries.map(m => [m.ministry_id, m]));
+        const memberships = await dbAdapter.listMinistryLeaderMemberships(undefined, leaderId);
+        const ministries = await dbAdapter.listMinistries();
+        const ministryMap = new Map(ministries.map(m => [m.ministry_id, m]));
 
-    const membershipsWithMinistries = memberships.map(m => ({
-        ...m,
-        ministry: ministryMap.get(m.ministry_id)
-    })).filter(m => m.ministry); // Filter out memberships for deleted ministries
+        const membershipsWithMinistries = memberships.map(m => ({
+            ...m,
+            ministry: ministryMap.get(m.ministry_id)
+        })).filter(m => m.ministry); // Filter out memberships for deleted ministries
 
-    return {
-        profile,
-        memberships: membershipsWithMinistries,
-        allMinistries: ministries.filter(m => m.is_active).sort((a, b) => a.name.localeCompare(b.name))
-    };
+        return {
+            profile,
+            memberships: membershipsWithMinistries,
+            allMinistries: ministries.filter(m => m.is_active).sort((a, b) => a.name.localeCompare(b.name))
+        };
+    } else {
+        // Use legacy Dexie interface for demo mode
+        const profile = await db.leader_profiles.get(leaderId);
+        if (!profile) return null;
+
+        const memberships = await db.ministry_leader_memberships.where('leader_id').equals(leaderId).toArray();
+        const ministries = await db.ministries.toArray();
+        const ministryMap = new Map(ministries.map(m => [m.ministry_id, m]));
+
+        const membershipsWithMinistries = memberships.map(m => ({
+            ...m,
+            ministry: ministryMap.get(m.ministry_id)
+        })).filter(m => m.ministry); // Filter out memberships for deleted ministries
+
+        return {
+            profile,
+            memberships: membershipsWithMinistries,
+            allMinistries: ministries.filter(m => m.is_active).sort((a, b) => a.name.localeCompare(b.name))
+        };
+    }
 }
 
 /**
@@ -2070,14 +2090,28 @@ export async function canLeaderManageBibleBee(opts: { leaderId?: string; email?:
 
     // 2) New management system: ministry_leader_memberships
     if (leaderId) {
-    const memberships = await db.ministry_leader_memberships.where('leader_id').equals(leaderId).toArray();
-    if (memberships.some((m: MinistryLeaderMembership) => (m.ministry_id === 'bible-bee') && isActiveValue(m.is_active))) return true;
+        if (shouldUseAdapter()) {
+            // Use Supabase adapter for live mode
+            const memberships = await dbAdapter.listMinistryLeaderMemberships(undefined, leaderId);
+            if (memberships.some((m: MinistryLeaderMembership) => (m.ministry_id === 'bible-bee') && isActiveValue(m.is_active))) return true;
+        } else {
+            // Use legacy Dexie interface for demo mode
+            const memberships = await db.ministry_leader_memberships.where('leader_id').equals(leaderId).toArray();
+            if (memberships.some((m: MinistryLeaderMembership) => (m.ministry_id === 'bible-bee') && isActiveValue(m.is_active))) return true;
+        }
     }
 
     // 3) Demo/email-based mapping: ministry_accounts
     if (email) {
-    const accounts = await db.ministry_accounts.where('email').equals(String(email)).toArray();
-    if (accounts.some((a: MinistryAccount) => a.ministry_id === 'bible-bee')) return true;
+        if (shouldUseAdapter()) {
+            // Use Supabase adapter for live mode
+            const accounts = await dbAdapter.listMinistryAccounts();
+            if (accounts.some((a: MinistryAccount) => a.ministry_id === 'bible-bee' && a.email === String(email))) return true;
+        } else {
+            // Use legacy Dexie interface for demo mode
+            const accounts = await db.ministry_accounts.where('email').equals(String(email)).toArray();
+            if (accounts.some((a: MinistryAccount) => a.ministry_id === 'bible-bee')) return true;
+        }
     }
 
     return false;
@@ -2150,14 +2184,27 @@ export async function saveLeaderProfile(profileData: Omit<LeaderProfile, 'create
 
 // Get ministry memberships for a leader
 export async function getLeaderMemberships(leaderId: string) {
-    const memberships = await db.ministry_leader_memberships.where('leader_id').equals(leaderId).toArray();
-    const ministries = await db.ministries.toArray();
-    const ministryMap = new Map(ministries.map(m => [m.ministry_id, m]));
+    if (shouldUseAdapter()) {
+        // Use Supabase adapter for live mode
+        const memberships = await dbAdapter.listMinistryLeaderMemberships(undefined, leaderId);
+        const ministries = await dbAdapter.listMinistries();
+        const ministryMap = new Map(ministries.map(m => [m.ministry_id, m]));
 
-    return memberships.map(m => ({
-        ...m,
-        ministry: ministryMap.get(m.ministry_id)
-    })).filter(m => m.ministry);
+        return memberships.map(m => ({
+            ...m,
+            ministry: ministryMap.get(m.ministry_id)
+        })).filter(m => m.ministry);
+    } else {
+        // Use legacy Dexie interface for demo mode
+        const memberships = await db.ministry_leader_memberships.where('leader_id').equals(leaderId).toArray();
+        const ministries = await db.ministries.toArray();
+        const ministryMap = new Map(ministries.map(m => [m.ministry_id, m]));
+
+        return memberships.map(m => ({
+            ...m,
+            ministry: ministryMap.get(m.ministry_id)
+        })).filter(m => m.ministry);
+    }
 }
 
 // Save leader memberships (replaces all memberships for the leader)
@@ -2179,8 +2226,8 @@ export async function saveLeaderMemberships(leaderId: string, memberships: Omit<
                 }
             }
 
-            // Update leader profile activity status
-            await updateLeaderProfileStatusViaAdapter(leaderId, memberships.some(m => m.is_active));
+            // Note: Leader profile status is managed separately via the status toggle
+            // We don't automatically update it based on membership activity
         });
     } else {
         // Use legacy Dexie interface for demo mode
@@ -2201,8 +2248,8 @@ export async function saveLeaderMemberships(leaderId: string, memberships: Omit<
                 await db.ministry_leader_memberships.bulkAdd(membershipRecords);
             }
 
-            // Update leader profile activity status
-            await updateLeaderProfileStatus(leaderId, memberships.some(m => m.is_active));
+            // Note: Leader profile status is managed separately via the status toggle
+            // We don't automatically update it based on membership activity
         });
     }
 }
@@ -2230,18 +2277,35 @@ export async function updateLeaderProfileStatus(leaderId: string, isActive: bool
 
 // Get ministry roster (memberships for a ministry)
 export async function getMinistryRoster(ministryId: string) {
-    const memberships = await db.ministry_leader_memberships.where('ministry_id').equals(ministryId).toArray();
-    const leaderIds = memberships.map(m => m.leader_id);
-    
-    if (leaderIds.length === 0) return [];
-    
-    const profiles = await db.leader_profiles.where('leader_id').anyOf(leaderIds).toArray();
-    const profileMap = new Map(profiles.map(p => [p.leader_id, p]));
+    if (shouldUseAdapter()) {
+        // Use Supabase adapter for live mode
+        const memberships = await dbAdapter.listMinistryLeaderMemberships(ministryId);
+        const leaderIds = memberships.map(m => m.leader_id);
+        
+        if (leaderIds.length === 0) return [];
+        
+        const profiles = await Promise.all(leaderIds.map(id => dbAdapter.getLeaderProfile(id)));
+        const profileMap = new Map(profiles.filter(p => p).map(p => [p!.leader_id, p]));
 
-    return memberships.map(m => ({
-        ...m,
-        profile: profileMap.get(m.leader_id)
-    })).filter(m => m.profile);
+        return memberships.map(m => ({
+            ...m,
+            profile: profileMap.get(m.leader_id)
+        })).filter(m => m.profile);
+    } else {
+        // Use legacy Dexie interface for demo mode
+        const memberships = await db.ministry_leader_memberships.where('ministry_id').equals(ministryId).toArray();
+        const leaderIds = memberships.map(m => m.leader_id);
+        
+        if (leaderIds.length === 0) return [];
+        
+        const profiles = await db.leader_profiles.where('leader_id').anyOf(leaderIds).toArray();
+        const profileMap = new Map(profiles.map(p => [p.leader_id, p]));
+
+        return memberships.map(m => ({
+            ...m,
+            profile: profileMap.get(m.leader_id)
+        })).filter(m => m.profile);
+    }
 }
 
 // Search leader profiles by name or email
@@ -2328,8 +2392,7 @@ export async function searchLeaderProfiles(searchTerm: string) {
         
         return profiles.map(profile => ({
             ...profile,
-            ministryCount: membershipCounts[profile.leader_id] || 0,
-            is_active: profile.is_active && (membershipCounts[profile.leader_id] || 0) > 0
+            ministryCount: membershipCounts[profile.leader_id] || 0
         }));
     }
 }
@@ -2615,9 +2678,18 @@ export async function getDefaultBrandingSettings(): Promise<Partial<BrandingSett
 export async function migrateLeadersIfNeeded(): Promise<boolean> {
     try {
         // Check if we have any leader profiles already
-        const existingProfiles = await db.leader_profiles.limit(1).toArray();
-        if (existingProfiles.length > 0) {
-            return false; // Migration already done
+        if (shouldUseAdapter()) {
+            // Use Supabase adapter for live mode
+            const existingProfiles = await dbAdapter.listLeaderProfiles();
+            if (existingProfiles.length > 0) {
+                return false; // Migration already done
+            }
+        } else {
+            // Use legacy Dexie interface for demo mode
+            const existingProfiles = await db.leader_profiles.limit(1).toArray();
+            if (existingProfiles.length > 0) {
+                return false; // Migration already done
+            }
         }
 
         // Check if we have any old ministry leaders to migrate
@@ -2683,11 +2755,23 @@ export interface ActiveProfileTarget {
 export async function getActiveProfileTarget(user_id: string): Promise<ActiveProfileTarget | null> {
 	try {
 		// First check if user has a ministry leader profile
-		const leaderProfiles = await db.leader_profiles.toArray();
-		const leaderProfile = leaderProfiles.find(profile => 
-			profile.leader_id === user_id || 
-			profile.email === user_id // In case user_id is actually an email
-		);
+		let leaderProfile: LeaderProfile | undefined;
+		
+		if (shouldUseAdapter()) {
+			// Use Supabase adapter for live mode
+			const leaderProfiles = await dbAdapter.listLeaderProfiles();
+			leaderProfile = leaderProfiles.find(profile => 
+				profile.leader_id === user_id || 
+				profile.email === user_id // In case user_id is actually an email
+			);
+		} else {
+			// Use legacy Dexie interface for demo mode
+			const leaderProfiles = await db.leader_profiles.toArray();
+			leaderProfile = leaderProfiles.find(profile => 
+				profile.leader_id === user_id || 
+				profile.email === user_id // In case user_id is actually an email
+			);
+		}
 		
 		if (leaderProfile) {
 			return {
@@ -2731,17 +2815,33 @@ export async function getMeProfile(user_id: string, auth_email?: string) {
 
 	try {
 		if (target.target_table === 'ministry_leaders') {
-			const profile = await db.leader_profiles.get(target.target_id);
-			return {
-				target_table: target.target_table,
-				target_id: target.target_id,
-				first_name: profile?.first_name,
-				last_name: profile?.last_name,
-				email: auth_email || profile?.email, // Prefer auth email
-				phone: profile?.phone,
-				photo_url: profile?.photo_url,
-				avatar_path: profile?.avatar_path,
-			};
+			if (shouldUseAdapter()) {
+				// Use Supabase adapter for live mode
+				const profile = await dbAdapter.getLeaderProfile(target.target_id);
+				return {
+					target_table: target.target_table,
+					target_id: target.target_id,
+					first_name: profile?.first_name,
+					last_name: profile?.last_name,
+					email: auth_email || profile?.email, // Prefer auth email
+					phone: profile?.phone,
+					photo_url: profile?.photo_url,
+					avatar_path: profile?.avatar_path,
+				};
+			} else {
+				// Use legacy Dexie interface for demo mode
+				const profile = await db.leader_profiles.get(target.target_id);
+				return {
+					target_table: target.target_table,
+					target_id: target.target_id,
+					first_name: profile?.first_name,
+					last_name: profile?.last_name,
+					email: auth_email || profile?.email, // Prefer auth email
+					phone: profile?.phone,
+					photo_url: profile?.photo_url,
+					avatar_path: profile?.avatar_path,
+				};
+			}
 		} else {
 			const household = await db.households.get(target.target_id);
 			return {
@@ -2787,7 +2887,13 @@ export async function saveProfile(user_id: string, profileData: {
 				updateData.avatar_path = profileData.photoPath;
 			}
 
-			await db.leader_profiles.update(target.target_id, updateData);
+			if (shouldUseAdapter()) {
+				// Use Supabase adapter for live mode
+				await dbAdapter.updateLeaderProfile(target.target_id, updateData);
+			} else {
+				// Use legacy Dexie interface for demo mode
+				await db.leader_profiles.update(target.target_id, updateData);
+			}
 		} else {
 			const updateData: Partial<Household> = {
 				updated_at: now
