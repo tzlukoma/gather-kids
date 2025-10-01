@@ -76,7 +76,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 						};
 
 						// Check if user has ministry access based on email (for stored users)
-						if (finalUser.email) {
+						// Only check ministry access if user doesn't already have a role
+						// This prevents blocking localStorage recovery where users already have roles
+						if (
+							finalUser.email &&
+							(!finalUser.metadata.role ||
+								finalUser.metadata.role === AuthRole.GUEST)
+						) {
 							try {
 								const accessibleMinistries =
 									await dbAdapter.listAccessibleMinistriesForEmail(
@@ -123,6 +129,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 									error
 								);
 							}
+						} else if (
+							finalUser.metadata.role &&
+							finalUser.metadata.role !== AuthRole.GUEST
+						) {
+							console.log(
+								'AuthProvider - Skipping ministry access check for stored user, already has role:',
+								finalUser.metadata.role
+							);
 						}
 						console.log('AuthProvider: Setting user from localStorage', {
 							uid: finalUser.uid,
@@ -164,7 +178,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 						};
 
 						// Check if user has ministry access based on email (for Supabase users)
-						if (finalUser.email) {
+						// Only check ministry access if user doesn't already have a role
+						// This prevents blocking session recovery where users already have roles
+						if (
+							finalUser.email &&
+							(!finalUser.metadata.role ||
+								finalUser.metadata.role === AuthRole.GUEST)
+						) {
 							try {
 								const accessibleMinistries =
 									await dbAdapter.listAccessibleMinistriesForEmail(
@@ -211,6 +231,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 									error
 								);
 							}
+						} else if (
+							finalUser.metadata.role &&
+							finalUser.metadata.role !== AuthRole.GUEST
+						) {
+							console.log(
+								'AuthProvider - Skipping ministry access check for Supabase user, already has role:',
+								finalUser.metadata.role
+							);
 						}
 
 						console.log('AuthProvider: Setting user from Supabase session', {
@@ -257,7 +285,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 								};
 
 								// Check if user has ministry access based on email (for recovered users)
-								if (finalUser.email) {
+								// Only check ministry access if user doesn't already have a role
+								// This prevents blocking session recovery where users already have roles
+								if (
+									finalUser.email &&
+									(!finalUser.metadata.role ||
+										finalUser.metadata.role === AuthRole.GUEST)
+								) {
 									try {
 										const accessibleMinistries =
 											await dbAdapter.listAccessibleMinistriesForEmail(
@@ -304,6 +338,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 											error
 										);
 									}
+								} else if (
+									finalUser.metadata.role &&
+									finalUser.metadata.role !== AuthRole.GUEST
+								) {
+									console.log(
+										'AuthProvider - Skipping ministry access check for recovered user, already has role:',
+										finalUser.metadata.role
+									);
 								}
 
 								console.log(
@@ -357,7 +399,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 					let userRole = supabaseUser.user_metadata?.role || AuthRole.GUEST;
 					let assignedMinistryIds: string[] = [];
 
-					if (supabaseUser.email) {
+					// Only check ministry access if user doesn't already have a role
+					// This prevents blocking auth state changes where users already have roles
+					if (
+						supabaseUser.email &&
+						(!userRole || userRole === AuthRole.GUEST)
+					) {
 						try {
 							const accessibleMinistries =
 								await dbAdapter.listAccessibleMinistriesForEmail(
@@ -401,6 +448,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 								error
 							);
 						}
+					} else if (userRole && userRole !== AuthRole.GUEST) {
+						console.log(
+							'AuthProvider - Skipping ministry access check, user already has role:',
+							userRole
+						);
 					}
 
 					console.log('AuthProvider: User metadata:', {
@@ -450,10 +502,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 			console.log('Auth Context - Login - Input userData:', userData);
 
 			// Check if user has ministry access based on email
+			// Skip ministry access check if user already has a role (e.g., from registration form)
 			let userRole = userData.metadata?.role || null;
 			let assignedMinistryIds: string[] = [];
 
-			if (userData.email) {
+			// Only check ministry access if user doesn't already have a role
+			// This prevents blocking registration form submissions where users are GUARDIANs
+			if (userData.email && !userRole) {
 				try {
 					const accessibleMinistries =
 						await dbAdapter.listAccessibleMinistriesForEmail(userData.email);
@@ -495,6 +550,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 						error
 					);
 				}
+			} else if (userRole) {
+				console.log(
+					'Auth Context - Skipping ministry access check, user already has role:',
+					userRole
+				);
 			}
 
 			const finalUser: BaseUser = {

@@ -2063,9 +2063,29 @@ function RegisterPageContent() {
 															render={({ field }) => (
 																<FormItem>
 																	<FormLabel>Grade</FormLabel>
-																	<FormControl>
-																		<Input {...field} />
-																	</FormControl>
+																	<Select onValueChange={field.onChange} defaultValue={field.value}>
+																		<FormControl>
+																			<SelectTrigger>
+																				<SelectValue placeholder="Select grade" />
+																			</SelectTrigger>
+																		</FormControl>
+																		<SelectContent>
+																			<SelectItem value="-1">Pre-K</SelectItem>
+																			<SelectItem value="0">Kindergarten</SelectItem>
+																			<SelectItem value="1">1st Grade</SelectItem>
+																			<SelectItem value="2">2nd Grade</SelectItem>
+																			<SelectItem value="3">3rd Grade</SelectItem>
+																			<SelectItem value="4">4th Grade</SelectItem>
+																			<SelectItem value="5">5th Grade</SelectItem>
+																			<SelectItem value="6">6th Grade</SelectItem>
+																			<SelectItem value="7">7th Grade</SelectItem>
+																			<SelectItem value="8">8th Grade</SelectItem>
+																			<SelectItem value="9">9th Grade</SelectItem>
+																			<SelectItem value="10">10th Grade</SelectItem>
+																			<SelectItem value="11">11th Grade</SelectItem>
+																			<SelectItem value="12">12th Grade</SelectItem>
+																		</SelectContent>
+																	</Select>
 																	<FormMessage />
 																</FormItem>
 															)}

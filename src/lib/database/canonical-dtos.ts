@@ -262,8 +262,8 @@ export const DivisionReadDto = z.object({
   description: z.string().optional(),
   minimum_required: z.number(), // Minimum number of scriptures required
   min_last_order: z.number().optional(), // Calculated minimum boundary (for progress tracking)
-  min_grade: z.number(), // Minimum grade level (0-12, where 0 = Kindergarten)
-  max_grade: z.number(), // Maximum grade level (0-12)
+  min_grade: z.number(), // Minimum grade level (-1 to 12, where -1 = Pre-K)
+  max_grade: z.number(), // Maximum grade level (-1 to 12)
   requires_essay: z.boolean(), // Whether this division requires an essay
   created_at: z.string(), // ISO timestamp
   updated_at: z.string(), // ISO timestamp
@@ -275,8 +275,8 @@ export const DivisionWriteDto = z.object({
   name: z.string().min(1, 'Division name is required'),
   description: z.string().optional(),
   minimum_required: z.number().min(0, 'Minimum required must be non-negative'),
-  min_grade: z.number().min(0).max(12, 'Grade must be between 0 and 12'),
-  max_grade: z.number().min(0).max(12, 'Grade must be between 0 and 12'),
+  min_grade: z.number().min(-1).max(12, 'Grade must be between -1 and 12'),
+  max_grade: z.number().min(-1).max(12, 'Grade must be between -1 and 12'),
   requires_essay: z.boolean().default(false),
 }).refine((data) => data.min_grade <= data.max_grade, {
   message: 'Minimum grade must be less than or equal to maximum grade',

@@ -91,9 +91,8 @@ The authentication process is taking longer than expected. This can happen if:
 				}
 
 				// Determine the intended redirect destination based on the auth context
-				// For any auth callback (magic link or signup verification), the user should 
-				// ultimately end up at the registration page to complete their profile
-				const targetRedirect = '/register';
+				// Always redirect to household first - it will handle redirecting to registration if needed
+				const targetRedirect = '/household';
 
 				// Try to use exchangeCodeForSession for PKCE flow, which is the modern approach
 				let data: any, authError: any;

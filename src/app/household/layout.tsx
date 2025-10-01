@@ -275,6 +275,14 @@ function HouseholdProtectedRoute({ children }: { children: React.ReactNode }) {
 			}
 
 			// Check if user has GUARDIAN role OR has household data
+			console.log('HouseholdProtectedRoute: Role comparison:', {
+				userRole: user.metadata?.role,
+				rolesGuardian: ROLES.GUARDIAN,
+				roleType: typeof user.metadata?.role,
+				rolesGuardianType: typeof ROLES.GUARDIAN,
+				isEqual: user.metadata?.role === ROLES.GUARDIAN
+			});
+			
 			if (user.metadata?.role === ROLES.GUARDIAN) {
 				console.log(
 					'HouseholdProtectedRoute: User has GUARDIAN role, granting access'

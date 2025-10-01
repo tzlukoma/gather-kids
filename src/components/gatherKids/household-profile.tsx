@@ -189,11 +189,13 @@ const ChildCard = ({
 			</CardHeader>
 			<CardContent className="space-y-6">
 				<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-					<InfoItem
-						icon={<HeartPulse size={16} />}
-						label="Allergies / Medical"
-						value={child.allergies || 'None'}
-					/>
+					{child.allergies && child.allergies.toLowerCase() !== 'none' && (
+						<InfoItem
+							icon={<HeartPulse size={16} />}
+							label="Allergies / Medical"
+							value={child.allergies}
+						/>
+					)}
 					<InfoItem
 						icon={<HeartPulse size={16} />}
 						label="Special Needs"
