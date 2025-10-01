@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { dbAdapter } from '@/lib/db-utils';
 import { shouldUseAdapter } from '@/lib/dal';
-import { getScripturesForBibleBeeCycle } from '@/lib/dal';
 import type { CompetitionYear, GradeRule, Scripture } from '@/lib/types';
 import { createCompetitionYear, upsertScripture, createGradeRule as createRule, toggleScriptureCompletion, submitEssay } from '@/lib/bibleBee';
 import { getBibleBeeCycles, getScripturesForBibleBeeCycle, getChild, getHousehold, updateChildPhoto } from '@/lib/dal';
