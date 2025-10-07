@@ -231,7 +231,7 @@ export function CheckInView({
 	const handleCheckOut = async (
 		childId: string,
 		attendanceId: string,
-		verifier: { method: 'PIN' | 'other'; value: string }
+		verifier: { method: 'PIN' | 'other'; value: string; pickedUpBy?: string }
 	) => {
 		try {
 			await checkOutMutation.mutateAsync({
