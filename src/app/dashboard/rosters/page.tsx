@@ -562,8 +562,26 @@ export default function RostersPage() {
 		const blob = await exportRosterCSV(displayChildren);
 		const url = URL.createObjectURL(blob);
 		const a = document.createElement('a');
+
+		// Get ministry code for filename
+		let ministryCode = 'all';
+		if (selectedMinistryFilter !== 'all') {
+			const selectedMinistry = allMinistries.find(
+				(m) =>
+					m.name === selectedMinistryFilter ||
+					m.ministry_id === selectedMinistryFilter
+			);
+			ministryCode = selectedMinistry?.code || selectedMinistryFilter;
+		}
+
 		a.href = url;
-		a.download = `roster_${today}_${selectedMinistryFilter}.csv`;
+		console.log('Export - Today value:', today);
+		console.log('Export - Ministry code:', ministryCode);
+		console.log(
+			'Export - Full filename:',
+			`roster_${today}_${ministryCode}.csv`
+		);
+		a.download = `roster_${today}_${ministryCode}.csv`;
 		a.click();
 		URL.revokeObjectURL(url);
 		toast({
