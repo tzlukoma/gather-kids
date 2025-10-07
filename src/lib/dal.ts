@@ -1312,10 +1312,24 @@ export async function getHouseholdForUser(authUserId: string): Promise<string | 
 function convertToCSV(data: Record<string, unknown>[]): string {
     if (data.length === 0) return "";
     const headers = Object.keys(data[0]);
+    
+    // Helper function to properly escape CSV values
+    const escapeCSVValue = (value: unknown): string => {
+        if (value === null || value === undefined) return '';
+        const str = String(value);
+        
+        // If the value contains commas, quotes, or newlines, wrap it in quotes and escape internal quotes
+        if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
+            return '"' + str.replace(/"/g, '""') + '"';
+        }
+        
+        return str;
+    };
+    
     const csvRows = [
-        headers.join(','),
+        headers.map(escapeCSVValue).join(','),
         ...data.map(row =>
-            headers.map(fieldName => JSON.stringify((row[fieldName] ?? '') as unknown)).join(',')
+            headers.map(fieldName => escapeCSVValue(row[fieldName] ?? '')).join(',')
         )
     ];
     return csvRows.join('\r\n');
@@ -1348,7 +1362,9 @@ export async function exportRosterCSV<T = unknown>(children: T[]): Promise<Blob>
     });
 
     const csv = convertToCSV(exportData);
-    return new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    // Add UTF-8 BOM to ensure proper character encoding in Excel and other applications
+    const BOM = '\uFEFF';
+    return new Blob([BOM + csv], { type: 'text/csv;charset=utf-8;' });
 }
 
 export async function exportEmergencySnapshotCSV(dateISO: string): Promise<Blob> {
@@ -1374,7 +1390,9 @@ export async function exportEmergencySnapshotCSV(dateISO: string): Promise<Blob>
     }));
 
     const csv = convertToCSV(exportData);
-    return new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    // Add UTF-8 BOM to ensure proper character encoding in Excel and other applications
+    const BOM = '\uFEFF';
+    return new Blob([BOM + csv], { type: 'text/csv;charset=utf-8;' });
 }
 
 export async function exportAttendanceRollupCSV(startISO: string, endISO: string): Promise<Blob> {
@@ -1441,7 +1459,9 @@ export async function exportAttendanceRollupCSV(startISO: string, endISO: string
     });
 
     const csv = convertToCSV(exportData);
-    return new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    // Add UTF-8 BOM to ensure proper character encoding in Excel and other applications
+    const BOM = '\uFEFF';
+    return new Blob([BOM + csv], { type: 'text/csv;charset=utf-8;' });
 }
 
 // Ministry Configuration CRUD
