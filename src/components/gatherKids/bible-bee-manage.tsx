@@ -1871,6 +1871,7 @@ function EssayManagement({
 		prompt: '',
 		instructions: '',
 		due_date: '',
+		due_time: '',
 	});
 	const [error, setError] = useState<string | null>(null);
 
@@ -1878,11 +1879,41 @@ function EssayManagement({
 		e.preventDefault();
 		setError(null);
 		try {
+			console.log('Form data before submission:', formData);
+
+			// Combine date and time into ISO string
+			let dueDateISO = null;
+			if (formData.due_date) {
+				const dateTime = formData.due_time
+					? `${formData.due_date}T${formData.due_time}:00`
+					: `${formData.due_date}T23:59:59`; // Default to end of day if no time specified
+
+				// Create date in UTC to avoid timezone conversion issues
+				const [year, month, day] = formData.due_date.split('-');
+				const time = formData.due_time || '23:59';
+				const [hours, minutes] = time.split(':');
+
+				dueDateISO = new Date(
+					Date.UTC(
+						parseInt(year),
+						parseInt(month) - 1, // months are 0-indexed
+						parseInt(day),
+						parseInt(hours),
+						parseInt(minutes),
+						0 // seconds
+					)
+				).toISOString();
+
+				console.log('Combined date/time:', dateTime, 'UTC ISO:', dueDateISO);
+			}
+
 			const essayData = {
-				...formData,
 				bible_bee_cycle_id: yearId,
 				division_id: formData.division_id || undefined, // Optional for cycle-wide prompts
-				due_date: formData.due_date || new Date().toISOString().split('T')[0], // Default to today if not provided
+				title: formData.title,
+				prompt: formData.prompt,
+				instructions: formData.instructions,
+				due_date: dueDateISO || new Date().toISOString(), // Default to now if not provided
 			};
 
 			if (editingEssay) {
@@ -1911,6 +1942,7 @@ function EssayManagement({
 				prompt: '',
 				instructions: '',
 				due_date: '',
+				due_time: '',
 			});
 		} catch (error: any) {
 			console.error('Error saving essay prompt:', error);
@@ -1944,12 +1976,43 @@ function EssayManagement({
 
 	const startEdit = (essay: any) => {
 		setEditingEssay(essay);
+		console.log('Starting edit for essay:', essay);
+
+		// Parse the due_date to extract date and time
+		let dueDate = '';
+		let dueTime = '';
+		if (essay.due_date) {
+			console.log('Original due_date:', essay.due_date);
+			if (essay.due_date.includes('T')) {
+				// Parse UTC date and convert to local time for display
+				const utcDate = new Date(essay.due_date);
+				dueDate = utcDate.toISOString().split('T')[0]; // Get YYYY-MM-DD
+
+				// Format time in HH:MM format for the time input
+				const hours = utcDate.getUTCHours().toString().padStart(2, '0');
+				const minutes = utcDate.getUTCMinutes().toString().padStart(2, '0');
+				dueTime = `${hours}:${minutes}`;
+
+				console.log(
+					'Parsed UTC date:',
+					utcDate,
+					'Local date:',
+					dueDate,
+					'Time:',
+					dueTime
+				);
+			} else {
+				dueDate = essay.due_date;
+			}
+		}
+
 		setFormData({
 			division_id: essay.division_id || '',
 			title: essay.title || '',
 			prompt: essay.prompt || '',
 			instructions: essay.instructions || '',
-			due_date: essay.due_date ? essay.due_date.split('T')[0] : '',
+			due_date: dueDate,
+			due_time: dueTime,
 		});
 		setIsCreating(true);
 		setError(null);
@@ -2016,6 +2079,17 @@ function EssayManagement({
 									value={formData.due_date}
 									onChange={(e) =>
 										setFormData({ ...formData, due_date: e.target.value })
+									}
+								/>
+							</div>
+							<div>
+								<Label htmlFor="due-time">Due Time (Optional)</Label>
+								<Input
+									id="due-time"
+									type="time"
+									value={formData.due_time}
+									onChange={(e) =>
+										setFormData({ ...formData, due_time: e.target.value })
 									}
 								/>
 							</div>
@@ -2101,7 +2175,25 @@ function EssayManagement({
 										</p>
 										{essay.due_date && (
 											<div className="text-sm text-muted-foreground">
-												Due: {essay.due_date.split('T')[0]}
+												Due:{' '}
+												{(() => {
+													// Parse the UTC date and format with time
+													const utcDate = new Date(essay.due_date);
+													const dateStr = utcDate.toLocaleDateString('en-US', {
+														year: 'numeric',
+														month: 'long',
+														day: 'numeric',
+													});
+													// Use UTC methods to display the time as stored (not converted to local timezone)
+													const hours = utcDate.getUTCHours();
+													const minutes = utcDate.getUTCMinutes();
+													const ampm = hours >= 12 ? 'PM' : 'AM';
+													const displayHours = hours % 12 || 12; // Convert to 12-hour format
+													const timeStr = `${displayHours}:${minutes
+														.toString()
+														.padStart(2, '0')} ${ampm}`;
+													return `${dateStr} at ${timeStr}`;
+												})()}
 											</div>
 										)}
 									</div>
