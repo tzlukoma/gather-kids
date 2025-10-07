@@ -15,7 +15,7 @@
 import { db } from './db';
 import { db as dbAdapter } from './database/factory';
 import { getApplicableGradeRule } from './bibleBee';
-import { gradeToCode, doGradeRangesOverlap } from './gradeUtils';
+import { gradeToCode, doGradeRangesOverlap, normalizeGradeDisplay } from './gradeUtils';
 import { AuthRole } from './auth-types';
 import { isDemo } from './featureFlags';
 import { formatPhone } from '@/hooks/usePhoneFormat';
@@ -1334,7 +1334,7 @@ export async function exportRosterCSV<T = unknown>(children: T[]): Promise<Blob>
 
         return {
             child_name: `${firstName} ${lastName}`.trim(),
-            grade,
+            grade: normalizeGradeDisplay(grade),
             status: activeAttendance ? 'Checked In' : 'Checked Out',
             check_in_time: activeAttendance?.check_in_at ? new Date(activeAttendance.check_in_at).toLocaleTimeString() : 'N/A',
             event: activeAttendance?.event_id || 'N/A',
@@ -1364,7 +1364,7 @@ export async function exportEmergencySnapshotCSV(dateISO: string): Promise<Blob>
     const exportData = roster.map(child => ({
         child_name: `${child.first_name} ${child.last_name}`,
         dob: child.dob,
-        grade: child.grade,
+        grade: normalizeGradeDisplay(child.grade),
         allergies: child.allergies,
         medical_notes: child.medical_notes,
         primary_guardian: guardianMap.get(child.household_id)?.first_name + ' ' + guardianMap.get(child.household_id)?.last_name,
@@ -1394,7 +1394,7 @@ export async function exportAttendanceRollupCSV(startISO: string, endISO: string
         return {
             date: att.date,
             child_name: `${child?.first_name} ${child?.last_name}`,
-            grade: child?.grade,
+            grade: normalizeGradeDisplay(child?.grade),
             check_in: att.check_in_at ? new Date(att.check_in_at).toLocaleTimeString() : '',
             check_out: att.check_out_at ? new Date(att.check_out_at).toLocaleTimeString() : '',
             event: att.event_id,
