@@ -15,14 +15,20 @@ export function gradeToCode(gradeText?: string): number | null {
     const t = gradeText.toLowerCase().trim();
     console.log(`DEBUG: gradeToCode - normalized grade text: "${t}"`);
     
+    // Direct pre-k matches
+    if (['pre-k', 'prek', 'prekinder', 'prekindergarten'].includes(t)) {
+        console.log('DEBUG: gradeToCode - matched pre-k pattern');
+        return -1;
+    }
+    
     // Direct kindergarten matches
     if (['k', 'kg', 'kinder', 'kindergarten'].includes(t)) {
         console.log('DEBUG: gradeToCode - matched kindergarten pattern');
         return 0;
     }
     
-    // Simple numeric grades 0-12 (0 maps to Kindergarten)
-    const numMatch = t.match(/^(0|[1-9]|1[0-2])$/);
+    // Simple numeric grades -1 to 12 (-1 maps to Pre-K, 0 maps to Kindergarten)
+    const numMatch = t.match(/^(-1|0|[1-9]|1[0-2])$/);
     if (numMatch) {
         const result = parseInt(numMatch[1], 10);
         console.log(`DEBUG: gradeToCode - matched simple numeric pattern: ${result}`);
@@ -61,7 +67,7 @@ export function gradeToCode(gradeText?: string): number | null {
     }
     
     // Grade + number patterns
-    const gradeNumMatch = t.match(/^grade\s*(0|[1-9]|1[0-2])$/);
+    const gradeNumMatch = t.match(/^grade\s*(-1|0|[1-9]|1[0-2])$/);
     if (gradeNumMatch) {
         const result = parseInt(gradeNumMatch[1], 10);
         console.log(`DEBUG: gradeToCode - matched grade+number pattern: ${result}`);
@@ -89,6 +95,7 @@ export function gradeToCode(gradeText?: string): number | null {
  * Convert numeric grade code to human-friendly label
  */
 export function gradeCodeToLabel(gradeCode: number): string {
+    if (gradeCode === -1) return 'Pre-K';
     if (gradeCode === 0) return 'Kindergarten';
     if (gradeCode === 1) return '1st Grade';
     if (gradeCode === 2) return '2nd Grade';
@@ -139,6 +146,7 @@ export function normalizeGradeDisplay(gradeText?: string | number): string {
         'pre-k': 'Pre-K',
         'prek': 'Pre-K',
         'preK': 'Pre-K',
+        '-1': 'Pre-K',
         'k': 'Kindergarten',
         'kg': 'Kindergarten',
         'kinder': 'Kindergarten',

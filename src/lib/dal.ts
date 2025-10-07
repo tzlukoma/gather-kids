@@ -15,7 +15,7 @@
 import { db } from './db';
 import { db as dbAdapter } from './database/factory';
 import { getApplicableGradeRule } from './bibleBee';
-import { gradeToCode, doGradeRangesOverlap } from './gradeUtils';
+import { gradeToCode, doGradeRangesOverlap, normalizeGradeDisplay } from './gradeUtils';
 import { AuthRole } from './auth-types';
 import { isDemo } from './featureFlags';
 import { formatPhone } from '@/hooks/usePhoneFormat';
@@ -547,7 +547,7 @@ export async function recordCheckIn(childId: string, eventId: string, timeslotId
     }
 }
 
-export async function recordCheckOut(attendanceId: string, verifier: { method: "PIN" | "other", value: string }, userId?: string): Promise<string> {
+export async function recordCheckOut(attendanceId: string, verifier: { method: "PIN" | "other", value: string, pickedUpBy?: string }, userId?: string): Promise<string> {
     if (shouldUseAdapter()) {
         // Use Supabase adapter for live mode
         const attendanceRecord = await dbAdapter.getAttendance(attendanceId);
@@ -557,7 +557,7 @@ export async function recordCheckOut(attendanceId: string, verifier: { method: "
             check_out_at: new Date().toISOString(),
             checked_out_by: userId,
             pickup_method: verifier.method,
-            picked_up_by: verifier.method === 'other' ? verifier.value : undefined,
+            picked_up_by: verifier.pickedUpBy || (verifier.method === 'other' ? verifier.value : undefined),
         });
         
         return updatedRecord.attendance_id;
@@ -571,7 +571,7 @@ export async function recordCheckOut(attendanceId: string, verifier: { method: "
             check_out_at: new Date().toISOString(),
             checked_out_by: userId,
             pickup_method: verifier.method,
-            picked_up_by: verifier.method === 'other' ? verifier.value : undefined,
+            picked_up_by: verifier.pickedUpBy || (verifier.method === 'other' ? verifier.value : undefined),
         };
         // Using put to ensure live queries are triggered correctly.
         return db.attendance.put(updatedRecord);
@@ -1334,7 +1334,7 @@ export async function exportRosterCSV<T = unknown>(children: T[]): Promise<Blob>
 
         return {
             child_name: `${firstName} ${lastName}`.trim(),
-            grade,
+            grade: normalizeGradeDisplay(grade),
             status: activeAttendance ? 'Checked In' : 'Checked Out',
             check_in_time: activeAttendance?.check_in_at ? new Date(activeAttendance.check_in_at).toLocaleTimeString() : 'N/A',
             event: activeAttendance?.event_id || 'N/A',
@@ -1364,7 +1364,7 @@ export async function exportEmergencySnapshotCSV(dateISO: string): Promise<Blob>
     const exportData = roster.map(child => ({
         child_name: `${child.first_name} ${child.last_name}`,
         dob: child.dob,
-        grade: child.grade,
+        grade: normalizeGradeDisplay(child.grade),
         allergies: child.allergies,
         medical_notes: child.medical_notes,
         primary_guardian: guardianMap.get(child.household_id)?.first_name + ' ' + guardianMap.get(child.household_id)?.last_name,
@@ -1381,12 +1381,42 @@ export async function exportAttendanceRollupCSV(startISO: string, endISO: string
     const startDate = startISO.split('T')[0];
     const endDate = endISO.split('T')[0];
 
-    const attendanceRecords = await db.attendance
-        .where('date').between(startDate, endDate, true, true)
-        .toArray();
+    let attendanceRecords: Attendance[] = [];
+    let children: Child[] = [];
 
-    const childIds = [...new Set(attendanceRecords.map(a => a.child_id))];
-    const children = await db.children.where('child_id').anyOf(childIds).toArray();
+    if (shouldUseAdapter()) {
+        // Use Supabase adapter for live mode
+        console.log('🔍 exportAttendanceRollupCSV: Using Supabase adapter');
+        
+        // Get attendance records for date range
+        const allAttendance = await dbAdapter.listAttendance();
+        attendanceRecords = allAttendance.filter(a => 
+            a.date >= startDate && a.date <= endDate
+        );
+        
+        console.log('🔍 exportAttendanceRollupCSV: Found attendance records', { 
+            count: attendanceRecords.length,
+            dateRange: `${startDate} to ${endDate}`
+        });
+
+        // Get children data
+        const childIds = [...new Set(attendanceRecords.map(a => a.child_id))];
+        if (childIds.length > 0) {
+            const allChildren = await dbAdapter.listChildren();
+            children = allChildren.filter(c => childIds.includes(c.child_id));
+        }
+    } else {
+        // Use legacy Dexie interface for demo mode
+        console.log('🔍 exportAttendanceRollupCSV: Using Dexie interface');
+        
+        attendanceRecords = await db.attendance
+            .where('date').between(startDate, endDate, true, true)
+            .toArray();
+
+        const childIds = [...new Set(attendanceRecords.map(a => a.child_id))];
+        children = await db.children.where('child_id').anyOf(childIds).toArray();
+    }
+
     const childMap = new Map(children.map(c => [c.child_id, c]));
 
     const exportData = attendanceRecords.map(att => {
@@ -1394,11 +1424,20 @@ export async function exportAttendanceRollupCSV(startISO: string, endISO: string
         return {
             date: att.date,
             child_name: `${child?.first_name} ${child?.last_name}`,
-            grade: child?.grade,
+            grade: normalizeGradeDisplay(child?.grade),
             check_in: att.check_in_at ? new Date(att.check_in_at).toLocaleTimeString() : '',
             check_out: att.check_out_at ? new Date(att.check_out_at).toLocaleTimeString() : '',
+            checked_in_by: att.checked_in_by || 'N/A',
+            checked_out_by: att.checked_out_by || 'N/A',
+            picked_up_by: att.picked_up_by || 'N/A',
+            pickup_method: att.pickup_method || 'N/A',
             event: att.event_id,
         }
+    });
+
+    console.log('🔍 exportAttendanceRollupCSV: Export data prepared', { 
+        recordCount: exportData.length,
+        sampleData: exportData.slice(0, 3)
     });
 
     const csv = convertToCSV(exportData);

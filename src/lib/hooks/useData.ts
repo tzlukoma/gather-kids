@@ -180,7 +180,7 @@ export function useCheckOutMutation() {
     return useMutation({
         mutationFn: ({ attendanceId, verifier, userId }: { 
             attendanceId: string; 
-            verifier: { method: 'PIN' | 'other'; value: string }; 
+            verifier: { method: 'PIN' | 'other'; value: string; pickedUpBy?: string }; 
             userId?: string;
         }) => recordCheckOut(attendanceId, verifier, userId),
         onSuccess: () => {
