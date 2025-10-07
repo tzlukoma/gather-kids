@@ -10,6 +10,7 @@ import {
 	CardTitle,
 	CardDescription,
 } from '@/components/ui/card';
+import { ExternalLink } from 'lucide-react';
 
 interface EssaySubmission {
 	id: string;
@@ -109,9 +110,16 @@ export function EssaySubmissions({
 									</Badge>
 									{e.status !== 'submitted' && (
 										<Button
-											onClick={() => onSubmitEssay(e.bible_bee_cycle_id)}
-											size="sm">
-											Mark Submitted
+											onClick={() =>
+												window.open(
+													'https://docs.google.com/forms/d/e/1FAIpQLSe4z-u1Tiyz403ExsRH-tV4tAO0PwI7Min4QPwBLtSrf1lQOA/viewform?usp=header',
+													'_blank'
+												)
+											}
+											size="sm"
+											variant="outline">
+											<ExternalLink className="h-4 w-4 mr-2" />
+											Upload Essay
 										</Button>
 									)}
 								</div>
