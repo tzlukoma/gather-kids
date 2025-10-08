@@ -1893,7 +1893,11 @@ function RegisterPageContent() {
 												<FormItem>
 													<FormLabel>State</FormLabel>
 													<FormControl>
-														<Input placeholder="NJ" maxLength={2} {...field} />
+														<Input
+															placeholder="e.g., NJ"
+															maxLength={2}
+															{...field}
+														/>
 													</FormControl>
 													<FormMessage />
 												</FormItem>

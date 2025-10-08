@@ -21,7 +21,7 @@ interface CheckoutDialogProps {
 	onCheckout: (
 		childId: string,
 		attendanceId: string,
-		verifier: { method: 'PIN' | 'other'; value: string }
+		verifier: { method: 'PIN' | 'other'; value: string; pickedUpBy?: string }
 	) => void;
 }
 
@@ -63,23 +63,40 @@ export function CheckoutDialog({
 	const handleVerifyAndCheckout = () => {
 		if (!child) return;
 
-		const guardianPhones = child.guardians.map((g) => g.mobile_phone.slice(-4));
-		const emergencyContactPhone =
-			child.emergencyContact?.mobile_phone?.slice(-4);
+		// Find which guardian/contact provided the matching PIN
+		let matchedPerson = null;
 
-		const validPins = [...guardianPhones];
-		if (emergencyContactPhone) {
-			validPins.push(emergencyContactPhone);
-		}
-		if (canSelfCheckout && child.child_mobile) {
-			validPins.push(child.child_mobile.slice(-4));
+		// Check guardians
+		for (const guardian of child.guardians) {
+			if (guardian.mobile_phone.slice(-4) === pin) {
+				matchedPerson = `${guardian.first_name} ${guardian.last_name}`;
+				break;
+			}
 		}
 
-		if (validPins.includes(pin)) {
+		// Check emergency contact if no guardian match
+		if (
+			!matchedPerson &&
+			child.emergencyContact?.mobile_phone?.slice(-4) === pin
+		) {
+			matchedPerson = `${child.emergencyContact.first_name} ${child.emergencyContact.last_name}`;
+		}
+
+		// Check child's own phone if no other match and can self-checkout
+		if (
+			!matchedPerson &&
+			canSelfCheckout &&
+			child.child_mobile?.slice(-4) === pin
+		) {
+			matchedPerson = `${child.first_name} ${child.last_name} (Self)`;
+		}
+
+		if (matchedPerson) {
 			if (child.activeAttendance?.attendance_id) {
 				onCheckout(child.child_id, child.activeAttendance.attendance_id, {
 					method: 'PIN',
 					value: pin,
+					pickedUpBy: matchedPerson,
 				});
 			}
 			handleClose();
@@ -109,6 +126,7 @@ export function CheckoutDialog({
 			onCheckout(child.child_id, child.activeAttendance.attendance_id, {
 				method: 'other',
 				value: overrideName.trim(),
+				pickedUpBy: overrideName.trim(),
 			});
 		}
 		handleClose();

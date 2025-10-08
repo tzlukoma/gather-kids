@@ -10,6 +10,7 @@ import {
 	CardTitle,
 	CardDescription,
 } from '@/components/ui/card';
+import { ExternalLink } from 'lucide-react';
 
 interface EssaySubmission {
 	id: string;
@@ -74,18 +75,35 @@ export function EssaySubmissions({
 														parseInt(minutes)
 													);
 
-													return localDate.toLocaleDateString('en-US', {
-														year: 'numeric',
-														month: 'long',
-														day: 'numeric',
-													});
+													return (
+														localDate.toLocaleDateString('en-US', {
+															year: 'numeric',
+															month: 'long',
+															day: 'numeric',
+														}) +
+														' at ' +
+														localDate.toLocaleTimeString('en-US', {
+															hour: 'numeric',
+															minute: '2-digit',
+															hour12: true,
+														})
+													);
 												} else {
 													// Fallback for non-ISO dates
-													return new Date(dateStr).toLocaleDateString('en-US', {
-														year: 'numeric',
-														month: 'long',
-														day: 'numeric',
-													});
+													const fallbackDate = new Date(dateStr);
+													return (
+														fallbackDate.toLocaleDateString('en-US', {
+															year: 'numeric',
+															month: 'long',
+															day: 'numeric',
+														}) +
+														' at ' +
+														fallbackDate.toLocaleTimeString('en-US', {
+															hour: 'numeric',
+															minute: '2-digit',
+															hour12: true,
+														})
+													);
 												}
 											})()}
 										</p>
@@ -109,9 +127,16 @@ export function EssaySubmissions({
 									</Badge>
 									{e.status !== 'submitted' && (
 										<Button
-											onClick={() => onSubmitEssay(e.bible_bee_cycle_id)}
-											size="sm">
-											Mark Submitted
+											onClick={() =>
+												window.open(
+													'https://docs.google.com/forms/d/e/1FAIpQLSe4z-u1Tiyz403ExsRH-tV4tAO0PwI7Min4QPwBLtSrf1lQOA/viewform?usp=header',
+													'_blank'
+												)
+											}
+											size="sm"
+											variant="outline">
+											<ExternalLink className="h-4 w-4 mr-2" />
+											Upload Essay
 										</Button>
 									)}
 								</div>

@@ -16,7 +16,7 @@ export function gradeToCode(gradeText?: string): number | null {
     console.log(`DEBUG: gradeToCode - normalized grade text: "${t}"`);
     
     // Direct Pre-K matches
-    if (['pre-k', 'prek', 'pre-kinder', 'pre-kindergarten'].includes(t)) {
+    if (['pre-k', 'prek', 'pre-kinder', 'pre-kindergarten', 'prekinder', 'prekindergarten'].includes(t)) {
         console.log('DEBUG: gradeToCode - matched pre-k pattern');
         return -1;
     }
@@ -27,8 +27,8 @@ export function gradeToCode(gradeText?: string): number | null {
         return 0;
     }
     
-    // Simple numeric grades 0-12 (0 maps to Kindergarten, 1-12 map to grades)
-    const numMatch = t.match(/^(0|[1-9]|1[0-2])$/);
+    // Simple numeric grades -1 to 12 (-1 maps to Pre-K, 0 maps to Kindergarten)
+    const numMatch = t.match(/^(-1|0|[1-9]|1[0-2])$/);
     if (numMatch) {
         const result = parseInt(numMatch[1], 10);
         console.log(`DEBUG: gradeToCode - matched simple numeric pattern: ${result}`);
@@ -73,7 +73,7 @@ export function gradeToCode(gradeText?: string): number | null {
     }
     
     // Grade + number patterns
-    const gradeNumMatch = t.match(/^grade\s*(0|[1-9]|1[0-2])$/);
+    const gradeNumMatch = t.match(/^grade\s*(-1|0|[1-9]|1[0-2])$/);
     if (gradeNumMatch) {
         const result = parseInt(gradeNumMatch[1], 10);
         console.log(`DEBUG: gradeToCode - matched grade+number pattern: ${result}`);

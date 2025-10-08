@@ -59,18 +59,35 @@ export default function EssayCard({ essayPrompt }: EssayCardProps) {
 											parseInt(minutes)
 										);
 
-										return localDate.toLocaleDateString('en-US', {
-											year: 'numeric',
-											month: 'long',
-											day: 'numeric',
-										});
+										return (
+											localDate.toLocaleDateString('en-US', {
+												year: 'numeric',
+												month: 'long',
+												day: 'numeric',
+											}) +
+											' at ' +
+											localDate.toLocaleTimeString('en-US', {
+												hour: 'numeric',
+												minute: '2-digit',
+												hour12: true,
+											})
+										);
 									} else {
 										// Fallback for non-ISO dates
-										return new Date(dateStr).toLocaleDateString('en-US', {
-											year: 'numeric',
-											month: 'long',
-											day: 'numeric',
-										});
+										const fallbackDate = new Date(dateStr);
+										return (
+											fallbackDate.toLocaleDateString('en-US', {
+												year: 'numeric',
+												month: 'long',
+												day: 'numeric',
+											}) +
+											' at ' +
+											fallbackDate.toLocaleTimeString('en-US', {
+												hour: 'numeric',
+												minute: '2-digit',
+												hour12: true,
+											})
+										);
 									}
 								})()}
 							</p>
