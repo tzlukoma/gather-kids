@@ -33,27 +33,31 @@ const FEATURE_FLAGS_KEY = 'gatherkids-feature-flags';
 
 export function FeatureFlagProvider({ children }: { children: ReactNode }) {
 	// Get initial showDemoFeatures value from environment variable
-	const envShowDemoFeatures = getFlag("SHOW_DEMO_FEATURES") as boolean;
-	
+	const envShowDemoFeatures = getFlag('SHOW_DEMO_FEATURES') as boolean;
+
 	const [flags, setFlags] = useState<FeatureFlags>(() => {
 		// Initialize with safe defaults for SSR
 		if (typeof window === 'undefined') {
 			return {
 				showDemoFeatures: envShowDemoFeatures,
-				loginMagicEnabled: getFlag("LOGIN_MAGIC_ENABLED") as boolean,
-				loginPasswordEnabled: getFlag("LOGIN_PASSWORD_ENABLED") as boolean,
-				loginGoogleEnabled: getFlag("LOGIN_GOOGLE_ENABLED") as boolean,
+				loginMagicEnabled: getFlag('LOGIN_MAGIC_ENABLED') as boolean,
+				loginPasswordEnabled: getFlag('LOGIN_PASSWORD_ENABLED') as boolean,
+				loginGoogleEnabled: getFlag('LOGIN_GOOGLE_ENABLED') as boolean,
 				isDemoMode: isDemo(),
-				registrationDraftPersistenceEnabled: getFlag("REGISTRATION_DRAFT_PERSISTENCE_ENABLED") as boolean,
+				registrationDraftPersistenceEnabled: getFlag(
+					'REGISTRATION_DRAFT_PERSISTENCE_ENABLED'
+				) as boolean,
 			};
 		}
-		return { 
+		return {
 			showDemoFeatures: envShowDemoFeatures,
-			loginMagicEnabled: getFlag("LOGIN_MAGIC_ENABLED") as boolean,
-			loginPasswordEnabled: getFlag("LOGIN_PASSWORD_ENABLED") as boolean,
-			loginGoogleEnabled: getFlag("LOGIN_GOOGLE_ENABLED") as boolean,
+			loginMagicEnabled: getFlag('LOGIN_MAGIC_ENABLED') as boolean,
+			loginPasswordEnabled: getFlag('LOGIN_PASSWORD_ENABLED') as boolean,
+			loginGoogleEnabled: getFlag('LOGIN_GOOGLE_ENABLED') as boolean,
 			isDemoMode: isDemo(),
-			registrationDraftPersistenceEnabled: getFlag("REGISTRATION_DRAFT_PERSISTENCE_ENABLED") as boolean,
+			registrationDraftPersistenceEnabled: getFlag(
+				'REGISTRATION_DRAFT_PERSISTENCE_ENABLED'
+			) as boolean,
 		};
 	});
 	const [loading, setLoading] = useState(true);
@@ -67,9 +71,9 @@ export function FeatureFlagProvider({ children }: { children: ReactNode }) {
 
 		try {
 			// If environment variable explicitly disables demo features, don't allow localStorage override
-			if (process.env.NEXT_PUBLIC_SHOW_DEMO_FEATURES === "false") {
-				setFlags((prevFlags) => ({ 
-					...prevFlags, 
+			if (process.env.NEXT_PUBLIC_SHOW_DEMO_FEATURES === 'false') {
+				setFlags((prevFlags) => ({
+					...prevFlags,
 					showDemoFeatures: false,
 				}));
 			} else {
@@ -78,9 +82,10 @@ export function FeatureFlagProvider({ children }: { children: ReactNode }) {
 				if (storedFlagsString) {
 					const storedFlags = JSON.parse(storedFlagsString);
 					// Only apply stored flags to localStorage-managed flags, not environment flags
-					setFlags((prevFlags) => ({ 
-						...prevFlags, 
-						showDemoFeatures: storedFlags.showDemoFeatures ?? prevFlags.showDemoFeatures,
+					setFlags((prevFlags) => ({
+						...prevFlags,
+						showDemoFeatures:
+							storedFlags.showDemoFeatures ?? prevFlags.showDemoFeatures,
 					}));
 				}
 			}
@@ -98,19 +103,29 @@ export function FeatureFlagProvider({ children }: { children: ReactNode }) {
 		// Only allow setting localStorage-managed flags
 		if (flag === 'showDemoFeatures') {
 			// Don't allow enabling demo features if environment variable explicitly disables them
-			if (process.env.NEXT_PUBLIC_SHOW_DEMO_FEATURES === "false" && value === true) {
-				console.warn('Demo features are disabled by environment variable and cannot be enabled at runtime');
+			if (
+				process.env.NEXT_PUBLIC_SHOW_DEMO_FEATURES === 'false' &&
+				value === true
+			) {
+				console.warn(
+					'Demo features are disabled by environment variable and cannot be enabled at runtime'
+				);
 				return;
 			}
-			
+
 			const newFlags = { ...flags, [flag]: value };
 			setFlags(newFlags);
 			// Only store the localStorage-managed flags
 			if (typeof window !== 'undefined') {
-				localStorage.setItem(FEATURE_FLAGS_KEY, JSON.stringify({ showDemoFeatures: value }));
+				localStorage.setItem(
+					FEATURE_FLAGS_KEY,
+					JSON.stringify({ showDemoFeatures: value })
+				);
 			}
 		} else {
-			console.warn(`Flag ${flag} is environment-controlled and cannot be changed at runtime`);
+			console.warn(
+				`Flag ${flag} is environment-controlled and cannot be changed at runtime`
+			);
 		}
 	};
 
