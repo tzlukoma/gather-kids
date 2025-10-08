@@ -449,7 +449,7 @@ export const seedDB = async () => {
                     bibleBeeEnrollments.push({
                         id: uuidv4(),
                         child_id: child.child_id,
-                        year_id: bibleBeeYearId,
+                        bible_bee_cycle_id: bibleBeeYearId, // Fixed: was year_id
                         division_id: appropriateDivision.id,
                         auto_enrolled: false,
                         enrolled_at: now,
