@@ -29,6 +29,7 @@ import type {
 	EssayPrompt,
 	Enrollment,
 	EnrollmentOverride,
+	GradeRule,
 } from '../types';
 
 export class SupabaseAdapter implements DatabaseAdapter {
@@ -3412,6 +3413,43 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			submitted_at: (r['submitted_at'] as string) || undefined,
 			created_at: (r['created_at'] as string) || '',
 			updated_at: (r['updated_at'] as string) || '',
+		};
+	}
+
+	// Grade Rules
+	async listGradeRules(yearId?: string): Promise<GradeRule[]> {
+		console.log('SupabaseAdapter.listGradeRules called:', { yearId });
+		
+		let query = this.client.from('grade_rules').select('*');
+		
+		if (yearId) {
+			query = query.eq('competition_year_id', yearId);
+		}
+		
+		const { data, error } = await query;
+		
+		if (error) {
+			console.error('SupabaseAdapter.listGradeRules error:', error);
+			throw error;
+		}
+		
+		console.log('SupabaseAdapter.listGradeRules result:', { count: data?.length || 0 });
+		return (data || []).map(this.mapGradeRule);
+	}
+
+	private mapGradeRule(row: unknown): GradeRule {
+		const r = (row ?? {}) as Record<string, unknown>;
+		return {
+			id: (r['id'] as string) || '',
+			competitionYearId: (r['competition_year_id'] as string) || '',
+			minGrade: (r['min_grade'] as number) || 0,
+			maxGrade: (r['max_grade'] as number) || 0,
+			type: (r['type'] as 'scripture' | 'essay') || 'scripture',
+			targetCount: (r['target_count'] as number) || 0,
+			promptText: (r['prompt_text'] as string) || undefined,
+			instructions: (r['instructions'] as string) || undefined,
+			createdAt: (r['created_at'] as string) || '',
+			updatedAt: (r['updated_at'] as string) || '',
 		};
 	}
 }

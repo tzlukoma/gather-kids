@@ -293,7 +293,7 @@ describe('Leader Profile Management', () => {
       expect(savedMemberships[0].role_type).toBe('VOLUNTEER');
     });
 
-    it('should update leader profile status based on membership activity', async () => {
+    it('should not automatically update leader profile status based on membership activity', async () => {
       const inactiveMemberships = [{
         ministry_id: sampleMinistry.ministry_id,
         leader_id: sampleProfile.leader_id,
@@ -303,8 +303,9 @@ describe('Leader Profile Management', () => {
 
       await saveLeaderMemberships(sampleProfile.leader_id, inactiveMemberships);
 
+      // Leader profile status is managed separately and should not change based on membership activity
       const updatedProfile = await db.leader_profiles.get(sampleProfile.leader_id);
-      expect(updatedProfile?.is_active).toBe(false);
+      expect(updatedProfile?.is_active).toBe(true); // Should remain unchanged
     });
   });
 

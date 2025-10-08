@@ -1,6 +1,89 @@
 import React from 'react';
 import { renderWithAuth, mockUsers } from '@/test-utils/auth/test-utils';
 import { screen, waitFor, fireEvent } from '@testing-library/react';
+import crypto from 'crypto';
+
+// Import database to set up test data
+import { db } from '@/lib/db';
+
+// Mock the dbAdapter before importing components
+const mockEnrollment = {
+	id: 'test-enrollment-1',
+	child_id: 'test-child',
+	bible_bee_cycle_id: 'test-cycle-1',
+	division_id: 'test-division-1',
+	created_at: new Date().toISOString(),
+	updated_at: new Date().toISOString(),
+};
+
+const mockScripture = {
+	id: 'test-scripture-1',
+	bible_bee_cycle_id: 'test-cycle-1',
+	reference: 'John 3:16',
+	text: 'For God so loved the world...',
+	translation: 'NIV',
+	counts_for: 1,
+	created_at: new Date().toISOString(),
+	updated_at: new Date().toISOString(),
+};
+
+const mockStudentScripture = {
+	id: 'test-student-scripture-1',
+	child_id: 'test-child',
+	bible_bee_cycle_id: 'test-cycle-1',
+	scripture_id: 'test-scripture-1',
+	is_completed: false,
+	completed_at: undefined,
+	created_at: new Date().toISOString(),
+	updated_at: new Date().toISOString(),
+};
+
+// Create mock dbAdapter
+const mockDbAdapter = {
+	listEnrollments: jest.fn().mockResolvedValue([mockEnrollment]),
+	listScriptures: jest.fn().mockResolvedValue([mockScripture]),
+	listStudentScriptures: jest.fn().mockResolvedValue([mockStudentScripture]),
+	listStudentEssays: jest.fn().mockResolvedValue([]),
+	listEssayPrompts: jest.fn().mockResolvedValue([]),
+	createStudentScripture: jest.fn().mockResolvedValue(mockStudentScripture),
+	updateStudentScripture: jest.fn().mockImplementation(async (id, data) => ({
+		...mockStudentScripture,
+		...data,
+	})),
+};
+
+jest.mock('@/lib/dal', () => ({
+	dbAdapter: mockDbAdapter,
+	// Re-export any other DAL functions that might be needed
+	shouldUseAdapter: jest.fn().mockReturnValue(true),
+	getChild: jest.fn().mockResolvedValue({
+		id: 'test-child',
+		household_id: 'test-household',
+		first_name: 'Test',
+		last_name: 'Child',
+		birth_date: '2010-01-01',
+		grade: '5',
+		created_at: new Date().toISOString(),
+		updated_at: new Date().toISOString(),
+	}),
+	getHousehold: jest.fn().mockResolvedValue({
+		id: 'test-household',
+		name: 'Test Household',
+		created_at: new Date().toISOString(),
+		updated_at: new Date().toISOString(),
+	}),
+	listGuardians: jest.fn().mockResolvedValue([]),
+	getEssayPromptsForYearAndDivision: jest.fn().mockResolvedValue([]),
+	updateChildPhoto: jest.fn().mockResolvedValue(undefined),
+}));
+
+// Mock db-utils to return the same mocked dbAdapter
+jest.mock('@/lib/db-utils', () => ({
+	dbAdapter: mockDbAdapter,
+	isSupabase: jest.fn().mockReturnValue(false),
+	getDatabaseMode: jest.fn().mockReturnValue('indexeddb'),
+}));
+
 // Mock next/navigation useParams to return our test childId before importing the page
 jest.mock('next/navigation', () => ({
 	useParams: () => ({ childId: 'test-child' }),
@@ -8,63 +91,11 @@ jest.mock('next/navigation', () => ({
 
 const ChildBibleBeePage =
 	require('@/app/household/children/[childId]/bible-bee/page').default;
-import { db } from '@/lib/db';
 
 describe('Child Bible Bee UI', () => {
-	beforeEach(async () => {
-		// Clear DB stores used by the page (support real Dexie or in-memory mock)
-		if (typeof db.competitionYears.clear === 'function') {
-			await db.competitionYears.clear();
-		} else if ((db.competitionYears as any)?._internalStore) {
-			(db.competitionYears as any)._internalStore.clear();
-		}
-		if (typeof db.scriptures.clear === 'function') {
-			await db.scriptures.clear();
-		} else if ((db.scriptures as any)?._internalStore) {
-			(db.scriptures as any)._internalStore.clear();
-		}
-		if (typeof db.studentScriptures.clear === 'function') {
-			await db.studentScriptures.clear();
-		} else if ((db.studentScriptures as any)?._internalStore) {
-			(db.studentScriptures as any)._internalStore.clear();
-		}
-		if (typeof db.studentEssays.clear === 'function') {
-			await db.studentEssays.clear();
-		} else if ((db.studentEssays as any)?._internalStore) {
-			(db.studentEssays as any)._internalStore.clear();
-		}
-
-		const yearObj = {
-			id: crypto.randomUUID(),
-			year: 2025,
-			name: '2025',
-			description: '',
-			opensAt: undefined,
-			closesAt: undefined,
-			createdAt: new Date().toISOString(),
-			updatedAt: new Date().toISOString(),
-		} as any;
-		const yearId = await db.competitionYears.add(yearObj);
-		const scriptureObj = {
-			id: crypto.randomUUID(),
-			competitionYearId: yearId,
-			reference: 'John 3:16',
-			text: 'For God so loved...',
-			sortOrder: 1,
-			createdAt: new Date().toISOString(),
-			updatedAt: new Date().toISOString(),
-		} as any;
-		const scriptureId = await db.scriptures.add(scriptureObj);
-		const studentScriptureObj = {
-			id: crypto.randomUUID(),
-			childId: 'test-child',
-			scriptureId,
-			competitionYearId: yearId,
-			status: 'assigned',
-			createdAt: new Date().toISOString(),
-			updatedAt: new Date().toISOString(),
-		} as any;
-		await db.studentScriptures.add(studentScriptureObj);
+	beforeEach(() => {
+		// Reset all mocks before each test
+		jest.clearAllMocks();
 	});
 
 	it('shows assigned scripture and updates immediately when toggled', async () => {

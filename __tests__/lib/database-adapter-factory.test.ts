@@ -50,7 +50,14 @@ describe('Database Adapter Factory', () => {
     const adapter = createDatabaseAdapter();
     expect(adapter).toBeInstanceOf(IndexedDBAdapter);
     expect(consoleSpy).toHaveBeenCalledWith(
-      'Supabase URL and key are required when using Supabase mode'
+      '❌ Supabase configuration missing for UAT environment:',
+      expect.objectContaining({
+        supabaseUrl: 'MISSING',
+        supabaseKey: 'MISSING',
+        NEXT_PUBLIC_SUPABASE_URL: undefined,
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: 'MISSING',
+        mode: 'supabase'
+      })
     );
     
     consoleSpy.mockRestore();
