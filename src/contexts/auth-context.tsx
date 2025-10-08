@@ -179,10 +179,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 							// Run ministry access check in background without blocking
 							setTimeout(async () => {
 								try {
+									console.log(
+										'🔍 AuthProvider: Starting ministry access check for',
+										finalUser.email
+									);
 									const accessibleMinistries =
 										await dbAdapter.listAccessibleMinistriesForEmail(
 											finalUser.email
 										);
+									console.log(
+										'🔍 AuthProvider: Ministry access check completed, found',
+										accessibleMinistries.length,
+										'ministries'
+									);
 									if (accessibleMinistries.length > 0) {
 										// Only assign MINISTRY_LEADER if user doesn't already have a higher priority role
 										if (
@@ -225,6 +234,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 									console.error(
 										'AuthProvider - Error checking ministry access for Supabase user:',
 										error
+									);
+									// Don't let ministry access check errors block authentication
+									// The user should still be able to proceed even if ministry check fails
+									console.log(
+										'AuthProvider - Continuing with authentication despite ministry access check failure'
 									);
 								}
 							}, 0);
@@ -533,8 +547,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 				// Run ministry access check in background without blocking
 				setTimeout(async () => {
 					try {
+						console.log(
+							'🔍 AuthProvider: Starting ministry access check for login',
+							userData.email
+						);
 						const accessibleMinistries =
 							await dbAdapter.listAccessibleMinistriesForEmail(userData.email);
+						console.log(
+							'🔍 AuthProvider: Ministry access check completed for login, found',
+							accessibleMinistries.length,
+							'ministries'
+						);
 						if (accessibleMinistries.length > 0) {
 							// Update user with ministry access
 							const updatedUser = {
@@ -564,6 +587,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 						console.error(
 							'Auth Context - Error checking ministry access:',
 							error
+						);
+						// Don't let ministry access check errors block authentication
+						// The user should still be able to proceed even if ministry check fails
+						console.log(
+							'AuthProvider - Continuing with login despite ministry access check failure'
 						);
 					}
 				}, 0);

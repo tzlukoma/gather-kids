@@ -486,15 +486,37 @@ function RegisterPageContent() {
 	const [submissionStatus, setSubmissionStatus] = useState<string>('');
 
 	// Use React Query for data fetching with authentication dependency
+	console.log(
+		'🔍 RegisterPage: Starting React Query calls, authLoading:',
+		authLoading
+	);
+
 	const {
 		data: allMinistries = [],
 		isLoading: ministriesLoading,
 		error: ministriesError,
 	} = useQuery({
 		queryKey: ['ministries'],
-		queryFn: () => getMinistries(), // Wrap in arrow function to avoid passing React Query options
+		queryFn: async () => {
+			console.log('🔍 RegisterPage: Calling getMinistries...');
+			const ministriesPromise = getMinistries();
+			const timeoutPromise = new Promise((_, reject) =>
+				setTimeout(
+					() => reject(new Error('getMinistries timeout after 10 seconds')),
+					10000
+				)
+			);
+			return Promise.race([ministriesPromise, timeoutPromise]);
+		},
 		enabled: !authLoading, // Wait for authentication to complete
 		staleTime: 10 * 60 * 1000, // 10 minutes
+	});
+
+	console.log('🔍 RegisterPage: Ministries query state:', {
+		isLoading: ministriesLoading,
+		hasError: !!ministriesError,
+		dataCount: allMinistries.length,
+		errorMessage: ministriesError?.message,
 	});
 
 	const {
@@ -503,9 +525,19 @@ function RegisterPageContent() {
 		error: cyclesError,
 	} = useQuery({
 		queryKey: ['registrationCycles'],
-		queryFn: () => getRegistrationCycles(), // Wrap in arrow function
+		queryFn: () => {
+			console.log('🔍 RegisterPage: Calling getRegistrationCycles...');
+			return getRegistrationCycles();
+		},
 		enabled: !authLoading, // Wait for authentication to complete
 		staleTime: 15 * 60 * 1000, // 15 minutes
+	});
+
+	console.log('🔍 RegisterPage: Registration cycles query state:', {
+		isLoading: cyclesLoading,
+		hasError: !!cyclesError,
+		dataCount: registrationCycles.length,
+		errorMessage: cyclesError?.message,
 	});
 
 	const {
@@ -514,9 +546,19 @@ function RegisterPageContent() {
 		error: groupsError,
 	} = useQuery({
 		queryKey: ['ministryGroups'],
-		queryFn: () => getMinistryGroups(), // Wrap in arrow function
+		queryFn: () => {
+			console.log('🔍 RegisterPage: Calling getMinistryGroups...');
+			return getMinistryGroups();
+		},
 		enabled: !authLoading, // Wait for authentication to complete
 		staleTime: 15 * 60 * 1000, // 15 minutes
+	});
+
+	console.log('🔍 RegisterPage: Ministry groups query state:', {
+		isLoading: groupsLoading,
+		hasError: !!groupsError,
+		dataCount: ministryGroups.length,
+		errorMessage: groupsError?.message,
 	});
 
 	// Find active registration cycle
@@ -530,11 +572,30 @@ function RegisterPageContent() {
 
 	// Process choir ministries
 	const showMinistryGroups = getFlag('SHOW_MINISTRY_GROUPS');
-	const { data: choirMinistriesData = [] } = useQuery({
+	console.log('🔍 RegisterPage: showMinistryGroups flag:', showMinistryGroups);
+
+	const {
+		data: choirMinistriesData = [],
+		isLoading: choirMinistriesLoading,
+		error: choirMinistriesError,
+	} = useQuery({
 		queryKey: ['ministriesByGroup', 'choirs'],
-		queryFn: () => getMinistriesByGroupCode('choirs'),
+		queryFn: () => {
+			console.log(
+				'🔍 RegisterPage: Calling getMinistriesByGroupCode("choirs")...'
+			);
+			return getMinistriesByGroupCode('choirs');
+		},
 		enabled: !authLoading && showMinistryGroups, // Wait for auth AND check flag
 		staleTime: 10 * 60 * 1000, // 10 minutes
+	});
+
+	console.log('🔍 RegisterPage: Choir ministries query state:', {
+		isLoading: choirMinistriesLoading,
+		hasError: !!choirMinistriesError,
+		dataCount: choirMinistriesData.length,
+		errorMessage: choirMinistriesError?.message,
+		enabled: !authLoading && showMinistryGroups,
 	});
 
 	const choirMinistries = useMemo(() => {
@@ -548,14 +609,20 @@ function RegisterPageContent() {
 	}, [allMinistries, choirMinistriesData, showMinistryGroups]);
 
 	// Draft persistence for form data (conditional based on feature flag)
+	console.log('🔍 RegisterPage: About to call useDraftPersistence...');
 	const { loadDraft, saveDraft, clearDraft, draftStatus } =
 		useDraftPersistence<RegistrationFormValues>({
 			formName: 'registration_v1',
 			version: 1,
 			autoSaveDelay: 1000,
-			enabled: flags.registrationDraftPersistenceEnabled,
+			enabled: false, // Temporarily disable to prevent 406 error
 		});
+	console.log(
+		'🔍 RegisterPage: useDraftPersistence completed, draftStatus:',
+		draftStatus
+	);
 
+	console.log('🔍 RegisterPage: About to set up form callbacks...');
 	// Load saved form data from draft
 	const [hasLoadedDraft, setHasLoadedDraft] = useState(false);
 	const loadSavedFormData = useCallback(async (): Promise<
@@ -583,6 +650,7 @@ function RegisterPageContent() {
 		clearDraft();
 	}, [clearDraft]);
 
+	console.log('🔍 RegisterPage: About to set up form...');
 	const form = useForm<RegistrationFormValues>({
 		resolver: zodResolver(registrationSchema),
 		defaultValues: {
@@ -2458,20 +2526,28 @@ function RegisterPageContent() {
 
 										{/* Dynamic Group Consent Sections */}
 										{(() => {
-											console.log('DEBUG: Checking choir section visibility:');
 											console.log(
-												'  - groupsRequiringConsent.length:',
+												'🔍 RegisterPage: DEBUG: Checking choir section visibility:'
+											);
+											console.log(
+												'🔍 RegisterPage:   - groupsRequiringConsent.length:',
 												groupsRequiringConsent.length
 											);
 											console.log(
-												'  - choirPrograms.length:',
+												'🔍 RegisterPage:   - choirPrograms.length:',
 												choirPrograms.length
 											);
 											console.log(
-												'  - groupsRequiringConsent:',
+												'🔍 RegisterPage:   - groupsRequiringConsent:',
 												groupsRequiringConsent
 											);
-											console.log('  - choirPrograms:', choirPrograms);
+											console.log(
+												'🔍 RegisterPage:   - choirPrograms:',
+												choirPrograms
+											);
+											console.log(
+												'🔍 RegisterPage: About to render choir section...'
+											);
 											return (
 												groupsRequiringConsent.length > 0 &&
 												choirPrograms.length > 0
@@ -2535,6 +2611,10 @@ function RegisterPageContent() {
 										)}
 									</CardContent>
 								</Card>
+
+								{console.log(
+									'🔍 RegisterPage: Choir section completed, about to render interest activities...'
+								)}
 
 								<Card>
 									<CardHeader>

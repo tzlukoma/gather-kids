@@ -259,17 +259,25 @@ function HouseholdProtectedRoute({ children }: { children: React.ReactNode }) {
 
 	useEffect(() => {
 		const checkHouseholdAccess = async () => {
-			console.log('HouseholdProtectedRoute: Checking household access', {
-				loading,
-				userExists: !!user,
-				userRole: user?.metadata?.role,
-				userUid: user?.uid,
-			});
+			console.log(
+				'🔍 HouseholdProtectedRoute: Starting household access check',
+				{
+					loading,
+					userExists: !!user,
+					userRole: user?.metadata?.role,
+					userUid: user?.uid,
+				}
+			);
 
-			if (loading) return;
+			if (loading) {
+				console.log('🔍 HouseholdProtectedRoute: Still loading, waiting...');
+				return;
+			}
 
 			if (!user) {
-				console.log('HouseholdProtectedRoute: No user, redirecting to login');
+				console.log(
+					'🔍 HouseholdProtectedRoute: No user, redirecting to login'
+				);
 				router.push('/login');
 				return;
 			}
@@ -280,9 +288,9 @@ function HouseholdProtectedRoute({ children }: { children: React.ReactNode }) {
 				rolesGuardian: ROLES.GUARDIAN,
 				roleType: typeof user.metadata?.role,
 				rolesGuardianType: typeof ROLES.GUARDIAN,
-				isEqual: user.metadata?.role === ROLES.GUARDIAN
+				isEqual: user.metadata?.role === ROLES.GUARDIAN,
 			});
-			
+
 			if (user.metadata?.role === ROLES.GUARDIAN) {
 				console.log(
 					'HouseholdProtectedRoute: User has GUARDIAN role, granting access'
@@ -295,32 +303,42 @@ function HouseholdProtectedRoute({ children }: { children: React.ReactNode }) {
 			if (user.uid) {
 				try {
 					console.log(
-						'HouseholdProtectedRoute: Checking household data for user:',
+						'🔍 HouseholdProtectedRoute: About to call getHouseholdForUser for user:',
 						user.uid
 					);
 					const householdId = await getHouseholdForUser(user.uid);
 					console.log(
-						'HouseholdProtectedRoute: Household ID result:',
+						'🔍 HouseholdProtectedRoute: getHouseholdForUser completed, result:',
 						householdId
 					);
 					if (householdId) {
 						console.log(
-							'HouseholdProtectedRoute: Found household, granting access'
+							'🔍 HouseholdProtectedRoute: Found household, granting access'
 						);
 						setHasHouseholdAccess(true);
 						return;
 					}
 				} catch (error) {
-					console.warn('Could not check household access:', error);
+					console.error(
+						'🔍 HouseholdProtectedRoute: Error calling getHouseholdForUser:',
+						error
+					);
 				}
 			}
 
 			// No household access found
 			console.log(
-				'HouseholdProtectedRoute: No household access found, redirecting to register'
+				'🔍 HouseholdProtectedRoute: No household access found, redirecting to register'
 			);
 			setHasHouseholdAccess(false);
-			router.push('/register'); // Redirect to registration if no household found
+
+			// Add timeout to see if redirect is working
+			setTimeout(() => {
+				console.log(
+					'🔍 HouseholdProtectedRoute: About to redirect to /register'
+				);
+				router.push('/register');
+			}, 100);
 		};
 
 		checkHouseholdAccess();

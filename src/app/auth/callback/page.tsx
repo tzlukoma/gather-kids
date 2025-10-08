@@ -19,6 +19,7 @@ function AuthCallbackContent() {
 	const hasRun = useRef(false); // Prevent infinite loops
 
 	useEffect(() => {
+		console.log('🔍 AuthCallback: Component mounting...');
 		setMounted(true);
 	}, []);
 
@@ -31,9 +32,9 @@ function AuthCallbackContent() {
 				console.error('Auth callback timeout - user stuck in loading state');
 
 				// Check if we have any Supabase tokens that might indicate partial success
-				const hasSupabaseTokens =
-					typeof window !== 'undefined' &&
-					Object.keys(localStorage).some((key) => key && key.startsWith('sb-'));
+				const hasSupabaseTokens = Object.keys(localStorage).some(
+					(key) => key && key.startsWith('sb-')
+				);
 
 				if (hasSupabaseTokens) {
 					setError(`⚠️ Authentication Partially Successful
@@ -71,22 +72,42 @@ The authentication process is taking longer than expected. This can happen if:
 	}, [mounted, loading, error, success]);
 
 	useEffect(() => {
+		console.log('🔍 AuthCallback: Main effect running...', {
+			mounted,
+			hasRun: hasRun.current,
+			error,
+			success,
+		});
 		if (!mounted || hasRun.current || error || success) return;
 
 		// Demo mode redirect
 		if (isDemo()) {
+			console.log('🔍 AuthCallback: Demo mode detected, redirecting to login');
 			router.replace('/login');
 			return;
 		}
 
+		console.log(
+			'🔍 AuthCallback: Setting hasRun to true and starting auth callback'
+		);
 		hasRun.current = true;
 
 		const handleAuthCallback = async () => {
 			try {
+				console.log('🔍 AuthCallback: Starting handleAuthCallback...');
 				const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 				const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
+				console.log('🔍 AuthCallback: Supabase config check', {
+					hasUrl: !!supabaseUrl,
+					hasKey: !!supabaseAnonKey,
+					isDummy: supabaseUrl?.includes('dummy'),
+				});
+
 				if (!supabaseUrl || !supabaseAnonKey || supabaseUrl.includes('dummy')) {
+					console.log(
+						'🔍 AuthCallback: Supabase not configured, setting error'
+					);
 					setError('Supabase is not properly configured for this environment.');
 					return;
 				}
@@ -190,7 +211,16 @@ The authentication process is taking longer than expected. This can happen if:
 							});
 
 							// Use our enhanced helper function for PKCE flow
+							console.log(
+								'🔍 AuthCallback: About to exchange code for session...'
+							);
 							const result = await handlePKCECodeExchange(code);
+							console.log('🔍 AuthCallback: PKCE exchange result:', {
+								hasData: !!result.data,
+								hasSession: !!result.data?.session,
+								hasError: !!result.error,
+								errorMessage: result.error?.message,
+							});
 							data = result.data;
 							authError = result.error;
 						}
@@ -306,25 +336,44 @@ The verification code required for magic links was not found. This happens when:
 				} else if (data.session) {
 					setSuccess(true);
 					console.log(
-						`Auth successful! Redirecting to ${targetRedirect} in 1.5 seconds...`
+						`🔍 AuthCallback: Auth successful! Redirecting to ${targetRedirect} in 1.5 seconds...`
 					);
 
 					// Set up redirect with timeout fallback
 					setTimeout(() => {
-						console.log(`Executing redirect to ${targetRedirect}`);
-						router.push(targetRedirect);
+						console.log(
+							`🔍 AuthCallback: Executing redirect to ${targetRedirect}`
+						);
+						console.log(
+							`🔍 AuthCallback: Current URL before redirect: ${window.location.href}`
+						);
+						const redirectResult = router.push(targetRedirect);
+						console.log(`🔍 AuthCallback: router.push result:`, redirectResult);
+
+						// Check if redirect worked after a short delay
+						setTimeout(() => {
+							console.log(
+								`🔍 AuthCallback: URL after redirect attempt: ${window.location.href}`
+							);
+							if (window.location.pathname !== targetRedirect) {
+								console.warn(
+									`🔍 AuthCallback: Redirect may not have worked. Expected: ${targetRedirect}, Actual: ${window.location.pathname}`
+								);
+								// Only show error if redirect actually failed
+								setError(
+									`✅ Authentication Successful!\n\nYou\'ve been successfully signed in, but the automatic redirect didn\'t work.\n\n**Please click the button below to continue:**`
+								);
+								setLoading(false);
+							} else {
+								console.log(`🔍 AuthCallback: Redirect successful!`);
+								// Redirect worked, just hide the loading state
+								setLoading(false);
+							}
+						}, 500);
 					}, 1500);
 
-					// Fallback timeout in case redirect doesn't work
-					setTimeout(() => {
-						console.error(
-							'Redirect may have failed, offering manual navigation'
-						);
-						setError(
-							`✅ Authentication Successful!\n\nYou\'ve been successfully signed in, but the automatic redirect to the registration form didn\'t work.\n\n**Please click the button below to continue:**`
-						);
-						setLoading(false);
-					}, 8000);
+					// Remove the fallback timeout since redirect is working
+					// The page might take time to load but that's normal
 				} else {
 					// No session was created - could be due to email not yet verified or other issues
 					console.log('Auth callback completed but no session created');
