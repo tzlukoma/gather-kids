@@ -10,29 +10,89 @@ import { getHouseholdForUser } from '@/lib/dal';
 import type { HouseholdProfileData } from '@/lib/dal';
 
 export default function GuardianHouseholdPage() {
+	console.log('🔍 HouseholdPage: Component rendering...');
 	const { user } = useAuth();
 	const [showOnboarding, setShowOnboarding] = useState(false);
 	const [householdId, setHouseholdId] = useState<string | null>(null);
 
+	console.log('🔍 HouseholdPage: User state:', {
+		hasUser: !!user,
+		userId: user?.uid,
+		userEmail: user?.email,
+	});
+
 	// Use React Query hook for household profile data
-	const { data: profileData, isLoading } = useHouseholdProfile(
-		householdId || ''
-	);
+	const {
+		data: profileData,
+		isLoading,
+		error,
+	} = useHouseholdProfile(householdId || '');
+
+	// Debug React Query state
+	useEffect(() => {
+		if (householdId) {
+			console.log('🔍 HouseholdPage: React Query state:', {
+				householdId,
+				isLoading,
+				hasData: !!profileData,
+				hasError: !!error,
+				errorMessage: error?.message,
+			});
+		}
+	}, [householdId, isLoading, profileData, error]);
 
 	useEffect(() => {
 		const load = async () => {
-			if (!user) return;
+			if (!user) {
+				console.log('🔍 HouseholdPage: No user, skipping load');
+				return;
+			}
+
+			console.log(
+				'🔍 HouseholdPage: Starting household load for user:',
+				user.uid
+			);
 
 			// First try to get household_id from user metadata
 			let targetHouseholdId = user.metadata?.household_id ?? undefined;
+			console.log(
+				'🔍 HouseholdPage: household_id from metadata:',
+				targetHouseholdId
+			);
 
 			// If not available, try to find it using user_households table
 			if (!targetHouseholdId && user?.uid) {
-				targetHouseholdId = (await getHouseholdForUser(user.uid)) ?? undefined;
+				console.log(
+					'🔍 HouseholdPage: No household_id in metadata, calling getHouseholdForUser...'
+				);
+				try {
+					targetHouseholdId =
+						(await getHouseholdForUser(user.uid)) ?? undefined;
+					console.log(
+						'🔍 HouseholdPage: getHouseholdForUser result:',
+						targetHouseholdId
+					);
+				} catch (error) {
+					console.error(
+						'🔍 HouseholdPage: Error calling getHouseholdForUser:',
+						error
+					);
+				}
 			}
 
-			if (!targetHouseholdId) return;
+			if (!targetHouseholdId) {
+				console.log(
+					'🔍 HouseholdPage: No household_id found, redirecting to register'
+				);
+				// Redirect to register if no household found
+				window.location.href = '/register';
+				return;
+			}
 
+			console.log(
+				'🔍 HouseholdPage: Setting householdId to:',
+				targetHouseholdId
+			);
 			setHouseholdId(targetHouseholdId);
 		};
 		load();
