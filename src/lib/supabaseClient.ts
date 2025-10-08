@@ -46,8 +46,19 @@ export const supabaseBrowser = () => {
   const isTestEnv = process.env.NODE_ENV === 'test';
   
   // Use dummy values for testing to avoid the "URL and API key required" error
-  const supabaseUrl = isTestEnv ? 'https://test.supabase.co' : process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const supabaseAnonKey = isTestEnv ? 'test-anon-key' : process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+  const supabaseUrl = isTestEnv ? 'https://test.supabase.co' : process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = isTestEnv ? 'test-anon-key' : process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  // Check if we have valid Supabase configuration
+  if (!isTestEnv && (!supabaseUrl || !supabaseAnonKey)) {
+    console.error('❌ Supabase configuration missing:', {
+      supabaseUrl: supabaseUrl ? 'SET' : 'MISSING',
+      supabaseAnonKey: supabaseAnonKey ? 'SET' : 'MISSING',
+      NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? 'SET' : 'MISSING'
+    });
+    throw new Error('Supabase configuration is missing. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY environment variables.');
+  }
 
   // Check if we're in a Vercel preview environment
   const isVercelPreview = 

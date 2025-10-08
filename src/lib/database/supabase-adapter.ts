@@ -812,6 +812,23 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			clientUrl: this.client.supabaseUrl
 		});
 		
+		// Check client state and authentication before making query
+		try {
+			const { data: session, error: sessionError } = await this.client.auth.getSession();
+			console.log('🔍 SupabaseAdapter.listMinistries: Auth session check', {
+				hasSession: !!session?.session,
+				userId: session?.session?.user?.id,
+				userEmail: session?.session?.user?.email,
+				sessionError: sessionError?.message,
+				timestamp: new Date().toISOString()
+			});
+		} catch (authError) {
+			console.error('🔍 SupabaseAdapter.listMinistries: Auth check failed', {
+				error: authError,
+				timestamp: new Date().toISOString()
+			});
+		}
+		
 		// First get all ministries
 		let query = this.client.from('ministries').select('*');
 
@@ -828,6 +845,9 @@ export class SupabaseAdapter implements DatabaseAdapter {
 				errorMessage: ministriesError?.message,
 				errorCode: ministriesError?.code,
 				errorDetails: ministriesError?.details,
+				errorHint: ministriesError?.hint,
+				errorStatus: ministriesError?.status,
+				fullError: ministriesError,
 				dataCount: ministries?.length || 0,
 				ministries: ministries?.map(m => ({ 
 					ministry_id: m.ministry_id, 
@@ -839,8 +859,14 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			if (ministriesError) {
 				console.error('❌ SupabaseAdapter.listMinistries: Ministries query failed', {
 					error: ministriesError,
+					errorMessage: ministriesError.message,
+					errorCode: ministriesError.code,
+					errorDetails: ministriesError.details,
+					errorHint: ministriesError.hint,
+					errorStatus: ministriesError.status,
 					query: query.toString(),
-					clientUrl: this.client.supabaseUrl
+					clientUrl: this.client.supabaseUrl,
+					timestamp: new Date().toISOString()
 				});
 				throw ministriesError;
 			}

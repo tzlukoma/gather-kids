@@ -18,7 +18,11 @@ import {
     getLeaderProfileWithMemberships,
     saveLeaderMemberships,
     updateLeaderProfileStatus,
-    saveLeaderProfile
+    saveLeaderProfile,
+    getMinistries,
+    getRegistrationCycles,
+    getMinistryGroups,
+    getMinistriesByGroupCode
 } from '@/lib/dal';
 import type { Child, Guardian, Household, EmergencyContact, Attendance, Incident, LeaderProfile, MinistryLeaderMembership } from '@/lib/types';
 
@@ -42,6 +46,11 @@ export const queryKeys = {
     leaders: ['leaders'] as const,
     leader: (id: string) => ['leader', id] as const,
     leaderSearch: (term: string) => ['leaderSearch', term] as const,
+    // Registration-related query keys
+    ministries: ['ministries'] as const,
+    registrationCycles: ['registrationCycles'] as const,
+    ministryGroups: ['ministryGroups'] as const,
+    ministriesByGroup: (groupCode: string) => ['ministriesByGroup', groupCode] as const,
 };
 
 // Children queries
@@ -283,5 +292,39 @@ export function useCheckOutMutation() {
             // Also invalidate children queries in case attendance affects child display
             queryClient.invalidateQueries({ queryKey: queryKeys.children });
         },
+    });
+}
+
+// Registration-related queries
+export function useMinistries() {
+    return useQuery({
+        queryKey: queryKeys.ministries,
+        queryFn: getMinistries,
+        staleTime: 10 * 60 * 1000, // 10 minutes
+    });
+}
+
+export function useRegistrationCycles() {
+    return useQuery({
+        queryKey: queryKeys.registrationCycles,
+        queryFn: getRegistrationCycles,
+        staleTime: 15 * 60 * 1000, // 15 minutes - cycles don't change often
+    });
+}
+
+export function useMinistryGroups() {
+    return useQuery({
+        queryKey: queryKeys.ministryGroups,
+        queryFn: getMinistryGroups,
+        staleTime: 15 * 60 * 1000, // 15 minutes - groups don't change often
+    });
+}
+
+export function useMinistriesByGroup(groupCode: string) {
+    return useQuery({
+        queryKey: queryKeys.ministriesByGroup(groupCode),
+        queryFn: () => getMinistriesByGroupCode(groupCode),
+        enabled: !!groupCode,
+        staleTime: 10 * 60 * 1000, // 10 minutes
     });
 }
