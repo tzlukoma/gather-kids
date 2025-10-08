@@ -12,9 +12,19 @@ import {
     updateChildPhoto,
     recordCheckIn,
     recordCheckOut,
-    queryHouseholdList
+    queryHouseholdList,
+    queryLeaderProfiles,
+    searchLeaderProfiles,
+    getLeaderProfileWithMemberships,
+    saveLeaderMemberships,
+    updateLeaderProfileStatus,
+    saveLeaderProfile,
+    getMinistries,
+    getRegistrationCycles,
+    getMinistryGroups,
+    getMinistriesByGroupCode
 } from '@/lib/dal';
-import type { Child, Guardian, Household, EmergencyContact, Attendance, Incident } from '@/lib/types';
+import type { Child, Guardian, Household, EmergencyContact, Attendance, Incident, LeaderProfile, MinistryLeaderMembership } from '@/lib/types';
 
 // Query keys
 export const queryKeys = {
@@ -33,6 +43,14 @@ export const queryKeys = {
     emergencyContacts: ['emergencyContacts'] as const,
     attendance: (date: string) => ['attendance', date] as const,
     incidents: (date: string) => ['incidents', date] as const,
+    leaders: ['leaders'] as const,
+    leader: (id: string) => ['leader', id] as const,
+    leaderSearch: (term: string) => ['leaderSearch', term] as const,
+    // Registration-related query keys
+    ministries: ['ministries'] as const,
+    registrationCycles: ['registrationCycles'] as const,
+    ministryGroups: ['ministryGroups'] as const,
+    ministriesByGroup: (groupCode: string) => ['ministriesByGroup', groupCode] as const,
 };
 
 // Children queries
@@ -128,6 +146,33 @@ export function useIncidents(date: string) {
     });
 }
 
+// Leader queries
+export function useLeaders() {
+    return useQuery({
+        queryKey: queryKeys.leaders,
+        queryFn: queryLeaderProfiles,
+        staleTime: 5 * 60 * 1000, // 5 minutes
+    });
+}
+
+export function useLeader(leaderId: string) {
+    return useQuery({
+        queryKey: queryKeys.leader(leaderId),
+        queryFn: () => getLeaderProfileWithMemberships(leaderId),
+        enabled: !!leaderId,
+        staleTime: 5 * 60 * 1000,
+    });
+}
+
+export function useLeaderSearch(searchTerm: string) {
+    return useQuery({
+        queryKey: queryKeys.leaderSearch(searchTerm),
+        queryFn: () => searchLeaderProfiles(searchTerm),
+        enabled: !!searchTerm.trim(),
+        staleTime: 2 * 60 * 1000, // 2 minutes
+    });
+}
+
 // Photo update mutation
 export function useUpdateChildPhotoMutation() {
     const queryClient = useQueryClient();
@@ -147,6 +192,62 @@ export function useUpdateChildPhotoMutation() {
             
             // Invalidate attendance queries (they might reference child photos)
             queryClient.invalidateQueries({ queryKey: ['attendance'] });
+        },
+    });
+}
+
+// Leader mutations
+export function useUpdateLeaderStatusMutation() {
+    const queryClient = useQueryClient();
+    
+    return useMutation({
+        mutationFn: ({ leaderId, isActive }: { leaderId: string; isActive: boolean }) => 
+            updateLeaderProfileStatus(leaderId, isActive),
+        onSuccess: (_, { leaderId }) => {
+            // Invalidate leader-specific queries
+            queryClient.invalidateQueries({ queryKey: queryKeys.leader(leaderId) });
+            queryClient.invalidateQueries({ queryKey: queryKeys.leaders });
+            queryClient.invalidateQueries({ queryKey: ['leaderSearch'] });
+        },
+    });
+}
+
+export function useSaveLeaderMembershipsMutation() {
+    const queryClient = useQueryClient();
+    
+    return useMutation({
+        mutationFn: ({ 
+            leaderId, 
+            memberships 
+        }: { 
+            leaderId: string; 
+            memberships: Omit<MinistryLeaderMembership, 'membership_id' | 'created_at' | 'updated_at'>[] 
+        }) => saveLeaderMemberships(leaderId, memberships),
+        onSuccess: (_, { leaderId }) => {
+            // Invalidate leader-specific queries
+            queryClient.invalidateQueries({ queryKey: queryKeys.leader(leaderId) });
+            queryClient.invalidateQueries({ queryKey: queryKeys.leaders });
+            queryClient.invalidateQueries({ queryKey: ['leaderSearch'] });
+        },
+    });
+}
+
+export function useSaveLeaderProfileMutation() {
+    const queryClient = useQueryClient();
+    
+    return useMutation({
+        mutationFn: ({ 
+            leaderId, 
+            profileData 
+        }: { 
+            leaderId: string; 
+            profileData: Omit<LeaderProfile, 'leader_id' | 'created_at' | 'updated_at'> & { created_at?: string }
+        }) => saveLeaderProfile(profileData),
+        onSuccess: (_, { leaderId }) => {
+            // Invalidate leader-specific queries
+            queryClient.invalidateQueries({ queryKey: queryKeys.leader(leaderId) });
+            queryClient.invalidateQueries({ queryKey: queryKeys.leaders });
+            queryClient.invalidateQueries({ queryKey: ['leaderSearch'] });
         },
     });
 }
@@ -191,5 +292,39 @@ export function useCheckOutMutation() {
             // Also invalidate children queries in case attendance affects child display
             queryClient.invalidateQueries({ queryKey: queryKeys.children });
         },
+    });
+}
+
+// Registration-related queries
+export function useMinistries() {
+    return useQuery({
+        queryKey: queryKeys.ministries,
+        queryFn: getMinistries,
+        staleTime: 10 * 60 * 1000, // 10 minutes
+    });
+}
+
+export function useRegistrationCycles() {
+    return useQuery({
+        queryKey: queryKeys.registrationCycles,
+        queryFn: getRegistrationCycles,
+        staleTime: 15 * 60 * 1000, // 15 minutes - cycles don't change often
+    });
+}
+
+export function useMinistryGroups() {
+    return useQuery({
+        queryKey: queryKeys.ministryGroups,
+        queryFn: getMinistryGroups,
+        staleTime: 15 * 60 * 1000, // 15 minutes - groups don't change often
+    });
+}
+
+export function useMinistriesByGroup(groupCode: string) {
+    return useQuery({
+        queryKey: queryKeys.ministriesByGroup(groupCode),
+        queryFn: () => getMinistriesByGroupCode(groupCode),
+        enabled: !!groupCode,
+        staleTime: 10 * 60 * 1000, // 10 minutes
     });
 }

@@ -194,38 +194,29 @@ export default function RostersPage() {
 
 				// Load children based on user role
 				let childrenData: Child[] = [];
-				if (user?.metadata?.role === AuthRole.MINISTRY_LEADER && user.email) {
+				if (
+					user?.metadata?.role === AuthRole.MINISTRY_LEADER &&
+					user.assignedMinistryIds &&
+					user.assignedMinistryIds.length > 0
+				) {
 					console.log(
-						'🔍 RostersPage: Finding ministry for leader email',
+						'🔍 RostersPage: Using assigned ministry IDs for leader',
+						user.assignedMinistryIds
+					);
+
+					childrenData = await getChildrenForLeader(
+						user.assignedMinistryIds,
+						activeCycle.cycle_id
+					);
+					setLeaderMinistryId(user.assignedMinistryIds[0]); // Use first ministry ID for display
+				} else if (user?.metadata?.role === AuthRole.MINISTRY_LEADER) {
+					console.warn(
+						'⚠️ RostersPage: Ministry leader has no assigned ministries',
 						user.email
 					);
-
-					// Get all ministry accounts to find which ministry this email belongs to
-					const ministryAccounts = await dbAdapter.listMinistryAccounts();
-					const matchingAccount = ministryAccounts.find(
-						(account) =>
-							account.email.toLowerCase() === user.email.toLowerCase()
-					);
-
-					if (matchingAccount) {
-						console.log('🔍 RostersPage: Found matching ministry account', {
-							ministryId: matchingAccount.ministry_id,
-							displayName: matchingAccount.display_name,
-						});
-						childrenData = await getChildrenForLeader(
-							[matchingAccount.ministry_id],
-							activeCycle.cycle_id
-						);
-						setLeaderMinistryId(matchingAccount.ministry_id);
-					} else {
-						console.warn(
-							'⚠️ RostersPage: No ministry account found for leader email',
-							user.email
-						);
-						childrenData = [];
-						setLeaderMinistryId(null);
-						setNoMinistryAssigned(true);
-					}
+					childrenData = [];
+					setLeaderMinistryId(null);
+					setNoMinistryAssigned(true);
 				} else {
 					childrenData = await getAllChildren();
 				}
@@ -350,14 +341,18 @@ export default function RostersPage() {
 		if (dataLoading) return [];
 
 		// For ADMIN users, show all ministries
-		// For MINISTRY_LEADER users, show only their assigned ministry
+		// For MINISTRY_LEADER users, show all their assigned ministries
 		if (user?.metadata?.role === AuthRole.ADMIN) {
 			return allMinistries.sort((a, b) => a.name.localeCompare(b.name));
 		}
 
-		if (user?.metadata?.role === AuthRole.MINISTRY_LEADER && leaderMinistryId) {
+		if (
+			user?.metadata?.role === AuthRole.MINISTRY_LEADER &&
+			user.assignedMinistryIds &&
+			user.assignedMinistryIds.length > 0
+		) {
 			return allMinistries
-				.filter((m) => m.ministry_id === leaderMinistryId)
+				.filter((m) => user.assignedMinistryIds!.includes(m.ministry_id))
 				.sort((a, b) => a.name.localeCompare(b.name));
 		}
 
@@ -884,11 +879,6 @@ export default function RostersPage() {
 							<h1 className="text-xl font-bold font-headline text-muted-foreground">
 								Ministry Rosters
 							</h1>
-							<Badge
-								variant="secondary"
-								className="text-xs bg-blue-100 text-blue-800 border border-blue-200">
-								Beta
-							</Badge>
 						</div>
 						<Dialog
 							open={isEventDialogOpen}

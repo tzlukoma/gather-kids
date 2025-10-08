@@ -80,8 +80,27 @@ export default function CreateAccountPage() {
 				throw new Error('Supabase client not available');
 			}
 
+			console.log('🔍 Create Account: Starting signup process', {
+				email,
+				supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
+				hasSupabaseClient: !!supabase,
+				timestamp: new Date().toISOString(),
+			});
+
+			// Skip connection test to avoid hanging - go directly to signup
+			console.log(
+				'🔍 Create Account: Skipping connection test, proceeding to signup'
+			);
+
 			const baseUrl = window.location.origin;
-			const { data, error } = await supabase.auth.signUp({
+			console.log('🔍 Create Account: About to call supabase.auth.signUp', {
+				email,
+				baseUrl,
+				redirectTo: `${baseUrl}/auth/callback`,
+			});
+
+			// Add timeout to prevent hanging
+			const signupPromise = supabase.auth.signUp({
 				email,
 				password,
 				options: {
@@ -89,34 +108,212 @@ export default function CreateAccountPage() {
 				},
 			});
 
+			console.log(
+				'🔍 Create Account: Signup promise created, starting race with timeout'
+			);
+
+			const timeoutPromise = new Promise((_, reject) => {
+				setTimeout(() => {
+					console.log('🔍 Create Account: Timeout reached, rejecting promise');
+					reject(new Error('Signup request timed out after 15 seconds'));
+				}, 15000);
+			});
+
+			console.log('🔍 Create Account: About to await Promise.race');
+			const { data, error } = (await Promise.race([
+				signupPromise,
+				timeoutPromise,
+			])) as any;
+			console.log('🔍 Create Account: Promise.race completed');
+
+			console.log('🔍 Create Account: Supabase signup response', {
+				hasData: !!data,
+				hasUser: !!data?.user,
+				hasSession: !!data?.session,
+				userEmail: data?.user?.email,
+				error: error?.message,
+				supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
+				responseKeys: Object.keys(data || {}),
+				sessionKeys: data?.session ? Object.keys(data.session) : null,
+				userKeys: data?.user ? Object.keys(data.user) : null,
+			});
+
 			if (error) {
 				throw error;
 			}
 
 			// Check if email verification is required
-			if (data?.user && !data.session) {
-				// Email verification is ON - show verification message
-				setNeedsVerification(true);
+			// In local development with email confirmations disabled, users are automatically signed in
+			const isLocalDev =
+				process.env.NEXT_PUBLIC_SUPABASE_URL?.includes('127.0.0.1') ||
+				process.env.NEXT_PUBLIC_SUPABASE_URL?.includes('localhost');
+
+			console.log('🔍 Create Account: Environment check', {
+				isLocalDev,
+				supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
+				hasUser: !!data?.user,
+				hasSession: !!data?.session,
+			});
+
+			// Check if we have a successful signup response
+			if (data?.user) {
+				console.log(
+					'🔍 Create Account: User created successfully, checking session status'
+				);
+
+				// If we have a session, user is signed in - redirect to register
+				if (data.session) {
+					console.log(
+						'🔍 Create Account: Session present, redirecting to register',
+						{
+							sessionExists: !!data.session,
+							sessionType: typeof data.session,
+							sessionKeys: data.session ? Object.keys(data.session) : null,
+						}
+					);
+					toast({
+						title: 'Account Created',
+						description: 'Your account has been created successfully!',
+					});
+					console.log(
+						'🔍 Create Account: About to call router.push("/register")'
+					);
+
+					// Check if we're already on the register page
+					if (window.location.pathname === '/register') {
+						console.log(
+							'🔍 Create Account: Already on register page, skipping redirect'
+						);
+						return;
+					}
+
+					// Try router.push first
+					const pushResult = router.push('/register');
+					console.log(
+						'🔍 Create Account: router.push("/register") called, result:',
+						pushResult
+					);
+
+					// Check if navigation actually happened after a short delay
+					setTimeout(() => {
+						if (window.location.pathname !== '/register') {
+							console.log(
+								'🔍 Create Account: router.push failed, using fallback redirect'
+							);
+							console.log(
+								'🔍 Create Account: Current pathname:',
+								window.location.pathname
+							);
+							console.log(
+								'🔍 Create Account: Document ready state:',
+								document.readyState
+							);
+							console.log('🔍 Create Account: Router state:', router);
+							window.location.href = '/register';
+						} else {
+							console.log(
+								'🔍 Create Account: router.push succeeded, no fallback needed'
+							);
+						}
+					}, 1000);
+				}
+				// If no session but we're in local dev, still redirect
+				else if (isLocalDev) {
+					console.log(
+						'🔍 Create Account: No session but local dev, redirecting to register',
+						{
+							isLocalDev,
+							hasSession: !!data.session,
+						}
+					);
+					toast({
+						title: 'Account Created',
+						description: 'Your account has been created successfully!',
+					});
+					console.log(
+						'🔍 Create Account: About to call router.push("/register") (local dev)'
+					);
+
+					// Check if we're already on the register page
+					if (window.location.pathname === '/register') {
+						console.log(
+							'🔍 Create Account: Already on register page, skipping redirect (local dev)'
+						);
+						return;
+					}
+
+					// Try router.push first
+					const pushResult = router.push('/register');
+					console.log(
+						'🔍 Create Account: router.push("/register") called, result:',
+						pushResult,
+						'(local dev)'
+					);
+
+					// Check if navigation actually happened after a short delay
+					setTimeout(() => {
+						if (window.location.pathname !== '/register') {
+							console.log(
+								'🔍 Create Account: router.push failed, using fallback redirect (local dev)'
+							);
+							console.log(
+								'🔍 Create Account: Current pathname:',
+								window.location.pathname
+							);
+							console.log(
+								'🔍 Create Account: Document ready state:',
+								document.readyState
+							);
+							console.log('🔍 Create Account: Router state:', router);
+							window.location.href = '/register';
+						} else {
+							console.log(
+								'🔍 Create Account: router.push succeeded, no fallback needed (local dev)'
+							);
+						}
+					}, 1000);
+				}
+				// If no session and not local dev, show verification message
+				else {
+					console.log(
+						'🔍 Create Account: No session, showing verification message'
+					);
+					setNeedsVerification(true);
+					toast({
+						title: 'Check Your Email',
+						description:
+							'Please check your inbox to verify your email address.',
+					});
+				}
+			} else {
+				console.log(
+					'🔍 Create Account: No user in response, this should not happen'
+				);
 				toast({
-					title: 'Check Your Email',
-					description: 'Please check your inbox to verify your email address.',
+					title: 'Account Creation Failed',
+					description: 'No user data received from server.',
+					variant: 'destructive',
 				});
-			} else if (data?.session) {
-				// Email verification is OFF - user is automatically signed in
-				toast({
-					title: 'Account Created',
-					description: 'Your account has been created successfully!',
-				});
-				router.push('/register');
 			}
 		} catch (error: any) {
-			console.error('Signup error:', error);
-			toast({
-				title: 'Account Creation Failed',
-				description:
-					error.message || 'Unable to create account. Please try again.',
-				variant: 'destructive',
-			});
+			console.error('🔍 Create Account: Signup error:', error);
+
+			// Handle timeout specifically
+			if (error.message?.includes('timed out')) {
+				toast({
+					title: 'Request Timeout',
+					description:
+						'The signup request is taking longer than expected. This might be due to a connection issue. Please try again.',
+					variant: 'destructive',
+				});
+			} else {
+				toast({
+					title: 'Account Creation Failed',
+					description:
+						error.message || 'Unable to create account. Please try again.',
+					variant: 'destructive',
+				});
+			}
 		} finally {
 			setLoading(false);
 		}

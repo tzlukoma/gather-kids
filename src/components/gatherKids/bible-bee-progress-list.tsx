@@ -11,6 +11,9 @@ import {
 } from '@/components/ui/select';
 import { getBibleBeeProgressForCycle } from '@/lib/dal';
 import { BibleBeeProgressCard } from './bible-bee-progress-card';
+import { Button } from '@/components/ui/button';
+import { Download } from 'lucide-react';
+import { normalizeGradeDisplay } from '@/lib/gradeUtils';
 
 interface BibleBeeProgressListProps {
 	/** Initial cycle to display */
@@ -48,6 +51,7 @@ export function BibleBeeProgressList({
 	function getValue(v: unknown): string {
 		return typeof v === 'string' ? v : String(v ?? '');
 	}
+
 	const STORAGE_KEY = 'bb_progress_filters_v1';
 	const [rows, setRows] = useState<any[] | null>(null);
 	const [availableGradeGroups, setAvailableGradeGroups] = useState<string[]>(
@@ -360,6 +364,70 @@ export function BibleBeeProgressList({
 		}
 	});
 
+	// Export functionality
+	const exportToCSV = () => {
+		if (!sorted || sorted.length === 0) return;
+
+		const headers = [
+			'Name',
+			'Grade',
+			'Division',
+			'Guardian',
+			'Guardian Phone',
+			'Progress',
+		];
+		const csvContent = [
+			headers.join(','),
+			...sorted.map((row: any) => {
+				const name = `"${row.childName}"`;
+				const grade = `"${normalizeGradeDisplay(row.child?.grade) || ''}"`;
+				const division = `"${row.gradeGroup || ''}"`;
+				const guardian = `"${
+					row.primaryGuardian
+						? `${row.primaryGuardian.first_name} ${row.primaryGuardian.last_name}`
+						: ''
+				}"`;
+				const guardianPhone = `"${row.primaryGuardian?.mobile_phone || ''}"`;
+
+				// Progress format: "x / y" for scriptures or "Essay Assigned" / "Essay Submitted" for essays
+				// Use single quotes to prevent Excel from interpreting as dates
+				let progress = '';
+				if (row.essayStatus) {
+					// Essay track - binary status
+					progress = `"${row.essayStatus}"`;
+				} else {
+					// Scripture track - format as "x of y" to avoid date interpretation
+					const completed = row.completedScriptures || 0;
+					const required = row.requiredScriptures || row.totalScriptures || 0;
+					progress = `"${completed} of ${required}"`;
+				}
+
+				return [name, grade, division, guardian, guardianPhone, progress].join(
+					','
+				);
+			}),
+		].join('\n');
+
+		// Create and download the file
+		const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+		const link = document.createElement('a');
+		const url = URL.createObjectURL(blob);
+		link.setAttribute('href', url);
+
+		// Generate filename with current date and cycle name
+		const cycleName = displayCycleLabel || selectedCycle;
+		const date = new Date().toISOString().split('T')[0];
+		link.setAttribute(
+			'download',
+			`bible-bee-students-${cycleName}-${date}.csv`
+		);
+
+		link.style.visibility = 'hidden';
+		document.body.appendChild(link);
+		link.click();
+		document.body.removeChild(link);
+	};
+
 	return (
 		<div className="space-y-4">
 			{title && (
@@ -497,31 +565,41 @@ export function BibleBeeProgressList({
 									onClick={() => setFilterStatus('Complete')}>
 									Complete
 								</button>
-								<div className="flex-1" />
-								<button
-									className="px-2 py-1 border rounded"
-									onClick={() => {
-										// reset to defaults
-										if (bibleBeeCycles && bibleBeeCycles.length > 0) {
-											// Use active cycle if available, otherwise most recent
-											const active = bibleBeeCycles.find(
-												(c: any) => c.is_active
-											);
-											const defaultCycle = active
-												? active.id
-												: bibleBeeCycles[0].id;
-											setSelectedCycle(String(defaultCycle));
-										}
-										setFilterGradeGroup('all');
-										setFilterStatus('all');
-										setSortBy('name-asc');
-										try {
-											localStorage.removeItem(STORAGE_KEY);
-										} catch (e) {}
-									}}>
-									Clear
-								</button>
 							</div>
+
+							{/* Export button */}
+							<Button
+								variant="outline"
+								size="sm"
+								onClick={exportToCSV}
+								disabled={!sorted || sorted.length === 0}
+								className="flex items-center gap-2">
+								<Download className="h-4 w-4" />
+								Export CSV
+							</Button>
+
+							<div className="flex-1" />
+							<button
+								className="px-2 py-1 border rounded"
+								onClick={() => {
+									// reset to defaults
+									if (bibleBeeCycles && bibleBeeCycles.length > 0) {
+										// Use active cycle if available, otherwise most recent
+										const active = bibleBeeCycles.find((c: any) => c.is_active);
+										const defaultCycle = active
+											? active.id
+											: bibleBeeCycles[0].id;
+										setSelectedCycle(String(defaultCycle));
+									}
+									setFilterGradeGroup('all');
+									setFilterStatus('all');
+									setSortBy('name-asc');
+									try {
+										localStorage.removeItem(STORAGE_KEY);
+									} catch (e) {}
+								}}>
+								Clear
+							</button>
 						</>
 					)}
 				</div>

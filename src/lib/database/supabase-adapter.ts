@@ -29,6 +29,7 @@ import type {
 	EssayPrompt,
 	Enrollment,
 	EnrollmentOverride,
+	GradeRule,
 } from '../types';
 
 export class SupabaseAdapter implements DatabaseAdapter {
@@ -812,6 +813,23 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			clientUrl: this.client.supabaseUrl
 		});
 		
+		// Check client state and authentication before making query
+		try {
+			const { data: session, error: sessionError } = await this.client.auth.getSession();
+			console.log('🔍 SupabaseAdapter.listMinistries: Auth session check', {
+				hasSession: !!session?.session,
+				userId: session?.session?.user?.id,
+				userEmail: session?.session?.user?.email,
+				sessionError: sessionError?.message,
+				timestamp: new Date().toISOString()
+			});
+		} catch (authError) {
+			console.error('🔍 SupabaseAdapter.listMinistries: Auth check failed', {
+				error: authError,
+				timestamp: new Date().toISOString()
+			});
+		}
+		
 		// First get all ministries
 		let query = this.client.from('ministries').select('*');
 
@@ -825,7 +843,12 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			
 			console.log('🔍 SupabaseAdapter.listMinistries: Ministries query result', { 
 				hasError: !!ministriesError, 
-				errorMessage: ministriesError?.message, 
+				errorMessage: ministriesError?.message,
+				errorCode: ministriesError?.code,
+				errorDetails: ministriesError?.details,
+				errorHint: ministriesError?.hint,
+				errorStatus: ministriesError?.status,
+				fullError: ministriesError,
 				dataCount: ministries?.length || 0,
 				ministries: ministries?.map(m => ({ 
 					ministry_id: m.ministry_id, 
@@ -834,7 +857,20 @@ export class SupabaseAdapter implements DatabaseAdapter {
 				}))
 			});
 			
-			if (ministriesError) throw ministriesError;
+			if (ministriesError) {
+				console.error('❌ SupabaseAdapter.listMinistries: Ministries query failed', {
+					error: ministriesError,
+					errorMessage: ministriesError.message,
+					errorCode: ministriesError.code,
+					errorDetails: ministriesError.details,
+					errorHint: ministriesError.hint,
+					errorStatus: ministriesError.status,
+					query: query.toString(),
+					clientUrl: this.client.supabaseUrl,
+					timestamp: new Date().toISOString()
+				});
+				throw ministriesError;
+			}
 
 			if (!ministries || ministries.length === 0) {
 				console.warn('⚠️ SupabaseAdapter.listMinistries: No ministries found in the database');
@@ -933,7 +969,13 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			});
 			return result;
 		} catch (queryError) {
-			console.error('SupabaseAdapter.listMinistries: Query failed', queryError);
+			console.error('❌ SupabaseAdapter.listMinistries: Query failed', {
+				error: queryError,
+				errorMessage: queryError instanceof Error ? queryError.message : 'Unknown error',
+				errorStack: queryError instanceof Error ? queryError.stack : undefined,
+				clientUrl: this.client.supabaseUrl,
+				timestamp: new Date().toISOString()
+			});
 			throw queryError;
 		}
 	}
@@ -1491,7 +1533,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 		const { data, error } = await this.client
 			.from('leader_assignments')
 			.select('*')
-			.eq('membership_id', id)
+			.eq('assignment_id', id)
 			.single();
 
 		if (error) {
@@ -1516,6 +1558,11 @@ export class SupabaseAdapter implements DatabaseAdapter {
 		const dbPayload: Record<string, unknown> = { ...membership } as Record<string, unknown>;
 		// leader_assignments table expects assignment_id as PK; map membership_id to assignment_id
 		if (dbPayload['membership_id']) dbPayload['assignment_id'] = dbPayload['membership_id'];
+		// Map role_type to role for database compatibility
+		if (dbPayload['role_type']) dbPayload['role'] = dbPayload['role_type'];
+		// Remove fields that don't exist in leader_assignments table
+		delete dbPayload['membership_id'];
+		delete dbPayload['role_type'];
 		if (dbPayload.roles && typeof dbPayload.roles !== 'string') {
 			dbPayload.roles = JSON.stringify(dbPayload.roles as unknown);
 		}
@@ -1536,7 +1583,13 @@ export class SupabaseAdapter implements DatabaseAdapter {
 	): Promise<MinistryLeaderMembership> {
 
 		const dbPayload: Record<string, unknown> = { ...(data as Record<string, unknown>), updated_at: new Date().toISOString() };
+		// Map membership_id to assignment_id for database compatibility
 		if (dbPayload['membership_id']) dbPayload['assignment_id'] = dbPayload['membership_id'];
+		// Map role_type to role for database compatibility
+		if (dbPayload['role_type']) dbPayload['role'] = dbPayload['role_type'];
+		// Remove fields that don't exist in leader_assignments table
+		delete dbPayload['membership_id'];
+		delete dbPayload['role_type'];
 		if (dbPayload.roles && typeof dbPayload.roles !== 'string') {
 			dbPayload.roles = JSON.stringify(dbPayload.roles as unknown);
 		}
@@ -1544,7 +1597,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 		const { data: result, error } = await this.client
 			.from('leader_assignments')
 			.update(dbPayload as Database['public']['Tables']['leader_assignments']['Update'])
-			.eq('membership_id', id)
+			.eq('assignment_id', id)
 			.select()
 			.single();
 
@@ -1575,7 +1628,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 		const { error } = await this.client
 			.from('leader_assignments')
 			.delete()
-			.eq('membership_id', id);
+			.eq('assignment_id', id);
 
 		if (error) throw error;
 	}
@@ -1882,22 +1935,40 @@ export class SupabaseAdapter implements DatabaseAdapter {
 
 	// Ministry Group RBAC helpers
 	async listAccessibleMinistriesForEmail(email: string): Promise<Ministry[]> {
+		const normalizedEmail = email.toLowerCase().trim();
+		console.log('🔍 SupabaseAdapter.listAccessibleMinistriesForEmail: Starting lookup for', normalizedEmail);
+		
 		const { data, error } = await this.client
-			.rpc('fn_ministry_ids_email_can_access', { p_email: email });
+			.rpc('fn_ministry_ids_email_can_access', { p_email: normalizedEmail });
 
-		if (error) throw error;
+		if (error) {
+			console.error('🔍 SupabaseAdapter: Error calling fn_ministry_ids_email_can_access:', error);
+			throw error;
+		}
 
-		if (!data || data.length === 0) return [];
+		console.log('🔍 SupabaseAdapter: RPC function returned:', data?.length || 0, 'ministry IDs', data);
+
+		if (!data || data.length === 0) {
+			console.log('🔍 SupabaseAdapter: No ministry IDs found, returning empty array');
+			return [];
+		}
 
 		const ministryIds = data.map(row => row.ministry_id);
+		console.log('🔍 SupabaseAdapter: Extracted ministry IDs:', ministryIds);
+		
 		const { data: ministries, error: ministriesError } = await this.client
 			.from('ministries')
 			.select('*')
 			.in('ministry_id', ministryIds);
 
-		if (ministriesError) throw ministriesError;
+		if (ministriesError) {
+			console.error('🔍 SupabaseAdapter: Error fetching ministries:', ministriesError);
+			throw ministriesError;
+		}
 
-		return (ministries || []).map(row => supabaseToMinistry(row));
+		const result = (ministries || []).map(row => supabaseToMinistry(row));
+		console.log('🔍 SupabaseAdapter: Final ministries found:', result.length, result.map(m => ({ id: m.ministry_id, name: m.name })));
+		return result;
 	}
 
 	async listAccessibleMinistriesForAccount(accountId: string): Promise<Ministry[]> {
@@ -1975,11 +2046,17 @@ export class SupabaseAdapter implements DatabaseAdapter {
 	}
 
 	async listBrandingSettings(): Promise<BrandingSettings[]> {
+		console.log('SupabaseAdapter: Loading branding settings...');
 		const { data, error } = await this.client
 			.from('branding_settings')
 			.select('*');
 
-		if (error) throw error;
+		if (error) {
+			console.error('SupabaseAdapter: Error loading branding settings:', error);
+			throw error;
+		}
+		
+		console.log('SupabaseAdapter: Loaded branding settings:', data);
 		return (data || []).map((d) => supabaseToBrandingSettings(d as Database['public']['Tables']['branding_settings']['Row']));
 	}
 
@@ -3336,6 +3413,43 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			submitted_at: (r['submitted_at'] as string) || undefined,
 			created_at: (r['created_at'] as string) || '',
 			updated_at: (r['updated_at'] as string) || '',
+		};
+	}
+
+	// Grade Rules
+	async listGradeRules(yearId?: string): Promise<GradeRule[]> {
+		console.log('SupabaseAdapter.listGradeRules called:', { yearId });
+		
+		let query = this.client.from('grade_rules').select('*');
+		
+		if (yearId) {
+			query = query.eq('competition_year_id', yearId);
+		}
+		
+		const { data, error } = await query;
+		
+		if (error) {
+			console.error('SupabaseAdapter.listGradeRules error:', error);
+			throw error;
+		}
+		
+		console.log('SupabaseAdapter.listGradeRules result:', { count: data?.length || 0 });
+		return (data || []).map(this.mapGradeRule);
+	}
+
+	private mapGradeRule(row: unknown): GradeRule {
+		const r = (row ?? {}) as Record<string, unknown>;
+		return {
+			id: (r['id'] as string) || '',
+			competitionYearId: (r['competition_year_id'] as string) || '',
+			minGrade: (r['min_grade'] as number) || 0,
+			maxGrade: (r['max_grade'] as number) || 0,
+			type: (r['type'] as 'scripture' | 'essay') || 'scripture',
+			targetCount: (r['target_count'] as number) || 0,
+			promptText: (r['prompt_text'] as string) || undefined,
+			instructions: (r['instructions'] as string) || undefined,
+			createdAt: (r['created_at'] as string) || '',
+			updatedAt: (r['updated_at'] as string) || '',
 		};
 	}
 }

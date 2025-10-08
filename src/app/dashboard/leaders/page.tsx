@@ -19,7 +19,7 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { queryLeaderProfiles, searchLeaderProfiles, migrateLeadersIfNeeded } from '@/lib/dal';
+import { migrateLeadersIfNeeded } from '@/lib/dal';
 import { Badge } from '@/components/ui/badge';
 import { ChevronRight, Plus, Search, UserPlus, User } from 'lucide-react';
 import type { LeaderProfile } from '@/lib/types';
@@ -27,6 +27,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { AuthRole } from '@/lib/auth-types';
 import { LeaderProfileDialog } from './leader-profile-dialog';
 import { useToast } from '@/hooks/use-toast';
+import { useLeaders, useLeaderSearch } from '@/lib/hooks/useData';
 
 export default function LeadersPage() {
 	const router = useRouter();
@@ -35,50 +36,40 @@ export default function LeadersPage() {
 	const [isAuthorized, setIsAuthorized] = useState(false);
 	const [searchTerm, setSearchTerm] = useState('');
 	const [isDialogOpen, setIsDialogOpen] = useState(false);
-	const [selectedLeader, setSelectedLeader] = useState<LeaderProfile | null>(null);
+	const [selectedLeader, setSelectedLeader] = useState<LeaderProfile | null>(
+		null
+	);
 	const [isMigrationComplete, setIsMigrationComplete] = useState(false);
 
-	// State management for data loading
-	const [allLeaders, setAllLeaders] = useState<LeaderProfile[]>([]);
-	const [searchResults, setSearchResults] = useState<LeaderProfile[] | null>(null);
-	const [dataLoading, setDataLoading] = useState(true);
+	// Use React Query hooks for data fetching
+	const {
+		data: allLeaders = [],
+		isLoading: allLeadersLoading,
+		error: allLeadersError,
+	} = useLeaders();
+	const {
+		data: searchResults = [],
+		isLoading: searchLoading,
+		error: searchError,
+	} = useLeaderSearch(searchTerm);
 
-	// Load leaders data
+	// Determine which data to use and loading state
+	const isLoading = searchTerm.trim() ? searchLoading : allLeadersLoading;
+	const error = searchTerm.trim() ? searchError : allLeadersError;
+	const leaders = searchTerm.trim() ? searchResults : allLeaders;
+
+	// Handle errors
 	useEffect(() => {
-		const loadLeaders = async () => {
-			try {
-				setDataLoading(true);
-				console.log('Loading leaders data...');
-				if (searchTerm.trim()) {
-					console.log('Searching leaders with term:', searchTerm.trim());
-					const results = await searchLeaderProfiles(searchTerm.trim());
-					console.log('Search results:', results);
-					setSearchResults(results);
-				} else {
-					console.log('Loading all leaders...');
-					const leaders = await queryLeaderProfiles();
-					console.log('All leaders loaded:', leaders);
-					setAllLeaders(leaders);
-					setSearchResults(null);
-				}
-			} catch (error) {
-				console.error('Error loading leaders:', error);
-				// Show error message to user
-				toast({
-					title: 'Failed to Load Leaders',
-					description: 'There was an error loading leader data. Please try refreshing the page.',
-					variant: 'destructive',
-				});
-			} finally {
-				setDataLoading(false);
-			}
-		};
-
-		loadLeaders();
-	}, [searchTerm, toast]);
-
-	// Use search results if available, otherwise all leaders
-	const leaders = searchResults || allLeaders || [];
+		if (error) {
+			console.error('Error loading leaders:', error);
+			toast({
+				title: 'Failed to Load Leaders',
+				description:
+					'There was an error loading leader data. Please try refreshing the page.',
+				variant: 'destructive',
+			});
+		}
+	}, [error, toast]);
 
 	useEffect(() => {
 		if (!loading && user) {
@@ -101,8 +92,9 @@ export default function LeadersPage() {
 				.then((migrated) => {
 					if (migrated) {
 						toast({
-							title: "Leaders Migrated",
-							description: "Existing leaders have been migrated to the new system.",
+							title: 'Leaders Migrated',
+							description:
+								'Existing leaders have been migrated to the new system.',
 						});
 					}
 					setIsMigrationComplete(true);
@@ -123,7 +115,7 @@ export default function LeadersPage() {
 		setIsDialogOpen(true);
 	};
 
-	if (loading || !isAuthorized || dataLoading) {
+	if (loading || !isAuthorized || isLoading) {
 		return <div>Loading leaders...</div>;
 	}
 
@@ -146,9 +138,12 @@ export default function LeadersPage() {
 				<CardHeader>
 					<div className="flex justify-between items-center">
 						<div>
-							<CardTitle className="font-headline">All Leader Profiles</CardTitle>
+							<CardTitle className="font-headline">
+								All Leader Profiles
+							</CardTitle>
 							<CardDescription>
-								Search and manage leader profiles. Click a row or button to edit profile and ministry assignments.
+								Search and manage leader profiles. Click a row or button to edit
+								profile and ministry assignments.
 							</CardDescription>
 						</div>
 						<div className="flex items-center gap-2 w-80">
@@ -195,7 +190,8 @@ export default function LeadersPage() {
 									<TableCell>
 										<div className="flex items-center gap-2">
 											<span className="text-sm text-muted-foreground">
-												{leader.ministryCount} {leader.ministryCount === 1 ? 'ministry' : 'ministries'}
+												{leader.ministryCount}{' '}
+												{leader.ministryCount === 1 ? 'ministry' : 'ministries'}
 											</span>
 										</div>
 									</TableCell>
@@ -219,7 +215,9 @@ export default function LeadersPage() {
 									<TableCell
 										colSpan={6}
 										className="text-center h-24 text-muted-foreground">
-										{searchTerm.trim() ? 'No leaders found matching your search.' : 'No leader profiles found.'}
+										{searchTerm.trim()
+											? 'No leaders found matching your search.'
+											: 'No leader profiles found.'}
 									</TableCell>
 								</TableRow>
 							)}
@@ -228,7 +226,7 @@ export default function LeadersPage() {
 				</CardContent>
 			</Card>
 
-			<LeaderProfileDialog 
+			<LeaderProfileDialog
 				leader={selectedLeader}
 				open={isDialogOpen}
 				onOpenChange={setIsDialogOpen}

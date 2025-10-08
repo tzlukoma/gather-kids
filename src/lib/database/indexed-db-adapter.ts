@@ -29,6 +29,7 @@ import type {
 	Enrollment,
 	EnrollmentOverride,
 	Scripture,
+	GradeRule,
 } from '../types';
 
 export class IndexedDBAdapter implements DatabaseAdapter {
@@ -875,21 +876,25 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 	// Ministry Group RBAC helpers - IndexedDB implementation
 	async listAccessibleMinistriesForEmail(email: string): Promise<Ministry[]> {
 		const normalizedEmail = email.toLowerCase().trim();
+		console.log('🔍 IndexedDBAdapter.listAccessibleMinistriesForEmail: Starting lookup for', normalizedEmail);
 		
 		// Get ministries via direct accounts
 		const directAccounts = await this.db.ministry_accounts
 			.where('email').equals(normalizedEmail)
 			.toArray();
+		console.log('🔍 IndexedDBAdapter: Direct accounts found:', directAccounts.length, directAccounts);
 		
 		// Get ministries via group email
 		const groups = await this.db.ministry_groups
 			.filter(group => group.email && group.email.toLowerCase() === normalizedEmail)
 			.toArray();
+		console.log('🔍 IndexedDBAdapter: Groups found:', groups.length, groups);
 			
 		const groupIds = groups.map(g => g.id);
 		const groupMemberships = groupIds.length > 0 
 			? await this.db.ministry_group_members.where('group_id').anyOf(groupIds).toArray()
 			: [];
+		console.log('🔍 IndexedDBAdapter: Group memberships found:', groupMemberships.length, groupMemberships);
 		
 		// Collect all ministry IDs
 		const directMinistryIds = directAccounts
@@ -898,10 +903,16 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 		const groupMinistryIds = groupMemberships.map(m => m.ministry_id);
 		
 		const allMinistryIds = [...new Set([...directMinistryIds, ...groupMinistryIds])];
+		console.log('🔍 IndexedDBAdapter: All ministry IDs:', allMinistryIds);
 		
-		if (allMinistryIds.length === 0) return [];
+		if (allMinistryIds.length === 0) {
+			console.log('🔍 IndexedDBAdapter: No ministry IDs found, returning empty array');
+			return [];
+		}
 		
-		return this.db.ministries.where('ministry_id').anyOf(allMinistryIds).toArray();
+		const ministries = await this.db.ministries.where('ministry_id').anyOf(allMinistryIds).toArray();
+		console.log('🔍 IndexedDBAdapter: Final ministries found:', ministries.length, ministries.map(m => ({ id: m.ministry_id, name: m.name })));
+		return ministries;
 	}
 
 	async listAccessibleMinistriesForAccount(accountId: string): Promise<Ministry[]> {
@@ -1169,7 +1180,7 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 	}
 
 	async getEnrollment(id: string): Promise<Enrollment | null> {
-		const result = await this.db.enrollments.get(id);
+		const result = await this.db.bible_bee_enrollments.get(id);
 		return result || null;
 	}
 
@@ -1180,13 +1191,13 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 			...data,
 			id: uuidv4(),
 		};
-		await this.db.enrollments.add(enrollment);
+		await this.db.bible_bee_enrollments.add(enrollment);
 		return enrollment;
 	}
 
 	async updateEnrollment(id: string, data: Partial<Enrollment>): Promise<Enrollment> {
-		await this.db.enrollments.update(id, data);
-		const result = await this.db.enrollments.get(id);
+		await this.db.bible_bee_enrollments.update(id, data);
+		const result = await this.db.bible_bee_enrollments.get(id);
 		if (!result) throw new Error(`Enrollment ${id} not found after update`);
 		return result;
 	}
@@ -1195,20 +1206,20 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 		childId?: string,
 		bibleBeeYearId?: string
 	): Promise<Enrollment[]> {
-		let collection = this.db.enrollments.toCollection();
+		let collection = this.db.bible_bee_enrollments.toCollection();
 
 		if (childId) {
-			collection = this.db.enrollments.where('child_id').equals(childId);
+			collection = this.db.bible_bee_enrollments.where('child_id').equals(childId);
 		}
 		if (bibleBeeYearId) {
-			collection = collection.and((e: Enrollment | unknown) => (e as Enrollment).year_id === bibleBeeYearId);
+			collection = collection.and((e: Enrollment | unknown) => (e as Enrollment).bible_bee_cycle_id === bibleBeeYearId);
 		}
 
 		return collection.toArray();
 	}
 
 	async deleteEnrollment(id: string): Promise<void> {
-		await this.db.enrollments.delete(id);
+		await this.db.bible_bee_enrollments.delete(id);
 	}
 
 	async getEnrollmentOverride(id: string): Promise<EnrollmentOverride | null> {
@@ -1327,7 +1338,7 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 				this.db.bible_bee_years,
 				this.db.divisions,
 				this.db.essay_prompts,
-				this.db.enrollments,
+				this.db.bible_bee_enrollments,
 				this.db.enrollment_overrides,
 				this.db.form_drafts,
 			],
@@ -1712,5 +1723,21 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 
 	async deleteStudentEssay(id: string): Promise<void> {
 		await this.db.studentEssays.delete(id);
+	}
+
+	// Grade Rules
+	async listGradeRules(yearId?: string): Promise<GradeRule[]> {
+		console.log('IndexedDBAdapter.listGradeRules called:', { yearId });
+		
+		let rules: GradeRule[];
+		
+		if (yearId) {
+			rules = await this.db.gradeRules.where('competitionYearId').equals(yearId).toArray();
+		} else {
+			rules = await this.db.gradeRules.toArray();
+		}
+		
+		console.log('IndexedDBAdapter.listGradeRules result:', { count: rules.length });
+		return rules;
 	}
 }

@@ -180,11 +180,6 @@ function CheckInContent() {
 						<h1 className="text-xl font-bold font-headline text-muted-foreground">
 							Child Check-In & Out
 						</h1>
-						<Badge
-							variant="secondary"
-							className="text-xs bg-blue-100 text-blue-800 border border-blue-200">
-							Beta
-						</Badge>
 					</div>
 					<Dialog open={isEventDialogOpen} onOpenChange={setIsEventDialogOpen}>
 						<DialogTrigger asChild>

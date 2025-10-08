@@ -547,7 +547,7 @@ function YearManagement({
 								<option value="">Select a registration cycle</option>
 								{registrationCycles?.map((cycle) => (
 									<option key={cycle.cycle_id} value={cycle.cycle_id}>
-										{cycle.cycle_id} ({cycle.is_active ? 'Active' : 'Inactive'})
+										{cycle.name} ({cycle.is_active ? 'Active' : 'Inactive'})
 									</option>
 								))}
 							</select>
@@ -670,7 +670,7 @@ function DivisionManagement({
 	const [formData, setFormData] = useState({
 		name: '',
 		minimum_required: 0,
-		min_grade: 0,
+		min_grade: -1,
 		max_grade: 12,
 	});
 	const [error, setError] = useState<string | null>(null);
@@ -701,7 +701,7 @@ function DivisionManagement({
 			setFormData({
 				name: '',
 				minimum_required: 0,
-				min_grade: 0,
+				min_grade: -1,
 				max_grade: 12,
 			});
 		} catch (error: any) {
@@ -832,9 +832,9 @@ function DivisionManagement({
 										<SelectValue />
 									</SelectTrigger>
 									<SelectContent>
-										{Array.from({ length: 13 }, (_, i) => (
-											<SelectItem key={i} value={i.toString()}>
-												{gradeCodeToLabel(i)}
+										{Array.from({ length: 14 }, (_, i) => (
+											<SelectItem key={i} value={(i - 1).toString()}>
+												{gradeCodeToLabel(i - 1)}
 											</SelectItem>
 										))}
 									</SelectContent>
@@ -853,9 +853,9 @@ function DivisionManagement({
 										<SelectValue />
 									</SelectTrigger>
 									<SelectContent>
-										{Array.from({ length: 13 }, (_, i) => (
-											<SelectItem key={i} value={i.toString()}>
-												{gradeCodeToLabel(i)}
+										{Array.from({ length: 14 }, (_, i) => (
+											<SelectItem key={i} value={(i - 1).toString()}>
+												{gradeCodeToLabel(i - 1)}
 											</SelectItem>
 										))}
 									</SelectContent>

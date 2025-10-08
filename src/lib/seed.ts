@@ -24,15 +24,15 @@ const EVENT_IDS = {
 const HOUSEHOLD_IDS: { [key: string]: string } = {};
 
 // Return a numeric grade string so Bible Bee grade rules can be applied reliably:
-// Kindergarten -> 0, 1st grade -> 1, etc. Cap at 12.
+// Pre-K -> -1, Kindergarten -> 0, 1st grade -> 1, etc. Cap at 12.
 const getGradeFromAge = (age: number): string => {
-    if (age <= 4) return '0'; // Pre-K -> treat as Kindergarten (0)
-    if (age === 5) return '0'; // Kindergarten
-    if (age >= 6) {
-        const grade = age - 5;
+    if (age <= 3) return '-1'; // Pre-K
+    if (age === 4) return '0'; // Kindergarten
+    if (age >= 5) {
+        const grade = age - 4;
         return String(Math.min(12, grade));
     }
-    return '0';
+    return '-1';
 }
 
 const generateHouseholdsAndChildren = (): { households: Household[], children: Child[], guardians: Guardian[], emergencyContacts: EmergencyContact[] } => {
@@ -300,9 +300,9 @@ export const seedDB = async () => {
                 {
                     id: uuidv4(),
                     year_id: bibleBeeYearId,
-                    name: 'Primary (Kindergarten - 3rd)',
+                    name: 'Primary (Pre-K - 3rd)',
                     minimum_required: 15,
-                    min_grade: 0,
+                    min_grade: -1,
                     max_grade: 3,
                     created_at: now,
                     updated_at: now,
@@ -449,7 +449,7 @@ export const seedDB = async () => {
                     bibleBeeEnrollments.push({
                         id: uuidv4(),
                         child_id: child.child_id,
-                        year_id: bibleBeeYearId,
+                        bible_bee_cycle_id: bibleBeeYearId, // Fixed: was year_id
                         division_id: appropriateDivision.id,
                         auto_enrolled: false,
                         enrolled_at: now,

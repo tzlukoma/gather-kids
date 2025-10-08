@@ -22,9 +22,16 @@ export function createDatabaseAdapter(): DatabaseAdapter {
 		const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
 		if (!supabaseUrl || !supabaseKey) {
-			console.error(
-				'Supabase URL and key are required when using Supabase mode'
-			);
+			console.error('❌ Supabase configuration missing for UAT environment:', {
+				supabaseUrl: supabaseUrl ? 'SET' : 'MISSING',
+				supabaseKey: supabaseKey ? 'SET' : 'MISSING',
+				NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
+				NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? 'SET' : 'MISSING',
+				mode: mode
+			});
+			console.error('Please set the following environment variables for UAT:');
+			console.error('- NEXT_PUBLIC_SUPABASE_URL');
+			console.error('- NEXT_PUBLIC_SUPABASE_ANON_KEY');
 			// Fallback to demo mode if Supabase config is missing
 			console.log('Falling back to IndexedDB adapter due to missing Supabase config');
 			return new IndexedDBAdapter();

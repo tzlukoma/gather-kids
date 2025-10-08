@@ -399,7 +399,7 @@ export async function registerHouseholdCanonical(data: Record<string, unknown>, 
                       await dbAdapter.createEnrollment({
                         id: uuidv4(),
                         child_id: childId,
-                          year_id: bibleBeeCycle.id,
+                        bible_bee_cycle_id: bibleBeeCycle.id, // Fixed: was year_id
                         division_id: appropriateDivision.id,
                         auto_enrolled: false,
                         enrolled_at: now,
@@ -805,7 +805,7 @@ export async function registerHouseholdCanonical(data: Record<string, unknown>, 
                       await dbAdapter.createEnrollment({
                         id: uuidv4(),
                         child_id: childId,
-                          year_id: bibleBeeCycle.id,
+                        bible_bee_cycle_id: bibleBeeCycle.id, // Fixed: was year_id
                         division_id: appropriateDivision.id,
                         auto_enrolled: false,
                         enrolled_at: now,

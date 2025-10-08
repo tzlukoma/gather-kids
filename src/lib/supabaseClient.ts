@@ -46,8 +46,19 @@ export const supabaseBrowser = () => {
   const isTestEnv = process.env.NODE_ENV === 'test';
   
   // Use dummy values for testing to avoid the "URL and API key required" error
-  const supabaseUrl = isTestEnv ? 'https://test.supabase.co' : process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const supabaseAnonKey = isTestEnv ? 'test-anon-key' : process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+  const supabaseUrl = isTestEnv ? 'https://test.supabase.co' : process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = isTestEnv ? 'test-anon-key' : process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  // Check if we have valid Supabase configuration
+  if (!isTestEnv && (!supabaseUrl || !supabaseAnonKey)) {
+    console.error('❌ Supabase configuration missing:', {
+      supabaseUrl: supabaseUrl ? 'SET' : 'MISSING',
+      supabaseAnonKey: supabaseAnonKey ? 'SET' : 'MISSING',
+      NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? 'SET' : 'MISSING'
+    });
+    throw new Error('Supabase configuration is missing. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY environment variables.');
+  }
 
   // Check if we're in a Vercel preview environment
   const isVercelPreview = 
@@ -135,7 +146,12 @@ export const handlePKCECodeExchange = async (code: string) => {
     // Check if we might already be signed in (this could happen if auth worked but callback handling failed)
     const client = supabase;
     if (!client) throw new Error('Supabase client not available in this environment');
-    const { data: sessionData } = await client.auth.getSession();
+    
+    const sessionPromise = client.auth.getSession();
+    const sessionTimeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Session check timeout after 5 seconds')), 5000)
+    );
+    const { data: sessionData } = await Promise.race([sessionPromise, sessionTimeoutPromise]);
     if (sessionData?.session) {
       console.log('- Already have active session:', sessionData.session.user.id);
       return { data: sessionData, error: null };
@@ -144,7 +160,11 @@ export const handlePKCECodeExchange = async (code: string) => {
     // If we have tokens but no session, try to refresh the session first
     if (hasSupabaseTokens && !sessionData?.session) {
       console.log('- Found tokens but no session, attempting session refresh...');
-  const refreshResult = await client.auth.refreshSession();
+      const refreshPromise = client.auth.refreshSession();
+      const refreshTimeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Session refresh timeout after 5 seconds')), 5000)
+      );
+      const refreshResult = await Promise.race([refreshPromise, refreshTimeoutPromise]);
       if (refreshResult.data?.session) {
         console.log('- Session refresh succeeded!', refreshResult.data.session.user.id);
         return refreshResult;
@@ -153,9 +173,14 @@ export const handlePKCECodeExchange = async (code: string) => {
       }
     }
     
-    // Attempt the exchange
+    // Attempt the exchange with timeout
     console.log('- Starting code exchange...');
-  const result = await client.auth.exchangeCodeForSession(code);
+    const exchangePromise = client.auth.exchangeCodeForSession(code);
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Code exchange timeout after 10 seconds')), 10000)
+    );
+    
+    const result = await Promise.race([exchangePromise, timeoutPromise]);
     console.log('- Exchange completed', result);
     
     // Check for Supabase-created auth tokens even if there was an error
@@ -168,7 +193,11 @@ export const handlePKCECodeExchange = async (code: string) => {
         
         // If we see tokens but got an error, make one more attempt to get a session
         console.log('- Attempting to recover session after partial success...');
-  const recoveryResult = await client.auth.refreshSession();
+        const recoveryPromise = client.auth.refreshSession();
+        const recoveryTimeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Session recovery timeout after 5 seconds')), 5000)
+        );
+        const recoveryResult = await Promise.race([recoveryPromise, recoveryTimeoutPromise]);
         if (recoveryResult.data?.session) {
           console.log('- Session recovery succeeded after partial success!');
           return recoveryResult;

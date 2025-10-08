@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { dbAdapter } from '@/lib/db-utils';
 import { shouldUseAdapter } from '@/lib/dal';
-import { db } from '@/lib/db';
 import type { CompetitionYear, GradeRule, Scripture } from '@/lib/types';
 import { createCompetitionYear, upsertScripture, createGradeRule as createRule, toggleScriptureCompletion, submitEssay } from '@/lib/bibleBee';
 import { getBibleBeeCycles, getScripturesForBibleBeeCycle, getChild, getHousehold, updateChildPhoto } from '@/lib/dal';
@@ -98,7 +97,7 @@ export function useScripturesForYear(yearId: string) {
                     }
                 } else {
                     // Use legacy Dexie for demo mode
-                    const s = await db.scriptures.where('competitionYearId').equals(yearId).toArray();
+                    const s = await getScripturesForBibleBeeCycle(yearId);
                     if (mounted) {
                         const sorted = s.sort((a: Scripture, b: Scripture) => {
             const aRec = a as unknown as Record<string, unknown>;

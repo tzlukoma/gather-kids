@@ -1,7 +1,7 @@
 'use client';
 import React from 'react';
 import { useParams } from 'next/navigation';
-import { db } from '@/lib/db';
+import { dbAdapter } from '@/lib/dal';
 import {
 	useScripturesForYear,
 	useScripturesForYearQuery,
@@ -44,9 +44,7 @@ export default function YearManagePage() {
 	React.useEffect(() => {
 		let mounted = true;
 		async function load() {
-			const r = await db.gradeRules
-				.where({ competitionYearId: yearId })
-				.toArray();
+			const r = await dbAdapter.listGradeRules(yearId);
 			if (mounted) {
 				setLocalScriptures(scriptures);
 				// collect versions from scriptures
@@ -124,10 +122,7 @@ export default function YearManagePage() {
 	async function handleCommitPreview() {
 		if (!filePreview) return;
 		await commitCsvRowsToYear(filePreview, yearId);
-		const s = await db.scriptures
-			.where('competitionYearId')
-			.equals(yearId)
-			.toArray();
+		const s = await dbAdapter.listScriptures({ yearId });
 		setLocalScriptures(
 			s.sort(
 				(a: any, b: any) =>

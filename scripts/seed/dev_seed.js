@@ -97,6 +97,8 @@ const counters = {
 	ministry_enrollments: 0,
 	events: 0,
 	incidents: 0,
+	leader_profiles: 0,
+	leader_assignments: 0,
 };
 
 // Helper function to convert ministry name to email
@@ -1026,6 +1028,191 @@ async function createMinistryEnrollmentsData(activeCycleId) {
 }
 
 /**
+ * Create ministry leaders and their assignments using direct Supabase calls
+ */
+async function createMinistryLeadersData() {
+	try {
+		console.log('👤 Creating ministry leaders and assignments...');
+
+		// Create 3 ministry leaders
+		const leadersData = [
+			{
+				leader_id: crypto.randomUUID(),
+				first_name: 'Sarah',
+				last_name: 'Lee',
+				email: 'sarah.lee@example.com',
+				phone: '555-123-4567',
+				background_check_complete: true,
+				is_active: true,
+				notes: 'Primary Sunday School leader with 5 years experience',
+			},
+			{
+				leader_id: crypto.randomUUID(),
+				first_name: 'Michael',
+				last_name: 'Chen',
+				email: 'michael.chen@example.com',
+				phone: '555-234-5678',
+				background_check_complete: true,
+				is_active: true,
+				notes: 'Bible Bee coordinator and youth mentor',
+			},
+			{
+				leader_id: crypto.randomUUID(),
+				first_name: 'Jessica',
+				last_name: 'Rodriguez',
+				email: 'jessica.rodriguez@example.com',
+				phone: '555-345-6789',
+				background_check_complete: true,
+				is_active: true,
+				notes: 'Dance ministry director and choir assistant',
+			},
+		];
+
+		// Store created leader IDs for use in assignments
+		const leaderMap = {};
+
+		// Create the leader profiles
+		for (const leaderData of leadersData) {
+			try {
+				// Check if leader already exists
+				const { data: existing } = await client
+					.from('leader_profiles')
+					.select('leader_id')
+					.eq('email', leaderData.email)
+					.single();
+
+				if (existing) {
+					console.log(
+						`✅ Leader profile already exists for ${leaderData.first_name} ${leaderData.last_name}`
+					);
+					leaderMap[leaderData.email] = existing.leader_id;
+				} else {
+					const { data, error } = await client
+						.from('leader_profiles')
+						.insert(leaderData)
+						.select()
+						.single();
+
+					if (error) {
+						throw new Error(
+							`Failed to create leader profile: ${error.message}`
+						);
+					}
+
+					console.log(
+						`✅ Created leader profile for ${leaderData.first_name} ${leaderData.last_name}`
+					);
+					leaderMap[leaderData.email] = data.leader_id;
+					counters.leader_profiles++;
+				}
+			} catch (error) {
+				console.log(
+					`⚠️ Failed to create leader profile for ${leaderData.first_name} ${leaderData.last_name}: ${error.message}`
+				);
+			}
+		}
+
+		// Create ministry assignments for each leader
+		const assignmentsData = [
+			// Sarah Lee - Sunday School and Joy Bells
+			{
+				assignment_id: crypto.randomUUID(),
+				leader_id: leaderMap['sarah.lee@example.com'],
+				ministry_id: 'min_sunday_school',
+				role: 'PRIMARY',
+				is_active: true,
+				notes: 'Primary Sunday School leader',
+			},
+			{
+				assignment_id: crypto.randomUUID(),
+				leader_id: leaderMap['sarah.lee@example.com'],
+				ministry_id: `${EXTERNAL_ID_PREFIX}joy_bells`,
+				role: 'VOLUNTEER',
+				is_active: true,
+				notes: 'Joy Bells choir assistant',
+			},
+			// Michael Chen - Bible Bee and Keita Choir
+			{
+				assignment_id: crypto.randomUUID(),
+				leader_id: leaderMap['michael.chen@example.com'],
+				ministry_id: `${EXTERNAL_ID_PREFIX}bible_bee`,
+				role: 'PRIMARY',
+				is_active: true,
+				notes: 'Bible Bee coordinator',
+			},
+			{
+				assignment_id: crypto.randomUUID(),
+				leader_id: leaderMap['michael.chen@example.com'],
+				ministry_id: `${EXTERNAL_ID_PREFIX}keita_choir`,
+				role: 'VOLUNTEER',
+				is_active: true,
+				notes: 'Keita Choir assistant',
+			},
+			// Jessica Rodriguez - Dance Ministry and Teen Choir
+			{
+				assignment_id: crypto.randomUUID(),
+				leader_id: leaderMap['jessica.rodriguez@example.com'],
+				ministry_id: `${EXTERNAL_ID_PREFIX}dance`,
+				role: 'PRIMARY',
+				is_active: true,
+				notes: 'Dance ministry director',
+			},
+			{
+				assignment_id: crypto.randomUUID(),
+				leader_id: leaderMap['jessica.rodriguez@example.com'],
+				ministry_id: `${EXTERNAL_ID_PREFIX}teen_choir`,
+				role: 'VOLUNTEER',
+				is_active: true,
+				notes: 'Teen Choir assistant',
+			},
+		];
+
+		// Create the assignments
+		for (const assignmentData of assignmentsData) {
+			try {
+				// Check if assignment already exists
+				const { data: existing } = await client
+					.from('leader_assignments')
+					.select('assignment_id')
+					.eq('leader_id', assignmentData.leader_id)
+					.eq('ministry_id', assignmentData.ministry_id)
+					.single();
+
+				if (existing) {
+					console.log(
+						`✅ Assignment already exists for leader ${assignmentData.leader_id} in ministry ${assignmentData.ministry_id}`
+					);
+				} else {
+					const { data, error } = await client
+						.from('leader_assignments')
+						.insert(assignmentData)
+						.select()
+						.single();
+
+					if (error) {
+						throw new Error(
+							`Failed to create leader assignment: ${error.message}`
+						);
+					}
+
+					console.log(
+						`✅ Created assignment for leader in ministry ${assignmentData.ministry_id}`
+					);
+					counters.leader_assignments++;
+				}
+			} catch (error) {
+				console.log(`⚠️ Failed to create assignment: ${error.message}`);
+			}
+		}
+
+		console.log('✅ Ministry leaders and assignments created successfully');
+	} catch (error) {
+		console.error('❌ Error creating ministry leaders:', error.message);
+		throw error;
+	}
+}
+
+/**
  * Create incidents using direct Supabase calls
  */
 async function createIncidentsData() {
@@ -1116,6 +1303,9 @@ async function seedDevData() {
 		// Create ministry groups and assign choir ministries
 		await createMinistryGroupsData();
 
+		// Create ministry leaders and assignments
+		await createMinistryLeadersData();
+
 		// Create Bible Bee cycles
 		await createBibleBeeCyclesData(activeCycleId);
 
@@ -1139,6 +1329,8 @@ async function seedDevData() {
 			`- ${counters.registration_cycles} registration cycles created`
 		);
 		console.log(`- ${counters.bible_bee_years} Bible Bee cycles created`);
+		console.log(`- ${counters.leader_profiles} leader profiles created`);
+		console.log(`- ${counters.leader_assignments} leader assignments created`);
 		console.log(`- ${counters.households} households created`);
 		console.log(`- ${counters.guardians} guardians created`);
 		console.log(`- ${counters.children} children created`);
@@ -1159,6 +1351,14 @@ async function seedDevData() {
 		);
 		console.log(
 			'- Acolyte ministry only in Smith household for filtering test'
+		);
+		console.log('- 3 ministry leaders with multiple assignments each');
+		console.log('- Sarah Lee: Sunday School (Primary) + Joy Bells (Volunteer)');
+		console.log(
+			'- Michael Chen: Bible Bee (Primary) + Keita Choir (Volunteer)'
+		);
+		console.log(
+			'- Jessica Rodriguez: Dance Ministry (Primary) + Teen Choir (Volunteer)'
 		);
 		console.log('- Ministry accounts created for all ministries');
 		console.log('- Registration cycle set up properly');

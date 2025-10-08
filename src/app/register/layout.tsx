@@ -6,6 +6,7 @@ import { Settings } from 'lucide-react';
 import { FeatureFlagDialog } from '@/components/feature-flag-dialog';
 import { useFeatureFlags } from '@/contexts/feature-flag-context';
 import { useBranding } from '@/contexts/branding-context';
+import { useRouter } from 'next/navigation';
 
 export default function RegisterLayout({
 	children,
@@ -15,12 +16,20 @@ export default function RegisterLayout({
 	const [isFlagDialogOpen, setIsFlagDialogOpen] = useState(false);
 	const { flags } = useFeatureFlags();
 	const { settings } = useBranding();
+	const router = useRouter();
+
+	const handleLogoClick = () => {
+		router.push('/');
+	};
 
 	return (
 		<div className="flex flex-col min-h-screen bg-background">
 			<header className="p-4 border-b">
 				<div className="container mx-auto flex items-center gap-2">
-					<div className="flex items-center gap-2">
+					<button
+						onClick={handleLogoClick}
+						className="flex items-center gap-2 hover:opacity-80 transition-opacity cursor-pointer"
+						aria-label="Go to home page">
 						{settings.logo_url ? (
 							<>
 								<img
@@ -41,7 +50,7 @@ export default function RegisterLayout({
 								{settings.app_name || 'gatherKids'}
 							</div>
 						)}
-					</div>
+					</button>
 				</div>
 			</header>
 			<main className="flex-1 container mx-auto p-4 md:p-6 lg:p-8">
