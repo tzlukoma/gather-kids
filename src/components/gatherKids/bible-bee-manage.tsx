@@ -2595,6 +2595,7 @@ function OverrideManagement({
 
 	// Get child details for overrides
 	const enrichedOverrides = React.useMemo(() => {
+		console.log('DEBUG: enrichedOverrides - overrides:', overrides, 'children:', children?.length, 'divisions:', divisions?.length);
 		if (!overrides || !children) return [];
 
 		return overrides.map((override) => {
