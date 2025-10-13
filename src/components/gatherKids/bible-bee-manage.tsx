@@ -2499,7 +2499,9 @@ function EnrollmentManagement({
 										{preview.previews.map((child: any) => (
 											<tr key={child.child_id} className="border-t">
 												<td className="p-2 font-medium">{child.child_name}</td>
-												<td className="p-2">{normalizeGradeDisplay(child.grade_text)}</td>
+												<td className="p-2">
+													{normalizeGradeDisplay(child.grade_text)}
+												</td>
 												<td className="p-2">{getStatusBadge(child.status)}</td>
 												<td className="p-2">
 													{child.override_division?.name ||
@@ -2878,7 +2880,9 @@ function OverrideManagement({
 									<div className="space-y-1 flex-1">
 										<h3 className="font-medium">{override.child_name}</h3>
 										<div className="text-sm text-muted-foreground space-y-1">
-											<div>Grade: {normalizeGradeDisplay(override.child_grade)}</div>
+											<div>
+												Grade: {normalizeGradeDisplay(override.child_grade)}
+											</div>
 											<div>Division: {override.division_name}</div>
 											{override.reason && <div>Reason: {override.reason}</div>}
 											<div>
