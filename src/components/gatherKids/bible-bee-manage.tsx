@@ -22,6 +22,8 @@ import {
 	updateEnrollmentOverride,
 	deleteEnrollmentOverride,
 	deleteEnrollmentOverrideByChild,
+	applyEnrollmentOverride,
+	removeEnrollmentOverrideEffect,
 	recalculateMinimumBoundaries,
 	commitEnhancedCsvRowsToYear,
 	validateJsonTextUpload,
@@ -2629,8 +2631,7 @@ function OverrideManagement({
 		setError(null);
 		try {
 			const overrideData = {
-				bible_bee_cycle_id: selectedCycle._isNewSchema ? yearId : null,
-				competitionYearId: selectedCycle._isNewSchema ? '' : yearId,
+				bible_bee_cycle_id: yearId,
 				child_id: selectedChild.child_id,
 				division_id: formData.division_id,
 				reason: formData.reason,
@@ -2639,6 +2640,12 @@ function OverrideManagement({
 
 			if (editingOverride) {
 				await updateEnrollmentOverride(editingOverride.id, overrideData);
+				// Apply the override immediately to the actual enrollment
+				await applyEnrollmentOverride(
+					selectedChild.child_id,
+					yearId,
+					formData.division_id
+				);
 				toast({
 					title: 'Override Updated',
 					description: `Override for ${selectedChild.first_name} ${selectedChild.last_name} has been updated.`,
@@ -2648,6 +2655,12 @@ function OverrideManagement({
 				await deleteEnrollmentOverrideByChild(selectedChild.child_id);
 				// Create new override
 				await createEnrollmentOverride(overrideData);
+				// Apply the override immediately to the actual enrollment
+				await applyEnrollmentOverride(
+					selectedChild.child_id,
+					yearId,
+					formData.division_id
+				);
 				toast({
 					title: 'Override Created',
 					description: `Override for ${selectedChild.first_name} ${selectedChild.last_name} has been created.`,
@@ -2669,6 +2682,8 @@ function OverrideManagement({
 		if (confirm(`Delete override for ${override.child_name}?`)) {
 			try {
 				await deleteEnrollmentOverride(override.id);
+				// Remove the override effect from the actual enrollment
+				await removeEnrollmentOverrideEffect(override.child_id, yearId);
 				toast({
 					title: 'Override Deleted',
 					description: `Override for ${override.child_name} has been deleted.`,

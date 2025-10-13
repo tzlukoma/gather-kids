@@ -1259,6 +1259,10 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 		await this.db.enrollment_overrides.delete(id);
 	}
 
+	async deleteEnrollmentOverrideByChild(childId: string): Promise<void> {
+		await this.db.enrollment_overrides.where('child_id').equals(childId).delete();
+	}
+
 	// Student Scripture methods
 	async getStudentScripture(id: string): Promise<StudentScripture | null> {
 		const result = await this.db.studentScriptures.get(id);

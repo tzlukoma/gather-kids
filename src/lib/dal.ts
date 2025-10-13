@@ -3704,6 +3704,101 @@ export async function deleteEnrollmentOverrideByChild(childId: string): Promise<
 }
 
 /**
+ * Remove enrollment override effect (revert to auto-enrolled or delete enrollment)
+ */
+export async function removeEnrollmentOverrideEffect(childId: string, yearId: string): Promise<void> {
+	if (shouldUseAdapter()) {
+		// Use Supabase adapter for live mode
+		const existingEnrollments = await dbAdapter.listEnrollments(childId, yearId);
+		
+		if (existingEnrollments.length > 0) {
+			const enrollment = existingEnrollments[0];
+			// If it was manually enrolled (not auto-enrolled), delete it
+			// If it was auto-enrolled, keep it as is
+			if (!enrollment.auto_enrolled) {
+				await dbAdapter.deleteEnrollment(enrollment.id);
+			}
+		}
+	} else {
+		// Use legacy Dexie interface for demo mode
+		const existingEnrollments = await db.bible_bee_enrollments
+			.where({ childId, bible_bee_cycle_id: yearId })
+			.toArray();
+		
+		if (existingEnrollments.length > 0) {
+			const enrollment = existingEnrollments[0];
+			// If it was manually enrolled (not auto-enrolled), delete it
+			// If it was auto-enrolled, keep it as is
+			if (!enrollment.auto_enrolled) {
+				await db.bible_bee_enrollments.delete(enrollment.id);
+			}
+		}
+	}
+}
+
+/**
+ * Apply enrollment override immediately to actual enrollment
+ */
+export async function applyEnrollmentOverride(childId: string, yearId: string, divisionId: string): Promise<void> {
+	if (shouldUseAdapter()) {
+		// Use Supabase adapter for live mode
+		const now = new Date().toISOString();
+		
+		// Check if child already has an enrollment for this year
+		const existingEnrollments = await dbAdapter.listEnrollments(childId, yearId);
+		
+		if (existingEnrollments.length > 0) {
+			// Update existing enrollment
+			const enrollment = existingEnrollments[0];
+			await dbAdapter.updateEnrollment(enrollment.id, {
+				division_id: divisionId,
+				auto_enrolled: false,
+				enrolled_at: now,
+			});
+		} else {
+			// Create new enrollment
+			await dbAdapter.createEnrollment({
+				bible_bee_cycle_id: yearId,
+				child_id: childId,
+				division_id: divisionId,
+				auto_enrolled: false,
+				enrolled_at: now,
+			});
+		}
+	} else {
+		// Use legacy Dexie interface for demo mode
+		const now = new Date().toISOString();
+		
+		// Check if child already has an enrollment for this year
+		const existingEnrollments = await db.bible_bee_enrollments
+			.where({ childId, bible_bee_cycle_id: yearId })
+			.toArray();
+		
+		if (existingEnrollments.length > 0) {
+			// Update existing enrollment
+			const enrollment = existingEnrollments[0];
+			await db.bible_bee_enrollments.update(enrollment.id, {
+				division_id: divisionId,
+				auto_enrolled: false,
+				enrolled_at: now,
+			});
+		} else {
+			// Create new enrollment
+			await db.bible_bee_enrollments.put({
+				id: crypto.randomUUID(),
+				bible_bee_cycle_id: yearId,
+				child_id: childId,
+				division_id: divisionId,
+				auto_enrolled: false,
+				enrolled_at: now,
+				created_at: now,
+				updated_at: now,
+			});
+		}
+	}
+}
+
+/**
  * Get enrollment overrides for a specific year/cycle
  */
 export async function getEnrollmentOverridesForYear(yearId: string): Promise<any[]> {
