@@ -348,6 +348,7 @@ export interface DatabaseAdapter {
 	): Promise<EnrollmentOverride>;
 	listEnrollmentOverrides(yearId?: string): Promise<EnrollmentOverride[]>;
 	deleteEnrollmentOverride(id: string): Promise<void>;
+	deleteEnrollmentOverrideByChild(childId: string): Promise<void>;
 
 	// Student Scripture methods
 	getStudentScripture(id: string): Promise<StudentScripture | null>;

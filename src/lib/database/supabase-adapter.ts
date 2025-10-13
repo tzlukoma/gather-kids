@@ -2916,6 +2916,15 @@ export class SupabaseAdapter implements DatabaseAdapter {
 		if (error) throw error;
 	}
 
+	async deleteEnrollmentOverrideByChild(childId: string): Promise<void> {
+		const { error } = await this.client
+			.from('enrollment_overrides')
+			.delete()
+			.eq('child_id', childId);
+
+		if (error) throw error;
+	}
+
 	// Student Scripture methods
 	async getStudentScripture(id: string): Promise<StudentScripture | null> {
 		const { data, error } = await this.client
