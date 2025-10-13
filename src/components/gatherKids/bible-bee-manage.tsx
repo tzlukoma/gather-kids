@@ -2595,7 +2595,6 @@ function OverrideManagement({
 
 	// Get child details for overrides
 	const enrichedOverrides = React.useMemo(() => {
-		console.log('DEBUG: enrichedOverrides - overrides:', overrides, 'children:', children?.length, 'divisions:', divisions?.length);
 		if (!overrides || !children) return [];
 
 		return overrides.map((override) => {
@@ -2668,6 +2667,10 @@ function OverrideManagement({
 				});
 			}
 
+			// Refresh the overrides list to show updated data
+			const updatedOverrides = await getEnrollmentOverridesForYear(yearId);
+			setOverrides(updatedOverrides);
+
 			setIsCreating(false);
 			setEditingOverride(null);
 			setSelectedChild(null);
@@ -2685,6 +2688,11 @@ function OverrideManagement({
 				await deleteEnrollmentOverride(override.id);
 				// Remove the override effect from the actual enrollment
 				await removeEnrollmentOverrideEffect(override.child_id, yearId);
+				
+				// Refresh the overrides list to show updated data
+				const updatedOverrides = await getEnrollmentOverridesForYear(yearId);
+				setOverrides(updatedOverrides);
+				
 				toast({
 					title: 'Override Deleted',
 					description: `Override for ${override.child_name} has been deleted.`,
