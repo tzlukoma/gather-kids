@@ -2873,8 +2873,8 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			.select()
 			.single();
 
-	if (error) throw error;
-	return supabaseToEnrollmentOverride(result as Database['public']['Tables']['enrollment_overrides']['Row']);
+		if (error) throw error;
+		return supabaseToEnrollmentOverride(result as Database['public']['Tables']['enrollment_overrides']['Row']);
 	}
 
 	async updateEnrollmentOverride(

@@ -2688,11 +2688,11 @@ function OverrideManagement({
 				await deleteEnrollmentOverride(override.id);
 				// Remove the override effect from the actual enrollment
 				await removeEnrollmentOverrideEffect(override.child_id, yearId);
-				
+
 				// Refresh the overrides list to show updated data
 				const updatedOverrides = await getEnrollmentOverridesForYear(yearId);
 				setOverrides(updatedOverrides);
-				
+
 				toast({
 					title: 'Override Deleted',
 					description: `Override for ${override.child_name} has been deleted.`,
