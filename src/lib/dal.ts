@@ -3640,9 +3640,12 @@ export async function commitAutoEnrollment(yearId: string, previews: any[]): Pro
  * Create enrollment override
  */
 export async function createEnrollmentOverride(data: Omit<any, 'id' | 'created_at' | 'updated_at'>): Promise<any> {
+	console.log('DEBUG: createEnrollmentOverride called with data:', data);
 	if (shouldUseAdapter()) {
 		// Use Supabase adapter for live mode
-		return dbAdapter.createEnrollmentOverride(data);
+		const result = await dbAdapter.createEnrollmentOverride(data);
+		console.log('DEBUG: createEnrollmentOverride result:', result);
+		return result;
 	} else {
 		// Use legacy Dexie interface for demo mode
 		const now = new Date().toISOString();
@@ -3654,6 +3657,7 @@ export async function createEnrollmentOverride(data: Omit<any, 'id' | 'created_a
 			created_at: now,
 			updated_at: now,
 		};
+		console.log('DEBUG: Creating override item:', item);
 		await db.enrollment_overrides.put(item);
 		return item;
 	}
@@ -3804,11 +3808,7 @@ export async function applyEnrollmentOverride(childId: string, yearId: string, d
 export async function getEnrollmentOverridesForYear(yearId: string): Promise<any[]> {
 	if (shouldUseAdapter()) {
 		// Use Supabase adapter for live mode
-		const allOverrides = await dbAdapter.listEnrollmentOverrides();
-		// Filter by bible_bee_cycle_id
-		return allOverrides.filter(override => 
-			override.bible_bee_cycle_id === yearId
-		);
+		return await dbAdapter.listEnrollmentOverrides(yearId);
 	} else {
 		// Use legacy Dexie interface for demo mode
 		return db.enrollment_overrides.where('bible_bee_cycle_id').equals(yearId).toArray();
