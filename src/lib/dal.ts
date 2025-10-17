@@ -1765,6 +1765,25 @@ export async function getBibleBeeProgressForCycle(cycleId: string) {
                                    completedScriptures > 0 ? 'In Progress' : 'Not Started';
                 }
                 
+                // Fetch guardian information
+                let primaryGuardian = null;
+                try {
+                    if (child.household_id) {
+                        const guardians = await dbAdapter.listGuardians(child.household_id);
+                        primaryGuardian = guardians.find(g => g.is_primary) || guardians[0] || null;
+                    }
+                } catch (err) {
+                    console.warn('Error fetching guardian for child:', child.child_id, err);
+                    primaryGuardian = null;
+                }
+
+                // Get ministry information from enrollments
+                const childEnrollments = cycleEnrollments.filter(e => e.child_id === child.child_id);
+                const ministries = childEnrollments.map(e => ({
+                    ministry_id: 'bible-bee', // All Bible Bee enrollments are just "Bible Bee"
+                    ministryName: 'Bible Bee'
+                }));
+
                 return {
                     childId: child.child_id,
                     childName: `${child.first_name} ${child.last_name}`,
@@ -1775,8 +1794,8 @@ export async function getBibleBeeProgressForCycle(cycleId: string) {
                     bibleBeeStatus,
                     gradeGroup: divisionName,
                     essayStatus: hasEssays ? essayStatus : undefined, // Only show if division has essays
-                    ministries: [],
-                    primaryGuardian: null,
+                    ministries: ministries,
+                    primaryGuardian: primaryGuardian,
                 };
             }));
             
