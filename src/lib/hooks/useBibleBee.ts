@@ -272,7 +272,7 @@ export function useStudentAssignmentsQuery(childId: string) {
                         
                         if (existingRecord) {
                             // Return existing record with enriched data
-                            console.log('Found existing student scripture record:', existingRecord);
+                            // console.log('Found existing student scripture record:', existingRecord);
                             return {
                                 id: existingRecord.id,
                                 childId: childId,
@@ -328,6 +328,12 @@ export function useStudentAssignmentsQuery(childId: string) {
                         throw error;
                     }
                 }));
+                
+                // Count how many existing records were found vs new ones created
+                const existingCount = scriptures.filter(s => s.id && s.createdAt === s.updatedAt).length;
+                const newCount = scriptures.length - existingCount;
+                console.log(`📊 Student scripture summary for ${childId}: ${existingCount} existing, ${newCount} new`);
+                
                 console.log('✅ Created student scripture assignments:', scriptures.length, scriptures);
                 
                 // Get essays for the child's Bible Bee cycles
@@ -485,6 +491,12 @@ export function useStudentAssignmentsQuery(childId: string) {
             });
             return { scriptures: [], essays: [] };
         }
+    }, {
+        enabled: !!childId, // Only run query if childId is provided
+        staleTime: 2 * 60 * 1000, // 2 minutes (shorter since assignments can change frequently)
+        cacheTime: 5 * 60 * 1000, // 5 minutes
+        refetchOnWindowFocus: false, // Don't refetch when window regains focus
+        refetchOnMount: true, // Do refetch when component mounts (for fresh data)
     });
 }
 

@@ -7,6 +7,7 @@ import { AuthRole } from '@/lib/auth-types';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { ExternalLink, BookOpen, FileText } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface BibleBeeProgressCardProps {
 	childId: string;
@@ -40,6 +41,104 @@ export function BibleBeeProgressCard({
 	linkPath,
 }: BibleBeeProgressCardProps) {
 	const { userRole } = useAuth();
+	const queryClient = useQueryClient();
+
+	// Prefetch child detail data on hover
+	const handleMouseEnter = async () => {
+		console.log('🖱️ Mouse enter on child:', childId);
+
+		try {
+			// Check if data is already cached to avoid unnecessary requests
+			const childData = queryClient.getQueryData(['child', childId]);
+
+			console.log('📊 Cache check - childData:', !!childData);
+
+			// Only prefetch if data is not already cached
+			if (!childData) {
+				console.log('🚀 Starting prefetch for child:', childId);
+
+				// Prefetch child data
+				await queryClient.prefetchQuery({
+					queryKey: ['child', childId],
+					queryFn: async () => {
+						console.log('👶 Fetching child data for:', childId);
+						const { getChild } = await import('@/lib/dal');
+						const result = await getChild(childId);
+						console.log('✅ Child data fetched:', result);
+						return result;
+					},
+					staleTime: 5 * 60 * 1000, // 5 minutes
+				});
+
+				console.log('✅ Core prefetch completed for child:', childId);
+			} else {
+				console.log('⚡ Child data already cached for child:', childId);
+			}
+
+			// Prefetch household and guardian data after we have child data
+			const finalChildData =
+				childData || queryClient.getQueryData(['child', childId]);
+			if (finalChildData && (finalChildData as any)?.household_id) {
+				const householdId = (finalChildData as any).household_id;
+				const householdData = queryClient.getQueryData([
+					'household',
+					householdId,
+				]);
+				const guardiansData = queryClient.getQueryData([
+					'guardians',
+					householdId,
+				]);
+
+				console.log(
+					'🏠 Household prefetch check - householdData:',
+					!!householdData,
+					'guardiansData:',
+					!!guardiansData
+				);
+
+				// Only prefetch if data is not already cached
+				if (!householdData || !guardiansData) {
+					console.log('🏠 Prefetching household data for:', householdId);
+
+					await Promise.all([
+						// Prefetch household data
+						queryClient.prefetchQuery({
+							queryKey: ['household', householdId],
+							queryFn: async () => {
+								console.log('🏠 Fetching household data for:', householdId);
+								const { getHousehold } = await import('@/lib/dal');
+								const result = await getHousehold(householdId);
+								console.log('✅ Household data fetched:', result);
+								return result;
+							},
+							staleTime: 5 * 60 * 1000, // 5 minutes
+						}),
+						// Prefetch guardians data
+						queryClient.prefetchQuery({
+							queryKey: ['guardians', householdId],
+							queryFn: async () => {
+								console.log('👨‍👩‍👧‍👦 Fetching guardians data for:', householdId);
+								const { listGuardians } = await import('@/lib/dal');
+								const result = await listGuardians({ householdId });
+								console.log('✅ Guardians data fetched:', result);
+								return result;
+							},
+							staleTime: 5 * 60 * 1000, // 5 minutes
+						}),
+					]);
+
+					console.log('✅ Household prefetch completed for:', householdId);
+				} else {
+					console.log('⚡ Household data already cached for:', householdId);
+				}
+			}
+
+			console.log('🎉 All prefetching completed for child:', childId);
+		} catch (error) {
+			// Silently fail prefetching - don't interrupt user experience
+			console.error('❌ Prefetch failed for child:', childId, error);
+		}
+	};
 
 	const denom = requiredScriptures || 1; // Use requiredScriptures as the denominator (division target)
 	const progressPct = denom === 0 ? 0 : (completedScriptures / denom) * 100;
@@ -56,7 +155,7 @@ export function BibleBeeProgressCard({
 
 	return (
 		<div className="p-4 border rounded-lg bg-card hover:shadow-md transition-all duration-200 cursor-pointer group">
-			<Link href={href} className="block">
+			<Link href={href} className="block" onMouseEnter={handleMouseEnter}>
 				<div className="flex items-start justify-between mb-3">
 					<div className="flex-1">
 						<div className="font-semibold text-lg flex items-center gap-2 group-hover:text-primary transition-colors">
