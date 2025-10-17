@@ -15,7 +15,14 @@ import { Label } from '@/components/ui/label';
 import { useAuth } from '@/contexts/auth-context';
 import { useBranding } from '@/contexts/branding-context';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Info, Settings, Church, AlertTriangle } from 'lucide-react';
+import {
+	Info,
+	Settings,
+	Church,
+	AlertTriangle,
+	Eye,
+	EyeOff,
+} from 'lucide-react';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
 import { useFeatureFlags } from '@/contexts/feature-flag-context';
@@ -134,6 +141,7 @@ export default function LoginPage() {
 	const { flags } = useFeatureFlags();
 	const [email, setEmail] = useState('');
 	const [password, setPassword] = useState('');
+	const [showPassword, setShowPassword] = useState(false);
 	const [isFlagDialogOpen, setIsFlagDialogOpen] = useState(false);
 	const [loading, setLoading] = useState(false);
 
@@ -441,13 +449,29 @@ export default function LoginPage() {
 								</div>
 								<div className="space-y-2">
 									<Label htmlFor="password">Password</Label>
-									<Input
-										id="password"
-										type="password"
-										required
-										value={password}
-										onChange={(e) => setPassword(e.target.value)}
-									/>
+									<div className="relative">
+										<Input
+											id="password"
+											type={showPassword ? 'text' : 'password'}
+											required
+											value={password}
+											onChange={(e) => setPassword(e.target.value)}
+											className="pr-10"
+										/>
+										<Button
+											type="button"
+											variant="ghost"
+											size="icon"
+											className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+											onClick={() => setShowPassword(!showPassword)}
+											disabled={loading}>
+											{showPassword ? (
+												<EyeOff className="h-4 w-4" />
+											) : (
+												<Eye className="h-4 w-4" />
+											)}
+										</Button>
+									</div>
 								</div>
 
 								<Button
