@@ -1,5 +1,41 @@
 # Release Notes - gatherKids
 
+## v1.5.3 - Bible Bee Essay Display Fix & Code Consolidation
+
+### 🐛 Bug Fixes
+
+- **Fixed Bible Bee Essay Display Issue**: 8th graders now correctly show essays instead of scriptures on Bible Bee detail pages. The root cause was inconsistent logic between dashboard and household pages - dashboard used complex division-based essay detection that was failing, while household page used simple `data.essays.length` check that worked correctly.
+
+### 🔧 Code Improvements
+
+- **Eliminated Code Duplication**: Consolidated duplicate Bible Bee child detail pages into a shared `ChildBibleBeeDetail` component
+- **Improved Photo Update Permissions**: Enhanced photo update functionality for both admins and guardians with proper permission checks
+- **Code Reduction**: Removed approximately 300 lines of duplicate code between dashboard and household pages
+
+### 📁 Files Changed
+
+- **Refactored**: `src/app/dashboard/bible-bee/child/[childId]/page.tsx` (385 lines removed)
+- **Refactored**: `src/app/household/children/[childId]/bible-bee/page.tsx` (234 lines removed)
+- **Added**: `src/components/gatherKids/child-bible-bee-detail.tsx` (382 lines added)
+
+### 🎯 Technical Details
+
+- Both dashboard and household pages now use the same shared component with consistent behavior
+- Essay detection logic unified across all Bible Bee detail views
+- Photo update functionality properly integrated with permission system
+- Maintained all existing functionality while reducing code complexity
+
+### ✅ Impact
+
+- **User Experience**: 8th grade students and their families can now properly view and submit essays
+- **Maintainability**: Significantly reduced code duplication makes future updates easier
+- **Consistency**: Unified behavior across dashboard and household Bible Bee views
+- **Performance**: Cleaner codebase with shared components
+
+This patch resolves a critical display issue affecting 8th grade Bible Bee participants while improving the overall codebase maintainability through consolidation of duplicate functionality.
+
+---
+
 ## v1.5.0 - Ministry Leadership & Reporting Enhancements
 
 ### 🆕 New Features
