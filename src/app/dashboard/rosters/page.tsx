@@ -94,20 +94,20 @@ const getEventName = (eventId: string | null) => {
 };
 
 const gradeSortOrder: { [key: string]: number } = {
-	'Pre-K': 0,
-	Kindergarten: 1,
-	'1st Grade': 2,
-	'2nd Grade': 3,
-	'3rd Grade': 4,
-	'4th Grade': 5,
-	'5th Grade': 6,
-	'6th Grade': 7,
-	'7th Grade': 8,
-	'8th Grade': 9,
-	'9th Grade': 10,
-	'10th Grade': 11,
-	'11th Grade': 12,
-	'12th Grade': 13,
+	'Pre-K': -1,
+	Kindergarten: 0,
+	'1st Grade': 1,
+	'2nd Grade': 2,
+	'3rd Grade': 3,
+	'4th Grade': 4,
+	'5th Grade': 5,
+	'6th Grade': 6,
+	'7th Grade': 7,
+	'8th Grade': 8,
+	'9th Grade': 9,
+	'10th Grade': 10,
+	'11th Grade': 11,
+	'12th Grade': 12,
 };
 
 const getGradeValue = (grade?: string): number => {

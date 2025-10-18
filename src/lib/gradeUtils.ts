@@ -1,7 +1,7 @@
 /**
  * Grade normalization utilities for Bible Bee
  * Converts free-text grade strings to numeric -1 to 12 codes
- * -1 = Pre-K, 0 = Kindergarten, 1-12 = grades
+ * -1 = Pre-K, 0 = Kindergarten, 1-12 = grades 1-12
  */
 
 export function gradeToCode(gradeText?: string): number | null {
@@ -37,19 +37,18 @@ export function gradeToCode(gradeText?: string): number | null {
     
     // Ordinal patterns (1st, 2nd, etc.)
     const ordinalMap: Record<string, number> = {
-        '1st': 0, 'first': 0, // Kindergarten
-        '2nd': 1, 'second': 1, // 1st Grade
-        '3rd': 2, 'third': 2, // 2nd Grade
-        '4th': 3, 'fourth': 3, // 3rd Grade
-        '5th': 4, 'fifth': 4, // 4th Grade
-        '6th': 5, 'sixth': 5, // 5th Grade
-        '7th': 6, 'seventh': 6, // 6th Grade
-        '8th': 7, 'eighth': 7, // 7th Grade
-        '9th': 8, 'ninth': 8, // 8th Grade
-        '10th': 9, 'tenth': 9, // 9th Grade
-        '11th': 10, 'eleventh': 10, // 10th Grade
-        '12th': 11, 'twelfth': 11, // 11th Grade
-        '13th': 12, 'thirteenth': 12, // 12th Grade
+        '1st': 1, 'first': 1, // 1st Grade
+        '2nd': 2, 'second': 2, // 2nd Grade
+        '3rd': 3, 'third': 3, // 3rd Grade
+        '4th': 4, 'fourth': 4, // 4th Grade
+        '5th': 5, 'fifth': 5, // 5th Grade
+        '6th': 6, 'sixth': 6, // 6th Grade
+        '7th': 7, 'seventh': 7, // 7th Grade
+        '8th': 8, 'eighth': 8, // 8th Grade
+        '9th': 9, 'ninth': 9, // 9th Grade
+        '10th': 10, 'tenth': 10, // 10th Grade
+        '11th': 11, 'eleventh': 11, // 11th Grade
+        '12th': 12, 'twelfth': 12, // 12th Grade
     };
     
     if (ordinalMap[t] !== undefined) {
@@ -86,12 +85,6 @@ export function gradeToCode(gradeText?: string): number | null {
         const result = parseInt(ordinalGradeMatch[1], 10);
         console.log(`DEBUG: gradeToCode - matched ordinal+grade pattern: ${result}`);
         return result;
-    }
-    
-    // Special case for grade 9
-    if (t === '9' || t === '9th' || t === 'ninth' || t === 'grade 9' || t === '9th grade') {
-        console.log('DEBUG: gradeToCode - SPECIAL ATTENTION for grade 9: 8');
-        return 8;
     }
     
     console.log(`DEBUG: gradeToCode - all parsing methods failed for "${gradeText}"`);
