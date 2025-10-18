@@ -117,23 +117,26 @@ export function gradeCodeToLabel(gradeCode: number): string {
  * Convert any grade format to a consistent UI-friendly display
  */
 export function normalizeGradeDisplay(gradeText?: string | number): string {
-    if (!gradeText && gradeText !== 0) return 'Unknown';
+    if (gradeText === null || gradeText === undefined) return 'Unknown';
     
     // If it's already a number, convert using gradeCodeToLabel
     if (typeof gradeText === 'number') {
         return gradeCodeToLabel(gradeText);
     }
     
-    // If it's a string, try to parse it first
-    const gradeCode = gradeToCode(gradeText);
-    if (gradeCode !== null) {
-        return gradeCodeToLabel(gradeCode);
-    }
-    
-    // If parsing fails, try to normalize common variations
+    // Convert to string and trim
     const normalized = gradeText.toString().trim();
     
-    // Handle common variations
+    // Handle empty string
+    if (normalized === '') return 'Unknown';
+    
+    // First, try to parse as a number (for grade codes like "-1", "0", "8", etc.)
+    const numericGrade = parseInt(normalized, 10);
+    if (!isNaN(numericGrade) && numericGrade >= -1 && numericGrade <= 12) {
+        return gradeCodeToLabel(numericGrade);
+    }
+    
+    // Handle common variations directly
     const gradeMap: Record<string, string> = {
         'pre-k': 'Pre-K',
         'prek': 'Pre-K',
@@ -159,7 +162,17 @@ export function normalizeGradeDisplay(gradeText?: string | number): string {
     };
     
     const key = normalized.toLowerCase();
-    return gradeMap[key] || normalized; // Return original if no mapping found
+    if (gradeMap[key]) {
+        return gradeMap[key];
+    }
+    
+    // If all else fails, try gradeToCode for complex parsing
+    const gradeCode = gradeToCode(gradeText);
+    if (gradeCode !== null) {
+        return gradeCodeToLabel(gradeCode);
+    }
+    
+    return normalized; // Return original if no mapping found
 }
 
 /**
