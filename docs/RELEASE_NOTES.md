@@ -1,5 +1,66 @@
 # Release Notes - gatherKids
 
+## v1.5.4 - Password Visibility Toggle Enhancement
+
+### 🆕 New Features
+
+#### Password Visibility Toggle
+
+- **Eye icon toggle** - Users can now toggle password visibility on/off using an intuitive eye/eye-off icon in the sign-in form
+- **Improved UX** - Better user experience when entering passwords, especially for complex passwords
+- **Accessibility enhancement** - Users can verify their password input before submitting
+- **Clean UI integration** - Toggle button seamlessly integrated into the existing password input field
+
+### 🔧 Technical Implementation
+
+#### UI Components
+
+- **Icon integration** - Added Eye and EyeOff icons from lucide-react
+- **State management** - Added `showPassword` state to control visibility
+- **Button positioning** - Toggle button positioned absolutely within the input field
+- **Responsive design** - Maintains proper styling across different screen sizes
+
+#### Code Changes
+
+- **File modified**: `src/app/login/page.tsx`
+- **New state**: `const [showPassword, setShowPassword] = useState(false)`
+- **Input type toggle**: `type={showPassword ? 'text' : 'password'}`
+- **Icon conditional rendering**: Dynamic eye/eye-off icon based on state
+- **Button styling**: Ghost variant with proper hover states
+
+### 🎯 User Experience Improvements
+
+#### Before
+
+- Password field was always hidden (type="password")
+- Users couldn't verify their password input
+- Potential for typos going unnoticed
+
+#### After
+
+- Users can toggle password visibility as needed
+- Clear visual feedback with eye icons
+- Better confidence in password entry
+- Maintains security by default (hidden by default)
+
+### 📱 Accessibility Features
+
+- **Keyboard accessible** - Toggle button can be activated via keyboard
+- **Screen reader friendly** - Proper button labeling and state indication
+- **Visual feedback** - Clear icon changes indicate current state
+- **Disabled state** - Button is disabled during form submission to prevent conflicts
+
+### 🔒 Security Considerations
+
+- **Default hidden** - Password remains hidden by default for security
+- **User choice** - Visibility is only shown when user explicitly requests it
+- **No persistence** - State resets on page refresh
+- **No logging** - Password visibility state is not logged or stored
+
+This enhancement provides a common UX pattern that users expect in modern web applications while maintaining security best practices.
+
+---
+
 ## v1.5.3 - Bible Bee Essay Display Fix & Code Consolidation
 
 ### 🐛 Bug Fixes
