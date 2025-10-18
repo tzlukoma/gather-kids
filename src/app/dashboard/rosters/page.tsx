@@ -20,6 +20,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { FileDown, ArrowUpDown, Edit, Camera } from 'lucide-react';
 import { format, parseISO, differenceInYears } from 'date-fns';
+import { normalizeGradeDisplay } from '@/lib/gradeUtils';
 import {
 	getTodayIsoDate,
 	recordCheckIn,
@@ -401,8 +402,8 @@ export default function RostersPage() {
 
 		if (gradeSort !== 'none') {
 			filtered.sort((a, b) => {
-				const aVal = getGradeValue(a.grade);
-				const bVal = getGradeValue(b.grade);
+				const aVal = getGradeValue(normalizeGradeDisplay(a.grade));
+				const bVal = getGradeValue(normalizeGradeDisplay(b.grade));
 				if (gradeSort === 'asc') {
 					return aVal - bVal;
 				} else {
@@ -424,7 +425,7 @@ export default function RostersPage() {
 	const groupedChildren = useMemo(() => {
 		if (!groupByGrade) return null;
 		return displayChildren.reduce((acc, child) => {
-			const grade = child.grade || 'Ungraded';
+			const grade = normalizeGradeDisplay(child.grade) || 'Ungraded';
 			if (!acc[grade]) {
 				acc[grade] = [];
 			}
@@ -672,7 +673,7 @@ export default function RostersPage() {
 								)}
 							</TableCell>
 							<TableCell className="font-medium">{`${child.first_name} ${child.last_name}`}</TableCell>
-							<TableCell>{child.grade}</TableCell>
+							<TableCell>{normalizeGradeDisplay(child.grade)}</TableCell>
 							<TableCell>
 								{child.activeAttendance ? (
 									<Badge className="bg-brand-aqua hover:opacity-90">
@@ -760,7 +761,7 @@ export default function RostersPage() {
 											)}
 										</TableCell>
 										<TableCell className="font-medium">{`${child.first_name} ${child.last_name}`}</TableCell>
-										<TableCell>{child.grade}</TableCell>
+										<TableCell>{normalizeGradeDisplay(child.grade)}</TableCell>
 										<TableCell>
 											{child.activeAttendance ? (
 												<Badge className="bg-brand-aqua hover:opacity-90">
