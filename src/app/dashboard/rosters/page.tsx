@@ -20,6 +20,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { FileDown, ArrowUpDown, Edit, Camera } from 'lucide-react';
 import { format, parseISO, differenceInYears } from 'date-fns';
+import { normalizeGradeDisplay } from '@/lib/gradeUtils';
 import {
 	getTodayIsoDate,
 	recordCheckIn,
@@ -94,20 +95,20 @@ const getEventName = (eventId: string | null) => {
 };
 
 const gradeSortOrder: { [key: string]: number } = {
-	'Pre-K': 0,
-	Kindergarten: 1,
-	'1st Grade': 2,
-	'2nd Grade': 3,
-	'3rd Grade': 4,
-	'4th Grade': 5,
-	'5th Grade': 6,
-	'6th Grade': 7,
-	'7th Grade': 8,
-	'8th Grade': 9,
-	'9th Grade': 10,
-	'10th Grade': 11,
-	'11th Grade': 12,
-	'12th Grade': 13,
+	'Pre-K': -1,
+	Kindergarten: 0,
+	'1st Grade': 1,
+	'2nd Grade': 2,
+	'3rd Grade': 3,
+	'4th Grade': 4,
+	'5th Grade': 5,
+	'6th Grade': 6,
+	'7th Grade': 7,
+	'8th Grade': 8,
+	'9th Grade': 9,
+	'10th Grade': 10,
+	'11th Grade': 11,
+	'12th Grade': 12,
 };
 
 const getGradeValue = (grade?: string): number => {
@@ -401,8 +402,8 @@ export default function RostersPage() {
 
 		if (gradeSort !== 'none') {
 			filtered.sort((a, b) => {
-				const aVal = getGradeValue(a.grade);
-				const bVal = getGradeValue(b.grade);
+				const aVal = getGradeValue(normalizeGradeDisplay(a.grade));
+				const bVal = getGradeValue(normalizeGradeDisplay(b.grade));
 				if (gradeSort === 'asc') {
 					return aVal - bVal;
 				} else {
@@ -424,7 +425,7 @@ export default function RostersPage() {
 	const groupedChildren = useMemo(() => {
 		if (!groupByGrade) return null;
 		return displayChildren.reduce((acc, child) => {
-			const grade = child.grade || 'Ungraded';
+			const grade = normalizeGradeDisplay(child.grade) || 'Ungraded';
 			if (!acc[grade]) {
 				acc[grade] = [];
 			}
@@ -672,7 +673,7 @@ export default function RostersPage() {
 								)}
 							</TableCell>
 							<TableCell className="font-medium">{`${child.first_name} ${child.last_name}`}</TableCell>
-							<TableCell>{child.grade}</TableCell>
+							<TableCell>{normalizeGradeDisplay(child.grade)}</TableCell>
 							<TableCell>
 								{child.activeAttendance ? (
 									<Badge className="bg-brand-aqua hover:opacity-90">
@@ -760,7 +761,7 @@ export default function RostersPage() {
 											)}
 										</TableCell>
 										<TableCell className="font-medium">{`${child.first_name} ${child.last_name}`}</TableCell>
-										<TableCell>{child.grade}</TableCell>
+										<TableCell>{normalizeGradeDisplay(child.grade)}</TableCell>
 										<TableCell>
 											{child.activeAttendance ? (
 												<Badge className="bg-brand-aqua hover:opacity-90">
