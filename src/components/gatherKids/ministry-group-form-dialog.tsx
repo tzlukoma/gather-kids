@@ -29,10 +29,9 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import type { MinistryGroup, Ministry } from '@/lib/types';
 import {
-	createMinistryGroup,
-	updateMinistryGroup,
 	getMinistriesInGroup,
 } from '@/lib/dal';
+import { useCreateMinistryGroup, useUpdateMinistryGroup } from '@/hooks/data/ministries';
 import { useEffect, useState } from 'react';
 
 const ministryGroupFormSchema = z.object({
@@ -57,6 +56,8 @@ interface MinistryGroupFormDialogProps {
 	onCloseAction: () => void;
 	group?: MinistryGroup | null;
 	onGroupUpdated: () => void;
+	createMinistryGroupMutation?: ReturnType<typeof useCreateMinistryGroup>;
+	updateMinistryGroupMutation?: ReturnType<typeof useUpdateMinistryGroup>;
 }
 
 export function MinistryGroupFormDialog({
@@ -64,11 +65,19 @@ export function MinistryGroupFormDialog({
 	onCloseAction,
 	group,
 	onGroupUpdated,
+	createMinistryGroupMutation,
+	updateMinistryGroupMutation,
 }: MinistryGroupFormDialogProps) {
 	const { toast } = useToast();
 	const isEditing = Boolean(group);
 	const [ministriesInGroup, setMinistriesInGroup] = useState<Ministry[]>([]);
 	const [isLoadingMinistries, setIsLoadingMinistries] = useState(false);
+
+	// Always call hooks - use provided ones or create fallback ones
+	const fallbackCreateMutation = useCreateMinistryGroup();
+	const fallbackUpdateMutation = useUpdateMinistryGroup();
+	const createMutation = createMinistryGroupMutation || fallbackCreateMutation;
+	const updateMutation = updateMinistryGroupMutation || fallbackUpdateMutation;
 
 	const form = useForm<FormData>({
 		resolver: zodResolver(ministryGroupFormSchema),
@@ -130,14 +139,14 @@ export function MinistryGroupFormDialog({
 					'🔄 MinistryGroupFormDialog: Updating existing group',
 					group.id
 				);
-				await updateMinistryGroup(group.id, data);
+				await updateMutation.mutateAsync({ id: group.id, data });
 				toast({
 					title: 'Group Updated',
 					description: `Successfully updated the "${data.name}" group.`,
 				});
 			} else {
 				console.log('➕ MinistryGroupFormDialog: Creating new group');
-				await createMinistryGroup(data);
+				await createMutation.mutateAsync(data);
 				toast({
 					title: 'Group Created',
 					description: `Successfully created the "${data.name}" group.`,

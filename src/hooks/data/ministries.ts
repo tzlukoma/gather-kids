@@ -1,6 +1,6 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
   getMinistries,
   getMinistriesByGroupCode,
@@ -8,7 +8,13 @@ import {
   getMinistryEnrollmentsByCycle,
   getMinistryGroups,
   getMinistryGroup,
-  getGroupsForMinistry
+  getGroupsForMinistry,
+  createMinistry,
+  updateMinistry,
+  deleteMinistry,
+  createMinistryGroup,
+  updateMinistryGroup,
+  deleteMinistryGroup
 } from '@/lib/dal';
 import { queryKeys } from './keys';
 import { cacheConfig } from './config';
@@ -71,5 +77,96 @@ export function useGroupsForMinistry(ministryId: string) {
     queryFn: () => getGroupsForMinistry(ministryId),
     enabled: !!ministryId,
     ...cacheConfig.reference,
+  });
+}
+
+// Mutation hooks
+export function useCreateMinistry() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: createMinistry,
+    onSuccess: () => {
+      // Invalidate all ministry-related queries to refresh data
+      queryClient.invalidateQueries({ queryKey: ['ministries'] });
+      queryClient.invalidateQueries({ queryKey: ['ministryGroups'] });
+      queryClient.invalidateQueries({ queryKey: ['ministriesInGroup'] });
+      queryClient.invalidateQueries({ queryKey: ['groupsForMinistry'] });
+    },
+  });
+}
+
+export function useUpdateMinistry() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: any }) => updateMinistry(id, data),
+    onSuccess: () => {
+      // Invalidate all ministry-related queries to refresh data
+      queryClient.invalidateQueries({ queryKey: ['ministries'] });
+      queryClient.invalidateQueries({ queryKey: ['ministryGroups'] });
+      queryClient.invalidateQueries({ queryKey: ['ministriesInGroup'] });
+      queryClient.invalidateQueries({ queryKey: ['groupsForMinistry'] });
+    },
+  });
+}
+
+export function useDeleteMinistry() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: deleteMinistry,
+    onSuccess: () => {
+      // Invalidate all ministry-related queries to refresh data
+      queryClient.invalidateQueries({ queryKey: ['ministries'] });
+      queryClient.invalidateQueries({ queryKey: ['ministryGroups'] });
+      queryClient.invalidateQueries({ queryKey: ['ministriesInGroup'] });
+      queryClient.invalidateQueries({ queryKey: ['groupsForMinistry'] });
+    },
+  });
+}
+
+export function useCreateMinistryGroup() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: createMinistryGroup,
+    onSuccess: () => {
+      // Invalidate all ministry group-related queries to refresh data
+      queryClient.invalidateQueries({ queryKey: ['ministries'] });
+      queryClient.invalidateQueries({ queryKey: ['ministryGroups'] });
+      queryClient.invalidateQueries({ queryKey: ['ministriesInGroup'] });
+      queryClient.invalidateQueries({ queryKey: ['groupsForMinistry'] });
+    },
+  });
+}
+
+export function useUpdateMinistryGroup() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: any }) => updateMinistryGroup(id, data),
+    onSuccess: () => {
+      // Invalidate all ministry group-related queries to refresh data
+      queryClient.invalidateQueries({ queryKey: ['ministries'] });
+      queryClient.invalidateQueries({ queryKey: ['ministryGroups'] });
+      queryClient.invalidateQueries({ queryKey: ['ministriesInGroup'] });
+      queryClient.invalidateQueries({ queryKey: ['groupsForMinistry'] });
+    },
+  });
+}
+
+export function useDeleteMinistryGroup() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: deleteMinistryGroup,
+    onSuccess: () => {
+      // Invalidate all ministry group-related queries to refresh data
+      queryClient.invalidateQueries({ queryKey: ['ministries'] });
+      queryClient.invalidateQueries({ queryKey: ['ministryGroups'] });
+      queryClient.invalidateQueries({ queryKey: ['ministriesInGroup'] });
+      queryClient.invalidateQueries({ queryKey: ['groupsForMinistry'] });
+    },
   });
 }

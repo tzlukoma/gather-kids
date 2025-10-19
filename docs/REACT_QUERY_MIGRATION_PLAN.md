@@ -288,7 +288,7 @@ When continuing this migration:
 - [x] MODULE 9a: Incidents Page
 - [x] MODULE 9b: Registrations Page
 - [x] MODULE 9c: Reports Page
-- [ ] MODULE 9d: Leaders Page
+- [x] MODULE 9d: Leaders Page
 - [ ] MODULE 9e: Ministries Page
 - [ ] MODULE 9f: Main Dashboard Page
 - [ ] MODULE 9g: Users Management Page
