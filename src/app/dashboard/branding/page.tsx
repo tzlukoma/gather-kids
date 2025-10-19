@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
-import { useBranding } from '@/contexts/branding-context';
 import { AuthRole } from '@/lib/auth-types';
 import { Button } from '@/components/ui/button';
 import {
@@ -26,7 +25,8 @@ import {
 	Instagram,
 	Palette,
 } from 'lucide-react';
-import { saveBrandingSettings, getBrandingSettings } from '@/lib/dal';
+import { useBrandingSettings, useSaveBrandingSettings } from '@/hooks/data';
+import { CardGridSkeleton } from '@/components/skeletons/CardGridSkeleton';
 
 interface BrandingFormData {
 	app_name: string;
@@ -40,9 +40,12 @@ interface BrandingFormData {
 export default function BrandingPage() {
 	const router = useRouter();
 	const { user, loading: authLoading } = useAuth();
-	const { settings, refreshSettings } = useBranding();
 	const { toast } = useToast();
-	const [loading, setLoading] = useState(false);
+	
+	// Use React Query hooks for data fetching
+	const { data: brandingSettings, isLoading: settingsLoading, error: settingsError } = useBrandingSettings('default');
+	const saveBrandingMutation = useSaveBrandingSettings();
+	
 	const [isAuthorized, setIsAuthorized] = useState(false);
 	const [formData, setFormData] = useState<BrandingFormData>({
 		app_name: '',
@@ -63,18 +66,26 @@ export default function BrandingPage() {
 		}
 	}, [user, authLoading, router]);
 
+	// Handle errors from React Query
 	useEffect(() => {
-		if (settings) {
+		if (settingsError) {
+			console.error('Error loading branding settings:', settingsError);
+		}
+	}, [settingsError]);
+
+	// Update form data when branding settings are loaded
+	useEffect(() => {
+		if (brandingSettings) {
 			setFormData({
-				app_name: settings.app_name || '',
-				description: settings.description || '',
-				logo_url: settings.logo_url || '',
-				use_logo_only: settings.use_logo_only || false,
-				youtube_url: settings.youtube_url || '',
-				instagram_url: settings.instagram_url || '',
+				app_name: brandingSettings.app_name || '',
+				description: brandingSettings.description || '',
+				logo_url: brandingSettings.logo_url || '',
+				use_logo_only: brandingSettings.use_logo_only || false,
+				youtube_url: brandingSettings.youtube_url || '',
+				instagram_url: brandingSettings.instagram_url || '',
 			});
 		}
-	}, [settings]);
+	}, [brandingSettings]);
 
 	const handleInputChange = (
 		field: keyof BrandingFormData,
@@ -132,19 +143,18 @@ export default function BrandingPage() {
 			return;
 		}
 
-		setLoading(true);
-
 		try {
-			await saveBrandingSettings('default', {
-				app_name: formData.app_name || undefined,
-				description: formData.description || undefined,
-				logo_url: formData.logo_url || undefined,
-				use_logo_only: formData.use_logo_only,
-				youtube_url: formData.youtube_url || undefined,
-				instagram_url: formData.instagram_url || undefined,
+			await saveBrandingMutation.mutateAsync({
+				orgId: 'default',
+				settings: {
+					app_name: formData.app_name || undefined,
+					description: formData.description || undefined,
+					logo_url: formData.logo_url || undefined,
+					use_logo_only: formData.use_logo_only,
+					youtube_url: formData.youtube_url || undefined,
+					instagram_url: formData.instagram_url || undefined,
+				}
 			});
-
-			await refreshSettings();
 
 			toast({
 				title: 'Settings Saved',
@@ -157,8 +167,6 @@ export default function BrandingPage() {
 				description: 'Failed to save branding settings. Please try again.',
 				variant: 'destructive',
 			});
-		} finally {
-			setLoading(false);
 		}
 	};
 
@@ -174,8 +182,8 @@ export default function BrandingPage() {
 		});
 	};
 
-	if (authLoading || !isAuthorized) {
-		return <div>Loading...</div>;
+	if (authLoading || !isAuthorized || settingsLoading) {
+		return <CardGridSkeleton cards={4} />;
 	}
 
 	return (
@@ -393,7 +401,7 @@ export default function BrandingPage() {
 						type="button"
 						variant="outline"
 						onClick={handleReset}
-						disabled={loading}>
+						disabled={saveBrandingMutation.isPending}>
 						Reset to Defaults
 					</Button>
 					<div className="flex items-center gap-2">
@@ -401,11 +409,11 @@ export default function BrandingPage() {
 							type="button"
 							variant="outline"
 							onClick={() => router.back()}
-							disabled={loading}>
+							disabled={saveBrandingMutation.isPending}>
 							Cancel
 						</Button>
-						<Button type="submit" disabled={loading}>
-							{loading ? 'Saving...' : 'Save Settings'}
+						<Button type="submit" disabled={saveBrandingMutation.isPending}>
+							{saveBrandingMutation.isPending ? 'Saving...' : 'Save Settings'}
 						</Button>
 					</div>
 				</div>

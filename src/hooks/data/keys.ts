@@ -44,4 +44,8 @@ export const queryKeys = {
   // Users keys
   users: () => ['users'] as const,
   userSearch: (term: string) => ['userSearch', term] as const,
+  
+  // Branding keys
+  brandingSettings: (orgId: string) => ['brandingSettings', orgId] as const,
+  defaultBrandingSettings: () => ['defaultBrandingSettings'] as const,
 };
