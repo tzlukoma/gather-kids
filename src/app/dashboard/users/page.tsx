@@ -30,6 +30,8 @@ import {
 	Shield,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useUsers, usePromoteUser } from '@/hooks/data/users';
+import { TableSkeleton } from '@/components/skeletons/TableSkeleton';
 
 interface AuthUser {
 	id: string;
@@ -45,9 +47,11 @@ interface AuthUser {
 export default function UsersManagementPage() {
 	const { user } = useAuth();
 	const { toast } = useToast();
-	const [users, setUsers] = useState<AuthUser[]>([]);
-	const [loading, setLoading] = useState(true);
-	const [error, setError] = useState<string | null>(null);
+
+	// Use React Query hooks for data fetching
+	const { data: users = [], isLoading, error } = useUsers();
+	const promoteUserMutation = usePromoteUser();
+
 	const [promotingUser, setPromotingUser] = useState<string | null>(null);
 
 	// Check if user is admin
@@ -64,58 +68,18 @@ export default function UsersManagementPage() {
 		);
 	}
 
+	// Handle errors from React Query
 	useEffect(() => {
-		loadUsers();
-	}, []);
-
-	const loadUsers = async () => {
-		try {
-			setLoading(true);
-			setError(null);
-
-			// Fetch users from API route
-			const response = await fetch('/api/users');
-
-			if (!response.ok) {
-				const errorData = await response.json();
-				throw new Error(errorData.error || 'Failed to fetch users');
-			}
-
-			const data = await response.json();
-			setUsers(data.users);
-		} catch (err) {
-			console.error('Error loading users:', err);
-			setError(err instanceof Error ? err.message : 'Failed to load users');
-		} finally {
-			setLoading(false);
+		if (error) {
+			console.error('Error loading users:', error);
 		}
-	};
+	}, [error]);
 
 	const promoteToAdmin = async (userId: string, userEmail: string) => {
 		try {
 			setPromotingUser(userId);
 
-			// Update user role via API route
-			const response = await fetch('/api/users', {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-				},
-				body: JSON.stringify({
-					userId: userId,
-					role: 'ADMIN',
-				}),
-			});
-
-			if (!response.ok) {
-				const errorData = await response.json();
-				throw new Error(errorData.error || 'Failed to promote user');
-			}
-
-			// Update local state
-			setUsers((prevUsers) =>
-				prevUsers.map((u) => (u.id === userId ? { ...u, role: 'ADMIN' } : u))
-			);
+			await promoteUserMutation.mutateAsync({ userId, role: AuthRole.ADMIN });
 
 			toast({
 				title: 'Success',
@@ -154,15 +118,8 @@ export default function UsersManagementPage() {
 		return new Date(dateString).toLocaleDateString();
 	};
 
-	if (loading) {
-		return (
-			<div className="container mx-auto py-8">
-				<div className="flex items-center justify-center">
-					<Loader2 className="h-8 w-8 animate-spin" />
-					<span className="ml-2">Loading users...</span>
-				</div>
-			</div>
-		);
+	if (isLoading) {
+		return <TableSkeleton rows={8} columns={6} />;
 	}
 
 	return (

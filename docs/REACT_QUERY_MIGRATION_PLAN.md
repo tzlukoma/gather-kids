@@ -291,7 +291,7 @@ When continuing this migration:
 - [x] MODULE 9d: Leaders Page
 - [x] MODULE 9e: Ministries Page
 - [x] MODULE 9f: Main Dashboard Page
-- [ ] MODULE 9g: Users Management Page
+- [x] MODULE 9g: Users Management Page
 - [ ] MODULE 9h: Check-In Page
 - [ ] MODULE 9i: Branding Page
 - [ ] MODULE 10: Bible Bee Hooks

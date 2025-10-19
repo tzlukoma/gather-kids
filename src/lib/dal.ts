@@ -4688,5 +4688,28 @@ export async function getCompetitionYears(): Promise<CompetitionYear[]> {
     }
 }
 
+/**
+ * Get all auth users for admin management
+ */
+export async function getAllUsers(): Promise<Array<{
+    id: string;
+    email: string;
+    role: string;
+    name: string;
+    email_confirmed: boolean;
+    last_sign_in: string | null;
+    created_at: string;
+    user_metadata: any;
+}>> {
+    // This function calls the API endpoint internally
+    const response = await fetch('/api/users');
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to fetch users');
+    }
+    const data = await response.json();
+    return data.users; // Extract the users array from the response
+}
+
 // Export canonical registration function
 export { registerHouseholdCanonical } from './database/canonical-dal';

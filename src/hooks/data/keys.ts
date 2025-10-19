@@ -40,4 +40,8 @@ export const queryKeys = {
   // Dashboard keys
   unacknowledgedIncidents: () => ['unacknowledgedIncidents'] as const,
   checkedInCount: (date: string) => ['checkedInCount', date] as const,
+  
+  // Users keys
+  users: () => ['users'] as const,
+  userSearch: (term: string) => ['userSearch', term] as const,
 };
