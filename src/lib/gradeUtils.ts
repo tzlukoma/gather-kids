@@ -21,6 +21,12 @@ export function gradeToCode(gradeText?: string): number | null {
         return -1;
     }
     
+    // Partial Pre-K matches (any grade containing "pre-k" or "prek")
+    if (t.includes('pre-k') || t.includes('prek')) {
+        console.log('DEBUG: gradeToCode - matched partial pre-k pattern');
+        return -1;
+    }
+    
     // Direct kindergarten matches
     if (['k', 'kg', 'kinder', 'kindergarten'].includes(t)) {
         console.log('DEBUG: gradeToCode - matched kindergarten pattern');
@@ -164,6 +170,11 @@ export function normalizeGradeDisplay(gradeText?: string | number): string {
     const key = normalized.toLowerCase();
     if (gradeMap[key]) {
         return gradeMap[key];
+    }
+    
+    // Partial Pre-K matches (any grade containing "pre-k" or "prek")
+    if (key.includes('pre-k') || key.includes('prek')) {
+        return 'Pre-K';
     }
     
     // If all else fails, try gradeToCode for complex parsing
