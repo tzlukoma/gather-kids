@@ -189,7 +189,7 @@ export async function getChildDivisionInfo(childId: string, yearId: string) {
                         const lastDigit = grade % 10;
                         const lastTwoDigits = grade % 100;
                         
-                        // Special cases for 11th, 12th, 13th (though 13th won't occur in grades)
+                        // Special cases for 11th, 12th (13th grade doesn't exist in US education system)
                         if (lastTwoDigits >= 11 && lastTwoDigits <= 13) {
                             return `${grade}th Grade`;
                         }
