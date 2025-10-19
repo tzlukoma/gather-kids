@@ -26,8 +26,8 @@ This ensures the codebase remains stable and working throughout the entire migra
 - [x] MODULE 5: Attendance & Incidents Hooks
 - [x] MODULE 6: Migrate Roster Page (FIRST REAL MIGRATION)
 - [x] MODULE 7: Ministry Hooks
-- [ ] MODULE 8: Registration Hooks
-- [ ] MODULE 9a: Incidents Page
+- [x] MODULE 8: Registration Hooks
+- [x] MODULE 9a: Incidents Page
 - [ ] MODULE 9b: Registrations Page
 - [ ] MODULE 9c: Reports Page
 - [ ] MODULE 9d: Leaders Page

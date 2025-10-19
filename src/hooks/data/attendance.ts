@@ -1,9 +1,11 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
   getAttendanceForDate, 
-  getIncidentsForDate
+  getIncidentsForDate,
+  getIncidentsForUser,
+  acknowledgeIncident
 } from '@/lib/dal';
 import { queryKeys } from './keys';
 import { cacheConfig } from './config';
@@ -23,5 +25,26 @@ export function useIncidents(date: string, eventId?: string) {
     queryFn: () => getIncidentsForDate(date),
     enabled: !!date,
     ...cacheConfig.volatile, // Incidents change frequently
+  });
+}
+
+export function useIncidentsForUser(user: unknown) {
+  return useQuery({
+    queryKey: ['incidents', 'user', user],
+    queryFn: () => getIncidentsForUser(user),
+    enabled: !!user,
+    ...cacheConfig.volatile, // Incidents change frequently
+  });
+}
+
+export function useAcknowledgeIncident() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: acknowledgeIncident,
+    onSuccess: () => {
+      // Invalidate all incidents queries to refresh data
+      queryClient.invalidateQueries({ queryKey: ['incidents'] });
+    },
   });
 }
