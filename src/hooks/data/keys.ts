@@ -27,6 +27,8 @@ export const queryKeys = {
   
   // Registration
   registrationCycles: () => ['registrationCycles'] as const,
+  registrationCycle: (id: string) => ['registrationCycle', id] as const,
+  registrationStats: () => ['registrationStats'] as const,
   ministryGroups: () => ['ministryGroups'] as const,
   
   // Leaders

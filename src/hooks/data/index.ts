@@ -11,6 +11,11 @@ export {
   useMinistryGroup, 
   useGroupsForMinistry 
 } from './ministries';
+export { 
+  useRegistrationCycles, 
+  useRegistrationCycle, 
+  useRegistrationStats 
+} from './registration';
 
 // Configuration
 export { queryKeys } from './keys';
