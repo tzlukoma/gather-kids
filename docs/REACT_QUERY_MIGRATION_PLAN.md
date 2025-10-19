@@ -289,7 +289,7 @@ When continuing this migration:
 - [x] MODULE 9b: Registrations Page
 - [x] MODULE 9c: Reports Page
 - [x] MODULE 9d: Leaders Page
-- [ ] MODULE 9e: Ministries Page
+- [x] MODULE 9e: Ministries Page
 - [ ] MODULE 9f: Main Dashboard Page
 - [ ] MODULE 9g: Users Management Page
 - [ ] MODULE 9h: Check-In Page

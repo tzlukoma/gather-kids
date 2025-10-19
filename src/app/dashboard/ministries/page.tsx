@@ -34,7 +34,18 @@ import { MinistryAssignmentDialog } from '@/components/gatherKids/ministry-assig
 import RegistrationCycles from '@/components/gatherKids/registration-cycles';
 // DAL imports removed - now using React Query hooks
 import { useToast } from '@/hooks/use-toast';
-import { useMinistries, useMinistryGroups, useMinistriesInGroup, useGroupsForMinistry, useCreateMinistry, useUpdateMinistry, useDeleteMinistry, useCreateMinistryGroup, useUpdateMinistryGroup, useDeleteMinistryGroup } from '@/hooks/data/ministries';
+import {
+	useMinistries,
+	useMinistryGroups,
+	useMinistriesInGroup,
+	useGroupsForMinistry,
+	useCreateMinistry,
+	useUpdateMinistry,
+	useDeleteMinistry,
+	useCreateMinistryGroup,
+	useUpdateMinistryGroup,
+	useDeleteMinistryGroup,
+} from '@/hooks/data/ministries';
 import { TableSkeleton } from '@/components/skeletons/TableSkeleton';
 import { useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
@@ -309,12 +320,20 @@ export default function MinistryPage() {
 	const [isAuthorized, setIsAuthorized] = useState(false);
 	const [isAdmin, setIsAdmin] = useState(false);
 	const [activeTab, setActiveTab] = useState<string>('ministries');
-	
+
 	// Use React Query hooks for data fetching
-	const { data: allMinistries = [], isLoading: ministriesLoading, error: ministriesError } = useMinistries();
-	const { data: ministryGroups = [], isLoading: groupsLoading, error: groupsError } = useMinistryGroups();
+	const {
+		data: allMinistries = [],
+		isLoading: ministriesLoading,
+		error: ministriesError,
+	} = useMinistries();
+	const {
+		data: ministryGroups = [],
+		isLoading: groupsLoading,
+		error: groupsError,
+	} = useMinistryGroups();
 	const isLoadingData = ministriesLoading || groupsLoading;
-	
+
 	// Use React Query mutation hooks
 	const createMinistryMutation = useCreateMinistry();
 	const updateMinistryMutation = useUpdateMinistry();
@@ -322,7 +341,7 @@ export default function MinistryPage() {
 	const createMinistryGroupMutation = useCreateMinistryGroup();
 	const updateMinistryGroupMutation = useUpdateMinistryGroup();
 	const deleteMinistryGroupMutation = useDeleteMinistryGroup();
-	
+
 	const [ministriesInGroups, setMinistriesInGroups] = useState<
 		Map<string, Ministry[]>
 	>(new Map());
@@ -345,7 +364,10 @@ export default function MinistryPage() {
 	// Handle errors from React Query
 	useEffect(() => {
 		if (ministriesError || groupsError) {
-			console.error('Error loading ministry data:', ministriesError || groupsError);
+			console.error(
+				'Error loading ministry data:',
+				ministriesError || groupsError
+			);
 			toast({
 				title: 'Error',
 				description: 'Failed to load ministry data',
@@ -412,7 +434,9 @@ export default function MinistryPage() {
 	};
 
 	const handleMinistryUpdated = async () => {
-		console.log('🔍 MinistryPage: Ministry updated via dialog - React Query will auto-refresh');
+		console.log(
+			'🔍 MinistryPage: Ministry updated via dialog - React Query will auto-refresh'
+		);
 		// No need to manually invalidate - the mutation hooks handle this automatically
 	};
 
@@ -450,7 +474,9 @@ export default function MinistryPage() {
 	};
 
 	const handleGroupUpdated = async () => {
-		console.log('🔍 MinistryPage: Group updated via dialog - React Query will auto-refresh');
+		console.log(
+			'🔍 MinistryPage: Group updated via dialog - React Query will auto-refresh'
+		);
 		// No need to manually invalidate - the mutation hooks handle this automatically
 	};
 
