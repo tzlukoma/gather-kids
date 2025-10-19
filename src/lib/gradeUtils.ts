@@ -1,7 +1,7 @@
 /**
  * Grade normalization utilities for Bible Bee
  * Converts free-text grade strings to numeric -1 to 12 codes
- * -1 = Pre-K, 0 = Kindergarten, 1-12 = grades
+ * -1 = Pre-K, 0 = Kindergarten, 1-12 = grades 1-12
  */
 
 export function gradeToCode(gradeText?: string): number | null {
@@ -21,6 +21,12 @@ export function gradeToCode(gradeText?: string): number | null {
         return -1;
     }
     
+    // Partial Pre-K matches (any grade containing "pre-k", "prek", "pre k", or "pre k")
+    if (t.includes('pre-k') || t.includes('prek') || t.includes('pre k')) {
+        console.log('DEBUG: gradeToCode - matched partial pre-k pattern');
+        return -1;
+    }
+    
     // Direct kindergarten matches
     if (['k', 'kg', 'kinder', 'kindergarten'].includes(t)) {
         console.log('DEBUG: gradeToCode - matched kindergarten pattern');
@@ -37,19 +43,18 @@ export function gradeToCode(gradeText?: string): number | null {
     
     // Ordinal patterns (1st, 2nd, etc.)
     const ordinalMap: Record<string, number> = {
-        '1st': 0, 'first': 0, // Kindergarten
-        '2nd': 1, 'second': 1, // 1st Grade
-        '3rd': 2, 'third': 2, // 2nd Grade
-        '4th': 3, 'fourth': 3, // 3rd Grade
-        '5th': 4, 'fifth': 4, // 4th Grade
-        '6th': 5, 'sixth': 5, // 5th Grade
-        '7th': 6, 'seventh': 6, // 6th Grade
-        '8th': 7, 'eighth': 7, // 7th Grade
-        '9th': 8, 'ninth': 8, // 8th Grade
-        '10th': 9, 'tenth': 9, // 9th Grade
-        '11th': 10, 'eleventh': 10, // 10th Grade
-        '12th': 11, 'twelfth': 11, // 11th Grade
-        '13th': 12, 'thirteenth': 12, // 12th Grade
+        '1st': 1, 'first': 1, // 1st Grade
+        '2nd': 2, 'second': 2, // 2nd Grade
+        '3rd': 3, 'third': 3, // 3rd Grade
+        '4th': 4, 'fourth': 4, // 4th Grade
+        '5th': 5, 'fifth': 5, // 5th Grade
+        '6th': 6, 'sixth': 6, // 6th Grade
+        '7th': 7, 'seventh': 7, // 7th Grade
+        '8th': 8, 'eighth': 8, // 8th Grade
+        '9th': 9, 'ninth': 9, // 9th Grade
+        '10th': 10, 'tenth': 10, // 10th Grade
+        '11th': 11, 'eleventh': 11, // 11th Grade
+        '12th': 12, 'twelfth': 12, // 12th Grade
     };
     
     if (ordinalMap[t] !== undefined) {
@@ -88,12 +93,6 @@ export function gradeToCode(gradeText?: string): number | null {
         return result;
     }
     
-    // Special case for grade 9
-    if (t === '9' || t === '9th' || t === 'ninth' || t === 'grade 9' || t === '9th grade') {
-        console.log('DEBUG: gradeToCode - SPECIAL ATTENTION for grade 9: 8');
-        return 8;
-    }
-    
     console.log(`DEBUG: gradeToCode - all parsing methods failed for "${gradeText}"`);
     return null;
 }
@@ -124,23 +123,26 @@ export function gradeCodeToLabel(gradeCode: number): string {
  * Convert any grade format to a consistent UI-friendly display
  */
 export function normalizeGradeDisplay(gradeText?: string | number): string {
-    if (!gradeText && gradeText !== 0) return 'Unknown';
+    if (gradeText === null || gradeText === undefined) return 'Unknown';
     
     // If it's already a number, convert using gradeCodeToLabel
     if (typeof gradeText === 'number') {
         return gradeCodeToLabel(gradeText);
     }
     
-    // If it's a string, try to parse it first
-    const gradeCode = gradeToCode(gradeText);
-    if (gradeCode !== null) {
-        return gradeCodeToLabel(gradeCode);
-    }
-    
-    // If parsing fails, try to normalize common variations
+    // Convert to string and trim
     const normalized = gradeText.toString().trim();
     
-    // Handle common variations
+    // Handle empty string
+    if (normalized === '') return 'Unknown';
+    
+    // First, try to parse as a number (for grade codes like "-1", "0", "8", etc.)
+    const numericGrade = parseInt(normalized, 10);
+    if (!isNaN(numericGrade) && numericGrade >= -1 && numericGrade <= 12) {
+        return gradeCodeToLabel(numericGrade);
+    }
+    
+    // Handle common variations directly
     const gradeMap: Record<string, string> = {
         'pre-k': 'Pre-K',
         'prek': 'Pre-K',
@@ -166,7 +168,22 @@ export function normalizeGradeDisplay(gradeText?: string | number): string {
     };
     
     const key = normalized.toLowerCase();
-    return gradeMap[key] || normalized; // Return original if no mapping found
+    if (gradeMap[key]) {
+        return gradeMap[key];
+    }
+    
+    // Partial Pre-K matches (any grade containing "pre-k", "prek", "pre k", or "pre k")
+    if (key.includes('pre-k') || key.includes('prek') || key.includes('pre k')) {
+        return 'Pre-K';
+    }
+    
+    // If all else fails, try gradeToCode for complex parsing
+    const gradeCode = gradeToCode(gradeText);
+    if (gradeCode !== null) {
+        return gradeCodeToLabel(gradeCode);
+    }
+    
+    return normalized; // Return original if no mapping found
 }
 
 /**
