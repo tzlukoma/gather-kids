@@ -36,4 +36,8 @@ export const queryKeys = {
   leaders: () => ['leaders'] as const,
   leader: (id: string) => ['leader', id] as const,
   leaderSearch: (term: string) => ['leaderSearch', term] as const,
+  
+  // Dashboard keys
+  unacknowledgedIncidents: () => ['unacknowledgedIncidents'] as const,
+  checkedInCount: (date: string) => ['checkedInCount', date] as const,
 };
