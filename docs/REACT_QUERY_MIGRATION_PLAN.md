@@ -28,7 +28,7 @@ This ensures the codebase remains stable and working throughout the entire migra
 - [x] MODULE 7: Ministry Hooks
 - [x] MODULE 8: Registration Hooks
 - [x] MODULE 9a: Incidents Page
-- [ ] MODULE 9b: Registrations Page
+- [x] MODULE 9b: Registrations Page
 - [ ] MODULE 9c: Reports Page
 - [ ] MODULE 9d: Leaders Page
 - [ ] MODULE 9e: Ministries Page
