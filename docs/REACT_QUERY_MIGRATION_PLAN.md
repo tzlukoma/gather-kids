@@ -24,7 +24,7 @@ This ensures the codebase remains stable and working throughout the entire migra
 - [x] MODULE 3: Children Data Hooks
 - [x] MODULE 4: Households & Guardians Hooks
 - [x] MODULE 5: Attendance & Incidents Hooks
-- [ ] MODULE 6: Migrate Roster Page (FIRST REAL MIGRATION)
+- [x] MODULE 6: Migrate Roster Page (FIRST REAL MIGRATION)
 - [ ] MODULE 7: Ministry Hooks
 - [ ] MODULE 8: Registration Hooks
 - [ ] MODULE 9a: Incidents Page
