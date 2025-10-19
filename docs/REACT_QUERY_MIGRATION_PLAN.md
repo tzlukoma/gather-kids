@@ -13,9 +13,16 @@ Each module is a self-contained unit of work that:
 1. Creates new code alongside existing code (zero breaking changes)
 2. Includes its own test verification step
 3. Must pass ALL existing tests before commit
-4. Gets committed independently before next module begins
+4. **MUST BE COMMITTED BEFORE STARTING THE NEXT MODULE**
+5. Gets committed independently before next module begins
 
 This ensures the codebase remains stable and working throughout the entire migration.
+
+**CRITICAL REMINDER:** After completing each module, you MUST:
+- Run `npm run build` to verify no build errors
+- Commit all changes with a descriptive commit message
+- Update the migration plan to mark the module as complete
+- Only then proceed to the next module
 
 ## Module Status
 
@@ -29,7 +36,7 @@ This ensures the codebase remains stable and working throughout the entire migra
 - [x] MODULE 8: Registration Hooks
 - [x] MODULE 9a: Incidents Page
 - [x] MODULE 9b: Registrations Page
-- [ ] MODULE 9c: Reports Page
+- [x] MODULE 9c: Reports Page
 - [ ] MODULE 9d: Leaders Page
 - [ ] MODULE 9e: Ministries Page
 - [ ] MODULE 9f: Main Dashboard Page

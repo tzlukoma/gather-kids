@@ -34,11 +34,11 @@ import {
 	exportAttendanceRollupCSV,
 	exportEmergencySnapshotCSV,
 	getTodayIsoDate,
-	getCheckedInChildren,
 } from '@/lib/dal';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/auth-context';
 import { useRouter } from 'next/navigation';
+import { useCheckedInChildren } from '@/hooks/data/children';
 import type { Child } from '@/lib/types';
 
 export default function ReportsPage() {
@@ -54,26 +54,12 @@ export default function ReportsPage() {
 		to: new Date(),
 	});
 
-	// State management for data loading
-	const [checkedInChildren, setCheckedInChildren] = useState<Child[]>([]);
-	const [dataLoading, setDataLoading] = useState(true);
-
-	// Load checked-in children
-	useEffect(() => {
-		const loadCheckedInChildren = async () => {
-			try {
-				setDataLoading(true);
-				const children = await getCheckedInChildren(today);
-				setCheckedInChildren(children);
-			} catch (error) {
-				console.error('Error loading checked-in children:', error);
-			} finally {
-				setDataLoading(false);
-			}
-		};
-
-		loadCheckedInChildren();
-	}, [today]);
+	// React Query hook for checked-in children
+	const {
+		data: checkedInChildren = [],
+		isLoading: dataLoading,
+		error: dataError,
+	} = useCheckedInChildren(today);
 
 	useEffect(() => {
 		if (!loading && user) {
@@ -134,6 +120,11 @@ export default function ReportsPage() {
 
 	if (loading || !isAuthorized || dataLoading) {
 		return <div>Loading reports...</div>;
+	}
+
+	if (dataError) {
+		console.error('Error loading checked-in children:', dataError);
+		return <div>Error loading reports data. Please try again.</div>;
 	}
 
 	return (
