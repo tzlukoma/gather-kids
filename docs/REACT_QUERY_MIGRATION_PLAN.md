@@ -298,7 +298,7 @@ When continuing this migration:
 - [x] MODULE 11a: Bible Bee Main Page
 - [x] MODULE 11b: Bible Bee Progress List Component
 - [x] MODULE 11c: Bible Bee Detail Component
-- [ ] MODULE 12: Barrel Exports
+- [x] MODULE 12: Barrel Exports
 - [ ] MODULE 13: Update Imports
 - [ ] MODULE 14: Documentation
 - [ ] FINAL: Final Validation

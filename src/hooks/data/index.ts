@@ -1,7 +1,7 @@
 // Data hooks
-export { useChildren } from './children';
-export { useHouseholds, useGuardians, useEmergencyContacts } from './households';
-export { useAttendance, useIncidents } from './attendance';
+export { useChildren, useChild, useCheckedInChildren } from './children';
+export { useHouseholds, useHousehold, useHouseholdProfile, useGuardians, useEmergencyContacts } from './households';
+export { useAttendance, useIncidents, useIncidentsForUser, useAcknowledgeIncident } from './attendance';
 export { 
   useMinistries, 
   useMinistriesByGroupCode, 
@@ -9,15 +9,21 @@ export {
   useMinistryEnrollments, 
   useMinistryGroups, 
   useMinistryGroup, 
-  useGroupsForMinistry 
+  useGroupsForMinistry,
+  useCreateMinistry,
+  useUpdateMinistry,
+  useDeleteMinistry,
+  useCreateMinistryGroup,
+  useUpdateMinistryGroup,
+  useDeleteMinistryGroup
 } from './ministries';
 export { 
   useRegistrationCycles, 
   useRegistrationCycle, 
   useRegistrationStats 
 } from './registration';
-export { useLeaders, useLeaderSearch } from './leaders';
-export { useUnacknowledgedIncidents, useCheckedInCount, useRegistrationStats as useDashboardRegistrationStats } from './dashboard';
+export { useLeaders, useLeader, useLeaderSearch } from './leaders';
+export { useUnacknowledgedIncidents, useCheckedInCount } from './dashboard';
 export { useUsers, useUserSearch, usePromoteUser } from './users';
 export { useBrandingSettings, useDefaultBrandingSettings, useSaveBrandingSettings } from './branding';
 export { 
