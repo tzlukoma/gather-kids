@@ -2184,12 +2184,12 @@ export async function canLeaderManageBibleBee(opts: { leaderId?: string; email?:
     if (leaderId && effectiveCycle) {
         if (shouldUseAdapter()) {
             // Use Supabase adapter for live mode
-            const assignments = await dbAdapter.listLeaderAssignments(undefined, leaderId);
-            const filteredAssignments = assignments.filter(a => a.cycle_id === effectiveCycle);
+            const assignments = await dbAdapter.listMinistryLeaderMemberships(undefined, leaderId);
+            const filteredAssignments = assignments.filter(a => a.ministry_id && a.role_type === 'PRIMARY');
             const ministries = await dbAdapter.listMinistries();
             const bibleBeeMinistries = ministries.filter(m => m.code === 'bible-bee');
             const bibleBeeMinistryIds = bibleBeeMinistries.map(m => m.ministry_id);
-            if (filteredAssignments.some((a: LeaderAssignment) => bibleBeeMinistryIds.includes(a.ministry_id) && a.role === 'Primary')) return true;
+            if (filteredAssignments.some((a: MinistryLeaderMembership) => bibleBeeMinistryIds.includes(a.ministry_id))) return true;
         } else {
             // Use legacy Dexie interface for demo mode
             const assignments = await db.leader_assignments.where({ leader_id: leaderId, cycle_id: effectiveCycle }).toArray();
