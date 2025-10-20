@@ -45,10 +45,10 @@ export function useUpdateChildPhotoMutation() {
       queryClient.invalidateQueries({ queryKey: queryKeys.guardians() });
       
       // Invalidate household profile queries (they contain child data)
-      queryClient.invalidateQueries({ queryKey: ['householdProfile'], exact: false });
+      queryClient.invalidateQueries({ queryKey: ['householdProfile'] });
       
       // Invalidate attendance queries (they might reference child photos)
-      queryClient.invalidateQueries({ queryKey: ['attendance'], exact: false });
+      queryClient.invalidateQueries({ queryKey: ['attendance'] });
     },
   });
 }
