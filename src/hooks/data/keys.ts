@@ -14,7 +14,6 @@ export const queryKeys = {
     eventId ? ['incidents', date, eventId] : ['incidents', date],
   
   // Bible Bee
-  bibleBeeCycles: () => ['bibleBeeCycles'] as const,
   scriptures: (cycleId: string) => ['scriptures', cycleId] as const,
   studentAssignments: (childId: string) => ['studentAssignments', childId] as const,
   
