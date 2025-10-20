@@ -20,6 +20,9 @@ import {
 	HeartPulse,
 	Camera,
 	Expand,
+	Edit,
+	Plus,
+	Trash2,
 } from 'lucide-react';
 import {
 	Accordion,
@@ -37,6 +40,15 @@ import { formatPhone } from '@/hooks/usePhoneFormat';
 import { normalizeGradeDisplay } from '@/lib/gradeUtils';
 import { useAuth } from '@/contexts/auth-context';
 import { canUpdateChildPhoto } from '@/lib/permissions';
+import { canEditHousehold } from '@/lib/permissions/household';
+import { EditGuardianModal } from './edit-guardian-modal';
+import { EditEmergencyContactModal } from './edit-emergency-contact-modal';
+import { EditChildModal } from './edit-child-modal';
+import { EditChildEnrollmentsModal } from './edit-child-enrollments-modal';
+import { EditHouseholdAddressModal } from './edit-household-address-modal';
+import { ConfirmationDialog } from './confirmation-dialog';
+import { useRemoveGuardian, useSoftDeleteChild } from '@/hooks/data';
+import type { Guardian, Child, MinistryEnrollment } from '@/lib/types';
 
 const InfoItem = ({
 	icon,
@@ -133,12 +145,20 @@ const ChildCard = ({
 	onPhotoClick,
 	onPhotoViewClick,
 	user,
+	canEdit,
+	onEditChild,
+	onEditEnrollments,
+	onDeleteChild,
 }: {
 	child: HouseholdProfileData['children'][0];
 	cycleNames: Record<string, string>;
 	onPhotoClick: (child: Child) => void;
 	onPhotoViewClick: (photo: { name: string; url: string }) => void;
 	user: any; // BaseUser type
+	canEdit?: boolean;
+	onEditChild?: () => void;
+	onEditEnrollments?: () => void;
+	onDeleteChild?: () => void;
 }) => {
 	const sortedCycleIds = Object.keys(child.enrollmentsByCycle).sort((a, b) =>
 		b.localeCompare(a)
@@ -181,6 +201,33 @@ const ChildCard = ({
 					<CardTitle className="font-headline flex items-center gap-2">
 						{child.first_name} {child.last_name}
 						{!child.is_active && <Badge variant="outline">Inactive</Badge>}
+						{canEdit && (
+							<div className="ml-auto flex gap-1">
+								<Button
+									variant="outline"
+									size="sm"
+									onClick={onEditChild}
+								>
+									<Edit className="h-4 w-4 mr-1" />
+									Edit
+								</Button>
+								<Button
+									variant="outline"
+									size="sm"
+									onClick={onEditEnrollments}
+								>
+									<CheckCircle2 className="h-4 w-4 mr-1" />
+									Enrollments
+								</Button>
+								<Button
+									variant="outline"
+									size="sm"
+									onClick={onDeleteChild}
+								>
+									<Trash2 className="h-4 w-4" />
+								</Button>
+							</div>
+						)}
 					</CardTitle>
 					<CardDescription>
 						{normalizeGradeDisplay(child.grade)} (Age {child.age})
@@ -262,8 +309,60 @@ export function HouseholdProfile({
 		url: string;
 	} | null>(null);
 
+	// Edit modal states
+	const [editingGuardian, setEditingGuardian] = useState<Guardian | null>(null);
+	const [showAddGuardian, setShowAddGuardian] = useState(false);
+	const [editingEmergencyContact, setEditingEmergencyContact] = useState(false);
+	const [editingChild, setEditingChild] = useState<Child | null>(null);
+	const [showAddChild, setShowAddChild] = useState(false);
+	const [editingEnrollments, setEditingEnrollments] = useState<{
+		child: Child;
+		enrollments: MinistryEnrollment[];
+	} | null>(null);
+	const [showEditHousehold, setShowEditHousehold] = useState(false);
+	const [showDeleteConfirm, setShowDeleteConfirm] = useState<{
+		type: 'guardian' | 'child';
+		id: string;
+		name: string;
+	} | null>(null);
+
+	// Check if user can edit this household
+	const canEdit = canEditHousehold(user, household?.household_id || '');
+
+	// Mutation hooks
+	const removeGuardianMutation = useRemoveGuardian();
+	const softDeleteChildMutation = useSoftDeleteChild();
+
 	const activeChildren = children.filter((c) => c.is_active);
 	const inactiveChildren = children.filter((c) => !c.is_active);
+
+	const handleDeleteGuardian = async () => {
+		if (!showDeleteConfirm) return;
+		
+		try {
+			await removeGuardianMutation.mutateAsync({
+				guardianId: showDeleteConfirm.id,
+				householdId: household?.household_id || '',
+			});
+			setShowDeleteConfirm(null);
+		} catch (error) {
+			console.error('Failed to delete guardian:', error);
+		}
+	};
+
+	const handleDeleteChild = async () => {
+		if (!showDeleteConfirm) return;
+		
+		try {
+			await softDeleteChildMutation.mutateAsync({
+				childId: showDeleteConfirm.id,
+				householdId: household?.household_id || '',
+			});
+			setShowDeleteConfirm(null);
+		} catch (error) {
+			console.error('Failed to delete child:', error);
+		}
+	};
 
 	return (
 		<>
@@ -283,15 +382,53 @@ export function HouseholdProfile({
 						<CardHeader>
 							<CardTitle className="font-headline flex items-center gap-2">
 								<User /> Guardians & Contacts
+								{canEdit && (
+									<div className="ml-auto flex gap-1">
+										<Button
+											variant="outline"
+											size="sm"
+											onClick={() => setShowAddGuardian(true)}
+										>
+											<Plus className="h-4 w-4 mr-1" />
+											Add Guardian
+										</Button>
+									</div>
+								)}
 							</CardTitle>
 						</CardHeader>
 						<CardContent className="space-y-4">
 							{guardians.map((g) => (
 								<div key={g.guardian_id} className="space-y-2">
-									<h4 className="font-semibold">
-										{g.first_name} {g.last_name} ({g.relationship}){' '}
-										{g.is_primary && <Badge>Primary</Badge>}
-									</h4>
+									<div className="flex items-center justify-between">
+										<h4 className="font-semibold">
+											{g.first_name} {g.last_name} ({g.relationship}){' '}
+											{g.is_primary && <Badge>Primary</Badge>}
+										</h4>
+										{canEdit && (
+											<div className="flex gap-1">
+												<Button
+													variant="outline"
+													size="sm"
+													onClick={() => setEditingGuardian(g)}
+												>
+													<Edit className="h-4 w-4" />
+												</Button>
+												{guardians.length > 1 && (
+													<Button
+														variant="outline"
+														size="sm"
+														onClick={() => setShowDeleteConfirm({
+															type: 'guardian',
+															id: g.guardian_id,
+															name: `${g.first_name} ${g.last_name}`
+														})}
+													>
+														<Trash2 className="h-4 w-4" />
+													</Button>
+												)}
+											</div>
+										)}
+									</div>
 									<InfoItem
 										icon={<Mail size={16} />}
 										label="Email"
@@ -307,10 +444,22 @@ export function HouseholdProfile({
 							<Separator />
 							{emergencyContact && (
 								<div className="space-y-2">
-									<h4 className="font-semibold">
-										{emergencyContact.first_name} {emergencyContact.last_name}{' '}
-										(Emergency)
-									</h4>
+									<div className="flex items-center justify-between">
+										<h4 className="font-semibold">
+											{emergencyContact.first_name} {emergencyContact.last_name}{' '}
+											(Emergency)
+										</h4>
+										{canEdit && (
+											<Button
+												variant="outline"
+												size="sm"
+												onClick={() => setEditingEmergencyContact(true)}
+											>
+												<Edit className="h-4 w-4 mr-1" />
+												Edit
+											</Button>
+										)}
+									</div>
 									<InfoItem
 										icon={<Phone size={16} />}
 										label="Phone"
@@ -329,7 +478,19 @@ export function HouseholdProfile({
 							)}
 							<Separator />
 							<div className="space-y-2">
-								<h4 className="font-semibold">Address</h4>
+								<div className="flex items-center justify-between">
+									<h4 className="font-semibold">Address</h4>
+									{canEdit && (
+										<Button
+											variant="outline"
+											size="sm"
+											onClick={() => setShowEditHousehold(true)}
+										>
+											<Edit className="h-4 w-4 mr-1" />
+											Edit
+										</Button>
+									)}
+								</div>
 								<InfoItem
 									icon={<Home size={16} />}
 									label="Address"
@@ -346,6 +507,18 @@ export function HouseholdProfile({
 					</Card>
 
 					<div className="lg:col-span-2 space-y-6">
+						{canEdit && (
+							<div className="flex justify-end">
+								<Button
+									variant="outline"
+									onClick={() => setShowAddChild(true)}
+								>
+									<Plus className="h-4 w-4 mr-2" />
+									Add Child
+								</Button>
+							</div>
+						)}
+						
 						{activeChildren.map((child) => (
 							<ChildCard
 								key={child.child_id}
@@ -354,6 +527,27 @@ export function HouseholdProfile({
 								onPhotoClick={setSelectedChildForPhoto}
 								onPhotoViewClick={setViewingPhoto}
 								user={user}
+								canEdit={canEdit}
+								onEditChild={() => setEditingChild(child)}
+								onEditEnrollments={() => {
+									// Get current cycle enrollments for this child
+									const currentCycleEnrollments = Object.values(child.enrollmentsByCycle)
+										.flat()
+										.filter(enrollment => {
+											// Filter to current cycle - we'll need to get current cycle ID
+											// For now, we'll pass all enrollments and let the modal filter
+											return true;
+										});
+									setEditingEnrollments({
+										child,
+										enrollments: currentCycleEnrollments
+									});
+								}}
+								onDeleteChild={() => setShowDeleteConfirm({
+									type: 'child',
+									id: child.child_id,
+									name: `${child.first_name} ${child.last_name}`
+								})}
 							/>
 						))}
 
@@ -391,6 +585,84 @@ export function HouseholdProfile({
 			<PhotoViewerDialog
 				photo={viewingPhoto}
 				onClose={() => setViewingPhoto(null)}
+			/>
+
+			{/* Edit Modals */}
+			{editingGuardian && (
+				<EditGuardianModal
+					guardian={editingGuardian}
+					householdId={household?.household_id || ''}
+					onClose={() => setEditingGuardian(null)}
+				/>
+			)}
+
+			{showAddGuardian && (
+				<EditGuardianModal
+					guardian={null}
+					householdId={household?.household_id || ''}
+					onClose={() => setShowAddGuardian(false)}
+				/>
+			)}
+
+			{editingEmergencyContact && emergencyContact && (
+				<EditEmergencyContactModal
+					contact={emergencyContact}
+					householdId={household?.household_id || ''}
+					onClose={() => setEditingEmergencyContact(false)}
+				/>
+			)}
+
+			{editingChild && (
+				<EditChildModal
+					child={editingChild}
+					householdId={household?.household_id || ''}
+					onClose={() => setEditingChild(null)}
+				/>
+			)}
+
+			{showAddChild && (
+				<EditChildModal
+					child={null}
+					householdId={household?.household_id || ''}
+					onClose={() => setShowAddChild(false)}
+				/>
+			)}
+
+			{editingEnrollments && (
+				<EditChildEnrollmentsModal
+					child={editingEnrollments.child}
+					householdId={household?.household_id || ''}
+					currentEnrollments={editingEnrollments.enrollments}
+					onClose={() => setEditingEnrollments(null)}
+				/>
+			)}
+
+			{showEditHousehold && household && (
+				<EditHouseholdAddressModal
+					household={household}
+					onClose={() => setShowEditHousehold(false)}
+				/>
+			)}
+
+			{/* Confirmation Dialog */}
+			<ConfirmationDialog
+				isOpen={!!showDeleteConfirm}
+				title={showDeleteConfirm?.type === 'guardian' ? 'Remove Guardian' : 'Remove Child'}
+				description={
+					showDeleteConfirm?.type === 'guardian'
+						? `Are you sure you want to remove ${showDeleteConfirm.name} as a guardian? This action cannot be undone.`
+						: `Are you sure you want to remove ${showDeleteConfirm.name}? This will mark them as inactive and cannot be undone.`
+				}
+				onConfirm={() => {
+					if (showDeleteConfirm?.type === 'guardian') {
+						handleDeleteGuardian();
+					} else {
+						handleDeleteChild();
+					}
+				}}
+				onCancel={() => setShowDeleteConfirm(null)}
+				variant="destructive"
+				confirmText={showDeleteConfirm?.type === 'guardian' ? 'Remove Guardian' : 'Remove Child'}
 			/>
 		</>
 	);
