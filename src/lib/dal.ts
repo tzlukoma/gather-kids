@@ -4713,3 +4713,71 @@ export async function getAllUsers(): Promise<Array<{
 
 // Export canonical registration function
 export { registerHouseholdCanonical } from './database/canonical-dal';
+
+// Household editing functions
+export async function getCurrentRegistrationCycle(): Promise<RegistrationCycle | null> {
+    const adapter = getAdapter();
+    const cycles = await adapter.listRegistrationCycles();
+    // Return the most recent active cycle
+    const activeCycles = cycles.filter(cycle => cycle.is_active);
+    if (activeCycles.length === 0) return null;
+    
+    return activeCycles.sort((a, b) => 
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    )[0];
+}
+
+export async function updateHouseholdInfo(householdId: string, data: Partial<Household>): Promise<void> {
+    const adapter = getAdapter();
+    await adapter.updateHousehold(householdId, data);
+}
+
+export async function addGuardian(householdId: string, guardian: Omit<Guardian, 'guardian_id'>): Promise<Guardian> {
+    const adapter = getAdapter();
+    return await adapter.addGuardian(householdId, guardian);
+}
+
+export async function updateGuardian(guardianId: string, data: Partial<Guardian>): Promise<void> {
+    const adapter = getAdapter();
+    await adapter.updateGuardian(guardianId, data);
+}
+
+export async function removeGuardian(guardianId: string): Promise<void> {
+    const adapter = getAdapter();
+    await adapter.removeGuardian(guardianId);
+}
+
+export async function updateEmergencyContact(householdId: string, contact: EmergencyContact): Promise<void> {
+    const adapter = getAdapter();
+    await adapter.updateEmergencyContact(householdId, contact);
+}
+
+export async function addChild(householdId: string, child: Omit<Child, 'child_id'>, cycleId: string): Promise<Child> {
+    const adapter = getAdapter();
+    return await adapter.addChild(householdId, child, cycleId);
+}
+
+export async function updateChild(childId: string, data: Partial<Child>): Promise<void> {
+    const adapter = getAdapter();
+    await adapter.updateChild(childId, data);
+}
+
+export async function softDeleteChild(childId: string): Promise<void> {
+    const adapter = getAdapter();
+    await adapter.softDeleteChild(childId);
+}
+
+export async function addChildEnrollment(childId: string, ministryId: string, cycleId: string, customFields?: any): Promise<void> {
+    const adapter = getAdapter();
+    await adapter.addEnrollment(childId, ministryId, cycleId, customFields);
+}
+
+export async function removeChildEnrollment(childId: string, ministryId: string, cycleId: string): Promise<void> {
+    const adapter = getAdapter();
+    await adapter.removeEnrollment(childId, ministryId, cycleId);
+}
+
+export async function updateChildEnrollmentFields(childId: string, ministryId: string, cycleId: string, customFields: any): Promise<void> {
+    const adapter = getAdapter();
+    await adapter.updateEnrollmentFields(childId, ministryId, cycleId, customFields);
+}
