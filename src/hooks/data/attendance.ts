@@ -88,8 +88,8 @@ export function useCheckOutMutation() {
     }) => recordCheckOut(attendanceId, verifier, userId),
     onSuccess: () => {
       const today = getTodayIsoDate();
-      // Invalidate attendance queries
-      queryClient.invalidateQueries({ queryKey: queryKeys.attendance(today) });
+      // Invalidate all attendance queries (general and event-specific)
+      queryClient.invalidateQueries({ queryKey: ['attendance', today] });
       // Invalidate checked-in children
       queryClient.invalidateQueries({ queryKey: queryKeys.checkedInChildren(today) });
       // Invalidate checked-in count
