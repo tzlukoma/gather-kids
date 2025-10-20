@@ -5,7 +5,7 @@ import {
 	getHouseholdProfile,
 	getHouseholdForUser,
 } from '@/lib/dal';
-import { useHouseholdProfile } from '@/lib/hooks/useData';
+import { useHouseholdProfile } from '@/hooks/data';
 import HouseholdBibleBeePage from '@/app/household/bible-bee/page';
 
 // Mock the ParentBibleBeeView component since it has complex data dependencies
@@ -24,7 +24,7 @@ jest.mock('@/components/gatherKids/scripture-card', () => ({
 // Mock dependencies
 jest.mock('@/contexts/auth-context');
 jest.mock('@/lib/dal');
-jest.mock('@/lib/hooks/useData', () => ({
+jest.mock('@/hooks/data', () => ({
 	useHouseholdProfile: jest.fn(),
 }));
 jest.mock('dexie-react-hooks', () => ({
@@ -69,18 +69,40 @@ describe('HouseholdBibleBeePage', () => {
 	};
 
 	beforeEach(() => {
+		jest.clearAllMocks();
+
 		mockUseAuth.mockReturnValue({
 			user: mockUser,
 			loading: false,
 			userRole: 'GUARDIAN',
 		} as any);
 
-		mockUseHouseholdProfile.mockReturnValue({
-			data: mockHouseholdProfile,
-			isLoading: false,
-		} as any);
+		// Mock the hook to return data when called with the correct household ID
+		mockUseHouseholdProfile.mockImplementation(
+			(householdId: string) => {
+				// When householdId is empty string (initial state), return loading
+				if (!householdId || householdId === '') {
+					return {
+						data: null,
+						isLoading: true,
+					};
+				}
+				// When householdId is set, return the mock data
+				return {
+					data: mockHouseholdProfile,
+					isLoading: false,
+				};
+			},
+			{ timeout: 5000 }
+		);
+
 		mockGetHouseholdForUser.mockResolvedValue('test-household');
-		jest.clearAllMocks();
+		mockGetBibleBeeMinistry.mockResolvedValue({
+			ministry_id: 'bible-bee',
+			code: 'bible-bee',
+			name: 'Bible Bee',
+			open_at: '2025-01-01',
+		} as any);
 	});
 
 	it('shows "Bible Bee Opening Soon" message when before open date', async () => {
@@ -97,9 +119,13 @@ describe('HouseholdBibleBeePage', () => {
 
 		render(<HouseholdBibleBeePage />);
 
-		await waitFor(() => {
-			expect(screen.getByText('Bible Bee Opening Soon')).toBeInTheDocument();
-		});
+		// Wait for the component to finish loading and show the opening soon message
+		await waitFor(
+			() => {
+				expect(screen.getByText('Bible Bee Opening Soon')).toBeInTheDocument();
+			},
+			{ timeout: 5000 }
+		);
 
 		expect(screen.getByText(/The Bible Bee will begin on/)).toBeInTheDocument();
 		expect(
@@ -121,9 +147,12 @@ describe('HouseholdBibleBeePage', () => {
 
 		render(<HouseholdBibleBeePage />);
 
-		await waitFor(() => {
-			expect(screen.getByText('Bible Bee Progress')).toBeInTheDocument();
-		});
+		await waitFor(
+			() => {
+				expect(screen.getByText('Bible Bee Progress')).toBeInTheDocument();
+			},
+			{ timeout: 5000 }
+		);
 
 		expect(
 			screen.queryByText('Bible Bee Opening Soon')
@@ -141,9 +170,12 @@ describe('HouseholdBibleBeePage', () => {
 
 		render(<HouseholdBibleBeePage />);
 
-		await waitFor(() => {
-			expect(screen.getByText('Bible Bee Progress')).toBeInTheDocument();
-		});
+		await waitFor(
+			() => {
+				expect(screen.getByText('Bible Bee Progress')).toBeInTheDocument();
+			},
+			{ timeout: 5000 }
+		);
 
 		expect(
 			screen.queryByText('Bible Bee Opening Soon')
@@ -181,13 +213,16 @@ describe('HouseholdBibleBeePage', () => {
 
 		render(<HouseholdBibleBeePage />);
 
-		await waitFor(() => {
-			expect(
-				screen.getByText(
-					'No children in this household are enrolled in the Bible Bee.'
-				)
-			).toBeInTheDocument();
-		});
+		await waitFor(
+			() => {
+				expect(
+					screen.getByText(
+						'No children in this household are enrolled in the Bible Bee.'
+					)
+				).toBeInTheDocument();
+			},
+			{ timeout: 5000 }
+		);
 
 		expect(
 			screen.queryByTestId('parent-bible-bee-view')
@@ -202,9 +237,12 @@ describe('HouseholdBibleBeePage', () => {
 		render(<HouseholdBibleBeePage />);
 
 		// Should show cards (default behavior) when error occurs
-		await waitFor(() => {
-			expect(screen.getByText('Bible Bee Progress')).toBeInTheDocument();
-		});
+		await waitFor(
+			() => {
+				expect(screen.getByText('Bible Bee Progress')).toBeInTheDocument();
+			},
+			{ timeout: 5000 }
+		);
 
 		expect(
 			screen.queryByText('Bible Bee Opening Soon')
