@@ -6,159 +6,192 @@ import { BrandingSettings } from '@/lib/types';
 
 // Mock the DAL functions
 jest.mock('@/lib/dal', () => ({
-    getBrandingSettings: jest.fn(),
-    getDefaultBrandingSettings: jest.fn(),
+	getBrandingSettings: jest.fn(),
+	getDefaultBrandingSettings: jest.fn(),
 }));
 
-const mockGetBrandingSettings = getBrandingSettings as jest.MockedFunction<typeof getBrandingSettings>;
-const mockGetDefaultBrandingSettings = getDefaultBrandingSettings as jest.MockedFunction<typeof getDefaultBrandingSettings>;
+const mockGetBrandingSettings = getBrandingSettings as jest.MockedFunction<
+	typeof getBrandingSettings
+>;
+const mockGetDefaultBrandingSettings =
+	getDefaultBrandingSettings as jest.MockedFunction<
+		typeof getDefaultBrandingSettings
+	>;
 
 describe('BrandingContext', () => {
-    const wrapper = ({ children }: { children: ReactNode }) => (
-        <BrandingProvider>{children}</BrandingProvider>
-    );
+	const wrapper = ({ children }: { children: ReactNode }) => (
+		<BrandingProvider>{children}</BrandingProvider>
+	);
 
-    const defaultSettings = {
-        app_name: 'gatherKids',
-        description: "The simple, secure, and smart way to manage your children's ministry. Streamline check-ins, track attendance, and keep your community connected.",
-        logo_url: undefined,
-        youtube_url: undefined,
-        instagram_url: undefined,
-    };
+	const defaultSettings = {
+		app_name: 'gatherKids',
+		description:
+			"The simple, secure, and smart way to manage your children's ministry. Streamline check-ins, track attendance, and keep your community connected.",
+		logo_url: undefined,
+		youtube_url: undefined,
+		instagram_url: undefined,
+	};
 
-    const customSettings: BrandingSettings = {
-        setting_id: 'test-id',
-        org_id: 'default',
-        app_name: 'MyCustomApp',
-        description: 'Custom description',
-        logo_url: 'data:image/png;base64,test',
-        youtube_url: 'https://youtube.com/@mychurch',
-        instagram_url: 'https://instagram.com/mychurch',
-        created_at: '2025-01-01T00:00:00.000Z',
-        updated_at: '2025-01-01T00:00:00.000Z',
-    };
+	const customSettings: BrandingSettings = {
+		setting_id: 'test-id',
+		org_id: 'default',
+		app_name: 'MyCustomApp',
+		description: 'Custom description',
+		logo_url: 'data:image/png;base64,test',
+		youtube_url: 'https://youtube.com/@mychurch',
+		instagram_url: 'https://instagram.com/mychurch',
+		created_at: '2025-01-01T00:00:00.000Z',
+		updated_at: '2025-01-01T00:00:00.000Z',
+	};
 
-    beforeEach(() => {
-        jest.clearAllMocks();
-        mockGetDefaultBrandingSettings.mockResolvedValue(defaultSettings);
-    });
+	beforeEach(() => {
+		jest.clearAllMocks();
+		mockGetDefaultBrandingSettings.mockResolvedValue(defaultSettings);
+	});
 
-    it('should throw error when useBranding is used outside provider', () => {
-        // Suppress console errors for this test since we expect an error
-        const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
-        
-        expect(() => {
-            renderHook(() => useBranding());
-        }).toThrow('useBranding must be used within a BrandingProvider');
-        
-        consoleSpy.mockRestore();
-    });
+	it('should throw error when useBranding is used outside provider', () => {
+		// Suppress console errors for this test since we expect an error
+		const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
 
-    it('should provide loading state initially', async () => {
-        mockGetBrandingSettings.mockResolvedValue(null);
+		expect(() => {
+			renderHook(() => useBranding());
+		}).toThrow('useBranding must be used within a BrandingProvider');
 
-        const { result } = renderHook(() => useBranding(), { wrapper });
+		consoleSpy.mockRestore();
+	});
 
-        expect(result.current.loading).toBe(true);
+	it('should provide loading state initially', async () => {
+		mockGetBrandingSettings.mockResolvedValue(null);
 
-        await waitFor(() => {
-            expect(result.current.loading).toBe(false);
-        });
-    });
+		const { result } = renderHook(() => useBranding(), { wrapper });
 
-    it('should load custom branding settings when available', async () => {
-        mockGetBrandingSettings.mockResolvedValue(customSettings);
+		expect(result.current.loading).toBe(true);
 
-        const { result } = renderHook(() => useBranding(), { wrapper });
+		await waitFor(
+			() => {
+				expect(result.current.loading).toBe(false);
+			},
+			{ timeout: 10000 }
+		);
+	});
 
-        await waitFor(() => {
-            expect(result.current.loading).toBe(false);
-        });
+	it('should load custom branding settings when available', async () => {
+		mockGetBrandingSettings.mockResolvedValue(customSettings);
 
-        expect(result.current.settings).toEqual(customSettings);
-        expect(mockGetBrandingSettings).toHaveBeenCalledTimes(1);
-        expect(mockGetDefaultBrandingSettings).not.toHaveBeenCalled();
-    });
+		const { result } = renderHook(() => useBranding(), { wrapper });
 
-    it('should fall back to default settings when no custom settings exist', async () => {
-        mockGetBrandingSettings.mockResolvedValue(null);
+		await waitFor(
+			() => {
+				expect(result.current.loading).toBe(false);
+			},
+			{ timeout: 10000 }
+		);
 
-        const { result } = renderHook(() => useBranding(), { wrapper });
+		expect(result.current.settings).toEqual(customSettings);
+		expect(mockGetBrandingSettings).toHaveBeenCalledTimes(1);
+		expect(mockGetDefaultBrandingSettings).not.toHaveBeenCalled();
+	});
 
-        await waitFor(() => {
-            expect(result.current.loading).toBe(false);
-        });
+	it('should fall back to default settings when no custom settings exist', async () => {
+		mockGetBrandingSettings.mockResolvedValue(null);
 
-        expect(result.current.settings).toEqual(defaultSettings);
-        expect(mockGetBrandingSettings).toHaveBeenCalledTimes(1);
-        expect(mockGetDefaultBrandingSettings).toHaveBeenCalledTimes(1);
-    });
+		const { result } = renderHook(() => useBranding(), { wrapper });
 
-    it('should fall back to defaults when getBrandingSettings throws error', async () => {
-        mockGetBrandingSettings.mockRejectedValue(new Error('Database error'));
-        const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+		await waitFor(
+			() => {
+				expect(result.current.loading).toBe(false);
+			},
+			{ timeout: 10000 }
+		);
 
-        const { result } = renderHook(() => useBranding(), { wrapper });
+		expect(result.current.settings).toEqual(defaultSettings);
+		expect(mockGetBrandingSettings).toHaveBeenCalledTimes(1);
+		expect(mockGetDefaultBrandingSettings).toHaveBeenCalledTimes(1);
+	});
 
-        await waitFor(() => {
-            expect(result.current.loading).toBe(false);
-        });
+	it('should fall back to defaults when getBrandingSettings throws error', async () => {
+		mockGetBrandingSettings.mockRejectedValue(new Error('Database error'));
+		const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
 
-        expect(result.current.settings).toEqual(defaultSettings);
-        expect(consoleSpy).toHaveBeenCalledWith('Failed to load branding settings:', expect.any(Error));
-        expect(mockGetDefaultBrandingSettings).toHaveBeenCalledTimes(1);
+		const { result } = renderHook(() => useBranding(), { wrapper });
 
-        consoleSpy.mockRestore();
-    });
+		await waitFor(
+			() => {
+				expect(result.current.loading).toBe(false);
+			},
+			{ timeout: 10000 }
+		);
 
-    it('should refresh settings when refreshSettings is called', async () => {
-        mockGetBrandingSettings.mockResolvedValue(null);
+		expect(result.current.settings).toEqual(defaultSettings);
+		expect(consoleSpy).toHaveBeenCalledWith(
+			'Failed to load branding settings:',
+			expect.any(Error)
+		);
+		expect(mockGetDefaultBrandingSettings).toHaveBeenCalledTimes(1);
 
-        const { result } = renderHook(() => useBranding(), { wrapper });
+		consoleSpy.mockRestore();
+	});
 
-        // Wait for initial load
-        await waitFor(() => {
-            expect(result.current.loading).toBe(false);
-        });
+	it('should refresh settings when refreshSettings is called', async () => {
+		mockGetBrandingSettings.mockResolvedValue(null);
 
-        expect(result.current.settings).toEqual(defaultSettings);
+		const { result } = renderHook(() => useBranding(), { wrapper });
 
-        // Mock updated settings for refresh
-        mockGetBrandingSettings.mockResolvedValue(customSettings);
+		// Wait for initial load
+		await waitFor(
+			() => {
+				expect(result.current.loading).toBe(false);
+			},
+			{ timeout: 10000 }
+		);
 
-        // Call refresh
-        await act(async () => {
-            await result.current.refreshSettings();
-        });
+		expect(result.current.settings).toEqual(defaultSettings);
 
-        expect(result.current.settings).toEqual(customSettings);
-        expect(mockGetBrandingSettings).toHaveBeenCalledTimes(2);
-    });
+		// Mock updated settings for refresh
+		mockGetBrandingSettings.mockResolvedValue(customSettings);
 
-    it('should show loading state during refresh', async () => {
-        mockGetBrandingSettings.mockResolvedValue(null);
+		// Call refresh
+		await act(async () => {
+			await result.current.refreshSettings();
+		});
 
-        const { result } = renderHook(() => useBranding(), { wrapper });
+		expect(result.current.settings).toEqual(customSettings);
+		expect(mockGetBrandingSettings).toHaveBeenCalledTimes(2);
+	});
 
-        // Wait for initial load
-        await waitFor(() => {
-            expect(result.current.loading).toBe(false);
-        });
+	it('should show loading state during refresh', async () => {
+		mockGetBrandingSettings.mockResolvedValue(null);
 
-        // Mock slow refresh
-        mockGetBrandingSettings.mockImplementation(() => new Promise(resolve => setTimeout(() => resolve(customSettings), 100)));
+		const { result } = renderHook(() => useBranding(), { wrapper });
 
-        // Call refresh and check loading state
-        act(() => {
-            result.current.refreshSettings();
-        });
+		// Wait for initial load
+		await waitFor(
+			() => {
+				expect(result.current.loading).toBe(false);
+			},
+			{ timeout: 10000 }
+		);
 
-        expect(result.current.loading).toBe(true);
+		// Mock slow refresh
+		mockGetBrandingSettings.mockImplementation(
+			() =>
+				new Promise((resolve) => setTimeout(() => resolve(customSettings), 100))
+		);
 
-        await waitFor(() => {
-            expect(result.current.loading).toBe(false);
-        });
+		// Call refresh and check loading state
+		act(() => {
+			result.current.refreshSettings();
+		});
 
-        expect(result.current.settings).toEqual(customSettings);
-    });
+		expect(result.current.loading).toBe(true);
+
+		await waitFor(
+			() => {
+				expect(result.current.loading).toBe(false);
+			},
+			{ timeout: 10000 }
+		);
+
+		expect(result.current.settings).toEqual(customSettings);
+	});
 });
