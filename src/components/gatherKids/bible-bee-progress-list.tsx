@@ -2,10 +2,7 @@
 
 import React, { useEffect, useState, useMemo } from 'react';
 import { getAllGuardians } from '@/lib/dal';
-import {
-	useBibleBeeCyclesQuery,
-	useBibleBeeProgressQuery,
-} from '@/lib/hooks/useBibleBee';
+import { useBibleBeeCycles, useBibleBeeProgressForCycle } from '@/hooks/data';
 import {
 	Select,
 	SelectTrigger,
@@ -17,6 +14,7 @@ import { BibleBeeProgressCard } from './bible-bee-progress-card';
 import { Button } from '@/components/ui/button';
 import { Download } from 'lucide-react';
 import { normalizeGradeDisplay } from '@/lib/gradeUtils';
+import { CardGridSkeleton } from '@/components/skeletons/CardGridSkeleton';
 
 interface BibleBeeProgressListProps {
 	/** Initial cycle to display */
@@ -59,7 +57,7 @@ export function BibleBeeProgressList({
 		data: bibleBeeCycles = [],
 		isLoading: cyclesLoading,
 		error: cyclesError,
-	} = useBibleBeeCyclesQuery();
+	} = useBibleBeeCycles();
 
 	// Initialize filters from localStorage when possible so tab switches keep state
 	const initial = useMemo(() => {
@@ -89,7 +87,7 @@ export function BibleBeeProgressList({
 	// Derive default cycle from data instead of using useEffect
 	const getDefaultCycle = useMemo(() => {
 		if (!bibleBeeCycles || bibleBeeCycles.length === 0) return null;
-		
+
 		// First try to find an active Bible Bee cycle
 		const active = bibleBeeCycles.find((c: any) => {
 			const val = c?.is_active;
@@ -100,7 +98,7 @@ export function BibleBeeProgressList({
 				String(val) === 'true'
 			);
 		});
-		
+
 		if (active && active.id) {
 			return String(active.id);
 		}
@@ -130,17 +128,29 @@ export function BibleBeeProgressList({
 	}, [initialCycle, initial?.selectedCycle, getDefaultCycle]);
 
 	// Only use state for user-initiated changes
-	const [userSelectedCycle, setUserSelectedCycle] = useState<string | null>(null);
-	
+	const [userSelectedCycle, setUserSelectedCycle] = useState<string | null>(
+		null
+	);
+
 	// The actual selected cycle is either user-selected or derived
 	const selectedCycle = userSelectedCycle ?? effectiveSelectedCycle;
 
 	// Use React Query for progress data
 	const {
-		data: progressData = [],
+		data: rawProgressData = [],
 		isLoading: progressLoading,
 		error: progressError,
-	} = useBibleBeeProgressQuery(selectedCycle, filterChildIds);
+	} = useBibleBeeProgressForCycle(selectedCycle);
+
+	// Apply child ID filtering if specified
+	const progressData = useMemo(() => {
+		if (!filterChildIds || filterChildIds.length === 0) {
+			return rawProgressData;
+		}
+		return rawProgressData.filter((item: any) =>
+			filterChildIds.includes(item.childId)
+		);
+	}, [rawProgressData, filterChildIds]);
 
 	// Derive grade groups from progress data (React Query pattern)
 	const availableGradeGroups = useMemo(() => {
@@ -215,7 +225,7 @@ export function BibleBeeProgressList({
 
 	// Show loading state
 	if (progressLoading) {
-		return <div>Loading Bible Bee progress...</div>;
+		return <CardGridSkeleton />;
 	}
 
 	// Show error state
