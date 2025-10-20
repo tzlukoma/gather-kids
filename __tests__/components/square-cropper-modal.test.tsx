@@ -5,7 +5,11 @@ import { SquareCropperModal } from '@/components/ui/square-cropper-modal';
 
 // Mock toast hook
 jest.mock('@/hooks/use-toast', () => ({
-	toast: jest.fn(),
+	useToast: () => ({
+		toast: jest.fn(),
+		dismiss: jest.fn(),
+		toasts: [],
+	}),
 }));
 
 // Mock navigator.mediaDevices

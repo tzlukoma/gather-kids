@@ -5,13 +5,10 @@ import {
 	useChild,
 	useHousehold,
 	useGuardians,
+	useStudentAssignmentsQuery,
+	useToggleScriptureMutation,
+	useSubmitEssayMutation,
 } from '@/hooks/data';
-// TODO: These hooks need to be created for Bible Bee functionality
-// import {
-// 	useStudentAssignmentsQuery,
-// 	useToggleScriptureMutation,
-// 	useSubmitEssayMutation,
-// } from '@/hooks/data';
 import { ChildIdCard } from '@/components/gatherKids/child-id-card';
 import { updateChildPhoto } from '@/lib/dal';
 import { useEffect, useState, useTransition } from 'react';
@@ -44,10 +41,10 @@ export default function ChildBibleBeeDetail({
 	const params = useParams();
 	const childId = params.childId as string;
 	const { user } = useAuth();
-	const { data, isLoading } = { data: null, isLoading: true }; // TODO: useStudentAssignmentsQuery(childId);
+	const { data, isLoading } = useStudentAssignmentsQuery(childId);
 	const [showPhotoCapture, setShowPhotoCapture] = useState<any>(null);
-	const toggleMutation = { mutate: () => {} }; // TODO: useToggleScriptureMutation(childId);
-	const essayMutation = { mutate: () => {} }; // TODO: useSubmitEssayMutation(childId);
+	const toggleMutation = useToggleScriptureMutation(childId);
+	const essayMutation = useSubmitEssayMutation(childId);
 
 	// Use React Query hooks for child, household, and guardian data
 	const {
