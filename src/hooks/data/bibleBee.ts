@@ -288,11 +288,6 @@ export function useStudentAssignmentsQuery(childId: string) {
             }
           }));
           
-          // Count how many existing records were found vs new ones created
-          const existingCount = scriptures.filter(s => s.id && s.createdAt === s.updatedAt).length;
-          const newCount = scriptures.length - existingCount;
-          console.log(`📊 Student scripture summary for ${childId}: ${existingCount} existing, ${newCount} new`);
-          
           console.log('✅ Created student scripture assignments:', scriptures.length, scriptures);
           
           // Get essays for the child's Bible Bee cycles
@@ -481,7 +476,7 @@ export function useToggleScriptureMutation(childId: string) {
           ...old,
           scriptures: old.scriptures.map((scripture: any) => 
             scripture.id === id 
-              ? { ...scripture, status: complete ? 'completed' : 'pending' }
+              ? { ...scripture, status: complete ? 'completed' : 'not_started' }
               : scripture
           )
         };
