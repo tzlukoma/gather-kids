@@ -48,4 +48,15 @@ export const queryKeys = {
   // Branding keys
   brandingSettings: (orgId: string) => ['brandingSettings', orgId] as const,
   defaultBrandingSettings: () => ['defaultBrandingSettings'] as const,
+  
+  // Bible Bee keys
+  bibleBeeCycles: (isActive?: boolean) => ['bibleBeeCycles', isActive] as const,
+  bibleBeeCycle: (id: string) => ['bibleBeeCycle', id] as const,
+  scripturesForCycle: (cycleId: string) => ['scripturesForCycle', cycleId] as const,
+  leaderBibleBeeProgress: (leaderId: string, cycleId: string) => ['leaderBibleBeeProgress', leaderId, cycleId] as const,
+  bibleBeeProgressForCycle: (cycleId: string) => ['bibleBeeProgressForCycle', cycleId] as const,
+  divisionsForCycle: (cycleId: string) => ['divisionsForCycle', cycleId] as const,
+  essayPromptsForCycle: (cycleId: string) => ['essayPromptsForCycle', cycleId] as const,
+  canLeaderManageBibleBee: (opts: any) => ['canLeaderManageBibleBee', opts] as const,
+  bibleBeeMinistry: () => ['bibleBeeMinistry'] as const,
 };

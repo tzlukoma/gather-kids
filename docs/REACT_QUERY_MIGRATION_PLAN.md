@@ -294,7 +294,7 @@ When continuing this migration:
 - [x] MODULE 9g: Users Management Page
 - [x] MODULE 9h: Check-In Page
 - [x] MODULE 9i: Branding Page
-- [ ] MODULE 10: Bible Bee Hooks
+- [x] MODULE 10: Bible Bee Hooks
 - [ ] MODULE 11a: Bible Bee Main Page
 - [ ] MODULE 11b: Bible Bee Progress List Component
 - [ ] MODULE 11c: Bible Bee Detail Component

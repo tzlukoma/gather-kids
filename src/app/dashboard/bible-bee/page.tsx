@@ -256,7 +256,6 @@ export default function BibleBeePage() {
 						<CardContent>
 							<LeaderBibleBeeProgress
 								cycleId={selectedCycle}
-								bibleBeeYears={bibleBeeCycles}
 							/>
 						</CardContent>
 					</Card>
