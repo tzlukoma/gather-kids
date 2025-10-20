@@ -92,7 +92,8 @@ export default function RegistrationsPage() {
 	}, [user]);
 
 	// Use React Query hook for household list
-	const { data: households = [], isLoading: householdsLoading } = useHouseholds();
+	const { data: households = [], isLoading: householdsLoading } =
+		useHouseholds();
 
 	const handleRowClick = (householdId: string) => {
 		router.push(`/dashboard/registrations/${householdId}`);
