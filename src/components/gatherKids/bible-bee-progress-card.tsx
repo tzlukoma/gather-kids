@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { ExternalLink, BookOpen, FileText } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
+import { useChild } from '@/hooks/data';
 
 interface BibleBeeProgressCardProps {
 	childId: string;

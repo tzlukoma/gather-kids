@@ -297,7 +297,7 @@ When continuing this migration:
 - [x] MODULE 10: Bible Bee Hooks
 - [x] MODULE 11a: Bible Bee Main Page
 - [x] MODULE 11b: Bible Bee Progress List Component
-- [ ] MODULE 11c: Bible Bee Detail Component
+- [x] MODULE 11c: Bible Bee Detail Component
 - [ ] MODULE 12: Barrel Exports
 - [ ] MODULE 13: Update Imports
 - [ ] MODULE 14: Documentation
