@@ -2,12 +2,7 @@
 import React from 'react';
 import { useParams } from 'next/navigation';
 import { dbAdapter } from '@/lib/dal';
-// TODO: These hooks need to be created for Bible Bee functionality
-// import {
-// 	useScripturesForYear,
-// 	useScripturesForYearQuery,
-// 	createGradeRule as hookCreateGradeRule,
-// } from '@/hooks/data';
+import { useScripturesForYear, useScripturesForYearQuery } from '@/lib/hooks/useBibleBee';
 import {
 	upsertScripture,
 	validateCsvRows,

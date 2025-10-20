@@ -40,7 +40,10 @@ export {
   useUpdateBibleBeeCycle,
   useDeleteBibleBeeCycle,
   useUpsertScripture,
-  useDeleteScripture
+  useDeleteScripture,
+  useStudentAssignmentsQuery,
+  useToggleScriptureMutation,
+  useSubmitEssayMutation
 } from './bibleBee';
 
 // Configuration
