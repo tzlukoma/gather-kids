@@ -1,7 +1,7 @@
 -- Create audit log table for tracking household data changes
 CREATE TABLE IF NOT EXISTS audit_log (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  household_id UUID REFERENCES households(household_id),
+  household_id TEXT REFERENCES households(household_id),
   user_id TEXT NOT NULL,
   action TEXT NOT NULL,
   entity_type TEXT NOT NULL, -- 'guardian', 'child', 'household', 'enrollment', 'emergency_contact'

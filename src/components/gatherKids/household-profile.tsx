@@ -203,27 +203,15 @@ const ChildCard = ({
 						{!child.is_active && <Badge variant="outline">Inactive</Badge>}
 						{canEdit && (
 							<div className="ml-auto flex gap-1">
-								<Button
-									variant="outline"
-									size="sm"
-									onClick={onEditChild}
-								>
+								<Button variant="outline" size="sm" onClick={onEditChild}>
 									<Edit className="h-4 w-4 mr-1" />
 									Edit
 								</Button>
-								<Button
-									variant="outline"
-									size="sm"
-									onClick={onEditEnrollments}
-								>
+								<Button variant="outline" size="sm" onClick={onEditEnrollments}>
 									<CheckCircle2 className="h-4 w-4 mr-1" />
 									Enrollments
 								</Button>
-								<Button
-									variant="outline"
-									size="sm"
-									onClick={onDeleteChild}
-								>
+								<Button variant="outline" size="sm" onClick={onDeleteChild}>
 									<Trash2 className="h-4 w-4" />
 								</Button>
 							</div>
@@ -338,7 +326,7 @@ export function HouseholdProfile({
 
 	const handleDeleteGuardian = async () => {
 		if (!showDeleteConfirm) return;
-		
+
 		try {
 			await removeGuardianMutation.mutateAsync({
 				guardianId: showDeleteConfirm.id,
@@ -352,7 +340,7 @@ export function HouseholdProfile({
 
 	const handleDeleteChild = async () => {
 		if (!showDeleteConfirm) return;
-		
+
 		try {
 			await softDeleteChildMutation.mutateAsync({
 				childId: showDeleteConfirm.id,
@@ -387,8 +375,7 @@ export function HouseholdProfile({
 										<Button
 											variant="outline"
 											size="sm"
-											onClick={() => setShowAddGuardian(true)}
-										>
+											onClick={() => setShowAddGuardian(true)}>
 											<Plus className="h-4 w-4 mr-1" />
 											Add Guardian
 										</Button>
@@ -409,20 +396,20 @@ export function HouseholdProfile({
 												<Button
 													variant="outline"
 													size="sm"
-													onClick={() => setEditingGuardian(g)}
-												>
+													onClick={() => setEditingGuardian(g)}>
 													<Edit className="h-4 w-4" />
 												</Button>
 												{guardians.length > 1 && (
 													<Button
 														variant="outline"
 														size="sm"
-														onClick={() => setShowDeleteConfirm({
-															type: 'guardian',
-															id: g.guardian_id,
-															name: `${g.first_name} ${g.last_name}`
-														})}
-													>
+														onClick={() =>
+															setShowDeleteConfirm({
+																type: 'guardian',
+																id: g.guardian_id,
+																name: `${g.first_name} ${g.last_name}`,
+															})
+														}>
 														<Trash2 className="h-4 w-4" />
 													</Button>
 												)}
@@ -453,8 +440,7 @@ export function HouseholdProfile({
 											<Button
 												variant="outline"
 												size="sm"
-												onClick={() => setEditingEmergencyContact(true)}
-											>
+												onClick={() => setEditingEmergencyContact(true)}>
 												<Edit className="h-4 w-4 mr-1" />
 												Edit
 											</Button>
@@ -484,8 +470,7 @@ export function HouseholdProfile({
 										<Button
 											variant="outline"
 											size="sm"
-											onClick={() => setShowEditHousehold(true)}
-										>
+											onClick={() => setShowEditHousehold(true)}>
 											<Edit className="h-4 w-4 mr-1" />
 											Edit
 										</Button>
@@ -509,16 +494,13 @@ export function HouseholdProfile({
 					<div className="lg:col-span-2 space-y-6">
 						{canEdit && (
 							<div className="flex justify-end">
-								<Button
-									variant="outline"
-									onClick={() => setShowAddChild(true)}
-								>
+								<Button variant="outline" onClick={() => setShowAddChild(true)}>
 									<Plus className="h-4 w-4 mr-2" />
 									Add Child
 								</Button>
 							</div>
 						)}
-						
+
 						{activeChildren.map((child) => (
 							<ChildCard
 								key={child.child_id}
@@ -531,23 +513,27 @@ export function HouseholdProfile({
 								onEditChild={() => setEditingChild(child)}
 								onEditEnrollments={() => {
 									// Get current cycle enrollments for this child
-									const currentCycleEnrollments = Object.values(child.enrollmentsByCycle)
+									const currentCycleEnrollments = Object.values(
+										child.enrollmentsByCycle
+									)
 										.flat()
-										.filter(enrollment => {
+										.filter((enrollment) => {
 											// Filter to current cycle - we'll need to get current cycle ID
 											// For now, we'll pass all enrollments and let the modal filter
 											return true;
 										});
 									setEditingEnrollments({
 										child,
-										enrollments: currentCycleEnrollments
+										enrollments: currentCycleEnrollments,
 									});
 								}}
-								onDeleteChild={() => setShowDeleteConfirm({
-									type: 'child',
-									id: child.child_id,
-									name: `${child.first_name} ${child.last_name}`
-								})}
+								onDeleteChild={() =>
+									setShowDeleteConfirm({
+										type: 'child',
+										id: child.child_id,
+										name: `${child.first_name} ${child.last_name}`,
+									})
+								}
 							/>
 						))}
 
@@ -647,7 +633,11 @@ export function HouseholdProfile({
 			{/* Confirmation Dialog */}
 			<ConfirmationDialog
 				isOpen={!!showDeleteConfirm}
-				title={showDeleteConfirm?.type === 'guardian' ? 'Remove Guardian' : 'Remove Child'}
+				title={
+					showDeleteConfirm?.type === 'guardian'
+						? 'Remove Guardian'
+						: 'Remove Child'
+				}
 				description={
 					showDeleteConfirm?.type === 'guardian'
 						? `Are you sure you want to remove ${showDeleteConfirm.name} as a guardian? This action cannot be undone.`
@@ -662,7 +652,11 @@ export function HouseholdProfile({
 				}}
 				onCancel={() => setShowDeleteConfirm(null)}
 				variant="destructive"
-				confirmText={showDeleteConfirm?.type === 'guardian' ? 'Remove Guardian' : 'Remove Child'}
+				confirmText={
+					showDeleteConfirm?.type === 'guardian'
+						? 'Remove Guardian'
+						: 'Remove Child'
+				}
 			/>
 		</>
 	);
