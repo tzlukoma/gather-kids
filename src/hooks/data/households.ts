@@ -6,7 +6,8 @@ import {
   getHousehold, 
   getHouseholdProfile,
   getAllGuardians,
-  getAllEmergencyContacts 
+  getAllEmergencyContacts,
+  queryHouseholdList
 } from '@/lib/dal';
 import { queryKeys } from './keys';
 import { cacheConfig } from './config';
@@ -49,6 +50,14 @@ export function useEmergencyContacts() {
   return useQuery({
     queryKey: ['emergencyContacts'],
     queryFn: getAllEmergencyContacts,
+    ...cacheConfig.moderate,
+  });
+}
+
+export function useHouseholdList(leaderMinistryIds?: string[], ministryId?: string) {
+  return useQuery({
+    queryKey: queryKeys.householdList(leaderMinistryIds, ministryId),
+    queryFn: () => queryHouseholdList(leaderMinistryIds, ministryId),
     ...cacheConfig.moderate,
   });
 }
