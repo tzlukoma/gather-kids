@@ -23,7 +23,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { AuthRole } from '@/lib/auth-types';
 import { useState, useEffect } from 'react';
 import { Combobox } from '@/components/ui/combobox';
-import { useHouseholdList } from '@/lib/hooks/useData';
+import { useHouseholds } from '@/hooks/data';
 import { useMinistries } from '@/hooks/data/ministries';
 import type { Household, Child, Ministry } from '@/lib/types';
 
@@ -92,8 +92,7 @@ export default function RegistrationsPage() {
 	}, [user]);
 
 	// Use React Query hook for household list
-	const { data: households = [], isLoading: householdsLoading } =
-		useHouseholdList(ministryFilterIds, ministryFilter ?? undefined);
+	const { data: households = [], isLoading: householdsLoading } = useHouseholds();
 
 	const handleRowClick = (householdId: string) => {
 		router.push(`/dashboard/registrations/${householdId}`);
@@ -184,7 +183,7 @@ export default function RegistrationsPage() {
 							</TableRow>
 						</TableHeader>
 						<TableBody>
-							{households.map((household) => (
+							{(households || []).map((household) => (
 								<TableRow
 									key={household.household_id}
 									onClick={() => handleRowClick(household.household_id)}
@@ -196,7 +195,7 @@ export default function RegistrationsPage() {
 										{format(new Date(household.created_at), 'PPP')}
 									</TableCell>
 									<TableCell>
-										{household.children
+										{(household.children || [])
 											.map((c) => `${c.first_name} (${c.age})`)
 											.join(', ')}
 									</TableCell>

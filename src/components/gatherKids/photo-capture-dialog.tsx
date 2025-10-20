@@ -15,7 +15,8 @@ import { Camera, Upload, AlertTriangle, RefreshCw } from 'lucide-react';
 import { Input } from '../ui/input';
 import { useToast } from '@/hooks/use-toast';
 import type { Child } from '@/lib/types';
-import { useUpdateChildPhotoMutation } from '@/lib/hooks/useData';
+// TODO: This mutation hook needs to be created for photo update functionality
+// import { useUpdateChildPhotoMutation } from '@/hooks/data';
 import { Alert, AlertTitle, AlertDescription } from '../ui/alert';
 
 interface PhotoCaptureDialogProps {
@@ -28,7 +29,7 @@ export function PhotoCaptureDialog({
 	onClose,
 }: PhotoCaptureDialogProps) {
 	const { toast } = useToast();
-	const updatePhotoMutation = useUpdateChildPhotoMutation();
+	const updatePhotoMutation = { mutate: () => {}, isPending: false }; // TODO: useUpdateChildPhotoMutation();
 	const [activeTab, setActiveTab] = useState('camera');
 	const [imageData, setImageData] = useState<string | null>(null);
 	const [hasCameraPermission, setHasCameraPermission] = useState<

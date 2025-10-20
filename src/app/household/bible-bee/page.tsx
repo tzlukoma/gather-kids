@@ -6,7 +6,7 @@ import {
 	getBibleBeeMinistry,
 	getHouseholdForUser,
 } from '@/lib/dal';
-import { useHouseholdProfile } from '@/lib/hooks/useData';
+import { useHouseholdProfile } from '@/hooks/data';
 import { ParentBibleBeeView } from '@/components/gatherKids/parent-bible-bee-view';
 import { BookOpen, Calendar } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';

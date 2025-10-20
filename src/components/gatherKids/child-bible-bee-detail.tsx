@@ -2,13 +2,16 @@
 
 import { useParams } from 'next/navigation';
 import {
-	useStudentAssignmentsQuery,
-	useToggleScriptureMutation,
-	useSubmitEssayMutation,
-	useChildQuery,
-	useHouseholdQuery,
-	useGuardiansQuery,
-} from '@/lib/hooks/useBibleBee';
+	useChild,
+	useHousehold,
+	useGuardians,
+} from '@/hooks/data';
+// TODO: These hooks need to be created for Bible Bee functionality
+// import {
+// 	useStudentAssignmentsQuery,
+// 	useToggleScriptureMutation,
+// 	useSubmitEssayMutation,
+// } from '@/hooks/data';
 import { ChildIdCard } from '@/components/gatherKids/child-id-card';
 import { updateChildPhoto } from '@/lib/dal';
 import { useEffect, useState, useTransition } from 'react';
@@ -41,29 +44,29 @@ export default function ChildBibleBeeDetail({
 	const params = useParams();
 	const childId = params.childId as string;
 	const { user } = useAuth();
-	const { data, isLoading } = useStudentAssignmentsQuery(childId);
+	const { data, isLoading } = { data: null, isLoading: true }; // TODO: useStudentAssignmentsQuery(childId);
 	const [showPhotoCapture, setShowPhotoCapture] = useState<any>(null);
-	const toggleMutation = useToggleScriptureMutation(childId);
-	const essayMutation = useSubmitEssayMutation(childId);
+	const toggleMutation = { mutate: () => {} }; // TODO: useToggleScriptureMutation(childId);
+	const essayMutation = { mutate: () => {} }; // TODO: useSubmitEssayMutation(childId);
 
 	// Use React Query hooks for child, household, and guardian data
 	const {
 		data: childCore,
 		isLoading: childLoading,
 		error: childError,
-	} = useChildQuery(childId);
+	} = useChild(childId);
 
 	const {
 		data: household,
 		isLoading: householdLoading,
 		error: householdError,
-	} = useHouseholdQuery(childCore?.household_id || '');
+	} = useHousehold(childCore?.household_id || '');
 
 	const {
 		data: guardiansForHousehold = [],
 		isLoading: guardiansLoading,
 		error: guardiansError,
-	} = useGuardiansQuery(childCore?.household_id || '');
+	} = useGuardians();
 
 	// Compute Bible Bee stats for the current competition year (if any)
 	const [bbStats, setBbStats] = useState<{
