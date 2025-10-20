@@ -29,12 +29,9 @@ import {
 	useGuardians,
 	useHouseholds,
 	useEmergencyContacts,
+	useCheckInMutation,
+	useCheckOutMutation,
 } from '@/hooks/data';
-// TODO: These mutation hooks need to be created for check-in functionality
-// import {
-// 	useCheckInMutation,
-// 	useCheckOutMutation,
-// } from '@/hooks/data';
 
 interface CheckInViewProps {
 	children: Child[];
@@ -93,8 +90,8 @@ export function CheckInView({
 	const { data: allEmergencyContacts = [] } = useEmergencyContacts();
 
 	// Use React Query mutations for check-in/check-out
-	const checkInMutation = { mutate: () => {}, isPending: false }; // TODO: useCheckInMutation();
-	const checkOutMutation = { mutate: () => {}, isPending: false }; // TODO: useCheckOutMutation();
+	const checkInMutation = useCheckInMutation();
+	const checkOutMutation = useCheckOutMutation();
 
 	const today = getTodayIsoDate();
 
