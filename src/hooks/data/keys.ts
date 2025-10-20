@@ -5,6 +5,8 @@ export const queryKeys = {
   households: () => ['households'] as const,
   household: (id: string) => ['household', id] as const,
   householdProfile: (id: string) => ['householdProfile', id] as const,
+  householdList: (leaderMinistryIds?: string[], ministryId?: string) => 
+    ['householdList', leaderMinistryIds, ministryId] as const,
   guardians: () => ['guardians'] as const,
   
   // Event-scoped attendance for granular invalidation

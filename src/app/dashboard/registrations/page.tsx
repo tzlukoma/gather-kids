@@ -23,7 +23,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { AuthRole } from '@/lib/auth-types';
 import { useState, useEffect } from 'react';
 import { Combobox } from '@/components/ui/combobox';
-import { useHouseholds } from '@/hooks/data';
+import { useHouseholdList } from '@/hooks/data';
 import { useMinistries } from '@/hooks/data/ministries';
 import type { Household, Child, Ministry } from '@/lib/types';
 
@@ -91,9 +91,9 @@ export default function RegistrationsPage() {
 		loadData();
 	}, [user]);
 
-	// Use React Query hook for household list
+	// Use React Query hook for household list with children data
 	const { data: households = [], isLoading: householdsLoading } =
-		useHouseholds();
+		useHouseholdList(ministryFilterIds, ministryFilter);
 
 	const handleRowClick = (householdId: string) => {
 		router.push(`/dashboard/registrations/${householdId}`);

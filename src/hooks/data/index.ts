@@ -1,6 +1,6 @@
 // Data hooks
-export { useChildren, useChild, useCheckedInChildren } from './children';
-export { useHouseholds, useHousehold, useHouseholdProfile, useGuardians, useEmergencyContacts } from './households';
+export { useChildren, useChild, useCheckedInChildren, useUpdateChildPhotoMutation } from './children';
+export { useHouseholds, useHousehold, useHouseholdProfile, useHouseholdList, useGuardians, useEmergencyContacts } from './households';
 export { useAttendance, useIncidents, useIncidentsForUser, useAcknowledgeIncident, useCheckInMutation, useCheckOutMutation } from './attendance';
 export { 
   useMinistries, 
