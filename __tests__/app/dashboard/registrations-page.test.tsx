@@ -201,7 +201,7 @@ describe('RegistrationsPage', () => {
 		});
 	});
 
-	test('calls useHouseholdList with correct parameters for ministry leader', () => {
+	test('calls useHouseholdList with correct parameters for ministry leader', async () => {
 		const ministryLeaderUser = {
 			...mockUsers.ministryLeader,
 			assignedMinistryIds: ['ministry-1', 'ministry-2'],
@@ -221,10 +221,12 @@ describe('RegistrationsPage', () => {
 
 		renderWithProviders(<RegistrationsPage />, ministryLeaderUser);
 
-		// Verify that useHouseholdList was called with the assigned ministry IDs
-		expect(mockUseHouseholdList).toHaveBeenCalledWith(
-			['ministry-1', 'ministry-2'],
-			null
-		);
+		// Wait for the useEffect to run and set the ministryFilterIds
+		await waitFor(() => {
+			expect(mockUseHouseholdList).toHaveBeenCalledWith(
+				['ministry-1', 'ministry-2'],
+				undefined
+			);
+		});
 	});
 });
