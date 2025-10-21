@@ -14,13 +14,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { PhoneInput } from '@/components/ui/phone-input';
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from '@/components/ui/select';
 import { useUpdateEmergencyContact } from '@/hooks/data';
 import { useToast } from '@/hooks/use-toast';
 import type { EmergencyContact } from '@/lib/types';
@@ -145,21 +138,12 @@ export function EditEmergencyContactModal({
 
 					<div className="space-y-2">
 						<Label htmlFor="relationship">Relationship</Label>
-						<Select
-							value={watch('relationship')}
-							onValueChange={(value) => setValue('relationship', value)}>
-							<SelectTrigger
-								className={errors.relationship ? 'border-red-500' : ''}>
-								<SelectValue placeholder="Select relationship" />
-							</SelectTrigger>
-							<SelectContent>
-								<SelectItem value="grandparent">Grandparent</SelectItem>
-								<SelectItem value="aunt_uncle">Aunt/Uncle</SelectItem>
-								<SelectItem value="family_friend">Family Friend</SelectItem>
-								<SelectItem value="neighbor">Neighbor</SelectItem>
-								<SelectItem value="other">Other</SelectItem>
-							</SelectContent>
-						</Select>
+						<Input
+							id="relationship"
+							placeholder="e.g., Mother, Grandfather"
+							{...register('relationship')}
+							className={errors.relationship ? 'border-red-500' : ''}
+						/>
 						{errors.relationship && (
 							<p className="text-sm text-red-500">
 								{errors.relationship.message}
