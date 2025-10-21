@@ -326,7 +326,9 @@ export function HouseholdProfile({
 	} | null>(null);
 
 	// Edit modal states
-	const [editingGuardian, setEditingGuardian] = useState<Guardian | null | undefined>(undefined);
+	const [editingGuardian, setEditingGuardian] = useState<
+		Guardian | null | undefined
+	>(undefined);
 	const [editingEmergencyContact, setEditingEmergencyContact] =
 		useState<EmergencyContact | null>(null);
 	const [editingChild, setEditingChild] = useState<Child | null | undefined>(
@@ -417,21 +419,26 @@ export function HouseholdProfile({
 					</p>
 				</div>
 
+				{canEdit && (
+					<div className="flex gap-4 justify-start">
+						<Button
+							variant="outline"
+							onClick={() => setEditingGuardian(null)}>
+							Add Guardian
+						</Button>
+						<Button
+							variant="outline"
+							onClick={() => setEditingChild(null)}>
+							Add Child
+						</Button>
+					</div>
+				)}
+
 				<div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 					<Card className="lg:col-span-1 h-fit">
 						<CardHeader>
-							<CardTitle className="font-headline flex items-center justify-between">
-								<div className="flex items-center gap-2">
-									<User /> Guardians & Contacts
-								</div>
-								{canEdit && (
-									<Button
-										variant="outline"
-										size="sm"
-										onClick={() => setEditingGuardian(null)}>
-										Add Guardian
-									</Button>
-								)}
+							<CardTitle className="font-headline flex items-center gap-2">
+								<User /> Guardians & Contacts
 							</CardTitle>
 						</CardHeader>
 						<CardContent className="space-y-4">
@@ -539,13 +546,6 @@ export function HouseholdProfile({
 					</Card>
 
 					<div className="lg:col-span-2 space-y-6">
-						{canEdit && (
-							<div className="flex justify-end">
-								<Button variant="outline" onClick={() => setEditingChild(null)}>
-									Add Child
-								</Button>
-							</div>
-						)}
 						{activeChildren.map((child) => (
 							<ChildCard
 								key={child.child_id}
