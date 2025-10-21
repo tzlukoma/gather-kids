@@ -24,8 +24,6 @@ const householdSchema = z.object({
   city: z.string().min(1, 'City is required'),
   state: z.string().min(1, 'State is required'),
   zip: z.string().min(1, 'ZIP code is required'),
-  primary_email: z.string().email('Invalid email address').optional().or(z.literal('')),
-  primary_phone: z.string().optional(),
 });
 
 type HouseholdFormData = z.infer<typeof householdSchema>;
@@ -53,8 +51,6 @@ export function EditHouseholdAddressModal({ household, onClose }: EditHouseholdA
       city: household.city || '',
       state: household.state || '',
       zip: household.zip || '',
-      primary_email: household.primary_email || '',
-      primary_phone: household.primary_phone || '',
     },
   });
 
@@ -66,8 +62,6 @@ export function EditHouseholdAddressModal({ household, onClose }: EditHouseholdA
         data: {
           ...data,
           address_line2: data.address_line2 || undefined,
-          primary_email: data.primary_email || undefined,
-          primary_phone: data.primary_phone || undefined,
         },
       });
       toast({
@@ -93,7 +87,7 @@ export function EditHouseholdAddressModal({ household, onClose }: EditHouseholdA
         <DialogHeader>
           <DialogTitle>Edit Household Information</DialogTitle>
           <DialogDescription>
-            Update the household address and contact information below.
+            Update the household address information below.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -164,28 +158,6 @@ export function EditHouseholdAddressModal({ household, onClose }: EditHouseholdA
                 <p className="text-sm text-red-500">{errors.zip.message}</p>
               )}
             </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="primary_email">Primary Email (Optional)</Label>
-            <Input
-              id="primary_email"
-              type="email"
-              {...register('primary_email')}
-              className={errors.primary_email ? 'border-red-500' : ''}
-            />
-            {errors.primary_email && (
-              <p className="text-sm text-red-500">{errors.primary_email.message}</p>
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="primary_phone">Primary Phone (Optional)</Label>
-            <Input
-              id="primary_phone"
-              {...register('primary_phone')}
-              placeholder="Phone number"
-            />
           </div>
 
           <DialogFooter>
