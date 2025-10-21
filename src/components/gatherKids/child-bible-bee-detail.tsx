@@ -8,14 +8,12 @@ import {
 	useStudentAssignmentsQuery,
 	useToggleScriptureMutation,
 	useSubmitEssayMutation,
+	useBibleBeeStats,
 } from '@/hooks/data';
 import { ChildIdCard } from '@/components/gatherKids/child-id-card';
 import { updateChildPhoto } from '@/lib/dal';
-import { useEffect, useState, useTransition } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { getApplicableGradeRule } from '@/lib/bibleBee';
-import { gradeToCode } from '@/lib/gradeUtils';
-import { useMemo } from 'react';
 import {
 	Card,
 	CardContent,
@@ -65,173 +63,24 @@ export default function ChildBibleBeeDetail({
 		error: guardiansError,
 	} = useGuardians();
 
-	// Compute Bible Bee stats for the current competition year (if any)
-	const [bbStats, setBbStats] = useState<{
-		requiredScriptures: number;
-		completedScriptures: number;
-		percentDone: number;
-		bonus: number;
-		division?: {
-			name: string;
-			min_grade: number;
-			max_grade: number;
-		};
-		essayAssigned?: boolean;
-	} | null>(null);
+	// Use React Query hook for Bible Bee stats
+	const { 
+		data: statsData, 
+		isLoading: statsLoading 
+	} = useBibleBeeStats(childId);
 
-	const [isComputingStats, setIsComputingStats] = useState(false);
-	const [isPending, startTransition] = useTransition();
-
-	const [essaySummary, setEssaySummary] = useState<{
-		count: number;
-		submitted: number;
-		pending: number;
-	} | null>(null);
-
-	const [divisionEssayPrompts, setDivisionEssayPrompts] = useState<any[]>([]);
-
-	useEffect(() => {
-		const compute = async () => {
-			if (!data) {
-				setBbStats(null);
-				setEssaySummary(null);
-				setIsComputingStats(false);
-				return;
-			}
-
-			startTransition(() => {
-				setIsComputingStats(true);
-			});
-
-			const scriptures = data.scriptures || [];
-			const essays = data.essays || [];
-
-			// Prepare essay summary
-			if (essays.length > 0 && scriptures.length === 0) {
-				const submitted = essays.filter(
-					(e: any) => e.status === 'submitted'
-				).length;
-				setEssaySummary({
-					count: essays.length,
-					submitted,
-					pending: essays.length - submitted,
-				});
-			} else {
-				setEssaySummary(null);
-			}
-
-			if (scriptures.length === 0 && essays.length === 0) {
-				// No assignments to compute
-				setBbStats(null);
-				return;
-			}
-			// Get the year ID for division lookup - from scripture assignments or essay assignments
-			const yearId =
-				scriptures.length > 0
-					? scriptures[0].bible_bee_cycle_id
-					: essays[0]?.bible_bee_cycle_id;
-			let required = scriptures.length;
-			let matchingDivision = null;
-
-			console.log('Computing Bible Bee stats for child:', childCore?.child_id);
-			console.log('Child grade:', childCore?.grade);
-			console.log('Scripture year ID (bible_bee_cycle_id):', yearId);
-			console.log('First scripture assignment:', scriptures[0]);
-
-			try {
-				const gradeNum = childCore?.grade ? gradeToCode(childCore.grade) : null;
-				console.log('Parsed grade number:', gradeNum);
-
-				if (gradeNum !== null && yearId && childCore) {
-					// Use the helper function to get division information
-					const { getChildDivisionInfo } = await import('@/lib/bibleBee');
-					const divisionInfo = await getChildDivisionInfo(
-						childCore.child_id,
-						yearId
-					);
-
-					console.log('Division info from helper:', divisionInfo);
-
-					if (divisionInfo.division) {
-						// New system: Use division information
-						matchingDivision = {
-							name: divisionInfo.division.name,
-							min_grade: divisionInfo.division.min_grade,
-							max_grade: divisionInfo.division.max_grade,
-						};
-						// Use the minimum_required from the division
-						required =
-							divisionInfo.division.minimum_required || scriptures.length;
-						console.log(
-							'Using division minimum_required:',
-							required,
-							'from division:',
-							divisionInfo.division.name
-						);
-					} else if (divisionInfo.target) {
-						// Legacy system provided a target
-						required = divisionInfo.target;
-						console.log('Using legacy rule targetCount:', required);
-					} else {
-						console.log(
-							'No division or target found, using scripture count as fallback:',
-							required
-						);
-					}
-				} else {
-					console.log('Missing required data for division lookup:', {
-						gradeNum,
-						yearId,
-						hasChild: !!childCore,
-					});
-				}
-			} catch (e) {
-				console.warn('Error computing Bible Bee stats:', e);
-				// ignore and fallback to total scriptures
-			}
-
-			const completed = scriptures
-				.filter((s: any) => s.status === 'completed')
-				.reduce((sum: number, s: any) => sum + (s.counts_for || 1), 0);
-			const percent = required > 0 ? (completed / required) * 100 : 0;
-			const bonus = Math.max(0, completed - required);
-
-			// Check if there's an essay assigned - use the same logic as household page
-			const essayAssigned = essays.length > 0;
-			setDivisionEssayPrompts(
-				essays.map((e: any) => e.essayPrompt).filter(Boolean)
-			);
-
-			startTransition(() => {
-				setBbStats({
-					requiredScriptures: required,
-					completedScriptures: completed,
-					percentDone: percent,
-					bonus,
-					division: matchingDivision
-						? {
-								name: matchingDivision.name,
-								min_grade: matchingDivision.min_grade,
-								max_grade: matchingDivision.max_grade,
-						  }
-						: undefined,
-					essayAssigned,
-				});
-
-				setIsComputingStats(false);
-			});
-		};
-		compute();
-	}, [data, childCore]);
+	const bbStats = statsData?.bbStats || null;
+	const essaySummary = statsData?.essaySummary || null;
+	const divisionEssayPrompts = statsData?.divisionEssayPrompts || [];
+	const isComputingStats = statsLoading;
 
 	if (
 		isLoading ||
 		childLoading ||
 		householdLoading ||
 		guardiansLoading ||
-		!data ||
-		isComputingStats ||
-		bbStats === null
+		statsLoading ||
+		!data
 	) {
 		return <div>Loading Bible Bee assignments...</div>;
 	}
@@ -325,7 +174,7 @@ export default function ChildBibleBeeDetail({
 				onViewPhoto={handleViewPhoto}
 				bibleBeeStats={bbStats?.essayAssigned ? null : bbStats} // Hide scripture stats when essays are assigned
 				essaySummary={bbStats?.essayAssigned ? essaySummary : null} // Show essay summary only when essays are assigned
-				isComputingStats={isComputingStats || isPending}
+				isComputingStats={isComputingStats}
 			/>
 
 			{/* Show different content based on whether the child's division has essays assigned */}

@@ -60,4 +60,5 @@ export const queryKeys = {
   essayPromptsForCycle: (cycleId: string) => ['essayPromptsForCycle', cycleId] as const,
   canLeaderManageBibleBee: (opts: any) => ['canLeaderManageBibleBee', opts] as const,
   bibleBeeMinistry: () => ['bibleBeeMinistry'] as const,
+  bibleBeeStats: (childId: string) => ['bibleBeeStats', childId] as const,
 };
