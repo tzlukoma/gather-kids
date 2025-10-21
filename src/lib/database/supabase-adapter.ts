@@ -3473,22 +3473,27 @@ export class SupabaseAdapter implements DatabaseAdapter {
 
 	// Household editing methods
 	async addGuardian(householdId: string, guardian: Omit<Guardian, 'guardian_id'>): Promise<Guardian> {
+		const guardianData = {
+			guardian_id: uuidv4(),
+			household_id: householdId,
+			first_name: guardian.first_name,
+			last_name: guardian.last_name,
+			mobile_phone: guardian.mobile_phone,
+			email: guardian.email,
+			relationship: guardian.relationship,
+			is_primary: guardian.is_primary,
+			created_at: new Date().toISOString(),
+			updated_at: new Date().toISOString(),
+		};
+
 		const { data, error } = await this.client
 			.from('guardians')
-			.insert({
-				household_id: householdId,
-				first_name: guardian.first_name,
-				last_name: guardian.last_name,
-				mobile_phone: guardian.mobile_phone,
-				email: guardian.email,
-				relationship: guardian.relationship,
-				is_primary: guardian.is_primary,
-			})
+			.insert(guardianData)
 			.select()
 			.single();
 
 		if (error) throw error;
-		return this.mapGuardian(data);
+		return supabaseToGuardian(data as Database['public']['Tables']['guardians']['Row']);
 	}
 
 	async removeGuardian(guardianId: string): Promise<void> {

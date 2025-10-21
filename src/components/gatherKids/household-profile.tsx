@@ -324,7 +324,7 @@ export function HouseholdProfile({
 	} | null>(null);
 
 	// Edit modal states
-	const [editingGuardian, setEditingGuardian] = useState<Guardian | null>(null);
+	const [editingGuardian, setEditingGuardian] = useState<Guardian | null | undefined>(undefined);
 	const [editingEmergencyContact, setEditingEmergencyContact] =
 		useState<EmergencyContact | null>(null);
 	const [editingChild, setEditingChild] = useState<Child | null | undefined>(
@@ -597,11 +597,11 @@ export function HouseholdProfile({
 			/>
 
 			{/* Edit Modals */}
-			{editingGuardian !== null && (
+			{editingGuardian !== undefined && (
 				<EditGuardianModal
 					guardian={editingGuardian}
 					householdId={household?.household_id || ''}
-					onClose={() => setEditingGuardian(null)}
+					onClose={() => setEditingGuardian(undefined)}
 				/>
 			)}
 
