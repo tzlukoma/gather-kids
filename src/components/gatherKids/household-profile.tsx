@@ -20,6 +20,8 @@ import {
 	HeartPulse,
 	Camera,
 	Expand,
+	Edit,
+	Trash2,
 } from 'lucide-react';
 import {
 	Accordion,
@@ -441,18 +443,20 @@ export function HouseholdProfile({
 											{g.is_primary && <Badge>Primary</Badge>}
 										</h4>
 										{canEdit && (
-											<div className="flex gap-2">
+											<div className="flex gap-1">
 												<Button
-													variant="outline"
+													variant="ghost"
 													size="sm"
+													className="h-6 w-6 p-0"
 													onClick={() => setEditingGuardian(g)}>
-													Edit
+													<Edit size={14} />
 												</Button>
 												<Button
-													variant="outline"
+													variant="ghost"
 													size="sm"
+													className="h-6 w-6 p-0 text-red-600 hover:text-red-700"
 													onClick={() => setDeletingGuardian(g)}>
-													Remove
+													<Trash2 size={14} />
 												</Button>
 											</div>
 										)}
@@ -479,12 +483,13 @@ export function HouseholdProfile({
 										</h4>
 										{canEdit && (
 											<Button
-												variant="outline"
+												variant="ghost"
 												size="sm"
+												className="h-6 w-6 p-0"
 												onClick={() =>
 													setEditingEmergencyContact(emergencyContact)
 												}>
-												Edit
+												<Edit size={14} />
 											</Button>
 										)}
 									</div>
@@ -510,10 +515,11 @@ export function HouseholdProfile({
 									<h4 className="font-semibold">Address</h4>
 									{canEdit && (
 										<Button
-											variant="outline"
+											variant="ghost"
 											size="sm"
+											className="h-6 w-6 p-0"
 											onClick={() => setEditingHouseholdAddress(household)}>
-											Edit
+											<Edit size={14} />
 										</Button>
 									)}
 								</div>
