@@ -205,7 +205,7 @@ export function EditGuardianModal({
 						<Label htmlFor="is_primary">Primary Guardian</Label>
 					</div>
 
-					<DialogFooter>
+					<DialogFooter className="flex flex-col sm:flex-row gap-2 sm:gap-0">
 						<Button type="button" variant="outline" onClick={onClose}>
 							Cancel
 						</Button>

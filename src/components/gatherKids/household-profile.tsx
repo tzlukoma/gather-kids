@@ -19,9 +19,10 @@ import {
 	CheckCircle2,
 	HeartPulse,
 	Camera,
-	Expand,
 	Edit,
 	Trash2,
+	ClipboardList,
+	MoreVertical,
 } from 'lucide-react';
 import {
 	Accordion,
@@ -29,6 +30,12 @@ import {
 	AccordionItem,
 	AccordionTrigger,
 } from '@/components/ui/accordion';
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Button } from '../ui/button';
 import { useState, useEffect } from 'react';
@@ -173,81 +180,124 @@ const ChildCard = ({
 
 	return (
 		<Card className={!child.is_active ? 'bg-muted/25' : ''}>
-			<CardHeader className="flex-row gap-4 items-start">
-				<div className="relative w-16 h-16 sm:w-16 sm:h-16 flex-shrink-0">
-					<Button
-						variant="ghost"
-						className="w-full h-full p-0 rounded-full"
-						onClick={() =>
-							child.photo_url &&
-							onPhotoViewClick({
-								name: `${child.first_name} ${child.last_name}`,
-								url: child.photo_url,
-							})
-						}>
-						<Avatar className="h-full w-full">
-							<AvatarImage src={child.photo_url} alt={child.first_name} />
-							<AvatarFallback>
-								<User className="h-8 w-8" />
-							</AvatarFallback>
-						</Avatar>
-					</Button>
-					{canUpdateChildPhoto(user, child) && (
-						<Button
-							variant="outline"
-							size="icon"
-							className="absolute -bottom-1 -right-1 h-7 w-7 rounded-full bg-background"
-							onClick={() => onPhotoClick(child)}>
-							<Camera className="h-4 w-4" />
-						</Button>
-					)}
-				</div>
-				<div className="flex-1">
-					<CardTitle className="font-headline flex items-center gap-2">
-						{child.first_name} {child.last_name}
-						{!child.is_active && <Badge variant="outline">Inactive</Badge>}
-					</CardTitle>
-					<CardDescription>
-						{normalizeGradeDisplay(child.grade)} (Age {child.age})
-					</CardDescription>
-				</div>
+			<CardHeader className="relative">
 				{canEdit && (
-					<div className="flex gap-2">
-						{child.is_active ? (
-							<>
-								<Button
-									variant="outline"
-									size="sm"
-									onClick={() => onEditChild(child)}>
-									Edit
+					<div className="absolute top-2 right-2 sm:hidden z-10">
+						<DropdownMenu>
+							<DropdownMenuTrigger asChild>
+								<Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+									<MoreVertical size={14} />
 								</Button>
-								<Button
-									variant="outline"
-									size="sm"
-									onClick={() => onEditEnrollments(child)}>
-									Enrollments
-								</Button>
-								<Button
-									variant="outline"
-									size="sm"
-									onClick={() => onDeleteChild(child)}>
-									Delete
-								</Button>
-							</>
-						) : (
-							<>
-								{onReactivateChild && (
-									<Button
-										variant="default"
-										size="sm"
-										onClick={() => onReactivateChild(child)}>
-										Reactivate
-									</Button>
+							</DropdownMenuTrigger>
+							<DropdownMenuContent align="end">
+								{child.is_active ? (
+									<>
+										<DropdownMenuItem onClick={() => onEditChild(child)}>
+											<Edit size={14} className="mr-2" />
+											Edit
+										</DropdownMenuItem>
+										<DropdownMenuItem onClick={() => onEditEnrollments(child)}>
+											<ClipboardList size={14} className="mr-2" />
+											Enrollments
+										</DropdownMenuItem>
+										<DropdownMenuItem
+											onClick={() => onDeleteChild(child)}
+											className="text-red-600 focus:text-red-600">
+											<Trash2 size={14} className="mr-2" />
+											Delete
+										</DropdownMenuItem>
+									</>
+								) : (
+									<>
+										{onReactivateChild && (
+											<DropdownMenuItem
+												onClick={() => onReactivateChild(child)}>
+												<CheckCircle2 size={14} className="mr-2" />
+												Reactivate
+											</DropdownMenuItem>
+										)}
+									</>
 								)}
-							</>
-						)}
+							</DropdownMenuContent>
+						</DropdownMenu>
 					</div>
 				)}
+				<div className="flex gap-4 items-start">
+					<div className="relative w-16 h-16 flex-shrink-0">
+						<Button
+							variant="ghost"
+							className="w-full h-full p-0 rounded-full"
+							onClick={() =>
+								child.photo_url &&
+								onPhotoViewClick({
+									name: `${child.first_name} ${child.last_name}`,
+									url: child.photo_url,
+								})
+							}>
+							<Avatar className="h-full w-full">
+								<AvatarImage src={child.photo_url} alt={child.first_name} />
+								<AvatarFallback>
+									<User className="h-8 w-8" />
+								</AvatarFallback>
+							</Avatar>
+						</Button>
+						{canUpdateChildPhoto(user, child) && (
+							<Button
+								variant="outline"
+								size="icon"
+								className="absolute -bottom-1 -right-1 h-7 w-7 rounded-full bg-background"
+								onClick={() => onPhotoClick(child)}>
+								<Camera className="h-4 w-4" />
+							</Button>
+						)}
+					</div>
+					<div className="flex-1 min-w-0">
+						<CardTitle className="font-headline flex items-center gap-2">
+							{child.first_name} {child.last_name}
+							{!child.is_active && <Badge variant="outline">Inactive</Badge>}
+						</CardTitle>
+						<CardDescription>
+							{normalizeGradeDisplay(child.grade)} (Age {child.age})
+						</CardDescription>
+					</div>
+					{canEdit && (
+						<div className="hidden sm:flex gap-2">
+							{child.is_active ? (
+								<>
+									<Button
+										variant="outline"
+										size="sm"
+										onClick={() => onEditChild(child)}>
+										Edit
+									</Button>
+									<Button
+										variant="outline"
+										size="sm"
+										onClick={() => onEditEnrollments(child)}>
+										Enrollments
+									</Button>
+									<Button
+										variant="outline"
+										size="sm"
+										onClick={() => onDeleteChild(child)}>
+										Delete
+									</Button>
+								</>
+							) : (
+								<>
+									{onReactivateChild && (
+										<Button
+											variant="default"
+											size="sm"
+											onClick={() => onReactivateChild(child)}>
+											Reactivate
+										</Button>
+									)}
+								</>
+							)}
+						</div>
+					)}
+				</div>
 			</CardHeader>
 			<CardContent className="space-y-6">
 				<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -421,14 +471,10 @@ export function HouseholdProfile({
 
 				{canEdit && (
 					<div className="flex gap-4 justify-start">
-						<Button
-							variant="outline"
-							onClick={() => setEditingGuardian(null)}>
+						<Button variant="outline" onClick={() => setEditingGuardian(null)}>
 							Add Guardian
 						</Button>
-						<Button
-							variant="outline"
-							onClick={() => setEditingChild(null)}>
+						<Button variant="outline" onClick={() => setEditingChild(null)}>
 							Add Child
 						</Button>
 					</div>
@@ -458,13 +504,15 @@ export function HouseholdProfile({
 													onClick={() => setEditingGuardian(g)}>
 													<Edit size={14} />
 												</Button>
-												<Button
-													variant="ghost"
-													size="sm"
-													className="h-6 w-6 p-0 text-red-600 hover:text-red-700"
-													onClick={() => setDeletingGuardian(g)}>
-													<Trash2 size={14} />
-												</Button>
+												{!g.is_primary && (
+													<Button
+														variant="ghost"
+														size="sm"
+														className="h-6 w-6 p-0 text-red-600 hover:text-red-700"
+														onClick={() => setDeletingGuardian(g)}>
+														<Trash2 size={14} />
+													</Button>
+												)}
 											</div>
 										)}
 									</div>
