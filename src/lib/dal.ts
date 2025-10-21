@@ -4743,7 +4743,14 @@ export async function updateEmergencyContact(householdId: string, contact: Emerg
 }
 
 export async function addChild(householdId: string, child: Omit<Child, 'child_id'>, cycleId: string): Promise<Child> {
-    return await dbAdapter.addChild(householdId, child, cycleId);
+    // Generate child_id and create child using the same pattern as registration
+    const childWithId = {
+        ...child,
+        child_id: uuidv4(),
+        household_id: householdId,
+        is_active: true,
+    };
+    return await dbAdapter.createChild(childWithId);
 }
 
 export async function updateChild(childId: string, data: Partial<Child>): Promise<void> {
