@@ -366,6 +366,15 @@ export class SupabaseAdapter implements DatabaseAdapter {
 		if (error) throw error;
 	}
 
+	async reactivateChild(id: string): Promise<void> {
+		const { error } = await this.client
+			.from('children')
+			.update({ is_active: true })
+			.eq('child_id', id);
+
+		if (error) throw error;
+	}
+
 	// Guardians
 	async getGuardian(id: string): Promise<Guardian | null> {
 		const { data, error } = await this.client
@@ -3460,5 +3469,139 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			createdAt: (r['created_at'] as string) || '',
 			updatedAt: (r['updated_at'] as string) || '',
 		};
+	}
+
+	// Household editing methods
+	async addGuardian(householdId: string, guardian: Omit<Guardian, 'guardian_id'>): Promise<Guardian> {
+		const guardianData = {
+			guardian_id: uuidv4(),
+			household_id: householdId,
+			first_name: guardian.first_name,
+			last_name: guardian.last_name,
+			mobile_phone: guardian.mobile_phone,
+			email: guardian.email,
+			relationship: guardian.relationship,
+			is_primary: guardian.is_primary,
+			created_at: new Date().toISOString(),
+			updated_at: new Date().toISOString(),
+		};
+
+		const { data, error } = await this.client
+			.from('guardians')
+			.insert(guardianData)
+			.select()
+			.single();
+
+		if (error) throw error;
+		return supabaseToGuardian(data as Database['public']['Tables']['guardians']['Row']);
+	}
+
+	async removeGuardian(guardianId: string): Promise<void> {
+		const { error } = await this.client
+			.from('guardians')
+			.delete()
+			.eq('guardian_id', guardianId);
+
+		if (error) throw error;
+	}
+
+	async updateEmergencyContact(householdId: string, contact: EmergencyContact): Promise<void> {
+		const { error } = await this.client
+			.from('emergency_contacts')
+			.upsert({
+				household_id: householdId,
+				first_name: contact.first_name,
+				last_name: contact.last_name,
+				mobile_phone: contact.mobile_phone,
+				relationship: contact.relationship,
+			});
+
+		if (error) throw error;
+	}
+
+	async addChild(householdId: string, child: Omit<Child, 'child_id'>, cycleId: string): Promise<Child> {
+		const { data, error } = await this.client
+			.from('children')
+			.insert({
+				child_id: uuidv4(), // Generate UUID for child_id
+				household_id: householdId,
+				first_name: child.first_name,
+				last_name: child.last_name,
+				dob: child.dob,
+				grade: child.grade,
+				child_mobile: child.child_mobile,
+				allergies: child.allergies,
+				medical_notes: child.medical_notes,
+				special_needs: child.special_needs,
+				special_needs_notes: child.special_needs_notes,
+				is_active: true,
+			})
+			.select()
+			.single();
+
+		if (error) throw error;
+		return this.mapChild(data);
+	}
+
+	async softDeleteChild(childId: string): Promise<void> {
+		const { error } = await this.client
+			.from('children')
+			.update({ is_active: false })
+			.eq('child_id', childId);
+
+		if (error) throw error;
+	}
+
+	// Enrollment editing methods (current cycle only)
+	async addEnrollment(childId: string, ministryId: string, cycleId: string, customFields?: any): Promise<void> {
+		const { error } = await this.client
+			.from('ministry_enrollments')
+			.insert({
+				enrollment_id: uuidv4(),
+				child_id: childId,
+				ministry_id: ministryId,
+				cycle_id: cycleId,
+				custom_fields: customFields,
+			});
+
+		if (error) throw error;
+	}
+
+	async removeEnrollment(childId: string, ministryId: string, cycleId: string): Promise<void> {
+		const { error } = await this.client
+			.from('ministry_enrollments')
+			.delete()
+			.eq('child_id', childId)
+			.eq('ministry_id', ministryId)
+			.eq('cycle_id', cycleId);
+
+		if (error) throw error;
+	}
+
+	async updateEnrollmentFields(childId: string, ministryId: string, cycleId: string, customFields: any): Promise<void> {
+		const { error } = await this.client
+			.from('ministry_enrollments')
+			.update({ custom_fields: customFields })
+			.eq('child_id', childId)
+			.eq('ministry_id', ministryId)
+			.eq('cycle_id', cycleId);
+
+		if (error) throw error;
+	}
+
+	// Audit logging
+	async logAudit(log: Omit<import('../types').AuditLogEntry, 'id' | 'created_at'>): Promise<void> {
+		const { error } = await this.client
+			.from('audit_log')
+			.insert({
+				household_id: log.household_id,
+				user_id: log.user_id,
+				action: log.action,
+				entity_type: log.entity_type,
+				entity_id: log.entity_id,
+				changes: log.changes,
+			});
+
+		if (error) throw error;
 	}
 }

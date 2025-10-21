@@ -1,7 +1,7 @@
 /**
  * This file contains types generated from the Supabase schema.
  * DO NOT EDIT MANUALLY. This file is auto-generated.
- * Generated on: 2025-10-08T02:54:54.119Z
+ * Generated on: 2025-10-21T02:48:55.025Z
  */
 
 export type SupabaseJson =
@@ -76,6 +76,47 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "events"
             referencedColumns: ["event_id"]
+          },
+        ]
+      }
+      audit_log: {
+        Row: {
+          action: string
+          changes: SupabaseJson | null
+          created_at: string | null
+          entity_id: string | null
+          entity_type: string
+          household_id: string | null
+          id: string
+          user_id: string
+        }
+        Insert: {
+          action: string
+          changes?: SupabaseJson | null
+          created_at?: string | null
+          entity_id?: string | null
+          entity_type: string
+          household_id?: string | null
+          id?: string
+          user_id: string
+        }
+        Update: {
+          action?: string
+          changes?: SupabaseJson | null
+          created_at?: string | null
+          entity_id?: string | null
+          entity_type?: string
+          household_id?: string | null
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audit_log_household_id_fkey"
+            columns: ["household_id"]
+            isOneToOne: false
+            referencedRelation: "households"
+            referencedColumns: ["household_id"]
           },
         ]
       }
@@ -880,25 +921,34 @@ export type Database = {
           assignment_id: string
           created_at: string | null
           cycle_id: string | null
+          is_active: boolean | null
           leader_id: string | null
           ministry_id: string | null
+          notes: string | null
           role: string | null
+          updated_at: string | null
         }
         Insert: {
           assignment_id: string
           created_at?: string | null
           cycle_id?: string | null
+          is_active?: boolean | null
           leader_id?: string | null
           ministry_id?: string | null
+          notes?: string | null
           role?: string | null
+          updated_at?: string | null
         }
         Update: {
           assignment_id?: string
           created_at?: string | null
           cycle_id?: string | null
+          is_active?: boolean | null
           leader_id?: string | null
           ministry_id?: string | null
+          notes?: string | null
           role?: string | null
+          updated_at?: string | null
         }
         Relationships: [
           {

@@ -712,7 +712,10 @@ export function useChildPhotoUpdateListener() {
 }
 
 // Photo update mutation that dispatches custom events for immediate updates
+// NOTE: This hook has been moved to /src/hooks/data/children.ts
+// Keeping this for backward compatibility but it should not be used in new code
 export function useUpdateChildPhotoMutation() {
+    console.warn('useUpdateChildPhotoMutation from useBibleBee.ts is deprecated. Use the one from @/hooks/data instead.');
     return useMutation(
         async ({ childId, photoDataUrl }: { childId: string; photoDataUrl: string }) => {
             return await updateChildPhoto(childId, photoDataUrl);

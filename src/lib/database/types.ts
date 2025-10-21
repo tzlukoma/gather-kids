@@ -26,6 +26,7 @@ import type {
 	BrandingSettings,
 	Scripture,
 	StudentEssay,
+	AuditLogEntry,
 } from '../types';
 
 // Filter and query types (to be extended as needed)
@@ -84,6 +85,7 @@ export interface DatabaseAdapter {
 	updateChild(id: string, data: Partial<Child>): Promise<Child>;
 	listChildren(filters?: ChildFilters): Promise<Child[]>;
 	deleteChild(id: string): Promise<void>;
+	reactivateChild(id: string): Promise<void>;
 
 	// Guardians
 	getGuardian(id: string): Promise<Guardian | null>;
@@ -381,4 +383,19 @@ export interface DatabaseAdapter {
 	updateStudentEssay(id: string, data: Partial<StudentEssay>): Promise<StudentEssay>;
 	listStudentEssays(childId?: string, bibleBeeCycleId?: string): Promise<StudentEssay[]>;
 	deleteStudentEssay(id: string): Promise<void>;
+
+	// Household editing methods
+	addGuardian(householdId: string, guardian: Omit<Guardian, 'guardian_id'>): Promise<Guardian>;
+	removeGuardian(guardianId: string): Promise<void>;
+	updateEmergencyContact(householdId: string, contact: EmergencyContact): Promise<void>;
+	addChild(householdId: string, child: Omit<Child, 'child_id'>, cycleId: string): Promise<Child>;
+	softDeleteChild(childId: string): Promise<void>;
+
+	// Enrollment editing methods (current cycle only)
+	addEnrollment(childId: string, ministryId: string, cycleId: string, customFields?: any): Promise<void>;
+	removeEnrollment(childId: string, ministryId: string, cycleId: string): Promise<void>;
+	updateEnrollmentFields(childId: string, ministryId: string, cycleId: string, customFields: any): Promise<void>;
+
+	// Audit logging
+	logAudit(log: Omit<AuditLogEntry, 'id' | 'created_at'>): Promise<void>;
 }

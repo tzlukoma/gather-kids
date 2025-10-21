@@ -246,7 +246,7 @@ export async function queryHouseholdList(leaderMinistryIds?: string[], ministryI
             const relevantChildIds = [...new Set(relevantEnrollments.map(e => e.child_id))];
             
             // Get children for these enrollments
-            const allChildren = await dbAdapter.listChildren();
+            const allChildren = await dbAdapter.listChildren({ isActive: true });
             const relevantChildren = allChildren.filter(c => relevantChildIds.includes(c.child_id));
             
             console.log('🔍 DAL.queryHouseholdList: Relevant children', { 
@@ -316,14 +316,14 @@ export async function queryHouseholdList(leaderMinistryIds?: string[], ministryI
             .and(e => e.cycle_id === '2025')
             .toArray();
         const relevantChildIds = [...new Set(enrollments.map(e => e.child_id))];
-        const relevantChildren = await db.children.where('child_id').anyOf(relevantChildIds).toArray();
+        const relevantChildren = await db.children.where('child_id').anyOf(relevantChildIds).and(c => c.is_active === true).toArray();
         const relevantHouseholdIds = [...new Set(relevantChildren.map(c => c.household_id))];
 
         households = households.filter(h => relevantHouseholdIds.includes(h.household_id));
         householdIds = households.map(h => h.household_id);
     }
 
-    const allChildren = await db.children.where('household_id').anyOf(householdIds).toArray();
+    const allChildren = await db.children.where('household_id').anyOf(householdIds).and(c => c.is_active === true).toArray();
 
     const childrenByHousehold = new Map<string, (Child & { age: number | null })[]>();
     for (const child of allChildren) {
@@ -1432,7 +1432,7 @@ export async function exportAttendanceRollupCSV(startISO: string, endISO: string
             .toArray();
 
         const childIds = [...new Set(attendanceRecords.map(a => a.child_id))];
-        children = await db.children.where('child_id').anyOf(childIds).toArray();
+        children = await db.children.where('child_id').anyOf(childIds).and(c => c.is_active === true).toArray();
     }
 
     const childMap = new Map(children.map(c => [c.child_id, c]));
@@ -4356,7 +4356,7 @@ export async function getRegistrationCycles(isActive?: boolean): Promise<Registr
 export async function getAllChildren(): Promise<Child[]> {
 	if (shouldUseAdapter()) {
 		// Use Supabase adapter for live mode
-		const children = await dbAdapter.listChildren();
+		const children = await dbAdapter.listChildren({ isActive: true });
 		
 		// Get avatar data for all children
 		const childIds = children.map(c => c.child_id);
@@ -4385,7 +4385,7 @@ export async function getAllChildren(): Promise<Child[]> {
 		}));
 	} else {
 		// Use legacy Dexie interface for demo mode
-		return db.children.toArray();
+		return db.children.where('is_active').equals(true).toArray();
 	}
 }
 
@@ -4491,7 +4491,7 @@ export async function getChildrenForLeader(assignedMinistryIds: string[], cycleI
 		const childIds = [...new Set(filteredEnrollments.map(e => e.child_id))];
 		if (childIds.length === 0) return [];
 		
-		const allChildren = await dbAdapter.listChildren();
+		const allChildren = await dbAdapter.listChildren({ isActive: true });
 		const children = allChildren.filter(c => childIds.includes(c.child_id));
 		
 		// Get avatar data for these children
@@ -4527,7 +4527,7 @@ export async function getChildrenForLeader(assignedMinistryIds: string[], cycleI
 			.toArray();
 		const childIds = [...new Set(enrollments.map(e => e.child_id))];
 		if (childIds.length === 0) return [];
-		return db.children.where('child_id').anyOf(childIds).toArray();
+		return db.children.where('child_id').anyOf(childIds).and(c => c.is_active === true).toArray();
 	}
 }
 
@@ -4635,7 +4635,7 @@ export async function getCheckedInChildren(dateISO: string): Promise<Child[]> {
 		
 		if (childIds.length === 0) return [];
 		
-		const allChildren = await dbAdapter.listChildren();
+		const allChildren = await dbAdapter.listChildren({ isActive: true });
 		return allChildren.filter(c => childIds.includes(c.child_id));
 	} else {
 		// Use legacy Dexie interface for demo mode
@@ -4645,7 +4645,7 @@ export async function getCheckedInChildren(dateISO: string): Promise<Child[]> {
 		
 		if (childIds.length === 0) return [];
 		
-		return db.children.where('child_id').anyOf(childIds).toArray();
+		return db.children.where('child_id').anyOf(childIds).and(c => c.is_active === true).toArray();
 	}
 }
 
@@ -4709,6 +4709,72 @@ export async function getAllUsers(): Promise<Array<{
     }
     const data = await response.json();
     return data.users; // Extract the users array from the response
+}
+
+// Household editing functions
+export async function getCurrentRegistrationCycle(): Promise<RegistrationCycle | null> {
+    const cycles = await dbAdapter.listRegistrationCycles();
+    const activeCycles = cycles.filter(cycle => cycle.is_active);
+    if (activeCycles.length === 0) return null;
+    
+    return activeCycles.sort((a, b) => 
+        new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+    )[0];
+}
+
+export async function updateHouseholdInfo(householdId: string, data: Partial<Household>): Promise<void> {
+    await dbAdapter.updateHousehold(householdId, data);
+}
+
+export async function addGuardian(householdId: string, guardian: Omit<Guardian, 'guardian_id'>): Promise<Guardian> {
+    return await dbAdapter.addGuardian(householdId, guardian);
+}
+
+export async function updateGuardian(guardianId: string, data: Partial<Guardian>): Promise<void> {
+    await dbAdapter.updateGuardian(guardianId, data);
+}
+
+export async function removeGuardian(guardianId: string): Promise<void> {
+    await dbAdapter.removeGuardian(guardianId);
+}
+
+export async function updateEmergencyContact(householdId: string, contact: EmergencyContact): Promise<void> {
+    await dbAdapter.updateEmergencyContact(householdId, contact);
+}
+
+export async function addChild(householdId: string, child: Omit<Child, 'child_id'>, cycleId: string): Promise<Child> {
+    // Generate child_id and create child using the same pattern as registration
+    const childWithId = {
+        ...child,
+        child_id: uuidv4(),
+        household_id: householdId,
+        is_active: true,
+    };
+    return await dbAdapter.createChild(childWithId);
+}
+
+export async function updateChild(childId: string, data: Partial<Child>): Promise<void> {
+    await dbAdapter.updateChild(childId, data);
+}
+
+export async function softDeleteChild(childId: string): Promise<void> {
+    await dbAdapter.softDeleteChild(childId);
+}
+
+export async function reactivateChild(childId: string): Promise<void> {
+    await dbAdapter.reactivateChild(childId);
+}
+
+export async function addChildEnrollment(childId: string, ministryId: string, cycleId: string, customFields?: any): Promise<void> {
+    await dbAdapter.addEnrollment(childId, ministryId, cycleId, customFields);
+}
+
+export async function removeChildEnrollment(childId: string, ministryId: string, cycleId: string): Promise<void> {
+    await dbAdapter.removeEnrollment(childId, ministryId, cycleId);
+}
+
+export async function updateChildEnrollmentFields(childId: string, ministryId: string, cycleId: string, customFields: any): Promise<void> {
+    await dbAdapter.updateEnrollmentFields(childId, ministryId, cycleId, customFields);
 }
 
 // Export canonical registration function

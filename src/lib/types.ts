@@ -7,6 +7,17 @@ export interface CustomQuestion {
     options?: string[];
 }
 
+export interface AuditLogEntry {
+    id: string;
+    household_id: string;
+    user_id: string;
+    action: string;
+    entity_type: 'guardian' | 'child' | 'household' | 'enrollment' | 'emergency_contact';
+    entity_id?: string;
+    changes: Record<string, any>;
+    created_at: string;
+}
+
 export interface Household {
     household_id: string; // PK
     name?: string;
