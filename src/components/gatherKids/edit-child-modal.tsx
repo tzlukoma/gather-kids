@@ -13,6 +13,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { PhoneInput } from '@/components/ui/phone-input';
 import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
@@ -227,9 +228,10 @@ export function EditChildModal({ child, householdId, onClose }: EditChildModalPr
 
           <div className="space-y-2">
             <Label htmlFor="child_mobile">Child's Phone (Optional)</Label>
-            <Input
+            <PhoneInput
               id="child_mobile"
-              {...register('child_mobile')}
+              value={watch('child_mobile') || ''}
+              onChange={(value) => setValue('child_mobile', value)}
               placeholder="Phone number"
             />
           </div>

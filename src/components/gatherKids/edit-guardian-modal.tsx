@@ -13,6 +13,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { PhoneInput } from '@/components/ui/phone-input';
 import {
   Select,
   SelectContent,
@@ -154,9 +155,10 @@ export function EditGuardianModal({ guardian, householdId, onClose }: EditGuardi
 
           <div className="space-y-2">
             <Label htmlFor="mobile_phone">Phone Number</Label>
-            <Input
+            <PhoneInput
               id="mobile_phone"
-              {...register('mobile_phone')}
+              value={watch('mobile_phone')}
+              onChange={(value) => setValue('mobile_phone', value)}
               className={errors.mobile_phone ? 'border-red-500' : ''}
             />
             {errors.mobile_phone && (
