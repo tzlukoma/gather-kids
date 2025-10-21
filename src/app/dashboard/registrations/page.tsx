@@ -93,7 +93,7 @@ export default function RegistrationsPage() {
 
 	// Use React Query hook for household list with children data
 	const { data: households = [], isLoading: householdsLoading } =
-		useHouseholdList(ministryFilterIds, ministryFilter);
+		useHouseholdList(ministryFilterIds, ministryFilter || undefined);
 
 	const handleRowClick = (householdId: string) => {
 		router.push(`/dashboard/registrations/${householdId}`);
