@@ -366,6 +366,15 @@ export class SupabaseAdapter implements DatabaseAdapter {
 		if (error) throw error;
 	}
 
+	async reactivateChild(id: string): Promise<void> {
+		const { error } = await this.client
+			.from('children')
+			.update({ is_active: true })
+			.eq('child_id', id);
+
+		if (error) throw error;
+	}
+
 	// Guardians
 	async getGuardian(id: string): Promise<Guardian | null> {
 		const { data, error } = await this.client
@@ -3509,6 +3518,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 		const { data, error } = await this.client
 			.from('children')
 			.insert({
+				child_id: uuidv4(), // Generate UUID for child_id
 				household_id: householdId,
 				first_name: child.first_name,
 				last_name: child.last_name,
@@ -3540,8 +3550,9 @@ export class SupabaseAdapter implements DatabaseAdapter {
 	// Enrollment editing methods (current cycle only)
 	async addEnrollment(childId: string, ministryId: string, cycleId: string, customFields?: any): Promise<void> {
 		const { error } = await this.client
-			.from('enrollments')
+			.from('ministry_enrollments')
 			.insert({
+				enrollment_id: uuidv4(),
 				child_id: childId,
 				ministry_id: ministryId,
 				cycle_id: cycleId,
@@ -3553,7 +3564,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 
 	async removeEnrollment(childId: string, ministryId: string, cycleId: string): Promise<void> {
 		const { error } = await this.client
-			.from('enrollments')
+			.from('ministry_enrollments')
 			.delete()
 			.eq('child_id', childId)
 			.eq('ministry_id', ministryId)
@@ -3564,7 +3575,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 
 	async updateEnrollmentFields(childId: string, ministryId: string, cycleId: string, customFields: any): Promise<void> {
 		const { error } = await this.client
-			.from('enrollments')
+			.from('ministry_enrollments')
 			.update({ custom_fields: customFields })
 			.eq('child_id', childId)
 			.eq('ministry_id', ministryId)

@@ -85,6 +85,7 @@ export interface DatabaseAdapter {
 	updateChild(id: string, data: Partial<Child>): Promise<Child>;
 	listChildren(filters?: ChildFilters): Promise<Child[]>;
 	deleteChild(id: string): Promise<void>;
+	reactivateChild(id: string): Promise<void>;
 
 	// Guardians
 	getGuardian(id: string): Promise<Guardian | null>;

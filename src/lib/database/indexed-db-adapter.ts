@@ -176,6 +176,10 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 	async deleteChild(id: string): Promise<void> {
 		await this.db.children.delete(id);
 	}
+
+	async reactivateChild(id: string): Promise<void> {
+		await this.db.children.update(id, { is_active: true });
+	}
 	
 	// Extension for test compatibility - not part of standard DatabaseAdapter interface
 	get children() {
@@ -1816,7 +1820,7 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 	// Enrollment editing methods (current cycle only)
 	async addEnrollment(childId: string, ministryId: string, cycleId: string, customFields?: any): Promise<void> {
 		const enrollmentId = `enrollment_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-		await this.db.enrollments.add({
+		await this.db.ministry_enrollments.add({
 			id: enrollmentId,
 			child_id: childId,
 			ministry_id: ministryId,
@@ -1828,24 +1832,24 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 	}
 
 	async removeEnrollment(childId: string, ministryId: string, cycleId: string): Promise<void> {
-		const enrollment = await this.db.enrollments
+		const enrollment = await this.db.ministry_enrollments
 			.where('[child_id+ministry_id+cycle_id]')
 			.equals([childId, ministryId, cycleId])
 			.first();
 		
 		if (enrollment) {
-			await this.db.enrollments.delete(enrollment.id);
+			await this.db.ministry_enrollments.delete(enrollment.id);
 		}
 	}
 
 	async updateEnrollmentFields(childId: string, ministryId: string, cycleId: string, customFields: any): Promise<void> {
-		const enrollment = await this.db.enrollments
+		const enrollment = await this.db.ministry_enrollments
 			.where('[child_id+ministry_id+cycle_id]')
 			.equals([childId, ministryId, cycleId])
 			.first();
 		
 		if (enrollment) {
-			await this.db.enrollments.update(enrollment.id, { 
+			await this.db.ministry_enrollments.update(enrollment.id, { 
 				custom_fields: customFields,
 				updated_at: new Date().toISOString()
 			});

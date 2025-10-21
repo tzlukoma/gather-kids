@@ -4761,6 +4761,10 @@ export async function softDeleteChild(childId: string): Promise<void> {
     await dbAdapter.softDeleteChild(childId);
 }
 
+export async function reactivateChild(childId: string): Promise<void> {
+    await dbAdapter.reactivateChild(childId);
+}
+
 export async function addChildEnrollment(childId: string, ministryId: string, cycleId: string, customFields?: any): Promise<void> {
     await dbAdapter.addEnrollment(childId, ministryId, cycleId, customFields);
 }

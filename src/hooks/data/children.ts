@@ -1,7 +1,7 @@
 'use client';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getAllChildren, getChild, getCheckedInChildren, updateChildPhoto, addChild, updateChild, softDeleteChild } from '@/lib/dal';
+import { getAllChildren, getChild, getCheckedInChildren, updateChildPhoto, addChild, updateChild, softDeleteChild, reactivateChild } from '@/lib/dal';
 import { queryKeys } from './keys';
 import { cacheConfig } from './config';
 import type { Child } from '@/lib/types';
@@ -96,6 +96,21 @@ export function useSoftDeleteChild() {
       childId: string;
       householdId: string;
     }) => softDeleteChild(childId),
+    onSuccess: (_, { householdId }) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.householdProfile(householdId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.children() });
+    },
+  });
+}
+
+export function useReactivateChild() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: ({ childId, householdId }: { 
+      childId: string;
+      householdId: string;
+    }) => reactivateChild(childId),
     onSuccess: (_, { householdId }) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.householdProfile(householdId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.children() });
