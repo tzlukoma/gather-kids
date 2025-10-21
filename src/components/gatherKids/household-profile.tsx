@@ -32,11 +32,24 @@ import { Button } from '../ui/button';
 import { useState, useEffect } from 'react';
 import { PhotoCaptureDialog } from './photo-capture-dialog';
 import { PhotoViewerDialog } from './photo-viewer-dialog';
-import type { Child } from '@/lib/types';
+import { EditGuardianModal } from './edit-guardian-modal';
+import { EditEmergencyContactModal } from './edit-emergency-contact-modal';
+import { EditChildModal } from './edit-child-modal';
+import { EditHouseholdAddressModal } from './edit-household-address-modal';
+import { EditChildEnrollmentsModal } from './edit-child-enrollments-modal';
+import { ConfirmationDialog } from './confirmation-dialog';
+import type { Child, Guardian, EmergencyContact, Household } from '@/lib/types';
 import { formatPhone } from '@/hooks/usePhoneFormat';
 import { normalizeGradeDisplay } from '@/lib/gradeUtils';
 import { useAuth } from '@/contexts/auth-context';
 import { canUpdateChildPhoto } from '@/lib/permissions';
+import { canEditHousehold } from '@/lib/permissions/household';
+import {
+	useRemoveGuardian,
+	useSoftDeleteChild,
+	useReactivateChild,
+} from '@/hooks/data';
+import { useToast } from '@/hooks/use-toast';
 
 const InfoItem = ({
 	icon,
@@ -132,13 +145,23 @@ const ChildCard = ({
 	cycleNames,
 	onPhotoClick,
 	onPhotoViewClick,
+	onEditChild,
+	onEditEnrollments,
+	onDeleteChild,
+	onReactivateChild,
 	user,
+	canEdit,
 }: {
 	child: HouseholdProfileData['children'][0];
 	cycleNames: Record<string, string>;
 	onPhotoClick: (child: Child) => void;
 	onPhotoViewClick: (photo: { name: string; url: string }) => void;
+	onEditChild: (child: Child) => void;
+	onEditEnrollments: (child: Child) => void;
+	onDeleteChild: (child: Child) => void;
+	onReactivateChild?: (child: Child) => void;
 	user: any; // BaseUser type
+	canEdit: boolean;
 }) => {
 	const sortedCycleIds = Object.keys(child.enrollmentsByCycle).sort((a, b) =>
 		b.localeCompare(a)
@@ -177,7 +200,7 @@ const ChildCard = ({
 						</Button>
 					)}
 				</div>
-				<div>
+				<div className="flex-1">
 					<CardTitle className="font-headline flex items-center gap-2">
 						{child.first_name} {child.last_name}
 						{!child.is_active && <Badge variant="outline">Inactive</Badge>}
@@ -186,6 +209,43 @@ const ChildCard = ({
 						{normalizeGradeDisplay(child.grade)} (Age {child.age})
 					</CardDescription>
 				</div>
+				{canEdit && (
+					<div className="flex gap-2">
+						{child.is_active ? (
+							<>
+								<Button
+									variant="outline"
+									size="sm"
+									onClick={() => onEditChild(child)}>
+									Edit
+								</Button>
+								<Button
+									variant="outline"
+									size="sm"
+									onClick={() => onEditEnrollments(child)}>
+									Enrollments
+								</Button>
+								<Button
+									variant="outline"
+									size="sm"
+									onClick={() => onDeleteChild(child)}>
+									Delete
+								</Button>
+							</>
+						) : (
+							<>
+								{onReactivateChild && (
+									<Button
+										variant="default"
+										size="sm"
+										onClick={() => onReactivateChild(child)}>
+										Reactivate
+									</Button>
+								)}
+							</>
+						)}
+					</div>
+				)}
 			</CardHeader>
 			<CardContent className="space-y-6">
 				<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -255,12 +315,89 @@ export function HouseholdProfile({
 	const { household, guardians, emergencyContact, children, cycleNames } =
 		profileData;
 	const { user } = useAuth();
+	const { toast } = useToast();
 	const [selectedChildForPhoto, setSelectedChildForPhoto] =
 		useState<Child | null>(null);
 	const [viewingPhoto, setViewingPhoto] = useState<{
 		name: string;
 		url: string;
 	} | null>(null);
+
+	// Edit modal states
+	const [editingGuardian, setEditingGuardian] = useState<Guardian | null>(null);
+	const [editingEmergencyContact, setEditingEmergencyContact] =
+		useState<EmergencyContact | null>(null);
+	const [editingChild, setEditingChild] = useState<Child | null | undefined>(
+		undefined
+	);
+	const [editingHouseholdAddress, setEditingHouseholdAddress] =
+		useState<Household | null>(null);
+	const [editingChildEnrollments, setEditingChildEnrollments] =
+		useState<Child | null>(null);
+	const [deletingGuardian, setDeletingGuardian] = useState<Guardian | null>(
+		null
+	);
+	const [deletingChild, setDeletingChild] = useState<Child | null>(null);
+
+	// Mutations
+	const removeGuardianMutation = useRemoveGuardian();
+	const softDeleteChildMutation = useSoftDeleteChild();
+	const reactivateChildMutation = useReactivateChild();
+
+	// Permission check
+	const canEdit = household
+		? canEditHousehold(user, household.household_id)
+		: false;
+
+	const handleDeleteGuardian = async () => {
+		if (!deletingGuardian || !household) return;
+
+		try {
+			await removeGuardianMutation.mutateAsync({
+				guardianId: deletingGuardian.guardian_id,
+				householdId: household.household_id,
+			});
+			setDeletingGuardian(null);
+		} catch (error) {
+			console.error('Failed to delete guardian:', error);
+		}
+	};
+
+	const handleDeleteChild = async () => {
+		if (!deletingChild || !household) return;
+
+		try {
+			await softDeleteChildMutation.mutateAsync({
+				childId: deletingChild.child_id,
+				householdId: household.household_id,
+			});
+			setDeletingChild(null);
+		} catch (error) {
+			console.error('Failed to delete child:', error);
+		}
+	};
+
+	const handleReactivateChild = async (child: Child) => {
+		if (!household) return;
+
+		try {
+			await reactivateChildMutation.mutateAsync({
+				childId: child.child_id,
+				householdId: household.household_id,
+			});
+			toast({
+				title: 'Child Reactivated',
+				description: `${child.first_name} ${child.last_name} has been reactivated and is now available for check-in and enrollment.`,
+			});
+		} catch (error) {
+			console.error('Failed to reactivate child:', error);
+			toast({
+				title: 'Reactivate Failed',
+				description: 'Could not reactivate the child. Please try again.',
+				variant: 'destructive',
+			});
+		}
+	};
 
 	const activeChildren = children.filter((c) => c.is_active);
 	const inactiveChildren = children.filter((c) => !c.is_active);
@@ -281,17 +418,45 @@ export function HouseholdProfile({
 				<div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 					<Card className="lg:col-span-1 h-fit">
 						<CardHeader>
-							<CardTitle className="font-headline flex items-center gap-2">
-								<User /> Guardians & Contacts
+							<CardTitle className="font-headline flex items-center justify-between">
+								<div className="flex items-center gap-2">
+									<User /> Guardians & Contacts
+								</div>
+								{canEdit && (
+									<Button
+										variant="outline"
+										size="sm"
+										onClick={() => setEditingGuardian(null)}>
+										Add Guardian
+									</Button>
+								)}
 							</CardTitle>
 						</CardHeader>
 						<CardContent className="space-y-4">
 							{guardians.map((g) => (
 								<div key={g.guardian_id} className="space-y-2">
-									<h4 className="font-semibold">
-										{g.first_name} {g.last_name} ({g.relationship}){' '}
-										{g.is_primary && <Badge>Primary</Badge>}
-									</h4>
+									<div className="flex items-center justify-between">
+										<h4 className="font-semibold">
+											{g.first_name} {g.last_name} ({g.relationship}){' '}
+											{g.is_primary && <Badge>Primary</Badge>}
+										</h4>
+										{canEdit && (
+											<div className="flex gap-2">
+												<Button
+													variant="outline"
+													size="sm"
+													onClick={() => setEditingGuardian(g)}>
+													Edit
+												</Button>
+												<Button
+													variant="outline"
+													size="sm"
+													onClick={() => setDeletingGuardian(g)}>
+													Remove
+												</Button>
+											</div>
+										)}
+									</div>
 									<InfoItem
 										icon={<Mail size={16} />}
 										label="Email"
@@ -307,10 +472,22 @@ export function HouseholdProfile({
 							<Separator />
 							{emergencyContact && (
 								<div className="space-y-2">
-									<h4 className="font-semibold">
-										{emergencyContact.first_name} {emergencyContact.last_name}{' '}
-										(Emergency)
-									</h4>
+									<div className="flex items-center justify-between">
+										<h4 className="font-semibold">
+											{emergencyContact.first_name} {emergencyContact.last_name}{' '}
+											(Emergency)
+										</h4>
+										{canEdit && (
+											<Button
+												variant="outline"
+												size="sm"
+												onClick={() =>
+													setEditingEmergencyContact(emergencyContact)
+												}>
+												Edit
+											</Button>
+										)}
+									</div>
 									<InfoItem
 										icon={<Phone size={16} />}
 										label="Phone"
@@ -329,7 +506,17 @@ export function HouseholdProfile({
 							)}
 							<Separator />
 							<div className="space-y-2">
-								<h4 className="font-semibold">Address</h4>
+								<div className="flex items-center justify-between">
+									<h4 className="font-semibold">Address</h4>
+									{canEdit && (
+										<Button
+											variant="outline"
+											size="sm"
+											onClick={() => setEditingHouseholdAddress(household)}>
+											Edit
+										</Button>
+									)}
+								</div>
 								<InfoItem
 									icon={<Home size={16} />}
 									label="Address"
@@ -346,6 +533,13 @@ export function HouseholdProfile({
 					</Card>
 
 					<div className="lg:col-span-2 space-y-6">
+						{canEdit && (
+							<div className="flex justify-end">
+								<Button variant="outline" onClick={() => setEditingChild(null)}>
+									Add Child
+								</Button>
+							</div>
+						)}
 						{activeChildren.map((child) => (
 							<ChildCard
 								key={child.child_id}
@@ -353,7 +547,11 @@ export function HouseholdProfile({
 								cycleNames={cycleNames}
 								onPhotoClick={setSelectedChildForPhoto}
 								onPhotoViewClick={setViewingPhoto}
+								onEditChild={setEditingChild}
+								onEditEnrollments={setEditingChildEnrollments}
+								onDeleteChild={setDeletingChild}
 								user={user}
+								canEdit={canEdit}
 							/>
 						))}
 
@@ -376,7 +574,12 @@ export function HouseholdProfile({
 										cycleNames={cycleNames}
 										onPhotoClick={setSelectedChildForPhoto}
 										onPhotoViewClick={setViewingPhoto}
+										onEditChild={setEditingChild}
+										onEditEnrollments={setEditingChildEnrollments}
+										onDeleteChild={setDeletingChild}
+										onReactivateChild={handleReactivateChild}
 										user={user}
+										canEdit={canEdit}
 									/>
 								))}
 							</>
@@ -391,6 +594,70 @@ export function HouseholdProfile({
 			<PhotoViewerDialog
 				photo={viewingPhoto}
 				onClose={() => setViewingPhoto(null)}
+			/>
+
+			{/* Edit Modals */}
+			{editingGuardian !== null && (
+				<EditGuardianModal
+					guardian={editingGuardian}
+					householdId={household?.household_id || ''}
+					onClose={() => setEditingGuardian(null)}
+				/>
+			)}
+
+			{editingEmergencyContact && (
+				<EditEmergencyContactModal
+					contact={editingEmergencyContact}
+					householdId={household?.household_id || ''}
+					onClose={() => setEditingEmergencyContact(null)}
+				/>
+			)}
+
+			{editingChild !== undefined && (
+				<EditChildModal
+					child={editingChild}
+					householdId={household?.household_id || ''}
+					onClose={() => setEditingChild(undefined)}
+				/>
+			)}
+
+			{editingHouseholdAddress && (
+				<EditHouseholdAddressModal
+					household={editingHouseholdAddress}
+					onClose={() => setEditingHouseholdAddress(null)}
+				/>
+			)}
+
+			{editingChildEnrollments && (
+				<EditChildEnrollmentsModal
+					child={editingChildEnrollments}
+					householdId={household?.household_id || ''}
+					currentEnrollments={editingChildEnrollments.enrollmentsByCycle}
+					onClose={() => setEditingChildEnrollments(null)}
+				/>
+			)}
+
+			{/* Confirmation Dialogs */}
+			<ConfirmationDialog
+				isOpen={deletingGuardian !== null}
+				title="Remove Guardian"
+				description={`Are you sure you want to remove ${deletingGuardian?.first_name} ${deletingGuardian?.last_name} from this household? This action cannot be undone.`}
+				onConfirm={handleDeleteGuardian}
+				onCancel={() => setDeletingGuardian(null)}
+				confirmText="Remove"
+				cancelText="Cancel"
+				variant="destructive"
+			/>
+
+			<ConfirmationDialog
+				isOpen={deletingChild !== null}
+				title="Remove Child"
+				description={`Are you sure you want to remove ${deletingChild?.first_name} ${deletingChild?.last_name} from this household? This will mark them as inactive and cannot be undone.`}
+				onConfirm={handleDeleteChild}
+				onCancel={() => setDeletingChild(null)}
+				confirmText="Remove"
+				cancelText="Cancel"
+				variant="destructive"
 			/>
 		</>
 	);
