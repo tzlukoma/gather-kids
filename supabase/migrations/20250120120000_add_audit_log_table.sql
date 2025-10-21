@@ -24,9 +24,9 @@ CREATE POLICY "Admins can view audit logs" ON audit_log
   FOR SELECT TO authenticated
   USING (
     EXISTS (
-      SELECT 1 FROM user_roles 
-      WHERE user_id = auth.uid() 
-      AND role = 'admin'
+      SELECT 1 FROM auth.users 
+      WHERE id = auth.uid() 
+      AND (raw_user_meta_data->>'role') = 'ADMIN'
     )
   );
 
