@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
 	Dialog,
 	DialogContent,
@@ -84,17 +84,38 @@ export function EditChildEnrollmentsModal({
 	const { data: ministries = [], isLoading: ministriesLoading } =
 		useMinistries();
 
+	// Organize ministries like the register page
+	const { enrolledPrograms, interestPrograms } = useMemo(() => {
+		if (!ministries) return { enrolledPrograms: [], interestPrograms: [] };
+		const activeMinistries = ministries.filter((m) => m.is_active);
+		const enrolled = activeMinistries
+			.filter(
+				(m) =>
+					m.enrollment_type === 'enrolled' && m.code !== 'min_sunday_school'
+			)
+			.sort((a, b) => a.name.localeCompare(b.name));
+		const interest = activeMinistries
+			.filter((m) => m.enrollment_type === 'expressed_interest')
+			.sort((a, b) => a.name.localeCompare(b.name));
+		return { enrolledPrograms: enrolled, interestPrograms: interest };
+	}, [ministries]);
+
 	// Filter ministries based on child eligibility
-	const eligibleMinistries = ministries.filter((ministry) => {
+	const eligibleEnrolledPrograms = enrolledPrograms.filter((ministry) => {
+		const age = getAgeFromDob(child.dob);
+		return checkEligibility(ministry, age);
+	});
+
+	const eligibleInterestPrograms = interestPrograms.filter((ministry) => {
 		const age = getAgeFromDob(child.dob);
 		return checkEligibility(ministry, age);
 	});
 
 	// Separate Sunday school from other ministries
-	const sundaySchoolMinistry = eligibleMinistries.find(
-		(m) => m.code === 'min_sunday_school'
+	const sundaySchoolMinistry = ministries.find(
+		(m) => m.code === 'min_sunday_school' && m.is_active
 	);
-	const otherMinistries = eligibleMinistries.filter(
+	const otherMinistries = eligibleEnrolledPrograms.filter(
 		(m) => m.code !== 'min_sunday_school'
 	);
 
@@ -262,7 +283,7 @@ export function EditChildEnrollmentsModal({
 					</DialogDescription>
 				</DialogHeader>
 
-				<div className="space-y-4">
+				<div className="space-y-6">
 					{/* Sunday School - Always enrolled, cannot be unselected */}
 					{sundaySchoolMinistry && (
 						<div className="p-4 border rounded-md bg-muted/25">
@@ -286,174 +307,226 @@ export function EditChildEnrollmentsModal({
 						</div>
 					)}
 
-					{/* Other Ministries */}
-					{otherMinistries.length === 0 ? (
-						<div className="text-muted-foreground py-4">
-							No additional ministries available for {child.first_name}'s age
-							group.
-						</div>
-					) : (
-						otherMinistries.map((ministry) => {
-							const isSelected = selectedMinistries.has(ministry.ministry_id);
-							const age = getAgeFromDob(child.dob);
+					{/* Regular Ministry Programs */}
+					{otherMinistries.length > 0 && (
+						<div className="space-y-4">
+							<h3 className="text-lg font-semibold font-headline">
+								Ministry Programs
+							</h3>
+							{otherMinistries.map((ministry) => {
+								const isSelected = selectedMinistries.has(ministry.ministry_id);
+								const age = getAgeFromDob(child.dob);
 
-							return (
-								<div
-									key={ministry.ministry_id}
-									className="p-4 border rounded-md">
-									<h4 className="font-semibold">{ministry.name}</h4>
-									{ministry.description && (
-										<p className="text-sm text-muted-foreground mb-2">
-											{ministry.description}
-										</p>
-									)}
-									<div className="flex items-center space-x-3 mt-2">
-										<Checkbox
-											id={ministry.ministry_id}
-											checked={isSelected}
-											onCheckedChange={() =>
-												handleMinistryToggle(ministry.ministry_id)
-											}
-										/>
-										<Label
-											htmlFor={ministry.ministry_id}
-											className="text-sm font-medium cursor-pointer">
-											Enroll {child.first_name}
-										</Label>
-									</div>
-
-									{/* Custom ministry forms */}
-									{isSelected && ministry.code === 'dance' && (
-										<div className="mt-4 space-y-4 p-4 border rounded-md">
-											<Label className="text-sm font-medium">
-												Are you a returning member of the dance ministry?
+								return (
+									<div
+										key={ministry.ministry_id}
+										className="p-4 border rounded-md">
+										<h4 className="font-semibold">{ministry.name}</h4>
+										{ministry.description && (
+											<p className="text-sm text-muted-foreground mb-2">
+												{ministry.description}
+											</p>
+										)}
+										<div className="flex items-center space-x-3 mt-2">
+											<Checkbox
+												id={ministry.ministry_id}
+												checked={isSelected}
+												onCheckedChange={() =>
+													handleMinistryToggle(ministry.ministry_id)
+												}
+											/>
+											<Label
+												htmlFor={ministry.ministry_id}
+												className="text-sm font-medium cursor-pointer">
+												Enroll {child.first_name}
 											</Label>
-											<div className="flex flex-col space-y-2">
-												<label className="flex items-center space-x-2">
-													<input
-														type="radio"
-														name={`dance_returning_${ministry.ministry_id}`}
-														value="yes"
-														checked={
-															customFormData[ministry.ministry_id]
-																?.dance_returning_member === 'yes'
-														}
-														onChange={(e) =>
-															setCustomFormData((prev) => ({
-																...prev,
-																[ministry.ministry_id]: {
-																	...prev[ministry.ministry_id],
-																	dance_returning_member: e.target.value,
-																},
-															}))
-														}
-													/>
-													<span className="text-sm">Yes</span>
-												</label>
-												<label className="flex items-center space-x-2">
-													<input
-														type="radio"
-														name={`dance_returning_${ministry.ministry_id}`}
-														value="no"
-														checked={
-															customFormData[ministry.ministry_id]
-																?.dance_returning_member === 'no'
-														}
-														onChange={(e) =>
-															setCustomFormData((prev) => ({
-																...prev,
-																[ministry.ministry_id]: {
-																	...prev[ministry.ministry_id],
-																	dance_returning_member: e.target.value,
-																},
-															}))
-														}
-													/>
-													<span className="text-sm">No</span>
-												</label>
-											</div>
 										</div>
-									)}
-									{isSelected && ministry.code === 'bible-bee' && (
-										<div className="mt-4 space-y-4 p-4 border rounded-md">
-											<Label className="text-sm font-medium">
-												Bible Bee Information
-											</Label>
-											<div className="space-y-2">
-												<label className="flex items-center space-x-2">
-													<input
-														type="checkbox"
-														checked={
-															customFormData[ministry.ministry_id]
-																?.bible_bee_participant === true
-														}
-														onChange={(e) =>
-															setCustomFormData((prev) => ({
-																...prev,
-																[ministry.ministry_id]: {
-																	...prev[ministry.ministry_id],
-																	bible_bee_participant: e.target.checked,
-																},
-															}))
-														}
-													/>
-													<span className="text-sm">
-														I want to participate in Bible Bee
-													</span>
-												</label>
-											</div>
-										</div>
-									)}
 
-									{/* Custom questions */}
-									{isSelected &&
-										ministry.custom_questions &&
-										ministry.custom_questions.length > 0 && (
-											<div className="mt-4">
-												<p className="font-medium mb-2 text-sm">
-													Questions for {child.first_name}:
-												</p>
-												<div className="space-y-2 p-4 border rounded-md">
-													{ministry.custom_questions.map((question) => (
-														<label
-															key={question.id}
-															className="flex items-center space-x-2">
-															<input
-																type="checkbox"
-																checked={
-																	customFormData[ministry.ministry_id]?.[
-																		question.id
-																	] === true
-																}
-																onChange={(e) =>
-																	setCustomFormData((prev) => ({
-																		...prev,
-																		[ministry.ministry_id]: {
-																			...prev[ministry.ministry_id],
-																			[question.id]: e.target.checked,
-																		},
-																	}))
-																}
-															/>
-															<span className="text-sm">{question.text}</span>
-														</label>
-													))}
+										{/* Custom ministry forms */}
+										{isSelected && ministry.code === 'dance' && (
+											<div className="mt-4 space-y-4 p-4 border rounded-md">
+												<Label className="text-sm font-medium">
+													Are you a returning member of the dance ministry?
+												</Label>
+												<div className="flex flex-col space-y-2">
+													<label className="flex items-center space-x-2">
+														<input
+															type="radio"
+															name={`dance_returning_${ministry.ministry_id}`}
+															value="yes"
+															checked={
+																customFormData[ministry.ministry_id]
+																	?.dance_returning_member === 'yes'
+															}
+															onChange={(e) =>
+																setCustomFormData((prev) => ({
+																	...prev,
+																	[ministry.ministry_id]: {
+																		...prev[ministry.ministry_id],
+																		dance_returning_member: e.target.value,
+																	},
+																}))
+															}
+														/>
+														<span className="text-sm">Yes</span>
+													</label>
+													<label className="flex items-center space-x-2">
+														<input
+															type="radio"
+															name={`dance_returning_${ministry.ministry_id}`}
+															value="no"
+															checked={
+																customFormData[ministry.ministry_id]
+																	?.dance_returning_member === 'no'
+															}
+															onChange={(e) =>
+																setCustomFormData((prev) => ({
+																	...prev,
+																	[ministry.ministry_id]: {
+																		...prev[ministry.ministry_id],
+																		dance_returning_member: e.target.value,
+																	},
+																}))
+															}
+														/>
+														<span className="text-sm">No</span>
+													</label>
+												</div>
+											</div>
+										)}
+										{isSelected && ministry.code === 'bible-bee' && (
+											<div className="mt-4 space-y-4 p-4 border rounded-md">
+												<Label className="text-sm font-medium">
+													Bible Bee Information
+												</Label>
+												<div className="space-y-2">
+													<label className="flex items-center space-x-2">
+														<input
+															type="checkbox"
+															checked={
+																customFormData[ministry.ministry_id]
+																	?.bible_bee_participant === true
+															}
+															onChange={(e) =>
+																setCustomFormData((prev) => ({
+																	...prev,
+																	[ministry.ministry_id]: {
+																		...prev[ministry.ministry_id],
+																		bible_bee_participant: e.target.checked,
+																	},
+																}))
+															}
+														/>
+														<span className="text-sm">
+															I want to participate in Bible Bee
+														</span>
+													</label>
 												</div>
 											</div>
 										)}
 
-									{/* Additional details */}
-									{isSelected && ministry.details && (
-										<Alert className="mt-4">
-											<Info className="h-4 w-4" />
-											<AlertDescription className="whitespace-pre-wrap">
-												{ministry.details}
-											</AlertDescription>
-										</Alert>
-									)}
-								</div>
-							);
-						})
+										{/* Custom questions */}
+										{isSelected &&
+											ministry.custom_questions &&
+											ministry.custom_questions.length > 0 && (
+												<div className="mt-4">
+													<p className="font-medium mb-2 text-sm">
+														Questions for {child.first_name}:
+													</p>
+													<div className="space-y-2 p-4 border rounded-md">
+														{ministry.custom_questions.map((question) => (
+															<label
+																key={question.id}
+																className="flex items-center space-x-2">
+																<input
+																	type="checkbox"
+																	checked={
+																		customFormData[ministry.ministry_id]?.[
+																			question.id
+																		] === true
+																	}
+																	onChange={(e) =>
+																		setCustomFormData((prev) => ({
+																			...prev,
+																			[ministry.ministry_id]: {
+																				...prev[ministry.ministry_id],
+																				[question.id]: e.target.checked,
+																			},
+																		}))
+																	}
+																/>
+																<span className="text-sm">{question.text}</span>
+															</label>
+														))}
+													</div>
+												</div>
+											)}
+
+										{/* Additional details */}
+										{isSelected && ministry.details && (
+											<Alert className="mt-4">
+												<Info className="h-4 w-4" />
+												<AlertDescription className="whitespace-pre-wrap">
+													{ministry.details}
+												</AlertDescription>
+											</Alert>
+										)}
+									</div>
+								);
+							})}
+						</div>
+					)}
+
+					{/* Interest Programs */}
+					{eligibleInterestPrograms.length > 0 && (
+						<div className="space-y-4">
+							<h3 className="text-lg font-semibold font-headline">
+								Programs of Interest
+							</h3>
+							<p className="text-sm text-muted-foreground">
+								These programs help us gauge interest for future planning.
+							</p>
+							{eligibleInterestPrograms.map((ministry) => {
+								const isSelected = selectedMinistries.has(ministry.ministry_id);
+
+								return (
+									<div
+										key={ministry.ministry_id}
+										className="p-4 border rounded-md">
+										<h4 className="font-semibold">{ministry.name}</h4>
+										{ministry.description && (
+											<p className="text-sm text-muted-foreground mb-2">
+												{ministry.description}
+											</p>
+										)}
+										<div className="flex items-center space-x-3 mt-2">
+											<Checkbox
+												id={ministry.ministry_id}
+												checked={isSelected}
+												onCheckedChange={() =>
+													handleMinistryToggle(ministry.ministry_id)
+												}
+											/>
+											<Label
+												htmlFor={ministry.ministry_id}
+												className="text-sm font-medium cursor-pointer">
+												Express interest for {child.first_name}
+											</Label>
+										</div>
+
+										{/* Additional details */}
+										{isSelected && ministry.details && (
+											<Alert className="mt-4">
+												<Info className="h-4 w-4" />
+												<AlertDescription className="whitespace-pre-wrap">
+													{ministry.details}
+												</AlertDescription>
+											</Alert>
+										)}
+									</div>
+								);
+							})}
+						</div>
 					)}
 
 					{selectedMinistries.size > 0 && (
@@ -463,9 +536,10 @@ export function EditChildEnrollmentsModal({
 							</Label>
 							<div className="flex flex-wrap gap-2">
 								{Array.from(selectedMinistries).map((ministryId) => {
-									const ministry = eligibleMinistries.find(
-										(m) => m.ministry_id === ministryId
-									);
+									const ministry = [
+										...otherMinistries,
+										...eligibleInterestPrograms,
+									].find((m) => m.ministry_id === ministryId);
 									return ministry ? (
 										<Badge key={ministryId} variant="default">
 											{ministry.name}
