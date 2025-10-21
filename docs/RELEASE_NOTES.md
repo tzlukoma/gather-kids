@@ -1,5 +1,197 @@
 # Release Notes - gatherKids
 
+## v1.5.6 - Comprehensive Household Data Editing & React Query Migration
+
+### 🆕 New Features
+
+#### Complete Household Data Editing System
+
+- **Full household management** - Admins can edit any household data, guardians can edit their own household
+- **Guardian management** - Add, edit, and remove guardians with proper relationship tracking
+- **Child management** - Add, edit, and remove children with soft delete functionality
+- **Emergency contact editing** - Update emergency contact information and relationships
+- **Household address management** - Edit household address and basic information
+- **Ministry enrollment management** - Edit child enrollments for current registration cycle only
+- **Child reactivation** - Reactivate previously soft-deleted children
+- **Primary guardian protection** - Primary guardians cannot be deleted to maintain data integrity
+
+#### Enhanced Ministry Enrollment Dialog
+
+- **Registration page parity** - Enrollments dialog now matches the registration page structure and functionality
+- **Ministry organization** - Ministries organized into sections: Sunday School (auto-enrolled), Ministry Programs, and Programs of Interest
+- **Custom form integration** - Full support for ministry-specific custom forms and questions (Dance, Bible Bee, Teen Fellowship)
+- **Sunday school auto-enrollment** - Sunday school automatically enrolled and cannot be unselected
+- **Date range enforcement** - Proper enforcement of ministry registration periods (e.g., Bible Bee closes Oct 8, 2025)
+- **Age eligibility filtering** - Only shows ministries appropriate for child's age
+- **Custom data persistence** - Saves and restores custom form data for each ministry
+
+#### Mobile-Responsive UI Enhancements
+
+- **Mobile-optimized action buttons** - Child action buttons become icons on mobile with 3-dot dropdown menu
+- **Responsive dialog spacing** - Proper button spacing in all edit dialogs for mobile and desktop
+- **Icon-based actions** - Clean icon-based edit/remove actions for guardians, emergency contacts, and household info
+- **Unified action bar** - Co-located "Add Guardian" and "Add Child" buttons for better alignment
+- **Mobile dropdown menus** - 3-dot menus for child actions with full text options for better usability
+
+### 🔧 Technical Improvements
+
+#### Complete React Query Migration
+
+- **Modern data fetching** - Migrated entire application from legacy hooks to React Query v4
+- **Optimistic updates** - Immediate UI feedback for all CRUD operations
+- **Automatic cache invalidation** - Data stays fresh across all views and components
+- **Centralized hook management** - All data hooks organized in `/src/hooks/data/` structure
+- **Consistent patterns** - Unified mutation patterns with proper error handling and success callbacks
+
+#### Enhanced Data Access Layer
+
+- **Comprehensive DAL functions** - Added full CRUD operations for households, guardians, children, and enrollments
+- **Audit logging system** - Complete audit trail for all data changes with user tracking
+- **Database adapter pattern** - Consistent database operations across Supabase and IndexedDB
+- **Soft delete implementation** - Children are soft-deleted (marked inactive) rather than permanently removed
+- **Active child filtering** - All child queries now filter for active children only
+
+#### Permission System
+
+- **Role-based editing** - ADMIN users can edit any household, GUARDIAN users can only edit their own
+- **Granular permissions** - Proper permission checks throughout the editing interface
+- **Primary guardian protection** - System prevents deletion of primary guardians
+- **Household isolation** - Users only see and can edit appropriate household data
+
+### 🐛 Bug Fixes
+
+#### Data Population Issues
+
+- **Fixed registrations page** - Child data now properly populates in household lists
+- **Resolved hook conflicts** - Eliminated conflicting React Query hooks causing mutation errors
+- **Fixed photo update mutations** - Child photo updates now work correctly with proper hook usage
+- **Corrected import paths** - All components now use centralized React Query hooks
+
+#### Database & Query Fixes
+
+- **Fixed enrollment table references** - Corrected table name from `enrollments` to `ministry_enrollments`
+- **Added missing UUID generation** - Fixed null constraint violations for `enrollment_id` and `child_id`
+- **Corrected guardian creation** - Fixed guardian creation to use proper UUID generation and mapping
+- **Enhanced null safety** - Added comprehensive null checks throughout household profile components
+
+#### UI/UX Improvements
+
+- **Fixed mobile responsiveness** - Child cards now properly display on mobile devices
+- **Corrected button alignment** - Add buttons properly aligned with card layouts
+- **Fixed toast notifications** - Proper toast integration for all success/error messages
+- **Enhanced form validation** - Better error handling and user feedback in all edit forms
+
+### 📊 Infrastructure & Testing
+
+#### Comprehensive Test Coverage
+
+- **Registration page tests** - Added tests to catch child data population issues
+- **React Query migration validation** - Comprehensive testing of all new hook implementations
+- **Component testing** - Enhanced test coverage for household editing components
+- **Integration testing** - End-to-end testing of household editing workflows
+
+#### Documentation & Standards
+
+- **React Query standards** - Comprehensive documentation of React Query patterns and best practices
+- **Migration plan** - Detailed migration documentation for future React Query implementations
+- **Code organization** - Clear structure for data hooks and component organization
+- **Development guidelines** - Updated copilot instructions with current patterns
+
+### 🎯 User Experience Improvements
+
+#### Streamlined Editing Workflow
+
+- **Modal-based editing** - Clean modal dialogs for each type of data editing
+- **Pre-populated forms** - All edit forms show current data for easy modification
+- **Confirmation dialogs** - "Are you sure?" confirmations for destructive actions
+- **Immediate feedback** - Toast notifications for all operations with clear success/error messages
+
+#### Enhanced Data Management
+
+- **Phone number formatting** - Proper phone number input and display formatting
+- **Free-form relationship fields** - Relationship fields now accept any text input (not just dropdowns)
+- **Comprehensive validation** - Zod schema validation for all form inputs
+- **Data consistency** - Ensures data integrity across all editing operations
+
+#### Improved Navigation
+
+- **Contextual actions** - Edit/remove actions appear next to relevant data sections
+- **Clear visual hierarchy** - Better organization of household data with clear sections
+- **Responsive design** - Seamless experience across desktop, tablet, and mobile devices
+- **Intuitive workflows** - Logical flow for adding, editing, and removing household data
+
+### 🛡️ Security & Data Integrity
+
+#### Audit Trail System
+
+- **Complete change tracking** - All modifications logged with user, timestamp, and change details
+- **User accountability** - Clear audit trail showing who made what changes when
+- **Data recovery** - Ability to track and potentially reverse changes through audit logs
+- **Compliance support** - Audit logs support data compliance and reporting requirements
+
+#### Data Protection
+
+- **Role-based access** - Users can only edit data appropriate to their role
+- **Primary guardian protection** - System prevents accidental deletion of primary guardians
+- **Soft delete implementation** - Children are marked inactive rather than permanently deleted
+- **Data validation** - Comprehensive validation prevents invalid data entry
+
+### 📁 Files Changed
+
+#### New Components
+- `src/components/gatherKids/confirmation-dialog.tsx` - Reusable confirmation dialog
+- `src/components/gatherKids/edit-guardian-modal.tsx` - Guardian editing interface
+- `src/components/gatherKids/edit-emergency-contact-modal.tsx` - Emergency contact editing
+- `src/components/gatherKids/edit-child-modal.tsx` - Child editing interface
+- `src/components/gatherKids/edit-household-address-modal.tsx` - Household address editing
+- `src/components/gatherKids/edit-child-enrollments-modal.tsx` - Ministry enrollment management
+
+#### Enhanced Components
+- `src/components/gatherKids/household-profile.tsx` - Complete household editing interface
+- `src/components/gatherKids/photo-capture-dialog.tsx` - Fixed photo update mutations
+
+#### New React Query Hooks
+- `src/hooks/data/households.ts` - Household data management hooks
+- `src/hooks/data/guardians.ts` - Guardian CRUD operations
+- `src/hooks/data/children.ts` - Child management with reactivation
+- `src/hooks/data/enrollments.ts` - Ministry enrollment management
+- `src/hooks/data/attendance.ts` - Check-in/check-out operations
+- `src/hooks/data/bibleBee.ts` - Bible Bee data management
+- `src/hooks/data/branding.ts` - Branding management
+- `src/hooks/data/dashboard.ts` - Dashboard data aggregation
+- `src/hooks/data/emergency-contacts.ts` - Emergency contact management
+- `src/hooks/data/leaders.ts` - Ministry leader management
+- `src/hooks/data/ministries.ts` - Ministry data management
+- `src/hooks/data/registration.ts` - Registration cycle management
+- `src/hooks/data/users.ts` - User management
+
+#### Database & Infrastructure
+- `src/lib/dal.ts` - Enhanced data access layer with full CRUD operations
+- `src/lib/database/supabase-adapter.ts` - Complete Supabase adapter implementation
+- `src/lib/database/indexed-db-adapter.ts` - Enhanced IndexedDB adapter
+- `src/lib/database/types.ts` - Updated database adapter interface
+- `src/lib/permissions/household.ts` - Household editing permissions
+- `supabase/migrations/20250120120000_add_audit_log_table.sql` - Audit logging system
+
+#### Testing & Documentation
+- `__tests__/app/dashboard/registrations-page.test.tsx` - Registration page testing
+- `docs/REACT_QUERY_STANDARDS.md` - Comprehensive React Query documentation
+- `docs/REACT_QUERY_MIGRATION_PLAN.md` - Migration planning documentation
+- `docs/CHECKOUT_HOOKS.md` - Check-in/check-out hook documentation
+
+### ✅ Impact
+
+- **User Experience**: Complete household editing capabilities with intuitive interface
+- **Data Management**: Comprehensive CRUD operations with proper validation and audit trails
+- **Mobile Experience**: Fully responsive editing interface optimized for all devices
+- **System Reliability**: Robust error handling and data integrity protection
+- **Developer Experience**: Clean React Query patterns and comprehensive documentation
+- **Maintainability**: Well-organized codebase with clear separation of concerns
+
+This release represents a major milestone in household data management, providing administrators and guardians with comprehensive tools to manage household information while maintaining data integrity and providing excellent user experience across all devices.
+
+---
+
 ## v1.5.4 - Password Visibility Toggle Enhancement
 
 ### 🆕 New Features
