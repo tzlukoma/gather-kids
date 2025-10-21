@@ -18,7 +18,8 @@ import { useAuth } from '@/contexts/auth-context';
 import { useSearchParams } from 'next/navigation';
 import { Users, Filter, Edit } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { useChildren, useAttendance } from '@/lib/hooks/useData';
+import { useChildren, useAttendance } from '@/hooks/data';
+import { CardGridSkeleton } from '@/components/skeletons/CardGridSkeleton';
 import { Badge } from '@/components/ui/badge';
 import { getTodayIsoDate } from '@/lib/dal';
 import type { Child, Attendance } from '@/lib/types';
@@ -163,13 +164,7 @@ function CheckInContent() {
 	);
 
 	if (loading) {
-		return (
-			<div className="flex flex-col items-center justify-center h-64">
-				<p className="text-muted-foreground mb-4">
-					Loading children&apos;s data...
-				</p>
-			</div>
-		);
+		return <CardGridSkeleton cards={8} />;
 	}
 
 	return (

@@ -6,7 +6,7 @@ import {
 	useUpdateLeaderStatusMutation,
 	useSaveLeaderMembershipsMutation,
 	useSaveLeaderProfileMutation,
-} from '@/lib/hooks/useData';
+} from '@/hooks/data';
 import {
 	Card,
 	CardContent,

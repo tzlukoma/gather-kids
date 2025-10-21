@@ -12,7 +12,9 @@ import type {
 import { useToast } from '@/hooks/use-toast';
 import { Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { getTodayIsoDate, getIncidentsForDate } from '@/lib/dal';
+import { getTodayIsoDate } from '@/lib/dal';
+import { useIncidents } from '@/hooks/data';
+import { CardGridSkeleton } from '@/components/skeletons/CardGridSkeleton';
 import type { StatusFilter } from '@/app/dashboard/check-in/page';
 import { IncidentDetailsDialog } from './incident-details-dialog';
 import { PhotoCaptureDialog } from './photo-capture-dialog';
@@ -29,7 +31,7 @@ import {
 	useEmergencyContacts,
 	useCheckInMutation,
 	useCheckOutMutation,
-} from '@/lib/hooks/useData';
+} from '@/hooks/data';
 
 interface CheckInViewProps {
 	children: Child[];
@@ -91,29 +93,13 @@ export function CheckInView({
 	const checkInMutation = useCheckInMutation();
 	const checkOutMutation = useCheckOutMutation();
 
-	// State for incidents data
-	const [todaysIncidents, setTodaysIncidents] = useState<Incident[]>([]);
-	const [enrichedDataLoading, setEnrichedDataLoading] = useState(true);
-
 	const today = getTodayIsoDate();
 
-	// Load incidents data
-	useEffect(() => {
-		const loadIncidents = async () => {
-			try {
-				setEnrichedDataLoading(true);
-				const incidentsData = await getIncidentsForDate(today);
-				setTodaysIncidents(incidentsData);
-			} catch (error) {
-				console.error('Error loading incidents:', error);
-				setTodaysIncidents([]);
-			} finally {
-				setEnrichedDataLoading(false);
-			}
-		};
-
-		loadIncidents();
-	}, [today]);
+	// Use React Query hook for incidents data
+	const { data: todaysIncidents = [], isLoading: incidentsLoading } = useIncidents(today);
+	
+	// Calculate enriched data loading state
+	const enrichedDataLoading = incidentsLoading;
 
 	// Enrich children with additional data
 	useEffect(() => {
@@ -309,6 +295,11 @@ export function CheckInView({
 
 		return results;
 	}, [searchQuery, enrichedChildren, selectedGrades, statusFilter]);
+
+	// Show loading skeleton while incidents are loading
+	if (enrichedDataLoading) {
+		return <CardGridSkeleton cards={8} />;
+	}
 
 	return (
 		<>

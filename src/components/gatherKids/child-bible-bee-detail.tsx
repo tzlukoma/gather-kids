@@ -2,17 +2,15 @@
 
 import { useParams } from 'next/navigation';
 import {
+	useChild,
+	useHousehold,
+	useGuardians,
 	useStudentAssignmentsQuery,
 	useToggleScriptureMutation,
 	useSubmitEssayMutation,
-} from '@/lib/hooks/useBibleBee';
+} from '@/hooks/data';
 import { ChildIdCard } from '@/components/gatherKids/child-id-card';
-import {
-	updateChildPhoto,
-	getChild,
-	getHousehold,
-	listGuardians,
-} from '@/lib/dal';
+import { updateChildPhoto } from '@/lib/dal';
 import { useEffect, useState, useTransition } from 'react';
 import { Button } from '@/components/ui/button';
 import { getApplicableGradeRule } from '@/lib/bibleBee';
@@ -44,37 +42,28 @@ export default function ChildBibleBeeDetail({
 	const childId = params.childId as string;
 	const { user } = useAuth();
 	const { data, isLoading } = useStudentAssignmentsQuery(childId);
-	const [childCore, setChildCore] = useState<any>(null);
-	const [guardiansForHousehold, setGuardiansForHousehold] = useState<any[]>([]);
-	const [household, setHousehold] = useState<any>(null);
 	const [showPhotoCapture, setShowPhotoCapture] = useState<any>(null);
 	const toggleMutation = useToggleScriptureMutation(childId);
 	const essayMutation = useSubmitEssayMutation(childId);
 
-	// Load child, household, and guardians data using DAL functions
-	useEffect(() => {
-		const loadData = async () => {
-			try {
-				const child = await getChild(childId);
-				setChildCore(child);
+	// Use React Query hooks for child, household, and guardian data
+	const {
+		data: childCore,
+		isLoading: childLoading,
+		error: childError,
+	} = useChild(childId);
 
-				if (child?.household_id) {
-					const [householdData, guardiansData] = await Promise.all([
-						getHousehold(child.household_id),
-						listGuardians({ householdId: child.household_id }),
-					]);
-					setHousehold(householdData);
-					setGuardiansForHousehold(guardiansData);
-					console.log('Loaded guardians for child:', guardiansData);
-					console.log('Loaded household for child:', householdData);
-				}
-			} catch (error) {
-				console.error('Error loading child data:', error);
-			}
-		};
+	const {
+		data: household,
+		isLoading: householdLoading,
+		error: householdError,
+	} = useHousehold(childCore?.household_id || '');
 
-		loadData();
-	}, [childId]);
+	const {
+		data: guardiansForHousehold = [],
+		isLoading: guardiansLoading,
+		error: guardiansError,
+	} = useGuardians();
 
 	// Compute Bible Bee stats for the current competition year (if any)
 	const [bbStats, setBbStats] = useState<{
@@ -209,7 +198,9 @@ export default function ChildBibleBeeDetail({
 
 			// Check if there's an essay assigned - use the same logic as household page
 			const essayAssigned = essays.length > 0;
-			setDivisionEssayPrompts(essays.map((e) => e.essayPrompt).filter(Boolean));
+			setDivisionEssayPrompts(
+				essays.map((e: any) => e.essayPrompt).filter(Boolean)
+			);
 
 			startTransition(() => {
 				setBbStats({
@@ -233,7 +224,31 @@ export default function ChildBibleBeeDetail({
 		compute();
 	}, [data, childCore]);
 
-	if (isLoading || !data) return <div>Loading Bible Bee assignments...</div>;
+	if (
+		isLoading ||
+		childLoading ||
+		householdLoading ||
+		guardiansLoading ||
+		!data ||
+		isComputingStats ||
+		bbStats === null
+	) {
+		return <div>Loading Bible Bee assignments...</div>;
+	}
+
+	// Show error state if any of the queries failed
+	if (childError || householdError || guardiansError) {
+		return (
+			<div className="flex items-center justify-center py-12">
+				<div className="text-destructive">
+					Error loading child data:{' '}
+					{(childError as any)?.message ||
+						(householdError as any)?.message ||
+						(guardiansError as any)?.message}
+				</div>
+			</div>
+		);
+	}
 
 	const enrichedChild = childCore
 		? {
@@ -275,10 +290,8 @@ export default function ChildBibleBeeDetail({
 		try {
 			await updateChildPhoto(showPhotoCapture.child_id, croppedDataUrl);
 
-			// Update the local child state with the new photo URL
-			setChildCore((prev: any) =>
-				prev ? { ...prev, photo_url: croppedDataUrl } : prev
-			);
+			// Photo update will be handled by React Query's automatic refetching
+			// or we could invalidate the query cache if needed
 
 			toast({
 				title: 'Photo Updated',
@@ -296,7 +309,7 @@ export default function ChildBibleBeeDetail({
 		}
 	};
 
-	const handleViewPhoto = {
+	const handleViewPhoto = () => {
 		// placeholder - parent layout may handle viewer
 	};
 

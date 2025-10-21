@@ -2,11 +2,7 @@
 import React from 'react';
 import { useParams } from 'next/navigation';
 import { dbAdapter } from '@/lib/dal';
-import {
-	useScripturesForYear,
-	useScripturesForYearQuery,
-	createGradeRule as hookCreateGradeRule,
-} from '@/lib/hooks/useBibleBee';
+import { useScripturesForCycle, useUpsertScripture } from '@/hooks/data';
 import {
 	upsertScripture,
 	validateCsvRows,
@@ -26,10 +22,9 @@ import ScriptureCard from '@/components/gatherKids/scripture-card';
 export default function YearManagePage() {
 	const params = useParams();
 	const yearId = params.id as string;
-	const { scriptures, refresh: refreshScriptures } =
-		useScripturesForYear(yearId);
-	const { data: qScriptures, upsertScriptureMutation } =
-		useScripturesForYearQuery(yearId);
+	const { data: scriptures, isLoading: scripturesLoading } =
+		useScripturesForCycle(yearId);
+	const { mutateAsync: upsertScriptureMutation } = useUpsertScripture();
 	const [localScriptures, setLocalScriptures] = React.useState<any[]>([]);
 	const [displayVersion, setDisplayVersion] = React.useState<
 		string | undefined
@@ -46,7 +41,7 @@ export default function YearManagePage() {
 		async function load() {
 			const r = await dbAdapter.listGradeRules(yearId);
 			if (mounted) {
-				setLocalScriptures(scriptures);
+				setLocalScriptures(scriptures || []);
 				// collect versions from scriptures
 				const versions = new Set<string>();
 				for (const item of scriptures || []) {
@@ -67,7 +62,7 @@ export default function YearManagePage() {
 		return () => {
 			mounted = false;
 		};
-	}, [yearId]);
+	}, [yearId, scriptures]);
 
 	async function handleAddScripture(ref: string, text: string) {
 		const payload = {
@@ -77,7 +72,7 @@ export default function YearManagePage() {
 			sortOrder: localScriptures.length + 1,
 		} as any;
 		// optimistic mutation
-		await upsertScriptureMutation.mutateAsync(payload);
+		await upsertScriptureMutation(payload);
 		// local list will be refreshed via the query invalidation; keep UI responsive
 		setLocalScriptures((prev) => [...prev, payload]);
 	}

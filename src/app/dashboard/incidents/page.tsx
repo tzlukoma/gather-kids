@@ -27,10 +27,13 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import type { Incident } from '@/lib/types';
 import { format } from 'date-fns';
-import { acknowledgeIncident, getIncidentsForUser } from '@/lib/dal';
 import { useAuth } from '@/contexts/auth-context';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Info } from 'lucide-react';
+import {
+	useIncidentsForUser,
+	useAcknowledgeIncident,
+} from '@/hooks/data/attendance';
 
 export default function IncidentsPage() {
 	const { toast } = useToast();
@@ -39,28 +42,13 @@ export default function IncidentsPage() {
 	const [activeTab, setActiveTab] = useState('log');
 	const [showPendingOnly, setShowPendingOnly] = useState(false);
 
-	// State management for data loading
-	const [incidents, setIncidents] = useState<Incident[]>([]);
-	const [loading, setLoading] = useState(true);
-
-	// Load incidents using DAL function
-	useEffect(() => {
-		const loadIncidents = async () => {
-			if (!user) return;
-
-			try {
-				setLoading(true);
-				const incidentsData = await getIncidentsForUser(user);
-				setIncidents(incidentsData);
-			} catch (error) {
-				console.error('Error loading incidents:', error);
-			} finally {
-				setLoading(false);
-			}
-		};
-
-		loadIncidents();
-	}, [user]);
+	// React Query hooks for data fetching
+	const {
+		data: incidents = [],
+		isLoading: loading,
+		error,
+	} = useIncidentsForUser(user);
+	const acknowledgeMutation = useAcknowledgeIncident();
 
 	useEffect(() => {
 		const tabParam = searchParams.get('tab');
@@ -83,12 +71,7 @@ export default function IncidentsPage() {
 
 	const handleAcknowledge = async (incidentId: string) => {
 		try {
-			await acknowledgeIncident(incidentId);
-
-			// Refresh incidents after acknowledging
-			const updatedIncidents = await getIncidentsForUser(user);
-			setIncidents(updatedIncidents);
-
+			await acknowledgeMutation.mutateAsync(incidentId);
 			toast({
 				title: 'Incident Acknowledged',
 				description: 'The incident has been marked as acknowledged.',
@@ -104,6 +87,11 @@ export default function IncidentsPage() {
 	};
 
 	if (loading) return <div>Loading incidents...</div>;
+
+	if (error) {
+		console.error('Error loading incidents:', error);
+		return <div>Error loading incidents. Please try again.</div>;
+	}
 
 	if (user?.metadata?.role === AuthRole.MINISTRY_LEADER && !user.is_active) {
 		return (

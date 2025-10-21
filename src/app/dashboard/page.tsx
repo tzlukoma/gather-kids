@@ -19,48 +19,54 @@ import {
 } from '@/components/ui/table';
 import { AlertTriangle, Users, CheckCircle2, Home } from 'lucide-react';
 import { format } from 'date-fns';
-import { getTodayIsoDate, getUnacknowledgedIncidents, getCheckedInCount, getRegistrationStats } from '@/lib/dal';
+import { getTodayIsoDate } from '@/lib/dal';
 import { useAuth } from '@/contexts/auth-context';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { AuthRole } from '@/lib/auth-types';
 import type { Incident } from '@/lib/types';
+import {
+	useUnacknowledgedIncidents,
+	useCheckedInCount,
+	useRegistrationStats,
+} from '@/hooks/data/dashboard';
+import { CardGridSkeleton } from '@/components/skeletons/CardGridSkeleton';
 
 export default function DashboardPage() {
 	const router = useRouter();
 	const { user, loading } = useAuth();
 	const [isAuthorized, setIsAuthorized] = useState(false);
-	const [unacknowledgedIncidents, setUnacknowledgedIncidents] = useState<Incident[]>([]);
-	const [checkedInCount, setCheckedInCount] = useState(0);
-	const [registrationStats, setRegistrationStats] = useState({ householdCount: 0, childCount: 0 });
-	const [isLoading, setIsLoading] = useState(true);
 
 	const today = getTodayIsoDate();
 
-	// Load dashboard data
-	useEffect(() => {
-		if (!loading && user && isAuthorized) {
-			const loadDashboardData = async () => {
-				try {
-					const [incidents, count, stats] = await Promise.all([
-						getUnacknowledgedIncidents(),
-						getCheckedInCount(today),
-						getRegistrationStats()
-					]);
-					
-					setUnacknowledgedIncidents(incidents);
-					setCheckedInCount(count);
-					setRegistrationStats(stats);
-				} catch (error) {
-					console.warn('Error loading dashboard data:', error);
-				} finally {
-					setIsLoading(false);
-				}
-			};
+	// Use React Query hooks for data fetching
+	const {
+		data: unacknowledgedIncidents = [],
+		isLoading: incidentsLoading,
+		error: incidentsError,
+	} = useUnacknowledgedIncidents();
+	const {
+		data: checkedInCount = 0,
+		isLoading: countLoading,
+		error: countError,
+	} = useCheckedInCount(today);
+	const {
+		data: registrationStats = { householdCount: 0, childCount: 0 },
+		isLoading: statsLoading,
+		error: statsError,
+	} = useRegistrationStats();
 
-			loadDashboardData();
+	const isLoading = incidentsLoading || countLoading || statsLoading;
+
+	// Handle errors from React Query
+	useEffect(() => {
+		if (incidentsError || countError || statsError) {
+			console.warn(
+				'Error loading dashboard data:',
+				incidentsError || countError || statsError
+			);
 		}
-	}, [user, loading, isAuthorized, today]);
+	}, [incidentsError, countError, statsError]);
 
 	useEffect(() => {
 		if (!loading && user) {
@@ -76,7 +82,7 @@ export default function DashboardPage() {
 	}, [user, loading, router]);
 
 	if (loading || !isAuthorized || isLoading) {
-		return <div>Loading dashboard data...</div>;
+		return <CardGridSkeleton cards={4} />;
 	}
 
 	return (

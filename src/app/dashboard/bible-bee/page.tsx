@@ -1,13 +1,10 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { AuthRole } from '@/lib/auth-types';
-import {
-	canLeaderManageBibleBee,
-	getBibleBeeCycles,
-	getScripturesForBibleBeeCycle,
-} from '@/lib/dal';
+import { useBibleBeeCycles, useScripturesForCycle, useCanLeaderManageBibleBee } from '@/hooks/data';
+import { CardGridSkeleton } from '@/components/skeletons/CardGridSkeleton';
 import LeaderBibleBeeProgress from '@/components/gatherKids/bible-bee-progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
@@ -54,36 +51,85 @@ export default function BibleBeePage() {
 	const [allowed, setAllowed] = useState(false);
 	const [selectedLeader, setSelectedLeader] = useState<string | null>(null);
 
-	// Add the debugger component to help troubleshoot
-	// start empty and pick a sensible default once cycles data is available
-	const [selectedCycle, setSelectedCycle] = useState<string>('');
-	const [bibleBeeCycles, setBibleBeeCycles] = useState<any[]>([]);
+	// Use React Query hooks for data fetching
+	const { 
+		data: bibleBeeCycles = [], 
+		isLoading: cyclesLoading, 
+		error: cyclesError 
+	} = useBibleBeeCycles();
 
-	// Load data on component mount
-	useEffect(() => {
-		const fetchData = async () => {
-			try {
-				console.log('Loading Bible Bee data...');
+	// Derive default cycle from data (React Query pattern)
+	const getDefaultCycle = useMemo(() => {
+		if (!bibleBeeCycles || bibleBeeCycles.length === 0) return null;
+		
+		// First, try to find an active Bible Bee cycle
+		const activeBB = bibleBeeCycles.find((c: any) => {
+			const val: any = c?.is_active;
+			return val === true || val === 1 || String(val) === '1';
+		});
 
-				// Get Bible Bee cycles using DAL function with adapter support
-				const beeCycles = await getBibleBeeCycles();
-				setBibleBeeCycles(beeCycles || []);
-			} catch (error) {
-				console.error('Failed to load Bible Bee data:', error);
-				setBibleBeeCycles([]);
+		if (activeBB && activeBB.id) {
+			return String(activeBB.id);
+		}
+
+		// If no active cycle, use the most recent cycle (sorted by created_at)
+		const sortedCycles = [...bibleBeeCycles].sort((a: any, b: any) => {
+			// Try to sort by name first (e.g., "Fall 2025", "Spring 2025")
+			if (a.name && b.name) {
+				return b.name.localeCompare(a.name);
 			}
-		};
+			// Fallback to created_at
+			if (a.created_at && b.created_at) {
+				return (
+					new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+				);
+			}
+			return 0;
+		});
 
-		fetchData();
-	}, []);
+		return sortedCycles.length > 0 ? String(sortedCycles[0].id) : null;
+	}, [bibleBeeCycles]);
+
+	// Only use state for user-initiated changes
+	const [userSelectedCycle, setUserSelectedCycle] = useState<string | null>(null);
+
+	// Use derived state for selected cycle
+	const effectiveSelectedCycle = useMemo(() => {
+		return userSelectedCycle || getDefaultCycle || '';
+	}, [userSelectedCycle, getDefaultCycle]);
+
+	const selectedCycle = effectiveSelectedCycle;
+
+	// Use React Query for scriptures data
+	const { 
+		data: scriptures = [], 
+		isLoading: scripturesLoading, 
+		error: scripturesError 
+	} = useScripturesForCycle(selectedCycle);
+	// Derive available versions from scriptures data (React Query pattern)
+	const availableVersions = useMemo(() => {
+		if (!scriptures || scriptures.length === 0) return [];
+		
+		const versions = new Set<string>();
+		for (const item of scriptures) {
+			if (item.texts)
+				Object.keys(item.texts).forEach((k) =>
+					versions.add(k.toUpperCase())
+				);
+			if (item.translation)
+				versions.add(String(item.translation).toUpperCase());
+		}
+		return Array.from(versions);
+	}, [scriptures]);
+
 	const [activeTab, setActiveTab] = useState<string>('students');
-	const [scriptures, setScriptures] = useState<any[] | null>(null);
-	const [displayVersion, setDisplayVersion] = useState<string | undefined>(
-		undefined
-	);
-	const [availableVersions, setAvailableVersions] = useState<string[]>([]);
+	const [displayVersion, setDisplayVersion] = useState<string | undefined>(undefined);
 	const [canManage, setCanManage] = useState(false);
-	const [scriptureRefreshTrigger, setScriptureRefreshTrigger] = useState(0);
+
+	// Derive display version from available versions
+	const effectiveDisplayVersion = useMemo(() => {
+		return displayVersion || (availableVersions.length > 0 ? availableVersions[0] : undefined);
+	}, [displayVersion, availableVersions]);
 
 	// Compute the proper year label for display
 	const yearLabel = React.useMemo(() => {
@@ -103,135 +149,57 @@ export default function BibleBeePage() {
 
 	// leader list removed — Admin no longer filters by leader
 
-	useEffect(() => {
-		// set an initial selectedCycle once we have cycles info; prefer an
-		// explicitly active Bible Bee cycle when present, otherwise use most recent
-		if (selectedCycle) return; // don't override an existing selection
-		if (!bibleBeeCycles || bibleBeeCycles.length === 0) return;
 
-		// First, try to find an active Bible Bee cycle
-		const activeBB = bibleBeeCycles.find((c: any) => {
-			const val: any = c?.is_active;
-			return val === true || val === 1 || String(val) === '1';
-		});
+	// Use React Query for permission checking
+	const { data: canManagePermission = false } = useCanLeaderManageBibleBee({
+		leaderId: user?.id || user?.uid || user?.user_id || user?.userId || null,
+		email: user?.email || user?.user_email || user?.mail || null,
+		selectedCycle,
+	});
 
-		if (activeBB && activeBB.id) {
-			console.log('Setting selectedCycle to active cycle:', activeBB.id);
-			setSelectedCycle(String(activeBB.id));
-			return;
-		}
+	// Determine manage permission: Admins can manage; Ministry leaders with Primary assignment can manage
+	const effectiveCanManage = useMemo(() => {
+		if (!user) return false;
+		if (user?.metadata?.role === AuthRole.ADMIN) return true;
+		if (user?.metadata?.role === AuthRole.MINISTRY_LEADER) return canManagePermission;
+		return false;
+	}, [user, canManagePermission]);
 
-		// If no active cycle, use the most recent cycle (sorted by created_at)
-		const sortedCycles = [...bibleBeeCycles].sort((a: any, b: any) => {
-			// Try to sort by name first (e.g., "Fall 2025", "Spring 2025")
-			if (a.name && b.name) {
-				return b.name.localeCompare(a.name);
-			}
-			// Fallback to created_at
-			if (a.created_at && b.created_at) {
-				return (
-					new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-				);
-			}
-			return 0;
-		});
+	// Show loading state while cycles are loading
+	if (cyclesLoading) {
+		return (
+			<div className="flex flex-col gap-6">
+				<div>
+					<div className="flex items-center gap-2">
+						<h1 className="text-3xl font-bold font-headline">Bible Bee</h1>
+					</div>
+					<p className="text-muted-foreground">
+						Loading Bible Bee data...
+					</p>
+				</div>
+				<CardGridSkeleton />
+			</div>
+		);
+	}
 
-		if (sortedCycles.length > 0) {
-			console.log(
-				'Setting selectedCycle to most recent cycle:',
-				sortedCycles[0].id
-			);
-			setSelectedCycle(String(sortedCycles[0].id));
-		}
-	}, [bibleBeeCycles, selectedCycle]);
-
-	useEffect(() => {
-		// load scriptures for selected cycle
-		let mounted = true;
-		const load = async () => {
-			console.log('Loading scriptures for cycle:', selectedCycle);
-			console.log('Available Bible Bee cycles:', bibleBeeCycles);
-
-			let scriptures: any[] = [];
-
-			// First try the new Bible Bee cycle system
-			if (bibleBeeCycles && bibleBeeCycles.length > 0) {
-				const bibleBeeCycle = bibleBeeCycles.find(
-					(c: any) => c.id === selectedCycle
-				);
-
-				if (bibleBeeCycle) {
-					console.log('Found Bible Bee cycle:', bibleBeeCycle);
-					try {
-						scriptures = await getScripturesForBibleBeeCycle(bibleBeeCycle.id);
-						console.log(
-							'Loaded scriptures from Bible Bee cycle:',
-							scriptures.length
-						);
-					} catch (error) {
-						console.error('Error loading scriptures:', error);
-					}
-				}
-			}
-
-			if (mounted) {
-				const sorted = scriptures.sort(
-					(a: any, b: any) =>
-						Number(a.sortOrder ?? a.scripture_order ?? 0) -
-						Number(b.sortOrder ?? b.scripture_order ?? 0)
-				);
-				console.log('Setting scriptures:', sorted.length, 'scriptures');
-				setScriptures(sorted);
-
-				// collect available versions from scriptures texts maps and translation fields
-				const versions = new Set<string>();
-				for (const item of sorted) {
-					if (item.texts)
-						Object.keys(item.texts).forEach((k) =>
-							versions.add(k.toUpperCase())
-						);
-					if (item.translation)
-						versions.add(String(item.translation).toUpperCase());
-				}
-				const vlist = Array.from(versions);
-				setAvailableVersions(vlist);
-				// default to first available
-				if (!displayVersion && vlist.length) setDisplayVersion(vlist[0]);
-			}
-		};
-		load();
-		return () => {
-			mounted = false;
-		};
-	}, [selectedCycle, bibleBeeCycles, scriptureRefreshTrigger, displayVersion]);
-
-	const extractUserInfo = React.useCallback((u: any) => {
-		return {
-			id: u?.id || u?.uid || u?.user_id || u?.userId || null,
-			email: u?.email || u?.user_email || u?.mail || null,
-		};
-	}, []);
-
-	useEffect(() => {
-		// determine manage permission: Admins can manage; Ministry leaders with Primary assignment can manage
-		if (!user) return;
-		if (user?.metadata?.role === AuthRole.ADMIN) {
-			setCanManage(true);
-			return;
-		}
-		if (user?.metadata?.role === AuthRole.MINISTRY_LEADER) {
-			(async () => {
-				const { id: uid, email } = extractUserInfo(user);
-				if (!uid && !email) return;
-				const can = await canLeaderManageBibleBee({
-					leaderId: uid,
-					email: email,
-					selectedCycle,
-				});
-				setCanManage(Boolean(can));
-			})();
-		}
-	}, [user, selectedCycle, extractUserInfo]);
+	// Show error state if cycles failed to load
+	if (cyclesError) {
+		return (
+			<div className="flex flex-col gap-6">
+				<div>
+					<div className="flex items-center gap-2">
+						<h1 className="text-3xl font-bold font-headline">Bible Bee</h1>
+					</div>
+					<p className="text-muted-foreground">
+						Error loading Bible Bee data.
+					</p>
+				</div>
+				<div className="flex items-center justify-center py-12">
+					<div className="text-destructive">Error loading Bible Bee cycles: {cyclesError.message}</div>
+				</div>
+			</div>
+		);
+	}
 
 	return (
 		<div className="flex flex-col gap-6">
@@ -246,18 +214,12 @@ export default function BibleBeePage() {
 
 			<Tabs
 				value={activeTab}
-				onValueChange={(tab) => {
-					setActiveTab(tab);
-					// Force refresh scriptures when switching to scriptures tab
-					if (tab === 'scriptures') {
-						setScriptureRefreshTrigger((prev) => prev + 1);
-					}
-				}}>
+				onValueChange={setActiveTab}>
 				{/* make tabs only as wide as their content */}
 				<TabsList className="inline-flex items-center gap-2">
 					<TabsTrigger value="students">Students</TabsTrigger>
 					<TabsTrigger value="scriptures">Scriptures</TabsTrigger>
-					{canManage && <TabsTrigger value="manage">Manage</TabsTrigger>}
+					{effectiveCanManage && <TabsTrigger value="manage">Manage</TabsTrigger>}
 				</TabsList>
 
 				<TabsContent value="students">
@@ -271,7 +233,6 @@ export default function BibleBeePage() {
 						<CardContent>
 							<LeaderBibleBeeProgress
 								cycleId={selectedCycle}
-								bibleBeeYears={bibleBeeCycles}
 							/>
 						</CardContent>
 					</Card>
@@ -286,10 +247,18 @@ export default function BibleBeePage() {
 							</CardDescription>
 						</CardHeader>
 						<CardContent>
-							{!scriptures ? (
-								<div>Loading scriptures...</div>
+							{scripturesLoading ? (
+								<div className="flex items-center justify-center py-8">
+									<div className="text-muted-foreground">Loading scriptures...</div>
+								</div>
+							) : scripturesError ? (
+								<div className="flex items-center justify-center py-8">
+									<div className="text-destructive">Error loading scriptures: {scripturesError.message}</div>
+								</div>
 							) : scriptures.length === 0 ? (
-								<div>No scriptures defined for this year.</div>
+								<div className="flex items-center justify-center py-8">
+									<div className="text-muted-foreground">No scriptures defined for this year.</div>
+								</div>
 							) : (
 								<>
 									{availableVersions.length > 0 && (
@@ -298,10 +267,10 @@ export default function BibleBeePage() {
 												<button
 													key={v}
 													onClick={() => setDisplayVersion(v)}
-													aria-pressed={v === displayVersion}
+													aria-pressed={v === effectiveDisplayVersion}
 													aria-label={`Show ${v}`}
 													className={`inline-flex items-center rounded-full border px-3 py-1 text-sm font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 ${
-														v === displayVersion
+														v === effectiveDisplayVersion
 															? 'bg-primary text-primary-foreground shadow-sm'
 															: 'bg-background text-muted-foreground border'
 													}`}>
@@ -313,8 +282,8 @@ export default function BibleBeePage() {
 									<div className="grid gap-2">
 										{scriptures
 											.filter((s: any) => {
-												if (!displayVersion) return true;
-												const v = String(displayVersion).toUpperCase();
+												if (!effectiveDisplayVersion) return true;
+												const v = String(effectiveDisplayVersion).toUpperCase();
 												if (
 													s.translation &&
 													String(s.translation).toUpperCase() === v
@@ -339,7 +308,7 @@ export default function BibleBeePage() {
 													}}
 													index={idx}
 													readOnly
-													displayVersion={displayVersion}
+													displayVersion={effectiveDisplayVersion}
 												/>
 											))}
 									</div>
@@ -349,7 +318,7 @@ export default function BibleBeePage() {
 					</Card>
 				</TabsContent>
 
-				{canManage && (
+				{effectiveCanManage && (
 					<TabsContent value="manage">
 						<BibleBeeManage bibleBeeYears={bibleBeeCycles} />
 					</TabsContent>

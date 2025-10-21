@@ -15,7 +15,7 @@ import { Camera, Upload, AlertTriangle, RefreshCw } from 'lucide-react';
 import { Input } from '../ui/input';
 import { useToast } from '@/hooks/use-toast';
 import type { Child } from '@/lib/types';
-import { useUpdateChildPhotoMutation } from '@/lib/hooks/useData';
+import { useUpdateChildPhotoMutation } from '@/hooks/data';
 import { Alert, AlertTitle, AlertDescription } from '../ui/alert';
 
 interface PhotoCaptureDialogProps {

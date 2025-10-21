@@ -176,6 +176,10 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 	async deleteChild(id: string): Promise<void> {
 		await this.db.children.delete(id);
 	}
+
+	async reactivateChild(id: string): Promise<void> {
+		await this.db.children.update(id, { is_active: true });
+	}
 	
 	// Extension for test compatibility - not part of standard DatabaseAdapter interface
 	get children() {
@@ -1743,5 +1747,117 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 		
 		console.log('IndexedDBAdapter.listGradeRules result:', { count: rules.length });
 		return rules;
+	}
+
+	// Household editing methods
+	async addGuardian(householdId: string, guardian: Omit<Guardian, 'guardian_id'>): Promise<Guardian> {
+		const guardianId = `guardian_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+		const newGuardian: Guardian = {
+			guardian_id: guardianId,
+			household_id: householdId,
+			first_name: guardian.first_name,
+			last_name: guardian.last_name,
+			mobile_phone: guardian.mobile_phone,
+			email: guardian.email,
+			relationship: guardian.relationship,
+			is_primary: guardian.is_primary,
+			created_at: new Date().toISOString(),
+			updated_at: new Date().toISOString(),
+		};
+		
+		await this.db.guardians.add(newGuardian);
+		return newGuardian;
+	}
+
+	async removeGuardian(guardianId: string): Promise<void> {
+		await this.db.guardians.delete(guardianId);
+	}
+
+	async updateEmergencyContact(householdId: string, contact: EmergencyContact): Promise<void> {
+		const existing = await this.db.emergencyContacts.where('household_id').equals(householdId).first();
+		if (existing) {
+			await this.db.emergencyContacts.update(existing.contact_id, contact);
+		} else {
+			const contactId = `contact_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+			await this.db.emergencyContacts.add({
+				contact_id: contactId,
+				household_id: householdId,
+				...contact,
+			});
+		}
+	}
+
+	async addChild(householdId: string, child: Omit<Child, 'child_id'>, cycleId: string): Promise<Child> {
+		const childId = `child_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+		const newChild: Child = {
+			child_id: childId,
+			household_id: householdId,
+			first_name: child.first_name,
+			last_name: child.last_name,
+			dob: child.dob,
+			grade: child.grade,
+			child_mobile: child.child_mobile,
+			allergies: child.allergies,
+			medical_notes: child.medical_notes,
+			special_needs: child.special_needs,
+			special_needs_notes: child.special_needs_notes,
+			photo_url: child.photo_url,
+			ministrySelections: child.ministrySelections,
+			interestSelections: child.interestSelections,
+			customData: child.customData,
+			created_at: new Date().toISOString(),
+			updated_at: new Date().toISOString(),
+		};
+		
+		await this.db.children.add(newChild);
+		return newChild;
+	}
+
+	async softDeleteChild(childId: string): Promise<void> {
+		await this.db.children.update(childId, { is_active: false });
+	}
+
+	// Enrollment editing methods (current cycle only)
+	async addEnrollment(childId: string, ministryId: string, cycleId: string, customFields?: any): Promise<void> {
+		const enrollmentId = `enrollment_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+		await this.db.ministry_enrollments.add({
+			id: enrollmentId,
+			child_id: childId,
+			ministry_id: ministryId,
+			cycle_id: cycleId,
+			custom_fields: customFields,
+			created_at: new Date().toISOString(),
+			updated_at: new Date().toISOString(),
+		});
+	}
+
+	async removeEnrollment(childId: string, ministryId: string, cycleId: string): Promise<void> {
+		const enrollment = await this.db.ministry_enrollments
+			.where('[child_id+ministry_id+cycle_id]')
+			.equals([childId, ministryId, cycleId])
+			.first();
+		
+		if (enrollment) {
+			await this.db.ministry_enrollments.delete(enrollment.id);
+		}
+	}
+
+	async updateEnrollmentFields(childId: string, ministryId: string, cycleId: string, customFields: any): Promise<void> {
+		const enrollment = await this.db.ministry_enrollments
+			.where('[child_id+ministry_id+cycle_id]')
+			.equals([childId, ministryId, cycleId])
+			.first();
+		
+		if (enrollment) {
+			await this.db.ministry_enrollments.update(enrollment.id, { 
+				custom_fields: customFields,
+				updated_at: new Date().toISOString()
+			});
+		}
+	}
+
+	// Audit logging (mock implementation for demo mode)
+	async logAudit(log: Omit<import('../types').AuditLogEntry, 'id' | 'created_at'>): Promise<void> {
+		console.log('Audit log (demo mode):', log);
 	}
 }

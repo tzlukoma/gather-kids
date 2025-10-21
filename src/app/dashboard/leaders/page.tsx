@@ -27,7 +27,8 @@ import { useAuth } from '@/contexts/auth-context';
 import { AuthRole } from '@/lib/auth-types';
 import { LeaderProfileDialog } from './leader-profile-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { useLeaders, useLeaderSearch } from '@/lib/hooks/useData';
+import { useLeaders, useLeaderSearch } from '@/hooks/data/leaders';
+import { TableSkeleton } from '@/components/skeletons/TableSkeleton';
 
 export default function LeadersPage() {
 	const router = useRouter();
@@ -116,7 +117,7 @@ export default function LeadersPage() {
 	};
 
 	if (loading || !isAuthorized || isLoading) {
-		return <div>Loading leaders...</div>;
+		return <TableSkeleton rows={10} columns={5} />;
 	}
 
 	return (

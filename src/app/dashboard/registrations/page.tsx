@@ -17,15 +17,14 @@ import {
 	CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { getMinistries } from '@/lib/dal';
-import { dbAdapter } from '@/lib/db-utils';
 import { format } from 'date-fns';
 import { ChevronRight, Filter } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
 import { AuthRole } from '@/lib/auth-types';
 import { useState, useEffect } from 'react';
 import { Combobox } from '@/components/ui/combobox';
-import { useHouseholdList } from '@/lib/hooks/useData';
+import { useHouseholdList } from '@/hooks/data';
+import { useMinistries } from '@/hooks/data/ministries';
 import type { Household, Child, Ministry } from '@/lib/types';
 
 export default function RegistrationsPage() {
@@ -33,26 +32,16 @@ export default function RegistrationsPage() {
 	const { user } = useAuth();
 	const [ministryFilter, setMinistryFilter] = useState<string | null>(null);
 
-	// State management for data loading
-	const [allMinistries, setAllMinistries] = useState<Ministry[]>([]);
+	// React Query hooks for data fetching
+	const {
+		data: allMinistries = [],
+		isLoading: ministriesLoading,
+		error: ministriesError,
+	} = useMinistries();
 
 	// For ministry leaders, find which ministry their email is associated with
 	const [leaderMinistryId, setLeaderMinistryId] = useState<string | null>(null);
 	const [noMinistryAssigned, setNoMinistryAssigned] = useState(false);
-
-	// Load ministries data
-	useEffect(() => {
-		const loadMinistries = async () => {
-			try {
-				const ministriesData = await getMinistries();
-				setAllMinistries(ministriesData);
-			} catch (error) {
-				console.error('Error loading ministries:', error);
-			}
-		};
-
-		loadMinistries();
-	}, []);
 
 	// Determine ministry filter IDs for React Query
 	const [ministryFilterIds, setMinistryFilterIds] = useState<
@@ -65,7 +54,11 @@ export default function RegistrationsPage() {
 			try {
 				// For ministry leaders, use their assigned ministry IDs
 				let filterIds: string[] | undefined = undefined;
-				if (user?.metadata?.role === AuthRole.MINISTRY_LEADER && user.assignedMinistryIds && user.assignedMinistryIds.length > 0) {
+				if (
+					user?.metadata?.role === AuthRole.MINISTRY_LEADER &&
+					user.assignedMinistryIds &&
+					user.assignedMinistryIds.length > 0
+				) {
 					console.log(
 						'🔍 RegistrationsPage: Using assigned ministry IDs for leader',
 						user.assignedMinistryIds
@@ -98,18 +91,23 @@ export default function RegistrationsPage() {
 		loadData();
 	}, [user]);
 
-	// Use React Query hook for household list
-	const { data: households = [], isLoading: loading } = useHouseholdList(
-		ministryFilterIds,
-		ministryFilter ?? undefined
-	);
+	// Use React Query hook for household list with children data
+	const { data: households = [], isLoading: householdsLoading } =
+		useHouseholdList(ministryFilterIds, ministryFilter || undefined);
 
 	const handleRowClick = (householdId: string) => {
 		router.push(`/dashboard/registrations/${householdId}`);
 	};
 
+	const loading = ministriesLoading || householdsLoading;
+
 	if (loading) {
 		return <div>Loading registrations...</div>;
+	}
+
+	if (ministriesError) {
+		console.error('Error loading ministries:', ministriesError);
+		return <div>Error loading ministries. Please try again.</div>;
 	}
 
 	console.log('🔍 RegistrationsPage: State check before empty state', {
@@ -186,7 +184,7 @@ export default function RegistrationsPage() {
 							</TableRow>
 						</TableHeader>
 						<TableBody>
-							{households.map((household) => (
+							{(households || []).map((household) => (
 								<TableRow
 									key={household.household_id}
 									onClick={() => handleRowClick(household.household_id)}
@@ -198,7 +196,7 @@ export default function RegistrationsPage() {
 										{format(new Date(household.created_at), 'PPP')}
 									</TableCell>
 									<TableCell>
-										{household.children
+										{(household.children || [])
 											.map((c) => `${c.first_name} (${c.age})`)
 											.join(', ')}
 									</TableCell>

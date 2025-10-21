@@ -174,7 +174,10 @@ export function useLeaderSearch(searchTerm: string) {
 }
 
 // Photo update mutation
+// NOTE: This hook has been moved to /src/hooks/data/children.ts
+// Keeping this for backward compatibility but it should not be used in new code
 export function useUpdateChildPhotoMutation() {
+    console.warn('useUpdateChildPhotoMutation from useData.ts is deprecated. Use the one from @/hooks/data instead.');
     const queryClient = useQueryClient();
     
     return useMutation({

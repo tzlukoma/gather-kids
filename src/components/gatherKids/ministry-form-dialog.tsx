@@ -32,7 +32,8 @@ import {
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import type { Ministry, MinistryGroup } from '@/lib/types';
-import { createMinistry, updateMinistry, saveMinistryAccount, getGroupsForMinistry } from '@/lib/dal';
+import { saveMinistryAccount, getGroupsForMinistry } from '@/lib/dal';
+import { useCreateMinistry, useUpdateMinistry } from '@/hooks/data/ministries';
 import { useEffect, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { PlusCircle, Trash2 } from 'lucide-react';
@@ -78,6 +79,8 @@ interface MinistryFormDialogProps {
 	onCloseAction: () => void;
 	ministry: Ministry | null;
 	onMinistryUpdated?: () => void; // Callback to refresh the parent component
+	createMinistryMutation?: ReturnType<typeof useCreateMinistry>;
+	updateMinistryMutation?: ReturnType<typeof useUpdateMinistry>;
 }
 
 export function MinistryFormDialog({
@@ -85,10 +88,18 @@ export function MinistryFormDialog({
 	onCloseAction,
 	ministry,
 	onMinistryUpdated,
+	createMinistryMutation,
+	updateMinistryMutation,
 }: MinistryFormDialogProps) {
 	const { toast } = useToast();
 	const [groupsForMinistry, setGroupsForMinistry] = useState<MinistryGroup[]>([]);
 	const [isLoadingGroups, setIsLoadingGroups] = useState(false);
+
+	// Always call hooks - use provided ones or create fallback ones
+	const fallbackCreateMutation = useCreateMinistry();
+	const fallbackUpdateMutation = useUpdateMinistry();
+	const createMutation = createMinistryMutation || fallbackCreateMutation;
+	const updateMutation = updateMinistryMutation || fallbackUpdateMutation;
 
 	const form = useForm<MinistryFormValues>({
 		resolver: zodResolver(ministryFormSchema),
@@ -202,7 +213,7 @@ export function MinistryFormDialog({
 			let ministryId: string;
 
 			if (ministry) {
-				await updateMinistry(ministry.ministry_id, toDbMinistryPayload(data));
+				await updateMutation.mutateAsync({ id: ministry.ministry_id, data: toDbMinistryPayload(data) });
 				ministryId = ministry.ministry_id;
 
 				toast({
@@ -210,7 +221,7 @@ export function MinistryFormDialog({
 					description: 'The ministry has been successfully updated.',
 				});
 			} else {
-				ministryId = await createMinistry(toDbMinistryPayload(data));
+				ministryId = await createMutation.mutateAsync(toDbMinistryPayload(data));
 
 				toast({
 					title: 'Ministry Created',

@@ -272,7 +272,7 @@ export function useStudentAssignmentsQuery(childId: string) {
                         
                         if (existingRecord) {
                             // Return existing record with enriched data
-                            console.log('Found existing student scripture record:', existingRecord);
+                            // console.log('Found existing student scripture record:', existingRecord);
                             return {
                                 id: existingRecord.id,
                                 childId: childId,
@@ -328,6 +328,12 @@ export function useStudentAssignmentsQuery(childId: string) {
                         throw error;
                     }
                 }));
+                
+                // Count how many existing records were found vs new ones created
+                const existingCount = scriptures.filter(s => s.id && s.createdAt === s.updatedAt).length;
+                const newCount = scriptures.length - existingCount;
+                console.log(`📊 Student scripture summary for ${childId}: ${existingCount} existing, ${newCount} new`);
+                
                 console.log('✅ Created student scripture assignments:', scriptures.length, scriptures);
                 
                 // Get essays for the child's Bible Bee cycles
@@ -485,6 +491,12 @@ export function useStudentAssignmentsQuery(childId: string) {
             });
             return { scriptures: [], essays: [] };
         }
+    }, {
+        enabled: !!childId, // Only run query if childId is provided
+        staleTime: 2 * 60 * 1000, // 2 minutes (shorter since assignments can change frequently)
+        cacheTime: 5 * 60 * 1000, // 5 minutes
+        refetchOnWindowFocus: false, // Don't refetch when window regains focus
+        refetchOnMount: true, // Do refetch when component mounts (for fresh data)
     });
 }
 
@@ -550,6 +562,135 @@ export function useSubmitEssayMutation(childId: string) {
     });
 }
 
+// React Query hooks for dashboard Bible Bee page
+export function useBibleBeeCyclesQuery() {
+    return useQuery({
+        queryKey: ['bibleBeeCycles'],
+        queryFn: async () => {
+            console.log('🔍 useBibleBeeCyclesQuery: Fetching Bible Bee cycles');
+            const cycles = await getBibleBeeCycles();
+            console.log('📚 Retrieved Bible Bee cycles:', cycles);
+            return cycles || [];
+        },
+        staleTime: 5 * 60 * 1000, // 5 minutes
+        gcTime: 10 * 60 * 1000, // 10 minutes
+    });
+}
+
+export function useScripturesForCycleQuery(cycleId: string) {
+    return useQuery({
+        queryKey: ['scriptures', cycleId],
+        queryFn: async () => {
+            if (!cycleId) {
+                console.log('🔍 useScripturesForCycleQuery: No cycleId provided');
+                return [];
+            }
+            console.log('🔍 useScripturesForCycleQuery: Fetching scriptures for cycle:', cycleId);
+            const scriptures = await getScripturesForBibleBeeCycle(cycleId);
+            console.log('📖 Retrieved scriptures for cycle:', scriptures);
+            return scriptures || [];
+        },
+        enabled: !!cycleId, // Only run query if cycleId is provided
+        staleTime: 5 * 60 * 1000, // 5 minutes
+        gcTime: 10 * 60 * 1000, // 10 minutes
+    });
+}
+
+export function useBibleBeeProgressQuery(cycleId: string, filterChildIds?: string[]) {
+    return useQuery({
+        queryKey: ['bibleBeeProgress', cycleId, filterChildIds],
+        queryFn: async () => {
+            if (!cycleId) {
+                console.log('🔍 useBibleBeeProgressQuery: No cycleId provided');
+                return [];
+            }
+            console.log('🔍 useBibleBeeProgressQuery: Fetching progress for cycle:', cycleId, 'filterChildIds:', filterChildIds);
+            
+            // Import the function dynamically to avoid circular dependencies
+            const { getBibleBeeProgressForCycle } = await import('@/lib/dal');
+            const progress = await getBibleBeeProgressForCycle(cycleId);
+            
+            // Filter to specific children if provided
+            const filteredProgress = filterChildIds
+                ? progress.filter((r: any) => filterChildIds.includes(r.childId))
+                : progress;
+            
+            console.log('📊 Retrieved progress for cycle:', filteredProgress.length, 'students');
+            return filteredProgress || [];
+        },
+        enabled: !!cycleId, // Only run query if cycleId is provided
+        staleTime: 2 * 60 * 1000, // 2 minutes (shorter than scriptures since this changes more frequently)
+        gcTime: 5 * 60 * 1000, // 5 minutes
+    });
+}
+
+// React Query hooks for child detail page
+export function useChildQuery(childId: string) {
+    return useQuery({
+        queryKey: ['child', childId],
+        queryFn: async () => {
+            if (!childId) {
+                console.log('🔍 useChildQuery: No childId provided');
+                return null;
+            }
+            console.log('🔍 useChildQuery: Fetching child:', childId);
+            
+            // Import the function dynamically to avoid circular dependencies
+            const { getChild } = await import('@/lib/dal');
+            const child = await getChild(childId);
+            console.log('👶 Retrieved child:', child);
+            return child;
+        },
+        enabled: !!childId, // Only run query if childId is provided
+        staleTime: 5 * 60 * 1000, // 5 minutes
+        gcTime: 10 * 60 * 1000, // 10 minutes
+    });
+}
+
+export function useHouseholdQuery(householdId: string) {
+    return useQuery({
+        queryKey: ['household', householdId],
+        queryFn: async () => {
+            if (!householdId) {
+                console.log('🔍 useHouseholdQuery: No householdId provided');
+                return null;
+            }
+            console.log('🔍 useHouseholdQuery: Fetching household:', householdId);
+            
+            // Import the function dynamically to avoid circular dependencies
+            const { getHousehold } = await import('@/lib/dal');
+            const household = await getHousehold(householdId);
+            console.log('🏠 Retrieved household:', household);
+            return household;
+        },
+        enabled: !!householdId, // Only run query if householdId is provided
+        staleTime: 5 * 60 * 1000, // 5 minutes
+        gcTime: 10 * 60 * 1000, // 10 minutes
+    });
+}
+
+export function useGuardiansQuery(householdId: string) {
+    return useQuery({
+        queryKey: ['guardians', householdId],
+        queryFn: async () => {
+            if (!householdId) {
+                console.log('🔍 useGuardiansQuery: No householdId provided');
+                return [];
+            }
+            console.log('🔍 useGuardiansQuery: Fetching guardians for household:', householdId);
+            
+            // Import the function dynamically to avoid circular dependencies
+            const { listGuardians } = await import('@/lib/dal');
+            const guardians = await listGuardians({ householdId });
+            console.log('👨‍👩‍👧‍👦 Retrieved guardians:', guardians);
+            return guardians || [];
+        },
+        enabled: !!householdId, // Only run query if householdId is provided
+        staleTime: 5 * 60 * 1000, // 5 minutes
+        gcTime: 10 * 60 * 1000, // 10 minutes
+    });
+}
+
 // Custom hook to listen for photo updates
 export function useChildPhotoUpdateListener() {
     const [photoUpdates, setPhotoUpdates] = useState<Map<string, string>>(new Map());
@@ -571,7 +712,10 @@ export function useChildPhotoUpdateListener() {
 }
 
 // Photo update mutation that dispatches custom events for immediate updates
+// NOTE: This hook has been moved to /src/hooks/data/children.ts
+// Keeping this for backward compatibility but it should not be used in new code
 export function useUpdateChildPhotoMutation() {
+    console.warn('useUpdateChildPhotoMutation from useBibleBee.ts is deprecated. Use the one from @/hooks/data instead.');
     return useMutation(
         async ({ childId, photoDataUrl }: { childId: string; photoDataUrl: string }) => {
             return await updateChildPhoto(childId, photoDataUrl);

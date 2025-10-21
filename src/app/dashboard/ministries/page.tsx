@@ -32,15 +32,22 @@ import { MinistryFormDialog } from '@/components/gatherKids/ministry-form-dialog
 import { MinistryGroupFormDialog } from '@/components/gatherKids/ministry-group-form-dialog';
 import { MinistryAssignmentDialog } from '@/components/gatherKids/ministry-assignment-dialog';
 import RegistrationCycles from '@/components/gatherKids/registration-cycles';
-import {
-	deleteMinistry,
-	getMinistries,
-	getMinistryGroups,
-	deleteMinistryGroup,
-	getMinistriesInGroup,
-	getGroupsForMinistry,
-} from '@/lib/dal';
+// DAL imports removed - now using React Query hooks
 import { useToast } from '@/hooks/use-toast';
+import {
+	useMinistries,
+	useMinistryGroups,
+	useMinistriesInGroup,
+	useGroupsForMinistry,
+	useCreateMinistry,
+	useUpdateMinistry,
+	useDeleteMinistry,
+	useCreateMinistryGroup,
+	useUpdateMinistryGroup,
+	useDeleteMinistryGroup,
+} from '@/hooks/data/ministries';
+import { TableSkeleton } from '@/components/skeletons/TableSkeleton';
+import { useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
@@ -309,12 +316,32 @@ function MinistryGroupTable({
 export default function MinistryPage() {
 	const router = useRouter();
 	const { user, loading } = useAuth();
+	const queryClient = useQueryClient();
 	const [isAuthorized, setIsAuthorized] = useState(false);
 	const [isAdmin, setIsAdmin] = useState(false);
 	const [activeTab, setActiveTab] = useState<string>('ministries');
-	const [allMinistries, setAllMinistries] = useState<Ministry[]>([]);
-	const [ministryGroups, setMinistryGroups] = useState<MinistryGroup[]>([]);
-	const [isLoadingData, setIsLoadingData] = useState(true);
+
+	// Use React Query hooks for data fetching
+	const {
+		data: allMinistries = [],
+		isLoading: ministriesLoading,
+		error: ministriesError,
+	} = useMinistries();
+	const {
+		data: ministryGroups = [],
+		isLoading: groupsLoading,
+		error: groupsError,
+	} = useMinistryGroups();
+	const isLoadingData = ministriesLoading || groupsLoading;
+
+	// Use React Query mutation hooks
+	const createMinistryMutation = useCreateMinistry();
+	const updateMinistryMutation = useUpdateMinistry();
+	const deleteMinistryMutation = useDeleteMinistry();
+	const createMinistryGroupMutation = useCreateMinistryGroup();
+	const updateMinistryGroupMutation = useUpdateMinistryGroup();
+	const deleteMinistryGroupMutation = useDeleteMinistryGroup();
+
 	const [ministriesInGroups, setMinistriesInGroups] = useState<
 		Map<string, Ministry[]>
 	>(new Map());
@@ -334,69 +361,20 @@ export default function MinistryPage() {
 		null
 	);
 
-	// Load data when authorized
+	// Handle errors from React Query
 	useEffect(() => {
-		if (isAuthorized) {
-			const loadData = async () => {
-				try {
-					const [ministries, groups] = await Promise.all([
-						getMinistries(),
-						getMinistryGroups(),
-					]);
-					setAllMinistries(ministries);
-					setMinistryGroups(groups);
-
-					// Load relationship data
-					const ministriesInGroupsMap = new Map<string, Ministry[]>();
-					const groupsForMinistriesMap = new Map<string, MinistryGroup[]>();
-
-					// Get ministries for each group
-					for (const group of groups) {
-						try {
-							const groupMinistries = await getMinistriesInGroup(group.id);
-							ministriesInGroupsMap.set(group.id, groupMinistries);
-						} catch (error) {
-							console.warn(
-								`Failed to load ministries for group ${group.id}:`,
-								error
-							);
-							ministriesInGroupsMap.set(group.id, []);
-						}
-					}
-
-					// Get groups for each ministry
-					for (const ministry of ministries) {
-						try {
-							const ministryGroups = await getGroupsForMinistry(
-								ministry.ministry_id
-							);
-							groupsForMinistriesMap.set(ministry.ministry_id, ministryGroups);
-						} catch (error) {
-							console.warn(
-								`Failed to load groups for ministry ${ministry.ministry_id}:`,
-								error
-							);
-							groupsForMinistriesMap.set(ministry.ministry_id, []);
-						}
-					}
-
-					setMinistriesInGroups(ministriesInGroupsMap);
-					setGroupsForMinistries(groupsForMinistriesMap);
-				} catch (error) {
-					console.error('Error loading ministry data:', error);
-					toast({
-						title: 'Error',
-						description: 'Failed to load ministry data',
-						variant: 'destructive',
-					});
-				} finally {
-					setIsLoadingData(false);
-				}
-			};
-
-			loadData();
+		if (ministriesError || groupsError) {
+			console.error(
+				'Error loading ministry data:',
+				ministriesError || groupsError
+			);
+			toast({
+				title: 'Error',
+				description: 'Failed to load ministry data',
+				variant: 'destructive',
+			});
 		}
-	}, [isAuthorized, toast]);
+	}, [ministriesError, groupsError, toast]);
 
 	useEffect(() => {
 		if (!loading && user) {
@@ -440,15 +418,11 @@ export default function MinistryPage() {
 
 	const handleDelete = async (ministryId: string) => {
 		try {
-			await deleteMinistry(ministryId);
+			await deleteMinistryMutation.mutateAsync(ministryId);
 			toast({
 				title: 'Ministry Deleted',
 				description: 'The ministry has been successfully deleted.',
 			});
-
-			// Reload data
-			const ministries = await getMinistries();
-			setAllMinistries(ministries);
 		} catch (error) {
 			console.error('Failed to delete ministry', error);
 			toast({
@@ -460,41 +434,10 @@ export default function MinistryPage() {
 	};
 
 	const handleMinistryUpdated = async () => {
-		console.log('🔍 MinistryPage: Refreshing ministries list after update');
-		try {
-			const ministries = await getMinistries();
-			setAllMinistries(ministries);
-
-			// Refresh groups for ministries
-			const groupsForMinistriesMap = new Map<string, MinistryGroup[]>();
-			for (const ministry of ministries) {
-				try {
-					const ministryGroups = await getGroupsForMinistry(
-						ministry.ministry_id
-					);
-					groupsForMinistriesMap.set(ministry.ministry_id, ministryGroups);
-				} catch (error) {
-					console.warn(
-						`Failed to load groups for ministry ${ministry.ministry_id}:`,
-						error
-					);
-					groupsForMinistriesMap.set(ministry.ministry_id, []);
-				}
-			}
-			setGroupsForMinistries(groupsForMinistriesMap);
-
-			console.log('✅ MinistryPage: Ministries list refreshed successfully');
-		} catch (error) {
-			console.error(
-				'❌ MinistryPage: Failed to refresh ministries list',
-				error
-			);
-			toast({
-				title: 'Error',
-				description: 'Failed to refresh ministry data',
-				variant: 'destructive',
-			});
-		}
+		console.log(
+			'🔍 MinistryPage: Ministry updated via dialog - React Query will auto-refresh'
+		);
+		// No need to manually invalidate - the mutation hooks handle this automatically
 	};
 
 	// Ministry Group handlers
@@ -510,15 +453,11 @@ export default function MinistryPage() {
 
 	const handleDeleteGroup = async (groupId: string) => {
 		try {
-			await deleteMinistryGroup(groupId);
+			await deleteMinistryGroupMutation.mutateAsync(groupId);
 			toast({
 				title: 'Group Deleted',
 				description: 'The ministry group has been successfully deleted.',
 			});
-
-			// Reload groups
-			const groups = await getMinistryGroups();
-			setMinistryGroups(groups);
 		} catch (error) {
 			console.error('Failed to delete ministry group', error);
 			toast({
@@ -535,58 +474,14 @@ export default function MinistryPage() {
 	};
 
 	const handleGroupUpdated = async () => {
-		console.log('🔍 MinistryPage: Refreshing groups list after update');
-		try {
-			const groups = await getMinistryGroups();
-			setMinistryGroups(groups);
-
-			// Refresh ministries in groups
-			const ministriesInGroupsMap = new Map<string, Ministry[]>();
-			for (const group of groups) {
-				try {
-					const groupMinistries = await getMinistriesInGroup(group.id);
-					ministriesInGroupsMap.set(group.id, groupMinistries);
-				} catch (error) {
-					console.warn(
-						`Failed to load ministries for group ${group.id}:`,
-						error
-					);
-					ministriesInGroupsMap.set(group.id, []);
-				}
-			}
-			setMinistriesInGroups(ministriesInGroupsMap);
-
-			// Also refresh groups for ministries since assignments may have changed
-			const groupsForMinistriesMap = new Map<string, MinistryGroup[]>();
-			for (const ministry of allMinistries) {
-				try {
-					const ministryGroups = await getGroupsForMinistry(
-						ministry.ministry_id
-					);
-					groupsForMinistriesMap.set(ministry.ministry_id, ministryGroups);
-				} catch (error) {
-					console.warn(
-						`Failed to load groups for ministry ${ministry.ministry_id}:`,
-						error
-					);
-					groupsForMinistriesMap.set(ministry.ministry_id, []);
-				}
-			}
-			setGroupsForMinistries(groupsForMinistriesMap);
-
-			console.log('✅ MinistryPage: Groups list refreshed successfully');
-		} catch (error) {
-			console.error('❌ MinistryPage: Failed to refresh groups list', error);
-			toast({
-				title: 'Error',
-				description: 'Failed to refresh groups data',
-				variant: 'destructive',
-			});
-		}
+		console.log(
+			'🔍 MinistryPage: Group updated via dialog - React Query will auto-refresh'
+		);
+		// No need to manually invalidate - the mutation hooks handle this automatically
 	};
 
 	if (loading || !isAuthorized || isLoadingData) {
-		return <div>Loading configuration...</div>;
+		return <TableSkeleton rows={8} columns={5} />;
 	}
 
 	return (
@@ -653,7 +548,7 @@ export default function MinistryPage() {
 					/>
 				</TabsContent>
 
-				{isAdmin && (
+				{isAdmin && !isLoadingData && (
 					<TabsContent value="registration-cycles" className="mt-6">
 						<Card>
 							<CardHeader>
@@ -675,6 +570,8 @@ export default function MinistryPage() {
 				onCloseAction={() => setIsDialogOpen(false)}
 				ministry={editingMinistry}
 				onMinistryUpdated={handleMinistryUpdated}
+				createMinistryMutation={createMinistryMutation}
+				updateMinistryMutation={updateMinistryMutation}
 			/>
 
 			<MinistryGroupFormDialog
@@ -682,6 +579,8 @@ export default function MinistryPage() {
 				onCloseAction={() => setIsGroupDialogOpen(false)}
 				group={editingGroup}
 				onGroupUpdated={handleGroupUpdated}
+				createMinistryGroupMutation={createMinistryGroupMutation}
+				updateMinistryGroupMutation={updateMinistryGroupMutation}
 			/>
 
 			<MinistryAssignmentDialog

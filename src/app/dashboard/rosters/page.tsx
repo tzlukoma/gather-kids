@@ -26,13 +26,7 @@ import {
 	recordCheckIn,
 	recordCheckOut,
 	exportRosterCSV,
-	getAllChildren,
 	getChildrenForLeader,
-	getAttendanceForDate,
-	getIncidentsForDate,
-	getAllGuardians,
-	getAllHouseholds,
-	getAllEmergencyContacts,
 	getMinistries,
 	getMinistryEnrollmentsByCycle,
 } from '@/lib/dal';
@@ -77,6 +71,17 @@ import { ChildCard } from '@/components/gatherKids/child-card';
 import { IncidentDetailsDialog } from '@/components/gatherKids/incident-details-dialog';
 import { PhotoCaptureDialog } from '@/components/gatherKids/photo-capture-dialog';
 import { canUpdateChildPhoto } from '@/lib/permissions';
+import {
+	useChildren,
+	useHouseholds,
+	useGuardians,
+	useAttendance,
+	useIncidents,
+	useEmergencyContacts,
+} from '@/hooks/data';
+import { RosterSkeleton } from '@/components/skeletons';
+import { useQueryClient } from '@tanstack/react-query';
+import { queryKeys } from '@/hooks/data/keys';
 
 export type RosterChild = EnrichedChild;
 
@@ -118,13 +123,14 @@ const getGradeValue = (grade?: string): number => {
 };
 
 export default function RostersPage() {
-	const today = getTodayIsoDate();
 	const { toast } = useToast();
 	const isMobile = useIsMobile();
 	const searchParams = useSearchParams();
 	const { user, loading } = useAuth();
 	const router = useRouter();
 	const [isAuthorized, setIsAuthorized] = useState(false);
+	const queryClient = useQueryClient();
+	const today = getTodayIsoDate();
 
 	const [selectedEvent, setSelectedEvent] = useState('evt_sunday_school');
 	const [childToCheckout, setChildToCheckout] = useState<RosterChild | null>(
@@ -154,31 +160,37 @@ export default function RostersPage() {
 	const [selectedChildForPhoto, setSelectedChildForPhoto] =
 		useState<Child | null>(null);
 
-	// State management for data loading
+	// React Query hooks for data loading
+	const { data: allChildren = [], isLoading: childrenLoading } = useChildren();
+	const { data: allGuardians = [], isLoading: guardiansLoading } =
+		useGuardians();
+	const { data: allHouseholds = [], isLoading: householdsLoading } =
+		useHouseholds();
+	const { data: todaysAttendance = [], isLoading: attendanceLoading } =
+		useAttendance(today);
+	const { data: todaysIncidents = [], isLoading: incidentsLoading } =
+		useIncidents(today);
+	const {
+		data: allEmergencyContacts = [],
+		isLoading: emergencyContactsLoading,
+	} = useEmergencyContacts();
+
+	// State for ministry-specific data and loading
 	const [allMinistryEnrollments, setAllMinistryEnrollments] = useState<
 		MinistryEnrollment[]
-	>([]);
-	const [allChildren, setAllChildren] = useState<Child[]>([]);
-	const [todaysAttendance, setTodaysAttendance] = useState<Attendance[]>([]);
-	const [todaysIncidents, setTodaysIncidents] = useState<Incident[]>([]);
-	const [allGuardians, setAllGuardians] = useState<Guardian[]>([]);
-	const [allHouseholds, setAllHouseholds] = useState<Household[]>([]);
-	const [allEmergencyContacts, setAllEmergencyContacts] = useState<
-		EmergencyContact[]
 	>([]);
 	const [allMinistries, setAllMinistries] = useState<Ministry[]>([]);
 	const [dataLoading, setDataLoading] = useState(true);
 	const [leaderMinistryId, setLeaderMinistryId] = useState<string | null>(null);
 	const [noMinistryAssigned, setNoMinistryAssigned] = useState(false);
 
-	// Load data using DAL functions
+	// Load ministry-specific data
 	useEffect(() => {
-		const loadData = async () => {
+		const loadMinistryData = async () => {
 			if (!user) return;
 
 			try {
 				setDataLoading(true);
-				const today = getTodayIsoDate();
 
 				// Get the active registration cycle
 				const cycles = await dbAdapter.listRegistrationCycles();
@@ -193,8 +205,7 @@ export default function RostersPage() {
 
 				console.log('🔍 RostersPage: Using active cycle', activeCycle.cycle_id);
 
-				// Load children based on user role
-				let childrenData: Child[] = [];
+				// Set ministry leader info
 				if (
 					user?.metadata?.role === AuthRole.MINISTRY_LEADER &&
 					user.assignedMinistryIds &&
@@ -204,59 +215,33 @@ export default function RostersPage() {
 						'🔍 RostersPage: Using assigned ministry IDs for leader',
 						user.assignedMinistryIds
 					);
-
-					childrenData = await getChildrenForLeader(
-						user.assignedMinistryIds,
-						activeCycle.cycle_id
-					);
-					setLeaderMinistryId(user.assignedMinistryIds[0]); // Use first ministry ID for display
+					setLeaderMinistryId(user.assignedMinistryIds[0]);
+					setNoMinistryAssigned(false);
 				} else if (user?.metadata?.role === AuthRole.MINISTRY_LEADER) {
 					console.warn(
 						'⚠️ RostersPage: Ministry leader has no assigned ministries',
 						user.email
 					);
-					childrenData = [];
 					setLeaderMinistryId(null);
 					setNoMinistryAssigned(true);
-				} else {
-					childrenData = await getAllChildren();
 				}
 
-				// Load all other data in parallel
-				const [
-					enrollments,
-					attendance,
-					incidents,
-					guardians,
-					households,
-					emergencyContacts,
-					ministries,
-				] = await Promise.all([
+				// Load ministry-specific data
+				const [enrollments, ministries] = await Promise.all([
 					getMinistryEnrollmentsByCycle(activeCycle.cycle_id),
-					getAttendanceForDate(today),
-					getIncidentsForDate(today),
-					getAllGuardians(),
-					getAllHouseholds(),
-					getAllEmergencyContacts(),
 					getMinistries(true), // Only get active ministries
 				]);
 
-				setAllChildren(childrenData);
 				setAllMinistryEnrollments(enrollments);
-				setTodaysAttendance(attendance);
-				setTodaysIncidents(incidents);
-				setAllGuardians(guardians);
-				setAllHouseholds(households);
-				setAllEmergencyContacts(emergencyContacts);
 				setAllMinistries(ministries);
 			} catch (error) {
-				console.error('Error loading roster data:', error);
+				console.error('Error loading ministry data:', error);
 			} finally {
 				setDataLoading(false);
 			}
 		};
 
-		loadData();
+		loadMinistryData();
 	}, [user]);
 
 	const currentEventName = useMemo(() => {
@@ -292,7 +277,16 @@ export default function RostersPage() {
 	}, [user, leaderMinistryId]);
 
 	const childrenWithDetails: RosterChild[] = useMemo(() => {
-		if (dataLoading) return [];
+		if (
+			dataLoading ||
+			childrenLoading ||
+			guardiansLoading ||
+			householdsLoading ||
+			attendanceLoading ||
+			incidentsLoading ||
+			emergencyContactsLoading
+		)
+			return [];
 
 		const activeAttendance = todaysAttendance.filter((a) => !a.check_out_at);
 		const attendanceMap = new Map(activeAttendance.map((a) => [a.child_id, a]));
@@ -336,6 +330,12 @@ export default function RostersPage() {
 		allEmergencyContacts,
 		todaysIncidents,
 		dataLoading,
+		childrenLoading,
+		guardiansLoading,
+		householdsLoading,
+		attendanceLoading,
+		incidentsLoading,
+		emergencyContactsLoading,
 	]);
 
 	const ministryFilterOptions = useMemo(() => {
@@ -498,9 +498,11 @@ export default function RostersPage() {
 		try {
 			await recordCheckIn(childId, selectedEvent, undefined, user?.id);
 
-			// Refresh attendance data to update UI immediately
-			const refreshedAttendance = await getAttendanceForDate(today);
-			setTodaysAttendance(refreshedAttendance);
+			// Invalidate attendance queries to refresh UI
+			queryClient.invalidateQueries({ queryKey: queryKeys.attendance(today) });
+			queryClient.invalidateQueries({
+				queryKey: queryKeys.attendance(today, selectedEvent),
+			});
 
 			const child = childrenWithDetails.find((c) => c.child_id === childId);
 			toast({
@@ -528,9 +530,11 @@ export default function RostersPage() {
 		try {
 			await recordCheckOut(attendanceId, verifier, user?.id);
 
-			// Refresh attendance data to update UI immediately
-			const refreshedAttendance = await getAttendanceForDate(today);
-			setTodaysAttendance(refreshedAttendance);
+			// Invalidate attendance queries to refresh UI
+			queryClient.invalidateQueries({ queryKey: queryKeys.attendance(today) });
+			queryClient.invalidateQueries({
+				queryKey: queryKeys.attendance(today, selectedEvent),
+			});
 
 			const child = childrenWithDetails.find((c) => c.child_id === childId);
 			const eventName = getEventName(child?.activeAttendance?.event_id || null);
@@ -586,8 +590,18 @@ export default function RostersPage() {
 		});
 	};
 
-	if (loading || !isAuthorized || dataLoading) {
-		return <div>Loading rosters...</div>;
+	if (
+		loading ||
+		!isAuthorized ||
+		dataLoading ||
+		childrenLoading ||
+		guardiansLoading ||
+		householdsLoading ||
+		attendanceLoading ||
+		incidentsLoading ||
+		emergencyContactsLoading
+	) {
+		return <RosterSkeleton />;
 	}
 
 	// Show empty state for ministry leaders without assigned ministry
