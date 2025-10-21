@@ -1,5 +1,50 @@
 # Release Notes - gatherKids
 
+## v1.5.7 - Bible Bee Performance Optimization & UI Simplification
+
+### 🚀 Performance Improvements
+
+#### Bible Bee Stats Optimization
+- **Eliminated page flash** - Fixed flash issue when checking off scriptures in Bible Bee detail view
+- **Optimistic updates** - Bible Bee stats now update immediately when scriptures are toggled
+- **React Query migration** - Replaced complex useEffect/useMemo patterns with proper React Query hooks
+- **Enhanced cache management** - Added dedicated `useBibleBeeStats` hook with proper cache invalidation
+- **Improved user experience** - No more delays or page refreshes when interacting with scriptures
+
+#### Simplified Bible Bee Management
+- **Streamlined admin interface** - Removed complex Grade Rules section from Bible Bee year management
+- **Single-column layout** - Simplified from 2-column grid to focused single-column design
+- **Reduced complexity** - Eliminated GradeRuleForm component and related functionality
+- **Cleaner UI** - Focused scripture management without unnecessary complexity
+
+### 🔧 Technical Improvements
+
+#### Enhanced React Query Integration
+- **New Bible Bee hooks** - Added `useBibleBeeStats`, `useStudentAssignmentsQuery`, `useToggleScriptureMutation`, `useSubmitEssayMutation`
+- **Optimistic mutation handling** - Immediate UI updates with proper rollback on errors
+- **Better error handling** - Comprehensive error recovery with cache rollback capabilities
+- **Consistent patterns** - Unified React Query patterns across all Bible Bee functionality
+
+#### Code Quality Enhancements
+- **Eliminated variable conflicts** - Fixed naming conflicts and redundant declarations
+- **Better separation of concerns** - Clean separation between data fetching and UI logic
+- **Improved maintainability** - Consistent error handling and cache management patterns
+- **Enhanced reliability** - Proper query cancellation and race condition prevention
+
+### 🐛 Bug Fixes
+- **Fixed Bible Bee stats not updating** - Stats now update immediately when scriptures are checked off
+- **Resolved page flash issue** - Eliminated unnecessary re-renders in Bible Bee detail view
+- **Fixed variable naming conflicts** - Resolved multiple variable declaration issues in Bible Bee hooks
+- **Improved error recovery** - Better error handling with proper cache rollback
+
+### 📱 User Experience
+- **Instant feedback** - Bible Bee progress updates immediately when scriptures are completed
+- **Smoother interactions** - No more page flashes or delays when toggling scripture completion
+- **Cleaner admin interface** - Simplified Bible Bee management without unnecessary complexity
+- **Better performance** - Faster loading and more responsive Bible Bee functionality
+
+---
+
 ## v1.5.6 - Comprehensive Household Data Editing & React Query Migration
 
 ### 🆕 New Features
