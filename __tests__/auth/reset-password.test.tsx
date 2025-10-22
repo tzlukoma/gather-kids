@@ -19,6 +19,15 @@ jest.mock('@/lib/authGuards', () => ({
 	isDemo: jest.fn(),
 }));
 
+// Mock Supabase client
+jest.mock('@/lib/supabaseClient', () => ({
+	supabase: {
+		auth: {
+			getSession: jest.fn(),
+		},
+	},
+}));
+
 const mockToast = jest.fn();
 const mockPush = jest.fn();
 const mockIsDemo = jest.fn();
@@ -26,9 +35,12 @@ const mockIsDemo = jest.fn();
 (useToast as jest.Mock).mockReturnValue({ toast: mockToast });
 (useRouter as jest.Mock).mockReturnValue({ push: mockPush });
 
-// Import the mocked function
+// Import the mocked functions
 import { isDemo } from '@/lib/authGuards';
+import { supabase } from '@/lib/supabaseClient';
+
 (isDemo as jest.Mock).mockImplementation(mockIsDemo);
+const mockGetSession = supabase.auth.getSession as jest.Mock;
 
 describe('ResetPasswordPage', () => {
 	beforeEach(() => {
@@ -37,6 +49,12 @@ describe('ResetPasswordPage', () => {
 		// Mock searchParams default
 		(useSearchParams as jest.Mock).mockReturnValue({
 			get: jest.fn().mockReturnValue(null),
+		});
+		
+		// Mock Supabase session to return no session by default
+		mockGetSession.mockResolvedValue({
+			data: { session: null },
+			error: null,
 		});
 	});
 
@@ -187,6 +205,16 @@ describe('ResetPasswordPage', () => {
 				if (key === 'token') return 'valid-token';
 				return null;
 			}),
+		});
+		
+		// Mock Supabase session to return a valid session
+		mockGetSession.mockResolvedValue({
+			data: { 
+				session: { 
+					user: { id: 'test-user-id', email: 'test@example.com' } 
+				} 
+			},
+			error: null,
 		});
 		
 		render(<ResetPasswordPage />);
