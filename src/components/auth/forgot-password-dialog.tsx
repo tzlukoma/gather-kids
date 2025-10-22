@@ -68,12 +68,15 @@ export function ForgotPasswordDialog({ children }: ForgotPasswordDialogProps) {
 				});
 			} else {
 				// Live mode: send actual reset email via Supabase
-				// TODO: Implement actual Supabase password reset
-				// const { error } = await supabase.auth.resetPasswordForEmail(data.email, {
-				//   redirectTo: `${siteUrl}/auth/reset-password`,
-				// });
-				// if (error) throw error;
-				
+				const { supabase } = await import('@/lib/supabaseClient');
+				const { error } = await supabase.auth.resetPasswordForEmail(
+					data.email,
+					{
+						redirectTo: `${siteUrl}/auth/reset-password`,
+					}
+				);
+				if (error) throw error;
+
 				setEmailSent(true);
 				toast({
 					title: 'Reset Link Sent',
@@ -119,22 +122,24 @@ export function ForgotPasswordDialog({ children }: ForgotPasswordDialogProps) {
 						<Alert>
 							<Mail className="h-4 w-4" />
 							<AlertDescription>
-								Check your email for a password reset link. If you don&apos;t see it, check your spam folder.
+								Check your email for a password reset link. If you don&apos;t
+								see it, check your spam folder.
 							</AlertDescription>
 						</Alert>
-						
+
 						{isDemoMode && (
 							<Alert className="mt-4">
 								<AlertCircle className="h-4 w-4" />
 								<AlertDescription>
-									<strong>Demo Mode:</strong> You can test the reset flow by visiting{' '}
-									<a 
-										href="/auth/reset-password" 
+									<strong>Demo Mode:</strong> You can test the reset flow by
+									visiting{' '}
+									<a
+										href="/auth/reset-password"
 										className="underline text-primary"
-										onClick={handleClose}
-									>
+										onClick={handleClose}>
 										the reset page directly
-									</a>.
+									</a>
+									.
 								</AlertDescription>
 							</Alert>
 						)}
@@ -161,12 +166,13 @@ export function ForgotPasswordDialog({ children }: ForgotPasswordDialogProps) {
 									</FormItem>
 								)}
 							/>
-							
+
 							{isDemoMode && (
 								<Alert>
 									<AlertCircle className="h-4 w-4" />
 									<AlertDescription>
-										<strong>Demo Mode:</strong> Password reset is simulated. Any valid email format will work.
+										<strong>Demo Mode:</strong> Password reset is simulated. Any
+										valid email format will work.
 									</AlertDescription>
 								</Alert>
 							)}
@@ -179,16 +185,14 @@ export function ForgotPasswordDialog({ children }: ForgotPasswordDialogProps) {
 						type="button"
 						variant="outline"
 						onClick={handleClose}
-						disabled={isLoading}
-					>
+						disabled={isLoading}>
 						{emailSent ? 'Close' : 'Cancel'}
 					</Button>
 					{!emailSent && (
 						<Button
 							type="submit"
 							onClick={form.handleSubmit(onSubmit)}
-							disabled={isLoading}
-						>
+							disabled={isLoading}>
 							{isLoading ? 'Sending...' : 'Send Reset Link'}
 						</Button>
 					)}
