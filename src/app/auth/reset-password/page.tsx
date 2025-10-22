@@ -40,7 +40,7 @@ const resetPasswordSchema = z
 		confirmPassword: z.string(),
 	})
 	.refine((data) => data.password === data.confirmPassword, {
-				message: "Passwords don&apos;t match",
+		message: 'Passwords don&apos;t match',
 		path: ['confirmPassword'],
 	});
 
@@ -93,20 +93,25 @@ function ResetPasswordForm() {
 				return;
 			}
 
-			// Implement Supabase token validation
-			if (code) {
-				// Handle PKCE code exchange for password reset
-				const { error } = await supabase.auth.exchangeCodeForSession(code);
-				if (error) {
-					console.error('Reset token validation failed:', error);
-					setHasValidToken(false);
-				} else {
-					setHasValidToken(true);
-				}
-			} else {
-				// For direct token validation, we assume valid if token exists
-				// In a real implementation, you might want to validate the token format
+			// For Supabase password reset, we need to check if we have a valid session
+			// The reset password flow should have already established a session via the email link
+			const {
+				data: { session },
+				error: sessionError,
+			} = await supabase.auth.getSession();
+
+			if (sessionError) {
+				console.error('Session validation failed:', sessionError);
+				setHasValidToken(false);
+				return;
+			}
+
+			if (session?.user) {
+				// We have a valid session, which means the reset link was valid
 				setHasValidToken(true);
+			} else {
+				// No session means the reset link is invalid or expired
+				setHasValidToken(false);
 			}
 		} catch (error) {
 			console.error('Reset token validation failed:', error);
@@ -209,7 +214,8 @@ function ResetPasswordForm() {
 					<Lock className="h-12 w-12 text-primary mx-auto mb-4" />
 					<CardTitle>Reset Your Password</CardTitle>
 					<CardDescription>
-						Enter your new password below. Make sure it&apos;s strong and secure.
+						Enter your new password below. Make sure it&apos;s strong and
+						secure.
 					</CardDescription>
 				</CardHeader>
 				<CardContent>

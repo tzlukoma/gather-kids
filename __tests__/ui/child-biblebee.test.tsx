@@ -72,6 +72,25 @@ jest.mock('@/hooks/data', () => ({
 	useSubmitEssayMutation: jest.fn().mockReturnValue({
 		mutate: jest.fn(),
 	}),
+	useBibleBeeStats: jest.fn().mockReturnValue({
+		data: {
+			bbStats: {
+				requiredScriptures: 1,
+				completedScriptures: 0,
+				percentDone: 0,
+				bonus: 0,
+				division: {
+					name: 'Test Division',
+					min_grade: 1,
+					max_grade: 5,
+				},
+				essayAssigned: false,
+			},
+			essaySummary: null,
+			divisionEssayPrompts: [],
+		},
+		isLoading: false,
+	}),
 }));
 
 const mockEnrollment = {
