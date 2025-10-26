@@ -212,6 +212,20 @@ export function useStudentAssignmentsQuery(childId: string) {
           const rawScriptures = allScriptures.flat();
           console.log('📚 Total raw scriptures for child:', rawScriptures.length, rawScriptures);
           
+          // Fetch household preference for translation
+          console.log('🔍 Fetching household translation preference...');
+          const child = await getChild(childId);
+          const householdId = child?.household_id;
+          let preferredTranslation = 'NIV'; // Default fallback
+          
+          if (householdId) {
+            const household = await dbAdapter.getHousehold(householdId);
+            preferredTranslation = household?.preferredScriptureTranslation || 'NIV';
+            console.log('🔍 Household preferred translation:', preferredTranslation);
+          } else {
+            console.log('⚠️ No household_id found for child, using default NIV');
+          }
+          
           // Create student scripture assignments for enrolled children
           // This creates actual student scripture records in the database
           console.log('🔍 Creating student scripture assignments...');
@@ -232,7 +246,30 @@ export function useStudentAssignmentsQuery(childId: string) {
               const existingStudentScriptures = await dbAdapter.listStudentScriptures(childId, scripture.bible_bee_cycle_id);
               const existingRecord = existingStudentScriptures.find(ss => ss.scripture_id === scripture.id);
               
+              // Helper function to extract verse text based on household preference
+              const getVerseText = () => {
+                let verseText = scripture.text || '';
+                let displayTranslation = scripture.translation || 'NIV';
+                
+                if (scripture.texts && typeof scripture.texts === 'object') {
+                  const textsMap = scripture.texts;
+                  if (preferredTranslation && Object.prototype.hasOwnProperty.call(textsMap, preferredTranslation)) {
+                    verseText = textsMap[preferredTranslation] as string;
+                    displayTranslation = preferredTranslation;
+                  } else {
+                    // Fall back to NIV if preferred translation not available
+                    verseText = textsMap.NIV || textsMap.KJV || (Object.values(textsMap)[0] as string) || verseText;
+                    displayTranslation = 'NIV';
+                  }
+                }
+                
+                return { verseText, displayTranslation };
+              };
+              
               if (existingRecord) {
+                // Get verse text and translation based on household preference
+                const { verseText, displayTranslation } = getVerseText();
+                
                 // Return existing record with enriched data
                 return {
                   id: existingRecord.id,
@@ -242,8 +279,8 @@ export function useStudentAssignmentsQuery(childId: string) {
                   status: existingRecord.is_completed ? 'completed' : 'not_started',
                   scripture: scripture,
                   counts_for: scripture.counts_for || 1,
-                  verseText: scripture.text,
-                  displayTranslation: scripture.translation || 'NIV',
+                  verseText: verseText,
+                  displayTranslation: displayTranslation,
                   completedAt: existingRecord.completed_at,
                   createdAt: existingRecord.created_at,
                   updatedAt: existingRecord.updated_at,
@@ -263,11 +300,8 @@ export function useStudentAssignmentsQuery(childId: string) {
                 const newStudentScripture = await dbAdapter.createStudentScripture(studentScriptureData);
                 console.log('Created student scripture record:', newStudentScripture);
                 
-                // Extract verse text from texts field if available
-                let verseText = scripture.text || '';
-                if (scripture.texts && typeof scripture.texts === 'object') {
-                  verseText = scripture.texts.NIV || scripture.texts.KJV || Object.values(scripture.texts)[0] || verseText;
-                }
+                // Get verse text and translation based on household preference
+                const { verseText, displayTranslation } = getVerseText();
                 
                 return {
                   id: newStudentScripture.id,
@@ -278,7 +312,7 @@ export function useStudentAssignmentsQuery(childId: string) {
                   scripture: scripture,
                   counts_for: scripture.counts_for || 1,
                   verseText: verseText,
-                  displayTranslation: scripture.translation || 'NIV',
+                  displayTranslation: displayTranslation,
                   completedAt: null,
                   createdAt: newStudentScripture.created_at,
                   updatedAt: newStudentScripture.updated_at,
@@ -608,6 +642,20 @@ export function useBibleBeeStats(childId: string) {
           const rawScriptures = allScriptures.flat();
           console.log('📚 Total raw scriptures for child:', rawScriptures.length, rawScriptures);
           
+          // Fetch household preference for translation
+          console.log('🔍 Fetching household translation preference...');
+          const childForStats = await getChild(childId);
+          const householdIdForStats = childForStats?.household_id;
+          let preferredTranslationStats = 'NIV'; // Default fallback
+          
+          if (householdIdForStats) {
+            const householdForStats = await dbAdapter.getHousehold(householdIdForStats);
+            preferredTranslationStats = householdForStats?.preferredScriptureTranslation || 'NIV';
+            console.log('🔍 Household preferred translation (stats):', preferredTranslationStats);
+          } else {
+            console.log('⚠️ No household_id found for child (stats), using default NIV');
+          }
+          
           // Create student scripture assignments for enrolled children
           console.log('🔍 Creating student scripture assignments...');
           const scriptures = await Promise.all(rawScriptures.map(async scripture => {
@@ -616,7 +664,30 @@ export function useBibleBeeStats(childId: string) {
               const existingStudentScriptures = await dbAdapter.listStudentScriptures(childId, scripture.bible_bee_cycle_id);
               const existingRecord = existingStudentScriptures.find(ss => ss.scripture_id === scripture.id);
               
+              // Helper function to extract verse text based on household preference
+              const getVerseTextStats = () => {
+                let verseText = scripture.text || '';
+                let displayTranslation = scripture.translation || 'NIV';
+                
+                if (scripture.texts && typeof scripture.texts === 'object') {
+                  const textsMap = scripture.texts;
+                  if (preferredTranslationStats && Object.prototype.hasOwnProperty.call(textsMap, preferredTranslationStats)) {
+                    verseText = textsMap[preferredTranslationStats] as string;
+                    displayTranslation = preferredTranslationStats;
+                  } else {
+                    // Fall back to NIV if preferred translation not available
+                    verseText = textsMap.NIV || textsMap.KJV || (Object.values(textsMap)[0] as string) || verseText;
+                    displayTranslation = 'NIV';
+                  }
+                }
+                
+                return { verseText, displayTranslation };
+              };
+              
               if (existingRecord) {
+                // Get verse text and translation based on household preference
+                const { verseText, displayTranslation } = getVerseTextStats();
+                
                 // Return existing record with enriched data
                 return {
                   id: existingRecord.id,
@@ -626,8 +697,8 @@ export function useBibleBeeStats(childId: string) {
                   status: existingRecord.is_completed ? 'completed' : 'not_started',
                   scripture: scripture,
                   counts_for: scripture.counts_for || 1,
-                  verseText: scripture.text,
-                  displayTranslation: scripture.translation || 'NIV',
+                  verseText: verseText,
+                  displayTranslation: displayTranslation,
                   completedAt: existingRecord.completed_at,
                   createdAt: existingRecord.created_at,
                   updatedAt: existingRecord.updated_at,
@@ -646,11 +717,8 @@ export function useBibleBeeStats(childId: string) {
                 const newStudentScripture = await dbAdapter.createStudentScripture(studentScriptureData);
                 console.log('Created student scripture record:', newStudentScripture);
                 
-                // Extract verse text from texts field if available
-                let verseText = scripture.text || '';
-                if (scripture.texts && typeof scripture.texts === 'object') {
-                  verseText = scripture.texts.NIV || scripture.texts.KJV || Object.values(scripture.texts)[0] || verseText;
-                }
+                // Get verse text and translation based on household preference
+                const { verseText, displayTranslation } = getVerseTextStats();
                 
                 return {
                   id: newStudentScripture.id,
@@ -661,7 +729,7 @@ export function useBibleBeeStats(childId: string) {
                   scripture: scripture,
                   counts_for: scripture.counts_for || 1,
                   verseText: verseText,
-                  displayTranslation: scripture.translation || 'NIV',
+                  displayTranslation: displayTranslation,
                   completedAt: null,
                   createdAt: newStudentScripture.created_at,
                   updatedAt: newStudentScripture.updated_at,
