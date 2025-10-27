@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import RegistrationsPage from '@/app/dashboard/registrations/page';
 import { mockUsers, MockAuthProvider } from '@/test-utils/auth/test-utils';
@@ -39,6 +39,8 @@ const mockChild1: Child & { age: number | null } = {
 	first_name: 'John',
 	last_name: 'Doe',
 	dob: '2015-06-15',
+	grade: '3',
+	is_active: true,
 	age: 8,
 	created_at: '2024-01-01T00:00:00Z',
 	updated_at: '2024-01-01T00:00:00Z',
@@ -50,6 +52,8 @@ const mockChild2: Child & { age: number | null } = {
 	first_name: 'Jane',
 	last_name: 'Doe',
 	dob: '2017-03-20',
+	grade: '1',
+	is_active: true,
 	age: 6,
 	created_at: '2024-01-01T00:00:00Z',
 	updated_at: '2024-01-01T00:00:00Z',
@@ -227,6 +231,221 @@ describe('RegistrationsPage', () => {
 				['ministry-1', 'ministry-2'],
 				undefined
 			);
+		});
+	});
+
+	test('filters households by search term', async () => {
+		// Add additional test data
+		const mockHousehold2 = {
+			household_id: 'household-2',
+			name: 'Smith Family',
+			created_at: '2024-01-01T00:00:00Z',
+			updated_at: '2024-01-01T00:00:00Z',
+			children: [
+				{
+					child_id: 'child-3',
+					household_id: 'household-2',
+					first_name: 'Alice',
+					last_name: 'Smith',
+					age: 10,
+				},
+			],
+		};
+
+		mockUseHouseholdList.mockReturnValue({
+			data: [mockHousehold, mockHousehold2],
+			isLoading: false,
+			error: null,
+		} as any);
+
+		mockUseMinistries.mockReturnValue({
+			data: [mockMinistry],
+			isLoading: false,
+			error: null,
+		} as any);
+
+		renderWithProviders(<RegistrationsPage />);
+
+		// Wait for initial render
+		await waitFor(() => {
+			expect(screen.getByText('Doe Family')).toBeInTheDocument();
+		});
+
+		// Find search input and type
+		const searchInput = screen.getByPlaceholderText(
+			/Search by household or child name/
+		);
+		fireEvent.change(searchInput, { target: { value: 'Smith' } });
+
+		// Verify only Smith Family is visible
+		await waitFor(() => {
+			expect(screen.getByText('Smith Family')).toBeInTheDocument();
+			expect(screen.queryByText('Doe Family')).not.toBeInTheDocument();
+		});
+	});
+
+	test('filters households by child name', async () => {
+		// Add additional test data
+		const mockHousehold2 = {
+			household_id: 'household-2',
+			name: 'Smith Family',
+			created_at: '2024-01-01T00:00:00Z',
+			updated_at: '2024-01-01T00:00:00Z',
+			children: [
+				{
+					child_id: 'child-3',
+					household_id: 'household-2',
+					first_name: 'Alice',
+					last_name: 'Smith',
+					age: 10,
+				},
+			],
+		};
+
+		mockUseHouseholdList.mockReturnValue({
+			data: [mockHousehold, mockHousehold2],
+			isLoading: false,
+			error: null,
+		} as any);
+
+		mockUseMinistries.mockReturnValue({
+			data: [mockMinistry],
+			isLoading: false,
+			error: null,
+		} as any);
+
+		renderWithProviders(<RegistrationsPage />);
+
+		// Wait for initial render
+		await waitFor(() => {
+			expect(screen.getByText('Doe Family')).toBeInTheDocument();
+		});
+
+		// Search by child name
+		const searchInput = screen.getByPlaceholderText(
+			/Search by household or child name/
+		);
+		fireEvent.change(searchInput, { target: { value: 'Jane' } });
+
+		// Verify only Doe Family is visible (has child Jane)
+		await waitFor(() => {
+			expect(screen.getByText('Doe Family')).toBeInTheDocument();
+			expect(screen.queryByText('Smith Family')).not.toBeInTheDocument();
+		});
+	});
+
+	test('displays filter pill when search term is active', async () => {
+		mockUseHouseholdList.mockReturnValue({
+			data: [mockHousehold],
+			isLoading: false,
+			error: null,
+		} as any);
+
+		mockUseMinistries.mockReturnValue({
+			data: [mockMinistry],
+			isLoading: false,
+			error: null,
+		} as any);
+
+		renderWithProviders(<RegistrationsPage />);
+
+		await waitFor(() => {
+			expect(screen.getByText('Doe Family')).toBeInTheDocument();
+		});
+
+		// Type in search
+		const searchInput = screen.getByPlaceholderText(
+			/Search by household or child name/
+		);
+		fireEvent.change(searchInput, { target: { value: 'Doe' } });
+
+		// Verify filter pill appears
+		await waitFor(() => {
+			expect(screen.getByText('Search: Doe')).toBeInTheDocument();
+		});
+	});
+
+	test('clears search when clicking X on filter pill', async () => {
+		mockUseHouseholdList.mockReturnValue({
+			data: [mockHousehold],
+			isLoading: false,
+			error: null,
+		} as any);
+
+		mockUseMinistries.mockReturnValue({
+			data: [mockMinistry],
+			isLoading: false,
+			error: null,
+		} as any);
+
+		renderWithProviders(<RegistrationsPage />);
+
+		await waitFor(() => {
+			expect(screen.getByText('Doe Family')).toBeInTheDocument();
+		});
+
+		// Type in search
+		const searchInput = screen.getByPlaceholderText(
+			/Search by household or child name/
+		);
+		fireEvent.change(searchInput, { target: { value: 'Doe' } });
+
+		// Wait for filter pill to appear
+		await waitFor(() => {
+			expect(screen.getByText('Search: Doe')).toBeInTheDocument();
+		});
+
+		// Click X on the filter pill
+		const clearButton = screen.getByText('Search: Doe').nextElementSibling;
+		if (clearButton) {
+			fireEvent.click(clearButton);
+		}
+
+		// Verify search is cleared
+		await waitFor(() => {
+			expect(screen.queryByText('Search: Doe')).not.toBeInTheDocument();
+			expect(searchInput).toHaveValue('');
+		});
+	});
+
+	test('shows empty state when search returns no results', async () => {
+		const mockHousehold2 = {
+			household_id: 'household-2',
+			name: 'Smith Family',
+			created_at: '2024-01-01T00:00:00Z',
+			updated_at: '2024-01-01T00:00:00Z',
+			children: [],
+		};
+
+		mockUseHouseholdList.mockReturnValue({
+			data: [mockHousehold, mockHousehold2],
+			isLoading: false,
+			error: null,
+		} as any);
+
+		mockUseMinistries.mockReturnValue({
+			data: [mockMinistry],
+			isLoading: false,
+			error: null,
+		} as any);
+
+		renderWithProviders(<RegistrationsPage />);
+
+		await waitFor(() => {
+			expect(screen.getByText('Doe Family')).toBeInTheDocument();
+		});
+
+		// Search for something that doesn't exist
+		const searchInput = screen.getByPlaceholderText(
+			/Search by household or child name/
+		);
+		fireEvent.change(searchInput, { target: { value: 'NonExistent' } });
+
+		// Verify empty state message
+		await waitFor(() => {
+			expect(
+				screen.getByText('No households match the current filter.')
+			).toBeInTheDocument();
 		});
 	});
 });
