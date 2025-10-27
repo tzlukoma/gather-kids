@@ -97,12 +97,16 @@ describe('ForgotPasswordDialog', () => {
 		await user.type(emailInput, 'test@example.com');
 		await user.click(submitButton);
 
-		await waitFor(() => {
-			expect(screen.getByText('Check Your Email')).toBeInTheDocument();
-			expect(screen.getByText(/Check your email for a password reset link/)).toBeInTheDocument();
-			expect(screen.getByText(/Demo Mode:/)).toBeInTheDocument();
-			expect(screen.getByRole('link', { name: 'the reset page directly' })).toBeInTheDocument();
-		});
+		// Wait for the loading state to complete (demo mode has a 1s delay)
+		await waitFor(
+			() => {
+				expect(screen.getByText('Check Your Email')).toBeInTheDocument();
+				expect(screen.getByText(/Check your email for a password reset link/)).toBeInTheDocument();
+				expect(screen.getByText(/Demo Mode:/)).toBeInTheDocument();
+				expect(screen.getByRole('link', { name: 'the reset page directly' })).toBeInTheDocument();
+			},
+			{ timeout: 2000 }
+		);
 
 		expect(mockToast).toHaveBeenCalledWith({
 			title: 'Reset Link Sent (Demo)',
