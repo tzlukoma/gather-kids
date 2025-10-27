@@ -24,14 +24,16 @@ describe('ForgotPasswordDialog', () => {
 
 	it('renders trigger button and opens dialog', async () => {
 		const user = userEvent.setup();
-		
+
 		render(
 			<ForgotPasswordDialog>
 				<button>Forgot Password</button>
 			</ForgotPasswordDialog>
 		);
 
-		const triggerButton = screen.getByRole('button', { name: 'Forgot Password' });
+		const triggerButton = screen.getByRole('button', {
+			name: 'Forgot Password',
+		});
 		expect(triggerButton).toBeInTheDocument();
 
 		await user.click(triggerButton);
@@ -44,7 +46,7 @@ describe('ForgotPasswordDialog', () => {
 	it('shows demo mode alert when in demo mode', async () => {
 		process.env.NEXT_PUBLIC_DEMO_MODE = 'true';
 		const user = userEvent.setup();
-		
+
 		render(
 			<ForgotPasswordDialog>
 				<button>Forgot Password</button>
@@ -59,7 +61,7 @@ describe('ForgotPasswordDialog', () => {
 
 	it('validates email format', async () => {
 		const user = userEvent.setup();
-		
+
 		render(
 			<ForgotPasswordDialog>
 				<button>Forgot Password</button>
@@ -67,22 +69,26 @@ describe('ForgotPasswordDialog', () => {
 		);
 
 		await user.click(screen.getByRole('button', { name: 'Forgot Password' }));
-		
+
 		const emailInput = screen.getByLabelText('Email Address');
-		const submitButton = screen.getByRole('button', { name: 'Send Reset Link' });
+		const submitButton = screen.getByRole('button', {
+			name: 'Send Reset Link',
+		});
 
 		await user.type(emailInput, 'invalid-email');
 		await user.click(submitButton);
 
 		await waitFor(() => {
-			expect(screen.getByText('Please enter a valid email address')).toBeInTheDocument();
+			expect(
+				screen.getByText('Please enter a valid email address')
+			).toBeInTheDocument();
 		});
 	});
 
 	it('submits email and shows success state in demo mode', async () => {
 		process.env.NEXT_PUBLIC_DEMO_MODE = 'true';
 		const user = userEvent.setup();
-		
+
 		render(
 			<ForgotPasswordDialog>
 				<button>Forgot Password</button>
@@ -90,9 +96,11 @@ describe('ForgotPasswordDialog', () => {
 		);
 
 		await user.click(screen.getByRole('button', { name: 'Forgot Password' }));
-		
+
 		const emailInput = screen.getByLabelText('Email Address');
-		const submitButton = screen.getByRole('button', { name: 'Send Reset Link' });
+		const submitButton = screen.getByRole('button', {
+			name: 'Send Reset Link',
+		});
 
 		await user.type(emailInput, 'test@example.com');
 		await user.click(submitButton);
@@ -101,22 +109,27 @@ describe('ForgotPasswordDialog', () => {
 		await waitFor(
 			() => {
 				expect(screen.getByText('Check Your Email')).toBeInTheDocument();
-				expect(screen.getByText(/Check your email for a password reset link/)).toBeInTheDocument();
+				expect(
+					screen.getByText(/Check your email for a password reset link/)
+				).toBeInTheDocument();
 				expect(screen.getByText(/Demo Mode:/)).toBeInTheDocument();
-				expect(screen.getByRole('link', { name: 'the reset page directly' })).toBeInTheDocument();
+				expect(
+					screen.getByRole('link', { name: 'the reset page directly' })
+				).toBeInTheDocument();
 			},
 			{ timeout: 2000 }
 		);
 
 		expect(mockToast).toHaveBeenCalledWith({
 			title: 'Reset Link Sent (Demo)',
-			description: 'Password reset instructions have been sent to test@example.com. In demo mode, you can visit the reset page directly.',
+			description:
+				'Password reset instructions have been sent to test@example.com. In demo mode, you can visit the reset page directly.',
 		});
 	});
 
 	it('handles form reset when dialog closes', async () => {
 		const user = userEvent.setup();
-		
+
 		render(
 			<ForgotPasswordDialog>
 				<button>Forgot Password</button>
@@ -124,7 +137,7 @@ describe('ForgotPasswordDialog', () => {
 		);
 
 		await user.click(screen.getByRole('button', { name: 'Forgot Password' }));
-		
+
 		const emailInput = screen.getByLabelText('Email Address');
 		await user.type(emailInput, 'test@example.com');
 
