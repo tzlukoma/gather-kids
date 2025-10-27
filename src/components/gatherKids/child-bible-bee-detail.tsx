@@ -4,7 +4,7 @@ import { useParams } from 'next/navigation';
 import {
 	useChild,
 	useHousehold,
-	useGuardians,
+	useHouseholdProfile,
 	useStudentAssignmentsQuery,
 	useToggleScriptureMutation,
 	useSubmitEssayMutation,
@@ -51,17 +51,23 @@ export default function ChildBibleBeeDetail({
 		error: childError,
 	} = useChild(childId);
 
+	const householdId = childCore?.household_id || '';
+	
 	const {
 		data: household,
 		isLoading: householdLoading,
 		error: householdError,
-	} = useHousehold(childCore?.household_id || '');
+	} = useHousehold(householdId);
 
+	// Get guardians from household profile which includes all household data
 	const {
-		data: guardiansForHousehold = [],
-		isLoading: guardiansLoading,
-		error: guardiansError,
-	} = useGuardians();
+		data: householdProfile,
+		isLoading: profileLoading,
+		error: profileError,
+	} = useHouseholdProfile(householdId);
+	
+	// Extract guardians from household profile
+	const guardiansForHousehold = householdProfile?.guardians || [];
 
 	// Use React Query hook for Bible Bee stats
 	const { 
@@ -78,7 +84,7 @@ export default function ChildBibleBeeDetail({
 		isLoading ||
 		childLoading ||
 		householdLoading ||
-		guardiansLoading ||
+		profileLoading ||
 		statsLoading ||
 		!data
 	) {
@@ -86,14 +92,14 @@ export default function ChildBibleBeeDetail({
 	}
 
 	// Show error state if any of the queries failed
-	if (childError || householdError || guardiansError) {
+	if (childError || householdError || profileError) {
 		return (
 			<div className="flex items-center justify-center py-12">
 				<div className="text-destructive">
 					Error loading child data:{' '}
 					{(childError as any)?.message ||
 						(householdError as any)?.message ||
-						(guardiansError as any)?.message}
+						(profileError as any)?.message}
 				</div>
 			</div>
 		);
