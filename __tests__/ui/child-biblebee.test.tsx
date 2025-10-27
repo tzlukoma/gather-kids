@@ -54,6 +54,26 @@ jest.mock('@/hooks/data', () => ({
 		},
 		isLoading: false,
 	}),
+	useHouseholdProfile: jest.fn().mockReturnValue({
+		data: {
+			household: {
+				id: 'test-household',
+				name: 'Test Household',
+			},
+			guardians: [
+				{
+					guardian_id: 'test-guardian-1',
+					household_id: 'test-household',
+					first_name: 'Test',
+					last_name: 'Guardian',
+					is_primary: true,
+					relationship: 'Parent',
+				},
+			],
+		},
+		isLoading: false,
+		error: null,
+	}),
 	useGuardians: jest.fn().mockReturnValue({
 		data: [],
 		isLoading: false,
