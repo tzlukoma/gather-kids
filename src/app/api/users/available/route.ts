@@ -12,13 +12,41 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 export async function GET(request: NextRequest) {
 	try {
-		// Get all auth users
-		const { data: usersData, error: usersError } = await supabase.auth.admin.listUsers();
+		// Get all auth users with pagination
+		// Supabase defaults to 50 users per page, so we need to paginate through all pages
+		const allUsers: any[] = [];
+		let page = 1;
+		const perPage = 1000; // Maximum per page to minimize requests
+		let hasMore = true;
+		const maxPages = 100; // Safety limit to prevent infinite loops
 
-		if (usersError) {
-			return NextResponse.json(
-				{ error: `Failed to fetch users: ${usersError.message}` },
-				{ status: 500 }
+		while (hasMore && page <= maxPages) {
+			const { data: usersData, error: usersError } = await supabase.auth.admin.listUsers({
+				page,
+				perPage,
+			});
+
+			if (usersError) {
+				return NextResponse.json(
+					{ error: `Failed to fetch users: ${usersError.message}` },
+					{ status: 500 }
+				);
+			}
+
+			if (usersData?.users && usersData.users.length > 0) {
+				allUsers.push(...usersData.users);
+				// Check if there are more pages
+				// If we got fewer users than perPage, we've reached the end
+				hasMore = usersData.users.length === perPage;
+				page++;
+			} else {
+				hasMore = false;
+			}
+		}
+
+		if (page > maxPages) {
+			console.warn(
+				`Reached maximum page limit (${maxPages}). There may be more users not fetched.`
 			);
 		}
 
@@ -40,7 +68,7 @@ export async function GET(request: NextRequest) {
 		);
 
 		// Filter to only users NOT connected to any household
-		const availableUsers = (usersData.users || [])
+		const availableUsers = allUsers
 			.filter((user) => !connectedUserIds.has(user.id))
 			.map((user) => ({
 				id: user.id,

@@ -39,7 +39,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Button } from '../ui/button';
 import { Label } from '../ui/label';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { PhotoCaptureDialog } from './photo-capture-dialog';
 import { PhotoViewerDialog } from './photo-viewer-dialog';
 import { EditGuardianModal } from './edit-guardian-modal';
@@ -475,14 +475,59 @@ export function HouseholdProfile({
 	const updateUserMutation = useUpdateHouseholdUser();
 
 	const currentUser = householdUserData?.user;
-	const availableUsers =
+	const availableUsersBase =
 		availableUsersData?.users?.map((u: any) => ({
 			value: u.id,
 			label: `${u.name} (${u.email})`,
 		})) || [];
 
+	// Include current user in options if it exists (so the Combobox can display it as selected)
+	// This handles the case where the current user is connected to this household
+	const availableUsers = useMemo(() => {
+		if (!currentUser) {
+			return availableUsersBase;
+		}
+
+		// Check if current user is already in the list
+		const currentUserInList = availableUsersBase.some(
+			(u: { value: string; label: string }) => u.value === currentUser.id
+		);
+
+		if (currentUserInList) {
+			return availableUsersBase;
+		}
+
+		// Add current user to the list so it can be displayed as selected
+		return [
+			{
+				value: currentUser.id,
+				label: `${currentUser.name} (${currentUser.email})`,
+			},
+			...availableUsersBase,
+		];
+	}, [currentUser, availableUsersBase]);
+
 	const handleUserChange = async (userId: string | null) => {
-		if (!household || !userId) return;
+		if (!household || !userId || !household.household_id) {
+			console.warn('Cannot update user: missing household or userId', {
+				hasHousehold: !!household,
+				householdId: household?.household_id,
+				userId,
+			});
+			return;
+		}
+
+		// Validate UUID format
+		const uuidRegex =
+			/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+		if (!uuidRegex.test(userId)) {
+			toast({
+				title: 'Invalid User ID',
+				description: 'The selected user ID is not in a valid format.',
+				variant: 'destructive',
+			});
+			return;
+		}
 
 		try {
 			await updateUserMutation.mutateAsync({

@@ -28,6 +28,8 @@ interface ComboboxProps {
     searchPlaceholder?: string;
     emptyPlaceholder?: string;
     clearable?: boolean;
+    className?: string;
+    popoverClassName?: string;
 }
 
 export function Combobox({ 
@@ -37,7 +39,9 @@ export function Combobox({
     placeholder = "Select an option...", 
     searchPlaceholder = "Search...",
     emptyPlaceholder = "No option found.",
-    clearable = false
+    clearable = false,
+    className,
+    popoverClassName
 }: ComboboxProps) {
   const [open, setOpen] = React.useState(false)
 
@@ -51,13 +55,13 @@ export function Combobox({
             variant="outline"
             role="combobox"
             aria-expanded={open}
-            className="w-[250px] justify-between"
+            className={cn("w-[250px] justify-between", className)}
             >
-            {value ? selectedLabel : placeholder}
+            {value ? <span className="truncate">{selectedLabel}</span> : placeholder}
             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
             </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-[250px] p-0">
+        <PopoverContent className={cn("w-[250px] p-0", popoverClassName)}>
             <Command>
             <CommandInput placeholder={searchPlaceholder} />
             <CommandList>

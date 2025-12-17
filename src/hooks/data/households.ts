@@ -65,25 +65,6 @@ export function useHouseholdList(leaderMinistryIds?: string[], ministryId?: stri
   });
 }
 
-export function useHouseholdSearch(searchTerm: string) {
-  return useQuery({
-    queryKey: ['householdSearch', searchTerm],
-    queryFn: async () => {
-      if (!searchTerm || searchTerm.length < 2) {
-        return { households: [] };
-      }
-      const response = await fetch(`/api/households/search?q=${encodeURIComponent(searchTerm)}&limit=20`);
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to search households');
-      }
-      return response.json();
-    },
-    enabled: !!searchTerm && searchTerm.length >= 2,
-    ...cacheConfig.volatile, // Search results can change frequently
-  });
-}
-
 // Household mutations
 export function useUpdateHousehold() {
   const queryClient = useQueryClient();

@@ -12,7 +12,7 @@ if (!supabaseUrl || !supabaseServiceKey) {
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 const updateUserSchema = z.object({
-	user_id: z.string().min(1, 'user_id is required'),
+	user_id: z.string().uuid('user_id must be a valid UUID'),
 });
 
 export async function GET(
@@ -54,9 +54,9 @@ export async function GET(
 
 		return NextResponse.json({
 			user: {
-				id: userData.user.id,
-				email: userData.user.email || '',
-				name: userData.user.user_metadata?.full_name || userData.user.email || 'Unknown',
+				id: userData?.user?.id || '',
+				email: userData?.user?.email || '',
+				name: userData?.user?.user_metadata?.full_name || userData?.user?.email || 'Unknown',
 			},
 		});
 	} catch (error) {
@@ -117,7 +117,7 @@ export async function PUT(
 			// Clean up old user metadata
 			const { data: oldUserData } = await supabase.auth.admin.getUserById(oldUserId);
 			if (oldUserData?.user?.user_metadata?.role === 'GUARDIAN') {
-				const updatedMetadata = { ...oldUserData.user.user_metadata };
+				const updatedMetadata = { ...(oldUserData.user?.user_metadata || {}) };
 				delete updatedMetadata.role;
 				delete updatedMetadata.household_id;
 
@@ -185,9 +185,9 @@ export async function PUT(
 		return NextResponse.json({
 			success: true,
 			user: {
-				id: updatedUserData?.user.id,
-				email: updatedUserData?.user.email || '',
-				name: updatedUserData?.user.user_metadata?.full_name || updatedUserData?.user.email || 'Unknown',
+				id: updatedUserData?.user?.id || '',
+				email: updatedUserData?.user?.email || '',
+				name: updatedUserData?.user?.user_metadata?.full_name || updatedUserData?.user?.email || 'Unknown',
 			},
 		});
 	} catch (error) {
