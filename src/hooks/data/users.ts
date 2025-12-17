@@ -69,3 +69,73 @@ export function usePromoteUser() {
     },
   });
 }
+
+// Query hook for available users (not connected to any household)
+export function useAvailableUsers() {
+  return useQuery({
+    queryKey: ['availableUsers'],
+    queryFn: async () => {
+      const response = await fetch('/api/users/available');
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to fetch available users');
+      }
+      return response.json();
+    },
+    ...cacheConfig.moderate,
+  });
+}
+
+// Query hook for household user connection
+export function useHouseholdUser(householdId: string) {
+  return useQuery({
+    queryKey: ['householdUser', householdId],
+    queryFn: async () => {
+      const response = await fetch(`/api/households/${householdId}/user`);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to fetch household user');
+      }
+      return response.json();
+    },
+    enabled: !!householdId,
+    ...cacheConfig.moderate,
+  });
+}
+
+// Mutation hook for updating household user connection
+export function useUpdateHouseholdUser() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async ({
+      householdId,
+      userId,
+    }: {
+      householdId: string;
+      userId: string;
+    }) => {
+      const response = await fetch(`/api/households/${householdId}/user`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ user_id: userId }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to update household user');
+      }
+      
+      return response.json();
+    },
+    onSuccess: (_, { householdId }) => {
+      // Invalidate household user query
+      queryClient.invalidateQueries({ queryKey: ['householdUser', householdId] });
+      // Invalidate users queries
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      queryClient.invalidateQueries({ queryKey: ['availableUsers'] });
+    },
+  });
+}

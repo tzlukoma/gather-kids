@@ -38,6 +38,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Button } from '../ui/button';
+import { Label } from '../ui/label';
 import { useState, useEffect } from 'react';
 import { PhotoCaptureDialog } from './photo-capture-dialog';
 import { PhotoViewerDialog } from './photo-viewer-dialog';
@@ -51,6 +52,7 @@ import type { Child, Guardian, EmergencyContact, Household } from '@/lib/types';
 import { formatPhone } from '@/hooks/usePhoneFormat';
 import { normalizeGradeDisplay } from '@/lib/gradeUtils';
 import { useAuth } from '@/contexts/auth-context';
+import { AuthRole } from '@/lib/auth-types';
 import { canUpdateChildPhoto } from '@/lib/permissions';
 import { canEditHousehold } from '@/lib/permissions/household';
 import {
@@ -59,6 +61,13 @@ import {
 	useReactivateChild,
 } from '@/hooks/data';
 import { useToast } from '@/hooks/use-toast';
+import {
+	useHouseholdUser,
+	useAvailableUsers,
+	useUpdateHouseholdUser,
+} from '@/hooks/data/users';
+import { Combobox } from '@/components/ui/combobox';
+import { Loader2 } from 'lucide-react';
 
 const InfoItem = ({
 	icon,
@@ -456,6 +465,47 @@ export function HouseholdProfile({
 	const activeChildren = children.filter((c) => c.is_active);
 	const inactiveChildren = children.filter((c) => !c.is_active);
 
+	// User connection management (admin only)
+	const isAdmin = user?.metadata?.role === AuthRole.ADMIN;
+	const { data: householdUserData, isLoading: userLoading } = useHouseholdUser(
+		household?.household_id || ''
+	);
+	const { data: availableUsersData, isLoading: availableUsersLoading } =
+		useAvailableUsers();
+	const updateUserMutation = useUpdateHouseholdUser();
+
+	const currentUser = householdUserData?.user;
+	const availableUsers =
+		availableUsersData?.users?.map((u: any) => ({
+			value: u.id,
+			label: `${u.name} (${u.email})`,
+		})) || [];
+
+	const handleUserChange = async (userId: string | null) => {
+		if (!household || !userId) return;
+
+		try {
+			await updateUserMutation.mutateAsync({
+				householdId: household.household_id,
+				userId,
+			});
+			toast({
+				title: 'User Updated',
+				description: 'Household user connection has been updated successfully.',
+			});
+		} catch (error) {
+			console.error('Failed to update household user:', error);
+			toast({
+				title: 'Update Failed',
+				description:
+					error instanceof Error
+						? error.message
+						: 'Could not update household user. Please try again.',
+				variant: 'destructive',
+			});
+		}
+	};
+
 	return (
 		<>
 			<div className="flex flex-col gap-8">
@@ -478,6 +528,77 @@ export function HouseholdProfile({
 							Add Child
 						</Button>
 					</div>
+				)}
+
+				{isAdmin && household && (
+					<Card className="border-blue-200 bg-blue-50/50">
+						<CardHeader>
+							<CardTitle className="font-headline flex items-center gap-2">
+								<User /> User Account Connection
+							</CardTitle>
+							<CardDescription>
+								Manage which user account is connected to this household
+							</CardDescription>
+						</CardHeader>
+						<CardContent className="space-y-4">
+							{userLoading ? (
+								<div className="flex items-center gap-2 text-muted-foreground">
+									<Loader2 className="h-4 w-4 animate-spin" />
+									<span>Loading user connection...</span>
+								</div>
+							) : currentUser ? (
+								<div className="space-y-2">
+									<InfoItem
+										icon={<Mail size={16} />}
+										label="Current User"
+										value={
+											<div>
+												<p className="font-medium">{currentUser.name}</p>
+												<p className="text-sm text-muted-foreground">
+													{currentUser.email}
+												</p>
+											</div>
+										}
+									/>
+								</div>
+							) : (
+								<p className="text-sm text-muted-foreground">
+									No user account connected to this household
+								</p>
+							)}
+
+							<div className="space-y-2">
+								<Label htmlFor="user-select">Change User</Label>
+								{availableUsersLoading ? (
+									<div className="flex items-center gap-2 text-muted-foreground">
+										<Loader2 className="h-4 w-4 animate-spin" />
+										<span>Loading available users...</span>
+									</div>
+								) : availableUsers.length === 0 ? (
+									<p className="text-sm text-muted-foreground">
+										No available users. All users are already connected to
+										households.
+									</p>
+								) : (
+									<Combobox
+										options={availableUsers}
+										value={currentUser?.id || null}
+										onChange={handleUserChange}
+										placeholder="Select a user..."
+										searchPlaceholder="Search users..."
+										emptyPlaceholder="No users found"
+										clearable={false}
+									/>
+								)}
+								{updateUserMutation.isPending && (
+									<div className="flex items-center gap-2 text-sm text-muted-foreground">
+										<Loader2 className="h-4 w-4 animate-spin" />
+										<span>Updating user connection...</span>
+									</div>
+								)}
+							</div>
+						</CardContent>
+					</Card>
 				)}
 
 				<div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
