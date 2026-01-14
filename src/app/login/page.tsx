@@ -199,7 +199,29 @@ export default function LoginPage() {
 				});
 
 				if (error) {
-					throw error;
+					// Handle Supabase AuthApiError with user-friendly messages
+					let errorMessage = 'Unable to sign in. Please check your credentials.';
+					
+					if (error.message) {
+						// Map common Supabase error messages to user-friendly ones
+						if (error.message.includes('Invalid login credentials')) {
+							errorMessage = 'Invalid email or password. Please try again.';
+						} else if (error.message.includes('Email not confirmed')) {
+							errorMessage = 'Please verify your email address before signing in.';
+						} else if (error.message.includes('Too many requests')) {
+							errorMessage = 'Too many login attempts. Please wait a moment and try again.';
+						} else {
+							errorMessage = error.message;
+						}
+					}
+					
+					// Show toast and return early instead of throwing
+					toast({
+						title: 'Login Failed',
+						description: errorMessage,
+						variant: 'destructive',
+					});
+					return;
 				}
 
 				if (data.session) {
@@ -244,10 +266,16 @@ export default function LoginPage() {
 			}
 		} catch (error: any) {
 			console.error('Login error:', error);
+			
+			// Extract error message, handling both Error objects and Supabase AuthApiError
+			const errorMessage = 
+				error?.message || 
+				error?.error?.message || 
+				'Unable to sign in. Please check your credentials.';
+			
 			toast({
 				title: 'Login Failed',
-				description:
-					error.message || 'Unable to sign in. Please check your credentials.',
+				description: errorMessage,
 				variant: 'destructive',
 			});
 		} finally {
