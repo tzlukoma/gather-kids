@@ -1,5 +1,79 @@
 # Release Notes - gatherKids
 
+## v1.5.9 - Ministry Access & Authentication Improvements
+
+### 🐛 Bug Fixes
+
+#### Ministry Access Race Condition Fix
+
+- **Synchronous ministry access check** - Fixed race condition where users with ministry emails would see "access denied" on first login
+- **Centralized ministry checking** - Added `checkAndUpdateMinistryAccess` helper function to ensure consistent ministry access checking
+- **Role assignment timing** - Ministry access is now checked synchronously for users without roles during login/initialization
+- **Prevents premature role checks** - ProtectedRoute now checks roles after ministry access is determined, preventing false "access denied" errors
+- **Always populate assignedMinistryIds** - Ministry access check now always runs for users with emails (unless ADMIN) to ensure proper role assignment
+
+#### Registrations Page Filtering
+
+- **Reactive ministry filtering** - Registrations page now properly reacts to `assignedMinistryIds` changes
+- **Dependency array update** - Added `assignedMinistryIds` to useEffect dependency array to ensure filtering updates when ministry access check completes
+- **Fixed initial load issue** - Ministry leaders now see filtered registrations immediately instead of all ministries on first load
+
+#### Household User API Error Handling
+
+- **UUID validation** - Added validation before calling `supabase.auth.admin.getUserById` to prevent "Expected parameter to be UUID but is not" errors
+- **Graceful error handling** - API route now returns null gracefully when `auth_user_id` is invalid or user not found
+- **Ministry leader compatibility** - Ministry leaders can now view household profiles without UUID-related errors
+
+#### Login Error Handling
+
+- **User-friendly error messages** - Improved error handling for invalid login credentials with clear, actionable messages
+- **Error message mapping** - Maps Supabase error messages to user-friendly text:
+  - "Invalid login credentials" → "Invalid email or password. Please try again."
+  - "Email not confirmed" → "Please verify your email address before signing in."
+  - "Too many requests" → "Too many login attempts. Please wait a moment and try again."
+- **Prevents console errors** - Returns early instead of throwing to prevent unhandled errors in console
+- **Better error extraction** - Handles both Error objects and Supabase AuthApiError structures
+
+### 🔧 Technical Improvements
+
+#### SSR Compatibility
+
+- **Branding context SSR fix** - Added client-side check to avoid server-side rendering issues
+- **Hardcoded defaults for SSR** - Uses hardcoded defaults during SSR, loads settings only on client
+- **Database factory SSR fix** - Fixed Supabase client initialization to handle SSR vs client-side differently
+- **Dynamic imports** - Removed top-level Supabase import and uses dynamic imports to prevent browser-only code in SSR
+- **Server/client separation** - Creates different Supabase clients for server-side vs client-side execution
+
+### 📁 Files Changed
+
+#### Authentication & Authorization
+
+- `src/contexts/auth-context.tsx` - Added `checkAndUpdateMinistryAccess` helper and made ministry checks synchronous
+- `src/app/dashboard/registrations/page.tsx` - Updated to react to `assignedMinistryIds` changes
+- `src/app/login/page.tsx` - Improved error handling with user-friendly messages
+- `src/app/api/households/[householdId]/user/route.ts` - Added UUID validation and graceful error handling
+
+#### SSR Fixes
+
+- `src/contexts/branding-context.tsx` - Added client-side check for SSR compatibility
+- `src/lib/database/factory.ts` - Fixed Supabase client initialization for SSR
+
+#### Dependencies
+
+- `package-lock.json` - Updated dependency lock file
+
+### ✅ Impact
+
+- **User Experience**: Ministry leaders can now log in without seeing "access denied" errors
+- **Reliability**: Fixed race conditions ensure proper role assignment and filtering
+- **Error Handling**: Better error messages help users understand and resolve login issues
+- **Compatibility**: SSR fixes ensure the application works correctly in server-side rendering contexts
+- **Stability**: UUID validation prevents crashes when viewing household profiles
+
+This release focuses on fixing critical authentication and authorization issues, particularly for ministry leaders, and improves overall error handling and SSR compatibility.
+
+---
+
 ## v1.5.8 - Forgot Password Functionality Implementation
 
 ### 🆕 New Features
