@@ -36,7 +36,16 @@ export async function GET(
 			);
 		}
 
-		if (!userHousehold) {
+		if (!userHousehold || !userHousehold.auth_user_id) {
+			return NextResponse.json({ user: null });
+		}
+
+		// Validate that auth_user_id is a valid UUID before calling getUserById
+		const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+		if (!uuidRegex.test(userHousehold.auth_user_id)) {
+			console.warn(
+				`Invalid auth_user_id format for household ${householdId}: ${userHousehold.auth_user_id}`
+			);
 			return NextResponse.json({ user: null });
 		}
 
@@ -46,6 +55,14 @@ export async function GET(
 		);
 
 		if (userError) {
+			// If user not found or invalid, return null instead of error
+			// This can happen if the user was deleted but the user_households record remains
+			if (userError.message?.includes('not found') || userError.message?.includes('UUID')) {
+				console.warn(
+					`User not found for auth_user_id ${userHousehold.auth_user_id}: ${userError.message}`
+				);
+				return NextResponse.json({ user: null });
+			}
 			return NextResponse.json(
 				{ error: `Failed to fetch user: ${userError.message}` },
 				{ status: 500 }
