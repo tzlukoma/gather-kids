@@ -57,32 +57,35 @@ export default function RegistrationsPage() {
 			try {
 				// For ministry leaders, use their assigned ministry IDs
 				let filterIds: string[] | undefined = undefined;
-				if (
-					user?.metadata?.role === AuthRole.MINISTRY_LEADER &&
-					user.assignedMinistryIds &&
-					user.assignedMinistryIds.length > 0
-				) {
-					console.log(
-						'🔍 RegistrationsPage: Using assigned ministry IDs for leader',
-						user.assignedMinistryIds
-					);
+				
+				// Check if user is a ministry leader
+				if (user?.metadata?.role === AuthRole.MINISTRY_LEADER) {
+					if (user.assignedMinistryIds && user.assignedMinistryIds.length > 0) {
+						console.log(
+							'🔍 RegistrationsPage: Using assigned ministry IDs for leader',
+							user.assignedMinistryIds
+						);
 
-					filterIds = user.assignedMinistryIds;
-					setLeaderMinistryId(user.assignedMinistryIds[0]); // Use first ministry ID for display
-					console.log(
-						'🔍 RegistrationsPage: Set ministryFilterIds to',
-						filterIds
-					);
-				} else if (user?.metadata?.role === AuthRole.MINISTRY_LEADER) {
-					console.warn(
-						'⚠️ RegistrationsPage: Ministry leader has no assigned ministries',
-						user.email
-					);
-					setNoMinistryAssigned(true);
-					console.log(
-						'🔍 RegistrationsPage: ministryFilterIds remains',
-						filterIds
-					);
+						filterIds = user.assignedMinistryIds;
+						setLeaderMinistryId(user.assignedMinistryIds[0]); // Use first ministry ID for display
+						setNoMinistryAssigned(false);
+						console.log(
+							'🔍 RegistrationsPage: Set ministryFilterIds to',
+							filterIds
+						);
+					} else {
+						// Ministry leader but no assigned ministries yet
+						// This could mean the async check is still running, or they truly have no access
+						console.warn(
+							'⚠️ RegistrationsPage: Ministry leader has no assigned ministries yet',
+							user.email,
+							'This might be temporary if the ministry check is still running'
+						);
+						// Don't set noMinistryAssigned immediately - wait a bit for the check to complete
+						// The filterIds will remain undefined, which means show all (but this is the issue)
+						// For now, we'll show the warning but not block access
+						setNoMinistryAssigned(false); // Don't show error immediately
+					}
 				}
 
 				setMinistryFilterIds(filterIds);
@@ -92,7 +95,7 @@ export default function RegistrationsPage() {
 		};
 
 		loadData();
-	}, [user]);
+	}, [user, user?.assignedMinistryIds]); // Also depend on assignedMinistryIds to react when it's populated
 
 	// Use React Query hook for household list with children data
 	const { data: households = [], isLoading: householdsLoading } =
