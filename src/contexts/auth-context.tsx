@@ -38,6 +38,101 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 		return u?.uid || u?.id || u?.user_id;
 	}
 
+	// Helper function to check and update ministry access for a user
+	// This should always run for users with emails (unless they're ADMIN)
+	// to ensure assignedMinistryIds is populated and role is correct
+	async function checkAndUpdateMinistryAccess(
+		user: BaseUser,
+		updateUserCallback: (updatedUser: BaseUser) => void,
+		updateRoleCallback: (role: AuthRole) => void
+	): Promise<void> {
+		// Skip if no email or user is already ADMIN
+		if (!user.email || user.metadata?.role === AuthRole.ADMIN) {
+			return;
+		}
+
+		try {
+			console.log(
+				'🔍 AuthProvider: Checking ministry access for',
+				user.email,
+				'current role:',
+				user.metadata?.role
+			);
+			const accessibleMinistries =
+				await dbAdapter.listAccessibleMinistriesForEmail(user.email);
+			console.log(
+				'🔍 AuthProvider: Ministry access check completed, found',
+				accessibleMinistries.length,
+				'ministries'
+			);
+
+			if (accessibleMinistries.length > 0) {
+				const ministryIds = accessibleMinistries.map((m) => m.ministry_id);
+				const updatedUser: BaseUser = {
+					...user,
+					assignedMinistryIds: ministryIds,
+				};
+
+				// Upgrade to MINISTRY_LEADER if user has no role or is GUEST
+				// But preserve existing role if it's higher priority (like GUARDIAN)
+				if (
+					!user.metadata?.role ||
+					user.metadata.role === AuthRole.GUEST
+				) {
+					updatedUser.metadata = {
+						...user.metadata,
+						role: AuthRole.MINISTRY_LEADER,
+					};
+					updateUserCallback(updatedUser);
+					updateRoleCallback(AuthRole.MINISTRY_LEADER);
+					console.log(
+						'AuthProvider - Auto-assigned MINISTRY_LEADER role based on email:',
+						{
+							email: user.email,
+							ministries: accessibleMinistries.map((m) => ({
+								id: m.ministry_id,
+								name: m.name,
+							})),
+						}
+					);
+				} else {
+					// User already has a role, but update assignedMinistryIds
+					updateUserCallback(updatedUser);
+					console.log(
+						'AuthProvider - Updated assignedMinistryIds for existing role:',
+						{
+							email: user.email,
+							existingRole: user.metadata.role,
+							ministries: accessibleMinistries.map((m) => ({
+								id: m.ministry_id,
+								name: m.name,
+							})),
+						}
+					);
+				}
+			} else {
+				// No ministry access found - clear assignedMinistryIds if it was set
+				if (user.assignedMinistryIds && user.assignedMinistryIds.length > 0) {
+					const updatedUser: BaseUser = {
+						...user,
+						assignedMinistryIds: [],
+					};
+					updateUserCallback(updatedUser);
+					console.log(
+						'AuthProvider - Cleared assignedMinistryIds, no ministry access found for:',
+						user.email
+					);
+				}
+			}
+		} catch (error) {
+			console.error(
+				'AuthProvider - Error checking ministry access:',
+				error
+			);
+			// Don't let ministry access check errors block authentication
+		}
+	}
+
 	useEffect(() => {
 		// Check if we're in a Vercel preview environment
 		if (typeof window !== 'undefined') {
@@ -75,6 +170,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 							assignedMinistryIds: [],
 						};
 
+						// For users without a role or with GUEST role, check ministry access synchronously
+						// to prevent ProtectedRoute from checking before role is determined
+						if (
+							finalUser.email &&
+							(!finalUser.metadata?.role || finalUser.metadata.role === AuthRole.GUEST)
+						) {
+							console.log(
+								'🔍 AuthProvider: Checking ministry access synchronously during initialization for',
+								finalUser.email
+							);
+							const accessibleMinistries =
+								await dbAdapter.listAccessibleMinistriesForEmail(finalUser.email);
+							
+							if (accessibleMinistries.length > 0) {
+								const ministryIds = accessibleMinistries.map((m) => m.ministry_id);
+								finalUser.assignedMinistryIds = ministryIds;
+								if (
+									!finalUser.metadata?.role ||
+									finalUser.metadata.role === AuthRole.GUEST
+								) {
+									finalUser.metadata = {
+										...finalUser.metadata,
+										role: AuthRole.MINISTRY_LEADER,
+									};
+									console.log(
+										'AuthProvider - Auto-assigned MINISTRY_LEADER role during initialization:',
+										{
+											email: finalUser.email,
+											ministries: accessibleMinistries.map((m) => ({
+												id: m.ministry_id,
+												name: m.name,
+											})),
+										}
+									);
+								}
+							}
+						}
+
 						// Set user immediately to prevent blocking
 						console.log('AuthProvider: Setting user from localStorage', {
 							uid: finalUser.uid,
@@ -83,50 +216,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 						setUser(finalUser);
 						setUserRole(finalUser.metadata.role);
 
-						// Check ministry access asynchronously after setting user
+						// For users who already have a role, check ministry access asynchronously
+						// to update assignedMinistryIds without blocking
 						if (
 							finalUser.email &&
-							(!finalUser.metadata.role ||
-								finalUser.metadata.role === AuthRole.GUEST)
+							finalUser.metadata?.role &&
+							finalUser.metadata.role !== AuthRole.GUEST &&
+							finalUser.metadata.role !== AuthRole.ADMIN &&
+							(!finalUser.assignedMinistryIds || finalUser.assignedMinistryIds.length === 0)
 						) {
-							// Run ministry access check in background without blocking
 							setTimeout(async () => {
-								try {
-									const accessibleMinistries =
-										await dbAdapter.listAccessibleMinistriesForEmail(
-											finalUser.email
-										);
-									if (accessibleMinistries.length > 0) {
-										// Update user with ministry access
-										const updatedUser = {
-											...finalUser,
-											metadata: {
-												...finalUser.metadata,
-												role: AuthRole.MINISTRY_LEADER,
-											},
-											assignedMinistryIds: accessibleMinistries.map(
-												(m) => m.ministry_id
-											),
-										};
-										setUser(updatedUser);
-										setUserRole(AuthRole.MINISTRY_LEADER);
-										console.log(
-											'AuthProvider - Auto-assigned MINISTRY_LEADER role for stored user:',
-											{
-												email: finalUser.email,
-												ministries: accessibleMinistries.map((m) => ({
-													id: m.ministry_id,
-													name: m.name,
-												})),
-											}
-										);
-									}
-								} catch (error) {
-									console.error(
-										'AuthProvider - Error checking ministry access for stored user:',
-										error
-									);
-								}
+								await checkAndUpdateMinistryAccess(
+									finalUser,
+									setUser,
+									setUserRole
+								);
 							}, 0);
 						}
 					} else {
@@ -162,6 +266,46 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 							assignedMinistryIds: [],
 						};
 
+						// For users without a role or with GUEST role, check ministry access synchronously
+						// to prevent ProtectedRoute from checking before role is determined
+						if (
+							finalUser.email &&
+							(!finalUser.metadata?.role || finalUser.metadata.role === AuthRole.GUEST)
+						) {
+							console.log(
+								'🔍 AuthProvider: Checking ministry access synchronously during Supabase initialization for',
+								finalUser.email
+							);
+							const accessibleMinistries =
+								await dbAdapter.listAccessibleMinistriesForEmail(finalUser.email);
+							
+							if (accessibleMinistries.length > 0) {
+								const ministryIds = accessibleMinistries.map((m) => m.ministry_id);
+								finalUser.assignedMinistryIds = ministryIds;
+								if (
+									!finalUser.metadata?.role ||
+									finalUser.metadata.role === AuthRole.GUEST
+								) {
+									finalUser.metadata = {
+										...finalUser.metadata,
+										role: AuthRole.MINISTRY_LEADER,
+									};
+									// Update userRole variable for consistency
+									const updatedRole = AuthRole.MINISTRY_LEADER;
+									console.log(
+										'AuthProvider - Auto-assigned MINISTRY_LEADER role during Supabase initialization:',
+										{
+											email: finalUser.email,
+											ministries: accessibleMinistries.map((m) => ({
+												id: m.ministry_id,
+												name: m.name,
+											})),
+										}
+									);
+								}
+							}
+						}
+
 						// Set user immediately to prevent auth callback timeout
 						console.log('AuthProvider: Setting user from Supabase session', {
 							uid: finalUser.uid,
@@ -170,86 +314,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 						setUser(finalUser);
 						setUserRole(finalUser.metadata.role);
 
-						// Check ministry access asynchronously after setting user to prevent timeout
+						// For users who already have a role, check ministry access asynchronously
+						// to update assignedMinistryIds without blocking
 						if (
 							finalUser.email &&
-							(!finalUser.metadata.role ||
-								finalUser.metadata.role === AuthRole.GUEST)
+							finalUser.metadata?.role &&
+							finalUser.metadata.role !== AuthRole.GUEST &&
+							finalUser.metadata.role !== AuthRole.ADMIN &&
+							(!finalUser.assignedMinistryIds || finalUser.assignedMinistryIds.length === 0)
 						) {
-							// Run ministry access check in background without blocking
 							setTimeout(async () => {
-								try {
-									console.log(
-										'🔍 AuthProvider: Starting ministry access check for',
-										finalUser.email
-									);
-									const accessibleMinistries =
-										await dbAdapter.listAccessibleMinistriesForEmail(
-											finalUser.email
-										);
-									console.log(
-										'🔍 AuthProvider: Ministry access check completed, found',
-										accessibleMinistries.length,
-										'ministries'
-									);
-									if (accessibleMinistries.length > 0) {
-										// Only assign MINISTRY_LEADER if user doesn't already have a higher priority role
-										if (
-											!finalUser.metadata.role ||
-											finalUser.metadata.role === AuthRole.GUEST
-										) {
-											finalUser.metadata.role = AuthRole.MINISTRY_LEADER;
-											console.log(
-												'AuthProvider - Auto-assigned MINISTRY_LEADER role for Supabase user:',
-												{
-													email: finalUser.email,
-													ministries: accessibleMinistries.map((m) => ({
-														id: m.ministry_id,
-														name: m.name,
-													})),
-												}
-											);
-										} else {
-											console.log(
-												'AuthProvider - Supabase user has existing role, preserving it:',
-												{
-													email: finalUser.email,
-													existingRole: finalUser.metadata.role,
-													ministries: accessibleMinistries.map((m) => ({
-														id: m.ministry_id,
-														name: m.name,
-													})),
-												}
-											);
-										}
-										// Always populate assignedMinistryIds for users with ministry access
-										finalUser.assignedMinistryIds = accessibleMinistries.map(
-											(m) => m.ministry_id
-										);
-										// Update user with new role and ministry IDs
-										setUser({ ...finalUser });
-										setUserRole(finalUser.metadata.role);
-									}
-								} catch (error) {
-									console.error(
-										'AuthProvider - Error checking ministry access for Supabase user:',
-										error
-									);
-									// Don't let ministry access check errors block authentication
-									// The user should still be able to proceed even if ministry check fails
-									console.log(
-										'AuthProvider - Continuing with authentication despite ministry access check failure'
-									);
-								}
+								await checkAndUpdateMinistryAccess(
+									finalUser,
+									setUser,
+									setUserRole
+								);
 							}, 0);
-						} else if (
-							finalUser.metadata.role &&
-							finalUser.metadata.role !== AuthRole.GUEST
-						) {
-							console.log(
-								'AuthProvider - Skipping ministry access check for Supabase user, already has role:',
-								finalUser.metadata.role
-							);
 						}
 					}
 					// If we don't have a session but do have tokens in localStorage, try to recover
@@ -288,6 +368,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 									assignedMinistryIds: [],
 								};
 
+								// For users without a role or with GUEST role, check ministry access synchronously
+								// to prevent ProtectedRoute from checking before role is determined
+								if (
+									finalUser.email &&
+									(!finalUser.metadata?.role || finalUser.metadata.role === AuthRole.GUEST)
+								) {
+									console.log(
+										'🔍 AuthProvider: Checking ministry access synchronously during session recovery for',
+										finalUser.email
+									);
+									const accessibleMinistries =
+										await dbAdapter.listAccessibleMinistriesForEmail(finalUser.email);
+									
+									if (accessibleMinistries.length > 0) {
+										const ministryIds = accessibleMinistries.map((m) => m.ministry_id);
+										finalUser.assignedMinistryIds = ministryIds;
+										if (
+											!finalUser.metadata?.role ||
+											finalUser.metadata.role === AuthRole.GUEST
+										) {
+											finalUser.metadata = {
+												...finalUser.metadata,
+												role: AuthRole.MINISTRY_LEADER,
+											};
+											console.log(
+												'AuthProvider - Auto-assigned MINISTRY_LEADER role during session recovery:',
+												{
+													email: finalUser.email,
+													ministries: accessibleMinistries.map((m) => ({
+														id: m.ministry_id,
+														name: m.name,
+													})),
+												}
+											);
+										}
+									}
+								}
+
 								// Set user immediately to prevent auth callback timeout
 								console.log(
 									'AuthProvider: Setting user from recovered session',
@@ -299,71 +417,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 								setUser(finalUser);
 								setUserRole(finalUser.metadata.role);
 
-								// Check ministry access asynchronously after setting user to prevent timeout
+								// For users who already have a role, check ministry access asynchronously
+								// to update assignedMinistryIds without blocking
 								if (
 									finalUser.email &&
-									(!finalUser.metadata.role ||
-										finalUser.metadata.role === AuthRole.GUEST)
+									finalUser.metadata?.role &&
+									finalUser.metadata.role !== AuthRole.GUEST &&
+									finalUser.metadata.role !== AuthRole.ADMIN &&
+									(!finalUser.assignedMinistryIds || finalUser.assignedMinistryIds.length === 0)
 								) {
-									// Run ministry access check in background without blocking
 									setTimeout(async () => {
-										try {
-											const accessibleMinistries =
-												await dbAdapter.listAccessibleMinistriesForEmail(
-													finalUser.email
-												);
-											if (accessibleMinistries.length > 0) {
-												// Only assign MINISTRY_LEADER if user doesn't already have a higher priority role
-												if (
-													!finalUser.metadata.role ||
-													finalUser.metadata.role === AuthRole.GUEST
-												) {
-													finalUser.metadata.role = AuthRole.MINISTRY_LEADER;
-													console.log(
-														'AuthProvider - Auto-assigned MINISTRY_LEADER role for recovered user:',
-														{
-															email: finalUser.email,
-															ministries: accessibleMinistries.map((m) => ({
-																id: m.ministry_id,
-																name: m.name,
-															})),
-														}
-													);
-												} else {
-													console.log(
-														'AuthProvider - Recovered user has existing role, preserving it:',
-														{
-															email: finalUser.email,
-															existingRole: finalUser.metadata.role,
-															ministries: accessibleMinistries.map((m) => ({
-																id: m.ministry_id,
-																name: m.name,
-															})),
-														}
-													);
-												}
-												// Always populate assignedMinistryIds for users with ministry access
-												finalUser.assignedMinistryIds =
-													accessibleMinistries.map((m) => m.ministry_id);
-												// Update user with new role and ministry IDs
-												setUser({ ...finalUser });
-												setUserRole(finalUser.metadata.role);
-											}
-										} catch (error) {
-											console.error(
-												'AuthProvider - Error checking ministry access for recovered user:',
-												error
-											);
-										}
+										await checkAndUpdateMinistryAccess(
+											finalUser,
+											setUser,
+											setUserRole
+										);
 									}, 0);
-								} else if (
-									finalUser.metadata.role &&
-									finalUser.metadata.role !== AuthRole.GUEST
-								) {
-									console.log(
-										'AuthProvider - Skipping ministry access check for recovered user, already has role:',
-										finalUser.metadata.role
-									);
 								}
 							} else {
 								console.log(
@@ -437,50 +506,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 					setUserRole(finalUser.metadata.role);
 
 					// Check ministry access asynchronously after setting user
-					if (
-						supabaseUser.email &&
-						(!userRole || userRole === AuthRole.GUEST)
-					) {
-						// Run ministry access check in background without blocking
-						setTimeout(async () => {
-							try {
-								const accessibleMinistries =
-									await dbAdapter.listAccessibleMinistriesForEmail(
-										supabaseUser.email
-									);
-								if (accessibleMinistries.length > 0) {
-									// Update user with ministry access
-									const updatedUser = {
-										...finalUser,
-										metadata: {
-											...finalUser.metadata,
-											role: AuthRole.MINISTRY_LEADER,
-										},
-										assignedMinistryIds: accessibleMinistries.map(
-											(m) => m.ministry_id
-										),
-									};
-									setUser(updatedUser);
-									setUserRole(AuthRole.MINISTRY_LEADER);
-									console.log(
-										'AuthProvider - Auto-assigned MINISTRY_LEADER role based on email:',
-										{
-											email: supabaseUser.email,
-											ministries: accessibleMinistries.map((m) => ({
-												id: m.ministry_id,
-												name: m.name,
-											})),
-										}
-									);
-								}
-							} catch (error) {
-								console.error(
-									'AuthProvider - Error checking ministry access:',
-									error
-								);
-							}
-						}, 0);
-					}
+					// Always check to ensure assignedMinistryIds is populated
+					setTimeout(async () => {
+						await checkAndUpdateMinistryAccess(
+							finalUser,
+							setUser,
+							setUserRole
+						);
+					}, 0);
 				} else if (event === 'SIGNED_OUT') {
 					setUser(null);
 					setUserRole(null);
@@ -524,7 +557,58 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 				finalUser.assignedMinistryIds
 			);
 
+			// For users without a role or with GUEST role, check ministry access BEFORE setting loading to false
+			// This prevents the ProtectedRoute from checking roles before ministry access is determined
+			if (
+				finalUser.email &&
+				(!finalUser.metadata?.role || finalUser.metadata.role === AuthRole.GUEST)
+			) {
+				console.log(
+					'🔍 AuthProvider: Checking ministry access synchronously during login for',
+					finalUser.email
+				);
+				// Check ministry access synchronously to prevent race condition
+				// We need to get the updated user after the check
+				const accessibleMinistries =
+					await dbAdapter.listAccessibleMinistriesForEmail(finalUser.email);
+				
+				if (accessibleMinistries.length > 0) {
+					const ministryIds = accessibleMinistries.map((m) => m.ministry_id);
+					finalUser.assignedMinistryIds = ministryIds;
+					// Upgrade to MINISTRY_LEADER if user has no role or is GUEST
+					if (
+						!finalUser.metadata?.role ||
+						finalUser.metadata.role === AuthRole.GUEST
+					) {
+						finalUser.metadata = {
+							...finalUser.metadata,
+							role: AuthRole.MINISTRY_LEADER,
+						};
+						userRole = AuthRole.MINISTRY_LEADER;
+						console.log(
+							'AuthProvider - Auto-assigned MINISTRY_LEADER role during login:',
+							{
+								email: finalUser.email,
+								ministries: accessibleMinistries.map((m) => ({
+									id: m.ministry_id,
+									name: m.name,
+								})),
+							}
+						);
+					}
+				}
+			}
+
+			console.log('AuthProvider: Setting user state...', {
+				uid: finalUser.uid,
+				role: finalUser.metadata.role,
+			});
+			setUser(finalUser);
+			console.log('Setting userRole to:', finalUser.metadata.role);
+			setUserRole(userRole);
+
 			// In demo mode or Vercel preview, use localStorage for persistence
+			// Store after ministry check so we have the correct role
 			if (isDemo() || isVercelPreview) {
 				console.log(
 					'Storing user with role:',
@@ -534,68 +618,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 				localStorage.setItem('gatherkids-user', JSON.stringify(finalUser));
 			}
 
-			console.log('AuthProvider: Setting user state...', {
-				uid: finalUser.uid,
-				role: finalUser.metadata.role,
-			});
-			setUser(finalUser);
-			console.log('Setting userRole to:', finalUser.metadata.role);
-			setUserRole(finalUser.metadata.role);
-
-			// Check ministry access asynchronously after setting user
-			if (userData.email && !userRole) {
-				// Run ministry access check in background without blocking
+			// For users who already have a role, check ministry access asynchronously
+			// to update assignedMinistryIds without blocking
+			if (
+				finalUser.email &&
+				finalUser.metadata?.role &&
+				finalUser.metadata.role !== AuthRole.GUEST &&
+				finalUser.metadata.role !== AuthRole.ADMIN &&
+				(!finalUser.assignedMinistryIds || finalUser.assignedMinistryIds.length === 0)
+			) {
 				setTimeout(async () => {
-					try {
-						console.log(
-							'🔍 AuthProvider: Starting ministry access check for login',
-							userData.email
-						);
-						const accessibleMinistries =
-							await dbAdapter.listAccessibleMinistriesForEmail(userData.email);
-						console.log(
-							'🔍 AuthProvider: Ministry access check completed for login, found',
-							accessibleMinistries.length,
-							'ministries'
-						);
-						if (accessibleMinistries.length > 0) {
-							// Update user with ministry access
-							const updatedUser = {
-								...finalUser,
-								metadata: {
-									...finalUser.metadata,
-									role: AuthRole.MINISTRY_LEADER,
-								},
-								assignedMinistryIds: accessibleMinistries.map(
-									(m) => m.ministry_id
-								),
-							};
-							setUser(updatedUser);
-							setUserRole(AuthRole.MINISTRY_LEADER);
-							console.log(
-								'Auth Context - Auto-assigned MINISTRY_LEADER role based on email:',
-								{
-									email: userData.email,
-									ministries: accessibleMinistries.map((m) => ({
-										id: m.ministry_id,
-										name: m.name,
-									})),
-								}
-							);
-						}
-					} catch (error) {
-						console.error(
-							'Auth Context - Error checking ministry access:',
-							error
-						);
-						// Don't let ministry access check errors block authentication
-						// The user should still be able to proceed even if ministry check fails
-						console.log(
-							'AuthProvider - Continuing with login despite ministry access check failure'
-						);
-					}
+					await checkAndUpdateMinistryAccess(
+						finalUser,
+						setUser,
+						setUserRole
+					);
 				}, 0);
 			}
+
 			console.log('AuthProvider: Login completed successfully');
 		} finally {
 			setLoading(false);
