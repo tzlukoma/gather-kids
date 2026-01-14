@@ -85,6 +85,21 @@ export function BrandingProvider({ children }: { children: React.ReactNode }) {
 	};
 
 	useEffect(() => {
+		// Only load settings on the client side to avoid SSR issues
+		if (typeof window === 'undefined') {
+			// During SSR, use hardcoded defaults immediately
+			setSettings({
+				app_name: 'gatherKids',
+				description:
+					"The simple, secure, and smart way to manage your children's ministry. Streamline check-ins, track attendance, and keep your community connected.",
+				logo_url: undefined,
+				use_logo_only: false,
+				youtube_url: undefined,
+				instagram_url: undefined,
+			});
+			setLoading(false);
+			return;
+		}
 		loadSettings();
 	}, []);
 

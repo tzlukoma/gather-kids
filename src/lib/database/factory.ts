@@ -2,7 +2,7 @@ import { SupabaseAdapter } from './supabase-adapter';
 import { IndexedDBAdapter } from './indexed-db-adapter';
 import type { DatabaseAdapter } from './types';
 import { getFlag } from '../featureFlags';
-import { supabase } from '../supabaseClient';
+// Don't import supabase at top level - it will be dynamically imported when needed
 
 export function createDatabaseAdapter(): DatabaseAdapter {
 	// Use feature flag system to determine database mode
@@ -40,8 +40,28 @@ export function createDatabaseAdapter(): DatabaseAdapter {
 		console.log('Creating Supabase adapter for live mode', {
 			url: supabaseUrl
 		});
-		// Use the authenticated Supabase client instead of creating a new one
-		return new SupabaseAdapter(supabaseUrl, supabaseKey, supabase);
+		
+		// For SSR, create a server-side client without browser storage
+		// For client-side, use the browser client
+		if (typeof window === 'undefined') {
+			// Server-side: create a new client without browser storage
+			const { createClient } = require('@supabase/supabase-js');
+			const serverClient = createClient(supabaseUrl, supabaseKey);
+			return new SupabaseAdapter(supabaseUrl, supabaseKey, serverClient);
+		} else {
+			// Client-side: use the browser client (lazy-loaded)
+			// Dynamically import to avoid SSR issues
+			try {
+				const { supabase } = require('../supabaseClient');
+				return new SupabaseAdapter(supabaseUrl, supabaseKey, supabase);
+			} catch (error) {
+				console.warn('Failed to load browser Supabase client, creating server client:', error);
+				// Fallback to server client if browser client fails
+				const { createClient } = require('@supabase/supabase-js');
+				const serverClient = createClient(supabaseUrl, supabaseKey);
+				return new SupabaseAdapter(supabaseUrl, supabaseKey, serverClient);
+			}
+		}
 	}
 
 	// Default to IndexedDB for demo mode
