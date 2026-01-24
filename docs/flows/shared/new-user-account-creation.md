@@ -1,0 +1,209 @@
+# New User Account Creation Flow
+
+## Overview
+
+New users who don't have a role yet need to create an account before they can register their family. This flow covers the account creation process that leads to the registration flow.
+
+## Flow Steps
+
+1. **Access Login Page**
+   - User navigates to `/login`
+   - Sees "Create account" link (when password auth is enabled)
+   - Clicks link to navigate to `/create-account`
+
+2. **Create Account Page**
+   - User enters email and password
+   - Confirms password
+   - Validates password requirements (minimum 6 characters)
+   - Submits form
+
+3. **Account Creation**
+   - Calls `supabase.auth.signUp({ email, password })`
+   - Creates user in Supabase Auth
+   - Sets `emailRedirectTo: /auth/callback` for email verification
+
+4. **Post-Creation Redirect**
+   - **If session created** (local dev or auto-confirm):
+     - Redirects to `/register`
+     - User can immediately start registration
+   - **If email verification required**:
+     - Shows "Check Your Email" message
+     - User must verify email via link
+     - After verification, redirects to `/register`
+
+5. **Registration Flow**
+   - User completes family registration
+   - Gets GUARDIAN role assigned
+   - Redirects to `/household` or `/onboarding`
+
+## Decision Points
+
+- **Password Auth Enabled**: Is password authentication enabled? (Feature flag)
+- **Demo Mode**: In demo mode, redirects to login (no account creation)
+- **Email Verification**: Does Supabase require email verification?
+- **Session Created**: Was session created immediately? (local dev vs production)
+
+## Medium-Detail Flow Diagram
+
+```mermaid
+flowchart TD
+    Start([New User]) --> LoginPage["Login Page"]
+    LoginPage --> CreateAccountLink{"Password Auth Enabled?"}
+    
+    CreateAccountLink -->|No| LoginOnly["Login Only"]
+    CreateAccountLink -->|Yes| CreateAccountPage["/create-account Page"]
+    
+    CreateAccountPage --> EnterEmail["Enter Email"]
+    EnterEmail --> EnterPassword["Enter Password"]
+    EnterPassword --> ConfirmPassword["Confirm Password"]
+    ConfirmPassword --> Validate{"Valid?"}
+    
+    Validate -->|No| ShowErrors["Show Validation Errors"]
+    ShowErrors --> EnterEmail
+    
+    Validate -->|Yes| SubmitForm["Submit Form"]
+    SubmitForm --> SupabaseSignUp["supabase.auth.signUp()"]
+    
+    SupabaseSignUp --> SignUpCheck{"Signup Success?"}
+    SignUpCheck -->|Error| ShowError["Show Error Toast"]
+    ShowError --> CreateAccountPage
+    
+    SignUpCheck -->|Success| SessionCheck{"Session Created?"}
+    
+    SessionCheck -->|Yes| RedirectRegister["Redirect to /register"]
+    SessionCheck -->|No| LocalDevCheck{"Local Dev?"}
+    
+    LocalDevCheck -->|Yes| RedirectRegister
+    LocalDevCheck -->|No| EmailVerification["Show Email Verification"]
+    
+    EmailVerification --> UserClicksLink["User Clicks Email Link"]
+    UserClicksLink --> AuthCallback["/auth/callback"]
+    AuthCallback --> RedirectRegister
+    
+    RedirectRegister --> RegistrationFlow["Registration Flow"]
+    RegistrationFlow --> AssignRole["Assign GUARDIAN Role"]
+    AssignRole --> HouseholdPortal["/household Portal"]
+    
+    LoginOnly --> End([End])
+    HouseholdPortal --> End
+```
+
+## Key Components
+
+- **Create Account Page**: `src/app/create-account/page.tsx`
+- **Auth Callback**: `src/app/auth/callback/page.tsx`
+- **Registration Page**: `src/app/register/page.tsx`
+- **Auth Utils**: `src/lib/auth-utils.ts` - `getPostLoginRoute(null)` → `/register`
+
+## Account Creation Logic
+
+### Password Validation
+- Minimum 6 characters
+- Password and confirm password must match
+- All fields required
+
+### Supabase Signup
+```typescript
+supabase.auth.signUp({
+  email,
+  password,
+  options: {
+    emailRedirectTo: `${baseUrl}/auth/callback`,
+  },
+})
+```
+
+### Post-Signup Behavior
+
+**Local Development:**
+- Email confirmations often disabled
+- Session created immediately
+- Redirects to `/register` right away
+
+**Production:**
+- Email verification required
+- Shows "Check Your Email" message
+- User clicks verification link
+- Redirects to `/auth/callback`
+- Then redirects to `/register`
+
+## Error Handling
+
+- **Password Mismatch**: Shows error, prevents submission
+- **Password Too Short**: Shows error, prevents submission
+- **Missing Fields**: Shows error, prevents submission
+- **Signup Error**: Shows error toast with message
+- **Timeout**: Shows timeout error (15 second limit)
+
+## Role Assignment
+
+After account creation:
+- User has **no role** initially (`role: null` or `GUEST`)
+- After completing registration, gets **GUARDIAN** role
+- Role assigned during `registerHouseholdCanonical()` process
+
+## Sequence Diagram
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant LoginPage
+    participant CreateAccountPage
+    participant Supabase
+    participant AuthCallback
+    participant RegisterPage
+    participant AuthContext
+
+    User->>LoginPage: Navigate to /login
+    LoginPage->>User: Display "Create account" link
+    User->>CreateAccountPage: Click "Create account"
+    
+    CreateAccountPage->>User: Display account creation form
+    User->>CreateAccountPage: Enter email, password, confirm password
+    CreateAccountPage->>CreateAccountPage: Validate form
+    
+    alt Validation Fails
+        CreateAccountPage->>User: Show validation errors
+    else Validation Succeeds
+        CreateAccountPage->>Supabase: signUp({ email, password })
+        
+        alt Signup Error
+            Supabase-->>CreateAccountPage: Error response
+            CreateAccountPage->>User: Show error toast
+        else Signup Success
+            Supabase-->>CreateAccountPage: User created
+            
+            alt Session Created (Local Dev)
+                CreateAccountPage->>RegisterPage: Redirect to /register
+            else Email Verification Required
+                CreateAccountPage->>User: Show "Check Your Email"
+                User->>User: Check email, click verification link
+                User->>AuthCallback: Navigate to /auth/callback
+                AuthCallback->>Supabase: Exchange code for session
+                Supabase-->>AuthCallback: Session created
+                AuthCallback->>AuthContext: Update auth state
+                AuthCallback->>RegisterPage: Redirect to /register
+            end
+            
+            RegisterPage->>User: Display registration form
+            User->>RegisterPage: Complete registration
+            RegisterPage->>RegisterPage: registerHouseholdCanonical()
+            RegisterPage->>AuthContext: Assign GUARDIAN role
+            RegisterPage->>User: Redirect to /household
+        end
+    end
+```
+
+## Related Flows
+
+- [Guardian Registration](../guardian/registration.md) - Registration flow after account creation
+- [Shared Authentication Flows](./authentication-flows.md) - Common auth patterns
+- [Main Documentation](../README.md) - Return to main flows documentation
+
+## Notes
+
+- Account creation is only available when `loginPasswordEnabled` feature flag is true
+- In demo mode, account creation is disabled (redirects to login)
+- New users without roles are redirected to `/register` by `getPostLoginRoute(null)`
+- The registration flow handles both authenticated users (skip email lookup) and unauthenticated users (email verification required)
+- Users with `role: null` or `GUEST` role are treated as new users needing registration
