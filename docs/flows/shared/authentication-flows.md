@@ -41,21 +41,23 @@ This document describes common authentication patterns shared across all user ro
 - `src/lib/supabaseClient.ts` - Supabase client
 - `src/contexts/auth-context.tsx` - Session management
 
-### 3. Magic Link Authentication (Future)
+### 3. Magic Link Authentication (Feature-flagged)
 
-**Use Case**: Passwordless authentication
+**Use Case**: Passwordless authentication (when enabled)
 
 **Flow:**
-1. User enters email
-2. System sends magic link email via Supabase
-3. User clicks link in email
-4. Redirects to `/auth/callback` with code
-5. Callback exchanges code for session
-6. Session established
+1. Feature flag `loginMagicEnabled` enabled
+2. User enters email on a supported screen (e.g. registration)
+3. System sends magic link email via Supabase
+4. User clicks link in email
+5. Redirects to `/auth/callback` with code
+6. Callback exchanges code for session
+7. Session established
 
 **Key Components:**
 - `src/app/api/auth/magic-link/route.ts` - Magic link API endpoint
 - `src/app/auth/callback/page.tsx` - Callback handler
+- `src/app/register/page.tsx` - Triggers magic-link flow when `loginMagicEnabled` is on
 
 ## Session Initialization
 

@@ -29,12 +29,14 @@ New users who don't have a role yet need to create an account before they can re
    - **If email verification required**:
      - Shows "Check Your Email" message
      - User must verify email via link
-     - After verification, redirects to `/register`
+     - After verification, redirects to `/auth/callback`
+     - Callback redirects to `/household` (non-local-dev) or `/register` (local-dev)
+     - If user has no household, `/household` redirects to `/register`
 
 5. **Registration Flow**
    - User completes family registration
-   - Gets GUARDIAN role assigned
-   - Redirects to `/household` or `/onboarding`
+   - Gets GUARDIAN role assigned during registration
+   - Redirects to `/household` (where any onboarding experience is surfaced, for example via an onboarding modal)
 
 ## Decision Points
 
@@ -78,7 +80,12 @@ flowchart TD
     
     EmailVerification --> UserClicksLink["User Clicks Email Link"]
     UserClicksLink --> AuthCallback["/auth/callback"]
-    AuthCallback --> RedirectRegister
+    AuthCallback --> CallbackRedirect{Local Dev?}
+    CallbackRedirect -->|Yes| RedirectRegister
+    CallbackRedirect -->|No| RedirectHousehold["Redirect to /household"]
+    RedirectHousehold --> HouseholdCheck{Has Household?}
+    HouseholdCheck -->|No| RedirectRegister
+    HouseholdCheck -->|Yes| StayHousehold["Stay on /household"]
     
     RedirectRegister --> RegistrationFlow["Registration Flow"]
     RegistrationFlow --> AssignRole["Assign GUARDIAN Role"]
@@ -86,6 +93,7 @@ flowchart TD
     
     LoginOnly --> End([End])
     HouseholdPortal --> End
+    StayHousehold --> End
 ```
 
 ## Key Components
@@ -125,7 +133,8 @@ supabase.auth.signUp({
 - Shows "Check Your Email" message
 - User clicks verification link
 - Redirects to `/auth/callback`
-- Then redirects to `/register`
+- Callback redirects to `/household` (non-local-dev) or `/register` (local-dev)
+- If user has no household, `/household` redirects to `/register`
 
 ## Error Handling
 
@@ -139,8 +148,8 @@ supabase.auth.signUp({
 
 After account creation:
 - User has **no role** initially (`role: null` or `GUEST`)
-- After completing registration, gets **GUARDIAN** role
-- Role assigned during `registerHouseholdCanonical()` process
+- After completing registration, gets **GUARDIAN** role assigned during registration via `supabase.auth.updateUser()`
+- Role assignment happens synchronously during `registerHouseholdCanonical()` process
 
 ## Sequence Diagram
 
@@ -182,13 +191,24 @@ sequenceDiagram
                 AuthCallback->>Supabase: Exchange code for session
                 Supabase-->>AuthCallback: Session created
                 AuthCallback->>AuthContext: Update auth state
-                AuthCallback->>RegisterPage: Redirect to /register
+                AuthCallback->>AuthCallback: Check redirect target
+                alt Local Dev
+                    AuthCallback->>RegisterPage: Redirect to /register
+                else Production
+                    AuthCallback->>HouseholdPage: Redirect to /household
+                    HouseholdPage->>HouseholdPage: Check if user has household
+                    alt No Household
+                        HouseholdPage->>RegisterPage: Redirect to /register
+                    else Has Household
+                        HouseholdPage->>User: Display household portal
+                    end
+                end
             end
             
             RegisterPage->>User: Display registration form
             User->>RegisterPage: Complete registration
             RegisterPage->>RegisterPage: registerHouseholdCanonical()
-            RegisterPage->>AuthContext: Assign GUARDIAN role
+            RegisterPage->>AuthContext: Assign GUARDIAN role via updateUser()
             RegisterPage->>User: Redirect to /household
         end
     end
@@ -207,3 +227,4 @@ sequenceDiagram
 - New users without roles are redirected to `/register` by `getPostLoginRoute(null)`
 - The registration flow handles both authenticated users (skip email lookup) and unauthenticated users (email verification required)
 - Users with `role: null` or `GUEST` role are treated as new users needing registration
+- Registration does not create new auth users - users must create accounts first via `/create-account` or magic-link

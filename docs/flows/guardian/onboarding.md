@@ -2,31 +2,23 @@
 
 ## Overview
 
-After registration, new guardians complete onboarding which includes password setup, account verification, and welcome information.
+The guardian onboarding flow handles initial password setup for newly provisioned or invited guardian accounts. It is used when a guardian has an account but needs to choose a password before accessing the application.
 
 ## Flow Steps
 
 1. **Access Onboarding**
-   - Redirected to `/onboarding` after registration
-   - Or accessed via email link
+   - Guardian opens a secure onboarding link (for example, from an email) that signs them in and routes them to `/onboarding`
+   - Guardians may also be redirected to `/onboarding` if their account exists but no password has been configured
 
 2. **Password Setup**
    - Enter password
    - Confirm password
-   - Set password requirements
+   - Submit form to save password
 
-3. **Account Verification**
-   - Verify email (if not already verified)
-   - Complete account setup
-
-4. **Welcome Information**
-   - View welcome message
-   - Learn about features
-   - Navigate to household portal
-
-5. **Complete Onboarding**
-   - Finish onboarding
-   - Redirect to `/household`
+3. **Complete Onboarding**
+   - Password is stored and the account is marked as having completed initial setup
+   - Guardian is automatically redirected to `/dashboard`
+   - From the dashboard, guardians can navigate to the household portal (`/household`) to manage family details
 
 ## Related Flows
 

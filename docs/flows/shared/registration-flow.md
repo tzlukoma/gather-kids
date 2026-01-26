@@ -109,24 +109,41 @@ await dbAdapter.createEmergencyContact({
 #### Step 7: Bible Bee Enrollment (Optional)
 ```typescript
 if (bibleBeeEnrollment) {
-  await dbAdapter.createBibleBeeEnrollment({
+  // Create Bible Bee enrollment record in bible_bee_enrollments table
+  await dbAdapter.createEnrollment({
     child_id: child.child_id,
-    year: bibleBeeYear,
-    division: division
+    bible_bee_cycle_id: bibleBeeYear,
+    division_id: divisionId
   });
+  
+  // Optionally assign scriptures via enrollChildInBibleBee helper
+  await enrollChildInBibleBee(child.child_id, bibleBeeYear);
 }
 ```
 
-#### Step 8: User Creation (if new email)
+#### Step 8: Link Auth User to Household
 ```typescript
-if (!existingUser) {
-  await supabase.auth.admin.createUser({
-    email: primaryEmail,
-    user_metadata: {
+// Assumes the caller is already authenticated (via /create-account or magic-link)
+const session = await supabase.auth.getSession();
+
+if (session?.data?.session?.user) {
+  // Create user_households relationship
+  await dbAdapter.createUserHousehold({
+    user_id: session.data.session.user.id,
+    household_id: householdId,
+    role: AuthRole.GUARDIAN
+  });
+
+  // Update user metadata with role and household_id
+  await supabase.auth.updateUser({
+    data: {
       role: AuthRole.GUARDIAN,
       household_id: householdId
     }
   });
+  
+  // Refresh session to ensure AuthContext picks up role change
+  await supabase.auth.refreshSession();
 }
 ```
 
@@ -177,11 +194,13 @@ sequenceDiagram
     
     alt Bible Bee Enrollment
         DBAdapter->>Database: INSERT INTO bible_bee_enrollments
+        DBAdapter->>DBAdapter: enrollChildInBibleBee() (optional)
     end
     
-    alt New User
-        DBAdapter->>SupabaseAuth: createUser()
-        SupabaseAuth-->>DBAdapter: User created
+    alt Authenticated User
+        DBAdapter->>Database: INSERT INTO user_households
+        DBAdapter->>SupabaseAuth: updateUser({ role, household_id })
+        SupabaseAuth->>SupabaseAuth: refreshSession()
     end
     
     DBAdapter->>Database: COMMIT TRANSACTION
@@ -252,17 +271,18 @@ sequenceDiagram
 - User can retry submission
 
 ### User Creation Errors
-- If user creation fails, household still created
-- User can log in later with magic link
-- Role assignment happens on first login
+- Account creation happens separately via `/create-account` or magic-link auth
+- Registration assumes user is already authenticated
+- If user is not authenticated, registration completes but user must authenticate separately to access household portal
+- For an already authenticated user, the `GUARDIAN` role and `household_id` are assigned during registration via `supabase.auth.updateUser({ data: { role: 'GUARDIAN', household_id } })` and the session is refreshed
 
 ## Draft Persistence
 
-Form data is saved to localStorage as user types:
+Drafts are managed via the shared `useDraftPersistence` hook, which persists data through the app's database adapter (`dbAdapter.getDraft` / `dbAdapter.saveDraft`):
 - Saves on field blur
-- Loads on page load
+- Loads on page load (when draft persistence is enabled)
 - Cleared on successful submission
-- Key: `registration-draft-{email}`
+- Drafts are keyed by `formName` (currently `registration_v1`) together with the household/email identifier, rather than a raw localStorage key
 
 ## Related Flows
 

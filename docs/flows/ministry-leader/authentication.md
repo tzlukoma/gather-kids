@@ -45,7 +45,7 @@ Ministry leaders authenticate via email/password. Their role is automatically as
 - **Email Match**: Does email match any ministry group email?
 - **Existing Role**: Does user already have a role assigned?
 - **Ministry Access**: Are there accessible ministries for this email?
-- **Role Priority**: GUARDIAN role preserved if user is both guardian and leader
+- **Role Priority**: When a user has both GUARDIAN and MINISTRY_LEADER capabilities, MINISTRY_LEADER is treated as the primary role for redirects (per `ROLE_PRIORITY` / `getUserRole()` in `src/lib/auth-utils.ts`)
 
 ## Medium-Detail Flow Diagram
 

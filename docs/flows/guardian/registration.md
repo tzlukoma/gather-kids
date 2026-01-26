@@ -43,8 +43,8 @@ The registration flow allows guardians to register their families for ministry p
 7. **Post-Submission**
    - Shows success message
    - Clears draft data
-   - Redirects authenticated users to `/household`
-   - Redirects new users to `/onboarding`
+   - If guardian is authenticated, redirects to `/household`
+   - If guardian is not authenticated, returns to the email entry step on `/register` (no automatic `/onboarding` redirect)
 
 ## Decision Points
 
@@ -107,10 +107,10 @@ flowchart TD
     
     Success --> AuthCheck{"Authenticated?"}
     AuthCheck -->|Yes| HouseholdRedirect["Redirect to /household"]
-    AuthCheck -->|No| OnboardingRedirect["Redirect to /onboarding"]
+    AuthCheck -->|No| ResetForm["Reset Form to Email Step"]
     
     HouseholdRedirect --> End([End])
-    OnboardingRedirect --> End
+    ResetForm --> End
 ```
 
 ## Key Components
