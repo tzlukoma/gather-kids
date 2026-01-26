@@ -142,4 +142,4 @@ If match found, checkout proceeds with matched person name recorded.
 
 - [Shared Check-in Technical](../shared/check-in-technical.md) - Technical check-in details
 - [Main Ministry Leader README](./README.md) - Return to ministry leader flows overview
-- [Guardian Check-in](./guardian/check-in-guardian.md) - Guardian-specific check-in flow
+- [Guardian Check-in](../guardian/check-in-guardian.md) - Guardian-specific check-in flow

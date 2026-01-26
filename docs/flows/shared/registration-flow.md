@@ -86,12 +86,13 @@ for (const childData of children) {
     ...childData
   });
   
-  // Create enrollments
+  // Create ministry enrollments
   for (const ministryId of child.ministrySelections) {
-    await dbAdapter.createEnrollment({
+    await dbAdapter.createMinistryEnrollment({
       child_id: child.child_id,
       ministry_id: ministryId,
-      cycle_id: cycleId
+      cycle_id: cycleId,
+      status: 'enrolled'
     });
   }
 }
@@ -168,7 +169,7 @@ sequenceDiagram
     loop For each child
         DBAdapter->>Database: INSERT INTO children
         loop For each ministry selection
-            DBAdapter->>Database: INSERT INTO enrollments
+            DBAdapter->>Database: INSERT INTO ministry_enrollments
         end
     end
     
