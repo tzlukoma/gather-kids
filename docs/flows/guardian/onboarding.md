@@ -17,8 +17,8 @@ The guardian onboarding flow handles initial password setup for newly provisione
 
 3. **Complete Onboarding**
    - Password is stored and the account is marked as having completed initial setup
-   - Guardian is automatically redirected to `/dashboard`
-   - From the dashboard, guardians can navigate to the household portal (`/household`) to manage family details
+   - Guardian is automatically redirected to `/dashboard` ⚠️ **Bug**: Currently all users are redirected to `/dashboard` regardless of role, but guardians should be redirected to `/household` according to `getPostLoginRoute`. See [Issue #187](https://github.com/tzlukoma/gather-kids/issues/187) for the fix.
+   - **Note**: The `/dashboard` route is protected for ADMIN and MINISTRY_LEADER only, so guardian users cannot actually access it. The intended behavior is to redirect guardians directly to `/household` after onboarding.
 
 ## Related Flows
 
