@@ -152,7 +152,7 @@ flowchart TD
 ## Error Handling
 
 - **Validation Errors**: Shows field-level errors, prevents submission
-- **Email Verification**: Required for new registrations
+- **Email Verification**: Required for new registrations only when `loginMagicEnabled` feature flag is enabled; otherwise proceeds directly to registration form
 - **Duplicate Check-in**: Prevents checking in child already checked in
 - **Database Errors**: Shows error toast, allows retry
 

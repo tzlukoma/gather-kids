@@ -86,8 +86,10 @@ The AuthContext initializes on app load:
 
 ### Role Assignment Logic
 
-Roles are assigned based on:
-1. **User Metadata**: `user.metadata.role` (from database or demo config)
+> **Security Note:** For Supabase-authenticated users, `user.user_metadata.role` is client-writable via `supabase.auth.updateUser` and **must not** be trusted for authorization or routing decisions. The current implementation uses this metadata for front-end routing, but this is a security risk. Only backend code (e.g., using a service key and RLS-protected tables) may assign or change privileged roles. The frontend should consume an effective role returned by secure APIs and use that for `userRole` and `getPostLoginRoute`.
+
+Roles are currently assigned based on:
+1. **User Metadata**: `user.metadata.role` (from database or demo config) - **Note: Client-writable in Supabase, not secure for authorization**
 2. **Ministry Access**: Email matching ministry groups → MINISTRY_LEADER
 3. **Household Access**: User linked to household → GUARDIAN
 4. **Default**: GUEST (unregistered users)

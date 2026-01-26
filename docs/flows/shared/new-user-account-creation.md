@@ -225,6 +225,6 @@ sequenceDiagram
 - Account creation is only available when `loginPasswordEnabled` feature flag is true
 - In demo mode, account creation is disabled (redirects to login)
 - New users without roles are redirected to `/register` by `getPostLoginRoute(null)`
-- The registration flow handles both authenticated users (skip email lookup) and unauthenticated users (email verification required)
-- Users with `role: null` or `GUEST` role are treated as new users needing registration
-- Registration does not create new auth users - users must create accounts first via `/create-account` or magic-link
+- The registration flow supports both authenticated sessions and magic-link-based flows; it always looks up households by email (via `findHouseholdByEmail(user.email, cycleId)`)
+- For unauthenticated/magic-link flows, whether email verification is required for new registrations is controlled by the `loginMagicEnabled` feature flag
+- Registration does not create new auth users — users must already have an auth account/session created via `/create-account` (password auth) or via the magic-link flow

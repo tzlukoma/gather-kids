@@ -13,9 +13,10 @@ This document provides detailed technical implementation of the registration flo
 **Process:**
 1. Look up guardian by email in `guardians` table
 2. Infer associated household from guardian record
-3. Check `ministry_enrollments` for the household in the current cycle
-4. Check `ministry_enrollments` for the household in prior cycles
-5. Return result: `{ isCurrentYear, isPrefill, data }`
+3. Get all children for the household
+4. Check `ministry_enrollments` for those children in the current cycle
+5. Check `ministry_enrollments` for those children in the prior cycle (currentCycleId - 1)
+6. Return result: `{ isCurrentYear, isPrefill, data }`
 
 **Database Operations:**
 ```sql
@@ -25,15 +26,20 @@ FROM households h
 JOIN guardians g ON g.household_id = h.id
 WHERE g.email = $1;
 
--- Check ministry enrollments for current cycle
-SELECT *
-FROM ministry_enrollments
-WHERE household_id = $1 AND cycle_id = $2;
+-- Get children for the household
+SELECT child_id
+FROM children
+WHERE household_id = $1;
 
--- Check ministry enrollments for prior cycles
+-- Check ministry enrollments for current cycle (by child_id, not household_id)
 SELECT *
 FROM ministry_enrollments
-WHERE household_id = $1 AND cycle_id <> $2;
+WHERE child_id = ANY($2) AND cycle_id = $3;
+
+-- Check ministry enrollments for prior cycle (currentCycleId - 1)
+SELECT *
+FROM ministry_enrollments
+WHERE child_id = ANY($2) AND cycle_id = $4;
 ```
 
 ### 2. Form Data Collection
@@ -63,8 +69,10 @@ WHERE household_id = $1 AND cycle_id <> $2;
 
 #### Step 2: Database Transaction
 ```typescript
+// IndexedDB/Dexie: operations run in a single real DB transaction.
+// Supabase: this is a best-effort logical grouping and is NOT atomic.
 await dbAdapter.transaction(async () => {
-  // All operations in single transaction
+  // All operations grouped together
 })
 ```
 
@@ -291,11 +299,12 @@ sequenceDiagram
 
 ## Draft Persistence
 
-Drafts are managed via the shared `useDraftPersistence` hook, which persists data through the app's database adapter (`dbAdapter.getDraft` / `dbAdapter.saveDraft`):
-- Saves on field blur
-- Loads on page load (when draft persistence is enabled)
-- Cleared on successful submission
-- Drafts are keyed by `formName` (currently `registration_v1`) together with the household/email identifier, rather than a raw localStorage key
+Drafts are managed via the shared `useDraftPersistence` hook, which persists data through the app's database adapter (`dbAdapter.getDraft` / `dbAdapter.saveDraft`). In the current registration page implementation (`src/app/register/page.tsx`), this hook is initialized with `enabled: false`, so draft persistence is effectively feature-flagged/temporarily disabled there; the behavior below describes how it works when enabled:
+
+- Saves via debounced `saveDraft` calls triggered by form state changes (for example, after field blur or section completion, depending on the specific integration)
+- Loads on page load only when draft persistence is enabled for the given flow
+- Cleared on successful submission (and/or when the user explicitly discards the draft, if that UI is provided)
+- When enabled, drafts are keyed by `formName` (currently `registration_v1`) together with the household/email identifier, rather than a raw localStorage key
 
 ## Related Flows
 
