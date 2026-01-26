@@ -137,7 +137,9 @@ if (bibleBeeEnrollment) {
 const session = await supabase.auth.getSession();
 
 if (session?.data?.session?.user) {
-  // Create user_households relationship linking the auth user to the household
+  // Note: Currently uses direct Supabase insert because DatabaseAdapter 
+  // doesn't have a createUserHousehold method. This is a known inconsistency
+  // with the adapter pattern and should ideally be added to the adapter interface.
   await supabase
     .from('user_households')
     .insert({
