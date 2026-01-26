@@ -4,28 +4,28 @@ overview: Create a hierarchical markdown documentation system that documents all
 todos:
   - id: create-structure
     content: Create directory structure in docs/flows/ with admin/, ministry-leader/, guardian/, and shared/ subdirectories
-    status: pending
+    status: completed
   - id: extract-admin-flows
     content: Extract and document all admin user journeys (authentication, dashboard, user management, ministry management, etc.)
-    status: pending
+    status: completed
   - id: extract-ministry-leader-flows
     content: Extract and document all ministry leader journeys (email-based login, filtered views, check-in, Bible Bee tracking)
-    status: pending
+    status: completed
   - id: extract-guardian-flows
     content: Extract and document all guardian/parent journeys (registration, onboarding, household portal, Bible Bee student tracking)
-    status: pending
+    status: completed
   - id: create-high-level-diagrams
     content: Create high-level Mermaid flowchart diagrams for each role showing major user journeys
-    status: pending
+    status: completed
   - id: create-medium-detail-diagrams
     content: Create medium-detail Mermaid diagrams (sequence/flowchart) showing decision points and branches for each flow
-    status: pending
+    status: completed
   - id: create-technical-diagrams
     content: Create detailed technical Mermaid sequence diagrams showing API calls, database operations, and error handling
-    status: pending
+    status: completed
   - id: cross-reference-files
     content: Add hyperlinks between files (high-level → medium-detail → technical) and validate all links work
-    status: pending
+    status: completed
 isProject: false
 ---
 

@@ -130,7 +130,7 @@ sequenceDiagram
 
     UI->>CheckInView: Click "Check In"
     CheckInView->>AttendanceHook: useCheckInMutation()
-    AttendanceHook->>DAL: recordCheckIn(childId, eventId, userId)
+    AttendanceHook->>DAL: recordCheckIn(childId, eventId, timeslotId, userId)
     
     DAL->>DBAdapter: listAttendance({ childId, date })
     DBAdapter->>Database: SELECT * FROM attendance WHERE child_id = $1 AND date = $2
@@ -193,8 +193,10 @@ queryClient.invalidateQueries({ queryKey: queryKeys.checkedInCount(today) });
 queryClient.invalidateQueries({ queryKey: queryKeys.children() });
 
 // After check-out
-queryClient.invalidateQueries({ queryKey: queryKeys.attendance(today) });
-queryClient.invalidateQueries({ queryKey: queryKeys.attendance(today, eventId) });
+queryClient.invalidateQueries({ queryKey: ['attendance', today] });
+queryClient.invalidateQueries({ queryKey: queryKeys.checkedInChildren(today) });
+queryClient.invalidateQueries({ queryKey: queryKeys.checkedInCount(today) });
+queryClient.invalidateQueries({ queryKey: queryKeys.children() });
 ```
 
 ## Data Structures

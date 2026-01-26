@@ -11,19 +11,29 @@ This document provides detailed technical implementation of the registration flo
 **Function**: `findHouseholdByEmail(email, cycleId)`
 
 **Process:**
-1. Query `households` table for matching email
-2. Check if household exists in current cycle
-3. Check if household exists in prior cycles
-4. Return result: `{ isCurrentYear, isPrefill, data }`
+1. Look up guardian by email in `guardians` table
+2. Infer associated household from guardian record
+3. Check `ministry_enrollments` for the household in the current cycle
+4. Check `ministry_enrollments` for the household in prior cycles
+5. Return result: `{ isCurrentYear, isPrefill, data }`
 
 **Database Operations:**
 ```sql
--- Find household by email
-SELECT * FROM households WHERE email = $1
+-- Find household by guardian email
+SELECT h.*
+FROM households h
+JOIN guardians g ON g.household_id = h.id
+WHERE g.email = $1;
 
--- Check enrollments for cycle
-SELECT * FROM enrollments 
-WHERE household_id = $1 AND cycle_id = $2
+-- Check ministry enrollments for current cycle
+SELECT *
+FROM ministry_enrollments
+WHERE household_id = $1 AND cycle_id = $2;
+
+-- Check ministry enrollments for prior cycles
+SELECT *
+FROM ministry_enrollments
+WHERE household_id = $1 AND cycle_id <> $2;
 ```
 
 ### 2. Form Data Collection
@@ -127,12 +137,13 @@ if (bibleBeeEnrollment) {
 const session = await supabase.auth.getSession();
 
 if (session?.data?.session?.user) {
-  // Create user_households relationship
-  await dbAdapter.createUserHousehold({
-    user_id: session.data.session.user.id,
-    household_id: householdId,
-    role: AuthRole.GUARDIAN
-  });
+  // Create user_households relationship linking the auth user to the household
+  await supabase
+    .from('user_households')
+    .insert({
+      auth_user_id: session.data.session.user.id,
+      household_id: householdId
+    });
 
   // Update user metadata with role and household_id
   await supabase.auth.updateUser({
