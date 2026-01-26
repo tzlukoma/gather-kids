@@ -13,9 +13,10 @@ This document provides detailed technical implementation of the registration flo
 **Process:**
 1. Look up guardian by email in `guardians` table
 2. Infer associated household from guardian record
-3. Check `ministry_enrollments` for the household in the current cycle
-4. Check `ministry_enrollments` for the household in prior cycles
-5. Return result: `{ isCurrentYear, isPrefill, data }`
+3. Get all children for the household
+4. Check `ministry_enrollments` for those children in the current cycle
+5. Check `ministry_enrollments` for those children in the prior cycle (currentCycleId - 1)
+6. Return result: `{ isCurrentYear, isPrefill, data }`
 
 **Database Operations:**
 ```sql
@@ -25,9 +26,20 @@ FROM households h
 JOIN guardians g ON g.household_id = h.id
 WHERE g.email = $1;
 
--- Check enrollments for cycle
-SELECT * FROM enrollments 
-WHERE household_id = $1 AND cycle_id = $2
+-- Get children for the household
+SELECT child_id
+FROM children
+WHERE household_id = $1;
+
+-- Check ministry enrollments for current cycle (by child_id, not household_id)
+SELECT *
+FROM ministry_enrollments
+WHERE child_id = ANY($2) AND cycle_id = $3;
+
+-- Check ministry enrollments for prior cycle (currentCycleId - 1)
+SELECT *
+FROM ministry_enrollments
+WHERE child_id = ANY($2) AND cycle_id = $4;
 ```
 
 ### 2. Form Data Collection
