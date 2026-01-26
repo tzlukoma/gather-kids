@@ -86,8 +86,9 @@ flowchart TD
     NewForm --> FormComplete
     
     FormComplete --> Submit[Submit Registration]
-    Submit --> Onboarding[Onboarding]
-    Onboarding --> HouseholdPortal[Household Portal]
+    Submit --> AuthCheck{Authenticated?}
+    AuthCheck -->|Yes| HouseholdPortal[Household Portal]
+    AuthCheck -->|No| EmailEntry
     
     Login --> Auth[Authenticate]
     Auth --> HouseholdPortal

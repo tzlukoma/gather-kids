@@ -127,15 +127,18 @@ await dbAdapter.createEmergencyContact({
 #### Step 7: Bible Bee Enrollment (Optional)
 ```typescript
 if (bibleBeeEnrollment) {
+  const { enrollmentId, bibleBeeCycleId, divisionId } = bibleBeeEnrollment;
+
   // Create Bible Bee enrollment record in bible_bee_enrollments table
   await dbAdapter.createEnrollment({
+    id: enrollmentId,
     child_id: child.child_id,
-    bible_bee_cycle_id: bibleBeeYear,
+    bible_bee_cycle_id: bibleBeeCycleId,
     division_id: divisionId
   });
   
   // Optionally assign scriptures via enrollChildInBibleBee helper
-  await enrollChildInBibleBee(child.child_id, bibleBeeYear);
+  await enrollChildInBibleBee(child.child_id, bibleBeeCycleId);
 }
 ```
 
@@ -286,10 +289,11 @@ sequenceDiagram
 - Error messages from Zod schema
 
 ### Database Errors
-- Transaction rollback on error
+- **Dexie/offline mode**: Registration writes are wrapped in an IndexedDB transaction; if any step fails, the entire transaction is rolled back
+- **Supabase/live mode**: Operations are executed as a best-effort grouped sequence; on error, further steps are aborted but earlier successful writes are not automatically rolled back at the database level
 - Error toast shown to user
 - Form data preserved (draft persistence)
-- User can retry submission
+- User can retry submission (the flow treats the operation as failed and re-attempts the full sequence, while any partial data from a prior attempt is handled by the backend reconciliation logic)
 
 ### User Creation Errors
 - Account creation happens separately via `/create-account` or magic-link auth
