@@ -293,8 +293,8 @@ sequenceDiagram
 
 ### User Creation Errors
 - Account creation happens separately via `/create-account` or magic-link auth
-- Registration assumes user is already authenticated
-- If user is not authenticated, registration completes but user must authenticate separately to access household portal
+- Registration can be submitted by unauthenticated users, but this creates an "orphaned" registration
+- **Orphaned Registration Issue:** If user is not authenticated, registration data is saved to the database (household, guardians, children, enrollments), but no `user_households` record is created and no role is assigned. The user is returned to the email entry step and cannot access their registration. See [issue #185](https://github.com/tzlukoma/gather-kids/issues/185) for tracking the implementation of requiring authentication before registration submission.
 - For an already authenticated user, the `GUARDIAN` role and `household_id` are assigned during registration via `supabase.auth.updateUser({ data: { role: 'GUARDIAN', household_id } })` and the session is refreshed
 
 ## Draft Persistence

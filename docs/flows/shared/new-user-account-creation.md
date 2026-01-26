@@ -2,7 +2,17 @@
 
 ## Overview
 
-New users who don't have a role yet need to create an account before they can register their family. This flow covers the account creation process that leads to the registration flow.
+> **Note:** Currently, unauthenticated users can submit registration data, but this creates an "orphaned" registration that is not linked to any authenticated user and cannot be accessed. See [issue #185](https://github.com/tzlukoma/gather-kids/issues/185) for tracking the implementation of requiring authentication before registration submission.
+
+New users can submit a family registration even if they aren't logged in, but they need to create an account so the authenticated user can be linked to the household and access `/household`. This flow covers the account creation process that connects the auth user to the household and then leads into or back to the registration flow as needed.
+
+**Current Behavior:**
+- Unauthenticated users can complete and submit the registration form
+- Registration data is saved to the database (household, guardians, children, enrollments)
+- However, no `user_households` record is created and no role is assigned (no auth user to link)
+- The registration is "orphaned" - it exists in the database but the user cannot access it
+- User is returned to the email entry step after submission
+- To access their registration, the user must create an account and an admin must manually link them, or they must register again while authenticated
 
 ## Flow Steps
 
