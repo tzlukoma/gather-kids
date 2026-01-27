@@ -10,9 +10,11 @@ New users can submit a family registration even if they aren't logged in, but th
 - Unauthenticated users can complete and submit the registration form
 - Registration data is saved to the database (household, guardians, children, enrollments)
 - However, no `user_households` record is created and no role is assigned (no auth user to link)
-- The registration is "orphaned" - it exists in the database but the user cannot access it
+- The registration is "orphaned" - it exists in the database but is not linked to an authenticated user account
 - User is returned to the email entry step after submission
-- To access their registration, the user must create an account and an admin must manually link them, or they must register again while authenticated
+- The user can retrieve and update the saved registration by returning to `/register` and re-entering their email (via `findHouseholdByEmail`), which will find and prefill the saved registration
+- What they *cannot* do is access the authenticated household portal (`/household`) because there's no `user_households` link / role assignment
+- To access the `/household` portal, the user must create an account and an admin must manually link them, or they must register again while authenticated
 
 ## Flow Steps
 
