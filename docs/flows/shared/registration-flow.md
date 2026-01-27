@@ -19,28 +19,33 @@ This document provides detailed technical implementation of the registration flo
 6. Return result: `{ isCurrentYear, isPrefill, data }`
 
 **Database Operations:**
+
+*Idealized query plan (conceptual):* The logical flow below is equivalent to what the function achieves. In **Supabase/live mode**, the implementation uses adapter calls that load broader sets and filter in memory; it does **not** run these targeted SQL queries.
+
 ```sql
--- Find household by guardian email
+-- Conceptual: find household by guardian email
 SELECT h.*
 FROM households h
 JOIN guardians g ON g.household_id = h.id
 WHERE g.email = $1;
 
--- Get children for the household
+-- Conceptual: get children for the household
 SELECT child_id
 FROM children
 WHERE household_id = $1;
 
--- Check ministry enrollments for current cycle (by child_id, not household_id)
-SELECT *
-FROM ministry_enrollments
-WHERE child_id = ANY($2) AND cycle_id = $3;
-
--- Check ministry enrollments for prior cycle (currentCycleId - 1)
-SELECT *
-FROM ministry_enrollments
-WHERE child_id = ANY($2) AND cycle_id = $4;
+-- Conceptual: check ministry enrollments (by child_id, cycle_id)
+SELECT * FROM ministry_enrollments
+WHERE child_id = ANY($2) AND cycle_id IN (currentCycleId, currentCycleId - 1);
 ```
+
+*Actual implementation (Supabase/live mode,* `src/lib/dal.ts`*):*
+- `dbAdapter.listGuardians('')` — loads all guardians; guardian with matching email is found in memory
+- `dbAdapter.listChildren({ householdId })` — loads children for that household
+- `dbAdapter.listMinistryEnrollments(undefined, undefined, currentCycleId)` — loads all enrollments for the cycle; filtered in memory by `childIds`
+- Same for prior cycle using `currentCycleId - 1`
+
+*Demo/IndexedDB mode* uses targeted Dexie queries (e.g. `db.guardians.where('email').equalsIgnoreCase(email).first()`), so behavior there is closer to the conceptual SQL.
 
 ### 2. Form Data Collection
 

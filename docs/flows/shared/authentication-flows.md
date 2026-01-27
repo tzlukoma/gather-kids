@@ -75,9 +75,11 @@ The AuthContext initializes on app load:
 
 3. **Ministry Access Check**
    - If user has email and no role/GUEST role:
-     - Call `listAccessibleMinistriesForEmail(email)`
-     - If ministries found, assign MINISTRY_LEADER role
-     - Set `assignedMinistryIds`
+     - Call `dbAdapter.listAccessibleMinistriesForEmail(email)`
+     - **Implementation details:**
+       - **Demo/IndexedDB mode:** Looks up direct ministry access via `ministry_accounts` (email match) and group-based access via `ministry_groups` (e.g. group email match) and `ministry_group_members`, then merges the resulting ministry IDs.
+       - **Supabase mode:** Calls RPC `fn_ministry_ids_email_can_access(p_email)`, which aggregates both `ministry_accounts` and `ministry_groups`-based access into a single list of ministry IDs the email can access.
+     - If ministries are found, assign MINISTRY_LEADER role and set `assignedMinistryIds` to the list returned from `listAccessibleMinistriesForEmail`.
 
 4. **Set User State**
    - Update `user` state
