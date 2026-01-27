@@ -97,20 +97,24 @@ The AuthContext initializes on app load:
 > 4. **Default**: If no server-assigned privileged role or relationships are found, the effective role is `GUEST` (unregistered or not yet onboarded users).
 > 5. **Demo Mode Exception**: In demo mode only, roles may be set directly in localStorage via the `DEMO_USERS` configuration for testing; this path must not be used in production and does not rely on Supabase user metadata.
 
-**Current Implementation (Security Risk):**
+**Current Implementation (Security Risk - Do Not Use in Production):**
 
-Roles are currently assigned based on:
-1. **User Metadata**: `user.metadata.role` (from database or demo config) - **Note: Client-writable in Supabase, not secure for authorization**
-2. **Ministry Access**: Email matching ministry groups → MINISTRY_LEADER
-3. **Household Access**: User linked to household → GUARDIAN
-4. **Default**: GUEST (unregistered users)
+Historically, roles were derived on the frontend based on:
+1. **User Metadata**: `user.metadata.role` (from database or demo config) - **Client-writable in Supabase, must NEVER be used for authorization or routing**
+2. **Ministry Access Heuristic**: Email matching ministry groups → treated as MINISTRY_LEADER - **Email-based matching is not a secure authorization mechanism and must be replaced by server-controlled ministry access in the effective role (e.g., from `/api/me`).**
+3. **Household Access Heuristic**: User linked to a household → treated as GUARDIAN - **This linkage must be enforced and resolved on the server and exposed only via a trusted effective role / allowed household IDs.**
+4. **Default**: GUEST (unregistered users) - **In production, the GUEST role should also come from the server when no privileged relationships are found.**
+
+> **Security Warning:** An attacker can call `supabase.auth.updateUser({ data: { role: 'ADMIN' | 'GUARDIAN' | 'MINISTRY_LEADER', ... } })` from the browser, then have front-end guards like `ProtectedRoute` and backend helpers such as `/api/children/[childId]/photo` or `canEditHousehold` treat them as privileged, leading to role escalation and unauthorized access to child/household data. Authorization decisions and post-login routing should instead be based solely on server-controlled roles (e.g., `app_metadata` or a roles table enforced via RLS) exposed through a trusted backend endpoint (such as `/api/me`), while treating any value in `user.user_metadata.role` as untrusted display-only metadata.
 
 ## Post-Login Redirect
 
-After successful authentication, the frontend calls a secure backend endpoint (for example, `/api/me`) to retrieve the **effective role** for the current session. Users are then redirected based on that effective role:
+**Current Implementation (Security Risk):**
+
+After successful authentication, users are redirected based on role computed from `user.metadata.role`:
 
 ```typescript
-getPostLoginRoute(effectiveRole):
+getPostLoginRoute(role):
   ADMIN → /dashboard
   MINISTRY_LEADER → /dashboard/rosters
   GUARDIAN → /household
@@ -119,7 +123,11 @@ getPostLoginRoute(effectiveRole):
   null → /register
 ```
 
-> **Note:** In the current implementation, `getPostLoginRoute` uses `user.metadata.role` which is client-writable and insecure. The recommended approach is to use an effective role returned by a secure backend API.
+> **Security Warning:** The current implementation uses `user.metadata.role` which is client-writable and insecure. This allows attackers to self-assign privileged roles and bypass access controls.
+
+**Recommended Future Approach:**
+
+After successful authentication, the frontend should call a secure backend endpoint (for example, `/api/me`) to retrieve the **effective role** for the current session. Users would then be redirected based on that server-derived effective role. The `/api/me` endpoint does not currently exist in the codebase and would need to be implemented as part of the security improvements outlined in [Issue #184](https://github.com/tzlukoma/gather-kids/issues/184).
 
 ## Session Persistence
 

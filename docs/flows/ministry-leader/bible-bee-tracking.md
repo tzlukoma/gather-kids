@@ -9,7 +9,7 @@ Ministry leaders can track Bible Bee progress for students in their assigned min
 1. **Access Bible Bee Tracking**
    - Navigate to `/dashboard/bible-bee`
    - View students in assigned ministries
-   - Filtered by ministry with 'bible-bee' code
+   - Access limited to ministries in the leader's assigned ministry list (with a fallback for ministry IDs that include "bible")
 
 2. **View Student Progress**
    - Select student

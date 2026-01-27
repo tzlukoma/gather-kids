@@ -28,7 +28,7 @@ Admin authentication supports multiple methods: demo mode (localStorage), passwo
 
 5. **Role Verification**
    - Verifies user has ADMIN role
-   - Checks `user.metadata.role === AuthRole.ADMIN`
+   - Checks `user.metadata.role === AuthRole.ADMIN` ⚠️ **Security Risk**: This field is client-writable in Supabase and cannot be used as a trust boundary. A malicious authenticated user could update their own `user_metadata.role` to `ADMIN` via `supabase.auth.updateUser` and then bypass `ProtectedRoute` and any other checks that rely on this value, obtaining full administrative capabilities. ADMIN authorization should instead depend on server-controlled role assignments (for example, Supabase `app_metadata` or an admin-mapping table behind RLS-protected APIs) and the frontend should rely only on an effective role returned from those trusted backends. See [Issue #184](https://github.com/tzlukoma/gather-kids/issues/184) for tracking this security improvement.
    - Redirects unauthorized users
 
 6. **Post-Login Redirect**
