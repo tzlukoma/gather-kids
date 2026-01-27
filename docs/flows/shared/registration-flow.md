@@ -104,14 +104,36 @@ for (const childData of children) {
     ...childData
   });
   
-  // Create ministry enrollments
-  for (const ministryId of child.ministrySelections) {
-    await dbAdapter.createMinistryEnrollment({
-      child_id: child.child_id,
-      ministry_id: ministryId,
-      cycle_id: cycleId,
-      status: 'enrolled'
-    });
+  // Auto-enroll in Sunday School (always happens)
+  await dbAdapter.createMinistryEnrollment({
+    child_id: child.child_id,
+    ministry_id: "min_sunday_school",
+    cycle_id: cycleId,
+    status: 'enrolled'
+  });
+  
+  // Handle ministry and interest selections (keyed by ministry code)
+  const ministrySelections = childData.ministrySelections || {}; // e.g., { "min_basketball": true }
+  const interestSelections = childData.interestSelections || {}; // e.g., { "min_choir": true }
+  const allSelections = { ...ministrySelections, ...interestSelections };
+  
+  // Map ministry codes to ministry_id via listMinistries()
+  const allMinistries = await dbAdapter.listMinistries();
+  const ministryMap = new Map(allMinistries.map(m => [m.code, m]));
+  
+  // Create enrollments for selected ministries (excluding Sunday School, already enrolled)
+  for (const ministryCode in allSelections) {
+    if (allSelections[ministryCode] && ministryCode !== 'min_sunday_school') {
+      const ministry = ministryMap.get(ministryCode);
+      if (ministry) {
+        await dbAdapter.createMinistryEnrollment({
+          child_id: child.child_id,
+          ministry_id: ministry.ministry_id, // Use ministry_id from mapped ministry
+          cycle_id: cycleId,
+          status: 'enrolled'
+        });
+      }
+    }
   }
 }
 ```
@@ -193,7 +215,9 @@ sequenceDiagram
     CanonicalDAL-->>DAL: Canonical DTOs
     
     DAL->>DBAdapter: transaction()
+    note right of DBAdapter: In Dexie/IndexedDB mode: BEGIN TRANSACTION\nIn Supabase mode: no-op wrapper (not atomic)
     DBAdapter->>Database: BEGIN TRANSACTION
+    note right of Database: Only applies to Dexie/IndexedDB adapter
     
     alt Update Existing Household
         DBAdapter->>Database: UPDATE households
@@ -228,6 +252,7 @@ sequenceDiagram
     end
     
     DBAdapter->>Database: COMMIT TRANSACTION
+    note right of Database: Only applies to Dexie/IndexedDB adapter\nSupabase mode: best-effort grouping (not atomic)
     Database-->>DBAdapter: Transaction committed
     DBAdapter-->>DAL: Success
     DAL-->>RegisterPage: Registration complete
