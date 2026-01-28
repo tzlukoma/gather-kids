@@ -8,8 +8,8 @@ Admins can review and approve family registrations, view household information, 
 
 1. **Access Registration Review**
    - Navigate to `/dashboard/registrations`
-   - View pending registrations
-   - Filter by status, cycle, ministry
+   - View registrations
+   - Use search and filter by ministry
 
 2. **Review Registration**
    - Click on registration
@@ -18,16 +18,11 @@ Admins can review and approve family registrations, view household information, 
    - Review child information
    - Check ministry enrollments
 
-3. **Approve Registration**
-   - Review all information
-   - Approve registration
-   - Assign household access
-   - Notify guardian
+3. **(Planned) Approve Registration**
+   - Not yet available in the current `/dashboard/registrations` UI; documented here as a future enhancement for approving registrations, assigning household access, and notifying guardians.
 
-4. **Reject Registration**
-   - Reject registration if needed
-   - Provide reason
-   - Notify guardian
+4. **(Planned) Reject Registration**
+   - Not yet available in the current `/dashboard/registrations` UI; documented here as a future enhancement for rejecting registrations with a reason and notifying the guardian.
 
 ## Related Flows
 

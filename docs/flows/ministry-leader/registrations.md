@@ -12,9 +12,8 @@ Ministry leaders can view filtered registrations for their assigned ministries, 
    - Filtered by `assignedMinistryIds`
 
 2. **Filter Registrations**
-   - Filter by ministry
-   - Filter by cycle
-   - Filter by status
+   - Use the search box to find registrations by household, child, or guardian name
+   - Use the ministry filter to limit results to a specific assigned ministry
 
 3. **View Registration Details**
    - Click on registration

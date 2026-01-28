@@ -16,20 +16,16 @@ Admins can manage users, assign roles, activate/deactivate users, and manage use
    - See user role, assigned ministries, household associations
    - View user activity
 
-3. **Update User Role**
-   - Select user
-   - Change role (ADMIN, MINISTRY_LEADER, GUARDIAN, VOLUNTEER, GUEST)
-   - Save changes
+3. **Promote User to Admin**
+   - Select a non-admin user
+   - Use the **Promote to Admin** action in the `/dashboard/users` table to change the user's role to `ADMIN`
+   - Changing roles to `MINISTRY_LEADER`, `GUARDIAN`, `VOLUNTEER`, or `GUEST` is not yet supported in this UI and will be handled by future tooling or flows (TBD)
 
-4. **Activate/Deactivate User**
-   - Toggle user active status
-   - Inactive users cannot access system
-   - Update `is_active` field
+4. **(Planned) Activate/Deactivate User**
+   - Not yet available in the current `/dashboard/users` UI; documented here as a future enhancement for toggling user active status via `is_active` field.
 
-5. **Assign Ministries**
-   - Assign user to ministries
-   - Update `assignedMinistryIds`
-   - Affects ministry leader access
+5. **(Planned) Assign Ministries**
+   - Not yet available in the current `/dashboard/users` UI; documented here as a future enhancement for assigning users to ministries and updating `assignedMinistryIds` to affect ministry leader access.
 
 ## Related Flows
 
