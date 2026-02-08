@@ -2061,7 +2061,13 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			.select('*');
 
 		if (error) {
-			console.error('SupabaseAdapter: Error loading branding settings:', error);
+			// Log with explicit properties - Supabase errors sometimes serialize to {} when logged directly
+			console.error('SupabaseAdapter: Error loading branding settings:', {
+				message: error.message,
+				code: error.code,
+				details: error.details,
+				hint: error.hint,
+			});
 			throw error;
 		}
 		
