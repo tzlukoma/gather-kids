@@ -75,16 +75,12 @@ export default function RegistrationsPage() {
 						);
 					} else {
 						// Ministry leader but no assigned ministries yet
-						// This could mean the async check is still running, or they truly have no access
 						console.warn(
 							'⚠️ RegistrationsPage: Ministry leader has no assigned ministries yet',
 							user.email,
 							'This might be temporary if the ministry check is still running'
 						);
-						// Don't set noMinistryAssigned immediately - wait a bit for the check to complete
-						// The filterIds will remain undefined, which means show all (but this is the issue)
-						// For now, we'll show the warning but not block access
-						setNoMinistryAssigned(false); // Don't show error immediately
+						setNoMinistryAssigned(true);
 					}
 				}
 

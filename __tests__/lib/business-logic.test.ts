@@ -75,6 +75,16 @@ describe('Business Logic Rules Tests', () => {
             max_age: 12,
         };
 
+        beforeEach(() => {
+            // Fix system date so age calculations are deterministic (child ages as of 2025-06-15)
+            jest.useFakeTimers();
+            jest.setSystemTime(new Date('2025-06-15'));
+        });
+
+        afterEach(() => {
+            jest.useRealTimers();
+        });
+
         it('returns true if child is within age range', async () => {
             // Set up mocks
             (db.ministries.get as jest.Mock).mockResolvedValue(choirMinistry);
