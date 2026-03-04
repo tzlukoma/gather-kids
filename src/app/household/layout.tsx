@@ -29,7 +29,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuth } from '@/contexts/auth-context';
 import { useBranding } from '@/contexts/branding-context';
 import { ProtectedRoute } from '@/components/auth/protected-route';
-import { ROLES } from '@/lib/constants/roles';
+import { AuthRole } from '@/lib/auth-types';
 import { GuardianSkeleton } from '@/components/skeletons/guardian-skeleton';
 import { getHouseholdProfile, getHouseholdForUser } from '@/lib/dal';
 import type { HouseholdProfileData } from '@/lib/dal';
@@ -285,13 +285,13 @@ function HouseholdProtectedRoute({ children }: { children: React.ReactNode }) {
 			// Check if user has GUARDIAN role OR has household data
 			console.log('HouseholdProtectedRoute: Role comparison:', {
 				userRole: user.metadata?.role,
-				rolesGuardian: ROLES.GUARDIAN,
+				rolesGuardian: AuthRole.GUARDIAN,
 				roleType: typeof user.metadata?.role,
-				rolesGuardianType: typeof ROLES.GUARDIAN,
-				isEqual: user.metadata?.role === ROLES.GUARDIAN,
+				rolesGuardianType: typeof AuthRole.GUARDIAN,
+				isEqual: user.metadata?.role === AuthRole.GUARDIAN,
 			});
 
-			if (user.metadata?.role === ROLES.GUARDIAN) {
+			if (user.metadata?.role === AuthRole.GUARDIAN) {
 				console.log(
 					'HouseholdProtectedRoute: User has GUARDIAN role, granting access'
 				);

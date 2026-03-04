@@ -1,7 +1,7 @@
 import { ReactNode } from 'react';
 import { render } from '@testing-library/react';
 import { AuthProvider, AuthContext } from '@/contexts/auth-context';
-import { ROLES } from '@/lib/constants/roles';
+import { AuthRole } from '@/lib/auth-types';
 import type { BaseUser, AuthRole } from '@/lib/auth-types';
 
 // Mock user data for different roles
@@ -11,7 +11,7 @@ export const mockUsers = {
 		uid: 'admin-user',
 		email: 'admin@example.com',
 		metadata: {
-			role: ROLES.ADMIN,
+			role: AuthRole.ADMIN,
 		},
 		is_active: true,
 	},
@@ -20,7 +20,7 @@ export const mockUsers = {
 		uid: 'leader-user',
 		email: 'leader@example.com',
 		metadata: {
-			role: ROLES.MINISTRY_LEADER,
+			role: AuthRole.MINISTRY_LEADER,
 		},
 		is_active: true,
 	},
@@ -29,7 +29,7 @@ export const mockUsers = {
 		uid: 'guardian-user',
 		email: 'guardian@example.com',
 		metadata: {
-			role: ROLES.GUARDIAN,
+			role: AuthRole.GUARDIAN,
 			household_id: 'test-household',
 		},
 		is_active: true,

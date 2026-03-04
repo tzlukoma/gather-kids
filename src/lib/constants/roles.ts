@@ -1,17 +1,5 @@
-export const ROLES = {
-    ADMIN: 'ADMIN',
-    MINISTRY_LEADER: 'MINISTRY_LEADER',
-    GUARDIAN: 'GUARDIAN',
-    GUEST: 'GUEST'
-} as const;
-
-export type UserRole = keyof typeof ROLES;
-
-export type User = {
-    id: string;
-    email: string;
-    metadata: {
-        role?: UserRole;
-        household_id?: string;
-    };
-};
+/**
+ * Re-export AuthRole as the single source of truth for roles.
+ * @see src/lib/auth-types.ts
+ */
+export { AuthRole } from '@/lib/auth-types';

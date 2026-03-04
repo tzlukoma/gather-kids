@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { CheckInView } from '@/components/gatherKids/check-in-view';
-import { ROLES } from '@/lib/constants/roles';
+import { AuthRole } from '@/lib/auth-types';
 import { ProtectedRoute } from '@/components/auth/protected-route';
 import {
 	Dialog,
@@ -286,7 +286,7 @@ function CheckInContent() {
 export default function Page() {
 	return (
 		<ProtectedRoute
-			allowedRoles={[ROLES.ADMIN, ROLES.MINISTRY_LEADER, ROLES.GUARDIAN]}>
+			allowedRoles={[AuthRole.ADMIN, AuthRole.MINISTRY_LEADER, AuthRole.GUARDIAN]}>
 			<CheckInContent />
 		</ProtectedRoute>
 	);

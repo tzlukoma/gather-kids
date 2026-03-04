@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/react';
 import { useAuth, AuthProvider } from '@/contexts/auth-context';
-import { ROLES } from '@/lib/constants/roles';
+import { AuthRole } from '@/lib/auth-types';
 import { ReactNode } from 'react';
 
 describe('AuthContext', () => {
@@ -38,7 +38,7 @@ describe('AuthContext', () => {
 			name: 'Test User',
 			is_active: true,
 			metadata: {
-				role: ROLES.ADMIN,
+				role: AuthRole.ADMIN,
 			},
 		};
 
@@ -71,7 +71,7 @@ describe('AuthContext', () => {
 			name: 'Test User',
 			is_active: true,
 			metadata: {
-				role: ROLES.ADMIN,
+				role: AuthRole.ADMIN,
 			},
 		};
 
@@ -99,7 +99,7 @@ describe('AuthContext', () => {
 			name: 'Stored User',
 			is_active: true,
 			metadata: {
-				role: ROLES.ADMIN,
+				role: AuthRole.ADMIN,
 			},
 		};
 		localStorage.setItem('gatherkids-user', JSON.stringify(storedUser));
@@ -127,18 +127,18 @@ describe('AuthContext', () => {
 				name: 'Test User',
 				is_active: true,
 				metadata: {
-					role: ROLES.ADMIN,
+					role: AuthRole.ADMIN,
 				},
 			});
 		});
 
-		expect(result.current.userRole).toBe(ROLES.ADMIN);
+		expect(result.current.userRole).toBe(AuthRole.ADMIN);
 
 		// Change role
 		act(() => {
-			result.current.setUserRole(ROLES.GUARDIAN);
+			result.current.setUserRole(AuthRole.GUARDIAN);
 		});
 
-		expect(result.current.userRole).toBe(ROLES.GUARDIAN);
+		expect(result.current.userRole).toBe(AuthRole.GUARDIAN);
 	});
 });

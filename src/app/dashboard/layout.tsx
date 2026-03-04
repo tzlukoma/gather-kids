@@ -46,7 +46,7 @@ import { useAuth, AuthProvider } from '@/contexts/auth-context';
 import { useFeatureFlags } from '@/contexts/feature-flag-context';
 import { FeatureFlagDialog } from '@/components/feature-flag-dialog';
 import { ProtectedRoute } from '@/components/auth/protected-route';
-import { ROLES } from '@/lib/constants/roles';
+import { AuthRole } from '@/lib/auth-types';
 import { AdminSkeleton } from '@/components/skeletons/admin-skeleton';
 import { useBranding } from '@/contexts/branding-context';
 import { SettingsModal } from '@/components/settings/settings-modal';
@@ -204,7 +204,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 									<Settings className="mr-2" />
 									<span>Settings</span>
 								</DropdownMenuItem>
-								{userRole === ROLES.ADMIN && flags.showDemoFeatures && (
+								{userRole === AuthRole.ADMIN && flags.showDemoFeatures && (
 									<SeedDataButton asChild />
 								)}
 								{flags.showDemoFeatures && (
@@ -286,7 +286,7 @@ export default function DashboardLayout({
 	return (
 		<AuthProvider>
 			<ProtectedRoute
-				allowedRoles={[ROLES.ADMIN, ROLES.MINISTRY_LEADER]}
+				allowedRoles={[AuthRole.ADMIN, AuthRole.MINISTRY_LEADER]}
 				loadingComponent={<AdminSkeleton />}>
 				<DashboardLayoutContent>{children}</DashboardLayoutContent>
 			</ProtectedRoute>

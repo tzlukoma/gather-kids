@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ProtectedRoute } from '@/components/auth/protected-route';
-import { ROLES } from '@/lib/constants/roles';
+import { AuthRole } from '@/lib/auth-types';
 import { DefaultLoadingSpinner } from '@/components/ui/spinner';
 import type { Scripture } from '@/lib/types';
 
@@ -296,7 +296,7 @@ function ScriptureBlock({
 export default function EvaluationScripturesPage() {
 	return (
 		<ProtectedRoute
-			allowedRoles={[ROLES.ADMIN, ROLES.MINISTRY_LEADER]}
+			allowedRoles={[AuthRole.ADMIN, AuthRole.MINISTRY_LEADER]}
 			loadingComponent={<DefaultLoadingSpinner />}
 		>
 			<EvaluationScripturesContent />

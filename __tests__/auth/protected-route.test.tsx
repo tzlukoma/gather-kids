@@ -5,7 +5,7 @@ import {
 	mockUsers,
 } from '../../src/test-utils/auth/test-utils';
 import { useRouter } from 'next/navigation';
-import { ROLES } from '@/lib/constants/roles';
+import { AuthRole } from '@/lib/auth-types';
 
 // Mock next/navigation
 jest.mock('next/navigation', () => ({
@@ -28,7 +28,7 @@ describe('ProtectedRoute', () => {
 	it('shows loading component initially', () => {
 		renderWithAuth(
 			<ProtectedRoute
-				allowedRoles={[ROLES.ADMIN]}
+				allowedRoles={[AuthRole.ADMIN]}
 				loadingComponent={<div>Loading...</div>}>
 				<div>Protected Content</div>
 			</ProtectedRoute>,
@@ -40,7 +40,7 @@ describe('ProtectedRoute', () => {
 
 	it('redirects to login when user is not authenticated', async () => {
 		renderWithAuth(
-			<ProtectedRoute allowedRoles={[ROLES.ADMIN]}>
+			<ProtectedRoute allowedRoles={[AuthRole.ADMIN]}>
 				<div>Protected Content</div>
 			</ProtectedRoute>,
 			{ loading: false, user: null }
@@ -53,13 +53,13 @@ describe('ProtectedRoute', () => {
 
 	it('shows content when user has correct role', async () => {
 		renderWithAuth(
-			<ProtectedRoute allowedRoles={[ROLES.ADMIN]}>
+			<ProtectedRoute allowedRoles={[AuthRole.ADMIN]}>
 				<div>Protected Admin Content</div>
 			</ProtectedRoute>,
 			{
 				loading: false,
 				user: mockUsers.admin,
-				userRole: ROLES.ADMIN,
+				userRole: AuthRole.ADMIN,
 			}
 		);
 
@@ -68,13 +68,13 @@ describe('ProtectedRoute', () => {
 
 	it('redirects to unauthorized when user has wrong role', async () => {
 		renderWithAuth(
-			<ProtectedRoute allowedRoles={[ROLES.ADMIN]}>
+			<ProtectedRoute allowedRoles={[AuthRole.ADMIN]}>
 				<div>Protected Content</div>
 			</ProtectedRoute>,
 			{
 				loading: false,
 				user: mockUsers.guardian,
-				userRole: ROLES.GUARDIAN,
+				userRole: AuthRole.GUARDIAN,
 			}
 		);
 
@@ -85,13 +85,13 @@ describe('ProtectedRoute', () => {
 
 	it('allows access to multiple roles', async () => {
 		renderWithAuth(
-			<ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.MINISTRY_LEADER]}>
+			<ProtectedRoute allowedRoles={[AuthRole.ADMIN, AuthRole.MINISTRY_LEADER]}>
 				<div>Shared Protected Content</div>
 			</ProtectedRoute>,
 			{
 				loading: false,
 				user: mockUsers.ministryLeader,
-				userRole: ROLES.MINISTRY_LEADER,
+				userRole: AuthRole.MINISTRY_LEADER,
 			}
 		);
 
