@@ -1,5 +1,70 @@
 # Release Notes - gatherKids
 
+## v1.6.0 - Admin User Management & Production Fixes
+
+### 🆕 New Features
+
+#### Admin User Management
+
+- **User Management page** (`/dashboard/users`) – Admins can view all registered users in a table with email, role, name, email confirmation status, last sign-in, and created date. Access is restricted to users with the ADMIN role; non-admins see “Access denied”.
+- **Create User** – Dialog to create new users with email, password, optional full name, role (e.g. GUEST, MINISTRY_LEADER), and “Mark email as confirmed”. Success toast and table refresh on create.
+- **Set Password** – Admins can set or change a user’s password via a dialog. If changing their own password, they confirm they will be signed out.
+- **Confirm Email** – One-click action to mark a user’s email as confirmed (no magic link required).
+- **Promote to Admin** – One-click action to promote a user to the ADMIN role. Table updates immediately with success toast.
+
+#### API & Auth
+
+- **Protected user APIs** – All user management endpoints require admin: `requireAdmin()` checks session and `user_metadata.role === 'ADMIN'`.
+- **POST `/api/users/create`** – Creates a new auth user with optional metadata (full name, role). Returns 400/409 for validation or duplicate email.
+- **PATCH `/api/users/[userId]`** – Updates a user’s role, `email_confirmed` flag, or password. Uses Supabase Admin API with service role key.
+- **Data hooks** – `useCreateUser()` and `useUpdateUser()` (React Query mutations) for create and update flows with cache invalidation and toasts.
+
+### 🐛 Bug Fixes
+
+#### Users Page 500 in Production
+
+- **Admin auth uses `getUser()` instead of `getSession()`** – Fixed 500 errors when an admin’s access token had expired. `getSession()` needed cookie write access to refresh tokens; route handlers only had read-only cookies. `getUser()` validates the JWT server-side with Supabase and does not write cookies.
+- **Cookie API** – `requireAdmin()` now uses the `getAll()` cookie API expected by `@supabase/ssr` v0.7.
+
+#### Supabase Client Initialization
+
+- **No module-level throw** – `/api/users` and `/api/users/available` no longer create the Supabase admin client at module load. Missing env vars produce a 503 “Server configuration error” instead of an unhandled crash.
+- **`getSupabaseAdmin()` pattern** – Both routes use a helper that returns `null` when `NEXT_PUBLIC_SUPABASE_URL` or `SUPABASE_SERVICE_ROLE_KEY` is missing, with explicit JSON error responses.
+
+### 📋 Deployment & Configuration
+
+- **Vercel environment variables** – If the Users page returns “Invalid API key”, ensure `SUPABASE_SERVICE_ROLE_KEY` is set for the **Production** environment and is not overridden by a variable scoped to Preview. Use the **secret** (service role) key from Supabase **Settings → API** for the same project as `NEXT_PUBLIC_SUPABASE_URL`.
+
+### 📁 Files Changed
+
+#### UI & hooks
+
+- `src/app/dashboard/users/page.tsx` – User Management page (table, Create User, Set Password, Confirm Email, Promote to Admin)
+- `src/components/admin/create-user-dialog.tsx` – Create User dialog
+- `src/components/admin/set-password-dialog.tsx` – Set Password dialog
+- `src/hooks/data/users.ts` – `useUsers`, `useCreateUser`, `useUpdateUser`
+
+#### API & auth
+
+- `src/lib/api-auth.ts` – `requireAdmin()` with `getUser()`, env checks, `getAll()` cookies
+- `src/app/api/users/route.ts` – GET/POST users, `getSupabaseAdmin()`, `perPage: 1000`
+- `src/app/api/users/create/route.ts` – POST create user
+- `src/app/api/users/[userId]/route.ts` – PATCH user (role, email_confirmed, password)
+- `src/app/api/users/available/route.ts` – `getSupabaseAdmin()` instead of module-level throw
+
+#### Tests & docs
+
+- `__tests__/api/users-auth.test.ts`, `__tests__/hooks/users-mutations.test.tsx`, `__tests__/ui/create-user-dialog.test.tsx`, `__tests__/ui/set-password-dialog.test.tsx`, `__tests__/ui/users-management-page.test.tsx`
+- `.github/ISSUES/e2e-admin-user-management.md` – E2E scope for User Management
+
+### ✅ Impact
+
+- **Admins** – Full user lifecycle: create users, set passwords, confirm emails, and promote to admin from the dashboard.
+- **Reliability** – Users page works in production even when admin sessions have expired tokens; missing or wrong Supabase keys return clear 503/500 responses.
+- **Configuration** – Clearer guidance when Production is affected by Preview-scoped env vars.
+
+---
+
 ## v1.5.9 - Ministry Access & Authentication Improvements
 
 ### 🐛 Bug Fixes
