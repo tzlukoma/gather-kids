@@ -274,7 +274,7 @@ function ScriptureBlock({
 							>
 								{label}
 							</div>
-							<div className="min-w-0 flex-1 bg-background p-3 text-sm leading-relaxed">
+							<div className="min-w-0 flex-1 bg-background p-3 text-sm leading-relaxed font-scripture">
 								{text ? (
 									<span
 										dangerouslySetInnerHTML={{
