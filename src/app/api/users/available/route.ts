@@ -1,19 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-if (!supabaseUrl || !supabaseServiceKey) {
-	throw new Error('Missing Supabase configuration');
+function getSupabaseAdmin(): SupabaseClient | null {
+	const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+	const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+	if (!supabaseUrl || !supabaseServiceKey) {
+		return null;
+	}
+	return createClient(supabaseUrl, supabaseServiceKey);
 }
-
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 export async function GET(request: NextRequest) {
 	try {
-		// Get all auth users with pagination
-		// Supabase defaults to 50 users per page, so we need to paginate through all pages
+		const supabase = getSupabaseAdmin();
+		if (!supabase) {
+			console.error('GET /api/users/available: Missing SUPABASE_SERVICE_ROLE_KEY or NEXT_PUBLIC_SUPABASE_URL');
+			return NextResponse.json(
+				{ error: 'Server configuration error' },
+				{ status: 503 }
+			);
+		}
+
 		const allUsers: any[] = [];
 		let page = 1;
 		const perPage = 1000; // Maximum per page to minimize requests
