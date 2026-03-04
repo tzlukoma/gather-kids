@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { requireAdmin } from '@/lib/api-auth';
 
 function getSupabaseAdmin(): SupabaseClient | null {
 	const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -12,6 +13,11 @@ function getSupabaseAdmin(): SupabaseClient | null {
 
 export async function GET(request: NextRequest) {
 	try {
+		const authResult = await requireAdmin();
+		if (!authResult.authorized) {
+			return authResult.response;
+		}
+
 		const supabase = getSupabaseAdmin();
 		if (!supabase) {
 			console.error('GET /api/users/available: Missing SUPABASE_SERVICE_ROLE_KEY or NEXT_PUBLIC_SUPABASE_URL');
