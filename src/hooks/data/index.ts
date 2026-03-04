@@ -27,7 +27,7 @@ export {
 } from './registration';
 export { useLeaders, useLeader, useLeaderSearch } from './leaders';
 export { useUnacknowledgedIncidents, useCheckedInCount } from './dashboard';
-export { useUsers, useUserSearch, usePromoteUser } from './users';
+export { useUsers, useUserSearch, useCreateUser, useUpdateUser } from './users';
 export { useBrandingSettings, useDefaultBrandingSettings, useSaveBrandingSettings } from './branding';
 export { 
   useBibleBeeCycles, 

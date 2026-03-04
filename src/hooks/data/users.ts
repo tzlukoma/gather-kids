@@ -34,7 +34,7 @@ export function useUserSearch(searchTerm: string) {
 // Mutation hook for promoting users
 export function usePromoteUser() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async ({ userId, role }: { userId: string; role: string }) => {
       const response = await fetch('/api/users', {
@@ -44,18 +44,18 @@ export function usePromoteUser() {
         },
         body: JSON.stringify({ userId, role }),
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || 'Failed to promote user');
       }
-      
+
       // Check if response has content before parsing JSON
       const text = await response.text();
       if (!text) {
         return { success: true }; // Return success if no content
       }
-      
+
       try {
         return JSON.parse(text);
       } catch (error) {
@@ -66,6 +66,75 @@ export function usePromoteUser() {
     onSuccess: () => {
       // Invalidate users query to refresh the list
       queryClient.invalidateQueries({ queryKey: ['users'] });
+    },
+  });
+}
+
+export function useCreateUser() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (payload: {
+      email: string;
+      password: string;
+      full_name?: string;
+      role: string;
+      email_confirm: boolean;
+    }) => {
+      const response = await fetch('/api/users/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error((errorData as { error?: string }).error || 'Failed to create user');
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.users() });
+    },
+  });
+}
+
+export function useUpdateUser() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      userId,
+      role,
+      email_confirmed,
+      password,
+    }: {
+      userId: string;
+      role?: string;
+      email_confirmed?: boolean;
+      password?: string;
+    }) => {
+      const body: Record<string, unknown> = {};
+      if (role !== undefined) body.role = role;
+      if (email_confirmed !== undefined) body.email_confirmed = email_confirmed;
+      if (password !== undefined) body.password = password;
+
+      const response = await fetch(`/api/users/${userId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error((errorData as { error?: string }).error || 'Failed to update user');
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.users() });
     },
   });
 }
