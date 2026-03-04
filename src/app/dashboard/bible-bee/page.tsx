@@ -15,7 +15,9 @@ import {
 	CardDescription,
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import { Printer } from 'lucide-react';
 import ScriptureCard from '@/components/gatherKids/scripture-card';
 import BibleBeeManage from '@/components/gatherKids/bible-bee-manage';
 import BibleBeeDebugger from '@/components/gatherKids/bible-bee-debugger';
@@ -241,10 +243,20 @@ export default function BibleBeePage() {
 				<TabsContent value="scriptures">
 					<Card>
 						<CardHeader>
-							<CardTitle>Scriptures for {yearLabel}</CardTitle>
-							<CardDescription>
-								Scriptures assigned for the selected competition year.
-							</CardDescription>
+							<div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+								<div>
+									<CardTitle>Scriptures for {yearLabel}</CardTitle>
+									<CardDescription>
+										Scriptures assigned for the selected competition year.
+									</CardDescription>
+								</div>
+								<Link href={`/evaluation-scriptures?cycle=${selectedCycle}`}>
+									<Button variant="outline" size="sm">
+										<Printer className="mr-2 h-4 w-4" />
+										Print Evaluation Sheet
+									</Button>
+								</Link>
+							</div>
 						</CardHeader>
 						<CardContent>
 							{scripturesLoading ? (

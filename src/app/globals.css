@@ -185,3 +185,15 @@ p, li, blockquote {
     @apply bg-brand-teal;
   }
 }
+
+/* Print pagination: "Page x of y" in footer */
+@media print {
+  @page {
+    margin-bottom: 2rem;
+    @bottom-center {
+      content: "Page " counter(page) " of " counter(pages);
+      font-size: 10pt;
+      color: #6b7280;
+    }
+  }
+}
