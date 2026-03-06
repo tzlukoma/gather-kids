@@ -292,3 +292,7 @@ gather-kids/
 - Please avoid introducing `any` in new source files. Prefer `unknown` plus a narrow runtime guard, or define small domain types/interfaces and mapping helpers in the DAL layer.
 - If a temporary `any` is required for an exceptional case (for example, while migrating legacy data or awaiting regenerated Supabase types), add a localized comment with justification and a TODO linking to the tracking issue: `.github/ISSUES/000-temp-relax-no-explicit-any.md`.
 - The long-term goal is to keep `@typescript-eslint/no-explicit-any` enabled as `error` on `develop` and restrict `any` to only well-documented, short-lived exceptions.
+
+## CI/CD Documentation Rule
+
+Whenever any file in `.github/workflows/`, any pipeline-related script, or any CI/CD configuration is added, modified, or removed, the `docs/CI_CD_PIPELINE.md` documentation must be updated in the same PR to reflect the change. This includes but is not limited to: workflow triggers, jobs, steps, secrets, environment variables, backup procedures, rollback behavior, and manual setup steps.
