@@ -1,0 +1,38 @@
+# Keepalive (PRODUCTION): Prevents the production Supabase free-tier database from pausing. Do not disable or remove — the live app depends on this.
+
+name: Supabase production keepalive
+
+on:
+  schedule:
+    - cron: '0 0 */3 * *'
+  workflow_dispatch:
+
+jobs:
+  keepalive:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+    steps:
+      # Table is created by migration: supabase/migrations/20250308000000_add_keepalive_table.sql
+      # Ensure that migration is applied to production (e.g. via prod-deploy or manual apply).
+
+      - name: Ping keepalive (insert row)
+        run: |
+          curl -sS -f -X POST \
+            "$SUPABASE_URL/rest/v1/keepalive" \
+            -H "apikey: $SUPABASE_ANON_KEY" \
+            -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
+            -H "Content-Type: application/json" \
+            -H "Prefer: return=minimal" \
+            -d '{}'
+
+      - name: Delete old keepalive rows (older than 30 days)
+        run: |
+          THIRTY_DAYS_AGO=$(date -u -d '30 days ago' +%Y-%m-%dT%H:%M:%S.000Z)
+          curl -sS -f -X DELETE \
+            "$SUPABASE_URL/rest/v1/keepalive?pinged_at=lt.${THIRTY_DAYS_AGO}" \
+            -H "apikey: $SUPABASE_ANON_KEY" \
+            -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
+            -H "Content-Type: application/json" \
+            -H "Prefer: return=minimal"
