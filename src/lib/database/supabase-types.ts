@@ -1,7 +1,7 @@
 /**
  * This file contains types generated from the Supabase schema.
  * DO NOT EDIT MANUALLY. This file is auto-generated.
- * Generated on: 2025-10-21T02:48:55.025Z
+ * Generated on: 2026-03-08T23:55:28.801Z
  */
 
 export type SupabaseJson =
@@ -16,7 +16,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "13.0.5"
+    PostgrestVersion: "13.0.4"
   }
   public: {
     Tables: {
@@ -916,6 +916,21 @@ export type Database = {
         }
         Relationships: []
       }
+      keepalive: {
+        Row: {
+          id: number
+          pinged_at: string | null
+        }
+        Insert: {
+          id?: number
+          pinged_at?: string | null
+        }
+        Update: {
+          id?: number
+          pinged_at?: string | null
+        }
+        Relationships: []
+      }
       leader_assignments: {
         Row: {
           assignment_id: string
@@ -1230,33 +1245,63 @@ export type Database = {
         }
         Relationships: []
       }
-      registration_cycles: {
+      ministry_leaders: {
         Row: {
           created_at: string | null
-          cycle_id: string
+          id: string
+          ministry_id: string | null
+          role: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          ministry_id?: string | null
+          role?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          ministry_id?: string | null
+          role?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      registration_cycles: {
+        Row: {
+          active: boolean
+          created_at: string | null
+          cycle_id: string | null
           description: string | null
           end_date: string
-          is_active: boolean
+          id: string
+          is_active: boolean | null
           name: string
           start_date: string
           updated_at: string | null
         }
         Insert: {
+          active?: boolean
           created_at?: string | null
-          cycle_id: string
+          cycle_id?: string | null
           description?: string | null
           end_date: string
-          is_active?: boolean
+          id?: string
+          is_active?: boolean | null
           name: string
           start_date: string
           updated_at?: string | null
         }
         Update: {
+          active?: boolean
           created_at?: string | null
-          cycle_id?: string
+          cycle_id?: string | null
           description?: string | null
           end_date?: string
-          is_active?: boolean
+          id?: string
+          is_active?: boolean | null
           name?: string
           start_date?: string
           updated_at?: string | null
@@ -1473,6 +1518,33 @@ export type Database = {
           },
         ]
       }
+      timeslots: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          end_time: string | null
+          event_id: string | null
+          start_time: string | null
+          timeslot_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          end_time?: string | null
+          event_id?: string | null
+          start_time?: string | null
+          timeslot_id: string
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          end_time?: string | null
+          event_id?: string | null
+          start_time?: string | null
+          timeslot_id?: string
+        }
+        Relationships: []
+      }
       user_households: {
         Row: {
           auth_user_id: string
@@ -1540,30 +1612,6 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      citext: {
-        Args: { "": boolean } | { "": string } | { "": unknown }
-        Returns: string
-      }
-      citext_hash: {
-        Args: { "": string }
-        Returns: number
-      }
-      citextin: {
-        Args: { "": unknown }
-        Returns: string
-      }
-      citextout: {
-        Args: { "": string }
-        Returns: unknown
-      }
-      citextrecv: {
-        Args: { "": unknown }
-        Returns: string
-      }
-      citextsend: {
-        Args: { "": string }
-        Returns: string
-      }
       fn_ministry_ids_email_can_access: {
         Args: { p_email: string }
         Returns: {
