@@ -1,5 +1,6 @@
 # Keepalive (UAT): Manual-only workflow to ping UAT Supabase keepalive table for testing.
 # Same behavior as production keepalive but uses UAT secrets and has no cron — run manually from Actions.
+# Uses service_role key so it works regardless of RLS (UAT-only; prod keepalive stays on anon).
 
 name: Supabase UAT keepalive
 
@@ -11,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       SUPABASE_URL: ${{ secrets.UAT_SUPABASE_URL }}
-      SUPABASE_ANON_KEY: ${{ secrets.UAT_SUPABASE_ANON_KEY }}
+      SUPABASE_KEY: ${{ secrets.UAT_SUPABASE_SERVICE_ROLE_KEY }}
     steps:
       # Table is created by migration: supabase/migrations/20250308000000_add_keepalive_table.sql
       # Ensure that migration is applied to UAT (e.g. via uat-deploy or manual apply).
@@ -20,8 +21,8 @@ jobs:
         run: |
           curl -sS -f -X POST \
             "$SUPABASE_URL/rest/v1/keepalive" \
-            -H "apikey: $SUPABASE_ANON_KEY" \
-            -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
+            -H "apikey: $SUPABASE_KEY" \
+            -H "Authorization: Bearer $SUPABASE_KEY" \
             -H "Content-Type: application/json" \
             -H "Prefer: return=minimal" \
             -d '{}'
@@ -31,7 +32,7 @@ jobs:
           THIRTY_DAYS_AGO=$(date -u -d '30 days ago' +%Y-%m-%dT%H:%M:%S.000Z)
           curl -sS -f -X DELETE \
             "$SUPABASE_URL/rest/v1/keepalive?pinged_at=lt.${THIRTY_DAYS_AGO}" \
-            -H "apikey: $SUPABASE_ANON_KEY" \
-            -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
+            -H "apikey: $SUPABASE_KEY" \
+            -H "Authorization: Bearer $SUPABASE_KEY" \
             -H "Content-Type: application/json" \
             -H "Prefer: return=minimal"
