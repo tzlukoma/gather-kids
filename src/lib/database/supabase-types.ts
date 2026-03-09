@@ -1,7 +1,7 @@
 /**
  * This file contains types generated from the Supabase schema.
  * DO NOT EDIT MANUALLY. This file is auto-generated.
- * Generated on: 2026-03-09T00:06:57.252Z
+ * Generated on: 2026-03-09T00:14:38.029Z
  */
 
 export type SupabaseJson =
@@ -913,6 +913,21 @@ export type Database = {
           leader_id?: string | null
           severity?: string | null
           timestamp?: string | null
+        }
+        Relationships: []
+      }
+      keepalive: {
+        Row: {
+          id: number
+          pinged_at: string | null
+        }
+        Insert: {
+          id?: number
+          pinged_at?: string | null
+        }
+        Update: {
+          id?: number
+          pinged_at?: string | null
         }
         Relationships: []
       }
