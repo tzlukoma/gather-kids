@@ -82,7 +82,7 @@ export default function DashboardPage() {
 	}, [user, loading, router]);
 
 	if (loading || !isAuthorized || isLoading) {
-		return <CardGridSkeleton cards={4} />;
+		return <CardGridSkeleton count={4} />;
 	}
 
 	return (

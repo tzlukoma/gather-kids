@@ -50,7 +50,7 @@ function CheckInContent() {
 	const searchParams = useSearchParams();
 
 	const [selectedEvent, setSelectedEvent] = useState('evt_sunday_school');
-	const [selectedGrades, setSelectedGrades] = useState<Set<string>>(new Set());
+	const [selectedGrades, setSelectedGrades] = useState<Set<string>>(() => new Set());
 	const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
 	const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
 	const [isEventDialogOpen, setIsEventDialogOpen] = useState(false);
@@ -164,7 +164,7 @@ function CheckInContent() {
 	);
 
 	if (loading) {
-		return <CardGridSkeleton cards={8} />;
+		return <CardGridSkeleton count={8} />;
 	}
 
 	return (

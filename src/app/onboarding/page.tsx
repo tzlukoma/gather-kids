@@ -389,7 +389,7 @@ export default function OnboardingPage() {
 						</Button>
 					</div>
 
-					{user && (
+					{user && process.env.NODE_ENV !== 'production' && (
 						<div className="border-t pt-4">
 							<Button
 								variant="ghost"

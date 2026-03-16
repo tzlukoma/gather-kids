@@ -43,7 +43,7 @@ interface CheckInViewProps {
 
 const eventNames: { [key: string]: string } = {
 	evt_sunday_school: 'Sunday School',
-	evt_childrens_church: 'Children&apos;s Church',
+	evt_childrens_church: "Children's Church",
 	evt_teen_church: 'Teen Church',
 };
 
@@ -298,7 +298,7 @@ export function CheckInView({
 
 	// Show loading skeleton while incidents are loading
 	if (enrichedDataLoading) {
-		return <CardGridSkeleton cards={8} />;
+		return <CardGridSkeleton count={8} />;
 	}
 
 	return (
