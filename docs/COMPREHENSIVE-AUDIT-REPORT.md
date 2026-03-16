@@ -1149,6 +1149,29 @@ Uses blocking, non-accessible, untestable browser dialogs.
 
 ---
 
+## Recommended implementation sequence
+
+Use the GitHub issues below in this order to minimize conflicts and to use the audit as a checklist. Complete each wave (or issue) before moving to the next; Wave 3 is the existing demo-mode removal issue (#191).
+
+| Order | Wave | GitHub issue | Title / scope | Status |
+|-------|------|--------------|----------------|--------|
+| 1 | 1 | [#196](https://github.com/tzlukoma/gather-kids/issues/196) | Wave 1: Audit quick wins (isolated fixes) | ☐ |
+| 2 | 2 | [#197](https://github.com/tzlukoma/gather-kids/issues/197) | Wave 2: ESLint safety net | ☐ |
+| 3 | 3 | [#191](https://github.com/tzlukoma/gather-kids/issues/191) | Remove Demo Mode Refactor | ☐ |
+| 4 | 4 | [#198](https://github.com/tzlukoma/gather-kids/issues/198) | Wave 4: Auth and state stabilization | ☐ |
+| 5 | 5 | [#199](https://github.com/tzlukoma/gather-kids/issues/199) | Wave 5: Data layer cleanup | ☐ |
+| 6 | 6 | [#200](https://github.com/tzlukoma/gather-kids/issues/200) | Wave 6: Component architecture (skeletons, empty states, modals) | ☐ |
+| 7 | 7 | [#201](https://github.com/tzlukoma/gather-kids/issues/201) | Wave 7: TypeScript strict safety net | ☐ |
+| 8 | 8 | [#202](https://github.com/tzlukoma/gather-kids/issues/202) | Wave 8: Route restructure — flat (admin) routes (UX-15) | ☐ |
+| 9 | 9 | [#203](https://github.com/tzlukoma/gather-kids/issues/203) | Wave 9: Route error and loading infrastructure | ☐ |
+| 10 | 10 | [#204](https://github.com/tzlukoma/gather-kids/issues/204) | Wave 10: Bundle optimization | ☐ |
+| 11 | 11 | [#205](https://github.com/tzlukoma/gather-kids/issues/205) | Wave 11: Accessibility and usability polish | ☐ |
+| 12 | 12 | [#206](https://github.com/tzlukoma/gather-kids/issues/206) | Wave 12: Strategic and ongoing (monitoring, docs, tech debt) | ☐ |
+
+*Update the Status column (e.g. ☐ → ✅ or "In progress") as you complete each issue.*
+
+---
+
 ## Appendix: Positive Findings
 
 The audit also identified several well-implemented patterns worth preserving and extending:
