@@ -21,11 +21,11 @@
 
 ## 1. Executive Summary
 
-This audit identified **108 findings** across 5 categories:
+This audit identified **109 findings** across 5 categories:
 
 | Category | Critical | High | Major | Medium | Minor/Low | Total |
 |----------|----------|------|-------|--------|-----------|-------|
-| UX & Design | 3 | — | — | 8 | 4 | 15 |
+| UX & Design | 3 | 1 | — | 8 | 4 | 16 |
 | Performance | 5 | 4 | — | 11 | 5 | 25 |
 | Accessibility | 2 | — | 6 | — | 9 | 17 |
 | Usability | — | — | 4 | — | 7 | 11 |
@@ -201,12 +201,66 @@ The `<h1>` is `text-xl text-muted-foreground` (small and muted), while the event
 
 ---
 
-#### UX-15: No Breadcrumbs on Nested Pages
-**Severity**: Medium
+#### UX-15: Flat Feature Routes Incorrectly Nested Under `/dashboard`
+**Severity**: High
+**File**: `src/lib/navigation.ts`, `src/app/dashboard/`
 
-Nested pages (check-in, incidents, rosters) have no breadcrumb navigation. Users rely solely on the sidebar.
+The root issue here isn't missing breadcrumbs — it's a structural problem with the URL hierarchy. `/dashboard` currently serves two roles: a shared layout shell AND a named URL segment that every feature route is nested under:
 
-**Recommendation**: Add a breadcrumb component to the dashboard layout.
+```
+/dashboard/check-in
+/dashboard/rosters
+/dashboard/incidents
+/dashboard/registrations
+/dashboard/leaders
+/dashboard/ministries
+/dashboard/bible-bee
+/dashboard/branding
+/dashboard/reports
+/dashboard/users
+```
+
+These are all top-level features of the application, not sub-pages of a dashboard summary. The nesting implies a hierarchy that doesn't exist in the UX — check-in isn't conceptually "inside" the dashboard overview, it's a peer of it. This creates unnecessarily deep URLs, misrepresents the information architecture, and is what made breadcrumbs seem necessary in the first place.
+
+**Recommendation**: Use Next.js App Router [route groups](https://nextjs.org/docs/app/building-your-application/routing/route-groups) to apply the shared shell layout without adding a URL segment. A `(admin)` route group folder name is ignored in the URL:
+
+```
+src/app/
+  (admin)/
+    layout.tsx          ← sidebar shell + auth protection (no /admin in URL)
+    dashboard/          ← /dashboard  (the overview/summary home page)
+    check-in/           ← /check-in
+    rosters/            ← /rosters
+    incidents/          ← /incidents
+    registrations/
+      page.tsx          ← /registrations
+      [householdId]/    ← /registrations/[householdId]
+    leaders/
+      page.tsx          ← /leaders
+      [leaderId]/       ← /leaders/[leaderId]
+      directory/        ← /leaders/directory
+    ministries/         ← /ministries
+    bible-bee/
+      page.tsx          ← /bible-bee
+      year/[id]/        ← /bible-bee/year/[id]
+      child/[childId]/  ← /bible-bee/child/[childId]
+    branding/           ← /branding
+    reports/            ← /reports
+    users/              ← /users
+  (guardian)/
+    layout.tsx          ← household shell (no /guardian in URL)
+    household/          ← /household  (as-is, already clean)
+    ...
+```
+
+Update `src/lib/navigation.ts` `href` values accordingly (e.g. `'/dashboard/check-in'` → `'/check-in'`).
+
+**Benefits over adding breadcrumbs:**
+- `/dashboard` becomes a semantically meaningful destination — the home/overview screen — not the parent of everything
+- Feature URLs are cleaner and more bookmarkable as first-class routes
+- Eliminates the false URL hierarchy that made breadcrumbs feel necessary
+- Route groups allow different auth/layout rules per group without URL pollution
+- Aligns URL structure with how users actually think about the app
 
 ---
 
@@ -1076,7 +1130,7 @@ Uses blocking, non-accessible, untestable browser dialogs.
 | 3 | Implement dark mode with `next-themes` (UX-12) | User preference |
 | 4 | Upgrade to TanStack Query v5 (MAINT-23) | Better types, smaller bundle |
 | 5 | Add virtualization for long lists (PERF-15) | Scale to 500+ children |
-| 6 | Add breadcrumb navigation (UX-15) | Navigation clarity |
+| 6 | Restructure routes using `(admin)` route group; flatten `/dashboard/*` to top-level (UX-15) | URL clarity, correct information architecture |
 | 7 | Expand E2E test coverage (MAINT-24) | Confidence in changes |
 | 8 | Add `content-visibility` for off-screen content (PERF-15) | Paint performance |
 
