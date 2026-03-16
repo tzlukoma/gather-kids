@@ -2,7 +2,8 @@
 
 **Date**: March 15, 2026
 **Application**: gatherKids — Children's Ministry Management System
-**Stack**: Next.js 15.3.8, React 18.3, TypeScript 5.9, Tailwind CSS, Radix UI (shadcn), Supabase, Dexie (IndexedDB), TanStack React Query 4
+**Stack**: Next.js 15.3.8, React 18.3, TypeScript 5.9, Tailwind CSS, Radix UI (shadcn), Supabase, TanStack React Query 4
+> **Note**: Dexie (IndexedDB) and demo mode are being removed as part of [issue #191](https://github.com/tzlukoma/gather-kids/issues/191). Findings marked ✅ are fully resolved by that refactor.
 **Methodology**: Vercel Web Interface Guidelines, Vercel React Best Practices (62 rules), Vercel Composition Patterns, WCAG 2.1 AA
 
 ---
@@ -21,15 +22,16 @@
 
 ## 1. Executive Summary
 
-This audit identified **109 findings** across 5 categories:
+This audit identified **109 findings** across 5 categories. **6 are fully resolved by the demo mode removal ([issue #191](https://github.com/tzlukoma/gather-kids/issues/191))**, leaving **103 open findings**.
 
-| Category | Critical | High | Major | Medium | Minor/Low | Total |
-|----------|----------|------|-------|--------|-----------|-------|
-| UX & Design | 3 | 1 | — | 8 | 4 | 16 |
-| Performance | 5 | 4 | — | 11 | 5 | 25 |
-| Accessibility | 2 | — | 6 | — | 9 | 17 |
-| Usability | — | — | 4 | — | 7 | 11 |
-| Maintenance & Scalability | 5 | 14 | — | 22 | 14 | 55 |
+| Category | Critical | High | Major | Medium | Minor/Low | Total | Resolved by #191 |
+|----------|----------|------|-------|--------|-----------|-------|------------------|
+| UX & Design | 3 | 1 | — | 8 | 4 | 16 | — |
+| Performance | 4 | 4 | — | 11 | 5 | 24 | 1 |
+| Accessibility | 2 | — | 6 | — | 9 | 17 | — |
+| Usability | — | — | 4 | — | 7 | 11 | — |
+| Maintenance & Scalability | 5 | 11 | — | 20 | 14 | 50 | 5 |
+| **Open Total** | **14** | **16** | **10** | **39** | **39** | **103** | **6** |
 
 **Top 5 systemic issues:**
 
@@ -295,20 +297,21 @@ Zero files use `next/dynamic`. Heavy components are statically imported:
 | `BibleBeeManage` | 2,924 lines | Single admin page |
 | `PhotoCaptureDialog` | 350 lines | Camera APIs, on-demand only |
 | recharts (`chart.tsx`) | Heavy | Few pages |
-| `FeatureFlagDialog` | — | Only when `showDemoFeatures` is true |
 | `SettingsModal` | — | On-demand only |
+
+> `FeatureFlagDialog` was previously listed here but is removed by issue #191 (was only shown when `showDemoFeatures` was true).
 
 **Recommendation**: Use `next/dynamic` with loading fallbacks for all modals, dialogs, and heavy components.
 
 ---
 
-#### PERF-03: Both Database Adapters Loaded Statically
+#### ✅ PERF-03: Both Database Adapters Loaded Statically — *Resolved by issue #191*
 **Rule**: `bundle-conditional`
 **File**: `src/lib/database/factory.ts:1-2`
 
-Both `SupabaseAdapter` (3,500+ lines) and `IndexedDBAdapter` (1,800 lines) are imported statically, but only one is ever used at runtime.
+Both `SupabaseAdapter` (3,500+ lines) and `IndexedDBAdapter` (1,800 lines) were imported statically, but only one was ever used at runtime.
 
-**Recommendation**: Use dynamic `import()` to load only the active adapter.
+**Resolution**: Issue #191 removes demo mode entirely. `IndexedDBAdapter` and all Dexie dependencies are deleted. `factory.ts` becomes a direct, unconditional `SupabaseAdapter` instantiation — no conditional loading needed. This eliminates ~1,800 lines of dead code from the bundle.
 
 ---
 
@@ -460,8 +463,10 @@ A new `Set` is created inside `.filter()` for every element (O(n*m)). Three sepa
 
 ---
 
-#### PERF-18: 280+ Console.log Statements Ship to Production
-**Files**: 81 files, heaviest in `supabase-adapter.ts` (66), `auth-context.tsx` (38), `dal.ts` (81)
+#### PERF-18: Console.log Statements Ship to Production
+**Files**: Heaviest in `supabase-adapter.ts` (66), `auth-context.tsx` (38), `dal.ts` (81 — reduced significantly by issue #191 which removes ~144 demo/Dexie branches)
+
+> **Impact of issue #191**: `shouldUseAdapter()` (called on every DAL invocation) is deleted, the factory's demo-mode logging is removed, and demo branches in `auth-context.tsx` and `dal.ts` are stripped. Total console statement count will drop substantially — exact count to be re-audited post-refactor.
 
 **Recommendation**: Strip via build-time transform (`terser` `drop_console`) or gate behind a debug utility.
 
@@ -489,7 +494,7 @@ Add `id="main-content"` to each layout's `<main>` tag.
 **WCAG**: 2.4.7 Focus Visible (Level AA)
 **File**: `src/app/globals.css`
 
-The global stylesheet has zero focus-visible rules. Many interactive elements (sidebar links, footer links, demo buttons) have no visible focus indicator.
+The global stylesheet has zero focus-visible rules. Many interactive elements (sidebar links, footer links) have no visible focus indicator.
 
 **Recommendation**: Add a global rule:
 ```css
@@ -800,6 +805,8 @@ Contains 6 private sub-components averaging 400-500 lines each. Uses `useState<a
 
 A single file containing the entire multi-step form, validation schemas, field arrays, ministry logic, consent handling, and submission.
 
+> **Impact of issue #191**: Removing `isDemoMode` branches and demo-only email verification bypasses will trim some lines, but the file remains large. Split is still required.
+
 **Recommendation**: Split into step components (`HouseholdInfoStep`, `ChildrenStep`, `MinistryEnrollmentStep`, `ConsentStep`), shared schemas, and types.
 
 ---
@@ -809,6 +816,8 @@ A single file containing the entire multi-step form, validation schemas, field a
 **File**: `src/lib/dal.ts`
 
 Every data access function for the entire app in one file.
+
+> **Impact of issue #191**: ~144 references to demo/legacy Dexie branches are removed, along with `shouldUseAdapter()` and its call sites. This will meaningfully reduce the file size before the split. **Recommend completing issue #191 before attempting the domain split**, as many lines to be removed are interleaved with the legitimate DAL code.
 
 **Recommendation**: Split into domain modules: `dal/households.ts`, `dal/children.ts`, `dal/attendance.ts`, etc.
 
@@ -844,11 +853,13 @@ Uses `isEditing` boolean to switch between create and edit modes.
 
 ---
 
-#### MAINT-09: Ministry Access Logic Duplicated 5 Times
+#### MAINT-09: Ministry Access Logic Duplicated in Auth Context
 **Severity**: High
 **File**: `src/contexts/auth-context.tsx` (lines 44-134, 173-209, 269-307, 372-403, 560-599)
 
 The same ~30-line pattern is implemented 5 times. A helper function exists but is only used in 2 of the 5 places.
+
+> **Impact of issue #191**: The instance at lines 173-209 is the demo localStorage initialization path and will be deleted. Post-refactor this drops from 5 to 4 duplicate instances. Still needs consolidation.
 
 **Recommendation**: Consolidate into the existing `checkAndUpdateMinistryAccess` helper.
 
@@ -876,17 +887,17 @@ Some mutations use the `queryKeys` factory, others use raw string arrays. Siblin
 
 ### 6.4 Data Layer
 
-#### MAINT-12: Direct Dexie Imports Bypass Adapter Pattern
+#### ✅ MAINT-12: Direct Dexie Imports Bypass Adapter Pattern — *Resolved by issue #191*
 **Severity**: High
 **Files**: 9+ files import `@/lib/db` directly
 
-Components and utilities bypass the database adapter by importing the raw Dexie instance. These will break silently in Supabase/production mode.
+Components and utilities bypass the database adapter by importing the raw Dexie instance, breaking silently in Supabase/production mode.
 
-**Recommendation**: Replace all direct `db` imports with `dbAdapter` from the factory.
+**Resolution**: Issue #191 removes Dexie entirely. All direct `@/lib/db` imports across 9+ files are deleted as part of the demo mode removal. `src/lib/db.ts` itself is removed.
 
 ---
 
-#### MAINT-13: `dal.ts` Imports Both Dexie and Adapter
+#### ✅ MAINT-13: `dal.ts` Imports Both Dexie and Adapter — *Resolved by issue #191*
 **Severity**: High
 **File**: `src/lib/dal.ts:15-16`
 
@@ -895,9 +906,9 @@ import { db } from './db';
 import { db as dbAdapter } from './database/factory';
 ```
 
-Many functions use `db` (Dexie) directly, only working in demo mode.
+Many functions used `db` (Dexie) directly, only working in demo mode.
 
-**Recommendation**: Remove all direct `db` imports. Use `dbAdapter` exclusively.
+**Resolution**: Issue #191 removes the `db` (Dexie) import and all ~144 demo/legacy branches from `dal.ts`. The adapter becomes the single data access path.
 
 ---
 
@@ -921,29 +932,31 @@ Business-logic operations with untyped signatures: `commitEnhancedCsvRowsToYear(
 
 ---
 
-#### MAINT-16: `require()` in Factory (ESM Project)
+#### ✅ MAINT-16: `require()` in Factory (ESM Project) — *Resolved by issue #191*
 **Severity**: Medium
 **File**: `src/lib/database/factory.ts:48,55,60`
 
 Uses `require()` for dynamic imports in an ESM project, preventing tree-shaking.
 
-**Recommendation**: Use `await import()` with async initialization.
+**Resolution**: Issue #191 eliminates the need for conditional adapter loading entirely. After demo removal, `factory.ts` becomes a simple direct import and instantiation of `SupabaseAdapter` — no dynamic `require()` or `import()` needed at all.
 
 ---
 
 ### 6.5 Type Safety
 
-#### MAINT-17: 100+ `any` Usages Across Core Files
+#### MAINT-17: 90+ `any` Usages Across Core Files
 **Severity**: Critical (aggregate)
 
-| File | `any` Count |
-|------|-------------|
-| `bible-bee-manage.tsx` | 44 |
-| `supabase-adapter.ts` | 18 |
-| `hooks/data/bibleBee.ts` | 15 |
-| `indexed-db-adapter.ts` | 13 |
-| `dal.ts` | 11 |
-| `auth-context.tsx` | 1 (`getUserId(u: any)`) |
+| File | `any` Count | Status |
+|------|-------------|--------|
+| `bible-bee-manage.tsx` | 44 | Needs fixing |
+| `supabase-adapter.ts` | 18 | Needs fixing |
+| `hooks/data/bibleBee.ts` | 15 | Needs fixing |
+| ~~`indexed-db-adapter.ts`~~ | ~~13~~ | ✅ Deleted by issue #191 |
+| `dal.ts` | 11 (reduced post-#191) | Needs fixing |
+| `auth-context.tsx` | 1 (`getUserId(u: any)`) | Needs fixing |
+
+> **Impact of issue #191**: `indexed-db-adapter.ts` is deleted entirely (-13 `any`). Some of the 11 in `dal.ts` are in demo branches that will also be removed. Post-refactor count will be ~89 or fewer.
 
 **Recommendation**: Replace with domain types from `src/lib/types.ts`. Use `unknown` for catch blocks. Add explicit generics to React Query hooks.
 
@@ -1029,23 +1042,23 @@ Zero `loading.tsx` files at any route segment. Route transitions show no indicat
 
 ### 6.9 Security
 
-#### MAINT-26: `shouldUseAdapter()` Logs Architecture Details
+#### ✅ MAINT-26: `shouldUseAdapter()` Logs Architecture Details — *Resolved by issue #191*
 **Severity**: High
 **File**: `src/lib/dal.ts:48-55`
 
-Logs database mode and environment variable state to the browser console on every DAL call.
+Logged database mode and environment variable state to the browser console on every DAL call — potentially hundreds of times per session.
 
-**Recommendation**: Remove all logging from this function.
+**Resolution**: Issue #191 deletes `shouldUseAdapter()` entirely. With Supabase as the only code path, there is no adapter branching logic to log.
 
 ---
 
-#### MAINT-27: `ProtectedRoute` Potential Infinite Reload Loop
+#### ✅ MAINT-27: `ProtectedRoute` Potential Infinite Reload Loop — *Resolved by issue #191*
 **Severity**: Medium
 **File**: `src/components/auth/protected-route.tsx:55-57`
 
-`window.location.reload()` fires when a demo user exists in localStorage but auth context didn't pick it up. No reload counter means it could loop infinitely.
+`window.location.reload()` fired when a demo user existed in localStorage but auth context didn't pick it up, with no reload counter to prevent looping.
 
-**Recommendation**: Add a reload counter via `sessionStorage` and bail after 1-2 attempts.
+**Resolution**: Issue #191 removes the demo localStorage auth path from `protected-route.tsx` entirely. Auth relies solely on Supabase sessions, eliminating this code path.
 
 ---
 
@@ -1113,9 +1126,9 @@ Uses blocking, non-accessible, untestable browser dialogs.
 | 3 | Split `dal.ts` into domain modules (MAINT-05) | 2 days | Maintainability |
 | 4 | Split `register/page.tsx` into step components (MAINT-04) | 2 days | Maintainability |
 | 5 | Refactor `bible-bee-manage.tsx` into compound components (MAINT-03) | 2 days | Maintainability |
-| 6 | Conditional database adapter loading (PERF-03) | 4 hrs | Bundle reduction |
-| 7 | Strip console.log from production (PERF-18) | 4 hrs | Performance + security |
-| 8 | Consolidate ministry access logic (MAINT-09) | 2 hrs | DRY |
+| ~~6~~ | ~~Conditional database adapter loading (PERF-03)~~ | — | ✅ Resolved by issue #191 |
+| 7 | Strip console.log from production (PERF-18) — re-audit count after #191 | 4 hrs | Performance + security |
+| 8 | Consolidate ministry access logic (MAINT-09) — drops from 5 to 4 instances after #191 | 2 hrs | DRY |
 | 9 | Replace `any` types in Bible Bee component (MAINT-17) | 1 day | Type safety |
 | 10 | Standardize React Query key patterns (MAINT-10) | 4 hrs | Cache reliability |
 
@@ -1145,8 +1158,8 @@ The audit also identified several well-implemented patterns worth preserving and
 3. **Mobile responsiveness** is thoughtfully implemented (table-to-card switches, bottom Sheet for filters)
 4. **Confirmation dialogs** exist for destructive operations on existing data
 5. **React Hook Form + Zod** integration on the client is well-structured
-6. **Database adapter pattern** provides a clean abstraction between IndexedDB and Supabase
-7. **Feature flag system** enables safe rollout of new features
+6. **Database adapter pattern** provides a clean abstraction layer between the DAL and Supabase *(note: IndexedDB side of this is removed by issue #191; the pattern itself is worth preserving for future adapter needs)*
+7. **Feature flag system** enables safe rollout of new features *(note: `DATABASE_MODE` and `SHOW_DEMO_FEATURES` flags are removed by issue #191; remaining flags such as `loginMagicEnabled` and `registrationDraftPersistenceEnabled` continue)*
 8. **Sentry integration** provides production error monitoring
 9. **Comprehensive type definitions** in `src/lib/types.ts` cover all domain entities
 10. **Test infrastructure** is in place with Jest, React Testing Library, and Playwright
