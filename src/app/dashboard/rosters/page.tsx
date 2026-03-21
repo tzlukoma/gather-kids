@@ -82,22 +82,19 @@ import {
 import { RosterSkeleton } from '@/components/skeletons';
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/hooks/data/keys';
+import { EVENT_OPTIONS, getEventName } from '@/lib/constants';
 
 export type RosterChild = EnrichedChild;
 
 type SortDirection = 'asc' | 'desc' | 'none';
 
-const eventOptions = [
-	{ id: 'evt_sunday_school', name: 'Sunday School' },
-	{ id: 'evt_childrens_church', name: "Children's Church" },
-	{ id: 'evt_teen_church', name: 'Teen Church' },
-];
-
-const getEventName = (eventId: string | null) => {
-	if (!eventId) return '';
-	const event = eventOptions.find((e) => e.id === eventId);
-	return event?.name || 'an event';
-};
+// Module-level constants to avoid new references on every render (PERF-13)
+const EMPTY_CHILDREN: Child[] = [];
+const EMPTY_GUARDIANS: Guardian[] = [];
+const EMPTY_HOUSEHOLDS: Household[] = [];
+const EMPTY_ATTENDANCE: Attendance[] = [];
+const EMPTY_INCIDENTS: Incident[] = [];
+const EMPTY_EMERGENCY_CONTACTS: EmergencyContact[] = [];
 
 const gradeSortOrder: { [key: string]: number } = {
 	'Pre-K': -1,
@@ -161,17 +158,17 @@ export default function RostersPage() {
 		useState<Child | null>(null);
 
 	// React Query hooks for data loading
-	const { data: allChildren = [], isLoading: childrenLoading } = useChildren();
-	const { data: allGuardians = [], isLoading: guardiansLoading } =
+	const { data: allChildren = EMPTY_CHILDREN, isLoading: childrenLoading } = useChildren();
+	const { data: allGuardians = EMPTY_GUARDIANS, isLoading: guardiansLoading } =
 		useGuardians();
-	const { data: allHouseholds = [], isLoading: householdsLoading } =
+	const { data: allHouseholds = EMPTY_HOUSEHOLDS, isLoading: householdsLoading } =
 		useHouseholds();
-	const { data: todaysAttendance = [], isLoading: attendanceLoading } =
+	const { data: todaysAttendance = EMPTY_ATTENDANCE, isLoading: attendanceLoading } =
 		useAttendance(today);
-	const { data: todaysIncidents = [], isLoading: incidentsLoading } =
+	const { data: todaysIncidents = EMPTY_INCIDENTS, isLoading: incidentsLoading } =
 		useIncidents(today);
 	const {
-		data: allEmergencyContacts = [],
+		data: allEmergencyContacts = EMPTY_EMERGENCY_CONTACTS,
 		isLoading: emergencyContactsLoading,
 	} = useEmergencyContacts();
 
@@ -247,7 +244,7 @@ export default function RostersPage() {
 
 	const currentEventName = useMemo(() => {
 		return (
-			eventOptions.find((e) => e.id === selectedEvent)?.name || 'Select Event'
+			EVENT_OPTIONS.find((e) => e.id === selectedEvent)?.name || 'Select Event'
 		);
 	}, [selectedEvent]);
 
@@ -921,7 +918,7 @@ export default function RostersPage() {
 										setIsEventDialogOpen(false);
 									}}
 									className="space-y-2">
-									{eventOptions.map((event) => (
+									{EVENT_OPTIONS.map((event) => (
 										<Label
 											key={event.id}
 											htmlFor={event.id}

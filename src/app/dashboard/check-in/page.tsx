@@ -20,9 +20,8 @@ import { Users, Filter, Edit } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useChildren, useAttendance } from '@/hooks/data';
 import { CardGridSkeleton } from '@/components/skeletons/CardGridSkeleton';
-import { Badge } from '@/components/ui/badge';
 import { getTodayIsoDate } from '@/lib/dal';
-import type { Child, Attendance } from '@/lib/types';
+import type { Attendance } from '@/lib/types';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { normalizeGradeDisplay, getGradeSortOrder } from '@/lib/gradeUtils';
 import {
@@ -35,84 +34,33 @@ import {
 	SheetTrigger,
 } from '@/components/ui/sheet';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { EVENT_OPTIONS } from '@/lib/constants';
 
 export type StatusFilter = 'all' | 'checkedIn' | 'checkedOut';
 
-const eventOptions = [
-	{ id: 'evt_sunday_school', name: 'Sunday School' },
-	{ id: 'evt_childrens_church', name: 'Children&apos;s Church' },
-	{ id: 'evt_teen_church', name: 'Teen Church' },
-];
+// Module-level constants to avoid new references on every render (PERF-13)
+const EMPTY_CHILDREN: import('@/lib/types').Child[] = [];
+const EMPTY_ATTENDANCE: Attendance[] = [];
 
-function CheckInContent() {
-	const { user } = useAuth();
-	const isMobile = useIsMobile();
-	const searchParams = useSearchParams();
+// FilterControls extracted from CheckInContent to prevent remount on every render (PERF-12)
+interface FilterControlsProps {
+	statusFilter: StatusFilter;
+	setStatusFilter: (f: StatusFilter) => void;
+	availableGrades: string[];
+	selectedGrades: Set<string>;
+	toggleGrade: (g: string) => void;
+	clearGrades: () => void;
+}
 
-	const [selectedEvent, setSelectedEvent] = useState('evt_sunday_school');
-	const [selectedGrades, setSelectedGrades] = useState<Set<string>>(() => new Set());
-	const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
-	const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
-	const [isEventDialogOpen, setIsEventDialogOpen] = useState(false);
-
-	const today = getTodayIsoDate();
-
-	// Use React Query hooks for data fetching
-	const { data: children = [], isLoading: childrenLoading } = useChildren();
-	const { data: todaysAttendance = [], isLoading: attendanceLoading } =
-		useAttendance(today);
-
-	const loading = childrenLoading || attendanceLoading;
-
-	const checkedInCount = useMemo(() => {
-		if (!todaysAttendance) return 0;
-		return todaysAttendance.filter((a) => !a.check_out_at).length;
-	}, [todaysAttendance]);
-
-	const currentEventName = useMemo(() => {
-		return (
-			eventOptions.find((e) => e.id === selectedEvent)?.name || 'Select Event'
-		);
-	}, [selectedEvent]);
-
-	const availableGrades = useMemo(() => {
-		if (!children) return [];
-		const grades = new Set(
-			children
-				.map((c) => normalizeGradeDisplay(c.grade))
-				.filter(Boolean) as string[]
-		);
-		return Array.from(grades).sort(
-			(a, b) => getGradeSortOrder(a) - getGradeSortOrder(b)
-		);
-	}, [children]);
-
-	const toggleGrade = (grade: string) => {
-		setSelectedGrades((prev) => {
-			const newSet = new Set(prev);
-			if (newSet.has(grade)) {
-				newSet.delete(grade);
-			} else {
-				newSet.add(grade);
-			}
-			return newSet;
-		});
-	};
-
-	// Read query params on mount / when they change and apply initial filters.
-	useEffect(() => {
-		if (!searchParams) return;
-		const filter = searchParams.get('filter');
-		if (filter === 'checkedIn' || filter === 'checkedOut' || filter === 'all') {
-			setStatusFilter(filter as StatusFilter);
-		}
-		const event = searchParams.get('event');
-		if (event && eventOptions.find((e) => e.id === event)) {
-			setSelectedEvent(event);
-		}
-	}, [searchParams]);
-
-	const FilterControls = () => (
+function FilterControls({
+	statusFilter,
+	setStatusFilter,
+	availableGrades,
+	selectedGrades,
+	toggleGrade,
+	clearGrades,
+}: FilterControlsProps) {
+	return (
 		<div className="space-y-4">
 			<div className="space-y-2">
 				<Label className="font-semibold shrink-0">Filter by Status:</Label>
@@ -151,10 +99,7 @@ function CheckInContent() {
 						</Button>
 					))}
 					{selectedGrades.size > 0 && (
-						<Button
-							variant="link"
-							size="sm"
-							onClick={() => setSelectedGrades(new Set())}>
+						<Button variant="link" size="sm" onClick={clearGrades}>
 							Clear
 						</Button>
 					)}
@@ -162,6 +107,77 @@ function CheckInContent() {
 			</div>
 		</div>
 	);
+}
+
+function CheckInContent() {
+	const { user } = useAuth();
+	const isMobile = useIsMobile();
+	const searchParams = useSearchParams();
+
+	const [selectedEvent, setSelectedEvent] = useState('evt_sunday_school');
+	const [selectedGrades, setSelectedGrades] = useState<Set<string>>(() => new Set());
+	const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+	const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
+	const [isEventDialogOpen, setIsEventDialogOpen] = useState(false);
+
+	const today = getTodayIsoDate();
+
+	// Use React Query hooks for data fetching
+	const { data: children = EMPTY_CHILDREN, isLoading: childrenLoading } = useChildren();
+	const { data: todaysAttendance = EMPTY_ATTENDANCE, isLoading: attendanceLoading } =
+		useAttendance(today);
+
+	const loading = childrenLoading || attendanceLoading;
+
+	const checkedInCount = useMemo(() => {
+		if (!todaysAttendance) return 0;
+		return todaysAttendance.filter((a) => !a.check_out_at).length;
+	}, [todaysAttendance]);
+
+	const currentEventName = useMemo(() => {
+		return (
+			EVENT_OPTIONS.find((e) => e.id === selectedEvent)?.name || 'Select Event'
+		);
+	}, [selectedEvent]);
+
+	const availableGrades = useMemo(() => {
+		if (!children) return [];
+		const grades = new Set(
+			children
+				.map((c) => normalizeGradeDisplay(c.grade))
+				.filter(Boolean) as string[]
+		);
+		return Array.from(grades).sort(
+			(a, b) => getGradeSortOrder(a) - getGradeSortOrder(b)
+		);
+	}, [children]);
+
+	const toggleGrade = (grade: string) => {
+		setSelectedGrades((prev) => {
+			const newSet = new Set(prev);
+			if (newSet.has(grade)) {
+				newSet.delete(grade);
+			} else {
+				newSet.add(grade);
+			}
+			return newSet;
+		});
+	};
+
+	const clearGrades = () => setSelectedGrades(new Set());
+
+	// Read query params on mount / when they change and apply initial filters.
+	useEffect(() => {
+		if (!searchParams) return;
+		const filter = searchParams.get('filter');
+		if (filter === 'checkedIn' || filter === 'checkedOut' || filter === 'all') {
+			setStatusFilter(filter as StatusFilter);
+		}
+		const event = searchParams.get('event');
+		if (event && EVENT_OPTIONS.find((e) => e.id === event)) {
+			setSelectedEvent(event);
+		}
+	}, [searchParams]);
 
 	if (loading) {
 		return <CardGridSkeleton count={8} />;
@@ -199,7 +215,7 @@ function CheckInContent() {
 									setIsEventDialogOpen(false);
 								}}
 								className="space-y-2">
-								{eventOptions.map((event) => (
+								{EVENT_OPTIONS.map((event) => (
 									<Label
 										key={event.id}
 										htmlFor={event.id}
@@ -252,7 +268,14 @@ function CheckInContent() {
 								</SheetDescription>
 							</SheetHeader>
 							<div className="py-4">
-								<FilterControls />
+								<FilterControls
+								statusFilter={statusFilter}
+								setStatusFilter={setStatusFilter}
+								availableGrades={availableGrades}
+								selectedGrades={selectedGrades}
+								toggleGrade={toggleGrade}
+								clearGrades={clearGrades}
+							/>
 							</div>
 							<SheetFooter>
 								<Button
@@ -266,7 +289,14 @@ function CheckInContent() {
 				) : (
 					<Card className="md:col-span-2">
 						<CardContent className="pt-6">
-							<FilterControls />
+							<FilterControls
+								statusFilter={statusFilter}
+								setStatusFilter={setStatusFilter}
+								availableGrades={availableGrades}
+								selectedGrades={selectedGrades}
+								toggleGrade={toggleGrade}
+								clearGrades={clearGrades}
+							/>
 						</CardContent>
 					</Card>
 				)}

@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/card';
 import type { EnrichedChild } from './check-in-view';
 import { Button } from '@/components/ui/button';
+import { getEventName } from '@/lib/constants';
 import { Badge } from '@/components/ui/badge';
 import {
 	Popover,
@@ -98,15 +99,7 @@ const isBirthdayThisWeek = (dob?: string): boolean => {
 	return false;
 };
 
-const getEventName = (eventId: string | null) => {
-	const eventNames: { [key: string]: string } = {
-		evt_sunday_school: 'Sunday School',
-		evt_childrens_church: "Children's Church",
-		evt_teen_church: 'Teen Church',
-	};
-	if (!eventId) return '';
-	return eventNames[eventId] || 'an event';
-};
+// getEventName is imported from @/lib/constants (MAINT-20)
 
 export function ChildCard({
 	child,
