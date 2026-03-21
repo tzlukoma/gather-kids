@@ -61,3 +61,6 @@ uat-backup-*
 doc-site/
 # Sentry Config File
 .env.sentry-build-plugin
+
+# Claude local settings (personal overrides, not for team)
+.claude/settings.local.json
