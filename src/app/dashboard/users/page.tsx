@@ -61,6 +61,13 @@ export default function UsersManagementPage() {
 	const [createDialogOpen, setCreateDialogOpen] = useState(false);
 	const [setPasswordUser, setSetPasswordUser] = useState<{ id: string; email: string } | null>(null);
 
+	// Handle errors from React Query (must be before any early return)
+	useEffect(() => {
+		if (error) {
+			console.error('Error loading users:', error);
+		}
+	}, [error]);
+
 	// Check if user is admin
 	if (user?.metadata?.role !== AuthRole.ADMIN) {
 		return (
@@ -74,13 +81,6 @@ export default function UsersManagementPage() {
 			</div>
 		);
 	}
-
-	// Handle errors from React Query
-	useEffect(() => {
-		if (error) {
-			console.error('Error loading users:', error);
-		}
-	}, [error]);
 
 	const promoteToAdmin = async (userId: string, userEmail: string) => {
 		try {

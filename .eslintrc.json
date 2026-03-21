@@ -23,6 +23,9 @@
 			"files": [
 				"src/lib/database/**/*.ts",
 				"src/lib/db.ts",
+				"src/lib/supabaseAdmin.ts",
+				"src/lib/supabaseClient.ts",
+				"src/app/api/**/*.ts",
 				"scripts/**/*.js",
 				"scripts/**/*.ts",
 				"__tests__/**/*.ts",

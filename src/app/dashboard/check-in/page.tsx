@@ -272,6 +272,7 @@ function CheckInContent() {
 				)}
 			</div>
 
+			{/* eslint-disable react/no-children-prop */}
 			<CheckInView
 				children={children}
 				todaysAttendance={todaysAttendance}
@@ -279,6 +280,7 @@ function CheckInContent() {
 				selectedGrades={Array.from(selectedGrades)}
 				statusFilter={statusFilter}
 			/>
+			{/* eslint-enable react/no-children-prop */}
 		</div>
 	);
 }
