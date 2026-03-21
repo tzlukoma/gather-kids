@@ -77,7 +77,7 @@ describe('Branding DAL Functions', () => {
         it('should use default orgId when not provided', async () => {
             mockDb.listBrandingSettings.mockResolvedValue([]);
 
-            await getBrandingSettings();
+            const result = await getBrandingSettings();
 
             expect(mockDb.listBrandingSettings).toHaveBeenCalled();
         });
@@ -89,7 +89,9 @@ describe('Branding DAL Functions', () => {
 
             expect(result).toEqual({
                 app_name: 'gatherKids',
-                description: "The simple, secure, and smart way to manage your children's ministry. Streamline check-ins, track attendance, and keep your community connected.",
+                description:
+                    "The simple, secure, and smart way to manage your children's ministry. " +
+                    'Streamline check-ins, track attendance, and keep your community connected.',
                 logo_url: undefined,
                 youtube_url: undefined,
                 instagram_url: undefined,
@@ -114,8 +116,6 @@ describe('Branding DAL Functions', () => {
                 setting_id: testSettingId,
                 org_id: testOrgId,
                 ...newSettingsData,
-                created_at: mockDate,
-                updated_at: mockDate,
             });
 
             const result = await saveBrandingSettings(testOrgId, newSettingsData);
@@ -151,8 +151,6 @@ describe('Branding DAL Functions', () => {
                 setting_id: testSettingId,
                 org_id: 'default',
                 ...newSettingsData,
-                created_at: mockDate,
-                updated_at: mockDate,
             });
 
             await saveBrandingSettings(undefined, newSettingsData);
@@ -186,7 +184,9 @@ describe('Branding DAL Functions', () => {
         it('should handle database errors gracefully', async () => {
             mockDb.listBrandingSettings.mockRejectedValue(new Error('Database error'));
 
-            await expect(saveBrandingSettings(testOrgId, newSettingsData)).rejects.toThrow('Database error');
+            await expect(saveBrandingSettings(testOrgId, newSettingsData)).rejects.toThrow(
+                'Database error',
+            );
         });
     });
 });

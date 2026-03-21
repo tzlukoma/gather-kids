@@ -1,5 +1,12 @@
-import { queryLeaderProfiles, saveLeaderProfile, getLeaderProfileWithMemberships, saveLeaderMemberships, searchLeaderProfiles } from '../../src/lib/dal';
+import {
+    queryLeaderProfiles,
+    saveLeaderProfile,
+    getLeaderProfileWithMemberships,
+    saveLeaderMemberships,
+    searchLeaderProfiles,
+} from '../../src/lib/dal';
 import type { LeaderProfile, MinistryLeaderMembership, Ministry } from '../../src/lib/types';
+import { v4 as uuidv4 } from 'uuid';
 
 // In-memory data stores for testing
 const leaderProfilesStore = new Map<string, LeaderProfile>();
@@ -118,6 +125,11 @@ describe('Leader Profile Management', () => {
         ministriesStore.set(sampleMinistry.ministry_id, sampleMinistry);
         syncMocks();
     });
+    db.listMinistries.mockImplementation(async () =>
+        Array.from(ministryStore.values()),
+    );
+    db.transaction.mockImplementation(async (fn: () => Promise<any>) => fn());
+});
 
     describe('queryLeaderProfiles', () => {
         it('should return empty array when no profiles exist', async () => {

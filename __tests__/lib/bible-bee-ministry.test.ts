@@ -16,8 +16,9 @@ describe('getBibleBeeMinistry', () => {
             code: 'bible-bee',
             name: 'Bible Bee',
             open_at: '2025-01-01',
-            close_at: '2025-10-08'
+            close_at: '2025-10-08',
         };
+        mockListMinistries.mockResolvedValue([mockMinistry]);
 
         const { db } = require('@/lib/database/factory');
         (db.listMinistries as jest.Mock).mockResolvedValue([mockMinistry]);
