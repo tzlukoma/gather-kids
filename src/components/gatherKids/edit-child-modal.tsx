@@ -235,7 +235,7 @@ export function EditChildModal({
 					</div>
 
 					<div className="space-y-2">
-						<Label htmlFor="child_mobile">Child's Phone (Optional)</Label>
+						<Label htmlFor="child_mobile">Child&apos;s Phone (Optional)</Label>
 						<PhoneInput
 							id="child_mobile"
 							value={watch('child_mobile') || ''}

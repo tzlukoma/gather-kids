@@ -61,7 +61,7 @@ export default function NotFound() {
 							Page Not Found
 						</CardTitle>
 						<CardDescription className="text-lg text-muted-foreground">
-							Sorry, we couldn't find the page you're looking for.
+							Sorry, we couldn&apos;t find the page you&apos;re looking for.
 						</CardDescription>
 					</CardHeader>
 
@@ -104,7 +104,7 @@ export default function NotFound() {
 												Go Back
 											</h4>
 											<p className="text-sm text-muted-foreground mt-1">
-												Use your browser's back button to return to the previous
+												Use your browser&apos;s back button to return to the previous
 												page.
 											</p>
 										</div>
@@ -172,7 +172,7 @@ export default function NotFound() {
 						<div className="pt-6 border-t border-border">
 							<div className="text-center space-y-2">
 								<p className="text-sm text-muted-foreground">
-									Still having trouble? We're here to help!
+									Still having trouble? We&apos;re here to help!
 								</p>
 								<div className="flex justify-center space-x-4">
 									<Link

@@ -39,7 +39,7 @@ export default function UnauthorizedPage() {
 					</div>
 					<CardTitle className="text-2xl">Access Denied</CardTitle>
 					<CardDescription>
-						You don't have permission to access this page.
+						You don&apos;t have permission to access this page.
 					</CardDescription>
 				</CardHeader>
 				<CardContent className="space-y-4">
@@ -47,7 +47,7 @@ export default function UnauthorizedPage() {
 						{user ? (
 							<p>
 								You are logged in as <strong>{user.email}</strong>, but your
-								account doesn't have the required permissions.
+								account doesn&apos;t have the required permissions.
 							</p>
 						) : (
 							<p>Please log in to access this page.</p>

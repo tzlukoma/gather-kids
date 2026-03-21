@@ -278,7 +278,7 @@ function MinistryGroupTable({
 													<AlertDialogTitle>Are you sure?</AlertDialogTitle>
 													<AlertDialogDescription>
 														This action cannot be undone. This will permanently
-														delete the ministry group "{group.name}" and all its
+														delete the ministry group &ldquo;{group.name}&rdquo; and all its
 														assignments.
 													</AlertDialogDescription>
 												</AlertDialogHeader>

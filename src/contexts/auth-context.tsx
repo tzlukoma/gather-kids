@@ -473,8 +473,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 					const supabaseUser = session.user;
 
 					// Set user role immediately to prevent blocking
-					let userRole = supabaseUser.user_metadata?.role || AuthRole.GUEST;
-					let assignedMinistryIds: string[] = [];
+					const userRole = supabaseUser.user_metadata?.role || AuthRole.GUEST;
+					const assignedMinistryIds: string[] = [];
 
 					console.log('AuthProvider: User metadata:', {
 						role: supabaseUser.user_metadata?.role,
@@ -533,8 +533,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 			console.log('Auth Context - Login - Input userData:', userData);
 
 			// Set user role immediately to prevent blocking
-			let userRole = userData.metadata?.role || null;
-			let assignedMinistryIds: string[] = [];
+			const userRole = userData.metadata?.role || null;
+			const assignedMinistryIds: string[] = [];
 
 			const finalUser: BaseUser = {
 				...userData,

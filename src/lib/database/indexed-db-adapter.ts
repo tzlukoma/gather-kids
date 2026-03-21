@@ -1714,7 +1714,7 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 	}
 
 	async listStudentEssays(childId?: string, bibleBeeCycleId?: string): Promise<StudentEssay[]> {
-		let query = this.db.studentEssays.toCollection();
+		const query = this.db.studentEssays.toCollection();
 		
 		if (childId && bibleBeeCycleId) {
 			return query.filter(essay => 
