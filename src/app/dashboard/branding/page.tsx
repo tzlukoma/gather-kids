@@ -183,7 +183,7 @@ export default function BrandingPage() {
 	};
 
 	if (authLoading || !isAuthorized || settingsLoading) {
-		return <CardGridSkeleton cards={4} />;
+		return <CardGridSkeleton count={4} />;
 	}
 
 	return (

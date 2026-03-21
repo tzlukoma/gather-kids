@@ -111,7 +111,7 @@ describe('BrandingPage', () => {
 			});
 			// The component shows a skeleton loader instead of "Loading..." text
 			// Check that the skeleton loader is present (there are multiple generic elements)
-			expect(screen.getAllByRole('generic')).toHaveLength(44); // All skeleton elements
+			expect(screen.getAllByRole('generic')).toHaveLength(30); // 4 skeleton cards × ~7 elements each + wrapper
 		});
 
 		it('should show page for admin users', () => {

@@ -42,7 +42,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { SeedDataButton } from '@/components/gatherKids/seed-data-button';
-import { useAuth, AuthProvider } from '@/contexts/auth-context';
+import { useAuth } from '@/contexts/auth-context';
 import { useFeatureFlags } from '@/contexts/feature-flag-context';
 import { FeatureFlagDialog } from '@/components/feature-flag-dialog';
 import { ProtectedRoute } from '@/components/auth/protected-route';
@@ -284,12 +284,10 @@ export default function DashboardLayout({
 	children: React.ReactNode;
 }) {
 	return (
-		<AuthProvider>
-			<ProtectedRoute
-				allowedRoles={[AuthRole.ADMIN, AuthRole.MINISTRY_LEADER]}
-				loadingComponent={<AdminSkeleton />}>
-				<DashboardLayoutContent>{children}</DashboardLayoutContent>
-			</ProtectedRoute>
-		</AuthProvider>
+		<ProtectedRoute
+			allowedRoles={[AuthRole.ADMIN, AuthRole.MINISTRY_LEADER]}
+			loadingComponent={<AdminSkeleton />}>
+			<DashboardLayoutContent>{children}</DashboardLayoutContent>
+		</ProtectedRoute>
 	);
 }

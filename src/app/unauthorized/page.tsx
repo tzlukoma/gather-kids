@@ -63,7 +63,7 @@ export default function UnauthorizedPage() {
 									<LogIn className="mr-2 h-4 w-4" />
 									Sign Out & Sign In Again
 								</Button>
-								<Link href="/dashboard">
+								<Link href="/">
 									<Button variant="outline" className="w-full">
 										<Home className="mr-2 h-4 w-4" />
 										Go to Dashboard

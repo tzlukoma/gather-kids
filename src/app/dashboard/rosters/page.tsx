@@ -89,7 +89,7 @@ type SortDirection = 'asc' | 'desc' | 'none';
 
 const eventOptions = [
 	{ id: 'evt_sunday_school', name: 'Sunday School' },
-	{ id: 'evt_childrens_church', name: 'Children&apos;s Church' },
+	{ id: 'evt_childrens_church', name: "Children's Church" },
 	{ id: 'evt_teen_church', name: 'Teen Church' },
 ];
 
@@ -147,7 +147,7 @@ export default function RostersPage() {
 	const [groupByGrade, setGroupByGrade] = useState(false);
 
 	const [selectedChildren, setSelectedChildren] = useState<Set<string>>(
-		new Set()
+		() => new Set()
 	);
 
 	const [gradeSort, setGradeSort] = useState<SortDirection>('asc');
@@ -192,8 +192,12 @@ export default function RostersPage() {
 			try {
 				setDataLoading(true);
 
-				// Get the active registration cycle
-				const cycles = await dbAdapter.listRegistrationCycles();
+				// Start fetching ministries and registration cycles in parallel
+				const [cycles, ministries] = await Promise.all([
+					dbAdapter.listRegistrationCycles(),
+					getMinistries(true), // Only get active ministries
+				]);
+
 				const activeCycle = cycles.find(
 					(cycle) => cycle.is_active === true || Number(cycle.is_active) === 1
 				);
@@ -226,11 +230,8 @@ export default function RostersPage() {
 					setNoMinistryAssigned(true);
 				}
 
-				// Load ministry-specific data
-				const [enrollments, ministries] = await Promise.all([
-					getMinistryEnrollmentsByCycle(activeCycle.cycle_id),
-					getMinistries(true), // Only get active ministries
-				]);
+				// Load enrollments that depend on the active cycle
+				const enrollments = await getMinistryEnrollmentsByCycle(activeCycle.cycle_id);
 
 				setAllMinistryEnrollments(enrollments);
 				setAllMinistries(ministries);
