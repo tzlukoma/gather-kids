@@ -2834,9 +2834,22 @@ function RegisterPageContent() {
 	);
 }
 
+function RegisterSkeleton() {
+	return (
+		<div className="max-w-4xl mx-auto px-4 py-8 animate-pulse">
+			<div className="h-8 w-48 bg-muted rounded mb-6" />
+			<div className="space-y-4">
+				{[1, 2, 3, 4].map((i) => (
+					<div key={i} className="h-12 bg-muted rounded" />
+				))}
+			</div>
+		</div>
+	);
+}
+
 export default function RegisterPage() {
 	return (
-		<Suspense fallback={<div>Loading...</div>}>
+		<Suspense fallback={<RegisterSkeleton />}>
 			<RegisterPageContent />
 		</Suspense>
 	);

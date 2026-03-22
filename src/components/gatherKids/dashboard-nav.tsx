@@ -31,6 +31,7 @@ import { LogOut } from 'lucide-react';
 import Image from 'next/image';
 import { AuthRole } from '@/lib/auth-types';
 import { isDemo } from '@/lib/authGuards';
+import { renderNavIcon } from '@/components/ui/nav-icon';
 
 interface DashboardNavProps {
 	children: React.ReactNode;
@@ -42,16 +43,7 @@ export function DashboardNav({ children }: DashboardNavProps) {
 	const { user, userRole, logout } = useAuth();
 	const { settings } = useBranding();
 
-	// Small helper to safely render icons stored as either a component or node
-	function renderIcon(
-		Icon: React.ComponentType<{ className?: string }> | React.ReactNode
-	) {
-		if (typeof Icon === 'function') {
-			const C = Icon as React.ComponentType<{ className?: string }>;
-			return <C className="w-4 h-4" />;
-		}
-		return Icon;
-	}
+	// renderNavIcon is imported from @/components/ui/nav-icon (MAINT-19)
 
 	// Helper to extract user id from possible shapes
 	function getUserId(u: unknown): string | undefined {
@@ -212,7 +204,7 @@ export function DashboardNav({ children }: DashboardNavProps) {
 											<Link
 												href={item.href}
 												className="flex items-center gap-2 w-full">
-												{renderIcon(Icon)}
+												{renderNavIcon(Icon)}
 												<span className="flex-1">{item.label}</span>
 												{item.isBeta && (
 													<Badge

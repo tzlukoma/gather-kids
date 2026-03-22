@@ -32,6 +32,10 @@ import {
 } from '@/hooks/data/dashboard';
 import { CardGridSkeleton } from '@/components/skeletons/CardGridSkeleton';
 
+// Module-level constants to avoid new references on every render (PERF-13)
+const EMPTY_INCIDENTS: import('@/lib/types').Incident[] = [];
+const DEFAULT_REGISTRATION_STATS = { householdCount: 0, childCount: 0 };
+
 export default function DashboardPage() {
 	const router = useRouter();
 	const { user, loading } = useAuth();
@@ -41,7 +45,7 @@ export default function DashboardPage() {
 
 	// Use React Query hooks for data fetching
 	const {
-		data: unacknowledgedIncidents = [],
+		data: unacknowledgedIncidents = EMPTY_INCIDENTS,
 		isLoading: incidentsLoading,
 		error: incidentsError,
 	} = useUnacknowledgedIncidents();
@@ -51,7 +55,7 @@ export default function DashboardPage() {
 		error: countError,
 	} = useCheckedInCount(today);
 	const {
-		data: registrationStats = { householdCount: 0, childCount: 0 },
+		data: registrationStats = DEFAULT_REGISTRATION_STATS,
 		isLoading: statsLoading,
 		error: statsError,
 	} = useRegistrationStats();

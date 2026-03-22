@@ -569,6 +569,7 @@ export default function MinistryPage() {
 				isOpen={isDialogOpen}
 				onCloseAction={() => setIsDialogOpen(false)}
 				ministry={editingMinistry}
+				mode={editingMinistry ? 'edit' : 'create'}
 				onMinistryUpdated={handleMinistryUpdated}
 				createMinistryMutation={createMinistryMutation}
 				updateMinistryMutation={updateMinistryMutation}

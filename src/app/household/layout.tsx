@@ -34,6 +34,7 @@ import { GuardianSkeleton } from '@/components/skeletons/guardian-skeleton';
 import { getHouseholdProfile, getHouseholdForUser } from '@/lib/dal';
 import type { HouseholdProfileData } from '@/lib/dal';
 import { SettingsModal } from '@/components/settings/settings-modal';
+import { renderNavIcon } from '@/components/ui/nav-icon';
 
 function HouseholdLayoutContent({ children }: { children: React.ReactNode }) {
 	const pathname = usePathname();
@@ -123,15 +124,7 @@ function HouseholdLayoutContent({ children }: { children: React.ReactNode }) {
 		[hasBibleBeeEnrollment]
 	);
 
-	function renderIcon(Icon: any) {
-		console.log('renderIcon called with:', Icon, typeof Icon);
-		if (React.isValidElement(Icon)) return Icon;
-		if (typeof Icon === 'function') {
-			const C = Icon as React.ComponentType<{ className?: string }>;
-			return <C className="w-4 h-4" />;
-		}
-		return null;
-	}
+	// renderNavIcon is imported from @/components/ui/nav-icon (MAINT-19)
 
 	if (!user) return null;
 
@@ -225,7 +218,7 @@ function HouseholdLayoutContent({ children }: { children: React.ReactNode }) {
 													(item.href === '/household/bible-bee' &&
 														pathname.startsWith('/household/bible-bee'))
 												}>
-												{renderIcon(item.icon)}
+												{renderNavIcon(item.icon)}
 												<span>{item.label}</span>
 											</SidebarMenuButton>
 										</Link>
@@ -349,7 +342,8 @@ function HouseholdProtectedRoute({ children }: { children: React.ReactNode }) {
 	}
 
 	if (!hasHouseholdAccess) {
-		return null; // Will redirect
+		// USE-04: Show a redirecting indicator instead of a blank screen
+		return <GuardianSkeleton />;
 	}
 
 	return <>{children}</>;

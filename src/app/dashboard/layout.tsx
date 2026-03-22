@@ -50,6 +50,7 @@ import { AuthRole } from '@/lib/auth-types';
 import { AdminSkeleton } from '@/components/skeletons/admin-skeleton';
 import { useBranding } from '@/contexts/branding-context';
 import { SettingsModal } from '@/components/settings/settings-modal';
+import { renderNavIcon } from '@/components/ui/nav-icon';
 
 import { getAuthorizedMenuItems } from '@/lib/navigation';
 
@@ -72,24 +73,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 
 	const menuItems = getMenuItems();
 
-	function renderIcon(Icon: any) {
-		// Handle React elements (like the Bible Bee SVG)
-		if (React.isValidElement(Icon)) return Icon;
-
-		// Handle Lucide React components (they are objects with forwardRef)
-		if (Icon && typeof Icon === 'object' && Icon.$$typeof) {
-			const C = Icon as React.ComponentType<{ className?: string }>;
-			return <C className="w-4 h-4" />;
-		}
-
-		// Handle function components (fallback)
-		if (typeof Icon === 'function') {
-			const C = Icon as React.ComponentType<{ className?: string }>;
-			return <C className="w-4 h-4" />;
-		}
-
-		return null;
-	}
+	// renderNavIcon is imported from @/components/ui/nav-icon (MAINT-19)
 
 	React.useEffect(() => {
 		console.log('DashboardLayout: useEffect triggered', {
@@ -242,7 +226,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 													(item.href !== '/dashboard' ||
 														pathname === '/dashboard')
 												}>
-												{renderIcon(item.icon)}
+												{renderNavIcon(item.icon)}
 												<span className="flex-1">{item.label}</span>
 												{item.isBeta && (
 													<Badge
