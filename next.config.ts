@@ -22,6 +22,22 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  async redirects() {
+    return [
+      // Redirect /dashboard to /check-in (first admin/leader route)
+      {
+        source: '/dashboard',
+        destination: '/check-in',
+        permanent: false,
+      },
+      // Redirect /dashboard/:path* to /:path* (strip the /dashboard prefix)
+      {
+        source: '/dashboard/:path*',
+        destination: '/:path*',
+        permanent: false,
+      },
+    ];
+  },
 };
 
 export default withSentryConfig(nextConfig, {

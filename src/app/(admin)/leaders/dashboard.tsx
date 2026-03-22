@@ -106,7 +106,7 @@ export default function LeadersDashboard() {
 										)}
 									</TableCell>
 									<TableCell>
-										<Link href={`/dashboard/leaders/${leader.user_id}`}>
+										<Link href={`/leaders/${leader.user_id}`}>
 											<ChevronRight className="h-4 w-4 text-muted-foreground" />
 										</Link>
 									</TableCell>

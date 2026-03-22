@@ -110,7 +110,7 @@ function EvaluationScripturesContent() {
 		return (
 			<div className="mx-auto max-w-4xl p-6">
 				<p className="text-muted-foreground">No Bible Bee cycles found. Add cycles in the Bible Bee management area.</p>
-				<Link href="/dashboard/bible-bee">
+				<Link href="/bible-bee">
 					<Button variant="link" className="mt-2">
 						Go to Bible Bee
 					</Button>
@@ -129,7 +129,7 @@ function EvaluationScripturesContent() {
 			<div className="mb-6 flex flex-col gap-4 print:hidden">
 				<div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 					<div className="flex items-center gap-4">
-						<Link href="/dashboard/bible-bee">
+						<Link href="/bible-bee">
 							<Button variant="ghost" size="icon">
 								<ChevronLeft className="h-4 w-4" />
 							</Button>

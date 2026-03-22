@@ -59,7 +59,7 @@ export default function BrandingPage() {
 	// Redirect non-admin users
 	useEffect(() => {
 		if (!authLoading && user && user.metadata?.role !== AuthRole.ADMIN) {
-			router.push('/dashboard');
+			router.push('/admin-overview');
 		}
 	}, [user, authLoading, router]);
 

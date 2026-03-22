@@ -95,17 +95,11 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 			return;
 		}
 
-		// Redirect to first authorized page if on base dashboard
+		// Redirect to first authorized page if needed
 		if (menuItems.length > 0) {
 			const topMenuItem = menuItems[0];
-			// Only redirect if the user is at the base dashboard and not already on their target page
-			if (pathname === '/dashboard' && topMenuItem.href !== '/dashboard') {
-				console.log(
-					'DashboardLayout: Redirecting to first authorized page:',
-					topMenuItem.href
-				);
-				router.replace(topMenuItem.href);
-			}
+			// /dashboard redirects here via next.config.ts; no additional redirect needed
+			// The first menu item is used as the landing page for each role
 		}
 	}, [user, loading, router, menuItems, pathname]);
 
@@ -129,7 +123,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 					<div className="flex items-center gap-4">
 						<SidebarTrigger className="md:hidden" />
 						<Link
-							href="/dashboard"
+							href="/admin-overview"
 							className="flex items-center gap-2 text-foreground">
 							{settings.logo_url ? (
 								<>
@@ -208,9 +202,8 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 											<SidebarMenuButton
 												tooltip={item.label}
 												isActive={
-													pathname.startsWith(item.href) &&
-													(item.href !== '/dashboard' ||
-														pathname === '/dashboard')
+													pathname === item.href ||
+													(item.href !== '/admin-overview' && pathname.startsWith(item.href))
 												}>
 												{renderNavIcon(item.icon)}
 												<span className="flex-1">{item.label}</span>

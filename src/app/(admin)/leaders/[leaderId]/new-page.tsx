@@ -74,7 +74,7 @@ export default function LeaderProfilePage() {
 		if (!loading && user) {
 			if (user?.metadata?.role !== AuthRole.ADMIN) {
 				if (user?.metadata?.role === AuthRole.MINISTRY_LEADER) {
-					router.push('/dashboard/rosters');
+					router.push('/rosters');
 				} else {
 					router.push('/');
 				}
@@ -215,7 +215,7 @@ export default function LeaderProfilePage() {
 				<h2 className="text-xl font-semibold">Leader Profile Not Found</h2>
 				<p className="text-muted-foreground">The requested leader profile does not exist.</p>
 				<Button asChild>
-					<Link href="/dashboard/leaders/directory">
+					<Link href="/leaders/directory">
 						<ArrowLeft className="h-4 w-4 mr-2" />
 						Back to Leader Directory
 					</Link>
@@ -230,7 +230,7 @@ export default function LeaderProfilePage() {
 		<div className="flex flex-col gap-8">
 			<div className="flex items-center gap-4">
 				<Button variant="outline" size="sm" asChild>
-					<Link href="/dashboard/leaders/directory">
+					<Link href="/leaders/directory">
 						<ArrowLeft className="h-4 w-4 mr-2" />
 						Back to Directory
 					</Link>

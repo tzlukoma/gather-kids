@@ -1146,9 +1146,9 @@ function RegisterPageContent() {
 		// Redirect MINISTRY_LEADER users to their dashboard instead of registration
 		if (user?.metadata?.role === 'MINISTRY_LEADER') {
 			console.log(
-				'DEBUG: MINISTRY_LEADER user detected, redirecting to /dashboard/rosters'
+				'DEBUG: MINISTRY_LEADER user detected, redirecting to /rosters'
 			);
-			router.push('/dashboard/rosters');
+			router.push('/rosters');
 			return;
 		}
 
@@ -1167,9 +1167,9 @@ function RegisterPageContent() {
 
 					if (accessibleMinistries.length > 0) {
 						console.log(
-							'DEBUG: Ministry access found, redirecting to /dashboard/rosters'
+							'DEBUG: Ministry access found, redirecting to /rosters'
 						);
-						router.push('/dashboard/rosters');
+						router.push('/rosters');
 						return;
 					}
 				} catch (error) {

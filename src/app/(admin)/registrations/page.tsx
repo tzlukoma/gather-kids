@@ -143,7 +143,7 @@ export default function RegistrationsPage() {
 	};
 
 	const handleRowClick = (householdId: string) => {
-		router.push(`/dashboard/registrations/${householdId}`);
+		router.push(`/registrations/${householdId}`);
 	};
 
 	const loading = ministriesLoading || householdsLoading;
