@@ -24,7 +24,12 @@ import {
 import { CheckCircle } from 'lucide-react';
 import ScriptureCard from '@/components/gatherKids/scripture-card';
 import { EssaySubmissions } from '@/components/gatherKids/essay-submissions';
-import { SquareCropperModal } from '@/components/ui/square-cropper-modal';
+// PERF-06: Lazy-load the heavy cropper modal (812 lines + canvas deps) — only needed on demand
+import dynamic from 'next/dynamic';
+const SquareCropperModal = dynamic(
+	() => import('@/components/ui/square-cropper-modal').then((m) => m.SquareCropperModal),
+	{ loading: () => null }
+);
 import { useAuth } from '@/contexts/auth-context';
 import { canUpdateChildPhoto } from '@/lib/permissions';
 import { toast } from '@/hooks/use-toast';

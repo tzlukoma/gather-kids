@@ -13,12 +13,27 @@ const nextConfig: NextConfig = {
     ignoreDuringBuilds: false,
   },
   images: {
+    // PERF-08: remotePatterns for next/image — covers placeholder images and Supabase Storage
     remotePatterns: [
       {
         protocol: 'https',
         hostname: 'placehold.co',
         port: '',
         pathname: '/**',
+      },
+      {
+        // Supabase Storage: project logos uploaded by admins (project-specific subdomain)
+        protocol: 'https',
+        hostname: '*.supabase.co',
+        port: '',
+        pathname: '/storage/**',
+      },
+      {
+        // Local Supabase dev (via Kong gateway)
+        protocol: 'http',
+        hostname: '127.0.0.1',
+        port: '54321',
+        pathname: '/storage/**',
       },
     ],
   },

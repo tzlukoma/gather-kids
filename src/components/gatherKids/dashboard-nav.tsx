@@ -155,9 +155,12 @@ export function DashboardNav({ children }: DashboardNavProps) {
 						<Link href="/" className="flex items-center gap-2">
 							{settings.logo_url ? (
 								<>
-									<img
+									{/* PERF-08: next/image for optimized logo loading */}
+									<Image
 										src={settings.logo_url}
 										alt={`${settings.app_name || 'gatherKids'} Logo`}
+										width={32}
+										height={32}
 										className="w-8 h-8 object-contain"
 									/>
 									{!settings.use_logo_only && (

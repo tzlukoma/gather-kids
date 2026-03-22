@@ -17,10 +17,11 @@ export default {
     },
     extend: {
       fontFamily: {
-        display: ['Work Sans', 'sans-serif'],
-        body: ['Work Sans', 'sans-serif'],
-        headline: ['Work Sans', 'sans-serif'],
-        scripture: ['Merriweather', 'serif'],
+        // PERF-09: Reference next/font CSS variables injected in layout.tsx
+        display: ['var(--font-work-sans)', 'Work Sans', 'sans-serif'],
+        body: ['var(--font-work-sans)', 'Work Sans', 'sans-serif'],
+        headline: ['var(--font-work-sans)', 'Work Sans', 'sans-serif'],
+        scripture: ['var(--font-merriweather)', 'Merriweather', 'serif'],
         code: ['Source Code Pro', 'monospace'],
       },
       colors: {

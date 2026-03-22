@@ -40,8 +40,16 @@ import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Button } from '../ui/button';
 import { Label } from '../ui/label';
 import { useState, useEffect, useMemo } from 'react';
-import { PhotoCaptureDialog } from './photo-capture-dialog';
-import { PhotoViewerDialog } from './photo-viewer-dialog';
+// PERF-06: Lazy-load camera/photo dialogs — heavy media components only needed on demand
+import dynamic from 'next/dynamic';
+const PhotoCaptureDialog = dynamic(
+	() => import('./photo-capture-dialog').then((m) => m.PhotoCaptureDialog),
+	{ loading: () => null }
+);
+const PhotoViewerDialog = dynamic(
+	() => import('./photo-viewer-dialog').then((m) => m.PhotoViewerDialog),
+	{ loading: () => null }
+);
 import { EditGuardianModal } from './edit-guardian-modal';
 import { EditEmergencyContactModal } from './edit-emergency-contact-modal';
 import { EditChildModal } from './edit-child-modal';

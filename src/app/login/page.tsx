@@ -23,6 +23,7 @@ import {
 	EyeOff,
 } from 'lucide-react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useToast } from '@/hooks/use-toast';
 import { useFeatureFlags } from '@/contexts/feature-flag-context';
 import { ForgotPasswordDialog } from '@/components/auth/forgot-password-dialog';
@@ -137,12 +138,16 @@ export default function LoginPage() {
 						className="flex items-center gap-2 font-headline text-3xl font-bold text-foreground">
 						{settings.logo_url ? (
 							<>
-								<img
+								{/* PERF-08: next/image for optimized logo loading */}
+								<Image
 									src={settings.logo_url}
 									alt={`${settings.app_name || 'gatherKids'} Logo`}
+									width={240}
+									height={96}
 									className={`h-24 w-auto ${
 										settings.use_logo_only ? '' : 'max-w-[50%]'
 									} object-contain`}
+									priority
 								/>
 								{!settings.use_logo_only && (
 									<span>{settings.app_name || 'gatherKids'}</span>

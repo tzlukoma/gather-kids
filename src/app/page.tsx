@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { ArrowRight, Church, Youtube, Instagram } from 'lucide-react';
 import { useFeatureFlags } from '@/contexts/feature-flag-context';
@@ -50,12 +51,16 @@ export default function Home() {
 					<div className="flex items-center gap-2">
 						{settings.logo_url ? (
 							<>
-								<img
+								{/* PERF-08: next/image for optimized logo loading */}
+								<Image
 									src={settings.logo_url}
 									alt={`${settings.app_name || 'gatherKids'} Logo`}
+									width={200}
+									height={64}
 									className={`h-16 w-auto ${
 										settings.use_logo_only ? '' : 'max-w-[50%]'
 									} object-contain`}
+									priority
 								/>
 								{!settings.use_logo_only && (
 									<div className="font-headline text-2xl font-bold text-foreground">
@@ -79,12 +84,15 @@ export default function Home() {
 			<main className="flex-1 flex items-center justify-center">
 				<div className="container mx-auto text-center px-4 py-16">
 					{settings.logo_url && !settings.use_logo_only ? (
-						<img
+						<Image
 							src={settings.logo_url}
 							alt={`${settings.app_name || 'gatherKids'} Logo`}
+							width={200}
+							height={64}
 							className={`mx-auto h-16 w-auto ${
 								settings.use_logo_only ? '' : 'max-w-[50%]'
 							} mb-6 object-contain`}
+							priority
 						/>
 					) : !settings.logo_url ? (
 						<Church className="mx-auto h-16 w-16 text-primary mb-6" />

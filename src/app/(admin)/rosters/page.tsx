@@ -66,10 +66,18 @@ import {
 	DialogTrigger,
 } from '@/components/ui/dialog';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { PhotoViewerDialog } from '@/components/gatherKids/photo-viewer-dialog';
+// PERF-06: Lazy-load camera/photo dialogs — heavy media components only needed on demand
+import dynamic from 'next/dynamic';
+const PhotoViewerDialog = dynamic(
+	() => import('@/components/gatherKids/photo-viewer-dialog').then((m) => m.PhotoViewerDialog),
+	{ loading: () => null }
+);
+const PhotoCaptureDialog = dynamic(
+	() => import('@/components/gatherKids/photo-capture-dialog').then((m) => m.PhotoCaptureDialog),
+	{ loading: () => null }
+);
 import { ChildCard } from '@/components/gatherKids/child-card';
 import { IncidentDetailsDialog } from '@/components/gatherKids/incident-details-dialog';
-import { PhotoCaptureDialog } from '@/components/gatherKids/photo-capture-dialog';
 import { canUpdateChildPhoto } from '@/lib/permissions';
 import {
 	useChildren,

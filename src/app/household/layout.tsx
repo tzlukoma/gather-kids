@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import {
 	SidebarProvider,
@@ -139,12 +140,16 @@ function HouseholdLayoutContent({ children }: { children: React.ReactNode }) {
 							className="flex items-center gap-2 text-foreground">
 							{settings.logo_url ? (
 								<>
-									<img
+									{/* PERF-08: next/image for optimized logo loading */}
+									<Image
 										src={settings.logo_url}
 										alt={`${settings.app_name || 'gatherKids'} Logo`}
+										width={200}
+										height={64}
 										className={`h-16 w-auto ${
 											settings.use_logo_only ? '' : 'max-w-[50%]'
 										} object-contain`}
+										priority
 									/>
 									{!settings.use_logo_only && (
 										<div className="font-headline text-2xl font-bold">
