@@ -1,5 +1,52 @@
 # Release Notes - gatherKids
 
+## v1.7.0 - Platform Hardening, Route Restructure, and Supabase-Only Runtime
+
+### 🚀 Highlights
+
+- **Supabase-only runtime** - Demo mode pathways were removed in favor of a single production-aligned Supabase auth/data path.
+- **Route architecture update** - Admin routes were restructured to a flat route model under an admin route group, improving URL clarity and navigation consistency.
+- **Type and lint safety nets enabled** - TypeScript strict mode and ESLint build gating were enabled to catch defects earlier in CI and local builds.
+- **Data layer modularization** - The monolithic DAL implementation was split into domain modules for better maintainability and reduced merge conflicts.
+- **Accessibility and UX polish** - Added skip links, improved labels and responsive table behavior, and standardized route-level loading/error experiences.
+
+### 🆕 Major Improvements
+
+#### Routing, Errors, and Loading
+
+- Added route-level `error.tsx` and `loading.tsx` boundaries across admin flows.
+- Improved recovery UX with clearer fallback states and retry behavior.
+- Updated navigation behavior to align with flattened admin route paths.
+
+#### Data Layer and State Management
+
+- Split core DAL logic into domain-focused modules while preserving existing app behavior.
+- Stabilized auth and role/ministry state handling to reduce edge-case authorization issues.
+- Standardized React Query key usage and cache invalidation patterns across key hooks.
+
+#### Performance and Bundle Quality
+
+- Reduced critical-path bundle pressure through lazy loading and import cleanups.
+- Improved image/font loading strategy and removed/isolated heavier dependencies where possible.
+
+#### Reliability and Operations
+
+- Added/expanded monitoring and health-check coverage.
+- Improved docs and operational readiness for ongoing maintenance.
+
+### ⚠️ Notable Behavioral Changes
+
+- **Admin URL structure changed** - Admin pages now use flat paths (for example `/check-in`, `/rosters`) instead of nested `/dashboard/*` URLs.
+- **Demo mode removed** - Application behavior is now aligned to Supabase-backed auth and data access flows.
+
+### ✅ Impact
+
+- **Developers** - Faster detection of type/lint regressions and clearer module boundaries.
+- **Leaders/Admins** - More consistent route behavior, loading states, and error recovery.
+- **Operations** - Improved observability and readiness for production support.
+
+---
+
 ## v1.6.0 - Admin User Management & Production Fixes
 
 ### 🆕 New Features
