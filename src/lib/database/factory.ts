@@ -7,6 +7,11 @@ export function createDatabaseAdapter(): DatabaseAdapter {
 	const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
 	if (!supabaseUrl || !supabaseKey) {
+		if (process.env.NODE_ENV === 'test') {
+			// In tests, @/lib/database/factory is mocked at the test level.
+			// Return a stub so module load succeeds before mocks are applied.
+			return {} as DatabaseAdapter;
+		}
 		throw new Error(
 			'Supabase configuration is required. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.'
 		);
