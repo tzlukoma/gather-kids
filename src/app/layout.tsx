@@ -7,6 +7,7 @@ import { BrandingProvider } from '@/contexts/branding-context';
 import { ReactQueryProvider } from '@/lib/queryClient';
 import VercelAnalytics from '@/components/VercelAnalytics';
 import { DynamicMetadata } from '@/components/DynamicMetadata';
+import { WebVitals } from '@/components/analytics/web-vitals';
 import { AuthDebug } from '@/components/auth/auth-debug';
 import { DebugInstaller } from '@/lib/debug/debug-installer';
 import { DebugPanelDialog } from '@/components/debug/debug-panel-dialog';
@@ -49,6 +50,7 @@ export default function RootLayout({
 				</FeatureFlagProvider>
 				<Toaster />
 				{process.env.NODE_ENV === 'production' && <VercelAnalytics />}
+				<WebVitals />
 			</body>
 		</html>
 	);
