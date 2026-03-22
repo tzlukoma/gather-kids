@@ -212,7 +212,7 @@ export default function LeaderProfilePage() {
 	if (!profileData.profile) {
 		return (
 			<div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
-				<h2 className="text-xl font-semibold">Leader Profile Not Found</h2>
+				<h1 className="text-xl font-semibold">Leader Profile Not Found</h1>
 				<p className="text-muted-foreground">The requested leader profile does not exist.</p>
 				<Button asChild>
 					<Link href="/leaders/directory">

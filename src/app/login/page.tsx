@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import {
@@ -41,6 +41,21 @@ export default function LoginPage() {
 	const [password, setPassword] = useState('');
 	const [showPassword, setShowPassword] = useState(false);
 	const [loading, setLoading] = useState(false);
+
+	// Show session expired toast if redirected from an expired session
+	useEffect(() => {
+		if (typeof window !== 'undefined') {
+			const sessionExpired = sessionStorage.getItem('auth:session_expired');
+			if (sessionExpired) {
+				sessionStorage.removeItem('auth:session_expired');
+				toast({
+					title: 'Session Expired',
+					description: 'Your session has expired. Please sign in again.',
+					variant: 'destructive',
+				});
+			}
+		}
+	}, [toast]);
 
 	// Handle Supabase authentication
 	const handleLogin = async () => {
@@ -131,7 +146,7 @@ export default function LoginPage() {
 
 	return (
 		<div className="flex flex-col min-h-screen bg-muted/50">
-			<main className="flex-grow flex flex-col items-center justify-center p-4">
+			<main id="main-content" className="flex-grow flex flex-col items-center justify-center p-4">
 				<div className="mb-8">
 					<Link
 						href="/"
@@ -226,6 +241,7 @@ export default function LoginPage() {
 											size="icon"
 											className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
 											onClick={() => setShowPassword(!showPassword)}
+											aria-label={showPassword ? 'Hide password' : 'Show password'}
 											disabled={loading}>
 											{showPassword ? (
 												<EyeOff className="h-4 w-4" />

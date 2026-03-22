@@ -129,7 +129,7 @@ export default function YearManagePage() {
 	return (
 		<div className="space-y-4">
 			<div className="flex items-center justify-between">
-				<h2 className="text-2xl font-bold">Manage Bible Bee Year</h2>
+				<h1 className="text-2xl font-bold">Manage Bible Bee Year</h1>
 			</div>
 
 			<Card>

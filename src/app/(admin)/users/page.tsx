@@ -93,7 +93,7 @@ export default function UsersManagementPage() {
 		} catch (err) {
 			console.error('Error promoting user:', err);
 			toast({
-				title: 'Error',
+				title: 'Promotion Failed',
 				description:
 					err instanceof Error ? err.message : 'Failed to promote user',
 				variant: 'destructive',
@@ -112,7 +112,7 @@ export default function UsersManagementPage() {
 			});
 		} catch (err) {
 			toast({
-				title: 'Error',
+				title: 'Email Confirmation Failed',
 				description: err instanceof Error ? err.message : 'Failed to confirm email',
 				variant: 'destructive',
 			});

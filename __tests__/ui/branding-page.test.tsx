@@ -370,7 +370,7 @@ describe('BrandingPage', () => {
 
 			await waitFor(() => {
 				expect(mockToast).toHaveBeenCalledWith({
-					title: 'Error',
+					title: 'Save Failed',
 					description: 'Failed to save branding settings. Please try again.',
 					variant: 'destructive',
 				});

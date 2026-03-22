@@ -369,7 +369,7 @@ export default function MinistryPage() {
 				ministriesError || groupsError
 			);
 			toast({
-				title: 'Error',
+				title: 'Ministry Load Failed',
 				description: 'Failed to load ministry data',
 				variant: 'destructive',
 			});

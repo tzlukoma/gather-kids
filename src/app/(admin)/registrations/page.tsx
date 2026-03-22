@@ -174,7 +174,7 @@ export default function RegistrationsPage() {
 		return (
 			<div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
 				<div className="text-center space-y-2">
-					<h2 className="text-2xl font-semibold">No Ministry Assigned</h2>
+					<h1 className="text-2xl font-semibold">No Ministry Assigned</h1>
 					<p className="text-muted-foreground max-w-md">
 						Your email address ({user.email}) is not currently associated with
 						any active ministry. Please contact your administrator to assign you
@@ -281,6 +281,7 @@ export default function RegistrationsPage() {
 					</div>
 				</CardHeader>
 				<CardContent>
+					<div className="overflow-x-auto">
 					<Table>
 						<TableHeader>
 							<TableRow>
@@ -326,6 +327,7 @@ export default function RegistrationsPage() {
 							)}
 						</TableBody>
 					</Table>
+					</div>
 				</CardContent>
 			</Card>
 		</div>

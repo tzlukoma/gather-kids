@@ -602,7 +602,7 @@ export default function RostersPage() {
 		return (
 			<div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
 				<div className="text-center space-y-2">
-					<h2 className="text-2xl font-semibold">No Ministry Assigned</h2>
+					<h1 className="text-2xl font-semibold">No Ministry Assigned</h1>
 					<p className="text-muted-foreground max-w-md">
 						Your email address ({user.email}) is not currently associated with
 						any active ministry. Please contact your administrator to assign you
@@ -837,9 +837,9 @@ export default function RostersPage() {
 					.map(([grade, childrenInGrade]) => (
 						<React.Fragment key={grade}>
 							<div className="bg-muted/50 p-2 rounded-md">
-								<h3 className="font-bold text-muted-foreground">
+								<h2 className="font-bold text-muted-foreground">
 									{grade} ({childrenInGrade.length})
-								</h3>
+								</h2>
 							</div>
 							{childrenInGrade.map((child) => (
 								<ChildCard
@@ -1027,7 +1027,9 @@ export default function RostersPage() {
 								</Button>
 							</div>
 						)}
-						{isMobile ? renderCards() : renderTable()}
+						{isMobile ? renderCards() : (
+						<div className="overflow-x-auto">{renderTable()}</div>
+					)}
 					</CardContent>
 				</Card>
 			</div>
