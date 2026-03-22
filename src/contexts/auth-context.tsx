@@ -258,8 +258,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 				session?.user
 			) {
 				const supabaseUser = session.user;
-				let userRole = supabaseUser.user_metadata?.role || AuthRole.GUEST;
-				let assignedMinistryIds: string[] = [];
+				const userRole = supabaseUser.user_metadata?.role || AuthRole.GUEST;
+				const assignedMinistryIds: string[] = [];
 
 				const finalUser: BaseUser = {
 					uid: supabaseUser.id,
@@ -302,8 +302,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 		console.log('AuthProvider: Login called with userData:', userData);
 		setLoading(true);
 		try {
-			let userRole = userData.metadata?.role || null;
-			let assignedMinistryIds: string[] = [];
+			const userRole = userData.metadata?.role || null;
+			const assignedMinistryIds: string[] = [];
 
 			const finalUser: BaseUser = {
 				...userData,

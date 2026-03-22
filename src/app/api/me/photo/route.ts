@@ -79,8 +79,6 @@ export async function POST(request: NextRequest) {
 			);
 		}
 
-		let photoUrl: string;
-
 		// Upload to Supabase Storage
 		const timestamp = Date.now();
 		const extension = file.name.split('.').pop() || 'jpg';
@@ -107,7 +105,7 @@ export async function POST(request: NextRequest) {
 			.from('public-avatars')
 			.getPublicUrl(storagePath);
 
-		photoUrl = urlData.publicUrl;
+		const photoUrl = urlData.publicUrl;
 
 		// Update user profile in database
 		await saveProfile(user.uid || user.id || '', {
