@@ -64,3 +64,4 @@ doc-site/
 
 # Claude local settings (personal overrides, not for team)
 .claude/settings.local.json
+.claude/worktrees/**/.claude/settings.local.json
