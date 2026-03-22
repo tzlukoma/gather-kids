@@ -1,0 +1,14 @@
+{
+  "eval_id": 1,
+  "eval_name": "eval-full-suite",
+  "prompt": "/e2e",
+  "assertions": [
+    {"text": "Supabase status was checked before running tests"},
+    {"text": "node_modules symlink step was handled (checked or created)"},
+    {"text": ".env.e2e.local was confirmed present or created"},
+    {"text": "Dev server was started from the main repo root (not the worktree)"},
+    {"text": "All 10 Playwright tests passed"},
+    {"text": "Dev server was killed/cleaned up after tests completed"},
+    {"text": "npx dotenv-cli was used to load .env.e2e.local for the playwright command"}
+  ]
+}

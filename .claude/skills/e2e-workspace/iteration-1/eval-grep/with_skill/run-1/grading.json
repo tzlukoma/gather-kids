@@ -1,0 +1,28 @@
+{
+  "eval_id": 3,
+  "eval_name": "eval-grep",
+  "configuration": "with_skill",
+  "expectations": [
+    {
+      "text": "--grep \"registration\" was passed through to the playwright command",
+      "passed": true,
+      "evidence": "Command: `npx playwright test ... --grep \"registration\"` — flag passed through as-is."
+    },
+    {
+      "text": "Only registration-related tests ran (not the full suite)",
+      "passed": true,
+      "evidence": "7 tests ran (all containing 'registration' in their name), not the full 10."
+    },
+    {
+      "text": "The filtered tests passed",
+      "passed": true,
+      "evidence": "7 passed (32.2s)"
+    }
+  ],
+  "summary": {
+    "pass_rate": 1.0,
+    "passed": 3,
+    "failed": 0,
+    "total": 3
+  }
+}

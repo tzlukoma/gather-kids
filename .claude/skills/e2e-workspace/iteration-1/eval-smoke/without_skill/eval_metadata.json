@@ -1,0 +1,10 @@
+{
+  "eval_id": 2,
+  "eval_name": "eval-smoke",
+  "prompt": "/e2e smoke",
+  "assertions": [
+    {"text": "The word 'smoke' was expanded to e2e/smoke-test.spec.ts (not run as a --grep)"},
+    {"text": "Only 2 tests ran (the smoke tests), not the full suite of 10"},
+    {"text": "Both smoke tests passed"}
+  ]
+}

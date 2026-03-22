@@ -1,0 +1,28 @@
+{
+  "eval_id": 3,
+  "eval_name": "eval-grep",
+  "configuration": "without_skill",
+  "expectations": [
+    {
+      "text": "--grep \"registration\" was passed through to the playwright command",
+      "passed": false,
+      "evidence": "No tests ran — Bash was blocked."
+    },
+    {
+      "text": "Only registration-related tests ran (not the full suite)",
+      "passed": false,
+      "evidence": "No tests ran at all."
+    },
+    {
+      "text": "The filtered tests passed",
+      "passed": false,
+      "evidence": "No tests ran at all."
+    }
+  ],
+  "summary": {
+    "pass_rate": 0.0,
+    "passed": 0,
+    "failed": 3,
+    "total": 3
+  }
+}

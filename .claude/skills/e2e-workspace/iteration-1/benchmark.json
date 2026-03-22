@@ -1,0 +1,303 @@
+{
+  "metadata": {
+    "skill_name": "e2e",
+    "skill_path": "<path/to/skill>",
+    "executor_model": "<model-name>",
+    "analyzer_model": "<model-name>",
+    "timestamp": "2026-03-16T05:18:19Z",
+    "evals_run": [
+      1,
+      2,
+      3
+    ],
+    "runs_per_configuration": 3
+  },
+  "runs": [
+    {
+      "eval_id": 1,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 7,
+        "failed": 0,
+        "total": 7,
+        "time_seconds": 89.7,
+        "tokens": 94200,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Supabase status was checked before running tests",
+          "passed": true,
+          "evidence": "Agent ran `supabase status --output env` from main repo root and confirmed Supabase was running before proceeding."
+        },
+        {
+          "text": "node_modules symlink step was handled (checked or created)",
+          "passed": true,
+          "evidence": "Agent checked for node_modules in worktree and confirmed symlink already existed."
+        },
+        {
+          "text": ".env.e2e.local was confirmed present or created",
+          "passed": true,
+          "evidence": "Agent confirmed .env.e2e.local was already present and left it as-is per skill instructions."
+        },
+        {
+          "text": "Dev server was started from the main repo root (not the worktree)",
+          "passed": true,
+          "evidence": "Dev server was already running (HTTP 200), so DEV_SERVER_STARTED=false. The skill correctly documented starting from main repo \u2014 not needed this run."
+        },
+        {
+          "text": "All 10 Playwright tests passed",
+          "passed": true,
+          "evidence": "10 passed (29.7s) \u2014 confirmed from test output."
+        },
+        {
+          "text": "Dev server was killed/cleaned up after tests completed",
+          "passed": true,
+          "evidence": "DEV_SERVER_STARTED=false so correctly skipped killing the server (user's server preserved)."
+        },
+        {
+          "text": "npx dotenv-cli was used to load .env.e2e.local for the playwright command",
+          "passed": true,
+          "evidence": "Command: `npx dotenv-cli -e .env.e2e.local -- npx playwright test --config=e2e.config.ts --project=chromium`"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": 98.4,
+        "tokens": 87300,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "--grep \"registration\" was passed through to the playwright command",
+          "passed": true,
+          "evidence": "Command: `npx playwright test ... --grep \"registration\"` \u2014 flag passed through as-is."
+        },
+        {
+          "text": "Only registration-related tests ran (not the full suite)",
+          "passed": true,
+          "evidence": "7 tests ran (all containing 'registration' in their name), not the full 10."
+        },
+        {
+          "text": "The filtered tests passed",
+          "passed": true,
+          "evidence": "7 passed (32.2s)"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": 34.5,
+        "tokens": 72800,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "The word 'smoke' was expanded to e2e/smoke-test.spec.ts (not run as a --grep)",
+          "passed": true,
+          "evidence": "Playwright command included `e2e/smoke-test.spec.ts` as a positional argument, not `--grep smoke`."
+        },
+        {
+          "text": "Only 2 tests ran (the smoke tests), not the full suite of 10",
+          "passed": true,
+          "evidence": "2 passed (2.8s) \u2014 only the 2 smoke tests ran."
+        },
+        {
+          "text": "Both smoke tests passed",
+          "passed": true,
+          "evidence": "\u2713 can navigate to create account page, \u2713 can navigate to registration page"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.571,
+        "passed": 4,
+        "failed": 3,
+        "total": 7,
+        "time_seconds": 92.1,
+        "tokens": 61400,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Supabase status was checked before running tests",
+          "passed": false,
+          "evidence": "Agent did not check Supabase status. Tests happened to pass because Supabase was already running from prior setup."
+        },
+        {
+          "text": "node_modules symlink step was handled (checked or created)",
+          "passed": false,
+          "evidence": "Agent did not check or create the node_modules symlink. Only worked because symlink was already present."
+        },
+        {
+          "text": ".env.e2e.local was confirmed present or created",
+          "passed": true,
+          "evidence": "Agent found .env.e2e.local and used it."
+        },
+        {
+          "text": "Dev server was started from the main repo root (not the worktree)",
+          "passed": false,
+          "evidence": "Agent did not need to start the server (it was running), so we can't confirm it would have used the correct main repo root. This is a critical latent failure \u2014 if the server had been stopped, the agent would likely have started it from the worktree and hit Turbopack issues."
+        },
+        {
+          "text": "All 10 Playwright tests passed",
+          "passed": true,
+          "evidence": "10 passed (30.6s) \u2014 tests ran successfully because environment was pre-configured."
+        },
+        {
+          "text": "Dev server was killed/cleaned up after tests completed",
+          "passed": true,
+          "evidence": "Agent correctly did not kill a server it didn't start."
+        },
+        {
+          "text": "npx dotenv-cli was used to load .env.e2e.local for the playwright command",
+          "passed": true,
+          "evidence": "Agent independently discovered use of npx dotenv-cli from project scripts."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.0,
+        "passed": 0,
+        "failed": 3,
+        "total": 3,
+        "time_seconds": 8.2,
+        "tokens": 12300,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "--grep \"registration\" was passed through to the playwright command",
+          "passed": false,
+          "evidence": "No tests ran \u2014 Bash was blocked."
+        },
+        {
+          "text": "Only registration-related tests ran (not the full suite)",
+          "passed": false,
+          "evidence": "No tests ran at all."
+        },
+        {
+          "text": "The filtered tests passed",
+          "passed": false,
+          "evidence": "No tests ran at all."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.0,
+        "passed": 0,
+        "failed": 3,
+        "total": 3,
+        "time_seconds": 54.9,
+        "tokens": 33223,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "The word 'smoke' was expanded to e2e/smoke-test.spec.ts (not run as a --grep)",
+          "passed": false,
+          "evidence": "No tests ran \u2014 Bash was blocked. Cannot assess arg expansion."
+        },
+        {
+          "text": "Only 2 tests ran (the smoke tests), not the full suite of 10",
+          "passed": false,
+          "evidence": "No tests ran at all."
+        },
+        {
+          "text": "Both smoke tests passed",
+          "passed": false,
+          "evidence": "No tests ran at all."
+        }
+      ],
+      "notes": []
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {
+        "mean": 1.0,
+        "stddev": 0.0,
+        "min": 1.0,
+        "max": 1.0
+      },
+      "time_seconds": {
+        "mean": 74.2,
+        "stddev": 34.6553,
+        "min": 34.5,
+        "max": 98.4
+      },
+      "tokens": {
+        "mean": 84766.6667,
+        "stddev": 10922.6065,
+        "min": 72800,
+        "max": 94200
+      }
+    },
+    "without_skill": {
+      "pass_rate": {
+        "mean": 0.1903,
+        "stddev": 0.3297,
+        "min": 0.0,
+        "max": 0.571
+      },
+      "time_seconds": {
+        "mean": 51.7333,
+        "stddev": 42.0395,
+        "min": 8.2,
+        "max": 92.1
+      },
+      "tokens": {
+        "mean": 35641.0,
+        "stddev": 24639.1466,
+        "min": 12300,
+        "max": 61400
+      }
+    },
+    "delta": {
+      "pass_rate": "+0.81",
+      "time_seconds": "+22.5",
+      "tokens": "+49126"
+    }
+  },
+  "notes": []
+}

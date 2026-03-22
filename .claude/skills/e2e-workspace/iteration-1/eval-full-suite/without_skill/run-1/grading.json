@@ -1,0 +1,48 @@
+{
+  "eval_id": 1,
+  "eval_name": "eval-full-suite",
+  "configuration": "without_skill",
+  "expectations": [
+    {
+      "text": "Supabase status was checked before running tests",
+      "passed": false,
+      "evidence": "Agent did not check Supabase status. Tests happened to pass because Supabase was already running from prior setup."
+    },
+    {
+      "text": "node_modules symlink step was handled (checked or created)",
+      "passed": false,
+      "evidence": "Agent did not check or create the node_modules symlink. Only worked because symlink was already present."
+    },
+    {
+      "text": ".env.e2e.local was confirmed present or created",
+      "passed": true,
+      "evidence": "Agent found .env.e2e.local and used it."
+    },
+    {
+      "text": "Dev server was started from the main repo root (not the worktree)",
+      "passed": false,
+      "evidence": "Agent did not need to start the server (it was running), so we can't confirm it would have used the correct main repo root. This is a critical latent failure — if the server had been stopped, the agent would likely have started it from the worktree and hit Turbopack issues."
+    },
+    {
+      "text": "All 10 Playwright tests passed",
+      "passed": true,
+      "evidence": "10 passed (30.6s) — tests ran successfully because environment was pre-configured."
+    },
+    {
+      "text": "Dev server was killed/cleaned up after tests completed",
+      "passed": true,
+      "evidence": "Agent correctly did not kill a server it didn't start."
+    },
+    {
+      "text": "npx dotenv-cli was used to load .env.e2e.local for the playwright command",
+      "passed": true,
+      "evidence": "Agent independently discovered use of npx dotenv-cli from project scripts."
+    }
+  ],
+  "summary": {
+    "pass_rate": 0.571,
+    "passed": 4,
+    "failed": 3,
+    "total": 7
+  }
+}

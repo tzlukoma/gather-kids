@@ -1,0 +1,48 @@
+{
+  "eval_id": 1,
+  "eval_name": "eval-full-suite",
+  "configuration": "with_skill",
+  "expectations": [
+    {
+      "text": "Supabase status was checked before running tests",
+      "passed": true,
+      "evidence": "Agent ran `supabase status --output env` from main repo root and confirmed Supabase was running before proceeding."
+    },
+    {
+      "text": "node_modules symlink step was handled (checked or created)",
+      "passed": true,
+      "evidence": "Agent checked for node_modules in worktree and confirmed symlink already existed."
+    },
+    {
+      "text": ".env.e2e.local was confirmed present or created",
+      "passed": true,
+      "evidence": "Agent confirmed .env.e2e.local was already present and left it as-is per skill instructions."
+    },
+    {
+      "text": "Dev server was started from the main repo root (not the worktree)",
+      "passed": true,
+      "evidence": "Dev server was already running (HTTP 200), so DEV_SERVER_STARTED=false. The skill correctly documented starting from main repo — not needed this run."
+    },
+    {
+      "text": "All 10 Playwright tests passed",
+      "passed": true,
+      "evidence": "10 passed (29.7s) — confirmed from test output."
+    },
+    {
+      "text": "Dev server was killed/cleaned up after tests completed",
+      "passed": true,
+      "evidence": "DEV_SERVER_STARTED=false so correctly skipped killing the server (user's server preserved)."
+    },
+    {
+      "text": "npx dotenv-cli was used to load .env.e2e.local for the playwright command",
+      "passed": true,
+      "evidence": "Command: `npx dotenv-cli -e .env.e2e.local -- npx playwright test --config=e2e.config.ts --project=chromium`"
+    }
+  ],
+  "summary": {
+    "pass_rate": 1.0,
+    "passed": 7,
+    "failed": 0,
+    "total": 7
+  }
+}

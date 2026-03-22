@@ -1,0 +1,28 @@
+{
+  "eval_id": 2,
+  "eval_name": "eval-smoke",
+  "configuration": "with_skill",
+  "expectations": [
+    {
+      "text": "The word 'smoke' was expanded to e2e/smoke-test.spec.ts (not run as a --grep)",
+      "passed": true,
+      "evidence": "Playwright command included `e2e/smoke-test.spec.ts` as a positional argument, not `--grep smoke`."
+    },
+    {
+      "text": "Only 2 tests ran (the smoke tests), not the full suite of 10",
+      "passed": true,
+      "evidence": "2 passed (2.8s) — only the 2 smoke tests ran."
+    },
+    {
+      "text": "Both smoke tests passed",
+      "passed": true,
+      "evidence": "✓ can navigate to create account page, ✓ can navigate to registration page"
+    }
+  ],
+  "summary": {
+    "pass_rate": 1.0,
+    "passed": 3,
+    "failed": 0,
+    "total": 3
+  }
+}

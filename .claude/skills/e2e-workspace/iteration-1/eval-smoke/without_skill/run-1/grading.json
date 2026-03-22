@@ -1,0 +1,28 @@
+{
+  "eval_id": 2,
+  "eval_name": "eval-smoke",
+  "configuration": "without_skill",
+  "expectations": [
+    {
+      "text": "The word 'smoke' was expanded to e2e/smoke-test.spec.ts (not run as a --grep)",
+      "passed": false,
+      "evidence": "No tests ran — Bash was blocked. Cannot assess arg expansion."
+    },
+    {
+      "text": "Only 2 tests ran (the smoke tests), not the full suite of 10",
+      "passed": false,
+      "evidence": "No tests ran at all."
+    },
+    {
+      "text": "Both smoke tests passed",
+      "passed": false,
+      "evidence": "No tests ran at all."
+    }
+  ],
+  "summary": {
+    "pass_rate": 0.0,
+    "passed": 0,
+    "failed": 3,
+    "total": 3
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "eval_id": 3,
+  "eval_name": "eval-grep",
+  "prompt": "/e2e --grep \"registration\"",
+  "assertions": [
+    {"text": "--grep \"registration\" was passed through to the playwright command"},
+    {"text": "Only registration-related tests ran (not the full suite)"},
+    {"text": "The filtered tests passed"}
+  ]
+}
