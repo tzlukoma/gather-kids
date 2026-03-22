@@ -1,0 +1,20 @@
+{
+  "skill_name": "e2e",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "/e2e",
+      "expected_output": "All setup steps complete (Supabase running, node_modules symlinked, .env.e2e.local present, dev server started), all 10 playwright tests pass, dev server killed after completion."
+    },
+    {
+      "id": 2,
+      "prompt": "/e2e smoke",
+      "expected_output": "Only the 2 smoke tests in e2e/smoke-test.spec.ts run. The bare word 'smoke' is expanded to the matching spec file path."
+    },
+    {
+      "id": 3,
+      "prompt": "/e2e --grep \"registration\"",
+      "expected_output": "Playwright runs with --grep \"registration\" passed through, filtering to only registration-related tests."
+    }
+  ]
+}
