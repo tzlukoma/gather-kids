@@ -35,7 +35,6 @@ export function createDatabaseAdapter(): DatabaseAdapter {
 			const serverClient = createClient(supabaseUrl, supabaseKey);
 			return new SupabaseAdapter(supabaseUrl, supabaseKey, serverClient);
 		}
-		}
 	}
 }
 
