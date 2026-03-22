@@ -74,6 +74,7 @@ export class TestDatabaseFactory {
 
 		// Create a registration cycle
 		const cycle = await adapter.createRegistrationCycle({
+			name: '2024',
 			start_date: '2024-01-01',
 			end_date: '2024-12-31',
 			is_active: true,

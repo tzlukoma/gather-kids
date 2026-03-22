@@ -2,7 +2,7 @@ import { ReactNode } from 'react';
 import { render } from '@testing-library/react';
 import { AuthProvider, AuthContext } from '@/contexts/auth-context';
 import { AuthRole } from '@/lib/auth-types';
-import type { BaseUser, AuthRole } from '@/lib/auth-types';
+import type { BaseUser } from '@/lib/auth-types';
 
 // Mock user data for different roles
 export const mockUsers = {

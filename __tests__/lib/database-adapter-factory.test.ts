@@ -26,22 +26,22 @@ describe('Database Adapter Factory', () => {
   it('should throw when Supabase URL is missing', () => {
     delete process.env.NEXT_PUBLIC_SUPABASE_URL;
     const savedNodeEnv = process.env.NODE_ENV;
-    process.env.NODE_ENV = 'production';
+    (process.env as Record<string, string | undefined>).NODE_ENV = 'production';
     try {
       expect(() => createDatabaseAdapter()).toThrow('Supabase configuration is required');
     } finally {
-      process.env.NODE_ENV = savedNodeEnv;
+      (process.env as Record<string, string | undefined>).NODE_ENV = savedNodeEnv;
     }
   });
 
   it('should throw when Supabase key is missing', () => {
     delete process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
     const savedNodeEnv = process.env.NODE_ENV;
-    process.env.NODE_ENV = 'production';
+    (process.env as Record<string, string | undefined>).NODE_ENV = 'production';
     try {
       expect(() => createDatabaseAdapter()).toThrow('Supabase configuration is required');
     } finally {
-      process.env.NODE_ENV = savedNodeEnv;
+      (process.env as Record<string, string | undefined>).NODE_ENV = savedNodeEnv;
     }
   });
 });

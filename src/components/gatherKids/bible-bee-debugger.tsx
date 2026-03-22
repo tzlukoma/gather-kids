@@ -52,7 +52,7 @@ export default function BibleBeeDebugger() {
 				if (years.length > 0) {
 					console.log(
 						'  - Available cycles:',
-						years.map((y) => y.name || y.label || y.id)
+						years.map((y) => y.name || y.id)
 					);
 				}
 			})

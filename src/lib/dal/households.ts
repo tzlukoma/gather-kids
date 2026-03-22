@@ -158,8 +158,9 @@ export interface HouseholdProfileData {
     household: Household | null;
     guardians: Guardian[];
     emergencyContact: EmergencyContact | null;
-    children: (Child & { enrollments?: MinistryEnrollment[] })[];
+    children: (Child & { enrollments?: MinistryEnrollment[]; enrollmentsByCycle: Record<string, MinistryEnrollment[]>; age?: number })[];
     registrations: unknown[];
+    cycleNames?: Record<string, string>;
 }
 
 /**
@@ -193,7 +194,17 @@ export async function getHouseholdProfile(
                 customQuestions: ministryMap.get(e.ministry_id)?.custom_questions,
             }));
 
-        return { ...child, enrollments };
+        // Build enrollmentsByCycle map for backward compatibility
+        const enrollmentsByCycle: Record<string, typeof enrollments> = {};
+        for (const enrollment of enrollments) {
+            const cycleKey = enrollment.cycle_id;
+            if (!enrollmentsByCycle[cycleKey]) {
+                enrollmentsByCycle[cycleKey] = [];
+            }
+            enrollmentsByCycle[cycleKey].push(enrollment);
+        }
+
+        return { ...child, enrollments, enrollmentsByCycle };
     });
 
     return {

@@ -159,9 +159,9 @@ export default function UsersManagementPage() {
 				</p>
 			</div>
 
-			{error && (
+			{!!error && (
 				<Alert className="mb-6">
-					<AlertDescription>{error}</AlertDescription>
+					<AlertDescription>{error instanceof Error ? error.message : String(error)}</AlertDescription>
 				</Alert>
 			)}
 

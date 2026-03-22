@@ -76,18 +76,16 @@ function HouseholdLayoutContent({ children }: { children: React.ReactNode }) {
 					childrenCount: profileData.children.length,
 					childrenWithEnrollments: profileData.children.map((child) => ({
 						childId: child.child_id,
-						enrollmentsByCycle: child.enrollmentsByCycle,
+						enrollments: child.enrollments,
 					})),
 				});
 
 				const hasEnrollment = profileData.children.some((child) =>
-					Object.values(child.enrollmentsByCycle).some((enrollments) =>
-						enrollments.some((enrollment) => {
-							console.log('🔍 Checking enrollment:', enrollment);
-							// Check ministry code for Bible Bee
-							return enrollment.ministry_code === 'bible-bee';
-						})
-					)
+					(child.enrollments ?? []).some((enrollment) => {
+						console.log('🔍 Checking enrollment:', enrollment);
+						// Check ministry code for Bible Bee
+						return (enrollment as { ministry_code?: string }).ministry_code === 'bible-bee';
+					})
 				);
 
 				console.log('🔍 Bible Bee Nav Check - Result:', { hasEnrollment });

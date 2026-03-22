@@ -100,12 +100,12 @@ describe('Adapter Selection', () => {
     delete process.env.NEXT_PUBLIC_SUPABASE_URL;
     delete process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
     const savedNodeEnv = process.env.NODE_ENV;
-    process.env.NODE_ENV = 'production';
+    (process.env as Record<string, string | undefined>).NODE_ENV = 'production';
     try {
       const { createDatabaseAdapter } = jest.requireActual('@/lib/database/factory');
       expect(() => createDatabaseAdapter()).toThrow('Supabase configuration is required');
     } finally {
-      process.env.NODE_ENV = savedNodeEnv;
+      (process.env as Record<string, string | undefined>).NODE_ENV = savedNodeEnv;
     }
   });
 });

@@ -46,8 +46,7 @@ describe('GET/POST /api/users admin verification', () => {
 		});
 
 		const { GET } = await import('@/app/api/users/route');
-		const request = new NextRequest('http://localhost/api/users', { method: 'GET' });
-		const res = await GET(request);
+		const res = await GET();
 
 		expect(res.status).toBe(403);
 		expect(mockListUsers).not.toHaveBeenCalled();

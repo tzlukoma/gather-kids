@@ -18,6 +18,7 @@ interface MenuItem {
     icon: ComponentType;
     roles: AuthRole[];
     ministryCheck?: (ids: string[]) => boolean;
+    isBeta?: boolean;
 }
 
 export const MENU_ITEMS: MenuItem[] = [

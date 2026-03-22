@@ -183,7 +183,7 @@ const ChildCard = ({
 	onPhotoClick: (child: Child) => void;
 	onPhotoViewClick: (photo: { name: string; url: string }) => void;
 	onEditChild: (child: Child) => void;
-	onEditEnrollments: (child: Child) => void;
+	onEditEnrollments: (child: HouseholdProfileData['children'][0]) => void;
 	onDeleteChild: (child: Child) => void;
 	onReactivateChild?: (child: Child) => void;
 	user: any; // BaseUser type
@@ -381,8 +381,9 @@ export function HouseholdProfile({
 }: {
 	profileData: HouseholdProfileData;
 }) {
-	const { household, guardians, emergencyContact, children, cycleNames } =
+	const { household, guardians, emergencyContact, children, cycleNames: cycleNamesRaw } =
 		profileData;
+	const cycleNames: Record<string, string> = cycleNamesRaw ?? {};
 	const { user } = useAuth();
 	const { toast } = useToast();
 	const [selectedChildForPhoto, setSelectedChildForPhoto] =
@@ -404,7 +405,7 @@ export function HouseholdProfile({
 	const [editingHouseholdAddress, setEditingHouseholdAddress] =
 		useState<Household | null>(null);
 	const [editingChildEnrollments, setEditingChildEnrollments] =
-		useState<Child | null>(null);
+		useState<HouseholdProfileData['children'][0] | null>(null);
 	const [deletingGuardian, setDeletingGuardian] = useState<Guardian | null>(
 		null
 	);

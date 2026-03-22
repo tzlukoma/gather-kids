@@ -95,8 +95,8 @@ export function useUpsertScripture() {
     onSuccess: (_, variables) => {
       // Invalidate all scripture queries
       queryClient.invalidateQueries({ queryKey: ['scriptures'] });
-      if (variables.cycleId) {
-        queryClient.invalidateQueries({ queryKey: queryKeys.scripturesForCycle(variables.cycleId) });
+      if (variables.bible_bee_cycle_id) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.scripturesForCycle(variables.bible_bee_cycle_id) });
       }
     },
   });
@@ -283,6 +283,7 @@ export function useStudentAssignmentsQuery(childId: string) {
                 console.log('Creating new student scripture record for:', scripture.id);
                 console.log('Using bible_bee_cycle_id:', scripture.bible_bee_cycle_id);
                 const studentScriptureData = {
+                  id: uuidv4(),
                   child_id: childId,
                   bible_bee_cycle_id: scripture.bible_bee_cycle_id,
                   scripture_id: scripture.id,
@@ -368,7 +369,7 @@ export function useStudentAssignmentsQuery(childId: string) {
                 bible_bee_cycle_id: enrollment.bible_bee_cycle_id,
                 essay_prompt_id: essayPrompts[0].id,
                 status: 'assigned',
-                submitted_at: null,
+                submitted_at: undefined,
               });
               
               return {
@@ -622,6 +623,7 @@ export function useBibleBeeStats(childId: string) {
                 // Create new student scripture record
                 console.log('Creating new student scripture record for:', scripture.id);
                 const studentScriptureData = {
+                  id: uuidv4(),
                   child_id: childId,
                   bible_bee_cycle_id: scripture.bible_bee_cycle_id,
                   scripture_id: scripture.id,
@@ -707,7 +709,7 @@ export function useBibleBeeStats(childId: string) {
                 bible_bee_cycle_id: enrollment.bible_bee_cycle_id,
                 essay_prompt_id: essayPrompts[0].id,
                 status: 'assigned',
-                submitted_at: null,
+                submitted_at: undefined,
               });
               
               return {
@@ -785,7 +787,7 @@ export function useBibleBeeStats(childId: string) {
                   max_grade: divisionInfo.division.max_grade,
                 };
                 // Use the minimum_required from the division
-                required = divisionInfo.division.minimum_required || enrichedScriptures.length;
+                required = divisionInfo.division.minimum_required || scriptures.length;
               } else if (divisionInfo.target) {
                 // Legacy system provided a target
                 required = divisionInfo.target;
@@ -830,7 +832,7 @@ export function useBibleBeeStats(childId: string) {
       }
     },
     enabled: !!childId,
-    staleTime: 30 * 1000, // 30 seconds - stats change when scriptures are completed
     ...cacheConfig.volatile,
+    staleTime: 30 * 1000, // 30 seconds - stats change when scriptures are completed
   });
 }

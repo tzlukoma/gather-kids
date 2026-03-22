@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useMemo } from 'react';
-import { getAllGuardians } from '@/lib/dal';
+import { getAllGuardians, getBibleBeeCycles } from '@/lib/dal';
 import { useBibleBeeCycles, useBibleBeeProgressForCycle } from '@/hooks/data';
 import {
 	Select,
@@ -194,7 +194,7 @@ export function BibleBeeProgressList({
 			// Otherwise try a DB lookup (async) to resolve label for UUIDs
 			try {
 				const allCycles = await getBibleBeeCycles();
-				const maybe = allCycles.find((c) => c.id === String(selectedCycle));
+				const maybe = allCycles.find((c: { id: string; name?: string }) => c.id === String(selectedCycle));
 				if (mounted && maybe && maybe.name) setDisplayCycleLabel(maybe.name);
 			} catch (e) {
 				// ignore
@@ -230,7 +230,7 @@ export function BibleBeeProgressList({
 
 	// Show error state
 	if (progressError) {
-		return <div>Error loading Bible Bee progress: {progressError.message}</div>;
+		return <div>Error loading Bible Bee progress: {progressError instanceof Error ? progressError.message : String(progressError)}</div>;
 	}
 
 	const filtered = progressData.filter((r: any) => {

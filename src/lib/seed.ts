@@ -180,8 +180,8 @@ export const seedDB = async () => {
             await db.users.bulkPut(leaders);
 
             await db.registration_cycles.bulkPut([
-                { cycle_id: CYCLE_IDS.prior, start_date: '2023-08-01', end_date: '2024-07-31', is_active: false },
-                { cycle_id: CYCLE_IDS.current, start_date: '2024-08-01', end_date: '2025-07-31', is_active: true },
+                { cycle_id: CYCLE_IDS.prior, name: 'Fall 2023', start_date: '2023-08-01', end_date: '2024-07-31', is_active: false },
+                { cycle_id: CYCLE_IDS.current, name: 'Fall 2024', start_date: '2024-08-01', end_date: '2025-07-31', is_active: true },
             ]);
 
             const ministryData: Omit<Ministry, 'ministry_id' | 'created_at' | 'updated_at'>[] = [
@@ -299,7 +299,7 @@ export const seedDB = async () => {
             const divisions: Division[] = [
                 {
                     id: uuidv4(),
-                    year_id: bibleBeeYearId,
+                    bible_bee_cycle_id: bibleBeeYearId,
                     name: 'Primary (Pre-K - 3rd)',
                     minimum_required: 15,
                     min_grade: -1,
@@ -309,7 +309,7 @@ export const seedDB = async () => {
                 },
                 {
                     id: uuidv4(),
-                    year_id: bibleBeeYearId,
+                    bible_bee_cycle_id: bibleBeeYearId,
                     name: 'Elementary (4th - 6th)',
                     minimum_required: 25,
                     min_grade: 4,
@@ -319,7 +319,7 @@ export const seedDB = async () => {
                 },
                 {
                     id: uuidv4(),
-                    year_id: bibleBeeYearId,
+                    bible_bee_cycle_id: bibleBeeYearId,
                     name: 'Middle School (7th - 9th)',
                     minimum_required: 35,
                     min_grade: 7,
@@ -329,7 +329,7 @@ export const seedDB = async () => {
                 },
                 {
                     id: uuidv4(),
-                    year_id: bibleBeeYearId,
+                    bible_bee_cycle_id: bibleBeeYearId,
                     name: 'High School (10th - 12th)',
                     minimum_required: 35,
                     min_grade: 10,
@@ -358,16 +358,15 @@ export const seedDB = async () => {
             scriptureData.forEach((data, index) => {
                 sampleScriptures.push({
                     id: uuidv4(),
-                    competitionYearId: bibleBeeYearId, // For legacy compatibility
-                    year_id: bibleBeeYearId,
+                    bible_bee_cycle_id: bibleBeeYearId,
                     reference: data.ref,
                     text: data.text,
                     translation: 'NIV',
                     texts: data.translations,
                     scripture_number: String(index + 1),
                     scripture_order: index + 1,
-                    createdAt: now,
-                    updatedAt: now,
+                    created_at: now,
+                    updated_at: now,
                 });
             });
             await db.scriptures.bulkPut(sampleScriptures);
@@ -471,7 +470,7 @@ export const seedDB = async () => {
             await db.enrollments.bulkPut(bibleBeeEnrollments);
 
             // Create student scripture assignments for the Bible Bee enrolled children
-            const studentScripturesToInsert: Array<{ id: string; childId: string; competitionYearId: string; scriptureId: string; status: 'assigned' | 'completed'; createdAt: string; updatedAt: string }> = [];
+            const studentScripturesToInsert: Array<{ id: string; child_id: string; bible_bee_cycle_id: string; scripture_id: string; is_completed: boolean; created_at: string; updated_at: string }> = [];
             
             for (let i = 0; i < bibleBeeEnrollments.length; i++) {
                 const enrollment = bibleBeeEnrollments[i];
@@ -493,12 +492,12 @@ export const seedDB = async () => {
                     
                     studentScripturesToInsert.push({
                         id: uuidv4(),
-                        childId: enrollment.child_id,
-                        competitionYearId: bibleBeeYearId, // Use the Bible Bee year ID
-                        scriptureId: scripture.id,
-                        status,
-                        createdAt: now,
-                        updatedAt: now,
+                        child_id: enrollment.child_id,
+                        bible_bee_cycle_id: bibleBeeYearId,
+                        scripture_id: scripture.id,
+                        is_completed: status === 'completed',
+                        created_at: now,
+                        updated_at: now,
                     });
                 }
             }

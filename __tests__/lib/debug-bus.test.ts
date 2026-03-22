@@ -21,7 +21,7 @@ describe('Debug Event Bus', () => {
       const mockEvent = {
         ...event,
         isTrusted: false,
-        detail: event.detail || {}
+        detail: (event as CustomEvent).detail || {}
       };
       mockDispatchEvent(mockEvent);
       return true;

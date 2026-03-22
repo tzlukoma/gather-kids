@@ -8,7 +8,7 @@
  */
 
 import { db as dbAdapter } from '../database/factory';
-import type { BibleBeeYear, BibleBeeCycle, Scripture, CompetitionYear, Child, Guardian } from '../types';
+import type { BibleBeeYear, BibleBeeCycle, Scripture, CompetitionYear, Child, Guardian, Division, EssayPrompt, EnrollmentOverride, Enrollment } from '../types';
 import { doGradeRangesOverlap } from '../gradeUtils';
 
 // ---------------------------------------------------------------------------
@@ -39,7 +39,7 @@ export async function getBibleBeeYears(): Promise<BibleBeeYear[]> {
 }
 
 export async function createBibleBeeYear(
-    data: Omit<BibleBeeYear, 'id' | 'created_at'>,
+    data: Omit<BibleBeeYear, 'created_at' | 'updated_at'>,
 ): Promise<BibleBeeYear> {
     return dbAdapter.createBibleBeeYear(data);
 }
@@ -108,8 +108,8 @@ export async function getDivisionsForBibleBeeYear(yearId: string): Promise<any[]
 }
 
 export async function createDivision(
-    data: Omit<any, 'id' | 'created_at' | 'updated_at'>,
-): Promise<any> {
+    data: Omit<Division, 'created_at' | 'updated_at'>,
+): Promise<Division> {
     if (data.min_grade < 0 || data.min_grade > 12) {
         throw new Error('min_grade must be between 0 and 12');
     }
@@ -120,7 +120,7 @@ export async function createDivision(
         throw new Error('min_grade must be <= max_grade');
     }
 
-    const yearId = data.bible_bee_cycle_id || data.year_id;
+    const yearId = data.bible_bee_cycle_id;
     const existingDivisions = await getDivisionsForBibleBeeYear(yearId);
     for (const existing of existingDivisions) {
         if (
@@ -224,7 +224,7 @@ export async function deleteScripture(id: string): Promise<void> {
  * Upsert a scripture record.
  */
 export async function upsertScripture(
-    payload: Omit<Scripture, 'id' | 'createdAt' | 'updatedAt'> & { id?: string },
+    payload: Omit<Scripture, 'created_at' | 'updated_at'> & { id?: string },
 ): Promise<Scripture> {
     return dbAdapter.upsertScripture(payload);
 }
@@ -257,8 +257,8 @@ export async function getEssayPromptsForYearAndDivision(
 }
 
 export async function createEssayPrompt(
-    data: Omit<any, 'id' | 'created_at' | 'updated_at'>,
-): Promise<any> {
+    data: Omit<EssayPrompt, 'created_at' | 'updated_at'>,
+): Promise<EssayPrompt> {
     return dbAdapter.createEssayPrompt(data);
 }
 
@@ -283,8 +283,8 @@ export async function commitAutoEnrollment(yearId: string, previews: any[]): Pro
 }
 
 export async function createEnrollmentOverride(
-    data: Omit<any, 'id' | 'created_at' | 'updated_at'>,
-): Promise<any> {
+    data: Omit<EnrollmentOverride, 'created_at' | 'updated_at'>,
+): Promise<EnrollmentOverride> {
     return dbAdapter.createEnrollmentOverride(data);
 }
 
@@ -334,6 +334,7 @@ export async function applyEnrollmentOverride(
         });
     } else {
         await dbAdapter.createEnrollment({
+            id: crypto.randomUUID(),
             bible_bee_cycle_id: yearId,
             child_id: childId,
             division_id: divisionId,
@@ -347,8 +348,28 @@ export async function getEnrollmentOverridesForYear(yearId: string): Promise<any
     return dbAdapter.listEnrollmentOverrides(yearId);
 }
 
-export async function recalculateMinimumBoundaries(yearId: string): Promise<any> {
-    return dbAdapter.recalculateMinimumBoundaries(yearId);
+export async function recalculateMinimumBoundaries(yearId: string): Promise<void> {
+    // Recalculate minimum boundaries by updating each division based on ordered scriptures
+    const divisions = await dbAdapter.listDivisions(yearId);
+    const scriptures = await dbAdapter.listScriptures({ cycleId: yearId });
+    const sortedScriptures = [...scriptures].sort((a, b) => (a.scripture_order ?? 0) - (b.scripture_order ?? 0));
+
+    for (const division of divisions) {
+        let accumulatedCount = 0;
+        let minLastOrder: number | undefined = undefined;
+
+        for (const scripture of sortedScriptures) {
+            accumulatedCount += scripture.counts_for || 1;
+            if (accumulatedCount >= division.minimum_required) {
+                minLastOrder = scripture.scripture_order ?? 0;
+                break;
+            }
+        }
+
+        if (division.min_last_order !== minLastOrder) {
+            await dbAdapter.updateDivision(division.id, { min_last_order: minLastOrder });
+        }
+    }
 }
 
 export async function commitEnhancedCsvRowsToYear(

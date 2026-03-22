@@ -1,5 +1,5 @@
 import { db } from '../../src/lib/db';
-import { dbAdapter } from '../../src/lib/database/supabase-adapter';
+import { dbAdapter } from '../../src/lib/db-utils';
 import { shouldUseAdapter } from '../../src/lib/dal';
 
 /**
@@ -84,7 +84,8 @@ async function createDivisions(bibleBeeCycleId: string) {
         };
 
         if (shouldUseAdapter()) {
-            const created = await dbAdapter.createDivision(divisionData);
+            const id = `${EXTERNAL_ID_PREFIX}division_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+            const created = await dbAdapter.createDivision({ id, ...divisionData });
             createdDivisions.push(created);
         } else {
             const id = `${EXTERNAL_ID_PREFIX}division_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -171,13 +172,16 @@ async function createScriptures(bibleBeeCycleId: string) {
     const createdScriptures = [];
     
     for (const scripture of scriptures) {
+        const text = scripture.texts?.NIV || scripture.texts?.KJV || '';
         const scriptureData = {
             bible_bee_cycle_id: bibleBeeCycleId,
             ...scripture,
+            text,
         };
 
         if (shouldUseAdapter()) {
-            const created = await dbAdapter.upsertScripture(scriptureData);
+            const id = `${EXTERNAL_ID_PREFIX}scripture_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+            const created = await dbAdapter.upsertScripture({ id, ...scriptureData });
             createdScriptures.push(created);
         } else {
             const id = `${EXTERNAL_ID_PREFIX}scripture_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -227,7 +231,8 @@ async function createEssayPrompts(bibleBeeCycleId: string, divisions: any[]) {
             };
 
             if (shouldUseAdapter()) {
-                const created = await dbAdapter.createEssayPrompt(promptData);
+                const id = `${EXTERNAL_ID_PREFIX}essay_prompt_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+                const created = await dbAdapter.createEssayPrompt({ id, ...promptData });
                 createdPrompts.push(created);
             } else {
                 const id = `${EXTERNAL_ID_PREFIX}essay_prompt_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -259,7 +264,8 @@ export async function seedBibleBeeFresh(registrationCycleId?: string) {
                     cycleId = cycles[0].cycle_id;
                 }
             } else {
-                const cycles = await db.registration_cycles.where('is_active').equals(true).toArray();
+                const allCycles = await db.registration_cycles.toArray();
+                const cycles = allCycles.filter(c => c.is_active);
                 if (cycles.length > 0) {
                     cycleId = cycles[0].cycle_id;
                 }

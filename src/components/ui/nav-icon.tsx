@@ -15,7 +15,7 @@ export function renderNavIcon(
 
 	// Handles Lucide React components (forwardRef objects with $$typeof)
 	if (Icon && typeof Icon === 'object' && (Icon as any).$$typeof) {
-		const C = Icon as React.ComponentType<{ className?: string }>;
+		const C = Icon as unknown as React.ComponentType<{ className?: string }>;
 		return <C className="w-4 h-4" />;
 	}
 
