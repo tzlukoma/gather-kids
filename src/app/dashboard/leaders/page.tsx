@@ -34,7 +34,7 @@ export default function LeadersPage() {
 	const router = useRouter();
 	const { user, loading } = useAuth();
 	const { toast } = useToast();
-	const [isAuthorized, setIsAuthorized] = useState(false);
+	const isAuthorized = !loading && !!user && user.metadata?.role === AuthRole.ADMIN;
 	const [searchTerm, setSearchTerm] = useState('');
 	const [isDialogOpen, setIsDialogOpen] = useState(false);
 	const [selectedLeader, setSelectedLeader] = useState<LeaderProfile | null>(
@@ -80,8 +80,6 @@ export default function LeadersPage() {
 				} else {
 					router.push('/');
 				}
-			} else {
-				setIsAuthorized(true);
 			}
 		}
 	}, [user, loading, router]);
@@ -116,7 +114,7 @@ export default function LeadersPage() {
 		setIsDialogOpen(true);
 	};
 
-	if (loading || !isAuthorized || isLoading) {
+	if (!isAuthorized || isLoading) {
 		return <TableSkeleton rows={10} columns={5} />;
 	}
 

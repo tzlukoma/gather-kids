@@ -32,7 +32,7 @@ import { LeaderProfileDialog } from './leader-profile-dialog';
 export default function LeaderDirectoryPage() {
 	const router = useRouter();
 	const { user, loading } = useAuth();
-	const [isAuthorized, setIsAuthorized] = useState(false);
+	const isAuthorized = !loading && !!user && user.metadata?.role === AuthRole.ADMIN;
 	const [searchTerm, setSearchTerm] = useState('');
 	const [isDialogOpen, setIsDialogOpen] = useState(false);
 	const [selectedLeader, setSelectedLeader] = useState<LeaderProfile | null>(null);
@@ -55,8 +55,6 @@ export default function LeaderDirectoryPage() {
 				} else {
 					router.push('/');
 				}
-			} else {
-				setIsAuthorized(true);
 			}
 		}
 	}, [user, loading, router]);
@@ -76,7 +74,7 @@ export default function LeaderDirectoryPage() {
 		setIsDialogOpen(true);
 	};
 
-	if (loading || !isAuthorized) {
+	if (!isAuthorized) {
 		return <div>Loading leaders...</div>;
 	}
 

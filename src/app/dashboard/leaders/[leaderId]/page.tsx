@@ -87,7 +87,7 @@ export default function LeaderProfilePage() {
 	const params = useParams();
 	const router = useRouter();
 	const { user, loading } = useAuth();
-	const [isAuthorized, setIsAuthorized] = useState(false);
+	const isAuthorized = !loading && !!user && user.metadata?.role === AuthRole.ADMIN;
 
 	const leaderId = params.leaderId as string;
 	const { toast } = useToast();
@@ -128,8 +128,6 @@ export default function LeaderProfilePage() {
 				} else {
 					router.push('/');
 				}
-			} else {
-				setIsAuthorized(true);
 			}
 		}
 	}, [user, loading, router]);
@@ -333,7 +331,7 @@ export default function LeaderProfilePage() {
 			.sort((a, b) => a.ministryName.localeCompare(b.ministryName));
 	}, [profileData]);
 
-	if (loading || !isAuthorized) {
+	if (!isAuthorized) {
 		return <div>Loading...</div>;
 	}
 

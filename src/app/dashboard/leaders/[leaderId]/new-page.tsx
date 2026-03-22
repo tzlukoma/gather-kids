@@ -62,7 +62,7 @@ export default function LeaderProfilePage() {
 	const { user, loading } = useAuth();
 	const { toast } = useToast();
 	
-	const [isAuthorized, setIsAuthorized] = useState(false);
+	const isAuthorized = !loading && !!user && user.metadata?.role === AuthRole.ADMIN;
 	const [assignments, setAssignments] = useState<AssignmentState>({});
 	const [isActive, setIsActive] = useState(false);
 	const [isSaving, setIsSaving] = useState(false);
@@ -78,8 +78,6 @@ export default function LeaderProfilePage() {
 				} else {
 					router.push('/');
 				}
-			} else {
-				setIsAuthorized(true);
 			}
 		}
 	}, [user, loading, router]);
@@ -87,7 +85,7 @@ export default function LeaderProfilePage() {
 	useEffect(() => {
 		if (profileData) {
 			const initialAssignments: AssignmentState = {};
-			
+
 			// Initialize all ministries as unassigned
 			profileData.allMinistries.forEach((m) => {
 				initialAssignments[m.ministry_id] = {
@@ -207,7 +205,7 @@ export default function LeaderProfilePage() {
 			.sort((a, b) => a.ministryName.localeCompare(b.ministryName));
 	}, [profileData]);
 
-	if (loading || !isAuthorized || !profileData) {
+	if (!isAuthorized || !profileData) {
 		return <div>Loading leader profile...</div>;
 	}
 

@@ -36,6 +36,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 		return u?.uid || u?.id || u?.user_id;
 	}
 
+	// Synchronous helper: fetches ministry access and returns a mutated copy of `draft`.
+	// Used in paths where we must resolve ministry IDs before calling setUser to avoid
+	// ProtectedRoute seeing a user with an undetermined role.
+	async function resolveMinistryAccess(draft: BaseUser): Promise<BaseUser> {
+		// Skip if no email or user is already ADMIN
+		if (!draft.email || draft.metadata?.role === AuthRole.ADMIN) {
+			return draft;
+		}
+
+		// Only runs synchronously for GUEST / no-role users
+		if (draft.metadata?.role && draft.metadata.role !== AuthRole.GUEST) {
+			return draft;
+		}
+
+		try {
+			const accessibleMinistries =
+				await dbAdapter.listAccessibleMinistriesForEmail(draft.email);
+
+			if (accessibleMinistries.length > 0) {
+				const ministryIds = accessibleMinistries.map((m) => m.ministry_id);
+				return {
+					...draft,
+					assignedMinistryIds: ministryIds,
+					metadata: {
+						...draft.metadata,
+						role: AuthRole.MINISTRY_LEADER,
+					},
+				};
+			}
+		} catch (error) {
+			console.error(
+				'AuthProvider - Error resolving ministry access:',
+				error
+			);
+		}
+
+		return draft;
+	}
+
 	// Helper function to check and update ministry access for a user
 	async function checkAndUpdateMinistryAccess(
 		user: BaseUser,
@@ -91,6 +130,56 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 		}
 	}
 
+	// Shared logic: build a BaseUser from raw supabase user data, resolve ministry
+	// access synchronously for GUEST users, then set state. For users who already
+	// have a non-GUEST role but lack ministryIds, kick off an async resolution.
+	async function setUserFromSupabaseData(supabaseUser: {
+		id: string;
+		email?: string;
+		user_metadata?: Record<string, any>;
+	}): Promise<void> {
+		const role = supabaseUser.user_metadata?.role || AuthRole.GUEST;
+
+		let finalUser: BaseUser = {
+			uid: supabaseUser.id,
+			displayName:
+				supabaseUser.user_metadata?.full_name ||
+				supabaseUser.email?.split('@')[0] ||
+				'User',
+			email: supabaseUser.email || '',
+			is_active: true,
+			metadata: {
+				role,
+				...supabaseUser.user_metadata,
+			},
+			assignedMinistryIds: [],
+		};
+
+		// For users without a role or with GUEST role, check ministry access
+		// synchronously to prevent ProtectedRoute from checking before role is determined
+		finalUser = await resolveMinistryAccess(finalUser);
+
+		setUser(finalUser);
+		setUserRole(finalUser.metadata.role);
+
+		// For users who already have a role, check ministry access asynchronously
+		if (
+			finalUser.email &&
+			finalUser.metadata?.role &&
+			finalUser.metadata.role !== AuthRole.GUEST &&
+			finalUser.metadata.role !== AuthRole.ADMIN &&
+			(!finalUser.assignedMinistryIds || finalUser.assignedMinistryIds.length === 0)
+		) {
+			setTimeout(async () => {
+				await checkAndUpdateMinistryAccess(
+					finalUser,
+					setUser,
+					setUserRole
+				);
+			}, 0);
+		}
+	}
+
 	useEffect(() => {
 		const initializeAuth = async () => {
 			console.log('AuthProvider: Starting initialization (Supabase mode)');
@@ -104,67 +193,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 				if (session?.user) {
 					console.log('AuthProvider: Found active Supabase session');
-					const supabaseUser = session.user;
-					const userRole = supabaseUser.user_metadata?.role || AuthRole.GUEST;
-
-					const finalUser: BaseUser = {
-						uid: supabaseUser.id,
-						displayName:
-							supabaseUser.user_metadata?.full_name ||
-							supabaseUser.email?.split('@')[0] ||
-							'User',
-						email: supabaseUser.email || '',
-						is_active: true,
-						metadata: {
-							role: userRole,
-							...supabaseUser.user_metadata,
-						},
-						assignedMinistryIds: [],
-					};
-
-					// For users without a role or with GUEST role, check ministry access
-					// synchronously to prevent ProtectedRoute from checking before role is determined
-					if (
-						finalUser.email &&
-						(!finalUser.metadata?.role || finalUser.metadata.role === AuthRole.GUEST)
-					) {
-						const accessibleMinistries =
-							await dbAdapter.listAccessibleMinistriesForEmail(finalUser.email);
-
-						if (accessibleMinistries.length > 0) {
-							const ministryIds = accessibleMinistries.map((m) => m.ministry_id);
-							finalUser.assignedMinistryIds = ministryIds;
-							if (
-								!finalUser.metadata?.role ||
-								finalUser.metadata.role === AuthRole.GUEST
-							) {
-								finalUser.metadata = {
-									...finalUser.metadata,
-									role: AuthRole.MINISTRY_LEADER,
-								};
-							}
-						}
-					}
-
-					setUser(finalUser);
-					setUserRole(finalUser.metadata.role);
-
-					// For users who already have a role, check ministry access asynchronously
-					if (
-						finalUser.email &&
-						finalUser.metadata?.role &&
-						finalUser.metadata.role !== AuthRole.GUEST &&
-						finalUser.metadata.role !== AuthRole.ADMIN &&
-						(!finalUser.assignedMinistryIds || finalUser.assignedMinistryIds.length === 0)
-					) {
-						setTimeout(async () => {
-							await checkAndUpdateMinistryAccess(
-								finalUser,
-								setUser,
-								setUserRole
-							);
-						}, 0);
-					}
+					await setUserFromSupabaseData(session.user);
 				} else if (typeof window !== 'undefined') {
 					// Check for Supabase auth tokens that would indicate a previous successful auth
 					const hasSupabaseTokens = Object.keys(localStorage).some(
@@ -175,65 +204,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 						const refreshResult = await supabase.auth.refreshSession();
 
 						if (refreshResult.data?.session?.user) {
-							const recoveredUser = refreshResult.data.session.user;
-							const userRole =
-								recoveredUser.user_metadata?.role || AuthRole.GUEST;
-
-							const finalUser: BaseUser = {
-								uid: recoveredUser.id,
-								displayName:
-									recoveredUser.user_metadata?.full_name ||
-									recoveredUser.email?.split('@')[0] ||
-									'User',
-								email: recoveredUser.email || '',
-								is_active: true,
-								metadata: {
-									role: userRole,
-									...recoveredUser.user_metadata,
-								},
-								assignedMinistryIds: [],
-							};
-
-							if (
-								finalUser.email &&
-								(!finalUser.metadata?.role || finalUser.metadata.role === AuthRole.GUEST)
-							) {
-								const accessibleMinistries =
-									await dbAdapter.listAccessibleMinistriesForEmail(finalUser.email);
-
-								if (accessibleMinistries.length > 0) {
-									const ministryIds = accessibleMinistries.map((m) => m.ministry_id);
-									finalUser.assignedMinistryIds = ministryIds;
-									if (
-										!finalUser.metadata?.role ||
-										finalUser.metadata.role === AuthRole.GUEST
-									) {
-										finalUser.metadata = {
-											...finalUser.metadata,
-											role: AuthRole.MINISTRY_LEADER,
-										};
-									}
-								}
-							}
-
-							setUser(finalUser);
-							setUserRole(finalUser.metadata.role);
-
-							if (
-								finalUser.email &&
-								finalUser.metadata?.role &&
-								finalUser.metadata.role !== AuthRole.GUEST &&
-								finalUser.metadata.role !== AuthRole.ADMIN &&
-								(!finalUser.assignedMinistryIds || finalUser.assignedMinistryIds.length === 0)
-							) {
-								setTimeout(async () => {
-									await checkAndUpdateMinistryAccess(
-										finalUser,
-										setUser,
-										setUserRole
-									);
-								}, 0);
-							}
+							await setUserFromSupabaseData(refreshResult.data.session.user);
 						}
 					}
 				}
@@ -303,9 +274,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 		setLoading(true);
 		try {
 			const userRole = userData.metadata?.role || null;
-			const assignedMinistryIds: string[] = [];
 
-			const finalUser: BaseUser = {
+			let finalUser: BaseUser = {
 				...userData,
 				uid: getUserId(userData) || userData.uid || userData.id,
 				id: getUserId(userData) || userData.id || userData.uid,
@@ -315,36 +285,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 					...userData.metadata,
 					role: userRole,
 				},
-				assignedMinistryIds,
+				assignedMinistryIds: [],
 			};
 
 			// For users without a role or with GUEST role, check ministry access
 			// synchronously to prevent race condition
-			if (
-				finalUser.email &&
-				(!finalUser.metadata?.role || finalUser.metadata.role === AuthRole.GUEST)
-			) {
-				const accessibleMinistries =
-					await dbAdapter.listAccessibleMinistriesForEmail(finalUser.email);
-
-				if (accessibleMinistries.length > 0) {
-					const ministryIds = accessibleMinistries.map((m) => m.ministry_id);
-					finalUser.assignedMinistryIds = ministryIds;
-					if (
-						!finalUser.metadata?.role ||
-						finalUser.metadata.role === AuthRole.GUEST
-					) {
-						finalUser.metadata = {
-							...finalUser.metadata,
-							role: AuthRole.MINISTRY_LEADER,
-						};
-						userRole = AuthRole.MINISTRY_LEADER;
-					}
-				}
-			}
+			finalUser = await resolveMinistryAccess(finalUser);
 
 			setUser(finalUser);
-			setUserRole(userRole);
+			setUserRole(finalUser.metadata?.role ?? userRole);
 
 			// For users who already have a role, check ministry access asynchronously
 			if (

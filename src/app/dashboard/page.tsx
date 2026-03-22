@@ -21,8 +21,7 @@ import { AlertTriangle, Users, CheckCircle2, Home } from 'lucide-react';
 import { format } from 'date-fns';
 import { getTodayIsoDate } from '@/lib/dal';
 import { useAuth } from '@/contexts/auth-context';
-import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { AuthRole } from '@/lib/auth-types';
 import type { Incident } from '@/lib/types';
 import {
@@ -37,9 +36,8 @@ const EMPTY_INCIDENTS: import('@/lib/types').Incident[] = [];
 const DEFAULT_REGISTRATION_STATS = { householdCount: 0, childCount: 0 };
 
 export default function DashboardPage() {
-	const router = useRouter();
 	const { user, loading } = useAuth();
-	const [isAuthorized, setIsAuthorized] = useState(false);
+	const isAuthorized = !loading && !!user && user.metadata?.role === AuthRole.ADMIN;
 
 	const today = getTodayIsoDate();
 
@@ -72,20 +70,7 @@ export default function DashboardPage() {
 		}
 	}, [incidentsError, countError, statsError]);
 
-	useEffect(() => {
-		if (!loading && user) {
-			if (user?.metadata?.role !== AuthRole.ADMIN) {
-				// Non-admin users are redirected from the layout based on their permissions.
-				// This page is for admins only. If a non-admin somehow lands here,
-				// the layout will redirect them. We'll just prevent rendering the content.
-				setIsAuthorized(false);
-			} else {
-				setIsAuthorized(true);
-			}
-		}
-	}, [user, loading, router]);
-
-	if (loading || !isAuthorized || isLoading) {
+	if (!isAuthorized || isLoading) {
 		return <CardGridSkeleton count={4} />;
 	}
 
