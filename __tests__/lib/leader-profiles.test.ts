@@ -125,11 +125,6 @@ describe('Leader Profile Management', () => {
         ministriesStore.set(sampleMinistry.ministry_id, sampleMinistry);
         syncMocks();
     });
-    db.listMinistries.mockImplementation(async () =>
-        Array.from(ministryStore.values()),
-    );
-    db.transaction.mockImplementation(async (fn: () => Promise<any>) => fn());
-});
 
     describe('queryLeaderProfiles', () => {
         it('should return empty array when no profiles exist', async () => {
