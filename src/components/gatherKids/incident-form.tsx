@@ -3,7 +3,6 @@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import {
 	Form,
@@ -23,8 +22,9 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { getTodayIsoDate, logIncident, getCheckedInChildren } from '@/lib/dal';
-import type { IncidentSeverity, Child } from '@/lib/types';
+import { getTodayIsoDate, logIncident } from '@/lib/dal';
+import { useCheckedInChildren } from '@/hooks/data';
+import type { IncidentSeverity } from '@/lib/types';
 import { useAuth } from '@/contexts/auth-context';
 
 const incidentFormSchema = z.object({
@@ -56,20 +56,7 @@ export function IncidentForm() {
 	});
 
 	const today = getTodayIsoDate();
-	const [checkedInChildren, setCheckedInChildren] = useState<Child[]>([]);
-
-	useEffect(() => {
-		let mounted = true;
-		getCheckedInChildren(today)
-			.then((children) => {
-				if (!mounted) return;
-				setCheckedInChildren(children);
-			})
-			.catch((err) => {
-				console.error('Failed to load checked-in children:', err);
-			});
-		return () => { mounted = false; };
-	}, [today]);
+	const { data: checkedInChildren = [] } = useCheckedInChildren(today);
 
 	async function onSubmit(data: IncidentFormValues) {
 		try {

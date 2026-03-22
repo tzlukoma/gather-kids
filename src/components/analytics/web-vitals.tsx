@@ -1,6 +1,6 @@
 'use client';
 
-import { useReportWebVitals } from 'next/dist/client/web-vitals';
+import { useReportWebVitals } from 'next/web-vitals';
 
 /**
  * WebVitals — collects Core Web Vitals and logs them (or sends to an
@@ -15,8 +15,8 @@ export function WebVitals() {
   useReportWebVitals((metric) => {
     if (process.env.NODE_ENV !== 'production') return;
 
-    // Log to console in development/staging; swap with a real endpoint call
-    // in production (e.g. POST to /api/metrics or send to Vercel Analytics).
+    // Log to console; swap with a real endpoint call when ready
+    // (e.g. POST to /api/metrics or send to Vercel Analytics).
     // eslint-disable-next-line no-console
     console.debug('[WebVitals]', metric.name, metric.value);
   });

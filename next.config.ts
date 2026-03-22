@@ -7,7 +7,7 @@ const nextConfig: NextConfig = {
     // allowedDevOrigins removed to satisfy Next.js config typing in this environment
   },
   typescript: {
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: false,
   },
   eslint: {
     ignoreDuringBuilds: false,

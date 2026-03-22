@@ -19,11 +19,11 @@ const updateUserSchema = z.object({
 
 export async function GET(
 	request: NextRequest,
-	{ params }: { params: { householdId: string } }
+	{ params }: { params: Promise<{ householdId: string }> }
 ) {
 	try {
 		const supabase = getSupabaseAdmin();
-		const { householdId } = params;
+		const { householdId } = await params;
 
 		// Find the current user_households record
 		const { data: userHousehold, error: findError } = await supabase
@@ -95,11 +95,11 @@ export async function GET(
 
 export async function PUT(
 	request: NextRequest,
-	{ params }: { params: { householdId: string } }
+	{ params }: { params: Promise<{ householdId: string }> }
 ) {
 	try {
 		const supabase = getSupabaseAdmin();
-		const { householdId } = params;
+		const { householdId } = await params;
 		const body = await request.json();
 		const validated = updateUserSchema.parse(body);
 		const { user_id } = validated;

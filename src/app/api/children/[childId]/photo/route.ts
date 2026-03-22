@@ -64,10 +64,10 @@ async function canUpdateChildPhoto(user: BaseUser, childId: string): Promise<boo
 
 export async function POST(
 	request: NextRequest,
-	{ params }: { params: { childId: string } }
+	{ params }: { params: Promise<{ childId: string }> }
 ) {
 	try {
-		const { childId } = params;
+		const { childId } = await params;
 		
 		// Get current user
 		const user = await getCurrentUser(request);
@@ -163,10 +163,10 @@ export async function POST(
 
 export async function DELETE(
 	request: NextRequest,
-	{ params }: { params: { childId: string } }
+	{ params }: { params: Promise<{ childId: string }> }
 ) {
 	try {
-		const { childId } = params;
+		const { childId } = await params;
 		
 		// Get current user
 		const user = await getCurrentUser(request);

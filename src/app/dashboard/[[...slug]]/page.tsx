@@ -1,5 +1,7 @@
 import { redirect } from 'next/navigation';
 
+// Next.js 15: params is a Promise in async Server Components — `await` is required.
+// See: https://nextjs.org/docs/app/api-reference/file-conventions/page#params-optional
 interface Props {
 	params: Promise<{ slug?: string[] }>;
 }

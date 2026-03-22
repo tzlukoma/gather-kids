@@ -51,7 +51,7 @@ export async function getAllUsers(): Promise<
         email_confirmed: boolean;
         last_sign_in: string | null;
         created_at: string;
-        user_metadata: any;
+        user_metadata: Record<string, unknown>;
     }>
 > {
     const response = await fetch('/api/users');
