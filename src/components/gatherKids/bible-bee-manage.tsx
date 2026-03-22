@@ -91,6 +91,7 @@ import {
 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
+import { ConfirmationDialog } from './confirmation-dialog';
 
 interface BibleBeeManageProps {
 	className?: string;
@@ -404,6 +405,7 @@ function YearManagement({
 	allCycles: any[];
 	onYearCreated?: (yearId: string) => void;
 }) {
+	const { toast } = useToast();
 	const [isCreating, setIsCreating] = useState(false);
 	const [editingYear, setEditingYear] = useState<any>(null);
 	const [formData, setFormData] = useState({
@@ -411,6 +413,7 @@ function YearManagement({
 		is_active: false,
 		cycle_id: '',
 	});
+	const [confirmDelete, setConfirmDelete] = useState<any>(null);
 
 	// Load registration cycles using dbAdapter pattern
 	const [registrationCycles, setRegistrationCycles] = useState<any[]>([]);
@@ -471,28 +474,31 @@ function YearManagement({
 				formData,
 				editingYear,
 			});
-			alert(
-				'Error saving cycle: ' +
-					(error instanceof Error ? error.message : String(error))
-			);
+			toast({
+				title: 'Error Saving Cycle',
+				description: error instanceof Error ? error.message : String(error),
+				variant: 'destructive',
+			});
 		}
 	};
 
-	const handleDelete = async (cycle: any) => {
-		if (
-			confirm(
-				`Delete cycle "${cycle.label}"? This will also delete all divisions, enrollments, and overrides.`
-			)
-		) {
-			try {
-				await deleteBibleBeeCycle(cycle.id);
-			} catch (error) {
-				console.error('Error deleting cycle:', error);
-				alert(
-					'Error deleting cycle: ' +
-						(error instanceof Error ? error.message : String(error))
-				);
-			}
+	const handleDelete = (cycle: any) => {
+		setConfirmDelete(cycle);
+	};
+
+	const executeDelete = async () => {
+		if (!confirmDelete) return;
+		try {
+			await deleteBibleBeeCycle(confirmDelete.id);
+		} catch (error) {
+			console.error('Error deleting cycle:', error);
+			toast({
+				title: 'Error Deleting Cycle',
+				description: error instanceof Error ? error.message : String(error),
+				variant: 'destructive',
+			});
+		} finally {
+			setConfirmDelete(null);
 		}
 	};
 
@@ -507,6 +513,7 @@ function YearManagement({
 	};
 
 	return (
+		<>
 		<Card>
 			<CardHeader>
 				<div className="flex items-center justify-between">
@@ -650,6 +657,22 @@ function YearManagement({
 				)}
 			</CardContent>
 		</Card>
+
+		{/* MAINT-28: ConfirmationDialog replaces confirm() */}
+		<ConfirmationDialog
+			isOpen={!!confirmDelete}
+			title="Delete Bible Bee Cycle"
+			description={
+				confirmDelete
+					? `Delete cycle "${confirmDelete.label}"? This will also delete all divisions, enrollments, and overrides.`
+					: ''
+			}
+			onConfirm={executeDelete}
+			onCancel={() => setConfirmDelete(null)}
+			confirmText="Delete"
+			variant="destructive"
+		/>
+	</>
 	);
 }
 
@@ -670,6 +693,7 @@ function DivisionManagement({
 	const { toast } = useToast();
 	const [isCreating, setIsCreating] = useState(false);
 	const [editingDivision, setEditingDivision] = useState<any>(null);
+	const [confirmDelete, setConfirmDelete] = useState<any>(null);
 	const [formData, setFormData] = useState({
 		name: '',
 		minimum_required: 0,
@@ -694,6 +718,7 @@ function DivisionManagement({
 				onRefresh();
 			} else {
 				await createDivision({
+					id: crypto.randomUUID(),
 					...formData,
 					bible_bee_cycle_id: yearId,
 				});
@@ -713,20 +738,24 @@ function DivisionManagement({
 		}
 	};
 
-	const handleDelete = async (division: any) => {
-		if (
-			confirm(
-				`Delete division "${division.name}"? This will also delete related enrollments.`
-			)
-		) {
-			try {
-				await deleteDivision(division.id);
-				// Trigger refresh of divisions list
-				onRefresh();
-			} catch (error) {
-				console.error('Error deleting division:', error);
-				alert('Error deleting division: ' + error);
-			}
+	const handleDelete = (division: any) => {
+		setConfirmDelete(division);
+	};
+
+	const executeDelete = async () => {
+		if (!confirmDelete) return;
+		try {
+			await deleteDivision(confirmDelete.id);
+			onRefresh();
+		} catch (error) {
+			console.error('Error deleting division:', error);
+			toast({
+				title: 'Error Deleting Division',
+				description: String(error),
+				variant: 'destructive',
+			});
+		} finally {
+			setConfirmDelete(null);
 		}
 	};
 
@@ -745,14 +774,22 @@ function DivisionManagement({
 	const handleRecalculateBoundaries = async () => {
 		try {
 			await recalculateMinimumBoundaries(yearId);
-			alert('Minimum boundaries recalculated successfully');
+			toast({
+				title: 'Boundaries Recalculated',
+				description: 'Minimum boundaries have been recalculated successfully.',
+			});
 		} catch (error) {
 			console.error('Error recalculating boundaries:', error);
-			alert('Error recalculating boundaries: ' + error);
+			toast({
+				title: 'Error Recalculating Boundaries',
+				description: String(error),
+				variant: 'destructive',
+			});
 		}
 	};
 
 	return (
+		<>
 		<Card>
 			<CardHeader>
 				<div className="flex items-center justify-between">
@@ -936,6 +973,22 @@ function DivisionManagement({
 				)}
 			</CardContent>
 		</Card>
+
+		{/* MAINT-28: ConfirmationDialog replaces confirm() */}
+		<ConfirmationDialog
+			isOpen={!!confirmDelete}
+			title="Delete Division"
+			description={
+				confirmDelete
+					? `Delete division "${confirmDelete.name}"? This will also delete related enrollments.`
+					: ''
+			}
+			onConfirm={executeDelete}
+			onCancel={() => setConfirmDelete(null)}
+			confirmText="Delete"
+			variant="destructive"
+		/>
+		</>
 	);
 }
 
@@ -956,6 +1009,7 @@ function ScriptureManagement({
 	const [editingScripture, setEditingScripture] = useState<any>(null);
 	const [showCsvImport, setShowCsvImport] = useState(false);
 	const [showJsonUpload, setShowJsonUpload] = useState(false);
+	const [confirmDelete, setConfirmDelete] = useState<any>(null);
 	const [formData, setFormData] = useState({
 		scripture_number: '',
 		scripture_order: 1,
@@ -1020,7 +1074,6 @@ function ScriptureManagement({
 					formData.texts['NIV-ES'] ||
 					'',
 				translation: 'NIV',
-				competitionYearId: '', // Legacy field
 				createdAt: new Date().toISOString(),
 				updatedAt: new Date().toISOString(),
 			};
@@ -1029,10 +1082,7 @@ function ScriptureManagement({
 				await upsertScripture({
 					...editingScripture,
 					...scriptureData,
-					bible_bee_cycle_id: selectedCycle._isNewSchema ? yearId : null,
-					competitionYearId: selectedCycle._isNewSchema
-						? ''
-						: (yearId as string),
+					bible_bee_cycle_id: yearId,
 				});
 				toast({
 					title: `Scripture ${formData.scripture_number} Updated`,
@@ -1046,10 +1096,7 @@ function ScriptureManagement({
 				await upsertScripture({
 					id: crypto.randomUUID(),
 					...scriptureData,
-					bible_bee_cycle_id: selectedCycle._isNewSchema ? yearId : undefined,
-					competitionYearId: selectedCycle._isNewSchema
-						? ''
-						: (yearId as string),
+					bible_bee_cycle_id: yearId,
 				});
 				toast({
 					title: `Scripture ${formData.scripture_number} Created`,
@@ -1077,20 +1124,24 @@ function ScriptureManagement({
 		}
 	};
 
-	const handleDelete = async (scripture: any) => {
-		if (confirm(`Delete scripture "${scripture.scripture_number}"?`)) {
-			try {
-				await deleteScripture(scripture.id);
-				toast({
-					title: `Scripture ${scripture.scripture_number} Deleted`,
-					description: 'Scripture has been successfully deleted.',
-				});
-				// Trigger refresh of scriptures list
-				onRefresh();
-			} catch (error: any) {
-				console.error('Error deleting scripture:', error);
-				setError(error.message || 'Error deleting scripture');
-			}
+	const handleDelete = (scripture: any) => {
+		setConfirmDelete(scripture);
+	};
+
+	const executeDelete = async () => {
+		if (!confirmDelete) return;
+		try {
+			await deleteScripture(confirmDelete.id);
+			toast({
+				title: `Scripture ${confirmDelete.scripture_number} Deleted`,
+				description: 'Scripture has been successfully deleted.',
+			});
+			onRefresh();
+		} catch (error: any) {
+			console.error('Error deleting scripture:', error);
+			setError(error.message || 'Error deleting scripture');
+		} finally {
+			setConfirmDelete(null);
 		}
 	};
 
@@ -1345,6 +1396,7 @@ function ScriptureManagement({
 	};
 
 	return (
+		<>
 		<Card>
 			<CardHeader>
 				<div className="flex items-center justify-between">
@@ -1847,6 +1899,20 @@ function ScriptureManagement({
 				)}
 			</CardContent>
 		</Card>
+		<ConfirmationDialog
+			isOpen={!!confirmDelete}
+			title="Delete Scripture"
+			description={
+				confirmDelete
+					? `Delete scripture "${confirmDelete.scripture_number}"?`
+					: ''
+			}
+			onConfirm={executeDelete}
+			onCancel={() => setConfirmDelete(null)}
+			confirmText="Delete"
+			variant="destructive"
+		/>
+	</>
 	);
 }
 
@@ -1868,6 +1934,7 @@ function EssayManagement({
 	const { toast } = useToast();
 	const [isCreating, setIsCreating] = useState(false);
 	const [editingEssay, setEditingEssay] = useState<any>(null);
+	const [confirmDelete, setConfirmDelete] = useState<any>(null);
 	const [formData, setFormData] = useState({
 		division_id: '',
 		title: '',
@@ -1930,7 +1997,7 @@ function EssayManagement({
 				// Trigger refresh of essay prompts list
 				onRefresh();
 			} else {
-				await createEssayPrompt(essayData);
+				await createEssayPrompt({ id: crypto.randomUUID(), ...essayData });
 				toast({
 					title: 'Essay Prompt Created',
 					description: 'Essay prompt has been successfully created.',
@@ -1953,27 +2020,27 @@ function EssayManagement({
 		}
 	};
 
-	const handleDelete = async (essay: any) => {
-		// Look up division name for confirmation message
-		const divisionName = essay.division_id
-			? divisions.find((d) => d.id === essay.division_id)?.name
-			: undefined;
+	const handleDelete = (essay: any) => {
+		setConfirmDelete(essay);
+	};
 
-		if (
-			confirm(`Delete essay prompt for ${divisionName || 'All Divisions'}?`)
-		) {
-			try {
-				await deleteEssayPrompt(essay.id);
-				toast({
-					title: 'Essay Prompt Deleted',
-					description: 'Essay prompt has been successfully deleted.',
-				});
-				// Trigger refresh of essay prompts list
-				onRefresh();
-			} catch (error: any) {
-				console.error('Error deleting essay prompt:', error);
-				setError(error.message || 'Error deleting essay prompt');
-			}
+	const executeDelete = async () => {
+		if (!confirmDelete) return;
+		const divisionName = confirmDelete.division_id
+			? divisions.find((d: any) => d.id === confirmDelete.division_id)?.name
+			: undefined;
+		try {
+			await deleteEssayPrompt(confirmDelete.id);
+			toast({
+				title: 'Essay Prompt Deleted',
+				description: 'Essay prompt has been successfully deleted.',
+			});
+			onRefresh();
+		} catch (error: any) {
+			console.error('Error deleting essay prompt:', error);
+			setError(error.message || 'Error deleting essay prompt');
+		} finally {
+			setConfirmDelete(null);
 		}
 	};
 
@@ -2022,6 +2089,7 @@ function EssayManagement({
 	};
 
 	return (
+		<>
 		<Card>
 			<CardHeader>
 				<div className="flex items-center justify-between">
@@ -2145,9 +2213,12 @@ function EssayManagement({
 									setIsCreating(false);
 									setEditingEssay(null);
 									setFormData({
-										division_name: 'all',
-										prompt_text: '',
+										division_id: '',
+										title: '',
+										prompt: '',
+										instructions: '',
 										due_date: '',
+										due_time: '',
 									});
 									setError(null);
 								}}>
@@ -2225,6 +2296,16 @@ function EssayManagement({
 				)}
 			</CardContent>
 		</Card>
+		<ConfirmationDialog
+			isOpen={!!confirmDelete}
+			onCancel={() => setConfirmDelete(null)}
+			onConfirm={executeDelete}
+			title="Delete Essay Prompt"
+			description={`Are you sure you want to delete the essay prompt "${confirmDelete?.title}"? This action cannot be undone.`}
+			confirmText="Delete"
+			variant="destructive"
+		/>
+		</>
 	);
 }
 
@@ -2544,6 +2625,7 @@ function OverrideManagement({
 	const { toast } = useToast();
 	const [isCreating, setIsCreating] = useState(false);
 	const [editingOverride, setEditingOverride] = useState<any>(null);
+	const [confirmDelete, setConfirmDelete] = useState<any>(null);
 	const [searchTerm, setSearchTerm] = useState('');
 	const [selectedChild, setSelectedChild] = useState<any>(null);
 	const [formData, setFormData] = useState({
@@ -2657,7 +2739,7 @@ function OverrideManagement({
 				// Delete existing override first (if any)
 				await deleteEnrollmentOverrideByChild(selectedChild.child_id);
 				// Create new override
-				await createEnrollmentOverride(overrideData);
+				await createEnrollmentOverride({ id: crypto.randomUUID(), ...overrideData });
 				// Apply the override immediately to the actual enrollment
 				await applyEnrollmentOverride(
 					selectedChild.child_id,
@@ -2685,25 +2767,30 @@ function OverrideManagement({
 		}
 	};
 
-	const handleDelete = async (override: any) => {
-		if (confirm(`Delete override for ${override.child_name}?`)) {
-			try {
-				await deleteEnrollmentOverride(override.id);
-				// Remove the override effect from the actual enrollment
-				await removeEnrollmentOverrideEffect(override.child_id, yearId);
+	const handleDelete = (override: any) => {
+		setConfirmDelete(override);
+	};
 
-				// Refresh the overrides list to show updated data
-				const updatedOverrides = await getEnrollmentOverridesForYear(yearId);
-				setOverrides(updatedOverrides);
+	const executeDelete = async () => {
+		if (!confirmDelete) return;
+		try {
+			await deleteEnrollmentOverride(confirmDelete.id);
+			// Remove the override effect from the actual enrollment
+			await removeEnrollmentOverrideEffect(confirmDelete.child_id, yearId);
 
-				toast({
-					title: 'Override Deleted',
-					description: `Override for ${override.child_name} has been deleted.`,
-				});
-			} catch (error: any) {
-				console.error('Error deleting override:', error);
-				setError(error.message || 'Error deleting override');
-			}
+			// Refresh the overrides list to show updated data
+			const updatedOverrides = await getEnrollmentOverridesForYear(yearId);
+			setOverrides(updatedOverrides);
+
+			toast({
+				title: 'Override Deleted',
+				description: `Override for ${confirmDelete.child_name} has been deleted.`,
+			});
+		} catch (error: any) {
+			console.error('Error deleting override:', error);
+			setError(error.message || 'Error deleting override');
+		} finally {
+			setConfirmDelete(null);
 		}
 	};
 
@@ -2725,6 +2812,7 @@ function OverrideManagement({
 	};
 
 	return (
+		<>
 		<Card>
 			<CardHeader>
 				<div className="flex items-center justify-between">
@@ -2919,5 +3007,15 @@ function OverrideManagement({
 				)}
 			</CardContent>
 		</Card>
+		<ConfirmationDialog
+			isOpen={!!confirmDelete}
+			onCancel={() => setConfirmDelete(null)}
+			onConfirm={executeDelete}
+			title="Delete Override"
+			description={`Are you sure you want to delete the override for ${confirmDelete?.child_name}? This action cannot be undone.`}
+			confirmText="Delete"
+			variant="destructive"
+		/>
+		</>
 	);
 }

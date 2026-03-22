@@ -1,9 +1,7 @@
-import { getFlag } from '../featureFlags';
-
 /**
- * Check if the application is running in Supabase mode
+ * Always returns true — the app always runs in Supabase mode.
+ * Demo mode has been removed.
  */
 export function isSupabaseMode(): boolean {
-	// Use feature flag system to determine database mode
-	return getFlag('DATABASE_MODE') === 'supabase';
+	return true;
 }

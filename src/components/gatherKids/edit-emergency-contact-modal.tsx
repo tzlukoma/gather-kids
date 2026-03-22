@@ -63,7 +63,7 @@ export function EditEmergencyContactModal({
 		try {
 			await updateEmergencyContactMutation.mutateAsync({
 				householdId,
-				contact: data,
+				contact: { ...contact, ...data },
 			});
 			toast({
 				title: 'Emergency Contact Updated',

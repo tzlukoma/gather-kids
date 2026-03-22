@@ -11,10 +11,10 @@ describe('Auth Utils - User with no role redirect', () => {
   });
 
   it('should redirect users with valid roles to their appropriate pages', () => {
-    expect(getPostLoginRoute(AuthRole.ADMIN)).toBe('/dashboard');
-    expect(getPostLoginRoute(AuthRole.MINISTRY_LEADER)).toBe('/dashboard/rosters');
+    expect(getPostLoginRoute(AuthRole.ADMIN)).toBe('/admin-overview');
+    expect(getPostLoginRoute(AuthRole.MINISTRY_LEADER)).toBe('/rosters');
     expect(getPostLoginRoute(AuthRole.GUARDIAN)).toBe('/household');
-    expect(getPostLoginRoute(AuthRole.VOLUNTEER)).toBe('/dashboard');
+    expect(getPostLoginRoute(AuthRole.VOLUNTEER)).toBe('/admin-overview');
   });
 
   it('should use register as default route for users without roles', () => {

@@ -51,7 +51,7 @@ describe('Database Schema Contract Tests', () => {
         // In mock environment, this might fail for other reasons
         // But it should NOT fail due to updated_at column issues
         expect(error).toBeDefined();
-        expect(error.message).not.toContain('updated_at');
+        expect(error instanceof Error ? error.message : String(error)).not.toContain('updated_at');
       }
     });
 
@@ -72,7 +72,7 @@ describe('Database Schema Contract Tests', () => {
         // In mock environment, this might fail for other reasons
         // But it should NOT fail due to updated_at column issues
         expect(error).toBeDefined();
-        expect(error.message).not.toContain('updated_at');
+        expect(error instanceof Error ? error.message : String(error)).not.toContain('updated_at');
       }
     });
 
@@ -167,7 +167,8 @@ describe('Database Schema Contract Tests', () => {
       };
 
       try {
-        await supabaseAdapter.createChild(incompleteChild);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await supabaseAdapter.createChild(incompleteChild as any);
         // This should fail due to missing required fields
         expect(true).toBe(false); // Should not reach here
       } catch (error) {
@@ -182,7 +183,8 @@ describe('Database Schema Contract Tests', () => {
       };
 
       try {
-        await supabaseAdapter.createGuardian(incompleteGuardian);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await supabaseAdapter.createGuardian(incompleteGuardian as any);
         // This should fail due to missing required fields
         expect(true).toBe(false); // Should not reach here
       } catch (error) {

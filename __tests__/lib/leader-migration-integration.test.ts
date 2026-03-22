@@ -1,26 +1,66 @@
 import { migrateLeaders, printMigrationReport } from '../../scripts/migrate/migrate-leaders';
 import { queryLeaderProfiles, getLeaderProfileWithMemberships } from '../../src/lib/dal';
 import type { User, LeaderAssignment, Ministry } from '../../src/lib/types';
-import { AuthRole } from '../../src/lib/auth-types';
 
-// Mock the database module
+// Mock the Dexie db module (used by the migration script)
+// Must use require inside the factory to avoid hoisting issues
 jest.mock('../../src/lib/db', () => {
   const { createInMemoryDB } = require('../../src/test-utils/dexie-mock');
   return { db: createInMemoryDB() };
 });
 
-// Get reference to the mocked db
+// Mock the database factory (used by DAL functions like queryLeaderProfiles)
+jest.mock('@/lib/database/factory', () => {
+  const mockAdapter = {
+    listLeaderProfiles: jest.fn(),
+    getLeaderProfile: jest.fn(),
+    createLeaderProfile: jest.fn(),
+    updateLeaderProfile: jest.fn(),
+    listMinistryLeaderMemberships: jest.fn(),
+    createMinistryLeaderMembership: jest.fn(),
+    deleteMinistryLeaderMembership: jest.fn(),
+    listMinistries: jest.fn(),
+    transaction: jest.fn().mockImplementation((callback: () => Promise<any>) => callback()),
+  };
+  return {
+    createDatabaseAdapter: jest.fn(() => mockAdapter),
+    db: mockAdapter,
+  };
+});
+
+// Get references at module load time (after mocks are set up)
 const { db: mockDb } = require('../../src/lib/db');
+import { db as mockAdapterDb } from '@/lib/database/factory';
+const mockAdapter = mockAdapterDb as any;
+
+// Sync adapter mocks to read from the shared in-memory DB
+function syncAdapterMocks() {
+  mockAdapter.listLeaderProfiles.mockImplementation(() => mockDb.leader_profiles.toArray());
+  mockAdapter.listMinistryLeaderMemberships.mockImplementation(async (ministryId?: string, leaderId?: string) => {
+    const all = await mockDb.ministry_leader_memberships.toArray();
+    return all.filter((m: any) => {
+      if (leaderId && m.leader_id !== leaderId) return false;
+      if (ministryId && m.ministry_id !== ministryId) return false;
+      return true;
+    });
+  });
+  mockAdapter.listMinistries.mockImplementation(() => mockDb.ministries.toArray());
+  mockAdapter.getLeaderProfile.mockImplementation((id: string) =>
+    mockDb.leader_profiles.get(id)
+  );
+}
 
 // Clear database before each test
 beforeEach(async () => {
-  // Clear all tables
+  // Clear all in-memory tables
   for (const tableName of Object.keys(mockDb)) {
-    const table = mockDb[tableName];
-    if (table && typeof table === 'object' && (table as any)._internalStore) {
-      (table as any)._internalStore.clear();
+    const table = (mockDb as any)[tableName];
+    if (table && typeof table === 'object' && table._internalStore) {
+      table._internalStore.clear();
     }
   }
+  jest.clearAllMocks();
+  syncAdapterMocks();
 });
 
 describe('Leader Migration Integration Tests', () => {
@@ -39,7 +79,7 @@ describe('Leader Migration Integration Tests', () => {
       ministry_id: 'bible-bee',
       name: 'Bible Bee',
       code: 'BB',
-      enrollment_type: 'enrolled', 
+      enrollment_type: 'enrolled',
       data_profile: 'Basic',
       created_at: '2025-01-01T00:00:00Z',
       updated_at: '2025-01-01T00:00:00Z',
@@ -57,7 +97,7 @@ describe('Leader Migration Integration Tests', () => {
       is_active: true
     },
     {
-      user_id: 'leader-2', 
+      user_id: 'leader-2',
       name: 'Jane Smith',
       email: 'JANE.SMITH@EXAMPLE.COM', // Test email normalization
       mobile_phone: '555-987-6543',
@@ -83,7 +123,7 @@ describe('Leader Migration Integration Tests', () => {
     },
     {
       assignment_id: 'assign-2',
-      leader_id: 'leader-2', 
+      leader_id: 'leader-2',
       ministry_id: 'sunday-school',
       cycle_id: '2025',
       role: 'Volunteer'
@@ -92,16 +132,18 @@ describe('Leader Migration Integration Tests', () => {
       assignment_id: 'assign-3',
       leader_id: 'leader-2',
       ministry_id: 'bible-bee',
-      cycle_id: '2025', 
+      cycle_id: '2025',
       role: 'Primary'
     }
   ];
 
   beforeEach(async () => {
-    // Setup test data
+    // Setup test data in the shared in-memory DB
     await mockDb.ministries.bulkPut(sampleMinistries);
     await mockDb.users.bulkPut(sampleUsers);
     await mockDb.leader_assignments.bulkPut(sampleAssignments);
+    // Re-sync mocks since data changed
+    syncAdapterMocks();
   });
 
   it('should migrate leaders from users to leader profiles', async () => {
@@ -114,12 +156,15 @@ describe('Leader Migration Integration Tests', () => {
     expect(report.ministryAccountsCreated).toBe(2);
     expect(report.errors).toEqual([]);
 
+    // Re-sync so DAL reads from what migration wrote
+    syncAdapterMocks();
+
     // Verify leader profiles were created
     const profiles = await queryLeaderProfiles();
     expect(profiles).toHaveLength(3);
 
     // Find John Doe's profile
-    const johnProfile = profiles.find(p => p.first_name === 'John' && p.last_name === 'Doe');
+    const johnProfile = profiles.find((p: any) => p.first_name === 'John' && p.last_name === 'Doe');
     expect(johnProfile).toMatchObject({
       first_name: 'John',
       last_name: 'Doe',
@@ -130,7 +175,7 @@ describe('Leader Migration Integration Tests', () => {
     });
 
     // Find Jane Smith's profile
-    const janeProfile = profiles.find(p => p.first_name === 'Jane' && p.last_name === 'Smith');
+    const janeProfile = profiles.find((p: any) => p.first_name === 'Jane' && p.last_name === 'Smith');
     expect(janeProfile).toMatchObject({
       first_name: 'Jane',
       last_name: 'Smith',
@@ -150,9 +195,9 @@ describe('Leader Migration Integration Tests', () => {
       is_active: true
     });
 
-    const janeData = await getLeaderProfileWithMemberships('leader-2'); 
+    const janeData = await getLeaderProfileWithMemberships('leader-2');
     expect(janeData?.memberships).toHaveLength(2);
-    
+
     // Verify ministry accounts were created
     const accounts = await mockDb.ministry_accounts.toArray();
     expect(accounts).toHaveLength(2);
@@ -186,13 +231,19 @@ describe('Leader Migration Integration Tests', () => {
     const report1 = await migrateLeaders();
     expect(report1.profilesCreated).toBe(3);
 
+    // Re-sync after first migration
+    syncAdapterMocks();
+
     // Run migration second time
-    const report2 = await migrateLeaders();
-    
+    await migrateLeaders();
+
+    // Re-sync after second migration
+    syncAdapterMocks();
+
     // Should not create duplicates
     const profiles = await queryLeaderProfiles();
     expect(profiles).toHaveLength(3);
-    
+
     // Ministry accounts should not duplicate
     const accounts = await mockDb.ministry_accounts.toArray();
     expect(accounts).toHaveLength(2);

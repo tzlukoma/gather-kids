@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import { AuthRole } from '@/lib/auth-types';
 import { DefaultLoadingSpinner } from '@/components/ui/spinner';
-import { isDemo } from '@/lib/authGuards';
 
 interface ProtectedRouteProps {
 	children: ReactNode;
@@ -26,42 +25,21 @@ export const ProtectedRoute = ({
 		const handleNavigation = async () => {
 			// Always wait for the auth context to finish loading before making navigation decisions
 			if (loading) {
-				console.log('ProtectedRoute: Auth context still loading, waiting...');
 				return;
 			}
 
-			console.log('ProtectedRoute: Auth context loaded, checking auth state...', {
-				user: !!user,
-				userRole,
-				allowedRoles,
-				isDemo: isDemo()
-			});
-
 			if (!user) {
-				// Check if we might have a valid session but the auth context missed it
-				// This helps with both demo mode and Vercel preview environments
-				const hasDemoUser = 
-					typeof window !== 'undefined' && 
-					localStorage.getItem('gatherkids-user');
-				
+				// Check for Supabase auth tokens that would indicate a previous successful auth
 				const hasSupabaseTokens =
 					typeof window !== 'undefined' &&
 					Object.keys(localStorage).some((key) => key && key.startsWith('sb-'));
 
-				if (isDemo() && hasDemoUser) {
-					console.log(
-						'Protected route: Found demo user in localStorage but auth context missed it. Reloading...'
-					);
-					// Force a reload to let the auth context initialize properly
-					window.location.reload();
-					return;
-				} else if (hasSupabaseTokens) {
+				if (hasSupabaseTokens) {
 					console.log(
 						'Protected route: Found auth tokens but no user. Attempting session recovery...'
 					);
 
 					try {
-						// Try to import supabase client dynamically to avoid SSR issues
 						const { supabase } = await import('@/lib/supabaseClient');
 						const { data, error } = await supabase.auth.refreshSession();
 
@@ -69,8 +47,6 @@ export const ProtectedRoute = ({
 							console.log(
 								'Protected route: Session recovered! Reloading page...'
 							);
-							// We have a session but the auth context didn't catch it
-							// Force a reload to let the auth context initialize properly
 							window.location.reload();
 							return;
 						} else {
@@ -101,13 +77,8 @@ export const ProtectedRoute = ({
 				}
 			}
 
-			console.log('ProtectedRoute - Current userRole:', userRole);
-			console.log('ProtectedRoute - Allowed roles:', allowedRoles);
-
 			if (!userRole || !allowedRoles.includes(userRole)) {
 				console.log('Role check failed - redirecting to unauthorized');
-				console.log('userRole:', userRole);
-				console.log('allowedRoles:', allowedRoles);
 				setIsNavigating(true);
 				await router.replace('/unauthorized');
 				setIsNavigating(false);

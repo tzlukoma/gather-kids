@@ -1,9 +1,9 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { 
+import {
   queryLeaderProfiles,
-  getLeaderProfile,
+  getLeaderProfileWithMemberships,
   searchLeaderProfiles
 } from '@/lib/dal';
 import { queryKeys } from './keys';
@@ -20,7 +20,7 @@ export function useLeaders() {
 export function useLeader(leaderId: string) {
   return useQuery({
     queryKey: queryKeys.leader(leaderId),
-    queryFn: () => getLeaderProfile(leaderId, '2025'), // Default cycle
+    queryFn: () => getLeaderProfileWithMemberships(leaderId),
     enabled: !!leaderId,
     ...cacheConfig.moderate,
   });

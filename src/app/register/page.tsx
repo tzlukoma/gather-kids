@@ -99,13 +99,13 @@ const GENERIC_VERIFICATION_ERROR =
 const verificationSchema = z.object({
 	childDob: z
 		.string()
-		.refine((val) => val === '2020-05-10', GENERIC_VERIFICATION_ERROR),
+		.refine((val): val is string => val === '2020-05-10', GENERIC_VERIFICATION_ERROR),
 	streetNumber: z
 		.string()
-		.refine((val) => val === '456', GENERIC_VERIFICATION_ERROR),
+		.refine((val): val is string => val === '456', GENERIC_VERIFICATION_ERROR),
 	emergencyContactFirstName: z
 		.string()
-		.refine((val) => val.toLowerCase() === 'susan', GENERIC_VERIFICATION_ERROR),
+		.refine((val): val is string => val.toLowerCase() === 'susan', GENERIC_VERIFICATION_ERROR),
 });
 
 const ministrySelectionSchema = z.record(z.boolean().optional()).optional();
@@ -224,7 +224,7 @@ function VerificationStepTwoForm({
 
 	async function onSubmit() {
 		// This is a mock verification. In a real app this would hit a server.
-		const cycleId = activeRegistrationCycle?.cycle_id || '2025'; // fallback to '2025' if no active cycle found
+		const cycleId = '2025'; // fallback cycleId for verification flow
 		const householdData = await findHouseholdByEmail(
 			MOCK_EMAILS.PREFILL_OVERWRITE,
 			cycleId
@@ -500,7 +500,7 @@ function RegisterPageContent() {
 		queryFn: async () => {
 			console.log('🔍 RegisterPage: Calling getMinistries...');
 			const ministriesPromise = getMinistries();
-			const timeoutPromise = new Promise((_, reject) =>
+			const timeoutPromise = new Promise<never>((_, reject) =>
 				setTimeout(
 					() => reject(new Error('getMinistries timeout after 10 seconds')),
 					10000
@@ -516,7 +516,7 @@ function RegisterPageContent() {
 		isLoading: ministriesLoading,
 		hasError: !!ministriesError,
 		dataCount: allMinistries.length,
-		errorMessage: ministriesError?.message,
+		errorMessage: (ministriesError instanceof Error ? ministriesError.message : undefined),
 	});
 
 	const {
@@ -537,7 +537,7 @@ function RegisterPageContent() {
 		isLoading: cyclesLoading,
 		hasError: !!cyclesError,
 		dataCount: registrationCycles.length,
-		errorMessage: cyclesError?.message,
+		errorMessage: (cyclesError instanceof Error ? cyclesError.message : undefined),
 	});
 
 	const {
@@ -558,7 +558,7 @@ function RegisterPageContent() {
 		isLoading: groupsLoading,
 		hasError: !!groupsError,
 		dataCount: ministryGroups.length,
-		errorMessage: groupsError?.message,
+		errorMessage: (groupsError instanceof Error ? groupsError.message : undefined),
 	});
 
 	// Find active registration cycle
@@ -586,7 +586,7 @@ function RegisterPageContent() {
 			);
 			return getMinistriesByGroupCode('choirs');
 		},
-		enabled: !authLoading && showMinistryGroups, // Wait for auth AND check flag
+		enabled: !authLoading && !!showMinistryGroups, // Wait for auth AND check flag
 		staleTime: 10 * 60 * 1000, // 10 minutes
 	});
 
@@ -594,8 +594,8 @@ function RegisterPageContent() {
 		isLoading: choirMinistriesLoading,
 		hasError: !!choirMinistriesError,
 		dataCount: choirMinistriesData.length,
-		errorMessage: choirMinistriesError?.message,
-		enabled: !authLoading && showMinistryGroups,
+		errorMessage: (choirMinistriesError instanceof Error ? choirMinistriesError.message : undefined),
+		enabled: !authLoading && !!showMinistryGroups,
 	});
 
 	const choirMinistries = useMemo(() => {
@@ -698,13 +698,10 @@ function RegisterPageContent() {
 					// Reset form with merged default values and draft data
 					form.reset({
 						household: {
-							name: '',
 							address_line1: '',
-							address_line2: '',
 							city: '',
 							state: '',
 							zip: '',
-							preferredScriptureTranslation: 'NIV',
 							...(draftData.household || {}),
 							// Ensure optional fields have proper defaults
 							name: draftData.household?.name || '',
@@ -713,8 +710,8 @@ function RegisterPageContent() {
 								draftData.household?.preferredScriptureTranslation || 'NIV',
 						},
 						guardians:
-							draftData.guardians?.length > 0
-								? draftData.guardians.map((guardian) => ({
+							(draftData.guardians?.length ?? 0) > 0
+								? draftData.guardians!.map((guardian) => ({
 										first_name: guardian.first_name || '',
 										last_name: guardian.last_name || '',
 										mobile_phone: guardian.mobile_phone || '',
@@ -733,10 +730,6 @@ function RegisterPageContent() {
 										},
 								  ],
 						emergencyContact: {
-							first_name: '',
-							last_name: '',
-							mobile_phone: '',
-							relationship: '',
 							...(draftData.emergencyContact || {}),
 							// Ensure all fields have proper defaults
 							first_name: draftData.emergencyContact?.first_name || '',
@@ -759,10 +752,6 @@ function RegisterPageContent() {
 							customData: child.customData || {},
 						})),
 						consents: {
-							liability: false,
-							photoRelease: false,
-							group_consents: {},
-							custom_consents: {},
 							...(draftData.consents || {}),
 							// Ensure optional fields have proper defaults
 							liability: draftData.consents?.liability || false,
@@ -811,9 +800,9 @@ function RegisterPageContent() {
 				data.household?.state ||
 				data.household?.zip ||
 				data.guardians?.some(
-					(g) => g.first_name || g.last_name || g.mobile_phone
+					(g) => g && (g.first_name || g.last_name || g.mobile_phone)
 				) ||
-				data.children?.length > 0 ||
+				(data.children?.length ?? 0) > 0 ||
 				data.emergencyContact?.first_name ||
 				data.consents?.liability ||
 				data.consents?.photoRelease;
@@ -831,13 +820,13 @@ function RegisterPageContent() {
 						preferredScriptureTranslation:
 							data.household?.preferredScriptureTranslation || 'NIV',
 					},
-					guardians: (data.guardians || []).map((guardian) => ({
-						first_name: guardian.first_name || '',
-						last_name: guardian.last_name || '',
-						mobile_phone: guardian.mobile_phone || '',
-						email: guardian.email || '',
-						relationship: guardian.relationship || 'Mother',
-						is_primary: guardian.is_primary || false,
+					guardians: (data.guardians || []).filter(Boolean).map((guardian) => ({
+						first_name: guardian!.first_name || '',
+						last_name: guardian!.last_name || '',
+						mobile_phone: guardian!.mobile_phone || '',
+						email: guardian!.email || '',
+						relationship: guardian!.relationship || 'Mother',
+						is_primary: guardian!.is_primary || false,
 					})),
 					emergencyContact: {
 						first_name: data.emergencyContact?.first_name || '',
@@ -845,19 +834,19 @@ function RegisterPageContent() {
 						mobile_phone: data.emergencyContact?.mobile_phone || '',
 						relationship: data.emergencyContact?.relationship || '',
 					},
-					children: (data.children || []).map((child) => ({
+					children: (data.children || []).filter(Boolean).map((child) => ({
 						...defaultChildValues,
-						...child,
+						...child!,
 						// Ensure optional fields have proper defaults
-						child_id: child.child_id || '',
-						child_mobile: child.child_mobile || '',
-						allergies: child.allergies || '',
-						medical_notes: child.medical_notes || '',
-						special_needs: child.special_needs || false,
-						special_needs_notes: child.special_needs_notes || '',
-						ministrySelections: child.ministrySelections || {},
-						interestSelections: child.interestSelections || {},
-						customData: child.customData || {},
+						child_id: child!.child_id || '',
+						child_mobile: child!.child_mobile || '',
+						allergies: child!.allergies || '',
+						medical_notes: child!.medical_notes || '',
+						special_needs: child!.special_needs || false,
+						special_needs_notes: child!.special_needs_notes || '',
+						ministrySelections: child!.ministrySelections || {},
+						interestSelections: child!.interestSelections || {},
+						customData: child!.customData || {},
 					})),
 					consents: {
 						liability: data.consents?.liability || false,
@@ -1070,7 +1059,7 @@ function RegisterPageContent() {
 			} else {
 				console.log('DEBUG: New registration - checking magic link flags');
 				// New registration - check if magic link verification is enabled
-				const isMagicEnabled = flags.loginMagicEnabled && !flags.isDemoMode;
+				const isMagicEnabled = flags.loginMagicEnabled;
 
 				if (isMagicEnabled) {
 					console.log('DEBUG: Magic link enabled, sending verification email');
@@ -1120,7 +1109,6 @@ function RegisterPageContent() {
 		toast,
 		prefillForm,
 		flags.loginMagicEnabled,
-		flags.isDemoMode,
 		proceedToRegistrationForm,
 	]);
 
@@ -1128,8 +1116,6 @@ function RegisterPageContent() {
 		console.log(
 			'DEBUG: Main useEffect triggered with user:',
 			user?.email,
-			'isDemoMode:',
-			flags.isDemoMode,
 			'authLoading:',
 			authLoading,
 			'ministriesLoading:',
@@ -1149,9 +1135,9 @@ function RegisterPageContent() {
 		// Redirect MINISTRY_LEADER users to their dashboard instead of registration
 		if (user?.metadata?.role === 'MINISTRY_LEADER') {
 			console.log(
-				'DEBUG: MINISTRY_LEADER user detected, redirecting to /dashboard/rosters'
+				'DEBUG: MINISTRY_LEADER user detected, redirecting to /rosters'
 			);
-			router.push('/dashboard/rosters');
+			router.push('/rosters');
 			return;
 		}
 
@@ -1170,9 +1156,9 @@ function RegisterPageContent() {
 
 					if (accessibleMinistries.length > 0) {
 						console.log(
-							'DEBUG: Ministry access found, redirecting to /dashboard/rosters'
+							'DEBUG: Ministry access found, redirecting to /rosters'
 						);
-						router.push('/dashboard/rosters');
+						router.push('/rosters');
 						return;
 					}
 				} catch (error) {
@@ -1185,12 +1171,8 @@ function RegisterPageContent() {
 
 		// Check if user is authenticated and skip email lookup if so
 		// For live mode: check for authenticated users with email
-		// For demo mode: check for authenticated users with GUARDIAN role (parents) or null role (new users needing registration)
-		const shouldSkipEmailLookup =
-			(!flags.isDemoMode && user?.email) ||
-			(flags.isDemoMode &&
-				user?.email &&
-				(user?.metadata?.role === 'GUARDIAN' || user?.metadata?.role === null));
+		// Check for authenticated users with email (skip email lookup step)
+		const shouldSkipEmailLookup = user?.email;
 
 		console.log('DEBUG: shouldSkipEmailLookup:', shouldSkipEmailLookup);
 		if (shouldSkipEmailLookup) {
@@ -1308,7 +1290,6 @@ function RegisterPageContent() {
 		}
 	}, [
 		user,
-		flags.isDemoMode,
 		toast,
 		form,
 		prefillForm,
@@ -1548,9 +1529,9 @@ function RegisterPageContent() {
 	// But don't show error for authenticated users who should see the form
 	if ((ministriesError || cyclesError || groupsError) && !isAuthenticatedUser) {
 		console.log('🔍 Register Page: Data loading failed', {
-			ministriesError: ministriesError?.message,
-			cyclesError: cyclesError?.message,
-			groupsError: groupsError?.message,
+			ministriesError: (ministriesError instanceof Error ? ministriesError.message : undefined),
+			cyclesError: (cyclesError instanceof Error ? cyclesError.message : undefined),
+			groupsError: (groupsError instanceof Error ? groupsError.message : undefined),
 			authLoading,
 			isLoading,
 		});
@@ -1626,7 +1607,7 @@ function RegisterPageContent() {
 							/>
 							<Button onClick={handleEmailLookup}>Continue</Button>
 						</div>
-						{flags.showDemoFeatures && (
+						{false && (
 							<Alert>
 								<Info className="h-4 w-4" />
 								<AlertTitle>For Prototype Demo</AlertTitle>
@@ -1765,7 +1746,7 @@ function RegisterPageContent() {
 							</Button>
 						</div>
 
-						{flags.showDemoFeatures && (
+						{false && (
 							<Alert>
 								<Info className="h-4 w-4" />
 								<AlertTitle>For Testing</AlertTitle>
@@ -2834,9 +2815,22 @@ function RegisterPageContent() {
 	);
 }
 
+function RegisterSkeleton() {
+	return (
+		<div className="max-w-4xl mx-auto px-4 py-8 animate-pulse">
+			<div className="h-8 w-48 bg-muted rounded mb-6" />
+			<div className="space-y-4">
+				{[1, 2, 3, 4].map((i) => (
+					<div key={i} className="h-12 bg-muted rounded" />
+				))}
+			</div>
+		</div>
+	);
+}
+
 export default function RegisterPage() {
 	return (
-		<Suspense fallback={<div>Loading...</div>}>
+		<Suspense fallback={<RegisterSkeleton />}>
 			<RegisterPageContent />
 		</Suspense>
 	);

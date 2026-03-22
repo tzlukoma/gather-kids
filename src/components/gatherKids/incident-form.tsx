@@ -22,12 +22,10 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '@/lib/db';
 import { getTodayIsoDate, logIncident } from '@/lib/dal';
+import { useCheckedInChildren } from '@/hooks/data';
 import type { IncidentSeverity } from '@/lib/types';
 import { useAuth } from '@/contexts/auth-context';
-import { AuthRole } from '@/lib/auth-types';
 
 const incidentFormSchema = z.object({
 	childId: z.string({ required_error: 'Please select a child.' }),
@@ -58,27 +56,7 @@ export function IncidentForm() {
 	});
 
 	const today = getTodayIsoDate();
-	const checkedInChildren = useLiveQuery(async () => {
-		const attendance = await db.attendance.where({ date: today }).toArray();
-		if (!attendance.length) return [];
-
-		let childIds = attendance.map((a) => a.child_id);
-
-		if (
-			user?.metadata?.role === AuthRole.MINISTRY_LEADER &&
-			user.assignedMinistryIds
-		) {
-			const enrollments = await db.ministry_enrollments
-				.where('ministry_id')
-				.anyOf(user.assignedMinistryIds)
-				.and((e) => e.cycle_id === '2025' && childIds.includes(e.child_id))
-				.toArray();
-			childIds = [...new Set(enrollments.map((e) => e.child_id))];
-		}
-
-		if (childIds.length === 0) return [];
-		return db.children.where('child_id').anyOf(childIds).toArray();
-	}, [today, user]);
+	const { data: checkedInChildren = [] } = useCheckedInChildren(today);
 
 	async function onSubmit(data: IncidentFormValues) {
 		try {

@@ -57,18 +57,18 @@ describe('auth-utils', () => {
     });
 
     it('returns correct route for each role', () => {
-      expect(getPostLoginRoute(AuthRole.ADMIN)).toBe('/dashboard');
-      expect(getPostLoginRoute(AuthRole.MINISTRY_LEADER)).toBe('/dashboard/rosters');
+      expect(getPostLoginRoute(AuthRole.ADMIN)).toBe('/admin-overview');
+      expect(getPostLoginRoute(AuthRole.MINISTRY_LEADER)).toBe('/rosters');
       expect(getPostLoginRoute(AuthRole.GUARDIAN)).toBe('/household');
-      expect(getPostLoginRoute(AuthRole.VOLUNTEER)).toBe('/dashboard');
+      expect(getPostLoginRoute(AuthRole.VOLUNTEER)).toBe('/admin-overview');
     });
 
     it('returns route based on highest priority role for multiple roles', () => {
       // ADMIN takes priority
-      expect(getPostLoginRoute([AuthRole.GUARDIAN, AuthRole.ADMIN])).toBe('/dashboard');
+      expect(getPostLoginRoute([AuthRole.GUARDIAN, AuthRole.ADMIN])).toBe('/admin-overview');
       
       // MINISTRY_LEADER takes priority over GUARDIAN
-      expect(getPostLoginRoute([AuthRole.GUARDIAN, AuthRole.MINISTRY_LEADER])).toBe('/dashboard/rosters');
+      expect(getPostLoginRoute([AuthRole.GUARDIAN, AuthRole.MINISTRY_LEADER])).toBe('/rosters');
       
       // GUARDIAN takes priority over VOLUNTEER
       expect(getPostLoginRoute([AuthRole.VOLUNTEER, AuthRole.GUARDIAN])).toBe('/household');
@@ -105,13 +105,13 @@ describe('auth-utils', () => {
 
     it('returns correct route based on user role', () => {
       const adminUser = { metadata: { role: AuthRole.ADMIN } };
-      expect(getPostLoginRouteFromUser(adminUser)).toBe('/dashboard');
+      expect(getPostLoginRouteFromUser(adminUser)).toBe('/admin-overview');
 
       const guardianUser = { metadata: { role: AuthRole.GUARDIAN } };
       expect(getPostLoginRouteFromUser(guardianUser)).toBe('/household');
 
       const leaderUser = { metadata: { role: AuthRole.MINISTRY_LEADER } };
-      expect(getPostLoginRouteFromUser(leaderUser)).toBe('/dashboard/rosters');
+      expect(getPostLoginRouteFromUser(leaderUser)).toBe('/rosters');
     });
   });
 
@@ -148,10 +148,10 @@ describe('auth-utils', () => {
     });
 
     it('has correct routes for each role', () => {
-      expect(ROLE_ROUTES[AuthRole.ADMIN]).toBe('/dashboard');
-      expect(ROLE_ROUTES[AuthRole.MINISTRY_LEADER]).toBe('/dashboard/rosters');
+      expect(ROLE_ROUTES[AuthRole.ADMIN]).toBe('/admin-overview');
+      expect(ROLE_ROUTES[AuthRole.MINISTRY_LEADER]).toBe('/rosters');
       expect(ROLE_ROUTES[AuthRole.GUARDIAN]).toBe('/household');
-      expect(ROLE_ROUTES[AuthRole.VOLUNTEER]).toBe('/dashboard');
+      expect(ROLE_ROUTES[AuthRole.VOLUNTEER]).toBe('/admin-overview');
     });
   });
 
@@ -159,13 +159,13 @@ describe('auth-utils', () => {
     it('handles admin + guardian user (admin takes priority)', () => {
       const roles = [AuthRole.GUARDIAN, AuthRole.ADMIN];
       expect(getUserRole(roles)).toBe(AuthRole.ADMIN);
-      expect(getPostLoginRoute(roles)).toBe('/dashboard');
+      expect(getPostLoginRoute(roles)).toBe('/admin-overview');
     });
 
     it('handles ministry leader + guardian user (leader takes priority)', () => {
       const roles = [AuthRole.GUARDIAN, AuthRole.MINISTRY_LEADER];
       expect(getUserRole(roles)).toBe(AuthRole.MINISTRY_LEADER);
-      expect(getPostLoginRoute(roles)).toBe('/dashboard/rosters');
+      expect(getPostLoginRoute(roles)).toBe('/rosters');
     });
 
     it('handles guardian only user', () => {
@@ -177,7 +177,7 @@ describe('auth-utils', () => {
     it('handles all roles together (admin takes priority)', () => {
       const roles = [AuthRole.VOLUNTEER, AuthRole.GUARDIAN, AuthRole.MINISTRY_LEADER, AuthRole.ADMIN];
       expect(getUserRole(roles)).toBe(AuthRole.ADMIN);
-      expect(getPostLoginRoute(roles)).toBe('/dashboard');
+      expect(getPostLoginRoute(roles)).toBe('/admin-overview');
     });
   });
 });

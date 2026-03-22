@@ -10,8 +10,6 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
 import { useFeatureFlags } from "@/contexts/feature-flag-context";
 
 interface FeatureFlagDialogProps {
@@ -20,7 +18,7 @@ interface FeatureFlagDialogProps {
 }
 
 export function FeatureFlagDialog({ isOpen, onClose }: FeatureFlagDialogProps) {
-  const { flags, setFlag, loading } = useFeatureFlags();
+  const { flags, loading } = useFeatureFlags();
 
   if (loading) {
     return null; // Don't render until flags are loaded to prevent flash of incorrect state
@@ -32,27 +30,27 @@ export function FeatureFlagDialog({ isOpen, onClose }: FeatureFlagDialogProps) {
         <DialogHeader>
           <DialogTitle className="font-headline">Feature Flags</DialogTitle>
           <DialogDescription>
-            Toggle features on and off for demonstration purposes.
+            Current feature flag configuration (read-only, set via environment variables).
           </DialogDescription>
         </DialogHeader>
 
-        <div className="py-4 space-y-4">
-            <div className="flex items-center justify-between rounded-lg border p-3 shadow-sm">
-                <div className="space-y-0.5">
-                    <Label htmlFor="show-demo-features" className="font-medium">Show Demo Features</Label>
-                    <p className="text-xs text-muted-foreground">
-                        {process.env.NEXT_PUBLIC_SHOW_DEMO_FEATURES === "false" 
-                            ? "Demo features are disabled by environment configuration."
-                            : "Display seeding buttons and helper text."}
-                    </p>
-                </div>
-                <Switch
-                    id="show-demo-features"
-                    checked={flags.showDemoFeatures}
-                    onCheckedChange={(checked) => setFlag('showDemoFeatures', checked)}
-                    disabled={process.env.NEXT_PUBLIC_SHOW_DEMO_FEATURES === "false"}
-                />
-            </div>
+        <div className="py-4 space-y-2 text-sm">
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Magic Link Login</span>
+            <span>{flags.loginMagicEnabled ? '✅ Enabled' : '❌ Disabled'}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Password Login</span>
+            <span>{flags.loginPasswordEnabled ? '✅ Enabled' : '❌ Disabled'}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Google Login</span>
+            <span>{flags.loginGoogleEnabled ? '✅ Enabled' : '❌ Disabled'}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Draft Persistence</span>
+            <span>{flags.registrationDraftPersistenceEnabled ? '✅ Enabled' : '❌ Disabled'}</span>
+          </div>
         </div>
 
         <DialogFooter>

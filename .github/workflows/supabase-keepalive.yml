@@ -10,6 +10,8 @@ on:
 jobs:
   keepalive:
     runs-on: ubuntu-latest
+    environment:
+      name: production
     env:
       SUPABASE_URL: ${{ secrets.PROD_SUPABASE_URL }}
       SUPABASE_KEY: ${{ secrets.PROD_SUPABASE_SERVICE_ROLE_KEY }}

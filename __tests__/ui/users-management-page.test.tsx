@@ -5,7 +5,7 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import UsersManagementPage from '@/app/dashboard/users/page';
+import UsersManagementPage from '@/app/(admin)/users/page';
 import { AuthRole } from '@/lib/auth-types';
 import { mockUsers } from '@/test-utils/auth/test-utils';
 

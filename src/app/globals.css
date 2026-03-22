@@ -1,11 +1,12 @@
-@import url('https://fonts.googleapis.com/css2?family=Source+Sans+Pro:wght@300;400;600;700&family=Work+Sans:wght@400;600;700&family=Merriweather:wght@300;400;700&display=swap');
+/* PERF-09: Google Fonts @import removed — fonts are now loaded via next/font in layout.tsx
+   which provides automatic self-hosting, preloading, and zero layout shift. */
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 body {
-  font-family: var(--font-body, 'Source Sans Pro'), sans-serif;
+  font-family: var(--font-work-sans, var(--font-body, 'Work Sans')), sans-serif;
 }
 
 @layer base {
@@ -120,11 +121,12 @@ body {
   }
 }
 
-/* Font variables for use in components and utilities */
+/* Font variables for use in components and utilities.
+   --font-work-sans and --font-merriweather are injected by next/font in layout.tsx. */
 :root {
-  --font-display: 'Work Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
-  --font-body: 'Work Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
-  --font-scripture: 'Merriweather', Georgia, 'Times New Roman', serif;
+  --font-display: var(--font-work-sans, 'Work Sans'), ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+  --font-body: var(--font-work-sans, 'Work Sans'), ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+  --font-scripture: var(--font-merriweather, 'Merriweather'), Georgia, 'Times New Roman', serif;
 }
 
 /* Apply display font to headings and accent UI text */

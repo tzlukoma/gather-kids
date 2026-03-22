@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import {
 	SidebarProvider,
@@ -34,6 +35,7 @@ import { GuardianSkeleton } from '@/components/skeletons/guardian-skeleton';
 import { getHouseholdProfile, getHouseholdForUser } from '@/lib/dal';
 import type { HouseholdProfileData } from '@/lib/dal';
 import { SettingsModal } from '@/components/settings/settings-modal';
+import { renderNavIcon } from '@/components/ui/nav-icon';
 
 function HouseholdLayoutContent({ children }: { children: React.ReactNode }) {
 	const pathname = usePathname();
@@ -74,18 +76,16 @@ function HouseholdLayoutContent({ children }: { children: React.ReactNode }) {
 					childrenCount: profileData.children.length,
 					childrenWithEnrollments: profileData.children.map((child) => ({
 						childId: child.child_id,
-						enrollmentsByCycle: child.enrollmentsByCycle,
+						enrollments: child.enrollments,
 					})),
 				});
 
 				const hasEnrollment = profileData.children.some((child) =>
-					Object.values(child.enrollmentsByCycle).some((enrollments) =>
-						enrollments.some((enrollment) => {
-							console.log('🔍 Checking enrollment:', enrollment);
-							// Check ministry code for Bible Bee
-							return enrollment.ministry_code === 'bible-bee';
-						})
-					)
+					(child.enrollments ?? []).some((enrollment) => {
+						console.log('🔍 Checking enrollment:', enrollment);
+						// Check ministry code for Bible Bee
+						return (enrollment as { ministry_code?: string }).ministry_code === 'bible-bee';
+					})
 				);
 
 				console.log('🔍 Bible Bee Nav Check - Result:', { hasEnrollment });
@@ -123,15 +123,7 @@ function HouseholdLayoutContent({ children }: { children: React.ReactNode }) {
 		[hasBibleBeeEnrollment]
 	);
 
-	function renderIcon(Icon: any) {
-		console.log('renderIcon called with:', Icon, typeof Icon);
-		if (React.isValidElement(Icon)) return Icon;
-		if (typeof Icon === 'function') {
-			const C = Icon as React.ComponentType<{ className?: string }>;
-			return <C className="w-4 h-4" />;
-		}
-		return null;
-	}
+	// renderNavIcon is imported from @/components/ui/nav-icon (MAINT-19)
 
 	if (!user) return null;
 
@@ -146,12 +138,16 @@ function HouseholdLayoutContent({ children }: { children: React.ReactNode }) {
 							className="flex items-center gap-2 text-foreground">
 							{settings.logo_url ? (
 								<>
-									<img
+									{/* PERF-08: next/image for optimized logo loading */}
+									<Image
 										src={settings.logo_url}
 										alt={`${settings.app_name || 'gatherKids'} Logo`}
+										width={200}
+										height={64}
 										className={`h-16 w-auto ${
 											settings.use_logo_only ? '' : 'max-w-[50%]'
 										} object-contain`}
+										priority
 									/>
 									{!settings.use_logo_only && (
 										<div className="font-headline text-2xl font-bold">
@@ -225,7 +221,7 @@ function HouseholdLayoutContent({ children }: { children: React.ReactNode }) {
 													(item.href === '/household/bible-bee' &&
 														pathname.startsWith('/household/bible-bee'))
 												}>
-												{renderIcon(item.icon)}
+												{renderNavIcon(item.icon)}
 												<span>{item.label}</span>
 											</SidebarMenuButton>
 										</Link>
@@ -238,7 +234,7 @@ function HouseholdLayoutContent({ children }: { children: React.ReactNode }) {
 						</SidebarFooter>
 					</Sidebar>
 					<SidebarInset>
-						<main className="p-4 md:p-6 lg:p-8">{children}</main>
+						<main id="main-content" className="p-4 md:p-6 lg:p-8">{children}</main>
 					</SidebarInset>
 				</div>
 			</div>
@@ -349,7 +345,8 @@ function HouseholdProtectedRoute({ children }: { children: React.ReactNode }) {
 	}
 
 	if (!hasHouseholdAccess) {
-		return null; // Will redirect
+		// USE-04: Show a redirecting indicator instead of a blank screen
+		return <GuardianSkeleton />;
 	}
 
 	return <>{children}</>;

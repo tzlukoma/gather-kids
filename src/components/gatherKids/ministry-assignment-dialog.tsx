@@ -155,7 +155,7 @@ export function MinistryAssignmentDialog({
 				<DialogHeader>
 					<DialogTitle className="font-headline flex items-center gap-2">
 						<Users className="h-5 w-5" />
-						Assign Ministries to "{group.name}"
+						Assign Ministries to &ldquo;{group.name}&rdquo;
 					</DialogTitle>
 					<DialogDescription>
 						Select which ministries should be part of this group. Group assignments enable 

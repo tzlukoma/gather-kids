@@ -244,7 +244,7 @@ export function useSaveLeaderProfileMutation() {
             profileData 
         }: { 
             leaderId: string; 
-            profileData: Omit<LeaderProfile, 'leader_id' | 'created_at' | 'updated_at'> & { created_at?: string }
+            profileData: Omit<LeaderProfile, 'created_at' | 'updated_at'> & { created_at?: string }
         }) => saveLeaderProfile(profileData),
         onSuccess: (_, { leaderId }) => {
             // Invalidate leader-specific queries
@@ -302,7 +302,7 @@ export function useCheckOutMutation() {
 export function useMinistries() {
     return useQuery({
         queryKey: queryKeys.ministries,
-        queryFn: getMinistries,
+        queryFn: () => getMinistries(),
         staleTime: 10 * 60 * 1000, // 10 minutes
     });
 }
@@ -310,7 +310,7 @@ export function useMinistries() {
 export function useRegistrationCycles() {
     return useQuery({
         queryKey: queryKeys.registrationCycles,
-        queryFn: getRegistrationCycles,
+        queryFn: () => getRegistrationCycles(),
         staleTime: 15 * 60 * 1000, // 15 minutes - cycles don't change often
     });
 }
