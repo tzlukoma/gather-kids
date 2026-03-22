@@ -19,7 +19,24 @@ export async function createCompetitionYear(payload: Omit<CompetitionYear, 'id' 
     return item;
 }
 
-export async function upsertScripture(payload: Omit<Scripture, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }) {
+// Legacy Dexie-based scripture upsert using old camelCase field names
+interface LegacyScripturePayload {
+    id?: string;
+    competitionYearId?: string;
+    bible_bee_cycle_id?: string;
+    reference?: string;
+    text?: string;
+    translation?: string;
+    texts?: Record<string, string>;
+    bookLangAlt?: string;
+    scripture_order?: number;
+    sortOrder?: number;
+    counts_for?: number;
+    category?: string;
+    scripture_number?: string;
+    [key: string]: unknown;
+}
+export async function upsertScripture(payload: LegacyScripturePayload) {
     const now = new Date().toISOString();
     
     // Normalize reference for consistent matching
@@ -60,17 +77,17 @@ export async function upsertScripture(payload: Omit<Scripture, 'id' | 'createdAt
     
     const item: Scripture = {
         id,
-        competitionYearId: payload.competitionYearId,
-        reference: payload.reference,
-        text: (payload.text ?? existingItem?.text ?? '') as string,
-        translation: (payload.translation ?? existingItem?.translation) as string | undefined,
+        bible_bee_cycle_id: payload.competitionYearId || payload.bible_bee_cycle_id || '',
+        reference: payload.reference || '',
+        text: (payload.text ?? (existingItem as unknown as {text?: string})?.text ?? '') as string,
+        translation: (payload.translation ?? (existingItem as unknown as {translation?: string})?.translation) as string | undefined,
         texts: (textsMap || ((existingItem as unknown as Record<string, unknown>)?.texts) || ((existingItem as unknown as Record<string, unknown>)?.alternateTexts)) as Record<string, string> | undefined,
-        bookLangAlt: payload.bookLangAlt || existingItem?.bookLangAlt,
+        bookLangAlt: payload.bookLangAlt as string | undefined || (existingItem as unknown as {bookLangAlt?: string})?.bookLangAlt,
         scripture_order: scriptureOrder,
         sortOrder: scriptureOrder, // Keep sortOrder in sync for backward compatibility
-        createdAt: existingItem?.createdAt || now,
-        updatedAt: now,
-    };
+        created_at: (existingItem as unknown as {created_at?: string; createdAt?: string})?.created_at || (existingItem as unknown as {createdAt?: string})?.createdAt || now,
+        updated_at: now,
+    } as unknown as Scripture;
     
     // Remove any 'order' field if it exists to avoid confusion
     const typedItem = item as unknown as Record<string, unknown>;
@@ -318,18 +335,18 @@ export async function enrollChildInBibleBee(childId: string, competitionYearId: 
             return aOrder - bOrder;
         });
         
-        const existing = await db.studentScriptures.where({ childId, competitionYearId }).toArray();
-        const existingKeys = new Set(existing.map(s => s.scriptureId));
-        const toInsert = scriptures
+        const existing = await db.studentScriptures.where({ child_id: childId, bible_bee_cycle_id: competitionYearId }).toArray();
+        const existingKeys = new Set(existing.map(s => (s as unknown as {scripture_id?: string; scriptureId?: string}).scripture_id || (s as unknown as {scriptureId?: string}).scriptureId));
+        const toInsert: StudentScripture[] = scriptures
             .filter(s => !existingKeys.has(s.id))
             .map(s => ({
                 id: crypto.randomUUID(),
-                childId,
-                competitionYearId,
-                scriptureId: s.id,
-                status: 'assigned' as const,
-                createdAt: now,
-                updatedAt: now,
+                child_id: childId,
+                bible_bee_cycle_id: competitionYearId,
+                scripture_id: s.id,
+                is_completed: false,
+                created_at: now,
+                updated_at: now,
             }));
             
         if (toInsert.length) {
@@ -350,7 +367,12 @@ export async function enrollChildInBibleBee(childId: string, competitionYearId: 
         }
 
         if (rule.type === 'scripture') {
-            const scriptures = (await db.scriptures.where('competitionYearId').equals(competitionYearId).toArray())
+            let scriptures = await db.scriptures.where('competitionYearId').equals(competitionYearId).toArray();
+            if (scriptures.length === 0) {
+                // Fall back to new schema field
+                scriptures = await db.scriptures.where('bible_bee_cycle_id').equals(competitionYearId).toArray();
+            }
+            scriptures = scriptures
                         .sort((a: Scripture, b: Scripture) => {
                             // Prefer scripture_order as the primary field, then fall back to sortOrder
                             // Explicitly ignore any 'order' field
@@ -360,34 +382,33 @@ export async function enrollChildInBibleBee(childId: string, competitionYearId: 
                             const bOrder = Number(bRec['scripture_order'] ?? bRec['sortOrder'] ?? 0);
                             return aOrder - bOrder;
                         });
-            const existing = await db.studentScriptures.where({ childId, competitionYearId }).toArray();
-            const existingKeys = new Set(existing.map(s => s.scriptureId));
-            const toInsert = scriptures
+            const existing = await db.studentScriptures.where({ child_id: childId, bible_bee_cycle_id: competitionYearId }).toArray();
+            const existingKeys = new Set(existing.map(s => (s as unknown as {scripture_id?: string}).scripture_id));
+            const toInsert: StudentScripture[] = scriptures
                 .filter(s => !existingKeys.has(s.id))
                 .map(s => ({
                     id: crypto.randomUUID(),
-                    childId,
-                    competitionYearId,
-                    scriptureId: s.id,
-                    status: 'assigned' as const,
-                    createdAt: now,
-                    updatedAt: now,
+                    child_id: childId,
+                    bible_bee_cycle_id: competitionYearId,
+                    scripture_id: s.id,
+                    is_completed: false,
+                    created_at: now,
+                    updated_at: now,
                 }));
             if (toInsert.length) await db.studentScriptures.bulkAdd(toInsert);
             return { assigned: toInsert.length };
         } else {
-            const existingEssay = await db.studentEssays.where({ childId, competitionYearId }).toArray();
+            const existingEssay = await db.studentEssays.where({ child_id: childId, bible_bee_cycle_id: competitionYearId }).toArray();
             if (existingEssay.length === 0) {
                 await db.studentEssays.add({
                     id: crypto.randomUUID(),
-                    childId,
-                    competitionYearId,
-                    status: 'assigned',
-                    promptText: rule.promptText ?? '',
-                    instructions: rule.instructions,
-                    createdAt: now,
-                    updatedAt: now,
-                });
+                    child_id: childId,
+                    bible_bee_cycle_id: competitionYearId,
+                    essay_prompt_id: '',
+                    status: 'assigned' as const,
+                    created_at: now,
+                    updated_at: now,
+                } as StudentEssay);
                 return { assignedEssay: true };
             }
             return { assignedEssay: false };
@@ -410,9 +431,9 @@ export async function toggleScriptureCompletion(studentScriptureId: string, comp
 	} else {
 		// Use legacy Dexie for demo mode
 		await db.studentScriptures.update(studentScriptureId, {
-			status: complete ? 'completed' : 'assigned',
-			completedAt: complete ? now : undefined,
-			updatedAt: now,
+			is_completed: complete,
+			completed_at: complete ? now : undefined,
+			updated_at: now,
 		});
 	}
 }
@@ -450,9 +471,9 @@ export async function submitEssay(childId: string, bibleBeeCycleId: string) {
             return null;
         }
         await db.studentEssays.update(essay.id, {
-            status: 'submitted',
-            submittedAt: now,
-            updatedAt: now,
+            status: 'submitted' as const,
+            submitted_at: now,
+            updated_at: now,
         });
         return { submitted: true };
     }
@@ -623,7 +644,7 @@ export async function commitCsvRowsToYear(rows: CsvRow[], competitionYearId: str
                 // Use scripture_order as the primary field, but keep sortOrder for compatibility
                 scripture_order: resolvedOrder,
                 sortOrder: resolvedOrder,
-                updatedAt: now,
+                updated_at: now,
             };
             // Ensure we don't keep stale 'order' field at all by copying to a mutable record
             const updatedRecord = { ...updatedItem } as Record<string, unknown>;
@@ -639,15 +660,15 @@ export async function commitCsvRowsToYear(rows: CsvRow[], competitionYearId: str
             const newOrder = scriptureOrder !== undefined ? scriptureOrder : inserted + updated;
             const newItem: Scripture = {
                 id: crypto.randomUUID(),
-                competitionYearId,
+                bible_bee_cycle_id: competitionYearId,
                 reference: ref,
                 text: (r.text ?? '') as string,
                 translation: r.translation as string | undefined,
                 texts: textsMap as Record<string, string> | undefined,
                 scripture_order: newOrder,
                 sortOrder: newOrder, // Keep sortOrder for compatibility
-                createdAt: now,
-                updatedAt: now,
+                created_at: now,
+                updated_at: now,
             };
             
             // Ensure we never store an 'order' field by copying to a mutable record first
@@ -1376,7 +1397,7 @@ export async function commitEnhancedCsvRowsToYear(rows: EnhancedCsvRow[], yearId
             // Legacy fields for backward compatibility
             text: row.text || '',
             translation: row.translation,
-            updatedAt: now,
+            updated_at: now,
         };
         
         if (existing) {
@@ -1512,7 +1533,7 @@ export async function uploadJsonTexts(
                     await db.scriptures.put({
                         ...existing,
                         texts: newTexts,
-                        updatedAt: new Date().toISOString(),
+                        updated_at: new Date().toISOString(),
                     });
                     updated++;
                 } else {
@@ -1529,14 +1550,13 @@ export async function uploadJsonTexts(
                     await db.scriptures.put({
                         id: crypto.randomUUID(),
                         bible_bee_cycle_id: yearId, // Primary field
-                        competitionYearId: yearId, // Legacy field
                         reference: scriptureData.reference,
                         scripture_order: nextOrder, // Use next available order, not from JSON
                         sortOrder: nextOrder, // Keep sortOrder in sync
                         text: '', // Legacy
                         texts: newTexts,
-                        createdAt: new Date().toISOString(),
-                        updatedAt: new Date().toISOString(),
+                        created_at: new Date().toISOString(),
+                        updated_at: new Date().toISOString(),
                     } as Scripture);
                     created++;
                 }

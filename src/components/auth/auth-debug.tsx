@@ -20,7 +20,6 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/contexts/auth-context';
-import { isDemo } from '@/lib/authGuards';
 import { Bug, User, Settings, Globe, Lock, Database } from 'lucide-react';
 
 interface AuthDebugProps {
@@ -40,17 +39,11 @@ export function AuthDebug({
 	const user = passedUser ?? ctxUser;
 	const [open, setOpen] = useState(false);
 
-	const isDemoMode = isDemo();
 	const nodeEnv = process.env.NODE_ENV;
 	const isProduction = nodeEnv === 'production';
 
 	// Hide in production unless explicitly allowed
 	if (isProduction && !showInProduction) {
-		return null;
-	}
-
-	// Hide in demo mode unless we want to show it
-	if (isDemoMode && !showInProduction) {
 		return null;
 	}
 
@@ -86,11 +79,9 @@ export function AuthDebug({
 
 	const environmentInfo = {
 		NODE_ENV: nodeEnv,
-		DEMO_MODE: isDemoMode,
 		SITE_URL: process.env.NEXT_PUBLIC_SITE_URL,
 		APP_NAME: process.env.NEXT_PUBLIC_APP_NAME,
 		APP_VERSION: process.env.NEXT_PUBLIC_APP_VERSION,
-		SHOW_DEMO_FEATURES: process.env.NEXT_PUBLIC_SHOW_DEMO_FEATURES,
 		ENABLE_AI_FEATURES: process.env.NEXT_PUBLIC_ENABLE_AI_FEATURES,
 		HOSTNAME: typeof window !== 'undefined' ? window.location.hostname : 'SSR',
 		IS_VERCEL_PREVIEW:
@@ -105,7 +96,7 @@ export function AuthDebug({
 		sessionAge: user ? '24 hours' : 'No session',
 		lastActivity:
 			user?.last_sign_in_at || (user ? new Date().toISOString() : 'N/A'),
-		storageMethod: isDemoMode ? 'localStorage (demo mode)' : 'Supabase Auth',
+		storageMethod: 'Supabase Auth',
 		hasSupabaseTokens: tokens.length > 0 ? 'Yes' : 'No',
 		tokenCount: tokens.length,
 	};
@@ -182,7 +173,7 @@ export function AuthDebug({
 										{user.is_active !== false ? 'Yes' : 'No'}
 									</Badge>
 								</div>
-								{!isDemoMode && (
+								{(
 									<>
 										<div className="flex justify-between items-center">
 											<span className="text-sm font-medium">
@@ -245,7 +236,7 @@ export function AuthDebug({
 								</pre>
 							</div>
 
-							{!isDemoMode && user.identities && (
+							{!false && user.identities && (
 								<>
 									<Separator />
 									<div className="text-xs text-muted-foreground">
@@ -287,7 +278,7 @@ export function AuthDebug({
 						</div>
 					))}
 
-					{!isDemoMode && tokens.length > 0 && (
+					{!false && tokens.length > 0 && (
 						<>
 							<Separator />
 							<div className="text-xs text-muted-foreground">
@@ -357,7 +348,7 @@ export function AuthDebug({
 				<CardHeader>
 					<CardTitle className="text-sm font-mono flex items-center gap-2">
 						<Database className="h-4 w-4" />
-						Auth Debug ({isDemoMode ? 'Demo' : 'Live'})
+						Auth Debug (Live)
 					</CardTitle>
 				</CardHeader>
 				<CardContent>
@@ -390,7 +381,7 @@ export function AuthDebug({
 					<DialogDescription>
 						Development information for debugging authentication and environment
 						state.
-						{isDemoMode ? ' (Demo Mode)' : ' (Live Mode)'}
+						{' (Live Mode)'}
 					</DialogDescription>
 				</DialogHeader>
 

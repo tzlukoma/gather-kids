@@ -161,10 +161,12 @@ export default function HouseholdBibleBeePage() {
 				</p>
 			</div>
 
+			{/* eslint-disable react/no-children-prop */}
 			<ParentBibleBeeView
 				householdId={householdId || ''}
 				children={enrolledChildren}
 			/>
+			{/* eslint-enable react/no-children-prop */}
 		</div>
 	);
 }

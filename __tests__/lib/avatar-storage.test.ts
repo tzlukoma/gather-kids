@@ -94,7 +94,7 @@ describe('Avatar Storage Implementation', () => {
         it('saves an avatar for a child', async () => {
             const base64Image = createMockBase64Image();
 
-            // In demo mode using IndexedDB, this will update the child record directly
+            // Update the child record directly (using test Dexie mock)
             await db.children.update(testChildId, {
                 photo_url: base64Image
             });
@@ -102,7 +102,7 @@ describe('Avatar Storage Implementation', () => {
             // Verify avatar was stored
             const child = await db.children.get(testChildId);
 
-            // In demo mode, we expect the avatar directly in the photo_url field
+            // We expect the avatar in the photo_url field
             expect(child).toBeDefined();
             expect(child?.photo_url).toBe(base64Image);
         });

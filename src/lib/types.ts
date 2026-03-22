@@ -141,8 +141,11 @@ export interface MinistryEnrollment {
     cycle_id: string; // FK
     ministry_id: string; // FK
     status: 'enrolled' | 'withdrawn' | 'expressed_interest';
-    custom_fields?: object;
+    custom_fields?: Record<string, unknown>;
     notes?: string;
+    // Extended fields populated by UI layer
+    ministryName?: string;
+    customQuestions?: Array<{ id: string; text: string }>;
 }
 
 // Legacy - keeping for backward compatibility during migration

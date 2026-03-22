@@ -15,6 +15,7 @@ import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Info, Church } from 'lucide-react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useToast } from '@/hooks/use-toast';
 import { useFeatureFlags } from '@/contexts/feature-flag-context';
 import { useBranding } from '@/contexts/branding-context';
@@ -38,12 +39,12 @@ export default function CreateAccountPage() {
 			: 'Create Account - gatherKids';
 	}, [needsVerification]);
 
-	// Redirect to login if in demo mode or password auth is disabled
+	// Redirect to login if password auth is disabled
 	useEffect(() => {
-		if (flags.isDemoMode || !flags.loginPasswordEnabled) {
+		if (!flags.loginPasswordEnabled) {
 			router.replace('/login');
 		}
-	}, [flags.isDemoMode, flags.loginPasswordEnabled, router]);
+	}, [flags.loginPasswordEnabled, router]);
 
 	const handleCreateAccount = async () => {
 		if (!email || !password || !confirmPassword) {
@@ -374,12 +375,16 @@ export default function CreateAccountPage() {
 							className="flex items-center gap-2 font-headline text-3xl font-bold text-foreground">
 							{settings.logo_url ? (
 								<>
-									<img
+									{/* PERF-08: next/image for optimized logo loading */}
+									<Image
 										src={settings.logo_url}
 										alt={`${settings.app_name || 'gatherKids'} Logo`}
+										width={240}
+										height={96}
 										className={`h-24 w-auto ${
 											settings.use_logo_only ? '' : 'max-w-[50%]'
 										} object-contain`}
+										priority
 									/>
 									{!settings.use_logo_only && (
 										<span>{settings.app_name || 'gatherKids'}</span>

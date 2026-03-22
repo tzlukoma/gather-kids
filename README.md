@@ -482,6 +482,78 @@ If you need to change CI behavior
 - Edit `.github/workflows/ci.yml` to add steps (lint, typecheck, build) or to enable `push:` triggers so pushes to feature branches also run CI.
 - If you need the delete-branch action to run but your org blocks marketplace actions, either allowlist the action (`peter-evans/delete-branch`) in organization settings or rely on the API fallback step in the workflow.
 
+## 📊 Monitoring & Observability
+
+### Error monitoring (Sentry)
+
+[Sentry](https://sentry.io) is integrated via `@sentry/nextjs`. Configuration files:
+
+- `sentry.client.config.ts` — browser-side error capture
+- `sentry.server.config.ts` — server-side error capture
+- `sentry.edge.config.ts` — edge runtime error capture
+
+Sentry initializes only when `NODE_ENV=production`. The DSN is embedded in the config files; rotate it via the Sentry dashboard if compromised.
+
+### Performance monitoring (Web Vitals)
+
+Core Web Vitals (CLS, FID, LCP, INP, FCP, TTFB) are reported via `src/components/analytics/web-vitals.tsx` using the Next.js `useReportWebVitals` hook. The component is rendered in `src/app/layout.tsx` and logs metrics to the console in production. To forward metrics to an analytics backend, edit the `useReportWebVitals` callback in that file.
+
+### Health check endpoint
+
+A lightweight health endpoint is available at:
+
+```
+GET /api/health
+```
+
+Response (HTTP 200):
+
+```json
+{ "status": "ok", "timestamp": "2026-03-22T12:00:00.000Z" }
+```
+
+Use this URL for uptime monitors, load balancer health checks, and smoke tests. The endpoint has no external dependencies and always returns 200 while the process is running.
+
+---
+
+## 🔄 Dependency updates (Dependabot)
+
+Dependabot is configured in `.github/dependabot.yml` to open weekly pull requests for npm dependency updates. Minor and patch updates are grouped into a single PR to reduce noise. Major version bumps create individual PRs.
+
+---
+
+## 🧪 Testing
+
+### Unit tests
+
+```bash
+npm test            # Run Jest test suite
+npm run test:watch  # Watch mode
+```
+
+### Build verification
+
+```bash
+npm run build       # Production build (ESLint + TypeScript gate)
+npm run typecheck   # TypeScript check only
+npm run lint        # ESLint only
+```
+
+Both `npm test` and `npm run build` must pass before merging any PR. CI enforces this via `.github/workflows/ci.yml`.
+
+For detailed E2E test status — including the login → check-in → roster coverage gap — see **[docs/testing.md](./docs/testing.md)**.
+
+---
+
+## 📋 Audit documentation
+
+The application underwent a comprehensive audit in March 2026. Key documents:
+
+- **[docs/COMPREHENSIVE-AUDIT-REPORT.md](./docs/COMPREHENSIVE-AUDIT-REPORT.md)** — 109 findings across UX, Performance, Accessibility, Usability, and Maintenance categories
+- **[docs/audit-wave-status.md](./docs/audit-wave-status.md)** — implementation status for each of the 12 audit waves; links to GitHub issues for deferred work
+
+---
+
 ## 🤝 Contributing
 
 1. Fork the repository

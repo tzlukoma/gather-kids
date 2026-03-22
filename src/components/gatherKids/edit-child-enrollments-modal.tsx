@@ -102,12 +102,12 @@ export function EditChildEnrollmentsModal({
 
 	// Filter ministries based on child eligibility
 	const eligibleEnrolledPrograms = enrolledPrograms.filter((ministry) => {
-		const age = getAgeFromDob(child.dob);
+		const age = getAgeFromDob(child.dob ?? '');
 		return checkEligibility(ministry, age);
 	});
 
 	const eligibleInterestPrograms = interestPrograms.filter((ministry) => {
-		const age = getAgeFromDob(child.dob);
+		const age = getAgeFromDob(child.dob ?? '');
 		return checkEligibility(ministry, age);
 	});
 
@@ -315,7 +315,7 @@ export function EditChildEnrollmentsModal({
 							</h3>
 							{otherMinistries.map((ministry) => {
 								const isSelected = selectedMinistries.has(ministry.ministry_id);
-								const age = getAgeFromDob(child.dob);
+								const age = getAgeFromDob(child.dob ?? '');
 
 								return (
 									<div

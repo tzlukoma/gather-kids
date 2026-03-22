@@ -11,13 +11,11 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/auth-context';
-import { Eye, EyeOff, User, Lock, AlertCircle } from 'lucide-react';
-import { isDemo } from '@/lib/authGuards';
+import { Eye, EyeOff, User, Lock } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
@@ -58,8 +56,6 @@ export default function ProfilePage() {
 	const [showNewPassword, setShowNewPassword] = useState(false);
 	const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-	const isDemoMode = isDemo();
-
 	const form = useForm<ChangePasswordFormData>({
 		resolver: zodResolver(changePasswordSchema),
 		defaultValues: {
@@ -72,54 +68,37 @@ export default function ProfilePage() {
 	const onSubmit = async (data: ChangePasswordFormData) => {
 		setIsLoading(true);
 		try {
-			if (isDemoMode) {
-				// Demo mode: simulate password validation and update
-				await new Promise((resolve) => setTimeout(resolve, 1000));
-				
-				// Simulate current password validation
-				if (data.currentPassword !== 'password') {
+			if (!user?.email) {
+				throw new Error('User email not available');
+			}
+
+			// Step 1: Re-authenticate with current password to verify identity
+			const { error: reAuthError } = await supabase.auth.signInWithPassword({
+				email: user.email,
+				password: data.currentPassword,
+			});
+
+			if (reAuthError) {
+				if (reAuthError.message?.includes('Invalid login credentials')) {
 					throw new Error('Current password is incorrect');
 				}
-				
-				toast({
-					title: 'Password Updated Successfully',
-					description: 'Your password has been changed. Please use your new password for future sign-ins.',
-				});
-				form.reset();
-			} else {
-				// Live mode: implement Supabase password update with re-authentication
-				if (!user?.email) {
-					throw new Error('User email not available');
-				}
-				
-				// Step 1: Re-authenticate with current password to verify identity
-				const { error: reAuthError } = await supabase.auth.signInWithPassword({
-					email: user.email,
-					password: data.currentPassword,
-				});
-				
-				if (reAuthError) {
-					if (reAuthError.message?.includes('Invalid login credentials')) {
-						throw new Error('Current password is incorrect');
-					}
-					throw reAuthError;
-				}
-				
-				// Step 2: Update password if re-authentication succeeds
-				const { error: updateError } = await supabase.auth.updateUser({ 
-					password: data.newPassword 
-				});
-				
-				if (updateError) {
-					throw updateError;
-				}
-				
-				toast({
-					title: 'Password Updated Successfully',
-					description: 'Your password has been changed. Please use your new password for future sign-ins.',
-				});
-				form.reset();
+				throw reAuthError;
 			}
+
+			// Step 2: Update password if re-authentication succeeds
+			const { error: updateError } = await supabase.auth.updateUser({
+				password: data.newPassword,
+			});
+
+			if (updateError) {
+				throw updateError;
+			}
+
+			toast({
+				title: 'Password Updated Successfully',
+				description: 'Your password has been changed. Please use your new password for future sign-ins.',
+			});
+			form.reset();
 		} catch (error: any) {
 			console.error('Password update failed:', error);
 			let errorMessage = 'Failed to update password. Please try again.';
@@ -216,15 +195,7 @@ export default function ProfilePage() {
 								</div>
 							)}
 							
-							{isDemoMode && (
-								<Alert>
-									<AlertCircle className="h-4 w-4" />
-									<AlertDescription>
-										<strong>Demo Mode:</strong> Profile information is simulated and cannot be edited.
-									</AlertDescription>
-								</Alert>
-							)}
-						</CardContent>
+							</CardContent>
 					</Card>
 				</TabsContent>
 
@@ -243,16 +214,6 @@ export default function ProfilePage() {
 							<div className="space-y-6">
 								<div>
 									<h3 className="text-lg font-medium mb-4">Change Password</h3>
-									
-									{isDemoMode && (
-										<Alert className="mb-4">
-											<AlertCircle className="h-4 w-4" />
-											<AlertDescription>
-												<strong>Demo Mode:</strong> Password changes are simulated. 
-												Use &quot;password&quot; as the current password to test the flow.
-											</AlertDescription>
-										</Alert>
-									)}
 									
 									<Form {...form}>
 										<form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -277,6 +238,7 @@ export default function ProfilePage() {
 																	size="icon"
 																	className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
 																	onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+																	aria-label={showCurrentPassword ? 'Hide current password' : 'Show current password'}
 																	disabled={isLoading}
 																>
 																	{showCurrentPassword ? (
@@ -313,6 +275,7 @@ export default function ProfilePage() {
 																	size="icon"
 																	className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
 																	onClick={() => setShowNewPassword(!showNewPassword)}
+																	aria-label={showNewPassword ? 'Hide new password' : 'Show new password'}
 																	disabled={isLoading}
 																>
 																	{showNewPassword ? (
@@ -349,6 +312,7 @@ export default function ProfilePage() {
 																	size="icon"
 																	className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
 																	onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+																	aria-label={showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'}
 																	disabled={isLoading}
 																>
 																	{showConfirmPassword ? (

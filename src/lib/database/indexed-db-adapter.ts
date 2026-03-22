@@ -30,6 +30,8 @@ import type {
 	EnrollmentOverride,
 	Scripture,
 	GradeRule,
+	StudentScripture,
+	StudentEssay,
 } from '../types';
 
 export class IndexedDBAdapter implements DatabaseAdapter {
@@ -890,7 +892,7 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 		
 		// Get ministries via group email
 		const groups = await this.db.ministry_groups
-			.filter(group => group.email && group.email.toLowerCase() === normalizedEmail)
+			.filter(group => !!(group.email && group.email.toLowerCase() === normalizedEmail))
 			.toArray();
 		console.log('🔍 IndexedDBAdapter: Groups found:', groups.length, groups);
 			
@@ -1037,7 +1039,7 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 
 	async listBibleBeeCycles(isActive?: boolean): Promise<BibleBeeCycle[]> {
 		if (isActive !== undefined) {
-			return this.db.bible_bee_cycles.where('is_active').equals(isActive).toArray();
+			return this.db.bible_bee_cycles.where('is_active').equals(isActive ? 1 : 0).toArray();
 		}
 		return this.db.bible_bee_cycles.toArray();
 	}
@@ -1091,12 +1093,12 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 		return result || null;
 	}
 
-	async upsertScripture(data: Omit<Scripture, 'createdAt' | 'updatedAt'> & { id?: string }): Promise<Scripture> {
+	async upsertScripture(data: Omit<Scripture, 'created_at' | 'updated_at'> & { id?: string }): Promise<Scripture> {
 		const scripture: Scripture = {
 			...data,
 			id: data.id || uuidv4(),
-			createdAt: new Date().toISOString(),
-			updatedAt: new Date().toISOString(),
+			created_at: new Date().toISOString(),
+			updated_at: new Date().toISOString(),
 		};
 
 		await this.db.scriptures.put(scripture);
@@ -1139,7 +1141,7 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 		return this.db.essay_prompts
 			.where('year_id')
 			.equals(yearId)
-			.and((prompt) => prompt.division_name === divisionName)
+			.and((prompt) => (prompt as unknown as {division_name?: string}).division_name === divisionName)
 			.toArray();
 	}
 
@@ -1184,8 +1186,8 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 	}
 
 	async getEnrollment(id: string): Promise<Enrollment | null> {
-		const result = await this.db.bible_bee_enrollments.get(id);
-		return result || null;
+		const result = await this.db.bible_bee_enrollments.get(id as unknown as "id");
+		return result as Enrollment || null;
 	}
 
 	async createEnrollment(
@@ -1201,9 +1203,9 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 
 	async updateEnrollment(id: string, data: Partial<Enrollment>): Promise<Enrollment> {
 		await this.db.bible_bee_enrollments.update(id, data);
-		const result = await this.db.bible_bee_enrollments.get(id);
+		const result = await this.db.bible_bee_enrollments.get(id as unknown as "id");
 		if (!result) throw new Error(`Enrollment ${id} not found after update`);
-		return result;
+		return result as Enrollment;
 	}
 
 	async listEnrollments(
@@ -1223,7 +1225,7 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 	}
 
 	async deleteEnrollment(id: string): Promise<void> {
-		await this.db.bible_bee_enrollments.delete(id);
+		await this.db.bible_bee_enrollments.delete(id as unknown as "id");
 	}
 
 	async getEnrollmentOverride(id: string): Promise<EnrollmentOverride | null> {
@@ -1276,8 +1278,8 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 	async createStudentScripture(data: Omit<StudentScripture, 'created_at' | 'updated_at'>): Promise<StudentScripture> {
 		const now = new Date().toISOString();
 		const studentScripture: StudentScripture = {
-			id: uuidv4(), // Generate proper UUID
 			...data,
+			id: data.id || uuidv4(), // Generate proper UUID if not provided
 			created_at: now,
 			updated_at: now,
 		};
@@ -1714,7 +1716,7 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 	}
 
 	async listStudentEssays(childId?: string, bibleBeeCycleId?: string): Promise<StudentEssay[]> {
-		let query = this.db.studentEssays.toCollection();
+		const query = this.db.studentEssays.toCollection();
 		
 		if (childId && bibleBeeCycleId) {
 			return query.filter(essay => 
@@ -1773,20 +1775,6 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 		await this.db.guardians.delete(guardianId);
 	}
 
-	async updateEmergencyContact(householdId: string, contact: EmergencyContact): Promise<void> {
-		const existing = await this.db.emergencyContacts.where('household_id').equals(householdId).first();
-		if (existing) {
-			await this.db.emergencyContacts.update(existing.contact_id, contact);
-		} else {
-			const contactId = `contact_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-			await this.db.emergencyContacts.add({
-				contact_id: contactId,
-				household_id: householdId,
-				...contact,
-			});
-		}
-	}
-
 	async addChild(householdId: string, child: Omit<Child, 'child_id'>, cycleId: string): Promise<Child> {
 		const childId = `child_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 		const newChild: Child = {
@@ -1802,9 +1790,7 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 			special_needs: child.special_needs,
 			special_needs_notes: child.special_needs_notes,
 			photo_url: child.photo_url,
-			ministrySelections: child.ministrySelections,
-			interestSelections: child.interestSelections,
-			customData: child.customData,
+			is_active: child.is_active ?? true,
 			created_at: new Date().toISOString(),
 			updated_at: new Date().toISOString(),
 		};
@@ -1821,13 +1807,12 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 	async addEnrollment(childId: string, ministryId: string, cycleId: string, customFields?: any): Promise<void> {
 		const enrollmentId = `enrollment_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 		await this.db.ministry_enrollments.add({
-			id: enrollmentId,
+			enrollment_id: enrollmentId,
 			child_id: childId,
 			ministry_id: ministryId,
 			cycle_id: cycleId,
+			status: 'enrolled' as const,
 			custom_fields: customFields,
-			created_at: new Date().toISOString(),
-			updated_at: new Date().toISOString(),
 		});
 	}
 
@@ -1838,7 +1823,7 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 			.first();
 		
 		if (enrollment) {
-			await this.db.ministry_enrollments.delete(enrollment.id);
+			await this.db.ministry_enrollments.delete(enrollment.enrollment_id);
 		}
 	}
 
@@ -1849,9 +1834,8 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 			.first();
 		
 		if (enrollment) {
-			await this.db.ministry_enrollments.update(enrollment.id, { 
+			await this.db.ministry_enrollments.update(enrollment.enrollment_id, {
 				custom_fields: customFields,
-				updated_at: new Date().toISOString()
 			});
 		}
 	}

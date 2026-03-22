@@ -77,7 +77,12 @@ type MinistryFormValues = z.infer<typeof ministryFormSchema>;
 interface MinistryFormDialogProps {
 	isOpen: boolean;
 	onCloseAction: () => void;
+	/** When provided with a ministry object, the dialog operates in edit mode.
+	 *  Pass null to operate in create mode. */
 	ministry: Ministry | null;
+	/** Explicit mode discriminant. Defaults to 'edit' when ministry is non-null,
+	 *  'create' when ministry is null. Supply this to make intent explicit (MAINT-07). */
+	mode?: 'create' | 'edit';
 	onMinistryUpdated?: () => void; // Callback to refresh the parent component
 	createMinistryMutation?: ReturnType<typeof useCreateMinistry>;
 	updateMinistryMutation?: ReturnType<typeof useUpdateMinistry>;
@@ -87,10 +92,14 @@ export function MinistryFormDialog({
 	isOpen,
 	onCloseAction,
 	ministry,
+	mode,
 	onMinistryUpdated,
 	createMinistryMutation,
 	updateMinistryMutation,
 }: MinistryFormDialogProps) {
+	// Resolve mode: explicit prop takes precedence; fall back to presence of ministry object
+	const resolvedMode: 'create' | 'edit' = mode ?? (ministry ? 'edit' : 'create');
+	const isEditing = resolvedMode === 'edit';
 	const { toast } = useToast();
 	const [groupsForMinistry, setGroupsForMinistry] = useState<MinistryGroup[]>([]);
 	const [isLoadingGroups, setIsLoadingGroups] = useState(false);
@@ -299,10 +308,10 @@ export function MinistryFormDialog({
 			<DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
 				<DialogHeader>
 					<DialogTitle className="font-headline">
-						{ministry ? 'Edit Ministry' : 'Add New Ministry'}
+						{isEditing ? 'Edit Ministry' : 'Add New Ministry'}
 					</DialogTitle>
 					<DialogDescription>
-						{ministry
+						{isEditing
 							? 'Update the details for this ministry or activity.'
 							: 'Create a new program or interest-only activity.'}
 					</DialogDescription>
@@ -556,7 +565,7 @@ export function MinistryFormDialog({
 										)}
 									/>
 									{['radio', 'checkbox'].includes(
-										form.watch(`custom_questions.${index}.type`)
+										form.watch(`custom_questions.${index}.type`) ?? ''
 									) && (
 										<FormField
 											control={form.control}

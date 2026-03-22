@@ -8,6 +8,7 @@ import { useEffect, useState } from 'react';
 import { useHouseholdProfile } from '@/hooks/data';
 import { getHouseholdForUser } from '@/lib/dal';
 import type { HouseholdProfileData } from '@/lib/dal';
+import { GuardianSkeleton } from '@/components/skeletons/guardian-skeleton';
 
 export default function GuardianHouseholdPage() {
 	console.log('🔍 HouseholdPage: Component rendering...');
@@ -36,7 +37,7 @@ export default function GuardianHouseholdPage() {
 				isLoading,
 				hasData: !!profileData,
 				hasError: !!error,
-				errorMessage: error?.message,
+				errorMessage: error instanceof Error ? error.message : String(error),
 			});
 		}
 	}, [householdId, isLoading, profileData, error]);
@@ -116,7 +117,19 @@ export default function GuardianHouseholdPage() {
 		}
 	}, [user]);
 
-	if (isLoading || !profileData) return <div>Loading household...</div>;
+	// UX-11: Check error before loading to avoid falling through to loading state forever
+	if (error) {
+		return (
+			<div className="container mx-auto px-4 py-6">
+				<p className="text-destructive">
+					Failed to load household data. Please refresh the page.
+				</p>
+			</div>
+		);
+	}
+
+	// UX-09: Use proper skeleton instead of bare loading text
+	if (isLoading || !profileData) return <GuardianSkeleton />;
 
 	return (
 		<div>

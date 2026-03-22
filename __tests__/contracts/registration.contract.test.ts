@@ -11,8 +11,8 @@ jest.mock('@/lib/database/factory', () => ({
 }));
 jest.mock('@/lib/db');
 jest.mock('@/lib/featureFlags', () => ({
-  isDemo: () => false, // Force use of canonical DAL
-  getFlag: jest.fn(() => 'dexie'), // Mock feature flag
+  isDemo: () => false,
+  getFlag: jest.fn(() => 'supabase'),
 }));
 
 describe('DAL Contract Tests - Registration/Household', () => {

@@ -2,27 +2,31 @@ import { getBrandingSettings, saveBrandingSettings, getDefaultBrandingSettings }
 import { BrandingSettings } from '@/lib/types';
 import { v4 as uuidv4 } from 'uuid';
 
-// Mock the database module
-jest.mock('@/lib/db', () => {
-    const mockDb = {
-        branding_settings: {
-            where: jest.fn(),
-            add: jest.fn(),
-            update: jest.fn(),
-        },
-    };
-    return { db: mockDb };
-});
-
-// Mock uuidv4
+// Mock uuid
 jest.mock('uuid', () => ({
     v4: jest.fn(),
 }));
 
-import { db } from '@/lib/db';
-
 const mockUuidv4 = uuidv4 as jest.MockedFunction<typeof uuidv4>;
-const mockDb = db as any;
+
+// In-memory branding settings store for tests
+let brandingStore: BrandingSettings[] = [];
+
+// Mock the database factory
+jest.mock('@/lib/database/factory', () => {
+    const mockAdapter = {
+        listBrandingSettings: jest.fn(),
+        createBrandingSettings: jest.fn(),
+        updateBrandingSettings: jest.fn(),
+    };
+    return {
+        createDatabaseAdapter: jest.fn(() => mockAdapter),
+        db: mockAdapter,
+    };
+});
+
+import { db as mockAdapter } from '@/lib/database/factory';
+const mockDb = mockAdapter as any;
 
 describe('Branding DAL Functions', () => {
     const testOrgId = 'test-org';
@@ -43,9 +47,9 @@ describe('Branding DAL Functions', () => {
 
     beforeEach(() => {
         jest.clearAllMocks();
-        // Mock Date.now() to return consistent timestamp
         jest.spyOn(Date.prototype, 'toISOString').mockReturnValue(mockDate);
-        mockUuidv4.mockReturnValue(testSettingId);
+        mockUuidv4.mockReturnValue(testSettingId as any);
+        brandingStore = [];
     });
 
     afterEach(() => {
@@ -54,18 +58,16 @@ describe('Branding DAL Functions', () => {
 
     describe('getBrandingSettings', () => {
         it('should return existing settings for orgId', async () => {
-            const mockFirst = jest.fn().mockResolvedValue(existingSettings);
-            mockDb.branding_settings.where.mockReturnValue({ first: mockFirst });
+            mockDb.listBrandingSettings.mockResolvedValue([existingSettings]);
 
             const result = await getBrandingSettings(testOrgId);
 
-            expect(mockDb.branding_settings.where).toHaveBeenCalledWith({ org_id: testOrgId });
+            expect(mockDb.listBrandingSettings).toHaveBeenCalled();
             expect(result).toEqual(existingSettings);
         });
 
         it('should return null when no settings found', async () => {
-            const mockFirst = jest.fn().mockResolvedValue(undefined);
-            mockDb.branding_settings.where.mockReturnValue({ first: mockFirst });
+            mockDb.listBrandingSettings.mockResolvedValue([]);
 
             const result = await getBrandingSettings(testOrgId);
 
@@ -73,12 +75,11 @@ describe('Branding DAL Functions', () => {
         });
 
         it('should use default orgId when not provided', async () => {
-            const mockFirst = jest.fn().mockResolvedValue(null);
-            mockDb.branding_settings.where.mockReturnValue({ first: mockFirst });
+            mockDb.listBrandingSettings.mockResolvedValue([]);
 
-            await getBrandingSettings();
+            const result = await getBrandingSettings();
 
-            expect(mockDb.branding_settings.where).toHaveBeenCalledWith({ org_id: 'default' });
+            expect(mockDb.listBrandingSettings).toHaveBeenCalled();
         });
     });
 
@@ -88,7 +89,9 @@ describe('Branding DAL Functions', () => {
 
             expect(result).toEqual({
                 app_name: 'gatherKids',
-                description: "The simple, secure, and smart way to manage your children's ministry. Streamline check-ins, track attendance, and keep your community connected.",
+                description:
+                    "The simple, secure, and smart way to manage your children's ministry. " +
+                    'Streamline check-ins, track attendance, and keep your community connected.',
                 logo_url: undefined,
                 youtube_url: undefined,
                 instagram_url: undefined,
@@ -107,77 +110,83 @@ describe('Branding DAL Functions', () => {
         };
 
         it('should create new settings when none exist', async () => {
-            // Mock getBrandingSettings to return null (no existing settings)
-            const mockFirst = jest.fn().mockResolvedValue(null);
-            mockDb.branding_settings.where.mockReturnValue({ first: mockFirst });
-            mockDb.branding_settings.add.mockResolvedValue(testSettingId);
-
-            const result = await saveBrandingSettings(testOrgId, newSettingsData);
-
-            expect(mockDb.branding_settings.add).toHaveBeenCalledWith({
+            // No existing settings
+            mockDb.listBrandingSettings.mockResolvedValue([]);
+            mockDb.createBrandingSettings.mockResolvedValue({
                 setting_id: testSettingId,
                 org_id: testOrgId,
                 ...newSettingsData,
-                created_at: mockDate,
-                updated_at: mockDate,
+            });
+
+            const result = await saveBrandingSettings(testOrgId, newSettingsData);
+
+            expect(mockDb.createBrandingSettings).toHaveBeenCalledWith({
+                org_id: testOrgId,
+                ...newSettingsData,
             });
             expect(result).toBe(testSettingId);
         });
 
         it('should update existing settings', async () => {
-            // Mock getBrandingSettings to return existing settings
-            const mockFirst = jest.fn().mockResolvedValue(existingSettings);
-            mockDb.branding_settings.where.mockReturnValue({ first: mockFirst });
-            mockDb.branding_settings.update.mockResolvedValue(1);
-
-            const result = await saveBrandingSettings(testOrgId, newSettingsData);
-
-            expect(mockDb.branding_settings.update).toHaveBeenCalledWith(testSettingId, {
+            // Existing settings found
+            mockDb.listBrandingSettings.mockResolvedValue([existingSettings]);
+            mockDb.updateBrandingSettings.mockResolvedValue({
+                ...existingSettings,
                 ...newSettingsData,
                 updated_at: mockDate,
             });
+
+            const result = await saveBrandingSettings(testOrgId, newSettingsData);
+
+            expect(mockDb.updateBrandingSettings).toHaveBeenCalledWith(
+                testSettingId,
+                expect.objectContaining(newSettingsData)
+            );
             expect(result).toBe(testSettingId);
         });
 
         it('should use default orgId when not provided', async () => {
-            const mockFirst = jest.fn().mockResolvedValue(null);
-            mockDb.branding_settings.where.mockReturnValue({ first: mockFirst });
-            mockDb.branding_settings.add.mockResolvedValue(testSettingId);
-
-            await saveBrandingSettings(undefined, newSettingsData);
-
-            expect(mockDb.branding_settings.add).toHaveBeenCalledWith({
+            mockDb.listBrandingSettings.mockResolvedValue([]);
+            mockDb.createBrandingSettings.mockResolvedValue({
                 setting_id: testSettingId,
                 org_id: 'default',
                 ...newSettingsData,
-                created_at: mockDate,
-                updated_at: mockDate,
+            });
+
+            await saveBrandingSettings(undefined, newSettingsData);
+
+            expect(mockDb.createBrandingSettings).toHaveBeenCalledWith({
+                org_id: 'default',
+                ...newSettingsData,
             });
         });
 
         it('should handle partial settings updates', async () => {
-            const mockFirst = jest.fn().mockResolvedValue(existingSettings);
-            mockDb.branding_settings.where.mockReturnValue({ first: mockFirst });
-            mockDb.branding_settings.update.mockResolvedValue(1);
-
+            mockDb.listBrandingSettings.mockResolvedValue([existingSettings]);
             const partialUpdate = {
                 app_name: 'PartiallyUpdated',
             };
-
-            const result = await saveBrandingSettings(testOrgId, partialUpdate);
-
-            expect(mockDb.branding_settings.update).toHaveBeenCalledWith(testSettingId, {
-                app_name: 'PartiallyUpdated',
+            mockDb.updateBrandingSettings.mockResolvedValue({
+                ...existingSettings,
+                ...partialUpdate,
                 updated_at: mockDate,
             });
+
+            const result = await saveBrandingSettings(testOrgId, partialUpdate as any);
+
+            expect(mockDb.updateBrandingSettings).toHaveBeenCalledWith(
+                testSettingId,
+                expect.objectContaining({ app_name: 'PartiallyUpdated' })
+            );
             expect(result).toBe(testSettingId);
         });
 
         it('should handle database errors gracefully', async () => {
-            const mockFirst = jest.fn().mockRejectedValue(new Error('Database error'));
-            mockDb.branding_settings.where.mockReturnValue({ first: mockFirst });
+            mockDb.listBrandingSettings.mockRejectedValue(new Error('Database error'));
 
-            await expect(saveBrandingSettings(testOrgId, newSettingsData)).rejects.toThrow('Database error');
+            await expect(saveBrandingSettings(testOrgId, newSettingsData)).rejects.toThrow(
+                'Database error',
+            );
         });
     });
 });

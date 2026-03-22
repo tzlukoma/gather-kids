@@ -31,9 +31,9 @@ export function useIncidents(date: string, eventId?: string) {
   });
 }
 
-export function useIncidentsForUser(user: unknown) {
+export function useIncidentsForUser(user: { uid?: string } | null | undefined) {
   return useQuery({
-    queryKey: ['incidents', 'user', user],
+    queryKey: queryKeys.incidentsForUser(user?.uid),
     queryFn: () => getIncidentsForUser(user),
     enabled: !!user,
     ...cacheConfig.volatile, // Incidents change frequently
@@ -89,7 +89,7 @@ export function useCheckOutMutation() {
     onSuccess: () => {
       const today = getTodayIsoDate();
       // Invalidate all attendance queries (general and event-specific)
-      queryClient.invalidateQueries({ queryKey: ['attendance', today] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.attendance(today) });
       // Invalidate checked-in children
       queryClient.invalidateQueries({ queryKey: queryKeys.checkedInChildren(today) });
       // Invalidate checked-in count

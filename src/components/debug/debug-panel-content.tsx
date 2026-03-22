@@ -342,7 +342,7 @@ export function DebugPanelContent() {
           <Separator />
           
           <div className="text-xs text-muted-foreground space-y-1">
-            <p><strong>Toggle:</strong> Set <code>{DEBUG_LS_KEY}='1'</code> in localStorage</p>
+            <p><strong>Toggle:</strong> Set <code>{DEBUG_LS_KEY}=&apos;1&apos;</code> in localStorage</p>
             <p><strong>Hotkey:</strong> Ctrl+Shift+D</p>
             <p><strong>Privacy:</strong> Only method names and paths are logged (no payloads)</p>
           </div>

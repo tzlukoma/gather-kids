@@ -5,8 +5,16 @@ import { useParams } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import { ChildCard } from '@/components/gatherKids/child-card';
 import type { Child } from '@/lib/types';
-import { PhotoCaptureDialog } from '@/components/gatherKids/photo-capture-dialog';
-import { PhotoViewerDialog } from '@/components/gatherKids/photo-viewer-dialog';
+// PERF-06: Lazy-load camera/photo dialogs — heavy media components only needed on demand
+import dynamic from 'next/dynamic';
+const PhotoCaptureDialog = dynamic(
+	() => import('@/components/gatherKids/photo-capture-dialog').then((m) => m.PhotoCaptureDialog),
+	{ loading: () => null }
+);
+const PhotoViewerDialog = dynamic(
+	() => import('@/components/gatherKids/photo-viewer-dialog').then((m) => m.PhotoViewerDialog),
+	{ loading: () => null }
+);
 import { canUpdateChildPhoto } from '@/lib/permissions';
 import { useHouseholdProfile } from '@/hooks/data';
 

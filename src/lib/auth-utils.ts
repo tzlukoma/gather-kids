@@ -16,10 +16,10 @@ export const ROLE_PRIORITY: Record<AuthRole, number> = {
  * Route mapping for each role after successful login
  */
 export const ROLE_ROUTES: Record<AuthRole, string> = {
-  [AuthRole.ADMIN]: '/dashboard',
-  [AuthRole.MINISTRY_LEADER]: '/dashboard/rosters', // Note: Issue specified '/roster' but app uses '/dashboard/rosters'
+  [AuthRole.ADMIN]: '/admin-overview',
+  [AuthRole.MINISTRY_LEADER]: '/rosters',
   [AuthRole.GUARDIAN]: '/household',
-  [AuthRole.VOLUNTEER]: '/dashboard', // Fallback to dashboard for volunteers
+  [AuthRole.VOLUNTEER]: '/admin-overview', // Fallback for volunteers
   [AuthRole.GUEST]: '/register'        // Unregistered users go to registration
 } as const;
 

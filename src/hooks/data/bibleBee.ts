@@ -16,7 +16,6 @@ import {
   deleteScripture,
   getBibleBeeMinistry,
   dbAdapter,
-  shouldUseAdapter,
   getChild
 } from '@/lib/dal';
 import { toggleScriptureCompletion, submitEssay } from '@/lib/bibleBee';
@@ -96,8 +95,8 @@ export function useUpsertScripture() {
     onSuccess: (_, variables) => {
       // Invalidate all scripture queries
       queryClient.invalidateQueries({ queryKey: ['scriptures'] });
-      if (variables.cycleId) {
-        queryClient.invalidateQueries({ queryKey: queryKeys.scripturesForCycle(variables.cycleId) });
+      if (variables.bible_bee_cycle_id) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.scripturesForCycle(variables.bible_bee_cycle_id) });
       }
     },
   });
@@ -180,13 +179,7 @@ export function useStudentAssignmentsQuery(childId: string) {
       try {
         console.log('🚀 Starting useStudentAssignmentsQuery for child:', childId);
         
-        if (shouldUseAdapter()) {
-          // Use dbAdapter for live mode
-          console.log('🔍 useStudentAssignmentsQuery: Using Supabase mode for child:', childId);
-          console.log('🔍 Database mode:', process.env.NEXT_PUBLIC_DATABASE_MODE);
-          console.log('🔍 Should use adapter:', shouldUseAdapter());
-          
-          // Get enrollments for this child
+        // Get enrollments for this child
           console.log('🔍 Fetching enrollments for child:', childId);
           const enrollments = await dbAdapter.listEnrollments(childId);
           console.log('Child enrollments:', enrollments);
@@ -290,6 +283,7 @@ export function useStudentAssignmentsQuery(childId: string) {
                 console.log('Creating new student scripture record for:', scripture.id);
                 console.log('Using bible_bee_cycle_id:', scripture.bible_bee_cycle_id);
                 const studentScriptureData = {
+                  id: uuidv4(),
                   child_id: childId,
                   bible_bee_cycle_id: scripture.bible_bee_cycle_id,
                   scripture_id: scripture.id,
@@ -375,7 +369,7 @@ export function useStudentAssignmentsQuery(childId: string) {
                 bible_bee_cycle_id: enrollment.bible_bee_cycle_id,
                 essay_prompt_id: essayPrompts[0].id,
                 status: 'assigned',
-                submitted_at: null,
+                submitted_at: undefined,
               });
               
               return {
@@ -400,80 +394,6 @@ export function useStudentAssignmentsQuery(childId: string) {
           
           console.log('✅ Returning data:', { scriptures: scriptures.length, essays: validEssays.length });
           return { scriptures, essays: validEssays };
-        } else {
-          // Use legacy Dexie for demo mode - import db dynamically
-          const { db } = await import('@/lib/db');
-          
-          // First, check if child is enrolled in any Bible Bee years but missing scriptures
-          try {
-            const enrollments = await db.enrollments.where({ child_id: childId }).toArray();
-            
-            for (const enrollment of enrollments) {
-              // Check if child has scriptures for this year
-              const existingScriptures = await db.studentScriptures
-                .where({ childId, competitionYearId: enrollment.year_id })
-                .toArray();
-              
-              if (existingScriptures.length === 0) {
-                // Child is enrolled but missing scriptures - assign them
-                try {
-                  const { enrollChildInBibleBee } = await import('@/lib/bibleBee');
-                  await enrollChildInBibleBee(childId, enrollment.year_id);
-                  console.log(`Auto-assigned scriptures for child ${childId} in year ${enrollment.year_id}`);
-                } catch (error) {
-                  console.warn(`Failed to auto-assign scriptures for child ${childId}:`, error);
-                }
-              }
-            }
-          } catch (error) {
-            console.warn('Error checking for missing scripture assignments:', error);
-          }
-          
-          // Fetch student scriptures and essays and enrich with scripture data
-          const scriptures = await db.studentScriptures.where({ childId }).toArray();
-          const essays = await db.studentEssays.where({ childId }).toArray();
-
-          // Fetch child's household preference for translation
-          const child = await db.children.get(childId as any);
-          const household = child ? await db.households.get(child.household_id) : null;
-          const preferred = household?.preferredScriptureTranslation;
-
-          const enrichedScriptures = await Promise.all(
-            scriptures.map(async (s) => {
-              const scripture = await db.scriptures.get(s.scriptureId);
-              const year = await db.competitionYears.get(s.competitionYearId);
-              // determine verse text based on household preference with fallbacks
-              let verseText = scripture?.text ?? '';
-              let displayTranslation = scripture?.translation ?? 'NIV';
-              // Prefer flattened `texts` map (e.g. { NIV: '...', KJV: '...' }).
-              const textsMapRaw = (scripture as unknown as Record<string, unknown>)?.texts ?? (scripture as unknown as Record<string, unknown>)?.alternateTexts ?? undefined;
-              const textsMap = textsMapRaw as Record<string, string> | undefined;
-              if (preferred && textsMap && Object.prototype.hasOwnProperty.call(textsMap, preferred)) {
-                verseText = textsMap[preferred] as string;
-                displayTranslation = preferred;
-              }
-              return { ...s, scripture, year, verseText, displayTranslation };
-            })
-          );
-
-          // Sort scriptures by scripture_order for consistent display
-          enrichedScriptures.sort((a, b) => {
-            const aScript = a.scripture as Partial<Scripture> | undefined;
-            const bScript = b.scripture as Partial<Scripture> | undefined;
-            const aOrder = Number(aScript?.scripture_order ?? aScript?.sortOrder ?? 0);
-            const bOrder = Number(bScript?.scripture_order ?? bScript?.sortOrder ?? 0);
-            return aOrder - bOrder;
-          });
-
-          const enrichedEssays = await Promise.all(
-            essays.map(async (e) => {
-              const year = await db.competitionYears.get(e.competitionYearId);
-              return { ...e, year };
-            })
-          );
-
-          return { scriptures: enrichedScriptures, essays: enrichedEssays };
-        }
       } catch (error) {
         console.error('❌ Error loading student assignments:', error);
         console.error('❌ Error details:', {
@@ -612,11 +532,7 @@ export function useBibleBeeStats(childId: string) {
       try {
         console.log('🚀 Starting useBibleBeeStats for child:', childId);
         
-        if (shouldUseAdapter()) {
-          // Use dbAdapter for live mode
-          console.log('🔍 useBibleBeeStats: Using Supabase mode for child:', childId);
-          
-          // Get enrollments for this child
+        // Get enrollments for this child
           console.log('🔍 Fetching enrollments for child:', childId);
           const enrollments = await dbAdapter.listEnrollments(childId);
           console.log('Child enrollments:', enrollments);
@@ -707,6 +623,7 @@ export function useBibleBeeStats(childId: string) {
                 // Create new student scripture record
                 console.log('Creating new student scripture record for:', scripture.id);
                 const studentScriptureData = {
+                  id: uuidv4(),
                   child_id: childId,
                   bible_bee_cycle_id: scripture.bible_bee_cycle_id,
                   scripture_id: scripture.id,
@@ -792,7 +709,7 @@ export function useBibleBeeStats(childId: string) {
                 bible_bee_cycle_id: enrollment.bible_bee_cycle_id,
                 essay_prompt_id: essayPrompts[0].id,
                 status: 'assigned',
-                submitted_at: null,
+                submitted_at: undefined,
               });
               
               return {
@@ -870,7 +787,7 @@ export function useBibleBeeStats(childId: string) {
                   max_grade: divisionInfo.division.max_grade,
                 };
                 // Use the minimum_required from the division
-                required = divisionInfo.division.minimum_required || enrichedScriptures.length;
+                required = divisionInfo.division.minimum_required || scriptures.length;
               } else if (divisionInfo.target) {
                 // Legacy system provided a target
                 required = divisionInfo.target;
@@ -909,154 +826,13 @@ export function useBibleBeeStats(childId: string) {
             essaySummary,
             divisionEssayPrompts
           };
-        } else {
-          // Use legacy Dexie for demo mode - import db dynamically
-          const { db } = await import('@/lib/db');
-          
-          // Fetch student scriptures and essays and enrich with scripture data
-          const scriptures = await db.studentScriptures.where({ childId }).toArray();
-          const essays = await db.studentEssays.where({ childId }).toArray();
-
-          // Fetch child's household preference for translation
-          const child = await db.children.get(childId as any);
-          const household = child ? await db.households.get(child.household_id) : null;
-          const preferred = household?.preferredScriptureTranslation;
-
-          const enrichedScriptures = await Promise.all(
-            scriptures.map(async (s) => {
-              const scripture = await db.scriptures.get(s.scriptureId);
-              const year = await db.competitionYears.get(s.competitionYearId);
-              // determine verse text based on household preference with fallbacks
-              let verseText = scripture?.text ?? '';
-              let displayTranslation = scripture?.translation ?? 'NIV';
-              // Prefer flattened `texts` map (e.g. { NIV: '...', KJV: '...' }).
-              const textsMapRaw = (scripture as unknown as Record<string, unknown>)?.texts ?? (scripture as unknown as Record<string, unknown>)?.alternateTexts ?? undefined;
-              const textsMap = textsMapRaw as Record<string, string> | undefined;
-              if (preferred && textsMap && Object.prototype.hasOwnProperty.call(textsMap, preferred)) {
-                verseText = textsMap[preferred] as string;
-                displayTranslation = preferred;
-              }
-              return { ...s, scripture, year, verseText, displayTranslation };
-            })
-          );
-
-          // Sort scriptures by scripture_order for consistent display
-          enrichedScriptures.sort((a, b) => {
-            const aScript = a.scripture as Partial<Scripture> | undefined;
-            const bScript = b.scripture as Partial<Scripture> | undefined;
-            const aOrder = Number(aScript?.scripture_order ?? aScript?.sortOrder ?? 0);
-            const bOrder = Number(bScript?.scripture_order ?? bScript?.sortOrder ?? 0);
-            return aOrder - bOrder;
-          });
-
-          const enrichedEssays = await Promise.all(
-            essays.map(async (e) => {
-              const year = await db.competitionYears.get(e.competitionYearId);
-              return { ...e, year };
-            })
-          );
-
-          // Now compute the stats using the same logic as above
-
-          // Prepare essay summary
-          let essaySummary = null;
-          if (enrichedEssays.length > 0 && enrichedScriptures.length === 0) {
-            const submitted = enrichedEssays.filter(
-              (e: any) => e.status === 'submitted'
-            ).length;
-            essaySummary = {
-              count: enrichedEssays.length,
-              submitted,
-              pending: enrichedEssays.length - submitted,
-            };
-          }
-
-          if (enrichedScriptures.length === 0 && enrichedEssays.length === 0) {
-            return {
-              bbStats: null,
-              essaySummary,
-              divisionEssayPrompts: []
-            };
-          }
-
-          // Get child data for grade calculation
-          const childData = await getChild(childId);
-          if (!childData) return null;
-
-          // Get the year ID for division lookup
-          const yearId = enrichedScriptures.length > 0
-            ? enrichedScriptures[0].bible_bee_cycle_id
-            : enrichedEssays[0]?.bible_bee_cycle_id;
-          
-          let required = enrichedScriptures.length;
-          let matchingDivision = null;
-
-          try {
-            const gradeNum = childData.grade ? gradeToCode(childData.grade) : null;
-
-            if (gradeNum !== null && yearId && childData) {
-              // Use the helper function to get division information
-              const { getChildDivisionInfo } = await import('@/lib/bibleBee');
-              const divisionInfo = await getChildDivisionInfo(
-                childData.child_id,
-                yearId
-              );
-
-              if (divisionInfo.division) {
-                // New system: Use division information
-                matchingDivision = {
-                  name: divisionInfo.division.name,
-                  min_grade: divisionInfo.division.min_grade,
-                  max_grade: divisionInfo.division.max_grade,
-                };
-                // Use the minimum_required from the division
-                required = divisionInfo.division.minimum_required || enrichedScriptures.length;
-              } else if (divisionInfo.target) {
-                // Legacy system provided a target
-                required = divisionInfo.target;
-              }
-            }
-          } catch (e) {
-            console.warn('Error computing Bible Bee stats:', e);
-            // ignore and fallback to total scriptures
-          }
-
-          const completed = enrichedScriptures
-            .filter((s: any) => s.status === 'completed')
-            .reduce((sum: number, s: any) => sum + (s.counts_for || 1), 0);
-          const percent = required > 0 ? (completed / required) * 100 : 0;
-          const bonus = Math.max(0, completed - required);
-
-          // Check if there's an essay assigned
-          const essayAssigned = enrichedEssays.length > 0;
-          const divisionEssayPrompts = enrichedEssays.map((e: any) => e.essayPrompt).filter(Boolean);
-
-          return {
-            bbStats: {
-              requiredScriptures: required,
-              completedScriptures: completed,
-              percentDone: percent,
-              bonus,
-              division: matchingDivision
-                ? {
-                      name: matchingDivision.name,
-                      min_grade: matchingDivision.min_grade,
-                      max_grade: matchingDivision.max_grade,
-                    }
-                : undefined,
-              essayAssigned,
-            },
-            essaySummary,
-            divisionEssayPrompts
-          };
-        }
       } catch (error) {
         console.error('❌ Error loading Bible Bee stats:', error);
         return { bbStats: null, essaySummary: null, divisionEssayPrompts: [] };
       }
     },
     enabled: !!childId,
-    staleTime: 30 * 1000, // 30 seconds - stats change when scriptures are completed
     ...cacheConfig.volatile,
+    staleTime: 30 * 1000, // 30 seconds - stats change when scriptures are completed
   });
 }

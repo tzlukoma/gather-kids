@@ -123,9 +123,10 @@ export function EditChildModal({
 						medical_notes: data.medical_notes || undefined,
 						special_needs_notes: data.special_needs_notes || undefined,
 						photo_url: undefined,
-						ministrySelections: {},
-						interestSelections: {},
-						customData: {},
+						household_id: householdId,
+						is_active: true,
+						created_at: new Date().toISOString(),
+						updated_at: new Date().toISOString(),
 					},
 					cycleId: currentCycle.cycle_id,
 				});
@@ -235,7 +236,7 @@ export function EditChildModal({
 					</div>
 
 					<div className="space-y-2">
-						<Label htmlFor="child_mobile">Child's Phone (Optional)</Label>
+						<Label htmlFor="child_mobile">Child&apos;s Phone (Optional)</Label>
 						<PhoneInput
 							id="child_mobile"
 							value={watch('child_mobile') || ''}

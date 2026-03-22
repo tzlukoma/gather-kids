@@ -10,10 +10,11 @@ export const queryKeys = {
   guardians: () => ['guardians'] as const,
   
   // Event-scoped attendance for granular invalidation
-  attendance: (date: string, eventId?: string) => 
+  attendance: (date: string, eventId?: string) =>
     eventId ? ['attendance', date, eventId] : ['attendance', date],
-  incidents: (date: string, eventId?: string) => 
+  incidents: (date: string, eventId?: string) =>
     eventId ? ['incidents', date, eventId] : ['incidents', date],
+  incidentsForUser: (userId: string | undefined) => ['incidents', 'user', userId] as const,
   
   // Bible Bee
   scriptures: (cycleId: string) => ['scriptures', cycleId] as const,

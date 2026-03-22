@@ -48,7 +48,7 @@ describe('Grade Display Function', () => {
     });
 
     it('should handle null and undefined inputs', () => {
-      expect(normalizeGradeDisplay(null)).toBe('Unknown');
+      expect(normalizeGradeDisplay(null as unknown as undefined)).toBe('Unknown');
       expect(normalizeGradeDisplay(undefined)).toBe('Unknown');
     });
 

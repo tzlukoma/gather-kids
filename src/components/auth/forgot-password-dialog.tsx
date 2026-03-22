@@ -12,11 +12,9 @@ import {
 	DialogTrigger,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
-import { Mail, AlertCircle } from 'lucide-react';
-import { isDemo } from '@/lib/authGuards';
+import { Mail } from 'lucide-react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -45,7 +43,6 @@ export function ForgotPasswordDialog({ children }: ForgotPasswordDialogProps) {
 	const [emailSent, setEmailSent] = useState(false);
 	const { toast } = useToast();
 
-	const isDemoMode = isDemo();
 	const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:9002';
 
 	const form = useForm<ForgotPasswordFormData>({
@@ -58,31 +55,20 @@ export function ForgotPasswordDialog({ children }: ForgotPasswordDialogProps) {
 	const onSubmit = async (data: ForgotPasswordFormData) => {
 		setIsLoading(true);
 		try {
-			if (isDemoMode) {
-				// Demo mode: simulate email sending
-				await new Promise((resolve) => setTimeout(resolve, 1000));
-				setEmailSent(true);
-				toast({
-					title: 'Reset Link Sent (Demo)',
-					description: `Password reset instructions have been sent to ${data.email}. In demo mode, you can visit the reset page directly.`,
-				});
-			} else {
-				// Live mode: send actual reset email via Supabase
-				const { supabase } = await import('@/lib/supabaseClient');
-				const { error } = await supabase.auth.resetPasswordForEmail(
-					data.email,
-					{
-						redirectTo: `${siteUrl}/auth/reset-password`,
-					}
-				);
-				if (error) throw error;
+			const { supabase } = await import('@/lib/supabaseClient');
+			const { error } = await supabase.auth.resetPasswordForEmail(
+				data.email,
+				{
+					redirectTo: `${siteUrl}/auth/reset-password`,
+				}
+			);
+			if (error) throw error;
 
-				setEmailSent(true);
-				toast({
-					title: 'Reset Link Sent',
-					description: `If an account exists for ${data.email}, you will receive password reset instructions.`,
-				});
-			}
+			setEmailSent(true);
+			toast({
+				title: 'Reset Link Sent',
+				description: `If an account exists for ${data.email}, you will receive password reset instructions.`,
+			});
 		} catch (error) {
 			console.error('Password reset request failed:', error);
 			toast({
@@ -126,23 +112,6 @@ export function ForgotPasswordDialog({ children }: ForgotPasswordDialogProps) {
 								see it, check your spam folder.
 							</AlertDescription>
 						</Alert>
-
-						{isDemoMode && (
-							<Alert className="mt-4">
-								<AlertCircle className="h-4 w-4" />
-								<AlertDescription>
-									<strong>Demo Mode:</strong> You can test the reset flow by
-									visiting{' '}
-									<a
-										href="/auth/reset-password"
-										className="underline text-primary"
-										onClick={handleClose}>
-										the reset page directly
-									</a>
-									.
-								</AlertDescription>
-							</Alert>
-						)}
 					</div>
 				) : (
 					<Form {...form}>
@@ -166,16 +135,6 @@ export function ForgotPasswordDialog({ children }: ForgotPasswordDialogProps) {
 									</FormItem>
 								)}
 							/>
-
-							{isDemoMode && (
-								<Alert>
-									<AlertCircle className="h-4 w-4" />
-									<AlertDescription>
-										<strong>Demo Mode:</strong> Password reset is simulated. Any
-										valid email format will work.
-									</AlertDescription>
-								</Alert>
-							)}
 						</form>
 					</Form>
 				)}

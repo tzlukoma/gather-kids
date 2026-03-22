@@ -19,12 +19,14 @@ import type {
 	Attendance,
 	Incident,
 	BibleBeeYear,
+	BibleBeeCycle,
 	Division,
 	EssayPrompt,
 	Enrollment,
 	EnrollmentOverride,
 	BrandingSettings,
 	Scripture,
+	StudentScripture,
 	StudentEssay,
 	AuditLogEntry,
 } from '../types';
@@ -387,7 +389,6 @@ export interface DatabaseAdapter {
 	// Household editing methods
 	addGuardian(householdId: string, guardian: Omit<Guardian, 'guardian_id'>): Promise<Guardian>;
 	removeGuardian(guardianId: string): Promise<void>;
-	updateEmergencyContact(householdId: string, contact: EmergencyContact): Promise<void>;
 	addChild(householdId: string, child: Omit<Child, 'child_id'>, cycleId: string): Promise<Child>;
 	softDeleteChild(childId: string): Promise<void>;
 

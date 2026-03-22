@@ -16,7 +16,7 @@ test('enrollChildInBibleBee is idempotent for scriptures and essays', async () =
     const r1 = await enrollChildInBibleBee(child.child_id, year.id);
     const r2 = await enrollChildInBibleBee(child.child_id, year.id);
 
-    const assigned = await db.studentScriptures.where({ childId: child.child_id, competitionYearId: year.id }).toArray();
+    const assigned = await db.studentScriptures.where({ child_id: child.child_id, bible_bee_cycle_id: year.id }).toArray();
     expect(assigned.length).toBe(2);
     // ensure functions returned result objects (may be null if no rule)
     expect(r1).not.toBeNull();
