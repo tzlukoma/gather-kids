@@ -37,7 +37,7 @@ export default function GuardianHouseholdPage() {
 				isLoading,
 				hasData: !!profileData,
 				hasError: !!error,
-				errorMessage: error?.message,
+				errorMessage: error instanceof Error ? error.message : String(error),
 			});
 		}
 	}, [householdId, isLoading, profileData, error]);

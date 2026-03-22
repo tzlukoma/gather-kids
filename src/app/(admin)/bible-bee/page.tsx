@@ -154,8 +154,8 @@ export default function BibleBeePage() {
 
 	// Use React Query for permission checking
 	const { data: canManagePermission = false } = useCanLeaderManageBibleBee({
-		leaderId: user?.id || user?.uid || user?.user_id || user?.userId || null,
-		email: user?.email || user?.user_email || user?.mail || null,
+		leaderId: user?.id || user?.uid || undefined,
+		email: user?.email || undefined,
 		selectedCycle,
 	});
 
@@ -197,7 +197,7 @@ export default function BibleBeePage() {
 					</p>
 				</div>
 				<div className="flex items-center justify-center py-12">
-					<div className="text-destructive">Error loading Bible Bee cycles: {cyclesError.message}</div>
+					<div className="text-destructive">Error loading Bible Bee cycles: {cyclesError instanceof Error ? cyclesError.message : String(cyclesError)}</div>
 				</div>
 			</div>
 		);
@@ -265,7 +265,7 @@ export default function BibleBeePage() {
 								</div>
 							) : scripturesError ? (
 								<div className="flex items-center justify-center py-8">
-									<div className="text-destructive">Error loading scriptures: {scripturesError.message}</div>
+									<div className="text-destructive">Error loading scriptures: {scripturesError instanceof Error ? scripturesError.message : String(scripturesError)}</div>
 								</div>
 							) : scriptures.length === 0 ? (
 								<div className="flex items-center justify-center py-8">

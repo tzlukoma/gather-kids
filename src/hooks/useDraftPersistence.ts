@@ -158,7 +158,7 @@ export function useDraftPersistence<T>(options: UseDraftPersistenceOptions) {
 					const userId = getUserId();
 					const lastData = lastSavedDataRef.current;
 					if (lastData) {
-						dbAdapter.saveDraft(formName, userId, JSON.parse(lastData), version);
+						if (userId) dbAdapter.saveDraft(formName, userId, JSON.parse(lastData), version);
 					}
 				}
 			}

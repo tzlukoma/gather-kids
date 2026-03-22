@@ -123,9 +123,10 @@ export function EditChildModal({
 						medical_notes: data.medical_notes || undefined,
 						special_needs_notes: data.special_needs_notes || undefined,
 						photo_url: undefined,
-						ministrySelections: {},
-						interestSelections: {},
-						customData: {},
+						household_id: householdId,
+						is_active: true,
+						created_at: new Date().toISOString(),
+						updated_at: new Date().toISOString(),
 					},
 					cycleId: currentCycle.cycle_id,
 				});

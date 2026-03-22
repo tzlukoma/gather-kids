@@ -170,7 +170,7 @@ export async function commitCsvRowsToYear(
     rows: any[],
     yearId: string,
 ): Promise<{ inserted: number; updated: number }> {
-    return dbAdapter.commitCsvRowsToYear(rows, yearId);
+    return dbAdapter.commitEnhancedCsvRowsToYear(rows, yearId);
 }
 
 /**

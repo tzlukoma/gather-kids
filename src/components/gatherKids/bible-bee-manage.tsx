@@ -718,6 +718,7 @@ function DivisionManagement({
 				onRefresh();
 			} else {
 				await createDivision({
+					id: crypto.randomUUID(),
 					...formData,
 					bible_bee_cycle_id: yearId,
 				});
@@ -1073,7 +1074,6 @@ function ScriptureManagement({
 					formData.texts['NIV-ES'] ||
 					'',
 				translation: 'NIV',
-				competitionYearId: '', // Legacy field
 				createdAt: new Date().toISOString(),
 				updatedAt: new Date().toISOString(),
 			};
@@ -1082,10 +1082,7 @@ function ScriptureManagement({
 				await upsertScripture({
 					...editingScripture,
 					...scriptureData,
-					bible_bee_cycle_id: selectedCycle._isNewSchema ? yearId : null,
-					competitionYearId: selectedCycle._isNewSchema
-						? ''
-						: (yearId as string),
+					bible_bee_cycle_id: yearId,
 				});
 				toast({
 					title: `Scripture ${formData.scripture_number} Updated`,
@@ -1099,10 +1096,7 @@ function ScriptureManagement({
 				await upsertScripture({
 					id: crypto.randomUUID(),
 					...scriptureData,
-					bible_bee_cycle_id: selectedCycle._isNewSchema ? yearId : undefined,
-					competitionYearId: selectedCycle._isNewSchema
-						? ''
-						: (yearId as string),
+					bible_bee_cycle_id: yearId,
 				});
 				toast({
 					title: `Scripture ${formData.scripture_number} Created`,
@@ -2003,7 +1997,7 @@ function EssayManagement({
 				// Trigger refresh of essay prompts list
 				onRefresh();
 			} else {
-				await createEssayPrompt(essayData);
+				await createEssayPrompt({ id: crypto.randomUUID(), ...essayData });
 				toast({
 					title: 'Essay Prompt Created',
 					description: 'Essay prompt has been successfully created.',
@@ -2219,9 +2213,12 @@ function EssayManagement({
 									setIsCreating(false);
 									setEditingEssay(null);
 									setFormData({
-										division_name: 'all',
-										prompt_text: '',
+										division_id: '',
+										title: '',
+										prompt: '',
+										instructions: '',
 										due_date: '',
+										due_time: '',
 									});
 									setError(null);
 								}}>
@@ -2301,11 +2298,11 @@ function EssayManagement({
 		</Card>
 		<ConfirmationDialog
 			isOpen={!!confirmDelete}
-			onClose={() => setConfirmDelete(null)}
+			onCancel={() => setConfirmDelete(null)}
 			onConfirm={executeDelete}
 			title="Delete Essay Prompt"
 			description={`Are you sure you want to delete the essay prompt "${confirmDelete?.title}"? This action cannot be undone.`}
-			confirmLabel="Delete"
+			confirmText="Delete"
 			variant="destructive"
 		/>
 		</>
@@ -2742,7 +2739,7 @@ function OverrideManagement({
 				// Delete existing override first (if any)
 				await deleteEnrollmentOverrideByChild(selectedChild.child_id);
 				// Create new override
-				await createEnrollmentOverride(overrideData);
+				await createEnrollmentOverride({ id: crypto.randomUUID(), ...overrideData });
 				// Apply the override immediately to the actual enrollment
 				await applyEnrollmentOverride(
 					selectedChild.child_id,
@@ -3012,11 +3009,11 @@ function OverrideManagement({
 		</Card>
 		<ConfirmationDialog
 			isOpen={!!confirmDelete}
-			onClose={() => setConfirmDelete(null)}
+			onCancel={() => setConfirmDelete(null)}
 			onConfirm={executeDelete}
 			title="Delete Override"
 			description={`Are you sure you want to delete the override for ${confirmDelete?.child_name}? This action cannot be undone.`}
-			confirmLabel="Delete"
+			confirmText="Delete"
 			variant="destructive"
 		/>
 		</>

@@ -75,6 +75,7 @@ const mockMinistry: Ministry = {
 	code: 'min_sunday_school',
 	is_active: true,
 	enrollment_type: 'enrolled',
+	data_profile: 'Basic',
 	created_at: '2024-01-01T00:00:00Z',
 	updated_at: '2024-01-01T00:00:00Z',
 };
@@ -96,7 +97,8 @@ describe('RegistrationsPage', () => {
 
 	const renderWithProviders = (
 		ui: React.ReactElement,
-		user = mockUsers.admin
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		user: any = mockUsers.admin
 	) => {
 		return render(
 			<QueryClientProvider client={queryClient}>

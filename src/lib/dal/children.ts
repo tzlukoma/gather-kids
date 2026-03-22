@@ -7,6 +7,9 @@
  */
 
 import { db as dbAdapter } from '../database/factory';
+import type { SupabaseAdapter } from '../database/supabase-adapter';
+// Cast to SupabaseAdapter when direct client access is needed (avatars table operations)
+const supabaseAdapter = dbAdapter as unknown as SupabaseAdapter;
 import type { Child, MinistryEnrollment } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import { AvatarService } from '../avatar/avatar-service';
@@ -22,7 +25,7 @@ export async function getAllChildren(): Promise<Child[]> {
     const children = await dbAdapter.listChildren({ isActive: true });
     const childIds = children.map(c => c.child_id);
 
-    const { data: avatars, error } = await dbAdapter.client
+    const { data: avatars, error } = await supabaseAdapter.client
         .from('avatars')
         .select('entity_id, storage_path')
         .eq('entity_type', 'child')
@@ -65,7 +68,7 @@ export async function getChildrenForLeader(
     const allChildren = await dbAdapter.listChildren({ isActive: true });
     const children = allChildren.filter(c => childIds.includes(c.child_id));
 
-    const { data: avatars, error } = await dbAdapter.client
+    const { data: avatars, error } = await supabaseAdapter.client
         .from('avatars')
         .select('entity_id, storage_path')
         .eq('entity_type', 'child')
@@ -95,7 +98,7 @@ export async function getChild(childId: string): Promise<Child | null> {
     const child = await dbAdapter.getChild(childId);
     if (!child) return null;
 
-    const { data: avatar, error } = await dbAdapter.client
+    const { data: avatar, error } = await supabaseAdapter.client
         .from('avatars')
         .select('storage_path')
         .eq('entity_type', 'child')
@@ -189,11 +192,4 @@ export async function updateChildEnrollmentFields(
     await dbAdapter.updateEnrollmentFields(childId, ministryId, cycleId, customFields);
 }
 
-export async function updateChildPhoto(
-    childId: string,
-    photoDataUrl: string,
-): Promise<number | string> {
-    // In Supabase mode, photo is stored via the avatars table (handled by updateEntityAvatar).
-    // This legacy function is kept for backward compatibility.
-    return childId;
-}
+// updateChildPhoto is exported from branding.ts

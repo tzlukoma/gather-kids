@@ -87,7 +87,6 @@ export default function RegistrationCycles() {
 
 			// Create the new cycle
 			const createdCycle = await createRegistrationCycle({
-				cycle_id: newCycle.cycle_id,
 				name: newCycle.name,
 				start_date: newCycle.start_date,
 				end_date: newCycle.end_date,

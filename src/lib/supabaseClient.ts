@@ -86,8 +86,8 @@ export const supabaseBrowser = () => {
 
   // Create and return the client
   return createBrowserClient(
-    supabaseUrl,
-    supabaseAnonKey,
+    supabaseUrl!,
+    supabaseAnonKey!,
     clientOptions
   );
 };
@@ -148,7 +148,7 @@ export const handlePKCECodeExchange = async (code: string) => {
     if (!client) throw new Error('Supabase client not available in this environment');
     
     const sessionPromise = client.auth.getSession();
-    const sessionTimeoutPromise = new Promise((_, reject) => 
+    const sessionTimeoutPromise = new Promise<never>((_, reject) =>
       setTimeout(() => reject(new Error('Session check timeout after 5 seconds')), 5000)
     );
     const { data: sessionData } = await Promise.race([sessionPromise, sessionTimeoutPromise]);
@@ -156,12 +156,12 @@ export const handlePKCECodeExchange = async (code: string) => {
       console.log('- Already have active session:', sessionData.session.user.id);
       return { data: sessionData, error: null };
     }
-    
+
     // If we have tokens but no session, try to refresh the session first
     if (hasSupabaseTokens && !sessionData?.session) {
       console.log('- Found tokens but no session, attempting session refresh...');
       const refreshPromise = client.auth.refreshSession();
-      const refreshTimeoutPromise = new Promise((_, reject) => 
+      const refreshTimeoutPromise = new Promise<never>((_, reject) =>
         setTimeout(() => reject(new Error('Session refresh timeout after 5 seconds')), 5000)
       );
       const refreshResult = await Promise.race([refreshPromise, refreshTimeoutPromise]);
@@ -172,17 +172,17 @@ export const handlePKCECodeExchange = async (code: string) => {
         console.log('- Session refresh failed, proceeding with code exchange');
       }
     }
-    
+
     // Attempt the exchange with timeout
     console.log('- Starting code exchange...');
     const exchangePromise = client.auth.exchangeCodeForSession(code);
-    const timeoutPromise = new Promise((_, reject) => 
+    const timeoutPromise = new Promise<never>((_, reject) =>
       setTimeout(() => reject(new Error('Code exchange timeout after 10 seconds')), 10000)
     );
-    
+
     const result = await Promise.race([exchangePromise, timeoutPromise]);
     console.log('- Exchange completed', result);
-    
+
     // Check for Supabase-created auth tokens even if there was an error
     // This helps detect the "successful but something else broke" case
     if (result.error) {
@@ -190,11 +190,11 @@ export const handlePKCECodeExchange = async (code: string) => {
       const hasTokensAfterAttempt = Object.keys(localStorage).some(key => key && key.startsWith('sb-'));
       if (hasTokensAfterAttempt) {
         console.log('- Found Supabase tokens despite error - partial success detected');
-        
+
         // If we see tokens but got an error, make one more attempt to get a session
         console.log('- Attempting to recover session after partial success...');
         const recoveryPromise = client.auth.refreshSession();
-        const recoveryTimeoutPromise = new Promise((_, reject) => 
+        const recoveryTimeoutPromise = new Promise<never>((_, reject) =>
           setTimeout(() => reject(new Error('Session recovery timeout after 5 seconds')), 5000)
         );
         const recoveryResult = await Promise.race([recoveryPromise, recoveryTimeoutPromise]);
@@ -206,7 +206,7 @@ export const handlePKCECodeExchange = async (code: string) => {
         }
       }
     }
-    
+
     return result;
   } catch (error) {
     console.error('PKCE code exchange error:', error);

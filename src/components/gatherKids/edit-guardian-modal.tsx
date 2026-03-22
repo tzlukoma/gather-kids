@@ -90,6 +90,9 @@ export function EditGuardianModal({
 					guardian: {
 						...data,
 						email: data.email || undefined,
+						household_id: householdId,
+						created_at: new Date().toISOString(),
+						updated_at: new Date().toISOString(),
 					},
 				});
 				toast({

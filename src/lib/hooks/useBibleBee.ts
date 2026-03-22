@@ -231,13 +231,14 @@ export function useStudentAssignmentsQuery(childId: string) {
                             console.log('Creating new student scripture record for:', scripture.id);
                             console.log('Using bible_bee_cycle_id:', scripture.bible_bee_cycle_id);
                             const studentScriptureData = {
+                                id: uuidv4(),
                                 child_id: childId,
                                 bible_bee_cycle_id: scripture.bible_bee_cycle_id,
                                 scripture_id: scripture.id,
                                 is_completed: false,
                                 completed_at: undefined,
                             };
-                            
+
                             const newStudentScripture = await dbAdapter.createStudentScripture(studentScriptureData);
                             console.log('Created student scripture record:', newStudentScripture);
                             
@@ -324,7 +325,7 @@ export function useStudentAssignmentsQuery(childId: string) {
                             bible_bee_cycle_id: enrollment.bible_bee_cycle_id,
                             essay_prompt_id: essayPrompts[0].id,
                             status: 'assigned',
-                            submitted_at: null,
+                            submitted_at: undefined,
                         });
                         
                         return {
@@ -440,7 +441,7 @@ export function useBibleBeeCyclesQuery() {
             return cycles || [];
         },
         staleTime: 5 * 60 * 1000, // 5 minutes
-        gcTime: 10 * 60 * 1000, // 10 minutes
+        cacheTime: 10 * 60 * 1000, // 10 minutes
     });
 }
 
@@ -459,7 +460,7 @@ export function useScripturesForCycleQuery(cycleId: string) {
         },
         enabled: !!cycleId, // Only run query if cycleId is provided
         staleTime: 5 * 60 * 1000, // 5 minutes
-        gcTime: 10 * 60 * 1000, // 10 minutes
+        cacheTime: 10 * 60 * 1000, // 10 minutes
     });
 }
 
@@ -487,7 +488,7 @@ export function useBibleBeeProgressQuery(cycleId: string, filterChildIds?: strin
         },
         enabled: !!cycleId, // Only run query if cycleId is provided
         staleTime: 2 * 60 * 1000, // 2 minutes (shorter than scriptures since this changes more frequently)
-        gcTime: 5 * 60 * 1000, // 5 minutes
+        cacheTime: 5 * 60 * 1000, // 5 minutes
     });
 }
 
@@ -510,7 +511,7 @@ export function useChildQuery(childId: string) {
         },
         enabled: !!childId, // Only run query if childId is provided
         staleTime: 5 * 60 * 1000, // 5 minutes
-        gcTime: 10 * 60 * 1000, // 10 minutes
+        cacheTime: 10 * 60 * 1000, // 10 minutes
     });
 }
 
@@ -532,7 +533,7 @@ export function useHouseholdQuery(householdId: string) {
         },
         enabled: !!householdId, // Only run query if householdId is provided
         staleTime: 5 * 60 * 1000, // 5 minutes
-        gcTime: 10 * 60 * 1000, // 10 minutes
+        cacheTime: 10 * 60 * 1000, // 10 minutes
     });
 }
 
@@ -554,7 +555,7 @@ export function useGuardiansQuery(householdId: string) {
         },
         enabled: !!householdId, // Only run query if householdId is provided
         staleTime: 5 * 60 * 1000, // 5 minutes
-        gcTime: 10 * 60 * 1000, // 10 minutes
+        cacheTime: 10 * 60 * 1000, // 10 minutes
     });
 }
 

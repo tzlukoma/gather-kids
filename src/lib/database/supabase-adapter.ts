@@ -25,11 +25,15 @@ import type {
 	MinistryGroupMember,
 	BrandingSettings,
 	BibleBeeYear,
+	BibleBeeCycle,
 	Division,
 	EssayPrompt,
 	Enrollment,
 	EnrollmentOverride,
 	GradeRule,
+	Scripture,
+	StudentScripture,
+	StudentEssay,
 } from '../types';
 
 export class SupabaseAdapter implements DatabaseAdapter {
@@ -84,7 +88,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 	): Promise<Household> {
 		// Map frontend field names to database column names
 		const household = {
-			household_id: data.household_id || uuidv4(), // Use provided ID or generate new one
+			household_id: uuidv4(), // Generate new ID (household_id is excluded from input)
 			created_at: new Date().toISOString(),
 			updated_at: new Date().toISOString(),
 			// Map name field
@@ -819,7 +823,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 		console.log('🔍 SupabaseAdapter.listMinistries: Starting query', { 
 			isActive,
 			timestamp: new Date().toISOString(),
-			clientUrl: this.client.supabaseUrl
+			clientUrl: "(supabase client)"
 		});
 		
 		// Check client state and authentication before making query
@@ -856,7 +860,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 				errorCode: ministriesError?.code,
 				errorDetails: ministriesError?.details,
 				errorHint: ministriesError?.hint,
-				errorStatus: ministriesError?.status,
+				errorStatus: (ministriesError as {status?: number})?.status,
 				fullError: ministriesError,
 				dataCount: ministries?.length || 0,
 				ministries: ministries?.map(m => ({ 
@@ -873,9 +877,9 @@ export class SupabaseAdapter implements DatabaseAdapter {
 					errorCode: ministriesError.code,
 					errorDetails: ministriesError.details,
 					errorHint: ministriesError.hint,
-					errorStatus: ministriesError.status,
+					errorStatus: (ministriesError as {status?: number}).status,
 					query: query.toString(),
-					clientUrl: this.client.supabaseUrl,
+					clientUrl: "(supabase client)",
 					timestamp: new Date().toISOString()
 				});
 				throw ministriesError;
@@ -982,7 +986,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 				error: queryError,
 				errorMessage: queryError instanceof Error ? queryError.message : 'Unknown error',
 				errorStack: queryError instanceof Error ? queryError.stack : undefined,
-				clientUrl: this.client.supabaseUrl,
+				clientUrl: "(supabase client)",
 				timestamp: new Date().toISOString()
 			});
 			throw queryError;
@@ -2088,6 +2092,54 @@ export class SupabaseAdapter implements DatabaseAdapter {
 	// The bible_bee_years table was replaced with bible_bee_cycles in the fresh schema
 	// Use getBibleBeeCycle(), createBibleBeeCycle(), updateBibleBeeCycle(), deleteBibleBeeCycle(), listBibleBeeCycles() instead
 
+	// Bible Bee Year methods (delegated to BibleBeeCycle for backwards compatibility)
+	async getBibleBeeYear(id: string): Promise<BibleBeeYear | null> {
+		const cycle = await this.getBibleBeeCycle(id);
+		if (!cycle) return null;
+		return this.mapBibleBeYearFromCycle(cycle);
+	}
+
+	async createBibleBeeYear(data: Omit<BibleBeeYear, 'created_at' | 'updated_at'>): Promise<BibleBeeYear> {
+		const cycle = await this.createBibleBeeCycle({
+			cycle_id: data.cycle_id || '',
+			name: data.name || data.label || '',
+			description: data.description,
+			is_active: data.is_active,
+		});
+		return this.mapBibleBeYearFromCycle(cycle);
+	}
+
+	async updateBibleBeeYear(id: string, data: Partial<BibleBeeYear>): Promise<BibleBeeYear> {
+		const cycle = await this.updateBibleBeeCycle(id, {
+			name: data.name ?? data.label,
+			description: data.description,
+			is_active: data.is_active,
+		});
+		return this.mapBibleBeYearFromCycle(cycle);
+	}
+
+	async listBibleBeeYears(): Promise<BibleBeeYear[]> {
+		const cycles = await this.listBibleBeeCycles();
+		return cycles.map(c => this.mapBibleBeYearFromCycle(c));
+	}
+
+	async deleteBibleBeeYear(id: string): Promise<void> {
+		return this.deleteBibleBeeCycle(id);
+	}
+
+	private mapBibleBeYearFromCycle(cycle: BibleBeeCycle): BibleBeeYear {
+		return {
+			id: cycle.id,
+			cycle_id: cycle.cycle_id,
+			name: cycle.name,
+			label: cycle.name,
+			description: cycle.description,
+			is_active: cycle.is_active,
+			created_at: cycle.created_at,
+			updated_at: cycle.updated_at,
+		};
+	}
+
 	// Bible Bee Cycles (new cycle-based system)
 	async getBibleBeeCycle(id: string): Promise<BibleBeeCycle | null> {
 		const { data, error } = await this.client
@@ -2288,7 +2340,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 
 	async upsertScripture(data: Omit<Scripture, 'created_at' | 'updated_at'> & { id?: string }): Promise<Scripture> {
 		// Determine if we're using a Bible Bee cycle ID or competition year ID
-		const isBibleBeeCycleId = data.year_id && data.year_id.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
+		const isBibleBeeCycleId = data.bible_bee_cycle_id && data.bible_bee_cycle_id.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
 		
 		const payload: any = {
 			id: data.id || uuidv4(),
@@ -2306,14 +2358,14 @@ export class SupabaseAdapter implements DatabaseAdapter {
 		// Use the appropriate field based on whether it's a cycle ID or competition year ID
 		if (isBibleBeeCycleId) {
 			// This is a Bible Bee cycle ID - use bible_bee_cycle_id
-			console.log('upsertScripture - Using bible_bee_cycle_id:', data.year_id);
-			payload.bible_bee_cycle_id = data.year_id;
+			console.log('upsertScripture - Using bible_bee_cycle_id:', data.bible_bee_cycle_id);
+			payload.bible_bee_cycle_id = data.bible_bee_cycle_id;
 			payload.competition_year_id = null;
 		} else {
 			// This is a competition year ID - use the traditional field
-			console.log('upsertScripture - Using competition_year_id:', data.year_id);
-			payload.competition_year_id = data.year_id;
-			payload.bible_bee_cycle_id = null;
+			console.log('upsertScripture - Using competition_year_id (no cycle ID)');
+			payload.competition_year_id = null;
+			payload.bible_bee_cycle_id = data.bible_bee_cycle_id;
 		}
 
 		console.log('upsertScripture - Final payload:', payload);
@@ -2520,10 +2572,10 @@ export class SupabaseAdapter implements DatabaseAdapter {
 				);
 				
 				const action = existing ? 'update' : 'create';
-				const existingTexts = existing?.texts || {};
-				const newTexts = mode === 'overwrite' 
-					? scriptureData.texts 
-					: { ...existingTexts, ...scriptureData.texts };
+				const existingTexts = (existing?.texts && typeof existing.texts === 'object' && !Array.isArray(existing.texts) ? existing.texts : {}) as Record<string, string>;
+				const newTexts = mode === 'overwrite'
+					? scriptureData.texts
+					: { ...existingTexts, ...(scriptureData.texts as Record<string, string>) };
 				
 				preview.push({
 					reference: scriptureData.reference,
@@ -3511,20 +3563,6 @@ export class SupabaseAdapter implements DatabaseAdapter {
 		if (error) throw error;
 	}
 
-	async updateEmergencyContact(householdId: string, contact: EmergencyContact): Promise<void> {
-		const { error } = await this.client
-			.from('emergency_contacts')
-			.upsert({
-				household_id: householdId,
-				first_name: contact.first_name,
-				last_name: contact.last_name,
-				mobile_phone: contact.mobile_phone,
-				relationship: contact.relationship,
-			});
-
-		if (error) throw error;
-	}
-
 	async addChild(householdId: string, child: Omit<Child, 'child_id'>, cycleId: string): Promise<Child> {
 		const { data, error } = await this.client
 			.from('children')
@@ -3546,7 +3584,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			.single();
 
 		if (error) throw error;
-		return this.mapChild(data);
+		return supabaseToChild(data as Database['public']['Tables']['children']['Row']);
 	}
 
 	async softDeleteChild(childId: string): Promise<void> {

@@ -565,7 +565,7 @@ export function MinistryFormDialog({
 										)}
 									/>
 									{['radio', 'checkbox'].includes(
-										form.watch(`custom_questions.${index}.type`)
+										form.watch(`custom_questions.${index}.type`) ?? ''
 									) && (
 										<FormField
 											control={form.control}

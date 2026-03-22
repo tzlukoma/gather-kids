@@ -8,6 +8,9 @@
  */
 
 import { db as dbAdapter } from '../database/factory';
+import type { SupabaseAdapter } from '../database/supabase-adapter';
+// Cast to SupabaseAdapter when direct client access is needed (avatars table operations)
+const supabaseAdapter = dbAdapter as unknown as SupabaseAdapter;
 import { AvatarService } from '../avatar/avatar-service';
 import type { BrandingSettings, LeaderProfile, Household } from '../types';
 import { normalizeEmail, normalizePhone } from './utils';
@@ -89,7 +92,7 @@ export async function updateEntityAvatar(
         storagePath = photoDataUrl;
     }
 
-    const { data, error } = await dbAdapter.client.from('avatars').upsert(
+    const { data, error } = await supabaseAdapter.client.from('avatars').upsert(
         {
             entity_type: entityType,
             entity_id: entityId,
@@ -116,7 +119,7 @@ export async function getEntityAvatar(
     entityId: string,
 ): Promise<string | null> {
     try {
-        const { data, error } = await dbAdapter.client
+        const { data, error } = await supabaseAdapter.client
             .from('avatars')
             .select('storage_path')
             .eq('entity_type', entityType)

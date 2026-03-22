@@ -796,7 +796,7 @@ export function supabaseToEnrollment(record: Record<string, unknown> | null | un
 export function enrollmentToSupabase(enrollment: Partial<DexieTypes.Enrollment>): Record<string, unknown> {
 	return {
 		id: enrollment.id,
-		year_id: enrollment.year_id,
+		bible_bee_cycle_id: enrollment.bible_bee_cycle_id,
 		child_id: enrollment.child_id,
 		division_id: enrollment.division_id,
 		auto_enrolled: enrollment.auto_enrolled,
@@ -808,7 +808,7 @@ export function supabaseToEnrollmentOverride(record: Record<string, unknown> | n
 	const r = (record ?? {}) as Record<string, unknown>;
 	return {
 		id: (r['id'] as string) || (r['override_id'] as string) || '',
-		year_id: (r['year_id'] as string) ?? (r['bible_bee_year_id'] as string) ?? '',
+		bible_bee_cycle_id: (r['bible_bee_cycle_id'] as string) ?? (r['year_id'] as string) ?? (r['bible_bee_year_id'] as string) ?? '',
 		child_id: (r['child_id'] as string) ?? (r['childId'] as string) ?? '',
 		division_id: (r['division_id'] as string) ?? (r['divisionId'] as string) ?? '',
 		reason: (r['reason'] as string) ?? undefined,
