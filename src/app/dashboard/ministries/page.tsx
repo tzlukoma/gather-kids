@@ -317,8 +317,8 @@ export default function MinistryPage() {
 	const router = useRouter();
 	const { user, loading } = useAuth();
 	const queryClient = useQueryClient();
-	const [isAuthorized, setIsAuthorized] = useState(false);
-	const [isAdmin, setIsAdmin] = useState(false);
+	const isAuthorized = !loading && !!user && user.metadata?.role === AuthRole.ADMIN;
+	const isAdmin = isAuthorized;
 	const [activeTab, setActiveTab] = useState<string>('ministries');
 
 	// Use React Query hooks for data fetching
@@ -384,9 +384,6 @@ export default function MinistryPage() {
 				} else {
 					router.push('/');
 				}
-			} else {
-				setIsAuthorized(true);
-				setIsAdmin(true);
 			}
 		}
 	}, [user, loading, router]);
@@ -480,7 +477,7 @@ export default function MinistryPage() {
 		// No need to manually invalidate - the mutation hooks handle this automatically
 	};
 
-	if (loading || !isAuthorized || isLoadingData) {
+	if (!isAuthorized || isLoadingData) {
 		return <TableSkeleton rows={8} columns={5} />;
 	}
 

@@ -125,7 +125,7 @@ export default function RostersPage() {
 	const searchParams = useSearchParams();
 	const { user, loading } = useAuth();
 	const router = useRouter();
-	const [isAuthorized, setIsAuthorized] = useState(false);
+	const isAuthorized = !loading && !!user;
 	const queryClient = useQueryClient();
 	const today = getTodayIsoDate();
 
@@ -247,18 +247,6 @@ export default function RostersPage() {
 			EVENT_OPTIONS.find((e) => e.id === selectedEvent)?.name || 'Select Event'
 		);
 	}, [selectedEvent]);
-
-	useEffect(() => {
-		if (!loading && user) {
-			console.log('🔍 RostersPage: Authorization check', {
-				userRole: user?.metadata?.role,
-				userEmail: user?.email,
-				loading,
-			});
-			// Always authorize ministry leaders - let the empty state handle no ministry assignment
-			setIsAuthorized(true);
-		}
-	}, [user, loading]);
 
 	useEffect(() => {
 		const statusParam = searchParams.get('status');
@@ -589,7 +577,6 @@ export default function RostersPage() {
 	};
 
 	if (
-		loading ||
 		!isAuthorized ||
 		dataLoading ||
 		childrenLoading ||

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { AuthRole } from '@/lib/auth-types';
 import { Calendar } from '@/components/ui/calendar';
 import {
@@ -37,14 +37,12 @@ import {
 } from '@/lib/dal';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/auth-context';
-import { useRouter } from 'next/navigation';
 import { useCheckedInChildren } from '@/hooks/data/children';
 import type { Child } from '@/lib/types';
 
 export default function ReportsPage() {
-	const router = useRouter();
 	const { user, loading } = useAuth();
-	const [isAuthorized, setIsAuthorized] = useState(false);
+	const isAuthorized = !loading && !!user && user.metadata?.role === AuthRole.ADMIN;
 
 	const today = getTodayIsoDate();
 	const { toast } = useToast();
@@ -60,21 +58,6 @@ export default function ReportsPage() {
 		isLoading: dataLoading,
 		error: dataError,
 	} = useCheckedInChildren(today);
-
-	useEffect(() => {
-		if (!loading && user) {
-			if (user?.metadata?.role !== AuthRole.ADMIN) {
-				// Redirect non-admins to a role-appropriate page
-				if (user?.metadata?.role === AuthRole.MINISTRY_LEADER) {
-					router.push('/dashboard/rosters');
-				} else {
-					router.push('/');
-				}
-			} else {
-				setIsAuthorized(true);
-			}
-		}
-	}, [user, loading, router]);
 
 	const handleExportEmergency = async () => {
 		const blob = await exportEmergencySnapshotCSV(today);
@@ -118,7 +101,7 @@ export default function ReportsPage() {
 		});
 	};
 
-	if (loading || !isAuthorized || dataLoading) {
+	if (!isAuthorized || dataLoading) {
 		return <div>Loading reports...</div>;
 	}
 

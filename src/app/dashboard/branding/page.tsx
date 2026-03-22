@@ -41,12 +41,12 @@ export default function BrandingPage() {
 	const router = useRouter();
 	const { user, loading: authLoading } = useAuth();
 	const { toast } = useToast();
-	
+	const isAuthorized = !authLoading && !!user && user.metadata?.role === AuthRole.ADMIN;
+
 	// Use React Query hooks for data fetching
 	const { data: brandingSettings, isLoading: settingsLoading, error: settingsError } = useBrandingSettings('default');
 	const saveBrandingMutation = useSaveBrandingSettings();
-	
-	const [isAuthorized, setIsAuthorized] = useState(false);
+
 	const [formData, setFormData] = useState<BrandingFormData>({
 		app_name: '',
 		description: '',
@@ -56,13 +56,10 @@ export default function BrandingPage() {
 		instagram_url: '',
 	});
 
+	// Redirect non-admin users
 	useEffect(() => {
-		if (!authLoading && user) {
-			if (user?.metadata?.role !== AuthRole.ADMIN) {
-				router.push('/dashboard');
-			} else {
-				setIsAuthorized(true);
-			}
+		if (!authLoading && user && user.metadata?.role !== AuthRole.ADMIN) {
+			router.push('/dashboard');
 		}
 	}, [user, authLoading, router]);
 
@@ -182,7 +179,7 @@ export default function BrandingPage() {
 		});
 	};
 
-	if (authLoading || !isAuthorized || settingsLoading) {
+	if (!isAuthorized || settingsLoading) {
 		return <CardGridSkeleton count={4} />;
 	}
 
