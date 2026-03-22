@@ -160,7 +160,7 @@ export default function BrandingPage() {
 		} catch (error) {
 			console.error('Failed to save branding settings:', error);
 			toast({
-				title: 'Error',
+				title: 'Save Failed',
 				description: 'Failed to save branding settings. Please try again.',
 				variant: 'destructive',
 			});

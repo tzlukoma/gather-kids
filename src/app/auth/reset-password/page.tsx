@@ -216,6 +216,7 @@ function ResetPasswordForm() {
 													size="icon"
 													className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
 													onClick={() => setShowPassword(!showPassword)}
+													aria-label={showPassword ? 'Hide password' : 'Show password'}
 													disabled={isLoading}>
 													{showPassword ? (
 														<EyeOff className="h-4 w-4" />
@@ -253,6 +254,7 @@ function ResetPasswordForm() {
 													onClick={() =>
 														setShowConfirmPassword(!showConfirmPassword)
 													}
+													aria-label={showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'}
 													disabled={isLoading}>
 													{showConfirmPassword ? (
 														<EyeOff className="h-4 w-4" />

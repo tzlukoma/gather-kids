@@ -259,7 +259,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 					);
 				}, 0);
 			} else if (event === 'SIGNED_OUT') {
-				setUser(null);
+				// If user had an active session, this may be a session expiry (not explicit logout)
+				// The explicit logout clears the user before calling supabase.auth.signOut(),
+				// so if user is still set here, it was an unexpected sign-out (token expiry etc.)
+				setUser((currentUser) => {
+					if (currentUser !== null && typeof window !== 'undefined') {
+						sessionStorage.setItem('auth:session_expired', '1');
+					}
+					return null;
+				});
 				setUserRole(null);
 			}
 		});

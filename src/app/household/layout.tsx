@@ -236,7 +236,7 @@ function HouseholdLayoutContent({ children }: { children: React.ReactNode }) {
 						</SidebarFooter>
 					</Sidebar>
 					<SidebarInset>
-						<main className="p-4 md:p-6 lg:p-8">{children}</main>
+						<main id="main-content" className="p-4 md:p-6 lg:p-8">{children}</main>
 					</SidebarInset>
 				</div>
 			</div>

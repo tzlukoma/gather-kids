@@ -76,8 +76,8 @@ export default function ReportsPage() {
 	const handleExportAttendance = async () => {
 		if (!date?.from || !date?.to) {
 			toast({
-				title: 'Error',
-				description: 'Please select a date range.',
+				title: 'Date Range Required',
+				description: 'Please select a date range to generate the report.',
 				variant: 'destructive',
 			});
 			return;

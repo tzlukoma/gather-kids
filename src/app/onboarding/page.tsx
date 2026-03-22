@@ -183,7 +183,7 @@ export default function OnboardingPage() {
 		} catch (error: any) {
 			console.error('Error dismissing onboarding:', error);
 			toast({
-				title: 'Error',
+				title: 'Setup Error',
 				description: error.message || 'Failed to skip setup. Please try again.',
 				variant: 'destructive',
 			});

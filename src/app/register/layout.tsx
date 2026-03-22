@@ -52,7 +52,7 @@ export default function RegisterLayout({
 					</button>
 				</div>
 			</header>
-			<main className="flex-1 container mx-auto p-4 md:p-6 lg:p-8">
+			<main id="main-content" className="flex-1 container mx-auto p-4 md:p-6 lg:p-8">
 				{children}
 			</main>
 			<footer className="py-6 border-t mt-auto">

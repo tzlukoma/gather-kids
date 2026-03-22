@@ -79,8 +79,8 @@ export default function IncidentsPage() {
 		} catch (error) {
 			console.error('Failed to acknowledge incident', error);
 			toast({
-				title: 'Error',
-				description: 'Failed to acknowledge the incident.',
+				title: 'Acknowledgement Failed',
+				description: 'Failed to acknowledge the incident. Please try again.',
 				variant: 'destructive',
 			});
 		}
