@@ -78,7 +78,8 @@ describe('HouseholdBibleBeePage', () => {
 		} as any);
 
 		// Mock the hook to return data when called with the correct household ID
-		mockUseHouseholdProfile.mockImplementation(
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		(mockUseHouseholdProfile as any).mockImplementation(
 			(householdId: string) => {
 				// When householdId is empty string (initial state), return loading
 				if (!householdId || householdId === '') {
@@ -92,8 +93,7 @@ describe('HouseholdBibleBeePage', () => {
 					data: mockHouseholdProfile,
 					isLoading: false,
 				};
-			},
-			{ timeout: 5000 }
+			}
 		);
 
 		mockGetHouseholdForUser.mockResolvedValue('test-household');

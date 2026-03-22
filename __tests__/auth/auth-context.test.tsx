@@ -3,19 +3,34 @@ import { useAuth, AuthProvider } from '@/contexts/auth-context';
 import { AuthRole } from '@/lib/auth-types';
 import { ReactNode } from 'react';
 
+// Mock Supabase client
+jest.mock('@/lib/supabaseClient', () => ({
+	supabase: {
+		auth: {
+			getSession: jest.fn().mockResolvedValue({ data: { session: null }, error: null }),
+			onAuthStateChange: jest.fn().mockReturnValue({
+				data: { subscription: { unsubscribe: jest.fn() } }
+			}),
+			signOut: jest.fn().mockResolvedValue({ error: null }),
+		},
+	},
+}));
+
+// Mock DB adapter
+jest.mock('@/lib/db-utils', () => ({
+	dbAdapter: {
+		listAccessibleMinistriesForEmail: jest.fn().mockResolvedValue([]),
+	},
+}));
+
 describe('AuthContext', () => {
 	const wrapper = ({ children }: { children: ReactNode }) => (
 		<AuthProvider>{children}</AuthProvider>
 	);
 
-	beforeEach(() => {
-		localStorage.clear();
-	});
-
 	it('provides loading state initially', async () => {
 		const { result } = renderHook(() => useAuth(), { wrapper });
 
-		// Need to wait for the initial render
 		await act(async () => {
 			await new Promise((resolve) => setTimeout(resolve, 0));
 		});
@@ -29,7 +44,7 @@ describe('AuthContext', () => {
 		expect(result.current.user).toBe(null);
 	});
 
-	it('allows login and stores user in localStorage', async () => {
+	it('allows login and sets user in context', async () => {
 		const { result } = renderHook(() => useAuth(), { wrapper });
 
 		const testUser = {
@@ -47,21 +62,13 @@ describe('AuthContext', () => {
 		});
 
 		// Check user is set in context
-		expect(result.current.user).toEqual(expect.objectContaining(testUser));
-
-		// Check user is stored in localStorage
-		const storedUser = JSON.parse(
-			localStorage.getItem('gatherkids-user') || '{}'
-		);
-		expect(storedUser).toEqual(
-			expect.objectContaining({
-				id: testUser.id,
-				email: testUser.email,
-			})
-		);
+		expect(result.current.user).toEqual(expect.objectContaining({
+			id: testUser.id,
+			email: testUser.email,
+		}));
 	});
 
-	it('allows logout and clears localStorage', async () => {
+	it('allows logout and clears user from context', async () => {
 		const { result } = renderHook(() => useAuth(), { wrapper });
 
 		// First login
@@ -86,34 +93,6 @@ describe('AuthContext', () => {
 
 		// Check user is cleared from context
 		expect(result.current.user).toBe(null);
-
-		// Check user is cleared from localStorage
-		expect(localStorage.getItem('gatherkids-user')).toBe(null);
-	});
-
-	it('restores user from localStorage on mount', async () => {
-		// Setup stored user
-		const storedUser = {
-			id: 'stored-id',
-			email: 'stored@example.com',
-			name: 'Stored User',
-			is_active: true,
-			metadata: {
-				role: AuthRole.ADMIN,
-			},
-		};
-		localStorage.setItem('gatherkids-user', JSON.stringify(storedUser));
-
-		// Render hook
-		const { result } = renderHook(() => useAuth(), { wrapper });
-
-		// Wait for initialization
-		await act(async () => {
-			await new Promise((resolve) => setTimeout(resolve, 0));
-		});
-
-		// Check user is restored
-		expect(result.current.user).toEqual(expect.objectContaining(storedUser));
 	});
 
 	it('manages user role state', async () => {

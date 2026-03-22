@@ -1,7 +1,7 @@
 /**
  * This file contains types generated from the Supabase schema.
  * DO NOT EDIT MANUALLY. This file is auto-generated.
- * Generated on: 2025-10-21T02:48:55.025Z
+ * Generated on: 2026-03-09T00:14:38.029Z
  */
 
 export type SupabaseJson =
@@ -916,6 +916,21 @@ export type Database = {
         }
         Relationships: []
       }
+      keepalive: {
+        Row: {
+          id: number
+          pinged_at: string | null
+        }
+        Insert: {
+          id?: number
+          pinged_at?: string | null
+        }
+        Update: {
+          id?: number
+          pinged_at?: string | null
+        }
+        Relationships: []
+      }
       leader_assignments: {
         Row: {
           assignment_id: string
@@ -1540,30 +1555,6 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      citext: {
-        Args: { "": boolean } | { "": string } | { "": unknown }
-        Returns: string
-      }
-      citext_hash: {
-        Args: { "": string }
-        Returns: number
-      }
-      citextin: {
-        Args: { "": unknown }
-        Returns: string
-      }
-      citextout: {
-        Args: { "": string }
-        Returns: unknown
-      }
-      citextrecv: {
-        Args: { "": unknown }
-        Returns: string
-      }
-      citextsend: {
-        Args: { "": string }
-        Returns: string
-      }
       fn_ministry_ids_email_can_access: {
         Args: { p_email: string }
         Returns: {

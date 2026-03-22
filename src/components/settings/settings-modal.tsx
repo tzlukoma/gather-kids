@@ -38,8 +38,12 @@ import { useAuth } from '@/contexts/auth-context';
 import { useToast } from '@/hooks/use-toast';
 import { getMeProfile, saveProfile, getActiveProfileTarget } from '@/lib/dal';
 import { supabase } from '@/lib/supabaseClient';
-import { isDemo } from '@/lib/authGuards';
-import { SquareCropperModal } from '@/components/ui/square-cropper-modal';
+// PERF-06: Lazy-load the heavy cropper modal (812 lines + canvas deps) — only needed on demand
+import dynamic from 'next/dynamic';
+const SquareCropperModal = dynamic(
+	() => import('@/components/ui/square-cropper-modal').then((m) => m.SquareCropperModal),
+	{ loading: () => null }
+);
 
 const profileSchema = z.object({
 	email: z.string().email('Please enter a valid email address'),
@@ -191,36 +195,29 @@ export function SettingsModal({
 			// Handle avatar upload if there's a new file
 			if (avatarFile) {
 				try {
-					if (isDemo()) {
-						// In demo mode, the preview already contains the processed image
-						photoPath = avatarPreview;
-					} else {
-						// In production mode, upload via API
-						const formData = new FormData();
-						formData.append('file', avatarFile, 'avatar.webp');
-						formData.append('userData', JSON.stringify(user));
+					const formData = new FormData();
+					formData.append('file', avatarFile, 'avatar.webp');
+					formData.append('userData', JSON.stringify(user));
 
-						const response = await fetch('/api/me/photo', {
-							method: 'POST',
-							body: formData,
-						});
+					const response = await fetch('/api/me/photo', {
+						method: 'POST',
+						body: formData,
+					});
 
-						if (!response.ok) {
-							const errorData = await response.json();
-							throw new Error(errorData.error || 'Failed to upload avatar');
-						}
-
-						const { photoUrl } = await response.json();
-						photoPath = photoUrl;
+					if (!response.ok) {
+						const errorData = await response.json();
+						throw new Error(errorData.error || 'Failed to upload avatar');
 					}
+
+					const { photoUrl } = await response.json();
+					photoPath = photoUrl;
 				} catch (error: any) {
 					throw new Error(`Avatar upload failed: ${error.message}`);
 				}
 			}
 
-			// Handle email change - only initiate Supabase email change, don't update domain yet
-			let shouldUpdateDomainEmail = false;
-			if (data.email !== user.email && !isDemo()) {
+			// Handle email change - initiate Supabase email change, don't update domain yet
+			if (data.email !== user.email) {
 				try {
 					const { error: emailError } = await supabase.auth.updateUser({
 						email: data.email,
@@ -240,14 +237,10 @@ export function SettingsModal({
 				} catch (error: any) {
 					throw new Error(`Email change failed: ${error.message}`);
 				}
-			} else if (data.email !== user.email && isDemo()) {
-				// In demo mode, allow immediate email update
-				shouldUpdateDomainEmail = true;
 			}
 
 			// Save to domain tables
 			await saveProfile(user.uid || user.id || '', {
-				email: shouldUpdateDomainEmail ? data.email : undefined,
 				phone: data.phone,
 				photoPath,
 			});
@@ -277,16 +270,6 @@ export function SettingsModal({
 
 		setSaving(true);
 		try {
-			// In demo mode, just show success
-			if (isDemo()) {
-				toast({
-					title: 'Password Updated',
-					description: 'Your password has been changed successfully.',
-				});
-				passwordForm.reset();
-				return;
-			}
-
 			// Update password in Supabase
 			const { error } = await supabase.auth.updateUser({
 				password: data.newPassword,
@@ -320,14 +303,6 @@ export function SettingsModal({
 
 		setSaving(true);
 		try {
-			if (isDemo()) {
-				toast({
-					title: 'Demo Mode',
-					description: 'Password reset emails are not sent in demo mode.',
-				});
-				return;
-			}
-
 			const { error } = await supabase.auth.resetPasswordForEmail(user.email);
 
 			if (error) {
@@ -540,7 +515,7 @@ export function SettingsModal({
 								<form
 									onSubmit={passwordForm.handleSubmit(handlePasswordChange)}
 									className="space-y-4">
-									{!isDemo() && (
+									{true && (
 										<div className="space-y-2">
 											<Label htmlFor="currentPassword">Current Password</Label>
 											<div className="relative">

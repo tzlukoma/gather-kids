@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { dbAdapter } from '@/lib/dal';
 import { useAuth } from '@/contexts/auth-context';
-import { isDemo } from '@/lib/authGuards';
 
 interface UseDraftPersistenceOptions {
 	formName: string;
@@ -34,28 +33,11 @@ export function useDraftPersistence<T>(options: UseDraftPersistenceOptions) {
 		if (loading) {
 			return null;
 		}
-		
-		// In Supabase mode, require authenticated user (including GUEST role)
-		if (!isDemo()) {
-			if (user?.uid) return user.uid;
-			if (user?.id) return user.id;
-			// In Supabase mode, if no authenticated user, return null instead of throwing
-			return null;
-		}
-		
-		// For demo mode without a logged-in user, use a session-based ID
+
+		// Require authenticated user
 		if (user?.uid) return user.uid;
 		if (user?.id) return user.id;
-		
-		if (typeof window !== 'undefined') {
-			let sessionUserId = sessionStorage.getItem('draft-user-id');
-			if (!sessionUserId) {
-				sessionUserId = `demo-user-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-				sessionStorage.setItem('draft-user-id', sessionUserId);
-			}
-			return sessionUserId;
-		}
-		return 'anonymous-user';
+		return null;
 	}, [user, loading]);
 
 	// Load draft data
@@ -176,7 +158,7 @@ export function useDraftPersistence<T>(options: UseDraftPersistenceOptions) {
 					const userId = getUserId();
 					const lastData = lastSavedDataRef.current;
 					if (lastData) {
-						dbAdapter.saveDraft(formName, userId, JSON.parse(lastData), version);
+						if (userId) dbAdapter.saveDraft(formName, userId, JSON.parse(lastData), version);
 					}
 				}
 			}

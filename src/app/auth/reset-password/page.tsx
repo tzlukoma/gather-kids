@@ -14,7 +14,6 @@ import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { Lock, Eye, EyeOff, AlertCircle } from 'lucide-react';
-import { isDemo } from '@/lib/authGuards';
 import { supabase } from '@/lib/supabaseClient';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
@@ -55,8 +54,6 @@ function ResetPasswordForm() {
 	const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 	const [hasValidToken, setHasValidToken] = useState<boolean | null>(null);
 
-	const isDemoMode = isDemo();
-
 	const form = useForm<ResetPasswordFormData>({
 		resolver: zodResolver(resetPasswordSchema),
 		defaultValues: {
@@ -66,22 +63,15 @@ function ResetPasswordForm() {
 	});
 
 	useEffect(() => {
-		// Check if we have valid reset token/code
 		const token = searchParams.get('token');
 		const code = searchParams.get('code');
 
-		if (isDemoMode) {
-			// In demo mode, always allow reset
-			setHasValidToken(true);
+		if (token || code) {
+			validateResetToken(token, code);
 		} else {
-			// In live mode, validate the token/code with Supabase
-			if (token || code) {
-				validateResetToken(token, code);
-			} else {
-				setHasValidToken(false);
-			}
+			setHasValidToken(false);
 		}
-	}, [searchParams, isDemoMode]);
+	}, [searchParams]);
 
 	const validateResetToken = async (
 		token: string | null,
@@ -93,8 +83,6 @@ function ResetPasswordForm() {
 				return;
 			}
 
-			// For Supabase password reset, we need to check if we have a valid session
-			// The reset password flow should have already established a session via the email link
 			const {
 				data: { session },
 				error: sessionError,
@@ -107,10 +95,8 @@ function ResetPasswordForm() {
 			}
 
 			if (session?.user) {
-				// We have a valid session, which means the reset link was valid
 				setHasValidToken(true);
 			} else {
-				// No session means the reset link is invalid or expired
 				setHasValidToken(false);
 			}
 		} catch (error) {
@@ -122,32 +108,20 @@ function ResetPasswordForm() {
 	const onSubmit = async (data: ResetPasswordFormData) => {
 		setIsLoading(true);
 		try {
-			if (isDemoMode) {
-				// Demo mode: simulate password reset
-				await new Promise((resolve) => setTimeout(resolve, 1000));
-				toast({
-					title: 'Password Reset Successful',
-					description:
-						'Your password has been updated successfully. You can now sign in with your new password.',
-				});
-				router.push('/login');
-			} else {
-				// Live mode: implement Supabase password update
-				const { error } = await supabase.auth.updateUser({
-					password: data.password,
-				});
+			const { error } = await supabase.auth.updateUser({
+				password: data.password,
+			});
 
-				if (error) {
-					throw error;
-				}
-
-				toast({
-					title: 'Password Reset Successful',
-					description:
-						'Your password has been updated successfully. You can now sign in with your new password.',
-				});
-				router.push('/login');
+			if (error) {
+				throw error;
 			}
+
+			toast({
+				title: 'Password Reset Successful',
+				description:
+					'Your password has been updated successfully. You can now sign in with your new password.',
+			});
+			router.push('/login');
 		} catch (error) {
 			console.error('Password reset failed:', error);
 			toast({
@@ -219,16 +193,6 @@ function ResetPasswordForm() {
 					</CardDescription>
 				</CardHeader>
 				<CardContent>
-					{isDemoMode && (
-						<Alert className="mb-4">
-							<AlertCircle className="h-4 w-4" />
-							<AlertDescription>
-								<strong>Demo Mode:</strong> Password reset is simulated. In live
-								mode, this would update your actual password.
-							</AlertDescription>
-						</Alert>
-					)}
-
 					<Form {...form}>
 						<form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
 							<FormField
@@ -252,6 +216,7 @@ function ResetPasswordForm() {
 													size="icon"
 													className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
 													onClick={() => setShowPassword(!showPassword)}
+													aria-label={showPassword ? 'Hide password' : 'Show password'}
 													disabled={isLoading}>
 													{showPassword ? (
 														<EyeOff className="h-4 w-4" />
@@ -289,6 +254,7 @@ function ResetPasswordForm() {
 													onClick={() =>
 														setShowConfirmPassword(!showConfirmPassword)
 													}
+													aria-label={showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'}
 													disabled={isLoading}>
 													{showConfirmPassword ? (
 														<EyeOff className="h-4 w-4" />

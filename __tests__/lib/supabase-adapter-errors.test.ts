@@ -114,6 +114,7 @@ describe('Supabase Adapter Error Handling', () => {
 		// Try to create a child with non-existent household_id
 		// This should not crash but may not enforce FK constraints in mock
 		const childData = {
+			child_id: 'test-child-id',
 			household_id: 'non-existent-household',
 			first_name: 'Test',
 			last_name: 'Child',

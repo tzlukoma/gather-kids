@@ -25,11 +25,7 @@ export NEXT_PUBLIC_SUPABASE_ANON_KEY
 export SUPABASE_SERVICE_ROLE_KEY
 export DATABASE_URL
 
-# Set the database mode to supabase explicitly
-export NEXT_PUBLIC_DATABASE_MODE=supabase
-
-echo "✅ Environment configured for UAT database"
-echo "📊 Database mode: ${NEXT_PUBLIC_DATABASE_MODE}"
+echo "✅ Environment configured for UAT database (always Supabase)"
 
 echo "🚀 Starting Next.js development server with UAT configuration..."
 npm run dev

@@ -10,7 +10,7 @@ import { safelyPatch } from './patch-manager';
 export const debugScope = { inDal: 0 };
 
 // Store original methods for cleanup
-let originalMethods: Map<string, Function> = new Map();
+const originalMethods: Map<string, (...args: unknown[]) => unknown> = new Map();
 let instrumentedAdapter: any = null;
 
 /**

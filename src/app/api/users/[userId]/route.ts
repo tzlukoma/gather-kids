@@ -6,7 +6,7 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const MIN_PASSWORD_LENGTH = 8;
 
-type Params = { params: Promise<{ userId: string }> | { userId: string } };
+type Params = { params: Promise<{ userId: string }> };
 
 export async function PATCH(
 	request: NextRequest,
@@ -18,8 +18,7 @@ export async function PATCH(
 			return authResult.response;
 		}
 
-		const params = await (Promise.resolve(context.params) as Promise<{ userId: string }>);
-		const userId = params.userId;
+		const { userId } = await context.params;
 
 		const body = await request.json();
 		const { role, email_confirmed, password } = body;

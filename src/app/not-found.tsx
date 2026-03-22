@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import {
 	Card,
@@ -32,9 +33,12 @@ export default function NotFound() {
 						<div className="flex items-center justify-center mb-6">
 							{settings.logo_url ? (
 								<>
-									<img
+									{/* PERF-08: next/image for optimized logo loading */}
+									<Image
 										src={settings.logo_url}
 										alt={`${settings.app_name || 'gatherKids'} Logo`}
+										width={200}
+										height={64}
 										className={`h-16 w-auto ${
 											settings.use_logo_only ? '' : 'max-w-[50%]'
 										} object-contain`}
@@ -61,7 +65,7 @@ export default function NotFound() {
 							Page Not Found
 						</CardTitle>
 						<CardDescription className="text-lg text-muted-foreground">
-							Sorry, we couldn't find the page you're looking for.
+							Sorry, we couldn&apos;t find the page you&apos;re looking for.
 						</CardDescription>
 					</CardHeader>
 
@@ -104,7 +108,7 @@ export default function NotFound() {
 												Go Back
 											</h4>
 											<p className="text-sm text-muted-foreground mt-1">
-												Use your browser's back button to return to the previous
+												Use your browser&apos;s back button to return to the previous
 												page.
 											</p>
 										</div>
@@ -120,28 +124,28 @@ export default function NotFound() {
 							</h3>
 
 							<div className="grid gap-2 md:grid-cols-2">
-								<Link href="/dashboard">
+								<Link href="/admin-overview">
 									<Button variant="outline" className="w-full justify-start">
 										<Home className="w-4 h-4 mr-2" />
 										Dashboard
 									</Button>
 								</Link>
 
-								<Link href="/dashboard/check-in">
+								<Link href="/check-in">
 									<Button variant="outline" className="w-full justify-start">
 										<Users className="w-4 h-4 mr-2" />
 										Check-In
 									</Button>
 								</Link>
 
-								<Link href="/dashboard/registrations">
+								<Link href="/registrations">
 									<Button variant="outline" className="w-full justify-start">
 										<HelpCircle className="w-4 h-4 mr-2" />
 										Registrations
 									</Button>
 								</Link>
 
-								<Link href="/dashboard/bible-bee">
+								<Link href="/bible-bee">
 									<Button variant="outline" className="w-full justify-start">
 										<BookOpen className="w-4 h-4 mr-2" />
 										Bible Bee
@@ -152,7 +156,7 @@ export default function NotFound() {
 
 						{/* Action Buttons */}
 						<div className="flex flex-col sm:flex-row gap-4 pt-4">
-							<Link href="/dashboard" className="flex-1">
+							<Link href="/admin-overview" className="flex-1">
 								<Button className="w-full bg-brand-teal hover:bg-brand-teal/90 text-white">
 									<Home className="w-4 h-4 mr-2" />
 									Go to Dashboard
@@ -172,7 +176,7 @@ export default function NotFound() {
 						<div className="pt-6 border-t border-border">
 							<div className="text-center space-y-2">
 								<p className="text-sm text-muted-foreground">
-									Still having trouble? We're here to help!
+									Still having trouble? We&apos;re here to help!
 								</p>
 								<div className="flex justify-center space-x-4">
 									<Link

@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
-import YearManagePage from '@/app/dashboard/bible-bee/year/[id]/page';
+import YearManagePage from '@/app/(admin)/bible-bee/year/[id]/page';
 import {
 	renderWithAuth,
 	mockUsers,

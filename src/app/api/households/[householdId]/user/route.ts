@@ -2,14 +2,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { z } from 'zod';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+function getSupabaseAdmin() {
+	const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+	const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-if (!supabaseUrl || !supabaseServiceKey) {
-	throw new Error('Missing Supabase configuration');
+	if (!supabaseUrl || !supabaseServiceKey) {
+		throw new Error('Missing Supabase configuration');
+	}
+
+	return createClient(supabaseUrl, supabaseServiceKey);
 }
-
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 const updateUserSchema = z.object({
 	user_id: z.string().uuid('user_id must be a valid UUID'),
@@ -17,10 +19,11 @@ const updateUserSchema = z.object({
 
 export async function GET(
 	request: NextRequest,
-	{ params }: { params: { householdId: string } }
+	{ params }: { params: Promise<{ householdId: string }> }
 ) {
 	try {
-		const { householdId } = params;
+		const supabase = getSupabaseAdmin();
+		const { householdId } = await params;
 
 		// Find the current user_households record
 		const { data: userHousehold, error: findError } = await supabase
@@ -92,10 +95,11 @@ export async function GET(
 
 export async function PUT(
 	request: NextRequest,
-	{ params }: { params: { householdId: string } }
+	{ params }: { params: Promise<{ householdId: string }> }
 ) {
 	try {
-		const { householdId } = params;
+		const supabase = getSupabaseAdmin();
+		const { householdId } = await params;
 		const body = await request.json();
 		const validated = updateUserSchema.parse(body);
 		const { user_id } = validated;
@@ -161,7 +165,7 @@ export async function PUT(
 		}
 
 		// Step 3: Create new user_households record
-		const { data: newUserHousehold, error: insertError } = await supabase
+		const { error: insertError } = await supabase
 			.from('user_households')
 			.insert({
 				auth_user_id: user_id,
@@ -228,4 +232,3 @@ export async function PUT(
 		);
 	}
 }
-

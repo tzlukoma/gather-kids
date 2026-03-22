@@ -93,6 +93,7 @@ describe('Supabase Adapter Basic Functionality', () => {
 
 		// Create a child
 		const childData = {
+			child_id: crypto.randomUUID ? crypto.randomUUID() : 'test-child-id',
 			household_id: household.household_id,
 			first_name: 'Test',
 			last_name: 'Child',

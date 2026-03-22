@@ -30,7 +30,7 @@ import { useBranding } from '@/contexts/branding-context';
 import { LogOut } from 'lucide-react';
 import Image from 'next/image';
 import { AuthRole } from '@/lib/auth-types';
-import { isDemo } from '@/lib/authGuards';
+import { renderNavIcon } from '@/components/ui/nav-icon';
 
 interface DashboardNavProps {
 	children: React.ReactNode;
@@ -42,16 +42,7 @@ export function DashboardNav({ children }: DashboardNavProps) {
 	const { user, userRole, logout } = useAuth();
 	const { settings } = useBranding();
 
-	// Small helper to safely render icons stored as either a component or node
-	function renderIcon(
-		Icon: React.ComponentType<{ className?: string }> | React.ReactNode
-	) {
-		if (typeof Icon === 'function') {
-			const C = Icon as React.ComponentType<{ className?: string }>;
-			return <C className="w-4 h-4" />;
-		}
-		return Icon;
-	}
+	// renderNavIcon is imported from @/components/ui/nav-icon (MAINT-19)
 
 	// Helper to extract user id from possible shapes
 	function getUserId(u: unknown): string | undefined {
@@ -63,14 +54,11 @@ export function DashboardNav({ children }: DashboardNavProps) {
 	}
 
 	const handleLogout = async () => {
-		// Handle Supabase logout if not in demo mode
-		if (!isDemo()) {
-			try {
-				const { supabase } = await import('@/lib/supabaseClient');
-				await supabase.auth.signOut();
-			} catch (error) {
-				console.error('Error signing out from Supabase:', error);
-			}
+		try {
+			const { supabase } = await import('@/lib/supabaseClient');
+			await supabase.auth.signOut();
+		} catch (error) {
+			console.error('Error signing out from Supabase:', error);
 		}
 
 		// Always call the context logout to clear local state
@@ -155,7 +143,7 @@ export function DashboardNav({ children }: DashboardNavProps) {
 
 	// If the user is a ministry leader and inactive, restrict nav to Incidents only
 	const finalMenuItems = isInactiveLeader
-		? MENU_ITEMS.filter((item) => item.href === '/dashboard/incidents')
+		? MENU_ITEMS.filter((item) => item.href === '/incidents')
 		: filteredMenuItems;
 
 	return (
@@ -167,9 +155,12 @@ export function DashboardNav({ children }: DashboardNavProps) {
 						<Link href="/" className="flex items-center gap-2">
 							{settings.logo_url ? (
 								<>
-									<img
+									{/* PERF-08: next/image for optimized logo loading */}
+									<Image
 										src={settings.logo_url}
 										alt={`${settings.app_name || 'gatherKids'} Logo`}
+										width={32}
+										height={32}
 										className="w-8 h-8 object-contain"
 									/>
 									{!settings.use_logo_only && (
@@ -212,7 +203,7 @@ export function DashboardNav({ children }: DashboardNavProps) {
 											<Link
 												href={item.href}
 												className="flex items-center gap-2 w-full">
-												{renderIcon(Icon)}
+												{renderNavIcon(Icon)}
 												<span className="flex-1">{item.label}</span>
 												{item.isBeta && (
 													<Badge

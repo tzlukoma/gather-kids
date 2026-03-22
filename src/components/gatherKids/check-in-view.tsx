@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import type {
 	Child,
 	Guardian,
@@ -15,10 +15,18 @@ import { Input } from '@/components/ui/input';
 import { getTodayIsoDate } from '@/lib/dal';
 import { useIncidents } from '@/hooks/data';
 import { CardGridSkeleton } from '@/components/skeletons/CardGridSkeleton';
-import type { StatusFilter } from '@/app/dashboard/check-in/page';
+import type { StatusFilter } from '@/app/(admin)/check-in/page';
 import { IncidentDetailsDialog } from './incident-details-dialog';
-import { PhotoCaptureDialog } from './photo-capture-dialog';
-import { PhotoViewerDialog } from './photo-viewer-dialog';
+// PERF-06: Lazy-load camera/photo dialogs — heavy media components only needed on demand
+import dynamic from 'next/dynamic';
+const PhotoCaptureDialog = dynamic(
+	() => import('./photo-capture-dialog').then((m) => m.PhotoCaptureDialog),
+	{ loading: () => null }
+);
+const PhotoViewerDialog = dynamic(
+	() => import('./photo-viewer-dialog').then((m) => m.PhotoViewerDialog),
+	{ loading: () => null }
+);
 import { parseISO, differenceInYears } from 'date-fns';
 import { ChildCard } from './child-card';
 import { CheckoutDialog } from './checkout-dialog';
@@ -32,6 +40,7 @@ import {
 	useCheckInMutation,
 	useCheckOutMutation,
 } from '@/hooks/data';
+import { getEventName } from '@/lib/constants';
 
 interface CheckInViewProps {
 	children: Child[];
@@ -41,17 +50,13 @@ interface CheckInViewProps {
 	statusFilter: StatusFilter;
 }
 
-const eventNames: { [key: string]: string } = {
-	evt_sunday_school: 'Sunday School',
-	evt_childrens_church: 'Children&apos;s Church',
-	evt_teen_church: 'Teen Church',
-};
+// Module-level constants to avoid new references on every render (PERF-13)
+const EMPTY_GUARDIANS: Guardian[] = [];
+const EMPTY_HOUSEHOLDS: Household[] = [];
+const EMPTY_EMERGENCY_CONTACTS: EmergencyContact[] = [];
+const EMPTY_INCIDENTS: Incident[] = [];
 
-function getEventName(eventId: string): string {
-	return eventNames[eventId] || eventId;
-}
-
-type EnrichedChild = Child & {
+export type EnrichedChild = Child & {
 	activeAttendance: Attendance | null;
 	guardians: Guardian[];
 	household: Household | null;
@@ -67,7 +72,6 @@ export function CheckInView({
 	selectedGrades,
 	statusFilter,
 }: CheckInViewProps) {
-	const [enrichedChildren, setEnrichedChildren] = useState<EnrichedChild[]>([]);
 	const [childToCheckout, setChildToCheckout] = useState<EnrichedChild | null>(
 		null
 	);
@@ -85,9 +89,9 @@ export function CheckInView({
 	} | null>(null);
 
 	// Use React Query hooks for additional data
-	const { data: allGuardians = [] } = useGuardians();
-	const { data: allHouseholds = [] } = useHouseholds();
-	const { data: allEmergencyContacts = [] } = useEmergencyContacts();
+	const { data: allGuardians = EMPTY_GUARDIANS } = useGuardians();
+	const { data: allHouseholds = EMPTY_HOUSEHOLDS } = useHouseholds();
+	const { data: allEmergencyContacts = EMPTY_EMERGENCY_CONTACTS } = useEmergencyContacts();
 
 	// Use React Query mutations for check-in/check-out
 	const checkInMutation = useCheckInMutation();
@@ -96,20 +100,12 @@ export function CheckInView({
 	const today = getTodayIsoDate();
 
 	// Use React Query hook for incidents data
-	const { data: todaysIncidents = [], isLoading: incidentsLoading } = useIncidents(today);
-	
-	// Calculate enriched data loading state
-	const enrichedDataLoading = incidentsLoading;
+	const { data: todaysIncidents = EMPTY_INCIDENTS, isLoading: incidentsLoading } = useIncidents(today);
 
-	// Enrich children with additional data
-	useEffect(() => {
-		if (
-			!children ||
-			!todaysAttendance ||
-			!todaysIncidents ||
-			enrichedDataLoading
-		)
-			return;
+	// Enrich children with additional data (PERF-11: useMemo replaces useState+useEffect)
+	const enrichedChildren = useMemo<EnrichedChild[]>(() => {
+		if (!children || !todaysAttendance || !todaysIncidents || incidentsLoading)
+			return [];
 
 		const attendanceByChild = new Map<string, Attendance[]>();
 		todaysAttendance.forEach((a) => {
@@ -158,7 +154,7 @@ export function CheckInView({
 			emergencyContactMap.set(ec.household_id, ec);
 		});
 
-		const enriched = children.map((c) => {
+		return children.map((c) => {
 			const activeAttendance =
 				attendanceByChild.get(c.child_id)?.find((a) => !a.check_out_at) || null;
 			const childIncidents = incidentsByChild.get(c.child_id) || [];
@@ -168,21 +164,19 @@ export function CheckInView({
 
 			return {
 				...c,
-				activeAttendance: activeAttendance,
-				guardians: guardians,
-				household: household,
-				emergencyContact: emergencyContact,
+				activeAttendance,
+				guardians,
+				household,
+				emergencyContact,
 				incidents: childIncidents,
 				age: c.dob ? differenceInYears(new Date(), parseISO(c.dob)) : null,
 			};
 		});
-
-		setEnrichedChildren(enriched);
 	}, [
 		children,
 		todaysAttendance,
 		todaysIncidents,
-		enrichedDataLoading,
+		incidentsLoading,
 		allGuardians,
 		allHouseholds,
 		allEmergencyContacts,
@@ -232,18 +226,9 @@ export function CheckInView({
 				description: `${child?.first_name} ${child?.last_name} has been checked out successfully.`,
 			});
 
-			// Update the child's attendance status
-			setEnrichedChildren((prevChildren) =>
-				prevChildren.map((c) => {
-					if (c.child_id === childId) {
-						return {
-							...c,
-							activeAttendance: null,
-						};
-					}
-					return c;
-				})
-			);
+			// enrichedChildren is derived via useMemo from React Query cache;
+			// the mutation already invalidates the attendance cache so the UI will
+			// re-derive the updated state automatically.
 		} catch (e: any) {
 			console.error(e);
 			toast({
@@ -297,8 +282,8 @@ export function CheckInView({
 	}, [searchQuery, enrichedChildren, selectedGrades, statusFilter]);
 
 	// Show loading skeleton while incidents are loading
-	if (enrichedDataLoading) {
-		return <CardGridSkeleton cards={8} />;
+	if (incidentsLoading) {
+		return <CardGridSkeleton count={8} />;
 	}
 
 	return (

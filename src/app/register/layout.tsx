@@ -1,10 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Settings } from 'lucide-react';
-import { FeatureFlagDialog } from '@/components/feature-flag-dialog';
-import { useFeatureFlags } from '@/contexts/feature-flag-context';
+import React from 'react';
+import Image from 'next/image';
 import { useBranding } from '@/contexts/branding-context';
 import { useRouter } from 'next/navigation';
 
@@ -13,8 +10,6 @@ export default function RegisterLayout({
 }: {
 	children: React.ReactNode;
 }) {
-	const [isFlagDialogOpen, setIsFlagDialogOpen] = useState(false);
-	const { flags } = useFeatureFlags();
 	const { settings } = useBranding();
 	const router = useRouter();
 
@@ -32,12 +27,16 @@ export default function RegisterLayout({
 						aria-label="Go to home page">
 						{settings.logo_url ? (
 							<>
-								<img
+								{/* PERF-08: next/image for optimized logo loading */}
+								<Image
 									src={settings.logo_url}
 									alt={`${settings.app_name || 'gatherKids'} Logo`}
+									width={200}
+									height={64}
 									className={`h-16 w-auto ${
 										settings.use_logo_only ? '' : 'max-w-[50%]'
 									} object-contain`}
+									priority
 								/>
 								{!settings.use_logo_only && (
 									<div className="font-headline text-2xl font-bold text-foreground">
@@ -53,7 +52,7 @@ export default function RegisterLayout({
 					</button>
 				</div>
 			</header>
-			<main className="flex-1 container mx-auto p-4 md:p-6 lg:p-8">
+			<main id="main-content" className="flex-1 container mx-auto p-4 md:p-6 lg:p-8">
 				{children}
 			</main>
 			<footer className="py-6 border-t mt-auto">
@@ -61,23 +60,8 @@ export default function RegisterLayout({
 					<p>
 						&copy; {new Date().getFullYear()} gatherKids. All rights reserved.
 					</p>
-					{flags.showDemoFeatures && (
-						<Button
-							variant="ghost"
-							size="icon"
-							onClick={() => setIsFlagDialogOpen(true)}>
-							<Settings className="h-4 w-4" />
-							<span className="sr-only">Open Feature Flags</span>
-						</Button>
-					)}
 				</div>
 			</footer>
-			{flags.showDemoFeatures && (
-				<FeatureFlagDialog
-					isOpen={isFlagDialogOpen}
-					onClose={() => setIsFlagDialogOpen(false)}
-				/>
-			)}
 		</div>
 	);
 }

@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
-import { isDemo } from '@/lib/authGuards';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,7 +10,6 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import Link from 'next/link';
 import {
-	AlertCircle,
 	Eye,
 	EyeOff,
 	Loader2,
@@ -36,12 +34,6 @@ export default function SecuritySettingsPage() {
 	const [showDebug, setShowDebug] = useState(false);
 
 	useEffect(() => {
-		// If we're in demo mode, redirect away from this page
-		if (isDemo()) {
-			router.replace('/login');
-			return;
-		}
-
 		const checkAuth = async () => {
 			try {
 				const { supabase } = await import('@/lib/supabaseClient');
@@ -163,30 +155,6 @@ export default function SecuritySettingsPage() {
 		}
 	};
 
-	// Show demo mode notice
-	if (isDemo()) {
-		return (
-			<div className="flex min-h-screen items-center justify-center bg-muted/50 p-4">
-				<Card className="w-full max-w-md">
-					<CardHeader className="text-center">
-						<CardTitle className="flex items-center justify-center gap-2">
-							<AlertCircle className="h-5 w-5 text-muted-foreground" />
-							Demo Mode
-						</CardTitle>
-					</CardHeader>
-					<CardContent className="text-center space-y-4">
-						<p className="text-muted-foreground">
-							Live Auth is disabled in Demo Mode.
-						</p>
-						<Button asChild>
-							<Link href="/login">Return to Login</Link>
-						</Button>
-					</CardContent>
-				</Card>
-			</div>
-		);
-	}
-
 	if (loading) {
 		return (
 			<div className="flex min-h-screen items-center justify-center bg-muted/50 p-4">
@@ -209,7 +177,7 @@ export default function SecuritySettingsPage() {
 				{/* Header */}
 				<div className="flex items-center gap-4">
 					<Button variant="outline" size="icon" asChild>
-						<Link href="/dashboard">
+						<Link href="/admin-overview">
 							<ArrowLeft className="h-4 w-4" />
 						</Link>
 					</Button>
@@ -293,7 +261,8 @@ export default function SecuritySettingsPage() {
 										variant="ghost"
 										size="icon"
 										className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-										onClick={() => setShowNewPassword(!showNewPassword)}>
+										onClick={() => setShowNewPassword(!showNewPassword)}
+										aria-label={showNewPassword ? 'Hide new password' : 'Show new password'}>
 										{showNewPassword ? (
 											<EyeOff className="h-4 w-4" />
 										) : (
