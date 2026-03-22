@@ -2,6 +2,22 @@
  * Tests for DAL dashboard functions
  */
 
+// Mock the database factory so DAL functions don't require real Supabase
+jest.mock('@/lib/database/factory', () => {
+  const mockAdapter = {
+    listIncidents: jest.fn().mockResolvedValue([]),
+    listAttendance: jest.fn().mockResolvedValue([]),
+    listBibleBeeCycles: jest.fn().mockResolvedValue([]),
+    listMinistries: jest.fn().mockResolvedValue([]),
+    listHouseholds: jest.fn().mockResolvedValue([]),
+    listChildren: jest.fn().mockResolvedValue([]),
+  };
+  return {
+    createDatabaseAdapter: jest.fn(() => mockAdapter),
+    db: mockAdapter,
+  };
+});
+
 import {
   getUnacknowledgedIncidents,
   getCheckedInCount,
@@ -9,7 +25,6 @@ import {
   getBibleBeeYears,
   getMinistries
 } from '@/lib/dal';
-import { createDatabaseAdapter } from '@/lib/database/factory';
 
 describe('Dashboard DAL Functions', () => {
   describe('getUnacknowledgedIncidents', () => {
@@ -76,6 +91,7 @@ describe('Adapter Selection', () => {
   });
 
   it('should always use Supabase adapter when config is set', () => {
+    const { createDatabaseAdapter } = jest.requireActual('@/lib/database/factory');
     const adapter = createDatabaseAdapter();
     expect(adapter.constructor.name).toBe('SupabaseAdapter');
   });
@@ -83,6 +99,13 @@ describe('Adapter Selection', () => {
   it('should throw when Supabase config is missing', () => {
     delete process.env.NEXT_PUBLIC_SUPABASE_URL;
     delete process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    expect(() => createDatabaseAdapter()).toThrow('Supabase configuration is required');
+    const savedNodeEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'production';
+    try {
+      const { createDatabaseAdapter } = jest.requireActual('@/lib/database/factory');
+      expect(() => createDatabaseAdapter()).toThrow('Supabase configuration is required');
+    } finally {
+      process.env.NODE_ENV = savedNodeEnv;
+    }
   });
 });

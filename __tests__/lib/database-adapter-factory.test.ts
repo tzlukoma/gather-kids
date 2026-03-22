@@ -25,12 +25,24 @@ describe('Database Adapter Factory', () => {
 
   it('should throw when Supabase URL is missing', () => {
     delete process.env.NEXT_PUBLIC_SUPABASE_URL;
-    expect(() => createDatabaseAdapter()).toThrow('Supabase configuration is required');
+    const savedNodeEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'production';
+    try {
+      expect(() => createDatabaseAdapter()).toThrow('Supabase configuration is required');
+    } finally {
+      process.env.NODE_ENV = savedNodeEnv;
+    }
   });
 
   it('should throw when Supabase key is missing', () => {
     delete process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    expect(() => createDatabaseAdapter()).toThrow('Supabase configuration is required');
+    const savedNodeEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'production';
+    try {
+      expect(() => createDatabaseAdapter()).toThrow('Supabase configuration is required');
+    } finally {
+      process.env.NODE_ENV = savedNodeEnv;
+    }
   });
 });
 
