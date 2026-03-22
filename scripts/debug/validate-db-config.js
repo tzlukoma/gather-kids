@@ -51,12 +51,8 @@ if (envLocalExists) {
 	);
 }
 
-// Check database mode from environment variables
-const databaseMode =
-	process.env.NEXT_PUBLIC_DATABASE_MODE ||
-	process.env.DATABASE_MODE ||
-	'indexeddb';
-console.log(`\n${colors.blue}🔄 Database Mode:${colors.reset} ${databaseMode}`);
+// Database mode is always Supabase (demo mode removed)
+console.log(`\n${colors.blue}🔄 Database Mode:${colors.reset} supabase (always)`);
 
 // Check Supabase configuration
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;

@@ -3,6 +3,7 @@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import {
 	Form,
@@ -22,12 +23,9 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '@/lib/db';
-import { getTodayIsoDate, logIncident } from '@/lib/dal';
-import type { IncidentSeverity } from '@/lib/types';
+import { getTodayIsoDate, logIncident, getCheckedInChildren } from '@/lib/dal';
+import type { IncidentSeverity, Child } from '@/lib/types';
 import { useAuth } from '@/contexts/auth-context';
-import { AuthRole } from '@/lib/auth-types';
 
 const incidentFormSchema = z.object({
 	childId: z.string({ required_error: 'Please select a child.' }),
@@ -58,27 +56,20 @@ export function IncidentForm() {
 	});
 
 	const today = getTodayIsoDate();
-	const checkedInChildren = useLiveQuery(async () => {
-		const attendance = await db.attendance.where({ date: today }).toArray();
-		if (!attendance.length) return [];
+	const [checkedInChildren, setCheckedInChildren] = useState<Child[]>([]);
 
-		let childIds = attendance.map((a) => a.child_id);
-
-		if (
-			user?.metadata?.role === AuthRole.MINISTRY_LEADER &&
-			user.assignedMinistryIds
-		) {
-			const enrollments = await db.ministry_enrollments
-				.where('ministry_id')
-				.anyOf(user.assignedMinistryIds)
-				.and((e) => e.cycle_id === '2025' && childIds.includes(e.child_id))
-				.toArray();
-			childIds = [...new Set(enrollments.map((e) => e.child_id))];
-		}
-
-		if (childIds.length === 0) return [];
-		return db.children.where('child_id').anyOf(childIds).toArray();
-	}, [today, user]);
+	useEffect(() => {
+		let mounted = true;
+		getCheckedInChildren(today)
+			.then((children) => {
+				if (!mounted) return;
+				setCheckedInChildren(children);
+			})
+			.catch((err) => {
+				console.error('Failed to load checked-in children:', err);
+			});
+		return () => { mounted = false; };
+	}, [today]);
 
 	async function onSubmit(data: IncidentFormValues) {
 		try {

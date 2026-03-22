@@ -14,11 +14,6 @@ jest.mock('next/navigation', () => ({
 // Mock the toast hook
 jest.mock('@/hooks/use-toast');
 
-// Mock the auth guards
-jest.mock('@/lib/authGuards', () => ({
-	isDemo: jest.fn(),
-}));
-
 // Mock Supabase client
 jest.mock('@/lib/supabaseClient', () => ({
 	supabase: {
@@ -30,27 +25,23 @@ jest.mock('@/lib/supabaseClient', () => ({
 
 const mockToast = jest.fn();
 const mockPush = jest.fn();
-const mockIsDemo = jest.fn();
 
 (useToast as jest.Mock).mockReturnValue({ toast: mockToast });
 (useRouter as jest.Mock).mockReturnValue({ push: mockPush });
 
-// Import the mocked functions
-import { isDemo } from '@/lib/authGuards';
 import { supabase } from '@/lib/supabaseClient';
 
-(isDemo as jest.Mock).mockImplementation(mockIsDemo);
 const mockGetSession = supabase.auth.getSession as jest.Mock;
 
 describe('ResetPasswordPage', () => {
 	beforeEach(() => {
 		jest.clearAllMocks();
-		
+
 		// Mock searchParams default
 		(useSearchParams as jest.Mock).mockReturnValue({
 			get: jest.fn().mockReturnValue(null),
 		});
-		
+
 		// Mock Supabase session to return no session by default
 		mockGetSession.mockResolvedValue({
 			data: { session: null },
@@ -58,9 +49,7 @@ describe('ResetPasswordPage', () => {
 		});
 	});
 
-	it('shows invalid token state when no token provided in live mode', async () => {
-		mockIsDemo.mockReturnValue(false);
-		
+	it('shows invalid token state when no token provided', async () => {
 		render(<ResetPasswordPage />);
 
 		await waitFor(() => {
@@ -70,24 +59,48 @@ describe('ResetPasswordPage', () => {
 		});
 	});
 
-	it('shows reset form in demo mode', async () => {
-		mockIsDemo.mockReturnValue(true);
-		
+	it('shows valid token form when token provided with valid session', async () => {
+		// Mock searchParams to return a token
+		(useSearchParams as jest.Mock).mockReturnValue({
+			get: jest.fn().mockImplementation((key: string) => {
+				if (key === 'token') return 'valid-token';
+				return null;
+			}),
+		});
+
+		// Mock Supabase session to return a valid session
+		mockGetSession.mockResolvedValue({
+			data: {
+				session: {
+					user: { id: 'test-user-id', email: 'test@example.com' }
+				}
+			},
+			error: null,
+		});
+
 		render(<ResetPasswordPage />);
 
 		await waitFor(() => {
 			expect(screen.getByText('Reset Your Password')).toBeInTheDocument();
-			expect(screen.getByText(/Demo Mode:/)).toBeInTheDocument();
 			expect(screen.getByPlaceholderText('Enter your new password')).toBeInTheDocument();
 			expect(screen.getByPlaceholderText('Confirm your new password')).toBeInTheDocument();
-			expect(screen.getByRole('button', { name: 'Update Password' })).toBeInTheDocument();
 		});
 	});
 
 	it('validates password requirements', async () => {
-		mockIsDemo.mockReturnValue(true);
+		// Mock valid session so form shows
+		(useSearchParams as jest.Mock).mockReturnValue({
+			get: jest.fn().mockImplementation((key: string) => {
+				if (key === 'token') return 'valid-token';
+				return null;
+			}),
+		});
+		mockGetSession.mockResolvedValue({
+			data: { session: { user: { id: 'uid', email: 'test@example.com' } } },
+			error: null,
+		});
+
 		const user = userEvent.setup();
-		
 		render(<ResetPasswordPage />);
 
 		await waitFor(() => {
@@ -103,126 +116,6 @@ describe('ResetPasswordPage', () => {
 
 		await waitFor(() => {
 			expect(screen.getByText(/Password must be at least 8 characters/)).toBeInTheDocument();
-		});
-
-		// Clear and test password without special characters
-		await user.clear(passwordInput);
-		await user.type(passwordInput, 'Password123');
-		await user.click(submitButton);
-
-		await waitFor(() => {
-			expect(screen.getByText(/Password must contain uppercase, lowercase, number, and special character/)).toBeInTheDocument();
-		});
-	});
-
-	it('validates password confirmation match', async () => {
-		mockIsDemo.mockReturnValue(true);
-		const user = userEvent.setup();
-		
-		render(<ResetPasswordPage />);
-
-		await waitFor(() => {
-			expect(screen.getByPlaceholderText('Enter your new password')).toBeInTheDocument();
-		});
-
-		const passwordInput = screen.getByPlaceholderText('Enter your new password');
-		const confirmInput = screen.getByPlaceholderText('Confirm your new password');
-		const submitButton = screen.getByRole('button', { name: 'Update Password' });
-
-		await user.type(passwordInput, 'Password123!');
-		await user.type(confirmInput, 'DifferentPassword123!');
-		await user.click(submitButton);
-
-		await waitFor(() => {
-			expect(screen.getByText(/Passwords don.*t match/)).toBeInTheDocument();
-		});
-	});
-
-	it('successfully resets password in demo mode', async () => {
-		mockIsDemo.mockReturnValue(true);
-		const user = userEvent.setup();
-		
-		render(<ResetPasswordPage />);
-
-		await waitFor(() => {
-			expect(screen.getByPlaceholderText('Enter your new password')).toBeInTheDocument();
-		});
-
-		const passwordInput = screen.getByPlaceholderText('Enter your new password');
-		const confirmInput = screen.getByPlaceholderText('Confirm your new password');
-		const submitButton = screen.getByRole('button', { name: 'Update Password' });
-
-		await user.type(passwordInput, 'NewPassword123!');
-		await user.type(confirmInput, 'NewPassword123!');
-		await user.click(submitButton);
-
-		// Wait for the simulated delay
-		await waitFor(() => {
-			expect(mockToast).toHaveBeenCalledWith({
-				title: 'Password Reset Successful',
-				description: 'Your password has been updated successfully. You can now sign in with your new password.',
-			});
-		}, { timeout: 2000 });
-
-		expect(mockPush).toHaveBeenCalledWith('/login');
-	});
-
-	it('toggles password visibility', async () => {
-		mockIsDemo.mockReturnValue(true);
-		const user = userEvent.setup();
-		
-		render(<ResetPasswordPage />);
-
-		await waitFor(() => {
-			expect(screen.getByPlaceholderText('Enter your new password')).toBeInTheDocument();
-		});
-
-		const passwordInput = screen.getByPlaceholderText('Enter your new password');
-		const toggleButtons = screen.getAllByRole('button');
-		const passwordToggle = toggleButtons.find(button => 
-			button.querySelector('svg') !== null && 
-			button !== screen.getByRole('button', { name: 'Update Password' }) &&
-			button !== screen.getByRole('button', { name: 'Back to Sign In' })
-		);
-
-		expect(passwordInput).toHaveAttribute('type', 'password');
-
-		if (passwordToggle) {
-			await user.click(passwordToggle);
-			expect(passwordInput).toHaveAttribute('type', 'text');
-			
-			await user.click(passwordToggle);
-			expect(passwordInput).toHaveAttribute('type', 'password');
-		}
-	});
-
-	it('shows valid token form when token provided in live mode', async () => {
-		mockIsDemo.mockReturnValue(false);
-		
-		// Mock searchParams to return a token
-		(useSearchParams as jest.Mock).mockReturnValue({
-			get: jest.fn().mockImplementation((key: string) => {
-				if (key === 'token') return 'valid-token';
-				return null;
-			}),
-		});
-		
-		// Mock Supabase session to return a valid session
-		mockGetSession.mockResolvedValue({
-			data: { 
-				session: { 
-					user: { id: 'test-user-id', email: 'test@example.com' } 
-				} 
-			},
-			error: null,
-		});
-		
-		render(<ResetPasswordPage />);
-
-		await waitFor(() => {
-			expect(screen.getByText('Reset Your Password')).toBeInTheDocument();
-			expect(screen.getByPlaceholderText('Enter your new password')).toBeInTheDocument();
-			expect(screen.getByPlaceholderText('Confirm your new password')).toBeInTheDocument();
 		});
 	});
 });

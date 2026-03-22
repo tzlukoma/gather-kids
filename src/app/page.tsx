@@ -2,17 +2,13 @@
 
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, Church, Settings, Youtube, Instagram } from 'lucide-react';
-import { SimpleSeedButton } from '@/components/gatherKids/simple-seed-button';
+import { ArrowRight, Church, Youtube, Instagram } from 'lucide-react';
 import { useFeatureFlags } from '@/contexts/feature-flag-context';
 import { useBranding } from '@/contexts/branding-context';
-import { useState } from 'react';
-import { FeatureFlagDialog } from '@/components/feature-flag-dialog';
 
 export default function Home() {
 	const { flags } = useFeatureFlags();
 	const { settings, loading } = useBranding();
-	const [isFlagDialogOpen, setIsFlagDialogOpen] = useState(false);
 
 	// Show skeleton loading state while branding is being fetched
 	if (loading) {
@@ -35,21 +31,12 @@ export default function Home() {
 						<div className="h-6 w-96 bg-muted animate-pulse rounded mx-auto mb-8" />
 						<div className="flex flex-col sm:flex-row gap-4 justify-center">
 							<div className="h-12 w-48 bg-muted animate-pulse rounded" />
-							{process.env.NEXT_PUBLIC_DATABASE_MODE !== 'supabase' && (
-								<div className="h-12 w-48 bg-muted animate-pulse rounded" />
-							)}
-							{flags.showDemoFeatures && (
-								<div className="h-12 w-32 bg-muted animate-pulse rounded" />
-							)}
 						</div>
 					</div>
 				</main>
 				<footer className="py-6 border-t">
 					<div className="container mx-auto flex justify-between items-center text-sm text-muted-foreground">
 						<div className="h-4 w-48 bg-muted animate-pulse rounded" />
-						{flags.showDemoFeatures && (
-							<div className="h-8 w-8 bg-muted animate-pulse rounded" />
-						)}
 					</div>
 				</footer>
 			</div>
@@ -117,16 +104,6 @@ export default function Home() {
 								<ArrowRight className="ml-2" />
 							</Button>
 						</Link>
-						{process.env.NEXT_PUBLIC_DATABASE_MODE !== 'supabase' && (
-							<Link href="/dashboard">
-								<Button size="lg" variant="secondary">
-									Go to Admin Dashboard
-								</Button>
-							</Link>
-						)}
-						{flags.showDemoFeatures && (
-							<SimpleSeedButton size="lg" variant="outline" />
-						)}
 					</div>
 
 					{/* Social Media Links */}
@@ -167,23 +144,8 @@ export default function Home() {
 						&copy; {new Date().getFullYear()}{' '}
 						{settings.app_name || 'gatherKids'}. All rights reserved.
 					</p>
-					{flags.showDemoFeatures && (
-						<Button
-							variant="ghost"
-							size="icon"
-							onClick={() => setIsFlagDialogOpen(true)}>
-							<Settings className="h-4 w-4" />
-							<span className="sr-only">Open Feature Flags</span>
-						</Button>
-					)}
 				</div>
 			</footer>
-			{flags.showDemoFeatures && (
-				<FeatureFlagDialog
-					isOpen={isFlagDialogOpen}
-					onClose={() => setIsFlagDialogOpen(false)}
-				/>
-			)}
 		</div>
 	);
 }

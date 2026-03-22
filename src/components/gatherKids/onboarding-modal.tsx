@@ -18,7 +18,7 @@ interface OnboardingModalProps {
 }
 
 export function OnboardingModal({ isOpen, onClose }: OnboardingModalProps) {
-	const { user } = useAuth();
+	useAuth(); // ensure auth context is available
 
 	const handleSetPassword = () => {
 		// In a real implementation, this would open a password setup form
@@ -34,18 +34,7 @@ export function OnboardingModal({ isOpen, onClose }: OnboardingModalProps) {
 	};
 
 	const markOnboardingDismissed = () => {
-		// In demo mode, store dismissal in localStorage
-		// In live mode, this would update user metadata in Supabase
-		if (user) {
-			const updatedUser = {
-				...user,
-				metadata: {
-					...user.metadata,
-					onboarding_dismissed: true,
-				},
-			};
-			localStorage.setItem('gatherkids-user', JSON.stringify(updatedUser));
-		}
+		// Dismissal is tracked via Supabase user metadata (handled in /onboarding page)
 	};
 
 	return (

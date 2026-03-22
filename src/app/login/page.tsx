@@ -17,7 +17,6 @@ import { useBranding } from '@/contexts/branding-context';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import {
 	Info,
-	Settings,
 	Church,
 	AlertTriangle,
 	Eye,
@@ -26,112 +25,10 @@ import {
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
 import { useFeatureFlags } from '@/contexts/feature-flag-context';
-import { FeatureFlagDialog } from '@/components/feature-flag-dialog';
 import { ForgotPasswordDialog } from '@/components/auth/forgot-password-dialog';
 import { AuthRole } from '@/lib/auth-types';
 import { supabase } from '@/lib/supabaseClient';
 import { getPostLoginRoute } from '@/lib/auth-utils';
-
-const DEMO_USERS = {
-	admin: {
-		email: 'admin@example.com',
-		password: 'password',
-		is_active: true,
-		name: 'Admin User',
-		uid: 'user_admin',
-		role: AuthRole.ADMIN,
-		metadata: {},
-	},
-	leader: {
-		email: 'leader.sundayschool@example.com',
-		password: 'password',
-		is_active: true,
-		name: 'Sarah Lee',
-		uid: 'user_leader_1',
-		role: AuthRole.MINISTRY_LEADER,
-		metadata: {},
-	},
-	khalfaniLeader: {
-		email: 'leader.khalfani@example.com',
-		password: 'password',
-		is_active: true,
-		name: 'Chris Evans',
-		uid: 'user_leader_11',
-		role: AuthRole.MINISTRY_LEADER,
-		metadata: {},
-	},
-	joybellsLeader: {
-		email: 'leader.joybells@example.com',
-		password: 'password',
-		is_active: true,
-		name: 'Megan Young',
-		uid: 'user_leader_12',
-		role: AuthRole.MINISTRY_LEADER,
-		metadata: {},
-	},
-	// Bible Bee Primary Leader
-	bibleBeeLeader: {
-		email: 'leader.biblebee@example.com',
-		password: 'password',
-		is_active: true,
-		name: 'Alex Pastor',
-		uid: 'user_leader_14',
-		role: AuthRole.MINISTRY_LEADER,
-		metadata: {},
-	},
-	// Bible Bee Volunteer Leader
-
-	guardian: {
-		email: 'guardian@example.com',
-		password: 'password',
-		is_active: true,
-		name: 'Parent User',
-		uid: 'user_guardian_1',
-		role: AuthRole.GUARDIAN,
-		metadata: {},
-	},
-	// Demo Parent with household access
-	parent: {
-		email: 'parent-demo@example.com',
-		password: 'password',
-		is_active: true,
-		name: 'Demo Parent',
-		uid: 'user_parent_demo',
-		role: AuthRole.GUARDIAN,
-		metadata: {
-			household_id: 'h_1', // Smith household from seed data
-		},
-	},
-	inactiveLeader: {
-		email: 'leader.inactive@example.com',
-		password: 'password',
-		is_active: false,
-		name: 'Tom Allen',
-		uid: 'user_leader_13',
-		role: AuthRole.MINISTRY_LEADER,
-		metadata: {},
-	},
-	// Test user without role - demonstrates registration flow redirection
-	newUser: {
-		email: 'newuser@example.com',
-		password: 'password',
-		is_active: true,
-		name: 'New User',
-		uid: 'user_new_no_role',
-		role: null, // No role assigned
-		metadata: {},
-	},
-	// Test user with ministry group email - should get MINISTRY_LEADER role automatically
-	choirGroupUser: {
-		email: 'cathedralchoirs@example.com',
-		password: 'password',
-		is_active: true,
-		name: 'Choir Group Leader',
-		uid: 'user_choir_group',
-		role: null, // No role assigned - should be auto-assigned MINISTRY_LEADER
-		metadata: {},
-	},
-};
 
 export default function LoginPage() {
 	const router = useRouter();
@@ -142,53 +39,14 @@ export default function LoginPage() {
 	const [email, setEmail] = useState('');
 	const [password, setPassword] = useState('');
 	const [showPassword, setShowPassword] = useState(false);
-	const [isFlagDialogOpen, setIsFlagDialogOpen] = useState(false);
 	const [loading, setLoading] = useState(false);
 
-	// Handle both demo and Supabase authentication
+	// Handle Supabase authentication
 	const handleLogin = async () => {
 		setLoading(true);
 
 		try {
-			if (flags.isDemoMode) {
-				// Demo mode - use existing demo user logic
-				const userToLogin = Object.values(DEMO_USERS).find(
-					(u) => u.email === email && u.password === password
-				);
-
-				if (userToLogin) {
-					console.log('Login - User found:', userToLogin);
-					const loginData = {
-						uid: userToLogin.uid,
-						displayName: userToLogin.name,
-						email: userToLogin.email,
-						is_active: userToLogin.is_active,
-						metadata: {
-							role: userToLogin.role as AuthRole, // This could be null for new users
-							...(userToLogin.metadata || {}),
-						},
-					};
-					console.log('Login - Calling login with data:', loginData);
-					await login(loginData);
-					toast({
-						title: 'Login Successful',
-						description: `Welcome, ${userToLogin.name}!`,
-					});
-
-					// Redirect based on role priority (or lack of role)
-					const role = userToLogin.role as AuthRole;
-					const target = getPostLoginRoute(role);
-					console.log('Redirecting to:', target, 'for role:', role);
-					router.push(target);
-				} else {
-					toast({
-						title: 'Invalid Credentials',
-						description: 'Please use one of the demo accounts.',
-						variant: 'destructive',
-					});
-				}
-			} else if (flags.loginPasswordEnabled) {
-				// Live mode - use Supabase auth
+			if (flags.loginPasswordEnabled) {
 				if (!supabase) {
 					throw new Error('Supabase client not available');
 				}
@@ -199,11 +57,9 @@ export default function LoginPage() {
 				});
 
 				if (error) {
-					// Handle Supabase AuthApiError with user-friendly messages
 					let errorMessage = 'Unable to sign in. Please check your credentials.';
-					
+
 					if (error.message) {
-						// Map common Supabase error messages to user-friendly ones
 						if (error.message.includes('Invalid login credentials')) {
 							errorMessage = 'Invalid email or password. Please try again.';
 						} else if (error.message.includes('Email not confirmed')) {
@@ -214,8 +70,7 @@ export default function LoginPage() {
 							errorMessage = error.message;
 						}
 					}
-					
-					// Show toast and return early instead of throwing
+
 					toast({
 						title: 'Login Failed',
 						description: errorMessage,
@@ -230,7 +85,6 @@ export default function LoginPage() {
 						description: `Welcome back!`,
 					});
 
-					// Set up the user in the auth context
 					const userRole = data.session.user?.user_metadata?.role as AuthRole;
 					const loginData = {
 						uid: data.session.user.id,
@@ -244,17 +98,9 @@ export default function LoginPage() {
 						},
 					};
 
-					console.log('Supabase login - Calling login with data:', loginData);
 					await login(loginData);
 
-					// Use the same role-based redirect logic
 					const target = getPostLoginRoute(userRole);
-					console.log(
-						'Supabase login - Redirecting to:',
-						target,
-						'for role:',
-						userRole
-					);
 					router.push(target);
 				}
 			} else {
@@ -266,13 +112,12 @@ export default function LoginPage() {
 			}
 		} catch (error: any) {
 			console.error('Login error:', error);
-			
-			// Extract error message, handling both Error objects and Supabase AuthApiError
-			const errorMessage = 
-				error?.message || 
-				error?.error?.message || 
+
+			const errorMessage =
+				error?.message ||
+				error?.error?.message ||
 				'Unable to sign in. Please check your credentials.';
-			
+
 			toast({
 				title: 'Login Failed',
 				description: errorMessage,
@@ -281,11 +126,6 @@ export default function LoginPage() {
 		} finally {
 			setLoading(false);
 		}
-	};
-
-	const prefillDemoCredentials = (role: keyof typeof DEMO_USERS) => {
-		setEmail(DEMO_USERS[role].email);
-		setPassword(DEMO_USERS[role].password);
 	};
 
 	return (
@@ -322,7 +162,7 @@ export default function LoginPage() {
 							Sign In
 						</CardTitle>
 						<CardDescription>
-							{flags.loginPasswordEnabled && !flags.isDemoMode ? (
+							{flags.loginPasswordEnabled ? (
 								<>
 									Don&apos;t have an account?{' '}
 									<Link href="/create-account" className="underline">
@@ -340,17 +180,7 @@ export default function LoginPage() {
 						</CardDescription>
 					</CardHeader>
 					<CardContent className="space-y-4">
-						{flags.isDemoMode && (
-							<Alert>
-								<Info className="h-4 w-4" />
-								<AlertTitle>Demo Mode</AlertTitle>
-								<AlertDescription>
-									Live authentication is disabled. Use demo accounts below.
-								</AlertDescription>
-							</Alert>
-						)}
-
-						{!flags.isDemoMode && !flags.loginPasswordEnabled && (
+						{!flags.loginPasswordEnabled && (
 							<Alert>
 								<AlertTriangle className="h-4 w-4" />
 								<AlertTitle>Authentication Disabled</AlertTitle>
@@ -361,108 +191,7 @@ export default function LoginPage() {
 							</Alert>
 						)}
 
-						{flags.showDemoFeatures && flags.isDemoMode && (
-							<Alert>
-								<Info className="h-4 w-4" />
-								<AlertTitle>For Prototype Demo</AlertTitle>
-								<AlertDescription>
-									<p>Click one of the following accounts to sign in:</p>
-									<ul className="list-disc pl-5 text-sm mt-2">
-										<li>
-											Admin:{' '}
-											<button
-												className="text-left font-semibold underline"
-												onClick={() => prefillDemoCredentials('admin')}>
-												{DEMO_USERS.admin.email}
-											</button>
-										</li>
-										<li>
-											Leader (Sunday School):{' '}
-											<button
-												className="text-left font-semibold underline"
-												onClick={() => prefillDemoCredentials('leader')}>
-												{DEMO_USERS.leader.email}
-											</button>
-										</li>
-										<li>
-											Leader (Khalfani):{' '}
-											<button
-												className="text-left font-semibold underline"
-												onClick={() =>
-													prefillDemoCredentials('khalfaniLeader')
-												}>
-												{DEMO_USERS.khalfaniLeader.email}
-											</button>
-										</li>
-										<li>
-											Leader (Joy Bells):{' '}
-											<button
-												className="text-left font-semibold underline"
-												onClick={() =>
-													prefillDemoCredentials('joybellsLeader')
-												}>
-												{DEMO_USERS.joybellsLeader.email}
-											</button>
-										</li>
-										<li>
-											Leader (Bible Bee Primary):{' '}
-											<button
-												className="text-left font-semibold underline"
-												onClick={() =>
-													prefillDemoCredentials('bibleBeeLeader')
-												}>
-												{DEMO_USERS.bibleBeeLeader.email}
-											</button>
-										</li>
-
-										<li>
-											Leader (Inactive):{' '}
-											<button
-												className="text-left font-semibold underline"
-												onClick={() =>
-													prefillDemoCredentials('inactiveLeader')
-												}>
-												{DEMO_USERS.inactiveLeader.email}
-											</button>
-										</li>
-										<li>
-											Choir Group (Auto-assigned):{' '}
-											<button
-												className="text-left font-semibold underline"
-												onClick={() =>
-													prefillDemoCredentials('choirGroupUser')
-												}>
-												{DEMO_USERS.choirGroupUser.email}
-											</button>
-										</li>
-										<li>
-											Parent (Demo):{' '}
-											<button
-												className="text-left font-semibold underline"
-												onClick={() => prefillDemoCredentials('parent')}>
-												{DEMO_USERS.parent.email}
-											</button>
-										</li>
-										<li>
-											<strong>New User (No Role):</strong>{' '}
-											<button
-												className="text-left font-semibold underline"
-												onClick={() => prefillDemoCredentials('newUser')}>
-												{DEMO_USERS.newUser.email}
-											</button>{' '}
-											<em className="text-muted-foreground">
-												(should redirect to /register)
-											</em>
-										</li>
-										<li>
-											Password: <code className="font-semibold">password</code>
-										</li>
-									</ul>
-								</AlertDescription>
-							</Alert>
-						)}
-
-						{(flags.loginPasswordEnabled || flags.isDemoMode) && (
+						{flags.loginPasswordEnabled && (
 							<>
 								<div className="space-y-2">
 									<Label htmlFor="email">Email</Label>
@@ -506,27 +235,21 @@ export default function LoginPage() {
 									type="submit"
 									className="w-full"
 									onClick={handleLogin}
-									disabled={
-										loading ||
-										(!flags.loginPasswordEnabled && !flags.isDemoMode)
-									}>
+									disabled={loading || !flags.loginPasswordEnabled}>
 									{loading ? 'Signing In...' : 'Sign In'}
 								</Button>
 
-								{flags.loginPasswordEnabled && !flags.isDemoMode && (
-									<div className="flex justify-end">
-										<ForgotPasswordDialog>
-											<Button variant="link" className="px-0 text-sm">
-												Forgot your password?
-											</Button>
-										</ForgotPasswordDialog>
-									</div>
-								)}
+								<div className="flex justify-end">
+									<ForgotPasswordDialog>
+										<Button variant="link" className="px-0 text-sm">
+											Forgot your password?
+										</Button>
+									</ForgotPasswordDialog>
+								</div>
 							</>
 						)}
 
-						{/* Hidden magic link and Google auth sections based on flags */}
-						{flags.loginMagicEnabled && !flags.isDemoMode && (
+						{flags.loginMagicEnabled && (
 							<Alert>
 								<Info className="h-4 w-4" />
 								<AlertTitle>Magic Link Available</AlertTitle>
@@ -537,7 +260,7 @@ export default function LoginPage() {
 							</Alert>
 						)}
 
-						{flags.loginGoogleEnabled && !flags.isDemoMode && (
+						{flags.loginGoogleEnabled && (
 							<Alert>
 								<Info className="h-4 w-4" />
 								<AlertTitle>Google Sign-In Available</AlertTitle>
@@ -556,23 +279,8 @@ export default function LoginPage() {
 						&copy; {new Date().getFullYear()}{' '}
 						{settings.app_name || 'gatherKids'}. All rights reserved.
 					</p>
-					{flags.showDemoFeatures && (
-						<Button
-							variant="ghost"
-							size="icon"
-							onClick={() => setIsFlagDialogOpen(true)}>
-							<Settings className="h-4 w-4" />
-							<span className="sr-only">Open Feature Flags</span>
-						</Button>
-					)}
 				</div>
 			</footer>
-			{flags.showDemoFeatures && (
-				<FeatureFlagDialog
-					isOpen={isFlagDialogOpen}
-					onClose={() => setIsFlagDialogOpen(false)}
-				/>
-			)}
 		</div>
 	);
 }

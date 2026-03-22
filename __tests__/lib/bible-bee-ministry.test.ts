@@ -1,28 +1,8 @@
-import { db } from '@/lib/db';
-
-// Mock the database with proper Dexie-like interface
-jest.mock('@/lib/db', () => ({
-    db: {
-        ministries: {
-            where: jest.fn().mockReturnValue({
-                equals: jest.fn().mockReturnValue({
-                    first: jest.fn()
-                })
-            })
-        }
-    }
-}));
-
-// Mock the adapter
+// Mock the database adapter factory
 jest.mock('@/lib/database/factory', () => ({
     db: {
         listMinistries: jest.fn()
     }
-}));
-
-// Mock shouldUseAdapter and featureFlags
-jest.mock('@/lib/featureFlags', () => ({
-    isDemo: jest.fn(() => true)
 }));
 
 describe('getBibleBeeMinistry', () => {
@@ -30,7 +10,7 @@ describe('getBibleBeeMinistry', () => {
         jest.clearAllMocks();
     });
 
-    it('returns Bible Bee ministry when found in Dexie mode', async () => {
+    it('returns Bible Bee ministry when found via adapter', async () => {
         const mockMinistry = {
             ministry_id: 'bible-bee-id',
             code: 'bible-bee',
@@ -39,28 +19,18 @@ describe('getBibleBeeMinistry', () => {
             close_at: '2025-10-08'
         };
 
-        // Mock the chain properly
-        const mockFirst = jest.fn().mockResolvedValue(mockMinistry);
-        const mockEquals = jest.fn().mockReturnValue({ first: mockFirst });
-        const mockWhere = jest.fn().mockReturnValue({ equals: mockEquals });
-        
-        (db.ministries as any) = { where: mockWhere };
+        const { db } = require('@/lib/database/factory');
+        (db.listMinistries as jest.Mock).mockResolvedValue([mockMinistry]);
 
-        // Dynamic import to avoid initialization issues
         const { getBibleBeeMinistry } = await import('@/lib/dal');
         const result = await getBibleBeeMinistry();
 
-        expect(mockWhere).toHaveBeenCalledWith('code');
-        expect(mockEquals).toHaveBeenCalledWith('bible-bee');
         expect(result).toEqual(mockMinistry);
     });
 
-    it('returns null when Bible Bee ministry not found in Dexie mode', async () => {
-        const mockFirst = jest.fn().mockResolvedValue(undefined);
-        const mockEquals = jest.fn().mockReturnValue({ first: mockFirst });
-        const mockWhere = jest.fn().mockReturnValue({ equals: mockEquals });
-        
-        (db.ministries as any) = { where: mockWhere };
+    it('returns null when Bible Bee ministry not found', async () => {
+        const { db } = require('@/lib/database/factory');
+        (db.listMinistries as jest.Mock).mockResolvedValue([]);
 
         const { getBibleBeeMinistry } = await import('@/lib/dal');
         const result = await getBibleBeeMinistry();
@@ -69,11 +39,8 @@ describe('getBibleBeeMinistry', () => {
     });
 
     it('handles database errors gracefully', async () => {
-        const mockFirst = jest.fn().mockRejectedValue(new Error('Database error'));
-        const mockEquals = jest.fn().mockReturnValue({ first: mockFirst });
-        const mockWhere = jest.fn().mockReturnValue({ equals: mockEquals });
-        
-        (db.ministries as any) = { where: mockWhere };
+        const { db } = require('@/lib/database/factory');
+        (db.listMinistries as jest.Mock).mockRejectedValue(new Error('Database error'));
 
         const { getBibleBeeMinistry } = await import('@/lib/dal');
         await expect(getBibleBeeMinistry()).rejects.toThrow('Database error');

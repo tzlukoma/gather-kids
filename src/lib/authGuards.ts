@@ -1,9 +1,10 @@
 /**
- * Check if the application is running in demo mode
- * When in demo mode, Supabase auth features should be disabled
+ * Always returns false — demo mode has been removed.
+ * Kept for backward compatibility with components that import it.
+ * @deprecated Use Supabase auth directly.
  */
 export const isDemo = (): boolean => {
-  return process.env.NEXT_PUBLIC_DATABASE_MODE === "demo";
+  return false;
 };
 
 /**
@@ -14,7 +15,7 @@ export const isMagicLinkEnabled = (): boolean => {
 };
 
 /**
- * Check if Password authentication is enabled  
+ * Check if Password authentication is enabled
  */
 export const isPasswordEnabled = (): boolean => {
   return process.env.NEXT_PUBLIC_LOGIN_PASSWORD_ENABLED === "true";

@@ -23,10 +23,6 @@ if [ -f ".env.uat" ]; then
   export SUPABASE_SERVICE_ROLE_KEY
   export DATABASE_URL
   
-  # Force Supabase mode for database
-  export NEXT_PUBLIC_DATABASE_MODE=supabase
-  export NEXT_PUBLIC_SHOW_DEMO_FEATURES=false
-  
   # Configure authentication settings
   export NEXT_PUBLIC_AUTH_PROVIDER=supabase
   export NEXT_PUBLIC_LOGIN_PASSWORD_ENABLED=true
@@ -36,10 +32,8 @@ if [ -f ".env.uat" ]; then
   echo "✅ UAT environment configured:"
   echo "- NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}"
   echo "- NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY:0:20}... (${#NEXT_PUBLIC_SUPABASE_ANON_KEY} chars)"
-  echo "- DATABASE_MODE: ${NEXT_PUBLIC_DATABASE_MODE}"
   echo "- AUTH_PROVIDER: ${NEXT_PUBLIC_AUTH_PROVIDER:-supabase}"
   echo "- LOGIN_PASSWORD_ENABLED: ${NEXT_PUBLIC_LOGIN_PASSWORD_ENABLED}"
-  echo "- DEMO_FEATURES: ${NEXT_PUBLIC_SHOW_DEMO_FEATURES}"
   
   # Start the Next.js dev server
   echo "🚀 Starting Next.js development server with UAT configuration..."

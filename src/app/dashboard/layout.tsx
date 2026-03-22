@@ -41,10 +41,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { SeedDataButton } from '@/components/gatherKids/seed-data-button';
 import { useAuth } from '@/contexts/auth-context';
-import { useFeatureFlags } from '@/contexts/feature-flag-context';
-import { FeatureFlagDialog } from '@/components/feature-flag-dialog';
 import { ProtectedRoute } from '@/components/auth/protected-route';
 import { AuthRole } from '@/lib/auth-types';
 import { AdminSkeleton } from '@/components/skeletons/admin-skeleton';
@@ -58,9 +55,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 	const pathname = usePathname();
 	const router = useRouter();
 	const { user, loading, logout, userRole } = useAuth();
-	const { flags } = useFeatureFlags();
 	const { settings } = useBranding();
-	const [isFlagDialogOpen, setIsFlagDialogOpen] = React.useState(false);
 	const [isSettingsModalOpen, setIsSettingsModalOpen] = React.useState(false);
 
 	const getMenuItems = () => {
@@ -188,15 +183,6 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 									<Settings className="mr-2" />
 									<span>Settings</span>
 								</DropdownMenuItem>
-								{userRole === AuthRole.ADMIN && flags.showDemoFeatures && (
-									<SeedDataButton asChild />
-								)}
-								{flags.showDemoFeatures && (
-									<DropdownMenuItem onSelect={() => setIsFlagDialogOpen(true)}>
-										<Settings className="mr-2" />
-										<span>App Settings</span>
-									</DropdownMenuItem>
-								)}
 								<DropdownMenuSeparator />
 								<DropdownMenuItem onSelect={handleLogout}>
 									<LogOut className="mr-2" />
@@ -248,12 +234,6 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 					</SidebarInset>
 				</div>
 			</div>
-			{flags.showDemoFeatures && (
-				<FeatureFlagDialog
-					isOpen={isFlagDialogOpen}
-					onClose={() => setIsFlagDialogOpen(false)}
-				/>
-			)}
 			<SettingsModal
 				isOpen={isSettingsModalOpen}
 				onClose={() => setIsSettingsModalOpen(false)}

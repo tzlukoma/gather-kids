@@ -1070,7 +1070,7 @@ function RegisterPageContent() {
 			} else {
 				console.log('DEBUG: New registration - checking magic link flags');
 				// New registration - check if magic link verification is enabled
-				const isMagicEnabled = flags.loginMagicEnabled && !flags.isDemoMode;
+				const isMagicEnabled = flags.loginMagicEnabled;
 
 				if (isMagicEnabled) {
 					console.log('DEBUG: Magic link enabled, sending verification email');
@@ -1120,7 +1120,6 @@ function RegisterPageContent() {
 		toast,
 		prefillForm,
 		flags.loginMagicEnabled,
-		flags.isDemoMode,
 		proceedToRegistrationForm,
 	]);
 
@@ -1128,8 +1127,6 @@ function RegisterPageContent() {
 		console.log(
 			'DEBUG: Main useEffect triggered with user:',
 			user?.email,
-			'isDemoMode:',
-			flags.isDemoMode,
 			'authLoading:',
 			authLoading,
 			'ministriesLoading:',
@@ -1185,12 +1182,8 @@ function RegisterPageContent() {
 
 		// Check if user is authenticated and skip email lookup if so
 		// For live mode: check for authenticated users with email
-		// For demo mode: check for authenticated users with GUARDIAN role (parents) or null role (new users needing registration)
-		const shouldSkipEmailLookup =
-			(!flags.isDemoMode && user?.email) ||
-			(flags.isDemoMode &&
-				user?.email &&
-				(user?.metadata?.role === 'GUARDIAN' || user?.metadata?.role === null));
+		// Check for authenticated users with email (skip email lookup step)
+		const shouldSkipEmailLookup = user?.email;
 
 		console.log('DEBUG: shouldSkipEmailLookup:', shouldSkipEmailLookup);
 		if (shouldSkipEmailLookup) {
@@ -1308,7 +1301,6 @@ function RegisterPageContent() {
 		}
 	}, [
 		user,
-		flags.isDemoMode,
 		toast,
 		form,
 		prefillForm,
@@ -1626,7 +1618,7 @@ function RegisterPageContent() {
 							/>
 							<Button onClick={handleEmailLookup}>Continue</Button>
 						</div>
-						{flags.showDemoFeatures && (
+						{false && (
 							<Alert>
 								<Info className="h-4 w-4" />
 								<AlertTitle>For Prototype Demo</AlertTitle>
@@ -1765,7 +1757,7 @@ function RegisterPageContent() {
 							</Button>
 						</div>
 
-						{flags.showDemoFeatures && (
+						{false && (
 							<Alert>
 								<Info className="h-4 w-4" />
 								<AlertTitle>For Testing</AlertTitle>

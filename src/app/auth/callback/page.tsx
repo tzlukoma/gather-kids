@@ -3,7 +3,6 @@
 import { useEffect, useState, Suspense, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase, handlePKCECodeExchange } from '@/lib/supabaseClient';
-import { isDemo } from '@/lib/authGuards';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
@@ -79,13 +78,6 @@ The authentication process is taking longer than expected. This can happen if:
 			success,
 		});
 		if (!mounted || hasRun.current || error || success) return;
-
-		// Demo mode redirect
-		if (isDemo()) {
-			console.log('🔍 AuthCallback: Demo mode detected, redirecting to login');
-			router.replace('/login');
-			return;
-		}
 
 		console.log(
 			'🔍 AuthCallback: Setting hasRun to true and starting auth callback'
@@ -433,30 +425,6 @@ This can happen if:
 							Loading...
 						</CardTitle>
 					</CardHeader>
-				</Card>
-			</div>
-		);
-	}
-
-	// Demo mode redirect
-	if (isDemo()) {
-		return (
-			<div className="flex min-h-screen items-center justify-center bg-muted/50 p-4">
-				<Card className="w-full max-w-md">
-					<CardHeader className="text-center">
-						<CardTitle className="flex items-center justify-center gap-2">
-							<AlertCircle className="h-5 w-5 text-muted-foreground" />
-							Demo Mode
-						</CardTitle>
-					</CardHeader>
-					<CardContent className="text-center space-y-4">
-						<p className="text-muted-foreground">
-							Live Auth is disabled in Demo Mode.
-						</p>
-						<Button asChild>
-							<Link href="/login">Return to Login</Link>
-						</Button>
-					</CardContent>
 				</Card>
 			</div>
 		);
