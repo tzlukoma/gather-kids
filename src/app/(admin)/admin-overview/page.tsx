@@ -84,7 +84,7 @@ export default function DashboardPage() {
 			</div>
 
 			<div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-				<Link href="/dashboard/check-in?filter=checkedIn">
+				<Link href="/check-in?filter=checkedIn">
 					<Card className="hover:bg-muted/50 transition-colors">
 						<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
 							<CardTitle className="text-sm font-medium">
@@ -106,7 +106,7 @@ export default function DashboardPage() {
 						</CardContent>
 					</Card>
 				</Link>
-				<Link href="/dashboard/incidents?tab=view&filter=pending">
+				<Link href="/incidents?tab=view&filter=pending">
 					<Card className="hover:bg-muted/50 transition-colors">
 						<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
 							<CardTitle className="text-sm font-medium">
@@ -124,7 +124,7 @@ export default function DashboardPage() {
 						</CardContent>
 					</Card>
 				</Link>
-				<Link href="/dashboard/registrations">
+				<Link href="/registrations">
 					<Card className="hover:bg-muted/50 transition-colors">
 						<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
 							<CardTitle className="text-sm font-medium">

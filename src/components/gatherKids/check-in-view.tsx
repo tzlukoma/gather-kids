@@ -15,7 +15,7 @@ import { Input } from '@/components/ui/input';
 import { getTodayIsoDate } from '@/lib/dal';
 import { useIncidents } from '@/hooks/data';
 import { CardGridSkeleton } from '@/components/skeletons/CardGridSkeleton';
-import type { StatusFilter } from '@/app/dashboard/check-in/page';
+import type { StatusFilter } from '@/app/(admin)/check-in/page';
 import { IncidentDetailsDialog } from './incident-details-dialog';
 import { PhotoCaptureDialog } from './photo-capture-dialog';
 import { PhotoViewerDialog } from './photo-viewer-dialog';

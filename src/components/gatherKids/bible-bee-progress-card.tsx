@@ -149,7 +149,7 @@ export function BibleBeeProgressCard({
 		linkPath ||
 		(userRole === AuthRole.GUARDIAN
 			? `/household/children/${childId}/bible-bee`
-			: `/dashboard/bible-bee/child/${childId}`);
+			: `/bible-bee/child/${childId}`);
 
 	// Determine if this is essay track vs scripture track
 	const isEssayTrack = !!essayStatus;

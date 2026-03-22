@@ -27,13 +27,13 @@ interface MenuItem {
 
 export const MENU_ITEMS: MenuItem[] = [
 	{
-		href: '/dashboard',
+		href: '/admin-overview',
 		icon: LayoutDashboard,
 		label: 'Dashboard',
 		roles: [AuthRole.ADMIN],
 	},
 	{
-		href: '/dashboard/check-in',
+		href: '/check-in',
 		icon: CheckCheck,
 		label: 'Check-In/Out',
 		roles: [AuthRole.ADMIN, AuthRole.MINISTRY_LEADER, AuthRole.GUARDIAN],
@@ -43,28 +43,28 @@ export const MENU_ITEMS: MenuItem[] = [
 			userRole === AuthRole.ADMIN || ministryIds.includes('min_sunday_school'),
 	},
 	{
-		href: '/dashboard/rosters',
+		href: '/rosters',
 		icon: Users,
 		label: 'Rosters',
 		roles: [AuthRole.ADMIN, AuthRole.MINISTRY_LEADER],
 		requiresActive: true,
 	},
 	{
-		href: '/dashboard/registrations',
+		href: '/registrations',
 		icon: ClipboardList,
 		label: 'Registrations',
 		roles: [AuthRole.ADMIN, AuthRole.MINISTRY_LEADER],
 		requiresActive: true,
 	},
 	{
-		href: '/dashboard/incidents',
+		href: '/incidents',
 		icon: ShieldAlert,
 		label: 'Incidents',
 		roles: [AuthRole.ADMIN, AuthRole.MINISTRY_LEADER],
 		isBeta: true,
 	},
 	{
-		href: '/dashboard/bible-bee',
+		href: '/bible-bee',
 		// Inline bee SVG to use as the Bible Bee icon
 		icon: (
 			<svg
@@ -96,33 +96,33 @@ export const MENU_ITEMS: MenuItem[] = [
 		},
 	},
 	{
-		href: '/dashboard/leaders',
+		href: '/leaders',
 		icon: Contact,
 		label: 'Leaders',
 		roles: [AuthRole.ADMIN],
 	},
 	{
-		href: '/dashboard/users',
+		href: '/users',
 		icon: UserCog,
 		label: 'Users',
 		roles: [AuthRole.ADMIN],
 		isBeta: true,
 	},
 	{
-		href: '/dashboard/reports',
+		href: '/reports',
 		icon: FileText,
 		label: 'Reports',
 		roles: [AuthRole.ADMIN],
 		isBeta: true,
 	},
 	{
-		href: '/dashboard/ministries',
+		href: '/ministries',
 		icon: Settings,
 		label: 'Ministries',
 		roles: [AuthRole.ADMIN],
 	},
 	{
-		href: '/dashboard/branding',
+		href: '/branding',
 		icon: Palette,
 		label: 'Branding',
 		roles: [AuthRole.ADMIN],

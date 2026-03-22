@@ -2,7 +2,7 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useRouter } from 'next/navigation';
-import BrandingPage from '@/app/dashboard/branding/page';
+import BrandingPage from '@/app/(admin)/branding/page';
 import { renderWithAuth, mockUsers } from '@/test-utils/auth/test-utils';
 import { useToast } from '@/hooks/use-toast';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -101,7 +101,7 @@ describe('BrandingPage', () => {
 	describe('Authorization', () => {
 		it('should redirect non-admin users to dashboard', () => {
 			renderWithAuth(<BrandingPage />, { user: mockUsers.guardian });
-			expect(mockPush).toHaveBeenCalledWith('/dashboard');
+			expect(mockPush).toHaveBeenCalledWith('/admin-overview');
 		});
 
 		it('should show loading state for auth loading', () => {

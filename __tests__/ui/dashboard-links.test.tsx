@@ -4,7 +4,7 @@ import { render, screen } from '@testing-library/react';
 jest.mock('dexie-react-hooks', () => ({
 	useLiveQuery: (fn: any) => fn(),
 }));
-import DashboardPage from '@/app/dashboard/page';
+import DashboardPage from '@/app/(admin)/admin-overview/page';
 import { renderWithAuth, mockUsers } from '@/test-utils/auth/test-utils';
 
 jest.mock('@/lib/db', () => ({
@@ -29,6 +29,6 @@ describe('Admin dashboard links', () => {
 		while (el && el.tagName !== 'A') el = el.parentElement;
 		expect(el).not.toBeNull();
 		const href = (el as HTMLAnchorElement).getAttribute('href');
-		expect(href).toBe('/dashboard/check-in?filter=checkedIn');
+		expect(href).toBe('/check-in?filter=checkedIn');
 	});
 });

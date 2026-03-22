@@ -380,7 +380,7 @@ export default function MinistryPage() {
 		if (!loading && user) {
 			if (user?.metadata?.role !== AuthRole.ADMIN) {
 				if (user?.metadata?.role === AuthRole.MINISTRY_LEADER) {
-					router.push('/dashboard/rosters');
+					router.push('/rosters');
 				} else {
 					router.push('/');
 				}

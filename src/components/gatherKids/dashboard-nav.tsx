@@ -143,7 +143,7 @@ export function DashboardNav({ children }: DashboardNavProps) {
 
 	// If the user is a ministry leader and inactive, restrict nav to Incidents only
 	const finalMenuItems = isInactiveLeader
-		? MENU_ITEMS.filter((item) => item.href === '/dashboard/incidents')
+		? MENU_ITEMS.filter((item) => item.href === '/incidents')
 		: filteredMenuItems;
 
 	return (

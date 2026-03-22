@@ -120,28 +120,28 @@ export default function NotFound() {
 							</h3>
 
 							<div className="grid gap-2 md:grid-cols-2">
-								<Link href="/dashboard">
+								<Link href="/admin-overview">
 									<Button variant="outline" className="w-full justify-start">
 										<Home className="w-4 h-4 mr-2" />
 										Dashboard
 									</Button>
 								</Link>
 
-								<Link href="/dashboard/check-in">
+								<Link href="/check-in">
 									<Button variant="outline" className="w-full justify-start">
 										<Users className="w-4 h-4 mr-2" />
 										Check-In
 									</Button>
 								</Link>
 
-								<Link href="/dashboard/registrations">
+								<Link href="/registrations">
 									<Button variant="outline" className="w-full justify-start">
 										<HelpCircle className="w-4 h-4 mr-2" />
 										Registrations
 									</Button>
 								</Link>
 
-								<Link href="/dashboard/bible-bee">
+								<Link href="/bible-bee">
 									<Button variant="outline" className="w-full justify-start">
 										<BookOpen className="w-4 h-4 mr-2" />
 										Bible Bee
@@ -152,7 +152,7 @@ export default function NotFound() {
 
 						{/* Action Buttons */}
 						<div className="flex flex-col sm:flex-row gap-4 pt-4">
-							<Link href="/dashboard" className="flex-1">
+							<Link href="/admin-overview" className="flex-1">
 								<Button className="w-full bg-brand-teal hover:bg-brand-teal/90 text-white">
 									<Home className="w-4 h-4 mr-2" />
 									Go to Dashboard

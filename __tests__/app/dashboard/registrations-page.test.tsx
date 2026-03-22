@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import RegistrationsPage from '@/app/dashboard/registrations/page';
+import RegistrationsPage from '@/app/(admin)/registrations/page';
 import { mockUsers, MockAuthProvider } from '@/test-utils/auth/test-utils';
 import type { Household, Child, Ministry } from '@/lib/types';
 
