@@ -16,7 +16,7 @@ describe('getBibleBeeMinistry', () => {
             code: 'bible-bee',
             name: 'Bible Bee',
             open_at: '2025-01-01',
-            close_at: '2025-10-08'
+            close_at: '2025-10-08',
         };
 
         const { db } = require('@/lib/database/factory');

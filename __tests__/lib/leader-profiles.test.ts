@@ -1,5 +1,12 @@
-import { queryLeaderProfiles, saveLeaderProfile, getLeaderProfileWithMemberships, saveLeaderMemberships, searchLeaderProfiles } from '../../src/lib/dal';
+import {
+    queryLeaderProfiles,
+    saveLeaderProfile,
+    getLeaderProfileWithMemberships,
+    saveLeaderMemberships,
+    searchLeaderProfiles,
+} from '../../src/lib/dal';
 import type { LeaderProfile, MinistryLeaderMembership, Ministry } from '../../src/lib/types';
+import { v4 as uuidv4 } from 'uuid';
 
 // In-memory data stores for testing
 const leaderProfilesStore = new Map<string, LeaderProfile>();
