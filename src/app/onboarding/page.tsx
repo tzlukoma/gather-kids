@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
-import { isDemo } from '@/lib/authGuards';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,12 +25,6 @@ export default function OnboardingPage() {
 	const [showDebug, setShowDebug] = useState(false);
 
 	useEffect(() => {
-		// If we're in demo mode, redirect away from this page
-		if (isDemo()) {
-			router.replace('/login');
-			return;
-		}
-
 		const checkAuthAndOnboarding = async () => {
 			try {
 				const { supabase } = await import('@/lib/supabaseClient');
@@ -196,30 +189,6 @@ export default function OnboardingPage() {
 			});
 		}
 	};
-
-	// Show demo mode notice
-	if (isDemo()) {
-		return (
-			<div className="flex min-h-screen items-center justify-center bg-muted/50 p-4">
-				<Card className="w-full max-w-md">
-					<CardHeader className="text-center">
-						<CardTitle className="flex items-center justify-center gap-2">
-							<AlertCircle className="h-5 w-5 text-muted-foreground" />
-							Demo Mode
-						</CardTitle>
-					</CardHeader>
-					<CardContent className="text-center space-y-4">
-						<p className="text-muted-foreground">
-							Live Auth is disabled in Demo Mode.
-						</p>
-						<Button asChild>
-							<Link href="/login">Return to Login</Link>
-						</Button>
-					</CardContent>
-				</Card>
-			</div>
-		);
-	}
 
 	// Add retry mechanism for session recovery
 	const retrySession = async () => {

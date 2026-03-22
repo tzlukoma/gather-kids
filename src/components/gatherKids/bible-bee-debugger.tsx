@@ -4,7 +4,6 @@ import { useEffect } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 // db import unused in this debugger; rely on adapter helpers instead
 import { dbAdapter, isSupabase, getDatabaseMode } from '@/lib/db-utils';
-import { getFlag } from '@/lib/featureFlags';
 import { getBibleBeeCycles } from '@/lib/dal';
 
 export default function BibleBeeDebugger() {
@@ -20,7 +19,6 @@ export default function BibleBeeDebugger() {
 
 		// Check database mode
 		console.log('📊 Database Configuration:');
-		console.log('- DATABASE_MODE flag:', getFlag('DATABASE_MODE'));
 		console.log('- Detected Mode:', getDatabaseMode());
 		console.log('- Using Supabase:', isSupabase() ? '✅ Yes' : '❌ No');
 		console.log(
@@ -36,13 +34,6 @@ export default function BibleBeeDebugger() {
 			console.log('- User Role:', user?.metadata?.role);
 			console.log('- Assigned Ministries:', user?.assignedMinistryIds);
 		}
-
-		// Check localStorage
-		console.log('🔐 Local Storage:');
-		console.log(
-			'- gatherkids-user:',
-			localStorage.getItem('gatherkids-user') ? '✅ Present' : '❌ Missing'
-		);
 
 		// Check for Supabase tokens
 		const supabaseTokens = Object.keys(localStorage).filter((key) =>

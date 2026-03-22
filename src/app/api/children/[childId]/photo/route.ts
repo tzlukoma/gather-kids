@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabaseClient';
-import { isDemo } from '@/lib/featureFlags';
 import { updateChildPhoto, getHouseholdProfile } from '@/lib/dal';
 import { AuthRole, type BaseUser } from '@/lib/auth-types';
 
-// Handle multipart form data in demo mode
+// Handle multipart form data
 async function parseFormData(request: NextRequest) {
 	const formData = await request.formData();
 	const file = formData.get('file') as File | null;
@@ -16,37 +15,30 @@ async function parseFormData(request: NextRequest) {
 	};
 }
 
-// Get current user from demo mode or Supabase
+// Get current user from Supabase session
 async function getCurrentUser(request: NextRequest): Promise<BaseUser | null> {
-	if (isDemo()) {
-		// In demo mode, user data comes from the request body
-		const { userData } = await parseFormData(request);
-		return userData;
-	} else {
-		// In production mode, get user from Supabase session
-		const authHeader = request.headers.get('authorization');
-		if (!authHeader?.startsWith('Bearer ')) {
-			return null;
-		}
-
-		const token = authHeader.substring(7);
-		const { data: { user }, error } = await supabase.auth.getUser(token);
-		
-		if (error || !user) {
-			return null;
-		}
-
-		return {
-			uid: user.id,
-			email: user.email || '',
-			displayName: user.user_metadata?.full_name || user.email?.split('@')[0] || 'User',
-			metadata: {
-				role: user.user_metadata?.role,
-				household_id: user.user_metadata?.household_id,
-			},
-			is_active: true,
-		} as BaseUser;
+	const authHeader = request.headers.get('authorization');
+	if (!authHeader?.startsWith('Bearer ')) {
+		return null;
 	}
+
+	const token = authHeader.substring(7);
+	const { data: { user }, error } = await supabase.auth.getUser(token);
+
+	if (error || !user) {
+		return null;
+	}
+
+	return {
+		uid: user.id,
+		email: user.email || '',
+		displayName: user.user_metadata?.full_name || user.email?.split('@')[0] || 'User',
+		metadata: {
+			role: user.user_metadata?.role,
+			household_id: user.user_metadata?.household_id,
+		},
+		is_active: true,
+	} as BaseUser;
 }
 
 // Check if user can update this child's photo
@@ -120,42 +112,33 @@ export async function POST(
 			);
 		}
 
-		let photoUrl: string;
+		// Upload to Supabase Storage
+		const timestamp = Date.now();
+		const extension = file.name.split('.').pop() || 'jpg';
+		const filename = `${childId}-${timestamp}.${extension}`;
+		const storagePath = `avatars/children/${filename}`;
 
-		if (isDemo()) {
-			// In demo mode, convert file to base64 data URL
-			const buffer = await file.arrayBuffer();
-			const base64 = Buffer.from(buffer).toString('base64');
-			photoUrl = `data:${file.type};base64,${base64}`;
-		} else {
-			// In production mode, upload to Supabase Storage
-			const timestamp = Date.now();
-			const extension = file.name.split('.').pop() || 'jpg';
-			const filename = `${childId}-${timestamp}.${extension}`;
-			const storagePath = `avatars/children/${filename}`;
+		const { error: uploadError } = await supabase.storage
+			.from('public-avatars')
+			.upload(storagePath, file, {
+				contentType: file.type,
+				upsert: true,
+			});
 
-			const { error: uploadError } = await supabase.storage
-				.from('public-avatars')
-				.upload(storagePath, file, {
-					contentType: file.type,
-					upsert: true,
-				});
-
-			if (uploadError) {
-				console.error('Storage upload error:', uploadError);
-				return NextResponse.json(
-					{ error: 'Failed to upload image' },
-					{ status: 500 }
-				);
-			}
-
-			// Get public URL
-			const { data: urlData } = supabase.storage
-				.from('public-avatars')
-				.getPublicUrl(storagePath);
-
-			photoUrl = urlData.publicUrl;
+		if (uploadError) {
+			console.error('Storage upload error:', uploadError);
+			return NextResponse.json(
+				{ error: 'Failed to upload image' },
+				{ status: 500 }
+			);
 		}
+
+		// Get public URL
+		const { data: urlData } = supabase.storage
+			.from('public-avatars')
+			.getPublicUrl(storagePath);
+
+		const photoUrl = urlData.publicUrl;
 
 		// Update child photo in database
 		await updateChildPhoto(childId, photoUrl);

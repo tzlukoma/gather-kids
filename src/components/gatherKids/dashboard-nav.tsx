@@ -30,7 +30,6 @@ import { useBranding } from '@/contexts/branding-context';
 import { LogOut } from 'lucide-react';
 import Image from 'next/image';
 import { AuthRole } from '@/lib/auth-types';
-import { isDemo } from '@/lib/authGuards';
 import { renderNavIcon } from '@/components/ui/nav-icon';
 
 interface DashboardNavProps {
@@ -55,14 +54,11 @@ export function DashboardNav({ children }: DashboardNavProps) {
 	}
 
 	const handleLogout = async () => {
-		// Handle Supabase logout if not in demo mode
-		if (!isDemo()) {
-			try {
-				const { supabase } = await import('@/lib/supabaseClient');
-				await supabase.auth.signOut();
-			} catch (error) {
-				console.error('Error signing out from Supabase:', error);
-			}
+		try {
+			const { supabase } = await import('@/lib/supabaseClient');
+			await supabase.auth.signOut();
+		} catch (error) {
+			console.error('Error signing out from Supabase:', error);
 		}
 
 		// Always call the context logout to clear local state

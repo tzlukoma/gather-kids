@@ -38,12 +38,12 @@ export default function CreateAccountPage() {
 			: 'Create Account - gatherKids';
 	}, [needsVerification]);
 
-	// Redirect to login if in demo mode or password auth is disabled
+	// Redirect to login if password auth is disabled
 	useEffect(() => {
-		if (flags.isDemoMode || !flags.loginPasswordEnabled) {
+		if (!flags.loginPasswordEnabled) {
 			router.replace('/login');
 		}
-	}, [flags.isDemoMode, flags.loginPasswordEnabled, router]);
+	}, [flags.loginPasswordEnabled, router]);
 
 	const handleCreateAccount = async () => {
 		if (!email || !password || !confirmPassword) {

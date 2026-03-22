@@ -17,7 +17,6 @@ import { db as dbAdapter } from './database/factory';
 import { getApplicableGradeRule } from './bibleBee';
 import { gradeToCode, doGradeRangesOverlap, normalizeGradeDisplay } from './gradeUtils';
 import { AuthRole } from './auth-types';
-import { isDemo } from './featureFlags';
 import { formatPhone } from '@/hooks/usePhoneFormat';
 import type { Attendance, Child, Guardian, Household, Incident, IncidentSeverity, Ministry, MinistryEnrollment, Registration, User, EmergencyContact, LeaderAssignment, LeaderProfile, MinistryLeaderMembership, MinistryAccount, BrandingSettings, BibleBeeYear, BibleBeeCycle, RegistrationCycle, Scripture, CompetitionYear, CustomQuestion, MinistryGroup, MinistryGroupMember } from './types';
 
@@ -44,15 +43,9 @@ import crypto from 'crypto';
 // New code should use dbAdapter for consistent behavior across demo/Supabase modes
 export { dbAdapter };
 
-// Utility to determine if we should use the adapter interface for write operations
+/** Always returns true — the app always uses the Supabase adapter. Demo mode has been removed. */
 export function shouldUseAdapter(): boolean {
-    const isDemoMode = isDemo();
-    console.log('shouldUseAdapter: Checking database mode', { 
-        isDemoMode, 
-        useAdapter: !isDemoMode,
-        databaseMode: process.env.NEXT_PUBLIC_DATABASE_MODE || 'not set'
-    });
-    return !isDemoMode; // Use adapter (Supabase) when not in demo mode
+    return true;
 }
 
 // Small helper to coerce various DB representations of "active" into a boolean.

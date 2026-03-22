@@ -1,10 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Settings } from 'lucide-react';
-import { FeatureFlagDialog } from '@/components/feature-flag-dialog';
-import { useFeatureFlags } from '@/contexts/feature-flag-context';
+import React from 'react';
 import { useBranding } from '@/contexts/branding-context';
 import { useRouter } from 'next/navigation';
 
@@ -13,8 +9,6 @@ export default function RegisterLayout({
 }: {
 	children: React.ReactNode;
 }) {
-	const [isFlagDialogOpen, setIsFlagDialogOpen] = useState(false);
-	const { flags } = useFeatureFlags();
 	const { settings } = useBranding();
 	const router = useRouter();
 
@@ -61,23 +55,8 @@ export default function RegisterLayout({
 					<p>
 						&copy; {new Date().getFullYear()} gatherKids. All rights reserved.
 					</p>
-					{flags.showDemoFeatures && (
-						<Button
-							variant="ghost"
-							size="icon"
-							onClick={() => setIsFlagDialogOpen(true)}>
-							<Settings className="h-4 w-4" />
-							<span className="sr-only">Open Feature Flags</span>
-						</Button>
-					)}
 				</div>
 			</footer>
-			{flags.showDemoFeatures && (
-				<FeatureFlagDialog
-					isOpen={isFlagDialogOpen}
-					onClose={() => setIsFlagDialogOpen(false)}
-				/>
-			)}
 		</div>
 	);
 }

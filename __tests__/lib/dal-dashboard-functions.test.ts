@@ -1,26 +1,30 @@
 /**
- * Tests for new DAL dashboard functions to ensure they work with both adapters
+ * Tests for DAL dashboard functions
  */
 
-import { 
-  getUnacknowledgedIncidents, 
-  getCheckedInCount, 
+// Mock the database factory so DAL functions don't require real Supabase
+jest.mock('@/lib/database/factory', () => {
+  const mockAdapter = {
+    listIncidents: jest.fn().mockResolvedValue([]),
+    listAttendance: jest.fn().mockResolvedValue([]),
+    listBibleBeeCycles: jest.fn().mockResolvedValue([]),
+    listMinistries: jest.fn().mockResolvedValue([]),
+    listHouseholds: jest.fn().mockResolvedValue([]),
+    listChildren: jest.fn().mockResolvedValue([]),
+  };
+  return {
+    createDatabaseAdapter: jest.fn(() => mockAdapter),
+    db: mockAdapter,
+  };
+});
+
+import {
+  getUnacknowledgedIncidents,
+  getCheckedInCount,
   getRegistrationStats,
   getBibleBeeYears,
-  getMinistries 
+  getMinistries
 } from '@/lib/dal';
-import { createDatabaseAdapter } from '@/lib/database/factory';
-
-// Mock feature flags to control which adapter is used
-jest.mock('@/lib/featureFlags', () => ({
-  getFlag: jest.fn((name: string) => {
-    if (name === 'DATABASE_MODE') {
-      return process.env.TEST_DATABASE_MODE || 'demo';
-    }
-    return false;
-  }),
-  isDemo: jest.fn(() => (process.env.TEST_DATABASE_MODE || 'demo') === 'demo'),
-}));
 
 describe('Dashboard DAL Functions', () => {
   describe('getUnacknowledgedIncidents', () => {
@@ -41,7 +45,7 @@ describe('Dashboard DAL Functions', () => {
   describe('getRegistrationStats', () => {
     it('should return stats object with household and child counts', async () => {
       const stats = await getRegistrationStats();
-      
+
       expect(stats).toHaveProperty('householdCount');
       expect(stats).toHaveProperty('childCount');
       expect(typeof stats.householdCount).toBe('number');
@@ -67,7 +71,7 @@ describe('Dashboard DAL Functions', () => {
     it('should filter by active status when provided', async () => {
       const activeMinistries = await getMinistries(true);
       const inactiveMinistries = await getMinistries(false);
-      
+
       expect(Array.isArray(activeMinistries)).toBe(true);
       expect(Array.isArray(inactiveMinistries)).toBe(true);
     });
@@ -76,26 +80,32 @@ describe('Dashboard DAL Functions', () => {
 
 describe('Adapter Selection', () => {
   beforeEach(() => {
-    // Clear any cached adapter instances
     jest.clearAllMocks();
-  });
-
-  it('should use IndexedDB adapter in demo mode', () => {
-    process.env.TEST_DATABASE_MODE = 'demo';
-    const adapter = createDatabaseAdapter();
-    expect(adapter.constructor.name).toBe('IndexedDBAdapter');
-  });
-
-  it('should use Supabase adapter when configured', () => {
-    process.env.TEST_DATABASE_MODE = 'supabase';
     process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://test.supabase.co';
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'test-key';
-    
-    const adapter = createDatabaseAdapter();
-    expect(adapter.constructor.name).toBe('SupabaseAdapter');
-    
-    // Clean up
+  });
+
+  afterEach(() => {
     delete process.env.NEXT_PUBLIC_SUPABASE_URL;
     delete process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  });
+
+  it('should always use Supabase adapter when config is set', () => {
+    const { createDatabaseAdapter } = jest.requireActual('@/lib/database/factory');
+    const adapter = createDatabaseAdapter();
+    expect(adapter.constructor.name).toBe('SupabaseAdapter');
+  });
+
+  it('should throw when Supabase config is missing', () => {
+    delete process.env.NEXT_PUBLIC_SUPABASE_URL;
+    delete process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    const savedNodeEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'production';
+    try {
+      const { createDatabaseAdapter } = jest.requireActual('@/lib/database/factory');
+      expect(() => createDatabaseAdapter()).toThrow('Supabase configuration is required');
+    } finally {
+      process.env.NODE_ENV = savedNodeEnv;
+    }
   });
 });

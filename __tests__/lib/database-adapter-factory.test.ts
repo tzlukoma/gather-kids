@@ -1,6 +1,5 @@
-// Test to demonstrate that the database adapter factory works correctly
+// Test to demonstrate that the database adapter factory always uses SupabaseAdapter
 import { createDatabaseAdapter } from '@/lib/database/factory';
-import { IndexedDBAdapter } from '@/lib/database/indexed-db-adapter';
 import { SupabaseAdapter } from '@/lib/database/supabase-adapter';
 
 // Mock environment variables
@@ -9,6 +8,9 @@ const originalEnv = process.env;
 beforeEach(() => {
   jest.resetModules();
   process.env = { ...originalEnv };
+  // Set required Supabase config for all tests
+  process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://test.supabase.co';
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'test-key';
 });
 
 afterEach(() => {
@@ -16,58 +18,38 @@ afterEach(() => {
 });
 
 describe('Database Adapter Factory', () => {
-  it('should return IndexedDBAdapter by default (demo mode)', () => {
-    // Default mode should be demo
-    delete process.env.NEXT_PUBLIC_DATABASE_MODE;
-    const adapter = createDatabaseAdapter();
-    expect(adapter).toBeInstanceOf(IndexedDBAdapter);
-  });
-
-  it('should return IndexedDBAdapter when mode is demo', () => {
-    process.env.NEXT_PUBLIC_DATABASE_MODE = 'demo';
-    const adapter = createDatabaseAdapter();
-    expect(adapter).toBeInstanceOf(IndexedDBAdapter);
-  });
-
-  it('should return SupabaseAdapter when mode is supabase with valid config', () => {
-    process.env.NEXT_PUBLIC_DATABASE_MODE = 'supabase';
-    process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://test.supabase.co';
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'test-key';
-    
+  it('should return SupabaseAdapter when Supabase config is set', () => {
     const adapter = createDatabaseAdapter();
     expect(adapter).toBeInstanceOf(SupabaseAdapter);
   });
 
-  it('should fallback to IndexedDBAdapter when supabase config is missing', () => {
-    process.env.NEXT_PUBLIC_DATABASE_MODE = 'supabase';
-    // Don't set Supabase URL/key
+  it('should throw when Supabase URL is missing', () => {
     delete process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const savedNodeEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'production';
+    try {
+      expect(() => createDatabaseAdapter()).toThrow('Supabase configuration is required');
+    } finally {
+      process.env.NODE_ENV = savedNodeEnv;
+    }
+  });
+
+  it('should throw when Supabase key is missing', () => {
     delete process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    
-    // Spy on console.error to check fallback message
-    const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
-    
-    const adapter = createDatabaseAdapter();
-    expect(adapter).toBeInstanceOf(IndexedDBAdapter);
-    expect(consoleSpy).toHaveBeenCalledWith(
-      '❌ Supabase configuration missing for UAT environment:',
-      expect.objectContaining({
-        supabaseUrl: 'MISSING',
-        supabaseKey: 'MISSING',
-        NEXT_PUBLIC_SUPABASE_URL: undefined,
-        NEXT_PUBLIC_SUPABASE_ANON_KEY: 'MISSING',
-        mode: 'supabase'
-      })
-    );
-    
-    consoleSpy.mockRestore();
+    const savedNodeEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'production';
+    try {
+      expect(() => createDatabaseAdapter()).toThrow('Supabase configuration is required');
+    } finally {
+      process.env.NODE_ENV = savedNodeEnv;
+    }
   });
 });
 
 describe('Database Adapter Interface', () => {
-  it('should have all required methods on IndexedDBAdapter', () => {
-    const adapter = new IndexedDBAdapter();
-    
+  it('should have all required methods on SupabaseAdapter', () => {
+    const adapter = createDatabaseAdapter();
+
     // Check a few key methods exist
     expect(typeof adapter.getHousehold).toBe('function');
     expect(typeof adapter.createHousehold).toBe('function');
@@ -76,15 +58,5 @@ describe('Database Adapter Interface', () => {
     expect(typeof adapter.deleteHousehold).toBe('function');
     expect(typeof adapter.subscribeToTable).toBe('function');
     expect(typeof adapter.transaction).toBe('function');
-  });
-
-  it('should return a no-op unsubscribe function for realtime on IndexedDB', () => {
-    const adapter = new IndexedDBAdapter();
-    const callback = jest.fn();
-    const unsubscribe = adapter.subscribeToTable('test', callback);
-    
-    expect(typeof unsubscribe).toBe('function');
-    // Should be safe to call
-    unsubscribe();
   });
 });

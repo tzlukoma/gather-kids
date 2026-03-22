@@ -9,7 +9,6 @@ setupDexieMockIfNeeded();
 // Mock authGuards for testing
 jest.mock('@/lib/authGuards', () => {
   return {
-    isDemo: () => true, // Always return true in tests to enable localStorage usage
     isMagicLinkEnabled: () => true,
     isPasswordEnabled: () => true,
   };

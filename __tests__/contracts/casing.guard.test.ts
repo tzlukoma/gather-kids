@@ -9,8 +9,8 @@ jest.mock('@/lib/database/factory', () => ({
 }));
 jest.mock('@/lib/db');
 jest.mock('@/lib/featureFlags', () => ({
-  isDemo: () => true, // Use demo mode to test actual DAL responses
-  getFlag: jest.fn(() => 'dexie'), // Mock feature flag
+  isDemo: () => false,
+  getFlag: jest.fn(() => 'supabase'),
 }));
 
 const CAMEL_CASE_REGEX = /[A-Z]/;
