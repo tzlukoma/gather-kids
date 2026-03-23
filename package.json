@@ -118,7 +118,7 @@
   "devDependencies": {
     "@playwright/test": "^1.58.2",
     "@supabase/supabase-js": "^2.56.1",
-    "@tanstack/react-query-devtools": "^4.41.0",
+    "@tanstack/react-query-devtools": "^5.95.0",
     "@testing-library/jest-dom": "^6.8.0",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.1",
