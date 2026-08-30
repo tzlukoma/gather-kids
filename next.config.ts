@@ -5,6 +5,10 @@ const nextConfig: NextConfig = {
   /* config options here */
   outputFileTracingIncludes: {
     '/api/version': ['./src/generated/build-info.json'],
+    '/help': ['./content/help/**/*', './CHANGELOG.md', './package.json'],
+    '/help/[...slug]': ['./content/help/**/*', './package.json'],
+    '/help/releases': ['./CHANGELOG.md', './package.json'],
+    '/help/releases/[version]': ['./CHANGELOG.md', './package.json'],
   },
   devIndicators: {
     // allowedDevOrigins removed to satisfy Next.js config typing in this environment

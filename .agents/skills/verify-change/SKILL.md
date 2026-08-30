@@ -28,8 +28,8 @@ npm run build
 
 | Change type | Also run / attach |
 |-------------|-------------------|
-| Docs in `docs/` or `AGENTS.md` only | `npm run docs:validate` if `doc-site/` or its inputs changed; otherwise default gate is enough |
-| `doc-site/` | `npm run docs:validate` (installs doc-site deps and builds Docusaurus) |
+| Docs in `docs/` or `AGENTS.md` only | `npm run docs:validate` if `content/help/` or changelog parser inputs changed; otherwise default gate is enough |
+| In-app help (`content/help/`, `src/app/help/`) | `npm run docs:validate` |
 | UI / layout / routing / rendered data | Relevant Playwright spec(s); screenshots or a short recording; desktop and a mobile-width check when layout changed |
 | Registration / DAL / DTOs | `npm test -- contracts/registration.contract.test.ts`; `npm test -- contracts/casing.guard.test.ts`; `npm test -- contracts/enum-sync.test.ts` |
 | Schema / migrations | [database-migration-safety](../database-migration-safety/SKILL.md); `npm run gen:types` locally; CI `db-fk` is the integrity + types-drift check |

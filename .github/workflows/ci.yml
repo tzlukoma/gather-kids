@@ -157,3 +157,16 @@ jobs:
             perf
             revert
           requireScope: false
+
+  docs:
+    name: docs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-node-app
+        with:
+          checkout: 'false'
+      - name: Validate in-app help
+        run: npm run docs:validate
+      - name: Changelog parser smoke
+        run: npm run help:parse-changelog

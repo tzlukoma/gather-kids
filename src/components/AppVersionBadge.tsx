@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import {
   Tooltip,
   TooltipContent,
@@ -88,6 +89,15 @@ export function AppVersionBadge() {
               <span className="font-medium">Built:</span> {version.builtAt}
             </p>
           )}
+          <p className="pt-1">
+            <Link href="/help" className="underline underline-offset-2">
+              User guide
+            </Link>
+            {' · '}
+            <Link href="/help/releases" className="underline underline-offset-2">
+              Release notes
+            </Link>
+          </p>
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>
