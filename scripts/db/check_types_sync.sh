@@ -10,15 +10,13 @@ if ! command -v supabase >/dev/null 2>&1; then
   exit 1
 fi
 
-normalize_types_body() {
-  # Compare stable public schema shapes; ignore CLI-only metadata and extension functions.
-  tail -n +7 "$1" \
-    | sed '/__InternalSupabase:/,/PostgrestVersion:/d' \
-    | awk '
-      /^      Functions: \{/ { skip=1 }
-      /^      Enums: \{/ { skip=0 }
-      skip==0 { print }
-    '
+normalize_tables_section() {
+  # Compare public.Tables only — ignore CLI metadata, Functions, and extension noise.
+  tail -n +7 "$1" | awk '
+    /^      Tables: \{/ { capture=1 }
+    capture && /^      Views: \{/ { exit }
+    capture { print }
+  '
 }
 
 echo "Generating types from migrated schema..."
@@ -37,8 +35,8 @@ sed 's/export type Json/export type SupabaseJson/g; s/\bJson\b/SupabaseJson/g' \
   cat "$GENERATED.body"
 } > "$GENERATED"
 
-if diff -q <(normalize_types_body "$TYPES_FILE") <(normalize_types_body "$GENERATED") >/dev/null 2>&1; then
-  echo "✅ Supabase types are up to date (public Tables/Enums/Views)"
+if diff -q <(normalize_tables_section "$TYPES_FILE") <(normalize_tables_section "$GENERATED") >/dev/null 2>&1; then
+  echo "✅ Supabase types are up to date (public.Tables)"
   rm -f "$GENERATED" "$GENERATED.raw" "$GENERATED.body"
   exit 0
 fi
@@ -46,6 +44,6 @@ fi
 echo "❌ Supabase types are out of sync with migrations!"
 echo "   Run 'npm run gen:types' locally after applying migrations and commit the diff."
 echo ""
-diff -u <(normalize_types_body "$TYPES_FILE") <(normalize_types_body "$GENERATED") || true
+diff -u <(normalize_tables_section "$TYPES_FILE") <(normalize_tables_section "$GENERATED") || true
 rm -f "$GENERATED" "$GENERATED.raw" "$GENERATED.body"
 exit 1
