@@ -242,3 +242,83 @@ Optional: `echo "ci: my change" | npx commitlint`
 5. Confirm Vercel preview + production + `/api/version` footer
 
 Then start [`docs/R1_IMPLEMENTATION_PLAN.md`](./R1_IMPLEMENTATION_PLAN.md).
+
+---
+
+## Sentry (ops wiring)
+
+This section covers **source maps, uptime, the one free cron monitor, alerts, and PAYG**. SDK init (`release`, `environment`, DSN env vars) is [#258](https://github.com/tzlukoma/gather-kids/issues/258). Sampling and Replay are [#259](https://github.com/tzlukoma/gather-kids/issues/259).
+
+### Release tags vs source maps
+
+`package.json` version (release-please) is stamped into `src/generated/build-info.json` at `prebuild` and exposed as `buildInfo.appVersion` (`src/lib/build-info.ts`) and `GET /api/version`.
+
+[#258](https://github.com/tzlukoma/gather-kids/issues/258) / [#264](https://github.com/tzlukoma/gather-kids/pull/264) set SDK `release` from `buildInfo.appVersion` so uploaded maps and runtime events share the same release name (for example `1.8.2`).
+
+### `SENTRY_AUTH_TOKEN` (Vercel only — never `ci.yml`)
+
+Source maps upload from the **Vercel production build** when `SENTRY_AUTH_TOKEN` is present. `withSentryConfig` already reads `process.env.SENTRY_AUTH_TOKEN`.
+
+| Where | Set `SENTRY_AUTH_TOKEN`? |
+|-------|--------------------------|
+| Vercel **Production** | Yes (required for readable production stack traces) |
+| Vercel Preview / UAT | Optional (only if you want maps on preview builds) |
+| [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) | **Never.** CI builds with dummy env and must not upload maps. |
+| GitHub Environment secrets for app CI | **Never.** Do not add Sentry org tokens to CI. |
+
+Token scopes (create in Sentry; dashboard click is Thomas-only): release/org:read + project:releases + artifact upload, as required by current Sentry docs.
+
+### Verify a production release after a Vercel deploy
+
+After `SENTRY_AUTH_TOKEN` is set on Vercel Production:
+
+1. Deploy production (merge to `main` → Vercel Production).
+2. Confirm `/api/version` `app` matches `package.json` (for example `1.8.2`).
+3. In Sentry → **Releases**, open that same version. It should list uploaded artifacts (source maps).
+4. Open a production issue (or wait for a real one). Stack frames should resolve to TypeScript sources, not minified webpack chunks.
+
+If the release is missing, the Vercel build likely skipped upload (`SENTRY_AUTH_TOKEN` unset) or the deploy did not run `prebuild` / stamp `build-info`.
+
+### Uptime monitor (one, Thomas creates in the UI)
+
+- **Target:** production origin + `GET /api/health`
+- **Example:** `https://gatherkidslive.com/api/health` (confirm the live custom domain in Vercel if this host changes)
+- **Expected:** HTTP 200, JSON `{ "status": "ok", "timestamp": "<ISO-8601>" }`
+- Create **one** uptime monitor in the Sentry UI. Do not add extra monitors (paid / Team).
+
+### Cron monitor (daily digest only)
+
+gatherKids crons are GitHub Actions, not Vercel Cron. `automaticVercelMonitors` is `false` in `next.config.ts`.
+
+| Job | Sentry cron monitor? |
+|-----|----------------------|
+| [`.github/workflows/ops/daily-digest.yml`](../.github/workflows/ops/daily-digest.yml) **PROD** (scheduled `0 11 * * *`) | **Yes — this is the one free cron monitor** |
+| Daily digest UAT (manual dispatch only) | No |
+| `supabase-keepalive.yml` and other `ops/*` crons | **No** — do not instrument |
+
+- **Monitor slug:** `daily-digest`
+- **Schedule upserted on check-in:** `0 11 * * *` (`America/New_York`), 15-minute margin, 30-minute max runtime
+- **Check-in:** `sentry-cli monitors run daily-digest -- …` wraps `node scripts/dailyDigest.js`. CLI check-ins authenticate with the **project DSN**, not an org auth token.
+
+**GitHub Environment secret (digest workflow only):**
+
+| Secret | GitHub Environment | Used by |
+|--------|--------------------|---------|
+| `SENTRY_DSN` | `production` | `digest-prod` in `daily-digest.yml` |
+
+If `SENTRY_DSN` is unset, the digest still runs and the step emits a notice. Do **not** put this secret (or `SENTRY_AUTH_TOKEN`) on `ci.yml`. Do **not** add Sentry org tokens to GitHub Environments for app CI.
+
+After the first successful scheduled (or manual PROD) run with `SENTRY_DSN` set, confirm the `daily-digest` monitor appears in Sentry → Crons. Create it in the UI only if the first check-in did not upsert it.
+
+### Email alerts
+
+In Sentry → Alerts, create email rules for:
+
+- **New issue** (first seen)
+- **Regression** (resolved issue that reappears)
+
+Do not alert on every event (that burns inbox and quota).
+
+### Subscription PAYG budget
+
+Confirm the Developer plan **pay-as-you-go budget is $0** so over-quota traffic is dropped instead of billed. Do not invent a non-zero budget.

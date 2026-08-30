@@ -88,9 +88,7 @@ export default withSentryConfig(nextConfig, {
   // side errors will fail.
   tunnelRoute: "/monitoring",
 
-  // Enables automatic instrumentation of Vercel Cron Monitors. (Does not yet work with App Router route handlers.)
-  // See the following for more information:
-  // https://docs.sentry.io/product/crons/
-  // https://vercel.com/docs/cron-jobs
-  automaticVercelMonitors: true,
+  // gatherKids scheduled jobs run in GitHub Actions (ops/daily-digest.yml), not Vercel Cron.
+  // Keep the one free Sentry cron monitor for the daily digest check-in; do not auto-create Vercel monitors.
+  automaticVercelMonitors: false,
 });
