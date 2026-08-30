@@ -9,14 +9,18 @@ import {
   getSentryRelease,
   shouldInitSentry,
 } from '@/lib/sentry/runtime';
+import { getSharedSentryRuntimeOptions } from '@/lib/sentry/sampling';
+import { sentryBeforeSend } from '@/lib/sentry/scrub';
 
 if (shouldInitSentry()) {
+  const environment = getSentryEnvironment();
+
   Sentry.init({
     dsn: getSentryDsn(),
-    environment: getSentryEnvironment(),
+    environment,
     release: getSentryRelease(),
-    tracesSampleRate: 1,
-    enableLogs: true,
+    ...getSharedSentryRuntimeOptions({ environment }),
+    beforeSend: sentryBeforeSend,
     debug: false,
   });
 }

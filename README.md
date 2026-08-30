@@ -510,6 +510,13 @@ The Sentry tunnel is `/monitoring` (`tunnelRoute` in `next.config.ts`). Middlewa
 
 **Turbopack sourcemaps:** Local `npm run dev` uses Turbopack. Production stays on webpack (`next build` without `--turbopack`). Turbopack production sourcemaps need Next.js ≥15.4.1 **and** `@sentry/nextjs` ≥10.13. This repo is on Next 15.3.8 and `@sentry/nextjs` ^10.11, so do not switch the production build to `--turbopack` until those versions are bumped together.
 
+Sample rates, Replay policy, and PII scrubbing are shared from `src/lib/sentry/` (do not copy magic numbers into each init file):
+
+- **Traces:** `tracesSampleRate` is **0.05** in production and **0.2** in UAT (`NEXT_PUBLIC_DEPLOY_ENV=uat` or Sentry `environment === 'uat'`). It is not `1.0` in production. Local/dev may use a higher rate if Sentry is initialized there.
+- **Replay:** stays on. `replaysSessionSampleRate` is `0` (no session recordings). `replaysOnErrorSampleRate` is `1.0` (record only sessions that error). Replay uses default masking: `maskAllText`, `maskAllInputs`, `blockAllMedia`.
+- **Logs:** `enableLogs` is `false` so log volume does not consume the free-plan quota.
+- **Privacy:** `beforeSend` (`src/lib/sentry/scrub.ts`) strips emails, obvious name fields, and request/response bodies. Stack traces are kept. Do **not** call `Sentry.setUser` with guardian email or child identifiers. **Sentry is an error-monitoring tool, not a store of family records.**
+
 ### Performance monitoring (Web Vitals)
 
 Core Web Vitals (CLS, FID, LCP, INP, FCP, TTFB) are reported via `src/components/analytics/web-vitals.tsx` using the Next.js `useReportWebVitals` hook. The component is rendered in `src/app/layout.tsx` and logs metrics to the console in production. To forward metrics to an analytics backend, edit the `useReportWebVitals` callback in that file.
