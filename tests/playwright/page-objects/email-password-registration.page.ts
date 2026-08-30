@@ -4,7 +4,10 @@ export class EmailPasswordRegistrationPage {
   constructor(private page: Page) {}
 
   async navigateToCreateAccount() {
-    await this.page.goto('/create-account', { waitUntil: 'networkidle' });
+    await this.page.goto('/create-account', { waitUntil: 'domcontentloaded' });
+    await expect(this.page.getByRole('button', { name: /create account/i })).toBeVisible({
+      timeout: 30000,
+    });
   }
 
   async navigateToLogin() {
@@ -12,11 +15,16 @@ export class EmailPasswordRegistrationPage {
   }
 
   async navigateToFamilyRegistration() {
-    await this.page.goto('/register', { waitUntil: 'networkidle' });
+    await this.page.goto('/register', { waitUntil: 'domcontentloaded' });
+    await expect(this.page.getByText('Household Lookup').or(this.page.locator('form'))).toBeVisible({
+      timeout: 30000,
+    });
   }
 
   async fillAccountCreationForm(email: string, password: string) {
-    // Fill email field
+    await expect(this.page.locator('input[type="email"]').first()).toBeVisible({
+      timeout: 30000,
+    });
     await this.page.fill('input[type="email"]', email);
     
     // Fill password field
@@ -384,6 +392,7 @@ export class EmailPasswordRegistrationPage {
     const errorIndicators = [
       'text=Password must',
       'text=Password should',
+      'text=Password Too Short',
       'text=Password is too weak',
       'text=Password requirements',
       '.password-error',

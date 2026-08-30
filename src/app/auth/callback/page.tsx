@@ -3,6 +3,8 @@
 import { useEffect, useState, Suspense, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase, handlePKCECodeExchange } from '@/lib/supabaseClient';
+import { decodeTestAuthCodeInBrowser } from '@/lib/test-auth-code';
+import { isOfflineSupabase } from '@/lib/offline-supabase';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
@@ -89,14 +91,72 @@ The authentication process is taking longer than expected. This can happen if:
 				console.log('🔍 AuthCallback: Starting handleAuthCallback...');
 				const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 				const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+				const offlineSupabase = isOfflineSupabase();
 
 				console.log('🔍 AuthCallback: Supabase config check', {
 					hasUrl: !!supabaseUrl,
 					hasKey: !!supabaseAnonKey,
-					isDummy: supabaseUrl?.includes('dummy'),
+					isDummy: offlineSupabase,
 				});
 
-				if (!supabaseUrl || !supabaseAnonKey || supabaseUrl.includes('dummy')) {
+				const code = searchParams?.get('code') || '';
+				const type = searchParams?.get('type') || '';
+
+				if (offlineSupabase && code) {
+					if (searchParams?.get('expired') === 'true') {
+						setError(
+							'The magic link has expired. Please request a new one.'
+						);
+						return;
+					}
+
+					if (type === 'magiclink' || type === 'email_verify') {
+						try {
+							const decoded = decodeTestAuthCodeInBrowser(code);
+
+							if (type === 'email_verify') {
+								const response = await fetch('/api/auth/test-verify', {
+									method: 'POST',
+									headers: {
+										'Content-Type': 'application/json',
+									},
+									body: JSON.stringify({ code }),
+								});
+
+								if (response.ok) {
+									setSuccess(true);
+									return;
+								}
+
+								const body = await response.json().catch(() => ({}));
+								setError(
+									body.error ||
+										'Invalid or expired verification link. Please request a new one.'
+								);
+								return;
+							}
+
+							if (decoded.type === 'magic_link' && decoded.email) {
+								router.push(
+									`/register?verified_email=${encodeURIComponent(decoded.email)}`
+								);
+								return;
+							}
+
+							setError('Invalid email verification link');
+							return;
+						} catch (decodeError) {
+							console.error(
+								'Error decoding test auth callback link:',
+								decodeError
+							);
+							setError('Invalid email verification link');
+							return;
+						}
+					}
+				}
+
+				if (!supabaseUrl || !supabaseAnonKey || offlineSupabase) {
 					console.log(
 						'🔍 AuthCallback: Supabase not configured, setting error'
 					);
@@ -450,12 +510,13 @@ This can happen if:
 
 					{success && (
 						<div className="space-y-2">
-							<p className="text-green-600">
-								You&apos;ve been signed in successfully!
-							</p>
+							<p className="text-green-600">Email verified successfully!</p>
 							<p className="text-sm text-muted-foreground">
-								Redirecting to complete your setup...
+								You can now sign in and continue with registration.
 							</p>
+							<Button asChild>
+								<Link href="/login">Continue to Sign In</Link>
+							</Button>
 						</div>
 					)}
 

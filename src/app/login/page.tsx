@@ -28,6 +28,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useFeatureFlags } from '@/contexts/feature-flag-context';
 import { ForgotPasswordDialog } from '@/components/auth/forgot-password-dialog';
 import { AuthRole } from '@/lib/auth-types';
+import { isOfflineSupabase } from '@/lib/offline-supabase';
 import { supabase } from '@/lib/supabaseClient';
 import { getPostLoginRoute } from '@/lib/auth-utils';
 import { resolveGuardianPostLoginRoute } from '@/lib/dal';
@@ -64,6 +65,38 @@ export default function LoginPage() {
 
 		try {
 			if (flags.loginPasswordEnabled) {
+				if (isOfflineSupabase()) {
+					const response = await fetch('/api/auth/test-login', {
+						method: 'POST',
+						headers: {
+							'Content-Type': 'application/json',
+						},
+						body: JSON.stringify({ email, password }),
+					});
+
+					const body = await response.json().catch(() => ({}));
+
+					if (!response.ok) {
+						toast({
+							title: 'Login Failed',
+							description:
+								body.error ||
+								'Unable to sign in. Please check your credentials.',
+							variant: 'destructive',
+						});
+						return;
+					}
+
+					toast({
+						title: 'Login Successful',
+						description: 'Welcome back!',
+					});
+
+					await login(body.user);
+					router.push('/register');
+					return;
+				}
+
 				if (!supabase) {
 					throw new Error('Supabase client not available');
 				}

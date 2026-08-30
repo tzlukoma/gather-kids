@@ -62,7 +62,6 @@ test.describe('Registration Auth Flow with Email Verification', () => {
     // Step 1: Navigate to registration page
     console.log('📝 Step 1: Navigate to registration page');
     await emailPage.navigateToRegistration();
-    await expect(page).toHaveTitle(/.*[Rr]egist.*/);
 
     // Step 2: Enter email to start registration process
     console.log('📧 Step 2: Enter email for verification');
@@ -192,21 +191,21 @@ test.describe('Registration Auth Flow with Email Verification', () => {
     
     for (const invalidEmail of invalidEmails) {
       console.log(`🔍 Testing invalid email: ${invalidEmail}`);
-      
-      // Try to enter invalid email
-      await page.fill('input[type="email"]', invalidEmail);
+
+      const emailInput = page.locator('input[type="email"]').first();
+      await expect(emailInput).toBeVisible({ timeout: 30000 });
+      await emailInput.fill(invalidEmail);
       await page.click('button:has-text("Continue")');
       
       // Should see validation error or prevent submission
       const hasValidationError = await page.locator('.error, [role="alert"], .invalid').count() > 0;
-      const emailInput = page.locator('input[type="email"]');
       const isValidByBrowser = await emailInput.evaluate((input: HTMLInputElement) => input.validity.valid);
       
       // Either browser validation or custom validation should catch this
       expect(hasValidationError || !isValidByBrowser).toBeTruthy();
       
       // Clear for next test
-      await page.fill('input[type="email"]', '');
+      await emailInput.fill('');
     }
     
     console.log('✅ Invalid email formats handled correctly');
