@@ -2,6 +2,8 @@
 
 gatherKids is a comprehensive children's ministry management system built with Next.js 15, React 18, and TypeScript. The application manages family registration, check-in/out processes, incident reporting, ministry enrollments, and administrative oversight for church ministries.
 
+**Commits and PR titles:** Use [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `ci:`, `docs:`, etc.) on every commit and PR title. See [`docs/CONTRIBUTING.md`](../docs/CONTRIBUTING.md) and [`.cursor/rules/conventional-commits.mdc`](../.cursor/rules/conventional-commits.mdc).
+
 Always reference these instructions first and fallback to search or bash commands only when you encounter unexpected information that does not match the info here.
 
 ## Working Effectively

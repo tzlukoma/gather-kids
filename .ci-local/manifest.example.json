@@ -1,0 +1,28 @@
+{
+  "integration_branch": "main",
+  "vercel": {
+    "production_branch": "main",
+    "preview_deployments": "all_pull_requests",
+    "uat_supabase_project_ref": "PASTE-UAT-PROJECT-REF"
+  },
+  "github": {
+    "default_branch": "main",
+    "uat_environment": "uat",
+    "production_environment": "production",
+    "retire_git_branches": ["develop", "uat", "release"]
+  },
+  "decisions": {
+    "trunk_based_main_only": true,
+    "pin_node_version": "20",
+    "pin_supabase_cli": "2.116.0",
+    "delete_generate_types_auto_commit": true,
+    "require_ci_checks_on_pr": true,
+    "release_branch": "main",
+    "conventional_commits_required": true,
+    "squash_merge_preferred": true,
+    "version_footer_visible_to": "admin"
+  },
+  "contacts": {
+    "notify_on_failed_prod_deploy": "tzlukoma@email.com"
+  }
+}

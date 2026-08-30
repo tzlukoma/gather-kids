@@ -1,0 +1,68 @@
+name: E2E Smoke Tests
+
+on:
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'e2e/**'
+      - 'e2e.config.ts'
+      - '.github/workflows/e2e-smoke.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'e2e/**'
+      - 'e2e.config.ts'
+
+permissions:
+  contents: read
+
+jobs:
+  e2e-smoke:
+    name: e2e-smoke
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-node-app
+        with:
+          checkout: 'false'
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Build application
+        run: npm run build
+        env:
+          NEXT_PUBLIC_APP_NAME: gatherKids
+          NODE_ENV: production
+          NEXT_PUBLIC_SUPABASE_URL: https://dummy.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: dummy-anon-key
+          SUPABASE_SERVICE_ROLE_KEY: dummy-service-role-key
+
+      - name: Start application
+        run: npm start &
+        env:
+          NEXT_PUBLIC_APP_NAME: gatherKids
+          NODE_ENV: production
+          NEXT_PUBLIC_SUPABASE_URL: https://dummy.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: dummy-anon-key
+          SUPABASE_SERVICE_ROLE_KEY: dummy-service-role-key
+          PORT: 3000
+
+      - name: Wait for application
+        run: |
+          timeout 60 bash -c 'until curl -f http://localhost:3000/api/health; do sleep 1; done'
+
+      - name: Run smoke tests
+        run: npx playwright test e2e/smoke-test.spec.ts --config=e2e.config.ts --project=chromium
+        env:
+          BASE_URL: http://localhost:3000
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-smoke-report
+          path: playwright-report/
+          retention-days: 14
+          if-no-files-found: ignore
