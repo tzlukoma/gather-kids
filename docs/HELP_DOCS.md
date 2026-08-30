@@ -49,10 +49,11 @@ The script:
 Accounts (local seed / capture script):
 
 - Admin: `admin@example.com` / `TestPassword123!`
+- New-family guardian (no household link): `new-family@example.com`
 - Returning guardian (Smith household, no current-cycle registration): `parent-with-household@example.com`
 - Household guardian (Johnson household, current-cycle registrations + prior-year enrollments): `household-complete@example.com`
 
-The capture script seeds a prior registration cycle, Johnson `registrations` rows, Bible Bee divisions/scriptures/enrollments, and the auth users above. It **fails** if Welcome Back, Children Information, household accordion, or populated Bible Bee UI is missing — it does not save a blank or wrong screen.
+The capture script seeds a prior registration cycle, Johnson `registrations` rows, Bible Bee divisions/scriptures/enrollments, and the auth users above. It **fails** if Family Registration Form, Welcome Back, Children Information, household accordion, Edit Child, or populated Bible Bee UI is missing — it does not save a blank or wrong screen.
 
 Reviewer: spot-check every committed PNG for PII before merge.
 

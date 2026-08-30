@@ -57,6 +57,10 @@ const HOUSEHOLD_EMAIL =
 	'household-complete@example.com';
 const HOUSEHOLD_PASSWORD =
 	process.env.HELP_SCREENSHOT_HOUSEHOLD_PASSWORD || 'TestPassword123!';
+const NEW_FAMILY_EMAIL =
+	process.env.HELP_SCREENSHOT_NEW_FAMILY_EMAIL || 'new-family@example.com';
+const NEW_FAMILY_PASSWORD =
+	process.env.HELP_SCREENSHOT_NEW_FAMILY_PASSWORD || 'TestPassword123!';
 
 function isLocalHost(hostname) {
 	return hostname === 'localhost' || hostname === '127.0.0.1';
@@ -234,16 +238,40 @@ async function ensureScreenshotUsers() {
 			},
 			{ onConflict: 'auth_user_id' }
 		);
+		await supabase.auth.admin.updateUserById(householdUserId, {
+			user_metadata: {
+				role: 'GUARDIAN',
+				full_name: 'Jordan Johnson',
+				household_id: johnsonHousehold.household_id,
+			},
+		});
 	}
+
+	const newFamilyId = await upsertAuthUser({
+		email: NEW_FAMILY_EMAIL,
+		password: NEW_FAMILY_PASSWORD,
+		role: 'GUARDIAN',
+		fullName: 'New Family',
+	});
+	await supabase.from('users').upsert({
+		user_id: newFamilyId,
+		name: 'New Family',
+		email: NEW_FAMILY_EMAIL,
+		role: 'GUARDIAN',
+		is_active: true,
+		updated_at: new Date().toISOString(),
+	});
+	await supabase.from('user_households').delete().eq('auth_user_id', newFamilyId);
 
 	await supabase.from('form_drafts').delete().in('user_id', [
 		guardianId,
 		householdUserId,
+		newFamilyId,
 	]);
 
 	await ensureHelpScreenshotFixtures(supabase);
 	console.log(
-		'Ensured local screenshot auth users (admin, returning guardian, household guardian)'
+		'Ensured local screenshot auth users (admin, new family, returning guardian, household guardian)'
 	);
 }
 
@@ -343,7 +371,7 @@ async function safe(label, fn) {
 		return true;
 	} catch (error) {
 		if (
-			/expected UI missing|redirected to|bible-bee-overview|bible-bee-progress|registration-returning|registration-child|household-profile/.test(
+			/expected UI missing|redirected to|bible-bee-overview|bible-bee-progress|registration-returning|registration-child|registration-household|household-profile|household-edit-child|household-bible-bee/.test(
 				String(error.message || '')
 			)
 		) {
@@ -450,17 +478,18 @@ async function main() {
 		await logout(page);
 	});
 
-	await safe('returning-family registration', async () => {
-		await login(page, GUARDIAN_EMAIL, GUARDIAN_PASSWORD);
+	await safe('new-family registration', async () => {
+		await login(page, NEW_FAMILY_EMAIL, NEW_FAMILY_PASSWORD);
 		await page.goto(`${BASE_URL}/register`, { waitUntil: 'networkidle' });
+		if (await page.getByRole('heading', { name: 'Welcome Back' }).count()) {
+			throw new Error(
+				'registration-household-form: showed Welcome Back instead of the new-family form'
+			);
+		}
 		await waitVisible(
 			page,
-			page.getByRole('heading', { name: 'Welcome Back' }),
-			'registration-returning-welcome'
-		);
-		await shot(
-			'registration-returning-welcome.png',
-			'registration-returning-welcome'
+			page.getByRole('heading', { name: 'Family Registration Form' }),
+			'registration-household-form'
 		);
 		await shot(
 			'registration-household-form.png',
@@ -478,7 +507,7 @@ async function main() {
 		await childrenHeading.evaluate((el) => {
 			el.scrollIntoView({ block: 'start', inline: 'nearest' });
 		});
-		const childTrigger = page.getByRole('button', { name: /emma/i }).first();
+		const childTrigger = page.getByRole('button', { name: /child 1/i }).first();
 		if (await childTrigger.count()) {
 			const state = await childTrigger.getAttribute('data-state');
 			if (state !== 'open') {
@@ -493,6 +522,21 @@ async function main() {
 		await shot(
 			'registration-child-profile.png',
 			'registration-child-profile'
+		);
+		await logout(page);
+	});
+
+	await safe('returning-family registration', async () => {
+		await login(page, GUARDIAN_EMAIL, GUARDIAN_PASSWORD);
+		await page.goto(`${BASE_URL}/register`, { waitUntil: 'networkidle' });
+		await waitVisible(
+			page,
+			page.getByRole('heading', { name: 'Welcome Back' }),
+			'registration-returning-welcome'
+		);
+		await shot(
+			'registration-returning-welcome.png',
+			'registration-returning-welcome'
 		);
 		await logout(page);
 	});
@@ -519,6 +563,45 @@ async function main() {
 		await shot(
 			'household-profile-accordion.png',
 			'household-profile-accordion'
+		);
+
+		const sophiaCard = page.getByText('Sophia Johnson').first();
+		await sophiaCard.scrollIntoViewIfNeeded();
+		const editChild = page.getByRole('button', { name: 'Edit' }).first();
+		await waitVisible(page, editChild, 'household-edit-child-dialog button');
+		await editChild.click();
+		await waitVisible(
+			page,
+			page.getByRole('heading', { name: 'Edit Child' }),
+			'household-edit-child-dialog'
+		);
+		await shot(
+			'household-edit-child-dialog.png',
+			'household-edit-child-dialog'
+		);
+		const cancel = page.getByRole('button', { name: 'Cancel' });
+		if (await cancel.count()) {
+			await cancel.click();
+		} else {
+			await page.keyboard.press('Escape');
+		}
+
+		await page.goto(`${BASE_URL}/household/bible-bee`, {
+			waitUntil: 'networkidle',
+		});
+		await waitVisible(
+			page,
+			page.getByRole('heading', { name: 'Bible Bee Progress' }).first(),
+			'household-bible-bee-progress'
+		);
+		await waitVisible(
+			page,
+			page.getByText(/Sophia Johnson|Noah Johnson/).first(),
+			'household-bible-bee-progress child'
+		);
+		await shot(
+			'household-bible-bee-progress.png',
+			'household-bible-bee-progress'
 		);
 		await logout(page);
 	});

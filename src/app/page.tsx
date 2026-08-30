@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { ArrowRight, Church, Youtube, Instagram } from 'lucide-react';
 import { useFeatureFlags } from '@/contexts/feature-flag-context';
 import { useBranding } from '@/contexts/branding-context';
+import { AppFooter } from '@/components/app-footer';
 
 export default function Home() {
 	const { flags } = useFeatureFlags();
@@ -35,11 +36,7 @@ export default function Home() {
 						</div>
 					</div>
 				</main>
-				<footer className="py-6 border-t">
-					<div className="container mx-auto flex justify-between items-center text-sm text-muted-foreground">
-						<div className="h-4 w-48 bg-muted animate-pulse rounded" />
-					</div>
-				</footer>
+				<AppFooter appName={settings.app_name || 'gatherKids'} />
 			</div>
 		);
 	}
@@ -146,14 +143,7 @@ export default function Home() {
 					)}
 				</div>
 			</main>
-			<footer className="py-6 border-t">
-				<div className="container mx-auto flex justify-between items-center text-sm text-muted-foreground">
-					<p>
-						&copy; {new Date().getFullYear()}{' '}
-						{settings.app_name || 'gatherKids'}. All rights reserved.
-					</p>
-				</div>
-			</footer>
+			<AppFooter appName={settings.app_name || 'gatherKids'} />
 		</div>
 	);
 }

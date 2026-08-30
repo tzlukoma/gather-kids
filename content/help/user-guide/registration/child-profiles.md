@@ -7,14 +7,17 @@ description: What to include on each child’s gatherKids profile.
 
 Every child in the household has a profile used for ministry placement, check-in, and safety.
 
-## Basic information
+## During registration
 
-- First and last name
-- Date of birth (used for age-appropriate ministries)
-- Grade
-- Optional photo to help leaders identify children at check-in
+When you first register, each child is a section on the **Family Registration Form**. Expand **Children Information** to enter name, date of birth, grade, and safety notes.
 
-![Child profile fields](/help/screenshots/registration-child-profile.png)
+![Child fields on the registration form](/help/screenshots/registration-child-profile.png)
+
+## After registration (household)
+
+After you submit, open **Household** and choose **Edit** on a child’s card. That dialog is where you update the same details later, without filling out registration again.
+
+![Edit child dialog on the household page](/help/screenshots/household-edit-child-dialog.png)
 
 ## Medical and safety notes
 

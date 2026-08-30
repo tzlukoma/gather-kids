@@ -216,8 +216,12 @@ function HouseholdLayoutContent({ children }: { children: React.ReactNode }) {
 								))}
 							</SidebarMenu>
 						</SidebarContent>
-						<SidebarFooter>
-							{/* Footer content can go here if needed in the future */}
+						<SidebarFooter className="p-2 flex justify-center">
+							<Link
+								href="/help"
+								className="text-xs text-muted-foreground hover:text-foreground underline-offset-4 hover:underline">
+								About gatherKids
+							</Link>
 						</SidebarFooter>
 					</Sidebar>
 					<SidebarInset>

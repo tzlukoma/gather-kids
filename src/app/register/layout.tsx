@@ -4,6 +4,7 @@ import React from 'react';
 import Image from 'next/image';
 import { useBranding } from '@/contexts/branding-context';
 import { useRouter } from 'next/navigation';
+import { AppFooter } from '@/components/app-footer';
 
 export default function RegisterLayout({
 	children,
@@ -55,13 +56,7 @@ export default function RegisterLayout({
 			<main id="main-content" className="flex-1 container mx-auto p-4 md:p-6 lg:p-8">
 				{children}
 			</main>
-			<footer className="py-6 border-t mt-auto">
-				<div className="container mx-auto flex justify-between items-center text-sm text-muted-foreground">
-					<p>
-						&copy; {new Date().getFullYear()} gatherKids. All rights reserved.
-					</p>
-				</div>
-			</footer>
+			<AppFooter appName={settings.app_name || 'gatherKids'} />
 		</div>
 	);
 }

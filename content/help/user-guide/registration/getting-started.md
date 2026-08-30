@@ -16,9 +16,11 @@ Registration collects household contacts, children, and ministry enrollments for
 5. Choose ministries (enrolled or interest-only, depending on the program).
 6. Review consents and submit.
 
-![Household registration form](/help/screenshots/registration-household-form.png)
+The form heading is **Family Registration Form**. Fields start empty because gatherKids does not already have your household.
 
-![Child details during registration](/help/screenshots/registration-child-profile.png)
+![New-family registration form](/help/screenshots/registration-household-form.png)
+
+![Child details during first-time registration](/help/screenshots/registration-child-profile.png)
 
 ## Returning families
 

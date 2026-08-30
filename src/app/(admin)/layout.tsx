@@ -226,7 +226,12 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 								))}
 							</SidebarMenu>
 						</SidebarContent>
-						<SidebarFooter className="p-2 flex justify-center">
+						<SidebarFooter className="p-2 flex flex-col items-center gap-2">
+							<Link
+								href="/help"
+								className="text-xs text-muted-foreground hover:text-foreground underline-offset-4 hover:underline">
+								About gatherKids
+							</Link>
 							<AppVersionBadge />
 						</SidebarFooter>
 					</Sidebar>

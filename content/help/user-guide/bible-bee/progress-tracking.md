@@ -10,6 +10,6 @@ Progress shows which scriptures a child has worked through for the current Bible
 ![Bible Bee progress](/help/screenshots/bible-bee-progress.png)
 
 - Leaders update or review progress from Bible Bee child pages
-- Guardians may see a household Bible Bee view when the child is enrolled
+- Guardians open **Bible Bee** in the household sidebar when a child is enrolled. See [Manage your household](/help/user-guide/registration/household-management).
 
 If progress is blank, confirm the child is enrolled in the Bible Bee year and that scriptures have been assigned to their division.
