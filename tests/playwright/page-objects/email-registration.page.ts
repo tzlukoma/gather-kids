@@ -99,19 +99,18 @@ export class EmailRegistrationPage {
 
   async verifyOnParentPortal() {
     const portalIndicators = [
-      'text=Household',
+      'h1:has-text("Household")',
       'text=My Children',
       'text=Family Dashboard',
       'text=Parent Portal',
       '[data-testid="household-page"]',
-      'h1:has-text("Dashboard")',
-      'nav:has-text("Household")'
     ];
 
     let found = false;
     for (const selector of portalIndicators) {
-      if (await this.page.locator(selector).count() > 0) {
-        await expect(this.page.locator(selector)).toBeVisible({ timeout: 10000 });
+      const loc = this.page.locator(selector).first();
+      if (await loc.count() > 0) {
+        await expect(loc).toBeVisible({ timeout: 10000 });
         found = true;
         break;
       }

@@ -87,12 +87,11 @@ export default function LoginPage() {
 						return;
 					}
 
+					await login(body.user);
 					toast({
 						title: 'Login Successful',
 						description: 'Welcome back!',
 					});
-
-					await login(body.user);
 					router.push('/register');
 					return;
 				}

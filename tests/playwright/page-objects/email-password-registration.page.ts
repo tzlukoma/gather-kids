@@ -142,13 +142,11 @@ export class EmailPasswordRegistrationPage {
       throw new Error('Could not find login submit button');
     }
 
-    await expect(
-      this.page
-        .getByText(
-          /login successful|please verify your email|invalid email or password|unable to sign in/i
-        )
-        .first()
-    ).toBeVisible({ timeout: 15000 });
+    await Promise.race([
+      this.page.waitForURL(/\/register/, { timeout: 15000 }),
+      this.page.getByText(/please verify your email/i).first().waitFor({ timeout: 15000 }),
+      this.page.getByText(/invalid email or password/i).first().waitFor({ timeout: 15000 }),
+    ]);
   }
 
   async fillFamilyRegistrationForm(
@@ -228,19 +226,18 @@ export class EmailPasswordRegistrationPage {
   async verifyOnParentPortal() {
     // Check that we've reached the parent portal/household page
     const portalIndicators = [
-      'text=Household',
+      'h1:has-text("Household")',
       'text=My Children',
       'text=Family Dashboard',
       'text=Parent Portal',
       '[data-testid="household-page"]',
-      'h1:has-text("Dashboard")',
-      'nav:has-text("Household")'
     ];
 
     let found = false;
     for (const selector of portalIndicators) {
-      if (await this.page.locator(selector).count() > 0) {
-        await expect(this.page.locator(selector)).toBeVisible({ timeout: 10000 });
+      const loc = this.page.locator(selector).first();
+      if (await loc.count() > 0) {
+        await expect(loc).toBeVisible({ timeout: 10000 });
         found = true;
         break;
       }
