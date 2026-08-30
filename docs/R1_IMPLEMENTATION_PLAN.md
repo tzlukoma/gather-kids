@@ -23,7 +23,7 @@ This document is written so an agent can execute **Phases 1–4 autonomously** a
 
 > Execute `docs/R1_IMPLEMENTATION_PLAN.md` through Phase 3 **without asking Thomas to manually click through flows**. Run `scripts/r1/phase0-validate.sh`, implement code, then loop on `scripts/r1/phase3-validate.sh` until green. Only report back when the PR is ready to merge. Do not activate Fall 2026 on production. Stop and report if any Phase 0 gate fails.
 >
-> **Preview feedback loop:** When Thomas is testing on Vercel Preview, every fix must be **committed and pushed** to the open PR so Preview redeploys. Run `./scripts/r1/phase3-validate.sh` (or scoped Jest/Playwright) locally against UAT-backed dev **before** push; do not ask Thomas to validate unpushed changes on Preview.
+> **Preview feedback loop:** When Thomas is testing on Vercel Preview, every fix must be **validated locally first** (scoped Jest/Playwright against UAT-backed dev), then **committed and pushed** to the open PR so Preview redeploys. Never push untested changes for Thomas to discover on Preview.
 >
 > **Commits / PR title:** Use [Conventional Commits](https://www.conventionalcommits.org/) on every commit and squash-merge PR title (`feat:`, `fix:`, etc.) — required by release-please on `main`. See `docs/CI_CD_CLEANUP_PLAN.md`.
 
