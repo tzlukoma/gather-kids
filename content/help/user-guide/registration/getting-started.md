@@ -20,7 +20,7 @@ The form heading is **Family Registration Form**. Fields start empty because gat
 
 ![New-family registration form](/help/screenshots/registration-household-form.png)
 
-![Child details during first-time registration](/help/screenshots/registration-child-profile.png)
+![Empty child fields to fill in during first-time registration](/help/screenshots/registration-child-profile.png)
 
 ## Returning families
 

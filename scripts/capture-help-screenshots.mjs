@@ -8,7 +8,7 @@
  * Usage:
  *   npm run help:capture-screenshots
  */
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { config as loadEnv } from 'dotenv';
@@ -275,9 +275,7 @@ async function ensureScreenshotUsers() {
 	);
 }
 
-async function hideDevChrome(page) {
-	await page.addStyleTag({
-		content: `
+const CAPTURE_CHROME_CSS = `
       nextjs-portal { display: none !important; }
       #nc-portal { display: none !important; }
       [data-radix-toast-viewport],
@@ -286,7 +284,28 @@ async function hideDevChrome(page) {
       .tsqd-open-btn-container {
         display: none !important;
       }
-    `,
+      *, *::before, *::after {
+        animation: none !important;
+        animation-duration: 0s !important;
+        animation-delay: 0s !important;
+        transition: none !important;
+        transition-duration: 0s !important;
+        transition-delay: 0s !important;
+      }
+      [data-radix-dialog-overlay] {
+        opacity: 1 !important;
+        background-color: rgb(0 0 0 / 0.8) !important;
+      }
+      [role="dialog"] {
+        opacity: 1 !important;
+        transform: translate(-50%, -50%) !important;
+        background-color: hsl(var(--background)) !important;
+      }
+`;
+
+async function hideDevChrome(page) {
+	await page.addStyleTag({
+		content: CAPTURE_CHROME_CSS,
 	});
 	await page.evaluate(() => {
 		for (const button of document.querySelectorAll('button')) {
@@ -304,6 +323,32 @@ async function hideDevChrome(page) {
 			}
 		}
 	});
+}
+
+async function waitForOpaqueDialog(page, label) {
+	const dialog = page.getByRole('dialog');
+	await waitVisible(page, dialog, label);
+	try {
+		await page.waitForFunction(
+			() => {
+				const el = document.querySelector('[role="dialog"]');
+				if (!el) return false;
+				const state = el.getAttribute('data-state');
+				if (state && state !== 'open') return false;
+				const style = window.getComputedStyle(el);
+				const opacity = Number.parseFloat(style.opacity);
+				const bg = style.backgroundColor;
+				const transparent =
+					bg === 'transparent' ||
+					bg === 'rgba(0, 0, 0, 0)' ||
+					bg === 'rgba(0,0,0,0)';
+				return opacity >= 0.99 && !transparent;
+			},
+			{ timeout: 10000 }
+		);
+	} catch (error) {
+		throw new Error(`${label}: dialog did not become opaque. ${error.message}`);
+	}
 }
 
 async function waitVisible(page, locator, label, timeout = 30000) {
@@ -399,6 +444,21 @@ async function main() {
 	const context = await browser.newContext({
 		viewport: VIEWPORT,
 		baseURL: BASE_URL,
+	});
+	await context.addInitScript(() => {
+		const apply = () => {
+			if (document.getElementById('help-screenshot-motion')) return;
+			const style = document.createElement('style');
+			style.id = 'help-screenshot-motion';
+			style.textContent = `
+        *,*::before,*::after{animation:none!important;transition:none!important}
+        [data-radix-dialog-overlay]{opacity:1!important;background-color:rgb(0 0 0 / 0.8)!important}
+        [role="dialog"]{opacity:1!important;transform:translate(-50%,-50%)!important;background-color:hsl(var(--background))!important}
+      `;
+			(document.head || document.documentElement).appendChild(style);
+		};
+		apply();
+		document.addEventListener('DOMContentLoaded', apply);
 	});
 	const page = await context.newPage();
 	let captured = 0;
@@ -519,6 +579,20 @@ async function main() {
 			page.getByText('First Name').first(),
 			'registration-child-profile first name'
 		);
+		const firstNameInput = page
+			.getByRole('textbox', { name: /first name/i })
+			.first();
+		await waitVisible(
+			page,
+			firstNameInput,
+			'registration-child-profile first name input'
+		);
+		const firstNameValue = await firstNameInput.inputValue();
+		if (firstNameValue.trim()) {
+			throw new Error(
+				`registration-child-profile: expected empty first-time fields, got "${firstNameValue}"`
+			);
+		}
 		await shot(
 			'registration-child-profile.png',
 			'registration-child-profile'
@@ -573,7 +647,45 @@ async function main() {
 		await waitVisible(
 			page,
 			page.getByRole('heading', { name: 'Edit Child' }),
-			'household-edit-child-dialog'
+			'household-edit-child-dialog heading'
+		);
+		await waitForOpaqueDialog(page, 'household-edit-child-dialog');
+		const dialogFirstName = page.locator('#first_name');
+		await waitVisible(
+			page,
+			dialogFirstName,
+			'household-edit-child-dialog first name'
+		);
+		try {
+			await page.waitForFunction(
+				() => /sophia/i.test(document.querySelector('#first_name')?.value || ''),
+				{ timeout: 10000 }
+			);
+		} catch (error) {
+			throw new Error(
+				`household-edit-child-dialog: first name did not fill with Sophia. ${error.message}`
+			);
+		}
+		await hideDevChrome(page);
+		await page.evaluate(() => {
+			const dialog = document.querySelector('[role="dialog"]');
+			if (dialog instanceof HTMLElement) {
+				dialog.style.setProperty('opacity', '1', 'important');
+				dialog.style.setProperty('animation', 'none', 'important');
+				dialog.style.setProperty(
+					'background-color',
+					'hsl(var(--background))',
+					'important'
+				);
+			}
+			const overlay = document.querySelector('[data-radix-dialog-overlay]');
+			if (overlay instanceof HTMLElement) {
+				overlay.style.setProperty('opacity', '1', 'important');
+				overlay.style.setProperty('animation', 'none', 'important');
+			}
+		});
+		await page.evaluate(
+			() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))
 		);
 		await shot(
 			'household-edit-child-dialog.png',
@@ -608,10 +720,13 @@ async function main() {
 
 	await browser.close();
 
+	const pngCount = readdirSync(OUT_DIR).filter((name) =>
+		name.endsWith('.png')
+	).length;
 	const manifest = {
 		capturedAt: new Date().toISOString(),
 		baseUrlHost: new URL(BASE_URL).hostname,
-		count: captured,
+		count: pngCount,
 		synthetic: true,
 	};
 	writeFileSync(

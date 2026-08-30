@@ -9,9 +9,9 @@ Every child in the household has a profile used for ministry placement, check-in
 
 ## During registration
 
-When you first register, each child is a section on the **Family Registration Form**. Expand **Children Information** to enter name, date of birth, grade, and safety notes.
+When you first register, each child is a section on the **Family Registration Form**. Expand **Children Information** and fill in the empty fields (name, date of birth, grade, and safety notes). The screenshot shows those blank fields before you type.
 
-![Child fields on the registration form](/help/screenshots/registration-child-profile.png)
+![Empty child fields on the new-family registration form](/help/screenshots/registration-child-profile.png)
 
 ## After registration (household)
 

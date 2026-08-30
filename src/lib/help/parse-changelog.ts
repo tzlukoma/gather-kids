@@ -1,6 +1,10 @@
+export type ChangelogInline =
+	| { type: 'text'; value: string }
+	| { type: 'link'; href: string; label: string };
+
 export type ChangelogItem = {
 	text: string;
-	html: string;
+	parts: ChangelogInline[];
 };
 
 export type ChangelogRelease = {
@@ -54,12 +58,26 @@ function stripLinksForDedupe(text: string): string {
 		.toLowerCase();
 }
 
+const MARKDOWN_LINK_RE = /\[([^\]]+)\]\((https?:[^)\s]+)\)/g;
+
 function toItem(raw: string): ChangelogItem {
-	const html = raw.replace(
-		/\[([^\]]+)\]\((https?:[^)]+)\)/g,
-		'<a href="$2" class="underline underline-offset-2 hover:text-primary">$1</a>'
-	);
-	return { text: raw, html };
+	const parts: ChangelogInline[] = [];
+	let lastIndex = 0;
+	for (const match of raw.matchAll(MARKDOWN_LINK_RE)) {
+		const index = match.index ?? 0;
+		if (index > lastIndex) {
+			parts.push({ type: 'text', value: raw.slice(lastIndex, index) });
+		}
+		parts.push({ type: 'link', href: match[2], label: match[1] });
+		lastIndex = index + match[0].length;
+	}
+	if (lastIndex < raw.length) {
+		parts.push({ type: 'text', value: raw.slice(lastIndex) });
+	}
+	if (parts.length === 0) {
+		parts.push({ type: 'text', value: raw });
+	}
+	return { text: raw, parts };
 }
 
 /**

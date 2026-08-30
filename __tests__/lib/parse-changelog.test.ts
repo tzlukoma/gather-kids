@@ -54,4 +54,26 @@ describe('parseChangelog', () => {
 		);
 		expect(returning).toHaveLength(1);
 	});
+
+	it('keeps changelog text as text and only treats markdown links as links', () => {
+		const poisoned = parseChangelog(`# Changelog
+
+## [1.0.0](https://example.com/compare/v0.0.0...v1.0.0) (2026-01-01)
+
+### Features
+
+* **register:** hello <script>alert(1)</script> ([#1](https://example.com/issues/1))
+`);
+		const item = poisoned[0].features[0];
+		expect(item.parts.some((part) => part.type === 'text' && part.value.includes('<script>'))).toBe(
+			true
+		);
+		expect(item.parts.filter((part) => part.type === 'link')).toEqual([
+			{
+				type: 'link',
+				href: 'https://example.com/issues/1',
+				label: '#1',
+			},
+		]);
+	});
 });

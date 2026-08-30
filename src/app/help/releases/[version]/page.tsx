@@ -1,7 +1,11 @@
 import Link from 'next/link';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { getChangelogRelease, getChangelogReleases } from '@/lib/help/load-changelog';
+import {
+	getChangelogRelease,
+	getChangelogReleases,
+} from '@/lib/help/load-changelog';
+import type { ChangelogItem } from '@/lib/help/parse-changelog';
 
 export const dynamic = 'force-static';
 
@@ -32,7 +36,7 @@ function ItemList({
 	items,
 }: {
 	title: string;
-	items: { text: string; html: string }[];
+	items: ChangelogItem[];
 }) {
 	if (items.length === 0) return null;
 	return (
@@ -40,11 +44,21 @@ function ItemList({
 			<h2 className="font-headline text-2xl font-semibold">{title}</h2>
 			<ul className="list-disc space-y-2 pl-6">
 				{items.map((item) => (
-					<li
-						key={item.text}
-						className="leading-7"
-						dangerouslySetInnerHTML={{ __html: item.html }}
-					/>
+					<li key={item.text} className="leading-7">
+						{item.parts.map((part, index) =>
+							part.type === 'link' ? (
+								<a
+									key={`${part.href}-${index}`}
+									href={part.href}
+									className="underline underline-offset-2 hover:text-primary"
+									rel="noopener noreferrer">
+									{part.label}
+								</a>
+							) : (
+								<span key={index}>{part.value}</span>
+							)
+						)}
+					</li>
 				))}
 			</ul>
 		</section>
