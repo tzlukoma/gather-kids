@@ -1,5 +1,6 @@
 export const queryKeys = {
   children: () => ['children'] as const,
+  childrenForActiveCycle: () => ['children', 'activeCycle'] as const,
   child: (id: string) => ['child', id] as const,
   checkedInChildren: (date: string) => ['checkedInChildren', date] as const,
   households: () => ['households'] as const,

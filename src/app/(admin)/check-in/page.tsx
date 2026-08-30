@@ -18,7 +18,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { useSearchParams } from 'next/navigation';
 import { Users, Filter, Edit } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { useChildren, useAttendance } from '@/hooks/data';
+import { useChildrenForActiveCycle, useAttendance } from '@/hooks/data';
 import { CardGridSkeleton } from '@/components/skeletons/CardGridSkeleton';
 import { getTodayIsoDate } from '@/lib/dal';
 import type { Attendance } from '@/lib/types';
@@ -123,7 +123,7 @@ function CheckInContent() {
 	const today = getTodayIsoDate();
 
 	// Use React Query hooks for data fetching
-	const { data: children = EMPTY_CHILDREN, isLoading: childrenLoading } = useChildren();
+	const { data: children = EMPTY_CHILDREN, isLoading: childrenLoading } = useChildrenForActiveCycle();
 	const { data: todaysAttendance = EMPTY_ATTENDANCE, isLoading: attendanceLoading } =
 		useAttendance(today);
 

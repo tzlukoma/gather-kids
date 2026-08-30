@@ -1,7 +1,17 @@
 'use client';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getAllChildren, getChild, getCheckedInChildren, updateChildPhoto, addChild, updateChild, softDeleteChild, reactivateChild } from '@/lib/dal';
+import {
+  getAllChildren,
+  getChildrenForActiveCycle,
+  getChild,
+  getCheckedInChildren,
+  updateChildPhoto,
+  addChild,
+  updateChild,
+  softDeleteChild,
+  reactivateChild,
+} from '@/lib/dal';
 import { queryKeys } from './keys';
 import { cacheConfig } from './config';
 import type { Child } from '@/lib/types';
@@ -10,6 +20,15 @@ export function useChildren() {
   return useQuery({
     queryKey: queryKeys.children(),
     queryFn: getAllChildren,
+    ...cacheConfig.moderate,
+  });
+}
+
+/** Active children in the current registration cycle (union scope). */
+export function useChildrenForActiveCycle() {
+  return useQuery({
+    queryKey: queryKeys.childrenForActiveCycle(),
+    queryFn: () => getChildrenForActiveCycle('union'),
     ...cacheConfig.moderate,
   });
 }

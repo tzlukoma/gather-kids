@@ -34,6 +34,7 @@ import {
 	useIncidentsForUser,
 	useAcknowledgeIncident,
 } from '@/hooks/data/attendance';
+import { useChildrenForActiveCycle } from '@/hooks/data';
 
 export default function IncidentsPage() {
 	const { toast } = useToast();
@@ -41,6 +42,7 @@ export default function IncidentsPage() {
 	const searchParams = useSearchParams();
 	const [activeTab, setActiveTab] = useState('log');
 	const [showPendingOnly, setShowPendingOnly] = useState(false);
+	const [showAllCycles, setShowAllCycles] = useState(false);
 
 	// React Query hooks for data fetching
 	const {
@@ -48,7 +50,13 @@ export default function IncidentsPage() {
 		isLoading: loading,
 		error,
 	} = useIncidentsForUser(user);
+	const { data: cycleChildren = [] } = useChildrenForActiveCycle();
 	const acknowledgeMutation = useAcknowledgeIncident();
+
+	const cycleChildIds = useMemo(
+		() => new Set(cycleChildren.map((child) => child.child_id)),
+		[cycleChildren],
+	);
 
 	useEffect(() => {
 		const tabParam = searchParams.get('tab');
@@ -63,11 +71,17 @@ export default function IncidentsPage() {
 
 	const displayedIncidents = useMemo(() => {
 		if (loading) return [];
-		if (showPendingOnly) {
-			return incidents.filter((incident) => !incident.admin_acknowledged_at);
+		let filtered = incidents;
+		if (!showAllCycles) {
+			filtered = filtered.filter((incident) =>
+				cycleChildIds.has(incident.child_id),
+			);
 		}
-		return incidents;
-	}, [incidents, showPendingOnly, loading]);
+		if (showPendingOnly) {
+			filtered = filtered.filter((incident) => !incident.admin_acknowledged_at);
+		}
+		return filtered;
+	}, [incidents, showPendingOnly, showAllCycles, cycleChildIds, loading]);
 
 	const handleAcknowledge = async (incidentId: string) => {
 		try {
@@ -229,16 +243,32 @@ export default function IncidentsPage() {
 										Incident History
 									</CardTitle>
 									<CardDescription>
-										A log of all past incidents.
+										{showAllCycles
+											? 'A log of all past incidents.'
+											: 'Incidents for children in the active registration cycle.'}
 									</CardDescription>
 								</div>
-								<div className="flex items-center space-x-2">
-									<Checkbox
-										id="show-pending"
-										checked={showPendingOnly}
-										onCheckedChange={(checked) => setShowPendingOnly(!!checked)}
-									/>
-									<Label htmlFor="show-pending">Show pending only</Label>
+								<div className="flex flex-col items-end gap-2 sm:flex-row sm:items-center sm:space-x-4">
+									<div className="flex items-center space-x-2">
+										<Checkbox
+											id="show-all-cycles"
+											checked={showAllCycles}
+											onCheckedChange={(checked) =>
+												setShowAllCycles(!!checked)
+											}
+										/>
+										<Label htmlFor="show-all-cycles">All cycles</Label>
+									</div>
+									<div className="flex items-center space-x-2">
+										<Checkbox
+											id="show-pending"
+											checked={showPendingOnly}
+											onCheckedChange={(checked) =>
+												setShowPendingOnly(!!checked)
+											}
+										/>
+										<Label htmlFor="show-pending">Show pending only</Label>
+									</div>
 								</div>
 							</div>
 						</CardHeader>

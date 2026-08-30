@@ -32,11 +32,21 @@ import { registerHousehold }    from '@/lib/dal/registration';
 | `bible-bee.ts` | Bible Bee years/cycles, divisions, scriptures, essay prompts, enrollments, progress |
 | `branding.ts` | Branding settings, entity avatars, user profile management |
 | `dashboard.ts` | Dashboard aggregated metrics, user management |
+| `cycle-scoping.ts` | Active-cycle child/household inclusion for staff UI (#250) |
 | `exports.ts` | CSV exports (roster, attendance rollup), scripture CSV/JSON upload |
 | `registration.ts` | Full household registration transaction |
 | `index.ts` | Barrel re-export of all modules above |
 
-## Adapter interface
+### Active cycle scoping (staff UI)
+
+Operational lists (check-in, rosters default, registrations admin default, dashboard
+registration counts) use helpers in `cycle-scoping.ts`:
+
+- Default inclusion: **`registrations` ∪ enrolled `ministry_enrollments`** for the active cycle
+- Resolver: `requireActiveRegistrationCycle()` — never hardcode year strings
+- Guardian R1 routing remains **registrations-only** (`householdHasActiveCycleRegistration`)
+
+See `docs/ACTIVE_CYCLE_SCOPING_PLAN.md`.
 
 Every domain module delegates exclusively to the Supabase adapter:
 

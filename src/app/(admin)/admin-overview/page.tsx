@@ -33,7 +33,11 @@ import { CardGridSkeleton } from '@/components/skeletons/CardGridSkeleton';
 
 // Module-level constants to avoid new references on every render (PERF-13)
 const EMPTY_INCIDENTS: import('@/lib/types').Incident[] = [];
-const DEFAULT_REGISTRATION_STATS = { householdCount: 0, childCount: 0 };
+const DEFAULT_REGISTRATION_STATS = {
+	householdCount: 0,
+	childCount: 0,
+	cycleName: undefined as string | undefined,
+};
 
 export default function DashboardPage() {
 	const { user, loading } = useAuth();
@@ -128,7 +132,10 @@ export default function DashboardPage() {
 					<Card className="hover:bg-muted/50 transition-colors">
 						<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
 							<CardTitle className="text-sm font-medium">
-								Registrations (2025)
+								Registrations
+								{registrationStats.cycleName
+									? ` (${registrationStats.cycleName})`
+									: ''}
 							</CardTitle>
 							<Home className="h-4 w-4 text-muted-foreground" />
 						</CardHeader>

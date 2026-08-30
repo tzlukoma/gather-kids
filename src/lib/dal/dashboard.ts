@@ -7,31 +7,29 @@
  * removal in Wave 3 (issue #191).
  */
 
-import { db as dbAdapter } from '../database/factory';
+import { getActiveCycleRegistrationStats } from './cycle-scoping';
 
 // ---------------------------------------------------------------------------
 // Dashboard metrics
 // ---------------------------------------------------------------------------
 
 /**
- * Get registration statistics (household and child counts).
+ * Get registration statistics for the active registration cycle
+ * (household and child counts via registrations ∪ enrolled enrollments).
  */
 export async function getRegistrationStats(): Promise<{
     householdCount: number;
     childCount: number;
+    cycleId?: string;
+    cycleName?: string;
 }> {
     try {
-        const children = await dbAdapter.listChildren();
-        const households = await dbAdapter.listHouseholds();
-
-        const activeChildren = children.filter(c => c.is_active !== false);
-        const activeHouseholds = households.filter(h =>
-            activeChildren.some(c => c.household_id === h.household_id),
-        );
-
+        const stats = await getActiveCycleRegistrationStats('union');
         return {
-            householdCount: activeHouseholds.length,
-            childCount: activeChildren.length,
+            householdCount: stats.householdCount,
+            childCount: stats.childCount,
+            cycleId: stats.cycleId,
+            cycleName: stats.cycleName,
         };
     } catch (error) {
         console.warn('Error fetching registration stats:', error);

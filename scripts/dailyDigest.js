@@ -217,9 +217,40 @@ async function updateCheckpoint(timestamp) {
 	}
 }
 
-// Query new ministry enrollments since last checkpoint
+// Query active registration cycle (most recently updated when multiple are flagged active)
+async function getActiveRegistrationCycleId() {
+	const { data, error } = await supabase
+		.from('registration_cycles')
+		.select('cycle_id, name, is_active, updated_at')
+		.eq('is_active', true)
+		.order('updated_at', { ascending: false })
+		.limit(1);
+
+	if (error) {
+		console.error('Error resolving active registration cycle:', error);
+		throw error;
+	}
+
+	const cycle = data?.[0];
+	if (!cycle?.cycle_id) {
+		console.warn('No active registration cycle found for digest');
+		return null;
+	}
+
+	console.log(
+		`Using active registration cycle for digest: ${cycle.name} (${cycle.cycle_id})`,
+	);
+	return cycle.cycle_id;
+}
+
+// Query new ministry enrollments since last checkpoint (active cycle only)
 async function getNewEnrollments(since) {
 	console.log(`Querying enrollments since: ${since.toISOString()}`);
+
+	const activeCycleId = await getActiveRegistrationCycleId();
+	if (!activeCycleId) {
+		return [];
+	}
 
 	const { data, error } = await supabase
 		.from('ministry_enrollments')
@@ -258,6 +289,7 @@ async function getNewEnrollments(since) {
 			)
 		`
 		)
+		.eq('cycle_id', activeCycleId)
 		.gte('created_at', since.toISOString())
 		.lte('created_at', new Date().toISOString())
 		.order('created_at', { ascending: true });

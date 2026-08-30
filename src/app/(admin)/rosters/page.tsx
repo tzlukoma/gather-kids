@@ -29,8 +29,8 @@ import {
 	getChildrenForLeader,
 	getMinistries,
 	getMinistryEnrollmentsByCycle,
+	getCurrentRegistrationCycle,
 } from '@/lib/dal';
-import { dbAdapter } from '@/lib/db-utils';
 import { useMemo } from 'react';
 import type {
 	Child,
@@ -80,7 +80,7 @@ import { ChildCard } from '@/components/gatherKids/child-card';
 import { IncidentDetailsDialog } from '@/components/gatherKids/incident-details-dialog';
 import { canUpdateChildPhoto } from '@/lib/permissions';
 import {
-	useChildren,
+	useChildrenForActiveCycle,
 	useHouseholds,
 	useGuardians,
 	useAttendance,
@@ -166,7 +166,10 @@ export default function RostersPage() {
 		useState<Child | null>(null);
 
 	// React Query hooks for data loading
-	const { data: allChildren = EMPTY_CHILDREN, isLoading: childrenLoading } = useChildren();
+	const {
+		data: cycleChildren = EMPTY_CHILDREN,
+		isLoading: childrenLoading,
+	} = useChildrenForActiveCycle();
 	const { data: allGuardians = EMPTY_GUARDIANS, isLoading: guardiansLoading } =
 		useGuardians();
 	const { data: allHouseholds = EMPTY_HOUSEHOLDS, isLoading: householdsLoading } =
@@ -188,6 +191,12 @@ export default function RostersPage() {
 	const [dataLoading, setDataLoading] = useState(true);
 	const [leaderMinistryId, setLeaderMinistryId] = useState<string | null>(null);
 	const [noMinistryAssigned, setNoMinistryAssigned] = useState(false);
+	const [leaderScopedChildren, setLeaderScopedChildren] = useState<Child[] | null>(
+		null,
+	);
+	const [activeCycleName, setActiveCycleName] = useState<string | null>(null);
+
+	const allChildren = leaderScopedChildren ?? cycleChildren;
 
 	// Load ministry-specific data
 	useEffect(() => {
@@ -197,24 +206,22 @@ export default function RostersPage() {
 			try {
 				setDataLoading(true);
 
-				// Start fetching ministries and registration cycles in parallel
-				const [cycles, ministries] = await Promise.all([
-					dbAdapter.listRegistrationCycles(),
+				const [activeCycle, ministries] = await Promise.all([
+					getCurrentRegistrationCycle(),
 					getMinistries(true), // Only get active ministries
 				]);
 
-				const activeCycle = cycles.find(
-					(cycle) => cycle.is_active === true || Number(cycle.is_active) === 1
-				);
-
 				if (!activeCycle) {
 					console.warn('⚠️ RostersPage: No active registration cycle found');
+					setLeaderScopedChildren(null);
+					setActiveCycleName(null);
 					return;
 				}
 
+				setActiveCycleName(activeCycle.name);
 				console.log('🔍 RostersPage: Using active cycle', activeCycle.cycle_id);
 
-				// Set ministry leader info
+				// Set ministry leader info and cycle-scoped leader child list
 				if (
 					user?.metadata?.role === AuthRole.MINISTRY_LEADER &&
 					user.assignedMinistryIds &&
@@ -226,6 +233,11 @@ export default function RostersPage() {
 					);
 					setLeaderMinistryId(user.assignedMinistryIds[0]);
 					setNoMinistryAssigned(false);
+					const leaderChildren = await getChildrenForLeader(
+						user.assignedMinistryIds,
+						activeCycle.cycle_id,
+					);
+					setLeaderScopedChildren(leaderChildren);
 				} else if (user?.metadata?.role === AuthRole.MINISTRY_LEADER) {
 					console.warn(
 						'⚠️ RostersPage: Ministry leader has no assigned ministries',
@@ -233,6 +245,9 @@ export default function RostersPage() {
 					);
 					setLeaderMinistryId(null);
 					setNoMinistryAssigned(true);
+					setLeaderScopedChildren([]);
+				} else {
+					setLeaderScopedChildren(null);
 				}
 
 				// Load enrollments that depend on the active cycle
@@ -935,7 +950,9 @@ export default function RostersPage() {
 								<div>
 									<CardTitle className="font-headline">All Children</CardTitle>
 									<CardDescription>
-										A complete list of all children registered.
+										A complete list of children in the active registration
+										cycle
+										{activeCycleName ? ` (${activeCycleName})` : ''}.
 									</CardDescription>
 								</div>
 								<Button variant="outline" onClick={handleExport}>
