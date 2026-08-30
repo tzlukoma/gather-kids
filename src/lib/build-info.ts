@@ -1,4 +1,5 @@
 import packageJson from '../../package.json';
+import generatedBuildInfo from '../generated/build-info.json';
 
 export type BuildInfo = {
   appVersion: string;
@@ -8,20 +9,37 @@ export type BuildInfo = {
   builtAt: string;
 };
 
+/** Ignore empty env vars (Vercel sometimes sets these to blank strings). */
+function envValue(value: string | undefined): string | undefined {
+  if (value === undefined || value.trim() === '') return undefined;
+  return value;
+}
+
+/**
+ * Build metadata captured at `prebuild` time (see scripts/inject-build-info.mjs).
+ * Prefer this snapshot over runtime env so /api/version reflects the deploy that was built.
+ */
 export const buildInfo: BuildInfo = {
   appVersion:
-    process.env.NEXT_PUBLIC_APP_VERSION ?? packageJson.version,
+    generatedBuildInfo.appVersion ||
+    envValue(process.env.NEXT_PUBLIC_APP_VERSION) ||
+    packageJson.version,
   gitSha: (
-    process.env.NEXT_PUBLIC_GIT_SHA ??
-    process.env.VERCEL_GIT_COMMIT_SHA ??
+    generatedBuildInfo.gitSha ||
+    envValue(process.env.NEXT_PUBLIC_GIT_SHA) ||
+    envValue(process.env.VERCEL_GIT_COMMIT_SHA) ||
     'local'
   ).slice(0, 7),
-  gitRef: process.env.VERCEL_GIT_COMMIT_REF ?? 'local',
+  gitRef:
+    generatedBuildInfo.gitRef ||
+    envValue(process.env.VERCEL_GIT_COMMIT_REF) ||
+    'local',
   deployEnv:
-    process.env.NEXT_PUBLIC_DEPLOY_ENV ??
-    process.env.VERCEL_ENV ??
+    generatedBuildInfo.deployEnv ||
+    envValue(process.env.NEXT_PUBLIC_DEPLOY_ENV) ||
+    envValue(process.env.VERCEL_ENV) ||
     'development',
-  builtAt: process.env.NEXT_PUBLIC_BUILD_TIME ?? '',
+  builtAt: generatedBuildInfo.builtAt || envValue(process.env.NEXT_PUBLIC_BUILD_TIME) || '',
 };
 
 export function parseSupabaseProjectRef(url?: string): string | null {

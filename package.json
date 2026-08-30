@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "next dev --turbopack -p 9002",
+    "dev": "node scripts/inject-build-info.mjs && next dev --turbopack -p 9002",
     "dev:seeded": "npm run seed:dev && npm run dev",
     "dev:uat": "./scripts/dev/dev-uat.sh",
     "genkit:dev": "genkit start -- tsx src/ai/dev.ts",
@@ -14,7 +14,7 @@
     "start": "next start",
     "lint": "next lint",
     "lint:colors": "./scripts/lint-colors.sh",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "node scripts/inject-build-info.mjs && tsc --noEmit",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:email": "playwright test --config=playwright-email.config.ts",

@@ -1,7 +1,9 @@
 # local CI manifest (secrets — do not commit manifest.json)
 .ci-local/*
 !.ci-local/manifest.example.json
-src/generated/
+# generated at prebuild — commit placeholder; Vercel overwrites on each build
+src/generated/*
+!src/generated/build-info.json
 
 # dependencies
 /node_modules
