@@ -69,8 +69,12 @@ Config: [`commitlint.config.js`](../commitlint.config.js)
 
 ## Cursor / AI agents
 
-Project rule: [`.cursor/rules/conventional-commits.mdc`](../.cursor/rules/conventional-commits.mdc) (`alwaysApply: true`)
+Canonical contract: [`AGENTS.md`](../AGENTS.md). Procedures: [`.agents/skills/`](../.agents/skills/). Human inbox: [`docs/AGENT_WORKFLOW.md`](./AGENT_WORKFLOW.md).
+
+Project rule for commits: [`.cursor/rules/conventional-commits.mdc`](../.cursor/rules/conventional-commits.mdc) (`alwaysApply: true`). Cursor also loads [`.cursor/rules/agent-contract.mdc`](../.cursor/rules/agent-contract.mdc), which points at `AGENTS.md`.
+
+Do not copy the operating contract into tool-specific files. Claude: [`CLAUDE.md`](../CLAUDE.md). Copilot: [`.github/copilot-instructions.md`](../.github/copilot-instructions.md).
 
 ## Code conventions (registration / DAL)
 
-For registration and data-layer work, also follow the PR checklist in [`.github/PULL_REQUEST_TEMPLATE.md`](../.github/PULL_REQUEST_TEMPLATE.md) and [`.github/copilot-instructions.md`](../.github/copilot-instructions.md).
+For registration and data-layer work, also follow the PR checklist in [`.github/PULL_REQUEST_TEMPLATE.md`](../.github/PULL_REQUEST_TEMPLATE.md).

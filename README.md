@@ -79,7 +79,7 @@ NEXT_PUBLIC_DATABASE_MODE=demo
 
 #### Full Supabase Development Setup
 
-For development with live Supabase integration, see the comprehensive **[DATABASE_ENV_SETUP_GUIDE.md](./DATABASE_ENV_SETUP_GUIDE.md)** which covers:
+For development with live Supabase integration, see the comprehensive **[DATABASE_ENV_SETUP_GUIDE.md](./docs/DATABASE_ENV_SETUP_GUIDE.md)** which covers:
 
 - Setting up separate Supabase projects for UAT and production
 - Configuring GitHub Actions environments and secrets
@@ -342,7 +342,7 @@ NEXT_PUBLIC_DATABASE_MODE=demo npm run dev
 NEXT_PUBLIC_DATABASE_MODE=supabase npm run dev
 ```
 
-For detailed Supabase setup instructions, see **[DATABASE_ENV_SETUP_GUIDE.md](./DATABASE_ENV_SETUP_GUIDE.md)**.
+For detailed Supabase setup instructions, see **[DATABASE_ENV_SETUP_GUIDE.md](./docs/DATABASE_ENV_SETUP_GUIDE.md)**.
 
 ### 3. Component Guidelines
 
@@ -391,7 +391,7 @@ gatherKids uses a multi-environment deployment strategy with strong isolation be
    Access at `http://localhost:9002`
 
 2. **Full Supabase Development**:
-   - Follow **[DATABASE_ENV_SETUP_GUIDE.md](./DATABASE_ENV_SETUP_GUIDE.md)**
+   - Follow **[DATABASE_ENV_SETUP_GUIDE.md](./docs/DATABASE_ENV_SETUP_GUIDE.md)**
    - Configure `.env.local` with Supabase credentials
    - Run `npm run gen:types` to generate TypeScript types
 
@@ -450,7 +450,7 @@ SUPABASE_SERVICE_ROLE_KEY=<prod-service-role-key>
 NEXT_PUBLIC_SITE_URL=https://your-production-domain.com
 ```
 
-For complete setup instructions including Supabase project creation, GitHub environment configuration, and Vercel deployment settings, see **[DATABASE_ENV_SETUP_GUIDE.md](./DATABASE_ENV_SETUP_GUIDE.md)**.
+For complete setup instructions including Supabase project creation, GitHub environment configuration, and Vercel deployment settings, see **[DATABASE_ENV_SETUP_GUIDE.md](./docs/DATABASE_ENV_SETUP_GUIDE.md)**.
 
 ## CI, Pull Requests & Deployments
 
@@ -556,11 +556,15 @@ The application underwent a comprehensive audit in March 2026. Key documents:
 
 ## 🤝 Contributing
 
-1. Fork the repository
+Humans: [`docs/CONTRIBUTING.md`](./docs/CONTRIBUTING.md) (conventional commits, trunk-based `main`).
+
+Coding agents: [`AGENTS.md`](./AGENTS.md) is the operating contract. Thomas’s GitHub inbox and notification setup: [`docs/AGENT_WORKFLOW.md`](./docs/AGENT_WORKFLOW.md).
+
+1. Fork the repository (or work on a branch in this repo)
 2. Create a feature branch
 3. Make your changes
 4. Ensure all tests pass
-5. Submit a pull request
+5. Submit a **draft** pull request for review (agents must not merge)
 
 ## 📚 Additional Resources
 
@@ -573,9 +577,12 @@ The application underwent a comprehensive audit in March 2026. Key documents:
 
 ### Developer Documentation
 
-- **FEATURES.md**: Comprehensive feature documentation
-- **SUPABASE_IMPLEMENTATION_PLAN.md**: Detailed Supabase integration plan
-- **docs/blueprint.md**: Application blueprint and requirements
+- **[AGENTS.md](./AGENTS.md)**: Tool-neutral contract for coding agents
+- **[docs/AGENT_WORKFLOW.md](./docs/AGENT_WORKFLOW.md)**: GitHub inbox for blocked agents and draft PRs
+- **[docs/PRODUCT_SPEC.md](./docs/PRODUCT_SPEC.md)**: Canonical product description (prefer this over older feature lists)
+- **[docs/CI_CD.md](./docs/CI_CD.md)**: Environments, CI, and deploy authority
+- **[docs/CONTRIBUTING.md](./docs/CONTRIBUTING.md)**: Conventional commits and branching
+- Historical notes (may conflict with production): `docs/FEATURES.md`, `docs/blueprint.md`
 
 ### External Resources
 
