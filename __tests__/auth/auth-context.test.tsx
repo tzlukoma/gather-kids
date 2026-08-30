@@ -20,6 +20,9 @@ jest.mock('@/lib/supabaseClient', () => ({
 
 jest.mock('@/lib/offline-supabase', () => ({
 	isOfflineSupabase: jest.fn(() => false),
+	persistOfflineSessionUser: jest.fn(),
+	readOfflineSessionUser: jest.fn(() => null),
+	clearOfflineSessionUser: jest.fn(),
 }));
 
 // Mock DB adapter

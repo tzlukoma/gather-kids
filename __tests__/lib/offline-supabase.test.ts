@@ -1,8 +1,11 @@
 import { AuthRole } from '@/lib/auth-types';
 import {
+	clearOfflineSessionUser,
 	createOfflineSessionUser,
 	isOfflineSupabase,
 	isTestAuthApiEnabled,
+	persistOfflineSessionUser,
+	readOfflineSessionUser,
 } from '@/lib/offline-supabase';
 
 describe('offline supabase helpers', () => {
@@ -38,5 +41,16 @@ describe('offline supabase helpers', () => {
 			is_active: true,
 			metadata: { role: AuthRole.GUEST },
 		});
+	});
+
+	it('round-trips a dummy session through sessionStorage', () => {
+		const user = {
+			...createOfflineSessionUser('parent@example.com'),
+			assignedMinistryIds: [],
+		};
+		persistOfflineSessionUser(user);
+		expect(readOfflineSessionUser()).toEqual(user);
+		clearOfflineSessionUser();
+		expect(readOfflineSessionUser()).toBeNull();
 	});
 });

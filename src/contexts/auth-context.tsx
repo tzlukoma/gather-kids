@@ -12,7 +12,12 @@ import { db as dbAdapter } from '@/lib/database/factory';
 import { AuthRole, BaseUser } from '@/lib/auth-types';
 import { ProtectedRoute } from '@/components/auth/protected-route';
 import { supabase } from '@/lib/supabaseClient';
-import { isOfflineSupabase } from '@/lib/offline-supabase';
+import {
+	clearOfflineSessionUser,
+	isOfflineSupabase,
+	persistOfflineSessionUser,
+	readOfflineSessionUser,
+} from '@/lib/offline-supabase';
 import { devLog } from '@/lib/dev-log';
 
 const authLog = devLog('auth');
@@ -186,7 +191,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 	useEffect(() => {
 		if (isOfflineSupabase()) {
-			authLog.log('Skipping Supabase auth init (dummy mode)');
+			authLog.log('Restoring dummy session from sessionStorage');
+			const stored = readOfflineSessionUser();
+			if (stored) {
+				setUser(stored);
+				setUserRole(stored.metadata?.role ?? null);
+			}
 			setLoading(false);
 			return;
 		}
@@ -312,6 +322,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 			setUser(finalUser);
 			setUserRole(finalUser.metadata?.role ?? userRole);
+			if (isOfflineSupabase()) {
+				persistOfflineSessionUser(finalUser);
+			}
 
 			// For users who already have a role, check ministry access asynchronously
 			if (
@@ -341,6 +354,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 		try {
 			setUser(null);
 			setUserRole(null);
+			clearOfflineSessionUser();
 			// Sign out from Supabase
 			supabase.auth.signOut();
 		} finally {

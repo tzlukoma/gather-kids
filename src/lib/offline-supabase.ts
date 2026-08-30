@@ -19,6 +19,8 @@ export function isTestAuthApiEnabled(): boolean {
 	return isOfflineSupabase() && isMailhogTestMode();
 }
 
+const OFFLINE_SESSION_KEY = 'gk-offline-session-user';
+
 /** In-memory guest used by dummy magic-link and password e2e auth. */
 export function createOfflineSessionUser(
 	email: string
@@ -32,4 +34,25 @@ export function createOfflineSessionUser(
 			role: AuthRole.GUEST,
 		},
 	};
+}
+
+export function persistOfflineSessionUser(user: BaseUser): void {
+	if (typeof window === 'undefined') return;
+	sessionStorage.setItem(OFFLINE_SESSION_KEY, JSON.stringify(user));
+}
+
+export function readOfflineSessionUser(): BaseUser | null {
+	if (typeof window === 'undefined') return null;
+	const raw = sessionStorage.getItem(OFFLINE_SESSION_KEY);
+	if (!raw) return null;
+	try {
+		return JSON.parse(raw) as BaseUser;
+	} catch {
+		return null;
+	}
+}
+
+export function clearOfflineSessionUser(): void {
+	if (typeof window === 'undefined') return;
+	sessionStorage.removeItem(OFFLINE_SESSION_KEY);
 }
