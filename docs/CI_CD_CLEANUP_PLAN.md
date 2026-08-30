@@ -69,7 +69,7 @@ feature/* ──PR──► main  ◄── release-please Release PR (semver ta
                     └── workflow_dispatch prod-db-deploy (GitHub env: production)
 
 footer tooltip on any deploy: app v1.8.0 · uat|production · db migration
-ops/*.yml — scheduled / manual only (digest, keepalive, backup)
+scheduled / manual ops workflows (digest, keepalive, backup, …)
 ```
 
 | Name | What it is | What it is **not** |
@@ -147,9 +147,9 @@ Persistent repo rules (already in tree — wire CI to match):
 | `uat-migration-dryrun.yml` | PR to `uat` | **Merge into** PR CI or UAT dispatch dry-run step |
 | `e2e-email-tests.yml` | MailHog + dummy Supabase | **Keep**; rename `e2e-email.yml` |
 | `uat-seed.yml` | Destructive seed | **Guard** with confirm input |
-| `daily-digest.yml` | Scheduled | Move to `ops/`; remove secret logging |
-| `supabase-keepalive*.yml` | Scheduled | Move to `ops/` |
-| `db-backup.yml`, reports, etc. | Ops | Move to `ops/` |
+| `daily-digest.yml` | Scheduled | Top-level under `.github/workflows/`; remove secret logging |
+| `supabase-keepalive*.yml` | Scheduled | Top-level under `.github/workflows/` |
+| `db-backup.yml`, reports, etc. | Ops | Top-level under `.github/workflows/` |
 | `add-pr-to-project`, `close-issue-*` | Automation | Keep as-is |
 
 ---
@@ -907,16 +907,18 @@ For `admin` only on public pages: render badge only when `useAuth()` role is ADM
 
 ## Phase 6 — Ops separation + hygiene (Agent)
 
-**Move/rename** (keep `on:` schedules identical):
+**Keep at top level** under `.github/workflows/` (GitHub Actions does **not** register workflows in subfolders — an `ops/` subdirectory silently disables them):
 
 ```
-.github/workflows/ops/daily-digest.yml
-.github/workflows/ops/supabase-keepalive.yml
-.github/workflows/ops/supabase-keepalive-uat.yml
-.github/workflows/ops/db-backup.yml
-.github/workflows/ops/ministry-enrollment-report.yml
-.github/workflows/ops/check-auth-users.yml
+.github/workflows/daily-digest.yml
+.github/workflows/supabase-keepalive.yml
+.github/workflows/supabase-keepalive-uat.yml
+.github/workflows/db-backup.yml
+.github/workflows/ministry-enrollment-report.yml
+.github/workflows/check-auth-users.yml
 ```
+
+> **Correction (Aug 2026):** Phase 6 originally moved these into `ops/`; they were moved back when Daily Digest disappeared from the Actions tab. Do not reintroduce an `ops/` subfolder.
 
 **Guard `uat-seed.yml`:**
 
@@ -936,7 +938,7 @@ Full reset only if `confirm == 'RESET'`.
 
 **Dependabot:** No change (keep weekly; ignore major per PRODUCT_SPEC).
 
-**Acceptance:** `ls .github/workflows/*.yml` shows ≤6 top-level workflows; ops live under `ops/`.
+**Acceptance:** Ops workflows are registered in GitHub Actions (visible under the Actions tab); digest does not log secrets.
 
 ---
 
@@ -990,7 +992,7 @@ npm run lint && npm run typecheck && npm test
 - [ ] No manual `package.json` version bumps
 - [ ] **`GET /api/version`** returns app + git + deployEnv + Supabase ref + DB ledger state
 - [ ] **Footer badge + tooltip** on admin layout (and public if configured)
-- [ ] Ops workflows under `ops/`; digest does not log secrets
+- [ ] Ops workflows at `.github/workflows/*.yml` (top level, not `ops/`); digest does not log secrets
 - [ ] `uat-seed` full reset requires typing `RESET`
 - [ ] `docs/CI_CD.md` exists (includes version troubleshooting table)
 - [ ] Branch protection enabled on **`main`** only
@@ -1032,7 +1034,7 @@ npm run lint && npm run typecheck && npm test
 | `.github/workflows/uat-db-deploy.yml` | Create |
 | `.github/workflows/prod-db-deploy.yml` | Create |
 | `.github/workflows/e2e-smoke.yml` | Create |
-| `.github/workflows/ops/*.yml` | Move/rename |
+| `.github/workflows/daily-digest.yml` (and other ops workflows) | Top-level — do not use `ops/` subfolder |
 | `.github/workflows/ci-db-fk-check.yml` | Delete |
 | `.github/workflows/uat-deploy.yml` | Delete |
 | `.github/workflows/generate-types.yml` | Delete or disable |

@@ -24,7 +24,7 @@ feature/* ──PR──► main  ◄── release-please Release PR (semver ta
                     └── workflow_dispatch prod-db-deploy (GitHub env: production)
 
 footer tooltip (admin): app vX.Y.Z · uat|production · db migration
-ops/*.yml — scheduled / manual only
+scheduled / manual ops workflows (digest, keepalive, backup, …)
 ```
 
 | Name | What it is |
@@ -180,16 +180,18 @@ git add src/lib/database/supabase-types.ts
 
 ---
 
-## Ops workflows (`.github/workflows/ops/`)
+## Ops workflows (scheduled / manual)
+
+GitHub Actions only registers workflow files **directly** under [`.github/workflows/`](../.github/workflows/) — not in subfolders. These ops workflows live at the top level alongside `ci.yml`:
 
 | Workflow | Purpose |
 |----------|---------|
-| `daily-digest.yml` | Scheduled + manual digest emails |
-| `supabase-keepalive.yml` | Prod Supabase keepalive |
-| `supabase-keepalive-uat.yml` | UAT keepalive |
-| `db-backup.yml` | DB backup |
-| `ministry-enrollment-report.yml` | Enrollment reporting |
-| `check-auth-users.yml` | Auth user audit |
+| [`daily-digest.yml`](../.github/workflows/daily-digest.yml) | Scheduled + manual digest emails |
+| [`supabase-keepalive.yml`](../.github/workflows/supabase-keepalive.yml) | Prod Supabase keepalive |
+| [`supabase-keepalive-uat.yml`](../.github/workflows/supabase-keepalive-uat.yml) | UAT keepalive |
+| [`db-backup.yml`](../.github/workflows/db-backup.yml) | DB backup |
+| [`ministry-enrollment-report.yml`](../.github/workflows/ministry-enrollment-report.yml) | Enrollment reporting |
+| [`check-auth-users.yml`](../.github/workflows/check-auth-users.yml) | Auth user audit |
 
 ### UAT seed (destructive)
 
@@ -292,9 +294,9 @@ gatherKids crons are GitHub Actions, not Vercel Cron. `automaticVercelMonitors` 
 
 | Job | Sentry cron monitor? |
 |-----|----------------------|
-| [`.github/workflows/ops/daily-digest.yml`](../.github/workflows/ops/daily-digest.yml) **PROD** (scheduled `0 11 * * *`) | **Yes — this is the one free cron monitor** |
+| [`.github/workflows/daily-digest.yml`](../.github/workflows/daily-digest.yml) **PROD** (scheduled `0 11 * * *`) | **Yes — this is the one free cron monitor** |
 | Daily digest UAT (manual dispatch only) | No |
-| `supabase-keepalive.yml` and other `ops/*` crons | **No** — do not instrument |
+| `supabase-keepalive.yml` and other scheduled ops workflows | **No** — do not instrument |
 
 - **Monitor slug:** `daily-digest`
 - **Schedule upserted on check-in:** `0 11 * * *` (`America/New_York`), 15-minute margin, 30-minute max runtime

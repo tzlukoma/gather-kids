@@ -88,7 +88,7 @@ export default withSentryConfig(nextConfig, {
   // side errors will fail.
   tunnelRoute: "/monitoring",
 
-  // gatherKids scheduled jobs run in GitHub Actions (ops/daily-digest.yml), not Vercel Cron.
+  // gatherKids scheduled jobs run in GitHub Actions (daily-digest.yml), not Vercel Cron.
   // Keep the one free Sentry cron monitor for the daily digest check-in; do not auto-create Vercel monitors.
   automaticVercelMonitors: false,
 });
