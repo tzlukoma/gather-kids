@@ -46,10 +46,13 @@ The script:
 - Scans page text for non-`@example.com` emails (plus known seed domain `morethanahut.com`) and non-555 phone patterns
 - Writes PNGs to `public/help/screenshots/` (viewport 1280×800)
 
-Accounts (local seed / create-admin-user):
+Accounts (local seed / capture script):
 
 - Admin: `admin@example.com` / `TestPassword123!`
-- Guardian (optional): `parent-with-household@example.com` or `john.smith@example.com`
+- Returning guardian (Smith household, no current-cycle registration): `parent-with-household@example.com`
+- Household guardian (Johnson household, current-cycle registrations + prior-year enrollments): `household-complete@example.com`
+
+The capture script seeds a prior registration cycle, Johnson `registrations` rows, Bible Bee divisions/scriptures/enrollments, and the auth users above. It **fails** if Welcome Back, Children Information, household accordion, or populated Bible Bee UI is missing — it does not save a blank or wrong screen.
 
 Reviewer: spot-check every committed PNG for PII before merge.
 

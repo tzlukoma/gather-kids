@@ -14,6 +14,7 @@ import { fileURLToPath } from 'node:url';
 import { config as loadEnv } from 'dotenv';
 import { chromium } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
+import { ensureHelpScreenshotFixtures } from './help-screenshot-fixtures.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 loadEnv({ path: join(root, '.env.e2e.local') });
@@ -51,9 +52,11 @@ const GUARDIAN_EMAIL =
 	'parent-with-household@example.com';
 const GUARDIAN_PASSWORD =
 	process.env.HELP_SCREENSHOT_GUARDIAN_PASSWORD || 'TestPassword123!';
-const GUARDIAN_FALLBACK_EMAIL =
-	process.env.HELP_SCREENSHOT_GUARDIAN_FALLBACK_EMAIL ||
-	'john.smith@example.com';
+const HOUSEHOLD_EMAIL =
+	process.env.HELP_SCREENSHOT_HOUSEHOLD_EMAIL ||
+	'household-complete@example.com';
+const HOUSEHOLD_PASSWORD =
+	process.env.HELP_SCREENSHOT_HOUSEHOLD_PASSWORD || 'TestPassword123!';
 
 function isLocalHost(hostname) {
 	return hostname === 'localhost' || hostname === '127.0.0.1';
@@ -113,11 +116,14 @@ function auditPageText(text, label) {
 		}
 	}
 
-	const phones = text.match(
-		/\b(?:\+?1[-.\s]?)?(?:\([2-9]\d{2}\)|[2-9]\d{2})[-.\s](?!555)\d{3}[-.\s]\d{4}\b/g
-	);
-	if (phones?.length) {
-		throw new Error(`${label}: blocked phone-like text ${phones[0]}`);
+	const phones =
+		text.match(
+			/\b(?:\+?1[-.\s]?)?(?:\([2-9]\d{2}\)|[2-9]\d{2})[-.\s]\d{3}[-.\s]\d{4}\b/g
+		) || [];
+	for (const phone of phones) {
+		const digits = phone.replace(/\D/g, '').replace(/^1/, '');
+		if (digits.startsWith('555')) continue;
+		throw new Error(`${label}: blocked phone-like text ${phone}`);
 	}
 }
 
@@ -200,7 +206,45 @@ async function ensureScreenshotUsers() {
 			{ onConflict: 'auth_user_id' }
 		);
 	}
-	console.log('Ensured local screenshot auth users (admin + guardian)');
+
+	const householdUserId = await upsertAuthUser({
+		email: HOUSEHOLD_EMAIL,
+		password: HOUSEHOLD_PASSWORD,
+		role: 'GUARDIAN',
+		fullName: 'Jordan Johnson',
+	});
+	await supabase.from('users').upsert({
+		user_id: householdUserId,
+		name: 'Jordan Johnson',
+		email: HOUSEHOLD_EMAIL,
+		role: 'GUARDIAN',
+		is_active: true,
+		updated_at: new Date().toISOString(),
+	});
+	const { data: johnsonHousehold } = await supabase
+		.from('households')
+		.select('household_id')
+		.eq('email', 'johnson@example.com')
+		.maybeSingle();
+	if (johnsonHousehold?.household_id) {
+		await supabase.from('user_households').upsert(
+			{
+				auth_user_id: householdUserId,
+				household_id: johnsonHousehold.household_id,
+			},
+			{ onConflict: 'auth_user_id' }
+		);
+	}
+
+	await supabase.from('form_drafts').delete().in('user_id', [
+		guardianId,
+		householdUserId,
+	]);
+
+	await ensureHelpScreenshotFixtures(supabase);
+	console.log(
+		'Ensured local screenshot auth users (admin, returning guardian, household guardian)'
+	);
 }
 
 async function hideDevChrome(page) {
@@ -208,6 +252,12 @@ async function hideDevChrome(page) {
 		content: `
       nextjs-portal { display: none !important; }
       #nc-portal { display: none !important; }
+      [data-radix-toast-viewport],
+      [data-radix-toast-root],
+      .tsqd-parent-container,
+      .tsqd-open-btn-container {
+        display: none !important;
+      }
     `,
 	});
 	await page.evaluate(() => {
@@ -216,7 +266,27 @@ async function hideDevChrome(page) {
 				button.style.display = 'none';
 			}
 		}
+		for (const el of document.querySelectorAll('li, ol, [role="status"]')) {
+			const text = el.textContent || '';
+			if (
+				text.includes('Household Found') ||
+				text.includes('Complete Your Registration')
+			) {
+				el.style.display = 'none';
+			}
+		}
 	});
+}
+
+async function waitVisible(page, locator, label, timeout = 30000) {
+	try {
+		await locator.waitFor({ state: 'visible', timeout });
+	} catch (error) {
+		const body = await page.locator('body').innerText();
+		throw new Error(
+			`${label}: ${error.message}. Page text: ${body.slice(0, 600)}`
+		);
+	}
 }
 
 async function screenshot(page, file, label) {
@@ -234,6 +304,13 @@ async function login(page, email, password) {
 	await page.locator('#email').fill(email);
 	await page.locator('#password').fill(password);
 	await page.getByRole('button', { name: /^sign in$/i }).click();
+	await page.evaluate(() => {
+		try {
+			localStorage.removeItem('bb_progress_filters_v1');
+		} catch {
+			// ignore
+		}
+	});
 	try {
 		await page.waitForURL(/\/(admin-overview|check-in|household|register|rosters)/, {
 			timeout: 30000,
@@ -265,6 +342,13 @@ async function safe(label, fn) {
 		await fn();
 		return true;
 	} catch (error) {
+		if (
+			/expected UI missing|redirected to|bible-bee-overview|bible-bee-progress|registration-returning|registration-child|household-profile/.test(
+				String(error.message || '')
+			)
+		) {
+			throw error;
+		}
 		console.warn(`  skip ${label}: ${error.message}`);
 		return false;
 	}
@@ -346,77 +430,98 @@ async function main() {
 		await page.keyboard.press('Escape');
 
 		await page.goto(`${BASE_URL}/bible-bee`, { waitUntil: 'networkidle' });
-		await page.waitForTimeout(800);
+		await waitVisible(
+			page,
+			page.getByText('Emma Smith').first(),
+			'bible-bee-overview populated students'
+		);
 		await shot('bible-bee-overview.png', 'bible-bee-overview');
 
 		const scripturesTab = page.getByRole('tab', { name: /scriptures/i });
-		if (await scripturesTab.count()) {
-			await scripturesTab.click();
-			await page.waitForTimeout(600);
-		}
+		await waitVisible(page, scripturesTab, 'bible-bee scriptures tab');
+		await scripturesTab.click();
+		await waitVisible(
+			page,
+			page.getByText('John 3:16').first(),
+			'bible-bee-progress scriptures list'
+		);
 		await shot('bible-bee-progress.png', 'bible-bee-progress');
 
 		await logout(page);
 	});
 
-	const guardianEmails = [GUARDIAN_EMAIL, GUARDIAN_FALLBACK_EMAIL];
-	let guardianOk = false;
-	for (const email of guardianEmails) {
-		guardianOk = await safe(`guardian ${email}`, async () => {
-			await login(page, email, GUARDIAN_PASSWORD);
-			await page.goto(`${BASE_URL}/register`, { waitUntil: 'networkidle' });
-			await page.waitForTimeout(1500);
-			await shot(
-				'registration-returning-welcome.png',
-				'registration-returning-welcome'
-			);
-			await shot(
-				'registration-household-form.png',
-				'registration-household-form'
-			);
-			const childHeading = page.getByText(/child/i).first();
-			if (await childHeading.count()) {
-				await childHeading.scrollIntoViewIfNeeded();
-				await page.waitForTimeout(300);
-			} else {
-				await page.evaluate(() => window.scrollBy(0, 700));
-			}
-			await shot(
-				'registration-child-profile.png',
-				'registration-child-profile'
-			);
-
-			await page.goto(`${BASE_URL}/household`, { waitUntil: 'networkidle' });
-			await page.waitForTimeout(1500);
-			await shot(
-				'household-profile-accordion.png',
-				'household-profile-accordion'
-			);
-			await logout(page);
-		});
-		if (guardianOk) break;
-	}
-
-	if (!guardianOk) {
+	await safe('returning-family registration', async () => {
+		await login(page, GUARDIAN_EMAIL, GUARDIAN_PASSWORD);
 		await page.goto(`${BASE_URL}/register`, { waitUntil: 'networkidle' });
-		await page.waitForTimeout(800);
-		await shot(
-			'registration-household-form.png',
-			'registration-household-form-unauth'
-		);
-		await shot(
-			'registration-child-profile.png',
-			'registration-child-profile-unauth'
+		await waitVisible(
+			page,
+			page.getByRole('heading', { name: 'Welcome Back' }),
+			'registration-returning-welcome'
 		);
 		await shot(
 			'registration-returning-welcome.png',
-			'registration-returning-welcome-unauth'
+			'registration-returning-welcome'
 		);
 		await shot(
-			'household-profile-accordion.png',
-			'household-profile-accordion-unauth'
+			'registration-household-form.png',
+			'registration-household-form'
 		);
-	}
+
+		const childrenHeading = page.getByText('Children Information', {
+			exact: true,
+		});
+		await waitVisible(
+			page,
+			childrenHeading,
+			'registration-child-profile heading'
+		);
+		await childrenHeading.evaluate((el) => {
+			el.scrollIntoView({ block: 'start', inline: 'nearest' });
+		});
+		const childTrigger = page.getByRole('button', { name: /emma/i }).first();
+		if (await childTrigger.count()) {
+			const state = await childTrigger.getAttribute('data-state');
+			if (state !== 'open') {
+				await childTrigger.click();
+			}
+		}
+		await waitVisible(
+			page,
+			page.getByText('First Name').first(),
+			'registration-child-profile first name'
+		);
+		await shot(
+			'registration-child-profile.png',
+			'registration-child-profile'
+		);
+		await logout(page);
+	});
+
+	await safe('household profile accordion', async () => {
+		await login(page, HOUSEHOLD_EMAIL, HOUSEHOLD_PASSWORD);
+		await page.goto(`${BASE_URL}/household`, { waitUntil: 'networkidle' });
+		if (!/\/household/.test(page.url())) {
+			throw new Error(
+				`household-profile-accordion: redirected to ${page.url()} instead of /household`
+			);
+		}
+		await waitVisible(
+			page,
+			page.getByText(/Registration Year/).first(),
+			'household-profile-accordion'
+		);
+		const enrollmentsHeading = page
+			.getByText('Program Enrollments & Interests')
+			.first();
+		if (await enrollmentsHeading.count()) {
+			await enrollmentsHeading.scrollIntoViewIfNeeded();
+		}
+		await shot(
+			'household-profile-accordion.png',
+			'household-profile-accordion'
+		);
+		await logout(page);
+	});
 
 	await browser.close();
 
