@@ -41,12 +41,12 @@ describe('household prefill helpers', () => {
     expect(updated.grade).toBe('4');
   });
 
-  it('routes returning guardians to register when active cycle has no enrollments', () => {
+  it('routes returning guardians to register when active cycle has no registrations', () => {
     expect(
       guardianNeedsActiveCycleRegistration({
         hasHousehold: true,
         activeChildCount: 2,
-        hasCurrentCycleEnrollment: false,
+        hasActiveCycleRegistration: false,
       }),
     ).toBe(true);
 
@@ -54,7 +54,7 @@ describe('household prefill helpers', () => {
       guardianNeedsActiveCycleRegistration({
         hasHousehold: true,
         activeChildCount: 2,
-        hasCurrentCycleEnrollment: true,
+        hasActiveCycleRegistration: true,
       }),
     ).toBe(false);
   });

@@ -23,6 +23,8 @@ This document is written so an agent can execute **Phases 1–4 autonomously** a
 
 > Execute `docs/R1_IMPLEMENTATION_PLAN.md` through Phase 3 **without asking Thomas to manually click through flows**. Run `scripts/r1/phase0-validate.sh`, implement code, then loop on `scripts/r1/phase3-validate.sh` until green. Only report back when the PR is ready to merge. Do not activate Fall 2026 on production. Stop and report if any Phase 0 gate fails.
 >
+> **Preview feedback loop:** When Thomas is testing on Vercel Preview, every fix must be **committed and pushed** to the open PR so Preview redeploys. Run `./scripts/r1/phase3-validate.sh` (or scoped Jest/Playwright) locally against UAT-backed dev **before** push; do not ask Thomas to validate unpushed changes on Preview.
+>
 > **Commits / PR title:** Use [Conventional Commits](https://www.conventionalcommits.org/) on every commit and squash-merge PR title (`feat:`, `fix:`, etc.) — required by release-please on `main`. See `docs/CI_CD_CLEANUP_PLAN.md`.
 
 ---
@@ -636,7 +638,7 @@ WHERE name = 'Fall 2026';
 | [`scripts/r1/phase0-validate.sh`](../scripts/r1/phase0-validate.sh) | Phase 0 DB + unit test gate |
 | [`scripts/r1/phase3-validate.sh`](../scripts/r1/phase3-validate.sh) | One-shot Phase 3 (Jest + Playwright + SQL) |
 | [`scripts/db/r1-post-registration-check.sql`](../scripts/db/r1-post-registration-check.sql) | SQL assertions after Playwright submit |
-| [`scripts/r1/uat-preview-smoke.sh`](../scripts/r1/uat-preview-smoke.sh) | Read-only Playwright against Vercel Preview |
+| [`scripts/r1/reset-uat-test-household.sh`](../scripts/r1/reset-uat-test-household.sh) | Clear Fall 2026 data for manifest test household (before UAT smoke) |
 | [`docs/R1_UAT_SMOKE.md`](../docs/R1_UAT_SMOKE.md) | Thomas ~10 min UAT checklist (Preview) |
 | `e2e/r1/*.spec.ts` | Human-use Playwright coverage (24 tests) |
 | [`scripts/db/prod-registration-inventory.sql`](../scripts/db/prod-registration-inventory.sql) | Read-only prod stats |

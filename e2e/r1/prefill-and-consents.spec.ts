@@ -16,6 +16,7 @@ r1Describe('R1 returning prefill', () => {
   });
 
   test('prefills household address and signed-in email banner', async ({ page }) => {
+    await expect(page.getByRole('heading', { name: 'Welcome Back' })).toBeVisible();
     const street = page.getByRole('textbox', { name: /street address/i });
     await expect(street).not.toHaveValue('');
     await expect(page.getByText(/you are signed in as:/i)).toContainText(

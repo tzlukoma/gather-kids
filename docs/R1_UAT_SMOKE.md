@@ -4,11 +4,17 @@ Use this **after** the PR’s Vercel Preview deploy is green. Automated coverage
 
 **Prerequisites**
 
-- Fall **2026** is **active** on UAT Supabase (Fall 2025 inactive) — same as agent Phase 3.
-- Test accounts exist on UAT (see `.r1-local/manifest.example.json`; credentials in your local `manifest.json`, never commit).
-- Preview URL from the PR (e.g. `https://gather-kids-….vercel.app`).
+- Fall **2026** is **active** on UAT Supabase (Fall 2025 inactive).
+- **Reset the test household** if Playwright or a prior smoke run already submitted Fall 2026:
 
-**Optional agent re-check against preview** (read-only, no submit):
+```bash
+./scripts/r1/reset-uat-test-household.sh
+```
+
+After reset, `parent-with-household@example.com` should login → **`/register`** (not `/household`).
+
+- Preview URL from the PR (e.g. `https://gather-kids-….vercel.app`).
+- Test account passwords in local `.r1-local/manifest.json` (never commit).
 
 ```bash
 R1_E2E_ENABLED=1 BASE_URL=https://YOUR-PREVIEW.vercel.app \

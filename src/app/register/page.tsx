@@ -1533,13 +1533,26 @@ function RegisterPageContent() {
 		<div className="max-w-4xl mx-auto">
 			<div className="mb-8">
 				<div className="mb-4">
-					<h1 className="text-3xl font-bold font-headline">
-						Family Registration Form
-					</h1>
-					<p className="text-muted-foreground">
-						Complete the form below to register your family for our
-						children&apos;s ministry programs.
-					</p>
+					{verificationStep === 'form_visible' && isReturningPrefill ? (
+						<>
+							<h1 className="text-3xl font-bold font-headline">Welcome Back</h1>
+							<p className="text-muted-foreground mt-2">
+								We&apos;re glad to see your family again. Your information from
+								last year has been pre-filled below so you can register for
+								this season.
+							</p>
+						</>
+					) : (
+						<>
+							<h1 className="text-3xl font-bold font-headline">
+								Family Registration Form
+							</h1>
+							<p className="text-muted-foreground">
+								Complete the form below to register your family for our
+								children&apos;s ministry programs.
+							</p>
+						</>
+					)}
 					{flags.registrationDraftPersistenceEnabled && (
 						<div className="mt-3">
 							<DraftStatusIndicator
@@ -1735,6 +1748,33 @@ function RegisterPageContent() {
 							);
 						})}
 						className="space-y-8">
+						{isReturningPrefill && (
+							<Alert>
+								<Info className="h-4 w-4" />
+								<AlertTitle>Returning family registration</AlertTitle>
+								<AlertDescription className="space-y-2">
+									<p>
+										Please review your household details, then work through each
+										child below.
+									</p>
+									<ul className="list-disc pl-5 text-sm space-y-1">
+										<li>
+											Check ministry selections for each child and update as
+											needed.
+										</li>
+										<li>
+											Add or remove children, or keep your family the same as
+											last year.
+										</li>
+										<li>
+											Confirm updated grades where shown, then sign the
+											consents at the bottom before submitting.
+										</li>
+									</ul>
+								</AlertDescription>
+							</Alert>
+						)}
+
 						{isCurrentYearOverwrite && (
 							<Alert variant="destructive">
 								<AlertTriangle className="h-4 w-4" />

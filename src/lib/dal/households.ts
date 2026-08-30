@@ -41,6 +41,27 @@ export type HouseholdRegistrationLoadResult = {
 // Internal helpers
 // ---------------------------------------------------------------------------
 
+/** True when every active child has a registration row for the given cycle. */
+async function householdHasActiveCycleRegistration(
+    householdId: string,
+    cycleId: string,
+): Promise<boolean> {
+    const activeChildren = await dbAdapter.listChildren({ householdId, isActive: true });
+    const childIds = activeChildren.map(c => c.child_id);
+    if (childIds.length === 0) {
+        return false;
+    }
+
+    const registrations = await dbAdapter.listRegistrations({ cycleId });
+    const registeredChildIds = new Set(
+        registrations
+            .filter(r => childIds.includes(r.child_id))
+            .map(r => r.child_id),
+    );
+
+    return childIds.every(id => registeredChildIds.has(id));
+}
+
 function stripChoirSelectionsFromChild<
     T extends { ministrySelections?: Record<string, boolean | undefined> },
 >(child: T): T {
@@ -118,16 +139,12 @@ export async function loadHouseholdForRegistration(
     if (activeChildren.length === 0) return null;
 
     const childIds = activeChildren.map(c => c.child_id);
-    const currentEnrollments = await dbAdapter.listMinistryEnrollments(
-        undefined,
-        undefined,
+    const hasCurrentCycleRegistration = await householdHasActiveCycleRegistration(
+        householdId,
         currentCycleId,
     );
-    const hasCurrentCycleEnrollment = currentEnrollments.some(e =>
-        childIds.includes(e.child_id),
-    );
 
-    if (hasCurrentCycleEnrollment) {
+    if (hasCurrentCycleRegistration) {
         const data = await fetchFullHouseholdDataFromAdapter(householdId, currentCycleId);
         return {
             isCurrentYear: true,
@@ -184,12 +201,12 @@ export async function loadHouseholdForRegistration(
 export function guardianNeedsActiveCycleRegistration(input: {
     hasHousehold: boolean;
     activeChildCount: number;
-    hasCurrentCycleEnrollment: boolean;
+    hasActiveCycleRegistration: boolean;
 }): boolean {
     if (!input.hasHousehold || input.activeChildCount === 0) {
         return true;
     }
-    return !input.hasCurrentCycleEnrollment;
+    return !input.hasActiveCycleRegistration;
 }
 
 export async function needsRegistrationForActiveCycle(
@@ -197,7 +214,8 @@ export async function needsRegistrationForActiveCycle(
 ): Promise<boolean> {
     const activeCycle = await getCurrentRegistrationCycle();
     if (!activeCycle?.cycle_id) {
-        return false;
+        // Unknown cycle — prefer register (page shows unavailable if misconfigured)
+        return true;
     }
 
     const householdId = await getHouseholdForUser(authUserId);
@@ -206,21 +224,15 @@ export async function needsRegistrationForActiveCycle(
     }
 
     const activeChildren = await dbAdapter.listChildren({ householdId, isActive: true });
-    const childIds = activeChildren.map(c => c.child_id);
-
-    const currentEnrollments = await dbAdapter.listMinistryEnrollments(
-        undefined,
-        undefined,
+    const hasActiveCycleRegistration = await householdHasActiveCycleRegistration(
+        householdId,
         activeCycle.cycle_id,
-    );
-    const hasCurrentCycleEnrollment = currentEnrollments.some(e =>
-        childIds.includes(e.child_id),
     );
 
     return guardianNeedsActiveCycleRegistration({
         hasHousehold: true,
         activeChildCount: activeChildren.length,
-        hasCurrentCycleEnrollment,
+        hasActiveCycleRegistration,
     });
 }
 
