@@ -143,7 +143,7 @@ Honest status: **shipped** = used in production; **partial** = UI/code exists bu
 ### 3.12 What is in the repo but should not be treated as product
 
 - `/dev-scriptures` — unauthenticated, uses service role. Lock or delete.
-- `/sentry-example-page`, `/avatar-demo` — leftover.
+- `/avatar-demo` — leftover.
 - IndexedDB adapter and demo-user paths — leftover from demo mode ([#191](https://github.com/tzlukoma/gather-kids/issues/191) still open).
 - Google sign-in flag — off.
 

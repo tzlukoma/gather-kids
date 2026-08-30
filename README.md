@@ -105,6 +105,7 @@ NEXT_PUBLIC_LOGIN_GOOGLE_ENABLED=false
 NEXT_PUBLIC_SUPABASE_URL=https://<your-uat-ref>.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=<your-uat-anon-key>
 SUPABASE_SERVICE_ROLE_KEY=<your-uat-service-role-key>
+NEXT_PUBLIC_SENTRY_DSN=
 
 # Local Development
 NEXT_PUBLIC_SITE_URL=http://localhost:9002
@@ -485,13 +486,29 @@ If you need to change CI behavior
 
 ### Error monitoring (Sentry)
 
-[Sentry](https://sentry.io) is integrated via `@sentry/nextjs`. Configuration files:
+[Sentry](https://sentry.io) is integrated via `@sentry/nextjs`. Init files:
 
-- `sentry.client.config.ts` — browser-side error capture
+- `src/instrumentation-client.ts` — browser-side error capture (keep `onRouterTransitionStart`)
 - `sentry.server.config.ts` — server-side error capture
 - `sentry.edge.config.ts` — edge runtime error capture
 
-Sentry initializes only when `NODE_ENV=production`. The DSN is embedded in the config files; rotate it via the Sentry dashboard if compromised.
+Do **not** add `sentry.client.config.ts`. That file is deprecated under Turbopack; browser init lives only in `src/instrumentation-client.ts`.
+
+Sentry initializes only when `NODE_ENV=production` **and** `NEXT_PUBLIC_SENTRY_DSN` is set. Shared DSN / `environment` / `release` helpers live in `src/lib/sentry/runtime.ts`.
+
+| Variable | Purpose |
+|----------|---------|
+| `NEXT_PUBLIC_SENTRY_DSN` | Public DSN. Do not commit a real value. |
+| `NEXT_PUBLIC_DEPLOY_ENV` | Preferred environment tag (`production` or `uat`) |
+| `VERCEL_ENV` | Fallback (`production`, `preview`, or `development`) |
+
+`release` is the app version already stamped at build time (`package.json` / `src/lib/build-info.ts`), the same value `/api/version` reports.
+
+The Sentry tunnel is `/monitoring` (`tunnelRoute` in `next.config.ts`). Middleware excludes that path so client events are not intercepted.
+
+**CI dummy builds must not upload source maps.** `.github/workflows/ci.yml` must not set `SENTRY_AUTH_TOKEN`. Uploads are for Vercel/production builds only (see #260).
+
+**Turbopack sourcemaps:** Local `npm run dev` uses Turbopack. Production stays on webpack (`next build` without `--turbopack`). Turbopack production sourcemaps need Next.js ≥15.4.1 **and** `@sentry/nextjs` ≥10.13. This repo is on Next 15.3.8 and `@sentry/nextjs` ^10.11, so do not switch the production build to `--turbopack` until those versions are bumped together.
 
 ### Performance monitoring (Web Vitals)
 

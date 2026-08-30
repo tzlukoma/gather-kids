@@ -61,7 +61,8 @@ export const config = {
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      * - api routes that don't need auth
+     * - monitoring (Sentry tunnelRoute — must not be intercepted)
      */
-    '/((?!_next/static|_next/image|favicon.ico|api/health).*)',
+    '/((?!_next/static|_next/image|favicon.ico|api/health|monitoring).*)',
   ],
 };
