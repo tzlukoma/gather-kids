@@ -59,6 +59,10 @@ import { ConfirmationDialog } from './confirmation-dialog';
 import type { Child, Guardian, EmergencyContact, Household } from '@/lib/types';
 import { formatPhone } from '@/hooks/usePhoneFormat';
 import { normalizeGradeDisplay } from '@/lib/gradeUtils';
+import {
+	pickExpandedCycleId,
+	sortCycleIdsByStartDate,
+} from '@/lib/dal/registration-cycle-utils';
 import { useAuth } from '@/contexts/auth-context';
 import { AuthRole } from '@/lib/auth-types';
 import { canUpdateChildPhoto } from '@/lib/permissions';
@@ -169,6 +173,8 @@ const ProgramEnrollmentCard = ({
 const ChildCard = ({
 	child,
 	cycleNames,
+	cycleStartDates,
+	activeCycleId,
 	onPhotoClick,
 	onPhotoViewClick,
 	onEditChild,
@@ -180,6 +186,8 @@ const ChildCard = ({
 }: {
 	child: HouseholdProfileData['children'][0];
 	cycleNames: Record<string, string>;
+	cycleStartDates: Record<string, string>;
+	activeCycleId?: string | null;
 	onPhotoClick: (child: Child) => void;
 	onPhotoViewClick: (photo: { name: string; url: string }) => void;
 	onEditChild: (child: Child) => void;
@@ -189,11 +197,13 @@ const ChildCard = ({
 	user: any; // BaseUser type
 	canEdit: boolean;
 }) => {
-	const sortedCycleIds = Object.keys(child.enrollmentsByCycle).sort((a, b) =>
-		b.localeCompare(a)
+	const cycleIds = Object.keys(child.enrollmentsByCycle);
+	const sortedCycleIds = sortCycleIdsByStartDate(cycleIds, cycleStartDates);
+	const expandedCycleId = pickExpandedCycleId(
+		cycleIds,
+		cycleStartDates,
+		activeCycleId,
 	);
-	const currentCycleId =
-		sortedCycleIds.length > 0 ? sortedCycleIds[0] : undefined;
 
 	return (
 		<Card className={!child.is_active ? 'bg-muted/25' : ''}>
@@ -340,7 +350,7 @@ const ChildCard = ({
 					</h4>
 					<Accordion
 						type="multiple"
-						defaultValue={currentCycleId ? [currentCycleId] : []}
+						defaultValue={expandedCycleId ? [expandedCycleId] : []}
 						className="w-full">
 						{sortedCycleIds.map((cycleId) => {
 							const enrollments = child.enrollmentsByCycle[cycleId];
@@ -381,9 +391,10 @@ export function HouseholdProfile({
 }: {
 	profileData: HouseholdProfileData;
 }) {
-	const { household, guardians, emergencyContact, children, cycleNames: cycleNamesRaw } =
+	const { household, guardians, emergencyContact, children, cycleNames: cycleNamesRaw, cycleStartDates: cycleStartDatesRaw, activeCycleId } =
 		profileData;
 	const cycleNames: Record<string, string> = cycleNamesRaw ?? {};
+	const cycleStartDates: Record<string, string> = cycleStartDatesRaw ?? {};
 	const { user } = useAuth();
 	const { toast } = useToast();
 	const [selectedChildForPhoto, setSelectedChildForPhoto] =
@@ -476,11 +487,13 @@ export function HouseholdProfile({
 
 	// User connection management (admin only)
 	const isAdmin = user?.metadata?.role === AuthRole.ADMIN;
+	const adminUserToolsEnabled = isAdmin && !!household?.household_id;
 	const { data: householdUserData, isLoading: userLoading } = useHouseholdUser(
-		household?.household_id || ''
+		household?.household_id || '',
+		{ enabled: adminUserToolsEnabled },
 	);
 	const { data: availableUsersData, isLoading: availableUsersLoading } =
-		useAvailableUsers();
+		useAvailableUsers({ enabled: adminUserToolsEnabled });
 	const updateUserMutation = useUpdateHouseholdUser();
 
 	const currentUser = householdUserData?.user;
@@ -774,6 +787,8 @@ export function HouseholdProfile({
 								key={child.child_id}
 								child={child}
 								cycleNames={cycleNames}
+								cycleStartDates={cycleStartDates}
+								activeCycleId={activeCycleId}
 								onPhotoClick={setSelectedChildForPhoto}
 								onPhotoViewClick={setViewingPhoto}
 								onEditChild={setEditingChild}
@@ -801,6 +816,8 @@ export function HouseholdProfile({
 										key={child.child_id}
 										child={child}
 										cycleNames={cycleNames}
+										cycleStartDates={cycleStartDates}
+										activeCycleId={activeCycleId}
 										onPhotoClick={setSelectedChildForPhoto}
 										onPhotoViewClick={setViewingPhoto}
 										onEditChild={setEditingChild}

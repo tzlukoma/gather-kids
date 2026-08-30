@@ -35,41 +35,27 @@ export const ProtectedRoute = ({
 					Object.keys(localStorage).some((key) => key && key.startsWith('sb-'));
 
 				if (hasSupabaseTokens) {
-					console.log(
-						'Protected route: Found auth tokens but no user. Attempting session recovery...'
-					);
-
 					try {
 						const { supabase } = await import('@/lib/supabaseClient');
 						const { data, error } = await supabase.auth.refreshSession();
 
 						if (data?.session) {
-							console.log(
-								'Protected route: Session recovered! Reloading page...'
-							);
 							window.location.reload();
 							return;
-						} else {
-							console.log('Protected route: Session recovery failed:', error);
-							setIsNavigating(true);
-							await router.replace('/login');
-							setIsNavigating(false);
-							return;
 						}
+
+						setIsNavigating(true);
+						await router.replace('/login');
+						setIsNavigating(false);
+						return;
 					} catch (err) {
-						console.error(
-							'Protected route: Error during session recovery:',
-							err
-						);
+						console.error('Protected route: session recovery failed:', err);
 						setIsNavigating(true);
 						await router.replace('/login');
 						setIsNavigating(false);
 						return;
 					}
 				} else {
-					console.log(
-						'Protected route: No user and no tokens found. Redirecting to login...'
-					);
 					setIsNavigating(true);
 					await router.replace('/login');
 					setIsNavigating(false);
@@ -78,7 +64,6 @@ export const ProtectedRoute = ({
 			}
 
 			if (!userRole || !allowedRoles.includes(userRole)) {
-				console.log('Role check failed - redirecting to unauthorized');
 				setIsNavigating(true);
 				await router.replace('/unauthorized');
 				setIsNavigating(false);

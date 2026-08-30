@@ -13,7 +13,7 @@ import {
 	SidebarMenuButton,
 	SidebarTrigger,
 } from '@/components/ui/sidebar';
-import { getLeaderAssignmentsForCycle, getRegistrationCycles } from '@/lib/dal';
+import { getCurrentRegistrationCycle, getLeaderAssignmentsForCycle } from '@/lib/dal';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -84,12 +84,12 @@ export function DashboardNav({ children }: DashboardNavProps) {
 					const leaderId = getUserId(user) as string | undefined;
 					if (!leaderId) return;
 
-					// Get active registration cycle
-					const cycles = await getRegistrationCycles(true); // Get only active cycles
-					const activeCycle = cycles.find(
-						(c) => c.is_active === true || Number(c.is_active) === 1
-					);
-					const cycleId = activeCycle?.cycle_id || '2025'; // fallback to '2025' if no active cycle found
+					const activeCycle = await getCurrentRegistrationCycle();
+					if (!activeCycle?.cycle_id) {
+						console.warn('No active registration cycle configured for leader assignments');
+						return;
+					}
+					const cycleId = activeCycle.cycle_id;
 
 					const dbAssignments = await getLeaderAssignmentsForCycle(
 						leaderId,

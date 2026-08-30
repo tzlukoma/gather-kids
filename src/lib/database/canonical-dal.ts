@@ -7,6 +7,9 @@ import type { Guardian, Registration } from '../types';
 import { ageOn } from '../dal';
 import { gradeToCode } from '../gradeUtils';
 import { enrollChildInBibleBee } from '../bibleBee';
+import { devLog } from '../dev-log';
+
+const log = devLog('register');
 
 /**
  * Enhanced DAL functions that use canonical snake_case DTOs internally
@@ -135,8 +138,8 @@ function convertFormDataToCanonical(data: Record<string, unknown>): {
  * Enhanced registerHousehold function that uses canonical DTOs internally
  * Maintains exact API compatibility while standardizing data shapes
  */
-export async function registerHouseholdCanonical(data: Record<string, unknown>, cycle_id: string, isPrefill: boolean) {
-  console.log('🔄 Using canonical DTO-based registration flow');
+export async function registerHouseholdCanonical(data: Record<string, unknown>, cycle_id: string) {
+  log.log('🔄 Using canonical DTO-based registration flow');
   
   // Convert input data to canonical format and validate
   const canonicalData = convertFormDataToCanonical(data);
@@ -201,8 +204,12 @@ export async function registerHouseholdCanonical(data: Record<string, unknown>, 
       });
 
       // Handle robust update logic for existing children
-      if (isUpdate && !isPrefill) {
-        const existingChildren = await dbAdapter.listChildren({ householdId });
+      const existingChildren = isUpdate
+        ? await dbAdapter.listChildren({ householdId })
+        : [];
+      const existingChildIdSet = new Set(existingChildren.map(c => c.child_id));
+
+      if (isUpdate) {
         const incomingChildIds = canonicalData.children.map(c => c.child_id).filter(Boolean);
         
         // Delete existing enrollments and registrations for children being updated
@@ -233,9 +240,9 @@ export async function registerHouseholdCanonical(data: Record<string, unknown>, 
 
       // Handle children and enrollments with canonical data
       for (const [index, childData] of canonicalData.children.entries()) {
-        console.log('DEBUG: Processing child at index', index, 'childData:', childData);
+        log.log('DEBUG: Processing child at index', index, 'childData:', childData);
         const childId = childData.child_id || uuidv4();
-        console.log('DEBUG: Generated childId:', childId, 'from childData.child_id:', childData.child_id);
+        log.log('DEBUG: Generated childId:', childId, 'from childData.child_id:', childData.child_id);
 
         const child = {
           child_id: childId,
@@ -253,12 +260,12 @@ export async function registerHouseholdCanonical(data: Record<string, unknown>, 
           photo_url: childData.photo_url,
         };
 
-        if (isUpdate) {
+        if (existingChildIdSet.has(childId)) {
           await dbAdapter.updateChild(childId, child);
         } else {
-          console.log('DEBUG: About to create child with ID:', childId);
+          log.log('DEBUG: About to create child with ID:', childId);
           const createdChild = await dbAdapter.createChild(child);
-          console.log('DEBUG: Created child with ID:', createdChild.child_id);
+          log.log('DEBUG: Created child with ID:', createdChild.child_id);
         }
 
         // Create registration with canonical consent types
@@ -357,7 +364,7 @@ export async function registerHouseholdCanonical(data: Record<string, unknown>, 
               }
 
               try {
-                console.log('DEBUG: Creating ministry enrollment for:', {
+                log.log('DEBUG: Creating ministry enrollment for:', {
                   childId,
                   cycle_id,
                   ministry_id: ministry.ministry_id,
@@ -373,7 +380,7 @@ export async function registerHouseholdCanonical(data: Record<string, unknown>, 
                   custom_fields: Object.keys(custom_fields).length > 0 ? custom_fields : undefined,
                 });
                 
-                console.log('DEBUG: Successfully created ministry enrollment for ministry:', ministry.name);
+                log.log('DEBUG: Successfully created ministry enrollment for ministry:', ministry.name);
               } catch (enrollmentError) {
                 console.error('DEBUG: Failed to create ministry enrollment:', enrollmentError);
                 throw enrollmentError;
@@ -402,7 +409,7 @@ export async function registerHouseholdCanonical(data: Record<string, unknown>, 
                         auto_enrolled: false,
                         enrolled_at: now,
                       });
-                      console.log(`Created Bible Bee enrollment for child ${child.first_name} in division ${appropriateDivision.name}`);
+                      log.log(`Created Bible Bee enrollment for child ${child.first_name} in division ${appropriateDivision.name}`);
                       
                       // Also assign scriptures for the child
                       try {
@@ -428,21 +435,20 @@ export async function registerHouseholdCanonical(data: Record<string, unknown>, 
         }
       }
 
-      console.log('✅ Canonical registration completed successfully');
+      log.log('✅ Canonical registration completed successfully');
       
-      // Create user_households relationship for Supabase auth
+      // Create user_households relationship for Supabase auth (idempotent)
       let userHouseholdsCreated = false;
       let roleAssigned = false;
       
-      if (!isPrefill) { // Only create the relationship on final registration, not prefill
-        console.log('DEBUG: Starting user_households creation and role assignment');
-        try {
+      log.log('DEBUG: Starting user_households creation and role assignment');
+      try {
           // Import here to avoid circular dependency issues
           const { supabase } = await import('@/lib/supabaseClient');
           if (supabase) {
-            console.log('DEBUG: Supabase client available');
+            log.log('DEBUG: Supabase client available');
             const { data: { session } } = await supabase.auth.getSession();
-            console.log('DEBUG: Session check result:', {
+            log.log('DEBUG: Session check result:', {
               hasSession: !!session,
               hasUser: !!session?.user,
               userId: session?.user?.id
@@ -466,16 +472,16 @@ export async function registerHouseholdCanonical(data: Record<string, unknown>, 
                 if (error) {
                   console.error('Could not create user_households relationship:', error);
                 } else {
-                  console.log('Created user_households relationship:', userHousehold);
+                  log.log('Created user_households relationship:', userHousehold);
                   userHouseholdsCreated = true;
                 }
               } else {
-                console.log('User already has household relationship:', existingHouseholdId);
+                log.log('User already has household relationship:', existingHouseholdId);
                 userHouseholdsCreated = true; // Already exists
               }
 
               // Assign GUARDIAN role to the authenticated user
-              console.log('DEBUG: About to assign GUARDIAN role to user:', session.user.id);
+              log.log('DEBUG: About to assign GUARDIAN role to user:', session.user.id);
               const { error: roleError } = await supabase.auth.updateUser({
                 data: {
                   role: 'GUARDIAN',
@@ -486,7 +492,7 @@ export async function registerHouseholdCanonical(data: Record<string, unknown>, 
               if (roleError) {
                 console.warn('Could not assign GUARDIAN role:', roleError);
               } else {
-                console.log('Assigned GUARDIAN role to user:', session.user.id);
+                log.log('Assigned GUARDIAN role to user:', session.user.id);
                 roleAssigned = true;
                 
                 // Force a session refresh to ensure the AuthContext picks up the role change
@@ -495,24 +501,19 @@ export async function registerHouseholdCanonical(data: Record<string, unknown>, 
                   if (refreshError) {
                     console.warn('Could not refresh session after role assignment:', refreshError);
                   } else {
-                    console.log('Session refreshed successfully after role assignment');
+                    log.log('Session refreshed successfully after role assignment');
                   }
                 } catch (refreshErr) {
                   console.warn('Error refreshing session:', refreshErr);
                 }
               }
             } else {
-              console.log('DEBUG: No session or user found, skipping role assignment');
+              log.log('DEBUG: No session or user found, skipping role assignment');
             }
           }
         } catch (error) {
           console.warn('Could not create user_households relationship:', error);
         }
-      } else {
-        // For prefill, we don't create relationships or assign roles
-        userHouseholdsCreated = true;
-        roleAssigned = true;
-      }
       
       return {
         household_id: householdId,
@@ -530,7 +531,7 @@ export async function registerHouseholdCanonical(data: Record<string, unknown>, 
 export function testCanonicalConversion(sampleFormData: Record<string, unknown>): boolean {
   try {
     const canonicalData = convertFormDataToCanonical(sampleFormData);
-    console.log('✅ Canonical conversion successful:', canonicalData);
+    log.log('✅ Canonical conversion successful:', canonicalData);
     
     // Validate all required snake_case fields are present
     const requiredSnakeCaseFields = [
@@ -570,7 +571,7 @@ export function testCanonicalConversion(sampleFormData: Record<string, unknown>)
       }
     }
     
-    console.log('✅ All canonical data uses snake_case');
+    log.log('✅ All canonical data uses snake_case');
     return true;
   } catch (error) {
     console.error('❌ Canonical conversion failed:', error);

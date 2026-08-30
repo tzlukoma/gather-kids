@@ -8,7 +8,11 @@
  */
 
 import { db as dbAdapter } from '../database/factory';
-import type { Ministry, MinistryAccount, MinistryGroup, MinistryGroupMember } from '../types';
+import type { Ministry, MinistryAccount, MinistryGroup, MinistryGroupMember, RegistrationCycle } from '../types';
+import {
+    pickActiveRegistrationCycle,
+    pickPriorRegistrationCycle,
+} from './registration-cycle-utils';
 import { normalizeEmail } from './utils';
 
 // ---------------------------------------------------------------------------
@@ -232,12 +236,25 @@ export async function deleteRegistrationCycle(id: string): Promise<void> {
  */
 export async function getCurrentRegistrationCycle() {
     const cycles = await dbAdapter.listRegistrationCycles();
-    const activeCycles = cycles.filter(cycle => cycle.is_active);
-    if (activeCycles.length === 0) return null;
+    return pickActiveRegistrationCycle(cycles);
+}
 
-    return activeCycles.sort(
-        (a, b) =>
-            new Date((b as any).updated_at ?? 0).getTime() -
-            new Date((a as any).updated_at ?? 0).getTime(),
-    )[0];
+/**
+ * Return the registration cycle immediately before `currentCycleId` by start_date.
+ * Does not use numeric id math — prod/UAT cycles are UUIDs.
+ */
+export async function getPriorRegistrationCycle(currentCycleId: string) {
+    const cycles = await dbAdapter.listRegistrationCycles();
+    return pickPriorRegistrationCycle(cycles, currentCycleId);
+}
+
+/**
+ * Resolve the active registration cycle or throw — no legacy `'2025'` fallback.
+ */
+export async function requireActiveRegistrationCycle() {
+    const cycle = await getCurrentRegistrationCycle();
+    if (!cycle?.cycle_id) {
+        throw new Error('No active registration cycle is configured.');
+    }
+    return cycle;
 }

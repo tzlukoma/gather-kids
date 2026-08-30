@@ -1,0 +1,41 @@
+{
+  "uat": {
+    "supabase_url": "https://gekouvbeujfkiaorshim.supabase.co",
+    "anon_key": "PASTE-UAT-ANON-KEY",
+    "service_role_key": "PASTE-UAT-SERVICE-ROLE-KEY",
+    "database_url": "postgresql://postgres.[POOLER-REF]:[PASSWORD]@aws-0-[REGION].pooler.supabase.com:6543/postgres?sslmode=require"
+  },
+  "cycles": {
+    "fall_2025_id": "e3a387b5-de59-4e37-a52a-b9e9102dc45c",
+    "fall_2026_id": "PASTE-UUID-FROM-P0.3"
+  },
+  "test_accounts": {
+    "returning_guardian": {
+      "email": "parent-with-household@example.com",
+      "password": "TestPassword123!",
+      "household_id": "optional-for-spot-checks",
+      "child_count": 2,
+      "notes": "Auth user with user_households row and Fall 2025 enrollments"
+    },
+    "new_guardian": {
+      "email": "brand-new@example.com",
+      "password": "TestPassword123!",
+      "notes": "Auth user with NO user_households row"
+    },
+    "shared_email_guardian": {
+      "email": "optional-shared@example.com",
+      "password": "TestPassword123!",
+      "notes": "Optional: duplicate email across households edge case"
+    }
+  },
+  "decisions": {
+    "grade_bump": "prompt_confirm",
+    "unauthenticated_register": "redirect_to_login",
+    "email_lookup_without_session": "disabled",
+    "activate_fall_2026_on_uat_after_tests": true
+  },
+  "app": {
+    "uat_base_url": "https://your-uat-preview.vercel.app",
+    "local_base_url": "http://localhost:9002"
+  }
+}

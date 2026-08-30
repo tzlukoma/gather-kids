@@ -38,9 +38,7 @@ type RegistrationPayload = {
  *
  * @param data    Registration payload (household, guardians, children, etc.)
  * @param cycle_id  Active registration cycle ID.
- * @param isPrefill  When true, treats the operation as a pre-fill from a
- *                   previous cycle — existing enrollments for this cycle are
- *                   NOT deleted during an update.
+ * @param isPrefill  Deprecated — kept for test compatibility; ignored (always writes).
  */
 export async function registerHousehold(
     data: unknown,
@@ -125,6 +123,13 @@ export async function registerHousehold(
         // ---------------------------------------------------------------
         // Children, enrollments, and registrations
         // ---------------------------------------------------------------
+        const existingChildrenBeforeLoop = isUpdate
+            ? await dbAdapter.listChildren({ householdId })
+            : [];
+        const existingChildIdSet = new Set(
+            existingChildrenBeforeLoop.map(c => c.child_id),
+        );
+
         for (const childData of input.children || []) {
             type IncomingChild = Partial<Child> & {
                 ministrySelections?: Record<string, boolean>;
@@ -142,7 +147,7 @@ export async function registerHousehold(
                 is_active: true,
             };
 
-            if (childCore.child_id) {
+            if (existingChildIdSet.has(childId)) {
                 await dbAdapter.updateChild(childId, child);
             } else {
                 await dbAdapter.createChild(
@@ -150,9 +155,7 @@ export async function registerHousehold(
                 );
             }
 
-            // Delete existing enrollments for this cycle when performing an update
-            // (but not for a pre-fill from a previous cycle).
-            if (isUpdate && !isPrefill) {
+            if (isUpdate) {
                 const existingEnrollments = await dbAdapter.listMinistryEnrollments(
                     childId,
                     undefined,

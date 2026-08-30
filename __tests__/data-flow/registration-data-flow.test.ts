@@ -570,7 +570,7 @@ describe('Registration Data Flow - End-to-End', () => {
       }
 
       try {
-        await registerHouseholdCanonical(completeRegistrationData, 'test-cycle', false);
+        await registerHouseholdCanonical(completeRegistrationData, 'test-cycle');
       } catch (error) {
         // Expected in test environment
         expect(error).toBeDefined();

@@ -140,7 +140,7 @@ export function useUpdateUser() {
 }
 
 // Query hook for available users (not connected to any household)
-export function useAvailableUsers() {
+export function useAvailableUsers(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ['availableUsers'],
     queryFn: async () => {
@@ -151,12 +151,16 @@ export function useAvailableUsers() {
       }
       return response.json();
     },
+    enabled: options?.enabled ?? true,
     ...cacheConfig.moderate,
   });
 }
 
 // Query hook for household user connection
-export function useHouseholdUser(householdId: string) {
+export function useHouseholdUser(
+  householdId: string,
+  options?: { enabled?: boolean },
+) {
   return useQuery({
     queryKey: ['householdUser', householdId],
     queryFn: async () => {
@@ -167,7 +171,7 @@ export function useHouseholdUser(householdId: string) {
       }
       return response.json();
     },
-    enabled: !!householdId,
+    enabled: (options?.enabled ?? true) && !!householdId,
     ...cacheConfig.moderate,
   });
 }

@@ -12,6 +12,9 @@ import { db as dbAdapter } from '@/lib/database/factory';
 import { AuthRole, BaseUser } from '@/lib/auth-types';
 import { ProtectedRoute } from '@/components/auth/protected-route';
 import { supabase } from '@/lib/supabaseClient';
+import { devLog } from '@/lib/dev-log';
+
+const authLog = devLog('auth');
 
 interface AuthContextType {
 	user: BaseUser | null;
@@ -182,7 +185,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 	useEffect(() => {
 		const initializeAuth = async () => {
-			console.log('AuthProvider: Starting initialization (Supabase mode)');
+			authLog.log('Starting initialization (Supabase mode)');
 			setLoading(true);
 
 			try {
@@ -192,7 +195,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 				} = await supabase.auth.getSession();
 
 				if (session?.user) {
-					console.log('AuthProvider: Found active Supabase session');
+					authLog.log('Found active Supabase session');
 					await setUserFromSupabaseData(session.user);
 				} else if (typeof window !== 'undefined') {
 					// Check for Supabase auth tokens that would indicate a previous successful auth
@@ -211,7 +214,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 			} catch (error) {
 				console.error('AuthProvider: Failed to initialize auth state', error);
 			} finally {
-				console.log('AuthProvider: Initialization complete');
+				authLog.log('Initialization complete');
 				setLoading(false);
 			}
 		};
@@ -222,7 +225,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 		const {
 			data: { subscription },
 		} = supabase.auth.onAuthStateChange(async (event: any, session: any) => {
-			console.log('Supabase auth state change:', event, session?.user?.id);
+			authLog.log('Auth state change:', event, session?.user?.id);
 
 			if (
 				(event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') &&
@@ -278,7 +281,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 	}, []);
 
 	const login = async (userData: Omit<BaseUser, 'assignedMinistryIds'>) => {
-		console.log('AuthProvider: Login called with userData:', userData);
+		authLog.log('Login called with userData:', userData);
 		setLoading(true);
 		try {
 			const userRole = userData.metadata?.role || null;
@@ -320,7 +323,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 				}, 0);
 			}
 
-			console.log('AuthProvider: Login completed successfully');
+			authLog.log('Login completed successfully');
 		} finally {
 			setLoading(false);
 		}

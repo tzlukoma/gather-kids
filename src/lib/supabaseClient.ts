@@ -1,4 +1,7 @@
 import { createBrowserClient } from '@supabase/ssr';
+import { devLog, isDevLogEnabled } from '@/lib/dev-log';
+
+const authLog = devLog('auth');
 
 /**
  * Next.js-compatible storage adapter for Supabase Auth
@@ -60,12 +63,6 @@ export const supabaseBrowser = () => {
     throw new Error('Supabase configuration is missing. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY environment variables.');
   }
 
-  // Check if we're in a Vercel preview environment
-  const isVercelPreview = 
-    typeof window !== 'undefined' && 
-    window.location.hostname.includes('vercel.app');
-  
-  // Create the client with appropriate configuration
   // Create client config with localStorage-based storage for cross-tab compatibility
   const clientOptions = {
     auth: {
@@ -75,11 +72,9 @@ export const supabaseBrowser = () => {
       detectSessionInUrl: window?.location?.pathname === '/auth/callback',
       flowType: 'pkce' as const, // Type assertion to fix TS error
       storage: new NextJSStorage(),
-      // Additional debugging for all environments to help troubleshoot
-      debug: true,
-      onAuthStateChange: (event: string, session: unknown) => {
-        console.log(`[Auth Debug] Auth state change: ${event}`, 
-          isVercelPreview ? 'Vercel Preview Environment' : 'Standard Environment');
+      debug: isDevLogEnabled('auth'),
+      onAuthStateChange: (event: string) => {
+        authLog.log(`Auth state change: ${event}`);
       }
     },
   };
@@ -123,25 +118,21 @@ export const supabaseClient = supabase;
  */
 export const handlePKCECodeExchange = async (code: string) => {
   try {
-    // Log debug info
-    console.log('PKCE debugging info:');
-    console.log('- Auth callback URL:', window.location.href);
-    
-    // Check if we have a code verifier in storage
+    authLog.log('PKCE debugging info:');
+    authLog.log('- Auth callback URL:', window.location.href);
+
     const codeVerifier = localStorage.getItem('supabase.auth.token.code_verifier');
-    console.log('- Code verifier exists:', !!codeVerifier);
-    
-    // Log storage info
+    authLog.log('- Code verifier exists:', !!codeVerifier);
+
     const allKeys = [];
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
       allKeys.push(key);
     }
-    console.log('- All localStorage keys:', allKeys);
-    
-    // Check for Supabase auth tokens that would indicate a previous successful auth
+    authLog.log('- All localStorage keys:', allKeys);
+
     const hasSupabaseTokens = allKeys.some(key => key && key.startsWith('sb-'));
-    console.log('- Has existing Supabase tokens:', hasSupabaseTokens);
+    authLog.log('- Has existing Supabase tokens:', hasSupabaseTokens);
 
     // Check if we might already be signed in (this could happen if auth worked but callback handling failed)
     const client = supabase;
@@ -153,56 +144,49 @@ export const handlePKCECodeExchange = async (code: string) => {
     );
     const { data: sessionData } = await Promise.race([sessionPromise, sessionTimeoutPromise]);
     if (sessionData?.session) {
-      console.log('- Already have active session:', sessionData.session.user.id);
+      authLog.log('- Already have active session:', sessionData.session.user.id);
       return { data: sessionData, error: null };
     }
 
-    // If we have tokens but no session, try to refresh the session first
     if (hasSupabaseTokens && !sessionData?.session) {
-      console.log('- Found tokens but no session, attempting session refresh...');
+      authLog.log('- Found tokens but no session, attempting session refresh...');
       const refreshPromise = client.auth.refreshSession();
       const refreshTimeoutPromise = new Promise<never>((_, reject) =>
         setTimeout(() => reject(new Error('Session refresh timeout after 5 seconds')), 5000)
       );
       const refreshResult = await Promise.race([refreshPromise, refreshTimeoutPromise]);
       if (refreshResult.data?.session) {
-        console.log('- Session refresh succeeded!', refreshResult.data.session.user.id);
+        authLog.log('- Session refresh succeeded!', refreshResult.data.session.user.id);
         return refreshResult;
       } else {
-        console.log('- Session refresh failed, proceeding with code exchange');
+        authLog.log('- Session refresh failed, proceeding with code exchange');
       }
     }
 
-    // Attempt the exchange with timeout
-    console.log('- Starting code exchange...');
+    authLog.log('- Starting code exchange...');
     const exchangePromise = client.auth.exchangeCodeForSession(code);
     const timeoutPromise = new Promise<never>((_, reject) =>
       setTimeout(() => reject(new Error('Code exchange timeout after 10 seconds')), 10000)
     );
 
     const result = await Promise.race([exchangePromise, timeoutPromise]);
-    console.log('- Exchange completed', result);
+    authLog.log('- Exchange completed', result);
 
-    // Check for Supabase-created auth tokens even if there was an error
-    // This helps detect the "successful but something else broke" case
     if (result.error) {
-      // Look for Supabase tokens that might indicate successful auth despite the error
       const hasTokensAfterAttempt = Object.keys(localStorage).some(key => key && key.startsWith('sb-'));
       if (hasTokensAfterAttempt) {
-        console.log('- Found Supabase tokens despite error - partial success detected');
-
-        // If we see tokens but got an error, make one more attempt to get a session
-        console.log('- Attempting to recover session after partial success...');
+        authLog.log('- Found Supabase tokens despite error - partial success detected');
+        authLog.log('- Attempting to recover session after partial success...');
         const recoveryPromise = client.auth.refreshSession();
         const recoveryTimeoutPromise = new Promise<never>((_, reject) =>
           setTimeout(() => reject(new Error('Session recovery timeout after 5 seconds')), 5000)
         );
         const recoveryResult = await Promise.race([recoveryPromise, recoveryTimeoutPromise]);
         if (recoveryResult.data?.session) {
-          console.log('- Session recovery succeeded after partial success!');
+          authLog.log('- Session recovery succeeded after partial success!');
           return recoveryResult;
         } else {
-          console.log('- Session recovery failed after partial success');
+          authLog.log('- Session recovery failed after partial success');
         }
       }
     }

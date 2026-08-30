@@ -3,6 +3,9 @@ import type * as SupabaseTypes from './supabase-types';
 import type * as CanonicalDtos from './canonical-dtos';
 import type { Attendance, Incident, Event, User, MinistryLeaderMembership, MinistryAccount, BrandingSettings, EventTimeslot, Consent, CustomQuestion } from '../types';
 import type { Database } from './supabase-types';
+import { devLog } from '../dev-log';
+
+const dalLog = devLog('dal');
 
 /**
  * Maps between Dexie types, Supabase generated types, and canonical snake_case DTOs
@@ -609,7 +612,7 @@ export type SupabaseMinistry =
 
 // Ministry conversions
 export function supabaseToMinistry(record: SupabaseMinistry): MinistryEntity {
-	console.log('🔍 supabaseToMinistry: Converting record', {
+	dalLog.log('supabaseToMinistry: Converting record', {
 		ministry_id: record.ministry_id,
 		name: record.name,
 		email: (record as any).email,
@@ -628,7 +631,7 @@ export function supabaseToMinistry(record: SupabaseMinistry): MinistryEntity {
 
 	try {
 		const emailValue = (r.email as string | undefined) ?? undefined;
-		console.log('🔍 supabaseToMinistry: Email processing', {
+		dalLog.log('supabaseToMinistry: Email processing', {
 			rawEmail: r.email,
 			emailValue: emailValue,
 			emailType: typeof r.email
@@ -661,7 +664,7 @@ export function supabaseToMinistry(record: SupabaseMinistry): MinistryEntity {
 			updated_at: String(r.updated_at || new Date().toISOString()),
 		};
 		
-		console.log('🔍 supabaseToMinistry: Successfully converted ministry', {
+		dalLog.log('supabaseToMinistry: Successfully converted ministry', {
 			id: result.ministry_id,
 			name: result.name,
 			code: result.code,

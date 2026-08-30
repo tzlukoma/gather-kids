@@ -3,6 +3,10 @@
  * Controls localStorage-based debug panel visibility
  */
 
+import { devLog } from '../dev-log';
+
+const panelLog = devLog('debug-panel');
+
 export const DEBUG_LS_KEY = 'gk:debug-panel';
 
 /**
@@ -19,21 +23,21 @@ export function isDebugOn(): boolean {
 export function setDebugFlag(enabled: boolean): void {
   if (typeof window === 'undefined') return;
   
-  console.log(`🔧 Debug flag: Setting debug panel to ${enabled ? 'ENABLED' : 'DISABLED'}`);
+  panelLog.log(`Setting debug panel to ${enabled ? 'ENABLED' : 'DISABLED'}`);
   
   if (enabled) {
     localStorage.setItem(DEBUG_LS_KEY, '1');
-    console.log(`🔧 Debug flag: Set ${DEBUG_LS_KEY}='1' in localStorage`);
+    panelLog.log(`Set ${DEBUG_LS_KEY}='1' in localStorage`);
   } else {
     localStorage.removeItem(DEBUG_LS_KEY);
-    console.log(`🔧 Debug flag: Removed ${DEBUG_LS_KEY} from localStorage`);
+    panelLog.log(`Removed ${DEBUG_LS_KEY} from localStorage`);
   }
   
   // Dispatch custom event to notify listeners
   window.dispatchEvent(new CustomEvent('gk:debug-flag-change', { 
     detail: { enabled } 
   }));
-  console.log(`🔧 Debug flag: Dispatched gk:debug-flag-change event with enabled=${enabled}`);
+  panelLog.log(`Dispatched gk:debug-flag-change event with enabled=${enabled}`);
 }
 
 /**
@@ -70,7 +74,7 @@ export function syncDebugFlag(): void {
   if (typeof window === 'undefined') return;
   
   const currentState = isDebugOn();
-  console.log(`🔧 Debug flag: Manual sync - current state is ${currentState ? 'ENABLED' : 'DISABLED'}`);
+  panelLog.log(`Manual sync - current state is ${currentState ? 'ENABLED' : 'DISABLED'}`);
   
   // Trigger the flag change event to ensure all listeners are notified
   window.dispatchEvent(new CustomEvent('gk:debug-flag-change', { 
