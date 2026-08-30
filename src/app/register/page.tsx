@@ -35,17 +35,23 @@ import {
 } from '@/components/ui/accordion';
 import { useToast } from '@/hooks/use-toast';
 import { PlusCircle, Trash2, AlertTriangle, Info } from 'lucide-react';
-import { useState, useMemo, useEffect, useCallback, Suspense } from 'react';
+import { useState, useMemo, useEffect, useCallback, Suspense, useRef } from 'react';
 import { Textarea } from '@/components/ui/textarea';
 import {
-	findHouseholdByEmail,
+	loadHouseholdForRegistration,
 	registerHouseholdCanonical,
 	getMinistries,
 	getRegistrationCycles,
 	getMinistriesByGroupCode,
 	getMinistryGroups,
 } from '@/lib/dal';
+import type { HouseholdPrefillGradeHint } from '@/lib/dal/households';
+import { canonicalizeGradeForStorage, gradeToCode } from '@/lib/gradeUtils';
+import { pickActiveRegistrationCycle } from '@/lib/dal/registration-cycle-utils';
+import { devLog } from '@/lib/dev-log';
 import { getFlag } from '@/lib/featureFlags';
+
+const log = devLog('register');
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import {
 	AlertDialog,
@@ -223,19 +229,11 @@ function VerificationStepTwoForm({
 	});
 
 	async function onSubmit() {
-		// This is a mock verification. In a real app this would hit a server.
-		const cycleId = '2025'; // fallback cycleId for verification flow
-		const householdData = await findHouseholdByEmail(
-			MOCK_EMAILS.PREFILL_OVERWRITE,
-			cycleId
-		);
-		if (householdData) {
-			onVerifySuccess();
-			toast({
-				title: 'Verification Successful!',
-				description: 'Your household information has been pre-filled.',
-			});
-		}
+		onVerifySuccess();
+		toast({
+			title: 'Verification Successful!',
+			description: 'Please sign in to continue registration.',
+		});
 	}
 
 	return (
@@ -480,13 +478,19 @@ function RegisterPageContent() {
 	const [verificationEmail, setVerificationEmail] = useState('');
 	const [openAccordionItems, setOpenAccordionItems] = useState<string[]>([]);
 	const [isCurrentYearOverwrite, setIsCurrentYearOverwrite] = useState(false);
-	const [isPrefill, setIsPrefill] = useState(false);
+	const [isReturningPrefill, setIsReturningPrefill] = useState(false);
+	const [existingChildIds, setExistingChildIds] = useState<Set<string>>(
+		new Set()
+	);
+	const [gradeHintsByChildId, setGradeHintsByChildId] = useState<
+		Record<string, HouseholdPrefillGradeHint>
+	>({});
 	const [isAuthenticatedUser, setIsAuthenticatedUser] = useState(false);
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [submissionStatus, setSubmissionStatus] = useState<string>('');
 
 	// Use React Query for data fetching with authentication dependency
-	console.log(
+	log.log(
 		'🔍 RegisterPage: Starting React Query calls, authLoading:',
 		authLoading
 	);
@@ -498,7 +502,7 @@ function RegisterPageContent() {
 	} = useQuery({
 		queryKey: ['ministries'],
 		queryFn: async () => {
-			console.log('🔍 RegisterPage: Calling getMinistries...');
+			log.log('🔍 RegisterPage: Calling getMinistries...');
 			const ministriesPromise = getMinistries();
 			const timeoutPromise = new Promise<never>((_, reject) =>
 				setTimeout(
@@ -512,7 +516,7 @@ function RegisterPageContent() {
 		staleTime: 10 * 60 * 1000, // 10 minutes
 	});
 
-	console.log('🔍 RegisterPage: Ministries query state:', {
+	log.log('🔍 RegisterPage: Ministries query state:', {
 		isLoading: ministriesLoading,
 		hasError: !!ministriesError,
 		dataCount: allMinistries.length,
@@ -526,14 +530,14 @@ function RegisterPageContent() {
 	} = useQuery({
 		queryKey: ['registrationCycles'],
 		queryFn: () => {
-			console.log('🔍 RegisterPage: Calling getRegistrationCycles...');
+			log.log('🔍 RegisterPage: Calling getRegistrationCycles...');
 			return getRegistrationCycles();
 		},
 		enabled: !authLoading, // Wait for authentication to complete
 		staleTime: 15 * 60 * 1000, // 15 minutes
 	});
 
-	console.log('🔍 RegisterPage: Registration cycles query state:', {
+	log.log('🔍 RegisterPage: Registration cycles query state:', {
 		isLoading: cyclesLoading,
 		hasError: !!cyclesError,
 		dataCount: registrationCycles.length,
@@ -547,32 +551,29 @@ function RegisterPageContent() {
 	} = useQuery({
 		queryKey: ['ministryGroups'],
 		queryFn: () => {
-			console.log('🔍 RegisterPage: Calling getMinistryGroups...');
+			log.log('🔍 RegisterPage: Calling getMinistryGroups...');
 			return getMinistryGroups();
 		},
 		enabled: !authLoading, // Wait for authentication to complete
 		staleTime: 15 * 60 * 1000, // 15 minutes
 	});
 
-	console.log('🔍 RegisterPage: Ministry groups query state:', {
+	log.log('🔍 RegisterPage: Ministry groups query state:', {
 		isLoading: groupsLoading,
 		hasError: !!groupsError,
 		dataCount: ministryGroups.length,
 		errorMessage: (groupsError instanceof Error ? groupsError.message : undefined),
 	});
 
-	// Find active registration cycle
-	const activeRegistrationCycle = useMemo(() => {
-		return registrationCycles.find((c) => {
-			const rec = c as unknown as Record<string, unknown>;
-			const val = rec['is_active'];
-			return val === true || val === 1 || String(val) === '1';
-		});
-	}, [registrationCycles]);
+	// Find active registration cycle (same logic as DAL)
+	const activeRegistrationCycle = useMemo(
+		() => pickActiveRegistrationCycle(registrationCycles),
+		[registrationCycles],
+	);
 
 	// Process choir ministries
 	const showMinistryGroups = getFlag('SHOW_MINISTRY_GROUPS');
-	console.log('🔍 RegisterPage: showMinistryGroups flag:', showMinistryGroups);
+	log.log('🔍 RegisterPage: showMinistryGroups flag:', showMinistryGroups);
 
 	const {
 		data: choirMinistriesData = [],
@@ -581,7 +582,7 @@ function RegisterPageContent() {
 	} = useQuery({
 		queryKey: ['ministriesByGroup', 'choirs'],
 		queryFn: () => {
-			console.log(
+			log.log(
 				'🔍 RegisterPage: Calling getMinistriesByGroupCode("choirs")...'
 			);
 			return getMinistriesByGroupCode('choirs');
@@ -590,7 +591,7 @@ function RegisterPageContent() {
 		staleTime: 10 * 60 * 1000, // 10 minutes
 	});
 
-	console.log('🔍 RegisterPage: Choir ministries query state:', {
+	log.log('🔍 RegisterPage: Choir ministries query state:', {
 		isLoading: choirMinistriesLoading,
 		hasError: !!choirMinistriesError,
 		dataCount: choirMinistriesData.length,
@@ -609,7 +610,7 @@ function RegisterPageContent() {
 	}, [allMinistries, choirMinistriesData, showMinistryGroups]);
 
 	// Draft persistence for form data (conditional based on feature flag)
-	console.log('🔍 RegisterPage: About to call useDraftPersistence...');
+	log.log('🔍 RegisterPage: About to call useDraftPersistence...');
 	const { loadDraft, saveDraft, clearDraft, draftStatus } =
 		useDraftPersistence<RegistrationFormValues>({
 			formName: 'registration_v1',
@@ -617,14 +618,15 @@ function RegisterPageContent() {
 			autoSaveDelay: 1000,
 			enabled: false, // Temporarily disable to prevent 406 error
 		});
-	console.log(
+	log.log(
 		'🔍 RegisterPage: useDraftPersistence completed, draftStatus:',
 		draftStatus
 	);
 
-	console.log('🔍 RegisterPage: About to set up form callbacks...');
+	log.log('🔍 RegisterPage: About to set up form callbacks...');
 	// Load saved form data from draft
 	const [hasLoadedDraft, setHasLoadedDraft] = useState(false);
+	const householdInitKeyRef = useRef<string | null>(null);
 	const loadSavedFormData = useCallback(async (): Promise<
 		Partial<RegistrationFormValues>
 	> => {
@@ -650,7 +652,7 @@ function RegisterPageContent() {
 		clearDraft();
 	}, [clearDraft]);
 
-	console.log('🔍 RegisterPage: About to set up form...');
+	log.log('🔍 RegisterPage: About to set up form...');
 	const form = useForm<RegistrationFormValues>({
 		resolver: zodResolver(registrationSchema),
 		defaultValues: {
@@ -689,84 +691,320 @@ function RegisterPageContent() {
 		},
 	});
 
-	// Load draft data asynchronously and merge with form
+	const prefillForm = useCallback(
+		(
+			data: any,
+			meta?: {
+				existingChildIds?: string[];
+				gradeHintsByChildId?: Record<string, HouseholdPrefillGradeHint>;
+				isReturningPrefill?: boolean;
+			}
+		) => {
+			log.log('DEBUG: prefillForm called with data:', {
+				hasChildren: !!data.children,
+				childrenLength: data.children?.length,
+			});
+			try {
+				const householdData = data.household;
+				const registrationData: Partial<RegistrationFormValues> = {
+					household: {
+						household_id: householdData?.household_id || '',
+						name: householdData?.name || '',
+						address_line1: householdData?.address_line1 || '',
+						address_line2: householdData?.address_line2 || '',
+						city: householdData?.city || '',
+						state: householdData?.state || '',
+						zip: householdData?.zip || '',
+						preferredScriptureTranslation:
+							householdData?.preferredScriptureTranslation || 'NIV',
+					},
+					guardians: data.guardians || [],
+					emergencyContact: {
+						first_name: data.emergencyContact?.first_name || '',
+						last_name: data.emergencyContact?.last_name || '',
+						mobile_phone: data.emergencyContact?.mobile_phone || '',
+						relationship: data.emergencyContact?.relationship || '',
+					},
+					children: data.children || [],
+					consents: {
+						liability: data.consents?.liability || false,
+						photoRelease: data.consents?.photoRelease || false,
+						group_consents: data.consents?.group_consents || {},
+						custom_consents: data.consents?.custom_consents || {},
+					},
+				};
+				log.log('DEBUG: About to call form.reset');
+				form.reset(registrationData);
+				setExistingChildIds(
+					new Set(
+						meta?.existingChildIds ??
+							(data.children || [])
+								.map((c: { child_id?: string }) => c.child_id)
+								.filter(Boolean)
+					)
+				);
+				setGradeHintsByChildId(meta?.gradeHintsByChildId ?? {});
+				setIsReturningPrefill(meta?.isReturningPrefill ?? false);
+				log.log('DEBUG: Form reset completed');
+				if (data.children && data.children.length > 0) {
+					log.log('DEBUG: Setting accordion items for children');
+					setOpenAccordionItems(
+						data.children.map((_: any, index: number) => `item-${index}`)
+					);
+				}
+				log.log('DEBUG: prefillForm completed successfully');
+			} catch (error) {
+				console.error('DEBUG: Error in prefillForm:', error);
+			}
+		},
+		[form]
+	);
+
+	// Authenticated registration init: optional draft restore, then household prefill
 	useEffect(() => {
-		async function loadDraftData() {
-			if (!hasLoadedDraft && !authLoading) {
-				const draftData = await loadSavedFormData();
-				if (draftData && Object.keys(draftData).length > 0) {
-					// Reset form with merged default values and draft data
+		if (authLoading || cyclesLoading || !user?.email) {
+			return;
+		}
+
+		const initKey = `${user.uid}:${activeRegistrationCycle?.cycle_id ?? 'none'}`;
+		if (householdInitKeyRef.current === initKey) {
+			return;
+		}
+
+		if (user.metadata?.role === 'MINISTRY_LEADER') {
+			router.push('/rosters');
+			householdInitKeyRef.current = initKey;
+			return;
+		}
+
+		let cancelled = false;
+
+		const initializeAuthenticatedRegistration = async () => {
+			setVerificationEmail(user.email);
+			setIsAuthenticatedUser(true);
+
+			const draftData = await loadSavedFormData();
+			if (cancelled) return;
+
+			if (draftData && Object.keys(draftData).length > 0) {
+				form.reset({
+					household: {
+						address_line1: '',
+						city: '',
+						state: '',
+						zip: '',
+						...(draftData.household || {}),
+						name: draftData.household?.name || '',
+						address_line2: draftData.household?.address_line2 || '',
+						preferredScriptureTranslation:
+							draftData.household?.preferredScriptureTranslation || 'NIV',
+					},
+					guardians:
+						(draftData.guardians?.length ?? 0) > 0
+							? draftData.guardians!.map((guardian) => ({
+									first_name: guardian.first_name || '',
+									last_name: guardian.last_name || '',
+									mobile_phone: guardian.mobile_phone || '',
+									email: guardian.email || '',
+									relationship: guardian.relationship || 'Mother',
+									is_primary: guardian.is_primary || false,
+							  }))
+							: [
+									{
+										first_name: '',
+										last_name: '',
+										mobile_phone: '',
+										email: '',
+										relationship: 'Mother',
+										is_primary: true,
+									},
+							  ],
+					emergencyContact: {
+						...(draftData.emergencyContact || {}),
+						first_name: draftData.emergencyContact?.first_name || '',
+						last_name: draftData.emergencyContact?.last_name || '',
+						mobile_phone: draftData.emergencyContact?.mobile_phone || '',
+						relationship: draftData.emergencyContact?.relationship || '',
+					},
+					children: (draftData.children || []).map((child) => ({
+						...defaultChildValues,
+						...child,
+						child_id: child.child_id || '',
+						child_mobile: child.child_mobile || '',
+						allergies: child.allergies || '',
+						medical_notes: child.medical_notes || '',
+						special_needs: child.special_needs || false,
+						special_needs_notes: child.special_needs_notes || '',
+						ministrySelections: child.ministrySelections || {},
+						interestSelections: child.interestSelections || {},
+						customData: child.customData || {},
+					})),
+					consents: {
+						...(draftData.consents || {}),
+						liability: draftData.consents?.liability || false,
+						photoRelease: draftData.consents?.photoRelease || false,
+						group_consents: draftData.consents?.group_consents || {},
+						custom_consents: draftData.consents?.custom_consents || {},
+					},
+				});
+				setHasLoadedDraft(true);
+				setVerificationStep('form_visible');
+				householdInitKeyRef.current = initKey;
+				return;
+			}
+
+			if (
+				!user.metadata?.role ||
+				user.metadata.role === 'GUEST'
+			) {
+				try {
+					const { dbAdapter } = await import('@/lib/dal');
+					const accessibleMinistries =
+						await dbAdapter.listAccessibleMinistriesForEmail(user.email);
+					if (cancelled) return;
+					if (accessibleMinistries.length > 0) {
+						router.push('/rosters');
+						householdInitKeyRef.current = initKey;
+						return;
+					}
+				} catch (error) {
+					console.error('DEBUG: Error checking ministry access:', error);
+				}
+			}
+
+			try {
+				if (cyclesError) {
+					toast({
+						title: 'Registration unavailable',
+						description:
+							'Unable to load registration cycles. Please try again later.',
+						variant: 'destructive',
+					});
+					setVerificationStep('form_visible');
+					householdInitKeyRef.current = initKey;
+					return;
+				}
+
+				const cycleId = activeRegistrationCycle?.cycle_id;
+				if (!cycleId) {
+					toast({
+						title: 'Registration unavailable',
+						description:
+							'No active registration cycle is configured. Please try again later.',
+						variant: 'destructive',
+					});
+					setVerificationStep('form_visible');
+					householdInitKeyRef.current = initKey;
+					return;
+				}
+
+				const authUserId = user.uid;
+				if (!authUserId) {
+					setVerificationStep('form_visible');
+					householdInitKeyRef.current = initKey;
+					return;
+				}
+
+				const result = await loadHouseholdForRegistration(authUserId, cycleId);
+				if (cancelled) return;
+
+				if (result) {
+					toast({
+						title: 'Household Found!',
+						description:
+							'Your information has been pre-filled for you to review.',
+					});
+					prefillForm(result.data, {
+						existingChildIds: result.existingChildIds,
+						gradeHintsByChildId: result.gradeHintsByChildId,
+						isReturningPrefill: result.isReturningPrefill,
+					});
+					setIsCurrentYearOverwrite(result.isCurrentYear);
+					setIsReturningPrefill(result.isReturningPrefill);
+				} else {
+					toast({
+						title: 'Complete Your Registration',
+						description:
+							'Please complete the form below to register your family.',
+					});
+					setIsCurrentYearOverwrite(false);
+					setIsReturningPrefill(false);
+					setExistingChildIds(new Set());
+					setGradeHintsByChildId({});
 					form.reset({
 						household: {
+							name: '',
 							address_line1: '',
+							address_line2: '',
 							city: '',
 							state: '',
 							zip: '',
-							...(draftData.household || {}),
-							// Ensure optional fields have proper defaults
-							name: draftData.household?.name || '',
-							address_line2: draftData.household?.address_line2 || '',
-							preferredScriptureTranslation:
-								draftData.household?.preferredScriptureTranslation || 'NIV',
+							preferredScriptureTranslation: 'NIV',
 						},
-						guardians:
-							(draftData.guardians?.length ?? 0) > 0
-								? draftData.guardians!.map((guardian) => ({
-										first_name: guardian.first_name || '',
-										last_name: guardian.last_name || '',
-										mobile_phone: guardian.mobile_phone || '',
-										email: guardian.email || '',
-										relationship: guardian.relationship || 'Mother',
-										is_primary: guardian.is_primary || false,
-								  }))
-								: [
-										{
-											first_name: '',
-											last_name: '',
-											mobile_phone: '',
-											email: '',
-											relationship: 'Mother',
-											is_primary: true,
-										},
-								  ],
+						guardians: [
+							{
+								first_name: '',
+								last_name: '',
+								mobile_phone: '',
+								email: user.email,
+								relationship: 'Mother',
+								is_primary: true,
+							},
+						],
 						emergencyContact: {
-							...(draftData.emergencyContact || {}),
-							// Ensure all fields have proper defaults
-							first_name: draftData.emergencyContact?.first_name || '',
-							last_name: draftData.emergencyContact?.last_name || '',
-							mobile_phone: draftData.emergencyContact?.mobile_phone || '',
-							relationship: draftData.emergencyContact?.relationship || '',
+							first_name: '',
+							last_name: '',
+							mobile_phone: '',
+							relationship: '',
 						},
-						children: (draftData.children || []).map((child) => ({
-							...defaultChildValues,
-							...child,
-							// Ensure optional fields have proper defaults
-							child_id: child.child_id || '',
-							child_mobile: child.child_mobile || '',
-							allergies: child.allergies || '',
-							medical_notes: child.medical_notes || '',
-							special_needs: child.special_needs || false,
-							special_needs_notes: child.special_needs_notes || '',
-							ministrySelections: child.ministrySelections || {},
-							interestSelections: child.interestSelections || {},
-							customData: child.customData || {},
-						})),
+						children: [
+							{
+								...defaultChildValues,
+								child_id: crypto.randomUUID(),
+							},
+						],
 						consents: {
-							...(draftData.consents || {}),
-							// Ensure optional fields have proper defaults
-							liability: draftData.consents?.liability || false,
-							photoRelease: draftData.consents?.photoRelease || false,
-							group_consents: draftData.consents?.group_consents || {},
-							custom_consents: draftData.consents?.custom_consents || {},
+							liability: false,
+							photoRelease: false,
+							custom_consents: {},
 						},
 					});
+					setOpenAccordionItems(['item-0']);
 				}
-				setHasLoadedDraft(true);
-			}
-		}
 
-		loadDraftData();
-	}, [hasLoadedDraft, loadSavedFormData, form, authLoading]);
+				setVerificationStep('form_visible');
+				householdInitKeyRef.current = initKey;
+			} catch (error) {
+				console.error('DEBUG: Error in checkExistingData:', error);
+				toast({
+					title: 'Complete Your Registration',
+					description:
+						'Please complete the form below to register your family.',
+				});
+				setIsCurrentYearOverwrite(false);
+				setIsReturningPrefill(false);
+				setVerificationStep('form_visible');
+				householdInitKeyRef.current = initKey;
+			}
+		};
+
+		initializeAuthenticatedRegistration();
+
+		return () => {
+			cancelled = true;
+		};
+	}, [
+		authLoading,
+		cyclesLoading,
+		cyclesError,
+		user,
+		activeRegistrationCycle?.cycle_id,
+		loadSavedFormData,
+		form,
+		prefillForm,
+		toast,
+		router,
+	]);
 
 	const {
 		fields: guardianFields,
@@ -878,20 +1116,20 @@ function RegisterPageContent() {
 	}, [allMinistries]);
 
 	const { otherMinistryPrograms, choirPrograms } = useMemo(() => {
-		console.log('DEBUG: enrolledPrograms:', enrolledPrograms);
-		console.log('DEBUG: choirMinistries:', choirMinistries);
+		log.log('DEBUG: enrolledPrograms:', enrolledPrograms);
+		log.log('DEBUG: choirMinistries:', choirMinistries);
 
 		if (!enrolledPrograms)
 			return { otherMinistryPrograms: [], choirPrograms: [] };
 
 		// Use choir ministries loaded from groups or fallback
 		const choirIds = new Set(choirMinistries.map((c) => c.ministry_id));
-		console.log('DEBUG: choirIds:', Array.from(choirIds));
+		log.log('DEBUG: choirIds:', Array.from(choirIds));
 
 		const choir = enrolledPrograms.filter((program) =>
 			choirIds.has(program.ministry_id)
 		);
-		console.log('DEBUG: choir programs found:', choir);
+		log.log('DEBUG: choir programs found:', choir);
 
 		const otherMinistries = enrolledPrograms.filter(
 			(program) => !choirIds.has(program.ministry_id)
@@ -902,77 +1140,27 @@ function RegisterPageContent() {
 
 	// Get ministry groups that require consent
 	const groupsRequiringConsent = useMemo(() => {
-		console.log('DEBUG: ministryGroups:', ministryGroups);
+		log.log('DEBUG: ministryGroups:', ministryGroups);
 		const filtered = ministryGroups.filter(
 			(group) => group.custom_consent_required && group.custom_consent_text
 		);
-		console.log('DEBUG: groupsRequiringConsent:', filtered);
+		log.log('DEBUG: groupsRequiringConsent:', filtered);
 		return filtered;
 	}, [ministryGroups]);
 
-	const prefillForm = useCallback(
-		(data: any) => {
-			console.log('DEBUG: prefillForm called with data:', {
-				hasChildren: !!data.children,
-				childrenLength: data.children?.length,
-			});
-			try {
-				const householdData = data.household;
-				const registrationData: Partial<RegistrationFormValues> = {
-					household: {
-						household_id: householdData?.household_id || '',
-						name: householdData?.name || '',
-						address_line1: householdData?.address_line1 || '',
-						address_line2: householdData?.address_line2 || '',
-						city: householdData?.city || '',
-						state: householdData?.state || '',
-						zip: householdData?.zip || '',
-						preferredScriptureTranslation:
-							householdData?.preferredScriptureTranslation || 'NIV',
-					},
-					guardians: data.guardians || [],
-					emergencyContact: {
-						first_name: data.emergencyContact?.first_name || '',
-						last_name: data.emergencyContact?.last_name || '',
-						mobile_phone: data.emergencyContact?.mobile_phone || '',
-						relationship: data.emergencyContact?.relationship || '',
-					},
-					children: data.children || [],
-					consents: {
-						liability: data.consents?.liability || false,
-						photoRelease: data.consents?.photoRelease || false,
-						group_consents: data.consents?.group_consents || {},
-						custom_consents: data.consents?.custom_consents || {},
-					},
-				};
-				console.log('DEBUG: About to call form.reset');
-				form.reset(registrationData);
-				console.log('DEBUG: Form reset completed');
-				if (data.children && data.children.length > 0) {
-					console.log('DEBUG: Setting accordion items for children');
-					setOpenAccordionItems(
-						data.children.map((_: any, index: number) => `item-${index}`)
-					);
-				}
-				console.log('DEBUG: prefillForm completed successfully');
-			} catch (error) {
-				console.error('DEBUG: Error in prefillForm:', error);
-			}
-		},
-		[form]
-	);
-
 	const proceedToRegistrationForm = useCallback(() => {
-		console.log('DEBUG: proceedToRegistrationForm called');
+		log.log('DEBUG: proceedToRegistrationForm called');
 		try {
 			toast({
 				title: 'New Registration',
 				description: 'Please complete the form below to register your family.',
 			});
-			console.log('DEBUG: Toast shown');
+			log.log('DEBUG: Toast shown');
 			setIsCurrentYearOverwrite(false);
-			setIsPrefill(false);
-			console.log('DEBUG: State flags set');
+			setIsReturningPrefill(false);
+			setExistingChildIds(new Set());
+			setGradeHintsByChildId({});
+			log.log('DEBUG: State flags set');
 			form.reset({
 				household: {
 					name: '',
@@ -1010,296 +1198,31 @@ function RegisterPageContent() {
 					custom_consents: {},
 				},
 			});
-			console.log('DEBUG: Form reset completed');
+			log.log('DEBUG: Form reset completed');
 			setOpenAccordionItems(['item-0']);
-			console.log('DEBUG: Accordion items set');
+			log.log('DEBUG: Accordion items set');
 			setVerificationStep('form_visible');
-			console.log('DEBUG: Verification step set to form_visible');
-			console.log('DEBUG: proceedToRegistrationForm completed successfully');
+			log.log('DEBUG: Verification step set to form_visible');
+			log.log('DEBUG: proceedToRegistrationForm completed successfully');
 		} catch (error) {
 			console.error('DEBUG: Error in proceedToRegistrationForm:', error);
 		}
 	}, [toast, form, verificationEmail]);
 
 	const handleEmailLookup = useCallback(async () => {
-		console.log(
-			'DEBUG: handleEmailLookup called with email:',
-			verificationEmail
-		);
-		if (!verificationEmail) {
-			console.log('DEBUG: No verification email provided');
-			return;
-		}
-
-		try {
-			console.log('DEBUG: About to find household by email');
-			// Use active registration cycle for lookup
-			const cycleId = activeRegistrationCycle?.cycle_id || '2025'; // fallback to '2025' if no active cycle found
-			const result = await findHouseholdByEmail(verificationEmail, cycleId);
-			console.log('DEBUG: findHouseholdByEmail result:', {
-				found: !!result,
-				isCurrentYear: result?.isCurrentYear,
-			});
-
-			if (result) {
-				console.log('DEBUG: Household found, calling prefillForm');
-				toast({
-					title: 'Household Found!',
-					description:
-						'Your information has been pre-filled for you to review.',
-				});
-				prefillForm(result.data);
-				setIsCurrentYearOverwrite(result.isCurrentYear);
-				setIsPrefill(result.isPrefill || false);
-				setVerificationStep('form_visible');
-				console.log('DEBUG: Household prefill completed');
-			} else if (verificationEmail === MOCK_EMAILS.VERIFY) {
-				console.log('DEBUG: Setting verification step to verify_identity');
-				setVerificationStep('verify_identity');
-			} else {
-				console.log('DEBUG: New registration - checking magic link flags');
-				// New registration - check if magic link verification is enabled
-				const isMagicEnabled = flags.loginMagicEnabled;
-
-				if (isMagicEnabled) {
-					console.log('DEBUG: Magic link enabled, sending verification email');
-					// Send magic link for email verification
-					try {
-						const response = await fetch('/api/auth/magic-link', {
-							method: 'POST',
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							body: JSON.stringify({ email: verificationEmail }),
-						});
-
-						if (response.ok) {
-							toast({
-								title: 'Verification Email Sent',
-								description:
-									'Please check your email and click the verification link to continue with your registration.',
-							});
-							setVerificationStep('email_verification_sent');
-							console.log('DEBUG: Magic link email sent successfully');
-						} else {
-							// Fall back to direct registration if email fails
-							console.warn(
-								'Magic link sending failed, proceeding with direct registration'
-							);
-							proceedToRegistrationForm();
-						}
-					} catch (error) {
-						console.error('Error sending magic link:', error);
-						// Fall back to direct registration if email fails
-						proceedToRegistrationForm();
-					}
-				} else {
-					console.log(
-						'DEBUG: Magic link disabled, proceeding to registration form'
-					);
-					// Proceed directly to registration form
-					proceedToRegistrationForm();
-				}
-			}
-		} catch (error) {
-			console.error('DEBUG: Error in handleEmailLookup:', error);
-		}
-	}, [
-		verificationEmail,
-		toast,
-		prefillForm,
-		flags.loginMagicEnabled,
-		proceedToRegistrationForm,
-	]);
+		router.replace(`/login?next=${encodeURIComponent('/register')}`);
+	}, [router]);
 
 	useEffect(() => {
-		console.log(
-			'DEBUG: Main useEffect triggered with user:',
-			user?.email,
-			'authLoading:',
-			authLoading,
-			'ministriesLoading:',
-			ministriesLoading,
-			'cyclesLoading:',
-			cyclesLoading,
-			'activeRegistrationCycle:',
-			activeRegistrationCycle?.cycle_id
-		);
-
-		// Don't run this effect until auth is loaded
-		if (authLoading) {
-			console.log('DEBUG: Skipping effect - auth still loading');
-			return;
+		if (authLoading) return;
+		if (!user) {
+			router.replace(`/login?next=${encodeURIComponent('/register')}`);
 		}
-
-		// Redirect MINISTRY_LEADER users to their dashboard instead of registration
-		if (user?.metadata?.role === 'MINISTRY_LEADER') {
-			console.log(
-				'DEBUG: MINISTRY_LEADER user detected, redirecting to /rosters'
-			);
-			router.push('/rosters');
-			return;
-		}
-
-		// Check if user has ministry email access but no role assigned yet (first-time login)
-		// This handles the case where the auth context hasn't finished assigning the role
-		if (
-			user?.email &&
-			(!user?.metadata?.role || user?.metadata?.role === 'GUEST')
-		) {
-			const checkMinistryAccess = async () => {
-				try {
-					console.log('DEBUG: Checking ministry access for email:', user.email);
-					const { dbAdapter } = await import('@/lib/dal');
-					const accessibleMinistries =
-						await dbAdapter.listAccessibleMinistriesForEmail(user.email);
-
-					if (accessibleMinistries.length > 0) {
-						console.log(
-							'DEBUG: Ministry access found, redirecting to /rosters'
-						);
-						router.push('/rosters');
-						return;
-					}
-				} catch (error) {
-					console.error('DEBUG: Error checking ministry access:', error);
-				}
-			};
-
-			checkMinistryAccess();
-		}
-
-		// Check if user is authenticated and skip email lookup if so
-		// For live mode: check for authenticated users with email
-		// Check for authenticated users with email (skip email lookup step)
-		const shouldSkipEmailLookup = user?.email;
-
-		console.log('DEBUG: shouldSkipEmailLookup:', shouldSkipEmailLookup);
-		if (shouldSkipEmailLookup) {
-			console.log('DEBUG: Skipping email lookup for authenticated user');
-			setVerificationEmail(user.email);
-			setIsAuthenticatedUser(true);
-
-			// Check if they have existing household data
-			const checkExistingData = async () => {
-				console.log('DEBUG: checkExistingData starting');
-				try {
-					// Use active registration cycle for lookup, but don't wait for it to load
-					// If it's not loaded yet, use fallback and let the form show
-					const cycleId = activeRegistrationCycle?.cycle_id || '2025'; // fallback to '2025' if no active cycle found
-					console.log('DEBUG: Using cycleId for lookup:', cycleId);
-					const result = await findHouseholdByEmail(user.email, cycleId);
-					console.log('DEBUG: checkExistingData result:', {
-						found: !!result,
-						isCurrentYear: result?.isCurrentYear,
-					});
-
-					if (result) {
-						toast({
-							title: 'Household Found!',
-							description:
-								'Your information has been pre-filled for you to review.',
-						});
-						console.log(
-							'DEBUG: About to call prefillForm from checkExistingData'
-						);
-						prefillForm(result.data);
-						setIsCurrentYearOverwrite(result.isCurrentYear);
-						setIsPrefill(result.isPrefill || false);
-					} else {
-						console.log(
-							'DEBUG: No existing data found, setting up new registration'
-						);
-						// New registration with authenticated email
-						toast({
-							title: 'Complete Your Registration',
-							description:
-								'Please complete the form below to register your family.',
-						});
-						setIsCurrentYearOverwrite(false);
-						setIsPrefill(false);
-						console.log('DEBUG: About to reset form from checkExistingData');
-						form.reset({
-							household: {
-								name: '',
-								address_line1: '',
-								address_line2: '',
-								city: '',
-								state: '',
-								zip: '',
-								preferredScriptureTranslation: 'NIV',
-							},
-							guardians: [
-								{
-									first_name: '',
-									last_name: '',
-									mobile_phone: '',
-									email: user.email, // Pre-fill with authenticated user's email
-									relationship: 'Mother',
-									is_primary: true,
-								},
-							],
-							emergencyContact: {
-								first_name: '',
-								last_name: '',
-								mobile_phone: '',
-								relationship: '',
-							},
-							children: [
-								{
-									...defaultChildValues,
-									child_id: crypto.randomUUID(), // Generate fresh ID for initial child
-								},
-							],
-							consents: {
-								liability: false,
-								photoRelease: false,
-								custom_consents: {},
-							},
-						});
-						console.log('DEBUG: Form reset completed from checkExistingData');
-						setOpenAccordionItems(['item-0']);
-					}
-
-					console.log('DEBUG: Setting verification step to form_visible');
-					setVerificationStep('form_visible');
-					console.log('DEBUG: checkExistingData completed successfully');
-				} catch (error) {
-					console.error('DEBUG: Error in checkExistingData:', error);
-					// Fallback to new registration form
-					toast({
-						title: 'Complete Your Registration',
-						description:
-							'Please complete the form below to register your family.',
-					});
-					setIsCurrentYearOverwrite(false);
-					setIsPrefill(false);
-					setVerificationStep('form_visible');
-				}
-			};
-
-			// Only run checkExistingData if we haven't loaded draft data yet
-			if (!hasLoadedDraft) {
-				checkExistingData();
-			} else {
-				console.log(
-					'DEBUG: Skipping checkExistingData because draft data was already loaded'
-				);
-				setVerificationStep('form_visible');
-			}
-		}
-	}, [
-		user,
-		toast,
-		form,
-		prefillForm,
-		hasLoadedDraft,
-		authLoading,
-	]);
+	}, [authLoading, user, router]);
 
 	// Focus on the first field when the form becomes visible for authenticated users
 	useEffect(() => {
-		console.log(
+		log.log(
 			'DEBUG: Focus useEffect triggered - verificationStep:',
 			verificationStep,
 			'isAuthenticatedUser:',
@@ -1308,24 +1231,24 @@ function RegisterPageContent() {
 		let timer: NodeJS.Timeout | null = null;
 
 		if (verificationStep === 'form_visible' && isAuthenticatedUser) {
-			console.log('DEBUG: Setting focus timer');
+			log.log('DEBUG: Setting focus timer');
 			// Use a small delay to ensure the form has rendered
 			timer = setTimeout(() => {
-				console.log('DEBUG: Focus timer executing');
+				log.log('DEBUG: Focus timer executing');
 				const firstField = document.querySelector(
 					'input[name="household.address_line1"]'
 				) as HTMLInputElement;
 				if (firstField) {
-					console.log('DEBUG: Focus field found, setting focus');
+					log.log('DEBUG: Focus field found, setting focus');
 					firstField.focus();
 				} else {
-					console.log('DEBUG: Focus field not found');
+					log.log('DEBUG: Focus field not found');
 				}
 			}, 100);
 		}
 
 		return () => {
-			console.log('DEBUG: Focus useEffect cleanup');
+			log.log('DEBUG: Focus useEffect cleanup');
 			if (timer) {
 				clearTimeout(timer);
 			}
@@ -1333,14 +1256,14 @@ function RegisterPageContent() {
 	}, [verificationStep, isAuthenticatedUser]);
 
 	useEffect(() => {
-		console.log(
+		log.log(
 			'DEBUG: Enter press useEffect triggered - verificationStep:',
 			verificationStep
 		);
 		const handleEnterPress = (event: KeyboardEvent) => {
-			console.log('DEBUG: Key pressed:', event.key);
+			log.log('DEBUG: Key pressed:', event.key);
 			if (event.key === 'Enter' && verificationStep === 'enter_email') {
-				console.log(
+				log.log(
 					'DEBUG: Enter pressed, preventing default and calling handleEmailLookup'
 				);
 				event.preventDefault();
@@ -1349,19 +1272,52 @@ function RegisterPageContent() {
 		};
 
 		if (verificationStep === 'enter_email') {
-			console.log('DEBUG: Adding keydown listener');
+			log.log('DEBUG: Adding keydown listener');
 			window.addEventListener('keydown', handleEnterPress);
 		}
 
 		return () => {
-			console.log('DEBUG: Removing keydown listener');
+			log.log('DEBUG: Removing keydown listener');
 			window.removeEventListener('keydown', handleEnterPress);
 		};
 	}, [verificationStep, handleEmailLookup]);
 
 	async function onSubmit(data: RegistrationFormValues) {
-		console.log('DEBUG: onSubmit called with data:', data);
-		console.log('DEBUG: Phone validation check:', {
+		log.log('DEBUG: onSubmit called with data:', data);
+
+		if (!user?.email) {
+			toast({
+				title: 'Sign in required',
+				description: 'Please sign in before submitting your registration.',
+				variant: 'destructive',
+			});
+			router.push(`/login?next=${encodeURIComponent('/register')}`);
+			return;
+		}
+
+		const cycleId = activeRegistrationCycle?.cycle_id;
+		if (!cycleId) {
+			toast({
+				title: 'Registration unavailable',
+				description:
+					'No active registration cycle is configured. Please try again later.',
+				variant: 'destructive',
+			});
+			return;
+		}
+
+		for (const child of data.children) {
+			if (child.grade && gradeToCode(child.grade) === null) {
+				toast({
+					title: 'Invalid grade',
+					description: `Could not parse grade for ${child.first_name || 'child'}. Please select a valid grade.`,
+					variant: 'destructive',
+				});
+				return;
+			}
+		}
+
+		log.log('DEBUG: Phone validation check:', {
 			guardianPhones: data.guardians.map((g) => ({
 				phone: g.mobile_phone,
 				length: g.mobile_phone?.length,
@@ -1388,24 +1344,19 @@ function RegisterPageContent() {
 				},
 				children: data.children.map((child) => ({
 					...child,
+					grade: canonicalizeGradeForStorage(child.grade),
 					child_mobile: child.child_mobile
 						? cleanPhone(child.child_mobile)
 						: child.child_mobile,
 				})),
 			};
 
-			// Use the active registration cycle instead of hardcoded '2025'
-			const cycleId = activeRegistrationCycle?.cycle_id || '2025'; // fallback to '2025' if no active cycle found
-			console.log('DEBUG: Registering household for cycle:', cycleId);
+			log.log('DEBUG: Registering household for cycle:', cycleId);
 
 			setSubmissionStatus('Processing registration...');
-			const result = await registerHouseholdCanonical(
-				cleanedData,
-				cycleId,
-				isPrefill
-			);
-			console.log('DEBUG: Registration result:', result);
-			console.log('DEBUG: Result type check:', {
+			const result = await registerHouseholdCanonical(cleanedData, cycleId);
+			log.log('DEBUG: Registration result:', result);
+			log.log('DEBUG: Result type check:', {
 				hasResult: !!result,
 				resultType: typeof result,
 				resultKeys: result ? Object.keys(result) : 'no result',
@@ -1423,7 +1374,7 @@ function RegisterPageContent() {
 			clearSavedFormData();
 
 			// Check if user is authenticated and should be redirected to household page
-			console.log('DEBUG: Checking redirect conditions:', {
+			log.log('DEBUG: Checking redirect conditions:', {
 				isAuthenticatedUser,
 				userEmail: user?.email,
 				userRole: user?.metadata?.role,
@@ -1433,7 +1384,7 @@ function RegisterPageContent() {
 
 			if (isAuthenticatedUser && user?.email) {
 				if (result.isComplete) {
-					console.log(
+					log.log(
 						'DEBUG: Registration complete, redirecting to household page'
 					);
 					setSubmissionStatus('Redirecting to household...');
@@ -1447,21 +1398,23 @@ function RegisterPageContent() {
 					// Even if incomplete, try to redirect after a short delay
 					setSubmissionStatus('Finalizing setup...');
 					setTimeout(() => {
-						console.log('DEBUG: Redirecting to household page after delay');
+						log.log('DEBUG: Redirecting to household page after delay');
 						router.push('/household');
 					}, 2000);
 					return;
 				}
 			}
 
-			console.log('DEBUG: Non-authenticated user, resetting form');
+			log.log('DEBUG: Non-authenticated user, resetting form');
 			// For non-authenticated users (demo mode, etc.), reset form for another registration
 			form.reset();
 			setVerificationStep('enter_email');
 			setVerificationEmail('');
 			setOpenAccordionItems([]);
 			setIsCurrentYearOverwrite(false);
-			setIsPrefill(false);
+			setIsReturningPrefill(false);
+			setExistingChildIds(new Set());
+			setGradeHintsByChildId({});
 		} catch (e) {
 			console.error('DEBUG: Error in onSubmit:', e);
 			setIsSubmitting(false);
@@ -1498,11 +1451,22 @@ function RegisterPageContent() {
 	}, [interestPrograms, watchedChildren]);
 
 	// React Query handles loading states automatically
-	const isLoading = ministriesLoading || cyclesLoading || groupsLoading;
+	const supplementaryDataLoading =
+		ministriesLoading || groupsLoading || choirMinistriesLoading;
+	const isAuthenticatedRegistrationPending =
+		Boolean(user?.email) &&
+		!authLoading &&
+		!cyclesLoading &&
+		verificationStep !== 'form_visible';
 
-	// Show loading state while data is being fetched
-	// But don't show loading for authenticated users who should see the form
-	if (authLoading || (isLoading && !isAuthenticatedUser)) {
+	// Auth + cycle resolution gate everyone; ministry/group queries load in parallel for signed-in users
+	const showPageLoader =
+		authLoading ||
+		cyclesLoading ||
+		isAuthenticatedRegistrationPending ||
+		(!user?.email && !authLoading && supplementaryDataLoading);
+
+	if (showPageLoader) {
 		return (
 			<div className="max-w-4xl mx-auto">
 				<div className="mb-8">
@@ -1511,7 +1475,9 @@ function RegisterPageContent() {
 							Family Registration Form
 						</h1>
 						<p className="text-muted-foreground">
-							Loading registration form...
+							{isAuthenticatedRegistrationPending
+								? 'Preparing your registration...'
+								: 'Loading registration form...'}
 						</p>
 					</div>
 				</div>
@@ -1528,12 +1494,12 @@ function RegisterPageContent() {
 	// Show error state if data loading failed
 	// But don't show error for authenticated users who should see the form
 	if ((ministriesError || cyclesError || groupsError) && !isAuthenticatedUser) {
-		console.log('🔍 Register Page: Data loading failed', {
+		log.log('🔍 Register Page: Data loading failed', {
 			ministriesError: (ministriesError instanceof Error ? ministriesError.message : undefined),
 			cyclesError: (cyclesError instanceof Error ? cyclesError.message : undefined),
 			groupsError: (groupsError instanceof Error ? groupsError.message : undefined),
 			authLoading,
-			isLoading,
+			isLoading: supplementaryDataLoading,
 		});
 
 		return (
@@ -1658,18 +1624,8 @@ function RegisterPageContent() {
 
 			{verificationStep === 'verify_identity' && (
 				<VerificationStepTwoForm
-					onVerifySuccess={async () => {
-						const cycleId = activeRegistrationCycle?.cycle_id || '2025'; // fallback to '2025' if no active cycle found
-						const result = await findHouseholdByEmail(
-							MOCK_EMAILS.PREFILL_OVERWRITE,
-							cycleId
-						);
-						if (result) {
-							prefillForm(result.data);
-							setIsCurrentYearOverwrite(result.isCurrentYear);
-							setIsPrefill(result.isPrefill);
-							setVerificationStep('form_visible');
-						}
+					onVerifySuccess={() => {
+						router.replace(`/login?next=${encodeURIComponent('/register')}`);
 					}}
 					onGoBack={() => setVerificationStep('enter_email')}
 				/>
@@ -1770,10 +1726,10 @@ function RegisterPageContent() {
 				<Form {...form}>
 					<form
 						onSubmit={form.handleSubmit(onSubmit, (errors) => {
-							console.log('DEBUG: Form validation errors:', errors);
-							console.log('DEBUG: First error field:', Object.keys(errors)[0]);
-							console.log('DEBUG: Current form values:', form.getValues());
-							console.log(
+							log.log('DEBUG: Form validation errors:', errors);
+							log.log('DEBUG: First error field:', Object.keys(errors)[0]);
+							log.log('DEBUG: Current form values:', form.getValues());
+							log.log(
 								'DEBUG: Saved data in localStorage:',
 								loadSavedFormData()
 							);
@@ -2156,7 +2112,13 @@ function RegisterPageContent() {
 										const hasSpecialNeeds = form.watch(
 											`children.${index}.special_needs`
 										);
-										const isExistingChild = !!childrenData[index]?.child_id;
+										const childId = childrenData[index]?.child_id;
+										const isExistingChild = childId
+											? existingChildIds.has(childId)
+											: false;
+										const gradeHint = childId
+											? gradeHintsByChildId[childId]
+											: undefined;
 
 										const removeButton = (
 											<Button type="button" variant="destructive" size="sm">
@@ -2216,9 +2178,19 @@ function RegisterPageContent() {
 															render={({ field }) => (
 																<FormItem>
 																	<FormLabel>Grade</FormLabel>
+																	{gradeHint && isReturningPrefill && (
+																		<Alert className="mb-2">
+																			<Info className="h-4 w-4" />
+																			<AlertDescription>
+																				Last year: {gradeHint.lastYearLabel} →
+																				Suggested this year:{' '}
+																				{gradeHint.suggestedLabel}
+																			</AlertDescription>
+																		</Alert>
+																	)}
 																	<Select
 																		onValueChange={field.onChange}
-																		defaultValue={field.value}>
+																		value={field.value}>
 																		<FormControl>
 																			<SelectTrigger>
 																				<SelectValue placeholder="Select grade" />
@@ -2511,26 +2483,26 @@ function RegisterPageContent() {
 
 										{/* Dynamic Group Consent Sections */}
 										{(() => {
-											console.log(
+											log.log(
 												'🔍 RegisterPage: DEBUG: Checking choir section visibility:'
 											);
-											console.log(
+											log.log(
 												'🔍 RegisterPage:   - groupsRequiringConsent.length:',
 												groupsRequiringConsent.length
 											);
-											console.log(
+											log.log(
 												'🔍 RegisterPage:   - choirPrograms.length:',
 												choirPrograms.length
 											);
-											console.log(
+											log.log(
 												'🔍 RegisterPage:   - groupsRequiringConsent:',
 												groupsRequiringConsent
 											);
-											console.log(
+											log.log(
 												'🔍 RegisterPage:   - choirPrograms:',
 												choirPrograms
 											);
-											console.log(
+											log.log(
 												'🔍 RegisterPage: About to render choir section...'
 											);
 											return (
@@ -2597,7 +2569,7 @@ function RegisterPageContent() {
 									</CardContent>
 								</Card>
 
-								{console.log(
+								{log.log(
 									'🔍 RegisterPage: Choir section completed, about to render interest activities...'
 								)}
 

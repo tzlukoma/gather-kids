@@ -1,6 +1,9 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient';
+import { devLog } from '@/lib/dev-log';
+
+const authDebugLog = devLog('auth');
 import { Button } from '@/components/ui/button';
 import {
 	Card,
@@ -58,7 +61,7 @@ export default function AuthDebug({ className }: AuthDebugProps) {
 			const {
 				data: { subscription },
 			} = supabase.auth.onAuthStateChange((event: string, session: any) => {
-				console.log('AuthDebug - Auth state change:', event, session?.user?.id);
+				authDebugLog.log('Auth state change:', event, session?.user?.id);
 				setSession(session);
 				setUser(session?.user || null);
 			});

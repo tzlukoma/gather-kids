@@ -476,11 +476,13 @@ export function HouseholdProfile({
 
 	// User connection management (admin only)
 	const isAdmin = user?.metadata?.role === AuthRole.ADMIN;
+	const adminUserToolsEnabled = isAdmin && !!household?.household_id;
 	const { data: householdUserData, isLoading: userLoading } = useHouseholdUser(
-		household?.household_id || ''
+		household?.household_id || '',
+		{ enabled: adminUserToolsEnabled },
 	);
 	const { data: availableUsersData, isLoading: availableUsersLoading } =
-		useAvailableUsers();
+		useAvailableUsers({ enabled: adminUserToolsEnabled });
 	const updateUserMutation = useUpdateHouseholdUser();
 
 	const currentUser = householdUserData?.user;

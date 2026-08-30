@@ -25,12 +25,12 @@ export async function GET(
 		const supabase = getSupabaseAdmin();
 		const { householdId } = await params;
 
-		// Find the current user_households record
-		const { data: userHousehold, error: findError } = await supabase
+		// A household may have multiple auth links (e.g. prod restore + UAT test user).
+		const { data: userHouseholds, error: findError } = await supabase
 			.from('user_households')
-			.select('auth_user_id')
+			.select('auth_user_id, created_at')
 			.eq('household_id', householdId)
-			.maybeSingle();
+			.order('created_at', { ascending: false });
 
 		if (findError) {
 			return NextResponse.json(
@@ -39,46 +39,51 @@ export async function GET(
 			);
 		}
 
-		if (!userHousehold || !userHousehold.auth_user_id) {
+		if (!userHouseholds || userHouseholds.length === 0) {
 			return NextResponse.json({ user: null });
 		}
 
-		// Validate that auth_user_id is a valid UUID before calling getUserById
 		const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-		if (!uuidRegex.test(userHousehold.auth_user_id)) {
-			console.warn(
-				`Invalid auth_user_id format for household ${householdId}: ${userHousehold.auth_user_id}`
-			);
-			return NextResponse.json({ user: null });
-		}
 
-		// Get user details
-		const { data: userData, error: userError } = await supabase.auth.admin.getUserById(
-			userHousehold.auth_user_id
-		);
-
-		if (userError) {
-			// If user not found or invalid, return null instead of error
-			// This can happen if the user was deleted but the user_households record remains
-			if (userError.message?.includes('not found') || userError.message?.includes('UUID')) {
-				console.warn(
-					`User not found for auth_user_id ${userHousehold.auth_user_id}: ${userError.message}`
-				);
-				return NextResponse.json({ user: null });
+		for (const link of userHouseholds) {
+			if (!link.auth_user_id || !uuidRegex.test(link.auth_user_id)) {
+				continue;
 			}
-			return NextResponse.json(
-				{ error: `Failed to fetch user: ${userError.message}` },
-				{ status: 500 }
-			);
+
+			const { data: userData, error: userError } =
+				await supabase.auth.admin.getUserById(link.auth_user_id);
+
+			if (userError) {
+				if (
+					userError.message?.includes('not found') ||
+					userError.message?.includes('UUID')
+				) {
+					console.warn(
+						`Skipping orphan user_households link ${link.auth_user_id} for household ${householdId}: ${userError.message}`,
+					);
+					continue;
+				}
+				return NextResponse.json(
+					{ error: `Failed to fetch user: ${userError.message}` },
+					{ status: 500 },
+				);
+			}
+
+			if (userData?.user) {
+				return NextResponse.json({
+					user: {
+						id: userData.user.id || '',
+						email: userData.user.email || '',
+						name:
+							userData.user.user_metadata?.full_name ||
+							userData.user.email ||
+							'Unknown',
+					},
+				});
+			}
 		}
 
-		return NextResponse.json({
-			user: {
-				id: userData?.user?.id || '',
-				email: userData?.user?.email || '',
-				name: userData?.user?.user_metadata?.full_name || userData?.user?.email || 'Unknown',
-			},
-		});
+		return NextResponse.json({ user: null });
 	} catch (error) {
 		console.error('Error fetching household user:', error);
 		return NextResponse.json(

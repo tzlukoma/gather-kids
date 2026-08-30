@@ -15,13 +15,13 @@ This document is written so an agent can execute **Phases 1–4 autonomously** a
 |-------|-------|---------|
 | **0 — Prerequisites** | Thomas | UAT looks like prod, secrets + test accounts exist, decisions recorded |
 | **1 — Code** | Agent | All R1 workstreams merged on a feature branch |
-| **2 — Automated tests** | Agent | Jest + Playwright green |
-| **3 — UAT proof** | Agent | Returning-family scenarios pass against UAT |
-| **4 — Ship prep** | Thomas | Merge, deploy, activate Fall 2026 on prod (after R2 or coordinated) |
+| **2 — Automated tests** | Agent | Jest + Playwright (`e2e/r1/`) green before handoff |
+| **3 — UAT proof** | Agent | One-shot `scripts/r1/phase3-validate.sh` (Playwright + SQL) |
+| **4 — Ship** | Thomas | Review PR, merge to **`main`**, deploy, prod cycle flip when ready |
 
 **Kickoff prompt for the agent (after Phase 0):**
 
-> Execute `docs/R1_IMPLEMENTATION_PLAN.md` from Phase 0 validation through Phase 3. Do not activate Fall 2026 on production. Stop and report if any Phase 0 gate fails.
+> Execute `docs/R1_IMPLEMENTATION_PLAN.md` through Phase 3 **without asking Thomas to manually click through flows**. Run `scripts/r1/phase0-validate.sh`, implement code, then loop on `scripts/r1/phase3-validate.sh` until green. Only report back when the PR is ready to merge. Do not activate Fall 2026 on production. Stop and report if any Phase 0 gate fails.
 >
 > **Commits / PR title:** Use [Conventional Commits](https://www.conventionalcommits.org/) on every commit and squash-merge PR title (`feat:`, `fix:`, etc.) — required by release-please on `main`. See `docs/CI_CD_CLEANUP_PLAN.md`.
 
@@ -487,30 +487,47 @@ npm test -- --testPathPattern='registration-cycles|household-prefill|canonical-d
 
 ### E2E (Playwright)
 
-Create `e2e/returning-registration.spec.ts`:
+Human-use coverage lives in **`e2e/r1/`** (shared helpers in `e2e/utils/r1-helpers.ts`):
 
-1. Login as `returning_guardian` (credentials from env loaded from manifest — use dotenv).
-2. Navigate `/register` → assert children prefilled.
-3. Add child → change grade on existing → toggle ministry → accept consents → submit.
-4. Assert redirect `/household` and Fall 2026 enrollments visible (query via service role or UI).
-5. Optional: deactivate Fall 2025 / activate Fall 2026 on UAT mid-suite if manifest allows.
+| Spec | Covers |
+|------|--------|
+| `auth-gates.spec.ts` | Login redirect, bad password, `/register` auth gate, household→register redirect |
+| `prefill-and-consents.spec.ts` | Address/children prefill, consents unchecked, grade hints |
+| `form-validation.spec.ts` | Consent required, partial consents, cleared address |
+| `form-interactions.spec.ts` | Edit fields, add child, reload session, no email lookup when signed in |
+| `new-guardian.spec.ts` | Empty household, email prefilled, initial child row |
+| `submit-and-household.spec.ts` | Full submit → `/household` (`@mutating`, writes UAT data) |
 
 Run (local against UAT-backed dev):
 
 ```bash
-# Load manifest secrets into env for the spec
-npx dotenv-cli -e .env.r1.local -- npx playwright test e2e/returning-registration.spec.ts --config=e2e.config.ts
+# Dev server: set -a && source .env.r1.local && set +a && npm run dev
+R1_E2E_ENABLED=1 npx playwright test e2e/r1/ --config=e2e.config.ts
+
+# Read-only subset (no submit / DB writes):
+R1_E2E_ENABLED=1 npx playwright test e2e/r1/ --grep-invert @mutating
+
+# Full one-shot (Jest + Playwright + SQL):
+./scripts/r1/phase3-validate.sh
 ```
 
 **Phase 2 pass criteria:** all new tests green; no regressions in `e2e/smoke-test.spec.ts` and `e2e/auth-registration.spec.ts`.
 
 ---
 
-## Phase 3 — UAT proof (Agent)
+## Phase 3 — UAT proof (Agent, one-shot)
 
-Use UAT DB + deployed preview (or local + UAT Supabase).
+Thomas does **not** manually click through registration. The agent runs `./scripts/r1/phase3-validate.sh` in a loop until it passes, then opens a PR.
 
-### 3.1 — SQL assertions after test registration
+Use UAT DB + local dev (`set -a && source .env.r1.local && set +a && npm run dev`) or deployed preview.
+
+### 3.1 — Automated gate (`scripts/r1/phase3-validate.sh`)
+
+1. Jest: registration-related unit tests
+2. Playwright: entire `e2e/r1/` suite (includes `@mutating` submit tests)
+3. SQL assertions (post-submit): Fall 2026 registrations ≥ 1, no duplicate enrollments
+
+### 3.2 — SQL assertions (also embedded in phase3 script)
 
 Run (replace household id from manifest):
 
@@ -532,17 +549,7 @@ HAVING count(*) > 1;
 
 Expect: `reg_2026 >= 1`, duplicate query returns 0 rows.
 
-### 3.2 — Manual smoke (agent documents in PR)
-
-| Step | Expected |
-|------|----------|
-| Login returning guardian | `/household` loads |
-| `/register` | Prefilled, consents empty |
-| Submit | Success toast → `/household` |
-| Admin registrations list | Fall 2026 rows appear |
-| `/check-in` with Fall 2025 still active | Still works until cycle flip |
-
-### 3.3 — Activate Fall 2026 on UAT (only after 3.1–3.2 pass)
+### 3.3 — Activate Fall 2026 on UAT (Thomas or agent after 3.1 passes)
 
 If `manifest.decisions.activate_fall_2026_on_uat_after_tests`:
 
@@ -551,25 +558,27 @@ UPDATE registration_cycles SET is_active = false WHERE cycle_id = :fall_2025_id;
 UPDATE registration_cycles SET is_active = true  WHERE cycle_id = :fall_2026_id;
 ```
 
-Re-run roster page smoke: enrolled children appear under Fall 2026 enrollments.
+Re-run `./scripts/r1/phase3-validate.sh` after activation.
 
-**Phase 3 pass criteria:** SQL assertions pass; Playwright pass on preview; PR description includes test household id (non-PII) and cycle UUIDs.
+**Phase 3 pass criteria:** `phase3-validate.sh` exits 0; PR description includes test household id (non-PII) and cycle UUIDs.
 
 ---
 
-## Phase 4 — Ship (Thomas; not agent-autonomous)
+## Phase 4 — Ship (Thomas)
 
-R1 code can merge before prod cycle flip. **Do not** email families until PRODUCT_SPEC R2 items are addressed or explicitly accepted.
+R1 code merges to **`main`** after UAT Preview smoke (`docs/R1_UAT_SMOKE.md`). **Do not** email families until PRODUCT_SPEC R2 items are addressed or explicitly accepted.
 
 | Step | Action |
 |------|--------|
-| 1 | Review PR; merge to **`main`** |
-| 2 | Deploy to UAT; repeat Phase 3 checklist |
-| 3 | Prod: insert **inactive** Fall 2026 (same as P0.3) before deploy |
-| 4 | Deploy prod app |
-| 5 | Run returning registration with **your own** household on prod |
-| 6 | Flip `is_active` to Fall 2026 when ready to open registration |
-| 7 | Monitor daily digest + admin registrations |
+| 1 | Agent opens PR → Vercel Preview deploys |
+| 2 | **Thomas:** ~10 min checklist in [`docs/R1_UAT_SMOKE.md`](./R1_UAT_SMOKE.md) on Preview URL |
+| 3 | Optional: `BASE_URL=https://preview… ./scripts/r1/uat-preview-smoke.sh` (read-only Playwright) |
+| 4 | Merge PR to **`main`**; UAT app deploys |
+| 5 | Prod: insert **inactive** Fall 2026 (same as P0.3) before prod app deploy |
+| 6 | Deploy prod app |
+| 7 | Run returning registration with **your own** household on prod |
+| 8 | Flip `is_active` to Fall 2026 when ready to open registration |
+| 9 | Monitor daily digest + admin registrations |
 
 **Prod activation SQL** (when ready):
 
@@ -585,14 +594,15 @@ WHERE name = 'Fall 2026';
 
 ## Definition of done (R1 complete)
 
-- [ ] All Phase 0 gates pass on a fresh agent session
-- [ ] No `'2025'` cycle fallbacks; prior cycle by date ordering
-- [ ] Login-first prefill for all `user_households` guardians
-- [ ] No unauthenticated PII leak via email lookup
-- [ ] Returning submit: add/remove child, grade change, ministry change, consents re-signed
-- [ ] Choir not blind-copied from prior year
-- [ ] Jest + Playwright returning-family spec green
-- [ ] UAT SQL assertions pass
+- [x] All Phase 0 gates pass on a fresh agent session
+- [x] No `'2025'` cycle fallbacks; prior cycle by date ordering
+- [x] Login-first prefill for all `user_households` guardians
+- [x] No unauthenticated PII leak via email lookup
+- [x] Returning submit: add/remove child, grade change, ministry change, consents re-signed
+- [x] Choir not blind-copied from prior year
+- [x] Jest + Playwright `e2e/r1/` green (`phase3-validate.sh`)
+- [x] UAT SQL assertions pass
+- [ ] Thomas UAT Preview smoke (`docs/R1_UAT_SMOKE.md`) — **blocks prod**
 - [ ] `docs/PRODUCT_SPEC.md` R1 items struck or marked shipped (optional doc PR)
 
 ---
@@ -623,7 +633,12 @@ WHERE name = 'Fall 2026';
 
 | Script | Purpose |
 |--------|---------|
-| [`scripts/db/r1-prerequisites-check.sql`](../scripts/db/r1-prerequisites-check.sql) | Phase 0 validation |
+| [`scripts/r1/phase0-validate.sh`](../scripts/r1/phase0-validate.sh) | Phase 0 DB + unit test gate |
+| [`scripts/r1/phase3-validate.sh`](../scripts/r1/phase3-validate.sh) | One-shot Phase 3 (Jest + Playwright + SQL) |
+| [`scripts/db/r1-post-registration-check.sql`](../scripts/db/r1-post-registration-check.sql) | SQL assertions after Playwright submit |
+| [`scripts/r1/uat-preview-smoke.sh`](../scripts/r1/uat-preview-smoke.sh) | Read-only Playwright against Vercel Preview |
+| [`docs/R1_UAT_SMOKE.md`](../docs/R1_UAT_SMOKE.md) | Thomas ~10 min UAT checklist (Preview) |
+| `e2e/r1/*.spec.ts` | Human-use Playwright coverage (24 tests) |
 | [`scripts/db/prod-registration-inventory.sql`](../scripts/db/prod-registration-inventory.sql) | Read-only prod stats |
 | [`scripts/db/snapshot_uat.sh`](../scripts/db/snapshot_uat.sh) | Backup UAT before destructive tests |
 | [`.claude/skills/e2e/SKILL.md`](../.claude/skills/e2e/SKILL.md) | Local Playwright runner |

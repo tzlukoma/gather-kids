@@ -235,6 +235,15 @@ export class IndexedDBAdapter implements DatabaseAdapter {
 		return this.db.guardians.where('household_id').equals(householdId).toArray();
 	}
 
+	async listGuardiansByEmail(email: string): Promise<Guardian[]> {
+		const normalized = email.trim().toLowerCase();
+		if (!normalized) return [];
+		const all = await this.db.guardians.toArray();
+		return all.filter(
+			g => g.email && g.email.trim().toLowerCase() === normalized,
+		);
+	}
+
 	async listAllGuardians(): Promise<Guardian[]> {
 		return this.db.guardians.toArray();
 	}

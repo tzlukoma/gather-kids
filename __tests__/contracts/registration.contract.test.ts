@@ -82,7 +82,7 @@ describe('DAL Contract Tests - Registration/Household', () => {
       // Test that the function accepts the canonical structure
       // Note: This will fail in the mock environment but validates the contract
       try {
-        await registerHouseholdCanonical(canonicalPayload, 'test-cycle-id', false);
+        await registerHouseholdCanonical(canonicalPayload, 'test-cycle-id');
       } catch (error) {
         // Expected to fail in test environment, but validates the function signature
         expect(error).toBeDefined();

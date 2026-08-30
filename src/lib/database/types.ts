@@ -96,6 +96,7 @@ export interface DatabaseAdapter {
 	): Promise<Guardian>;
 	updateGuardian(id: string, data: Partial<Guardian>): Promise<Guardian>;
 	listGuardians(householdId: string): Promise<Guardian[]>;
+	listGuardiansByEmail(email: string): Promise<Guardian[]>;
 	listAllGuardians(): Promise<Guardian[]>;
 	deleteGuardian(id: string): Promise<void>;
 

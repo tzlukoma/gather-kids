@@ -71,24 +71,11 @@ function HouseholdLayoutContent({ children }: { children: React.ReactNode }) {
 
 			try {
 				const profileData = await getHouseholdProfile(targetHouseholdId);
-				console.log('🔍 Bible Bee Nav Check - Household Profile:', {
-					householdId: targetHouseholdId,
-					childrenCount: profileData.children.length,
-					childrenWithEnrollments: profileData.children.map((child) => ({
-						childId: child.child_id,
-						enrollments: child.enrollments,
-					})),
-				});
-
 				const hasEnrollment = profileData.children.some((child) =>
 					(child.enrollments ?? []).some((enrollment) => {
-						console.log('🔍 Checking enrollment:', enrollment);
-						// Check ministry code for Bible Bee
 						return (enrollment as { ministry_code?: string }).ministry_code === 'bible-bee';
 					})
 				);
-
-				console.log('🔍 Bible Bee Nav Check - Result:', { hasEnrollment });
 				setHasBibleBeeEnrollment(hasEnrollment);
 			} catch (error) {
 				console.error('Failed to check Bible Bee enrollment:', error);
@@ -255,84 +242,32 @@ function HouseholdProtectedRoute({ children }: { children: React.ReactNode }) {
 
 	useEffect(() => {
 		const checkHouseholdAccess = async () => {
-			console.log(
-				'🔍 HouseholdProtectedRoute: Starting household access check',
-				{
-					loading,
-					userExists: !!user,
-					userRole: user?.metadata?.role,
-					userUid: user?.uid,
-				}
-			);
-
-			if (loading) {
-				console.log('🔍 HouseholdProtectedRoute: Still loading, waiting...');
-				return;
-			}
+			if (loading) return;
 
 			if (!user) {
-				console.log(
-					'🔍 HouseholdProtectedRoute: No user, redirecting to login'
-				);
 				router.push('/login');
 				return;
 			}
 
-			// Check if user has GUARDIAN role OR has household data
-			console.log('HouseholdProtectedRoute: Role comparison:', {
-				userRole: user.metadata?.role,
-				rolesGuardian: AuthRole.GUARDIAN,
-				roleType: typeof user.metadata?.role,
-				rolesGuardianType: typeof AuthRole.GUARDIAN,
-				isEqual: user.metadata?.role === AuthRole.GUARDIAN,
-			});
-
 			if (user.metadata?.role === AuthRole.GUARDIAN) {
-				console.log(
-					'HouseholdProtectedRoute: User has GUARDIAN role, granting access'
-				);
 				setHasHouseholdAccess(true);
 				return;
 			}
 
-			// Check if user has household data via user_households table
 			if (user.uid) {
 				try {
-					console.log(
-						'🔍 HouseholdProtectedRoute: About to call getHouseholdForUser for user:',
-						user.uid
-					);
 					const householdId = await getHouseholdForUser(user.uid);
-					console.log(
-						'🔍 HouseholdProtectedRoute: getHouseholdForUser completed, result:',
-						householdId
-					);
 					if (householdId) {
-						console.log(
-							'🔍 HouseholdProtectedRoute: Found household, granting access'
-						);
 						setHasHouseholdAccess(true);
 						return;
 					}
 				} catch (error) {
-					console.error(
-						'🔍 HouseholdProtectedRoute: Error calling getHouseholdForUser:',
-						error
-					);
+					console.error('HouseholdProtectedRoute: getHouseholdForUser failed:', error);
 				}
 			}
 
-			// No household access found
-			console.log(
-				'🔍 HouseholdProtectedRoute: No household access found, redirecting to register'
-			);
 			setHasHouseholdAccess(false);
-
-			// Add timeout to see if redirect is working
 			setTimeout(() => {
-				console.log(
-					'🔍 HouseholdProtectedRoute: About to redirect to /register'
-				);
 				router.push('/register');
 			}, 100);
 		};

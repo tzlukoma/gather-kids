@@ -14,11 +14,38 @@ import type {
     Household,
     MinistryEnrollment,
 } from '../types';
-import { ageOn, getTodayIsoDate } from './utils';
+import { ageOn } from './utils';
+import { getPriorRegistrationCycle, getCurrentRegistrationCycle } from './ministries';
+import {
+    applyReturningGradePrefill,
+    buildGradeHintForChild,
+    stripChoirSelections,
+    type HouseholdPrefillGradeHint,
+} from './household-prefill-utils';
+import {
+    canonicalizeGradeForStorage,
+} from '../gradeUtils';
+
+export type { HouseholdPrefillGradeHint } from './household-prefill-utils';
+
+export type HouseholdRegistrationLoadResult = {
+    isCurrentYear: boolean;
+    isReturningPrefill: boolean;
+    sourceCycleId: string;
+    existingChildIds: string[];
+    gradeHintsByChildId: Record<string, HouseholdPrefillGradeHint>;
+    data: Awaited<ReturnType<typeof fetchFullHouseholdDataFromAdapter>>;
+};
 
 // ---------------------------------------------------------------------------
 // Internal helpers
 // ---------------------------------------------------------------------------
+
+function stripChoirSelectionsFromChild<
+    T extends { ministrySelections?: Record<string, boolean | undefined> },
+>(child: T): T {
+    return stripChoirSelections(child);
+}
 
 /**
  * Fetch the full household profile from the Supabase adapter.
@@ -27,6 +54,7 @@ import { ageOn, getTodayIsoDate } from './utils';
 export async function fetchFullHouseholdDataFromAdapter(
     householdId: string,
     cycleId: string,
+    options?: { stripChoirSelections?: boolean },
 ) {
     const household = await dbAdapter.getHousehold(householdId);
     const guardians = await dbAdapter.listGuardians(householdId);
@@ -62,13 +90,146 @@ export async function fetchFullHouseholdDataFromAdapter(
         return { ...child, ministrySelections, interestSelections, customData };
     });
 
+    const normalizedChildren = options?.stripChoirSelections
+        ? childrenWithSelections.map(stripChoirSelectionsFromChild)
+        : childrenWithSelections;
+
     return {
         household,
         guardians,
         emergencyContact,
-        children: childrenWithSelections,
-        consents: { liability: true, photoRelease: true },
+        children: normalizedChildren,
+        consents: { liability: false, photoRelease: false },
     };
+}
+
+/**
+ * Login-first household load for `/register`.
+ * Uses `user_households` — never scans all guardians by email.
+ */
+export async function loadHouseholdForRegistration(
+    authUserId: string,
+    currentCycleId: string,
+): Promise<HouseholdRegistrationLoadResult | null> {
+    const householdId = await getHouseholdForUser(authUserId);
+    if (!householdId) return null;
+
+    const activeChildren = await dbAdapter.listChildren({ householdId, isActive: true });
+    if (activeChildren.length === 0) return null;
+
+    const childIds = activeChildren.map(c => c.child_id);
+    const currentEnrollments = await dbAdapter.listMinistryEnrollments(
+        undefined,
+        undefined,
+        currentCycleId,
+    );
+    const hasCurrentCycleEnrollment = currentEnrollments.some(e =>
+        childIds.includes(e.child_id),
+    );
+
+    if (hasCurrentCycleEnrollment) {
+        const data = await fetchFullHouseholdDataFromAdapter(householdId, currentCycleId);
+        return {
+            isCurrentYear: true,
+            isReturningPrefill: false,
+            sourceCycleId: currentCycleId,
+            existingChildIds: childIds,
+            gradeHintsByChildId: {},
+            data,
+        };
+    }
+
+    const priorCycle = await getPriorRegistrationCycle(currentCycleId);
+    if (!priorCycle) return null;
+
+    const priorEnrollments = await dbAdapter.listMinistryEnrollments(
+        undefined,
+        undefined,
+        priorCycle.cycle_id,
+    );
+    const hasPriorEnrollment = priorEnrollments.some(e => childIds.includes(e.child_id));
+    if (!hasPriorEnrollment) return null;
+
+    const data = await fetchFullHouseholdDataFromAdapter(householdId, priorCycle.cycle_id, {
+        stripChoirSelections: true,
+    });
+
+    const gradeHintsByChildId: Record<string, HouseholdPrefillGradeHint> = {};
+    const childrenWithSuggestedGrades = data.children.map(child => {
+        const hint = buildGradeHintForChild(child);
+        if (hint && child.child_id) {
+            gradeHintsByChildId[child.child_id] = hint;
+        }
+        const graded = applyReturningGradePrefill(child);
+        return { ...child, grade: graded.grade };
+    });
+
+    return {
+        isCurrentYear: false,
+        isReturningPrefill: true,
+        sourceCycleId: priorCycle.cycle_id,
+        existingChildIds: childIds,
+        gradeHintsByChildId,
+        data: {
+            ...data,
+            children: childrenWithSuggestedGrades,
+        },
+    };
+}
+
+/**
+ * Whether a guardian-linked account still needs to submit registration for the
+ * active cycle (e.g. Fall 2026 active but only prior-year enrollments exist).
+ */
+export function guardianNeedsActiveCycleRegistration(input: {
+    hasHousehold: boolean;
+    activeChildCount: number;
+    hasCurrentCycleEnrollment: boolean;
+}): boolean {
+    if (!input.hasHousehold || input.activeChildCount === 0) {
+        return true;
+    }
+    return !input.hasCurrentCycleEnrollment;
+}
+
+export async function needsRegistrationForActiveCycle(
+    authUserId: string,
+): Promise<boolean> {
+    const activeCycle = await getCurrentRegistrationCycle();
+    if (!activeCycle?.cycle_id) {
+        return false;
+    }
+
+    const householdId = await getHouseholdForUser(authUserId);
+    if (!householdId) {
+        return true;
+    }
+
+    const activeChildren = await dbAdapter.listChildren({ householdId, isActive: true });
+    const childIds = activeChildren.map(c => c.child_id);
+
+    const currentEnrollments = await dbAdapter.listMinistryEnrollments(
+        undefined,
+        undefined,
+        activeCycle.cycle_id,
+    );
+    const hasCurrentCycleEnrollment = currentEnrollments.some(e =>
+        childIds.includes(e.child_id),
+    );
+
+    return guardianNeedsActiveCycleRegistration({
+        hasHousehold: true,
+        activeChildCount: activeChildren.length,
+        hasCurrentCycleEnrollment,
+    });
+}
+
+/** Post-login route for guardians and unregistered users with a household link. */
+export async function resolveGuardianPostLoginRoute(
+    authUserId: string,
+): Promise<'/register' | '/household'> {
+    const needsRegistration = await needsRegistrationForActiveCycle(authUserId);
+    return needsRegistration ? '/register' : '/household';
 }
 
 // ---------------------------------------------------------------------------
@@ -194,7 +355,6 @@ export async function getHouseholdProfile(
                 customQuestions: ministryMap.get(e.ministry_id)?.custom_questions,
             }));
 
-        // Build enrollmentsByCycle map for backward compatibility
         const enrollmentsByCycle: Record<string, typeof enrollments> = {};
         for (const enrollment of enrollments) {
             const cycleKey = enrollment.cycle_id;
@@ -207,34 +367,36 @@ export async function getHouseholdProfile(
         return { ...child, enrollments, enrollmentsByCycle };
     });
 
+    const registrationCycles = await dbAdapter.listRegistrationCycles();
+    const cycleNames = Object.fromEntries(
+        registrationCycles.map(cycle => [cycle.cycle_id, cycle.name]),
+    );
+
     return {
         household,
         guardians,
         emergencyContact,
         children: enrichedChildren,
         registrations: [],
+        cycleNames,
     };
 }
 
 /**
  * Find an existing household and registration data by guardian email.
- *
- * Returns registration data for the current cycle or prior cycle (for
- * pre-fill), or null if the email is not found.
+ * Prefer `loadHouseholdForRegistration` for authenticated `/register` flows.
  */
 export async function findHouseholdByEmail(
     email: string,
     currentCycleId: string,
 ) {
-    const guardians = await dbAdapter.listGuardians('');
-    const guardian = guardians.find(
-        g => g.email && g.email.toLowerCase() === email.toLowerCase(),
-    );
+    const guardians = await dbAdapter.listGuardiansByEmail(email);
+    const guardian = guardians[0];
 
     if (!guardian) return null;
 
     const householdId = guardian.household_id;
-    const children = await dbAdapter.listChildren({ householdId });
+    const children = await dbAdapter.listChildren({ householdId, isActive: true });
     const childIds = children.map(c => c.child_id);
 
     if (childIds.length === 0) return null;
@@ -256,11 +418,13 @@ export async function findHouseholdByEmail(
         };
     }
 
-    const priorCycleId = String(parseInt(currentCycleId, 10) - 1);
+    const priorCycle = await getPriorRegistrationCycle(currentCycleId);
+    if (!priorCycle) return null;
+
     const priorEnrollments = await dbAdapter.listMinistryEnrollments(
         undefined,
         undefined,
-        priorCycleId,
+        priorCycle.cycle_id,
     );
     const priorEnrollmentExists = priorEnrollments.some(e =>
         childIds.includes(e.child_id),
@@ -270,7 +434,9 @@ export async function findHouseholdByEmail(
         return {
             isCurrentYear: false,
             isPrefill: true,
-            data: await fetchFullHouseholdDataFromAdapter(householdId, priorCycleId),
+            data: await fetchFullHouseholdDataFromAdapter(householdId, priorCycle.cycle_id, {
+                stripChoirSelections: true,
+            }),
         };
     }
 

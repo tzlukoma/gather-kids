@@ -80,24 +80,14 @@ export function emitDebugEvent(event: Omit<AnyDebugEvent, 'timestamp' | 'route'>
   
   // Store event globally for persistence
   globalEventStore.addEvent(fullEvent);
-  
-  // Always log to console for real-time debugging (console will be visible in both local and deployed)
-  const timestamp = new Date(fullEvent.timestamp).toLocaleTimeString();
-  console.log(`🔍 Debug Event [${timestamp}]:`, {
-    type: fullEvent.type,
-    name: fullEvent.name,
-    route: fullEvent.route,
-    ...(fullEvent.details && { details: fullEvent.details })
-  });
-  
-  // Dispatch event for debug panel UI
+
+  // Dispatch event for debug panel UI (no console spam — use Ctrl+Shift+D panel)
   try {
-    window.dispatchEvent(new CustomEvent('gk:debug', { 
-      detail: fullEvent 
+    window.dispatchEvent(new CustomEvent('gk:debug', {
+      detail: fullEvent
     }));
-    console.log(`🔍 Debug Event dispatched:`, fullEvent.type, fullEvent.name);
   } catch (error) {
-    console.error('🔍 Debug Event dispatch failed:', error);
+    console.error('Debug event dispatch failed:', error);
   }
 }
 
@@ -106,23 +96,16 @@ export function emitDebugEvent(event: Omit<AnyDebugEvent, 'timestamp' | 'route'>
  */
 export function onDebugEvent(callback: (event: AnyDebugEvent) => void): () => void {
   if (typeof window === 'undefined') {
-    console.warn('🔍 onDebugEvent: Server-side environment, returning no-op cleanup');
     return () => {};
   }
-  
-  console.log('🔍 onDebugEvent: Setting up event listener for gk:debug events');
-  
+
   const handler = (event: CustomEvent<AnyDebugEvent>) => {
-    console.log('🔍 onDebugEvent: Received gk:debug event:', event.detail);
     callback(event.detail);
   };
-  
+
   window.addEventListener('gk:debug', handler as EventListener);
-  console.log('🔍 onDebugEvent: Event listener added for gk:debug');
-  
-  // Return cleanup function
+
   return () => {
-    console.log('🔍 onDebugEvent: Removing event listener for gk:debug');
     window.removeEventListener('gk:debug', handler as EventListener);
   };
 }

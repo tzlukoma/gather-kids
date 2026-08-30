@@ -65,7 +65,7 @@ export default function OnboardingPage() {
 								return;
 							} else {
 								// User doesn't need onboarding, redirect to dashboard
-								router.replace('/dashboard');
+								router.replace('/household');
 								return;
 							}
 						}
@@ -91,7 +91,7 @@ export default function OnboardingPage() {
 					setShowOnboarding(true);
 				} else {
 					// User doesn't need onboarding, redirect to dashboard
-					router.replace('/dashboard');
+					router.replace('/household');
 				}
 			} catch (err) {
 				console.error('Unexpected error:', err);
@@ -149,7 +149,7 @@ export default function OnboardingPage() {
 				description: 'You can now sign in with your email and password.',
 			});
 
-			setTimeout(() => router.push('/dashboard'), 1500);
+			setTimeout(() => router.push('/household'), 1500);
 		} catch (error: any) {
 			console.error('Error setting password:', error);
 			toast({
@@ -179,7 +179,7 @@ export default function OnboardingPage() {
 				description: 'You can set a password later in Settings.',
 			});
 
-			router.push('/dashboard');
+			router.push('/household');
 		} catch (error: any) {
 			console.error('Error dismissing onboarding:', error);
 			toast({
@@ -222,7 +222,7 @@ export default function OnboardingPage() {
 				if (!hasPassword && !onboardingDismissed) {
 					setShowOnboarding(true);
 				} else {
-					router.replace('/dashboard');
+					router.replace('/household');
 				}
 
 				toast({

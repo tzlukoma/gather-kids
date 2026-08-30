@@ -30,6 +30,7 @@ import { ForgotPasswordDialog } from '@/components/auth/forgot-password-dialog';
 import { AuthRole } from '@/lib/auth-types';
 import { supabase } from '@/lib/supabaseClient';
 import { getPostLoginRoute } from '@/lib/auth-utils';
+import { resolveGuardianPostLoginRoute } from '@/lib/dal';
 
 export default function LoginPage() {
 	const router = useRouter();
@@ -116,7 +117,15 @@ export default function LoginPage() {
 
 					await login(loginData);
 
-					const target = getPostLoginRoute(userRole);
+					let target = getPostLoginRoute(userRole);
+					if (
+						userRole === AuthRole.GUARDIAN ||
+						userRole === AuthRole.GUEST ||
+						!userRole
+					) {
+						target = await resolveGuardianPostLoginRoute(data.session.user.id);
+					}
+
 					router.push(target);
 				}
 			} else {

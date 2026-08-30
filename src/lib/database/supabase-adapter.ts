@@ -35,6 +35,9 @@ import type {
 	StudentScripture,
 	StudentEssay,
 } from '../types';
+import { devLog } from '../dev-log';
+
+const log = devLog('dal');
 
 export class SupabaseAdapter implements DatabaseAdapter {
 	// Use strict Database typing for the Supabase client. If the generated
@@ -43,7 +46,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 
 
 	constructor(supabaseUrl: string, supabaseAnonKey: string, customClient?: SupabaseClient<Database>) {
-		console.log('SupabaseAdapter constructor', { 
+		log.log('SupabaseAdapter constructor', { 
 			url: supabaseUrl,
 			hasAnonKey: !!supabaseAnonKey, 
 			usingCustomClient: !!customClient
@@ -51,11 +54,11 @@ export class SupabaseAdapter implements DatabaseAdapter {
 		
 		try {
 			this.client = customClient || (createClient(supabaseUrl, supabaseAnonKey) as SupabaseClient<Database>);
-			console.log('SupabaseAdapter created successfully');
+			log.log('SupabaseAdapter created successfully');
 			
 			// Test connection
 			this.client.auth.getSession().then(response => {
-				console.log('SupabaseAdapter initial auth check', { 
+				log.log('SupabaseAdapter initial auth check', { 
 					success: !response.error, 
 					error: response.error ? response.error.message : null
 				});
@@ -196,7 +199,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 	}
 
 	async getHouseholdForUser(authUserId: string): Promise<string | null> {
-		console.log('SupabaseAdapter.getHouseholdForUser: Starting query', { authUserId });
+		log.log('SupabaseAdapter.getHouseholdForUser: Starting query', { authUserId });
 		
 		try {
 			const { data, error } = await this.client
@@ -204,7 +207,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 				.select('household_id')
 				.eq('auth_user_id', authUserId);
 
-			console.log('SupabaseAdapter.getHouseholdForUser: Query result', { 
+			log.log('SupabaseAdapter.getHouseholdForUser: Query result', { 
 				hasError: !!error, 
 				errorMessage: error?.message, 
 				dataCount: data?.length || 0,
@@ -217,7 +220,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			}
 
 			if (!data || data.length === 0) {
-				console.log('SupabaseAdapter.getHouseholdForUser: No household found for user');
+				log.log('SupabaseAdapter.getHouseholdForUser: No household found for user');
 				return null;
 			}
 
@@ -432,7 +435,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 	}
 
 	async listGuardians(householdId: string): Promise<Guardian[]> {
-		console.log('SupabaseAdapter.listGuardians: Starting query', { householdId });
+		log.log('SupabaseAdapter.listGuardians: Starting query', { householdId });
 		let query = this.client.from('guardians').select('*');
 
 		if (householdId && householdId !== '') {
@@ -441,7 +444,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 
 		const { data, error } = await query;
 		
-		console.log('SupabaseAdapter.listGuardians: Query result', { 
+		log.log('SupabaseAdapter.listGuardians: Query result', { 
 			hasError: !!error, 
 			errorMessage: error?.message, 
 			dataCount: data?.length || 0
@@ -449,6 +452,21 @@ export class SupabaseAdapter implements DatabaseAdapter {
 		
 		if (error) throw error;
 		return (data || []).map((d) => supabaseToGuardian(d as Database['public']['Tables']['guardians']['Row']));
+	}
+
+	async listGuardiansByEmail(email: string): Promise<Guardian[]> {
+		const normalized = email.trim();
+		if (!normalized) return [];
+
+		const { data, error } = await this.client
+			.from('guardians')
+			.select('*')
+			.ilike('email', normalized);
+
+		if (error) throw error;
+		return (data || []).map((d) =>
+			supabaseToGuardian(d as Database['public']['Tables']['guardians']['Row']),
+		);
 	}
 
 	async listAllGuardians(): Promise<Guardian[]> {
@@ -820,7 +838,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 	}
 
 	async listMinistries(isActive?: boolean): Promise<Ministry[]> {
-		console.log('🔍 SupabaseAdapter.listMinistries: Starting query', { 
+		log.log('🔍 SupabaseAdapter.listMinistries: Starting query', { 
 			isActive,
 			timestamp: new Date().toISOString(),
 			clientUrl: "(supabase client)"
@@ -829,7 +847,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 		// Check client state and authentication before making query
 		try {
 			const { data: session, error: sessionError } = await this.client.auth.getSession();
-			console.log('🔍 SupabaseAdapter.listMinistries: Auth session check', {
+			log.log('🔍 SupabaseAdapter.listMinistries: Auth session check', {
 				hasSession: !!session?.session,
 				userId: session?.session?.user?.id,
 				userEmail: session?.session?.user?.email,
@@ -851,10 +869,10 @@ export class SupabaseAdapter implements DatabaseAdapter {
 		}
 
 		try {
-			console.log('🔍 SupabaseAdapter.listMinistries: Executing ministries query...');
+			log.log('🔍 SupabaseAdapter.listMinistries: Executing ministries query...');
 			const { data: ministries, error: ministriesError } = await query;
 			
-			console.log('🔍 SupabaseAdapter.listMinistries: Ministries query result', { 
+			log.log('🔍 SupabaseAdapter.listMinistries: Ministries query result', { 
 				hasError: !!ministriesError, 
 				errorMessage: ministriesError?.message,
 				errorCode: ministriesError?.code,
@@ -891,12 +909,12 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			}
 
 			// Get all ministry accounts
-			console.log('🔍 SupabaseAdapter.listMinistries: Executing ministry_accounts query...');
+			log.log('🔍 SupabaseAdapter.listMinistries: Executing ministry_accounts query...');
 			const { data: accounts, error: accountsError } = await this.client
 				.from('ministry_accounts')
 				.select('ministry_id, email, display_name');
 			
-			console.log('🔍 SupabaseAdapter.listMinistries: Ministry accounts query result', {
+			log.log('🔍 SupabaseAdapter.listMinistries: Ministry accounts query result', {
 				hasError: !!accountsError,
 				errorMessage: accountsError?.message,
 				accountCount: accounts?.length || 0,
@@ -915,7 +933,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			const emailMap = new Map<string, string>();
 			if (accounts) {
 				accounts.forEach(account => {
-					console.log('🔍 SupabaseAdapter.listMinistries: Processing account', {
+					log.log('🔍 SupabaseAdapter.listMinistries: Processing account', {
 						ministry_id: account.ministry_id,
 						email: account.email,
 						display_name: account.display_name
@@ -927,7 +945,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 				});
 			}
 
-			console.log('🔍 SupabaseAdapter.listMinistries: Email map created', {
+			log.log('🔍 SupabaseAdapter.listMinistries: Email map created', {
 				accountCount: accounts?.length || 0,
 				emailMapSize: emailMap.size,
 				emailMapEntries: Array.from(emailMap.entries()),
@@ -939,7 +957,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 				try {
 					const email = emailMap.get(ministry.ministry_id);
 					
-					console.log('🔍 SupabaseAdapter.listMinistries: Processing ministry', {
+					log.log('🔍 SupabaseAdapter.listMinistries: Processing ministry', {
 						ministryId: ministry.ministry_id,
 						ministryName: ministry.name,
 						ministryCode: ministry.code,
@@ -955,7 +973,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 					
 					const mappedMinistry = supabaseToMinistry(recordWithEmail as Database['public']['Tables']['ministries']['Row']);
 					
-					console.log('🔍 SupabaseAdapter.listMinistries: Mapped ministry result', {
+					log.log('🔍 SupabaseAdapter.listMinistries: Mapped ministry result', {
 						originalMinistryId: ministry.ministry_id,
 						mappedMinistryId: mappedMinistry.ministry_id,
 						mappedEmail: mappedMinistry.email,
@@ -972,7 +990,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 				}
 			});
 
-			console.log('✅ SupabaseAdapter.listMinistries: Successfully mapped ministries', {
+			log.log('✅ SupabaseAdapter.listMinistries: Successfully mapped ministries', {
 				resultCount: result.length,
 				resultEmails: result.map(r => ({ 
 					ministry_id: r.ministry_id, 
@@ -1648,7 +1666,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 
 	// Ministry Accounts
 	async getMinistryAccount(id: string): Promise<MinistryAccount | null> {
-		console.log('🔍 SupabaseAdapter.getMinistryAccount: Starting', { ministryId: id });
+		log.log('🔍 SupabaseAdapter.getMinistryAccount: Starting', { ministryId: id });
 		
 		const { data, error } = await this.client
 			.from('ministry_accounts')
@@ -1658,7 +1676,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 
 		if (error) {
 			if (error.code === 'PGRST116') {
-				console.log('🔍 SupabaseAdapter.getMinistryAccount: No account found', { ministryId: id });
+				log.log('🔍 SupabaseAdapter.getMinistryAccount: No account found', { ministryId: id });
 				return null;
 			}
 			console.error('❌ SupabaseAdapter.getMinistryAccount: Error', error);
@@ -1666,7 +1684,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 		}
 		
 		const result = data ? supabaseToMinistryAccount(data as Database['public']['Tables']['ministry_accounts']['Row']) : null;
-		console.log('🔍 SupabaseAdapter.getMinistryAccount: Result', {
+		log.log('🔍 SupabaseAdapter.getMinistryAccount: Result', {
 			ministryId: id,
 			found: !!result,
 			email: result?.email
@@ -1704,7 +1722,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 		id: string,
 		data: Partial<MinistryAccount>
 	): Promise<MinistryAccount> {
-		console.log('🔍 SupabaseAdapter.updateMinistryAccount: Starting', {
+		log.log('🔍 SupabaseAdapter.updateMinistryAccount: Starting', {
 			ministryId: id,
 			updateData: data
 		});
@@ -1714,7 +1732,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			dbPayload['settings'] = JSON.stringify(dbPayload['settings']);
 		}
 
-		console.log('🔍 SupabaseAdapter.updateMinistryAccount: DB payload', dbPayload);
+		log.log('🔍 SupabaseAdapter.updateMinistryAccount: DB payload', dbPayload);
 
 		const { data: result, error } = await this.client
 			.from('ministry_accounts')
@@ -1729,7 +1747,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 		}
 		
 		const mappedResult = result ? supabaseToMinistryAccount(result as Database['public']['Tables']['ministry_accounts']['Row']) : result;
-		console.log('✅ SupabaseAdapter.updateMinistryAccount: Success', {
+		log.log('✅ SupabaseAdapter.updateMinistryAccount: Success', {
 			ministryId: id,
 			updatedEmail: mappedResult?.email
 		});
@@ -1949,7 +1967,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 	// Ministry Group RBAC helpers
 	async listAccessibleMinistriesForEmail(email: string): Promise<Ministry[]> {
 		const normalizedEmail = email.toLowerCase().trim();
-		console.log('🔍 SupabaseAdapter.listAccessibleMinistriesForEmail: Starting lookup for', normalizedEmail);
+		log.log('🔍 SupabaseAdapter.listAccessibleMinistriesForEmail: Starting lookup for', normalizedEmail);
 		
 		const { data, error } = await this.client
 			.rpc('fn_ministry_ids_email_can_access', { p_email: normalizedEmail });
@@ -1959,15 +1977,15 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			throw error;
 		}
 
-		console.log('🔍 SupabaseAdapter: RPC function returned:', data?.length || 0, 'ministry IDs', data);
+		log.log('🔍 SupabaseAdapter: RPC function returned:', data?.length || 0, 'ministry IDs', data);
 
 		if (!data || data.length === 0) {
-			console.log('🔍 SupabaseAdapter: No ministry IDs found, returning empty array');
+			log.log('🔍 SupabaseAdapter: No ministry IDs found, returning empty array');
 			return [];
 		}
 
 		const ministryIds = data.map(row => row.ministry_id);
-		console.log('🔍 SupabaseAdapter: Extracted ministry IDs:', ministryIds);
+		log.log('🔍 SupabaseAdapter: Extracted ministry IDs:', ministryIds);
 		
 		const { data: ministries, error: ministriesError } = await this.client
 			.from('ministries')
@@ -1980,7 +1998,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 		}
 
 		const result = (ministries || []).map(row => supabaseToMinistry(row));
-		console.log('🔍 SupabaseAdapter: Final ministries found:', result.length, result.map(m => ({ id: m.ministry_id, name: m.name })));
+		log.log('🔍 SupabaseAdapter: Final ministries found:', result.length, result.map(m => ({ id: m.ministry_id, name: m.name })));
 		return result;
 	}
 
@@ -2059,7 +2077,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 	}
 
 	async listBrandingSettings(): Promise<BrandingSettings[]> {
-		console.log('SupabaseAdapter: Loading branding settings...');
+		log.log('SupabaseAdapter: Loading branding settings...');
 		const { data, error } = await this.client
 			.from('branding_settings')
 			.select('*');
@@ -2075,7 +2093,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			throw error;
 		}
 		
-		console.log('SupabaseAdapter: Loaded branding settings:', data);
+		log.log('SupabaseAdapter: Loaded branding settings:', data);
 		return (data || []).map((d) => supabaseToBrandingSettings(d as Database['public']['Tables']['branding_settings']['Row']));
 	}
 
@@ -2181,7 +2199,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 		id: string,
 		data: Partial<BibleBeeCycle>
 	): Promise<BibleBeeCycle> {
-		console.log('SupabaseAdapter.updateBibleBeeCycle called:', { id, data });
+		log.log('SupabaseAdapter.updateBibleBeeCycle called:', { id, data });
 		const updatePayload: Record<string, unknown> = {
 			updated_at: new Date().toISOString(),
 		};
@@ -2191,7 +2209,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 		if (data.description !== undefined) updatePayload.description = data.description;
 		if (data.is_active !== undefined) updatePayload.is_active = data.is_active;
 
-		console.log('SupabaseAdapter.updateBibleBeeCycle payload:', updatePayload);
+		log.log('SupabaseAdapter.updateBibleBeeCycle payload:', updatePayload);
 
 		const { data: result, error } = await this.client
 			.from('bible_bee_cycles')
@@ -2204,7 +2222,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			console.error('SupabaseAdapter.updateBibleBeeCycle error:', error);
 			throw error;
 		}
-		console.log('SupabaseAdapter.updateBibleBeeCycle success:', result);
+		log.log('SupabaseAdapter.updateBibleBeeCycle success:', result);
 		return this.mapBibleBeeCycle(result);
 	}
 
@@ -2358,17 +2376,17 @@ export class SupabaseAdapter implements DatabaseAdapter {
 		// Use the appropriate field based on whether it's a cycle ID or competition year ID
 		if (isBibleBeeCycleId) {
 			// This is a Bible Bee cycle ID - use bible_bee_cycle_id
-			console.log('upsertScripture - Using bible_bee_cycle_id:', data.bible_bee_cycle_id);
+			log.log('upsertScripture - Using bible_bee_cycle_id:', data.bible_bee_cycle_id);
 			payload.bible_bee_cycle_id = data.bible_bee_cycle_id;
 			payload.competition_year_id = null;
 		} else {
 			// This is a competition year ID - use the traditional field
-			console.log('upsertScripture - Using competition_year_id (no cycle ID)');
+			log.log('upsertScripture - Using competition_year_id (no cycle ID)');
 			payload.competition_year_id = null;
 			payload.bible_bee_cycle_id = data.bible_bee_cycle_id;
 		}
 
-		console.log('upsertScripture - Final payload:', payload);
+		log.log('upsertScripture - Final payload:', payload);
 
 		const { data: result, error } = await this.client
 			.from('scriptures')
@@ -2496,22 +2514,22 @@ export class SupabaseAdapter implements DatabaseAdapter {
 		
 		if (filters?.cycleId) {
 			// Query by bible_bee_cycle_id for cycle-based queries
-			console.log('listScriptures - cycleId:', filters.cycleId);
+			log.log('listScriptures - cycleId:', filters.cycleId);
 			query = query.eq('bible_bee_cycle_id', filters.cycleId);
 		} else if (filters?.yearId) {
 			// Determine if we're using a Bible Bee cycle ID or competition year ID
 			const isBibleBeeCycleId = filters.yearId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
 			
-			console.log('listScriptures - yearId:', filters.yearId);
-			console.log('listScriptures - isBibleBeeCycleId:', isBibleBeeCycleId);
+			log.log('listScriptures - yearId:', filters.yearId);
+			log.log('listScriptures - isBibleBeeCycleId:', isBibleBeeCycleId);
 			
 			if (isBibleBeeCycleId) {
 				// Query by bible_bee_cycle_id if it's a cycle ID
-				console.log('Querying by bible_bee_cycle_id:', filters.yearId);
+				log.log('Querying by bible_bee_cycle_id:', filters.yearId);
 				query = query.eq('bible_bee_cycle_id', filters.yearId);
 			} else {
 				// Query by competition_year_id if it's a competition year ID
-				console.log('Querying by competition_year_id:', filters.yearId);
+				log.log('Querying by competition_year_id:', filters.yearId);
 				query = query.eq('competition_year_id', filters.yearId);
 			}
 		}
@@ -2523,8 +2541,8 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			return [];
 		}
 
-		console.log('listScriptures - found scriptures:', data?.length || 0);
-		console.log('listScriptures - data:', data);
+		log.log('listScriptures - found scriptures:', data?.length || 0);
+		log.log('listScriptures - data:', data);
 
 		return (data || []).map(this.mapScripture);
 	}
@@ -2820,7 +2838,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 	async createEnrollment(
 		data: Omit<Enrollment, 'created_at' | 'updated_at'>
 	): Promise<Enrollment> {
-		console.log(`DEBUG: createEnrollment called with data:`, data);
+		log.log(`DEBUG: createEnrollment called with data:`, data);
 		
 		if (!data.child_id || !data.bible_bee_cycle_id || !data.division_id) {
 			const error = new Error('child_id, bible_bee_cycle_id and division_id are required for enrollment');
@@ -2837,7 +2855,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			id: ((data as unknown) as Record<string, unknown>)['id'] as string ?? undefined,
 		};
 
-		console.log(`DEBUG: createEnrollment insertPayload:`, insertPayload);
+		log.log(`DEBUG: createEnrollment insertPayload:`, insertPayload);
 
 		const { data: result, error } = await this.client
 			.from('bible_bee_enrollments')
@@ -2856,7 +2874,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			throw error;
 		}
 		
-		console.log(`DEBUG: createEnrollment success, result:`, result);
+		log.log(`DEBUG: createEnrollment success, result:`, result);
 		return supabaseToEnrollment(result as Database['public']['Tables']['bible_bee_enrollments']['Row']);
 	}
 
@@ -2881,7 +2899,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 		childId?: string,
 		bibleBeeYearId?: string
 	): Promise<Enrollment[]> {
-		console.log(`DEBUG: listEnrollments called with childId: ${childId}, bibleBeeYearId: ${bibleBeeYearId}`);
+		log.log(`DEBUG: listEnrollments called with childId: ${childId}, bibleBeeYearId: ${bibleBeeYearId}`);
 		
 	// Note: client typing may lack some table names; use narrow cast only for the query builder here
 	let query = (this.client as unknown as SupabaseClient<Database>).from('bible_bee_enrollments').select('*');
@@ -2895,8 +2913,8 @@ export class SupabaseAdapter implements DatabaseAdapter {
 
 	const { data, error } = await query;
 	
-	console.log(`DEBUG: listEnrollments query result - data:`, data);
-	console.log(`DEBUG: listEnrollments query result - error:`, error);
+	log.log(`DEBUG: listEnrollments query result - data:`, data);
+	log.log(`DEBUG: listEnrollments query result - error:`, error);
 	
 	if (error) throw error;
 	return (data || []).map((d) => supabaseToEnrollment(d as Database['public']['Tables']['bible_bee_enrollments']['Row']));
@@ -3303,17 +3321,17 @@ export class SupabaseAdapter implements DatabaseAdapter {
 		
 		const now = new Date().toISOString();
 		
-		console.log(`DEBUG: commitAutoEnrollment called with ${previews.length} previews`);
+		log.log(`DEBUG: commitAutoEnrollment called with ${previews.length} previews`);
 		
 		// Get existing enrollments for this cycle to check for duplicates
 		const existingEnrollments = await this.listEnrollments();
 		const cycleEnrollments = existingEnrollments.filter(e => e.bible_bee_cycle_id === yearId);
 		const enrollmentMap = new Map(cycleEnrollments.map(e => [e.child_id, e]));
 		
-		console.log(`DEBUG: Found ${cycleEnrollments.length} existing enrollments for cycle ${yearId}`);
+		log.log(`DEBUG: Found ${cycleEnrollments.length} existing enrollments for cycle ${yearId}`);
 		
 		for (const p of previews) {
-			console.log(`DEBUG: Processing preview for ${p.child_name}, status: ${p.status}`);
+			log.log(`DEBUG: Processing preview for ${p.child_name}, status: ${p.status}`);
 			try {
 				// Check if child already has an enrollment
 				const existingEnrollment = enrollmentMap.get(p.child_id);
@@ -3330,19 +3348,19 @@ export class SupabaseAdapter implements DatabaseAdapter {
 					
 					if (existingEnrollment) {
 						// Update existing enrollment
-						console.log(`DEBUG: Updating existing override enrollment for ${p.child_name}:`, enrollmentData);
+						log.log(`DEBUG: Updating existing override enrollment for ${p.child_name}:`, enrollmentData);
 						await this.updateEnrollment(existingEnrollment.id, enrollmentData);
 						overrides_updated++;
-						console.log(`DEBUG: Override enrollment updated successfully`);
+						log.log(`DEBUG: Override enrollment updated successfully`);
 					} else {
 						// Create new enrollment
-						console.log(`DEBUG: Creating new override enrollment:`, enrollmentData);
+						log.log(`DEBUG: Creating new override enrollment:`, enrollmentData);
 						await this.createEnrollment({
 							...enrollmentData,
 							id: uuidv4(),
 						});
 						overrides_applied++;
-						console.log(`DEBUG: Override enrollment created successfully`);
+						log.log(`DEBUG: Override enrollment created successfully`);
 					}
 				}
 				// Apply proposed auto-enrollments
@@ -3357,24 +3375,24 @@ export class SupabaseAdapter implements DatabaseAdapter {
 					
 					if (existingEnrollment) {
 						// Update existing enrollment
-						console.log(`DEBUG: Updating existing proposed enrollment for ${p.child_name}:`, enrollmentData);
+						log.log(`DEBUG: Updating existing proposed enrollment for ${p.child_name}:`, enrollmentData);
 						await this.updateEnrollment(existingEnrollment.id, enrollmentData);
 						updated++;
-						console.log(`DEBUG: Proposed enrollment updated successfully`);
+						log.log(`DEBUG: Proposed enrollment updated successfully`);
 					} else {
 						// Create new enrollment
-						console.log(`DEBUG: Creating new proposed enrollment:`, enrollmentData);
+						log.log(`DEBUG: Creating new proposed enrollment:`, enrollmentData);
 						await this.createEnrollment({
 							...enrollmentData,
 							id: uuidv4(),
 						});
 						enrolled++;
-						console.log(`DEBUG: Proposed enrollment created successfully`);
+						log.log(`DEBUG: Proposed enrollment created successfully`);
 					}
 				}
 				// Skip unassigned and unknown_grade children
 				else {
-					console.log(`DEBUG: Skipping child ${p.child_name} with status: ${p.status}`);
+					log.log(`DEBUG: Skipping child ${p.child_name} with status: ${p.status}`);
 				}
 			} catch (error: any) {
 				console.error(`DEBUG: Error enrolling ${p.child_name}:`, {
@@ -3388,7 +3406,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			}
 		}
 		
-		console.log(`DEBUG: commitAutoEnrollment completed - enrolled: ${enrolled}, updated: ${updated}, overrides: ${overrides_applied}, overrides_updated: ${overrides_updated}, errors: ${errors.length}`);
+		log.log(`DEBUG: commitAutoEnrollment completed - enrolled: ${enrolled}, updated: ${updated}, overrides: ${overrides_applied}, overrides_updated: ${overrides_updated}, errors: ${errors.length}`);
 		return { enrolled, updated, overrides_applied, overrides_updated, errors };
 	}
 
@@ -3494,7 +3512,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 
 	// Grade Rules
 	async listGradeRules(yearId?: string): Promise<GradeRule[]> {
-		console.log('SupabaseAdapter.listGradeRules called:', { yearId });
+		log.log('SupabaseAdapter.listGradeRules called:', { yearId });
 		
 		let query = this.client.from('grade_rules').select('*');
 		
@@ -3509,7 +3527,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			throw error;
 		}
 		
-		console.log('SupabaseAdapter.listGradeRules result:', { count: data?.length || 0 });
+		log.log('SupabaseAdapter.listGradeRules result:', { count: data?.length || 0 });
 		return (data || []).map(this.mapGradeRule);
 	}
 

@@ -18,8 +18,6 @@ export function BrandingProvider({ children }: { children: React.ReactNode }) {
 
 	const loadSettings = async () => {
 		try {
-			console.log('BrandingProvider: Loading branding settings...');
-
 			// Add timeout to prevent hanging in UAT
 			const timeoutPromise = new Promise((_, reject) => {
 				setTimeout(
@@ -32,37 +30,24 @@ export function BrandingProvider({ children }: { children: React.ReactNode }) {
 			const brandingSettings = (await Promise.race([
 				brandingSettingsPromise,
 				timeoutPromise,
-			])) as any;
+			])) as Partial<BrandingSettings> | null;
 
-			console.log('BrandingProvider: Got branding settings:', brandingSettings);
 			if (brandingSettings) {
 				setSettings(brandingSettings);
 			} else {
-				// Use defaults if no custom settings exist
-				console.log('BrandingProvider: No custom settings, using defaults');
 				const defaults = await getDefaultBrandingSettings();
-				console.log('BrandingProvider: Got default settings:', defaults);
 				setSettings(defaults);
 			}
 		} catch (error) {
 			console.error('Failed to load branding settings:', error);
-			console.error('Error details:', {
-				message: error instanceof Error ? error.message : 'Unknown error',
-				stack: error instanceof Error ? error.stack : undefined,
-				name: error instanceof Error ? error.name : undefined,
-			});
-			// Fall back to defaults
-			console.log('BrandingProvider: Error occurred, falling back to defaults');
 			try {
 				const defaults = await getDefaultBrandingSettings();
-				console.log('BrandingProvider: Got fallback defaults:', defaults);
 				setSettings(defaults);
 			} catch (fallbackError) {
 				console.error(
 					'Failed to load default branding settings:',
 					fallbackError
 				);
-				// Use hardcoded fallback
 				setSettings({
 					app_name: 'gatherKids',
 					description:
@@ -74,7 +59,6 @@ export function BrandingProvider({ children }: { children: React.ReactNode }) {
 				});
 			}
 		} finally {
-			console.log('BrandingProvider: Setting loading to false');
 			setLoading(false);
 		}
 	};
