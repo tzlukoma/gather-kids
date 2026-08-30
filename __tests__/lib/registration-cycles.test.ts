@@ -2,6 +2,8 @@ import { describe, it, expect } from '@jest/globals';
 import {
   pickActiveRegistrationCycle,
   pickPriorRegistrationCycle,
+  pickExpandedCycleId,
+  sortCycleIdsByStartDate,
 } from '../../src/lib/dal/registration-cycle-utils';
 
 describe('registration cycle resolution', () => {
@@ -67,5 +69,31 @@ describe('registration cycle resolution', () => {
       'only',
     );
     expect(prior).toBeNull();
+  });
+
+  it('sorts cycle ids by start_date with newest first', () => {
+    const startDates = {
+      'e3a387b5-de59-4e37-a52a-b9e9102dc45c': '2025-09-14',
+      'b68d82e0-9677-4703-a89d-264661c88e97': '2026-09-13',
+    };
+    expect(
+      sortCycleIdsByStartDate(
+        Object.keys(startDates),
+        startDates,
+      ),
+    ).toEqual([
+      'b68d82e0-9677-4703-a89d-264661c88e97',
+      'e3a387b5-de59-4e37-a52a-b9e9102dc45c',
+    ]);
+  });
+
+  it('expands the active cycle when the child has enrollments for it', () => {
+    const startDates = {
+      fall2025: '2025-09-14',
+      fall2026: '2026-09-13',
+    };
+    expect(
+      pickExpandedCycleId(['fall2025', 'fall2026'], startDates, 'fall2026'),
+    ).toBe('fall2026');
   });
 });

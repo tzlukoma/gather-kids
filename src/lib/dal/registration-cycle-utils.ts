@@ -34,3 +34,31 @@ export function pickPriorRegistrationCycle(
 
   return priorCandidates[0] ?? null;
 }
+
+/** Newest registration cycles first (by start_date). */
+export function sortCycleIdsByStartDate(
+  cycleIds: string[],
+  cycleStartDates: Record<string, string>,
+): string[] {
+  return [...cycleIds].sort((a, b) => {
+    const aTime = cycleStartDates[a]
+      ? new Date(cycleStartDates[a]).getTime()
+      : 0;
+    const bTime = cycleStartDates[b]
+      ? new Date(cycleStartDates[b]).getTime()
+      : 0;
+    return bTime - aTime;
+  });
+}
+
+/** Cycle to expand on household profile — prefer active cycle when enrolled. */
+export function pickExpandedCycleId(
+  cycleIds: string[],
+  cycleStartDates: Record<string, string>,
+  activeCycleId?: string | null,
+): string | undefined {
+  if (activeCycleId && cycleIds.includes(activeCycleId)) {
+    return activeCycleId;
+  }
+  return sortCycleIdsByStartDate(cycleIds, cycleStartDates)[0];
+}

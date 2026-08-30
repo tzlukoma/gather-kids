@@ -16,6 +16,7 @@ import type {
 } from '../types';
 import { ageOn } from './utils';
 import { getPriorRegistrationCycle, getCurrentRegistrationCycle } from './ministries';
+import { pickActiveRegistrationCycle } from './registration-cycle-utils';
 import {
     applyReturningGradePrefill,
     buildGradeHintForChild,
@@ -334,6 +335,8 @@ export interface HouseholdProfileData {
     children: (Child & { enrollments?: MinistryEnrollment[]; enrollmentsByCycle: Record<string, MinistryEnrollment[]>; age?: number })[];
     registrations: unknown[];
     cycleNames?: Record<string, string>;
+    cycleStartDates?: Record<string, string>;
+    activeCycleId?: string | null;
 }
 
 /**
@@ -380,8 +383,12 @@ export async function getHouseholdProfile(
     });
 
     const registrationCycles = await dbAdapter.listRegistrationCycles();
+    const activeCycle = pickActiveRegistrationCycle(registrationCycles);
     const cycleNames = Object.fromEntries(
         registrationCycles.map(cycle => [cycle.cycle_id, cycle.name]),
+    );
+    const cycleStartDates = Object.fromEntries(
+        registrationCycles.map(cycle => [cycle.cycle_id, cycle.start_date || '']),
     );
 
     return {
@@ -391,6 +398,8 @@ export async function getHouseholdProfile(
         children: enrichedChildren,
         registrations: [],
         cycleNames,
+        cycleStartDates,
+        activeCycleId: activeCycle?.cycle_id ?? null,
     };
 }
 
