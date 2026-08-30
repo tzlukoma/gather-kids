@@ -90,7 +90,7 @@ test.describe('Registration Auth Flow with Email Verification', () => {
       expect(magicLink).toBeTruthy();
       
       console.log('🔗 Navigating to magic link:', magicLink);
-      await page.goto(magicLink, { waitUntil: 'networkidle' });
+      await page.goto(magicLink, { waitUntil: 'domcontentloaded' });
       
       // Wait for auth callback to process
       await page.waitForTimeout(3000);
@@ -107,7 +107,7 @@ test.describe('Registration Auth Flow with Email Verification', () => {
         await page.waitForTimeout(2000);
         // May need to continue to registration manually
         if (page.url().includes('/auth/callback')) {
-          await page.goto('/register', { waitUntil: 'networkidle' });
+          await page.goto('/register', { waitUntil: 'domcontentloaded' });
         }
       }
     } else {

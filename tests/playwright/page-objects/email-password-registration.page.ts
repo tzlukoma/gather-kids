@@ -11,7 +11,7 @@ export class EmailPasswordRegistrationPage {
   }
 
   async navigateToLogin() {
-    await this.page.goto('/login', { waitUntil: 'networkidle' });
+    await this.page.goto('/login', { waitUntil: 'domcontentloaded' });
   }
 
   async navigateToFamilyRegistration() {

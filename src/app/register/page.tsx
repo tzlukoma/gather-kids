@@ -1232,6 +1232,18 @@ function RegisterPageContent() {
 			return;
 		}
 
+		const emailLooksValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+			verificationEmail
+		);
+		if (!emailLooksValid) {
+			toast({
+				title: 'Invalid email',
+				description: 'Please enter a valid email address.',
+				variant: 'destructive',
+			});
+			return;
+		}
+
 		log.log(
 			'DEBUG: Offline household lookup — skipping live Supabase for',
 			verificationEmail
@@ -1262,6 +1274,14 @@ function RegisterPageContent() {
 					error
 				);
 			}
+
+			toast({
+				title: 'Verification Email Failed',
+				description:
+					'Could not send a verification email. Please try again.',
+				variant: 'destructive',
+			});
+			return;
 		}
 
 		proceedToRegistrationForm();

@@ -90,7 +90,7 @@ test.describe('Email/Password Registration Flow with Email Verification', () => 
       expect(verificationLink).toBeTruthy();
       
       console.log('🔗 Navigating to verification link:', verificationLink);
-      await page.goto(verificationLink, { waitUntil: 'networkidle' });
+      await page.goto(verificationLink, { waitUntil: 'domcontentloaded' });
       
       // Wait for verification to process
       await page.waitForTimeout(3000);
