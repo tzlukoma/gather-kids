@@ -126,6 +126,22 @@ Set in Vercel:
 
 ---
 
+## Sentry init and env
+
+Runtime init (no sample-rate or Replay policy changes here):
+
+| Runtime | File |
+|---------|------|
+| Browser | `src/instrumentation-client.ts` |
+| Node server | `sentry.server.config.ts` |
+| Edge | `sentry.edge.config.ts` |
+
+`environment` comes from `NEXT_PUBLIC_DEPLOY_ENV` or `VERCEL_ENV`. `release` is the stamped app version (`package.json` / `src/lib/build-info.ts`). Set `NEXT_PUBLIC_SENTRY_DSN` in Vercel; never commit the real DSN.
+
+GitHub CI (`ci.yml`) runs dummy `next build` jobs. Those builds must **not** upload source maps — do not add `SENTRY_AUTH_TOKEN` to `ci.yml`. Vercel source-map upload, uptime, and cron check-ins are a separate ops follow-up.
+
+---
+
 ## Database deploy (manual)
 
 ### UAT — [`uat-db-deploy.yml`](../.github/workflows/uat-db-deploy.yml)
