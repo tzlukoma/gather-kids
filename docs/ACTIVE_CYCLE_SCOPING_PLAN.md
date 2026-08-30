@@ -1,6 +1,6 @@
 # Active Cycle Scoping Plan — Staff UI & Ops After Year Switch
 
-**Status:** Planning (post-R1)  
+**Status:** Planning (post-R1) — tracked in [**GitHub #250**](https://github.com/tzlukoma/gather-kids/issues/250)  
 **Trigger:** Fall 2026 activated on production; staff surfaces still show **all active children** and **all historical enrollments** as if nothing changed. R1 fixed **guardian registration routing** and **household profile cycle accordions**; it did **not** scope check-in, dashboard, rosters, registrations list, incidents, exports, or digest to the active registration cycle.  
 **Canonical context:** [`docs/PRODUCT_SPEC.md`](./PRODUCT_SPEC.md), [`docs/R1_IMPLEMENTATION_PLAN.md`](./R1_IMPLEMENTATION_PLAN.md) (complete)  
 **Related:** [GitHub #249](https://github.com/tzlukoma/gather-kids/issues/249) (prod validation before family email)
