@@ -1,96 +1,42 @@
 import { Page, expect } from '@playwright/test';
+import {
+  fillHouseholdRegistrationForm,
+  type HouseholdFormData,
+} from '../utils/fill-household-form';
 
 export class EmailRegistrationPage {
   constructor(private page: Page) {}
 
   async navigateToRegistration() {
-    await this.page.goto('/register', { waitUntil: 'networkidle' });
+    await this.page.goto('/register', { waitUntil: 'domcontentloaded' });
+    await expect(this.page.getByText('Household Lookup')).toBeVisible({
+      timeout: 30000,
+    });
   }
 
   async enterEmailForVerification(email: string) {
-    // Enter email in the household lookup section
-    await this.page.fill('input[type="email"]', email);
-    await this.page.click('button:has-text("Continue")');
-    
-    // Wait for response
+    const emailInput = this.page.locator(
+      'input[type="email"], input[placeholder*="email" i]'
+    ).first();
+    await expect(emailInput).toBeVisible({ timeout: 30000 });
+    await emailInput.fill(email);
+
+    const continueButton = this.page.locator('button:has-text("Continue")').first();
+    await expect(continueButton).toBeVisible();
+    await continueButton.click();
+
     await this.page.waitForTimeout(1000);
   }
 
   async waitForEmailStep() {
-    // In a real implementation, this would wait for an email verification step
-    // For now, we'll check if we're still on the email entry or if we moved forward
     await this.page.waitForTimeout(2000);
   }
 
-  async fillRegistrationForm(data: {
-    householdName: string;
-    primaryGuardian: {
-      firstName: string;
-      lastName: string;
-      phone: string;
-    };
-    address: {
-      street: string;
-      city: string;
-      state: string;
-      zip: string;
-    };
-    children: Array<{
-      firstName: string;
-      lastName: string;
-      birthdate: string;
-    }>;
-  }) {
-    // Wait for form to be visible
-    await expect(this.page.locator('form')).toBeVisible({ timeout: 10000 });
-
-    // Fill household name
-    const householdNameInput = this.page.locator('input[name*="name"], #householdName, input[placeholder*="household"], input[placeholder*="family"]').first();
-    await householdNameInput.fill(data.householdName);
-
-    // Fill primary guardian information
-    await this.page.fill('input[name*="firstName"], input[placeholder*="first name"]', data.primaryGuardian.firstName);
-    await this.page.fill('input[name*="lastName"], input[placeholder*="last name"]', data.primaryGuardian.lastName);
-    await this.page.fill('input[name*="phone"], input[placeholder*="phone"]', data.primaryGuardian.phone);
-
-    // Fill address
-    await this.page.fill('input[name*="address"], input[placeholder*="street"]', data.address.street);
-    await this.page.fill('input[name*="city"], input[placeholder*="city"]', data.address.city);
-    await this.page.fill('input[name*="state"], input[placeholder*="state"], select[name*="state"]', data.address.state);
-    await this.page.fill('input[name*="zip"], input[placeholder*="zip"]', data.address.zip);
-
-    // Add children
-    for (let i = 0; i < data.children.length; i++) {
-      const child = data.children[i];
-      
-      // If not the first child, add a new child entry
-      if (i > 0) {
-        const addChildButton = this.page.locator('button:has-text("Add Child"), button:has-text("Add Another Child")');
-        if (await addChildButton.count() > 0) {
-          await addChildButton.click();
-          await this.page.waitForTimeout(500);
-        }
-      }
-
-      // Fill child information (target the last/newest set of child fields)
-      const childFirstNameInputs = this.page.locator('input[name*="children"], input[placeholder*="child"], input[name*="firstName"]');
-      const childLastNameInputs = this.page.locator('input[name*="children"], input[placeholder*="child"], input[name*="lastName"]');
-      const childBirthdateInputs = this.page.locator('input[type="date"], input[name*="birth"], input[placeholder*="birth"]');
-
-      if (await childFirstNameInputs.count() > i) {
-        await childFirstNameInputs.nth(i).fill(child.firstName);
-      }
-      if (await childLastNameInputs.count() > i) {
-        await childLastNameInputs.nth(i).fill(child.lastName);
-      }
-      if (await childBirthdateInputs.count() > i) {
-        await childBirthdateInputs.nth(i).fill(child.birthdate);
-      }
-    }
+  async fillRegistrationForm(data: HouseholdFormData) {
+    await fillHouseholdRegistrationForm(this.page, data);
   }
 
   async submitRegistration() {
-    // Look for various submit button patterns
     const submitButtons = [
       'button[type="submit"]',
       'button:has-text("Submit")',
@@ -113,12 +59,10 @@ export class EmailRegistrationPage {
       throw new Error('Could not find submit button for registration form');
     }
 
-    // Wait for submission to process
     await this.page.waitForTimeout(2000);
   }
 
   async verifyRegistrationSuccess() {
-    // Look for success indicators
     const successIndicators = [
       'text=Registration Complete',
       'text=Successfully Registered',
@@ -139,8 +83,6 @@ export class EmailRegistrationPage {
     }
     
     if (!found) {
-      // Alternative: check that we're redirected away from the registration page
-      // or that we're now on a household/dashboard page
       const currentUrl = this.page.url();
       const isOnSuccessPage = currentUrl.includes('/household') || 
                             currentUrl.includes('/dashboard') || 
@@ -156,28 +98,25 @@ export class EmailRegistrationPage {
   }
 
   async verifyOnParentPortal() {
-    // Check that we've reached the parent portal/household page
     const portalIndicators = [
-      'text=Household',
+      'h1:has-text("Household")',
       'text=My Children',
       'text=Family Dashboard',
       'text=Parent Portal',
       '[data-testid="household-page"]',
-      'h1:has-text("Dashboard")',
-      'nav:has-text("Household")'
     ];
 
     let found = false;
     for (const selector of portalIndicators) {
-      if (await this.page.locator(selector).count() > 0) {
-        await expect(this.page.locator(selector)).toBeVisible({ timeout: 10000 });
+      const loc = this.page.locator(selector).first();
+      if (await loc.count() > 0) {
+        await expect(loc).toBeVisible({ timeout: 10000 });
         found = true;
         break;
       }
     }
 
     if (!found) {
-      // Check URL patterns
       const currentUrl = this.page.url();
       const isOnPortalPage = currentUrl.includes('/household') || 
                            currentUrl.includes('/dashboard') || 
@@ -192,10 +131,11 @@ export class EmailRegistrationPage {
   }
 
   async checkForEmailVerificationStep() {
-    // Check if we're on an email verification step
     const verificationIndicators = [
       'text=Check your email',
+      'text=Check Your Email',
       'text=Verification email sent',
+      'text=Verification Email Sent',
       'text=Magic link',
       'text=Click the link in your email',
       '[data-testid="email-verification"]'

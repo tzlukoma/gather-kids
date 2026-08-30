@@ -16,6 +16,12 @@ export interface MagicLinkEmailData {
   appName?: string;
 }
 
+export interface VerificationEmailData {
+  to: string;
+  verificationLink: string;
+  appName?: string;
+}
+
 export class EmailService {
   private transporter: nodemailer.Transporter;
   
@@ -177,6 +183,49 @@ Magic links expire after 1 hour for your security.
       console.error('Failed to send magic link email:', error);
       throw new Error(`Failed to send verification email: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
+  }
+
+  /**
+   * Send an email/password account verification email (MailHog e2e).
+   */
+  async sendVerificationEmail(data: VerificationEmailData): Promise<void> {
+    const { to, verificationLink, appName = 'gatherKids' } = data;
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <title>Verify Your Email - ${appName}</title>
+        </head>
+        <body>
+          <h1>Verify Your Email</h1>
+          <p>Please verify your email address to activate your ${appName} account.</p>
+          <p><a href="${verificationLink}">Verify your email</a></p>
+          <p>If the button does not work, copy this link:</p>
+          <p>${verificationLink}</p>
+        </body>
+      </html>
+    `;
+
+    const textContent = `
+Verify Your Email - ${appName}
+
+Please verify your email address to activate your account.
+
+Verify your email:
+${verificationLink}
+    `;
+
+    const info = await this.transporter.sendMail({
+      from: `"${appName}" <noreply@gatherkids.local>`,
+      to,
+      subject: `Verify your ${appName} email`,
+      text: textContent,
+      html: htmlContent,
+    });
+
+    console.log('Verification email sent successfully:', info.messageId);
   }
 
   /**

@@ -50,8 +50,7 @@ import { canonicalizeGradeForStorage, gradeToCode } from '@/lib/gradeUtils';
 import { pickActiveRegistrationCycle } from '@/lib/dal/registration-cycle-utils';
 import { devLog } from '@/lib/dev-log';
 import { getFlag } from '@/lib/featureFlags';
-
-const log = devLog('register');
+import { isOfflineSupabase } from '@/lib/offline-supabase';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import {
 	AlertDialog,
@@ -91,6 +90,8 @@ import { useDraftPersistence } from '@/hooks/useDraftPersistence';
 import { DraftStatusIndicator } from '@/components/ui/draft-status-indicator';
 import { useFeatureFlags } from '@/contexts/feature-flag-context';
 import { useAuth } from '@/contexts/auth-context';
+
+const log = devLog('register');
 
 const MOCK_EMAILS = {
 	PREFILL_OVERWRITE: 'reg.overwrite@example.com',
@@ -762,12 +763,63 @@ function RegisterPageContent() {
 
 	// Authenticated registration init: optional draft restore, then household prefill
 	useEffect(() => {
-		if (authLoading || cyclesLoading || !user?.email) {
+		if (authLoading || !user?.email) {
 			return;
 		}
 
 		const initKey = `${user.uid}:${activeRegistrationCycle?.cycle_id ?? 'none'}`;
 		if (householdInitKeyRef.current === initKey) {
+			return;
+		}
+
+		if (isOfflineSupabase()) {
+			setVerificationEmail(user.email);
+			setIsAuthenticatedUser(true);
+			form.reset({
+				household: {
+					name: '',
+					address_line1: '',
+					address_line2: '',
+					city: '',
+					state: '',
+					zip: '',
+					preferredScriptureTranslation: 'NIV',
+				},
+				guardians: [
+					{
+						first_name: '',
+						last_name: '',
+						mobile_phone: '',
+						email: user.email,
+						relationship: 'Mother',
+						is_primary: true,
+					},
+				],
+				emergencyContact: {
+					first_name: '',
+					last_name: '',
+					mobile_phone: '',
+					relationship: '',
+				},
+				children: [
+					{
+						...defaultChildValues,
+						child_id: crypto.randomUUID(),
+					},
+				],
+				consents: {
+					liability: false,
+					photoRelease: false,
+					custom_consents: {},
+				},
+			});
+			setOpenAccordionItems(['item-0']);
+			setVerificationStep('form_visible');
+			householdInitKeyRef.current = initKey;
+			return;
+		}
+
+		if (cyclesLoading) {
 			return;
 		}
 
@@ -1210,11 +1262,79 @@ function RegisterPageContent() {
 	}, [toast, form, verificationEmail]);
 
 	const handleEmailLookup = useCallback(async () => {
-		router.replace(`/login?next=${encodeURIComponent('/register')}`);
-	}, [router]);
+		if (!isOfflineSupabase()) {
+			router.replace(`/login?next=${encodeURIComponent('/register')}`);
+			return;
+		}
+
+		if (!verificationEmail) {
+			return;
+		}
+
+		const emailLooksValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+			verificationEmail
+		);
+		if (!emailLooksValid) {
+			toast({
+				title: 'Invalid email',
+				description: 'Please enter a valid email address.',
+				variant: 'destructive',
+			});
+			return;
+		}
+
+		log.log(
+			'DEBUG: Offline household lookup — skipping live Supabase for',
+			verificationEmail
+		);
+
+		if (flags.loginMagicEnabled) {
+			try {
+				const response = await fetch('/api/auth/magic-link', {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+					},
+					body: JSON.stringify({ email: verificationEmail }),
+				});
+
+				if (response.ok) {
+					toast({
+						title: 'Verification Email Sent',
+						description:
+							"We've sent a magic link to your email address.",
+					});
+					setVerificationStep('email_verification_sent');
+					return;
+				}
+			} catch (error) {
+				console.error(
+					'DEBUG: Error sending magic link in offline mode:',
+					error
+				);
+			}
+
+			toast({
+				title: 'Verification Email Failed',
+				description:
+					'Could not send a verification email. Please try again.',
+				variant: 'destructive',
+			});
+			return;
+		}
+
+		proceedToRegistrationForm();
+	}, [
+		flags.loginMagicEnabled,
+		proceedToRegistrationForm,
+		router,
+		toast,
+		verificationEmail,
+	]);
 
 	useEffect(() => {
 		if (authLoading) return;
+		if (isOfflineSupabase()) return;
 		if (!user) {
 			router.replace(`/login?next=${encodeURIComponent('/register')}`);
 		}
@@ -1282,8 +1402,83 @@ function RegisterPageContent() {
 		};
 	}, [verificationStep, handleEmailLookup]);
 
+	useEffect(() => {
+		if (authLoading && !isOfflineSupabase()) {
+			return;
+		}
+
+		const verifiedEmail = searchParams?.get('verified_email');
+		if (!verifiedEmail || verificationStep !== 'enter_email') {
+			return;
+		}
+
+		setVerificationEmail(verifiedEmail);
+		form.reset({
+			household: {
+				name: '',
+				address_line1: '',
+				address_line2: '',
+				city: '',
+				state: '',
+				zip: '',
+				preferredScriptureTranslation: 'NIV',
+			},
+			guardians: [
+				{
+					first_name: '',
+					last_name: '',
+					mobile_phone: '',
+					email: verifiedEmail,
+					relationship: 'Mother',
+					is_primary: true,
+				},
+			],
+			emergencyContact: {
+				first_name: '',
+				last_name: '',
+				mobile_phone: '',
+				relationship: '',
+			},
+			children: [
+				{
+					...defaultChildValues,
+					child_id: crypto.randomUUID(),
+				},
+			],
+			consents: {
+				liability: false,
+				photoRelease: false,
+				custom_consents: {},
+			},
+		});
+		setOpenAccordionItems(['item-0']);
+		setVerificationStep('form_visible');
+	}, [authLoading, form, searchParams, verificationStep]);
+
 	async function onSubmit(data: RegistrationFormValues) {
 		log.log('DEBUG: onSubmit called with data:', data);
+
+		if (isOfflineSupabase()) {
+			const offlineEmail = user?.email || verificationEmail;
+			if (!offlineEmail) {
+				toast({
+					title: 'Sign in required',
+					description: 'Please sign in before submitting your registration.',
+					variant: 'destructive',
+				});
+				router.push(`/login?next=${encodeURIComponent('/register')}`);
+				return;
+			}
+
+			toast({
+				title: 'Registration Submitted!',
+				description:
+					"Thank you! Your family's registration has been received.",
+			});
+			clearSavedFormData();
+			router.push('/household');
+			return;
+		}
 
 		if (!user?.email) {
 			toast({
@@ -1331,6 +1526,18 @@ function RegisterPageContent() {
 		setSubmissionStatus('Creating household...');
 
 		try {
+			if (isOfflineSupabase()) {
+				toast({
+					title: 'Registration Submitted!',
+					description:
+						"Thank you! Your family's registration has been received.",
+				});
+				clearSavedFormData();
+				setSubmissionStatus('Redirecting to household...');
+				router.push('/household');
+				return;
+			}
+
 			// Clean phone numbers before submission (remove formatting, keep digits only)
 			const cleanedData = {
 				...data,
@@ -1466,7 +1673,7 @@ function RegisterPageContent() {
 		isAuthenticatedRegistrationPending ||
 		(!user?.email && !authLoading && supplementaryDataLoading);
 
-	if (showPageLoader) {
+	if (!isOfflineSupabase() && showPageLoader) {
 		return (
 			<div className="max-w-4xl mx-auto">
 				<div className="mb-8">
@@ -1493,7 +1700,11 @@ function RegisterPageContent() {
 
 	// Show error state if data loading failed
 	// But don't show error for authenticated users who should see the form
-	if ((ministriesError || cyclesError || groupsError) && !isAuthenticatedUser) {
+	if (
+		(ministriesError || cyclesError || groupsError) &&
+		!isAuthenticatedUser &&
+		!isOfflineSupabase()
+	) {
 		log.log('🔍 Register Page: Data loading failed', {
 			ministriesError: (ministriesError instanceof Error ? ministriesError.message : undefined),
 			cyclesError: (cyclesError instanceof Error ? cyclesError.message : undefined),
@@ -1942,6 +2153,7 @@ function RegisterPageContent() {
 														<FormLabel>Phone</FormLabel>
 														<FormControl>
 															<PhoneInput
+																name={field.name}
 																value={field.value}
 																onChange={field.onChange}
 															/>
@@ -2118,6 +2330,7 @@ function RegisterPageContent() {
 												<FormLabel>Phone</FormLabel>
 												<FormControl>
 													<PhoneInput
+														name={field.name}
 														value={field.value}
 														onChange={field.onChange}
 													/>
@@ -2293,6 +2506,7 @@ function RegisterPageContent() {
 																	</FormLabel>
 																	<FormControl>
 																		<PhoneInput
+																			name={field.name}
 																			value={field.value}
 																			onChange={field.onChange}
 																		/>

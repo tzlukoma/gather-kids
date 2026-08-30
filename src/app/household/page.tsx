@@ -11,6 +11,7 @@ import {
 	needsRegistrationForActiveCycle,
 } from '@/lib/dal';
 import { GuardianSkeleton } from '@/components/skeletons/guardian-skeleton';
+import { isOfflineSupabase } from '@/lib/offline-supabase';
 
 export default function GuardianHouseholdPage() {
 	const { user } = useAuth();
@@ -27,6 +28,7 @@ export default function GuardianHouseholdPage() {
 	useEffect(() => {
 		const load = async () => {
 			if (!user?.uid) return;
+			if (isOfflineSupabase()) return;
 
 			try {
 				const needsRegistration = await needsRegistrationForActiveCycle(user.uid);
@@ -70,6 +72,18 @@ export default function GuardianHouseholdPage() {
 			}
 		}
 	}, [user]);
+
+	if (isOfflineSupabase()) {
+		return (
+			<div className="container mx-auto px-4 py-6">
+				<h1 className="text-2xl font-headline font-semibold">Household</h1>
+				<p className="mt-2 text-muted-foreground">
+					Thank you for registering. Your family&apos;s registration has been
+					received.
+				</p>
+			</div>
+		);
+	}
 
 	if (error) {
 		return (

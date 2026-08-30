@@ -20,6 +20,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useFeatureFlags } from '@/contexts/feature-flag-context';
 import { useBranding } from '@/contexts/branding-context';
 import { supabase } from '@/lib/supabaseClient';
+import { isOfflineSupabase } from '@/lib/offline-supabase';
 
 export default function CreateAccountPage() {
 	const router = useRouter();
@@ -77,6 +78,30 @@ export default function CreateAccountPage() {
 		setLoading(true);
 
 		try {
+			if (isOfflineSupabase()) {
+				const response = await fetch('/api/auth/test-signup', {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+					},
+					body: JSON.stringify({ email, password }),
+				});
+
+				const body = await response.json().catch(() => ({}));
+
+				if (!response.ok) {
+					throw new Error(body.error || 'Unable to create account. Please try again.');
+				}
+
+				setNeedsVerification(true);
+				toast({
+					title: 'Check Your Email',
+					description:
+						'Please check your inbox to verify your email address.',
+				});
+				return;
+			}
+
 			if (!supabase) {
 				throw new Error('Supabase client not available');
 			}
@@ -332,6 +357,28 @@ export default function CreateAccountPage() {
 
 		setLoading(true);
 		try {
+			if (isOfflineSupabase()) {
+				const response = await fetch('/api/auth/test-login', {
+					method: 'PUT',
+					headers: {
+						'Content-Type': 'application/json',
+					},
+					body: JSON.stringify({ email }),
+				});
+
+				const body = await response.json().catch(() => ({}));
+
+				if (!response.ok) {
+					throw new Error(body.error || 'Unable to resend verification email.');
+				}
+
+				toast({
+					title: 'Verification Email Sent',
+					description: 'Please check your inbox for the verification email.',
+				});
+				return;
+			}
+
 			if (!supabase) {
 				throw new Error('Supabase client not available');
 			}

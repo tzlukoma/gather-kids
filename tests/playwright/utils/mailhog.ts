@@ -3,6 +3,8 @@
  * Provides utilities to interact with MailHog API for email testing
  */
 
+import { extractAuthCallbackUrl } from '../../../src/lib/mailhog-link';
+
 export interface MailHogMessage {
   ID: string;
   From: {
@@ -101,44 +103,16 @@ export class MailHogHelper {
    * @returns Extracted magic link URL
    */
   async extractMagicLink(email: MailHogMessage): Promise<string> {
-    const htmlContent = email.Content.Body;
-    
-    // Try multiple regex patterns for magic links
-    const linkPatterns = [
-      // Pattern for auth/callback URLs
-      /href="([^"]*auth\/callback[^"]*)"/gi,
-      // Pattern for magic link URLs with tokens
-      /href="([^"]*magic[^"]*)"/gi,
-      // Pattern for verification URLs
-      /href="([^"]*verify[^"]*)"/gi,
-      // Pattern for any URL with auth tokens/codes
-      /href="([^"]*[?&](?:token|code)=[^"]*)"/gi,
-      // Generic pattern for localhost callback URLs
-      /href="(http:\/\/localhost:[0-9]+\/[^"]*(?:auth|callback|verify)[^"]*)"/gi,
-    ];
-    
-    for (const pattern of linkPatterns) {
-      const matches = Array.from(htmlContent.matchAll(pattern));
-      if (matches.length > 0) {
-        const link = matches[0][1];
-        // Decode HTML entities
-        const decodedLink = link
-          .replace(/&amp;/g, '&')
-          .replace(/&lt;/g, '<')
-          .replace(/&gt;/g, '>')
-          .replace(/&quot;/g, '"')
-          .replace(/&#39;/g, "'");
-        
-        console.log(`Extracted magic link: ${decodedLink}`);
-        return decodedLink;
-      }
+    const link = extractAuthCallbackUrl(email.Content.Body);
+    if (link) {
+      console.log(`Extracted magic link: ${link}`);
+      return link;
     }
-    
-    // If no pattern matches, log the email content for debugging
+
     console.error('Magic link not found in email content');
     console.error('Email subject:', email.Content.Headers.Subject?.[0] || 'No subject');
-    console.error('Email body preview:', htmlContent.substring(0, 500));
-    
+    console.error('Email body preview:', email.Content.Body.substring(0, 500));
+
     throw new Error('Magic link not found in email content');
   }
 
@@ -149,46 +123,16 @@ export class MailHogHelper {
    * @returns Extracted verification link URL
    */
   async extractVerificationLink(email: MailHogMessage): Promise<string> {
-    const htmlContent = email.Content.Body;
-    
-    // Try multiple regex patterns for verification links
-    const linkPatterns = [
-      // Pattern for verification URLs
-      /href="([^"]*verify[^"]*)"/gi,
-      // Pattern for confirmation URLs
-      /href="([^"]*confirm[^"]*)"/gi,
-      // Pattern for email verification URLs
-      /href="([^"]*email.*verify[^"]*)"/gi,
-      // Pattern for auth URLs with verification tokens
-      /href="([^"]*auth.*verify[^"]*)"/gi,
-      // Pattern for any URL with verification tokens
-      /href="([^"]*[?&](?:verification|token|confirm)=[^"]*)"/gi,
-      // Generic pattern for localhost verification URLs
-      /href="(http:\/\/localhost:[0-9]+\/[^"]*(?:verify|confirm)[^"]*)"/gi,
-    ];
-    
-    for (const pattern of linkPatterns) {
-      const matches = Array.from(htmlContent.matchAll(pattern));
-      if (matches.length > 0) {
-        const link = matches[0][1];
-        // Decode HTML entities
-        const decodedLink = link
-          .replace(/&amp;/g, '&')
-          .replace(/&lt;/g, '<')
-          .replace(/&gt;/g, '>')
-          .replace(/&quot;/g, '"')
-          .replace(/&#39;/g, "'");
-        
-        console.log(`Extracted verification link: ${decodedLink}`);
-        return decodedLink;
-      }
+    const link = extractAuthCallbackUrl(email.Content.Body);
+    if (link) {
+      console.log(`Extracted verification link: ${link}`);
+      return link;
     }
-    
-    // If no pattern matches, log the email content for debugging
+
     console.error('Verification link not found in email content');
     console.error('Email subject:', email.Content.Headers.Subject?.[0] || 'No subject');
-    console.error('Email body preview:', htmlContent.substring(0, 500));
-    
+    console.error('Email body preview:', email.Content.Body.substring(0, 500));
+
     throw new Error('Verification link not found in email content');
   }
 
@@ -213,29 +157,17 @@ export class MailHogHelper {
    */
   async clearAllEmails(): Promise<void> {
     try {
-      // Get all emails first
-      const emails = await this.getAllEmails();
-      
-      if (emails.length === 0) {
-        console.log('No emails to clear from MailHog');
-        return;
+      const v1MessagesUrl = this.baseUrl.replace(/\/api\/v2$/, '/api/v1') + '/messages';
+      const response = await fetch(v1MessagesUrl, { method: 'DELETE' });
+
+      if (!response.ok && response.status !== 404) {
+        console.warn(
+          `MailHog bulk delete returned ${response.status} ${response.statusText}`
+        );
       }
-      
-      // Delete each email individually since MailHog v2 API doesn't support bulk delete
-      console.log(`Clearing ${emails.length} emails from MailHog...`);
-      
-      for (const email of emails) {
-        try {
-          await this.deleteEmail(email.ID);
-        } catch (error) {
-          console.warn(`Failed to delete email ${email.ID}:`, error);
-          // Continue with other emails even if one fails
-        }
-      }
-      
+
       console.log('All emails cleared from MailHog');
     } catch (error) {
-      // Make this operation non-critical - log but don't throw
       console.warn('Failed to clear MailHog emails (non-critical):', error);
     }
   }

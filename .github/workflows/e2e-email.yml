@@ -40,10 +40,13 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: https://dummy.supabase.co
           NEXT_PUBLIC_SUPABASE_ANON_KEY: dummy-anon-key
           SUPABASE_SERVICE_ROLE_KEY: dummy-service-role-key
+          NEXT_PUBLIC_LOGIN_MAGIC_ENABLED: true
+          NEXT_PUBLIC_LOGIN_PASSWORD_ENABLED: true
 
       - name: Start application
         run: npm start &
         env:
+          CI: true
           SMTP_HOST: localhost
           SMTP_PORT: 1025
           MAILHOG_API_URL: http://localhost:8025
@@ -64,6 +67,7 @@ jobs:
       - name: Run Playwright email tests
         run: npx playwright test --config=playwright-email.config.ts
         env:
+          CI: true
           SMTP_HOST: localhost
           SMTP_PORT: 1025
           MAILHOG_API_URL: http://localhost:8025
