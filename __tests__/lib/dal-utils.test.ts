@@ -62,8 +62,15 @@ describe('DAL Utility Functions', () => {
         };
 
         beforeEach(() => {
+            jest.useFakeTimers();
+            jest.setSystemTime(new Date('2025-08-25T12:00:00.000Z'));
+
             (db.db.ministries.get as jest.Mock).mockResolvedValue(mockMinistry);
             (db.db.children.get as jest.Mock).mockResolvedValue(mockChild);
+        });
+
+        afterEach(() => {
+            jest.useRealTimers();
         });
 
         it('returns true if child is within age range', async () => {

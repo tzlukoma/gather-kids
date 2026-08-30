@@ -23,10 +23,8 @@ export default defineConfig({
   projects: [
     {
       name: 'email-verification-tests',
-      use: { 
+      use: {
         ...devices['Desktop Chrome'],
-        // Use system Chrome browser instead of downloaded one
-        channel: 'chrome',
       },
     },
   ],

@@ -4,16 +4,17 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "next dev --turbopack -p 9002",
+    "dev": "node scripts/inject-build-info.mjs && next dev --turbopack -p 9002",
     "dev:seeded": "npm run seed:dev && npm run dev",
     "dev:uat": "./scripts/dev/dev-uat.sh",
     "genkit:dev": "genkit start -- tsx src/ai/dev.ts",
     "genkit:watch": "genkit start -- tsx --watch src/ai/dev.ts",
     "build": "next build",
+    "prebuild": "node scripts/inject-build-info.mjs",
     "start": "next start",
     "lint": "next lint",
     "lint:colors": "./scripts/lint-colors.sh",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "node scripts/inject-build-info.mjs && tsc --noEmit",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:email": "playwright test --config=playwright-email.config.ts",
@@ -57,7 +58,10 @@
     "docs:validate": "bash scripts/validate-docs.sh",
     "docs:dev": "cd doc-site && npm start",
     "docs:build": "cd doc-site && npm run build",
-    "docs:serve": "cd doc-site && npm run serve"
+    "docs:serve": "cd doc-site && npm run serve",
+    "commitlint": "commitlint",
+    "commitlint:last": "commitlint --from HEAD~1 --to HEAD --verbose",
+    "commitlint:branch": "commitlint --from origin/main --to HEAD --verbose"
   },
   "dependencies": {
     "@genkit-ai/googleai": "^1.14.1",
@@ -116,6 +120,8 @@
     "zod": "^3.24.2"
   },
   "devDependencies": {
+    "@commitlint/cli": "^19.8.1",
+    "@commitlint/config-conventional": "^19.8.1",
     "@playwright/test": "^1.55.0",
     "@supabase/supabase-js": "^2.56.1",
     "@tanstack/react-query-devtools": "^4.41.0",

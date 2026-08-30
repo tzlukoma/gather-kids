@@ -62,24 +62,6 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Debug environment variables
-        run: |
-          echo "=== PROD Job Environment Variables Debug ==="
-          echo "ENVIRONMENT: $ENVIRONMENT"
-          echo "DRY_RUN: $DRY_RUN"
-          echo "TEST_MODE: $TEST_MODE"
-          echo "SUPABASE_URL: ${SUPABASE_URL:0:20}..."
-          echo "SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:0:10}..."
-          echo "FROM_EMAIL: '$FROM_EMAIL'"
-          echo "MONITOR_EMAILS: '$MONITOR_EMAILS'"
-          echo "MJ_API_KEY: ${MJ_API_KEY:0:10}..."
-          echo "MJ_API_SECRET: ${MJ_API_SECRET:0:10}..."
-          echo "EMAIL_MODE: $EMAIL_MODE"
-          echo "=========================================="
-          echo "Checking if secrets exist:"
-          echo "PROD_FROM_EMAIL exists: ${{ secrets.PROD_FROM_EMAIL != '' && 'YES' || 'NO' }}"
-          echo "PROD_MONITOR_EMAILS exists: ${{ secrets.PROD_MONITOR_EMAILS != '' && 'YES' || 'NO' }}"
-
       - name: Run daily digest (PROD)
         run: |
           echo "Running PROD daily digest..."
@@ -131,35 +113,6 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
-
-      - name: Debug environment variables
-        run: |
-          echo "=== UAT Job Environment Variables Debug ==="
-          echo "ENVIRONMENT: $ENVIRONMENT"
-          echo "DRY_RUN: $DRY_RUN"
-          echo "TEST_MODE: $TEST_MODE"
-          echo "SUPABASE_URL: ${SUPABASE_URL:0:20}..."
-          echo "SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:0:10}..."
-          echo "FROM_EMAIL: '$FROM_EMAIL'"
-          echo "MONITOR_EMAILS: '$MONITOR_EMAILS'"
-          echo "MJ_API_KEY: ${MJ_API_KEY:0:10}..."
-          echo "MJ_API_SECRET: ${MJ_API_SECRET:0:10}..."
-          echo "EMAIL_MODE: $EMAIL_MODE"
-          echo "=========================================="
-          echo "Environment variable lengths:"
-          echo "FROM_EMAIL length: ${#FROM_EMAIL}"
-          echo "MONITOR_EMAILS length: ${#MONITOR_EMAILS}"
-          echo "MJ_API_KEY length: ${#MJ_API_KEY}"
-          echo "MJ_API_SECRET length: ${#MJ_API_SECRET}"
-          echo "=========================================="
-          echo "All environment variables starting with MJ, FROM, MONITOR:"
-          env | grep -E "^(MJ_|FROM_|MONITOR_)" | head -10
-          echo "=========================================="
-          echo "Testing direct secret access in workflow:"
-          echo "UAT_FROM_EMAIL: '${{ secrets.UAT_FROM_EMAIL }}'"
-          echo "UAT_MONITOR_EMAILS: '${{ secrets.UAT_MONITOR_EMAILS }}'"
-          echo "UAT_MJ_API_KEY: '${{ secrets.UAT_MJ_API_KEY }}'"
-          echo "UAT_MJ_API_SECRET: '${{ secrets.UAT_MJ_API_SECRET }}'"
 
       - name: Run daily digest (UAT)
         run: |

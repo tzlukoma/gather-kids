@@ -241,10 +241,13 @@ export function createSupabaseMock(): any {
 									else if (tableName === 'essay_prompts') idColumn = 'prompt_id';
 									else if (tableName === 'enrollments') idColumn = 'enrollment_id';
 									else if (tableName === 'enrollment_overrides') idColumn = 'override_id';
+									// Ensure updated_at is strictly after created_at (avoids same-ms flakiness)
+									const createdAtMs = new Date(item.created_at || 0).getTime();
+									const updatedAt = new Date(Math.max(Date.now(), createdAtMs + 1)).toISOString();
 									const updated = {
 										...item,
 										...data,
-										updated_at: new Date().toISOString()
+										updated_at: updatedAt,
 									};
 									
 									table.set(item[idColumn], updated);

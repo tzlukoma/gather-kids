@@ -12,6 +12,10 @@ on:
         options:
           - 'false'
           - 'true'
+      confirm:
+        description: 'Type RESET to allow full reset mode'
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -40,25 +44,39 @@ jobs:
 
       - name: Verify UAT environment variables
         run: |
-          if [ -z "${{ secrets.UAT_SUPABASE_URL }}" ]; then
-            echo "ERROR: UAT_SUPABASE_URL secret is not set!"
+          if [ -z "${{ secrets.UAT_SUPABASE_URL }}" ] && [ -z "${{ secrets.SUPABASE_URL }}" ]; then
+            echo "ERROR: UAT Supabase URL secret is not set!"
             exit 1
           fi
-          if [ -z "${{ secrets.UAT_SUPABASE_SERVICE_ROLE_KEY }}" ]; then
-            echo "ERROR: UAT_SUPABASE_SERVICE_ROLE_KEY secret is not set!"
+          if [ -z "${{ secrets.UAT_SUPABASE_SERVICE_ROLE_KEY }}" ] && [ -z "${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" ]; then
+            echo "ERROR: UAT service role key secret is not set!"
             exit 1
           fi
           echo "✅ UAT environment variables verified"
 
+      - name: Guard destructive reset
+        if: inputs.reset_mode == 'true'
+        run: |
+          if [ "${{ inputs.confirm }}" != "RESET" ]; then
+            echo "ERROR: Full reset requires typing RESET in the confirm input."
+            exit 1
+          fi
+          echo "⚠️ Full reset confirmed"
+
       - name: Run seed scripts
         env:
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.UAT_SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.UAT_SUPABASE_SERVICE_ROLE_KEY }}
+          UAT_SUPABASE_URL: ${{ secrets.UAT_SUPABASE_URL }}
+          FALLBACK_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          UAT_SERVICE_ROLE_KEY: ${{ secrets.UAT_SUPABASE_SERVICE_ROLE_KEY }}
+          FALLBACK_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           RESET: ${{ inputs.reset_mode }}
         run: |
+          NEXT_PUBLIC_SUPABASE_URL="${UAT_SUPABASE_URL:-$FALLBACK_SUPABASE_URL}"
+          SUPABASE_SERVICE_ROLE_KEY="${UAT_SERVICE_ROLE_KEY:-$FALLBACK_SERVICE_ROLE_KEY}"
+          export NEXT_PUBLIC_SUPABASE_URL SUPABASE_SERVICE_ROLE_KEY
+
           echo "🌱 Starting UAT seeding process..."
           echo "📊 Reset mode: ${{ inputs.reset_mode }}"
-          echo "🔗 Supabase URL: ${{ secrets.UAT_SUPABASE_URL }}"
 
           if [ "${{ inputs.reset_mode }}" = "true" ]; then
             echo "⚠️ Running in FULL RESET mode - all existing data will be deleted!"

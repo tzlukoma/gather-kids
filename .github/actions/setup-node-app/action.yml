@@ -1,0 +1,25 @@
+name: Setup Node app
+description: Checkout (optional), Node 20, npm cache, and npm ci
+
+inputs:
+  checkout:
+    description: Run actions/checkout before setup
+    required: false
+    default: 'true'
+
+runs:
+  using: composite
+  steps:
+    - name: Checkout
+      if: inputs.checkout == 'true'
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: npm
+
+    - name: Install dependencies
+      shell: bash
+      run: npm ci

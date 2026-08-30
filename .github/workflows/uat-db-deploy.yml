@@ -1,0 +1,116 @@
+name: UAT DB deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: List migrations only, do not apply
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy-uat-db:
+    name: Apply migrations to UAT
+    runs-on: ubuntu-latest
+    environment: uat
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/setup-node-app
+        with:
+          checkout: 'false'
+
+      - uses: ./.github/actions/setup-supabase-cli
+        with:
+          version: '2.116.0'
+
+      - name: Install Postgres client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Resolve environment secrets
+        shell: bash
+        env:
+          SECRET_DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          LEGACY_DATABASE_URL: ${{ secrets.UAT_DATABASE_URL }}
+          SECRET_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          LEGACY_SUPABASE_URL: ${{ secrets.UAT_SUPABASE_URL }}
+        run: |
+          set -euo pipefail
+          DATABASE_URL="${SECRET_DATABASE_URL:-$LEGACY_DATABASE_URL}"
+          SUPABASE_URL="${SECRET_SUPABASE_URL:-$LEGACY_SUPABASE_URL}"
+          if [[ -z "$DATABASE_URL" || -z "$SUPABASE_URL" ]]; then
+            echo "ERROR: DATABASE_URL and SUPABASE_URL must be set in the uat environment."
+            exit 1
+          fi
+          if [[ "$DATABASE_URL" != *"sslmode="* ]]; then
+            echo "ERROR: DATABASE_URL must include sslmode=require."
+            exit 1
+          fi
+          PROJECT_ID=$(echo "$SUPABASE_URL" | sed -E 's|https://([^.]+)\.supabase\.co.*|\1|')
+          echo "DATABASE_URL=$DATABASE_URL" >> "$GITHUB_ENV"
+          echo "SUPABASE_URL=$SUPABASE_URL" >> "$GITHUB_ENV"
+          echo "PROJECT_ID=$PROJECT_ID" >> "$GITHUB_ENV"
+
+      - name: Dry-run migrations (optional)
+        if: inputs.dry_run
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: |
+          supabase link --project-ref "$PROJECT_ID" --password "$SUPABASE_DB_PASSWORD"
+          supabase db push --dry-run --include-all --yes
+
+      - name: Apply migrations to UAT
+        if: ${{ !inputs.dry_run }}
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: |
+          chmod +x scripts/db/apply_migrations_cli.sh
+          scripts/db/apply_migrations_cli.sh "$PROJECT_ID" "$SUPABASE_ACCESS_TOKEN" "$SUPABASE_DB_PASSWORD"
+
+      - name: Run FK integrity checks
+        if: ${{ !inputs.dry_run }}
+        run: |
+          chmod +x scripts/db/check_fks.sh
+          scripts/db/check_fks.sh "$DATABASE_URL"
+
+      - name: Log latest applied migration
+        if: ${{ !inputs.dry_run }}
+        run: |
+          LATEST=$(psql "$DATABASE_URL" -tA -c \
+            "SELECT filename FROM public.schema_migration_ledger ORDER BY applied_at DESC LIMIT 1" \
+            || echo "unknown")
+          COUNT=$(psql "$DATABASE_URL" -tA -c \
+            "SELECT count(*) FROM public.schema_migration_ledger" \
+            || echo "0")
+          {
+            echo "## UAT DB deploy summary"
+            echo ""
+            echo "- **Project:** \`$PROJECT_ID\`"
+            echo "- **Latest migration:** \`$LATEST\`"
+            echo "- **Applied count:** $COUNT"
+            echo "- **Supabase CLI:** $(supabase --version)"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Snapshot schema (optional artifact)
+        if: ${{ !inputs.dry_run }}
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: |
+          mkdir -p snapshots
+          SNAPSHOT="snapshots/schema-uat-$(date +'%Y%m%d-%H%M%S').sql"
+          supabase link --project-ref "$PROJECT_ID" --password "$SUPABASE_DB_PASSWORD"
+          supabase db dump -f "$SNAPSHOT" --linked
+
+      - name: Upload schema snapshot
+        if: ${{ !inputs.dry_run }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: uat-schema-snapshot
+          path: snapshots/
+          retention-days: 14

@@ -1,3 +1,17 @@
+## Pull request title (required)
+
+Use [Conventional Commits](https://www.conventionalcommits.org/) — the PR title becomes the squash commit on `main` and drives release-please semver:
+
+```
+ci: streamline CI/CD pipeline for trunk-based main
+feat(register): prefill household from user_households
+fix: fail prod db deploy when supabase push errors
+```
+
+CI blocks non-conventional titles. See [`docs/CONTRIBUTING.md`](../docs/CONTRIBUTING.md) and [`docs/CI_CD.md`](../docs/CI_CD.md).
+
+---
+
 ## Registration Fresh Start Checklist
 
 Please ensure the following items are completed before merging:

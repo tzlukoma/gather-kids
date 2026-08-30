@@ -49,6 +49,7 @@ import { AdminSkeleton } from '@/components/skeletons/admin-skeleton';
 import { useBranding } from '@/contexts/branding-context';
 import { SettingsModal } from '@/components/settings/settings-modal';
 import { renderNavIcon } from '@/components/ui/nav-icon';
+import { AppVersionBadge } from '@/components/AppVersionBadge';
 
 import { getAuthorizedMenuItems } from '@/lib/navigation';
 
@@ -225,7 +226,9 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 								))}
 							</SidebarMenu>
 						</SidebarContent>
-						<SidebarFooter className="p-2 flex justify-center"></SidebarFooter>
+						<SidebarFooter className="p-2 flex justify-center">
+							<AppVersionBadge />
+						</SidebarFooter>
 					</Sidebar>
 					<SidebarInset>
 						<main id="main-content" className="p-4 md:p-6 lg:p-8">{children}</main>

@@ -1,0 +1,55 @@
+---
+description: Conventional Commits required for release-please and PR merges to main
+alwaysApply: true
+---
+
+# Conventional Commits (required)
+
+All commits and **PR titles** must follow [Conventional Commits](https://www.conventionalcommits.org/). release-please on `main` uses these messages for semver and `CHANGELOG.md`.
+
+## Format
+
+```
+<type>[optional scope]: <short description>
+
+[optional body]
+
+[BREAKING CHANGE: ...]
+```
+
+## Types (use one)
+
+| Type | When |
+|------|------|
+| `feat` | User-visible feature |
+| `fix` | Bug fix |
+| `docs` | Documentation only |
+| `ci` | CI/CD, workflows |
+| `chore` | Maintenance, deps, tooling (no user impact) |
+| `refactor` | Code change, same behavior |
+| `test` | Tests only |
+| `build` | Build system |
+| `perf` | Performance |
+
+**Breaking:** `feat!:` in title or `BREAKING CHANGE:` in body → major bump.
+
+## Squash merge = PR title matters
+
+PRs merge to **`main`** with squash. The **PR title** becomes the commit release-please reads. Do not use vague titles like `Updates`, `WIP`, or `Fix stuff`.
+
+## Examples
+
+```
+feat(register): prefill household from user_households after login
+fix: fail prod db deploy when supabase push errors
+ci: add semantic pull request title check
+docs: document trunk-based main in CI_CD.md
+chore: remove uat branch workflow triggers
+```
+
+## Do not
+
+- Manually bump `package.json` `version` (release-please Release PR owns that)
+- Merge PRs with non-conventional titles (CI `pr-title` check blocks this)
+
+See `docs/CONTRIBUTING.md` and `commitlint.config.js`.
