@@ -1,3 +1,4 @@
+# Sentry cron monitor slug: daily-digest (PROD job only). See docs/CI_CD.md.
 name: Daily Digest
 
 on:
@@ -62,13 +63,33 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # One free Sentry cron monitor. Slug: daily-digest. Do not instrument keepalive or other ops crons.
+      # Check-in uses the project DSN (SENTRY_DSN on GitHub Environment `production`), not SENTRY_AUTH_TOKEN.
+      # Never add Sentry secrets to ci.yml. Digest still runs if the secret is missing.
       - name: Run daily digest (PROD)
+        env:
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+          SENTRY_ORG: gatherkids-app
+          SENTRY_PROJECT: javascript-nextjs
         run: |
           echo "Running PROD daily digest..."
           echo "Environment: $ENVIRONMENT"
           echo "Dry run: $DRY_RUN"
           echo "Test mode: $TEST_MODE"
-          node scripts/dailyDigest.js
+          if [ -n "${SENTRY_DSN:-}" ]; then
+            echo "Sentry cron check-in: monitor slug daily-digest"
+            ./node_modules/.bin/sentry-cli monitors run \
+              --environment production \
+              --schedule "0 11 * * *" \
+              --timezone "America/New_York" \
+              --check-in-margin 15 \
+              --max-runtime 30 \
+              daily-digest \
+              -- node scripts/dailyDigest.js
+          else
+            echo "::notice::SENTRY_DSN is not set on GitHub Environment production. Digest will run without a Sentry cron check-in. Add the project DSN as SENTRY_DSN on that environment only (never ci.yml)."
+            node scripts/dailyDigest.js
+          fi
 
       - name: Log completion
         if: success()
