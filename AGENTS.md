@@ -32,7 +32,7 @@ Canonical product description: [`docs/PRODUCT_SPEC.md`](docs/PRODUCT_SPEC.md). P
 | Seed / DB / ops scripts | `scripts/` |
 | CI workflows | `.github/workflows/` |
 | Operational docs | `docs/`, especially [`docs/CI_CD.md`](docs/CI_CD.md) |
-| User-facing docs site | `doc-site/` |
+| User-facing docs | `content/help/` (in-app `/help`) |
 | This contract’s procedures | `.agents/skills/` |
 
 ## Decision hierarchy
@@ -156,7 +156,7 @@ npm run lint
 npm run typecheck
 npm test -- --passWithNoTests
 npm run build
-npm run docs:validate    # when docs or doc-site change; builds doc-site
+npm run docs:validate    # when /help content, changelog parser, or docs/HELP_DOCS.md change
 npm run gen:types        # after local schema changes, from local Supabase
 ```
 

@@ -32,6 +32,7 @@ import { isOfflineSupabase } from '@/lib/offline-supabase';
 import { supabase } from '@/lib/supabaseClient';
 import { getPostLoginRoute } from '@/lib/auth-utils';
 import { resolveGuardianPostLoginRoute } from '@/lib/dal';
+import { AppFooter } from '@/components/app-footer';
 
 export default function LoginPage() {
 	const router = useRouter();
@@ -335,14 +336,7 @@ export default function LoginPage() {
 					</CardContent>
 				</Card>
 			</main>
-			<footer className="py-6 border-t mt-auto">
-				<div className="container mx-auto flex justify-between items-center text-sm text-muted-foreground">
-					<p>
-						&copy; {new Date().getFullYear()}{' '}
-						{settings.app_name || 'gatherKids'}. All rights reserved.
-					</p>
-				</div>
-			</footer>
+			<AppFooter appName={settings.app_name || 'gatherKids'} />
 		</div>
 	);
 }

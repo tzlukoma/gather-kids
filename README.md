@@ -199,11 +199,10 @@ npm run seed:uat:reset     # Reset and re-seed UAT database (destructive)
 npm run import:dexie       # Import data from Dexie export
 npm run import:dexie:dry   # Dry run of Dexie import
 
-# Documentation (Docusaurus)
-npm run docs:validate      # Validate documentation build
-npm run docs:dev          # Start local documentation server
-npm run docs:build        # Build documentation for production
-npm run docs:serve        # Serve built documentation locally
+# Documentation (in-app /help)
+npm run docs:validate              # Validate help markdown, links, screenshots, changelog
+npm run help:parse-changelog       # Smoke-test CHANGELOG.md parser
+npm run help:capture-screenshots   # Playwright baseline PNGs (local seeded dev only)
 
 # AI Development (Genkit)
 npm run genkit:dev   # Start Genkit AI development server
@@ -570,10 +569,9 @@ Coding agents: [`AGENTS.md`](./AGENTS.md) is the operating contract. Thomas’s 
 
 ### User Documentation
 
-- **User Guide**: [https://tzlukoma.github.io/gather-kids/](https://tzlukoma.github.io/gather-kids/) - Complete user documentation
-- **Getting Started Guide**: Step-by-step setup and usage instructions
-- **Release Notes**: Latest features and updates
-- **Documentation Workflow**: See `docs/DOCUMENTATION_WORKFLOW.md` for maintaining user docs
+- **User guide**: `/help` on any deployed app (same origin as gatherKids)
+- **Release notes**: `/help/releases` (from `CHANGELOG.md`)
+- **Maintaining help**: [`docs/HELP_DOCS.md`](./docs/HELP_DOCS.md)
 
 ### Developer Documentation
 

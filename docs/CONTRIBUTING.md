@@ -67,6 +67,10 @@ For day-to-day work, prefer `echo "…" | npx commitlint` or `commitlint:last` b
 
 Config: [`commitlint.config.js`](../commitlint.config.js)
 
+## User guide (`/help`)
+
+Edit markdown under `content/help/`. Validate with `npm run docs:validate`. Capture screenshots only from local seeded data (`npm run help:capture-screenshots`). See [`docs/HELP_DOCS.md`](./HELP_DOCS.md).
+
 ## Cursor / AI agents
 
 Canonical contract: [`AGENTS.md`](../AGENTS.md). Procedures: [`.agents/skills/`](../.agents/skills/). Human inbox: [`docs/AGENT_WORKFLOW.md`](./AGENT_WORKFLOW.md).
