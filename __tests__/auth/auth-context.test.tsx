@@ -2,6 +2,8 @@ import { act, renderHook } from '@testing-library/react';
 import { useAuth, AuthProvider } from '@/contexts/auth-context';
 import { AuthRole } from '@/lib/auth-types';
 import { ReactNode } from 'react';
+import { supabase } from '@/lib/supabaseClient';
+import { isOfflineSupabase } from '@/lib/offline-supabase';
 
 // Mock Supabase client
 jest.mock('@/lib/supabaseClient', () => ({
@@ -16,6 +18,10 @@ jest.mock('@/lib/supabaseClient', () => ({
 	},
 }));
 
+jest.mock('@/lib/offline-supabase', () => ({
+	isOfflineSupabase: jest.fn(() => false),
+}));
+
 // Mock DB adapter
 jest.mock('@/lib/db-utils', () => ({
 	dbAdapter: {
@@ -27,6 +33,31 @@ describe('AuthContext', () => {
 	const wrapper = ({ children }: { children: ReactNode }) => (
 		<AuthProvider>{children}</AuthProvider>
 	);
+
+	beforeEach(() => {
+		jest.clearAllMocks();
+		(isOfflineSupabase as jest.Mock).mockReturnValue(false);
+		(supabase.auth.getSession as jest.Mock).mockResolvedValue({
+			data: { session: null },
+			error: null,
+		});
+		(supabase.auth.onAuthStateChange as jest.Mock).mockReturnValue({
+			data: { subscription: { unsubscribe: jest.fn() } },
+		});
+	});
+
+	it('skips supabase session lookup in dummy mode', async () => {
+		(isOfflineSupabase as jest.Mock).mockReturnValue(true);
+		const { result } = renderHook(() => useAuth(), { wrapper });
+
+		await act(async () => {
+			await new Promise((resolve) => setTimeout(resolve, 0));
+		});
+
+		expect(supabase.auth.getSession).not.toHaveBeenCalled();
+		expect(result.current.loading).toBe(false);
+		expect(result.current.user).toBe(null);
+	});
 
 	it('provides loading state initially', async () => {
 		const { result } = renderHook(() => useAuth(), { wrapper });

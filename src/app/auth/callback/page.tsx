@@ -4,7 +4,8 @@ import { useEffect, useState, Suspense, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { handlePKCECodeExchange } from '@/lib/supabaseClient';
 import { decodeTestAuthCodeInBrowser } from '@/lib/test-auth-code';
-import { isOfflineSupabase } from '@/lib/offline-supabase';
+import { isOfflineSupabase, createOfflineSessionUser } from '@/lib/offline-supabase';
+import { useAuth } from '@/contexts/auth-context';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
@@ -13,6 +14,7 @@ import { AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
 function AuthCallbackContent() {
 	const router = useRouter();
 	const searchParams = useSearchParams();
+	const { login } = useAuth();
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const [success, setSuccess] = useState(false);
@@ -137,6 +139,7 @@ The authentication process is taking longer than expected. This can happen if:
 							}
 
 							if (decoded.type === 'magic_link' && decoded.email) {
+								await login(createOfflineSessionUser(decoded.email));
 								router.push(
 									`/register?verified_email=${encodeURIComponent(decoded.email)}`
 								);
@@ -472,7 +475,7 @@ This can happen if:
 		};
 
 		handleAuthCallback();
-	}, [router, mounted, searchParams, error, success]);
+	}, [router, mounted, searchParams, error, success, login]);
 
 	// Prevent hydration mismatch
 	if (!mounted) {

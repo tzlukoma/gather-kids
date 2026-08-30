@@ -1,4 +1,8 @@
 import { Page, expect } from '@playwright/test';
+import {
+  fillHouseholdRegistrationForm,
+  type HouseholdFormData,
+} from '../utils/fill-household-form';
 
 export class EmailRegistrationPage {
   constructor(private page: Page) {}
@@ -28,56 +32,8 @@ export class EmailRegistrationPage {
     await this.page.waitForTimeout(2000);
   }
 
-  async fillRegistrationForm(data: {
-    householdName: string;
-    primaryGuardian: {
-      firstName: string;
-      lastName: string;
-      phone: string;
-    };
-    address: {
-      street: string;
-      city: string;
-      state: string;
-      zip: string;
-    };
-    children: Array<{
-      firstName: string;
-      lastName: string;
-      birthdate: string;
-    }>;
-  }) {
-    await expect(this.page.locator('form')).toBeVisible({ timeout: 10000 });
-
-    const householdNameInput = this.page.locator('input[name="household.name"]');
-    if (await householdNameInput.count() > 0) {
-      await householdNameInput.fill(data.householdName);
-    }
-
-    await this.page.fill('input[name="guardians.0.first_name"]', data.primaryGuardian.firstName);
-    await this.page.fill('input[name="guardians.0.last_name"]', data.primaryGuardian.lastName);
-    await this.page.fill('input[name="guardians.0.mobile_phone"]', data.primaryGuardian.phone);
-
-    await this.page.fill('input[name="household.address_line1"]', data.address.street);
-    await this.page.fill('input[name="household.city"]', data.address.city);
-    await this.page.fill('input[name="household.state"]', data.address.state);
-    await this.page.fill('input[name="household.zip"]', data.address.zip);
-
-    for (let i = 0; i < data.children.length; i++) {
-      const child = data.children[i];
-      
-      if (i > 0) {
-        const addChildButton = this.page.locator('button:has-text("Add Child"), button:has-text("Add Another Child")');
-        if (await addChildButton.count() > 0) {
-          await addChildButton.click();
-          await this.page.waitForTimeout(500);
-        }
-      }
-
-      await this.page.fill(`input[name="children.${i}.first_name"]`, child.firstName);
-      await this.page.fill(`input[name="children.${i}.last_name"]`, child.lastName);
-      await this.page.fill(`input[name="children.${i}.dob"]`, child.birthdate);
-    }
+  async fillRegistrationForm(data: HouseholdFormData) {
+    await fillHouseholdRegistrationForm(this.page, data);
   }
 
   async submitRegistration() {

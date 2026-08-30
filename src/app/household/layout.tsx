@@ -36,6 +36,7 @@ import { getHouseholdProfile, getHouseholdForUser } from '@/lib/dal';
 import type { HouseholdProfileData } from '@/lib/dal';
 import { SettingsModal } from '@/components/settings/settings-modal';
 import { renderNavIcon } from '@/components/ui/nav-icon';
+import { isOfflineSupabase } from '@/lib/offline-supabase';
 
 function HouseholdLayoutContent({ children }: { children: React.ReactNode }) {
 	const pathname = usePathname();
@@ -246,6 +247,11 @@ function HouseholdProtectedRoute({ children }: { children: React.ReactNode }) {
 
 			if (!user) {
 				router.push('/login');
+				return;
+			}
+
+			if (isOfflineSupabase()) {
+				setHasHouseholdAccess(true);
 				return;
 			}
 

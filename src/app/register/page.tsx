@@ -775,6 +775,45 @@ function RegisterPageContent() {
 		if (isOfflineSupabase()) {
 			setVerificationEmail(user.email);
 			setIsAuthenticatedUser(true);
+			form.reset({
+				household: {
+					name: '',
+					address_line1: '',
+					address_line2: '',
+					city: '',
+					state: '',
+					zip: '',
+					preferredScriptureTranslation: 'NIV',
+				},
+				guardians: [
+					{
+						first_name: '',
+						last_name: '',
+						mobile_phone: '',
+						email: user.email,
+						relationship: 'Mother',
+						is_primary: true,
+					},
+				],
+				emergencyContact: {
+					first_name: '',
+					last_name: '',
+					mobile_phone: '',
+					relationship: '',
+				},
+				children: [
+					{
+						...defaultChildValues,
+						child_id: crypto.randomUUID(),
+					},
+				],
+				consents: {
+					liability: false,
+					photoRelease: false,
+					custom_consents: {},
+				},
+			});
+			setOpenAccordionItems(['item-0']);
 			setVerificationStep('form_visible');
 			householdInitKeyRef.current = initKey;
 			return;
@@ -1364,7 +1403,7 @@ function RegisterPageContent() {
 	}, [verificationStep, handleEmailLookup]);
 
 	useEffect(() => {
-		if (authLoading) {
+		if (authLoading && !isOfflineSupabase()) {
 			return;
 		}
 
@@ -1418,6 +1457,28 @@ function RegisterPageContent() {
 
 	async function onSubmit(data: RegistrationFormValues) {
 		log.log('DEBUG: onSubmit called with data:', data);
+
+		if (isOfflineSupabase()) {
+			const offlineEmail = user?.email || verificationEmail;
+			if (!offlineEmail) {
+				toast({
+					title: 'Sign in required',
+					description: 'Please sign in before submitting your registration.',
+					variant: 'destructive',
+				});
+				router.push(`/login?next=${encodeURIComponent('/register')}`);
+				return;
+			}
+
+			toast({
+				title: 'Registration Submitted!',
+				description:
+					"Thank you! Your family's registration has been received.",
+			});
+			clearSavedFormData();
+			router.push('/household');
+			return;
+		}
 
 		if (!user?.email) {
 			toast({
@@ -2092,6 +2153,7 @@ function RegisterPageContent() {
 														<FormLabel>Phone</FormLabel>
 														<FormControl>
 															<PhoneInput
+																name={field.name}
 																value={field.value}
 																onChange={field.onChange}
 															/>
@@ -2268,6 +2330,7 @@ function RegisterPageContent() {
 												<FormLabel>Phone</FormLabel>
 												<FormControl>
 													<PhoneInput
+														name={field.name}
 														value={field.value}
 														onChange={field.onChange}
 													/>
@@ -2443,6 +2506,7 @@ function RegisterPageContent() {
 																	</FormLabel>
 																	<FormControl>
 																		<PhoneInput
+																			name={field.name}
 																			value={field.value}
 																			onChange={field.onChange}
 																		/>

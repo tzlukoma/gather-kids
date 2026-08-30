@@ -12,6 +12,7 @@ import { db as dbAdapter } from '@/lib/database/factory';
 import { AuthRole, BaseUser } from '@/lib/auth-types';
 import { ProtectedRoute } from '@/components/auth/protected-route';
 import { supabase } from '@/lib/supabaseClient';
+import { isOfflineSupabase } from '@/lib/offline-supabase';
 import { devLog } from '@/lib/dev-log';
 
 const authLog = devLog('auth');
@@ -184,6 +185,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 	}
 
 	useEffect(() => {
+		if (isOfflineSupabase()) {
+			authLog.log('Skipping Supabase auth init (dummy mode)');
+			setLoading(false);
+			return;
+		}
+
 		const initializeAuth = async () => {
 			authLog.log('Starting initialization (Supabase mode)');
 			setLoading(true);
@@ -299,9 +306,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 				assignedMinistryIds: [],
 			};
 
-			// For users without a role or with GUEST role, check ministry access
-			// synchronously to prevent race condition
-			finalUser = await resolveMinistryAccess(finalUser);
+			if (!isOfflineSupabase()) {
+				finalUser = await resolveMinistryAccess(finalUser);
+			}
 
 			setUser(finalUser);
 			setUserRole(finalUser.metadata?.role ?? userRole);

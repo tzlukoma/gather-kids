@@ -1,4 +1,8 @@
 import { Page, expect } from '@playwright/test';
+import {
+  fillHouseholdRegistrationForm,
+  type HouseholdFormData,
+} from '../utils/fill-household-form';
 
 export class EmailPasswordRegistrationPage {
   constructor(private page: Page) {}
@@ -16,7 +20,11 @@ export class EmailPasswordRegistrationPage {
 
   async navigateToFamilyRegistration() {
     await this.page.goto('/register', { waitUntil: 'domcontentloaded' });
-    await expect(this.page.getByText('Household Lookup').or(this.page.locator('form'))).toBeVisible({
+    await expect(
+      this.page
+        .locator('input[name="guardians.0.first_name"]')
+        .or(this.page.getByText('Household Lookup'))
+    ).toBeVisible({
       timeout: 30000,
     });
   }
@@ -61,31 +69,17 @@ export class EmailPasswordRegistrationPage {
     if (!submitted) {
       throw new Error('Could not find account creation submit button');
     }
-
-    // Wait for submission to process
-    await this.page.waitForTimeout(2000);
   }
 
   async checkForEmailVerificationRequired() {
-    // Check if we're on an email verification required page
-    const verificationIndicators = [
-      'text=Check your email',
-      'text=Verify your email',
-      'text=Email verification required',
-      'text=Verification email sent',
-      'text=Please verify your email',
-      '[data-testid="email-verification-required"]'
-    ];
-
-    await this.page.waitForTimeout(1000); // Give time for any redirects
-
-    for (const selector of verificationIndicators) {
-      if (await this.page.locator(selector).count() > 0) {
-        return true;
-      }
+    try {
+      await expect(this.page.getByText(/check your email/i).first()).toBeVisible({
+        timeout: 15000,
+      });
+      return true;
+    } catch {
+      return false;
     }
-
-    return false;
   }
 
   async verifyEmailVerificationSuccess() {
@@ -148,140 +142,20 @@ export class EmailPasswordRegistrationPage {
       throw new Error('Could not find login submit button');
     }
 
-    // Wait for login to process
-    await this.page.waitForTimeout(3000);
+    await expect(
+      this.page
+        .getByText(
+          /login successful|please verify your email|invalid email or password|unable to sign in/i
+        )
+        .first()
+    ).toBeVisible({ timeout: 15000 });
   }
 
-  async fillFamilyRegistrationForm(data: {
-    householdName: string;
-    primaryGuardian: {
-      firstName: string;
-      lastName: string;
-      phone: string;
-    };
-    address: {
-      street: string;
-      city: string;
-      state: string;
-      zip: string;
-    };
-    children: Array<{
-      firstName: string;
-      lastName: string;
-      birthdate: string;
-    }>;
-  }, authenticatedEmail: string) {
-    // Since user is authenticated, we might skip the email lookup step
-    // Check if we're already on the form or need to skip email entry
-    const isOnForm = await this.page.locator('input[name*="address"], input[placeholder*="street"]').count() > 0;
-    
-    if (!isOnForm) {
-      // We might be on the email lookup step - the email should be pre-filled or we should skip it
-      const emailInput = this.page.locator('input[type="email"]');
-      if (await emailInput.count() > 0) {
-        const currentValue = await emailInput.inputValue();
-        if (!currentValue) {
-          await emailInput.fill(authenticatedEmail);
-        }
-        
-        // Click continue to proceed
-        const continueButton = this.page.locator('button:has-text("Continue")');
-        if (await continueButton.count() > 0) {
-          await continueButton.click();
-          await this.page.waitForTimeout(2000);
-        }
-      }
-    }
-
-    // Wait for form to be visible
-    await expect(this.page.locator('form')).toBeVisible({ timeout: 10000 });
-
-    // Fill address (this is usually the first required field)
-    await this.page.fill('input[name*="address"], input[placeholder*="street"]', data.address.street);
-
-    // Fill household name if visible
-    const householdNameInput = this.page.locator('input[name*="household"], input[placeholder*="household"]');
-    if (await householdNameInput.count() > 0) {
-      await householdNameInput.fill(data.householdName);
-    }
-
-    // Fill primary guardian information
-    const firstNameInputs = this.page.locator('input[name*="first_name"], input[placeholder*="first"]');
-    const lastNameInputs = this.page.locator('input[name*="last_name"], input[placeholder*="last"]');
-    const phoneInputs = this.page.locator('input[type="tel"], input[name*="phone"], input[placeholder*="phone"]');
-
-    if (await firstNameInputs.count() > 0) {
-      await firstNameInputs.first().fill(data.primaryGuardian.firstName);
-    }
-    if (await lastNameInputs.count() > 0) {
-      await lastNameInputs.first().fill(data.primaryGuardian.lastName);
-    }
-    if (await phoneInputs.count() > 0) {
-      await phoneInputs.first().fill(data.primaryGuardian.phone);
-    }
-
-    // Add children
-    for (let i = 0; i < data.children.length; i++) {
-      const child = data.children[i];
-      
-      // If not the first child, add a new child entry
-      if (i > 0) {
-        const addChildButton = this.page.locator('button:has-text("Add Child"), button:has-text("Add Another Child")');
-        if (await addChildButton.count() > 0) {
-          await addChildButton.click();
-          await this.page.waitForTimeout(500);
-        }
-      }
-
-      // Fill child information in accordion or expanded sections
-      const childSections = this.page.locator('[data-state="open"], .accordion-content:visible, .child-section');
-      if (await childSections.count() > i) {
-        const section = childSections.nth(i);
-        
-        // Fill child details within this section
-        await section.locator('input[name*="first_name"], input[placeholder*="first"]').fill(child.firstName);
-        await section.locator('input[name*="last_name"], input[placeholder*="last"]').fill(child.lastName);
-        await section.locator('input[type="date"], input[name*="dob"], input[name*="birth"]').fill(child.birthdate);
-        
-        // Fill required grade field if present
-        const gradeInput = section.locator('input[name*="grade"], select[name*="grade"]');
-        if (await gradeInput.count() > 0) {
-          await gradeInput.fill('K'); // Default grade
-        }
-      }
-    }
-
-    // Fill emergency contact if required
-    const emergencyFirstName = this.page.locator('input[name*="emergency"][name*="first"], input[name*="emergencyContact"][name*="first"]');
-    if (await emergencyFirstName.count() > 0) {
-      await emergencyFirstName.fill('Emergency');
-      
-      const emergencyLastName = this.page.locator('input[name*="emergency"][name*="last"], input[name*="emergencyContact"][name*="last"]');
-      if (await emergencyLastName.count() > 0) {
-        await emergencyLastName.fill('Contact');
-      }
-      
-      const emergencyPhone = this.page.locator('input[name*="emergency"][name*="phone"], input[name*="emergencyContact"][name*="phone"]');
-      if (await emergencyPhone.count() > 0) {
-        await emergencyPhone.fill('555-999-0000');
-      }
-      
-      const emergencyRelation = this.page.locator('input[name*="emergency"][name*="relation"], input[name*="emergencyContact"][name*="relation"]');
-      if (await emergencyRelation.count() > 0) {
-        await emergencyRelation.fill('Aunt');
-      }
-    }
-
-    // Accept required consents
-    const consentCheckboxes = this.page.locator('input[type="checkbox"][required], input[name*="consent"], input[name*="liability"], input[name*="photo"]');
-    const consentCount = await consentCheckboxes.count();
-    for (let i = 0; i < consentCount; i++) {
-      const checkbox = consentCheckboxes.nth(i);
-      const isChecked = await checkbox.isChecked();
-      if (!isChecked) {
-        await checkbox.click();
-      }
-    }
+  async fillFamilyRegistrationForm(
+    data: HouseholdFormData,
+    _authenticatedEmail: string
+  ) {
+    await fillHouseholdRegistrationForm(this.page, data);
   }
 
   async submitFamilyRegistration() {
