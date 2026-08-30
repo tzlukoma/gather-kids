@@ -1,4 +1,6 @@
-Thank you for your contribution! Please fill out the short checklist below before requesting review.
+Thank you for your contribution! The GitHub PR form is [`.github/PULL_REQUEST_TEMPLATE.md`](../.github/PULL_REQUEST_TEMPLATE.md). Coding agents must also follow [`AGENTS.md`](../AGENTS.md) and remain in **draft** until Thomas reviews.
+
+Please fill out the short checklist below before requesting review.
 
 Summary
 

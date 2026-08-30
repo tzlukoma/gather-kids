@@ -2,7 +2,7 @@
 
 **Branch model:** Trunk-based — all PRs target **`main`**. UAT is a GitHub Environment + Supabase project + Vercel Preview, not a git branch.
 
-Related: [`docs/CI_CD_CLEANUP_PLAN.md`](./CI_CD_CLEANUP_PLAN.md), [`docs/CONTRIBUTING.md`](./CONTRIBUTING.md)
+Related: [`docs/CI_CD_CLEANUP_PLAN.md`](./CI_CD_CLEANUP_PLAN.md), [`docs/CONTRIBUTING.md`](./CONTRIBUTING.md), [`AGENTS.md`](../AGENTS.md) (agents must not run deploy or shared-DB workflows)
 
 ---
 

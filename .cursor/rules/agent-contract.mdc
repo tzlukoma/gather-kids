@@ -1,0 +1,12 @@
+---
+description: Follow the canonical gatherKids agent contract (AGENTS.md)
+alwaysApply: true
+---
+
+# Agent contract (Cursor adapter)
+
+Follow [`AGENTS.md`](../../AGENTS.md) for safety, environments, autonomy, escalation, and PR handoff.
+
+Use [`.agents/skills/`](../../.agents/skills/) for procedures. Do not copy or override those rules here.
+
+Conventional commits remain in [`conventional-commits.mdc`](conventional-commits.mdc).
