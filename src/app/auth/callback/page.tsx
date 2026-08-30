@@ -2,7 +2,7 @@
 
 import { useEffect, useState, Suspense, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { supabase, handlePKCECodeExchange } from '@/lib/supabaseClient';
+import { handlePKCECodeExchange } from '@/lib/supabaseClient';
 import { decodeTestAuthCodeInBrowser } from '@/lib/test-auth-code';
 import { isOfflineSupabase } from '@/lib/offline-supabase';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
