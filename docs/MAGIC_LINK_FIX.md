@@ -41,7 +41,6 @@ Updated client configuration to follow documented patterns:
 Added standard Supabase middleware for proper session handling:
 - Handles auth state on server-side routes
 - Manages cookies for session persistence
-- Skips processing in demo mode
 
 ### 4. Simplified Error Handling
 

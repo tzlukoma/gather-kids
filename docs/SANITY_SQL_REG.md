@@ -343,6 +343,6 @@ HAVING COUNT(*) > 1;
 ## Notes
 
 - Replace `LIMIT 1` with a specific `household_id` if you want to check a particular household
-- The `user_households` table may not exist in demo mode
+- The `user_households` table is required in every environment (local, UAT, production)
 - Bible Bee enrollments only exist if there's an active competition year
 - Custom fields and consents depend on the ministries selected during registration

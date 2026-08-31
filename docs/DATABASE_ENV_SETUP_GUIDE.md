@@ -15,7 +15,7 @@ Before beginning this setup, ensure you have:
 
 gatherKids uses separate Supabase projects for each environment to ensure strong isolation:
 
-- **Development**: Local development with optional local Supabase CLI or UAT project connection
+- **Development**: Local disposable Supabase (`supabase start`) or the UAT project. There is no IndexedDB/demo mode.
 - **UAT/Preview**: Dedicated Supabase project for testing and preview deployments
 - **Production**: Dedicated Supabase project for live application
 
@@ -76,7 +76,7 @@ In each Supabase project's Authentication settings:
 
   - UAT: `https://<uat-domain>.vercel.app/auth/callback`
   - Production: `https://<prod-domain>/auth/callback`
-  - Development: `http://localhost:3000/auth/callback` (for local testing)
+  - Development: `http://localhost:9002/auth/callback` (for local testing)
 
 - [x] **Enable/Disable Auth Providers**:
   - Email/Password: Enable for all environments
@@ -153,14 +153,13 @@ Set up environment variables for each Vercel environment:
 NEXT_PUBLIC_APP_NAME=gatherKids
 NEXT_PUBLIC_APP_VERSION=1.0.0
 NODE_ENV=development
-NEXT_PUBLIC_DATABASE_MODE=supabase
 NEXT_PUBLIC_LOGIN_MAGIC_ENABLED=false
 NEXT_PUBLIC_LOGIN_PASSWORD_ENABLED=true
 NEXT_PUBLIC_LOGIN_GOOGLE_ENABLED=false
 NEXT_PUBLIC_SUPABASE_URL=https://<uat-ref>.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=<uat-anon-key>
 SUPABASE_SERVICE_ROLE_KEY=<uat-service-role-key>
-NEXT_PUBLIC_SITE_URL=http://localhost:3000
+NEXT_PUBLIC_SITE_URL=http://localhost:9002
 ```
 
 #### Preview Environment (Vercel)
@@ -169,7 +168,6 @@ NEXT_PUBLIC_SITE_URL=http://localhost:3000
 NEXT_PUBLIC_APP_NAME=gatherKids
 NEXT_PUBLIC_APP_VERSION=1.0.0
 NODE_ENV=production
-NEXT_PUBLIC_DATABASE_MODE=supabase
 NEXT_PUBLIC_LOGIN_MAGIC_ENABLED=false
 NEXT_PUBLIC_LOGIN_PASSWORD_ENABLED=true
 NEXT_PUBLIC_LOGIN_GOOGLE_ENABLED=false
@@ -185,7 +183,6 @@ NEXT_PUBLIC_SITE_URL=https://your-preview-domain.vercel.app
 NEXT_PUBLIC_APP_NAME=gatherKids
 NEXT_PUBLIC_APP_VERSION=1.0.0
 NODE_ENV=production
-NEXT_PUBLIC_DATABASE_MODE=supabase
 NEXT_PUBLIC_LOGIN_MAGIC_ENABLED=true
 NEXT_PUBLIC_LOGIN_PASSWORD_ENABLED=true
 NEXT_PUBLIC_LOGIN_GOOGLE_ENABLED=true
@@ -221,7 +218,6 @@ NEXT_PUBLIC_APP_VERSION=1.0.0
 NODE_ENV=development
 
 # Feature Flags
-NEXT_PUBLIC_DATABASE_MODE=supabase
 NEXT_PUBLIC_LOGIN_MAGIC_ENABLED=false
 NEXT_PUBLIC_LOGIN_PASSWORD_ENABLED=true
 NEXT_PUBLIC_LOGIN_GOOGLE_ENABLED=false
@@ -232,7 +228,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=<uat-anon-key>
 SUPABASE_SERVICE_ROLE_KEY=<uat-service-role-key>
 
 # Local Development
-NEXT_PUBLIC_SITE_URL=http://localhost:3000
+NEXT_PUBLIC_SITE_URL=http://localhost:9002
 ```
 
 ### 4.2 Optional: Local Supabase CLI Setup

@@ -4,7 +4,9 @@
 
 This document outlines the authentication and protected routes implementation for gatherKids, focusing on role-based access control and a consistent user experience.
 
-## Current Implementation (Demo Mode)
+**Current runtime:** Supabase Auth only. There is no demo mode, `DEMO_USERS`, or `DATABASE_MODE`. The section below titled “Demo-mode sketch” is historical.
+
+## Demo-mode sketch (historical, not current)
 
 ### Role Types
 
@@ -36,7 +38,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 	const [loading, setLoading] = useState(true);
 	const [userRole, setUserRole] = useState<UserRole | null>(null);
 
-	// Demo mode implementation
+	// Historical demo sketch — replaced by Supabase Auth
 	useEffect(() => {
 		const demoAuth = async () => {
 			// Simulate auth delay
@@ -63,7 +65,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 				user,
 				loading,
 				userRole,
-				setUserRole, // Exposed for demo mode role switching
+				setUserRole,
+			}}>
 			}}>
 			{children}
 		</AuthContext.Provider>
@@ -170,23 +173,10 @@ export default function GuardianHouseholdPage() {
 
 ## Testing Protected Routes
 
-For demo mode testing, you can switch roles using the auth context:
+Use seeded local/UAT accounts with the correct role. Do not switch roles via a demo `setUserRole` helper.
 
-```typescript
-const { setUserRole } = useAuth();
+## Current Implementation (Supabase)
 
-// Switch to guardian role
-setUserRole(ROLES.GUARDIAN);
-```
+Auth is Supabase Auth. Roles currently live in client-writable `user_metadata` (see `docs/PRODUCT_SPEC.md` and issue #184). Session management is the Supabase client + middleware.
 
-## Future Implementation (Supabase)
-
-When implementing Supabase:
-
-1. Replace demo auth with Supabase authentication
-2. Add `user_roles` table with RLS policies
-3. Store `household_id` in user metadata during registration
-4. Update `AuthProvider` to fetch roles from Supabase
-5. Implement proper session management
-
-> Note: The current implementation uses demo mode for development. Supabase implementation details will be added in a future update.
+> Demo-mode localStorage auth is gone. Do not revive it.

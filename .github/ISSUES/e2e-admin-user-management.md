@@ -22,7 +22,7 @@ Relevant code:
 
 ### 1. Admin access and navigation
 
-- **As:** Admin (e.g. demo `admin@example.com` / `password` or seeded admin).
+- **As:** Admin (seeded admin on local or UAT Supabase).
 - **Steps:** Log in as admin → go to User Management (sidebar link or `/dashboard/users`).
 - **Assert:** “User Management” heading and “Create User” button are visible.
 
@@ -58,33 +58,31 @@ Relevant code:
 
 ### 7. Non-admin access denied
 
-- **As:** Non-admin (e.g. ministry leader: `leader.biblebee@example.com` / `password`).
+- **As:** Non-admin (e.g. a seeded ministry leader account).
 - **Steps:** Log in → go to `/dashboard/users`.
 - **Assert:** “Access denied” (or equivalent) message; no “Create User” button or user table.
 
 ## Environment and setup
 
 - **Auth:** Tests need a way to run as admin and as non-admin. Prefer reusing existing patterns (e.g. `tests/playwright/page-objects/login.page.ts` with `loginAsAdmin()` / `loginAsUser(...)`).
-- **Backend:** User Management calls `/api/users` and `/api/users/create`; these use Supabase in production. For e2e, either:
-  - Run against a real Supabase (or local Supabase) with test data, or
-  - Run in **demo mode** (`NEXT_PUBLIC_DATABASE_MODE=demo`, `NEXT_PUBLIC_SHOW_DEMO_FEATURES=true`) so demo logins work; note that `/api/users` may still return 403 in demo if there is no Supabase session.
-- **Server:** Decide whether to start the app under test via Playwright `webServer` (e.g. with a dedicated config and `dev:demo` or equivalent) or assume the app is already running (and document port/env).
-- **Stability:** On full page load to `/dashboard/users`, auth may restore from localStorage asynchronously; tests should wait for the User Management content (e.g. “Create User” button or “User Management” heading) or for “Access denied” before asserting. Prefer stable selectors (e.g. `getByRole('button', { name: /create user/i })`, `getByRole('heading', { name: 'User Management' })`).
+- **Backend:** User Management calls `/api/users` and `/api/users/create`; these use Supabase. For e2e, run against **local Supabase** (`supabase start` + `npm run seed:dev`) or **UAT** with seeded users. There is no demo mode / `DATABASE_MODE=demo`.
+- **Server:** Start the app under test via Playwright `webServer` or assume it is already running (document port/env). Use `.env.e2e.local` (see `.env.e2e.local.example`) pointing at local or UAT Supabase.
+- **Stability:** On full page load to `/dashboard/users`, auth may restore asynchronously; tests should wait for the User Management content (e.g. “Create User” button or “User Management” heading) or for “Access denied” before asserting. Prefer stable selectors (e.g. `getByRole('button', { name: /create user/i })`, `getByRole('heading', { name: 'User Management' })`).
 
 ## Suggested implementation
 
 - **Location:** e.g. `tests/playwright/admin-user-management.spec.ts` (or under `e2e/` if using `e2e.config.ts`).
 - **Page object:** A small page object for User Management (navigate, open Create User, fill Create User form, submit, open Set Password for a row, fill Set Password, submit, click Confirm Email / Promote to Admin for a row) keeps specs readable.
-- **Config:** Reuse existing Playwright config or add one that starts the app in demo mode (e.g. `npm run dev:demo`) so admin and non-admin logins work without manual env setup.
+- **Config:** Reuse existing Playwright config. Local e2e: `npm run test:e2e:local` with `.env.e2e.local` against local or UAT Supabase.
 
 ## Acceptance criteria
 
 - [ ] All 7 scenarios above are covered by at least one e2e test each.
 - [ ] Tests run in CI or locally via a single command (e.g. `npm run test:e2e:admin` or `npm run test:e2e:local` with a filter).
-- [ ] Documentation (README or .env example) states how to run the app (demo vs Supabase) and how to run these e2e tests.
+- [ ] Documentation (README or .env example) states how to run the app against local or UAT Supabase and how to run these e2e tests.
 
 ## Notes
 
-- The app already has `npm run dev:demo` (demo env) and `.env.e2e.local.example` includes `NEXT_PUBLIC_DATABASE_MODE=demo` and `NEXT_PUBLIC_SHOW_DEMO_FEATURES=true` for e2e.
+- There is no `npm run dev:demo` and no `DATABASE_MODE`. `.env.e2e.local.example` points at local Supabase.
 - Existing login page object: `tests/playwright/page-objects/login.page.ts` (e.g. `loginAsAdmin()`, `loginAsUser(email, password)`).
 - Unit/integration tests for the same feature live under `__tests__/` and pass; e2e should complement them by covering the full browser flow and auth.

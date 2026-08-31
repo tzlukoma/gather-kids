@@ -3,7 +3,7 @@
 **Date**: March 15, 2026
 **Application**: gatherKids — Children's Ministry Management System
 **Stack**: Next.js 15.3.8, React 18.3, TypeScript 5.9, Tailwind CSS, Radix UI (shadcn), Supabase, TanStack React Query 4
-> **Note**: Dexie (IndexedDB) and demo mode are being removed as part of [issue #191](https://github.com/tzlukoma/gather-kids/issues/191). Findings marked ✅ are fully resolved by that refactor.
+> **Note**: Dexie (IndexedDB) and demo mode were removed at runtime. Leftover file cleanup is [#266](https://github.com/tzlukoma/gather-kids/issues/266) (supersedes [#191](https://github.com/tzlukoma/gather-kids/issues/191)). Findings marked ✅ were resolved by that runtime refactor.
 **Methodology**: Vercel Web Interface Guidelines, Vercel React Best Practices (62 rules), Vercel Composition Patterns, WCAG 2.1 AA
 
 ---
@@ -22,7 +22,7 @@
 
 ## 1. Executive Summary
 
-This audit identified **109 findings** across 5 categories. **6 are fully resolved by the demo mode removal ([issue #191](https://github.com/tzlukoma/gather-kids/issues/191))**, leaving **103 open findings**.
+This audit identified **109 findings** across 5 categories. **6 are fully resolved by the demo mode runtime removal**, leaving **103 open findings**. Leftover Dexie deletion is [#266](https://github.com/tzlukoma/gather-kids/issues/266).
 
 | Category | Critical | High | Major | Medium | Minor/Low | Total | Resolved by #191 |
 |----------|----------|------|-------|--------|-----------|-------|------------------|
@@ -311,7 +311,7 @@ Zero files use `next/dynamic`. Heavy components are statically imported:
 
 Both `SupabaseAdapter` (3,500+ lines) and `IndexedDBAdapter` (1,800 lines) were imported statically, but only one was ever used at runtime.
 
-**Resolution**: Issue #191 removes demo mode entirely. `IndexedDBAdapter` and all Dexie dependencies are deleted. `factory.ts` becomes a direct, unconditional `SupabaseAdapter` instantiation — no conditional loading needed. This eliminates ~1,800 lines of dead code from the bundle.
+**Resolution**: Runtime always uses `SupabaseAdapter`. Leftover `IndexedDBAdapter` / Dexie deletion is [#266](https://github.com/tzlukoma/gather-kids/issues/266) (supersedes #191).
 
 ---
 
@@ -893,7 +893,7 @@ Some mutations use the `queryKeys` factory, others use raw string arrays. Siblin
 
 Components and utilities bypass the database adapter by importing the raw Dexie instance, breaking silently in Supabase/production mode.
 
-**Resolution**: Issue #191 removes Dexie entirely. All direct `@/lib/db` imports across 9+ files are deleted as part of the demo mode removal. `src/lib/db.ts` itself is removed.
+**Resolution**: Runtime no longer uses Dexie. Leftover `@/lib/db` imports and `src/lib/db.ts` deletion are [#266](https://github.com/tzlukoma/gather-kids/issues/266).
 
 ---
 
@@ -908,7 +908,7 @@ import { db as dbAdapter } from './database/factory';
 
 Many functions used `db` (Dexie) directly, only working in demo mode.
 
-**Resolution**: Issue #191 removes the `db` (Dexie) import and all ~144 demo/legacy branches from `dal.ts`. The adapter becomes the single data access path.
+**Resolution**: Runtime path is the adapter. Leftover Dexie helpers in `dal.ts` are [#266](https://github.com/tzlukoma/gather-kids/issues/266).
 
 ---
 
@@ -938,7 +938,7 @@ Business-logic operations with untyped signatures: `commitEnhancedCsvRowsToYear(
 
 Uses `require()` for dynamic imports in an ESM project, preventing tree-shaking.
 
-**Resolution**: Issue #191 eliminates the need for conditional adapter loading entirely. After demo removal, `factory.ts` becomes a simple direct import and instantiation of `SupabaseAdapter` — no dynamic `require()` or `import()` needed at all.
+**Resolution**: Factory always instantiates `SupabaseAdapter`. Leftover IndexedDB adapter file deletion is #266.
 
 ---
 
@@ -1048,7 +1048,7 @@ Zero `loading.tsx` files at any route segment. Route transitions show no indicat
 
 Logged database mode and environment variable state to the browser console on every DAL call — potentially hundreds of times per session.
 
-**Resolution**: Issue #191 deletes `shouldUseAdapter()` entirely. With Supabase as the only code path, there is no adapter branching logic to log.
+**Resolution**: Runtime is a single Supabase path. Leftover `shouldUseAdapter()` stubs are #266.
 
 ---
 
@@ -1058,7 +1058,7 @@ Logged database mode and environment variable state to the browser console on ev
 
 `window.location.reload()` fired when a demo user existed in localStorage but auth context didn't pick it up, with no reload counter to prevent looping.
 
-**Resolution**: Issue #191 removes the demo localStorage auth path from `protected-route.tsx` entirely. Auth relies solely on Supabase sessions, eliminating this code path.
+**Resolution**: Demo localStorage auth is gone. Leftover comments/stubs: #266.
 
 ---
 
@@ -1182,7 +1182,7 @@ The audit also identified several well-implemented patterns worth preserving and
 4. **Confirmation dialogs** exist for destructive operations on existing data
 5. **React Hook Form + Zod** integration on the client is well-structured
 6. **Database adapter pattern** provides a clean abstraction layer between the DAL and Supabase *(note: IndexedDB side of this is removed by issue #191; the pattern itself is worth preserving for future adapter needs)*
-7. **Feature flag system** enables safe rollout of new features *(note: `DATABASE_MODE` and `SHOW_DEMO_FEATURES` flags are removed by issue #191; remaining flags such as `loginMagicEnabled` and `registrationDraftPersistenceEnabled` continue)*
+7. **Feature flag system** enables safe rollout of new features *(note: `DATABASE_MODE` and `SHOW_DEMO_FEATURES` are gone; leftover cleanup is #266; remaining flags such as `loginMagicEnabled` and `registrationDraftPersistenceEnabled` continue)*
 8. **Sentry integration** provides production error monitoring
 9. **Comprehensive type definitions** in `src/lib/types.ts` cover all domain entities
 10. **Test infrastructure** is in place with Jest, React Testing Library, and Playwright

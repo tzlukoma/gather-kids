@@ -235,7 +235,7 @@ Acceptance criteria (what the AI agent should aim to satisfy):
 If the agent is blocked by missing environment variables (Supabase URL/anon key) or missing email/SMS delivery, it should:
 
 - Run automated tests that don't require external services.
-- Use a local mock or the demo users to validate UI paths where possible.
+- Use local or UAT Supabase and seeded users to validate UI paths where possible.
 - Report which steps required real external services and what the expected results are.
 
 Use this prompt to run autonomously. If you want, I will implement these changes myself — say “Please implement” and I will apply the changes and run quick local checks.

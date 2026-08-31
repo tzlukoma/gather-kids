@@ -12,7 +12,7 @@ Last updated: 2026-03-22
 |------|-------------|-------|-------------|--------|
 | 1 | [#196](https://github.com/tzlukoma/gather-kids/issues/196) | Quick wins (isolated fixes) | — | Deferred — open |
 | 2 | [#197](https://github.com/tzlukoma/gather-kids/issues/197) | ESLint safety net | — | Deferred — open |
-| 3 | [#191](https://github.com/tzlukoma/gather-kids/issues/191) | Demo mode removal (Dexie/IndexedDB) | — | Deferred — in progress separately |
+| 3 | [#266](https://github.com/tzlukoma/gather-kids/issues/266) | Demo mode leftover cleanup (Dexie/IndexedDB files) | — | Runtime done; leftover cleanup in #266 (supersedes #191) |
 | 4 | [#198](https://github.com/tzlukoma/gather-kids/issues/198) | Auth and state stabilization | — | Deferred — open |
 | 5 | [#199](https://github.com/tzlukoma/gather-kids/issues/199) | Data layer cleanup | — | Deferred — open |
 | 6 | [#200](https://github.com/tzlukoma/gather-kids/issues/200) | Component architecture | — | Deferred — open |

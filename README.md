@@ -12,17 +12,16 @@ A comprehensive children's ministry management system designed to streamline reg
 - **Mobile-First Design**: Responsive interface optimized for all devices
 - **Real-Time Updates**: Live data synchronization across all users
 - **Reporting & Export**: Comprehensive data export and analytics
-- **Sample Data**: Built-in seeding system for demonstration
 
 ## 🛠️ Tech Stack
 
 - **Frontend**: Next.js 15 with React 18, TypeScript
 - **UI Components**: Radix UI with custom Tailwind CSS styling
-- **State Management**: React Context API with custom hooks
-- **Database**: IndexedDB (Dexie.js) for client-side data persistence
+- **State Management**: React Context API, TanStack Query
+- **Database**: Supabase (PostgreSQL) via the DAL / `dbAdapter`
 - **Forms**: React Hook Form with Zod validation
-- **Authentication**: Custom context-based auth system
-- **Real-time Updates**: Dexie React Hooks for live data queries
+- **Authentication**: Supabase Auth
+- **Real-time Updates**: TanStack Query (and optional Supabase Realtime through the adapter)
 
 ## 📋 Prerequisites
 
@@ -51,43 +50,22 @@ yarn install
 
 ### 3. Environment Setup
 
-The application supports multiple database modes and environment configurations:
+The app is **Supabase-only**. There is no demo mode, IndexedDB backend, `DATABASE_MODE`, or in-app demo users. Local development uses a disposable local Supabase stack, or the UAT Supabase project. Stakeholder demos use UAT.
 
-- **Demo Mode** (default): Uses IndexedDB with browser-based storage, no external dependencies
-- **Supabase Mode**: Uses Supabase for cloud PostgreSQL with full authentication and real-time features
+See **[DATABASE_ENV_SETUP_GUIDE.md](./docs/DATABASE_ENV_SETUP_GUIDE.md)** for UAT/production project setup, GitHub Actions secrets, and Vercel env vars.
 
-#### Quick Start (Demo Mode)
+#### Local development (recommended)
 
-Create a `.env.local` file for basic local development:
+1. Copy dummy or local-Supabase values into `.env.local` (never commit secrets or real family data).
+2. Start local Supabase and seed synthetic data:
 
-```env
-# Application Configuration
-NEXT_PUBLIC_APP_NAME=gatherKids
-NEXT_PUBLIC_APP_VERSION=1.0.0
-
-# Feature Flags
-NEXT_PUBLIC_SHOW_DEMO_FEATURES=true
-NEXT_PUBLIC_ENABLE_AI_FEATURES=false
-NEXT_PUBLIC_REGISTRATION_DRAFT_PERSISTENCE_ENABLED=true
-
-# Development Settings
-NODE_ENV=development
-
-# Database Mode (demo = IndexedDB, supabase = cloud PostgreSQL)
-NEXT_PUBLIC_DATABASE_MODE=demo
+```bash
+supabase start
+npm run gen:types
+npm run seed:dev
 ```
 
-#### Full Supabase Development Setup
-
-For development with live Supabase integration, see the comprehensive **[DATABASE_ENV_SETUP_GUIDE.md](./docs/DATABASE_ENV_SETUP_GUIDE.md)** which covers:
-
-- Setting up separate Supabase projects for UAT and production
-- Configuring GitHub Actions environments and secrets
-- Setting up Vercel environment variables
-- Database migration strategies using raw SQL
-- Security best practices and troubleshooting
-
-Basic Supabase `.env.local` configuration:
+3. Point `.env.local` at that local instance (URLs and keys are printed by `supabase start`):
 
 ```env
 # Application Configuration
@@ -95,21 +73,33 @@ NEXT_PUBLIC_APP_NAME=gatherKids
 NEXT_PUBLIC_APP_VERSION=1.0.0
 NODE_ENV=development
 
-# Database Configuration
-NEXT_PUBLIC_DATABASE_MODE=supabase
 NEXT_PUBLIC_LOGIN_MAGIC_ENABLED=false
 NEXT_PUBLIC_LOGIN_PASSWORD_ENABLED=true
 NEXT_PUBLIC_LOGIN_GOOGLE_ENABLED=false
 
-# Supabase Configuration (point to UAT project for development)
+# Local Supabase (from `supabase start`)
+NEXT_PUBLIC_SUPABASE_URL=http://localhost:54321
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<local-anon-key>
+SUPABASE_SERVICE_ROLE_KEY=<local-service-role-key>
+NEXT_PUBLIC_SENTRY_DSN=
+
+NEXT_PUBLIC_SITE_URL=http://localhost:9002
+```
+
+The factory always returns `SupabaseAdapter`. Missing `NEXT_PUBLIC_SUPABASE_URL` or `NEXT_PUBLIC_SUPABASE_ANON_KEY` is an error, not a fallback to IndexedDB.
+
+#### UAT (for demos and shared testing)
+
+Point `.env.local` at the UAT Supabase project instead of local:
+
+```env
 NEXT_PUBLIC_SUPABASE_URL=https://<your-uat-ref>.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=<your-uat-anon-key>
 SUPABASE_SERVICE_ROLE_KEY=<your-uat-service-role-key>
-NEXT_PUBLIC_SENTRY_DSN=
-
-# Local Development
 NEXT_PUBLIC_SITE_URL=http://localhost:9002
 ```
+
+Do not reset or reseed UAT unless an issue explicitly authorizes it.
 
 ### 4. Start the Development Server
 
@@ -125,22 +115,9 @@ The application will be available at `http://localhost:9002` (note the custom po
 
 Open your browser and navigate to `http://localhost:9002`
 
-## 🔐 Demo Accounts
+## 🔐 Test accounts
 
-The application includes pre-configured demo accounts for testing:
-
-### Administrator
-
-- **Email**: `admin@example.com`
-- **Password**: `password`
-- **Access**: Full system access, all features
-
-### Ministry Leaders
-
-- **Generic Leader**: `leader.generic@example.com` / `password`
-- **Khalfani Leader**: `leader.khalfani@example.com` / `password`
-- **Joy Bells Leader**: `leader.joybells@example.com` / `password`
-- **Inactive Leader**: `leader.inactive@example.com` / `password`
+There are **no in-app demo users**. After `npm run seed:dev` (local) or an authorized UAT seed, log in with the synthetic accounts those scripts create. See `docs/ADMIN_USER_GUIDE.md` to create an admin in a Supabase project.
 
 ## 🌱 UAT Data Seeding
 
@@ -195,10 +172,9 @@ npm run gen:types:prod # Generate types from production environment
 
 # Data Management
 npm run seed:scriptures    # Seed scripture references
-npm run seed:uat           # Seed UAT database with test data (idempotent)
-npm run seed:uat:reset     # Reset and re-seed UAT database (destructive)
-npm run import:dexie       # Import data from Dexie export
-npm run import:dexie:dry   # Dry run of Dexie import
+npm run seed:dev           # Seed local disposable Supabase
+npm run seed:uat           # Seed UAT database with test data (idempotent; authorized use only)
+npm run seed:uat:reset     # Reset and re-seed UAT database (destructive; authorized use only)
 
 # Documentation (in-app /help)
 npm run docs:validate              # Validate help markdown, links, screenshots, changelog
@@ -236,10 +212,9 @@ gather-kids/
 │   ├── contexts/              # React contexts (auth, features)
 │   ├── hooks/                 # Custom React hooks
 │   ├── lib/                   # Utilities and data access
-│   │   ├── database/         # Database abstraction layer
+│   │   ├── database/         # Database abstraction layer (SupabaseAdapter)
 │   │   │   ├── types.ts      # Database adapter interface
-│   │   │   ├── factory.ts    # Database adapter factory
-│   │   │   ├── indexeddb-adapter.ts
+│   │   │   ├── factory.ts    # Always returns SupabaseAdapter
 │   │   │   └── supabase-adapter.ts
 │   │   └── ai/               # AI/Genkit integration
 ├── supabase/                  # Raw SQL migrations and Supabase config
@@ -252,18 +227,11 @@ gather-kids/
 
 ## 🗄️ Database
 
-The application supports multiple database backends based on the environment:
+Runtime storage is **Supabase (PostgreSQL)** in every environment. The factory always returns `SupabaseAdapter`. There is no `DATABASE_MODE` and no IndexedDB/demo backend.
 
-- **Demo Mode**: IndexedDB (via Dexie.js) for client-side data persistence
-  -- **Local Development**: Local Supabase/Postgres via Supabase CLI or a throwaway Postgres instance
-- **Production**: Supabase (PostgreSQL) for production environments
-
-### Database Modes
-
-The database mode is controlled by the `NEXT_PUBLIC_DATABASE_MODE` environment variable:
-
-- `demo`: Uses IndexedDB (browser storage)
-  -- `supabase`: Uses Supabase cloud database
+- **Local**: Disposable local Supabase (`supabase start`) or the UAT project
+- **UAT**: Dedicated hosted Supabase project (use this for demos)
+- **Production**: Dedicated hosted Supabase project
 
 ### Key Data Models
 
@@ -304,12 +272,7 @@ The application uses Tailwind CSS with a custom design system:
 
 #### Database Architecture
 
-gatherKids uses a flexible database adapter system supporting multiple backends:
-
-- **IndexedDB Adapter**: Browser-based storage using Dexie.js (demo mode)
-- **Supabase Adapter**: Cloud PostgreSQL with authentication and real-time features
-
-Database mode is controlled by the `NEXT_PUBLIC_DATABASE_MODE` environment variable.
+All data access goes through the DAL (`@/lib/dal`) and `dbAdapter`. Do not import `@supabase/supabase-js` outside the DAL and allowed API/script paths. See **[DATABASE_ADAPTERS.md](./docs/DATABASE_ADAPTERS.md)**.
 
 #### Schema Management
 
@@ -335,11 +298,13 @@ npm run gen:types
 #### Environment-Specific Development
 
 ```bash
-# Demo mode (IndexedDB, no external dependencies)
-NEXT_PUBLIC_DATABASE_MODE=demo npm run dev
+# Local disposable Supabase
+supabase start
+npm run seed:dev
+npm run dev
 
-# Supabase mode (cloud PostgreSQL)
-NEXT_PUBLIC_DATABASE_MODE=supabase npm run dev
+# Or point .env.local at UAT (do not reset/reseed UAT unless authorized)
+npm run dev
 ```
 
 For detailed Supabase setup instructions, see **[DATABASE_ENV_SETUP_GUIDE.md](./docs/DATABASE_ENV_SETUP_GUIDE.md)**.
@@ -350,8 +315,8 @@ For detailed Supabase setup instructions, see **[DATABASE_ENV_SETUP_GUIDE.md](./
 - Implement responsive design with Tailwind CSS
 - Follow the established form patterns with React Hook Form + Zod
 - Use the `useAuth` hook for authentication state
-- Implement real-time updates with the appropriate database adapter
-- Use the database abstraction layer for all data operations
+- Use React Query hooks / the DAL (`dbAdapter`) for all data operations
+- Do not import `@supabase/supabase-js` outside the DAL and allowed API/script paths
 
 ### 4. Testing
 
@@ -375,25 +340,17 @@ gatherKids uses a multi-environment deployment strategy with strong isolation be
 
 ### Environment Configuration Overview
 
-- **Local Development**: Demo mode (IndexedDB) or connected to UAT Supabase project
-- **UAT/Preview**: Dedicated Supabase project, auto-deployed via GitHub Actions
+- **Local Development**: Local Supabase CLI or the UAT Supabase project
+- **UAT/Preview**: Dedicated Supabase project (stakeholder demos)
 - **Production**: Dedicated Supabase project, manual deployment with approval
 
 ### Quick Local Setup
 
-1. **Basic Demo Mode** (no external dependencies):
+1. Install dependencies (`npm ci`), put local or UAT Supabase values in `.env.local`.
+2. Optional local stack: `supabase start`, `npm run gen:types`, `npm run seed:dev`.
+3. `npm run dev` — app at `http://localhost:9002`.
 
-   ```bash
-   npm install
-   npm run dev
-   ```
-
-   Access at `http://localhost:9002`
-
-2. **Full Supabase Development**:
-   - Follow **[DATABASE_ENV_SETUP_GUIDE.md](./docs/DATABASE_ENV_SETUP_GUIDE.md)**
-   - Configure `.env.local` with Supabase credentials
-   - Run `npm run gen:types` to generate TypeScript types
+See **[DATABASE_ENV_SETUP_GUIDE.md](./docs/DATABASE_ENV_SETUP_GUIDE.md)** for UAT/production credentials and Vercel env vars.
 
 ### Deployment Environments
 
@@ -430,17 +387,15 @@ Required environment variables for each deployment target:
 #### Local Development (.env.local)
 
 ```env
-NEXT_PUBLIC_DATABASE_MODE=demo  # or supabase for full features
-NEXT_PUBLIC_SUPABASE_URL=https://<uat-ref>.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=<uat-anon-key>
-SUPABASE_SERVICE_ROLE_KEY=<uat-service-role-key>
+NEXT_PUBLIC_SUPABASE_URL=http://localhost:54321
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<local-anon-key>
+SUPABASE_SERVICE_ROLE_KEY=<local-service-role-key>
 NEXT_PUBLIC_SITE_URL=http://localhost:9002
 ```
 
 #### Production (Vercel)
 
 ```env
-NEXT_PUBLIC_DATABASE_MODE=supabase
 NEXT_PUBLIC_LOGIN_MAGIC_ENABLED=true
 NEXT_PUBLIC_LOGIN_PASSWORD_ENABLED=true
 NEXT_PUBLIC_LOGIN_GOOGLE_ENABLED=true
@@ -622,9 +577,8 @@ Coding agents: [`AGENTS.md`](./AGENTS.md) is the operating contract. Thomas’s 
 2. **Build Errors**: Ensure all dependencies are installed with `npm install`
 3. **Type Errors**: Run `npm run typecheck` to identify TypeScript issues
 4. **Database Issues**:
-   - **IndexedDB**: Clear browser storage if data becomes corrupted
-   - **Supabase**: Use `supabase db reset` (local) and the repo seed scripts to reset and reseed
-   - **Supabase**: Check connection and authentication settings
+   - **Local Supabase**: Use `supabase db reset` and `npm run seed:dev` on a disposable local stack
+   - Check `NEXT_PUBLIC_SUPABASE_URL` and API keys in `.env.local`
 
 ### Getting Help
 
@@ -632,8 +586,7 @@ Coding agents: [`AGENTS.md`](./AGENTS.md) is the operating contract. Thomas’s 
 - Verify all environment variables are set correctly
 - Ensure you're using the correct Node.js version
 - Check that all dependencies are properly installed
-- **Database Mode Issues**: Verify `NEXT_PUBLIC_DATABASE_MODE` is set correctly
-  - **Supabase Issues**: Verify project URL and API keys in environment variables
+- **Supabase Issues**: Verify project URL and API keys in environment variables
 
 ## 📄 License
 
