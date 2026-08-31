@@ -39,9 +39,9 @@ We maintain a mapping layer between our application domain types and the generat
 ### Why We Need Mappings
 
 1. **Decoupling**: Keep our domain models independent from the database schema
-2. **Flexibility**: Handle differences between IndexedDB and Supabase schemas
+2. **Flexibility**: Handle differences between domain types and generated Supabase schema types
 3. **Validation**: Add validation or transformation logic during conversion
-4. **Consistency**: Ensure a consistent API regardless of the database backend
+4. **Consistency**: Ensure a consistent API through the DAL
 
 ## Usage in Code
 

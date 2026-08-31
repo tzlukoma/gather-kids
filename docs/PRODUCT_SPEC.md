@@ -144,7 +144,7 @@ Honest status: **shipped** = used in production; **partial** = UI/code exists bu
 
 - `/dev-scriptures` — unauthenticated, uses service role. Lock or delete.
 - `/avatar-demo` — leftover.
-- IndexedDB adapter and demo-user paths — leftover from demo mode ([#191](https://github.com/tzlukoma/gather-kids/issues/191) still open).
+- IndexedDB adapter and demo-user paths — leftover from demo mode (cleanup tracked in [#266](https://github.com/tzlukoma/gather-kids/issues/266)).
 - Google sign-in flag — off.
 
 ---
@@ -213,7 +213,7 @@ Do not email every family a registration link until these are done. They are alr
 
 ### R5 — Platform health (do not mix into the registration PR)
 
-- Finish demo-mode / IndexedDB removal ([#191](https://github.com/tzlukoma/gather-kids/issues/191)).
+- Leftover demo-mode / IndexedDB cleanup ([#266](https://github.com/tzlukoma/gather-kids/issues/266); supersedes [#191](https://github.com/tzlukoma/gather-kids/issues/191)).
 - Data-layer leftovers: dual `registerHousehold` writers, `useBibleBee` demo DAL ([#199](https://github.com/tzlukoma/gather-kids/issues/199), [#151](https://github.com/tzlukoma/gather-kids/issues/151), [#152](https://github.com/tzlukoma/gather-kids/issues/152), [#189](https://github.com/tzlukoma/gather-kids/issues/189)).
 - Snake_case shape audit ([#108](https://github.com/tzlukoma/gather-kids/issues/108)).
 - Restore `no-explicit-any` as error ([#126](https://github.com/tzlukoma/gather-kids/issues/126), [#197](https://github.com/tzlukoma/gather-kids/issues/197)).

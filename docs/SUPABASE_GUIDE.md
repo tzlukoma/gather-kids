@@ -1,6 +1,8 @@
 # Supabase Guide — gather-kids
 
-This file collects the step-by-step Supabase setup, local development commands, migration and seeding guidance, and a safe plan to migrate your client-side (Dexie/IndexedDB) data into Supabase.
+This file collects the step-by-step Supabase setup, local development commands, migration and seeding guidance.
+
+A one-time Dexie (IndexedDB) → Supabase import existed during the original migration. Demo/IndexedDB is **not** a supported runtime. Leftover import scripts are tracked in [#266](https://github.com/tzlukoma/gather-kids/issues/266); do not use them as current operator instructions.
 
 Short checklist
 
@@ -9,7 +11,7 @@ Short checklist
 - Initialize `supabase/` in this repo and start a local stack.
 - Add migrations (DDL) and apply locally.
 - Add RLS policies and seed curated scriptures using a server-side seed script.
-- Create an import script for Dexie -> Supabase and verify locally.
+- Create an import script for Dexie -> Supabase and verify locally. *(historical; leftover scripts in #266)*
 - Add CI steps to safely apply migrations and protect service keys.
 
 Prerequisites (macOS)
@@ -148,7 +150,7 @@ export const supabase = createClient(
 );
 ```
 
-Migrating existing Dexie (IndexedDB) data
+Migrating existing Dexie (IndexedDB) data *(historical leftover; not a supported runtime. Cleanup: #266)*
 
 - Strategy A: Export from browser to JSON and import via Node script using the service role key.
 - Strategy B: Build a small admin UI for uploading JSON which calls a server API route that inserts/upserts data.
@@ -202,7 +204,7 @@ Quick next steps for you (do these now)
 2. Run `supabase init` in the repo if you haven't already.
 3. Create `supabase/migrations/0001_init.sql` (use the example above) and run `supabase db push`.
 4. Create `scripts/seed/scriptures.json` from your curated data and run the Node seed script with your local service role key.
-5. Export IndexedDB from a running dev instance and run an import script to verify mapping.
+5. Seed local Supabase with `npm run seed:dev` (do not export IndexedDB; that path is gone).
 
 If you want, I can now:
 

@@ -13,7 +13,7 @@ gatherKids is a children's ministry management app for Youth Ministry at Cathedr
 
 **Stack (as shipped):** Next.js 15, React 18, TypeScript, Supabase Auth + Postgres, TanStack Query, React Hook Form + Zod. Hosted on Vercel. UAT and production are separate Supabase projects.
 
-Runtime data access is Supabase through the DAL (`src/lib/database/`). Demo/IndexedDB mode is **not** a supported runtime. Leftover Dexie files exist; do not treat them as the current architecture.
+Runtime data access is Supabase through the DAL (`src/lib/database/`). Demo/IndexedDB mode is **not** a supported runtime. Leftover Dexie files exist (cleanup: [#266](https://github.com/tzlukoma/gather-kids/issues/266)); do not treat them as the current architecture.
 
 Canonical product description: [`docs/PRODUCT_SPEC.md`](docs/PRODUCT_SPEC.md). Prefer it over older files such as `docs/FEATURES.md` and `docs/blueprint.md`.
 
