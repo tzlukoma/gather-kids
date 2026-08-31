@@ -8,8 +8,7 @@ import { devLog } from '../dev-log';
 const dalLog = devLog('dal');
 
 /**
- * Maps between Dexie types, Supabase generated types, and canonical snake_case DTOs
- * This ensures consistent typing regardless of which adapter is used
+ * Maps between application types, Supabase generated types, and canonical snake_case DTOs
  *
  * The canonical DTOs represent the "fresh start" data shapes that the DAL should
  * expose to the UI with consistent snake_case naming.

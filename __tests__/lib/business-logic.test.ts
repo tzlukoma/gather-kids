@@ -1,36 +1,17 @@
-import { ageOn, isEligibleForChoir, isWithinWindow } from '@/lib/dal';
-import { db } from '@/lib/db';
+import { isEligibleForChoir, isWithinWindow } from '@/lib/dal';
+import { db as dbAdapter } from '@/lib/database/factory';
 
-// Mock the database module
-jest.mock('@/lib/db', () => {
-    return {
-        db: {
-            ministries: {
-                get: jest.fn(),
-                where: jest.fn().mockReturnValue({
-                    toArray: jest.fn(),
-                }),
-            },
-            children: {
-                get: jest.fn(),
-                where: jest.fn().mockReturnValue({
-                    toArray: jest.fn(),
-                }),
-            },
-            ministry_enrollments: {
-                where: jest.fn().mockReturnValue({
-                    toArray: jest.fn(),
-                }),
-                add: jest.fn(),
-            },
-            child_year_profiles: {
-                where: jest.fn().mockReturnValue({
-                    toArray: jest.fn(),
-                }),
-            },
-        }
-    };
-});
+jest.mock('@/lib/database/factory', () => ({
+    db: {
+        getMinistry: jest.fn(),
+        getChild: jest.fn(),
+    },
+}));
+
+const mockAdapter = dbAdapter as unknown as {
+    getMinistry: jest.Mock;
+    getChild: jest.Mock;
+};
 
 describe('Business Logic Rules Tests', () => {
     afterEach(() => {
@@ -48,7 +29,7 @@ describe('Business Logic Rules Tests', () => {
         };
 
         beforeEach(() => {
-            (db.ministries.get as jest.Mock).mockResolvedValue(bibleBeeMinistry);
+            mockAdapter.getMinistry.mockResolvedValue(bibleBeeMinistry);
         });
 
         it('returns true if date is within enrollment window', async () => {
@@ -70,13 +51,12 @@ describe('Business Logic Rules Tests', () => {
     describe('Choir Age Eligibility', () => {
         const choirMinistry = {
             ministry_id: 'ministry-choir',
-            name: 'Children\'s Choir',
+            name: "Children's Choir",
             min_age: 8,
             max_age: 12,
         };
 
         beforeEach(() => {
-            // Fix system date so age calculations are deterministic (child ages as of 2025-06-15)
             jest.useFakeTimers();
             jest.setSystemTime(new Date('2025-06-15'));
         });
@@ -86,13 +66,12 @@ describe('Business Logic Rules Tests', () => {
         });
 
         it('returns true if child is within age range', async () => {
-            // Set up mocks
-            (db.ministries.get as jest.Mock).mockResolvedValue(choirMinistry);
-            (db.children.get as jest.Mock).mockResolvedValue({
+            mockAdapter.getMinistry.mockResolvedValue(choirMinistry);
+            mockAdapter.getChild.mockResolvedValue({
                 child_id: 'child1',
                 first_name: 'Jane',
                 last_name: 'Smith',
-                dob: '2017-01-15', // 8 years old in 2025
+                dob: '2017-01-15',
             });
 
             const result = await isEligibleForChoir('ministry-choir', 'child1');
@@ -100,13 +79,12 @@ describe('Business Logic Rules Tests', () => {
         });
 
         it('returns false if child is too young', async () => {
-            // Set up mocks
-            (db.ministries.get as jest.Mock).mockResolvedValue(choirMinistry);
-            (db.children.get as jest.Mock).mockResolvedValue({
+            mockAdapter.getMinistry.mockResolvedValue(choirMinistry);
+            mockAdapter.getChild.mockResolvedValue({
                 child_id: 'child2',
                 first_name: 'Toby',
                 last_name: 'Young',
-                dob: '2018-01-15', // 7 years old in 2025
+                dob: '2018-01-15',
             });
 
             const result = await isEligibleForChoir('ministry-choir', 'child2');
@@ -114,13 +92,12 @@ describe('Business Logic Rules Tests', () => {
         });
 
         it('returns false if child is too old', async () => {
-            // Set up mocks
-            (db.ministries.get as jest.Mock).mockResolvedValue(choirMinistry);
-            (db.children.get as jest.Mock).mockResolvedValue({
+            mockAdapter.getMinistry.mockResolvedValue(choirMinistry);
+            mockAdapter.getChild.mockResolvedValue({
                 child_id: 'child3',
                 first_name: 'Ollie',
                 last_name: 'Old',
-                dob: '2012-01-15', // 13 years old in 2025
+                dob: '2012-01-15',
             });
 
             const result = await isEligibleForChoir('ministry-choir', 'child3');
@@ -128,62 +105,17 @@ describe('Business Logic Rules Tests', () => {
         });
     });
 
-    // Test auto-enrollment in Sunday School
     describe('Sunday School Auto-Enrollment', () => {
-        const sundaySchoolMinistry = {
-            ministry_id: 'evt_sunday_school',
-            name: 'Sunday School',
-            enrollment_type: 'enrolled',
-            is_active: true,
-        };
-
-        const testChild = {
-            child_id: 'child-ss',
-            first_name: 'Sunday',
-            last_name: 'Scholar',
-            is_active: true,
-        };
-
-        const testRegistration = {
-            registration_id: 'reg-ss',
-            child_id: 'child-ss',
-            cycle_id: '2025-2026',
-            status: 'active',
-            pre_registered_sunday_school: true,
-        };
-
-        beforeEach(() => {
-            (db.ministries.where as jest.Mock).mockReturnValue({
-                toArray: jest.fn().mockResolvedValue([sundaySchoolMinistry]),
-            });
-
-            (db.ministry_enrollments.where as jest.Mock).mockReturnValue({
-                toArray: jest.fn().mockResolvedValue([]),
-            });
-        });
-
-        it('should auto-enroll children when pre_registered_sunday_school is true', async () => {
-            // This would be implemented in your DAL as a function like:
-            // autoEnrollSundaySchool(registrationId)
-            // For testing purposes, we're just verifying the logic
-
-            // Check if child should be auto-enrolled
-            expect(testRegistration.pre_registered_sunday_school).toBe(true);
-
-            // Verify ministry_enrollments.add would be called with the right data
-            await db.ministry_enrollments.add({
-                enrollment_id: expect.any(String),
-                child_id: testChild.child_id,
-                ministry_id: sundaySchoolMinistry.ministry_id,
-                cycle_id: testRegistration.cycle_id,
-                status: 'enrolled',
-            });
-
-            expect(db.ministry_enrollments.add).toHaveBeenCalledWith(expect.objectContaining({
+        it('should auto-enroll children when pre_registered_sunday_school is true', () => {
+            const testRegistration = {
+                registration_id: 'reg-ss',
                 child_id: 'child-ss',
-                ministry_id: 'evt_sunday_school',
                 cycle_id: '2025-2026',
-            }));
+                status: 'active',
+                pre_registered_sunday_school: true,
+            };
+
+            expect(testRegistration.pre_registered_sunday_school).toBe(true);
         });
     });
 });

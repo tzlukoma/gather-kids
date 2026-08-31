@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { queryLeaders } from '@/lib/dal';
+import { queryLeaderProfiles } from '@/lib/dal';
+import type { LeaderProfile } from '@/lib/types';
 import {
 	Card,
 	CardContent,
@@ -21,12 +22,14 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { ChevronRight } from 'lucide-react';
 
+type LeaderRow = LeaderProfile & { ministryCount: number };
+
 export default function LeadersDashboard() {
-	const [leaders, setLeaders] = useState<any[]>([]);
+	const [leaders, setLeaders] = useState<LeaderRow[]>([]);
 
 	useEffect(() => {
 		const load = async () => {
-			const data = await queryLeaders();
+			const data = await queryLeaderProfiles();
 			setLeaders(data);
 		};
 		load();
@@ -85,19 +88,19 @@ export default function LeadersDashboard() {
 						</TableHeader>
 						<TableBody>
 							{leaders.map((leader) => (
-								<TableRow key={leader.user_id} className="cursor-pointer">
-									<TableCell className="font-medium">{leader.name}</TableCell>
+								<TableRow key={leader.leader_id} className="cursor-pointer">
+									<TableCell className="font-medium">
+										{leader.first_name} {leader.last_name}
+									</TableCell>
 									<TableCell>
 										<Badge variant={leader.is_active ? 'default' : 'secondary'}>
 											{leader.is_active ? 'Active' : 'Inactive'}
 										</Badge>
 									</TableCell>
 									<TableCell>
-										{leader.assignments.length > 0 ? (
+										{leader.ministryCount > 0 ? (
 											<span className="text-sm text-muted-foreground">
-												{leader.assignments
-													.map((a: any) => a.ministryName)
-													.join(', ')}
+												{leader.ministryCount} ministries
 											</span>
 										) : (
 											<span className="text-sm text-muted-foreground">
@@ -106,7 +109,7 @@ export default function LeadersDashboard() {
 										)}
 									</TableCell>
 									<TableCell>
-										<Link href={`/leaders/${leader.user_id}`}>
+										<Link href={`/leaders/${leader.leader_id}`}>
 											<ChevronRight className="h-4 w-4 text-muted-foreground" />
 										</Link>
 									</TableCell>

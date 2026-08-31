@@ -2,7 +2,7 @@ import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
 export async function proxy(request: NextRequest) {
-  // Skip proxy for demo mode or missing Supabase config
+  // Skip proxy for dummy/missing Supabase config (local/CI)
   if (process.env.NEXT_PUBLIC_SUPABASE_URL?.includes('dummy') || 
       !process.env.NEXT_PUBLIC_SUPABASE_URL ||
       !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
