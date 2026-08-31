@@ -286,7 +286,7 @@ This section covers **source maps, uptime, the one free cron monitor, alerts, an
 
 `package.json` version (release-please) is stamped into `src/generated/build-info.json` at `prebuild` and exposed as `buildInfo.appVersion` (`src/lib/build-info.ts`) and `GET /api/version`.
 
-[#258](https://github.com/tzlukoma/gather-kids/issues/258) / [#264](https://github.com/tzlukoma/gather-kids/pull/264) set SDK `release` from `buildInfo.appVersion` so uploaded maps and runtime events share the same release name (for example `1.8.2`).
+[#258](https://github.com/tzlukoma/gather-kids/issues/258) / [#264](https://github.com/tzlukoma/gather-kids/pull/264) set SDK `release` from `buildInfo.appVersion` so uploaded maps and runtime events share the same release name (for example `1.8.2`). `withSentryConfig` in `next.config.ts` uses the same `resolveSentryRelease()` helper (`src/lib/sentry/release.ts`) so webpack source-map uploads tag that semver instead of the git commit SHA. Optional override: set `SENTRY_RELEASE` in the build environment.
 
 ### `SENTRY_AUTH_TOKEN` (Vercel only — never `ci.yml`)
 

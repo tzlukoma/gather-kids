@@ -1,4 +1,4 @@
-import { buildInfo } from '@/lib/build-info';
+import { resolveSentryRelease } from '@/lib/sentry/release';
 
 /** Ignore empty env vars (Vercel sometimes sets these to blank strings). */
 function envValue(value: string | undefined): string | undefined {
@@ -26,7 +26,7 @@ export function getSentryEnvironment(): string {
 
 /** Same app version stamped for `/api/version` (package.json / build-info). */
 export function getSentryRelease(): string {
-  return buildInfo.appVersion;
+  return resolveSentryRelease();
 }
 
 export function shouldInitSentry(): boolean {
