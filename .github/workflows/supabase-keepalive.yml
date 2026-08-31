@@ -10,8 +10,9 @@ on:
 jobs:
   keepalive:
     runs-on: ubuntu-latest
+    # production-ops has no required reviewers so this cron is not gated by `production`.
     environment:
-      name: production
+      name: production-ops
     env:
       SUPABASE_URL: ${{ secrets.PROD_SUPABASE_URL }}
       SUPABASE_KEY: ${{ secrets.PROD_SUPABASE_SERVICE_ROLE_KEY }}
