@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 // db import unused in this debugger; rely on adapter helpers instead
-import { dbAdapter, isSupabase, getDatabaseMode } from '@/lib/db-utils';
+import { dbAdapter } from '@/lib/db-utils';
 import { getBibleBeeCycles } from '@/lib/dal';
 
 export default function BibleBeeDebugger() {
@@ -17,10 +17,10 @@ export default function BibleBeeDebugger() {
 	useEffect(() => {
 		console.group('🔍 Bible Bee Debug Information');
 
-		// Check database mode
+		// Check database mode (runtime is always Supabase)
 		console.log('📊 Database Configuration:');
-		console.log('- Detected Mode:', getDatabaseMode());
-		console.log('- Using Supabase:', isSupabase() ? '✅ Yes' : '❌ No');
+		console.log('- Detected Mode: supabase');
+		console.log('- Using Supabase: ✅ Yes');
 		console.log(
 			'- DB Adapter Type:',
 			dbAdapter?.constructor?.name || 'unknown'

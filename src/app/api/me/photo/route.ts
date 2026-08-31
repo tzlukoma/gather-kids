@@ -145,7 +145,7 @@ export async function DELETE(request: NextRequest) {
 			photoPath: undefined,
 		});
 
-		// TODO: Delete old photo from storage if not in demo mode
+		// TODO: Delete old photo from storage
 		// TODO: Create audit log entry
 
 		return NextResponse.json({

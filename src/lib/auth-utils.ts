@@ -75,8 +75,8 @@ export function getPostLoginRoute(roles: AuthRole | AuthRole[] | null | undefine
 }
 
 /**
- * For demo mode compatibility - gets role from user metadata
- * 
+ * Gets the user's primary role from user metadata.
+ *
  * @param user - User object with metadata containing role
  * @returns The user's primary role
  */

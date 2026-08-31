@@ -189,7 +189,7 @@ export async function DELETE(
 		// Remove child photo
 		await updateChildPhoto(childId, undefined as any);
 
-		// TODO: Delete old photo from storage if not in demo mode
+		// TODO: Delete old photo from storage
 		// TODO: Create audit log entry
 
 		console.log(`Photo removed for child ${childId} by user ${user.uid || user.id} (${user.metadata.role})`);

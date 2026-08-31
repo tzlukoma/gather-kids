@@ -52,7 +52,6 @@ import {
 	SelectContent,
 	SelectItem,
 } from '@/components/ui/select';
-import { db } from '@/lib/db';
 
 const InfoItem = ({
 	icon,

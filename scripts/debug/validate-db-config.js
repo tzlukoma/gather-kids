@@ -84,14 +84,12 @@ if (supabaseKey) {
 	);
 }
 
-// Determine which adapter will be used
-const willUseSupabase =
-	databaseMode === 'supabase' && supabaseUrl && supabaseKey;
+const hasSupabaseConfig = Boolean(supabaseUrl && supabaseKey);
 console.log(
 	`\n${colors.blue}📊 Database Adapter:${colors.reset} ${
-		willUseSupabase
+		hasSupabaseConfig
 			? colors.green + 'SupabaseAdapter'
-			: colors.yellow + 'IndexedDBAdapter'
+			: colors.red + 'error (missing Supabase env)'
 	}${colors.reset}`
 );
 
@@ -101,7 +99,7 @@ const MINISTRY_ID = 'bible-bee';
 console.log(`${colors.white}Ministry ID:${colors.reset} ${MINISTRY_ID}`);
 
 // Final diagnostic message
-if (willUseSupabase) {
+if (hasSupabaseConfig) {
 	console.log(
 		`\n${colors.green}✅ Your application is configured to use Supabase for database operations${colors.reset}`
 	);
@@ -109,31 +107,18 @@ if (willUseSupabase) {
 		`${colors.cyan}👉 If Bible Bee data isn't showing, check:${colors.reset}`
 	);
 	console.log(`   1. The data exists in your Supabase database`);
-	console.log(
-		`   2. Your code is using dbAdapter methods not direct Dexie queries`
-	);
+	console.log(`   2. Your code is using dbAdapter methods`);
 	console.log(`   3. You have proper permissions to access the data`);
 	console.log(
 		`\n${colors.cyan}📚 See docs/DATABASE_ADAPTERS.md for more information.${colors.reset}`
 	);
 } else {
-	if (databaseMode === 'supabase' && (!supabaseUrl || !supabaseKey)) {
-		console.log(
-			`\n${colors.yellow}⚠️  Database mode is set to "supabase" but configuration is incomplete${colors.reset}`
-		);
-		console.log(
-			`   Missing: ${!supabaseUrl ? 'NEXT_PUBLIC_SUPABASE_URL' : ''} ${
-				!supabaseKey
-					? (!supabaseUrl ? ', ' : '') + 'NEXT_PUBLIC_SUPABASE_ANON_KEY'
-					: ''
-			}`
-		);
-		console.log(
-			`   ${colors.yellow}Fallback:${colors.reset} Application will use IndexedDBAdapter`
-		);
-	} else {
-		console.log(
-			`\n${colors.green}✅ Your application is configured to use IndexedDB for database operations (demo mode)${colors.reset}`
-		);
-	}
+	console.log(
+		`\n${colors.red}❌ Database mode is always Supabase, but configuration is incomplete${colors.reset}`
+	);
+	console.log(
+		`   Missing: ${!supabaseUrl ? 'NEXT_PUBLIC_SUPABASE_URL' : ''}${
+			!supabaseUrl && !supabaseKey ? ', ' : ''
+		}${!supabaseKey ? 'NEXT_PUBLIC_SUPABASE_ANON_KEY' : ''}`
+	);
 }

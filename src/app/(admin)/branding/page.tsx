@@ -107,7 +107,7 @@ export default function BrandingPage() {
 				return;
 			}
 
-			// Validate file size (500KB limit for demo mode)
+			// Validate file size (500KB limit)
 			if (file.size > 500 * 1024) {
 				toast({
 					title: 'File Too Large',
