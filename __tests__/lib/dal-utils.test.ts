@@ -1,17 +1,17 @@
 import { ageOn, isEligibleForChoir, isWithinWindow, getTodayIsoDate } from '@/lib/dal';
-import * as db from '@/lib/db';
+import { db as dbAdapter } from '@/lib/database/factory';
 
-// Mock the database module
-jest.mock('@/lib/db', () => ({
+jest.mock('@/lib/database/factory', () => ({
     db: {
-        ministries: {
-            get: jest.fn(),
-        },
-        children: {
-            get: jest.fn(),
-        },
+        getMinistry: jest.fn(),
+        getChild: jest.fn(),
     },
 }));
+
+const mockAdapter = dbAdapter as unknown as {
+    getMinistry: jest.Mock;
+    getChild: jest.Mock;
+};
 
 describe('DAL Utility Functions', () => {
     afterEach(() => {
@@ -49,7 +49,7 @@ describe('DAL Utility Functions', () => {
     describe('isEligibleForChoir', () => {
         const mockMinistry = {
             ministry_id: 'ministry1',
-            name: 'Children\'s Choir',
+            name: "Children's Choir",
             min_age: 8,
             max_age: 12,
         };
@@ -58,15 +58,15 @@ describe('DAL Utility Functions', () => {
             child_id: 'child1',
             first_name: 'John',
             last_name: 'Doe',
-            dob: '2015-08-25', // 10 years old on 2025-08-25
+            dob: '2015-08-25',
         };
 
         beforeEach(() => {
             jest.useFakeTimers();
             jest.setSystemTime(new Date('2025-08-25T12:00:00.000Z'));
 
-            (db.db.ministries.get as jest.Mock).mockResolvedValue(mockMinistry);
-            (db.db.children.get as jest.Mock).mockResolvedValue(mockChild);
+            mockAdapter.getMinistry.mockResolvedValue(mockMinistry);
+            mockAdapter.getChild.mockResolvedValue(mockChild);
         });
 
         afterEach(() => {
@@ -78,7 +78,7 @@ describe('DAL Utility Functions', () => {
         });
 
         it('returns false if child is too young', async () => {
-            (db.db.ministries.get as jest.Mock).mockResolvedValue({
+            mockAdapter.getMinistry.mockResolvedValue({
                 ...mockMinistry,
                 min_age: 11,
             });
@@ -86,7 +86,7 @@ describe('DAL Utility Functions', () => {
         });
 
         it('returns false if child is too old', async () => {
-            (db.db.ministries.get as jest.Mock).mockResolvedValue({
+            mockAdapter.getMinistry.mockResolvedValue({
                 ...mockMinistry,
                 max_age: 9,
             });
@@ -94,17 +94,17 @@ describe('DAL Utility Functions', () => {
         });
 
         it('returns false if ministry not found', async () => {
-            (db.db.ministries.get as jest.Mock).mockResolvedValue(null);
+            mockAdapter.getMinistry.mockResolvedValue(null);
             expect(await isEligibleForChoir('ministry1', 'child1')).toBe(false);
         });
 
         it('returns false if child not found', async () => {
-            (db.db.children.get as jest.Mock).mockResolvedValue(null);
+            mockAdapter.getChild.mockResolvedValue(null);
             expect(await isEligibleForChoir('ministry1', 'child1')).toBe(false);
         });
 
         it('returns false if child has no DOB', async () => {
-            (db.db.children.get as jest.Mock).mockResolvedValue({
+            mockAdapter.getChild.mockResolvedValue({
                 ...mockChild,
                 dob: undefined,
             });
@@ -121,7 +121,7 @@ describe('DAL Utility Functions', () => {
         };
 
         beforeEach(() => {
-            (db.db.ministries.get as jest.Mock).mockResolvedValue(mockMinistry);
+            mockAdapter.getMinistry.mockResolvedValue(mockMinistry);
         });
 
         it('returns true if date is within window', async () => {
@@ -137,12 +137,12 @@ describe('DAL Utility Functions', () => {
         });
 
         it('returns false if ministry not found', async () => {
-            (db.db.ministries.get as jest.Mock).mockResolvedValue(null);
+            mockAdapter.getMinistry.mockResolvedValue(null);
             expect(await isWithinWindow('ministry1', '2025-08-01')).toBe(false);
         });
 
         it('returns true if open_at is not set', async () => {
-            (db.db.ministries.get as jest.Mock).mockResolvedValue({
+            mockAdapter.getMinistry.mockResolvedValue({
                 ...mockMinistry,
                 open_at: undefined,
             });
@@ -150,7 +150,7 @@ describe('DAL Utility Functions', () => {
         });
 
         it('returns true if close_at is not set', async () => {
-            (db.db.ministries.get as jest.Mock).mockResolvedValue({
+            mockAdapter.getMinistry.mockResolvedValue({
                 ...mockMinistry,
                 close_at: undefined,
             });

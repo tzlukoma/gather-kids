@@ -3,22 +3,6 @@ import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import LeaderBibleBeeProgress from '@/components/gatherKids/bible-bee-progress';
 import { renderWithAuth } from '../../src/test-utils/auth/test-utils';
 
-// Mock competition years and DB access by stubbing db.competitionYears and dal function
-jest.mock('@/lib/db', () => ({
-	db: {
-		competitionYears: {
-			orderBy: () => ({
-				reverse: () => ({
-					toArray: async () => [
-						{ id: 'y1', year: 2025 },
-						{ id: 'y0', year: 2024 },
-					],
-				}),
-			}),
-		},
-	},
-}));
-
 jest.mock('@/lib/dal', () => ({
 	getBibleBeeProgressForCycle: async (cycleId: string) => {
 		if (String(cycleId) === '2025') {
