@@ -15,7 +15,8 @@ import type {
     MinistryEnrollment,
 } from '../types';
 import { ageOn } from './utils';
-import { getPriorRegistrationCycle, getCurrentRegistrationCycle } from './ministries';
+import { getPriorRegistrationCycle, getCurrentRegistrationCycle, requireActiveRegistrationCycle } from './ministries';
+import { householdIdsForCycle } from './cycle-scoping';
 import { pickActiveRegistrationCycle } from './registration-cycle-utils';
 import {
     applyReturningGradePrefill,
@@ -268,37 +269,52 @@ export async function queryHouseholdList(
     }
 
     if (ministryFilterIds && ministryFilterIds.length > 0) {
-        const cycles = await dbAdapter.listRegistrationCycles();
-        const activeCycle = cycles.find(
-            cycle => cycle.is_active === true || Number(cycle.is_active) === 1,
-        );
-
-        if (!activeCycle) return [];
+        let activeCycle;
+        try {
+            activeCycle = await requireActiveRegistrationCycle();
+        } catch {
+            return [];
+        }
 
         const enrollments = await dbAdapter.listMinistryEnrollments(
             undefined,
             undefined,
             activeCycle.cycle_id,
         );
-        const relevantEnrollments = enrollments.filter(e =>
-            ministryFilterIds!.includes(e.ministry_id),
+        const relevantEnrollments = enrollments.filter(
+            (e) =>
+                e.status === 'enrolled' &&
+                ministryFilterIds!.includes(e.ministry_id),
         );
 
         const relevantChildIds = [
-            ...new Set(relevantEnrollments.map(e => e.child_id)),
+            ...new Set(relevantEnrollments.map((e) => e.child_id)),
         ];
 
         const allChildren = await dbAdapter.listChildren({ isActive: true });
-        const relevantChildren = allChildren.filter(c =>
+        const relevantChildren = allChildren.filter((c) =>
             relevantChildIds.includes(c.child_id),
         );
 
         const relevantHouseholdIds = [
-            ...new Set(relevantChildren.map(c => c.household_id)),
+            ...new Set(relevantChildren.map((c) => c.household_id)),
         ];
-        filteredHouseholds = households.filter(h =>
+        filteredHouseholds = households.filter((h) =>
             relevantHouseholdIds.includes(h.household_id),
         );
+    } else {
+        // Admin default: households with children in the active cycle scope
+        try {
+            const activeCycle = await requireActiveRegistrationCycle();
+            const cycleHouseholdIds = new Set(
+                await householdIdsForCycle(activeCycle.cycle_id, 'union'),
+            );
+            filteredHouseholds = households.filter((h) =>
+                cycleHouseholdIds.has(h.household_id),
+            );
+        } catch {
+            return [];
+        }
     }
 
     const allChildren = await dbAdapter.listChildren();

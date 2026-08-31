@@ -11,6 +11,17 @@ jest.mock('@/lib/database/factory', () => {
     listMinistries: jest.fn().mockResolvedValue([]),
     listHouseholds: jest.fn().mockResolvedValue([]),
     listChildren: jest.fn().mockResolvedValue([]),
+    listRegistrations: jest.fn().mockResolvedValue([]),
+    listMinistryEnrollments: jest.fn().mockResolvedValue([]),
+    listRegistrationCycles: jest.fn().mockResolvedValue([
+      {
+        cycle_id: 'fall-2026',
+        name: 'Fall 2026',
+        is_active: true,
+        start_date: '2026-09-13',
+        end_date: '2027-06-30',
+      },
+    ]),
   };
   return {
     createDatabaseAdapter: jest.fn(() => mockAdapter),

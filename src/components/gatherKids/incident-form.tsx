@@ -23,9 +23,10 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { getTodayIsoDate, logIncident } from '@/lib/dal';
-import { useCheckedInChildren } from '@/hooks/data';
+import { useCheckedInChildren, useChildrenForActiveCycle } from '@/hooks/data';
 import type { IncidentSeverity } from '@/lib/types';
 import { useAuth } from '@/contexts/auth-context';
+import { useMemo } from 'react';
 
 const incidentFormSchema = z.object({
 	childId: z.string({ required_error: 'Please select a child.' }),
@@ -57,10 +58,18 @@ export function IncidentForm() {
 
 	const today = getTodayIsoDate();
 	const { data: checkedInChildren = [] } = useCheckedInChildren(today);
+	const { data: cycleChildren = [] } = useChildrenForActiveCycle();
+
+	const scopedCheckedInChildren = useMemo(() => {
+		const cycleIds = new Set(cycleChildren.map((child) => child.child_id));
+		return checkedInChildren.filter((child) => cycleIds.has(child.child_id));
+	}, [checkedInChildren, cycleChildren]);
 
 	async function onSubmit(data: IncidentFormValues) {
 		try {
-			const child = checkedInChildren?.find((c) => c.child_id === data.childId);
+			const child = scopedCheckedInChildren?.find(
+				(c) => c.child_id === data.childId,
+			);
 			if (!child) throw new Error('Child not found');
 
 			await logIncident({
@@ -102,14 +111,16 @@ export function IncidentForm() {
 									</SelectTrigger>
 								</FormControl>
 								<SelectContent>
-									{checkedInChildren?.map((child) => (
+									{scopedCheckedInChildren?.map((child) => (
 										<SelectItem key={child.child_id} value={child.child_id}>
 											{child.first_name} {child.last_name}
 										</SelectItem>
 									))}
-									{(!checkedInChildren || checkedInChildren.length === 0) && (
+									{(!scopedCheckedInChildren ||
+										scopedCheckedInChildren.length === 0) && (
 										<div className="p-4 text-center text-sm text-muted-foreground">
-											No checked-in children found for your assigned ministries.
+											No checked-in children found for the active registration
+											cycle.
 										</div>
 									)}
 								</SelectContent>

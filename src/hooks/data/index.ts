@@ -1,5 +1,5 @@
 // Data hooks
-export { useChildren, useChild, useCheckedInChildren, useUpdateChildPhotoMutation, useAddChild, useUpdateChild, useSoftDeleteChild, useReactivateChild } from './children';
+export { useChildren, useChildrenForActiveCycle, useChild, useCheckedInChildren, useUpdateChildPhotoMutation, useAddChild, useUpdateChild, useSoftDeleteChild, useReactivateChild } from './children';
 export { useBibleBeeStats } from './bibleBee';
 export { useHouseholds, useHousehold, useHouseholdProfile, useHouseholdList, useGuardians, useEmergencyContacts, useUpdateHousehold, useUpdateEmergencyContact } from './households';
 export { useAddGuardian, useUpdateGuardian, useRemoveGuardian } from './guardians';
