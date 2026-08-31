@@ -1,5 +1,6 @@
 import {withSentryConfig} from '@sentry/nextjs';
 import type { NextConfig } from 'next';
+import { resolveSentryRelease } from './src/lib/sentry/release';
 
 const nextConfig: NextConfig = {
   /* config options here */
@@ -69,6 +70,9 @@ export default withSentryConfig(nextConfig, {
   org: "gatherkids-app",
 
   project: "javascript-nextjs",
+
+  // Match SDK `release` (buildInfo.appVersion) so uploaded source maps deminify events.
+  release: { name: resolveSentryRelease() },
 
     // Sentry auth token:
     authToken: process.env.SENTRY_AUTH_TOKEN,
