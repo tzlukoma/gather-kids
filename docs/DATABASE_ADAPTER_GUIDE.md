@@ -1,57 +1,46 @@
 # Database Adapter System
 
-The gatherKids application now includes a database adapter interface that enables seamless switching between IndexedDB (demo mode) and Supabase (DEV/UAT/PROD) backends.
+The gatherKids application uses a database adapter interface so application code talks to **Supabase** through a single DAL, not through ad-hoc clients.
+
+Runtime is **Supabase-only**. The factory always returns `SupabaseAdapter`. There is no `DATABASE_MODE`, IndexedDB adapter path, or demo-mode fallback.
 
 ## Overview
 
-The database adapter system provides a unified interface for database operations while supporting multiple backends:
-
-- **IndexedDB Adapter**: Uses Dexie.js for browser-based storage (demo mode)
-- **Supabase Adapter**: Uses Supabase client for cloud-based PostgreSQL storage (production environments)
+- **Supabase Adapter**: PostgreSQL + Auth + Storage via the Supabase client (local, UAT, and production)
+- **DAL**: Import `dbAdapter` from `@/lib/dal`. Do not import `@supabase/supabase-js` outside the DAL and allowed API/script paths.
 
 ## Architecture
 
 ```
-Application Code
+Application Code / React Query hooks
+       ↓
+  DAL (`@/lib/dal`)
        ↓
   Database Adapter Interface (types.ts)
        ↓
-   Factory (factory.ts)
-    ↙         ↘
-IndexedDB     Supabase
-Adapter       Adapter
+   Factory (factory.ts) → always SupabaseAdapter
 ```
 
 ## Configuration
 
-The adapter is selected based on the `NEXT_PUBLIC_DATABASE_MODE` environment variable:
+Required in every environment (local disposable Supabase, UAT, or production):
 
-### Demo Mode (Default)
 ```env
-# Uses IndexedDB (no configuration required)
-NEXT_PUBLIC_DATABASE_MODE=demo
+NEXT_PUBLIC_SUPABASE_URL=http://localhost:54321
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon-key>
 ```
 
-### Supabase Mode
-```env
-NEXT_PUBLIC_DATABASE_MODE=supabase
-NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
-```
-
-If Supabase configuration is invalid or missing, the system automatically falls back to demo mode.
+If those variables are missing, the factory **throws**. It does not fall back to IndexedDB.
 
 ## Usage
 
 ### Importing the Adapter
 
 ```typescript
-// New adapter interface (recommended for new code)
 import { dbAdapter } from '@/lib/dal';
-
-// Legacy Dexie interface (existing code)
-import { db } from '@/lib/db';
 ```
+
+Do not import Dexie / `@/lib/db` from application code.
 
 ### Basic Operations
 
@@ -137,12 +126,10 @@ const result = await dbAdapter.transaction(async () => {
 ### Realtime Subscriptions
 
 ```typescript
-// Subscribe to table changes (Supabase only, no-op for IndexedDB)
 const unsubscribe = dbAdapter.subscribeToTable('households', (payload) => {
   console.log('Household changed:', payload);
 });
 
-// Clean up subscription
 unsubscribe();
 ```
 
@@ -157,37 +144,9 @@ The adapter interface supports all major entities:
 - **Bible Bee**: Bible Bee Years, Divisions, Essay Prompts, Enrollments
 - **System**: Users, Branding Settings
 
-## Migration Path
-
-### For Existing Code
-
-Existing code continues to work unchanged. The legacy Dexie interface is still available:
-
-```typescript
-// This continues to work
-import { db } from '@/lib/db';
-const household = await db.households.get(id);
-```
-
-### For New Code
-
-New features should use the adapter interface:
-
-```typescript
-// Recommended for new code
-import { dbAdapter } from '@/lib/dal';
-const household = await dbAdapter.getHousehold(id);
-```
-
-### Gradual Migration
-
-Over time, existing functions can be updated to use the adapter interface for consistency across environments.
-
 ## Testing
 
 ### Contract Tests
-
-The adapter system includes contract tests that validate both adapters implement the same interface correctly:
 
 ```bash
 npm test -- db-adapter-contract
@@ -195,15 +154,11 @@ npm test -- db-adapter-contract
 
 ### Factory Tests
 
-Test the adapter factory selection logic:
-
 ```bash
 npm test -- database-adapter-factory
 ```
 
 ### Integration Tests
-
-Test the adapter interface integration with the DAL:
 
 ```bash
 npm test -- database-adapter-integration
@@ -211,29 +166,13 @@ npm test -- database-adapter-integration
 
 ## Error Handling
 
-### Supabase Errors
-
 The Supabase adapter handles common error cases:
 
 - **404 Not Found**: Returns `null` for get operations
 - **Network Errors**: Throws with original error details
 - **Validation Errors**: Throws with Supabase error information
 
-### IndexedDB Errors
-
-The IndexedDB adapter handles Dexie-specific errors:
-
-- **Transaction Errors**: Properly managed through Dexie transactions
-- **Constraint Violations**: Throws with descriptive error messages
-
 ## Performance Considerations
-
-### IndexedDB Adapter
-
-- **Pros**: No network latency, works offline
-- **Cons**: Limited to single browser, no real-time sync
-
-### Supabase Adapter
 
 - **Pros**: Real-time sync, multi-device support, server-side processing
 - **Cons**: Network dependency, potential latency
@@ -244,11 +183,3 @@ The IndexedDB adapter handles Dexie-specific errors:
 2. **Apply filters** at the database level rather than in application code
 3. **Implement pagination** for large result sets
 4. **Subscribe selectively** to realtime updates to avoid unnecessary network traffic
-
-## Future Enhancements
-
-- **Connection pooling** for Supabase adapter
-- **Caching layer** for frequently accessed data
-- **Offline support** with sync capabilities
-- **Database schema migrations** management
-- **Performance monitoring** and metrics

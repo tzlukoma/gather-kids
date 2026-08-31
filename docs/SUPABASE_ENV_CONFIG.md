@@ -35,12 +35,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=<supabase-anon-key>
 SUPABASE_SERVICE_ROLE_KEY=<supabase-service-role-key>
 ```
 
-Additional optional variables for controlling features:
-
-```
-NEXT_PUBLIC_USE_SUPABASE=true|false      # Enable/disable Supabase (uses IndexedDB if false)
-NEXT_PUBLIC_ENABLE_REALTIME=true|false   # Enable/disable realtime subscriptions
-```
+There is no `DATABASE_MODE`, `SHOW_DEMO_FEATURES`, or `NEXT_PUBLIC_USE_SUPABASE`. Missing Supabase URL/key is an error; the app does not fall back to IndexedDB.
 
 ## Setting Up Local Development
 
@@ -53,14 +48,11 @@ NEXT_PUBLIC_APP_VERSION=1.0.0
 NODE_ENV=development
 
 # Feature flags
-NEXT_PUBLIC_SHOW_DEMO_FEATURES=true
 NEXT_PUBLIC_ENABLE_AI_FEATURES=false
 NEXT_PUBLIC_REGISTRATION_DRAFT_PERSISTENCE_ENABLED=true
-NEXT_PUBLIC_USE_SUPABASE=true
 NEXT_PUBLIC_SUPABASE_URL=http://localhost:54321
 NEXT_PUBLIC_SUPABASE_ANON_KEY=<local-supabase-anon-key>
 SUPABASE_SERVICE_ROLE_KEY=<local-supabase-service-role-key>
-NEXT_PUBLIC_ENABLE_REALTIME=true
 
 # For local Supabase development (if using Docker)
 SUPABASE_DB_PASSWORD=postgres
@@ -83,17 +75,10 @@ NEXT_PUBLIC_APP_VERSION=1.0.0
 NODE_ENV=test
 
 # Feature flags - disable external dependencies for tests
-NEXT_PUBLIC_SHOW_DEMO_FEATURES=false
 NEXT_PUBLIC_ENABLE_AI_FEATURES=false
 NEXT_PUBLIC_REGISTRATION_DRAFT_PERSISTENCE_ENABLED=false
 
-# Supabase - use IndexedDB mock for most tests
-NEXT_PUBLIC_USE_SUPABASE=false
-
-# For Supabase-specific tests, configure test project
-SUPABASE_TEST_URL=<test-project-url>
-SUPABASE_TEST_ANON_KEY=<test-project-anon-key>
-SUPABASE_TEST_SERVICE_ROLE_KEY=<test-project-service-role-key>
+# Tests mock the DAL / adapter; they do not use IndexedDB
 ```
 
 ## Setting Up Deployment Environments
@@ -109,14 +94,11 @@ NEXT_PUBLIC_APP_VERSION=1.0.0
 NODE_ENV=development
 
 # Feature flags
-NEXT_PUBLIC_SHOW_DEMO_FEATURES=true
 NEXT_PUBLIC_ENABLE_AI_FEATURES=false
 NEXT_PUBLIC_REGISTRATION_DRAFT_PERSISTENCE_ENABLED=true
-NEXT_PUBLIC_USE_SUPABASE=true
 NEXT_PUBLIC_SUPABASE_URL=https://your-dev-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=<dev-anon-key>
 SUPABASE_SERVICE_ROLE_KEY=<dev-service-role-key>
-NEXT_PUBLIC_ENABLE_REALTIME=true
 ```
 
 ### Preview/UAT Environment
@@ -130,14 +112,11 @@ NEXT_PUBLIC_APP_VERSION=1.0.0
 NODE_ENV=production
 
 # Feature flags
-NEXT_PUBLIC_SHOW_DEMO_FEATURES=true
 NEXT_PUBLIC_ENABLE_AI_FEATURES=false
 NEXT_PUBLIC_REGISTRATION_DRAFT_PERSISTENCE_ENABLED=true
-NEXT_PUBLIC_USE_SUPABASE=true
 NEXT_PUBLIC_SUPABASE_URL=https://your-uat-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=<uat-anon-key>
 SUPABASE_SERVICE_ROLE_KEY=<uat-service-role-key>
-NEXT_PUBLIC_ENABLE_REALTIME=true
 ```
 
 ### Production Environment
@@ -151,14 +130,11 @@ NEXT_PUBLIC_APP_VERSION=1.0.0
 NODE_ENV=production
 
 # Feature flags
-NEXT_PUBLIC_SHOW_DEMO_FEATURES=false
 NEXT_PUBLIC_ENABLE_AI_FEATURES=false
 NEXT_PUBLIC_REGISTRATION_DRAFT_PERSISTENCE_ENABLED=false
-NEXT_PUBLIC_USE_SUPABASE=true
 NEXT_PUBLIC_SUPABASE_URL=https://your-production-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=<production-anon-key>
 SUPABASE_SERVICE_ROLE_KEY=<production-service-role-key>
-NEXT_PUBLIC_ENABLE_REALTIME=true
 ```
 
 ## CI/CD Environment Configuration
@@ -203,10 +179,8 @@ jobs:
           echo "NEXT_PUBLIC_APP_NAME=gatherKids" >> .env.preview
           echo "NEXT_PUBLIC_APP_VERSION=1.0.0" >> .env.preview
           echo "NODE_ENV=production" >> .env.preview
-          echo "NEXT_PUBLIC_SHOW_DEMO_FEATURES=true" >> .env.preview
           echo "NEXT_PUBLIC_ENABLE_AI_FEATURES=false" >> .env.preview
           echo "NEXT_PUBLIC_REGISTRATION_DRAFT_PERSISTENCE_ENABLED=true" >> .env.preview
-          echo "NEXT_PUBLIC_USE_SUPABASE=true" >> .env.preview
           echo "NEXT_PUBLIC_SUPABASE_URL=${{ secrets.SUPABASE_UAT_URL }}" >> .env.preview
           echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.SUPABASE_UAT_ANON_KEY }}" >> .env.preview
           echo "SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_UAT_SERVICE_ROLE_KEY }}" >> .env.preview
@@ -281,19 +255,15 @@ CREATE POLICY "Users can only view their own households"
   USING (auth.uid() = created_by);
 ```
 
-## Switching Between Adapters
+## Database factory
 
-gatherKids supports both IndexedDB and Supabase as database backends. To toggle between them:
+The factory always returns `SupabaseAdapter`. There is no adapter toggle.
 
 ```typescript
-// In your .env file:
-NEXT_PUBLIC_USE_SUPABASE = true | false;
-
-// This is handled automatically in the database adapter factory:
-import { createDatabaseAdapter } from '@/lib/database/adapter-factory';
-
-const db = createDatabaseAdapter();
+import { dbAdapter } from '@/lib/dal';
 ```
+
+Application code must use the DAL. Do not import `@supabase/supabase-js` outside the DAL and allowed API/script paths.
 
 ## Validation and Testing
 

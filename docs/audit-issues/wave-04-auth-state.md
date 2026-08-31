@@ -1,8 +1,8 @@
 ## Context
 
-Part of the [Comprehensive Application Audit](../COMPREHENSIVE-AUDIT-REPORT.md) sequencing. **Wave 4** stabilizes auth and state after demo mode removal (Wave 3). These changes touch `auth-context.tsx` and data hooks; do them while the context is still fresh from #191.
+Part of the [Comprehensive Application Audit](../COMPREHENSIVE-AUDIT-REPORT.md) sequencing. **Wave 4** stabilizes auth and state after demo mode removal (Wave 3 runtime is done; leftover files: #266).
 
-**Prerequisite**: Wave 3 (demo mode removal) complete.
+**Prerequisite**: Wave 3 runtime complete (leftover Dexie deletion is #266, not a blocker for auth/state work).
 
 ## Checklist
 
