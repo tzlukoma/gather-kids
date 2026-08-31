@@ -22,6 +22,7 @@ feature/* ──PR──► main  ◄── release-please Release PR (semver ta
         └── merge to main ──► Vercel Production (prod Supabase)
                     │
                     └── workflow_dispatch prod-db-deploy (GitHub env: production)
+                    └── scheduled digest / keepalive (GitHub env: production-ops)
 
 footer tooltip (admin): app vX.Y.Z · uat|production · db migration
 scheduled / manual ops workflows (digest, keepalive, backup, …)
@@ -31,7 +32,20 @@ scheduled / manual ops workflows (digest, keepalive, backup, …)
 |------|------------|
 | **`main`** | Only long-lived git branch; PR target; Vercel production |
 | **UAT** | GitHub Environment `uat` + UAT Supabase + Vercel Preview env vars |
-| **Production** | Vercel Production on `main` + GitHub Environment `production` |
+| **Production** | Vercel Production on `main` + GitHub Environment `production` (required reviewers) |
+| **Production ops** | GitHub Environment `production-ops` — unattended scheduled prod jobs (no reviewers) |
+
+### GitHub Environments
+
+| Environment | Required reviewers | Used by |
+|-------------|-------------------|---------|
+| **`uat`** | No | UAT DB deploy, UAT digest, UAT keepalive |
+| **`production`** | Yes (Thomas) | Destructive / promote jobs: [`prod-db-deploy.yml`](../.github/workflows/prod-db-deploy.yml), [`db-backup.yml`](../.github/workflows/db-backup.yml) when input is `PROD`, [`ministry-enrollment-report.yml`](../.github/workflows/ministry-enrollment-report.yml) prod job |
+| **`production-ops`** | **No** | Scheduled + routine prod ops: `digest-prod` in [`daily-digest.yml`](../.github/workflows/daily-digest.yml), prod [`supabase-keepalive.yml`](../.github/workflows/supabase-keepalive.yml) |
+
+`production` and `production-ops` use the **same production Supabase project** credentials. `production-ops` is not a second database.
+
+Scheduled jobs **must not** use `production`. That environment’s required-reviewer gate pauses every run at **Review deployments**, so cron would stall until someone approves. `production-ops` has no reviewers or wait timers so digest and keepalive run unattended.
 
 ---
 
@@ -182,16 +196,18 @@ git add src/lib/database/supabase-types.ts
 
 ## Ops workflows (scheduled / manual)
 
-GitHub Actions only registers workflow files **directly** under [`.github/workflows/`](../.github/workflows/) — not in subfolders. These ops workflows live at the top level alongside `ci.yml`:
+GitHub Actions only registers workflow files **directly** under [`.github/workflows/`](../.github/workflows/) — not in subfolders. These ops workflows live at the top level alongside `ci.yml`.
 
-| Workflow | Purpose |
-|----------|---------|
-| [`daily-digest.yml`](../.github/workflows/daily-digest.yml) | Scheduled + manual digest emails |
-| [`supabase-keepalive.yml`](../.github/workflows/supabase-keepalive.yml) | Prod Supabase keepalive |
-| [`supabase-keepalive-uat.yml`](../.github/workflows/supabase-keepalive-uat.yml) | UAT keepalive |
-| [`db-backup.yml`](../.github/workflows/db-backup.yml) | DB backup |
-| [`ministry-enrollment-report.yml`](../.github/workflows/ministry-enrollment-report.yml) | Enrollment reporting |
-| [`check-auth-users.yml`](../.github/workflows/check-auth-users.yml) | Auth user audit |
+Prod jobs that must run on a schedule use GitHub Environment **`production-ops`** (no reviewers). Manual destructive/promote jobs keep **`production`** so required reviewers still apply.
+
+| Workflow | Purpose | Prod GitHub Environment |
+|----------|---------|-------------------------|
+| [`daily-digest.yml`](../.github/workflows/daily-digest.yml) | Scheduled + manual digest emails | `production-ops` (`digest-prod`) |
+| [`supabase-keepalive.yml`](../.github/workflows/supabase-keepalive.yml) | Prod Supabase keepalive | `production-ops` |
+| [`supabase-keepalive-uat.yml`](../.github/workflows/supabase-keepalive-uat.yml) | UAT keepalive | `uat` |
+| [`db-backup.yml`](../.github/workflows/db-backup.yml) | DB backup | `production` when input is `PROD` |
+| [`ministry-enrollment-report.yml`](../.github/workflows/ministry-enrollment-report.yml) | Enrollment reporting | `production` (manual; approval acceptable) |
+| [`check-auth-users.yml`](../.github/workflows/check-auth-users.yml) | Auth user audit | none |
 
 ### UAT seed (destructive)
 
@@ -204,11 +220,13 @@ GitHub Actions only registers workflow files **directly** under [`.github/workfl
 
 ### Daily digest dry-run
 
-Actions → **Daily Digest** → set `dry_run: true`. Choose `PROD` or `UAT` environment.
+Actions → **Daily Digest** → set `dry_run: true`. Choose `PROD` or `UAT`. A PROD run uses `production-ops` and must **not** prompt for deployment approval.
 
 ---
 
 ## GitHub Environment secrets (names only)
+
+DB deploy / types jobs (`uat`, `production`):
 
 | Secret | `uat` | `production` |
 |--------|-------|----------------|
@@ -219,6 +237,19 @@ Actions → **Daily Digest** → set `dry_run: true`. Choose `PROD` or `UAT` env
 | `SUPABASE_SERVICE_ROLE_KEY` | ✓ | ✓ |
 
 Legacy aliases: `UAT_SUPABASE_URL`, `PROD_SUPABASE_URL`, `UAT_DATABASE_URL`, `PROD_DATABASE_URL`.
+
+Scheduled prod ops (`production-ops`) — same production credential **values** as `production`, ops-scoped names only. Do **not** add `SENTRY_AUTH_TOKEN` or DB-deploy tokens unless a workflow truly needs them. Do **not** add required reviewers on this environment.
+
+| Secret | Needed for |
+|--------|------------|
+| `PROD_SUPABASE_URL` | digest, keepalive |
+| `PROD_SUPABASE_SERVICE_ROLE_KEY` | digest, keepalive |
+| `PROD_MJ_API_KEY` | digest |
+| `PROD_MJ_API_SECRET` | digest |
+| `PROD_FROM_EMAIL` | digest |
+| `PROD_MONITOR_EMAILS` | digest |
+| `PROD_EMAIL_MODE` | digest (optional; workflow falls back to `mailjet`) |
+| `SENTRY_DSN` | digest cron check-in only |
 
 See [`docs/SUPABASE_API_KEYS.md`](./SUPABASE_API_KEYS.md) for publishable vs secret key terminology.
 
@@ -306,9 +337,11 @@ gatherKids crons are GitHub Actions, not Vercel Cron. `automaticVercelMonitors` 
 
 | Secret | GitHub Environment | Used by |
 |--------|--------------------|---------|
-| `SENTRY_DSN` | `production` | `digest-prod` in `daily-digest.yml` |
+| `SENTRY_DSN` | `production-ops` | `digest-prod` in `daily-digest.yml` |
 
 If `SENTRY_DSN` is unset, the digest still runs and the step emits a notice. Do **not** put this secret (or `SENTRY_AUTH_TOKEN`) on `ci.yml`. Do **not** add Sentry org tokens to GitHub Environments for app CI.
+
+`digest-prod` reads `SENTRY_DSN` from **`production-ops`**, not from gated `production`. Mirror the DSN onto `production-ops` (same value as `production` during transition is fine). The Sentry CLI `--environment production` flag is the Sentry runtime environment name, not the GitHub Environment.
 
 After the first successful scheduled (or manual PROD) run with `SENTRY_DSN` set, confirm the `daily-digest` monitor appears in Sentry → Crons. Create it in the UI only if the first check-in did not upsert it.
 
