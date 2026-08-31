@@ -9,7 +9,6 @@ import { useEffect, useCallback } from 'react';
 import { isDebugOn, onDebugFlagChange, setDebugFlag, syncDebugFlag } from './flag';
 import { installDebugPatches, uninstallDebugPatches } from './patch-manager';
 import { instrumentDAL } from './instrument-dal';
-import { instrumentIndexedDB } from './instrument-indexeddb';
 import { instrumentFetch } from './instrument-fetch';
 import { devLog } from '../dev-log';
 
@@ -21,7 +20,6 @@ export function DebugInstaller() {
     if (enabled) {
       installDebugPatches([
         instrumentDAL,
-        instrumentIndexedDB,
         instrumentFetch,
       ]);
     } else {

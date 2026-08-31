@@ -1,6 +1,4 @@
-import { db } from '../../src/lib/db';
 import { dbAdapter } from '../../src/lib/db-utils';
-import { shouldUseAdapter } from '../../src/lib/dal';
 
 /**
  * Fresh Bible Bee Seeding Script
@@ -19,22 +17,9 @@ async function createBibleBeeCycle(registrationCycleId: string) {
         is_active: true,
     };
 
-    if (shouldUseAdapter()) {
-        // Use Supabase adapter
-        const cycle = await dbAdapter.createBibleBeeCycle(cycleData);
-        console.log(`✅ Created Bible Bee cycle: ${cycle.id}`);
-        return cycle.id;
-    } else {
-        // Use Dexie
-        const cycle = await db.bible_bee_cycles.add({
-            ...cycleData,
-            id: `${EXTERNAL_ID_PREFIX}bible_bee_cycle_${Date.now()}`,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-        });
-        console.log(`✅ Created Bible Bee cycle: ${cycle}`);
-        return cycle;
-    }
+    const cycle = await dbAdapter.createBibleBeeCycle(cycleData);
+    console.log(`✅ Created Bible Bee cycle: ${cycle.id}`);
+    return cycle.id;
 }
 
 async function createDivisions(bibleBeeCycleId: string) {
@@ -83,20 +68,9 @@ async function createDivisions(bibleBeeCycleId: string) {
             ...division,
         };
 
-        if (shouldUseAdapter()) {
-            const id = `${EXTERNAL_ID_PREFIX}division_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-            const created = await dbAdapter.createDivision({ id, ...divisionData });
-            createdDivisions.push(created);
-        } else {
-            const id = `${EXTERNAL_ID_PREFIX}division_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-            await db.divisions.add({
-                ...divisionData,
-                id,
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString(),
-            });
-            createdDivisions.push({ id, ...divisionData });
-        }
+        const id = `${EXTERNAL_ID_PREFIX}division_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        const created = await dbAdapter.createDivision({ id, ...divisionData });
+        createdDivisions.push(created);
     }
 
     console.log(`✅ Created ${createdDivisions.length} divisions`);
@@ -179,20 +153,9 @@ async function createScriptures(bibleBeeCycleId: string) {
             text,
         };
 
-        if (shouldUseAdapter()) {
-            const id = `${EXTERNAL_ID_PREFIX}scripture_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-            const created = await dbAdapter.upsertScripture({ id, ...scriptureData });
-            createdScriptures.push(created);
-        } else {
-            const id = `${EXTERNAL_ID_PREFIX}scripture_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-            await db.scriptures.add({
-                ...scriptureData,
-                id,
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString(),
-            });
-            createdScriptures.push({ id, ...scriptureData });
-        }
+        const id = `${EXTERNAL_ID_PREFIX}scripture_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        const created = await dbAdapter.upsertScripture({ id, ...scriptureData });
+        createdScriptures.push(created);
     }
 
     console.log(`✅ Created ${createdScriptures.length} scriptures`);
@@ -230,20 +193,9 @@ async function createEssayPrompts(bibleBeeCycleId: string, divisions: any[]) {
                 ...prompt,
             };
 
-            if (shouldUseAdapter()) {
-                const id = `${EXTERNAL_ID_PREFIX}essay_prompt_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-                const created = await dbAdapter.createEssayPrompt({ id, ...promptData });
-                createdPrompts.push(created);
-            } else {
-                const id = `${EXTERNAL_ID_PREFIX}essay_prompt_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-                await db.essay_prompts.add({
-                    ...promptData,
-                    id,
-                    created_at: new Date().toISOString(),
-                    updated_at: new Date().toISOString(),
-                });
-                createdPrompts.push({ id, ...promptData });
-            }
+            const id = `${EXTERNAL_ID_PREFIX}essay_prompt_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+            const created = await dbAdapter.createEssayPrompt({ id, ...promptData });
+            createdPrompts.push(created);
         }
     }
 
@@ -258,17 +210,9 @@ export async function seedBibleBeeFresh(registrationCycleId?: string) {
         // Use provided registration cycle ID or find an active one
         let cycleId = registrationCycleId;
         if (!cycleId) {
-            if (shouldUseAdapter()) {
-                const cycles = await dbAdapter.listRegistrationCycles(true);
-                if (cycles.length > 0) {
-                    cycleId = cycles[0].cycle_id;
-                }
-            } else {
-                const allCycles = await db.registration_cycles.toArray();
-                const cycles = allCycles.filter(c => c.is_active);
-                if (cycles.length > 0) {
-                    cycleId = cycles[0].cycle_id;
-                }
+            const cycles = await dbAdapter.listRegistrationCycles(true);
+            if (cycles.length > 0) {
+                cycleId = cycles[0].cycle_id;
             }
         }
 
