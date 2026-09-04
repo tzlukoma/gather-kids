@@ -99,6 +99,9 @@ cp .env.e2e.ci.example .env.e2e.ci
 # Local development (headless)
 npm run test:e2e:local
 
+# Admin User Management flow (uses offline dummy Supabase plus mocked /api/users)
+npm run test:e2e:admin
+
 # Local development (headed - see browser)
 npm run test:e2e:headed
 
@@ -117,6 +120,19 @@ The tests run **sequentially** (not parallel) to ensure:
 - Proper cleanup between tests
 
 Timeout is set to **60 seconds** to account for email delivery delays.
+
+### Admin User Management tests
+
+The Admin User Management spec (`e2e/admin-user-management.spec.ts`) runs with:
+
+```bash
+npm run test:e2e:admin
+```
+
+This command starts the app on port 9002 with the offline dummy Supabase URL, seeds
+synthetic admin/ministry-leader auth state in the browser, and uses Playwright
+route handlers for `/api/users`, `/api/users/create`, and `/api/users/:id`. It
+does not require UAT or production Supabase credentials.
 
 ## Test Data
 
