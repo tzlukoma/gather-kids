@@ -18,13 +18,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
-import {
-	Upload,
-	Image as ImageIcon,
-	Youtube,
-	Instagram,
-	Palette,
-} from 'lucide-react';
+import { Upload, Image as ImageIcon, Palette } from 'lucide-react';
+import { Youtube, Instagram } from '@/components/icons/brand';
 import { useBrandingSettings, useSaveBrandingSettings } from '@/hooks/data';
 import { CardGridSkeleton } from '@/components/skeletons/CardGridSkeleton';
 
