@@ -101,7 +101,9 @@ export function useScripturesForYear(yearId: string) {
 export function useScripturesForYearQuery(yearId: string) {
     const qc = useQueryClient();
     const key = ['scriptures', yearId];
-    const query = useQuery(key, async () => {
+    const query = useQuery({
+        queryKey: key,
+        queryFn: async () => {
         // Get all scriptures for this year via Supabase adapter
         const s = await getScripturesForBibleBeeCycle(yearId);
 
@@ -114,12 +116,14 @@ export function useScripturesForYearQuery(yearId: string) {
             const bOrder = Number(bRec['scripture_order'] ?? bRec['sortOrder'] ?? 0);
             return aOrder - bOrder;
         });
+        },
     });
 
-    const mutation = useMutation(async (payload: unknown) => upsertScripture(payload as unknown as Omit<Scripture, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }), {
+    const mutation = useMutation({
+        mutationFn: async (payload: Partial<Scripture> & { id?: string }) => upsertScripture(payload as unknown as Omit<Scripture, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }),
         // optimistic update
-    onMutate: async (newScripture: Partial<Scripture> & { id?: string }) => {
-            await qc.cancelQueries(key);
+        onMutate: async (newScripture: Partial<Scripture> & { id?: string }) => {
+            await qc.cancelQueries({ queryKey: key });
             const previous = qc.getQueryData<Scripture[]>(key) || [];
             qc.setQueryData<Scripture[]>(key, (old: Scripture[] = []) => {
                 // if existing id, replace; else append
@@ -130,11 +134,11 @@ export function useScripturesForYearQuery(yearId: string) {
             });
             return { previous };
         },
-        onError: (_err: unknown, _new: Partial<Scripture> | undefined, context: { previous?: Scripture[] } | undefined) => {
+        onError: (_err: unknown, _new: Partial<Scripture> & { id?: string }, context: { previous?: Scripture[] } | undefined) => {
             if (context?.previous) qc.setQueryData(key, context.previous);
         },
         onSettled: () => {
-            qc.invalidateQueries(key);
+            qc.invalidateQueries({ queryKey: key });
         }
     });
 
@@ -159,7 +163,9 @@ export async function createGradeRule(payload: Omit<GradeRule, 'id' | 'createdAt
 // --- Student / Parent hooks
 export function useStudentAssignmentsQuery(childId: string) {
     const key = ['studentAssignments', childId];
-    return useQuery(key, async () => {
+    return useQuery({
+        queryKey: key,
+        queryFn: async () => {
         try {
             console.log('🚀 Starting useStudentAssignmentsQuery for child:', childId);
             
@@ -359,10 +365,10 @@ export function useStudentAssignmentsQuery(childId: string) {
             });
             return { scriptures: [], essays: [] };
         }
-    }, {
+        },
         enabled: !!childId, // Only run query if childId is provided
         staleTime: 2 * 60 * 1000, // 2 minutes (shorter since assignments can change frequently)
-        cacheTime: 5 * 60 * 1000, // 5 minutes
+        gcTime: 5 * 60 * 1000, // 5 minutes
         refetchOnWindowFocus: false, // Don't refetch when window regains focus
         refetchOnMount: true, // Do refetch when component mounts (for fresh data)
     });
@@ -371,10 +377,11 @@ export function useStudentAssignmentsQuery(childId: string) {
 export function useToggleScriptureMutation(childId: string) {
     const qc = useQueryClient();
     const key = ['studentAssignments', childId];
-    return useMutation(async ({ id, complete }: { id: string; complete: boolean }) => toggleScriptureCompletion(id, complete), {
-        onMutate: async ({ id, complete }) => {
+    return useMutation({
+        mutationFn: async ({ id, complete }: { id: string; complete: boolean }) => toggleScriptureCompletion(id, complete),
+        onMutate: async ({ id, complete }: { id: string; complete: boolean }) => {
             // Cancel any outgoing refetches (so they don't overwrite our optimistic update)
-            await qc.cancelQueries(key);
+            await qc.cancelQueries({ queryKey: key });
 
             // Snapshot the previous value
             const previousData = qc.getQueryData(key);
@@ -396,7 +403,7 @@ export function useToggleScriptureMutation(childId: string) {
             // Return a context object with the snapshotted value
             return { previousData };
         },
-        onError: (err, variables, context) => {
+        onError: (_err: unknown, _variables: { id: string; complete: boolean }, context: { previousData?: unknown } | undefined) => {
             // If the mutation fails, use the context returned from onMutate to roll back
             if (context?.previousData) {
                 qc.setQueryData(key, context.previousData);
@@ -412,9 +419,10 @@ export function useToggleScriptureMutation(childId: string) {
 export function useSubmitEssayMutation(childId: string) {
     const qc = useQueryClient();
     const key = ['studentAssignments', childId];
-    return useMutation(async ({ bibleBeeCycleId }: { bibleBeeCycleId: string }) => submitEssay(childId, bibleBeeCycleId), {
+    return useMutation({
+        mutationFn: async ({ bibleBeeCycleId }: { bibleBeeCycleId: string }) => submitEssay(childId, bibleBeeCycleId),
         onMutate: async ({ bibleBeeCycleId }: { bibleBeeCycleId: string }) => {
-            await qc.cancelQueries(key);
+            await qc.cancelQueries({ queryKey: key });
             const previous = qc.getQueryData<any>(key);
             qc.setQueryData(key, (old: any) => {
                 if (!old) return old;
@@ -423,10 +431,10 @@ export function useSubmitEssayMutation(childId: string) {
             });
             return { previous };
         },
-        onError: (_err: unknown, _vars: { bibleBeeCycleId?: string } | undefined, context: any) => {
+        onError: (_err: unknown, _vars: { bibleBeeCycleId: string }, context: any) => {
             if (context?.previous) qc.setQueryData(key, context.previous);
         },
-        onSettled: () => qc.invalidateQueries(key),
+        onSettled: () => qc.invalidateQueries({ queryKey: key }),
     });
 }
 
@@ -441,7 +449,7 @@ export function useBibleBeeCyclesQuery() {
             return cycles || [];
         },
         staleTime: 5 * 60 * 1000, // 5 minutes
-        cacheTime: 10 * 60 * 1000, // 10 minutes
+        gcTime: 10 * 60 * 1000, // 10 minutes
     });
 }
 
@@ -460,7 +468,7 @@ export function useScripturesForCycleQuery(cycleId: string) {
         },
         enabled: !!cycleId, // Only run query if cycleId is provided
         staleTime: 5 * 60 * 1000, // 5 minutes
-        cacheTime: 10 * 60 * 1000, // 10 minutes
+        gcTime: 10 * 60 * 1000, // 10 minutes
     });
 }
 
@@ -488,7 +496,7 @@ export function useBibleBeeProgressQuery(cycleId: string, filterChildIds?: strin
         },
         enabled: !!cycleId, // Only run query if cycleId is provided
         staleTime: 2 * 60 * 1000, // 2 minutes (shorter than scriptures since this changes more frequently)
-        cacheTime: 5 * 60 * 1000, // 5 minutes
+        gcTime: 5 * 60 * 1000, // 5 minutes
     });
 }
 
@@ -511,7 +519,7 @@ export function useChildQuery(childId: string) {
         },
         enabled: !!childId, // Only run query if childId is provided
         staleTime: 5 * 60 * 1000, // 5 minutes
-        cacheTime: 10 * 60 * 1000, // 10 minutes
+        gcTime: 10 * 60 * 1000, // 10 minutes
     });
 }
 
@@ -533,7 +541,7 @@ export function useHouseholdQuery(householdId: string) {
         },
         enabled: !!householdId, // Only run query if householdId is provided
         staleTime: 5 * 60 * 1000, // 5 minutes
-        cacheTime: 10 * 60 * 1000, // 10 minutes
+        gcTime: 10 * 60 * 1000, // 10 minutes
     });
 }
 
@@ -555,7 +563,7 @@ export function useGuardiansQuery(householdId: string) {
         },
         enabled: !!householdId, // Only run query if householdId is provided
         staleTime: 5 * 60 * 1000, // 5 minutes
-        cacheTime: 10 * 60 * 1000, // 10 minutes
+        gcTime: 10 * 60 * 1000, // 10 minutes
     });
 }
 
@@ -584,18 +592,16 @@ export function useChildPhotoUpdateListener() {
 // Keeping this for backward compatibility but it should not be used in new code
 export function useUpdateChildPhotoMutation() {
     console.warn('useUpdateChildPhotoMutation from useBibleBee.ts is deprecated. Use the one from @/hooks/data instead.');
-    return useMutation(
-        async ({ childId, photoDataUrl }: { childId: string; photoDataUrl: string }) => {
+    return useMutation({
+        mutationFn: async ({ childId, photoDataUrl }: { childId: string; photoDataUrl: string }) => {
             return await updateChildPhoto(childId, photoDataUrl);
         },
-        {
-            onSuccess: (_, { childId, photoDataUrl }) => {
+        onSuccess: (_: unknown, { childId, photoDataUrl }: { childId: string; photoDataUrl: string }) => {
                 // Dispatch custom event for immediate updates across all components
                 const event = new CustomEvent('childPhotoUpdated', {
                     detail: { childId, photoDataUrl }
                 });
                 window.dispatchEvent(event);
             },
-        }
-    );
+    });
 }
