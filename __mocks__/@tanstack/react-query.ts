@@ -56,7 +56,8 @@ export function useQuery(optionsOrKey: any, maybeFn?: any) {
         const cb = (val: any) => { if (mounted) setData(val); };
         s.add(cb);
         return () => { mounted = false; };
-    }, [JSON.stringify(key)]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- mock implementation: fn and key are intentionally stable
+    }, []);
     return { data };
 }
 

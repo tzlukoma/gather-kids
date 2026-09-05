@@ -82,7 +82,7 @@ function EvaluationScripturesContent() {
 		if (allTranslationKeys.length > 0) {
 			setSelectedTranslations(new Set(allTranslationKeys));
 		}
-	}, [allTranslationKeys.join(',')]);
+	}, [allTranslationKeys]);
 
 	const toggleTranslation = (key: string) => {
 		setSelectedTranslations((prev) => {

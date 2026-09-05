@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import {
 	Dialog,
@@ -42,13 +42,7 @@ export function MinistryAssignmentDialog({
 	const [isLoading, setIsLoading] = useState(false);
 	const [isSaving, setIsSaving] = useState(false);
 
-	useEffect(() => {
-		if (isOpen && group) {
-			loadData();
-		}
-	}, [isOpen, group]);
-
-	const loadData = async () => {
+	const loadData = useCallback(async () => {
 		if (!group) return;
 		
 		setIsLoading(true);
@@ -77,7 +71,13 @@ export function MinistryAssignmentDialog({
 		} finally {
 			setIsLoading(false);
 		}
-	};
+	}, [group, toast]);
+
+	useEffect(() => {
+		if (isOpen && group) {
+			loadData();
+		}
+	}, [isOpen, group, loadData]);
 
 	const handleMinistryToggle = (ministryId: string, isChecked: boolean) => {
 		setAssignedMinistryIds(prev => {

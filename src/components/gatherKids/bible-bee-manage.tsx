@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import type { Division, GradeRule } from '@/lib/types';
 import { normalizeGradeDisplay } from '@/lib/gradeUtils';
 import {
@@ -2325,14 +2325,7 @@ function EnrollmentManagement({
 	const [isLoading, setIsLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 
-	// Load preview automatically when year or divisions change
-	React.useEffect(() => {
-		if (yearId && divisions.length >= 0) {
-			loadPreview();
-		}
-	}, [yearId, divisions.length]);
-
-	const loadPreview = async () => {
+	const loadPreview = useCallback(async () => {
 		setIsLoading(true);
 		setError(null);
 		try {
@@ -2407,7 +2400,14 @@ function EnrollmentManagement({
 		} finally {
 			setIsLoading(false);
 		}
-	};
+	}, [yearId, divisions]);
+
+	// Load preview automatically when year or divisions change
+	React.useEffect(() => {
+		if (yearId && divisions.length >= 0) {
+			loadPreview();
+		}
+	}, [yearId, divisions.length, loadPreview]);
 
 	const handleCommit = async () => {
 		console.log(`DEBUG: handleCommit called, preview exists: ${!!preview}`);
@@ -2459,7 +2459,7 @@ function EnrollmentManagement({
 		if (yearId) {
 			loadPreview();
 		}
-	}, [yearId]);
+	}, [yearId, loadPreview]);
 
 	const getStatusBadge = (status: string) => {
 		switch (status) {
