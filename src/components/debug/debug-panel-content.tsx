@@ -128,7 +128,7 @@ export function DebugPanelContent() {
         subscriptionRef.current = null;
       }
     };
-  }, []); // Empty dependency array to run only once
+  }, [handleDebugEvent, loadEventsFromStore]);
 
   // Re-calculate route-specific data when route or events change
   useEffect(() => {

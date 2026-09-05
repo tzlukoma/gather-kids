@@ -90,7 +90,7 @@ export function SquareCropperModal({
 			setProgress(0);
 			stopCamera();
 		}
-	}, [isOpen]);
+	}, [isOpen, stopCamera]);
 
 	// Camera functions
 	const stopCamera = useCallback(() => {
@@ -127,7 +127,7 @@ export function SquareCropperModal({
 				description: 'Please enable camera permissions in your browser settings.',
 			});
 		}
-	}, [toast]);
+	}, []);
 
 	// Camera initialization effect
 	useEffect(() => {

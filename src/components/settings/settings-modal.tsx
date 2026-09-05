@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -117,9 +117,9 @@ export function SettingsModal({
 		if (isOpen && user) {
 			loadProfileData();
 		}
-	}, [isOpen, user]);
+	}, [isOpen, user, loadProfileData]);
 
-	const loadProfileData = async () => {
+	const loadProfileData = useCallback(async () => {
 		if (!user) return;
 
 		setLoading(true);
@@ -153,7 +153,7 @@ export function SettingsModal({
 		} finally {
 			setLoading(false);
 		}
-	};
+	}, [user, toast, profileForm]);
 
 	const handleAvatarUpload = () => {
 		setShowCropper(true);

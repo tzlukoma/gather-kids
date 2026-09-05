@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import type { Division, GradeRule } from '@/lib/types';
 import { normalizeGradeDisplay } from '@/lib/gradeUtils';
 import {
@@ -2330,9 +2330,9 @@ function EnrollmentManagement({
 		if (yearId && divisions.length >= 0) {
 			loadPreview();
 		}
-	}, [yearId, divisions.length]);
+	}, [yearId, divisions.length, loadPreview]);
 
-	const loadPreview = async () => {
+	const loadPreview = useCallback(async () => {
 		setIsLoading(true);
 		setError(null);
 		try {
@@ -2407,7 +2407,7 @@ function EnrollmentManagement({
 		} finally {
 			setIsLoading(false);
 		}
-	};
+	}, [yearId, divisions]);
 
 	const handleCommit = async () => {
 		console.log(`DEBUG: handleCommit called, preview exists: ${!!preview}`);
@@ -2459,7 +2459,7 @@ function EnrollmentManagement({
 		if (yearId) {
 			loadPreview();
 		}
-	}, [yearId]);
+	}, [yearId, loadPreview]);
 
 	const getStatusBadge = (status: string) => {
 		switch (status) {

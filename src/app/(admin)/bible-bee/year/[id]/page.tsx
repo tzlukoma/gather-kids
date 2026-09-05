@@ -59,7 +59,7 @@ export default function YearManagePage() {
 		return () => {
 			mounted = false;
 		};
-	}, [yearId, scriptures]);
+	}, [yearId, scriptures, displayVersion]);
 
 	async function handleAddScripture(ref: string, text: string) {
 		const payload = {

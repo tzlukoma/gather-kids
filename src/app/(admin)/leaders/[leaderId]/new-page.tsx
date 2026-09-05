@@ -22,7 +22,7 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import type { MinistryLeaderMembership, LeaderProfile, Ministry } from '@/lib/types';
 import { Switch } from '@/components/ui/switch';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -120,7 +120,7 @@ export default function LeaderProfilePage() {
 			setIsActive(false);
 			handleStatusChange(false);
 		}
-	}, [hasAssignments, isActive]);
+	}, [hasAssignments, isActive, handleStatusChange]);
 
 	const handleAssignmentChange = (ministryId: string, checked: boolean) => {
 		setAssignments((prev) => ({
@@ -171,7 +171,7 @@ export default function LeaderProfilePage() {
 		setIsSaving(false);
 	};
 
-	const handleStatusChange = async (newStatus: boolean) => {
+	const handleStatusChange = useCallback(async (newStatus: boolean) => {
 		if (!profileData) return;
 		
 		try {
@@ -192,7 +192,7 @@ export default function LeaderProfilePage() {
 			// Revert optimistic UI update
 			setIsActive(!newStatus);
 		}
-	};
+	}, [profileData, leaderId, toast]);
 
 	const assignedMinistries = useMemo(() => {
 		if (!profileData) return [];
