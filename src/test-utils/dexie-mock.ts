@@ -1,6 +1,6 @@
 // Minimal in-memory Dexie-like mock used for Node/Jest environments where
 // IndexedDB is not available. Provides basic table operations used in tests.
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ 
 type RecordObj = { [k: string]: any };
 
 function createCollection(store: Map<string, RecordObj>, initialFilter?: (item: any) => boolean) {
@@ -287,7 +287,7 @@ export function setupDexieMockIfNeeded() {
     if (!hasIndexedDB) {
         const inMemory = createInMemoryDB();
         // Use Jest to mock the module so imports of '@/lib/db' get the mock
-        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+         
         // @ts-ignore
         if (typeof jest !== 'undefined' && jest.mock) {
             // Note: jest.mock must receive a factory function

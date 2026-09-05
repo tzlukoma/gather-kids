@@ -17,7 +17,7 @@ export function WebVitals() {
 
     // Log to console; swap with a real endpoint call when ready
     // (e.g. POST to /api/metrics or send to Vercel Analytics).
-    // eslint-disable-next-line no-console
+     
     console.debug('[WebVitals]', metric.name, metric.value);
   });
 

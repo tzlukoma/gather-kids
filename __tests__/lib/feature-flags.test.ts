@@ -6,7 +6,7 @@ describe('Feature Flags (demo mode removed)', () => {
     });
 
     it('unknown flag name returns false (default case)', () => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
         expect(getFlag('UNKNOWN_FLAG' as any)).toBe(false);
     });
 

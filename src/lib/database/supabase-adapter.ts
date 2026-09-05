@@ -586,7 +586,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 	async getRegistrationCycle(id: string): Promise<RegistrationCycle | null> {
 	// TODO: regenerate supabase-types so 'registration_cycles' is included in the client typing.
 	// Localized any-cast: generated types are incomplete for this table name.
-	/* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+	 
 	const { data, error } = await this.getClientAny()
 			.from('registration_cycles')
 			.select('*')
@@ -611,7 +611,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			updated_at: new Date().toISOString(),
 		};
 
-	/* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+	 
 	const { data: result, error } = await this.getClientAny()
 			.from('registration_cycles')
 			.insert(cycle)
@@ -627,7 +627,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 		id: string,
 		data: Partial<RegistrationCycle>
 	): Promise<RegistrationCycle> {
-	/* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+	 
 	const { data: result, error } = await this.getClientAny()
 		.from('registration_cycles')
 			.update({
@@ -646,7 +646,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 	async listRegistrationCycles(isActive?: boolean): Promise<RegistrationCycle[]> {
 	// TODO: regenerate supabase-types so 'registration_cycles' is included in the client typing.
 	// Localized any-cast: generated types are incomplete for this table name.
-	/* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+	 
 	let query = this.getClientAny().from('registration_cycles').select('*');
 
         if (isActive !== undefined) {
@@ -670,7 +670,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 	}
 
 	async deleteRegistrationCycle(id: string): Promise<void> {
-    /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+     
     const { error } = await this.getClientAny()
 			.from('registration_cycles')
 			.delete()
@@ -3192,7 +3192,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 	// run successfully and types are complete, replace `getClientAny()` usages with
 	// properly typed `this.client` calls and remove this helper.
 	// See `.github/ISSUES/000-temp-relax-no-explicit-any.md` for the tracking issue.
-	/* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+	 
 	private getClientAny(): any {
 		return this.client as any;
 	}

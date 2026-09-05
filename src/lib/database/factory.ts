@@ -21,7 +21,7 @@ export function createDatabaseAdapter(): DatabaseAdapter {
 	// For client-side, use the browser client
 	if (typeof window === 'undefined') {
 		// Server-side: create a new client without browser storage
-		// eslint-disable-next-line @typescript-eslint/no-require-imports -- synchronous dynamic require needed for SSR/client split
+		 
 		const { createClient } = require('@supabase/supabase-js');
 		const serverClient = createClient(supabaseUrl, supabaseKey);
 		return new SupabaseAdapter(supabaseUrl, supabaseKey, serverClient);
@@ -29,13 +29,13 @@ export function createDatabaseAdapter(): DatabaseAdapter {
 		// Client-side: use the browser client (lazy-loaded)
 		// Dynamically import to avoid SSR issues
 		try {
-			// eslint-disable-next-line @typescript-eslint/no-require-imports -- synchronous dynamic require needed for SSR/client split
+			 
 			const { supabase } = require('../supabaseClient');
 			return new SupabaseAdapter(supabaseUrl, supabaseKey, supabase);
 		} catch (error) {
 			console.warn('Failed to load browser Supabase client, creating server client:', error);
 			// Fallback to server client if browser client fails
-			// eslint-disable-next-line @typescript-eslint/no-require-imports -- synchronous dynamic require needed for SSR/client split
+			 
 			const { createClient } = require('@supabase/supabase-js');
 			const serverClient = createClient(supabaseUrl, supabaseKey);
 			return new SupabaseAdapter(supabaseUrl, supabaseKey, serverClient);

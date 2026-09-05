@@ -93,10 +93,12 @@ export function useMutation(fnOrOpts: any, maybeOpts: any = {}) {
     };
 }
 
-export default {
+const reactQuery = {
     QueryClient,
     QueryClientProvider,
     useQueryClient,
     useQuery,
     useMutation,
 };
+
+export default reactQuery;
