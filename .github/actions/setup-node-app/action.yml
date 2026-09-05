@@ -1,5 +1,5 @@
 name: Setup Node app
-description: Checkout (optional), Node 20, npm cache, and npm ci
+description: Checkout (optional), Node 22, npm cache, and npm ci
 
 inputs:
   checkout:
@@ -17,7 +17,7 @@ runs:
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: '20'
+        node-version: '22.22.2'
         cache: npm
 
     - name: Install dependencies

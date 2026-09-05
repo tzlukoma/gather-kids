@@ -16,7 +16,7 @@ Always read `AGENTS.md` first. Use repository search or shell only when somethin
 - Tests: `npm test -- --passWithNoTests` — set timeout to 60+ seconds.
 - Typecheck: `npm run typecheck`.
 - Lint: `npm run lint` (required CI job; `.eslintrc.json` already exists — do not re-run first-time ESLint setup).
-- Node in CI: **20**.
+- Node in CI: **22.22.2**.
 
 Dummy Supabase values are enough for `next build` in CI. Do not put real keys in the repo.
 
