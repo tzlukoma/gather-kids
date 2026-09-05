@@ -500,12 +500,15 @@ export default function CreateAccountPage() {
 						className="flex items-center gap-2 font-headline text-3xl font-bold text-foreground">
 						{settings.logo_url ? (
 							<>
-								<img
+								<Image
 									src={settings.logo_url}
 									alt={`${settings.app_name || 'gatherKids'} Logo`}
+									width={96}
+									height={96}
 									className={`h-24 w-auto ${
 										settings.use_logo_only ? '' : 'max-w-[50%]'
 									} object-contain`}
+									priority
 								/>
 								{!settings.use_logo_only && (
 									<span>{settings.app_name || 'gatherKids'}</span>

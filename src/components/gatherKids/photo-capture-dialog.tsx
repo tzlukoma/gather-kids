@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
+import Image from 'next/image';
 import {
 	Dialog,
 	DialogContent,
@@ -240,10 +241,12 @@ export function PhotoCaptureDialog({
 							)}
 							<div className="relative aspect-video w-full bg-muted rounded-md overflow-hidden flex items-center justify-center">
 								{imageData ? (
-									<img
+									<Image
 										src={imageData}
 										alt="Captured"
-										className="w-full h-full object-cover"
+										fill
+										className="object-cover"
+										unoptimized
 									/>
 								) : (
 									<video
@@ -291,10 +294,12 @@ export function PhotoCaptureDialog({
 						<div className="space-y-4 py-4">
 							{imageData && activeTab === 'upload' ? (
 								<div className="relative aspect-video w-full bg-muted rounded-md overflow-hidden">
-									<img
+									<Image
 										src={imageData}
 										alt="Uploaded preview"
-										className="w-full h-full object-cover"
+										fill
+										className="object-cover"
+										unoptimized
 									/>
 								</div>
 							) : (
