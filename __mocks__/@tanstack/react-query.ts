@@ -60,7 +60,10 @@ export function useQuery(optionsOrKey: any, maybeFn?: any) {
     return { data };
 }
 
-export function useMutation(fn: any, opts: any = {}) {
+export function useMutation(fnOrOpts: any, maybeOpts: any = {}) {
+    const isObjectForm = typeof fnOrOpts !== 'function';
+    const fn = isObjectForm ? fnOrOpts.mutationFn : fnOrOpts;
+    const opts = isObjectForm ? fnOrOpts : maybeOpts;
     const qc = useQueryClient();
     return {
         mutateAsync: async (payload: any) => {
