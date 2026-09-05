@@ -18,13 +18,8 @@ function AuthCallbackContent() {
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const [success, setSuccess] = useState(false);
-	const [mounted, setMounted] = useState(false);
+	const [mounted, setMounted] = useState(true); // Effects only run on client, so we're mounted when state initializes
 	const hasRun = useRef(false); // Prevent infinite loops
-
-	useEffect(() => {
-		console.log('🔍 AuthCallback: Component mounting...');
-		setMounted(true);
-	}, []);
 
 	// Add a timeout to prevent users from getting stuck indefinitely
 	useEffect(() => {

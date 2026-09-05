@@ -32,16 +32,11 @@ export function DebugPanelContent() {
     { name: 'IndexedDB', active: false, count: 0 },
     { name: 'Direct DB', active: false, count: 0 },
   ]);
-  const [currentRoute, setCurrentRoute] = useState('');
+  const [currentRoute, setCurrentRoute] = useState(() => 
+    typeof window !== 'undefined' ? window.location.pathname : ''
+  );
   const [routeEvents, setRouteEvents] = useState<AnyDebugEvent[]>([]);
   const subscriptionRef = useRef<(() => void) | null>(null);
-
-  // Update current route
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      setCurrentRoute(window.location.pathname);
-    }
-  }, []);
 
   // Calculate data source counts from events
   const calculateDataSources = useCallback((eventsToAnalyze: AnyDebugEvent[]) => {

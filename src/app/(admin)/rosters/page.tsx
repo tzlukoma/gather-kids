@@ -147,7 +147,9 @@ export default function RostersPage() {
 		url: string;
 	} | null>(null);
 
-	const [showCheckedIn, setShowCheckedIn] = useState(false);
+	const [showCheckedIn, setShowCheckedIn] = useState(() => {
+		return searchParams.get('status') === 'checkedIn';
+	});
 	const [showCheckedOut, setShowCheckedOut] = useState(false);
 	const [groupByGrade, setGroupByGrade] = useState(false);
 
@@ -270,14 +272,6 @@ export default function RostersPage() {
 			EVENT_OPTIONS.find((e) => e.id === selectedEvent)?.name || 'Select Event'
 		);
 	}, [selectedEvent]);
-
-	useEffect(() => {
-		const statusParam = searchParams.get('status');
-		if (statusParam === 'checkedIn') {
-			setShowCheckedIn(true);
-			setShowCheckedOut(false);
-		}
-	}, [searchParams]);
 
 	useEffect(() => {
 		if (user?.metadata?.role === AuthRole.MINISTRY_LEADER && leaderMinistryId) {

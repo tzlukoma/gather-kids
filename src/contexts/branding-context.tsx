@@ -13,8 +13,22 @@ interface BrandingContextType {
 const BrandingContext = createContext<BrandingContextType | null>(null);
 
 export function BrandingProvider({ children }: { children: React.ReactNode }) {
-	const [settings, setSettings] = useState<Partial<BrandingSettings>>({});
-	const [loading, setLoading] = useState(true);
+	const [settings, setSettings] = useState<Partial<BrandingSettings>>(() => {
+		// During SSR, use hardcoded defaults immediately
+		if (typeof window === 'undefined') {
+			return {
+				app_name: 'gatherKids',
+				description:
+					"The simple, secure, and smart way to manage your children's ministry. Streamline check-ins, track attendance, and keep your community connected.",
+				logo_url: undefined,
+				use_logo_only: false,
+				youtube_url: undefined,
+				instagram_url: undefined,
+			};
+		}
+		return {};
+	});
+	const [loading, setLoading] = useState(() => typeof window !== 'undefined');
 
 	const loadSettings = async () => {
 		try {
@@ -70,21 +84,9 @@ export function BrandingProvider({ children }: { children: React.ReactNode }) {
 
 	useEffect(() => {
 		// Only load settings on the client side to avoid SSR issues
-		if (typeof window === 'undefined') {
-			// During SSR, use hardcoded defaults immediately
-			setSettings({
-				app_name: 'gatherKids',
-				description:
-					"The simple, secure, and smart way to manage your children's ministry. Streamline check-ins, track attendance, and keep your community connected.",
-				logo_url: undefined,
-				use_logo_only: false,
-				youtube_url: undefined,
-				instagram_url: undefined,
-			});
-			setLoading(false);
-			return;
+		if (typeof window !== 'undefined') {
+			loadSettings();
 		}
-		loadSettings();
 	}, []);
 
 	return (

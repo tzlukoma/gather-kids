@@ -20,12 +20,9 @@ import { isDebugOn, onDebugFlagChange } from '@/lib/debug/flag';
 
 export function DebugPanelDialog() {
   const [open, setOpen] = useState(false);
-  const [debugEnabled, setDebugEnabled] = useState(false);
+  const [debugEnabled, setDebugEnabled] = useState(() => isDebugOn());
 
   useEffect(() => {
-    // Set initial state
-    setDebugEnabled(isDebugOn());
-
     // Subscribe to flag changes
     const unsubscribe = onDebugFlagChange((enabled) => {
       setDebugEnabled(enabled);

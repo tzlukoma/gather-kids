@@ -114,9 +114,15 @@ function CheckInContent() {
 	const isMobile = useIsMobile();
 	const searchParams = useSearchParams();
 
-	const [selectedEvent, setSelectedEvent] = useState('evt_sunday_school');
+	const [selectedEvent, setSelectedEvent] = useState(() => {
+		const event = searchParams?.get('event');
+		return event && EVENT_OPTIONS.find((e) => e.id === event) ? event : 'evt_sunday_school';
+	});
 	const [selectedGrades, setSelectedGrades] = useState<Set<string>>(() => new Set());
-	const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+	const [statusFilter, setStatusFilter] = useState<StatusFilter>(() => {
+		const filter = searchParams?.get('filter');
+		return (filter === 'checkedIn' || filter === 'checkedOut' || filter === 'all') ? filter as StatusFilter : 'all';
+	});
 	const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
 	const [isEventDialogOpen, setIsEventDialogOpen] = useState(false);
 
@@ -165,19 +171,6 @@ function CheckInContent() {
 	};
 
 	const clearGrades = () => setSelectedGrades(new Set());
-
-	// Read query params on mount / when they change and apply initial filters.
-	useEffect(() => {
-		if (!searchParams) return;
-		const filter = searchParams.get('filter');
-		if (filter === 'checkedIn' || filter === 'checkedOut' || filter === 'all') {
-			setStatusFilter(filter as StatusFilter);
-		}
-		const event = searchParams.get('event');
-		if (event && EVENT_OPTIONS.find((e) => e.id === event)) {
-			setSelectedEvent(event);
-		}
-	}, [searchParams]);
 
 	if (loading) {
 		return <CardGridSkeleton count={8} />;

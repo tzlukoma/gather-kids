@@ -16,7 +16,17 @@ import { isOfflineSupabase } from '@/lib/offline-supabase';
 export default function GuardianHouseholdPage() {
 	const { user } = useAuth();
 	const router = useRouter();
-	const [showOnboarding, setShowOnboarding] = useState(false);
+	const [showOnboarding, setShowOnboarding] = useState(() => {
+		if (user && !user.metadata?.onboarding_dismissed) {
+			const sessionKey = `onboarding_shown_${user.uid}`;
+			const alreadyShownThisSession = sessionStorage.getItem(sessionKey);
+			if (!alreadyShownThisSession && user.uid === 'user_parent_demo') {
+				sessionStorage.setItem(sessionKey, 'true');
+				return true;
+			}
+		}
+		return false;
+	});
 	const [householdId, setHouseholdId] = useState<string | null>(null);
 
 	const {
@@ -60,18 +70,6 @@ export default function GuardianHouseholdPage() {
 		};
 		load();
 	}, [user, router]);
-
-	useEffect(() => {
-		if (user && !user.metadata?.onboarding_dismissed) {
-			const sessionKey = `onboarding_shown_${user.uid}`;
-			const alreadyShownThisSession = sessionStorage.getItem(sessionKey);
-
-			if (!alreadyShownThisSession && user.uid === 'user_parent_demo') {
-				setShowOnboarding(true);
-				sessionStorage.setItem(sessionKey, 'true');
-			}
-		}
-	}, [user]);
 
 	if (isOfflineSupabase()) {
 		return (
