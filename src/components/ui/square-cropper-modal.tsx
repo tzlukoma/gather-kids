@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useCallback, useEffect } from 'react';
+import NextImage from 'next/image';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -72,6 +73,7 @@ export function SquareCropperModal({
 
 	const canvasRef = useRef<HTMLCanvasElement>(null);
 	const imageRef = useRef<HTMLImageElement>(null);
+	const imageWrapperRef = useRef<HTMLDivElement>(null);
 	const fileInputRef = useRef<HTMLInputElement>(null);
 	const containerRef = useRef<HTMLDivElement>(null);
 	
@@ -454,9 +456,13 @@ export function SquareCropperModal({
 
 	// Generate cropped image
 	const generateCroppedImage = async (): Promise<{ blob: Blob; dataUrl: string }> => {
-		if (!imageRef.current || !canvasRef.current) {
+		// Get the actual img element from the Next.js Image wrapper
+		const imgElement = imageWrapperRef.current?.querySelector('img');
+		if (!imgElement || !canvasRef.current) {
 			throw new Error('Image or canvas not available');
 		}
+		// Store reference for use in the function
+		const img = imgElement as HTMLImageElement;
 
 		const canvas = canvasRef.current;
 		const ctx = canvas.getContext('2d');
@@ -478,7 +484,6 @@ export function SquareCropperModal({
 		}
 
 		// Calculate source coordinates
-		const img = imageRef.current;
 		const sourceSize = crop.size / crop.scale;
 		const sourceX = crop.x / crop.scale;
 		const sourceY = crop.y / crop.scale;
@@ -531,7 +536,8 @@ export function SquareCropperModal({
 	};
 
 	const handleSave = async () => {
-		if (!file || !imageRef.current) return;
+		const imgElement = imageWrapperRef.current?.querySelector('img');
+		if (!file || !imgElement) return;
 
 		setIsSaving(true);
 		try {
@@ -710,15 +716,21 @@ export function SquareCropperModal({
 							role="img"
 							aria-label="Image cropping area. Use arrow keys to move, +/- to zoom"
 						>
-							<img
-								ref={imageRef}
-								src={imageUrl}
-								alt="Preview"
-								className="absolute inset-0 w-full h-full object-contain"
+							<div
+								ref={imageWrapperRef}
+								className="absolute inset-0"
 								style={{
 									transform: `scale(${crop.scale}) rotate(${crop.rotation}deg)`,
 								}}
-							/>
+							>
+								<NextImage
+									src={imageUrl}
+									alt="Preview"
+									fill
+									className="object-contain"
+									unoptimized
+								/>
+							</div>
 							
 							{/* Crop overlay */}
 							<div

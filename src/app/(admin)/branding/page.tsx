@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { useAuth } from '@/contexts/auth-context';
 import { AuthRole } from '@/lib/auth-types';
 import { Button } from '@/components/ui/button';
@@ -279,10 +280,13 @@ export default function BrandingPage() {
 									<div className="flex-shrink-0">
 										<div className="w-16 h-16 border border-border rounded-md overflow-hidden bg-muted flex items-center justify-center">
 											{formData.logo_url.startsWith('data:') ? (
-												<img
+												<Image
 													src={formData.logo_url}
 													alt="Logo preview"
-													className="w-full h-full object-contain"
+													width={64}
+													height={64}
+													className="object-contain"
+													unoptimized
 												/>
 											) : (
 												<ImageIcon className="h-6 w-6 text-muted-foreground" />
