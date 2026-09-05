@@ -36,11 +36,19 @@ import { saveMinistryAccount, getGroupsForMinistry } from '@/lib/dal';
 import { useCreateMinistry, useUpdateMinistry } from '@/hooks/data/ministries';
 import { useEffect, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { PlusCircle, Trash2 } from 'lucide-react';
+import { CalendarIcon, PlusCircle, Trash2 } from 'lucide-react';
+import { format, isValid, parseISO } from 'date-fns';
 import { Separator } from '../ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { dbAdapter } from '@/lib/db-utils';
 import { Switch } from '../ui/switch';
+import { Calendar } from '@/components/ui/calendar';
+import {
+	Popover,
+	PopoverContent,
+	PopoverTrigger,
+} from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
 
 const customQuestionSchema = z.object({
 	id: z.string(),
@@ -73,6 +81,52 @@ const ministryFormSchema = z.object({
 });
 
 type MinistryFormValues = z.infer<typeof ministryFormSchema>;
+
+function parseDateField(value?: string) {
+	if (!value) return undefined;
+	const parsed = parseISO(value);
+	return isValid(parsed) ? parsed : undefined;
+}
+
+function DatePickerField({
+	value,
+	onChange,
+	id,
+}: {
+	value?: string;
+	onChange: (value?: string) => void;
+	id?: string;
+}) {
+	const selected = parseDateField(value);
+
+	return (
+		<Popover modal>
+			<PopoverTrigger asChild>
+				<Button
+					id={id}
+					type="button"
+					variant="outline"
+					className={cn(
+						'w-full justify-start text-left font-normal',
+						!selected && 'text-muted-foreground'
+					)}>
+					<CalendarIcon className="mr-2 h-4 w-4" />
+					{selected ? format(selected, 'PPP') : <span>Pick a date</span>}
+				</Button>
+			</PopoverTrigger>
+			<PopoverContent className="w-auto p-0 z-[60]" align="start">
+				<Calendar
+					mode="single"
+					autoFocus
+					selected={selected}
+					onSelect={(date) =>
+						onChange(date ? format(date, 'yyyy-MM-dd') : undefined)
+					}
+				/>
+			</PopoverContent>
+		</Popover>
+	);
+}
 
 interface MinistryFormDialogProps {
 	isOpen: boolean;
@@ -459,9 +513,11 @@ export function MinistryFormDialog({
 								render={({ field }) => (
 									<FormItem>
 										<FormLabel>Open Date</FormLabel>
-										<FormControl>
-											<Input type="date" {...field} />
-										</FormControl>
+										<DatePickerField
+											id="open_at"
+											value={field.value}
+											onChange={field.onChange}
+										/>
 										<FormDescription>
 											First day registrations are accepted (optional).
 										</FormDescription>
@@ -475,9 +531,11 @@ export function MinistryFormDialog({
 								render={({ field }) => (
 									<FormItem>
 										<FormLabel>Close Date</FormLabel>
-										<FormControl>
-											<Input type="date" {...field} />
-										</FormControl>
+										<DatePickerField
+											id="close_at"
+											value={field.value}
+											onChange={field.onChange}
+										/>
 										<FormDescription>
 											Last day registrations are accepted (optional).
 										</FormDescription>
