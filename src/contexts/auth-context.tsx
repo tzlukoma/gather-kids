@@ -5,6 +5,7 @@ import React, {
 	useContext,
 	useState,
 	useEffect,
+	useCallback,
 	ReactNode,
 } from 'react';
 import { getLeaderAssignmentsForCycle, getRegistrationCycles } from '@/lib/dal';
@@ -142,11 +143,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 	// Shared logic: build a BaseUser from raw supabase user data, resolve ministry
 	// access synchronously for GUEST users, then set state. For users who already
 	// have a non-GUEST role but lack ministryIds, kick off an async resolution.
-	async function setUserFromSupabaseData(supabaseUser: {
+	const setUserFromSupabaseData = useCallback(async (supabaseUser: {
 		id: string;
 		email?: string;
 		user_metadata?: Record<string, any>;
-	}): Promise<void> {
+	}): Promise<void> => {
 		const role = supabaseUser.user_metadata?.role || AuthRole.GUEST;
 
 		let finalUser: BaseUser = {
@@ -187,7 +188,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 				);
 			}, 0);
 		}
-	}
+	}, []);
 
 	useEffect(() => {
 		if (isOfflineSupabase()) {
@@ -295,7 +296,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 		return () => {
 			subscription.unsubscribe();
 		};
-	}, []);
+	}, [setUserFromSupabaseData]);
 
 	const login = async (userData: Omit<BaseUser, 'assignedMinistryIds'>) => {
 		authLog.log('Login called with userData:', userData);

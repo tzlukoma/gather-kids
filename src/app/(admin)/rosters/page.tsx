@@ -384,7 +384,6 @@ export default function RostersPage() {
 		allMinistries,
 		user,
 		dataLoading,
-		leaderMinistryId,
 	]);
 
 	const displayChildren = useMemo(() => {

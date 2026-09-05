@@ -497,11 +497,14 @@ export function HouseholdProfile({
 	const updateUserMutation = useUpdateHouseholdUser();
 
 	const currentUser = householdUserData?.user;
-	const availableUsersBase =
-		availableUsersData?.users?.map((u: any) => ({
-			value: u.id,
-			label: `${u.name} (${u.email})`,
-		})) || [];
+	const availableUsersBase = useMemo(
+		() =>
+			availableUsersData?.users?.map((u: any) => ({
+				value: u.id,
+				label: `${u.name} (${u.email})`,
+			})) || [],
+		[availableUsersData?.users]
+	);
 
 	// Include current user in options if it exists (so the Combobox can display it as selected)
 	// This handles the case where the current user is connected to this household
