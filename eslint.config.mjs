@@ -15,6 +15,8 @@ const eslintConfig = defineConfig([
 			'react-hooks/immutability': 'warn',
 			'react-hooks/purity': 'warn',
 			'react-hooks/rules-of-hooks': 'warn',
+			'react-hooks/static-components': 'warn',
+			'react-hooks/preserve-manual-memoization': 'warn',
 			'no-restricted-imports': [
 				'error',
 				{
