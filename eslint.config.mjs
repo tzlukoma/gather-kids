@@ -9,14 +9,10 @@ const eslintConfig = defineConfig([
 			'react-hooks': reactHooks,
 		},
 		rules: {
-			// Downgrade new Next.js 16 React Compiler rules to warning
-			// Pre-existing patterns will be refactored in separate PRs to avoid sprawl
+			// Partial #298: 32 set-state-in-effect warnings remain after reduction from 42.
+			// Keep as warn until follow-up addresses remaining violations, then restore to error.
+			// All other Next 16 React Compiler rules restored to error in #299.
 			'react-hooks/set-state-in-effect': 'warn',
-			'react-hooks/immutability': 'warn',
-			'react-hooks/purity': 'warn',
-			'react-hooks/rules-of-hooks': 'warn',
-			'react-hooks/static-components': 'warn',
-			'react-hooks/preserve-manual-memoization': 'warn',
 			'no-restricted-imports': [
 				'error',
 				{
