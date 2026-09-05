@@ -32,10 +32,10 @@ import type {
  */
 export function useFormCompat<
 	TFieldValues extends FieldValues = FieldValues,
-	TContext = unknown,
-	TTransformedValues extends FieldValues | undefined = undefined,
+	TContext = any,
+	TTransformedValues = TFieldValues,
 >(
-	props?: UseFormProps<TFieldValues, TContext>,
+	props?: UseFormProps<TFieldValues, TContext, TTransformedValues>,
 ): UseFormReturn<TFieldValues, TContext, TTransformedValues> {
 	return useFormOriginal<TFieldValues, TContext, TTransformedValues>(props);
 }
