@@ -62,17 +62,6 @@ function ResetPasswordForm() {
 		},
 	});
 
-	useEffect(() => {
-		const token = searchParams.get('token');
-		const code = searchParams.get('code');
-
-		if (token || code) {
-			validateResetToken(token, code);
-		} else {
-			setHasValidToken(false);
-		}
-	}, [searchParams]);
-
 	const validateResetToken = async (
 		token: string | null,
 		code: string | null
@@ -104,6 +93,17 @@ function ResetPasswordForm() {
 			setHasValidToken(false);
 		}
 	};
+
+	useEffect(() => {
+		const token = searchParams.get('token');
+		const code = searchParams.get('code');
+
+		if (token || code) {
+			validateResetToken(token, code);
+		} else {
+			setHasValidToken(false);
+		}
+	}, [searchParams]);
 
 	const onSubmit = async (data: ResetPasswordFormData) => {
 		setIsLoading(true);
