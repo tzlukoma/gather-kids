@@ -127,7 +127,7 @@ Procedure: [`.agents/skills/escalate-to-human/SKILL.md`](.agents/skills/escalate
 
 ## Development setup
 
-Node **20** (CI). App port **9002**, not 3000.
+Node **22.22.2+** (CI). App port **9002**, not 3000.
 
 ```bash
 npm ci

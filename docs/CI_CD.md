@@ -69,7 +69,7 @@ Path-filtered (not every PR):
 | [`e2e-smoke.yml`](../.github/workflows/e2e-smoke.yml) | Changes under `src/**` or `e2e/**` |
 | [`e2e-email.yml`](../.github/workflows/e2e-email.yml) | Push to `main` + manual dispatch (not PR-gating until registration CI fixtures land) |
 
-Node **20**, Supabase CLI **2.116.0** (pinned in composite action).
+Node **22.22.2**, Supabase CLI **2.116.0** (pinned in composite action).
 
 ---
 
