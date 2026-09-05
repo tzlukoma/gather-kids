@@ -14,7 +14,7 @@ gatherKids is a web app Thomas built for **Youth Ministry at Cathedral Internati
 
 It is in **active use for check-in**. Registration last ran as **Fall 2025** (14 Sep 2025–30 Jun 2026). The next product slice is Fall 2026 returning-family registration.
 
-**Stack (as shipped):** Next.js 15 / React 18, Supabase Auth + Postgres, TanStack Query, React Hook Form + Zod. Hosted on Vercel. UAT and production are separate Supabase projects. Demo/IndexedDB mode is removed from the runtime (leftover files remain).
+**Stack (as shipped):** Next.js 15 / React 18, Supabase Auth + Postgres, TanStack Query, React Hook Form + Zod. Hosted on Vercel. UAT and production are separate Supabase projects. Demo/IndexedDB mode is not part of the runtime or the shipped tree.
 
 ---
 
@@ -143,8 +143,6 @@ Honest status: **shipped** = used in production; **partial** = UI/code exists bu
 ### 3.12 What is in the repo but should not be treated as product
 
 - `/dev-scriptures` — unauthenticated, uses service role. Lock or delete.
-- `/avatar-demo` — leftover.
-- IndexedDB adapter and demo-user paths — leftover from demo mode ([#191](https://github.com/tzlukoma/gather-kids/issues/191) still open).
 - Google sign-in flag — off.
 
 ---
@@ -213,8 +211,7 @@ Do not email every family a registration link until these are done. They are alr
 
 ### R5 — Platform health (do not mix into the registration PR)
 
-- Finish demo-mode / IndexedDB removal ([#191](https://github.com/tzlukoma/gather-kids/issues/191)).
-- Data-layer leftovers: dual `registerHousehold` writers, `useBibleBee` demo DAL ([#199](https://github.com/tzlukoma/gather-kids/issues/199), [#151](https://github.com/tzlukoma/gather-kids/issues/151), [#152](https://github.com/tzlukoma/gather-kids/issues/152), [#189](https://github.com/tzlukoma/gather-kids/issues/189)).
+- Data-layer leftovers: dual `registerHousehold` writers ([#199](https://github.com/tzlukoma/gather-kids/issues/199), [#152](https://github.com/tzlukoma/gather-kids/issues/152), [#189](https://github.com/tzlukoma/gather-kids/issues/189)).
 - Snake_case shape audit ([#108](https://github.com/tzlukoma/gather-kids/issues/108)).
 - Restore `no-explicit-any` as error ([#126](https://github.com/tzlukoma/gather-kids/issues/126), [#197](https://github.com/tzlukoma/gather-kids/issues/197)).
 - Component empty states / skeletons leftovers ([#200](https://github.com/tzlukoma/gather-kids/issues/200)).

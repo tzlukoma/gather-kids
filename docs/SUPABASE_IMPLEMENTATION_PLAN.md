@@ -1,21 +1,22 @@
 # Supabase Integration Implementation Plan
 
+> **Historical plan.** Demo/IndexedDB mode was removed at runtime. The factory always returns `SupabaseAdapter`. There is no `DATABASE_MODE`. Demos use UAT. Leftover Dexie files are tracked in [#266](https://github.com/tzlukoma/gather-kids/issues/266). Treat the architecture below as the original migration plan, not current operator instructions.
+
 ## Overview
 
-We will run **Supabase locally via the Supabase CLI** (which manages Docker for us) for DEV, and use **hosted Supabase Free projects** for UAT/PROD. IndexedDB (Dexie.js) remains for demo mode. A feature flag selects the backend at runtime, and a unified **Data Access Layer (DAL)** abstracts database specifics.
+We run **Supabase locally via the Supabase CLI** (which manages Docker) for DEV, and **hosted Supabase** for UAT/PROD. A unified **Data Access Layer (DAL)** abstracts database specifics. IndexedDB (Dexie.js) was the former demo backend and is **not** a supported runtime.
 
-**Avatar storage (NEW):** In **Demo**, store avatars as small base64 WebP strings in IndexedDB. In **DEV/UAT/PROD**, store avatars in **Supabase Storage** (`avatars` bucket) and keep a path reference in Postgres.
+**Avatar storage:** Store avatars in **Supabase Storage** (`avatars` bucket) and keep a path reference in Postgres. Base64-in-IndexedDB was a demo-only path and is removed.
 
 ## 🎯 Objectives
 
-1. **Triple Support**: IndexedDB (Demo), **Local Postgres (Supabase CLI) for DEV**, Hosted Supabase (UAT/PROD)
-2. **Seamless Switching**: Feature-flagged database mode
-3. **Unified API**: Single DAL regardless of backend
-4. **Environment Mgmt**: DEV (local CLI), UAT, PROD (hosted)
-5. **Migrations**: PostgreSQL migrations applied identically across all envs
-6. **Realtime & Perf**: Subscriptions (Supabase Realtime) + indexed queries
-7. **Type Safety**: TypeScript types + Supabase type generation
-8. **Avatars (NEW)**: Base64 in Demo; Supabase Storage in DEV/UAT/PROD
+1. **Local + hosted Supabase**: Local Postgres (Supabase CLI) for DEV; hosted projects for UAT/PROD
+2. **Unified API**: Single DAL; factory always returns `SupabaseAdapter`
+3. **Environment Mgmt**: DEV (local CLI), UAT, PROD (hosted)
+4. **Migrations**: PostgreSQL migrations applied identically across all envs
+5. **Realtime & Perf**: Subscriptions (Supabase Realtime) + indexed queries
+6. **Type Safety**: TypeScript types + Supabase type generation
+7. **Avatars**: Supabase Storage in every environment
 
 ---
 
@@ -24,18 +25,17 @@ We will run **Supabase locally via the Supabase CLI** (which manages Docker for 
 ```
 ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────────┐
 │   Application   │    │   Data Access    │    │  Database Factory   │
-│   Components    │───▶│      Layer       │───▶│ (feature-flag mode) │
+│   Components    │───▶│      Layer       │───▶│ always SupabaseAdapter │
 └─────────────────┘    └──────────────────┘    └─────────────────────┘
                                         │
-                     ┌──────────────────┴───────────────────┐
-                     ▼                                      ▼
-        ┌────────────────────┐                  ┌────────────────────┐
-        │  IndexedDB (Demo)  │                  │  Supabase Adapter  │
-        └────────────────────┘                  └─────────┬──────────┘
-                                                          │
-                             ┌─────────────────────────────┴────────────────────────────┐
-                             ▼                                                          ▼
-                   DEV: Supabase CLI (local Postgres+Auth+Realtime)        UAT/PROD: Hosted Supabase
+                                        ▼
+                             ┌────────────────────┐
+                             │  Supabase Adapter  │
+                             └─────────┬──────────┘
+                                       │
+          ┌────────────────────────────┴────────────────────────────┐
+          ▼                                                         ▼
+DEV: Supabase CLI (local Postgres+Auth+Realtime)        UAT/PROD: Hosted Supabase
 ```
 
 ---
@@ -87,7 +87,6 @@ supabase gen types typescript --local > src/lib/database/supabase-types.ts
 
 ```env
 # .env.development.local
-NEXT_PUBLIC_DATABASE_MODE=supabase   # demo | supabase
 DATABASE_URL="postgresql://postgres:postgres@localhost:54322/postgres?schema=public"
 
 # Local Supabase (for JS client / auth)
@@ -99,7 +98,6 @@ SUPABASE_SERVICE_ROLE_KEY="your-local-service-role-key"
 **UAT**
 
 ```env
-NEXT_PUBLIC_DATABASE_MODE=supabase
 DATABASE_URL="postgresql://postgres:<pwd>@db.<UAT_REF>.supabase.co:5432/postgres"
 NEXT_PUBLIC_SUPABASE_URL="https://<UAT_REF>.supabase.co"
 NEXT_PUBLIC_SUPABASE_ANON_KEY="<uat-anon>"
@@ -109,7 +107,6 @@ SUPABASE_SERVICE_ROLE_KEY="<uat-service-role>"
 **PROD**
 
 ```env
-NEXT_PUBLIC_DATABASE_MODE=supabase
 DATABASE_URL="postgresql://postgres:<pwd>@db.<PROD_REF>.supabase.co:5432/postgres"
 NEXT_PUBLIC_SUPABASE_URL="https://<PROD_REF>.supabase.co"
 NEXT_PUBLIC_SUPABASE_ANON_KEY="<prod-anon>"
@@ -174,15 +171,11 @@ create policy "family_can_read_own_household" on households
 
 ---
 
-## 🖼️ Avatar Strategy (NEW)
+## 🖼️ Avatar Strategy
 
-### Demo (IndexedDB / Dexie)
+### All environments (Supabase Storage + Postgres reference)
 
-- Add `avatar_base64?: string` on the child (or a demo-only `child_avatars_demo` store).
-- Store **small WebP** (≈128–200px, target ≤50–100 KB).
-- Render as a Data URL: `data:image/webp;base64,${avatar_base64}`.
-
-### DEV/UAT/PROD (Supabase Storage + Postgres reference)
+Demo-mode base64 in IndexedDB is **removed**.
 
 - **Bucket** (public for MVP):
 
@@ -283,14 +276,14 @@ export interface DatabaseAdapter {
 	updateAttendance(id: string, data: Partial<Attendance>): Promise<Attendance>;
 	listAttendance(filters?: AttendanceFilters): Promise<Attendance[]>;
 
-	// Realtime (no-op in Demo)
+	// Realtime
 	subscribeToTable<T>(table: string, cb: (payload: T) => void): () => void;
 }
 ```
 
-### 3.2 IndexedDB Adapter (Demo)
+### 3.2 Factory (always Supabase)
 
-(Keep your Dexie adapter; unchanged.)
+The IndexedDB/demo adapter is **not** part of the current runtime. Leftover files are tracked in #266.
 
 ### 3.3 Supabase Adapter (DEV/UAT/PROD)
 
@@ -334,18 +327,17 @@ export class SupabaseAdapter implements DatabaseAdapter {
 
 ```ts
 // src/lib/database/factory.ts
-import { IndexedDBAdapter } from './indexeddb-adapter';
 import { SupabaseAdapter } from './supabase-adapter';
 
 export function createDatabaseAdapter() {
-	const mode = import.meta.env.NEXT_PUBLIC_DATABASE_MODE || 'demo';
-	if (mode === 'supabase') {
-		return new SupabaseAdapter(
-			import.meta.env.NEXT_PUBLIC_SUPABASE_URL!,
-			import.meta.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+	const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+	const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+	if (!url || !anon) {
+		throw new Error(
+			'Supabase configuration is required. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.'
 		);
 	}
-	return new IndexedDBAdapter();
+	return new SupabaseAdapter(url, anon);
 }
 export const db = createDatabaseAdapter();
 ```
@@ -355,7 +347,7 @@ export const db = createDatabaseAdapter();
 ## 🔧 Phase 4: Auth & Realtime (DEV parity)
 
 - **Local**: Supabase CLI provides Auth/Realtime endpoints at `http://localhost:54321`.
-- **Client**: Use the same Supabase JS client in DEV/UAT/PROD; for Demo mode, mock auth.
+- **Client**: Use the same Supabase JS client in DEV/UAT/PROD. Auth is always Supabase Auth.
 - **Realtime**: Narrow subscriptions (e.g., today’s attendance), and invalidate TanStack Query caches on events.
 
 ---
@@ -411,7 +403,7 @@ Keep keys as CI secrets. Never log service keys.
 ## 🔧 Phase 7: Testing
 
 - **Domain tests** (no DB) for rules: age/eligibility, Bible Bee windows, auto-enroll SS.
-- **Adapter contract tests**: same suite runs against Demo (IndexedDB) and Supabase adapters.
+- **Adapter contract tests**: suite runs against the Supabase adapter.
 - **Migration tests**: Verify migrations apply cleanly against a fresh database.
 - **E2E** (happy paths): registration submit, SS auto-enroll, choir validation, Bible Bee enrollment.
 
@@ -434,7 +426,7 @@ Keep keys as CI secrets. Never log service keys.
 | UAT  | Hosted Supabase (Free)        | Yes           | \$0  | Stakeholder testing               |
 | PROD | Hosted Supabase (Free)        | Yes           | \$0  | Live                              |
 
-**Avatar storage:** Demo = base64 in IndexedDB; DEV/UAT/PROD = Supabase Storage (`avatars` bucket) with path references in `child_avatars`.
+**Avatar storage:** Supabase Storage (`avatars` bucket) with path references in `child_avatars` (every environment). Demo base64/IndexedDB is removed.
 
 ---
 
@@ -473,52 +465,15 @@ supabase stop
 - **Realtime overuse**: Subscribe narrowly; debounce cache invalidations.
 - **Secrets leakage**: Keep anon/service keys in env/CI secrets only.
 - **Local setup pain**: CLI abstracts Docker lifecycle—devs only need `supabase start/stop/reset`.
-- **(NEW) Avatar payload bloat (Demo)**: enforce downscale to \~128–200px WebP, lazy-load in lists.
+- **Avatar payload size**: enforce downscale to ~128–200px WebP, lazy-load in lists.
 
 ---
 
-## � Outstanding Implementation Tasks
+## Outstanding leftover (not current architecture)
 
-Based on analysis of the current codebase, the following tasks remain to fully implement the Supabase integration plan:
+The adapter, factory, type generation, and Supabase auth described above **shipped**. Do not treat the old "switch between demo and Supabase" tasks as open runtime work.
 
-1. **Database Adapter Implementation**
-
-   - Create `src/lib/database` directory structure
-   - Implement `src/lib/database/types.ts` with the `DatabaseAdapter` interface
-   - Implement `src/lib/database/supabase-adapter.ts` to interact with Supabase
-   - Create `src/lib/database/factory.ts` to switch between demo and Supabase modes
-
-2. **Type Generation**
-
-   - Configure Supabase CLI type generation
-   - Generate types from the database schema
-   - Create mapping between Dexie types and Supabase generated types
-
-3. **Environment Configuration**
-
-   - Complete `.env.local` setup for different environments
-   - Ensure proper feature flag configuration for database mode switching
-
-4. **Avatar Storage Implementation**
-
-   - Create Supabase Storage bucket for avatars
-   - Implement avatar upload/download functionality
-   - Add avatar reference table in database schema
-
-5. **Authentication Integration**
-
-   - Refine the existing Supabase auth implementation
-   - Implement role-based access control with Supabase Auth
-
-6. **Migration and Testing**
-
-   - Validate existing SQL migrations against a fresh database
-   - Create adapter contract tests
-   - Implement data migration scripts for moving from IndexedDB to Supabase
-
-7. **Documentation and Training**
-   - Document the database adapter usage patterns
-   - Create developer guides for local Supabase development
+Leftover Dexie/IndexedDB files, import scripts, and docs cleanup: [#266](https://github.com/tzlukoma/gather-kids/issues/266).
 
 ## 📚 References
 
@@ -541,6 +496,6 @@ Addendum: Load your `.env.uat` before running commands, for example:
 ```bash
 # in zsh
 source .env.uat
-# then run the importer against UAT
-node scripts/import/importDexie.js --file scripts/seed/gather-kids-export.json --mapping scripts/import/mappings/1756440851677-mapping.json
+# Leftover Dexie importer — not a supported runtime path; tracked in #266
+# node scripts/import/importDexie.js --file scripts/seed/gather-kids-export.json --mapping scripts/import/mappings/1756440851677-mapping.json
 ```

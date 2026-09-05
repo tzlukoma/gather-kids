@@ -2,37 +2,33 @@
 
 ## Introduction
 
-The gatherKids application supports two database backends:
+Runtime storage is **Supabase**. The factory always returns `SupabaseAdapter`. There is no IndexedDB/demo backend and no `DATABASE_MODE`.
 
-- **IndexedDB** (for local development and demo mode)
-- **Supabase** (for UAT and production environments)
-
-This guide explains how to properly access data regardless of which backend is active.
+Always go through the DAL (`dbAdapter` from `@/lib/dal`). Do not import `@supabase/supabase-js` outside the DAL and allowed API/script paths.
 
 ## Common Pitfalls
 
-### ❌ NEVER use direct Dexie queries with Supabase mode
+### ❌ NEVER query storage from application code
 
 ```typescript
-// ❌ BAD: Will only work with IndexedDB adapter
+// ❌ BAD: bypasses the DAL (legacy Dexie / raw client)
 const bibleBeeYears = await db.bible_bee_years.toArray();
-const divisions = await db.divisions
-	.where('bible_bee_year_id')
-	.equals(yearId)
-	.toArray();
 ```
 
-This pattern only works with the IndexedDB adapter and will fail silently with Supabase.
+That pattern is leftover from demo mode and is not a supported runtime path.
 
 ## Correct Access Patterns
 
 ### ✅ Always use the database adapter methods
 
 ```typescript
-// ✅ GOOD: Works with both IndexedDB and Supabase adapters
+import { dbAdapter } from '@/lib/dal';
+
 const bibleBeeYears = await dbAdapter.listBibleBeeYears();
 const divisions = await dbAdapter.listDivisions(yearId);
 ```
+
+UI code should prefer React Query hooks that call the DAL, not one-off `useEffect` fetches.
 
 ### Adapter Methods Reference
 
@@ -57,22 +53,13 @@ Here are some commonly used methods from the `DatabaseAdapter` interface:
 
 ## Best Practices
 
-1. **Import Properly**: Import the adapter along with the direct DB object
+1. **Import from the DAL**
 
    ```typescript
-   import { db, dbAdapter } from '@/lib/db';
+   import { dbAdapter } from '@/lib/dal';
    ```
 
-2. **Check Adapter Type**: You can check which adapter is in use for debugging
-
-   ```typescript
-   const adapterType = (db as any).constructor.name;
-   console.log(`Using ${adapterType}`);
-   ```
-
-3. **Write Tests**: Use Jest to test your data access with both adapters
-
-4. **Handle Errors**: Always implement proper error handling for database operations
+2. **Handle Errors**: Always implement proper error handling for database operations
    ```typescript
    try {
    	const data = await dbAdapter.listBibleBeeYears();
@@ -87,45 +74,9 @@ Here are some commonly used methods from the `DatabaseAdapter` interface:
 
 If your component is not showing data:
 
-1. Check which adapter is being used (the DatabaseAdapterBadge shows this)
-2. Verify your access pattern is using adapter methods not direct Dexie queries
+1. Confirm `.env.local` has `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+2. Verify the code uses adapter methods (or React Query hooks), not a leftover Dexie import
 3. Test the API endpoint directly if applicable
 4. Look for console errors that might indicate permission issues
-
-## Transitioning Code
-
-When updating existing components that use direct Dexie queries:
-
-1. Replace `useLiveQuery` with `useState` + `useEffect`
-2. Replace direct table queries with adapter method calls
-3. Add proper loading and error states
-
-Example:
-
-```typescript
-// Before (Dexie specific)
-const bibleBeeYears = useLiveQuery(() => db.bible_bee_years.toArray());
-
-// After (works with any adapter)
-const [bibleBeeYears, setBibleBeeYears] = useState<BibleBeeYear[]>([]);
-const [isLoading, setIsLoading] = useState(true);
-const [error, setError] = useState<Error | null>(null);
-
-useEffect(() => {
-	const fetchData = async () => {
-		try {
-			setIsLoading(true);
-			const years = await dbAdapter.listBibleBeeYears();
-			setBibleBeeYears(years);
-		} catch (err) {
-			setError(err as Error);
-		} finally {
-			setIsLoading(false);
-		}
-	};
-
-	fetchData();
-}, []);
-```
 
 For questions or issues related to the database adapters, refer to the implementation in `src/lib/database/`.

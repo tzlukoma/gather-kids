@@ -2,13 +2,13 @@
 
 ## Overview
 
-This issue focuses on implementing the foundational database abstraction layer that will enable the gatherKids application to seamlessly switch between IndexedDB (demo mode) and Supabase (DEV/UAT/PROD) backends. This is a critical first step in our Supabase integration plan and lays the groundwork for all subsequent database-related work.
+This issue focuses on implementing the foundational database abstraction layer so application code talks to **Supabase** through a single adapter. Runtime is Supabase-only: the factory always returns `SupabaseAdapter`. Demo/IndexedDB mode is not a supported backend.
 
 ## Objectives
 
-1. Create a database adapter interface that defines the contract for both backends
+1. Create a database adapter interface that defines the contract
 2. Implement a Supabase adapter that fulfills this contract
-3. Build a factory function that selects the appropriate adapter based on configuration
+3. Build a factory that always returns `SupabaseAdapter` when env is present
 4. Ensure the adapter supports all current functionality without requiring changes to the DAL
 
 ## Detailed Requirements
@@ -210,7 +210,7 @@ export interface DatabaseAdapter {
 	// Bible Bee specific
 	// (Include all Bible Bee related operations)
 
-	// Realtime (can be no-op in IndexedDB implementation)
+	// Realtime
 	subscribeToTable<T>(
 		table: string,
 		callback: (payload: T) => void
@@ -361,120 +361,59 @@ export class SupabaseAdapter implements DatabaseAdapter {
 
 ### 3. Database Factory
 
-Create a factory function that selects the appropriate database adapter:
+The factory always returns `SupabaseAdapter`. There is no `DATABASE_MODE` and no IndexedDB fallback.
 
 **File: `src/lib/database/factory.ts`**
 
 ```typescript
 import { SupabaseAdapter } from './supabase-adapter';
-import { IndexedDBAdapter } from './indexed-db-adapter'; // This is the existing Dexie adapter wrapped
 import type { DatabaseAdapter } from './types';
 
 export function createDatabaseAdapter(): DatabaseAdapter {
-	// Determine which adapter to use based on environment
-	const mode = process.env.NEXT_PUBLIC_DATABASE_MODE || 'demo';
+	const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+	const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-	if (mode === 'supabase') {
-		const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-		const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-		if (!supabaseUrl || !supabaseKey) {
-			console.error(
-				'Supabase URL and key are required when using Supabase mode'
-			);
-			// Fallback to demo mode if Supabase config is missing
-			return new IndexedDBAdapter();
+	if (!supabaseUrl || !supabaseKey) {
+		if (process.env.NODE_ENV === 'test') {
+			return {} as DatabaseAdapter;
 		}
-
-		return new SupabaseAdapter(supabaseUrl, supabaseKey);
+		throw new Error(
+			'Supabase configuration is required. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.'
+		);
 	}
 
-	// Default to IndexedDB for demo mode
-	return new IndexedDBAdapter();
+	return new SupabaseAdapter(supabaseUrl, supabaseKey);
 }
 
-// Create a singleton instance
 export const db = createDatabaseAdapter();
 ```
 
-### 4. IndexedDB Adapter Wrapper
+Application code should import `dbAdapter` from `@/lib/dal`, not construct adapters itself.
 
-Create a wrapper around the existing Dexie implementation to match the new interface:
+### 4. Integration with Existing Code
 
-**File: `src/lib/database/indexed-db-adapter.ts`**
-
-```typescript
-import { db as dexieDb } from '../db'; // Import existing Dexie instance
-import type { DatabaseAdapter } from './types';
-// Import domain types
-
-export class IndexedDBAdapter implements DatabaseAdapter {
-	// Implement methods that delegate to the existing Dexie instance
-
-	async getHousehold(id: string) {
-		return dexieDb.households.get(id);
-	}
-
-	async createHousehold(data) {
-		const id = await dexieDb.households.add({
-			...data,
-			household_id: data.household_id, // Use provided ID or generate one
-			created_at: new Date().toISOString(),
-			updated_at: new Date().toISOString(),
-		});
-		return dexieDb.households.get(id);
-	}
-
-	// Implement all other methods...
-
-	// No-op for realtime subscriptions in demo mode
-	subscribeToTable<T>(_table: string, _callback: (payload: T) => void) {
-		// Return unsubscribe function that does nothing
-		return () => {};
-	}
-
-	// Implement transaction support using Dexie
-	async transaction<T>(callback: () => Promise<T>): Promise<T> {
-		return dexieDb.transaction(
-			'rw',
-			dexieDb.households,
-			dexieDb.children,
-			// Include all tables that might be accessed
-			async () => {
-				return callback();
-			}
-		);
-	}
-}
-```
-
-### 5. Integration with Existing Code
-
-Update the DAL to use the new database adapter:
+Update the DAL to use the factory adapter:
 
 **File: `src/lib/dal.ts` (modified)**
 
 ```typescript
-// Replace import { db } from './db';
-import { db } from './database/factory';
-
-// The rest of the file remains the same
+import { dbAdapter } from './database/factory';
 ```
+
+Do not import `@supabase/supabase-js` outside the DAL and allowed API/script paths.
 
 ## Testing Requirements
 
-1. **Contract Tests**: Enhance the existing adapter contract tests to validate the Supabase adapter implementation
-2. **Environment Switching**: Test switching between demo and Supabase modes
-3. **Error Handling**: Test error scenarios (network issues, permissions, etc.)
+1. **Contract Tests**: Validate the Supabase adapter against the `DatabaseAdapter` interface
+2. **Error Handling**: Test error scenarios (network issues, permissions, etc.)
 
 ## Acceptance Criteria
 
 - [ ] All database adapter interface methods are fully defined
 - [ ] Supabase adapter implements all required methods
-- [ ] IndexedDB adapter wrapper implements all required methods
-- [ ] Factory correctly selects adapter based on environment
+- [ ] Factory always returns `SupabaseAdapter` (throws if env is missing)
 - [ ] Integration with existing DAL is seamless
-- [ ] Contract tests pass for both adapters
+- [ ] Contract tests pass for the Supabase adapter
 - [ ] Documentation explains the database adapter architecture
 
 ## Technical Notes
@@ -483,17 +422,16 @@ import { db } from './database/factory';
 2. **Type Safety**: Use generated Supabase types where possible
 3. **Performance**: Consider bulk operations where appropriate
 4. **Idempotency**: Ensure operations are idempotent where possible
-5. **Feature Flags**: Seamless switching requires proper environment variable configuration
+5. **Env**: Factory requires `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 
 ## Implementation Strategy
 
 1. Create the basic folder structure and interfaces
-2. Implement the IndexedDB wrapper first (simpler, working with existing code)
-3. Implement the Supabase adapter, focusing on core operations first
-4. Create the factory and integration with existing code
-5. Write and run contract tests
-6. Complete remaining adapter methods
-7. Document the implementation
+2. Implement the Supabase adapter, focusing on core operations first
+3. Create the factory (always `SupabaseAdapter`) and integrate with the DAL
+4. Write and run contract tests
+5. Complete remaining adapter methods
+6. Document the implementation
 
 ## Resources
 
@@ -508,7 +446,6 @@ This is a significant foundational task that requires careful implementation:
 
 - Database adapter interface: 2-3 hours
 - Supabase adapter implementation: 8-10 hours
-- IndexedDB adapter wrapper: 3-4 hours
 - Factory and integration: 1-2 hours
 - Testing and validation: 4-5 hours
 - Documentation: 1-2 hours

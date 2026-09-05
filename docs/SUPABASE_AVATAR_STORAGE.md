@@ -2,14 +2,16 @@
 
 ## Overview
 
-This issue focuses on implementing avatar storage functionality using Supabase Storage for the gatherKids application. The solution will support storing profile images for children, guardians, and staff members, with different storage approaches for Demo mode (base64 in IndexedDB) versus DEV/UAT/PROD environments (Supabase Storage with Postgres references).
+This issue focuses on implementing avatar storage using **Supabase Storage** for the gatherKids application. Profile images for children, guardians, and staff are stored in the `avatars` bucket with path references in Postgres.
+
+Demo-mode base64-in-IndexedDB storage is **removed**. There is no `DATABASE_MODE` dual path.
 
 ## Objectives
 
 1. Create a Supabase Storage bucket specifically for avatars
 2. Implement client-side image processing for size/format optimization
 3. Design and implement database schemas to store avatar references
-4. Create a unified API for avatar management that works across both backends
+4. Create an API for avatar management against Supabase Storage
 5. Build UI components for avatar upload, display, and management
 
 ## Detailed Requirements
@@ -183,7 +185,6 @@ Create a unified avatar service to handle image operations:
 import { v4 as uuidv4 } from 'uuid';
 import { db } from '../database/factory';
 import type { AvatarType, EntityWithAvatar } from './types';
-import { isSupabaseMode } from '../database/utils';
 import { supabase } from '../supabaseClient';
 
 /**
@@ -200,7 +201,7 @@ export const TARGET_AVATAR_SIZE = 200;
 
 /**
  * Avatar service that handles uploading, retrieving, and managing avatars
- * Works with both Demo mode (IndexedDB) and Supabase mode
+ * Avatars are stored in Supabase Storage (`avatars` bucket).
  */
 export class AvatarService {
 	/**
@@ -221,12 +222,7 @@ export class AvatarService {
 		// Process image to WebP format and resize
 		const processedImage = await this.processImage(file);
 
-		// Store based on mode
-		if (isSupabaseMode()) {
-			return this.uploadToSupabase(entityType, entityId, processedImage);
-		} else {
-			return this.storeInIndexedDB(entityType, entityId, processedImage);
-		}
+		return this.uploadToSupabase(entityType, entityId, processedImage);
 	}
 
 	/**
@@ -236,11 +232,7 @@ export class AvatarService {
 		entityType: AvatarType,
 		entityId: string
 	): Promise<string | null> {
-		if (isSupabaseMode()) {
-			return this.getSupabaseAvatarUrl(entityType, entityId);
-		} else {
-			return this.getIndexedDBAvatar(entityType, entityId);
-		}
+		return this.getSupabaseAvatarUrl(entityType, entityId);
 	}
 
 	/**
@@ -250,11 +242,7 @@ export class AvatarService {
 		entityType: AvatarType,
 		entityId: string
 	): Promise<void> {
-		if (isSupabaseMode()) {
-			await this.deleteSupabaseAvatar(entityType, entityId);
-		} else {
-			await this.deleteIndexedDBAvatar(entityType, entityId);
-		}
+		await this.deleteSupabaseAvatar(entityType, entityId);
 	}
 
 	/**
@@ -371,52 +359,6 @@ export class AvatarService {
 	}
 
 	/**
-	 * Store avatar as base64 string in IndexedDB (Demo mode)
-	 */
-	private static async storeInIndexedDB(
-		entityType: AvatarType,
-		entityId: string,
-		image: Blob
-	): Promise<string> {
-		// Convert blob to base64
-		const base64 = await new Promise<string>((resolve, reject) => {
-			const reader = new FileReader();
-			reader.onload = () => resolve(reader.result as string);
-			reader.onerror = reject;
-			reader.readAsDataURL(image);
-		});
-
-		// Determine table and field based on entity type
-		let table;
-		let idField;
-
-		switch (entityType) {
-			case 'children':
-				table = db.children;
-				idField = 'child_id';
-				break;
-			case 'guardians':
-				table = db.guardians;
-				idField = 'guardian_id';
-				break;
-			case 'leaders':
-				table = db.leader_profiles;
-				idField = 'leader_id';
-				break;
-			default:
-				throw new Error(`Unsupported entity type: ${entityType}`);
-		}
-
-		// Update entity with avatar data
-		await table.update(entityId, {
-			avatar_base64: base64,
-			updated_at: new Date().toISOString(),
-		});
-
-		return base64;
-	}
-
-	/**
 	 * Get avatar URL from Supabase
 	 */
 	private static async getSupabaseAvatarUrl(
@@ -443,39 +385,6 @@ export class AvatarService {
 			.getPublicUrl(data.storage_path);
 
 		return urlData.publicUrl;
-	}
-
-	/**
-	 * Get avatar data from IndexedDB
-	 */
-	private static async getIndexedDBAvatar(
-		entityType: AvatarType,
-		entityId: string
-	): Promise<string | null> {
-		// Determine table based on entity type
-		let table;
-		let idField;
-
-		switch (entityType) {
-			case 'children':
-				table = db.children;
-				idField = 'child_id';
-				break;
-			case 'guardians':
-				table = db.guardians;
-				idField = 'guardian_id';
-				break;
-			case 'leaders':
-				table = db.leader_profiles;
-				idField = 'leader_id';
-				break;
-			default:
-				throw new Error(`Unsupported entity type: ${entityType}`);
-		}
-
-		// Get entity with avatar data
-		const entity = await table.get(entityId);
-		return entity?.avatar_base64 || null;
 	}
 
 	/**
@@ -518,41 +427,6 @@ export class AvatarService {
 			throw new Error(`Failed to delete avatar reference: ${dbError.message}`);
 		}
 	}
-
-	/**
-	 * Delete avatar from IndexedDB
-	 */
-	private static async deleteIndexedDBAvatar(
-		entityType: AvatarType,
-		entityId: string
-	): Promise<void> {
-		// Determine table based on entity type
-		let table;
-		let idField;
-
-		switch (entityType) {
-			case 'children':
-				table = db.children;
-				idField = 'child_id';
-				break;
-			case 'guardians':
-				table = db.guardians;
-				idField = 'guardian_id';
-				break;
-			case 'leaders':
-				table = db.leader_profiles;
-				idField = 'leader_id';
-				break;
-			default:
-				throw new Error(`Unsupported entity type: ${entityType}`);
-		}
-
-		// Update entity to remove avatar data
-		await table.update(entityId, {
-			avatar_base64: null,
-			updated_at: new Date().toISOString(),
-		});
-	}
 }
 ```
 
@@ -569,7 +443,7 @@ export type AvatarType = 'children' | 'guardians' | 'leaders';
  */
 export interface EntityWithAvatar {
 	id: string;
-	avatar_base64?: string | null;
+	photo_url?: string | null;
 }
 
 /**
@@ -578,23 +452,6 @@ export interface EntityWithAvatar {
 export interface AvatarUploadResult {
 	url: string;
 	path?: string;
-}
-```
-
-**File: `src/lib/database/utils.ts`**
-
-```typescript
-/**
- * Check if the application is running in Supabase mode
- */
-export function isSupabaseMode(): boolean {
-	// Check if running in browser environment
-	if (typeof window === 'undefined') {
-		return process.env.NEXT_PUBLIC_DATABASE_MODE === 'supabase';
-	}
-
-	// Browser environment
-	return process.env.NEXT_PUBLIC_DATABASE_MODE === 'supabase';
 }
 ```
 
@@ -928,7 +785,7 @@ export async function getLeaderAvatarUrl(
  * Get child profile data including avatar
  */
 export async function getChildWithAvatar(childId: string) {
-	const child = await db.children.get(childId);
+	const child = await dbAdapter.getChild(childId);
 	if (!child) return null;
 
 	const avatarUrl = await getChildAvatarUrl(childId);
@@ -942,47 +799,10 @@ export async function getChildWithAvatar(childId: string) {
 // Similar methods for guardians and leaders
 ```
 
-### 6. Database Schema Updates for IndexedDB
-
-Update the IndexedDB schema to include avatar storage for demo mode:
-
-**File: `src/lib/db.ts` (update)**
-
-```typescript
-// Add to existing schema
-this.version(14)
-	.stores({
-		// Existing stores
-	})
-	.upgrade((tx) => {
-		// Add avatar_base64 field to entities
-		return Promise.all([
-			tx
-				.table('children')
-				.toCollection()
-				.modify((child) => {
-					child.avatar_base64 = null;
-				}),
-			tx
-				.table('guardians')
-				.toCollection()
-				.modify((guardian) => {
-					guardian.avatar_base64 = null;
-				}),
-			tx
-				.table('leader_profiles')
-				.toCollection()
-				.modify((leader) => {
-					leader.avatar_base64 = null;
-				}),
-		]);
-	});
-```
-
 ## Testing Requirements
 
 1. **Image Processing**: Test resizing and format conversion
-2. **Storage Operations**: Test upload, retrieval, and deletion in both modes
+2. **Storage Operations**: Test upload, retrieval, and deletion against Supabase Storage
 3. **Edge Cases**: Test with different image formats and sizes
 4. **Performance**: Test with large batches of images
 5. **UI Components**: Test rendering with and without avatars
@@ -991,12 +811,12 @@ this.version(14)
 
 - [ ] Supabase Storage bucket is properly created and configured
 - [ ] Database schema includes tables for avatar references
-- [ ] Avatar service correctly handles both storage modes
+- [ ] Avatar service stores and retrieves files via Supabase Storage
 - [ ] Client-side image processing properly optimizes images
 - [ ] UI components for avatar upload and display work correctly
 - [ ] Integration with existing forms and profiles
 - [ ] Documentation explains avatar functionality and usage
-- [ ] Tests verify functionality in both storage modes
+- [ ] Tests verify upload/get/delete against Supabase Storage
 
 ## Technical Notes
 

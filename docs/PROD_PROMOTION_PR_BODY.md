@@ -40,7 +40,7 @@ Checklist (must be completed during the maintenance window)
 - [ ] Take a final PROD snapshot: `pg_dump "$PROD_DATABASE_URL" -Fc -f prod-backup-$(date +%Y%m%dT%H%M%S).dump`
 - [ ] Apply migrations (Option A recommended)
 - [ ] Run FK checks: `bash scripts/db/check_fks.sh "$PROD_DATABASE_URL"`
-- [ ] If the importer is required for data migration, run importer with service-role key and mapping file (careful):
+- [ ] If a one-time Dexie JSON import is still required (leftover script; not a supported runtime — [#266](https://github.com/tzlukoma/gather-kids/issues/266)):
       `SUPABASE_URL="$PROD_SUPABASE_URL" SUPABASE_SERVICE_ROLE_KEY="$PROD_SERVICE_ROLE_KEY" node scripts/import/importDexie.js --file <export.json> --mapping scripts/import/mappings/1756440851677-mapping.json`
 - [ ] Run app smoke tests and verify key pages/flows
 - [ ] Rotate keys if any were exposed during maintenance

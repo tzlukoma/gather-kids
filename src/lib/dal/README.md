@@ -10,7 +10,7 @@ All application code should import from `@/lib/dal`:
 import { getAllChildren, registerHousehold, getBrandingSettings } from '@/lib/dal';
 ```
 
-`src/lib/dal.ts` is the thin facade that re-exports everything from the domain modules in this directory and also retains a small set of legacy Dexie-backed helpers (see below).
+`src/lib/dal.ts` is the thin facade that re-exports everything from the domain modules in this directory.
 
 For tree-shaking or direct domain imports:
 
@@ -58,26 +58,7 @@ import { db as dbAdapter } from '../database/factory';
 `src/lib/database/types.ts`. It is the `SupabaseAdapter` class from
 `src/lib/database/supabase-adapter.ts`.
 
-**Demo mode / Dexie have been removed** — the IndexedDB (Dexie) adapter and
-all `shouldUseAdapter()` branching were deleted in Wave 3 (issue #191). The
-Supabase adapter is always used in production.
-
-## Legacy Dexie helpers (in `src/lib/dal.ts`)
-
-A small number of Dexie-backed functions remain in `src/lib/dal.ts` for
-backward compatibility with existing unit tests that mock `@/lib/db`:
-
-- `querySundaySchoolRoster`
-- `queryRostersForMinistry`
-- `queryDashboardMetrics`
-- `isEligibleForChoir` / `isWithinWindow`
-- `queryLeaders` / `getLeaderProfile` (old Dexie shape)
-- `getLeaderBibleBeeProgress`
-- `exportEmergencySnapshotCSV`
-- `saveLeaderAssignments`
-
-These are all marked `@deprecated` and should be removed once the
-corresponding tests are migrated or deleted (tracked as MAINT-06).
+The app is Supabase-only. There is no IndexedDB / demo-mode data path.
 
 ## Adding a new domain function
 

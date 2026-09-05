@@ -8,9 +8,9 @@
 
 When accessing database tables, please check all that apply:
 
-- [ ] I've updated components to use database adapter methods (`dbAdapter.methodName()`) instead of direct Dexie queries
-- [ ] I've replaced `useLiveQuery` with proper React state management where needed
-- [ ] I've tested with both IndexedDB (demo mode) and Supabase (UAT) environments
+- [ ] I've updated components to use database adapter methods (`dbAdapter.methodName()`) instead of leftover Dexie queries
+- [ ] I've replaced `useLiveQuery` with React Query hooks where needed
+- [ ] I've tested against local or UAT Supabase
 - [ ] I've added appropriate error handling for database operations
 
 ## Components Updated
@@ -24,8 +24,7 @@ When accessing database tables, please check all that apply:
 
 <!-- Describe how you tested these changes -->
 
-- [ ] Tested in demo mode (IndexedDB)
-- [ ] Tested in UAT environment (Supabase)
+- [ ] Tested against local or UAT Supabase
 
 ## Related Documentation
 

@@ -362,7 +362,7 @@ export interface DatabaseAdapter {
 	listStudentScriptures(childId?: string, bibleBeeCycleId?: string): Promise<StudentScripture[]>;
 	deleteStudentScripture(id: string): Promise<void>;
 
-	// Realtime (can be no-op in IndexedDB implementation)
+	// Realtime
 	subscribeToTable<T>(
 		table: string,
 		callback: (payload: T) => void

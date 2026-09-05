@@ -3,9 +3,6 @@ import { renderWithAuth, mockUsers } from '@/test-utils/auth/test-utils';
 import { screen, waitFor, fireEvent } from '@testing-library/react';
 import crypto from 'crypto';
 
-// Import database to set up test data
-import { db } from '@/lib/db';
-
 // Mock data that can be updated
 let mockScriptureData = {
 	scriptures: [
@@ -161,8 +158,6 @@ const mockDbAdapter = {
 
 jest.mock('@/lib/dal', () => ({
 	dbAdapter: mockDbAdapter,
-	// Re-export any other DAL functions that might be needed
-	shouldUseAdapter: jest.fn().mockReturnValue(true),
 	getChild: jest.fn().mockResolvedValue({
 		id: 'test-child',
 		household_id: 'test-household',
@@ -187,8 +182,6 @@ jest.mock('@/lib/dal', () => ({
 // Mock db-utils to return the same mocked dbAdapter
 jest.mock('@/lib/db-utils', () => ({
 	dbAdapter: mockDbAdapter,
-	isSupabase: jest.fn().mockReturnValue(false),
-	getDatabaseMode: jest.fn().mockReturnValue('indexeddb'),
 }));
 
 // Mock next/navigation useParams to return our test childId before importing the page

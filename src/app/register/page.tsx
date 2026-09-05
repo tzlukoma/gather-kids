@@ -1613,7 +1613,7 @@ function RegisterPageContent() {
 			}
 
 			log.log('DEBUG: Non-authenticated user, resetting form');
-			// For non-authenticated users (demo mode, etc.), reset form for another registration
+			// For non-authenticated users, reset form for another registration
 			form.reset();
 			setVerificationStep('enter_email');
 			setVerificationEmail('');
@@ -1925,23 +1925,6 @@ function RegisterPageContent() {
 								Resend Email
 							</Button>
 						</div>
-
-						{false && (
-							<Alert>
-								<Info className="h-4 w-4" />
-								<AlertTitle>For Testing</AlertTitle>
-								<AlertDescription>
-									<p>In demo mode, you can skip email verification:</p>
-									<Button
-										variant="outline"
-										size="sm"
-										className="mt-2"
-										onClick={() => proceedToRegistrationForm()}>
-										Skip Email Verification
-									</Button>
-								</AlertDescription>
-							</Alert>
-						)}
 					</CardContent>
 				</Card>
 			)}

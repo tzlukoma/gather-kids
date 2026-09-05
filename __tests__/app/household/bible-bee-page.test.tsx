@@ -27,9 +27,6 @@ jest.mock('@/lib/dal');
 jest.mock('@/hooks/data', () => ({
 	useHouseholdProfile: jest.fn(),
 }));
-jest.mock('dexie-react-hooks', () => ({
-	useLiveQuery: jest.fn(() => [{ id: '1', year: 2025 }]),
-}));
 
 const mockUseAuth = useAuth as jest.MockedFunction<typeof useAuth>;
 const mockGetBibleBeeMinistry = getBibleBeeMinistry as jest.MockedFunction<

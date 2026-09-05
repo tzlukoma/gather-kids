@@ -1,4 +1,6 @@
-**Task:** Extend the existing **Demo/IndexedDB** prototype to integrate **Bible Bee** functionality end-to-end, following the specs and user stories below. Keep everything **client-side** (IndexedDB only). Make the code modular so we can replace the DAL later without rewrites.
+> **Historical spec.** Bible Bee now runs against **Supabase** through the DAL. Do not implement or revive a client-side IndexedDB/Dexie path. Leftover Dexie helpers are tracked in [#266](https://github.com/tzlukoma/gather-kids/issues/266).
+
+**Original task (kept for product rules):** Integrate Bible Bee functionality end-to-end behind the DAL, following the specs and user stories below.
 
 ---
 
@@ -342,6 +344,6 @@ export async function submitEssay(childId: string, competitionYearId: string) {
 5. Seed script to populate demo data.
 6. Tests for idempotency, aggregation, and CSV validation.
 
-**Important:** Keep code organized behind the current **DAL abstraction**, even though it’s Dexie-only today. No server calls; everything must work **offline** in demo.
+**Important:** Keep Bible Bee behind the **DAL** (`dbAdapter` / React Query). Runtime is Supabase; do not add offline/IndexedDB paths.
 
 ---

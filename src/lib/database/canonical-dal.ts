@@ -1,10 +1,9 @@
 import { z } from 'zod';
 import { v4 as uuidv4 } from 'uuid';
 import * as CanonicalDtos from './canonical-dtos';
-import { db } from '../db';
 import { db as dbAdapter } from './factory';
 import type { Guardian, Registration } from '../types';
-import { ageOn } from '../dal';
+import { ageOn } from '../dal/utils';
 import { gradeToCode } from '../gradeUtils';
 import { enrollChildInBibleBee } from '../bibleBee';
 import { devLog } from '../dev-log';

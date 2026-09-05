@@ -1,21 +1,12 @@
 import { DatabaseAdapter } from '@/lib/database/types';
-import { IndexedDBAdapter } from '@/lib/database/indexed-db-adapter';
 import { SupabaseAdapter } from '@/lib/database/supabase-adapter';
-import { createInMemoryDB } from './dexie-mock';
 import { createSupabaseMock } from './supabase-mock';
 
 /**
  * Test Database Factory
- * Creates a DatabaseAdapter instance for testing with either IndexedDB or Supabase
+ * Creates a mock Supabase DatabaseAdapter instance for testing
  */
 export class TestDatabaseFactory {
-	/**
-	 * Create an in-memory IndexedDB adapter for testing
-	 */
-	static createIndexedDBAdapter(): DatabaseAdapter {
-		return new IndexedDBAdapter();
-	}
-
 	/**
 	 * Create a mock Supabase adapter for testing
 	 */

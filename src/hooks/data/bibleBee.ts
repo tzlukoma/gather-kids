@@ -4,7 +4,6 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
   getBibleBeeCycles,
   getScripturesForBibleBeeCycle,
-  getLeaderBibleBeeProgress,
   getBibleBeeProgressForCycle,
   canLeaderManageBibleBee,
   getDivisionsForBibleBeeCycle,
@@ -110,16 +109,6 @@ export function useDeleteScripture() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['scriptures'] });
     },
-  });
-}
-
-// Progress and Statistics
-export function useLeaderBibleBeeProgress(leaderId: string, cycleId: string) {
-  return useQuery({
-    queryKey: queryKeys.leaderBibleBeeProgress(leaderId, cycleId),
-    queryFn: () => getLeaderBibleBeeProgress(leaderId, cycleId),
-    enabled: !!leaderId && !!cycleId,
-    ...cacheConfig.volatile, // Progress changes frequently
   });
 }
 
