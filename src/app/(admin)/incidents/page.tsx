@@ -40,14 +40,8 @@ export default function IncidentsPage() {
 	const { toast } = useToast();
 	const { user } = useAuth();
 	const searchParams = useSearchParams();
-	const [activeTab, setActiveTab] = useState(() => {
-		const tabParam = searchParams.get('tab');
-		return tabParam === 'view' ? 'view' : 'log';
-	});
-	const [showPendingOnly, setShowPendingOnly] = useState(() => {
-		const filterParam = searchParams.get('filter');
-		return filterParam === 'pending';
-	});
+	const [activeTab, setActiveTab] = useState('log');
+	const [showPendingOnly, setShowPendingOnly] = useState(false);
 	const [showAllCycles, setShowAllCycles] = useState(false);
 
 	// React Query hooks for data fetching
@@ -63,6 +57,18 @@ export default function IncidentsPage() {
 		() => new Set(cycleChildren.map((child) => child.child_id)),
 		[cycleChildren],
 	);
+
+	// Sync filters when URL params change
+	useEffect(() => {
+		const tabParam = searchParams.get('tab');
+		if (tabParam === 'view') {
+			setActiveTab('view');
+		}
+		const filterParam = searchParams.get('filter');
+		if (filterParam === 'pending') {
+			setShowPendingOnly(true);
+		}
+	}, [searchParams]);
 
 	const displayedIncidents = useMemo(() => {
 		if (loading) return [];

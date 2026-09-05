@@ -114,19 +114,25 @@ function CheckInContent() {
 	const isMobile = useIsMobile();
 	const searchParams = useSearchParams();
 
-	const [selectedEvent, setSelectedEvent] = useState(() => {
-		const event = searchParams?.get('event');
-		return event && EVENT_OPTIONS.find((e) => e.id === event) ? event : 'evt_sunday_school';
-	});
+	const [selectedEvent, setSelectedEvent] = useState('evt_sunday_school');
 	const [selectedGrades, setSelectedGrades] = useState<Set<string>>(() => new Set());
-	const [statusFilter, setStatusFilter] = useState<StatusFilter>(() => {
-		const filter = searchParams?.get('filter');
-		return (filter === 'checkedIn' || filter === 'checkedOut' || filter === 'all') ? filter as StatusFilter : 'all';
-	});
+	const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
 	const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
 	const [isEventDialogOpen, setIsEventDialogOpen] = useState(false);
 
 	const today = getTodayIsoDate();
+
+	// Sync filters when URL params change
+	useEffect(() => {
+		const filter = searchParams?.get('filter');
+		if (filter === 'checkedIn' || filter === 'checkedOut' || filter === 'all') {
+			setStatusFilter(filter as StatusFilter);
+		}
+		const event = searchParams?.get('event');
+		if (event && EVENT_OPTIONS.find((e) => e.id === event)) {
+			setSelectedEvent(event);
+		}
+	}, [searchParams]);
 
 	// Use React Query hooks for data fetching
 	const { data: children = EMPTY_CHILDREN, isLoading: childrenLoading } = useChildrenForActiveCycle();

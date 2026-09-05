@@ -147,9 +147,7 @@ export default function RostersPage() {
 		url: string;
 	} | null>(null);
 
-	const [showCheckedIn, setShowCheckedIn] = useState(() => {
-		return searchParams.get('status') === 'checkedIn';
-	});
+	const [showCheckedIn, setShowCheckedIn] = useState(false);
 	const [showCheckedOut, setShowCheckedOut] = useState(false);
 	const [groupByGrade, setGroupByGrade] = useState(false);
 
@@ -278,6 +276,15 @@ export default function RostersPage() {
 			setSelectedMinistryFilter(leaderMinistryId);
 		}
 	}, [user, leaderMinistryId]);
+
+	// Sync filters when URL params change
+	useEffect(() => {
+		const statusParam = searchParams.get('status');
+		if (statusParam === 'checkedIn') {
+			setShowCheckedIn(true);
+			setShowCheckedOut(false);
+		}
+	}, [searchParams]);
 
 	const childrenWithDetails: RosterChild[] = useMemo(() => {
 		if (

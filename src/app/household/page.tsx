@@ -16,18 +16,20 @@ import { isOfflineSupabase } from '@/lib/offline-supabase';
 export default function GuardianHouseholdPage() {
 	const { user } = useAuth();
 	const router = useRouter();
-	const [showOnboarding, setShowOnboarding] = useState(() => {
+	const [showOnboarding, setShowOnboarding] = useState(false);
+	const [householdId, setHouseholdId] = useState<string | null>(null);
+
+	// Sync onboarding state when user becomes available
+	useEffect(() => {
 		if (user && !user.metadata?.onboarding_dismissed) {
 			const sessionKey = `onboarding_shown_${user.uid}`;
 			const alreadyShownThisSession = sessionStorage.getItem(sessionKey);
 			if (!alreadyShownThisSession && user.uid === 'user_parent_demo') {
+				setShowOnboarding(true);
 				sessionStorage.setItem(sessionKey, 'true');
-				return true;
 			}
 		}
-		return false;
-	});
-	const [householdId, setHouseholdId] = useState<string | null>(null);
+	}, [user]);
 
 	const {
 		data: profileData,
