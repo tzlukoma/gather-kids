@@ -66,7 +66,7 @@ async function createHouseholdRegistrations() {
 			);
 		}
 
-		const activeCycleId =
+		let activeCycleId =
 			cycles && cycles.length > 0 ? cycles[0].cycle_id : null;
 
 		if (!activeCycleId) {
@@ -92,11 +92,11 @@ async function createHouseholdRegistrations() {
 				);
 			}
 
-			console.log(`✅ Created registration cycle: ${cycleData.name}`);
+		console.log(`✅ Created registration cycle: ${cycleData.name}`);
 
-			// Use the newly created cycle
-			var activeCycleId = cycleData.cycle_id;
-		}
+		// Use the newly created cycle
+		activeCycleId = cycleData.cycle_id;
+	}
 
 		// Create registrations for each household
 		for (const household of households) {

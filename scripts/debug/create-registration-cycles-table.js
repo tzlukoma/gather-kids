@@ -181,11 +181,10 @@ CREATE TABLE IF NOT EXISTS public.registration_cycles (
 			console.log(
 				'-----------------------------------------------------------\n'
 			);
-			console.log(`🌐 SQL Editor URL: ${supabaseUrl}/project/sql`);
-			console.log('Then run the UAT seed script again with: npm run seed:uat');
+		console.log(`🌐 SQL Editor URL: ${supabaseUrl}/project/sql`);
+		console.log('Then run the UAT seed script again with: npm run seed:uat');
 
-			return false;
-		}
+		return false;
 	}
 }
 
