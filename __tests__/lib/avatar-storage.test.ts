@@ -6,7 +6,7 @@ function ensureChildrenMock() {
     // Always provide a minimal in-memory implementation and assign it as any
     // to avoid Dexie/IndexedDB runtime issues in Jest.
     const _store = new Map<string, any>();
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+     
     // @ts-ignore
     db.children = {
         add: async (obj: any) => {

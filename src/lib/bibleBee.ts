@@ -532,7 +532,7 @@ export function previewCsvJsonMatches(rows: CsvRow[], jsonItems: Array<Record<st
         let safeItem: Record<string, unknown> = j;
         if (Object.prototype.hasOwnProperty.call(j, 'order')) {
             safeItem = { ...j };
-            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+             
             // @ts-ignore - dynamic delete on shallow copy for runtime compatibility
             delete (safeItem as any).order;
         }
@@ -649,7 +649,7 @@ export async function commitCsvRowsToYear(rows: CsvRow[], competitionYearId: str
             // Ensure we don't keep stale 'order' field at all by copying to a mutable record
             const updatedRecord = { ...updatedItem } as Record<string, unknown>;
             if (Object.prototype.hasOwnProperty.call(updatedRecord, 'order')) {
-                // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+                 
                 // @ts-ignore dynamic delete for legacy compatibility
                 delete updatedRecord.order;
             }
@@ -674,7 +674,7 @@ export async function commitCsvRowsToYear(rows: CsvRow[], competitionYearId: str
             // Ensure we never store an 'order' field by copying to a mutable record first
             const newRecord = { ...newItem } as Record<string, unknown>;
             if (Object.prototype.hasOwnProperty.call(newRecord, 'order')) {
-                // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+                 
                 // @ts-ignore dynamic delete for legacy compatibility
                 delete newRecord.order;
             }

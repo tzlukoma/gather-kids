@@ -97,7 +97,7 @@ describe('RegistrationsPage', () => {
 
 	const renderWithProviders = (
 		ui: React.ReactElement,
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		 
 		user: any = mockUsers.admin
 	) => {
 		return render(

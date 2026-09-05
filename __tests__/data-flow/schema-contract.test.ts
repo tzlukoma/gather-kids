@@ -167,7 +167,7 @@ describe('Database Schema Contract Tests', () => {
       };
 
       try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
         await supabaseAdapter.createChild(incompleteChild as any);
         // This should fail due to missing required fields
         expect(true).toBe(false); // Should not reach here
@@ -183,7 +183,7 @@ describe('Database Schema Contract Tests', () => {
       };
 
       try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
         await supabaseAdapter.createGuardian(incompleteGuardian as any);
         // This should fail due to missing required fields
         expect(true).toBe(false); // Should not reach here

@@ -15,7 +15,7 @@ jest.mock('@/lib/database/factory', () => {
 });
 
 // CJS require after mock — matches existing DAL tests in this repo
-// eslint-disable-next-line @typescript-eslint/no-require-imports
+ 
 const { db: mockAdapter } = require('@/lib/database/factory') as {
 	db: {
 		listRegistrations: jest.Mock;
@@ -23,7 +23,7 @@ const { db: mockAdapter } = require('@/lib/database/factory') as {
 		listChildren: jest.Mock;
 	};
 };
-// eslint-disable-next-line @typescript-eslint/no-require-imports
+ 
 const {
 	mergeChildIdsForCycleScope,
 	getChildIdsForCycle,

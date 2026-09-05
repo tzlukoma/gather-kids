@@ -220,28 +220,27 @@ export default function CreateAccountPage() {
 						pushResult
 					);
 
-					// Check if navigation actually happened after a short delay
-					setTimeout(() => {
-						if (window.location.pathname !== '/register') {
-							console.log(
-								'🔍 Create Account: router.push failed, using fallback redirect'
-							);
-							console.log(
-								'🔍 Create Account: Current pathname:',
-								window.location.pathname
-							);
-							console.log(
-								'🔍 Create Account: Document ready state:',
-								document.readyState
-							);
-							console.log('🔍 Create Account: Router state:', router);
-							window.location.href = '/register';
-						} else {
-							console.log(
-								'🔍 Create Account: router.push succeeded, no fallback needed'
-							);
-						}
-					}, 1000);
+				// Check if navigation actually happened after a short delay
+				setTimeout(() => {
+					if (window.location.pathname !== '/register') {
+						console.log(
+							'🔍 Create Account: router.push may have failed'
+						);
+						console.log(
+							'🔍 Create Account: Current pathname:',
+							window.location.pathname
+						);
+						console.log(
+							'🔍 Create Account: Document ready state:',
+							document.readyState
+						);
+						console.log('🔍 Create Account: Router state:', router);
+					} else {
+						console.log(
+							'🔍 Create Account: router.push succeeded'
+						);
+					}
+				}, 1000);
 				}
 				// If no session but we're in local dev, still redirect
 				else if (isLocalDev) {
@@ -276,28 +275,27 @@ export default function CreateAccountPage() {
 						'(local dev)'
 					);
 
-					// Check if navigation actually happened after a short delay
-					setTimeout(() => {
-						if (window.location.pathname !== '/register') {
-							console.log(
-								'🔍 Create Account: router.push failed, using fallback redirect (local dev)'
-							);
-							console.log(
-								'🔍 Create Account: Current pathname:',
-								window.location.pathname
-							);
-							console.log(
-								'🔍 Create Account: Document ready state:',
-								document.readyState
-							);
-							console.log('🔍 Create Account: Router state:', router);
-							window.location.href = '/register';
-						} else {
-							console.log(
-								'🔍 Create Account: router.push succeeded, no fallback needed (local dev)'
-							);
-						}
-					}, 1000);
+				// Check if navigation actually happened after a short delay
+				setTimeout(() => {
+					if (window.location.pathname !== '/register') {
+						console.log(
+							'🔍 Create Account: router.push may have failed (local dev)'
+						);
+						console.log(
+							'🔍 Create Account: Current pathname:',
+							window.location.pathname
+						);
+						console.log(
+							'🔍 Create Account: Document ready state:',
+							document.readyState
+						);
+						console.log('🔍 Create Account: Router state:', router);
+					} else {
+						console.log(
+							'🔍 Create Account: router.push succeeded (local dev)'
+						);
+					}
+				}, 1000);
 				}
 				// If no session and not local dev, show verification message
 				else {

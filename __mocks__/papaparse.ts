@@ -36,4 +36,5 @@ export const parse = (file: any, opts: any) => {
         });
 };
 
-export default { parse };
+const papaparse = { parse };
+export default papaparse;

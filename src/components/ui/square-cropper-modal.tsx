@@ -101,7 +101,11 @@ export function SquareCropperModal({
 	}, []);
 
 	const startCamera = useCallback(async (deviceId?: string) => {
-		stopCamera();
+		// Stop any existing stream before starting a new one
+		if (streamRef.current) {
+			streamRef.current.getTracks().forEach(track => track.stop());
+			streamRef.current = null;
+		}
 		try {
 			const constraints: MediaStreamConstraints = {
 				video: {
@@ -123,7 +127,7 @@ export function SquareCropperModal({
 				description: 'Please enable camera permissions in your browser settings.',
 			});
 		}
-	}, [stopCamera, toast]);
+	}, [toast]);
 
 	// Camera initialization effect
 	useEffect(() => {
