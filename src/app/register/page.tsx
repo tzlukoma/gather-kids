@@ -1,6 +1,7 @@
 'use client';
 
-import { useForm, useFieldArray, useWatch } from 'react-hook-form';
+import { useFormCompat as useForm } from '@/hooks/useFormCompat';
+import { useFieldArray, useWatch } from 'react-hook-form';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';

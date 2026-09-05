@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useFormCompat as useForm } from '@/hooks/useFormCompat';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import {
