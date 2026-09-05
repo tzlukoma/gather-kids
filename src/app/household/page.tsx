@@ -19,6 +19,18 @@ export default function GuardianHouseholdPage() {
 	const [showOnboarding, setShowOnboarding] = useState(false);
 	const [householdId, setHouseholdId] = useState<string | null>(null);
 
+	// Sync onboarding state when user becomes available
+	useEffect(() => {
+		if (user && !user.metadata?.onboarding_dismissed) {
+			const sessionKey = `onboarding_shown_${user.uid}`;
+			const alreadyShownThisSession = sessionStorage.getItem(sessionKey);
+			if (!alreadyShownThisSession && user.uid === 'user_parent_demo') {
+				setShowOnboarding(true);
+				sessionStorage.setItem(sessionKey, 'true');
+			}
+		}
+	}, [user]);
+
 	const {
 		data: profileData,
 		isLoading,
@@ -60,18 +72,6 @@ export default function GuardianHouseholdPage() {
 		};
 		load();
 	}, [user, router]);
-
-	useEffect(() => {
-		if (user && !user.metadata?.onboarding_dismissed) {
-			const sessionKey = `onboarding_shown_${user.uid}`;
-			const alreadyShownThisSession = sessionStorage.getItem(sessionKey);
-
-			if (!alreadyShownThisSession && user.uid === 'user_parent_demo') {
-				setShowOnboarding(true);
-				sessionStorage.setItem(sessionKey, 'true');
-			}
-		}
-	}, [user]);
 
 	if (isOfflineSupabase()) {
 		return (

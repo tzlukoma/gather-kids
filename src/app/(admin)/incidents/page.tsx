@@ -58,6 +58,7 @@ export default function IncidentsPage() {
 		[cycleChildren],
 	);
 
+	// Sync filters when URL params change
 	useEffect(() => {
 		const tabParam = searchParams.get('tab');
 		if (tabParam === 'view') {

@@ -75,12 +75,21 @@ function EvaluationScripturesContent() {
 	}, [scriptures]);
 
 	// Selected translations to display (default: all available)
-	const [selectedTranslations, setSelectedTranslations] = useState<Set<string>>(new Set());
+	// Initialize with TRANSLATION_CONFIG keys, update via async effect when scriptures load
+	const [selectedTranslations, setSelectedTranslations] = useState<Set<string>>(() => 
+		new Set(TRANSLATION_CONFIG.map((t) => t.key))
+	);
 
-	// When scriptures/translations load, default to all selected
+	// Update selected translations when scriptures load (async response)
 	useEffect(() => {
 		if (allTranslationKeys.length > 0) {
-			setSelectedTranslations(new Set(allTranslationKeys));
+			setSelectedTranslations((prev) => {
+				// Only update if new keys are available
+				if (prev.size === 0 || !allTranslationKeys.every(k => prev.has(k))) {
+					return new Set(allTranslationKeys);
+				}
+				return prev;
+			});
 		}
 	}, [allTranslationKeys]);
 

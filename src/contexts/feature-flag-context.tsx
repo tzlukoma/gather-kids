@@ -35,12 +35,7 @@ export function FeatureFlagProvider({ children }: { children: ReactNode }) {
 			'REGISTRATION_DRAFT_PERSISTENCE_ENABLED'
 		) as boolean,
 	}));
-	const [loading, setLoading] = useState(true);
-
-	useEffect(() => {
-		// Flags are all environment-based — just mark loading done
-		setLoading(false);
-	}, []);
+	const [loading] = useState(false);
 
 	const value = { flags, loading };
 

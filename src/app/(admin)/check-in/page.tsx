@@ -122,6 +122,18 @@ function CheckInContent() {
 
 	const today = getTodayIsoDate();
 
+	// Sync filters when URL params change
+	useEffect(() => {
+		const filter = searchParams?.get('filter');
+		if (filter === 'checkedIn' || filter === 'checkedOut' || filter === 'all') {
+			setStatusFilter(filter as StatusFilter);
+		}
+		const event = searchParams?.get('event');
+		if (event && EVENT_OPTIONS.find((e) => e.id === event)) {
+			setSelectedEvent(event);
+		}
+	}, [searchParams]);
+
 	// Use React Query hooks for data fetching
 	const { data: children = EMPTY_CHILDREN, isLoading: childrenLoading } = useChildrenForActiveCycle();
 	const { data: todaysAttendance = EMPTY_ATTENDANCE, isLoading: attendanceLoading } =
@@ -165,19 +177,6 @@ function CheckInContent() {
 	};
 
 	const clearGrades = () => setSelectedGrades(new Set());
-
-	// Read query params on mount / when they change and apply initial filters.
-	useEffect(() => {
-		if (!searchParams) return;
-		const filter = searchParams.get('filter');
-		if (filter === 'checkedIn' || filter === 'checkedOut' || filter === 'all') {
-			setStatusFilter(filter as StatusFilter);
-		}
-		const event = searchParams.get('event');
-		if (event && EVENT_OPTIONS.find((e) => e.id === event)) {
-			setSelectedEvent(event);
-		}
-	}, [searchParams]);
 
 	if (loading) {
 		return <CardGridSkeleton count={8} />;

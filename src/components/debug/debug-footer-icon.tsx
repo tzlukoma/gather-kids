@@ -15,12 +15,9 @@ interface DebugFooterIconProps {
 }
 
 export function DebugFooterIcon({ onClick }: DebugFooterIconProps) {
-  const [debugEnabled, setDebugEnabled] = useState(false);
+  const [debugEnabled, setDebugEnabled] = useState(() => isDebugOn());
 
   useEffect(() => {
-    // Set initial state
-    setDebugEnabled(isDebugOn());
-
     // Subscribe to flag changes
     const unsubscribe = onDebugFlagChange(setDebugEnabled);
     

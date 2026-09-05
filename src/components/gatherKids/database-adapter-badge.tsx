@@ -5,15 +5,8 @@ import { Badge } from '@/components/ui/badge';
 import { db } from '@/lib/database/factory';
 
 export function DatabaseAdapterBadge() {
-	const [adapterType, setAdapterType] = useState<string>('Loading...');
-	const [flagValue, setFlagValue] = useState<string>('Loading...');
-
-	useEffect(() => {
-		// Get the actual adapter type safely
-		const adapterName = db?.constructor?.name ?? 'Unknown';
-		setAdapterType(adapterName);
-		setFlagValue('supabase');
-	}, []);
+	const [adapterType] = useState<string>(() => db?.constructor?.name ?? 'Unknown');
+	const [flagValue] = useState<string>('supabase');
 
 	const color = adapterType.includes('Supabase')
 		? 'bg-green-500'

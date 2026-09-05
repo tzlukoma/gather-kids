@@ -272,18 +272,19 @@ export default function RostersPage() {
 	}, [selectedEvent]);
 
 	useEffect(() => {
+		if (user?.metadata?.role === AuthRole.MINISTRY_LEADER && leaderMinistryId) {
+			setSelectedMinistryFilter(leaderMinistryId);
+		}
+	}, [user, leaderMinistryId]);
+
+	// Sync filters when URL params change
+	useEffect(() => {
 		const statusParam = searchParams.get('status');
 		if (statusParam === 'checkedIn') {
 			setShowCheckedIn(true);
 			setShowCheckedOut(false);
 		}
 	}, [searchParams]);
-
-	useEffect(() => {
-		if (user?.metadata?.role === AuthRole.MINISTRY_LEADER && leaderMinistryId) {
-			setSelectedMinistryFilter(leaderMinistryId);
-		}
-	}, [user, leaderMinistryId]);
 
 	const childrenWithDetails: RosterChild[] = useMemo(() => {
 		if (

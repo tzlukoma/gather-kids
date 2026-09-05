@@ -37,9 +37,21 @@ export const AuthContext = createContext<AuthContextType | undefined>(
 );
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-	const [user, setUser] = useState<BaseUser | null>(null);
+	const [user, setUser] = useState<BaseUser | null>(() => {
+		if (isOfflineSupabase()) {
+			const stored = readOfflineSessionUser();
+			return stored;
+		}
+		return null;
+	});
 	const [loading, setLoading] = useState<boolean>(true);
-	const [userRole, setUserRole] = useState<AuthRole | null>(null);
+	const [userRole, setUserRole] = useState<AuthRole | null>(() => {
+		if (isOfflineSupabase()) {
+			const stored = readOfflineSessionUser();
+			return stored?.metadata?.role ?? null;
+		}
+		return null;
+	});
 
 	// Helper to extract a user id from various shapes
 	function getUserId(u: any): string | undefined {
@@ -192,12 +204,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 	useEffect(() => {
 		if (isOfflineSupabase()) {
-			authLog.log('Restoring dummy session from sessionStorage');
-			const stored = readOfflineSessionUser();
-			if (stored) {
-				setUser(stored);
-				setUserRole(stored.metadata?.role ?? null);
-			}
+			authLog.log('Restoring dummy session from sessionStorage (already initialized)');
 			setLoading(false);
 			return;
 		}
