@@ -21,10 +21,11 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/contexts/auth-context';
 import { Bug, User, Settings, Globe, Lock, Database } from 'lucide-react';
+import { AuthRole } from '@/lib/auth-types';
 
 interface DebugContentProps {
 	user: any;
-	userRole: string | undefined;
+	userRole: AuthRole | null;
 	environmentInfo: Record<string, any>;
 	sessionInfo: Record<string, any>;
 	tokens: any[];
