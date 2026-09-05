@@ -3,7 +3,8 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, Church, Youtube, Instagram } from 'lucide-react';
+import { ArrowRight, Church } from 'lucide-react';
+import { Youtube, Instagram } from '@/components/icons/brand';
 import { useFeatureFlags } from '@/contexts/feature-flag-context';
 import { useBranding } from '@/contexts/branding-context';
 import { AppFooter } from '@/components/app-footer';
