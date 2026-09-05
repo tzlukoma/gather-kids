@@ -1,8 +1,10 @@
 const React = require('react');
 
 function makeIcon(name) {
-	return (props) =>
+	const MockIcon = (props) =>
 		React.createElement('svg', { 'data-icon': name, ...props }, null);
+	MockIcon.displayName = `Mock${name}`;
+	return MockIcon;
 }
 
 module.exports = new Proxy(

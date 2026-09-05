@@ -1,8 +1,8 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
-export async function middleware(request: NextRequest) {
-  // Skip middleware for demo mode or missing Supabase config
+export async function proxy(request: NextRequest) {
+  // Skip proxy for demo mode or missing Supabase config
   if (process.env.NEXT_PUBLIC_SUPABASE_URL?.includes('dummy') || 
       !process.env.NEXT_PUBLIC_SUPABASE_URL ||
       !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
@@ -47,7 +47,7 @@ export async function middleware(request: NextRequest) {
 
   } catch (error) {
     // Don't block requests if Supabase is unavailable
-    console.warn('Middleware: Supabase error (continuing):', error);
+    console.warn('Proxy: Supabase error (continuing):', error);
   }
 
   return response;

@@ -11,7 +11,7 @@ Procedures: [`.agents/skills/`](.agents/skills/)
 
 gatherKids is a children's ministry management app for Youth Ministry at Cathedral International. Staff use it for check-in, rosters, incidents, and admin. Guardians use it to register children.
 
-**Stack (as shipped):** Next.js 15, React 18, TypeScript, Supabase Auth + Postgres, TanStack Query, React Hook Form + Zod. Hosted on Vercel. UAT and production are separate Supabase projects.
+**Stack (as shipped):** Next.js 16, React 18, TypeScript, Supabase Auth + Postgres, TanStack Query, React Hook Form + Zod. Hosted on Vercel. UAT and production are separate Supabase projects.
 
 Runtime data access is Supabase through the DAL (`src/lib/database/`). Demo/IndexedDB mode is **not** a supported runtime. Leftover Dexie files exist; do not treat them as the current architecture.
 
