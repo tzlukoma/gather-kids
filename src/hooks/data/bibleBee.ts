@@ -509,7 +509,7 @@ export function useSubmitEssayMutation(childId: string) {
       });
       return { previous };
     },
-    onError: (_err: unknown, _vars: { bibleBeeCycleId?: string } | undefined, context: any) => {
+    onError: (_err: unknown, _vars: { bibleBeeCycleId: string }, context: any) => {
       if (context?.previous) {
         queryClient.setQueryData(queryKeys.studentAssignments(childId), context.previous);
       }

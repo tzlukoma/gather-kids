@@ -27,7 +27,14 @@ export function useQueryClient() {
     };
 }
 
-export function useQuery(key: any, fn: any) {
+export function useQuery(optionsOrKey: any, maybeFn?: any) {
+    const isObjectForm =
+        optionsOrKey &&
+        typeof optionsOrKey === 'object' &&
+        !Array.isArray(optionsOrKey) &&
+        ('queryKey' in optionsOrKey || 'queryFn' in optionsOrKey);
+    const key = isObjectForm ? optionsOrKey.queryKey : optionsOrKey;
+    const fn = isObjectForm ? optionsOrKey.queryFn : maybeFn;
     const [data, setData] = React.useState<any>(() => {
         const cur = store.get(JSON.stringify(key));
         return cur === undefined ? undefined : cur;
@@ -53,7 +60,10 @@ export function useQuery(key: any, fn: any) {
     return { data };
 }
 
-export function useMutation(fn: any, opts: any = {}) {
+export function useMutation(fnOrOpts: any, maybeOpts: any = {}) {
+    const isObjectForm = typeof fnOrOpts !== 'function';
+    const fn = isObjectForm ? fnOrOpts.mutationFn : fnOrOpts;
+    const opts = isObjectForm ? fnOrOpts : maybeOpts;
     const qc = useQueryClient();
     return {
         mutateAsync: async (payload: any) => {
