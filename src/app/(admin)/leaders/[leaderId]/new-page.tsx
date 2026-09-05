@@ -114,6 +114,29 @@ export default function LeaderProfilePage() {
 		return Object.values(assignments).some(a => a.assigned);
 	}, [assignments]);
 
+	const handleStatusChange = useCallback(async (newStatus: boolean) => {
+		if (!profileData) return;
+		
+		try {
+			await updateLeaderProfileStatus(leaderId, newStatus);
+			toast({
+				title: 'Status Updated',
+				description: `Leader has been set to ${
+					newStatus ? 'Active' : 'Inactive'
+				}.`,
+			});
+		} catch (error) {
+			console.error('Failed to update status', error);
+			toast({
+				title: 'Status Update Failed',
+				description: "Could not update the leader's status.",
+				variant: 'destructive',
+			});
+			// Revert optimistic UI update
+			setIsActive(!newStatus);
+		}
+	}, [profileData, leaderId, toast]);
+
 	// Effect to enforce inactive status if no assignments exist
 	useEffect(() => {
 		if (!hasAssignments && isActive) {
@@ -170,29 +193,6 @@ export default function LeaderProfilePage() {
 		}
 		setIsSaving(false);
 	};
-
-	const handleStatusChange = useCallback(async (newStatus: boolean) => {
-		if (!profileData) return;
-		
-		try {
-			await updateLeaderProfileStatus(leaderId, newStatus);
-			toast({
-				title: 'Status Updated',
-				description: `Leader has been set to ${
-					newStatus ? 'Active' : 'Inactive'
-				}.`,
-			});
-		} catch (error) {
-			console.error('Failed to update status', error);
-			toast({
-				title: 'Status Update Failed',
-				description: "Could not update the leader's status.",
-				variant: 'destructive',
-			});
-			// Revert optimistic UI update
-			setIsActive(!newStatus);
-		}
-	}, [profileData, leaderId, toast]);
 
 	const assignedMinistries = useMemo(() => {
 		if (!profileData) return [];

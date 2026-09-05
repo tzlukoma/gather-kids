@@ -80,6 +80,14 @@ export function SquareCropperModal({
 	const photoRef = useRef<HTMLCanvasElement>(null);
 	const streamRef = useRef<MediaStream | null>(null);
 
+	// Camera functions
+	const stopCamera = useCallback(() => {
+		if (streamRef.current) {
+			streamRef.current.getTracks().forEach(track => track.stop());
+			streamRef.current = null;
+		}
+	}, []);
+
 	// Reset state when modal opens/closes
 	useEffect(() => {
 		if (!isOpen) {
@@ -91,14 +99,6 @@ export function SquareCropperModal({
 			stopCamera();
 		}
 	}, [isOpen, stopCamera]);
-
-	// Camera functions
-	const stopCamera = useCallback(() => {
-		if (streamRef.current) {
-			streamRef.current.getTracks().forEach(track => track.stop());
-			streamRef.current = null;
-		}
-	}, []);
 
 	const startCamera = useCallback(async (deviceId?: string) => {
 		// Stop any existing stream before starting a new one

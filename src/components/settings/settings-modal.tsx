@@ -112,13 +112,6 @@ export function SettingsModal({
 		},
 	});
 
-	// Load profile data when modal opens
-	useEffect(() => {
-		if (isOpen && user) {
-			loadProfileData();
-		}
-	}, [isOpen, user, loadProfileData]);
-
 	const loadProfileData = useCallback(async () => {
 		if (!user) return;
 
@@ -154,6 +147,13 @@ export function SettingsModal({
 			setLoading(false);
 		}
 	}, [user, toast, profileForm]);
+
+	// Load profile data when modal opens
+	useEffect(() => {
+		if (isOpen && user) {
+			loadProfileData();
+		}
+	}, [isOpen, user, loadProfileData]);
 
 	const handleAvatarUpload = () => {
 		setShowCropper(true);

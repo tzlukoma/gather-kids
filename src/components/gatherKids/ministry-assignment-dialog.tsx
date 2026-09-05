@@ -42,12 +42,6 @@ export function MinistryAssignmentDialog({
 	const [isLoading, setIsLoading] = useState(false);
 	const [isSaving, setIsSaving] = useState(false);
 
-	useEffect(() => {
-		if (isOpen && group) {
-			loadData();
-		}
-	}, [isOpen, group, loadData]);
-
 	const loadData = useCallback(async () => {
 		if (!group) return;
 		
@@ -78,6 +72,12 @@ export function MinistryAssignmentDialog({
 			setIsLoading(false);
 		}
 	}, [group, toast]);
+
+	useEffect(() => {
+		if (isOpen && group) {
+			loadData();
+		}
+	}, [isOpen, group, loadData]);
 
 	const handleMinistryToggle = (ministryId: string, isChecked: boolean) => {
 		setAssignedMinistryIds(prev => {

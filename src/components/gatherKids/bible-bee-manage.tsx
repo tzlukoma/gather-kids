@@ -2325,13 +2325,6 @@ function EnrollmentManagement({
 	const [isLoading, setIsLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 
-	// Load preview automatically when year or divisions change
-	React.useEffect(() => {
-		if (yearId && divisions.length >= 0) {
-			loadPreview();
-		}
-	}, [yearId, divisions.length, loadPreview]);
-
 	const loadPreview = useCallback(async () => {
 		setIsLoading(true);
 		setError(null);
@@ -2408,6 +2401,13 @@ function EnrollmentManagement({
 			setIsLoading(false);
 		}
 	}, [yearId, divisions]);
+
+	// Load preview automatically when year or divisions change
+	React.useEffect(() => {
+		if (yearId && divisions.length >= 0) {
+			loadPreview();
+		}
+	}, [yearId, divisions.length, loadPreview]);
 
 	const handleCommit = async () => {
 		console.log(`DEBUG: handleCommit called, preview exists: ${!!preview}`);
