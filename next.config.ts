@@ -17,9 +17,6 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: false,
   },
-  eslint: {
-    ignoreDuringBuilds: false,
-  },
   images: {
     // PERF-08: remotePatterns for next/image — covers placeholder images and Supabase Storage
     remotePatterns: [

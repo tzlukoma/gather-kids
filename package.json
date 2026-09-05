@@ -12,7 +12,7 @@
     "build": "next build",
     "prebuild": "node scripts/inject-build-info.mjs",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint .",
     "lint:colors": "./scripts/lint-colors.sh",
     "typecheck": "node scripts/inject-build-info.mjs && tsc --noEmit",
     "test": "jest",
