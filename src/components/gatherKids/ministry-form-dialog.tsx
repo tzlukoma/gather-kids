@@ -1,6 +1,7 @@
 'use client';
 
-import { useForm, useFieldArray } from 'react-hook-form';
+import { useFormCompat as useForm } from '@/hooks/useFormCompat';
+import { useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
