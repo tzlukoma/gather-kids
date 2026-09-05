@@ -22,6 +22,7 @@
     "test:email:magic": "playwright test --config=playwright-email.config.ts registration-auth-flow.spec.ts",
     "test:email:password": "playwright test --config=playwright-email.config.ts email-password-verification.spec.ts",
     "test:e2e:local": "dotenv -e .env.e2e.local -- npx playwright test --config=e2e.config.ts --project=chromium",
+    "test:e2e:admin": "cross-env NEXT_PUBLIC_SUPABASE_URL=https://dummy.supabase.co NEXT_PUBLIC_SUPABASE_ANON_KEY=dummy-anon-key NEXT_PUBLIC_LOGIN_PASSWORD_ENABLED=true SMTP_HOST=localhost npx playwright test --config=e2e.config.ts --project=chromium e2e/admin-user-management.spec.ts",
     "test:e2e:headed": "dotenv -e .env.e2e.local -- npx playwright test --config=e2e.config.ts --project=chromium --headed",
     "test:e2e:ci": "dotenv -e .env.e2e.ci -- npx playwright test --config=e2e.config.ts --project=chromium",
     "test:e2e:debug": "dotenv -e .env.e2e.local -- npx playwright test --config=e2e.config.ts --project=chromium --debug",
