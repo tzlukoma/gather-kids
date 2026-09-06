@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { useBranding } from '@/contexts/branding-context';
 import { useRouter } from 'next/navigation';
 import { AppFooter } from '@/components/app-footer';
+import { Button } from '@/components/ui/button';
 
 export default function RegisterLayout({
 	children,
@@ -22,9 +23,11 @@ export default function RegisterLayout({
 		<div className="flex flex-col min-h-screen bg-background">
 			<header className="p-4 border-b">
 				<div className="container mx-auto flex items-center gap-2">
-					<button
+					<Button
+						type="button"
+						variant="ghost"
 						onClick={handleLogoClick}
-						className="flex items-center gap-2 hover:opacity-80 transition-opacity cursor-pointer"
+						className="flex items-center gap-2 h-auto px-0 hover:opacity-80 hover:bg-transparent transition-opacity cursor-pointer"
 						aria-label="Go to home page">
 						{settings.logo_url ? (
 							<>
@@ -50,7 +53,7 @@ export default function RegisterLayout({
 								{settings.app_name || 'gatherKids'}
 							</div>
 						)}
-					</button>
+					</Button>
 				</div>
 			</header>
 			<main id="main-content" className="flex-1 container mx-auto p-4 md:p-6 lg:p-8">

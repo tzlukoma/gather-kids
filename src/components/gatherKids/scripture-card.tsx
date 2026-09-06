@@ -1,6 +1,8 @@
 'use client';
 
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import { CardTitle } from '@/components/ui/card';
 import { Check } from 'lucide-react';
 import React from 'react';
@@ -135,24 +137,28 @@ export default function ScriptureCard({
 
 				{!readOnly && (
 					<div className="flex-shrink-0">
-						<button
+						<Button
 							type="button"
+							size="icon"
+							variant={completed ? 'default' : 'outline'}
 							aria-pressed={completed}
 							aria-label={completed ? 'Mark not completed' : 'Mark completed'}
 							onClick={() =>
 								onToggleAction && onToggleAction(assignment.id, !completed)
 							}
-							className={`inline-flex items-center justify-center h-10 w-10 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+							className={cn(
+								'rounded-full',
 								completed
-									? 'bg-brand-aqua text-white shadow'
+									? 'bg-brand-aqua text-white shadow hover:bg-brand-aqua/90'
 									: 'border border-border text-muted-foreground bg-white'
-							}`}>
+							)}>
 							<Check
-								className={`h-5 w-5 ${
+								className={cn(
+									'h-5 w-5',
 									completed ? 'text-white' : 'text-gray-600'
-								}`}
+								)}
 							/>
-						</button>
+						</Button>
 					</div>
 				)}
 			</CardHeader>

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { Button } from '@/components/ui/button';
 import {
   Tooltip,
   TooltipContent,
@@ -56,12 +57,14 @@ export function AppVersionBadge() {
     <TooltipProvider>
       <Tooltip>
         <TooltipTrigger asChild>
-          <button
+          <Button
             type="button"
-            className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+            variant="ghost"
+            size="sm"
+            className="h-auto px-1 py-0 text-xs text-muted-foreground hover:text-foreground transition-colors"
             aria-label={`Application version ${version.app}, environment ${version.deployEnv}`}>
             {label}
-          </button>
+          </Button>
         </TooltipTrigger>
         <TooltipContent side="top" className="max-w-sm text-xs space-y-1">
           <p>

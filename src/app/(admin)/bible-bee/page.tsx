@@ -276,18 +276,17 @@ export default function BibleBeePage() {
 									{availableVersions.length > 0 && (
 										<div className="flex gap-2 mb-6">
 											{availableVersions.map((v) => (
-												<button
+												<Button
 													key={v}
+													type="button"
+													size="sm"
+													variant={v === effectiveDisplayVersion ? 'default' : 'outline'}
 													onClick={() => setDisplayVersion(v)}
 													aria-pressed={v === effectiveDisplayVersion}
 													aria-label={`Show ${v}`}
-													className={`inline-flex items-center rounded-full border px-3 py-1 text-sm font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 ${
-														v === effectiveDisplayVersion
-															? 'bg-primary text-primary-foreground shadow-sm'
-															: 'bg-background text-muted-foreground border'
-													}`}>
+													className="rounded-full">
 													{v}
-												</button>
+												</Button>
 											))}
 										</div>
 									)}
