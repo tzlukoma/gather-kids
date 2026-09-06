@@ -10,7 +10,8 @@ import type {
 	Incident,
 } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
-import { Search } from 'lucide-react';
+import { Search, Users } from 'lucide-react';
+import { EmptyState } from '@/components/ui/empty-state';
 import { Input } from '@/components/ui/input';
 import { getTodayIsoDate } from '@/lib/dal';
 import { useIncidents } from '@/hooks/data';
@@ -314,13 +315,15 @@ export function CheckInView({
 				))}
 			</div>
 			{filteredChildren.length === 0 && (
-				<div className="text-center col-span-full py-12">
-					<p className="text-muted-foreground">
-						{searchQuery || selectedGrades.length > 0 || statusFilter !== 'all'
+				<EmptyState
+					className="col-span-full"
+					icon={Users}
+					title={
+						searchQuery || selectedGrades.length > 0 || statusFilter !== 'all'
 							? 'No children match your current filters.'
-							: 'No children found.'}
-					</p>
-				</div>
+							: 'No children found.'
+					}
+				/>
 			)}
 
 			{/* Dialogs */}

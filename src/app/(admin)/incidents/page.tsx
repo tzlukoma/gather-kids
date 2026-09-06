@@ -29,7 +29,8 @@ import type { Incident } from '@/lib/types';
 import { format } from 'date-fns';
 import { useAuth } from '@/contexts/auth-context';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Info } from 'lucide-react';
+import { Info, AlertTriangle } from 'lucide-react';
+import { EmptyState } from '@/components/ui/empty-state';
 import {
 	useIncidentsForUser,
 	useAcknowledgeIncident,
@@ -339,10 +340,12 @@ export default function IncidentsPage() {
 									))}
 									{displayedIncidents.length === 0 && (
 										<TableRow>
-											<TableCell
-												colSpan={6}
-												className="text-center h-24 text-muted-foreground">
-												No incidents match the current filter.
+											<TableCell colSpan={6}>
+												<EmptyState
+													className="py-6"
+													icon={AlertTriangle}
+													title="No incidents match the current filter."
+												/>
 											</TableCell>
 										</TableRow>
 									)}

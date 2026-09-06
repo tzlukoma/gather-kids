@@ -20,7 +20,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
-import { ChevronRight, Filter, Search, X } from 'lucide-react';
+import { ChevronRight, Filter, Search, X, Home } from 'lucide-react';
+import { EmptyState } from '@/components/ui/empty-state';
 import { useAuth } from '@/contexts/auth-context';
 import { AuthRole } from '@/lib/auth-types';
 import React, { useState, useEffect, useMemo } from 'react';
@@ -318,10 +319,12 @@ export default function RegistrationsPage() {
 							))}
 							{filteredHouseholds.length === 0 && (
 								<TableRow>
-									<TableCell
-										colSpan={4}
-										className="text-center h-24 text-muted-foreground">
-										No households match the current filter.
+									<TableCell colSpan={4}>
+										<EmptyState
+											className="py-6"
+											icon={Home}
+											title="No households match the current filter."
+										/>
 									</TableCell>
 								</TableRow>
 							)}
