@@ -1,10 +1,6 @@
-import { getFlag, isDemo } from '@/lib/featureFlags';
+import { getFlag } from '@/lib/featureFlags';
 
-describe('Feature Flags (demo mode removed)', () => {
-    it('isDemo() always returns false', () => {
-        expect(isDemo()).toBe(false);
-    });
-
+describe('Feature Flags', () => {
     it('unknown flag name returns false (default case)', () => {
          
         expect(getFlag('UNKNOWN_FLAG' as any)).toBe(false);

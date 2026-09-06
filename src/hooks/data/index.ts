@@ -34,7 +34,6 @@ export {
   useBibleBeeCycles, 
   useBibleBeeCycle,
   useScripturesForCycle,
-  useLeaderBibleBeeProgress,
   useBibleBeeProgressForCycle,
   useDivisionsForCycle,
   useEssayPromptsForCycle,

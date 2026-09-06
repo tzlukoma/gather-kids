@@ -135,7 +135,6 @@ Both test suites use MailHog for email testing:
 Both flows respect feature flags:
 - `loginMagicEnabled`: Controls magic link availability
 - `loginPasswordEnabled`: Controls password auth
-- `isDemoMode`: Affects authentication behavior
 
 ## Best Practices
 

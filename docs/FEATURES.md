@@ -1,5 +1,7 @@
 # gatherKids - Features Documentation
 
+> Historical feature list. Prefer [`PRODUCT_SPEC.md`](./PRODUCT_SPEC.md). Runtime is **Supabase-only**; IndexedDB/demo mode is not a supported backend.
+
 ## Overview
 
 gatherKids is a comprehensive children's ministry management system designed to streamline registration, check-in/out processes, incident management, and administrative oversight for church ministries.
@@ -75,7 +77,7 @@ Secure access control system with role-based permissions for administrators and 
 
 - Primary authentication uses email magic links with a PKCE-compliant exchange. The app includes client-side helpers to perform the code exchange and recover sessions when storage/redirects behave inconsistently (for example in preview deployments).
 - Password-based sign-in is available as an alternative (users can set a password during onboarding).
-- Demo/test accounts are available from the `/login` page for QA and demos.
+- Use seeded local or UAT accounts. There are no in-app demo users.
 - OAuth/social providers (example: Google) are not enabled in this repository's current configuration.
 
 ## Epic 3: Family Registration & Profile Management
@@ -301,7 +303,7 @@ Flexible feature management system allowing administrators to control feature av
 
 #### As an Administrator
 
-- **US-12.1**: I want to enable/disable demo features so that I can control what users see
+- **US-12.1**: I want to enable/disable features so that I can control what users see
 - **US-12.2**: I want to configure system behavior so that I can customize the user experience
 - **US-12.3**: I want to manage feature rollouts so that I can test new functionality safely
 
@@ -344,10 +346,10 @@ Comprehensive white-label customization system allowing organizations to fully b
 - **Frontend**: Next.js 15 with React 18, TypeScript
 - **UI Components**: Radix UI with custom Tailwind CSS styling
 - **State Management**: React Context API with custom hooks
-- **Database**: IndexedDB (Dexie.js) for client-side data persistence
+- **Database**: Supabase (PostgreSQL) via the DAL / `dbAdapter`
 - **Forms**: React Hook Form with Zod validation
-- **Authentication**: Custom context-based auth system
-- **Real-time Updates**: Dexie React Hooks for live data queries
+- **Authentication**: Supabase Auth
+- **Real-time Updates**: TanStack Query
 
 ### Key Features Implemented
 
@@ -388,7 +390,7 @@ Comprehensive white-label customization system allowing organizations to fully b
 
 - ✅ Supabase-backed auth with email magic links (PKCE) as the primary flow.
 - ✅ Optional password-based sign-in (users can set a password during onboarding).
-- ✅ Demo/test accounts available on `/login` for QA and demos.
+- ✅ Seeded local/UAT accounts for QA and demos (no in-app demo users).
 - ⚠️ OAuth/social sign-in (e.g., Google) is not enabled in this codebase.
 - ✅ Client-side diagnostics and session recovery helpers (see `AuthDebug`, PKCE exchange helpers) to improve reliability in preview/deploy environments where redirects or browser storage may be inconsistent.
 

@@ -91,17 +91,11 @@ If you prefer a manual approach, you can create an admin user through the Supaba
 
 ## Authentication System in gatherKids
 
-The gatherKids application uses a dual-mode authentication system:
+Authentication is **Supabase Auth only**. There is no demo mode, `DEMO_USERS` list, or `DATABASE_MODE`.
 
-1. **Demo Mode:**
+- Log in with a real auth user in the target project (local, UAT, or production).
+- The user must exist in both `auth.users` and the application's `users` table.
+- The role must be set in auth user metadata and the `users` table.
+- For password login, set `NEXT_PUBLIC_LOGIN_PASSWORD_ENABLED=true`.
 
-   - Controlled by `NEXT_PUBLIC_DATABASE_MODE=demo` in `.env`
-   - Uses predefined users from `DEMO_USERS` object in `src/app/login/page.tsx`
-   - Login data is stored in localStorage
-
-2. **Production Mode:**
-   - Uses Supabase Auth for authentication
-   - Requires both an entry in the Supabase auth.users table and the application's users table
-   - The user's role must be set in both auth user metadata and the users table
-
-For production deployments, ensure that `NEXT_PUBLIC_DATABASE_MODE` is not set to "demo" and that `NEXT_PUBLIC_LOGIN_PASSWORD_ENABLED` is set to "true".
+Stakeholder demos use the UAT Supabase project and its seeded accounts, not in-app demo users.

@@ -626,7 +626,7 @@ WHERE name = 'Fall 2026';
 - RLS / #183 / #184 (R2)
 - Bible Bee cycle creation for 2026 (separate admin task)
 - Full 56-household automated run (manual spot-check OK if e2e uses one canonical household)
-- IndexedDB / demo cleanup (#191)
+- Leftover IndexedDB / demo file cleanup (#266)
 - Production mass email blast
 
 ---

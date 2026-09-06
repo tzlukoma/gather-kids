@@ -13,7 +13,7 @@ import {
     pickActiveRegistrationCycle,
     pickPriorRegistrationCycle,
 } from './registration-cycle-utils';
-import { normalizeEmail } from './utils';
+import { ageOn, getTodayIsoDate, isWithinWindowSync, normalizeEmail } from './utils';
 
 // ---------------------------------------------------------------------------
 // Ministry CRUD
@@ -24,6 +24,35 @@ import { normalizeEmail } from './utils';
  */
 export async function getMinistries(isActive?: boolean): Promise<Ministry[]> {
     return dbAdapter.listMinistries(isActive);
+}
+
+export async function getMinistry(ministryId: string): Promise<Ministry | null> {
+    return dbAdapter.getMinistry(ministryId);
+}
+
+/**
+ * Whether a child is within a ministry's min/max age range today.
+ */
+export async function isEligibleForChoir(ministryId: string, childId: string): Promise<boolean> {
+    const ministry = await dbAdapter.getMinistry(ministryId);
+    const child = await dbAdapter.getChild(childId);
+    if (!ministry || !child?.dob) return false;
+
+    const childAge = ageOn(getTodayIsoDate(), child.dob);
+    if (childAge === null) return false;
+
+    const minAge = ministry.min_age ?? 0;
+    const maxAge = ministry.max_age ?? 99;
+    return childAge >= minAge && childAge <= maxAge;
+}
+
+/**
+ * Whether `todayISO` falls inside a ministry's open/close window.
+ */
+export async function isWithinWindow(ministryId: string, todayISO: string): Promise<boolean> {
+    const ministry = await dbAdapter.getMinistry(ministryId);
+    if (!ministry) return false;
+    return isWithinWindowSync(ministry, todayISO);
 }
 
 /**

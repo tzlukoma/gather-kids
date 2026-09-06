@@ -1,5 +1,7 @@
 # Issue: Set Up Proper Type Generation from Supabase Schema
 
+> Runtime is Supabase-only. Domain types live in `src/lib/types.ts`; generated types in `src/lib/database/supabase-types.ts`. “Dexie types” in the mapping examples below are historical names for those domain types.
+
 ## Overview
 
 This issue focuses on implementing automatic TypeScript type generation from our Supabase database schema. Having properly generated types will ensure type safety throughout the application when interacting with the database, reducing runtime errors and improving developer experience. This task builds on the database adapter implementation by providing strongly-typed interfaces that match our actual database schema.
@@ -8,7 +10,7 @@ This issue focuses on implementing automatic TypeScript type generation from our
 
 1. Configure Supabase CLI for type generation
 2. Generate TypeScript types from the database schema
-3. Create a mapping between Dexie types and Supabase generated types
+3. Map domain types to generated Supabase types
 4. Integrate generated types with the database adapter
 5. Set up automation for keeping types in sync with schema changes
 
@@ -118,17 +120,16 @@ chmod +x scripts/gen-types.js
 
 ### 3. Type Mapping Implementation
 
-Create a mapping layer between Dexie types and Supabase generated types:
+Create a mapping layer between domain types and Supabase generated types:
 
 **File: `src/lib/database/type-mappings.ts`**
 
 ```typescript
-import type * as DexieTypes from '../types';
+import type * as DomainTypes from '../types';
 import type * as SupabaseTypes from './supabase-types';
 
 /**
- * Maps between Dexie types and Supabase generated types
- * This ensures consistent typing regardless of which adapter is used
+ * Maps between domain types and Supabase generated types
  */
 
 // Type mapper utility types
@@ -137,23 +138,23 @@ type WithOptionalId<T, K extends string> = Omit<T, K> & Partial<Pick<T, K>>;
 
 // Example mappings for core entity types
 export type CreateHouseholdDTO = OmitSystemFields<
-	WithOptionalId<DexieTypes.Household, 'household_id'>
+	WithOptionalId<DomainTypes.Household, 'household_id'>
 >;
-export type HouseholdEntity = DexieTypes.Household;
+export type HouseholdEntity = DomainTypes.Household;
 export type SupabaseHousehold =
 	SupabaseTypes.Database['public']['Tables']['households']['Row'];
 
 export type CreateChildDTO = OmitSystemFields<
-	WithOptionalId<DexieTypes.Child, 'child_id'>
+	WithOptionalId<DomainTypes.Child, 'child_id'>
 >;
-export type ChildEntity = DexieTypes.Child;
+export type ChildEntity = DomainTypes.Child;
 export type SupabaseChild =
 	SupabaseTypes.Database['public']['Tables']['children']['Row'];
 
 export type CreateGuardianDTO = OmitSystemFields<
-	WithOptionalId<DexieTypes.Guardian, 'guardian_id'>
+	WithOptionalId<DomainTypes.Guardian, 'guardian_id'>
 >;
-export type GuardianEntity = DexieTypes.Guardian;
+export type GuardianEntity = DomainTypes.Guardian;
 export type SupabaseGuardian =
 	SupabaseTypes.Database['public']['Tables']['guardians']['Row'];
 
@@ -356,7 +357,7 @@ We maintain a mapping layer between our application domain types and the generat
 ### Why We Need Mappings
 
 1. **Decoupling**: Keep our domain models independent from the database schema
-2. **Flexibility**: Handle differences between IndexedDB and Supabase schemas
+2. **Flexibility**: Handle differences between domain types and generated Supabase schema types
 3. **Validation**: Add validation or transformation logic during conversion
 4. **Consistency**: Ensure a consistent API regardless of the database backend
 

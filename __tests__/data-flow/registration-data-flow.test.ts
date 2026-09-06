@@ -3,9 +3,7 @@ import { registerHousehold, registerHouseholdCanonical } from '@/lib/dal';
 import { testCanonicalConversion } from '@/lib/database/canonical-dal';
 import * as CanonicalDtos from '@/lib/database/canonical-dtos';
 import { createSupabaseMock } from '@/test-utils/supabase-mock';
-import { createInMemoryDB } from '@/test-utils/dexie-mock';
 import { SupabaseAdapter } from '@/lib/database/supabase-adapter';
-import { IndexedDBAdapter } from '@/lib/database/indexed-db-adapter';
 
 /**
  * Comprehensive Data Flow Testing Suite
@@ -24,22 +22,15 @@ import { IndexedDBAdapter } from '@/lib/database/indexed-db-adapter';
 
 describe('Registration Data Flow - End-to-End', () => {
   let supabaseAdapter: SupabaseAdapter;
-  let indexedDBAdapter: IndexedDBAdapter;
   let mockSupabaseClient: any;
-  let mockDB: any;
 
   beforeEach(() => {
-    // Setup mock adapters
     mockSupabaseClient = createSupabaseMock();
-    mockDB = createInMemoryDB();
-    
     supabaseAdapter = new SupabaseAdapter(
       'https://mock-url.supabase.co',
       'mock-key',
       mockSupabaseClient
     );
-    
-    indexedDBAdapter = new IndexedDBAdapter(mockDB);
   });
 
   afterEach(() => {
@@ -255,18 +246,6 @@ describe('Registration Data Flow - End-to-End', () => {
       }
     });
 
-    it('should validate IndexedDB adapter field mappings', async () => {
-      const testHousehold = {
-        household_id: 'test-household-id',
-        name: 'Test Family',
-        address_line1: '123 Test St',
-        preferredScriptureTranslation: 'NIV',
-      };
-
-      const result = await indexedDBAdapter.createHousehold(testHousehold);
-      expect(result).toBeDefined();
-      expect(result.household_id).toBeDefined();
-    });
   });
 
   describe('Data Integrity Through Layers', () => {

@@ -5,7 +5,7 @@ The Global Debug Panel is a comprehensive debugging tool that tracks data source
 ## Features
 
 - **Global visibility**: Works on all routes without modification
-- **Data source detection**: Tracks dbAdapter, IndexedDB, and Direct DB usage
+- **Data source detection**: Tracks dbAdapter (DAL) and Direct DB (raw fetch) usage
 - **Operation history**: Shows a rolling list of method calls with timestamps
 - **Privacy-focused**: Only logs method names and URL paths (no payloads or sensitive data)
 - **Client-only**: Zero server-side rendering impact
@@ -55,17 +55,10 @@ Once enabled, a "Debug Panel" button will appear in the bottom-left corner of th
 ## Data Sources Tracked
 
 ### 1. dbAdapter (DAL)
-- All database adapter method calls
-- Includes both Supabase and IndexedDB operations through the DAL
+- All database adapter method calls through the DAL (Supabase)
 - Shows count of operations
 
-### 2. IndexedDB
-- Direct IndexedDB operations
-- Database open/close operations
-- Transaction creations
-- Includes database names when available
-
-### 3. Direct DB
+### 2. Direct DB
 - Direct Supabase REST API calls (not through DAL)
 - Authentication requests
 - Storage operations
@@ -122,7 +115,6 @@ export function instrumentMyAPI(): (() => void) | void {
 // Add to debug-installer.ts
 installDebugPatches([
   instrumentDAL,
-  instrumentIndexedDB,
   instrumentFetch,
   instrumentMyAPI, // Add new instrumentation
 ]);

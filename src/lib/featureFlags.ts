@@ -21,8 +21,3 @@ export function getFlag(name: FlagName): boolean | string {
       return false;
   }
 }
-
-/** Always returns false — demo mode has been removed. */
-export function isDemo(): boolean {
-  return false;
-}

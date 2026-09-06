@@ -1,20 +1,7 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
-// Make useLiveQuery synchronous in tests so components relying on it don't stay in Loading state
-jest.mock('dexie-react-hooks', () => ({
-	useLiveQuery: (fn: any) => fn(),
-}));
 import DashboardPage from '@/app/(admin)/admin-overview/page';
 import { renderWithAuth, mockUsers } from '@/test-utils/auth/test-utils';
-
-jest.mock('@/lib/db', () => ({
-	db: {
-		incidents: { filter: () => ({ toArray: () => [] }) },
-		attendance: { where: () => ({ filter: () => ({ count: () => 0 }) }) },
-		registrations: { where: () => ({ toArray: () => [] }) },
-		children: { where: () => ({ toArray: () => [] }) },
-	},
-}));
 
 describe('Admin dashboard links', () => {
 	test('Checked-In Children card links to check-in page with filter', async () => {

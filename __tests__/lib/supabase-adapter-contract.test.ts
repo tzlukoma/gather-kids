@@ -1,7 +1,5 @@
-import { createInMemoryDB } from '@/test-utils/dexie-mock';
 import { createSupabaseMock } from '@/test-utils/supabase-mock';
 import { DatabaseAdapter } from '@/lib/database/types';
-import { IndexedDBAdapter } from '@/lib/database/indexed-db-adapter';
 import { SupabaseAdapter } from '@/lib/database/supabase-adapter';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -453,16 +451,6 @@ function runContractTests(
 		});
 	});
 }
-
-// Run tests against the IndexedDB adapter
-describe('IndexedDB Adapter Tests', () => {
-	const getIndexedDBAdapter = () => {
-		const mockDb = createInMemoryDB();
-		return new IndexedDBAdapter(mockDb);
-	};
-
-	runContractTests('IndexedDB', getIndexedDBAdapter);
-});
 
 // Run tests against the Supabase adapter
 describe('Supabase Adapter Tests', () => {

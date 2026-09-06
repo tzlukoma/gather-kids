@@ -9,10 +9,8 @@ jest.mock('@/lib/database/factory', () => ({
     transaction: jest.fn(),
   },
 }));
-jest.mock('@/lib/db');
 jest.mock('@/lib/featureFlags', () => ({
-  isDemo: () => false,
-  getFlag: jest.fn(() => 'supabase'),
+  getFlag: jest.fn(() => false),
 }));
 
 describe('DAL Contract Tests - Registration/Household', () => {

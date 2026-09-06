@@ -2,15 +2,14 @@
  * DAL — CSV Exports domain
  *
  * CSV export helpers for rosters, attendance, and emergency snapshots.
- * All functions delegate to the Supabase adapter (dbAdapter).  The legacy
- * Dexie/IndexedDB branches have been removed following the demo-mode
- * removal in Wave 3 (issue #191).
+ * All functions delegate to the Supabase adapter (dbAdapter).
  */
 
 import { db as dbAdapter } from '../database/factory';
 import type { Guardian } from '../types';
 import { normalizeGradeDisplay } from '../gradeUtils';
 import { formatPhone } from '@/hooks/usePhoneFormat';
+import { getCheckedInChildren } from './attendance';
 
 // ---------------------------------------------------------------------------
 // Internal helpers
@@ -132,6 +131,61 @@ export async function exportAttendanceRollupCSV(
             picked_up_by: att.picked_up_by || 'N/A',
             pickup_method: att.pickup_method || 'N/A',
             event: att.event_id,
+        };
+    });
+
+    const csv = convertToCSV(exportData as Record<string, unknown>[]);
+    const BOM = '\uFEFF';
+    return new Blob([BOM + csv], { type: 'text/csv;charset=utf-8;' });
+}
+
+/**
+ * Emergency snapshot of children currently checked in on a date, with
+ * primary guardian and emergency contact phone numbers.
+ */
+export async function exportEmergencySnapshotCSV(dateISO: string): Promise<Blob> {
+    const roster = await getCheckedInChildren(dateISO);
+    const householdIds = [...new Set(roster.map((r) => r.household_id).filter(Boolean))];
+
+    const [allGuardians, allContacts] = await Promise.all([
+        dbAdapter.listAllGuardians(),
+        dbAdapter.listAllEmergencyContacts(),
+    ]);
+
+    const householdIdSet = new Set(householdIds);
+    const guardians = allGuardians.filter((g) => householdIdSet.has(g.household_id));
+    const contacts = allContacts.filter((c) => householdIdSet.has(c.household_id));
+
+    const guardianMap = new Map<string, Guardian>();
+    for (const g of guardians) {
+        const existing = guardianMap.get(g.household_id);
+        if (!existing || g.is_primary) {
+            guardianMap.set(g.household_id, g);
+        }
+    }
+    const contactMap = new Map(contacts.map((c) => [c.household_id, c]));
+
+    const exportData = roster.map((child) => {
+        const guardian = guardianMap.get(child.household_id);
+        const contact = contactMap.get(child.household_id);
+        return {
+            child_name: `${child.first_name} ${child.last_name}`,
+            dob: child.dob,
+            grade: normalizeGradeDisplay(child.grade),
+            allergies: child.allergies,
+            medical_notes: child.medical_notes,
+            primary_guardian: guardian
+                ? `${guardian.first_name || ''} ${guardian.last_name || ''}`.trim()
+                : '',
+            guardian_phone: guardian?.mobile_phone
+                ? formatPhone(guardian.mobile_phone)
+                : 'N/A',
+            emergency_contact: contact
+                ? `${contact.first_name || ''} ${contact.last_name || ''}`.trim()
+                : '',
+            emergency_phone: contact?.mobile_phone
+                ? formatPhone(contact.mobile_phone)
+                : 'N/A',
         };
     });
 
