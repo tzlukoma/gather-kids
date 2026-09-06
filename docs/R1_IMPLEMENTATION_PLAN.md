@@ -1,6 +1,6 @@
 # R1 Implementation Plan — Returning-Family Registration (Fall 2026)
 
-**Status:** Execution runbook  
+**Status:** **R1 complete** (Aug 2026) — code shipped on `main` ([PR #247](https://github.com/tzlukoma/gather-kids/pull/247)); prod Fall 2026 active. Remaining pre–family-email prod checks tracked in [**GitHub #249**](https://github.com/tzlukoma/gather-kids/issues/249).  
 **Prerequisite:** **Complete [`docs/CI_CD_CLEANUP_PLAN.md`](./CI_CD_CLEANUP_PLAN.md) first** — merge cleanup PR to `main`, verify unified CI green, and run one UAT DB deploy. Do not start R1 Phase 0 until CI/CD cleanup is done.  
 **Canonical product context:** [`docs/PRODUCT_SPEC.md`](./PRODUCT_SPEC.md) § R1  
 **Goal:** The 56 Fall 2025 families can sign in, see last year’s children, add/remove kids, change ministries and consents, and land on `/household` enrolled in **Fall 2026**.
@@ -17,7 +17,7 @@ This document is written so an agent can execute **Phases 1–4 autonomously** a
 | **1 — Code** | Agent | All R1 workstreams merged on a feature branch |
 | **2 — Automated tests** | Agent | Jest + Playwright (`e2e/r1/`) green before handoff |
 | **3 — UAT proof** | Agent | One-shot `scripts/r1/phase3-validate.sh` (Playwright + SQL) |
-| **4 — Ship** | Thomas | Review PR, merge to **`main`**, deploy, prod cycle flip when ready |
+| **4 — Ship** | Thomas | Review PR, merge to **`main`**, deploy, prod cycle flip when ready — **done**; close-out in [#249](https://github.com/tzlukoma/gather-kids/issues/249) |
 
 **Kickoff prompt for the agent (after Phase 0):**
 
@@ -568,19 +568,19 @@ Re-run `./scripts/r1/phase3-validate.sh` after activation.
 
 ## Phase 4 — Ship (Thomas)
 
-R1 code merges to **`main`** after UAT Preview smoke (`docs/R1_UAT_SMOKE.md`). **Do not** email families until PRODUCT_SPEC R2 items are addressed or explicitly accepted.
+R1 code merges to **`main`** after UAT Preview smoke (`docs/R1_UAT_SMOKE.md`). **Do not** email families until [#249](https://github.com/tzlukoma/gather-kids/issues/249) is closed (or items explicitly waived) and PRODUCT_SPEC R2 items are addressed or explicitly accepted.
 
-| Step | Action |
-|------|--------|
-| 1 | Agent opens PR → Vercel Preview deploys |
-| 2 | **Thomas:** ~10 min checklist in [`docs/R1_UAT_SMOKE.md`](./R1_UAT_SMOKE.md) on Preview URL |
-| 3 | Optional: `BASE_URL=https://preview… ./scripts/r1/uat-preview-smoke.sh` (read-only Playwright) |
-| 4 | Merge PR to **`main`**; UAT app deploys |
-| 5 | Prod: insert **inactive** Fall 2026 (same as P0.3) before prod app deploy |
-| 6 | Deploy prod app |
-| 7 | Run returning registration with **your own** household on prod |
-| 8 | Flip `is_active` to Fall 2026 when ready to open registration |
-| 9 | Monitor daily digest + admin registrations |
+| Step | Action | Status |
+|------|--------|--------|
+| 1 | Agent opens PR → Vercel Preview deploys | Done ([#247](https://github.com/tzlukoma/gather-kids/pull/247)) |
+| 2 | **Thomas:** ~10 min checklist in [`docs/R1_UAT_SMOKE.md`](./R1_UAT_SMOKE.md) on Preview URL | Done |
+| 3 | Optional: `BASE_URL=https://preview… ./scripts/r1/uat-preview-smoke.sh` (read-only Playwright) | Optional |
+| 4 | Merge PR to **`main`**; UAT app deploys | Done |
+| 5 | Prod: insert **inactive** Fall 2026 (same as P0.3) before prod app deploy | Done (`ed51cc85-…`) |
+| 6 | Deploy prod app | Done |
+| 7 | Run returning registration with **your own** household on prod | Done |
+| 8 | Flip `is_active` to Fall 2026 when ready to open registration | Done |
+| 9 | Remaining prod confirmation + family rollout | [**#249**](https://github.com/tzlukoma/gather-kids/issues/249) |
 
 **Prod activation SQL** (when ready):
 
@@ -596,6 +596,8 @@ WHERE name = 'Fall 2026';
 
 ## Definition of done (R1 complete)
 
+Implementation and Thomas ship steps for R1 are **complete**. Pre–mass-email prod sign-off lives in [**GitHub #249**](https://github.com/tzlukoma/gather-kids/issues/249).
+
 - [x] All Phase 0 gates pass on a fresh agent session
 - [x] No `'2025'` cycle fallbacks; prior cycle by date ordering
 - [x] Login-first prefill for all `user_households` guardians
@@ -604,7 +606,9 @@ WHERE name = 'Fall 2026';
 - [x] Choir not blind-copied from prior year
 - [x] Jest + Playwright `e2e/r1/` green (`phase3-validate.sh`)
 - [x] UAT SQL assertions pass
-- [ ] Thomas UAT Preview smoke (`docs/R1_UAT_SMOKE.md`) — **blocks prod**
+- [x] Thomas UAT Preview smoke (`docs/R1_UAT_SMOKE.md`)
+- [x] PR #247 merged; prod Fall 2026 cycle active; Thomas household registered on prod
+- [ ] Remaining prod validation + family rollout — [#249](https://github.com/tzlukoma/gather-kids/issues/249)
 - [ ] `docs/PRODUCT_SPEC.md` R1 items struck or marked shipped (optional doc PR)
 
 ---
@@ -640,6 +644,9 @@ WHERE name = 'Fall 2026';
 | [`scripts/db/r1-post-registration-check.sql`](../scripts/db/r1-post-registration-check.sql) | SQL assertions after Playwright submit |
 | [`scripts/r1/reset-uat-test-household.sh`](../scripts/r1/reset-uat-test-household.sh) | Clear Fall 2026 data for manifest test household (before UAT smoke) |
 | [`docs/R1_UAT_SMOKE.md`](../docs/R1_UAT_SMOKE.md) | Thomas ~10 min UAT checklist (Preview) |
+| [GitHub #249](https://github.com/tzlukoma/gather-kids/issues/249) | Remaining prod validation before family email |
+| [`scripts/db/prod-fix-joshua-lily-jaedin.sh`](../scripts/db/prod-fix-joshua-lily-jaedin.sh) | One-off prod legacy registration / deactivate script |
+| [`scripts/db/backfill-user-households.sh`](../scripts/db/backfill-user-households.sh) | Backfill `user_households` from auth metadata |
 | `e2e/r1/*.spec.ts` | Human-use Playwright coverage (24 tests) |
 | [`scripts/db/prod-registration-inventory.sql`](../scripts/db/prod-registration-inventory.sql) | Read-only prod stats |
 | [`scripts/db/snapshot_uat.sh`](../scripts/db/snapshot_uat.sh) | Backup UAT before destructive tests |
@@ -647,4 +654,4 @@ WHERE name = 'Fall 2026';
 
 ---
 
-*Last updated: 29 August 2026*
+*Last updated: 30 August 2026*
