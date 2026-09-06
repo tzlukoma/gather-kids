@@ -33,6 +33,35 @@ interface BrandingFormData {
 	instagram_url: string;
 }
 
+const EMPTY_BRANDING_FORM: BrandingFormData = {
+	app_name: '',
+	description: '',
+	logo_url: '',
+	use_logo_only: false,
+	youtube_url: '',
+	instagram_url: '',
+};
+
+function brandingSettingsToForm(
+	settings: {
+		app_name?: string | null;
+		description?: string | null;
+		logo_url?: string | null;
+		use_logo_only?: boolean | null;
+		youtube_url?: string | null;
+		instagram_url?: string | null;
+	},
+): BrandingFormData {
+	return {
+		app_name: settings.app_name || '',
+		description: settings.description || '',
+		logo_url: settings.logo_url || '',
+		use_logo_only: settings.use_logo_only || false,
+		youtube_url: settings.youtube_url || '',
+		instagram_url: settings.instagram_url || '',
+	};
+}
+
 export default function BrandingPage() {
 	const router = useRouter();
 	const { user, loading: authLoading } = useAuth();
@@ -43,14 +72,16 @@ export default function BrandingPage() {
 	const { data: brandingSettings, isLoading: settingsLoading, error: settingsError } = useBrandingSettings('default');
 	const saveBrandingMutation = useSaveBrandingSettings();
 
-	const [formData, setFormData] = useState<BrandingFormData>({
-		app_name: '',
-		description: '',
-		logo_url: '',
-		use_logo_only: false,
-		youtube_url: '',
-		instagram_url: '',
-	});
+	const [formData, setFormData] = useState<BrandingFormData>(() =>
+		brandingSettings ? brandingSettingsToForm(brandingSettings) : EMPTY_BRANDING_FORM,
+	);
+	const [prevBrandingSettings, setPrevBrandingSettings] = useState(brandingSettings);
+	if (brandingSettings !== prevBrandingSettings) {
+		setPrevBrandingSettings(brandingSettings);
+		if (brandingSettings) {
+			setFormData(brandingSettingsToForm(brandingSettings));
+		}
+	}
 
 	// Redirect non-admin users
 	useEffect(() => {
@@ -65,20 +96,6 @@ export default function BrandingPage() {
 			console.error('Error loading branding settings:', settingsError);
 		}
 	}, [settingsError]);
-
-	// Update form data when branding settings are loaded
-	useEffect(() => {
-		if (brandingSettings) {
-			setFormData({
-				app_name: brandingSettings.app_name || '',
-				description: brandingSettings.description || '',
-				logo_url: brandingSettings.logo_url || '',
-				use_logo_only: brandingSettings.use_logo_only || false,
-				youtube_url: brandingSettings.youtube_url || '',
-				instagram_url: brandingSettings.instagram_url || '',
-			});
-		}
-	}, [brandingSettings]);
 
 	const handleInputChange = (
 		field: keyof BrandingFormData,

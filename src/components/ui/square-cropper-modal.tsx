@@ -90,14 +90,20 @@ export function SquareCropperModal({
 		}
 	}, []);
 
-	// Reset state when modal opens/closes
-	useEffect(() => {
+	const [wasOpen, setWasOpen] = useState(isOpen);
+	if (isOpen !== wasOpen) {
+		setWasOpen(isOpen);
 		if (!isOpen) {
 			setActiveTab('camera');
 			setFile(null);
 			setImageUrl('');
 			setCrop({ x: 0, y: 0, size: 0, scale: 1, rotation: 0 });
 			setProgress(0);
+		}
+	}
+
+	useEffect(() => {
+		if (!isOpen) {
 			stopCamera();
 		}
 	}, [isOpen, stopCamera]);
@@ -162,15 +168,52 @@ export function SquareCropperModal({
 
 	// Camera device selection effect
 	useEffect(() => {
-		if (selectedDeviceId && activeTab === 'camera' && !imageUrl) {
-			startCamera(selectedDeviceId);
+		if (!(selectedDeviceId && activeTab === 'camera' && !imageUrl)) {
+			return () => {
+				if (activeTab === 'camera') {
+					stopCamera();
+				}
+			};
 		}
+		let cancelled = false;
+		async function start() {
+			if (streamRef.current) {
+				streamRef.current.getTracks().forEach((track) => track.stop());
+				streamRef.current = null;
+			}
+			try {
+				const stream = await navigator.mediaDevices.getUserMedia({
+					video: { deviceId: { exact: selectedDeviceId } },
+				});
+				if (cancelled) {
+					stream.getTracks().forEach((track) => track.stop());
+					return;
+				}
+				setHasCameraPermission(true);
+				streamRef.current = stream;
+				if (videoRef.current) {
+					videoRef.current.srcObject = stream;
+				}
+			} catch (error) {
+				console.error('Error accessing camera:', error);
+				if (!cancelled) {
+					setHasCameraPermission(false);
+					toast({
+						variant: 'destructive',
+						title: 'Camera Access Denied',
+						description: 'Please enable camera permissions in your browser settings.',
+					});
+				}
+			}
+		}
+		void start();
 		return () => {
+			cancelled = true;
 			if (activeTab === 'camera') {
 				stopCamera();
 			}
 		};
-	}, [selectedDeviceId, activeTab, imageUrl, startCamera, stopCamera]);
+	}, [selectedDeviceId, activeTab, imageUrl, stopCamera]);
 
 	const takePhoto = () => {
 		if (videoRef.current && photoRef.current) {

@@ -271,20 +271,25 @@ export default function RostersPage() {
 		);
 	}, [selectedEvent]);
 
-	useEffect(() => {
+	const leaderFilterKey = `${user?.metadata?.role ?? ''}:${leaderMinistryId ?? ''}`;
+	const [prevLeaderFilterKey, setPrevLeaderFilterKey] = useState(leaderFilterKey);
+	if (leaderFilterKey !== prevLeaderFilterKey) {
+		setPrevLeaderFilterKey(leaderFilterKey);
 		if (user?.metadata?.role === AuthRole.MINISTRY_LEADER && leaderMinistryId) {
 			setSelectedMinistryFilter(leaderMinistryId);
 		}
-	}, [user, leaderMinistryId]);
+	}
 
-	// Sync filters when URL params change
-	useEffect(() => {
-		const statusParam = searchParams.get('status');
+	const statusParam = searchParams.get('status');
+	const searchKey = searchParams.toString();
+	const [prevSearchKey, setPrevSearchKey] = useState(searchKey);
+	if (searchKey !== prevSearchKey) {
+		setPrevSearchKey(searchKey);
 		if (statusParam === 'checkedIn') {
 			setShowCheckedIn(true);
 			setShowCheckedOut(false);
 		}
-	}, [searchParams]);
+	}
 
 	const childrenWithDetails: RosterChild[] = useMemo(() => {
 		if (

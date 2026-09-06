@@ -83,10 +83,61 @@ export function BrandingProvider({ children }: { children: React.ReactNode }) {
 	};
 
 	useEffect(() => {
-		// Only load settings on the client side to avoid SSR issues
-		if (typeof window !== 'undefined') {
-			loadSettings();
+		let cancelled = false;
+
+		async function run() {
+			try {
+				const timeoutPromise = new Promise((_, reject) => {
+					setTimeout(
+						() => reject(new Error('Branding settings load timeout')),
+						5000
+					);
+				});
+
+				const brandingSettings = (await Promise.race([
+					getBrandingSettings(),
+					timeoutPromise,
+				])) as Partial<BrandingSettings> | null;
+
+				if (cancelled) return;
+
+				if (brandingSettings) {
+					setSettings(brandingSettings);
+				} else {
+					const defaults = await getDefaultBrandingSettings();
+					if (!cancelled) setSettings(defaults);
+				}
+			} catch (error) {
+				console.error('Failed to load branding settings:', error);
+				try {
+					const defaults = await getDefaultBrandingSettings();
+					if (!cancelled) setSettings(defaults);
+				} catch (fallbackError) {
+					console.error(
+						'Failed to load default branding settings:',
+						fallbackError
+					);
+					if (!cancelled) {
+						setSettings({
+							app_name: 'gatherKids',
+							description:
+								"The simple, secure, and smart way to manage your children's ministry. Streamline check-ins, track attendance, and keep your community connected.",
+							logo_url: undefined,
+							use_logo_only: false,
+							youtube_url: undefined,
+							instagram_url: undefined,
+						});
+					}
+				}
+			} finally {
+				if (!cancelled) setLoading(false);
+			}
 		}
+
+		void run();
+		return () => {
+			cancelled = true;
+		};
 	}, []);
 
 	return (

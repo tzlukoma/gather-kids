@@ -69,6 +69,7 @@ export default function LeaderProfilePage() {
 
 	// Get leader profile with memberships
 	const profileData = useLiveQuery(() => getLeaderProfileWithMemberships(leaderId), [leaderId]);
+	const [prevProfileData, setPrevProfileData] = useState(profileData);
 
 	useEffect(() => {
 		if (!loading && user) {
@@ -82,11 +83,11 @@ export default function LeaderProfilePage() {
 		}
 	}, [user, loading, router]);
 
-	useEffect(() => {
+	if (profileData !== prevProfileData) {
+		setPrevProfileData(profileData);
 		if (profileData) {
 			const initialAssignments: AssignmentState = {};
 
-			// Initialize all ministries as unassigned
 			profileData.allMinistries.forEach((m) => {
 				initialAssignments[m.ministry_id] = {
 					assigned: false,
@@ -94,7 +95,6 @@ export default function LeaderProfilePage() {
 				};
 			});
 
-			// Set existing memberships
 			profileData.memberships.forEach((membership) => {
 				if (membership.ministry) {
 					initialAssignments[membership.ministry_id] = {
@@ -107,12 +107,16 @@ export default function LeaderProfilePage() {
 			setAssignments(initialAssignments);
 			setIsActive(profileData.profile?.is_active ?? false);
 		}
-	}, [profileData]);
+	}
 
 	// Check if leader has any active assignments
 	const hasAssignments = useMemo(() => {
 		return Object.values(assignments).some(a => a.assigned);
 	}, [assignments]);
+
+	if (!hasAssignments && isActive) {
+		setIsActive(false);
+	}
 
 	const handleStatusChange = useCallback(async (newStatus: boolean) => {
 		if (!profileData) return;
@@ -137,13 +141,31 @@ export default function LeaderProfilePage() {
 		}
 	}, [profileData, leaderId, toast]);
 
-	// Effect to enforce inactive status if no assignments exist
 	useEffect(() => {
-		if (!hasAssignments && isActive) {
-			setIsActive(false);
-			handleStatusChange(false);
+		if (hasAssignments || !profileData?.profile?.is_active) {
+			return;
 		}
-	}, [hasAssignments, isActive, handleStatusChange]);
+		let cancelled = false;
+		async function persistInactive() {
+			try {
+				await updateLeaderProfileStatus(leaderId, false);
+			} catch (error) {
+				if (!cancelled) {
+					console.error('Failed to update status', error);
+					toast({
+						title: 'Status Update Failed',
+						description: "Could not update the leader's status.",
+						variant: 'destructive',
+					});
+					setIsActive(true);
+				}
+			}
+		}
+		void persistInactive();
+		return () => {
+			cancelled = true;
+		};
+	}, [hasAssignments, profileData, leaderId, toast]);
 
 	const handleAssignmentChange = (ministryId: string, checked: boolean) => {
 		setAssignments((prev) => ({

@@ -44,7 +44,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 		}
 		return null;
 	});
-	const [loading, setLoading] = useState<boolean>(true);
+	const [loading, setLoading] = useState<boolean>(() => !isOfflineSupabase());
 	const [userRole, setUserRole] = useState<AuthRole | null>(() => {
 		if (isOfflineSupabase()) {
 			const stored = readOfflineSessionUser();
@@ -205,13 +205,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 	useEffect(() => {
 		if (isOfflineSupabase()) {
 			authLog.log('Restoring dummy session from sessionStorage (already initialized)');
-			setLoading(false);
 			return;
 		}
 
 		const initializeAuth = async () => {
 			authLog.log('Starting initialization (Supabase mode)');
-			setLoading(true);
 
 			try {
 				const {

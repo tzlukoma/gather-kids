@@ -774,49 +774,51 @@ function RegisterPageContent() {
 		}
 
 		if (isOfflineSupabase()) {
-			setVerificationEmail(user.email);
-			setIsAuthenticatedUser(true);
-			form.reset({
-				household: {
-					name: '',
-					address_line1: '',
-					address_line2: '',
-					city: '',
-					state: '',
-					zip: '',
-					preferredScriptureTranslation: 'NIV',
-				},
-				guardians: [
-					{
+			householdInitKeyRef.current = initKey;
+			queueMicrotask(() => {
+				setVerificationEmail(user.email);
+				setIsAuthenticatedUser(true);
+				form.reset({
+					household: {
+						name: '',
+						address_line1: '',
+						address_line2: '',
+						city: '',
+						state: '',
+						zip: '',
+						preferredScriptureTranslation: 'NIV',
+					},
+					guardians: [
+						{
+							first_name: '',
+							last_name: '',
+							mobile_phone: '',
+							email: user.email,
+							relationship: 'Mother',
+							is_primary: true,
+						},
+					],
+					emergencyContact: {
 						first_name: '',
 						last_name: '',
 						mobile_phone: '',
-						email: user.email,
-						relationship: 'Mother',
-						is_primary: true,
+						relationship: '',
 					},
-				],
-				emergencyContact: {
-					first_name: '',
-					last_name: '',
-					mobile_phone: '',
-					relationship: '',
-				},
-				children: [
-					{
-						...defaultChildValues,
-						child_id: crypto.randomUUID(),
+					children: [
+						{
+							...defaultChildValues,
+							child_id: crypto.randomUUID(),
+						},
+					],
+					consents: {
+						liability: false,
+						photoRelease: false,
+						custom_consents: {},
 					},
-				],
-				consents: {
-					liability: false,
-					photoRelease: false,
-					custom_consents: {},
-				},
+				});
+				setOpenAccordionItems(['item-0']);
+				setVerificationStep('form_visible');
 			});
-			setOpenAccordionItems(['item-0']);
-			setVerificationStep('form_visible');
-			householdInitKeyRef.current = initKey;
 			return;
 		}
 
@@ -833,11 +835,11 @@ function RegisterPageContent() {
 		let cancelled = false;
 
 		const initializeAuthenticatedRegistration = async () => {
-			setVerificationEmail(user.email);
-			setIsAuthenticatedUser(true);
-
 			const draftData = await loadSavedFormData();
 			if (cancelled) return;
+
+			setVerificationEmail(user.email);
+			setIsAuthenticatedUser(true);
 
 			if (draftData && Object.keys(draftData).length > 0) {
 				form.reset({
@@ -1413,47 +1415,49 @@ function RegisterPageContent() {
 			return;
 		}
 
-		setVerificationEmail(verifiedEmail);
-		form.reset({
-			household: {
-				name: '',
-				address_line1: '',
-				address_line2: '',
-				city: '',
-				state: '',
-				zip: '',
-				preferredScriptureTranslation: 'NIV',
-			},
-			guardians: [
-				{
+		queueMicrotask(() => {
+			setVerificationEmail(verifiedEmail);
+			form.reset({
+				household: {
+					name: '',
+					address_line1: '',
+					address_line2: '',
+					city: '',
+					state: '',
+					zip: '',
+					preferredScriptureTranslation: 'NIV',
+				},
+				guardians: [
+					{
+						first_name: '',
+						last_name: '',
+						mobile_phone: '',
+						email: verifiedEmail,
+						relationship: 'Mother',
+						is_primary: true,
+					},
+				],
+				emergencyContact: {
 					first_name: '',
 					last_name: '',
 					mobile_phone: '',
-					email: verifiedEmail,
-					relationship: 'Mother',
-					is_primary: true,
+					relationship: '',
 				},
-			],
-			emergencyContact: {
-				first_name: '',
-				last_name: '',
-				mobile_phone: '',
-				relationship: '',
-			},
-			children: [
-				{
-					...defaultChildValues,
-					child_id: crypto.randomUUID(),
+				children: [
+					{
+						...defaultChildValues,
+						child_id: crypto.randomUUID(),
+					},
+				],
+				consents: {
+					liability: false,
+					photoRelease: false,
+					custom_consents: {},
 				},
-			],
-			consents: {
-				liability: false,
-				photoRelease: false,
-				custom_consents: {},
-			},
+			});
+			setOpenAccordionItems(['item-0']);
+			setVerificationStep('form_visible');
 		});
-		setOpenAccordionItems(['item-0']);
-		setVerificationStep('form_visible');
 	}, [authLoading, form, searchParams, verificationStep]);
 
 	async function onSubmit(data: RegistrationFormValues) {

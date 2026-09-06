@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { useStateWhenKeyChanges } from '@/hooks/useStateWhenKeyChanges';
 import {
 	Dialog,
 	DialogContent,
@@ -46,21 +47,19 @@ export function EditLeaderMembershipDialog({
 	onUpdateMembership,
 	onRemoveMembership,
 }: EditLeaderMembershipDialogProps) {
-	const [roleType, setRoleType] = useState<'PRIMARY' | 'VOLUNTEER'>('VOLUNTEER');
-	const [isActive, setIsActive] = useState(true);
-	const [notes, setNotes] = useState('');
+	const membershipKey = membership?.membership_id ?? '';
+	const [roleType, setRoleType] = useStateWhenKeyChanges<'PRIMARY' | 'VOLUNTEER'>(
+		membership?.role_type ?? 'VOLUNTEER',
+		membershipKey,
+	);
+	const [isActive, setIsActive] = useStateWhenKeyChanges(
+		membership?.is_active ?? true,
+		membershipKey,
+	);
+	const [notes, setNotes] = useStateWhenKeyChanges(membership?.notes || '', membershipKey);
 	const [isSaving, setIsSaving] = useState(false);
 	const [showRemoveDialog, setShowRemoveDialog] = useState(false);
 	const [isRemoving, setIsRemoving] = useState(false);
-
-	// Initialize form when membership changes
-	useEffect(() => {
-		if (membership) {
-			setRoleType(membership.role_type);
-			setIsActive(membership.is_active);
-			setNotes(membership.notes || '');
-		}
-	}, [membership]);
 
 	const hasChanges = membership && (
 		roleType !== membership.role_type ||

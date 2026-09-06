@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { AuthRole } from '@/lib/auth-types';
 import { IncidentForm } from '@/components/gatherKids/incident-form';
@@ -40,9 +40,23 @@ export default function IncidentsPage() {
 	const { toast } = useToast();
 	const { user } = useAuth();
 	const searchParams = useSearchParams();
-	const [activeTab, setActiveTab] = useState('log');
-	const [showPendingOnly, setShowPendingOnly] = useState(false);
+	const searchKey = searchParams.toString();
+	const tabParam = searchParams.get('tab');
+	const filterParam = searchParams.get('filter');
+	const [activeTab, setActiveTab] = useState(tabParam === 'view' ? 'view' : 'log');
+	const [showPendingOnly, setShowPendingOnly] = useState(filterParam === 'pending');
 	const [showAllCycles, setShowAllCycles] = useState(false);
+	const [prevSearchKey, setPrevSearchKey] = useState(searchKey);
+
+	if (searchKey !== prevSearchKey) {
+		setPrevSearchKey(searchKey);
+		if (tabParam === 'view') {
+			setActiveTab('view');
+		}
+		if (filterParam === 'pending') {
+			setShowPendingOnly(true);
+		}
+	}
 
 	// React Query hooks for data fetching
 	const {
@@ -57,18 +71,6 @@ export default function IncidentsPage() {
 		() => new Set(cycleChildren.map((child) => child.child_id)),
 		[cycleChildren],
 	);
-
-	// Sync filters when URL params change
-	useEffect(() => {
-		const tabParam = searchParams.get('tab');
-		if (tabParam === 'view') {
-			setActiveTab('view');
-		}
-		const filterParam = searchParams.get('filter');
-		if (filterParam === 'pending') {
-			setShowPendingOnly(true);
-		}
-	}, [searchParams]);
 
 	const displayedIncidents = useMemo(() => {
 		if (loading) return [];

@@ -29,14 +29,11 @@ import {
 	commitEnhancedCsvRowsToYear,
 	validateJsonTextUpload,
 	uploadJsonTexts,
-	getDivisionsForBibleBeeCycle,
 	getScripturesForBibleBeeCycle,
-	getEssayPromptsForBibleBeeCycle,
 	upsertScripture,
 	deleteScripture,
 	getCompetitionYears,
 	getRegistrationCycles,
-	getAllChildren,
 	getEnrollmentOverridesForYear,
 	getMinistries,
 } from '@/lib/dal';
@@ -92,6 +89,14 @@ import {
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { ConfirmationDialog } from './confirmation-dialog';
+import {
+	useDivisionsForCycle,
+	useEssayPromptsForCycle,
+	useScripturesForCycle,
+	useChildren,
+} from '@/hooks/data';
+import { useQueryClient } from '@tanstack/react-query';
+import { queryKeys } from '@/hooks/data/keys';
 
 interface BibleBeeManageProps {
 	className?: string;
@@ -197,65 +202,17 @@ export default function BibleBeeManage({
 		return cycles;
 	}, [bibleBeeCycles, competitionYears]);
 
-	// Add refresh counters to trigger re-fetch when data changes
-	const [divisionsRefreshCounter, setDivisionsRefreshCounter] = useState(0);
-	const [scripturesRefreshCounter, setScripturesRefreshCounter] = useState(0);
-	const [essayPromptsRefreshCounter, setEssayPromptsRefreshCounter] =
-		useState(0);
+	const queryClient = useQueryClient();
+	const defaultYearId =
+		allCycles && allCycles.length > 0
+			? (allCycles.find((c) => c.is_active) || allCycles[0]).id
+			: null;
+	if (!selectedYearId && defaultYearId) {
+		setSelectedYearId(defaultYearId);
+	}
 
-	// Load divisions using dbAdapter pattern
-	const [divisions, setDivisions] = useState<any[]>([]);
-
-	// Load divisions when selectedYearId changes
-	React.useEffect(() => {
-		if (!selectedYearId) {
-			setDivisions([]);
-			return;
-		}
-
-		const loadDivisions = async () => {
-			try {
-				const divs = await getDivisionsForBibleBeeCycle(selectedYearId);
-				setDivisions(divs);
-			} catch (error) {
-				console.error('Error loading divisions:', error);
-				setDivisions([]);
-			}
-		};
-
-		loadDivisions();
-	}, [selectedYearId, divisionsRefreshCounter]);
-
-	// Load essay prompts using dbAdapter pattern
-	const [essayPrompts, setEssayPrompts] = useState<any[]>([]);
-
-	// Load essay prompts when selectedYearId changes
-	React.useEffect(() => {
-		if (!selectedYearId) {
-			setEssayPrompts([]);
-			return;
-		}
-
-		const loadEssayPrompts = async () => {
-			try {
-				const prompts = await getEssayPromptsForBibleBeeCycle(selectedYearId);
-				setEssayPrompts(prompts);
-			} catch (error) {
-				console.error('Error loading essay prompts:', error);
-				setEssayPrompts([]);
-			}
-		};
-
-		loadEssayPrompts();
-	}, [selectedYearId, essayPromptsRefreshCounter]);
-
-	// Get the active year for default selection
-	React.useEffect(() => {
-		if (allCycles && allCycles.length > 0 && !selectedYearId) {
-			const activeCycle = allCycles.find((c) => c.is_active) || allCycles[0];
-			setSelectedYearId(activeCycle.id);
-		}
-	}, [allCycles, selectedYearId]);
+	const { data: divisions = [] } = useDivisionsForCycle(selectedYearId || '');
+	const { data: essayPrompts = [] } = useEssayPromptsForCycle(selectedYearId || '');
 
 	const selectedCycle = allCycles?.find((c) => c.id === selectedYearId);
 
@@ -317,7 +274,11 @@ export default function BibleBeeManage({
 								yearLabel={selectedCycle.label}
 								divisions={divisions || []}
 								selectedCycle={selectedCycle}
-								onRefresh={() => setDivisionsRefreshCounter((prev) => prev + 1)}
+								onRefresh={() => {
+									void queryClient.invalidateQueries({
+										queryKey: queryKeys.divisionsForCycle(selectedCycle.id),
+									});
+								}}
 							/>
 						) : (
 							<div className="text-center py-8 text-muted-foreground">
@@ -332,9 +293,11 @@ export default function BibleBeeManage({
 								yearId={selectedCycle.id}
 								yearLabel={selectedCycle.label}
 								selectedCycle={selectedCycle}
-								onRefresh={() =>
-									setScripturesRefreshCounter((prev) => prev + 1)
-								}
+								onRefresh={() => {
+									void queryClient.invalidateQueries({
+										queryKey: queryKeys.scripturesForCycle(selectedCycle.id),
+									});
+								}}
 							/>
 						) : (
 							<div className="text-center py-8 text-muted-foreground">
@@ -351,9 +314,11 @@ export default function BibleBeeManage({
 								essayPrompts={essayPrompts || []}
 								divisions={divisions || []}
 								selectedCycle={selectedCycle}
-								onRefresh={() =>
-									setEssayPromptsRefreshCounter((prev) => prev + 1)
-								}
+								onRefresh={() => {
+									void queryClient.invalidateQueries({
+										queryKey: queryKeys.essayPromptsForCycle(selectedCycle.id),
+									});
+								}}
 							/>
 						) : (
 							<div className="text-center py-8 text-muted-foreground">
@@ -1029,28 +994,7 @@ function ScriptureManagement({
 	const [jsonPreview, setJsonPreview] = useState<any>(null);
 	const [jsonMode, setJsonMode] = useState<'merge' | 'overwrite'>('merge');
 
-	// Load scriptures using dbAdapter pattern
-	const [scriptures, setScriptures] = useState<any[]>([]);
-
-	// Load scriptures when yearId changes
-	React.useEffect(() => {
-		if (!yearId) {
-			setScriptures([]);
-			return;
-		}
-
-		const loadScriptures = async () => {
-			try {
-				const result = await getScripturesForBibleBeeCycle(yearId);
-				setScriptures(result);
-			} catch (error) {
-				console.error('Error loading scriptures:', error);
-				setScriptures([]);
-			}
-		};
-
-		loadScriptures();
-	}, [yearId, onRefresh]);
+	const { data: scriptures = [] } = useScripturesForCycle(yearId);
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
@@ -2402,11 +2346,13 @@ function EnrollmentManagement({
 		}
 	}, [yearId, divisions]);
 
-	// Load preview automatically when year or divisions change
 	React.useEffect(() => {
-		if (yearId && divisions.length >= 0) {
-			loadPreview();
+		if (!yearId) {
+			return;
 		}
+		queueMicrotask(() => {
+			void loadPreview();
+		});
 	}, [yearId, divisions.length, loadPreview]);
 
 	const handleCommit = async () => {
@@ -2453,13 +2399,6 @@ function EnrollmentManagement({
 			setIsLoading(false);
 		}
 	};
-
-	// Load preview on mount
-	React.useEffect(() => {
-		if (yearId) {
-			loadPreview();
-		}
-	}, [yearId, loadPreview]);
 
 	const getStatusBadge = (status: string) => {
 		switch (status) {
@@ -2635,52 +2574,35 @@ function OverrideManagement({
 	const [error, setError] = useState<string | null>(null);
 
 	// Load data using dbAdapter pattern
-	const [children, setChildren] = useState<any[]>([]);
+	const { data: allChildren = [] } = useChildren();
+	const children = React.useMemo(
+		() => allChildren.filter((c) => !!c && isActiveValue(c?.is_active)),
+		[allChildren],
+	);
 	const [overrides, setOverrides] = useState<any[]>([]);
 
-	// Load children on component mount
-	React.useEffect(() => {
-		const loadChildren = async () => {
-			try {
-				// Use DAL function instead of direct Dexie call
-				const allChildren = await getAllChildren();
-				const activeChildren = allChildren.filter(
-					(c) => !!c && isActiveValue(c?.is_active)
-				);
-				setChildren(activeChildren);
-			} catch (error) {
-				console.error('Error loading children:', error);
-				setChildren([]);
-			}
-		};
-
-		loadChildren();
-	}, []);
-
-	// Load overrides when yearId changes
 	React.useEffect(() => {
 		if (!yearId) {
-			setOverrides([]);
 			return;
 		}
-
-		const loadOverrides = async () => {
+		let cancelled = false;
+		async function loadOverrides() {
 			try {
-				// Use DAL function instead of direct Dexie call
 				const overridesData = await getEnrollmentOverridesForYear(yearId);
-				setOverrides(overridesData);
+				if (!cancelled) setOverrides(overridesData);
 			} catch (error) {
 				console.error('Error loading overrides:', error);
-				setOverrides([]);
+				if (!cancelled) setOverrides([]);
 			}
+		}
+		void loadOverrides();
+		return () => {
+			cancelled = true;
 		};
-
-		loadOverrides();
 	}, [yearId]);
 
-	// Get child details for overrides
 	const enrichedOverrides = React.useMemo(() => {
-		if (!overrides || !children) return [];
+		if (!yearId || !overrides || !children) return [];
 
 		return overrides.map((override) => {
 			const child = children.find((c) => c.child_id === override.child_id);
@@ -2694,7 +2616,7 @@ function OverrideManagement({
 				division_name: division?.name || 'Unknown Division',
 			};
 		});
-	}, [overrides, children, divisions]);
+	}, [yearId, overrides, children, divisions]);
 
 	// Filter children for search
 	const filteredChildren = React.useMemo(() => {

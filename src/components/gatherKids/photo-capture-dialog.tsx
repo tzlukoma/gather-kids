@@ -118,15 +118,50 @@ export function PhotoCaptureDialog({
 	}, [activeTab, child, imageData, startCamera, stopCamera, selectedDeviceId]);
 
 	useEffect(() => {
-		if (selectedDeviceId && activeTab === 'camera' && !imageData) {
-			startCamera(selectedDeviceId);
+		if (!(selectedDeviceId && activeTab === 'camera' && !imageData)) {
+			return () => {
+				if (activeTab === 'camera') {
+					stopCamera();
+				}
+			};
 		}
+		let cancelled = false;
+		async function start() {
+			stopCamera();
+			try {
+				const stream = await navigator.mediaDevices.getUserMedia({
+					video: { deviceId: { exact: selectedDeviceId } },
+				});
+				if (cancelled) {
+					stream.getTracks().forEach((track) => track.stop());
+					return;
+				}
+				setHasCameraPermission(true);
+				streamRef.current = stream;
+				if (videoRef.current) {
+					videoRef.current.srcObject = stream;
+				}
+			} catch (error) {
+				console.error('Error accessing camera:', error);
+				if (!cancelled) {
+					setHasCameraPermission(false);
+					toast({
+						variant: 'destructive',
+						title: 'Camera Access Denied',
+						description:
+							'Please enable camera permissions in your browser settings.',
+					});
+				}
+			}
+		}
+		void start();
 		return () => {
+			cancelled = true;
 			if (activeTab === 'camera') {
 				stopCamera();
 			}
 		};
-	}, [selectedDeviceId, activeTab, imageData, startCamera, stopCamera]);
+	}, [selectedDeviceId, activeTab, imageData, stopCamera, toast]);
 
 	const handleClose = () => {
 		stopCamera();
