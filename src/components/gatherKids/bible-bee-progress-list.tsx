@@ -451,34 +451,40 @@ export function BibleBeeProgressList({
 							</div>
 
 							<div className="flex items-center gap-2">
-								<button
-									className={`px-3 py-1 rounded ${
-										filterStatus === 'all' ? 'bg-accent' : ''
-									}`}
+								<Button
+									type="button"
+									size="sm"
+									variant={filterStatus === 'all' ? 'secondary' : 'ghost'}
 									onClick={() => setFilterStatus('all')}>
 									All
-								</button>
-								<button
-									className={`px-3 py-1 rounded ${
-										filterStatus === 'Not Started' ? 'bg-accent' : ''
-									}`}
+								</Button>
+								<Button
+									type="button"
+									size="sm"
+									variant={
+										filterStatus === 'Not Started' ? 'secondary' : 'ghost'
+									}
 									onClick={() => setFilterStatus('Not Started')}>
 									Not Started
-								</button>
-								<button
-									className={`px-3 py-1 rounded ${
-										filterStatus === 'In-Progress' ? 'bg-accent' : ''
-									}`}
+								</Button>
+								<Button
+									type="button"
+									size="sm"
+									variant={
+										filterStatus === 'In-Progress' ? 'secondary' : 'ghost'
+									}
 									onClick={() => setFilterStatus('In-Progress')}>
 									In-Progress
-								</button>
-								<button
-									className={`px-3 py-1 rounded ${
-										filterStatus === 'Complete' ? 'bg-accent' : ''
-									}`}
+								</Button>
+								<Button
+									type="button"
+									size="sm"
+									variant={
+										filterStatus === 'Complete' ? 'secondary' : 'ghost'
+									}
 									onClick={() => setFilterStatus('Complete')}>
 									Complete
-								</button>
+								</Button>
 							</div>
 
 							{/* Export button */}
@@ -493,8 +499,10 @@ export function BibleBeeProgressList({
 							</Button>
 
 							<div className="flex-1" />
-							<button
-								className="px-2 py-1 border rounded"
+							<Button
+								type="button"
+								variant="outline"
+								size="sm"
 								onClick={() => {
 									// reset to defaults
 									if (bibleBeeCycles && bibleBeeCycles.length > 0) {
@@ -513,7 +521,7 @@ export function BibleBeeProgressList({
 									} catch (e) {}
 								}}>
 								Clear
-							</button>
+							</Button>
 						</>
 					)}
 				</div>

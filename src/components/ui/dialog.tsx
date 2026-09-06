@@ -1,5 +1,12 @@
 "use client"
 
+/**
+ * Shared Dialog (Radix). MAINT-18: @radix-ui/react-dialog provides focus trap
+ * (FocusScope), Escape-to-close, and focus return to the trigger on close.
+ * App modals should compose these primitives rather than custom overlays.
+ */
+
+
 import * as React from "react"
 import * as DialogPrimitive from "@radix-ui/react-dialog"
 import { X } from "lucide-react"
