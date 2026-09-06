@@ -10,11 +10,20 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import {
+	Form,
+	FormControl,
+	FormField,
+} from '@/components/ui/form';
+import {
+	FormActions,
+	FormFieldFrame,
+	TextFormField,
+	TextareaFormField,
+} from '@/components/ui/form-patterns';
 import { PhoneInput } from '@/components/ui/phone-input';
-import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 import {
 	Select,
 	SelectContent,
@@ -22,11 +31,9 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
 import {
 	useAddChild,
 	useUpdateChild,
-	useAddChildEnrollment,
 } from '@/hooks/data';
 import { useToast } from '@/hooks/use-toast';
 import { getCurrentRegistrationCycle } from '@/lib/dal';
@@ -61,17 +68,10 @@ export function EditChildModal({
 	const { toast } = useToast();
 	const addChildMutation = useAddChild();
 	const updateChildMutation = useUpdateChild();
-	const addChildEnrollmentMutation = useAddChildEnrollment();
 
 	const isEditing = !!child;
 
-	const {
-		register,
-		handleSubmit,
-		setValue,
-		watch,
-		formState: { errors },
-	} = useForm<ChildFormData>({
+	const form = useForm<ChildFormData>({
 		resolver: zodResolver(childSchema),
 		defaultValues: {
 			first_name: child?.first_name || '',
@@ -86,7 +86,7 @@ export function EditChildModal({
 		},
 	});
 
-	const specialNeeds = watch('special_needs');
+	const specialNeeds = form.watch('special_needs');
 
 	const onSubmit = async (data: ChildFormData) => {
 		setIsSubmitting(true);
@@ -114,7 +114,7 @@ export function EditChildModal({
 					throw new Error('No active registration cycle found');
 				}
 
-				const newChild = await addChildMutation.mutateAsync({
+				await addChildMutation.mutateAsync({
 					householdId,
 					child: {
 						...data,
@@ -161,144 +161,138 @@ export function EditChildModal({
 							: 'Add a new child to this household.'}
 					</DialogDescription>
 				</DialogHeader>
-				<form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-					<div className="grid grid-cols-2 gap-4">
-						<div className="space-y-2">
-							<Label htmlFor="first_name">First Name</Label>
-							<Input
-								id="first_name"
-								{...register('first_name')}
-								className={errors.first_name ? 'border-red-500' : ''}
+				<Form {...form}>
+					<form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+						<div className="grid grid-cols-2 gap-4">
+							<TextFormField
+								control={form.control}
+								name="first_name"
+								label="First Name"
+								required
 							/>
-							{errors.first_name && (
-								<p className="text-sm text-red-500">
-									{errors.first_name.message}
-								</p>
-							)}
-						</div>
-						<div className="space-y-2">
-							<Label htmlFor="last_name">Last Name</Label>
-							<Input
-								id="last_name"
-								{...register('last_name')}
-								className={errors.last_name ? 'border-red-500' : ''}
+							<TextFormField
+								control={form.control}
+								name="last_name"
+								label="Last Name"
+								required
 							/>
-							{errors.last_name && (
-								<p className="text-sm text-red-500">
-									{errors.last_name.message}
-								</p>
-							)}
 						</div>
-					</div>
 
-					<div className="grid grid-cols-2 gap-4">
-						<div className="space-y-2">
-							<Label htmlFor="dob">Date of Birth</Label>
-							<Input
-								id="dob"
+						<div className="grid grid-cols-2 gap-4">
+							<TextFormField
+								control={form.control}
+								name="dob"
+								label="Date of Birth"
 								type="date"
-								{...register('dob')}
-								className={errors.dob ? 'border-red-500' : ''}
+								required
 							/>
-							{errors.dob && (
-								<p className="text-sm text-red-500">{errors.dob.message}</p>
-							)}
+							<FormField
+								control={form.control}
+								name="grade"
+								render={({ field }) => (
+									<FormFieldFrame label="Grade" required>
+										<Select
+											value={field.value}
+											onValueChange={field.onChange}>
+											<FormControl>
+												<SelectTrigger>
+													<SelectValue placeholder="Select grade" />
+												</SelectTrigger>
+											</FormControl>
+											<SelectContent>
+												<SelectItem value="Pre-K">Pre-K</SelectItem>
+												<SelectItem value="K">Kindergarten</SelectItem>
+												<SelectItem value="1">1st Grade</SelectItem>
+												<SelectItem value="2">2nd Grade</SelectItem>
+												<SelectItem value="3">3rd Grade</SelectItem>
+												<SelectItem value="4">4th Grade</SelectItem>
+												<SelectItem value="5">5th Grade</SelectItem>
+												<SelectItem value="6">6th Grade</SelectItem>
+												<SelectItem value="7">7th Grade</SelectItem>
+												<SelectItem value="8">8th Grade</SelectItem>
+												<SelectItem value="9">9th Grade</SelectItem>
+												<SelectItem value="10">10th Grade</SelectItem>
+												<SelectItem value="11">11th Grade</SelectItem>
+												<SelectItem value="12">12th Grade</SelectItem>
+											</SelectContent>
+										</Select>
+									</FormFieldFrame>
+								)}
+							/>
 						</div>
-						<div className="space-y-2">
-							<Label htmlFor="grade">Grade</Label>
-							<Select
-								value={watch('grade')}
-								onValueChange={(value) => setValue('grade', value)}>
-								<SelectTrigger className={errors.grade ? 'border-red-500' : ''}>
-									<SelectValue placeholder="Select grade" />
-								</SelectTrigger>
-								<SelectContent>
-									<SelectItem value="Pre-K">Pre-K</SelectItem>
-									<SelectItem value="K">Kindergarten</SelectItem>
-									<SelectItem value="1">1st Grade</SelectItem>
-									<SelectItem value="2">2nd Grade</SelectItem>
-									<SelectItem value="3">3rd Grade</SelectItem>
-									<SelectItem value="4">4th Grade</SelectItem>
-									<SelectItem value="5">5th Grade</SelectItem>
-									<SelectItem value="6">6th Grade</SelectItem>
-									<SelectItem value="7">7th Grade</SelectItem>
-									<SelectItem value="8">8th Grade</SelectItem>
-									<SelectItem value="9">9th Grade</SelectItem>
-									<SelectItem value="10">10th Grade</SelectItem>
-									<SelectItem value="11">11th Grade</SelectItem>
-									<SelectItem value="12">12th Grade</SelectItem>
-								</SelectContent>
-							</Select>
-							{errors.grade && (
-								<p className="text-sm text-red-500">{errors.grade.message}</p>
-							)}
-						</div>
-					</div>
 
-					<div className="space-y-2">
-						<Label htmlFor="child_mobile">Child&apos;s Phone (Optional)</Label>
-						<PhoneInput
-							id="child_mobile"
-							value={watch('child_mobile') || ''}
-							onChange={(value) => setValue('child_mobile', value)}
-							placeholder="Phone number"
+						<FormField
+							control={form.control}
+							name="child_mobile"
+							render={({ field }) => (
+								<FormFieldFrame label="Child's Phone (Optional)">
+									<FormControl>
+										<PhoneInput
+											id={field.name}
+											value={field.value || ''}
+											onChange={field.onChange}
+											onBlur={field.onBlur}
+											placeholder="Phone number"
+										/>
+									</FormControl>
+								</FormFieldFrame>
+							)}
 						/>
-					</div>
 
-					<div className="space-y-2">
-						<Label htmlFor="allergies">Allergies/Medical Conditions</Label>
-						<Textarea
-							id="allergies"
-							{...register('allergies')}
+						<TextareaFormField
+							control={form.control}
+							name="allergies"
+							label="Allergies/Medical Conditions"
 							placeholder="List any allergies or medical conditions"
 							rows={3}
 						/>
-					</div>
 
-					<div className="space-y-2">
-						<Label htmlFor="medical_notes">Medical Notes</Label>
-						<Textarea
-							id="medical_notes"
-							{...register('medical_notes')}
+						<TextareaFormField
+							control={form.control}
+							name="medical_notes"
+							label="Medical Notes"
 							placeholder="Additional medical information"
 							rows={3}
 						/>
-					</div>
 
-					<div className="space-y-4">
-						<div className="flex items-center space-x-2">
-							<Checkbox
-								id="special_needs"
-								checked={specialNeeds}
-								onCheckedChange={(checked) =>
-									setValue('special_needs', !!checked)
-								}
+						<div className="space-y-4">
+							<FormField
+								control={form.control}
+								name="special_needs"
+								render={({ field }) => (
+									<div className="flex items-center space-x-2">
+										<Checkbox
+											id="special_needs"
+											checked={field.value}
+											onCheckedChange={(checked) =>
+												field.onChange(!!checked)
+											}
+										/>
+										<Label htmlFor="special_needs">Special Needs</Label>
+									</div>
+								)}
 							/>
-							<Label htmlFor="special_needs">Special Needs</Label>
-						</div>
 
-						{specialNeeds && (
-							<div className="space-y-2">
-								<Label htmlFor="special_needs_notes">Special Needs Notes</Label>
-								<Textarea
-									id="special_needs_notes"
-									{...register('special_needs_notes')}
+							{specialNeeds && (
+								<TextareaFormField
+									control={form.control}
+									name="special_needs_notes"
+									label="Special Needs Notes"
 									placeholder="Describe special needs or accommodations"
 									rows={3}
 								/>
-							</div>
-						)}
-					</div>
+							)}
+						</div>
 
-					<DialogFooter className="flex flex-col sm:flex-row gap-2 sm:gap-0">
-						<Button type="button" variant="outline" onClick={onClose}>
-							Cancel
-						</Button>
-						<Button type="submit" disabled={isSubmitting}>
-							{isSubmitting ? 'Saving...' : isEditing ? 'Update' : 'Add'}
-						</Button>
-					</DialogFooter>
-				</form>
+						<DialogFooter className="flex flex-col sm:flex-row gap-2 sm:gap-0">
+							<FormActions
+								onCancel={onClose}
+								isSubmitting={isSubmitting}
+								submitLabel={isEditing ? 'Update' : 'Add'}
+							/>
+						</DialogFooter>
+					</form>
+				</Form>
 			</DialogContent>
 		</Dialog>
 	);

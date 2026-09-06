@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useFormCompat as useForm } from '@/hooks/useFormCompat';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import {
@@ -10,9 +10,11 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { Form } from '@/components/ui/form';
+import {
+	FormActions,
+	TextFormField,
+} from '@/components/ui/form-patterns';
 import { useUpdateHousehold } from '@/hooks/data';
 import { useToast } from '@/hooks/use-toast';
 import type { Household } from '@/lib/types';
@@ -41,11 +43,7 @@ export function EditHouseholdAddressModal({
 	const { toast } = useToast();
 	const updateHouseholdMutation = useUpdateHousehold();
 
-	const {
-		register,
-		handleSubmit,
-		formState: { errors },
-	} = useForm<HouseholdFormData>({
+	const form = useForm<HouseholdFormData>({
 		resolver: zodResolver(householdSchema),
 		defaultValues: {
 			name: household.name || '',
@@ -94,87 +92,56 @@ export function EditHouseholdAddressModal({
 						Update the household address information below.
 					</DialogDescription>
 				</DialogHeader>
-				<form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-					<div className="space-y-2">
-						<Label htmlFor="name">Household Name</Label>
-						<Input
-							id="name"
-							{...register('name')}
-							className={errors.name ? 'border-red-500' : ''}
+				<Form {...form}>
+					<form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+						<TextFormField
+							control={form.control}
+							name="name"
+							label="Household Name"
+							required
 						/>
-						{errors.name && (
-							<p className="text-sm text-red-500">{errors.name.message}</p>
-						)}
-					</div>
-
-					<div className="space-y-2">
-						<Label htmlFor="address_line1">Address Line 1</Label>
-						<Input
-							id="address_line1"
-							{...register('address_line1')}
-							className={errors.address_line1 ? 'border-red-500' : ''}
+						<TextFormField
+							control={form.control}
+							name="address_line1"
+							label="Address Line 1"
+							required
 						/>
-						{errors.address_line1 && (
-							<p className="text-sm text-red-500">
-								{errors.address_line1.message}
-							</p>
-						)}
-					</div>
-
-					<div className="space-y-2">
-						<Label htmlFor="address_line2">Address Line 2 (Optional)</Label>
-						<Input
-							id="address_line2"
-							{...register('address_line2')}
+						<TextFormField
+							control={form.control}
+							name="address_line2"
+							label="Address Line 2 (Optional)"
 							placeholder="Apartment, suite, etc."
 						/>
-					</div>
+						<div className="grid grid-cols-3 gap-4">
+							<TextFormField
+								control={form.control}
+								name="city"
+								label="City"
+								required
+							/>
+							<TextFormField
+								control={form.control}
+								name="state"
+								label="State"
+								required
+							/>
+							<TextFormField
+								control={form.control}
+								name="zip"
+								label="ZIP Code"
+								required
+							/>
+						</div>
 
-					<div className="grid grid-cols-3 gap-4">
-						<div className="space-y-2">
-							<Label htmlFor="city">City</Label>
-							<Input
-								id="city"
-								{...register('city')}
-								className={errors.city ? 'border-red-500' : ''}
+						<DialogFooter className="flex flex-col sm:flex-row gap-2 sm:gap-0">
+							<FormActions
+								onCancel={onClose}
+								isSubmitting={isSubmitting}
+								submitLabel="Update"
 							/>
-							{errors.city && (
-								<p className="text-sm text-red-500">{errors.city.message}</p>
-							)}
-						</div>
-						<div className="space-y-2">
-							<Label htmlFor="state">State</Label>
-							<Input
-								id="state"
-								{...register('state')}
-								className={errors.state ? 'border-red-500' : ''}
-							/>
-							{errors.state && (
-								<p className="text-sm text-red-500">{errors.state.message}</p>
-							)}
-						</div>
-						<div className="space-y-2">
-							<Label htmlFor="zip">ZIP Code</Label>
-							<Input
-								id="zip"
-								{...register('zip')}
-								className={errors.zip ? 'border-red-500' : ''}
-							/>
-							{errors.zip && (
-								<p className="text-sm text-red-500">{errors.zip.message}</p>
-							)}
-						</div>
-					</div>
-
-					<DialogFooter className="flex flex-col sm:flex-row gap-2 sm:gap-0">
-						<Button type="button" variant="outline" onClick={onClose}>
-							Cancel
-						</Button>
-						<Button type="submit" disabled={isSubmitting}>
-							{isSubmitting ? 'Saving...' : 'Update'}
-						</Button>
-					</DialogFooter>
-				</form>
+						</DialogFooter>
+					</form>
+				</Form>
 			</DialogContent>
 		</Dialog>
 	);
