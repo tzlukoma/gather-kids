@@ -98,3 +98,45 @@ export function getPostLoginRouteFromUser(user: { metadata?: { role?: AuthRole }
   const role = getUserRoleFromMetadata(user);
   return getPostLoginRoute(role);
 }
+
+/**
+ * Auth gate copy for registration submission (issue #185).
+ */
+export const REGISTRATION_AUTH_REQUIRED_MESSAGE =
+  'Please create an account or sign in to complete registration';
+
+/**
+ * Returns a safe same-origin relative path from a `next` query value.
+ * Rejects absolute URLs, protocol-relative URLs, and other unsafe values.
+ */
+export function getSafeNextPath(
+  next: string | null | undefined,
+  fallback: string = DEFAULT_ROUTE
+): string {
+  if (!next) {
+    return fallback;
+  }
+
+  const trimmed = next.trim();
+  if (!trimmed.startsWith('/')) {
+    return fallback;
+  }
+  // Protocol-relative or smuggled schemes
+  if (trimmed.startsWith('//') || trimmed.includes('\\') || trimmed.includes('://')) {
+    return fallback;
+  }
+
+  return trimmed;
+}
+
+/** Login URL that returns the user to registration (or another safe path) after auth. */
+export function getLoginHrefWithNext(nextPath: string = DEFAULT_ROUTE): string {
+  const safe = getSafeNextPath(nextPath, DEFAULT_ROUTE);
+  return `/login?next=${encodeURIComponent(safe)}`;
+}
+
+/** Create-account URL that returns the user to registration after signup. */
+export function getCreateAccountHrefWithNext(nextPath: string = DEFAULT_ROUTE): string {
+  const safe = getSafeNextPath(nextPath, DEFAULT_ROUTE);
+  return `/create-account?next=${encodeURIComponent(safe)}`;
+}

@@ -91,6 +91,11 @@ import { useDraftPersistence } from '@/hooks/useDraftPersistence';
 import { DraftStatusIndicator } from '@/components/ui/draft-status-indicator';
 import { useFeatureFlags } from '@/contexts/feature-flag-context';
 import { useAuth } from '@/contexts/auth-context';
+import {
+	getLoginHrefWithNext,
+	getCreateAccountHrefWithNext,
+	REGISTRATION_AUTH_REQUIRED_MESSAGE,
+} from '@/lib/auth-utils';
 
 const log = devLog('register');
 
@@ -1292,7 +1297,7 @@ function RegisterPageContent() {
 
 	const handleEmailLookup = useCallback(async () => {
 		if (!isOfflineSupabase()) {
-			router.replace(`/login?next=${encodeURIComponent('/register')}`);
+			router.replace(getLoginHrefWithNext('/register'));
 			return;
 		}
 
@@ -1365,7 +1370,7 @@ function RegisterPageContent() {
 		if (authLoading) return;
 		if (isOfflineSupabase()) return;
 		if (!user) {
-			router.replace(`/login?next=${encodeURIComponent('/register')}`);
+			router.replace(getLoginHrefWithNext('/register'));
 		}
 	}, [authLoading, user, router]);
 
@@ -1439,11 +1444,11 @@ function RegisterPageContent() {
 			const offlineEmail = user?.email || verificationEmail;
 			if (!offlineEmail) {
 				toast({
-					title: 'Sign in required',
-					description: 'Please sign in before submitting your registration.',
+					title: 'Account required',
+					description: REGISTRATION_AUTH_REQUIRED_MESSAGE,
 					variant: 'destructive',
 				});
-				router.push(`/login?next=${encodeURIComponent('/register')}`);
+				router.push(getLoginHrefWithNext('/register'));
 				return;
 			}
 
@@ -1459,11 +1464,15 @@ function RegisterPageContent() {
 
 		if (!user?.email) {
 			toast({
-				title: 'Sign in required',
-				description: 'Please sign in before submitting your registration.',
+				title: 'Account required',
+				description: REGISTRATION_AUTH_REQUIRED_MESSAGE,
 				variant: 'destructive',
 			});
-			router.push(`/login?next=${encodeURIComponent('/register')}`);
+			router.push(
+				flags.loginPasswordEnabled
+					? getCreateAccountHrefWithNext('/register')
+					: getLoginHrefWithNext('/register')
+			);
 			return;
 		}
 
@@ -1589,16 +1598,18 @@ function RegisterPageContent() {
 				}
 			}
 
-			log.log('DEBUG: Non-authenticated user, resetting form');
-			// For non-authenticated users, reset form for another registration
-			form.reset();
-			setVerificationStep('enter_email');
-			setVerificationEmail('');
-			setOpenAccordionItems([]);
-			setIsCurrentYearOverwrite(false);
-			setIsReturningPrefill(false);
-			setExistingChildIds(new Set());
-			setGradeHintsByChildId({});
+			// Unauthenticated submit should have been blocked above; never leave orphans.
+			log.log('DEBUG: Missing authenticated user after submit; redirecting to auth');
+			toast({
+				title: 'Account required',
+				description: REGISTRATION_AUTH_REQUIRED_MESSAGE,
+				variant: 'destructive',
+			});
+			router.push(
+				flags.loginPasswordEnabled
+					? getCreateAccountHrefWithNext('/register')
+					: getLoginHrefWithNext('/register')
+			);
 		} catch (e) {
 			console.error('DEBUG: Error in onSubmit:', e);
 			setIsSubmitting(false);
@@ -1765,6 +1776,25 @@ function RegisterPageContent() {
 						</CardDescription>
 					</CardHeader>
 					<CardContent className="space-y-4">
+						<Alert>
+							<Info className="h-4 w-4" />
+							<AlertTitle>Account required</AlertTitle>
+							<AlertDescription>
+								{REGISTRATION_AUTH_REQUIRED_MESSAGE}{' '}
+								<a
+									href={getCreateAccountHrefWithNext('/register')}
+									className="underline font-medium">
+									Create an account
+								</a>{' '}
+								or{' '}
+								<a
+									href={getLoginHrefWithNext('/register')}
+									className="underline font-medium">
+									sign in
+								</a>
+								.
+							</AlertDescription>
+						</Alert>
 						<div className="flex gap-2">
 							<Input
 								type="email"
@@ -1826,7 +1856,7 @@ function RegisterPageContent() {
 			{verificationStep === 'verify_identity' && (
 				<VerificationStepTwoForm
 					onVerifySuccess={() => {
-						router.replace(`/login?next=${encodeURIComponent('/register')}`);
+						router.replace(getLoginHrefWithNext('/register'));
 					}}
 					onGoBack={() => setVerificationStep('enter_email')}
 				/>

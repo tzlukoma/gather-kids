@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import {
 	Card,
@@ -30,16 +30,25 @@ import { ForgotPasswordDialog } from '@/components/auth/forgot-password-dialog';
 import { AuthRole } from '@/lib/auth-types';
 import { isOfflineSupabase } from '@/lib/offline-supabase';
 import { supabase } from '@/lib/supabaseClient';
-import { getPostLoginRoute } from '@/lib/auth-utils';
+import {
+	getCreateAccountHrefWithNext,
+	getPostLoginRoute,
+	getSafeNextPath,
+} from '@/lib/auth-utils';
 import { resolveGuardianPostLoginRoute } from '@/lib/dal';
 import { AppFooter } from '@/components/app-footer';
 
 export default function LoginPage() {
 	const router = useRouter();
+	const searchParams = useSearchParams();
 	const { login } = useAuth();
 	const { settings } = useBranding();
 	const { toast } = useToast();
 	const { flags } = useFeatureFlags();
+	const requestedNextPath = getSafeNextPath(searchParams?.get('next'), '');
+	const createAccountHref = requestedNextPath
+		? getCreateAccountHrefWithNext(requestedNextPath)
+		: '/create-account';
 	const [email, setEmail] = useState('');
 	const [password, setPassword] = useState('');
 	const [showPassword, setShowPassword] = useState(false);
@@ -93,7 +102,7 @@ export default function LoginPage() {
 						title: 'Login Successful',
 						description: 'Welcome back!',
 					});
-					router.push('/register');
+					router.push(requestedNextPath || '/register');
 					return;
 				}
 
@@ -150,13 +159,18 @@ export default function LoginPage() {
 
 					await login(loginData);
 
-					let target = getPostLoginRoute(userRole);
-					if (
-						userRole === AuthRole.GUARDIAN ||
-						userRole === AuthRole.GUEST ||
-						!userRole
-					) {
-						target = await resolveGuardianPostLoginRoute(data.session.user.id);
+					let target = requestedNextPath;
+					if (!target) {
+						target = getPostLoginRoute(userRole);
+						if (
+							userRole === AuthRole.GUARDIAN ||
+							userRole === AuthRole.GUEST ||
+							!userRole
+						) {
+							target = await resolveGuardianPostLoginRoute(
+								data.session.user.id
+							);
+						}
 					}
 
 					router.push(target);
@@ -227,7 +241,7 @@ export default function LoginPage() {
 							{flags.loginPasswordEnabled ? (
 								<>
 									Don&apos;t have an account?{' '}
-									<Link href="/create-account" className="underline">
+									<Link href={createAccountHref} className="underline">
 										Create account
 									</Link>
 								</>

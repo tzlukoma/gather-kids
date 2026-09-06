@@ -3,6 +3,10 @@ import {
   getPostLoginRoute, 
   getUserRoleFromMetadata,
   getPostLoginRouteFromUser,
+  getSafeNextPath,
+  getLoginHrefWithNext,
+  getCreateAccountHrefWithNext,
+  REGISTRATION_AUTH_REQUIRED_MESSAGE,
   ROLE_PRIORITY, 
   ROLE_ROUTES,
   DEFAULT_ROUTE 
@@ -180,4 +184,46 @@ describe('auth-utils', () => {
       expect(getPostLoginRoute(roles)).toBe('/admin-overview');
     });
   });
+
+  describe('getSafeNextPath', () => {
+    it('returns fallback when next is missing', () => {
+      expect(getSafeNextPath(null)).toBe(DEFAULT_ROUTE);
+      expect(getSafeNextPath(undefined)).toBe(DEFAULT_ROUTE);
+      expect(getSafeNextPath('')).toBe(DEFAULT_ROUTE);
+      expect(getSafeNextPath(null, '')).toBe('');
+    });
+
+    it('returns safe relative paths', () => {
+      expect(getSafeNextPath('/register')).toBe('/register');
+      expect(getSafeNextPath('/household')).toBe('/household');
+      expect(getSafeNextPath('/register?verified_email=a%40b.com')).toBe(
+        '/register?verified_email=a%40b.com'
+      );
+    });
+
+    it('rejects absolute and protocol-relative URLs', () => {
+      expect(getSafeNextPath('https://evil.example/phish')).toBe(DEFAULT_ROUTE);
+      expect(getSafeNextPath('//evil.example/phish')).toBe(DEFAULT_ROUTE);
+      expect(getSafeNextPath('/\\evil')).toBe(DEFAULT_ROUTE);
+      expect(getSafeNextPath('register')).toBe(DEFAULT_ROUTE);
+    });
+  });
+
+  describe('registration auth redirect helpers', () => {
+    it('builds login and create-account hrefs with encoded next', () => {
+      expect(getLoginHrefWithNext('/register')).toBe(
+        '/login?next=%2Fregister'
+      );
+      expect(getCreateAccountHrefWithNext('/register')).toBe(
+        '/create-account?next=%2Fregister'
+      );
+    });
+
+    it('exposes clear registration auth messaging', () => {
+      expect(REGISTRATION_AUTH_REQUIRED_MESSAGE).toBe(
+        'Please create an account or sign in to complete registration'
+      );
+    });
+  });
+
 });

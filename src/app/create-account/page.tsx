@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import {
 	Card,
@@ -21,9 +21,14 @@ import { useFeatureFlags } from '@/contexts/feature-flag-context';
 import { useBranding } from '@/contexts/branding-context';
 import { supabase } from '@/lib/supabaseClient';
 import { isOfflineSupabase } from '@/lib/offline-supabase';
+import {
+	getLoginHrefWithNext,
+	getSafeNextPath,
+} from '@/lib/auth-utils';
 
 export default function CreateAccountPage() {
 	const router = useRouter();
+	const searchParams = useSearchParams();
 	const { toast } = useToast();
 	const { flags } = useFeatureFlags();
 	const { settings } = useBranding();
@@ -32,6 +37,11 @@ export default function CreateAccountPage() {
 	const [confirmPassword, setConfirmPassword] = useState('');
 	const [loading, setLoading] = useState(false);
 	const [needsVerification, setNeedsVerification] = useState(false);
+	const postAuthRedirect = getSafeNextPath(
+		searchParams?.get('next'),
+		'/register'
+	);
+	const loginHref = getLoginHrefWithNext(postAuthRedirect);
 
 	// Set page title based on verification state
 	useEffect(() => {
@@ -43,9 +53,9 @@ export default function CreateAccountPage() {
 	// Redirect to login if password auth is disabled
 	useEffect(() => {
 		if (!flags.loginPasswordEnabled) {
-			router.replace('/login');
+			router.replace(loginHref);
 		}
-	}, [flags.loginPasswordEnabled, router]);
+	}, [flags.loginPasswordEnabled, loginHref, router]);
 
 	const handleCreateAccount = async () => {
 		if (!email || !password || !confirmPassword) {
@@ -206,23 +216,23 @@ export default function CreateAccountPage() {
 					);
 
 					// Check if we're already on the register page
-					if (window.location.pathname === '/register') {
+					if (window.location.pathname === postAuthRedirect) {
 						console.log(
-							'🔍 Create Account: Already on register page, skipping redirect'
+							'🔍 Create Account: Already on destination, skipping redirect'
 						);
 						return;
 					}
 
 					// Try router.push first
-					const pushResult = router.push('/register');
+					const pushResult = router.push(postAuthRedirect);
 					console.log(
-						'🔍 Create Account: router.push("/register") called, result:',
+						`🔍 Create Account: router.push("${postAuthRedirect}") called, result:`,
 						pushResult
 					);
 
 				// Check if navigation actually happened after a short delay
 				setTimeout(() => {
-					if (window.location.pathname !== '/register') {
+					if (window.location.pathname !== postAuthRedirect) {
 						console.log(
 							'🔍 Create Account: router.push may have failed'
 						);
@@ -260,24 +270,24 @@ export default function CreateAccountPage() {
 					);
 
 					// Check if we're already on the register page
-					if (window.location.pathname === '/register') {
+					if (window.location.pathname === postAuthRedirect) {
 						console.log(
-							'🔍 Create Account: Already on register page, skipping redirect (local dev)'
+							'🔍 Create Account: Already on destination, skipping redirect (local dev)'
 						);
 						return;
 					}
 
 					// Try router.push first
-					const pushResult = router.push('/register');
+					const pushResult = router.push(postAuthRedirect);
 					console.log(
-						'🔍 Create Account: router.push("/register") called, result:',
+						`🔍 Create Account: router.push("${postAuthRedirect}") called, result:`,
 						pushResult,
 						'(local dev)'
 					);
 
 				// Check if navigation actually happened after a short delay
 				setTimeout(() => {
-					if (window.location.pathname !== '/register') {
+					if (window.location.pathname !== postAuthRedirect) {
 						console.log(
 							'🔍 Create Account: router.push may have failed (local dev)'
 						);
@@ -480,7 +490,7 @@ export default function CreateAccountPage() {
 								{loading ? 'Sending...' : 'Resend Verification Email'}
 							</Button>
 							<div className="text-center">
-								<Link href="/login" className="text-sm underline">
+								<Link href={loginHref} className="text-sm underline">
 									Back to Sign In
 								</Link>
 							</div>
@@ -573,7 +583,7 @@ export default function CreateAccountPage() {
 						</Button>
 						<div className="text-center text-sm">
 							Already have an account?{' '}
-							<Link href="/login" className="underline">
+							<Link href={loginHref} className="underline">
 								Sign In
 							</Link>
 						</div>
