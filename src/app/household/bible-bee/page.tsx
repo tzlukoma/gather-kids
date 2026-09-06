@@ -9,6 +9,7 @@ import {
 import { useHouseholdProfile } from '@/hooks/data';
 import { ParentBibleBeeView } from '@/components/gatherKids/parent-bible-bee-view';
 import { BookOpen, Calendar } from 'lucide-react';
+import { EmptyState } from '@/components/ui/empty-state';
 import { Card, CardContent } from '@/components/ui/card';
 import { isOnOrAfterInET, formatDateInET } from '@/lib/utils/timezone';
 import type { Ministry } from '@/lib/types';
@@ -107,12 +108,12 @@ export default function HouseholdBibleBeePage() {
 	if (enrolledChildren.length === 0) {
 		console.log('Bible Bee page: No enrolled children found');
 		return (
-			<div className="text-center py-8">
-				<BookOpen className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-				<p className="text-muted-foreground">
-					No children in this household are enrolled in the Bible Bee.
-				</p>
-			</div>
+			<EmptyState
+				className="py-8"
+				icon={BookOpen}
+				title="No Bible Bee enrollments"
+				description="No children in this household are enrolled in the Bible Bee."
+			/>
 		);
 	}
 

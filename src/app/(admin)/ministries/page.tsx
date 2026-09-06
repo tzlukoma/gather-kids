@@ -27,7 +27,9 @@ import {
 	Calendar,
 	Users,
 	Settings,
+	Inbox,
 } from 'lucide-react';
+import { EmptyState } from '@/components/ui/empty-state';
 import { MinistryFormDialog } from '@/components/gatherKids/ministry-form-dialog';
 import { MinistryGroupFormDialog } from '@/components/gatherKids/ministry-group-form-dialog';
 import { MinistryAssignmentDialog } from '@/components/gatherKids/ministry-assignment-dialog';
@@ -174,10 +176,12 @@ function MinistryTable({
 						})}
 						{ministries.length === 0 && (
 							<TableRow>
-								<TableCell
-									colSpan={7}
-									className="text-center h-24 text-muted-foreground">
-									No ministries of this type found.
+								<TableCell colSpan={7}>
+									<EmptyState
+										className="py-6"
+										icon={Inbox}
+										title="No ministries of this type found."
+									/>
 								</TableCell>
 							</TableRow>
 						)}
@@ -298,11 +302,13 @@ function MinistryGroupTable({
 						})}
 						{groups.length === 0 && (
 							<TableRow>
-								<TableCell
-									colSpan={6}
-									className="text-center h-24 text-muted-foreground">
-									No ministry groups found. Create your first group to get
-									started.
+								<TableCell colSpan={6}>
+									<EmptyState
+										className="py-6"
+										icon={Users}
+										title="No ministry groups found."
+										description="Create your first group to get started."
+									/>
 								</TableCell>
 							</TableRow>
 						)}

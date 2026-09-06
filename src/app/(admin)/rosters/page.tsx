@@ -18,7 +18,8 @@ import {
 	CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { FileDown, ArrowUpDown, Edit, Camera } from 'lucide-react';
+import { FileDown, ArrowUpDown, Edit, Camera, Users } from 'lucide-react';
+import { EmptyState } from '@/components/ui/empty-state';
 import { format, parseISO, differenceInYears } from 'date-fns';
 import { normalizeGradeDisplay } from '@/lib/gradeUtils';
 import {
@@ -835,10 +836,12 @@ export default function RostersPage() {
 						))}
 				{displayChildren.length === 0 && (
 					<TableRow>
-						<TableCell
-							colSpan={showBulkActions ? 8 : 7}
-							className="text-center h-24 text-muted-foreground">
-							No children match the current filter.
+						<TableCell colSpan={showBulkActions ? 8 : 7}>
+							<EmptyState
+								className="py-6"
+								icon={Users}
+								title="No children match the current filter."
+							/>
 						</TableCell>
 					</TableRow>
 				)}
@@ -891,9 +894,11 @@ export default function RostersPage() {
 					/>
 				))}
 			{displayChildren.length === 0 && (
-				<div className="text-center h-24 py-10 text-muted-foreground">
-					No children match the current filter.
-				</div>
+				<EmptyState
+					className="py-6"
+					icon={Users}
+					title="No children match the current filter."
+				/>
 			)}
 		</div>
 	);

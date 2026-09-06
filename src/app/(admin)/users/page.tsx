@@ -35,6 +35,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { useUsers, useUpdateUser } from '@/hooks/data/users';
 import { TableSkeleton } from '@/components/skeletons/TableSkeleton';
+import { EmptyState } from '@/components/ui/empty-state';
 import { CreateUserDialog } from '@/components/admin/create-user-dialog';
 import { SetPasswordDialog } from '@/components/admin/set-password-dialog';
 
@@ -271,10 +272,11 @@ export default function UsersManagementPage() {
 					</div>
 
 					{users.length === 0 && (
-						<div className="text-center py-8 text-muted-foreground">
-							<UserX className="h-12 w-12 mx-auto mb-4" />
-							<p>No users found</p>
-						</div>
+						<EmptyState
+							className="py-8"
+							icon={UserX}
+							title="No users found"
+						/>
 					)}
 				</CardContent>
 			</Card>

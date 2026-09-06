@@ -19,7 +19,8 @@ import {
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { Calendar as CalendarIcon, FileDown } from 'lucide-react';
+import { Calendar as CalendarIcon, FileDown, Users } from 'lucide-react';
+import { EmptyState } from '@/components/ui/empty-state';
 import { format, startOfMonth } from 'date-fns';
 import type { DateRange } from 'react-day-picker';
 import {
@@ -163,10 +164,12 @@ export default function ReportsPage() {
 								))}
 								{(!checkedInChildren || checkedInChildren.length === 0) && (
 									<TableRow>
-										<TableCell
-											colSpan={3}
-											className="text-center h-24 text-muted-foreground">
-											No children checked in today.
+										<TableCell colSpan={3}>
+											<EmptyState
+												className="py-6"
+												icon={Users}
+												title="No children checked in today."
+											/>
 										</TableCell>
 									</TableRow>
 								)}
