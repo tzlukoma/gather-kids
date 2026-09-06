@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
+import { useStateWhenKeyChanges } from '@/hooks/useStateWhenKeyChanges';
 import { Button } from '@/components/ui/button';
 import {
 	Dialog,
@@ -15,13 +16,9 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Users } from 'lucide-react';
-import type { MinistryGroup, Ministry } from '@/lib/types';
-import { 
-	getMinistries, 
-	getMinistriesInGroup, 
-	addMinistryToGroup, 
-	removeMinistryFromGroup 
-} from '@/lib/dal';
+import type { MinistryGroup } from '@/lib/types';
+import { addMinistryToGroup, removeMinistryFromGroup, getMinistriesInGroup } from '@/lib/dal';
+import { useMinistries, useMinistriesInGroup } from '@/hooks/data/ministries';
 
 interface MinistryAssignmentDialogProps {
 	isOpen: boolean;
@@ -37,47 +34,18 @@ export function MinistryAssignmentDialog({
 	onAssignmentUpdated,
 }: MinistryAssignmentDialogProps) {
 	const { toast } = useToast();
-	const [allMinistries, setAllMinistries] = useState<Ministry[]>([]);
-	const [assignedMinistryIds, setAssignedMinistryIds] = useState<Set<string>>(new Set());
-	const [isLoading, setIsLoading] = useState(false);
+	const { data: allMinistries = [], isLoading: ministriesLoading } = useMinistries();
+	const { data: assignedMinistries = [], isLoading: assignedLoading } =
+		useMinistriesInGroup(isOpen && group ? group.id : '');
+	const assignedKey = `${isOpen ? group?.id ?? '' : ''}:${assignedMinistries
+		.map((m) => m.ministry_id)
+		.join(',')}`;
+	const [assignedMinistryIds, setAssignedMinistryIds] = useStateWhenKeyChanges(
+		new Set(assignedMinistries.map((m) => m.ministry_id)),
+		assignedKey,
+	);
+	const isLoading = (isOpen && !!group && (ministriesLoading || assignedLoading));
 	const [isSaving, setIsSaving] = useState(false);
-
-	const loadData = useCallback(async () => {
-		if (!group) return;
-		
-		setIsLoading(true);
-		try {
-			console.log('🔍 MinistryAssignmentDialog: Loading ministries and assignments for group', group.id);
-			
-			const [ministries, assignedMinistries] = await Promise.all([
-				getMinistries(),
-				getMinistriesInGroup(group.id)
-			]);
-			
-			setAllMinistries(ministries);
-			setAssignedMinistryIds(new Set(assignedMinistries.map(m => m.ministry_id)));
-			
-			console.log('✅ MinistryAssignmentDialog: Data loaded', {
-				totalMinistries: ministries.length,
-				assignedMinistries: assignedMinistries.length
-			});
-		} catch (error) {
-			console.error('❌ MinistryAssignmentDialog: Failed to load data', error);
-			toast({
-				title: 'Error',
-				description: 'Failed to load ministry data. Please try again.',
-				variant: 'destructive',
-			});
-		} finally {
-			setIsLoading(false);
-		}
-	}, [group, toast]);
-
-	useEffect(() => {
-		if (isOpen && group) {
-			loadData();
-		}
-	}, [isOpen, group, loadData]);
 
 	const handleMinistryToggle = (ministryId: string, isChecked: boolean) => {
 		setAssignedMinistryIds(prev => {

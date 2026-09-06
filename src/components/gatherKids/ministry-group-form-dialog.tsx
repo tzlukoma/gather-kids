@@ -27,12 +27,9 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import type { MinistryGroup, Ministry } from '@/lib/types';
-import {
-	getMinistriesInGroup,
-} from '@/lib/dal';
-import { useCreateMinistryGroup, useUpdateMinistryGroup } from '@/hooks/data/ministries';
-import { useEffect, useState } from 'react';
+import type { MinistryGroup } from '@/lib/types';
+import { useCreateMinistryGroup, useUpdateMinistryGroup, useMinistriesInGroup } from '@/hooks/data/ministries';
+import { useMemo } from 'react';
 
 const ministryGroupFormSchema = z.object({
 	code: z
@@ -50,6 +47,27 @@ const ministryGroupFormSchema = z.object({
 });
 
 type FormData = z.infer<typeof ministryGroupFormSchema>;
+
+const EMPTY_GROUP_FORM: FormData = {
+	code: '',
+	name: '',
+	description: '',
+	email: '',
+	custom_consent_text: '',
+	custom_consent_required: false,
+};
+
+function groupToFormValues(group?: MinistryGroup | null): FormData {
+	if (!group) return EMPTY_GROUP_FORM;
+	return {
+		code: group.code,
+		name: group.name,
+		description: group.description || '',
+		email: group.email || '',
+		custom_consent_text: group.custom_consent_text || '',
+		custom_consent_required: group.custom_consent_required || false,
+	};
+}
 
 interface MinistryGroupFormDialogProps {
 	isOpen: boolean;
@@ -70,8 +88,8 @@ export function MinistryGroupFormDialog({
 }: MinistryGroupFormDialogProps) {
 	const { toast } = useToast();
 	const isEditing = Boolean(group);
-	const [ministriesInGroup, setMinistriesInGroup] = useState<Ministry[]>([]);
-	const [isLoadingMinistries, setIsLoadingMinistries] = useState(false);
+	const { data: ministriesInGroup = [], isLoading: isLoadingMinistries } =
+		useMinistriesInGroup(isOpen && group ? group.id : '');
 
 	// Always call hooks - use provided ones or create fallback ones
 	const fallbackCreateMutation = useCreateMinistryGroup();
@@ -79,56 +97,11 @@ export function MinistryGroupFormDialog({
 	const createMutation = createMinistryGroupMutation || fallbackCreateMutation;
 	const updateMutation = updateMinistryGroupMutation || fallbackUpdateMutation;
 
+	const formValues = useMemo(() => groupToFormValues(isOpen ? group : null), [isOpen, group]);
 	const form = useForm<FormData>({
 		resolver: zodResolver(ministryGroupFormSchema),
-		defaultValues: {
-			code: '',
-			name: '',
-			description: '',
-			email: '',
-			custom_consent_text: '',
-			custom_consent_required: false,
-		},
+		values: formValues,
 	});
-
-	// Reset form when dialog opens/closes or group changes
-	useEffect(() => {
-		if (isOpen && group) {
-			form.reset({
-				code: group.code,
-				name: group.name,
-				description: group.description || '',
-				email: group.email || '',
-				custom_consent_text: group.custom_consent_text || '',
-				custom_consent_required: group.custom_consent_required || false,
-			});
-
-			// Load ministries in this group
-			setIsLoadingMinistries(true);
-			getMinistriesInGroup(group.id)
-				.then((ministries) => {
-					setMinistriesInGroup(ministries);
-				})
-				.catch((error) => {
-					console.warn('Failed to load ministries for group:', error);
-					setMinistriesInGroup([]);
-				})
-				.finally(() => {
-					setIsLoadingMinistries(false);
-				});
-		} else if (isOpen && !group) {
-			form.reset({
-				code: '',
-				name: '',
-				description: '',
-				email: '',
-				custom_consent_text: '',
-				custom_consent_required: false,
-			});
-			setMinistriesInGroup([]);
-			setIsLoadingMinistries(false);
-		}
-	}, [isOpen, group, form]);
 
 	const onSubmit = async (data: FormData) => {
 		try {
@@ -174,9 +147,6 @@ export function MinistryGroupFormDialog({
 	};
 
 	const handleClose = () => {
-		form.reset();
-		setMinistriesInGroup([]);
-		setIsLoadingMinistries(false);
 		onCloseAction();
 	};
 

@@ -115,6 +115,7 @@ export default function LeaderProfilePage() {
 		background_check_complete: false,
 	});
 	const [isSavingProfile, setIsSavingProfile] = useState(false);
+	const [prevProfileData, setPrevProfileData] = useState(profileData);
 
 	const hasAssignments = useMemo(() => {
 		return Object.values(assignments).some((a) => a.assigned);
@@ -132,7 +133,8 @@ export default function LeaderProfilePage() {
 		}
 	}, [user, loading, router]);
 
-	useEffect(() => {
+	if (profileData !== prevProfileData) {
+		setPrevProfileData(profileData);
 		if (profileData) {
 			const initialAssignments: AssignmentState = {};
 			profileData.allMinistries.forEach((m) => {
@@ -151,7 +153,6 @@ export default function LeaderProfilePage() {
 			setAssignments(initialAssignments);
 			setIsActive(profileData.profile?.is_active ?? false);
 
-			// Initialize profile form with current leader data
 			if (profileData.profile) {
 				setProfileForm({
 					first_name: profileData.profile.first_name || '',
@@ -164,7 +165,7 @@ export default function LeaderProfilePage() {
 				});
 			}
 		}
-	}, [profileData]);
+	}
 
 	// Note: Removed automatic status enforcement to allow user control
 

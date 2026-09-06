@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { ChevronLeft, Printer } from 'lucide-react';
@@ -35,13 +35,6 @@ function EvaluationScripturesContent() {
 
 	const { data: bibleBeeCycles = [], isLoading: cyclesLoading } = useBibleBeeCycles();
 
-	// Sync URL param to local state when cycles load
-	useEffect(() => {
-		if (cycleFromUrl && bibleBeeCycles.some((c: { id: string }) => c.id === cycleFromUrl)) {
-			setSelectedCycle(cycleFromUrl);
-		}
-	}, [cycleFromUrl, bibleBeeCycles]);
-
 	const defaultCycle = useMemo(() => {
 		if (!bibleBeeCycles?.length) return null;
 		const active = bibleBeeCycles.find((c: { is_active?: boolean }) => c.is_active);
@@ -74,27 +67,16 @@ function EvaluationScripturesContent() {
 		return Array.from(keys);
 	}, [scriptures]);
 
-	// Selected translations to display (default: all available)
-	// Initialize with TRANSLATION_CONFIG keys, update via async effect when scriptures load
-	const [selectedTranslations, setSelectedTranslations] = useState<Set<string>>(() => 
-		new Set(TRANSLATION_CONFIG.map((t) => t.key))
+	const [deselectedTranslations, setDeselectedTranslations] = useState<Set<string>>(
+		() => new Set(),
+	);
+	const selectedTranslations = useMemo(
+		() => new Set(allTranslationKeys.filter((key) => !deselectedTranslations.has(key))),
+		[allTranslationKeys, deselectedTranslations],
 	);
 
-	// Update selected translations when scriptures load (async response)
-	useEffect(() => {
-		if (allTranslationKeys.length > 0) {
-			setSelectedTranslations((prev) => {
-				// Only update if new keys are available
-				if (prev.size === 0 || !allTranslationKeys.every(k => prev.has(k))) {
-					return new Set(allTranslationKeys);
-				}
-				return prev;
-			});
-		}
-	}, [allTranslationKeys]);
-
 	const toggleTranslation = (key: string) => {
-		setSelectedTranslations((prev) => {
+		setDeselectedTranslations((prev) => {
 			const next = new Set(prev);
 			if (next.has(key)) next.delete(key);
 			else next.add(key);
@@ -102,8 +84,8 @@ function EvaluationScripturesContent() {
 		});
 	};
 
-	const handleSelectAll = () => setSelectedTranslations(new Set(allTranslationKeys));
-	const handleSelectNone = () => setSelectedTranslations(new Set());
+	const handleSelectAll = () => setDeselectedTranslations(new Set());
+	const handleSelectNone = () => setDeselectedTranslations(new Set(allTranslationKeys));
 
 	const handlePrint = () => window.print();
 

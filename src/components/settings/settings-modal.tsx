@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -80,7 +80,12 @@ export function SettingsModal({
 	const { user } = useAuth();
 	const { toast } = useToast();
 	const [activeTab, setActiveTab] = useState(defaultTab);
-	const [loading, setLoading] = useState(true);
+	const loadKey = isOpen && user ? user.uid || user.id || user.email || 'user' : null;
+	const [loadedKey, setLoadedKey] = useState<string | null>(null);
+	if (!isOpen && loadedKey !== null) {
+		setLoadedKey(null);
+	}
+	const loading = !!loadKey && loadedKey !== loadKey;
 	const [saving, setSaving] = useState(false);
 	const [profileTarget, setProfileTarget] = useState<{
 		target_table: string;
@@ -112,48 +117,48 @@ export function SettingsModal({
 		},
 	});
 
-	const loadProfileData = useCallback(async () => {
-		if (!user) return;
-
-		setLoading(true);
-		try {
-			// Get the active profile target
-			const target = await getActiveProfileTarget(user.uid || user.id || '');
-			setProfileTarget(target);
-
-			// Get profile data
-			const profile = await getMeProfile(user.uid || user.id || '', user.email);
-
-			// Always use the authenticated user's email as primary, fallback to profile email
-			const emailToUse = user.email || profile?.email || '';
-
-			profileForm.reset({
-				email: emailToUse,
-				phone: profile?.phone || '',
-			});
-
-			// Set avatar preview if available
-			if (profile?.photo_url || profile?.avatar_path) {
-				setAvatarPreview(profile.photo_url || profile.avatar_path || null);
-			}
-		} catch (error) {
-			console.error('Error loading profile:', error);
-			toast({
-				title: 'Error Loading Profile',
-				description: 'Failed to load your profile information.',
-				variant: 'destructive',
-			});
-		} finally {
-			setLoading(false);
-		}
-	}, [user, toast, profileForm]);
-
-	// Load profile data when modal opens
 	useEffect(() => {
-		if (isOpen && user) {
-			loadProfileData();
+		if (!loadKey || !user) {
+			return;
 		}
-	}, [isOpen, user, loadProfileData]);
+		const currentUser = user;
+		let cancelled = false;
+		async function loadProfileData() {
+			try {
+				const target = await getActiveProfileTarget(currentUser.uid || currentUser.id || '');
+				if (cancelled) return;
+				setProfileTarget(target);
+
+				const profile = await getMeProfile(currentUser.uid || currentUser.id || '', currentUser.email);
+				if (cancelled) return;
+
+				const emailToUse = currentUser.email || profile?.email || '';
+				profileForm.reset({
+					email: emailToUse,
+					phone: profile?.phone || '',
+				});
+
+				if (profile?.photo_url || profile?.avatar_path) {
+					setAvatarPreview(profile.photo_url || profile.avatar_path || null);
+				}
+			} catch (error) {
+				console.error('Error loading profile:', error);
+				toast({
+					title: 'Error Loading Profile',
+					description: 'Failed to load your profile information.',
+					variant: 'destructive',
+				});
+			} finally {
+				if (!cancelled) {
+					setLoadedKey(loadKey);
+				}
+			}
+		}
+		void loadProfileData();
+		return () => {
+			cancelled = true;
+		};
+	}, [loadKey, user, toast, profileForm]);
 
 	const handleAvatarUpload = () => {
 		setShowCropper(true);

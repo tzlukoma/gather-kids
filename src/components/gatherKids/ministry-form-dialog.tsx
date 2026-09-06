@@ -32,10 +32,10 @@ import {
 	SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import type { Ministry, MinistryGroup } from '@/lib/types';
-import { saveMinistryAccount, getGroupsForMinistry } from '@/lib/dal';
-import { useCreateMinistry, useUpdateMinistry } from '@/hooks/data/ministries';
-import { useEffect, useState } from 'react';
+import type { Ministry } from '@/lib/types';
+import { saveMinistryAccount } from '@/lib/dal';
+import { useCreateMinistry, useUpdateMinistry, useGroupsForMinistry } from '@/hooks/data/ministries';
+import { useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { CalendarIcon, PlusCircle, Trash2 } from 'lucide-react';
 import { format, isValid, parseISO } from 'date-fns';
@@ -82,6 +82,39 @@ const ministryFormSchema = z.object({
 });
 
 type MinistryFormValues = z.infer<typeof ministryFormSchema>;
+
+const EMPTY_MINISTRY_FORM: MinistryFormValues = {
+	name: '',
+	code: '',
+	email: '',
+	enrollment_type: 'enrolled',
+	is_active: true,
+	open_at: undefined,
+	close_at: undefined,
+	description: '',
+	details: '',
+	custom_questions: [],
+};
+
+function ministryToFormValues(ministry?: Ministry | null): MinistryFormValues {
+	if (!ministry) return EMPTY_MINISTRY_FORM;
+	return {
+		name: ministry.name,
+		code: ministry.code,
+		email: ministry.email || '',
+		enrollment_type: ministry.enrollment_type,
+		is_active: ministry.is_active ?? true,
+		open_at: ministry.open_at || undefined,
+		close_at: ministry.close_at || undefined,
+		description: ministry.description,
+		details: ministry.details,
+		custom_questions:
+			ministry.custom_questions?.map((q) => ({
+				...q,
+				options: q.options || [],
+			})) || [],
+	};
+}
 
 function parseDateField(value?: string) {
 	if (!value) return undefined;
@@ -156,8 +189,8 @@ export function MinistryFormDialog({
 	const resolvedMode: 'create' | 'edit' = mode ?? (ministry ? 'edit' : 'create');
 	const isEditing = resolvedMode === 'edit';
 	const { toast } = useToast();
-	const [groupsForMinistry, setGroupsForMinistry] = useState<MinistryGroup[]>([]);
-	const [isLoadingGroups, setIsLoadingGroups] = useState(false);
+	const { data: groupsForMinistry = [], isLoading: isLoadingGroups } =
+		useGroupsForMinistry(ministry?.ministry_id ?? '');
 
 	// Always call hooks - use provided ones or create fallback ones
 	const fallbackCreateMutation = useCreateMinistry();
@@ -165,76 +198,16 @@ export function MinistryFormDialog({
 	const createMutation = createMinistryMutation || fallbackCreateMutation;
 	const updateMutation = updateMinistryMutation || fallbackUpdateMutation;
 
+	const formValues = useMemo(() => ministryToFormValues(ministry), [ministry]);
 	const form = useForm<MinistryFormValues>({
 		resolver: zodResolver(ministryFormSchema),
-		defaultValues: {
-			name: '',
-			code: '',
-			email: '',
-			enrollment_type: 'enrolled',
-			is_active: true,
-			open_at: undefined,
-			close_at: undefined,
-			description: '',
-			details: '',
-			custom_questions: [],
-		},
+		values: formValues,
 	});
 
 	const { fields, append, remove } = useFieldArray({
 		control: form.control,
 		name: 'custom_questions',
 	});
-
-	useEffect(() => {
-		if (ministry) {
-			form.reset({
-				name: ministry.name,
-				code: ministry.code,
-				email: ministry.email || '', // Get email directly from ministry
-				enrollment_type: ministry.enrollment_type,
-				is_active: ministry.is_active ?? true,
-				open_at: ministry.open_at || undefined,
-				close_at: ministry.close_at || undefined,
-				description: ministry.description,
-				details: ministry.details,
-				custom_questions:
-					ministry.custom_questions?.map((q) => ({
-						...q,
-						options: q.options || [],
-					})) || [],
-			});
-
-			// Load groups for this ministry
-			setIsLoadingGroups(true);
-			getGroupsForMinistry(ministry.ministry_id)
-				.then((groups) => {
-					setGroupsForMinistry(groups);
-				})
-				.catch((error) => {
-					console.warn('Failed to load groups for ministry:', error);
-					setGroupsForMinistry([]);
-				})
-				.finally(() => {
-					setIsLoadingGroups(false);
-				});
-		} else {
-			form.reset({
-				name: '',
-				code: '',
-				email: '',
-				enrollment_type: 'enrolled',
-				is_active: true,
-				open_at: undefined,
-				close_at: undefined,
-				description: '',
-				details: '',
-				custom_questions: [],
-			});
-			setGroupsForMinistry([]);
-			setIsLoadingGroups(false);
-		}
-	}, [ministry, form, isOpen]);
 
 	const onSubmit = async (data: MinistryFormValues) => {
 		try {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { CheckInView } from '@/components/gatherKids/check-in-view';
 import { AuthRole } from '@/lib/auth-types';
 import { ProtectedRoute } from '@/components/auth/protected-route';
@@ -114,25 +114,40 @@ function CheckInContent() {
 	const isMobile = useIsMobile();
 	const searchParams = useSearchParams();
 
-	const [selectedEvent, setSelectedEvent] = useState('evt_sunday_school');
+	const urlFilter = searchParams?.get('filter');
+	const urlEvent = searchParams?.get('event');
+	const searchKey = searchParams?.toString() ?? '';
+	const initialStatus: StatusFilter =
+		urlFilter === 'checkedIn' || urlFilter === 'checkedOut' || urlFilter === 'all'
+			? urlFilter
+			: 'all';
+	const initialEvent =
+		urlEvent && EVENT_OPTIONS.find((e) => e.id === urlEvent)
+			? urlEvent
+			: 'evt_sunday_school';
+
+	const [selectedEvent, setSelectedEvent] = useState(initialEvent);
 	const [selectedGrades, setSelectedGrades] = useState<Set<string>>(() => new Set());
-	const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+	const [statusFilter, setStatusFilter] = useState<StatusFilter>(initialStatus);
 	const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
 	const [isEventDialogOpen, setIsEventDialogOpen] = useState(false);
+	const [prevSearchKey, setPrevSearchKey] = useState(searchKey);
+
+	if (searchKey !== prevSearchKey) {
+		setPrevSearchKey(searchKey);
+		if (
+			urlFilter === 'checkedIn' ||
+			urlFilter === 'checkedOut' ||
+			urlFilter === 'all'
+		) {
+			setStatusFilter(urlFilter);
+		}
+		if (urlEvent && EVENT_OPTIONS.find((e) => e.id === urlEvent)) {
+			setSelectedEvent(urlEvent);
+		}
+	}
 
 	const today = getTodayIsoDate();
-
-	// Sync filters when URL params change
-	useEffect(() => {
-		const filter = searchParams?.get('filter');
-		if (filter === 'checkedIn' || filter === 'checkedOut' || filter === 'all') {
-			setStatusFilter(filter as StatusFilter);
-		}
-		const event = searchParams?.get('event');
-		if (event && EVENT_OPTIONS.find((e) => e.id === event)) {
-			setSelectedEvent(event);
-		}
-	}, [searchParams]);
 
 	// Use React Query hooks for data fetching
 	const { data: children = EMPTY_CHILDREN, isLoading: childrenLoading } = useChildrenForActiveCycle();

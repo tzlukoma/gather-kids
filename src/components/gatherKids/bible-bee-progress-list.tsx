@@ -71,9 +71,6 @@ export function BibleBeeProgressList({
 		}
 	}, []); // Empty dependency array - only run once on mount
 
-	const [displayCycleLabel, setDisplayCycleLabel] = useState<string | null>(
-		null
-	);
 	const [filterGradeGroup, setFilterGradeGroup] = useState<string | 'all'>(
 		initial?.filterGradeGroup ?? 'all'
 	);
@@ -165,46 +162,49 @@ export function BibleBeeProgressList({
 		return Array.from(groups).sort();
 	}, [progressData]);
 
-	// Reset grade group filter if it no longer exists
-	useEffect(() => {
-		if (
-			filterGradeGroup !== 'all' &&
-			availableGradeGroups.length > 0 &&
-			!availableGradeGroups.includes(filterGradeGroup)
-		) {
-			setFilterGradeGroup('all');
-		}
-	}, [availableGradeGroups, filterGradeGroup]);
+	if (
+		filterGradeGroup !== 'all' &&
+		availableGradeGroups.length > 0 &&
+		!availableGradeGroups.includes(filterGradeGroup)
+	) {
+		setFilterGradeGroup('all');
+	}
 
-	// Resolve a friendly label for the selected cycle when bibleBeeCycles
-	// isn't yet available (prevents showing UUID on first load).
+	const liveCycleLabel =
+		(bibleBeeCycles || []).find(
+			(c: { id: string; name?: string }) => String(c.id) === String(selectedCycle),
+		)?.name ?? null;
+	const [asyncCycleLabel, setAsyncCycleLabel] = useState<string | null>(null);
+	const [prevSelectedCycle, setPrevSelectedCycle] = useState(selectedCycle);
+	if (selectedCycle !== prevSelectedCycle) {
+		setPrevSelectedCycle(selectedCycle);
+		setAsyncCycleLabel(null);
+	}
+	const displayCycleLabel = liveCycleLabel ?? asyncCycleLabel;
+
 	useEffect(() => {
-		let mounted = true;
-		const resolveLabel = async () => {
-			setDisplayCycleLabel(null);
-			if (!selectedCycle) return;
-			// Prefer the live query value if available
-			const bbFromLive = (bibleBeeCycles || []).find(
-				(c: any) => String(c.id) === String(selectedCycle)
-			);
-			if (bbFromLive) {
-				if (mounted) setDisplayCycleLabel(bbFromLive.name ?? null);
-				return;
-			}
-			// Otherwise try a DB lookup (async) to resolve label for UUIDs
+		if (liveCycleLabel || !selectedCycle) {
+			return;
+		}
+		let cancelled = false;
+		async function resolveLabel() {
 			try {
 				const allCycles = await getBibleBeeCycles();
-				const maybe = allCycles.find((c: { id: string; name?: string }) => c.id === String(selectedCycle));
-				if (mounted && maybe && maybe.name) setDisplayCycleLabel(maybe.name);
-			} catch (e) {
-				// ignore
+				const maybe = allCycles.find(
+					(c: { id: string; name?: string }) => c.id === String(selectedCycle),
+				);
+				if (!cancelled && maybe?.name) {
+					setAsyncCycleLabel(maybe.name);
+				}
+			} catch {
+				// ignore lookup failures; UUID fallback remains
 			}
-		};
-		resolveLabel();
+		}
+		void resolveLabel();
 		return () => {
-			mounted = false;
+			cancelled = true;
 		};
-	}, [selectedCycle, bibleBeeCycles]);
+	}, [selectedCycle, liveCycleLabel]);
 
 	// persist filter state so switching tabs (which may unmount) preserves selections
 	useEffect(() => {

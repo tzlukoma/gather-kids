@@ -16,20 +16,32 @@ import { isOfflineSupabase } from '@/lib/offline-supabase';
 export default function GuardianHouseholdPage() {
 	const { user } = useAuth();
 	const router = useRouter();
-	const [showOnboarding, setShowOnboarding] = useState(false);
 	const [householdId, setHouseholdId] = useState<string | null>(null);
+	const onboardingUserId =
+		user && !user.metadata?.onboarding_dismissed && user.uid === 'user_parent_demo'
+			? user.uid
+			: '';
+	const [showOnboarding, setShowOnboarding] = useState(false);
+	const [prevOnboardingUserId, setPrevOnboardingUserId] = useState('');
 
-	// Sync onboarding state when user becomes available
-	useEffect(() => {
-		if (user && !user.metadata?.onboarding_dismissed) {
-			const sessionKey = `onboarding_shown_${user.uid}`;
-			const alreadyShownThisSession = sessionStorage.getItem(sessionKey);
-			if (!alreadyShownThisSession && user.uid === 'user_parent_demo') {
-				setShowOnboarding(true);
-				sessionStorage.setItem(sessionKey, 'true');
-			}
+	if (onboardingUserId !== prevOnboardingUserId) {
+		setPrevOnboardingUserId(onboardingUserId);
+		if (!onboardingUserId) {
+			setShowOnboarding(false);
+		} else {
+			const alreadyShown =
+				typeof sessionStorage !== 'undefined' &&
+				!!sessionStorage.getItem(`onboarding_shown_${onboardingUserId}`);
+			setShowOnboarding(!alreadyShown);
 		}
-	}, [user]);
+	}
+
+	useEffect(() => {
+		if (!onboardingUserId || !showOnboarding) {
+			return;
+		}
+		sessionStorage.setItem(`onboarding_shown_${onboardingUserId}`, 'true');
+	}, [onboardingUserId, showOnboarding]);
 
 	const {
 		data: profileData,

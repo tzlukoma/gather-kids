@@ -5,7 +5,8 @@
 
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { usePathname } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -21,24 +22,9 @@ interface DataSource {
 }
 
 export function DebugPanelContent() {
-  const [events, setEvents] = useState<AnyDebugEvent[]>([]);
-  const [allDataSources, setAllDataSources] = useState<DataSource[]>([
-    { name: 'dbAdapter', active: false, count: 0 },
-    { name: 'IndexedDB', active: false, count: 0 },
-    { name: 'Direct DB', active: false, count: 0 },
-  ]);
-  const [routeDataSources, setRouteDataSources] = useState<DataSource[]>([
-    { name: 'dbAdapter', active: false, count: 0 },
-    { name: 'IndexedDB', active: false, count: 0 },
-    { name: 'Direct DB', active: false, count: 0 },
-  ]);
-  const [currentRoute, setCurrentRoute] = useState(() => 
-    typeof window !== 'undefined' ? window.location.pathname : ''
-  );
-  const [routeEvents, setRouteEvents] = useState<AnyDebugEvent[]>([]);
-  const subscriptionRef = useRef<(() => void) | null>(null);
+  const [events, setEvents] = useState<AnyDebugEvent[]>(() => getAllDebugEvents());
+  const currentRoute = usePathname() || '';
 
-  // Calculate data source counts from events
   const calculateDataSources = useCallback((eventsToAnalyze: AnyDebugEvent[]) => {
     const sources = [
       { name: 'dbAdapter', active: false, count: 0 },
@@ -71,85 +57,30 @@ export function DebugPanelContent() {
     return sources;
   }, []);
 
-  // Load existing events from global store and calculate data sources
-  const loadEventsFromStore = useCallback(() => {
-    const storedEvents = getAllDebugEvents();
-    console.log('🔍 Debug Panel: Loading events from global store, count:', storedEvents.length);
-    
-    setEvents(storedEvents);
+  const routeEvents = useMemo(
+    () => events.filter((event) => event.route === currentRoute),
+    [events, currentRoute],
+  );
+  const allDataSources = useMemo(() => calculateDataSources(events), [events, calculateDataSources]);
+  const routeDataSources = useMemo(
+    () => calculateDataSources(routeEvents),
+    [routeEvents, calculateDataSources],
+  );
 
-    // Calculate data source states from all events
-    const newAllDataSources = calculateDataSources(storedEvents);
-    setAllDataSources(newAllDataSources);
-
-    // Filter events for current route and calculate route-specific data sources
-    const currentRouteEvents = storedEvents.filter(event => event.route === currentRoute);
-    setRouteEvents(currentRouteEvents);
-    
-    const newRouteDataSources = calculateDataSources(currentRouteEvents);
-    setRouteDataSources(newRouteDataSources);
-
-    console.log('🔍 Debug Panel: Updated data sources - All:', newAllDataSources, 'Route:', newRouteDataSources);
-  }, [currentRoute, calculateDataSources]);
-
-  // Handle new debug events
-  const handleDebugEvent = useCallback((event: AnyDebugEvent) => {
-    console.log('🔍 Debug Panel: Received real-time event:', event);
-    
-    // Reload all events from store to ensure consistency
-    loadEventsFromStore();
-  }, [loadEventsFromStore]);
-
-  // Set up event subscription once and keep it stable
   useEffect(() => {
-    console.log('🔍 Debug Panel: Setting up debug panel...');
-    
-    // Load existing events first
-    loadEventsFromStore();
-    
-    // Set up event subscription if not already done
-    if (!subscriptionRef.current) {
-      console.log('🔍 Debug Panel: Setting up event subscription...');
-      const unsubscribe = onDebugEvent(handleDebugEvent);
-      subscriptionRef.current = unsubscribe;
-      console.log('🔍 Debug Panel: Event subscription active');
-    }
+    const unsubscribe = onDebugEvent(() => {
+      setEvents(getAllDebugEvents());
+    });
+    return unsubscribe;
+  }, []);
 
-    // Cleanup subscription only on unmount
-    return () => {
-      console.log('🔍 Debug Panel: Cleaning up event subscription');
-      if (subscriptionRef.current) {
-        subscriptionRef.current();
-        subscriptionRef.current = null;
-      }
-    };
-  }, [handleDebugEvent, loadEventsFromStore]);
-
-  // Re-calculate route-specific data when route or events change
-  useEffect(() => {
-    loadEventsFromStore();
-  }, [currentRoute, loadEventsFromStore]);
-
-  // Format timestamp
   const formatTime = (timestamp: number) => {
     return new Date(timestamp).toLocaleTimeString();
   };
 
-  // Clear events
   const clearEvents = () => {
     clearAllDebugEvents();
     setEvents([]);
-    setRouteEvents([]);
-    setAllDataSources(prev => prev.map(source => ({ 
-      ...source, 
-      active: false, 
-      count: 0 
-    })));
-    setRouteDataSources(prev => prev.map(source => ({ 
-      ...source, 
-      active: false, 
-      count: 0 
-    })));
     console.log('🔍 Debug Panel: Cleared all events');
   };
 

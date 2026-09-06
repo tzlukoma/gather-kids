@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useStateWhenKeyChanges } from '@/hooks/useStateWhenKeyChanges';
 import {
 	Dialog,
 	DialogContent,
@@ -71,10 +72,6 @@ export function EditChildEnrollmentsModal({
 }: EditChildEnrollmentsModalProps) {
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [currentCycleId, setCurrentCycleId] = useState<string | null>(null);
-	const [selectedMinistries, setSelectedMinistries] = useState<Set<string>>(
-		new Set()
-	);
-	const [customFormData, setCustomFormData] = useState<Record<string, any>>({});
 	const { toast } = useToast();
 
 	const addEnrollmentMutation = useAddChildEnrollment();
@@ -119,6 +116,33 @@ export function EditChildEnrollmentsModal({
 		(m) => m.code !== 'min_sunday_school'
 	);
 
+	const enrolledMinistries = currentCycleId
+		? currentEnrollments?.[currentCycleId] || []
+		: [];
+	const enrollmentKey = `${currentCycleId ?? ''}:${sundaySchoolMinistry?.ministry_id ?? ''}:${enrolledMinistries
+		.map((enrollment) => enrollment.ministry_id)
+		.join(',')}`;
+	const nextSelectedMinistries = new Set(
+		enrolledMinistries.map((enrollment) => enrollment.ministry_id),
+	);
+	if (sundaySchoolMinistry) {
+		nextSelectedMinistries.add(sundaySchoolMinistry.ministry_id);
+	}
+	const nextCustomFormData: Record<string, any> = {};
+	enrolledMinistries.forEach((enrollment) => {
+		if (enrollment.custom_fields) {
+			nextCustomFormData[enrollment.ministry_id] = enrollment.custom_fields;
+		}
+	});
+	const [selectedMinistries, setSelectedMinistries] = useStateWhenKeyChanges(
+		nextSelectedMinistries,
+		enrollmentKey,
+	);
+	const [customFormData, setCustomFormData] = useStateWhenKeyChanges(
+		nextCustomFormData,
+		enrollmentKey,
+	);
+
 	// Get current registration cycle
 	useEffect(() => {
 		const fetchCurrentCycle = async () => {
@@ -131,33 +155,6 @@ export function EditChildEnrollmentsModal({
 		};
 		fetchCurrentCycle();
 	}, []);
-
-	// Initialize selected ministries from current enrollments
-	useEffect(() => {
-		if (currentEnrollments && currentCycleId) {
-			const enrolledMinistries = currentEnrollments[currentCycleId] || [];
-			const ministryIds = enrolledMinistries.map(
-				(enrollment) => enrollment.ministry_id
-			);
-
-			// Always include Sunday school if the child is eligible
-			const newSelectedMinistries = new Set(ministryIds);
-			if (sundaySchoolMinistry) {
-				newSelectedMinistries.add(sundaySchoolMinistry.ministry_id);
-			}
-
-			setSelectedMinistries(newSelectedMinistries);
-
-			// Initialize custom form data from existing enrollments
-			const existingCustomData: Record<string, any> = {};
-			enrolledMinistries.forEach((enrollment) => {
-				if (enrollment.custom_fields) {
-					existingCustomData[enrollment.ministry_id] = enrollment.custom_fields;
-				}
-			});
-			setCustomFormData(existingCustomData);
-		}
-	}, [currentEnrollments, currentCycleId, sundaySchoolMinistry]);
 
 	const handleMinistryToggle = (ministryId: string) => {
 		// Prevent Sunday school from being unselected

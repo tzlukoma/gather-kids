@@ -52,7 +52,11 @@ function ResetPasswordForm() {
 	const [isLoading, setIsLoading] = useState(false);
 	const [showPassword, setShowPassword] = useState(false);
 	const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-	const [hasValidToken, setHasValidToken] = useState<boolean | null>(null);
+	const token = searchParams.get('token');
+	const code = searchParams.get('code');
+	const [hasValidToken, setHasValidToken] = useState<boolean | null>(
+		token || code ? null : false,
+	);
 
 	const form = useForm<ResetPasswordFormData>({
 		resolver: zodResolver(resetPasswordSchema),
@@ -62,48 +66,37 @@ function ResetPasswordForm() {
 		},
 	});
 
-	const validateResetToken = async (
-		token: string | null,
-		code: string | null
-	) => {
-		try {
-			if (!token && !code) {
-				setHasValidToken(false);
-				return;
-			}
-
-			const {
-				data: { session },
-				error: sessionError,
-			} = await supabase.auth.getSession();
-
-			if (sessionError) {
-				console.error('Session validation failed:', sessionError);
-				setHasValidToken(false);
-				return;
-			}
-
-			if (session?.user) {
-				setHasValidToken(true);
-			} else {
-				setHasValidToken(false);
-			}
-		} catch (error) {
-			console.error('Reset token validation failed:', error);
-			setHasValidToken(false);
-		}
-	};
-
 	useEffect(() => {
-		const token = searchParams.get('token');
-		const code = searchParams.get('code');
-
-		if (token || code) {
-			validateResetToken(token, code);
-		} else {
-			setHasValidToken(false);
+		if (!token && !code) {
+			return;
 		}
-	}, [searchParams]);
+		let cancelled = false;
+		async function validateResetToken() {
+			try {
+				const {
+					data: { session },
+					error: sessionError,
+				} = await supabase.auth.getSession();
+
+				if (cancelled) return;
+
+				if (sessionError) {
+					console.error('Session validation failed:', sessionError);
+					setHasValidToken(false);
+					return;
+				}
+
+				setHasValidToken(!!session?.user);
+			} catch (error) {
+				console.error('Reset token validation failed:', error);
+				if (!cancelled) setHasValidToken(false);
+			}
+		}
+		void validateResetToken();
+		return () => {
+			cancelled = true;
+		};
+	}, [token, code]);
 
 	const onSubmit = async (data: ResetPasswordFormData) => {
 		setIsLoading(true);
