@@ -50,12 +50,8 @@ export default function IncidentsPage() {
 
 	if (searchKey !== prevSearchKey) {
 		setPrevSearchKey(searchKey);
-		if (tabParam === 'view') {
-			setActiveTab('view');
-		}
-		if (filterParam === 'pending') {
-			setShowPendingOnly(true);
-		}
+		setActiveTab(tabParam === 'view' ? 'view' : 'log');
+		setShowPendingOnly(filterParam === 'pending');
 	}
 
 	// React Query hooks for data fetching

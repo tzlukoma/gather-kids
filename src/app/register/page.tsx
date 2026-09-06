@@ -332,6 +332,47 @@ const defaultChildValues = {
 	customData: {},
 };
 
+function blankRegistrationValues(email: string): RegistrationFormValues {
+	return {
+		household: {
+			name: '',
+			address_line1: '',
+			address_line2: '',
+			city: '',
+			state: '',
+			zip: '',
+			preferredScriptureTranslation: 'NIV',
+		},
+		guardians: [
+			{
+				first_name: '',
+				last_name: '',
+				mobile_phone: '',
+				email,
+				relationship: 'Mother',
+				is_primary: true,
+			},
+		],
+		emergencyContact: {
+			first_name: '',
+			last_name: '',
+			mobile_phone: '',
+			relationship: '',
+		},
+		children: [
+			{
+				...defaultChildValues,
+				child_id: crypto.randomUUID(),
+			},
+		],
+		consents: {
+			liability: false,
+			photoRelease: false,
+			custom_consents: {},
+		},
+	};
+}
+
 const getAgeFromDob = (dobString: string): number | null => {
 	if (dobString && isValid(parseISO(dobString))) {
 		return differenceInYears(new Date(), parseISO(dobString));
@@ -628,6 +669,8 @@ function RegisterPageContent() {
 	log.log('🔍 RegisterPage: About to set up form callbacks...');
 	// Load saved form data from draft
 	const [hasLoadedDraft, setHasLoadedDraft] = useState(false);
+	const [appliedOfflineInitKey, setAppliedOfflineInitKey] = useState('');
+	const [appliedVerifiedEmailKey, setAppliedVerifiedEmailKey] = useState('');
 	const householdInitKeyRef = useRef<string | null>(null);
 	const loadSavedFormData = useCallback(async (): Promise<
 		Partial<RegistrationFormValues>
@@ -692,6 +735,34 @@ function RegisterPageContent() {
 			},
 		},
 	});
+
+	const offlineInitKey =
+		!authLoading && user?.email && isOfflineSupabase()
+			? `${user.uid}:${activeRegistrationCycle?.cycle_id ?? 'none'}`
+			: '';
+	if (offlineInitKey && offlineInitKey !== appliedOfflineInitKey) {
+		setAppliedOfflineInitKey(offlineInitKey);
+		setVerificationEmail(user!.email);
+		setIsAuthenticatedUser(true);
+		form.reset(blankRegistrationValues(user!.email));
+		setOpenAccordionItems(['item-0']);
+		setVerificationStep('form_visible');
+	}
+
+	const verifiedEmailParam = searchParams?.get('verified_email') ?? '';
+	const verifiedRevealKey =
+		(!authLoading || isOfflineSupabase()) &&
+		verifiedEmailParam &&
+		verificationStep === 'enter_email'
+			? verifiedEmailParam
+			: '';
+	if (verifiedRevealKey && verifiedRevealKey !== appliedVerifiedEmailKey) {
+		setAppliedVerifiedEmailKey(verifiedRevealKey);
+		setVerificationEmail(verifiedRevealKey);
+		form.reset(blankRegistrationValues(verifiedRevealKey));
+		setOpenAccordionItems(['item-0']);
+		setVerificationStep('form_visible');
+	}
 
 	const prefillForm = useCallback(
 		(
@@ -774,51 +845,6 @@ function RegisterPageContent() {
 		}
 
 		if (isOfflineSupabase()) {
-			householdInitKeyRef.current = initKey;
-			queueMicrotask(() => {
-				setVerificationEmail(user.email);
-				setIsAuthenticatedUser(true);
-				form.reset({
-					household: {
-						name: '',
-						address_line1: '',
-						address_line2: '',
-						city: '',
-						state: '',
-						zip: '',
-						preferredScriptureTranslation: 'NIV',
-					},
-					guardians: [
-						{
-							first_name: '',
-							last_name: '',
-							mobile_phone: '',
-							email: user.email,
-							relationship: 'Mother',
-							is_primary: true,
-						},
-					],
-					emergencyContact: {
-						first_name: '',
-						last_name: '',
-						mobile_phone: '',
-						relationship: '',
-					},
-					children: [
-						{
-							...defaultChildValues,
-							child_id: crypto.randomUUID(),
-						},
-					],
-					consents: {
-						liability: false,
-						photoRelease: false,
-						custom_consents: {},
-					},
-				});
-				setOpenAccordionItems(['item-0']);
-				setVerificationStep('form_visible');
-			});
 			return;
 		}
 
@@ -1405,60 +1431,6 @@ function RegisterPageContent() {
 		};
 	}, [verificationStep, handleEmailLookup]);
 
-	useEffect(() => {
-		if (authLoading && !isOfflineSupabase()) {
-			return;
-		}
-
-		const verifiedEmail = searchParams?.get('verified_email');
-		if (!verifiedEmail || verificationStep !== 'enter_email') {
-			return;
-		}
-
-		queueMicrotask(() => {
-			setVerificationEmail(verifiedEmail);
-			form.reset({
-				household: {
-					name: '',
-					address_line1: '',
-					address_line2: '',
-					city: '',
-					state: '',
-					zip: '',
-					preferredScriptureTranslation: 'NIV',
-				},
-				guardians: [
-					{
-						first_name: '',
-						last_name: '',
-						mobile_phone: '',
-						email: verifiedEmail,
-						relationship: 'Mother',
-						is_primary: true,
-					},
-				],
-				emergencyContact: {
-					first_name: '',
-					last_name: '',
-					mobile_phone: '',
-					relationship: '',
-				},
-				children: [
-					{
-						...defaultChildValues,
-						child_id: crypto.randomUUID(),
-					},
-				],
-				consents: {
-					liability: false,
-					photoRelease: false,
-					custom_consents: {},
-				},
-			});
-			setOpenAccordionItems(['item-0']);
-			setVerificationStep('form_visible');
-		});
-	}, [authLoading, form, searchParams, verificationStep]);
 
 	async function onSubmit(data: RegistrationFormValues) {
 		log.log('DEBUG: onSubmit called with data:', data);

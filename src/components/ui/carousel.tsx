@@ -67,6 +67,14 @@ const Carousel = React.forwardRef<
     )
     const [canScrollPrev, setCanScrollPrev] = React.useState(false)
     const [canScrollNext, setCanScrollNext] = React.useState(false)
+    const [prevApi, setPrevApi] = React.useState(api)
+
+    if (api !== prevApi) {
+      setPrevApi(api)
+      if (api && setApi) {
+        setApi(api)
+      }
+    }
 
     if (api) {
       const nextPrev = api.canScrollPrev()
@@ -108,13 +116,6 @@ const Carousel = React.forwardRef<
       },
       [scrollPrev, scrollNext]
     )
-
-    React.useEffect(() => {
-      if (!api || !setApi) {
-        return
-      }
-      queueMicrotask(() => setApi(api))
-    }, [api, setApi])
 
     React.useEffect(() => {
       if (!api) {

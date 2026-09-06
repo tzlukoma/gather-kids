@@ -2253,6 +2253,67 @@ function EssayManagement({
 	);
 }
 
+async function fetchAutoEnrollmentPreview(
+	yearId: string,
+	divisions: { length: number }[],
+): Promise<{ preview?: unknown; error?: string }> {
+	console.log('Loading auto-enrollment preview for year:', yearId);
+	console.log('Available divisions:', divisions.length);
+
+	const allCycles = await getRegistrationCycles();
+	const currentCycle = allCycles.find((c) => isActiveValue(c?.is_active));
+	if (!currentCycle) {
+		return {
+			error:
+				'No active registration cycle found. Please contact an administrator.',
+		};
+	}
+
+	const allMinistries = await getMinistries();
+	const bibleBeeMinistry = allMinistries.find((m: { code?: string }) => m.code === 'bible-bee');
+	if (!bibleBeeMinistry) {
+		return {
+			error: 'Bible Bee ministry not found. Please contact an administrator.',
+		};
+	}
+
+	const allEnrollments = await dbAdapter.listMinistryEnrollments();
+	const bibleBeeEnrollments = allEnrollments.filter((e: {
+		cycle_id?: string;
+		ministry_id?: string;
+		status?: string;
+	}) => {
+		try {
+			return (
+				String(e.cycle_id) === String(currentCycle.cycle_id) &&
+				String(e.ministry_id) === String(bibleBeeMinistry.ministry_id) &&
+				e.status === 'enrolled'
+			);
+		} catch {
+			return false;
+		}
+	}).length;
+
+	console.log('Children enrolled in Bible Bee:', bibleBeeEnrollments);
+
+	if (bibleBeeEnrollments === 0) {
+		return {
+			error:
+				'No children enrolled in Bible Bee ministry for the current registration cycle. Please ensure children are enrolled in Bible Bee ministry.',
+		};
+	}
+
+	if (divisions.length === 0) {
+		return {
+			error: 'No divisions found for this year. Please create divisions first.',
+		};
+	}
+
+	const previewData = await previewAutoEnrollment(yearId);
+	console.log('Preview data:', previewData);
+	return { preview: previewData };
+}
+
 function EnrollmentManagement({
 	yearId,
 	yearLabel,
@@ -2265,79 +2326,30 @@ function EnrollmentManagement({
 	selectedCycle: any;
 }) {
 	const { toast } = useToast();
+	const previewKey = `${yearId}:${divisions.length}`;
 	const [preview, setPreview] = useState<any>(null);
 	const [isLoading, setIsLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+	const [prevPreviewKey, setPrevPreviewKey] = useState('');
+
+	if (previewKey !== prevPreviewKey) {
+		setPrevPreviewKey(previewKey);
+		setPreview(null);
+		setError(null);
+		setIsLoading(Boolean(yearId));
+	}
 
 	const loadPreview = useCallback(async () => {
 		setIsLoading(true);
 		setError(null);
 		try {
-			console.log('Loading auto-enrollment preview for year:', yearId);
-			console.log('Available divisions:', divisions.length);
-
-			// Check prerequisites - children enrolled in Bible Bee ministry
-			// Use a safe scan to find the active registration cycle and tolerate
-			// mixed stored representations for is_active (1, true, '1') which
-			// can cause IDBKeyRange DataError when used with .equals(...)
-			const allCycles = await getRegistrationCycles();
-			const currentCycle = allCycles.find((c) => isActiveValue(c?.is_active));
-			if (!currentCycle) {
-				setError(
-					'No active registration cycle found. Please contact an administrator.'
-				);
-				setIsLoading(false);
+			const result = await fetchAutoEnrollmentPreview(yearId, divisions);
+			if (result.error) {
+				setError(result.error);
+				setPreview(null);
 				return;
 			}
-
-			const allMinistries = await getMinistries();
-			const bibleBeeMinistry = allMinistries.find(
-				(m: any) => m.code === 'bible-bee'
-			);
-			if (!bibleBeeMinistry) {
-				setError(
-					'Bible Bee ministry not found. Please contact an administrator.'
-				);
-				setIsLoading(false);
-				return;
-			}
-
-			// Avoid using a compound .equals([...]) query which can throw when stored
-			// key types are mixed (string vs number). Do a safe scan and filter in JS.
-			const allEnrollments = await dbAdapter.listMinistryEnrollments();
-			const bibleBeeEnrollments = allEnrollments.filter((e: any) => {
-				try {
-					return (
-						String(e.cycle_id) === String(currentCycle.cycle_id) &&
-						String(e.ministry_id) === String(bibleBeeMinistry.ministry_id) &&
-						e.status === 'enrolled'
-					);
-				} catch (err) {
-					return false;
-				}
-			}).length;
-
-			console.log('Children enrolled in Bible Bee:', bibleBeeEnrollments);
-
-			if (bibleBeeEnrollments === 0) {
-				setError(
-					'No children enrolled in Bible Bee ministry for the current registration cycle. Please ensure children are enrolled in Bible Bee ministry.'
-				);
-				setIsLoading(false);
-				return;
-			}
-
-			if (divisions.length === 0) {
-				setError(
-					'No divisions found for this year. Please create divisions first.'
-				);
-				setIsLoading(false);
-				return;
-			}
-
-			const previewData = await previewAutoEnrollment(yearId);
-			console.log('Preview data:', previewData);
-			setPreview(previewData);
+			setPreview(result.preview);
 		} catch (error: any) {
 			console.error('Error loading preview:', error);
 			setError(error.message || 'Error loading enrollment preview');
@@ -2350,10 +2362,34 @@ function EnrollmentManagement({
 		if (!yearId) {
 			return;
 		}
-		queueMicrotask(() => {
-			void loadPreview();
-		});
-	}, [yearId, divisions.length, loadPreview]);
+		let cancelled = false;
+		(async () => {
+			try {
+				const result = await fetchAutoEnrollmentPreview(yearId, divisions);
+				if (cancelled) {
+					return;
+				}
+				if (result.error) {
+					setError(result.error);
+					setPreview(null);
+				} else {
+					setPreview(result.preview);
+				}
+			} catch (error: any) {
+				if (!cancelled) {
+					console.error('Error loading preview:', error);
+					setError(error.message || 'Error loading enrollment preview');
+				}
+			} finally {
+				if (!cancelled) {
+					setIsLoading(false);
+				}
+			}
+		})();
+		return () => {
+			cancelled = true;
+		};
+	}, [yearId, divisions]);
 
 	const handleCommit = async () => {
 		console.log(`DEBUG: handleCommit called, preview exists: ${!!preview}`);
