@@ -1,7 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabaseClient';
-import { saveProfile } from '@/lib/dal';
+import { getMeProfile, saveProfile } from '@/lib/dal';
 import type { BaseUser } from '@/lib/auth-types';
+import {
+	PUBLIC_AVATARS_BUCKET,
+	deletePublicAvatarBestEffort,
+	logPhotoAudit,
+} from '@/lib/photo/public-avatars';
+
+function createPhotoStorageClient() {
+	const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+	const key =
+		process.env.SUPABASE_SERVICE_ROLE_KEY ||
+		process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+	if (!url || !key) {
+		throw new Error('Supabase configuration is required for photo storage');
+	}
+	return createClient(url, key, { auth: { persistSession: false } });
+}
+
 
 // Handle multipart form data
 async function parseFormData(request: NextRequest) {
@@ -43,9 +61,15 @@ async function getCurrentUser(request: NextRequest): Promise<BaseUser | null> {
 	} as BaseUser;
 }
 
+function userIdOf(user: BaseUser): string {
+	return user.uid || (user as { id?: string }).id || '';
+}
+
 export async function POST(request: NextRequest) {
+	let uploadedPath: string | null = null;
+	let storageClient: ReturnType<typeof createPhotoStorageClient> | null = null;
+
 	try {
-		// Get current user
 		const user = await getCurrentUser(request);
 		if (!user) {
 			return NextResponse.json(
@@ -54,6 +78,7 @@ export async function POST(request: NextRequest) {
 			);
 		}
 
+		const userId = userIdOf(user);
 		const { file } = await parseFormData(request);
 		if (!file) {
 			return NextResponse.json(
@@ -62,7 +87,6 @@ export async function POST(request: NextRequest) {
 			);
 		}
 
-		// Validate file type and size
 		const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
 		if (!allowedTypes.includes(file.type)) {
 			return NextResponse.json(
@@ -79,15 +103,18 @@ export async function POST(request: NextRequest) {
 			);
 		}
 
-		// Upload to Supabase Storage
+		const beforeProfile = await getMeProfile(userId);
+		const beforeUrl = beforeProfile?.photo_url || beforeProfile?.avatar_path || null;
+
+		storageClient = createPhotoStorageClient();
 		const timestamp = Date.now();
 		const extension = file.name.split('.').pop() || 'jpg';
-		const filename = `${user.uid || user.id}-${timestamp}.${extension}`;
-		const storagePath = `avatars/users/${filename}`;
+		const filename = `${userId}-${timestamp}.${extension}`;
+		uploadedPath = `avatars/users/${filename}`;
 
-		const { error: uploadError } = await supabase.storage
-			.from('public-avatars')
-			.upload(storagePath, file, {
+		const { error: uploadError } = await storageClient.storage
+			.from(PUBLIC_AVATARS_BUCKET)
+			.upload(uploadedPath, file, {
 				contentType: file.type,
 				upsert: true,
 			});
@@ -100,20 +127,40 @@ export async function POST(request: NextRequest) {
 			);
 		}
 
-		// Get public URL
-		const { data: urlData } = supabase.storage
-			.from('public-avatars')
-			.getPublicUrl(storagePath);
+		const { data: urlData } = storageClient.storage
+			.from(PUBLIC_AVATARS_BUCKET)
+			.getPublicUrl(uploadedPath);
 
 		const photoUrl = urlData.publicUrl;
 
-		// Update user profile in database
-		await saveProfile(user.uid || user.id || '', {
-			photoPath: photoUrl,
-		});
+		try {
+			await saveProfile(userId, {
+				photoPath: photoUrl,
+			});
+		} catch (dbError) {
+			console.error('Profile photo DB update failed; rolling back upload:', dbError);
+			await deletePublicAvatarBestEffort(storageClient, uploadedPath);
+			return NextResponse.json(
+				{ error: 'Failed to update profile photo' },
+				{ status: 500 }
+			);
+		}
 
-		// Create audit log entry
-		// TODO: Implement audit logging when audit system is available
+		// Keep old photo until DB succeeds; then best-effort cleanup.
+		if (beforeUrl && beforeUrl !== photoUrl) {
+			await deletePublicAvatarBestEffort(storageClient, beforeUrl);
+		}
+
+		await logPhotoAudit({
+			userId,
+			action: 'profile_photo_updated',
+			actorRole: user.metadata?.role,
+			entityType: 'household',
+			entityId: userId,
+			householdId: user.metadata?.household_id ?? null,
+			beforeUrl,
+			afterUrl: photoUrl,
+		});
 
 		return NextResponse.json({
 			success: true,
@@ -122,6 +169,9 @@ export async function POST(request: NextRequest) {
 
 	} catch (error) {
 		console.error('Error uploading user photo:', error);
+		if (storageClient && uploadedPath) {
+			await deletePublicAvatarBestEffort(storageClient, uploadedPath);
+		}
 		return NextResponse.json(
 			{ error: 'Internal server error' },
 			{ status: 500 }
@@ -131,7 +181,6 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
 	try {
-		// Get current user
 		const user = await getCurrentUser(request);
 		if (!user) {
 			return NextResponse.json(
@@ -140,13 +189,27 @@ export async function DELETE(request: NextRequest) {
 			);
 		}
 
-		// Update user profile to remove photo
-		await saveProfile(user.uid || user.id || '', {
-			photoPath: undefined,
+		const userId = userIdOf(user);
+		const beforeProfile = await getMeProfile(userId);
+		const beforeUrl = beforeProfile?.photo_url || beforeProfile?.avatar_path || null;
+
+		await saveProfile(userId, {
+			photoPath: null,
 		});
 
-		// TODO: Delete old photo from storage
-		// TODO: Create audit log entry
+		const storageClient = createPhotoStorageClient();
+		await deletePublicAvatarBestEffort(storageClient, beforeUrl);
+
+		await logPhotoAudit({
+			userId,
+			action: 'profile_photo_updated',
+			actorRole: user.metadata?.role,
+			entityType: 'household',
+			entityId: userId,
+			householdId: user.metadata?.household_id ?? null,
+			beforeUrl,
+			afterUrl: null,
+		});
 
 		return NextResponse.json({
 			success: true,

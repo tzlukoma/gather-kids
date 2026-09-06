@@ -9,7 +9,8 @@ export interface CustomQuestion {
 
 export interface AuditLogEntry {
     id: string;
-    household_id: string;
+    /** Optional — photo audits and some system events may omit household. */
+    household_id?: string | null;
     user_id: string;
     action: string;
     entity_type: 'guardian' | 'child' | 'household' | 'enrollment' | 'emergency_contact';

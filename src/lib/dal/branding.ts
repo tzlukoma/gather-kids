@@ -139,6 +139,25 @@ export async function getEntityAvatar(
     }
 }
 
+/**
+ * Remove an entity avatar row (does not delete storage objects).
+ */
+export async function clearEntityAvatar(
+    entityType: 'child' | 'guardian' | 'leader' | 'user',
+    entityId: string,
+): Promise<void> {
+    const { error } = await supabaseAdapter.client
+        .from('avatars')
+        .delete()
+        .eq('entity_type', entityType)
+        .eq('entity_id', entityId);
+
+    if (error) {
+        console.error('Failed to clear avatars row:', error);
+        throw error;
+    }
+}
+
 export async function getChildAvatarUrl(childId: string): Promise<string | null> {
     return AvatarService.getAvatarUrl('children', childId);
 }
@@ -152,15 +171,19 @@ export async function getLeaderAvatarUrl(leaderId: string): Promise<string | nul
 }
 
 /**
- * Legacy function — photo is now handled via updateEntityAvatar/avatars table.
- * @deprecated Use updateEntityAvatar instead.
+ * Update (or clear) a child's avatar via the avatars table.
+ * Pass null/empty to clear the avatar row.
  */
 export async function updateChildPhoto(
-    _childId: string,
-    _photoDataUrl: string,
+    childId: string,
+    photoDataUrl: string | null | undefined,
 ): Promise<number | string> {
-    // No-op in Supabase mode; callers should use updateEntityAvatar.
-    return _childId;
+    if (photoDataUrl == null || photoDataUrl === '') {
+        await clearEntityAvatar('child', childId);
+        return childId;
+    }
+    await updateEntityAvatar('child', childId, photoDataUrl);
+    return childId;
 }
 
 // ---------------------------------------------------------------------------
@@ -255,7 +278,8 @@ export async function saveProfile(
     profileData: {
         email?: string;
         phone?: string;
-        photoPath?: string;
+        /** Pass null to clear the stored photo URL. */
+        photoPath?: string | null;
     },
 ) {
     const target = await getActiveProfileTarget(user_id);
@@ -276,8 +300,9 @@ export async function saveProfile(
                 updateData.phone = normalizePhone(profileData.phone);
             }
             if (profileData.photoPath !== undefined) {
-                updateData.photo_url = profileData.photoPath;
-                updateData.avatar_path = profileData.photoPath;
+                // null clears; string sets. Cast so Partial<> accepts SQL null.
+                (updateData as Record<string, unknown>).photo_url = profileData.photoPath;
+                (updateData as Record<string, unknown>).avatar_path = profileData.photoPath;
             }
 
             await dbAdapter.updateLeaderProfile(target.target_id, updateData);
@@ -291,8 +316,9 @@ export async function saveProfile(
                 updateData.primary_phone = normalizePhone(profileData.phone);
             }
             if (profileData.photoPath !== undefined) {
-                updateData.photo_url = profileData.photoPath;
-                updateData.avatar_path = profileData.photoPath;
+                // null clears; string sets. Cast so Partial<> accepts SQL null.
+                (updateData as Record<string, unknown>).photo_url = profileData.photoPath;
+                (updateData as Record<string, unknown>).avatar_path = profileData.photoPath;
             }
 
             await dbAdapter.updateHousehold(target.target_id, updateData);
