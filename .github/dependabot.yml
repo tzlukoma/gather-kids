@@ -31,14 +31,18 @@ updates:
         update-types:
           - "minor"
           - "patch"
-    # Revisit these ignores when their upstream peer constraints are lifted:
+    # Revisit these ignores when their upstream constraints are lifted:
     # @genkit-ai/next@1.42.0 requires Zod 3, and ts-jest@29.4.12
-    # requires TypeScript <7.
+    # requires TypeScript <7. Commitlint CLI 21 requires Git support for
+    # --end-of-options, which the supported macOS system Git 2.23 lacks.
     ignore:
       - dependency-name: "zod"
         update-types:
           - "version-update:semver-major"
       - dependency-name: "typescript"
+        update-types:
+          - "version-update:semver-major"
+      - dependency-name: "@commitlint/cli"
         update-types:
           - "version-update:semver-major"
     labels:
