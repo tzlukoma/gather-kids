@@ -46,9 +46,10 @@ const ministryGroupFormSchema = z.object({
 	custom_consent_required: z.boolean().default(false),
 });
 
-type FormData = z.infer<typeof ministryGroupFormSchema>;
+type FormInput = z.input<typeof ministryGroupFormSchema>;
+type FormOutput = z.output<typeof ministryGroupFormSchema>;
 
-const EMPTY_GROUP_FORM: FormData = {
+const EMPTY_GROUP_FORM: FormInput = {
 	code: '',
 	name: '',
 	description: '',
@@ -57,7 +58,7 @@ const EMPTY_GROUP_FORM: FormData = {
 	custom_consent_required: false,
 };
 
-function groupToFormValues(group?: MinistryGroup | null): FormData {
+function groupToFormValues(group?: MinistryGroup | null): FormInput {
 	if (!group) return EMPTY_GROUP_FORM;
 	return {
 		code: group.code,
@@ -98,12 +99,12 @@ export function MinistryGroupFormDialog({
 	const updateMutation = updateMinistryGroupMutation || fallbackUpdateMutation;
 
 	const formValues = useMemo(() => groupToFormValues(isOpen ? group : null), [isOpen, group]);
-	const form = useForm<FormData>({
+	const form = useForm<FormInput, unknown, FormOutput>({
 		resolver: zodResolver(ministryGroupFormSchema),
 		values: formValues,
 	});
 
-	const onSubmit = async (data: FormData) => {
+	const onSubmit = async (data: FormOutput) => {
 		try {
 			console.log('🔍 MinistryGroupFormDialog: Submitting form data', data);
 
