@@ -16,6 +16,11 @@ global.ResizeObserver = jest.fn().mockImplementation(() => ({
 	disconnect: jest.fn(),
 }));
 
+if (typeof HTMLElement !== 'undefined') {
+	// jsdom does not implement scrolling, which Radix Select uses.
+	HTMLElement.prototype.scrollIntoView = jest.fn();
+}
+
 declare global {
   namespace jest {
     interface Matchers<R> {
