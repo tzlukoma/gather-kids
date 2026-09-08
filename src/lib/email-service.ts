@@ -1,4 +1,4 @@
-import nodemailer from 'nodemailer';
+import nodemailer, { type Transporter } from 'nodemailer';
 
 export interface EmailConfig {
   host: string;
@@ -23,7 +23,7 @@ export interface VerificationEmailData {
 }
 
 export class EmailService {
-  private transporter: nodemailer.Transporter;
+  private transporter: Transporter;
   
   constructor(config: EmailConfig) {
     this.transporter = nodemailer.createTransport({
@@ -178,7 +178,6 @@ Magic links expire after 1 hour for your security.
       });
 
       console.log('Magic link email sent successfully:', info.messageId);
-      return info;
     } catch (error) {
       console.error('Failed to send magic link email:', error);
       throw new Error(`Failed to send verification email: ${error instanceof Error ? error.message : 'Unknown error'}`);
