@@ -90,7 +90,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 		data: Omit<Household, 'household_id' | 'created_at' | 'updated_at'>
 	): Promise<Household> {
 		// Map frontend field names to database column names
-		const household = {
+		const household: Database['public']['Tables']['households']['Insert'] = {
 			household_id: uuidv4(), // Generate new ID (household_id is excluded from input)
 			created_at: new Date().toISOString(),
 			updated_at: new Date().toISOString(),
@@ -104,10 +104,8 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			city: data.city,
 			state: data.state,
 			zip: data.zip,
-			primary_email: data.primary_email,
+			email: data.primary_email,
 			primary_phone: data.primary_phone,
-			photo_url: data.photo_url,
-			avatar_path: data.avatar_path,
 		};
 
 		const { data: result, error } = await this.client
@@ -122,7 +120,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 
 	async updateHousehold(id: string, data: Partial<Household>): Promise<Household> {
 		// Map frontend field names to database column names  
-	const updateData: Record<string, unknown> = {
+	const updateData: Database['public']['Tables']['households']['Update'] = {
 			updated_at: new Date().toISOString(),
 		};
 		
@@ -132,7 +130,6 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			updateData.household_name = data.name;
 		}
 		if (data.preferredScriptureTranslation !== undefined) {
-			updateData.preferredScriptureTranslation = data.preferredScriptureTranslation;
 			updateData.preferred_scripture_translation = data.preferredScriptureTranslation;
 		}
 		if (data.address_line1 !== undefined) updateData.address_line1 = data.address_line1;
@@ -140,10 +137,8 @@ export class SupabaseAdapter implements DatabaseAdapter {
 		if (data.city !== undefined) updateData.city = data.city;
 		if (data.state !== undefined) updateData.state = data.state;
 		if (data.zip !== undefined) updateData.zip = data.zip;
-		if (data.primary_email !== undefined) updateData.primary_email = data.primary_email;
+		if (data.primary_email !== undefined) updateData.email = data.primary_email;
 		if (data.primary_phone !== undefined) updateData.primary_phone = data.primary_phone;
-		if (data.photo_url !== undefined) updateData.photo_url = data.photo_url;
-		if (data.avatar_path !== undefined) updateData.avatar_path = data.avatar_path;
 
 		const { data: result, error } = await this.client
 			.from('households')
@@ -257,7 +252,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 		data: Omit<Child, 'created_at' | 'updated_at'>
 	): Promise<Child> {
 		// Map frontend field names to database column names
-		const child = {
+		const child: Database['public']['Tables']['children']['Insert'] = {
 			child_id: data.child_id || uuidv4(), // Use provided child_id or generate new one
 			created_at: new Date().toISOString(),
 			updated_at: new Date().toISOString(),
@@ -266,7 +261,6 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			first_name: data.first_name,
 			last_name: data.last_name,
 			is_active: data.is_active,
-			photo_url: data.photo_url,
 			allergies: data.allergies,
 			// Use canonical dob field (birth_date was dropped in migration)
 			dob: data.dob,
@@ -293,7 +287,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 
 	async updateChild(id: string, data: Partial<Child>): Promise<Child> {
 		// Map frontend field names to database column names
-	const updateData: Record<string, unknown> = {
+	const updateData: Database['public']['Tables']['children']['Update'] = {
 			updated_at: new Date().toISOString(),
 		};
 		
@@ -302,7 +296,6 @@ export class SupabaseAdapter implements DatabaseAdapter {
 		if (data.first_name !== undefined) updateData.first_name = data.first_name;
 		if (data.last_name !== undefined) updateData.last_name = data.last_name;
 		if (data.is_active !== undefined) updateData.is_active = data.is_active;
-		if (data.photo_url !== undefined) updateData.photo_url = data.photo_url;
 		if (data.allergies !== undefined) updateData.allergies = data.allergies;
 		
 		// Use canonical dob field (birth_date was dropped in migration)
@@ -1213,11 +1206,17 @@ export class SupabaseAdapter implements DatabaseAdapter {
 	async createIncident(
 		data: Omit<Incident, 'incident_id' | 'created_at' | 'updated_at'>
 	): Promise<Incident> {
-		const incident = {
-			...data,
+		const incident: Database['public']['Tables']['incidents']['Insert'] = {
 			incident_id: uuidv4(),
 			created_at: new Date().toISOString(),
-			updated_at: new Date().toISOString(),
+			child_id: data.child_id,
+			child_name: data.child_name,
+			event_id: data.event_id,
+			description: data.description,
+			severity: data.severity,
+			leader_id: data.leader_id,
+			timestamp: data.timestamp,
+			admin_acknowledged_at: data.admin_acknowledged_at,
 		};
 
 		const { data: result, error } = await this.client
@@ -1231,12 +1230,21 @@ export class SupabaseAdapter implements DatabaseAdapter {
 	}
 
 	async updateIncident(id: string, data: Partial<Incident>): Promise<Incident> {
+		const updateData: Database['public']['Tables']['incidents']['Update'] = {};
+		if (data.child_id !== undefined) updateData.child_id = data.child_id;
+		if (data.child_name !== undefined) updateData.child_name = data.child_name;
+		if (data.event_id !== undefined) updateData.event_id = data.event_id;
+		if (data.description !== undefined) updateData.description = data.description;
+		if (data.severity !== undefined) updateData.severity = data.severity;
+		if (data.leader_id !== undefined) updateData.leader_id = data.leader_id;
+		if (data.timestamp !== undefined) updateData.timestamp = data.timestamp;
+		if (data.admin_acknowledged_at !== undefined) {
+			updateData.admin_acknowledged_at = data.admin_acknowledged_at;
+		}
+
 		const { data: result, error } = await this.client
 			.from('incidents')
-			.update({
-				...data,
-				updated_at: new Date().toISOString(),
-			})
+			.update(updateData)
 			.eq('incident_id', id)
 			.select()
 			.single();
@@ -1378,11 +1386,15 @@ export class SupabaseAdapter implements DatabaseAdapter {
 	async createUser(
 		data: Omit<User, 'user_id' | 'created_at' | 'updated_at'>
 	): Promise<User> {
-		const user = {
-			...data,
+		const user: Database['public']['Tables']['users']['Insert'] = {
 			user_id: uuidv4(),
 			created_at: new Date().toISOString(),
 			updated_at: new Date().toISOString(),
+			name: data.name,
+			email: data.email,
+			role: data.role,
+			is_active: data.is_active,
+			background_check_status: data.background_check_status,
 		};
 
 		const { data: result, error } = await this.client
@@ -1397,12 +1409,20 @@ export class SupabaseAdapter implements DatabaseAdapter {
 	}
 
 	async updateUser(id: string, data: Partial<User>): Promise<User> {
+		const updateData: Database['public']['Tables']['users']['Update'] = {
+			updated_at: new Date().toISOString(),
+		};
+		if (data.name !== undefined) updateData.name = data.name;
+		if (data.email !== undefined) updateData.email = data.email;
+		if (data.role !== undefined) updateData.role = data.role;
+		if (data.is_active !== undefined) updateData.is_active = data.is_active;
+		if (data.background_check_status !== undefined) {
+			updateData.background_check_status = data.background_check_status;
+		}
+
 		const { data: result, error } = await this.client
 			.from('users')
-			.update({
-				...data,
-				updated_at: new Date().toISOString(),
-			})
+			.update(updateData)
 			.eq('user_id', id)
 			.select()
 			.single();
@@ -1501,11 +1521,19 @@ export class SupabaseAdapter implements DatabaseAdapter {
 	async createLeaderProfile(
 		data: Omit<LeaderProfile, 'leader_id' | 'created_at' | 'updated_at'>
 	): Promise<LeaderProfile> {
-		const leader = {
-			...data,
+		const leader: Database['public']['Tables']['leader_profiles']['Insert'] = {
 			leader_id: uuidv4(),
 			created_at: new Date().toISOString(),
 			updated_at: new Date().toISOString(),
+			first_name: data.first_name,
+			last_name: data.last_name,
+			email: data.email,
+			phone: data.phone,
+			photo_url: data.photo_url,
+			avatar_path: data.avatar_path,
+			notes: data.notes,
+			background_check_complete: data.background_check_complete,
+			is_active: data.is_active,
 		};
 
 		const { data: result, error } = await this.client
@@ -1522,12 +1550,24 @@ export class SupabaseAdapter implements DatabaseAdapter {
 		id: string,
 		data: Partial<LeaderProfile>
 	): Promise<LeaderProfile> {
+		const updateData: Database['public']['Tables']['leader_profiles']['Update'] = {
+			updated_at: new Date().toISOString(),
+		};
+		if (data.first_name !== undefined) updateData.first_name = data.first_name;
+		if (data.last_name !== undefined) updateData.last_name = data.last_name;
+		if (data.email !== undefined) updateData.email = data.email;
+		if (data.phone !== undefined) updateData.phone = data.phone;
+		if (data.photo_url !== undefined) updateData.photo_url = data.photo_url;
+		if (data.avatar_path !== undefined) updateData.avatar_path = data.avatar_path;
+		if (data.notes !== undefined) updateData.notes = data.notes;
+		if (data.background_check_complete !== undefined) {
+			updateData.background_check_complete = data.background_check_complete;
+		}
+		if (data.is_active !== undefined) updateData.is_active = data.is_active;
+
 		const { data: result, error } = await this.client
 			.from('leader_profiles')
-			.update({
-				...data,
-				updated_at: new Date().toISOString(),
-			})
+			.update(updateData)
 			.eq('leader_id', id)
 			.select()
 			.single();
@@ -1696,17 +1736,14 @@ export class SupabaseAdapter implements DatabaseAdapter {
 	async createMinistryAccount(
 		data: Omit<MinistryAccount, 'created_at' | 'updated_at'>
 	): Promise<MinistryAccount> {
-		const account = {
-			...data,
+		const dbPayload: Database['public']['Tables']['ministry_accounts']['Insert'] = {
+			ministry_id: data.ministry_id,
+			email: data.email,
+			display_name: data.display_name,
+			is_active: data.is_active,
 			created_at: new Date().toISOString(),
 			updated_at: new Date().toISOString(),
 		};
-
-		// Prepare DB payload with proper serialization for JSON settings
-		const dbPayload: Record<string, unknown> = { ...account };
-		if (dbPayload['settings'] && typeof dbPayload['settings'] !== 'string') {
-			dbPayload['settings'] = JSON.stringify(dbPayload['settings']);
-		}
 
 		const { data: result, error } = await this.client
 			.from('ministry_accounts')
@@ -1727,10 +1764,13 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			updateData: data
 		});
 		
-		const dbPayload: Record<string, unknown> = { ...data, updated_at: new Date().toISOString() };
-		if (dbPayload['settings'] && typeof dbPayload['settings'] !== 'string') {
-			dbPayload['settings'] = JSON.stringify(dbPayload['settings']);
-		}
+		const dbPayload: Database['public']['Tables']['ministry_accounts']['Update'] = {
+			updated_at: new Date().toISOString(),
+		};
+		if (data.ministry_id !== undefined) dbPayload.ministry_id = data.ministry_id;
+		if (data.email !== undefined) dbPayload.email = data.email;
+		if (data.display_name !== undefined) dbPayload.display_name = data.display_name;
+		if (data.is_active !== undefined) dbPayload.is_active = data.is_active;
 
 		log.log('🔍 SupabaseAdapter.updateMinistryAccount: DB payload', dbPayload);
 
@@ -2200,7 +2240,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 		data: Partial<BibleBeeCycle>
 	): Promise<BibleBeeCycle> {
 		log.log('SupabaseAdapter.updateBibleBeeCycle called:', { id, data });
-		const updatePayload: Record<string, unknown> = {
+		const updatePayload: Database['public']['Tables']['bible_bee_cycles']['Update'] = {
 			updated_at: new Date().toISOString(),
 		};
 
