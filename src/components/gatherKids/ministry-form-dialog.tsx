@@ -81,9 +81,10 @@ const ministryFormSchema = z.object({
 	custom_questions: z.array(customQuestionSchema).optional(),
 });
 
-type MinistryFormValues = z.infer<typeof ministryFormSchema>;
+type MinistryFormInput = z.input<typeof ministryFormSchema>;
+type MinistryFormOutput = z.output<typeof ministryFormSchema>;
 
-const EMPTY_MINISTRY_FORM: MinistryFormValues = {
+const EMPTY_MINISTRY_FORM: MinistryFormInput = {
 	name: '',
 	code: '',
 	email: '',
@@ -96,7 +97,7 @@ const EMPTY_MINISTRY_FORM: MinistryFormValues = {
 	custom_questions: [],
 };
 
-function ministryToFormValues(ministry?: Ministry | null): MinistryFormValues {
+function ministryToFormValues(ministry?: Ministry | null): MinistryFormInput {
 	if (!ministry) return EMPTY_MINISTRY_FORM;
 	return {
 		name: ministry.name,
@@ -199,7 +200,7 @@ export function MinistryFormDialog({
 	const updateMutation = updateMinistryMutation || fallbackUpdateMutation;
 
 	const formValues = useMemo(() => ministryToFormValues(ministry), [ministry]);
-	const form = useForm<MinistryFormValues>({
+	const form = useForm<MinistryFormInput, unknown, MinistryFormOutput>({
 		resolver: zodResolver(ministryFormSchema),
 		values: formValues,
 	});
@@ -209,7 +210,7 @@ export function MinistryFormDialog({
 		name: 'custom_questions',
 	});
 
-	const onSubmit = async (data: MinistryFormValues) => {
+	const onSubmit = async (data: MinistryFormOutput) => {
 		try {
 			// Check for duplicate code using dbAdapter
 			const allMinistries = await dbAdapter.listMinistries();
@@ -228,7 +229,7 @@ export function MinistryFormDialog({
 
 			const ministryData = data;
 
-			function toDbMinistryPayload(md: Partial<MinistryFormValues>) {
+			function toDbMinistryPayload(md: Partial<MinistryFormOutput>) {
 				// Remove email from ministry payload since it goes to ministry_accounts table
 				const { email, ...ministryData } = md;
 				return {

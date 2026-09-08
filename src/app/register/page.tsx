@@ -204,7 +204,8 @@ const registrationSchema = z
 		});
 	});
 
-type RegistrationFormValues = z.infer<typeof registrationSchema>;
+type RegistrationFormInput = z.input<typeof registrationSchema>;
+type RegistrationFormOutput = z.output<typeof registrationSchema>;
 type VerificationFormValues = z.infer<typeof verificationSchema>;
 
 type VerificationStep =
@@ -332,7 +333,7 @@ const defaultChildValues = {
 	customData: {},
 };
 
-function blankRegistrationValues(email: string): RegistrationFormValues {
+function blankRegistrationValues(email: string): RegistrationFormInput {
 	return {
 		household: {
 			name: '',
@@ -655,7 +656,7 @@ function RegisterPageContent() {
 	// Draft persistence for form data (conditional based on feature flag)
 	log.log('🔍 RegisterPage: About to call useDraftPersistence...');
 	const { loadDraft, saveDraft, clearDraft, draftStatus } =
-		useDraftPersistence<RegistrationFormValues>({
+		useDraftPersistence<RegistrationFormInput>({
 			formName: 'registration_v1',
 			version: 1,
 			autoSaveDelay: 1000,
@@ -673,7 +674,7 @@ function RegisterPageContent() {
 	const [appliedVerifiedEmailKey, setAppliedVerifiedEmailKey] = useState('');
 	const householdInitKeyRef = useRef<string | null>(null);
 	const loadSavedFormData = useCallback(async (): Promise<
-		Partial<RegistrationFormValues>
+		Partial<RegistrationFormInput>
 	> => {
 		try {
 			const draftData = await loadDraft();
@@ -686,7 +687,7 @@ function RegisterPageContent() {
 
 	// Save form data using draft persistence
 	const saveFormData = useCallback(
-		(data: RegistrationFormValues) => {
+		(data: RegistrationFormInput) => {
 			saveDraft(data);
 		},
 		[saveDraft]
@@ -698,7 +699,11 @@ function RegisterPageContent() {
 	}, [clearDraft]);
 
 	log.log('🔍 RegisterPage: About to set up form...');
-	const form = useForm<RegistrationFormValues>({
+	const form = useForm<
+		RegistrationFormInput,
+		unknown,
+		RegistrationFormOutput
+	>({
 		resolver: zodResolver(registrationSchema),
 		defaultValues: {
 			household: {
@@ -779,7 +784,7 @@ function RegisterPageContent() {
 			});
 			try {
 				const householdData = data.household;
-				const registrationData: Partial<RegistrationFormValues> = {
+				const registrationData: Partial<RegistrationFormInput> = {
 					household: {
 						household_id: householdData?.household_id || '',
 						name: householdData?.name || '',
@@ -1128,7 +1133,7 @@ function RegisterPageContent() {
 
 			if (hasData) {
 				// Clean the data to remove undefined values before saving
-				const cleanData = {
+				const cleanData: RegistrationFormInput = {
 					household: {
 						name: data.household?.name || '',
 						address_line1: data.household?.address_line1 || '',
@@ -1170,11 +1175,21 @@ function RegisterPageContent() {
 					consents: {
 						liability: data.consents?.liability || false,
 						photoRelease: data.consents?.photoRelease || false,
-						group_consents: data.consents?.group_consents || {},
-						custom_consents: data.consents?.custom_consents || {},
+						group_consents: Object.fromEntries(
+							Object.entries(data.consents?.group_consents || {}).filter(
+								(entry): entry is [string, 'yes' | 'no'] =>
+									entry[1] !== undefined
+							)
+						),
+						custom_consents: Object.fromEntries(
+							Object.entries(data.consents?.custom_consents || {}).filter(
+								(entry): entry is [string, boolean] =>
+									entry[1] !== undefined
+							)
+						),
 					},
 				};
-				saveFormData(cleanData as RegistrationFormValues);
+				saveFormData(cleanData);
 			}
 		});
 
@@ -1432,7 +1447,7 @@ function RegisterPageContent() {
 	}, [verificationStep, handleEmailLookup]);
 
 
-	async function onSubmit(data: RegistrationFormValues) {
+	async function onSubmit(data: RegistrationFormOutput) {
 		log.log('DEBUG: onSubmit called with data:', data);
 
 		if (isOfflineSupabase()) {
