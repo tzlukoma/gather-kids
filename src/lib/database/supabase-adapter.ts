@@ -1498,6 +1498,8 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			name: (r['name'] as string) || '',
 			description: (r['description'] as string) || undefined,
 			is_active: r['is_active'] === null || r['is_active'] === undefined ? false : !!r['is_active'],
+			competition_start_date: (r['competition_start_date'] as string) || undefined,
+			competition_end_date: (r['competition_end_date'] as string) || undefined,
 			created_at: (r['created_at'] as string) || new Date().toISOString(),
 			updated_at: (r['updated_at'] as string) || new Date().toISOString(),
 		};
@@ -2221,6 +2223,8 @@ export class SupabaseAdapter implements DatabaseAdapter {
 			name: data.name,
 			description: data.description ?? null,
 			is_active: data.is_active ?? false,
+			competition_start_date: data.competition_start_date ?? null,
+			competition_end_date: data.competition_end_date ?? null,
 			created_at: new Date().toISOString(),
 			updated_at: new Date().toISOString(),
 		};
@@ -2248,6 +2252,8 @@ export class SupabaseAdapter implements DatabaseAdapter {
 		if (data.name !== undefined) updatePayload.name = data.name;
 		if (data.description !== undefined) updatePayload.description = data.description;
 		if (data.is_active !== undefined) updatePayload.is_active = data.is_active;
+		if (data.competition_start_date !== undefined) updatePayload.competition_start_date = data.competition_start_date;
+		if (data.competition_end_date !== undefined) updatePayload.competition_end_date = data.competition_end_date;
 
 		log.log('SupabaseAdapter.updateBibleBeeCycle payload:', updatePayload);
 

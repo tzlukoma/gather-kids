@@ -377,6 +377,8 @@ function YearManagement({
 		name: '',
 		is_active: false,
 		cycle_id: '',
+		competition_start_date: '',
+		competition_end_date: '',
 	});
 	const [confirmDelete, setConfirmDelete] = useState<any>(null);
 
@@ -428,6 +430,8 @@ function YearManagement({
 				name: '',
 				is_active: false,
 				cycle_id: '',
+				competition_start_date: '',
+				competition_end_date: '',
 			});
 			console.log('Form submission completed successfully');
 		} catch (error) {
@@ -473,6 +477,8 @@ function YearManagement({
 			name: cycle.name || cycle.label, // Use name field, fallback to label for legacy data
 			is_active: cycle.is_active,
 			cycle_id: cycle.cycle_id || '',
+			competition_start_date: cycle.competition_start_date || '',
+			competition_end_date: cycle.competition_end_date || '',
 		});
 		setIsCreating(true);
 	};
@@ -532,6 +538,31 @@ function YearManagement({
 								</p>
 							)}
 						</div>
+						<div className="space-y-2">
+							<Label htmlFor="competition-start-date">Competition Start Date</Label>
+							<Input
+								id="competition-start-date"
+								type="date"
+								value={formData.competition_start_date}
+								onChange={(e) =>
+									setFormData({ ...formData, competition_start_date: e.target.value })
+								}
+							/>
+							<p className="text-sm text-muted-foreground">
+								Families can see scripture text on/after this date. Leave blank to keep scriptures available immediately.
+							</p>
+						</div>
+						<div className="space-y-2">
+							<Label htmlFor="competition-end-date">Competition End Date (Optional)</Label>
+							<Input
+								id="competition-end-date"
+								type="date"
+								value={formData.competition_end_date}
+								onChange={(e) =>
+									setFormData({ ...formData, competition_end_date: e.target.value })
+								}
+							/>
+						</div>
 						<div className="flex items-center space-x-2">
 							<input
 								type="checkbox"
@@ -556,6 +587,8 @@ function YearManagement({
 										name: '',
 										is_active: false,
 										cycle_id: '',
+										competition_start_date: '',
+										competition_end_date: '',
 									});
 								}}>
 								Cancel

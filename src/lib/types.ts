@@ -305,6 +305,8 @@ export interface BibleBeeCycle {
     name: string; // Human-readable name (e.g., "Fall 2025 Bible Bee")
     description?: string;
     is_active: boolean;
+    competition_start_date?: string; // Date when household scripture text becomes available
+    competition_end_date?: string; // Optional end date for the competition
     created_at: string;
     updated_at?: string;
 }

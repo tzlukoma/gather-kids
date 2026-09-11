@@ -152,6 +152,8 @@ export type Database = {
       }
       bible_bee_cycles: {
         Row: {
+          competition_end_date: string | null
+          competition_start_date: string | null
           created_at: string | null
           cycle_id: string
           description: string | null
@@ -161,6 +163,8 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          competition_end_date?: string | null
+          competition_start_date?: string | null
           created_at?: string | null
           cycle_id: string
           description?: string | null
@@ -170,6 +174,8 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          competition_end_date?: string | null
+          competition_start_date?: string | null
           created_at?: string | null
           cycle_id?: string
           description?: string | null
