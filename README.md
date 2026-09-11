@@ -4,18 +4,23 @@ A comprehensive children's ministry management system designed to streamline reg
 
 ## 🚀 Features
 
-- **Family Registration**: Complete household profiles with multi-child support
+- **Family Registration**: Complete household profiles with multi-child support (including returning-family registration for the active cycle, e.g. Fall 2026)
 - **Check-In/Out Management**: Real-time attendance tracking with guardian verification
 - **Incident Reporting**: Comprehensive incident logging with severity tracking
 - **Ministry Management**: Flexible program configuration and enrollment tracking
+- **Active cycle scoping**: Staff UI (rosters, registrations, households) scoped to the active registration cycle
+- **Flat admin routes**: Primary staff URLs are `/check-in`, `/ministries`, `/reports`, etc.; legacy `/dashboard/*` redirects to the flat path
+- **In-app help**: User guide and release notes at `/help` and `/help/releases`
+- **Emergency snapshot**: Admin `/reports` export of today’s roster with allergies and contacts
 - **Role-Based Access**: Secure admin and leader permissions
 - **Mobile-First Design**: Responsive interface optimized for all devices
 - **Real-Time Updates**: Live data synchronization across all users
-- **Reporting & Export**: Comprehensive data export and analytics
+- **Reporting & Export**: Attendance rollups and other CSV exports
+- **Error monitoring**: Sentry in production/UAT when `NEXT_PUBLIC_SENTRY_DSN` is set
 
 ## 🛠️ Tech Stack
 
-- **Frontend**: Next.js 15 with React 18, TypeScript
+- **Frontend**: Next.js 16 with React 18, TypeScript
 - **UI Components**: Radix UI with custom Tailwind CSS styling
 - **State Management**: React Context API, TanStack Query
 - **Database**: Supabase (PostgreSQL) via the DAL / `dbAdapter`
@@ -27,7 +32,7 @@ A comprehensive children's ministry management system designed to streamline reg
 
 Before you begin, ensure you have the following installed:
 
-- **Node.js** (v18 or higher)
+- **Node.js** (`>=22.22.2`, see `package.json` engines)
 - **npm** or **yarn** package manager
 - **Git** for version control
 
@@ -70,7 +75,7 @@ npm run seed:dev
 ```env
 # Application Configuration
 NEXT_PUBLIC_APP_NAME=gatherKids
-NEXT_PUBLIC_APP_VERSION=1.0.0
+NEXT_PUBLIC_APP_VERSION=1.11.0
 NODE_ENV=development
 
 NEXT_PUBLIC_LOGIN_MAGIC_ENABLED=false
@@ -125,11 +130,12 @@ For UAT (User Acceptance Testing) environments using Supabase, the application i
 
 ### What Gets Seeded
 
-- **3 Ministries**: Sunday School, Bible Bee Training, Khalfani Kids
-- **Competition Year**: Bible Bee 2025-2026 with scripture references
-- **Scripture Database**: Complete scripture texts in NIV, KJV, and NIV Spanish
-- **Test Families**: 3 households with guardians and children
-- **Ministry Enrollments**: Sample enrollments linking children to ministries
+- **Ministries**: Full FCBC-style catalog (~19), including Sunday School, Bible Bee, mentoring (Khalfani/Nailah), youth choirs, VBS, and more
+- **Registration cycle**: Dynamically named by season/year when seeded (e.g. **Fall 2026** in Sep 2026); marked `is_active`
+- **Bible Bee cycle**: Seed script still creates **Fall 2025 Bible Bee** linked to that registration cycle, plus a **2025-2026** competition year, divisions, and scripture references
+- **Scripture Database**: Scripture texts in NIV, KJV, and NVI (Spanish)
+- **Test Families**: 10 households with guardians and children (~20 children)
+- **Ministry Enrollments**: Sample enrollments linking children to ministries for the active cycle
 
 ### Seeding Commands
 
@@ -202,25 +208,30 @@ See `docs/PROD_PROMOTION_RUNBOOK.md` for the promotion runbook.
 ```
 gather-kids/
 ├── src/
-│   ├── app/                    # Next.js app router pages
-│   │   ├── dashboard/         # Admin and leader dashboard
-│   │   ├── login/            # Authentication pages
-│   │   └── register/         # Family registration
+│   ├── app/                    # Next.js App Router
+│   │   ├── (admin)/           # Flat staff routes: /check-in, /ministries, /reports, …
+│   │   ├── dashboard/         # Legacy /dashboard/* → flat-route redirects
+│   │   ├── help/              # In-app user guide + /help/releases
+│   │   ├── household/         # Guardian household portal
+│   │   ├── login/             # Authentication
+│   │   └── register/          # Family registration
 │   ├── components/            # Reusable UI components
-│   │   ├── ui/               # Base UI components (Radix)
-│   │   └── gatherKids/     # Application-specific components
+│   │   ├── ui/                # Base UI components (Radix)
+│   │   └── gatherKids/        # Application-specific components
 │   ├── contexts/              # React contexts (auth, features)
 │   ├── hooks/                 # Custom React hooks
 │   ├── lib/                   # Utilities and data access
-│   │   ├── database/         # Database abstraction layer (SupabaseAdapter)
-│   │   │   ├── types.ts      # Database adapter interface
-│   │   │   ├── factory.ts    # Always returns SupabaseAdapter
+│   │   ├── database/          # Database abstraction layer (SupabaseAdapter)
+│   │   │   ├── types.ts       # Database adapter interface
+│   │   │   ├── factory.ts     # Always returns SupabaseAdapter
 │   │   │   └── supabase-adapter.ts
-│   │   └── ai/               # AI/Genkit integration
+│   │   ├── dal/               # Domain DAL helpers (cycle scoping, exports, …)
+│   │   └── ai/                # AI/Genkit integration
+├── content/help/              # Markdown sources for /help
 ├── supabase/                  # Raw SQL migrations and Supabase config
-│   ├── migrations/           # SQL migration files
-│   └── seeds/                # Project seed scripts and SQL
-├── docs/                      # Documentation
+│   ├── migrations/            # SQL migration files
+│   └── seeds/                 # Project seed scripts and SQL
+├── docs/                      # Developer / ops documentation
 ├── public/                    # Static assets
 └── tailwind.config.ts         # Tailwind CSS configuration
 ```
@@ -463,7 +474,7 @@ The Sentry tunnel is `/monitoring` (`tunnelRoute` in `next.config.ts`). Middlewa
 
 **CI dummy builds must not upload source maps.** `.github/workflows/ci.yml` must not set `SENTRY_AUTH_TOKEN`. Uploads are for Vercel/production builds only (see #260).
 
-**Turbopack sourcemaps:** Local `npm run dev` uses Turbopack. Production stays on webpack (`next build` without `--turbopack`). Turbopack production sourcemaps need Next.js ≥15.4.1 **and** `@sentry/nextjs` ≥10.13. This repo is on Next 15.3.8 and `@sentry/nextjs` ^10.11, so do not switch the production build to `--turbopack` until those versions are bumped together.
+**Turbopack sourcemaps:** Local `npm run dev` uses Turbopack. Production stays on webpack (`next build` without `--turbopack`). The repo is on **Next.js 16** and `@sentry/nextjs` **^10.73**; keep production on webpack unless Turbopack production sourcemaps are explicitly validated for this stack.
 
 Sample rates, Replay policy, and PII scrubbing are shared from `src/lib/sentry/` (do not copy magic numbers into each init file):
 
@@ -566,8 +577,7 @@ Coding agents: [`AGENTS.md`](./AGENTS.md) is the operating contract. Thomas’s 
 - **Tailwind CSS**: [https://tailwindcss.com](https://tailwindcss.com)
 - **Radix UI**: [https://www.radix-ui.com](https://www.radix-ui.com)
 - **Next.js**: [https://nextjs.org](https://nextjs.org)
-  - **Supabase**: [https://supabase.com](https://supabase.com)
-- **Docusaurus**: [https://docusaurus.io](https://docusaurus.io)
+- **Supabase**: [https://supabase.com](https://supabase.com)
 
 ## 🆘 Troubleshooting
 
@@ -584,7 +594,7 @@ Coding agents: [`AGENTS.md`](./AGENTS.md) is the operating contract. Thomas’s 
 
 - Check the console for error messages
 - Verify all environment variables are set correctly
-- Ensure you're using the correct Node.js version
+- Ensure you're using Node.js `>=22.22.2` (`package.json` engines)
 - Check that all dependencies are properly installed
 - **Supabase Issues**: Verify project URL and API keys in environment variables
 
