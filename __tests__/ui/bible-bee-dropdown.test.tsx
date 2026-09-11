@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { useForm, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -87,43 +87,31 @@ describe('Bible Bee Preferred Scripture Translation Dropdown', () => {
 	it('should allow selecting different translations', async () => {
 		renderBibleBeeMinistryForm();
 
-		// Click on the dropdown to open it
 		const dropdownTrigger = screen.getByRole('combobox');
-		fireEvent.click(dropdownTrigger);
+		fireEvent.keyDown(dropdownTrigger, { key: 'ArrowDown' });
+		fireEvent.keyDown(
+			await screen.findByRole('option', { name: 'KJV - King James Version' }),
+			{ key: 'Enter' }
+		);
 
-		// Select KJV
-		await waitFor(() => {
-			const kjvOption = screen.getByText('KJV - King James Version');
-			fireEvent.click(kjvOption);
-		});
-
-		// The dropdown should now show KJV as selected
-		await waitFor(() => {
-			expect(screen.getByText('KJV - King James Version')).toBeInTheDocument();
-		});
+		expect(dropdownTrigger).toHaveTextContent('KJV - King James Version');
 	});
 
 	it('should allow selecting NIV-Spanish', async () => {
 		renderBibleBeeMinistryForm();
 
-		// Click on the dropdown to open it
 		const dropdownTrigger = screen.getByRole('combobox');
-		fireEvent.click(dropdownTrigger);
+		fireEvent.keyDown(dropdownTrigger, { key: 'ArrowDown' });
+		fireEvent.keyDown(
+			await screen.findByRole('option', {
+				name: 'NIV-Spanish - Nueva Versión Internacional',
+			}),
+			{ key: 'Enter' }
+		);
 
-		// Select NIV-Spanish
-		await waitFor(() => {
-			const nivSpanishOption = screen.getByText(
-				'NIV-Spanish - Nueva Versión Internacional'
-			);
-			fireEvent.click(nivSpanishOption);
-		});
-
-		// The dropdown should now show NIV-Spanish as selected
-		await waitFor(() => {
-			expect(
-				screen.getByText('NIV-Spanish - Nueva Versión Internacional')
-			).toBeInTheDocument();
-		});
+		expect(dropdownTrigger).toHaveTextContent(
+			'NIV-Spanish - Nueva Versión Internacional'
+		);
 	});
 
 	it('should have proper form field name for household.preferredScriptureTranslation', () => {

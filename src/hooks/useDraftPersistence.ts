@@ -24,8 +24,8 @@ export function useDraftPersistence<T>(options: UseDraftPersistenceOptions) {
 		error: null,
 	});
 
-	const saveTimeoutRef = useRef<NodeJS.Timeout>();
-	const lastSavedDataRef = useRef<string>();
+	const saveTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
+	const lastSavedDataRef = useRef<string | undefined>(undefined);
 
 	// Generate user ID for draft scoping
 	const getUserId = useCallback((): string | null => {
