@@ -20,7 +20,7 @@ A comprehensive children's ministry management system designed to streamline reg
 
 ## 🛠️ Tech Stack
 
-- **Frontend**: Next.js 16 with React 18, TypeScript
+- **Frontend**: Next.js 16 with React 19, TypeScript
 - **UI Components**: Radix UI with custom Tailwind CSS styling
 - **State Management**: React Context API, TanStack Query
 - **Database**: Supabase (PostgreSQL) via the DAL / `dbAdapter`
