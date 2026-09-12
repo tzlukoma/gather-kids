@@ -1,14 +1,15 @@
 import 'server-only';
 import { getBoolean } from '@/lib/flags';
 import { auth } from '@/lib/supabaseServer';
+import { redirect } from 'next/navigation';
 import RegisterWizard from '@/components/gatherKids/registration-wizard';
-import RegisterPageLegacy from './page-legacy';
+import RegisterPageLegacy from './legacy-page';
 
 /**
  * Server wrapper that evaluates the gathersystem_registration flag
  * and renders either the new wizard or legacy form.
  */
-export default async function RegisterPage() {
+export default async function RegisterPageGS() {
 	const session = await auth();
 	const userId = session?.user?.id ?? null;
 	const userRole = session?.user?.user_metadata?.role ?? null;

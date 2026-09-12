@@ -4,6 +4,7 @@ export const GATHERSYSTEM_FLAG_KEYS = [
 	'gathersystem_door',
 	'gathersystem_guardian',
 	'gathersystem_bible_bee_household',
+	'gathersystem_registration',
 ] as const;
 
 export type GatherSystemFlagKey = (typeof GATHERSYSTEM_FLAG_KEYS)[number];
