@@ -33,6 +33,16 @@ async function listActiveCycleEnrollments(childId: string) {
 	return enrollmentsForActiveBibleBeeCycle(enrollments, cycles);
 }
 
+// Child Enrollments
+export function useChildEnrollments(childId: string) {
+  return useQuery({
+    queryKey: ['childEnrollments', childId],
+    queryFn: () => dbAdapter.listEnrollments(childId),
+    enabled: !!childId,
+    ...cacheConfig.moderate,
+  });
+}
+
 // Bible Bee Cycles (Primary Pattern)
 export function useBibleBeeCycles(isActive?: boolean) {
   return useQuery({

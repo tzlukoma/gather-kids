@@ -44,6 +44,7 @@ export {
   useDeleteBibleBeeCycle,
   useUpsertScripture,
   useDeleteScripture,
+  useChildEnrollments,
   useStudentAssignmentsQuery,
   useToggleScriptureMutation,
   useSubmitEssayMutation

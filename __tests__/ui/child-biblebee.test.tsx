@@ -85,6 +85,17 @@ jest.mock('@/hooks/data', () => ({
 		],
 		isLoading: false,
 	}),
+	useChildEnrollments: jest.fn().mockReturnValue({
+		data: [
+			{
+				id: 'test-enrollment-1',
+				child_id: 'test-child',
+				bible_bee_cycle_id: 'test-cycle-1',
+				division_id: 'test-division-1',
+			},
+		],
+		isLoading: false,
+	}),
 	// Mock the missing Bible Bee hooks
 	useStudentAssignmentsQuery: jest.fn().mockImplementation(() => ({
 		data: mockScriptureData,

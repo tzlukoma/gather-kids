@@ -7,9 +7,10 @@ import {
 	useHouseholdProfile,
 	useStudentAssignmentsQuery,
 	useToggleScriptureMutation,
-	useSubmitEssayMutation,
+    useSubmitEssayMutation,
 	useBibleBeeStats,
 	useBibleBeeCycles,
+	useChildEnrollments,
 } from '@/hooks/data';
 import { ChildIdCard } from '@/components/gatherKids/child-id-card';
 import { updateChildPhoto } from '@/lib/dal';
@@ -41,6 +42,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from '@/components/ui/select';
+import { pickActiveBibleBeeCycle } from '@/lib/bible-bee-cycle';
 
 interface ChildBibleBeeDetailProps {
 	allowPhotoUpdates?: boolean;
@@ -61,39 +63,33 @@ export default function ChildBibleBeeDetail({
 		isLoading: cyclesLoading,
 	} = useBibleBeeCycles();
 
-	// Determine the selected cycle (from URL param or default to active/recent)
+	// Load child enrollments to filter cycles to only enrolled ones
+	const {
+		data: childEnrollments = [],
+		isLoading: enrollmentsLoading,
+	} = useChildEnrollments(childId);
+
+	// Determine the selected cycle (from URL param or default to active/recent enrolled cycle)
 	const urlCycleId = searchParams?.get('cycleId');
 	
 	const defaultCycle = useMemo(() => {
 		if (!bibleBeeCycles || bibleBeeCycles.length === 0) return null;
+		if (!childEnrollments || childEnrollments.length === 0) return null;
 		
-		// First, try to find an active Bible Bee cycle
-		const activeBB = bibleBeeCycles.find((c: any) => {
-			const val: any = c?.is_active;
-			return val === true || val === 1 || String(val) === '1';
-		});
-
-		if (activeBB && activeBB.id) {
-			return String(activeBB.id);
-		}
-
-		// If no active cycle, use the most recent cycle (sorted by created_at)
-		const sortedCycles = [...bibleBeeCycles].sort((a: any, b: any) => {
-			// Try to sort by name first (e.g., "Fall 2025", "Spring 2025")
-			if (a.name && b.name) {
-				return b.name.localeCompare(a.name);
-			}
-			// Fallback to created_at
-			if (a.created_at && b.created_at) {
-				return (
-					new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-				);
-			}
-			return 0;
-		});
-
-		return sortedCycles.length > 0 ? String(sortedCycles[0].id) : null;
-	}, [bibleBeeCycles]);
+		// Filter to only cycles the child is enrolled in
+		const enrolledCycleIds = new Set(
+			childEnrollments.map((e: any) => e.bible_bee_cycle_id)
+		);
+		const enrolledCycles = bibleBeeCycles.filter((c: any) => 
+			enrolledCycleIds.has(c.id)
+		);
+		
+		if (enrolledCycles.length === 0) return null;
+		
+		// Use the shared utility to pick active cycle, or newest by name/created_at
+		const pickedCycle = pickActiveBibleBeeCycle(enrolledCycles);
+		return pickedCycle ? String(pickedCycle.id) : null;
+	}, [bibleBeeCycles, childEnrollments]);
 
 	const [userSelectedCycle, setUserSelectedCycle] = useState<string | null>(null);
 	
@@ -154,6 +150,7 @@ export default function ChildBibleBeeDetail({
 		profileLoading ||
 		statsLoading ||
 		cyclesLoading ||
+		enrollmentsLoading ||
 		!data
 	) {
 		return <div>Loading Bible Bee assignments...</div>;
