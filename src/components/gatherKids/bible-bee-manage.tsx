@@ -89,6 +89,9 @@ import {
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { ConfirmationDialog } from './confirmation-dialog';
+import { EssayPromptDisplay } from '@/components/gatherKids/essay-card';
+import { EssayRichTextEditor } from '@/components/gatherKids/essay-rich-text-editor';
+import { isEssayHtmlEmpty } from '@/lib/essay-prompt-content';
 import {
 	useDivisionsForCycle,
 	useEssayPromptsForCycle,
@@ -1892,6 +1895,10 @@ function EssayManagement({
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
 		setError(null);
+		if (isEssayHtmlEmpty(formData.prompt)) {
+			setError('Essay prompt is required');
+			return;
+		}
 		try {
 			console.log('Form data before submission:', formData);
 
@@ -2123,27 +2130,28 @@ function EssayManagement({
 						</div>
 						<div>
 							<Label htmlFor="prompt">Essay Prompt</Label>
-							<Textarea
+							<EssayRichTextEditor
 								id="prompt"
-								placeholder="Enter the essay prompt text..."
+								aria-label="Essay prompt"
+								placeholder="Enter the essay prompt..."
 								value={formData.prompt}
-								onChange={(e) =>
-									setFormData({ ...formData, prompt: e.target.value })
+								onChange={(html) =>
+									setFormData({ ...formData, prompt: html })
 								}
-								required
-								rows={4}
+								minHeightClassName="min-h-24"
 							/>
 						</div>
 						<div>
 							<Label htmlFor="instructions">Instructions (Optional)</Label>
-							<Textarea
+							<EssayRichTextEditor
 								id="instructions"
+								aria-label="Essay instructions"
 								placeholder="Enter additional instructions..."
 								value={formData.instructions}
-								onChange={(e) =>
-									setFormData({ ...formData, instructions: e.target.value })
+								onChange={(html) =>
+									setFormData({ ...formData, instructions: html })
 								}
-								rows={2}
+								minHeightClassName="min-h-16"
 							/>
 						</div>
 						<div className="flex gap-2">
@@ -2184,36 +2192,17 @@ function EssayManagement({
 								<div
 									key={essay.id}
 									className="flex items-start justify-between p-3 border rounded-lg">
-									<div className="space-y-1 flex-1">
+									<div className="space-y-2 flex-1 min-w-0">
 										<h3 className="font-medium">
 											{divisionName || 'All Divisions'}
 										</h3>
-										<p className="text-sm text-muted-foreground">
-											{essay.prompt}
-										</p>
-										{essay.due_date && (
-											<div className="text-sm text-muted-foreground">
-												Due:{' '}
-												{(() => {
-													// Parse the UTC date and format with time
-													const utcDate = new Date(essay.due_date);
-													const dateStr = utcDate.toLocaleDateString('en-US', {
-														year: 'numeric',
-														month: 'long',
-														day: 'numeric',
-													});
-													// Use UTC methods to display the time as stored (not converted to local timezone)
-													const hours = utcDate.getUTCHours();
-													const minutes = utcDate.getUTCMinutes();
-													const ampm = hours >= 12 ? 'PM' : 'AM';
-													const displayHours = hours % 12 || 12; // Convert to 12-hour format
-													const timeStr = `${displayHours}:${minutes
-														.toString()
-														.padStart(2, '0')} ${ampm}`;
-													return `${dateStr} at ${timeStr}`;
-												})()}
-											</div>
-										)}
+										<EssayPromptDisplay
+											title={essay.title}
+											prompt={essay.prompt}
+											instructions={essay.instructions}
+											due_date={essay.due_date}
+											showTitle
+										/>
 									</div>
 									<div className="flex gap-2">
 										<Button
