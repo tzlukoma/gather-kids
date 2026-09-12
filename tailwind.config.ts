@@ -31,6 +31,7 @@ export default {
           yellow: 'hsl(var(--color-yellow))',
           orange: 'hsl(var(--color-orange))',
           aqua: 'hsl(var(--color-aqua))',
+          ground: 'hsl(var(--color-bg))',
         },
         surface: 'hsl(var(--color-bg))',
         ink: 'hsl(var(--color-ink))',
