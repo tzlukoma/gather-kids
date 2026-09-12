@@ -37,30 +37,49 @@ function envValue(value: string | undefined): string | undefined {
 	return value;
 }
 
-export function getAnalyticsDeployEnv(env: Env = process.env): string {
+/**
+ * Next.js only inlines *static* `process.env.NEXT_PUBLIC_*` member access into
+ * the browser bundle. Passing `process.env` as an object (or destructuring it)
+ * leaves those keys undefined on Preview/Production even when Vercel has them.
+ *
+ * Do not read `process.env.CI` here: Vercel sets `CI=true` at build time, and
+ * a static read would bake that into the client and permanently disable PostHog.
+ */
+function readBrowserAnalyticsEnv(override?: Env): Env {
+	if (override) return override;
+	return {
+		NODE_ENV: process.env.NODE_ENV,
+		NEXT_PUBLIC_DEPLOY_ENV: process.env.NEXT_PUBLIC_DEPLOY_ENV,
+		VERCEL_ENV: process.env.VERCEL_ENV,
+		NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN:
+			process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN,
+		NEXT_PUBLIC_POSTHOG_HOST: process.env.NEXT_PUBLIC_POSTHOG_HOST,
+	};
+}
+
+export function getAnalyticsDeployEnv(env?: Env): string {
+	const source = readBrowserAnalyticsEnv(env);
 	return (
-		envValue(env.NEXT_PUBLIC_DEPLOY_ENV) ||
-		envValue(env.VERCEL_ENV) ||
+		envValue(source.NEXT_PUBLIC_DEPLOY_ENV) ||
+		envValue(source.VERCEL_ENV) ||
 		'development'
 	);
 }
 
-export function shouldInitBrowserPostHog(env: Env = process.env): boolean {
-	if (env.NODE_ENV === 'test' || env.CI === 'true') return false;
+export function shouldInitBrowserPostHog(env?: Env): boolean {
+	const source = readBrowserAnalyticsEnv(env);
+	if (source.NODE_ENV === 'test' || source.CI === 'true') return false;
 
-	const deployEnv = getAnalyticsDeployEnv(env);
+	const deployEnv = getAnalyticsDeployEnv(source);
 	if (deployEnv !== 'uat' && deployEnv !== 'production') return false;
 
 	return Boolean(
-		envValue(env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN) &&
-			envValue(env.NEXT_PUBLIC_POSTHOG_HOST)
+		envValue(source.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN) &&
+			envValue(source.NEXT_PUBLIC_POSTHOG_HOST)
 	);
 }
 
-export function buildAnalyticsDistinctId(
-	userId: string,
-	env: Env = process.env
-): string {
+export function buildAnalyticsDistinctId(userId: string, env?: Env): string {
 	return `${getAnalyticsDeployEnv(env)}:${userId}`;
 }
 

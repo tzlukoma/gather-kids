@@ -19,6 +19,8 @@ jest.mock('posthog-js', () => ({
 
 describe('analytics browser helpers', () => {
 	const originalEnv = {
+		nodeEnv: process.env.NODE_ENV,
+		ci: process.env.CI,
 		deployEnv: process.env.NEXT_PUBLIC_DEPLOY_ENV,
 		vercelEnv: process.env.VERCEL_ENV,
 		token: process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN,
@@ -26,6 +28,12 @@ describe('analytics browser helpers', () => {
 	};
 
 	afterEach(() => {
+		process.env.NODE_ENV = originalEnv.nodeEnv;
+		if (originalEnv.ci === undefined) {
+			delete process.env.CI;
+		} else {
+			process.env.CI = originalEnv.ci;
+		}
 		if (originalEnv.deployEnv === undefined) {
 			delete process.env.NEXT_PUBLIC_DEPLOY_ENV;
 		} else {
@@ -94,6 +102,16 @@ describe('analytics browser helpers', () => {
 				NEXT_PUBLIC_POSTHOG_HOST: 'https://us.i.posthog.com',
 			})
 		).toBe(true);
+	});
+
+	it('reads NEXT_PUBLIC keys from process.env when no override is passed', () => {
+		process.env.NODE_ENV = 'production';
+		delete process.env.CI;
+		process.env.NEXT_PUBLIC_DEPLOY_ENV = 'uat';
+		process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN = 'phc_test';
+		process.env.NEXT_PUBLIC_POSTHOG_HOST = 'https://us.i.posthog.com';
+
+		expect(shouldInitBrowserPostHog()).toBe(true);
 	});
 
 	it('identify properties are role and deploy_env only', () => {
