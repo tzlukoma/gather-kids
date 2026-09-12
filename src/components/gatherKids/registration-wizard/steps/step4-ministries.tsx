@@ -249,11 +249,26 @@ export function Step4Ministries({ form }: Step4MinistriesProps) {
 			names.add(normalizeCode(choir.name));
 		}
 
-		// Helper to check if a ministry is a choir (by id, code, or name)
+		// Helper to check if a ministry is a choir (by id, code, name, or partial name match)
 		const isChoirFn = (ministry: Ministry): boolean => {
+			// Exact ID match
 			if (ids.has(ministry.ministry_id)) return true;
+			
+			// Exact code match
 			if (codes.has(normalizeCode(ministry.code))) return true;
-			if (names.has(normalizeCode(ministry.name))) return true;
+			
+			// Exact name match
+			const normalizedMinistryName = normalizeCode(ministry.name);
+			if (names.has(normalizedMinistryName)) return true;
+			
+			// Partial name match (check if ministry name contains any choir name, or vice versa)
+			// This catches variants like "Teen Choir" vs "Teen Youth Choir"
+			for (const choirName of names) {
+				if (normalizedMinistryName.includes(choirName) || choirName.includes(normalizedMinistryName)) {
+					return true;
+				}
+			}
+			
 			return false;
 		};
 
