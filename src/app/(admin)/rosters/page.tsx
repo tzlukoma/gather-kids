@@ -745,6 +745,7 @@ export default function RostersPage() {
 									</Button>
 								) : (
 									<Button
+										variant="door"
 										size="sm"
 										className="w-full"
 										onClick={() => handleCheckIn(child.child_id)}>
@@ -836,6 +837,7 @@ export default function RostersPage() {
 												</Button>
 											) : (
 												<Button
+													variant="door"
 													size="sm"
 													className="w-full"
 													onClick={() => handleCheckIn(child.child_id)}>

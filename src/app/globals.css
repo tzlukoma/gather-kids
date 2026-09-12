@@ -11,23 +11,19 @@ body {
 
 @layer base {
   :root {
-    /* gatherKids Design System - Primary Colors */
+    /* gatherKids Design System - Brand Primitives (Figma Foundations · Color) */
     --color-teal: 181 98% 29%;
-    /* #017C7D - Brand primary */
+    /* #017C7D - brand.teal */
     --color-yellow: 39 97% 59%;
-    /* #FCB131 - CTA / highlight */
-    
-    /* gatherKids Design System - Secondary Colors */
+    /* #FCB131 - brand.yellow (marigold) */
     --color-orange: 13 81% 55%;
-    /* #E86A2F */
+    /* #E86A2F - brand.orange */
     --color-aqua: 174 85% 41%;
-    /* #1FB6AA */
-    
-    /* gatherKids Design System - Neutrals */
+    /* #1FB6AA - brand.aqua */
     --color-bg: 40 33% 96%;
-    /* #F7F5F1 - App background */
+    /* #F7F5F1 - brand.ground (app background) */
     --color-ink: 199 26% 15%;
-    /* #1E2A2F - Primary text */
+    /* #1E2A2F - ink (primary text) */
 
     /* System tokens mapped to new design system */
     --background: var(--color-bg);
@@ -157,14 +153,16 @@ p, li, blockquote {
   font-family: var(--font-scripture) !important;
 }
 
-/* gatherKids Design System Utility Classes */
+/* gatherKids Design System Utility Classes
+   Rule A: teal = guardian/admin primary; marigold = door-staff only
+   See docs/DESIGN_TOKENS.md for full guidance */
 @layer utilities {
   .btn-primary { 
-    @apply bg-brand-yellow text-ink font-semibold hover:opacity-90 transition-opacity; 
+    @apply bg-brand-teal text-white font-semibold hover:opacity-90 transition-opacity; 
   }
   
-  .btn-secondary { 
-    @apply bg-brand-teal text-white font-semibold hover:opacity-90 transition-opacity; 
+  .btn-door { 
+    @apply bg-brand-yellow text-ink font-semibold hover:opacity-90 transition-opacity; 
   }
   
   .link { 

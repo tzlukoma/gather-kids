@@ -300,6 +300,7 @@ export function ChildCard({
 				) : (
 					<Button
 						className="w-full"
+						variant="door"
 						onClick={() => onCheckIn(child.child_id)}
 						disabled={!!checkedInEvent}>
 						Check In
