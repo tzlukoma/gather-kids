@@ -21,6 +21,7 @@ import { useFeatureFlags } from '@/contexts/feature-flag-context';
 import { useBranding } from '@/contexts/branding-context';
 import { supabase } from '@/lib/supabaseClient';
 import { isOfflineSupabase } from '@/lib/offline-supabase';
+import { captureAnalyticsEvent } from '@/lib/analytics/browser';
 
 export default function CreateAccountPage() {
 	const router = useRouter();
@@ -93,6 +94,7 @@ export default function CreateAccountPage() {
 					throw new Error(body.error || 'Unable to create account. Please try again.');
 				}
 
+				captureAnalyticsEvent('account_created');
 				setNeedsVerification(true);
 				toast({
 					title: 'Check Your Email',
@@ -183,6 +185,7 @@ export default function CreateAccountPage() {
 
 			// Check if we have a successful signup response
 			if (data?.user) {
+				captureAnalyticsEvent('account_created');
 				console.log(
 					'🔍 Create Account: User created successfully, checking session status'
 				);

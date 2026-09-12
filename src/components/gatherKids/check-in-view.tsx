@@ -42,6 +42,7 @@ import {
 	useCheckOutMutation,
 } from '@/hooks/data';
 import { getEventName } from '@/lib/constants';
+import { captureAnalyticsEvent } from '@/lib/analytics/browser';
 
 interface CheckInViewProps {
 	children: Child[];
@@ -190,6 +191,7 @@ export function CheckInView({
 				eventId: selectedEvent,
 				userId: 'user_admin',
 			});
+			captureAnalyticsEvent('child_checked_in', { check_in_event: selectedEvent });
 
 			const child = enrichedChildren.find((c) => c.child_id === childId);
 
@@ -219,6 +221,7 @@ export function CheckInView({
 				attendanceId,
 				verifier,
 			});
+			captureAnalyticsEvent('child_checked_out', { check_in_event: selectedEvent });
 
 			const child = enrichedChildren.find((c) => c.child_id === childId);
 

@@ -6,6 +6,7 @@ import React, {
 	useState,
 	useEffect,
 	useCallback,
+	useRef,
 	ReactNode,
 } from 'react';
 import { getLeaderAssignmentsForCycle, getRegistrationCycles } from '@/lib/dal';
@@ -20,6 +21,10 @@ import {
 	readOfflineSessionUser,
 } from '@/lib/offline-supabase';
 import { devLog } from '@/lib/dev-log';
+import {
+	identifyAnalyticsUser,
+	resetAnalyticsUser,
+} from '@/lib/analytics/browser';
 
 const authLog = devLog('auth');
 
@@ -52,6 +57,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 		}
 		return null;
 	});
+	const identifiedUserId = useRef<string | null>(null);
+
+	useEffect(() => {
+		const distinctId = user?.uid ?? user?.id;
+
+		if (!user || !distinctId || identifiedUserId.current === distinctId) {
+			return;
+		}
+
+		if (identifiedUserId.current !== null) {
+			resetAnalyticsUser();
+		}
+
+		identifyAnalyticsUser({
+			userId: distinctId,
+			role: user.metadata.role,
+		});
+		identifiedUserId.current = distinctId;
+	}, [user]);
+
+	const resetPostHogIdentity = useCallback(() => {
+		if (identifiedUserId.current !== null) {
+			resetAnalyticsUser();
+			identifiedUserId.current = null;
+		}
+	}, []);
 
 	// Helper to extract a user id from various shapes
 	function getUserId(u: any): string | undefined {
@@ -285,6 +316,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 					);
 				}, 0);
 			} else if (event === 'SIGNED_OUT') {
+				resetPostHogIdentity();
 				// If user had an active session, this may be a session expiry (not explicit logout)
 				// The explicit logout clears the user before calling supabase.auth.signOut(),
 				// so if user is still set here, it was an unexpected sign-out (token expiry etc.)
@@ -301,7 +333,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 		return () => {
 			subscription.unsubscribe();
 		};
-	}, [setUserFromSupabaseData]);
+	}, [resetPostHogIdentity, setUserFromSupabaseData]);
 
 	const login = async (userData: Omit<BaseUser, 'assignedMinistryIds'>) => {
 		authLog.log('Login called with userData:', userData);
@@ -358,6 +390,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 	const logout = () => {
 		setLoading(true);
 		try {
+			resetPostHogIdentity();
 			setUser(null);
 			setUserRole(null);
 			clearOfflineSessionUser();

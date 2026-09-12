@@ -2,6 +2,7 @@
 // https://docs.sentry.io/platforms/javascript/guides/nextjs/
 
 import * as Sentry from '@sentry/nextjs';
+import { initBrowserPostHog } from '@/lib/analytics/browser';
 import {
   getSentryDsn,
   getSentryEnvironment,
@@ -14,6 +15,8 @@ import {
   SENTRY_REPLAY_MASKING,
 } from '@/lib/sentry/sampling';
 import { sentryBeforeSend } from '@/lib/sentry/scrub';
+
+initBrowserPostHog();
 
 if (shouldInitSentry()) {
   const environment = getSentryEnvironment();

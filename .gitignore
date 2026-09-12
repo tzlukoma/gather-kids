@@ -73,6 +73,9 @@ prod-backup-*.dump
 # Sentry Config File
 .env.sentry-build-plugin
 
+# PostHog CLI wizard cache (local only)
+.posthog-wizard-cache/
+
 # Claude local settings (personal overrides, not for team)
 .claude/settings.local.json
 .claude/worktrees/**/.claude/settings.local.json

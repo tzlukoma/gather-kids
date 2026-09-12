@@ -91,6 +91,7 @@ import { useDraftPersistence } from '@/hooks/useDraftPersistence';
 import { DraftStatusIndicator } from '@/components/ui/draft-status-indicator';
 import { useFeatureFlags } from '@/contexts/feature-flag-context';
 import { useAuth } from '@/contexts/auth-context';
+import { captureAnalyticsEvent } from '@/lib/analytics/browser';
 
 const log = devLog('register');
 
@@ -1462,6 +1463,10 @@ function RegisterPageContent() {
 				return;
 			}
 
+			captureAnalyticsEvent('registration_submitted', {
+				child_count: data.children.length,
+				returning_household: isReturningPrefill,
+			});
 			toast({
 				title: 'Registration Submitted!',
 				description:
@@ -1564,6 +1569,10 @@ function RegisterPageContent() {
 				roleAssigned: result?.roleAssigned,
 			});
 
+			captureAnalyticsEvent('registration_submitted', {
+				child_count: data.children.length,
+				returning_household: isReturningPrefill,
+			});
 			toast({
 				title: 'Registration Submitted!',
 				description: "Thank you! Your family's registration has been received.",
