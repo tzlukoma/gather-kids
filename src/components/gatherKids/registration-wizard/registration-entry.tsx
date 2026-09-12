@@ -6,10 +6,11 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/auth-context';
 import { useQuery } from '@tanstack/react-query';
-import { getRegistrationCycles, loadHouseholdForRegistration } from '@/lib/dal';
+import { getRegistrationCycles, getHouseholdForUser, getHouseholdProfile } from '@/lib/dal';
 import { pickActiveRegistrationCycle } from '@/lib/dal/registration-cycle-utils';
 import { Home, Users } from 'lucide-react';
-import { db as dbAdapter } from '@/lib/database/factory';
+import { useDraftPersistence } from '@/hooks/useDraftPersistence';
+import type { RegistrationFormInput } from './registration-schema';
 
 interface RegistrationEntryProps {
 	onStart: (prefillData?: any) => void;
@@ -20,7 +21,8 @@ export function RegistrationEntry({ onStart }: RegistrationEntryProps) {
 	const { user } = useAuth();
 	const [isLoading, setIsLoading] = useState(true);
 	const [householdData, setHouseholdData] = useState<any>(null);
-	const [displayData, setDisplayData] = useState<{ household: any; children: any[] } | null>(null);
+	const [children, setChildren] = useState<any[]>([]);
+	const [householdName, setHouseholdName] = useState<string>('Your household');
 
 	const { data: registrationCycles = [] } = useQuery({
 		queryKey: ['registrationCycles'],
@@ -31,36 +33,84 @@ export function RegistrationEntry({ onStart }: RegistrationEntryProps) {
 	const activeRegistrationCycle = pickActiveRegistrationCycle(registrationCycles);
 	const cycleName = activeRegistrationCycle?.cycle_id || 'Fall 2026';
 
+	// Set up draft persistence to peek at draft children
+	const { loadDraft } = useDraftPersistence<RegistrationFormInput>({
+		formName: 'registration_v1',
+		version: 1,
+		enabled: true,
+	});
+
 	useEffect(() => {
-		const checkHousehold = async () => {
+		const loadHouseholdAndChildren = async () => {
 			if (!user?.uid || !activeRegistrationCycle?.cycle_id) {
 				setIsLoading(false);
 				return;
 			}
 
 			try {
-				// Try to load prefill data (returns null if first-time or no prior enrollment)
-				const result = await loadHouseholdForRegistration(
+				// Import loadHouseholdForRegistration dynamically to avoid circular deps
+				const { loadHouseholdForRegistration } = await import('@/lib/dal');
+				
+				// Try to load prefill data for form
+				const prefillResult = await loadHouseholdForRegistration(
 					user.uid,
 					activeRegistrationCycle.cycle_id
 				);
-				setHouseholdData(result);
+				setHouseholdData(prefillResult);
 
-				// If no prefill data but user is signed in, still load household + children for display
-				if (!result) {
-					const householdId = await dbAdapter.getHouseholdForUser(user.uid);
-					if (householdId) {
-						const household = await dbAdapter.getHousehold(householdId);
-						const children = await dbAdapter.listChildren({ householdId, isActive: true });
-						setDisplayData({ household, children });
+				// Load household profile for display (works with RLS for guardians)
+				const householdId = await getHouseholdForUser(user.uid);
+				
+				let profileChildren: any[] = [];
+				let profileHouseholdName = 'Your household';
+
+				if (householdId) {
+					try {
+						const profile = await getHouseholdProfile(householdId);
+						profileChildren = profile.children || [];
+						profileHouseholdName = profile.household?.name || 'Your household';
+					} catch (error) {
+						console.warn('Could not load household profile:', error);
 					}
-				} else {
-					// Use prefill data for display
-					setDisplayData({
-						household: result.data.household,
-						children: result.data.children
-					});
 				}
+
+				// Also peek at draft to get children from draft
+				let draftChildren: any[] = [];
+				try {
+					const draft = await loadDraft();
+					if (draft?.children && Array.isArray(draft.children)) {
+						draftChildren = draft.children.filter((c: any) => c?.first_name);
+					}
+				} catch (error) {
+					console.warn('Could not load draft:', error);
+				}
+
+				// Merge profile children with draft children (union, dedupe by first_name+last_name)
+				const childMap = new Map<string, any>();
+				
+				// Add profile children
+				for (const child of profileChildren) {
+					if (child?.first_name) {
+						const key = `${child.first_name}|${child.last_name || ''}`;
+						childMap.set(key, child);
+					}
+				}
+				
+				// Add draft children (may have more recent data)
+				for (const child of draftChildren) {
+					if (child?.first_name) {
+						const key = `${child.first_name}|${child.last_name || ''}`;
+						if (!childMap.has(key) || !child.child_id) {
+							// Prefer draft if no profile entry, or if draft has more complete data
+							childMap.set(key, child);
+						}
+					}
+				}
+
+				const mergedChildren = Array.from(childMap.values());
+				setChildren(mergedChildren);
+				setHouseholdName(profileHouseholdName);
+
 			} catch (error) {
 				console.error('Error loading household:', error);
 			} finally {
@@ -68,8 +118,8 @@ export function RegistrationEntry({ onStart }: RegistrationEntryProps) {
 			}
 		};
 
-		checkHousehold();
-	}, [user?.uid, activeRegistrationCycle?.cycle_id]);
+		loadHouseholdAndChildren();
+	}, [user?.uid, activeRegistrationCycle?.cycle_id, loadDraft]);
 
 	const handleStart = () => {
 		onStart(householdData);
@@ -87,10 +137,6 @@ export function RegistrationEntry({ onStart }: RegistrationEntryProps) {
 	}
 
 	const userName = user?.user_metadata?.firstName || user?.email?.split('@')[0] || 'there';
-	const householdName = displayData?.household?.name || 'Your household';
-	
-	// Extract children from displayData
-	const children = displayData?.children || [];
 	const hasChildren = children.length > 0;
 
 	return (
@@ -143,7 +189,7 @@ export function RegistrationEntry({ onStart }: RegistrationEntryProps) {
 						</CardContent>
 					</Card>
 
-					{/* Children list (if returning household) */}
+					{/* Children list */}
 					{hasChildren && (
 						<div>
 							<p className="text-xs font-semibold tracking-wider uppercase text-[#5b6b72] mb-3">
@@ -161,10 +207,10 @@ export function RegistrationEntry({ onStart }: RegistrationEntryProps) {
 											</div>
 											<div className="flex-1 min-w-0">
 												<p className="font-semibold text-[#1e2a2f]">
-													{child.first_name} {child.last_name}
+													{child.first_name} {child.last_name || ''}
 												</p>
 												<p className="text-sm text-[#5b6b72]">
-													{child.grade ? `${child.grade} · returning` : 'returning'}
+													{child.grade ? `${child.grade}` : ''}{child.grade && ' · '}returning
 												</p>
 											</div>
 										</CardContent>
