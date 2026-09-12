@@ -35,6 +35,90 @@ const DRY_RUN = process.env.DRY_RUN === 'true';
 const UAT_FLAG = process.argv.includes('--uat');
 const FIXTURE_PREFIX = 'mbaku_';
 
+// Fixed namespace UUID for deterministic UUIDv5 generation (DNS namespace)
+const NAMESPACE_UUID = '6ba7b810-9dad-11d1-80b4-00c04fd430c8';
+
+/**
+ * Generate deterministic UUIDv5 from a name string
+ * This ensures idempotent re-runs produce the same UUIDs
+ */
+function generateDeterministicUUID(name) {
+	// UUIDv5 = SHA-1 hash of namespace + name
+	const hash = crypto
+		.createHash('sha1')
+		.update(NAMESPACE_UUID + name)
+		.digest('hex');
+
+	// Format as UUID v5: xxxxxxxx-xxxx-5xxx-xxxx-xxxxxxxxxxxx
+	return [
+		hash.substring(0, 8),
+		hash.substring(8, 12),
+		'5' + hash.substring(13, 16), // version 5
+		((parseInt(hash.substring(16, 18), 16) & 0x3f) | 0x80).toString(16) +
+			hash.substring(18, 20), // variant bits
+		hash.substring(20, 32),
+	].join('-');
+}
+
+/**
+ * Generate all fixture UUIDs upfront for consistent use throughout the script
+ */
+const FIXTURE_IDS = {
+	// Fixture 1: Bot household
+	bot: {
+		household: generateDeterministicUUID('mbaku_bot_household'),
+		guardian: generateDeterministicUUID('mbaku_bot_guardian'),
+		emergency_contact: generateDeterministicUUID('mbaku_bot_emergency'),
+		auth_user: `${FIXTURE_PREFIX}bot_auth_user`, // text - Supabase auth user ID
+		user_household: generateDeterministicUUID('mbaku_bot_user_household'),
+		children: {
+			child_1: {
+				child_id: generateDeterministicUUID('mbaku_bot_child_1'),
+				enrollment_id: `${FIXTURE_PREFIX}bot_child_1_bible_bee`, // text
+				bee_enrollment_id: generateDeterministicUUID('mbaku_bee_bot_child_1'),
+			},
+			child_2: {
+				child_id: generateDeterministicUUID('mbaku_bot_child_2'),
+				enrollment_id: `${FIXTURE_PREFIX}bot_child_2_bible_bee`, // text
+				bee_enrollment_id: generateDeterministicUUID('mbaku_bee_bot_child_2'),
+			},
+		},
+	},
+	// Fixture 2: Dual-cycle household
+	dual: {
+		household: generateDeterministicUUID('mbaku_dual_household'),
+		guardian: generateDeterministicUUID('mbaku_dual_guardian'),
+		auth_user: `${FIXTURE_PREFIX}dual_auth_user`, // text - Supabase auth user ID
+		user_household: generateDeterministicUUID('mbaku_dual_user_household'),
+		child: {
+			child_id: generateDeterministicUUID('mbaku_dual_child_senior'),
+			enrollment_id: `${FIXTURE_PREFIX}dual_child_senior_bible_bee`, // text
+			bee_enrollment_id_1: generateDeterministicUUID(
+				'mbaku_bee_dual_child_senior_cycle1'
+			),
+			bee_enrollment_id_2: generateDeterministicUUID(
+				'mbaku_bee_dual_child_senior_cycle2'
+			),
+			essay_prompt_id_1: generateDeterministicUUID('mbaku_essay_prompt_1'),
+			essay_prompt_id_2: generateDeterministicUUID('mbaku_essay_prompt_2'),
+			student_essay_id_1: generateDeterministicUUID('mbaku_student_essay_1'),
+			student_essay_id_2: generateDeterministicUUID('mbaku_student_essay_2'),
+		},
+	},
+	// Fixture 3: Reset household
+	reset: {
+		household: generateDeterministicUUID('mbaku_reset_household'),
+		guardian: generateDeterministicUUID('mbaku_reset_guardian'),
+		auth_user: `${FIXTURE_PREFIX}reset_auth_user`, // text - Supabase auth user ID
+		user_household: generateDeterministicUUID('mbaku_reset_user_household'),
+		child: {
+			child_id: generateDeterministicUUID('mbaku_reset_child'),
+			enrollment_id: `${FIXTURE_PREFIX}reset_child_bible_bee`, // text
+			bee_enrollment_id: generateDeterministicUUID('mbaku_bee_reset_child'),
+		},
+	},
+};
+
 // Known UAT project references (explicitly allowed, bypasses URL hostname check)
 const UAT_PROJECT_ALLOWLIST = [
 	'gekouvbeujfkiaorshim', // UAT Preview project ref
@@ -235,75 +319,136 @@ function initializeClient() {
 async function resetMbakuFixtures() {
 	if (!RESET_MODE) return;
 
-	console.log('🗑️  Resetting M\'Baku fixtures...');
+	console.log("🗑️  Resetting M'Baku fixtures...");
 
 	try {
+		// Collect all UUIDs and text IDs to delete
+		const studentEssayIds = [
+			FIXTURE_IDS.dual.child.student_essay_id_1,
+			FIXTURE_IDS.dual.child.student_essay_id_2,
+		];
+
+		const essayPromptIds = [
+			FIXTURE_IDS.dual.child.essay_prompt_id_1,
+			FIXTURE_IDS.dual.child.essay_prompt_id_2,
+		];
+
+		const bibleBeeEnrollmentIds = [
+			FIXTURE_IDS.bot.children.child_1.bee_enrollment_id,
+			FIXTURE_IDS.bot.children.child_2.bee_enrollment_id,
+			FIXTURE_IDS.dual.child.bee_enrollment_id_1,
+			FIXTURE_IDS.dual.child.bee_enrollment_id_2,
+			FIXTURE_IDS.reset.child.bee_enrollment_id,
+		];
+
+		const ministryEnrollmentIds = [
+			FIXTURE_IDS.bot.children.child_1.enrollment_id,
+			FIXTURE_IDS.bot.children.child_2.enrollment_id,
+			FIXTURE_IDS.dual.child.enrollment_id,
+			FIXTURE_IDS.reset.child.enrollment_id,
+		];
+
+		const childIds = [
+			FIXTURE_IDS.bot.children.child_1.child_id,
+			FIXTURE_IDS.bot.children.child_2.child_id,
+			FIXTURE_IDS.dual.child.child_id,
+			FIXTURE_IDS.reset.child.child_id,
+		];
+
+		const guardianIds = [
+			FIXTURE_IDS.bot.guardian,
+			FIXTURE_IDS.dual.guardian,
+			FIXTURE_IDS.reset.guardian,
+		];
+
+		const emergencyContactIds = [FIXTURE_IDS.bot.emergency_contact];
+
+		const userHouseholdIds = [
+			FIXTURE_IDS.bot.user_household,
+			FIXTURE_IDS.dual.user_household,
+			FIXTURE_IDS.reset.user_household,
+		];
+
+		const householdIds = [
+			FIXTURE_IDS.bot.household,
+			FIXTURE_IDS.dual.household,
+			FIXTURE_IDS.reset.household,
+		];
+
 		// Delete in proper foreign key dependency order
-		// Level 1: Child tables
-		await supabase
-			.from('student_essays')
-			.delete()
-			.like('child_id', `${FIXTURE_PREFIX}%`);
-		console.log('✅ Cleared student_essays');
+		// Level 1: Child tables (UUID-based)
+		if (studentEssayIds.length > 0) {
+			await supabase.from('student_essays').delete().in('id', studentEssayIds);
+			console.log('✅ Cleared student_essays');
+		}
 
-		await supabase
-			.from('essay_prompts')
-			.delete()
-			.like('id', `${FIXTURE_PREFIX}%`);
-		console.log('✅ Cleared essay_prompts');
+		if (essayPromptIds.length > 0) {
+			await supabase.from('essay_prompts').delete().in('id', essayPromptIds);
+			console.log('✅ Cleared essay_prompts');
+		}
 
-		await supabase
-			.from('bible_bee_enrollments')
-			.delete()
-			.like('id', `${FIXTURE_PREFIX}%`);
-		console.log('✅ Cleared bible_bee_enrollments');
+		if (bibleBeeEnrollmentIds.length > 0) {
+			await supabase
+				.from('bible_bee_enrollments')
+				.delete()
+				.in('id', bibleBeeEnrollmentIds);
+			console.log('✅ Cleared bible_bee_enrollments');
+		}
 
-		await supabase
-			.from('ministry_enrollments')
-			.delete()
-			.like('enrollment_id', `${FIXTURE_PREFIX}%`);
-		console.log('✅ Cleared ministry_enrollments');
+		// Text-based enrollment IDs (ministry_enrollments uses text, not UUID)
+		if (ministryEnrollmentIds.length > 0) {
+			await supabase
+				.from('ministry_enrollments')
+				.delete()
+				.in('enrollment_id', ministryEnrollmentIds);
+			console.log('✅ Cleared ministry_enrollments');
+		}
 
+		// Registrations (text-based, use LIKE pattern as fallback)
 		await supabase
 			.from('registrations')
 			.delete()
 			.like('registration_id', `${FIXTURE_PREFIX}%`);
 		console.log('✅ Cleared registrations');
 
-		// Level 2: Children and contacts
-		await supabase
-			.from('children')
-			.delete()
-			.like('child_id', `${FIXTURE_PREFIX}%`);
-		console.log('✅ Cleared children');
+		// Level 2: Children and contacts (UUID-based)
+		if (childIds.length > 0) {
+			await supabase.from('children').delete().in('child_id', childIds);
+			console.log('✅ Cleared children');
+		}
 
-		await supabase
-			.from('guardians')
-			.delete()
-			.like('guardian_id', `${FIXTURE_PREFIX}%`);
-		console.log('✅ Cleared guardians');
+		if (guardianIds.length > 0) {
+			await supabase.from('guardians').delete().in('guardian_id', guardianIds);
+			console.log('✅ Cleared guardians');
+		}
 
-		await supabase
-			.from('emergency_contacts')
-			.delete()
-			.like('contact_id', `${FIXTURE_PREFIX}%`);
-		console.log('✅ Cleared emergency_contacts');
+		if (emergencyContactIds.length > 0) {
+			await supabase
+				.from('emergency_contacts')
+				.delete()
+				.in('contact_id', emergencyContactIds);
+			console.log('✅ Cleared emergency_contacts');
+		}
 
-		// Level 3: User households junction
-		await supabase
-			.from('user_households')
-			.delete()
-			.like('auth_user_id', `${FIXTURE_PREFIX}%`);
-		console.log('✅ Cleared user_households');
+		// Level 3: User households junction (UUID-based for user_household_id)
+		if (userHouseholdIds.length > 0) {
+			await supabase
+				.from('user_households')
+				.delete()
+				.in('user_household_id', userHouseholdIds);
+			console.log('✅ Cleared user_households');
+		}
 
-		// Level 4: Households
-		await supabase
-			.from('households')
-			.delete()
-			.like('household_id', `${FIXTURE_PREFIX}%`);
-		console.log('✅ Cleared households');
+		// Level 4: Households (UUID-based)
+		if (householdIds.length > 0) {
+			await supabase
+				.from('households')
+				.delete()
+				.in('household_id', householdIds);
+			console.log('✅ Cleared households');
+		}
 
-		console.log('✅ Reset complete - all M\'Baku fixtures removed');
+		console.log("✅ Reset complete - all M'Baku fixtures removed");
 	} catch (error) {
 		console.error('❌ Error during reset:', error.message);
 		throw error;
@@ -472,10 +617,15 @@ async function getDivisionByName(divisionName) {
 /**
  * Create user_household for guardian login path
  */
-async function createUserHousehold(householdId, authUserId) {
+async function createUserHousehold(
+	householdId,
+	authUserId,
+	userHouseholdId
+) {
 	console.log(`🔗 Creating user_household for ${authUserId}...`);
 
 	const userHouseholdData = {
+		user_household_id: userHouseholdId,
 		auth_user_id: authUserId,
 		household_id: householdId,
 	};
@@ -516,14 +666,19 @@ async function createUserHousehold(householdId, authUserId) {
 /**
  * Create Fixture 1: Bot-guardian household with Bible Bee children
  */
-async function createBotGuardianFixture(cycleId, ministryId, bibleBeeCycleId, divisionIds) {
+async function createBotGuardianFixture(
+	cycleId,
+	ministryId,
+	bibleBeeCycleId,
+	divisionIds
+) {
 	console.log('🤖 Creating Fixture 1: Bot-guardian household...');
 
-	// Create household
-	const householdId = `${FIXTURE_PREFIX}bot_household`;
+	// Create household (UUID)
+	const householdId = FIXTURE_IDS.bot.household;
 	const householdData = {
 		household_id: householdId,
-		name: 'M\'Baku Bot Family',
+		name: "M'Baku Bot Family",
 		address_line1: '1 Wakanda Way',
 		city: 'Golden City',
 		state: 'DC',
@@ -558,14 +713,18 @@ async function createBotGuardianFixture(cycleId, ministryId, bibleBeeCycleId, di
 	}
 
 	// Create user_household for guardian login
-	await createUserHousehold(householdId, `${FIXTURE_PREFIX}bot_auth_user`);
+	await createUserHousehold(
+		householdId,
+		FIXTURE_IDS.bot.auth_user,
+		FIXTURE_IDS.bot.user_household
+	);
 
-	// Create bot guardian
-	const guardianId = `${FIXTURE_PREFIX}bot_guardian`;
+	// Create bot guardian (UUID)
+	const guardianId = FIXTURE_IDS.bot.guardian;
 	const guardianData = {
 		guardian_id: guardianId,
 		household_id: householdId,
-		first_name: 'M\'Baku',
+		first_name: "M'Baku",
 		last_name: 'Bot',
 		email: 'mbaku+bot@gatherkids.test',
 		mobile_phone: '555-000-0001',
@@ -598,8 +757,8 @@ async function createBotGuardianFixture(cycleId, ministryId, bibleBeeCycleId, di
 		counters.guardians++;
 	}
 
-	// Create emergency contact
-	const contactId = `${FIXTURE_PREFIX}bot_emergency`;
+	// Create emergency contact (UUID)
+	const contactId = FIXTURE_IDS.bot.emergency_contact;
 	const contactData = {
 		contact_id: contactId,
 		household_id: householdId,
@@ -634,10 +793,12 @@ async function createBotGuardianFixture(cycleId, ministryId, bibleBeeCycleId, di
 		counters.emergency_contacts++;
 	}
 
-	// Create two children for bot household
+	// Create two children for bot household (UUIDs)
 	const children = [
 		{
-			child_id: `${FIXTURE_PREFIX}bot_child_1`,
+			child_id: FIXTURE_IDS.bot.children.child_1.child_id,
+			enrollment_id: FIXTURE_IDS.bot.children.child_1.enrollment_id,
+			bee_enrollment_id: FIXTURE_IDS.bot.children.child_1.bee_enrollment_id,
 			first_name: 'Shuri',
 			last_name: 'Bot',
 			dob: '2015-03-15',
@@ -645,8 +806,10 @@ async function createBotGuardianFixture(cycleId, ministryId, bibleBeeCycleId, di
 			gender: 'F',
 		},
 		{
-			child_id: `${FIXTURE_PREFIX}bot_child_2`,
-			first_name: 'T\'Challa',
+			child_id: FIXTURE_IDS.bot.children.child_2.child_id,
+			enrollment_id: FIXTURE_IDS.bot.children.child_2.enrollment_id,
+			bee_enrollment_id: FIXTURE_IDS.bot.children.child_2.bee_enrollment_id,
+			first_name: "T'Challa",
 			last_name: 'Bot',
 			dob: '2012-08-20',
 			grade: '7',
@@ -655,9 +818,15 @@ async function createBotGuardianFixture(cycleId, ministryId, bibleBeeCycleId, di
 	];
 
 	for (const childData of children) {
+		// Extract only valid children table columns (no enrollment IDs)
 		const fullChildData = {
-			...childData,
+			child_id: childData.child_id,
 			household_id: householdId,
+			first_name: childData.first_name,
+			last_name: childData.last_name,
+			dob: childData.dob,
+			grade: childData.grade,
+			gender: childData.gender,
 			allergies: null,
 			medical_notes: 'Bot-generated test data',
 			special_needs: false,
@@ -693,8 +862,8 @@ async function createBotGuardianFixture(cycleId, ministryId, bibleBeeCycleId, di
 			counters.children++;
 		}
 
-		// Enroll in Bible Bee ministry
-		const enrollmentId = `${FIXTURE_PREFIX}${childData.child_id}_bible_bee`;
+		// Enroll in Bible Bee ministry (text ID for ministry_enrollments)
+		const enrollmentId = childData.enrollment_id;
 		const enrollmentData = {
 			enrollment_id: enrollmentId,
 			child_id: childData.child_id,
@@ -733,9 +902,10 @@ async function createBotGuardianFixture(cycleId, ministryId, bibleBeeCycleId, di
 			counters.ministry_enrollments++;
 		}
 
-		// Create Bible Bee enrollment record
-		const beeEnrollmentId = `${FIXTURE_PREFIX}bee_${childData.child_id}`;
-		const divisionId = childData.grade <= '5' ? divisionIds.junior : divisionIds.senior;
+		// Create Bible Bee enrollment record (UUID)
+		const beeEnrollmentId = childData.bee_enrollment_id;
+		const divisionId =
+			childData.grade <= '5' ? divisionIds.junior : divisionIds.senior;
 		const beeEnrollmentData = {
 			id: beeEnrollmentId,
 			child_id: childData.child_id,
@@ -782,11 +952,16 @@ async function createBotGuardianFixture(cycleId, ministryId, bibleBeeCycleId, di
 /**
  * Create Fixture 2: Dual-cycle + essays fixture
  */
-async function createDualCycleFixture(cycleId, ministryId, bibleBeeCycles, divisionIds) {
+async function createDualCycleFixture(
+	cycleId,
+	ministryId,
+	bibleBeeCycles,
+	divisionIds
+) {
 	console.log('📝 Creating Fixture 2: Dual-cycle + essays fixture...');
 
-	// Create household
-	const householdId = `${FIXTURE_PREFIX}dual_household`;
+	// Create household (UUID)
+	const householdId = FIXTURE_IDS.dual.household;
 	const householdData = {
 		household_id: householdId,
 		name: 'Dual-Cycle Test Family',
@@ -824,10 +999,14 @@ async function createDualCycleFixture(cycleId, ministryId, bibleBeeCycles, divis
 	}
 
 	// Create user_household for guardian login
-	await createUserHousehold(householdId, `${FIXTURE_PREFIX}dual_auth_user`);
+	await createUserHousehold(
+		householdId,
+		FIXTURE_IDS.dual.auth_user,
+		FIXTURE_IDS.dual.user_household
+	);
 
-	// Create guardian
-	const guardianId = `${FIXTURE_PREFIX}dual_guardian`;
+	// Create guardian (UUID)
+	const guardianId = FIXTURE_IDS.dual.guardian;
 	const guardianData = {
 		guardian_id: guardianId,
 		household_id: householdId,
@@ -864,8 +1043,8 @@ async function createDualCycleFixture(cycleId, ministryId, bibleBeeCycles, divis
 		counters.guardians++;
 	}
 
-	// Create senior-division child (requires essay)
-	const childId = `${FIXTURE_PREFIX}dual_child_senior`;
+	// Create senior-division child (requires essay) (UUID)
+	const childId = FIXTURE_IDS.dual.child.child_id;
 	const childData = {
 		child_id: childId,
 		household_id: householdId,
@@ -909,8 +1088,8 @@ async function createDualCycleFixture(cycleId, ministryId, bibleBeeCycles, divis
 		counters.children++;
 	}
 
-	// Enroll in Bible Bee
-	const enrollmentId = `${FIXTURE_PREFIX}${childId}_bible_bee`;
+	// Enroll in Bible Bee (text ID for ministry_enrollments)
+	const enrollmentId = FIXTURE_IDS.dual.child.enrollment_id;
 	const enrollmentData = {
 		enrollment_id: enrollmentId,
 		child_id: childId,
@@ -947,12 +1126,20 @@ async function createDualCycleFixture(cycleId, ministryId, bibleBeeCycles, divis
 		counters.ministry_enrollments++;
 	}
 
-	// Enroll in MULTIPLE Bible Bee cycles (dual-cycle fixture)
+	// Enroll in MULTIPLE Bible Bee cycles (dual-cycle fixture) (UUIDs)
 	const seniorDivisionId = divisionIds.senior;
-	
+
 	for (let i = 0; i < bibleBeeCycles.length; i++) {
 		const cycle = bibleBeeCycles[i];
-		const beeEnrollmentId = `${FIXTURE_PREFIX}bee_${childId}_cycle${i + 1}`;
+		// Use pre-generated UUIDs for the first 2 cycles
+		const beeEnrollmentId =
+			i === 0
+				? FIXTURE_IDS.dual.child.bee_enrollment_id_1
+				: i === 1
+					? FIXTURE_IDS.dual.child.bee_enrollment_id_2
+					: generateDeterministicUUID(
+							`mbaku_bee_dual_child_senior_cycle${i + 1}`
+						);
 		const beeEnrollmentData = {
 			id: beeEnrollmentId,
 			child_id: childId,
@@ -988,15 +1175,21 @@ async function createDualCycleFixture(cycleId, ministryId, bibleBeeCycles, divis
 			}
 		}
 
-		// Create essay prompt for this cycle
-		const essayPromptId = `${FIXTURE_PREFIX}essay_prompt_${i + 1}`;
+		// Create essay prompt for this cycle (UUID)
+		const essayPromptId =
+			i === 0
+				? FIXTURE_IDS.dual.child.essay_prompt_id_1
+				: i === 1
+					? FIXTURE_IDS.dual.child.essay_prompt_id_2
+					: generateDeterministicUUID(`mbaku_essay_prompt_${i + 1}`);
 		const essayPromptData = {
 			id: essayPromptId,
 			bible_bee_cycle_id: cycle.id,
 			division_id: seniorDivisionId,
 			title: `Senior Essay ${i + 1} - ${cycle.name}`,
 			prompt: `This is the essay prompt for ${cycle.name}. Students should reflect on their Bible Bee journey and demonstrate their understanding of scripture.`,
-			instructions: 'Write a thoughtful essay of 500-750 words. Use specific scripture references.',
+			instructions:
+				'Write a thoughtful essay of 500-750 words. Use specific scripture references.',
 			due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days from now
 		};
 
@@ -1026,8 +1219,13 @@ async function createDualCycleFixture(cycleId, ministryId, bibleBeeCycles, divis
 			}
 		}
 
-		// Create student essay for this child + prompt
-		const studentEssayId = `${FIXTURE_PREFIX}student_essay_${i + 1}`;
+		// Create student essay for this child + prompt (UUID)
+		const studentEssayId =
+			i === 0
+				? FIXTURE_IDS.dual.child.student_essay_id_1
+				: i === 1
+					? FIXTURE_IDS.dual.child.student_essay_id_2
+					: generateDeterministicUUID(`mbaku_student_essay_${i + 1}`);
 		const studentEssayData = {
 			id: studentEssayId,
 			child_id: childId,
@@ -1072,11 +1270,16 @@ async function createDualCycleFixture(cycleId, ministryId, bibleBeeCycles, divis
 /**
  * Create Fixture 3: Resettable test household
  */
-async function createResettableTestFixture(cycleId, ministryId, bibleBeeCycleId, divisionIds) {
+async function createResettableTestFixture(
+	cycleId,
+	ministryId,
+	bibleBeeCycleId,
+	divisionIds
+) {
 	console.log('🔄 Creating Fixture 3: Resettable test household...');
 
-	// Create household
-	const householdId = `${FIXTURE_PREFIX}reset_household`;
+	// Create household (UUID)
+	const householdId = FIXTURE_IDS.reset.household;
 	const householdData = {
 		household_id: householdId,
 		name: 'Reset Test Family',
@@ -1114,10 +1317,14 @@ async function createResettableTestFixture(cycleId, ministryId, bibleBeeCycleId,
 	}
 
 	// Create user_household for guardian login
-	await createUserHousehold(householdId, `${FIXTURE_PREFIX}reset_auth_user`);
+	await createUserHousehold(
+		householdId,
+		FIXTURE_IDS.reset.auth_user,
+		FIXTURE_IDS.reset.user_household
+	);
 
-	// Create guardian
-	const guardianId = `${FIXTURE_PREFIX}reset_guardian`;
+	// Create guardian (UUID)
+	const guardianId = FIXTURE_IDS.reset.guardian;
 	const guardianData = {
 		guardian_id: guardianId,
 		household_id: householdId,
@@ -1154,8 +1361,8 @@ async function createResettableTestFixture(cycleId, ministryId, bibleBeeCycleId,
 		counters.guardians++;
 	}
 
-	// Create one child
-	const childId = `${FIXTURE_PREFIX}reset_child`;
+	// Create one child (UUID)
+	const childId = FIXTURE_IDS.reset.child.child_id;
 	const childData = {
 		child_id: childId,
 		household_id: householdId,
@@ -1196,8 +1403,8 @@ async function createResettableTestFixture(cycleId, ministryId, bibleBeeCycleId,
 		counters.children++;
 	}
 
-	// Enroll in Bible Bee
-	const enrollmentId = `${FIXTURE_PREFIX}${childId}_bible_bee`;
+	// Enroll in Bible Bee (text ID for ministry_enrollments)
+	const enrollmentId = FIXTURE_IDS.reset.child.enrollment_id;
 	const enrollmentData = {
 		enrollment_id: enrollmentId,
 		child_id: childId,
@@ -1234,8 +1441,8 @@ async function createResettableTestFixture(cycleId, ministryId, bibleBeeCycleId,
 		counters.ministry_enrollments++;
 	}
 
-	// Create Bible Bee enrollment record (like fixtures 1 and 2)
-	const beeEnrollmentId = `${FIXTURE_PREFIX}bee_${childId}`;
+	// Create Bible Bee enrollment record (like fixtures 1 and 2) (UUID)
+	const beeEnrollmentId = FIXTURE_IDS.reset.child.bee_enrollment_id;
 	const juniorDivisionId = divisionIds.junior; // Grade 3 = Junior
 	const beeEnrollmentData = {
 		id: beeEnrollmentId,
