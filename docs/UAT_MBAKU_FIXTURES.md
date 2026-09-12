@@ -161,6 +161,10 @@ Deterministic UUIDs ensure:
 2. **Schema compliance**: UUIDs match the `uuid` column types
 3. **Clean reset**: The script can delete by specific UUIDs during RESET mode
 
+### Children table fields
+
+The `children` table insert extracts only valid columns from the fixture data. Enrollment IDs (`bee_enrollment_id`, `enrollment_id`) are stored in the fixture objects for later use but are **not** spread into the children insert — they belong only on the `bible_bee_enrollments` and `ministry_enrollments` tables.
+
 ## Integration with existing UAT workflow
 
 This script is designed to complement (not replace) the main UAT seed script:
