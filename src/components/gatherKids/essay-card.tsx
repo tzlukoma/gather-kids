@@ -1,99 +1,91 @@
 'use client';
 
+import type { ReactNode } from 'react';
 import {
 	Card,
 	CardContent,
 	CardHeader,
-	CardTitle,
-	CardDescription,
 } from '@/components/ui/card';
-import { EssayPrompt } from '@/lib/types';
+import {
+	formatEssayDueDate,
+	isEssayHtmlEmpty,
+} from '@/lib/essay-prompt-content';
+import { EssayRichText } from '@/components/gatherKids/essay-rich-text';
 
-interface EssayCardProps {
-	essayPrompt: EssayPrompt;
+export type EssayPromptContentFields = {
+	title?: string | null;
+	prompt?: string | null;
+	instructions?: string | null;
+	due_date?: string | null;
+};
+
+interface EssayPromptDisplayProps extends EssayPromptContentFields {
+	/** When true, render the essay title above the labeled sections. */
+	showTitle?: boolean;
+	className?: string;
 }
 
-export default function EssayCard({ essayPrompt }: EssayCardProps) {
+export function EssayPromptDisplay({
+	title,
+	prompt,
+	instructions,
+	due_date,
+	showTitle = false,
+	className,
+}: EssayPromptDisplayProps) {
+	const hasInstructions = !isEssayHtmlEmpty(instructions);
+	const hasPrompt = !isEssayHtmlEmpty(prompt);
+	const hasDueDate = Boolean(due_date);
+
+	return (
+		<div className={className ?? 'space-y-4'}>
+			{showTitle && title ? (
+				<h3 className="font-medium">{title}</h3>
+			) : null}
+			{hasInstructions ? (
+				<div>
+					<h4 className="font-medium mb-2">Instructions</h4>
+					<EssayRichText html={instructions} />
+				</div>
+			) : null}
+			{hasPrompt ? (
+				<div>
+					<h4 className="font-medium mb-2">Prompt</h4>
+					<EssayRichText html={prompt} />
+				</div>
+			) : null}
+			{hasDueDate && due_date ? (
+				<div>
+					<h4 className="font-medium mb-1">Due Date</h4>
+					<p className="text-sm text-muted-foreground">
+						{formatEssayDueDate(due_date)}
+					</p>
+				</div>
+			) : null}
+		</div>
+	);
+}
+
+interface EssayCardProps {
+	essayPrompt: EssayPromptContentFields;
+	children?: ReactNode;
+}
+
+export default function EssayCard({ essayPrompt, children }: EssayCardProps) {
 	return (
 		<Card>
 			<CardHeader>
-				<CardTitle>{essayPrompt.title || 'Essay Assignment'}</CardTitle>
-				<CardDescription>Essay prompt for this division</CardDescription>
+				<h2 className="text-2xl font-semibold leading-none tracking-tight">
+					{essayPrompt.title || 'Essay Assignment'}
+				</h2>
 			</CardHeader>
-			<CardContent>
-				<div className="space-y-4">
-					<div>
-						<h4 className="font-medium mb-2">Prompt:</h4>
-						<p className="text-sm text-muted-foreground leading-relaxed">
-							{essayPrompt.prompt}
-						</p>
-					</div>
-					{essayPrompt.instructions && (
-						<div>
-							<h4 className="font-medium mb-2">Instructions:</h4>
-							<p className="text-sm text-muted-foreground leading-relaxed">
-								{essayPrompt.instructions}
-							</p>
-						</div>
-					)}
-					{essayPrompt.due_date && (
-						<div>
-							<h4 className="font-medium mb-1">Due Date:</h4>
-							<p className="text-sm text-muted-foreground">
-								{(() => {
-									// Parse the date string and create a local date
-									const dateStr = essayPrompt.due_date;
-									// If it's an ISO string, parse it as local time
-									if (dateStr.includes('T')) {
-										const [datePart, timePart] = dateStr.split('T');
-										const [year, month, day] = datePart.split('-');
-										const [time, tz] = timePart.split(/[+-]/);
-										const [hours, minutes] = time.split(':');
-
-										// Create date in local timezone
-										const localDate = new Date(
-											parseInt(year),
-											parseInt(month) - 1, // months are 0-indexed
-											parseInt(day),
-											parseInt(hours),
-											parseInt(minutes)
-										);
-
-										return (
-											localDate.toLocaleDateString('en-US', {
-												year: 'numeric',
-												month: 'long',
-												day: 'numeric',
-											}) +
-											' at ' +
-											localDate.toLocaleTimeString('en-US', {
-												hour: 'numeric',
-												minute: '2-digit',
-												hour12: true,
-											})
-										);
-									} else {
-										// Fallback for non-ISO dates
-										const fallbackDate = new Date(dateStr);
-										return (
-											fallbackDate.toLocaleDateString('en-US', {
-												year: 'numeric',
-												month: 'long',
-												day: 'numeric',
-											}) +
-											' at ' +
-											fallbackDate.toLocaleTimeString('en-US', {
-												hour: 'numeric',
-												minute: '2-digit',
-												hour12: true,
-											})
-										);
-									}
-								})()}
-							</p>
-						</div>
-					)}
-				</div>
+			<CardContent className="space-y-4">
+				<EssayPromptDisplay
+					prompt={essayPrompt.prompt}
+					instructions={essayPrompt.instructions}
+					due_date={essayPrompt.due_date}
+				/>
+				{children}
 			</CardContent>
 		</Card>
 	);
