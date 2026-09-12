@@ -818,9 +818,15 @@ async function createBotGuardianFixture(
 	];
 
 	for (const childData of children) {
+		// Extract only valid children table columns (no enrollment IDs)
 		const fullChildData = {
-			...childData,
+			child_id: childData.child_id,
 			household_id: householdId,
+			first_name: childData.first_name,
+			last_name: childData.last_name,
+			dob: childData.dob,
+			grade: childData.grade,
+			gender: childData.gender,
 			allergies: null,
 			medical_notes: 'Bot-generated test data',
 			special_needs: false,
