@@ -198,11 +198,13 @@ export function CheckoutDialog({
 							Cancel
 						</Button>
 						{mode === 'pin' ? (
-							<Button onClick={handleVerifyAndCheckout}>
+							<Button variant="door" onClick={handleVerifyAndCheckout}>
 								Verify & Check Out
 							</Button>
 						) : (
-							<Button onClick={handleOverrideCheckout}>Confirm Override</Button>
+							<Button variant="door" onClick={handleOverrideCheckout}>
+								Confirm Override
+							</Button>
 						)}
 					</div>
 				</DialogFooter>
