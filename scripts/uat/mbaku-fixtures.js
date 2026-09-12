@@ -60,6 +60,7 @@ const counters = {
 	ministry_enrollments: 0,
 	bible_bee_enrollments: 0,
 	student_essays: 0,
+	user_households: 0,
 };
 
 /**
@@ -268,7 +269,14 @@ async function resetMbakuFixtures() {
 			.like('contact_id', `${FIXTURE_PREFIX}%`);
 		console.log('✅ Cleared emergency_contacts');
 
-		// Level 3: Households
+		// Level 3: User households junction
+		await supabase
+			.from('user_households')
+			.delete()
+			.like('auth_user_id', `${FIXTURE_PREFIX}%`);
+		console.log('✅ Cleared user_households');
+
+		// Level 4: Households
 		await supabase
 			.from('households')
 			.delete()
@@ -405,6 +413,50 @@ async function getDivisionByName(divisionName) {
 }
 
 /**
+ * Create user_household for guardian login path
+ */
+async function createUserHousehold(householdId, authUserId) {
+	console.log(`🔗 Creating user_household for ${authUserId}...`);
+
+	const userHouseholdData = {
+		auth_user_id: authUserId,
+		household_id: householdId,
+	};
+
+	const { data: existing, error: checkError } = await supabase
+		.from('user_households')
+		.select('user_household_id')
+		.eq('auth_user_id', authUserId)
+		.single();
+
+	if (checkError && checkError.code !== 'PGRST116') {
+		console.error(
+			`❌ Error checking user_household: ${checkError.message}`
+		);
+		// Non-fatal - continue
+		return;
+	}
+
+	if (existing) {
+		console.log(`✅ User household already exists for ${authUserId}`);
+	} else {
+		const { error: insertError } = await supabase
+			.from('user_households')
+			.insert(userHouseholdData);
+
+		if (insertError) {
+			console.error(
+				`❌ Failed to create user_household: ${insertError.message}`
+			);
+			// Non-fatal - continue
+		} else {
+			console.log(`✅ Created user_household for ${authUserId}`);
+			counters.user_households++;
+		}
+	}
+}
+
+/**
  * Create Fixture 1: Bot-guardian household with Bible Bee children
  */
 async function createBotGuardianFixture(cycleId, ministryId, bibleBeeCycleId, divisionIds) {
@@ -447,6 +499,9 @@ async function createBotGuardianFixture(cycleId, ministryId, bibleBeeCycleId, di
 		console.log('✅ Created bot household');
 		counters.households++;
 	}
+
+	// Create user_household for guardian login
+	await createUserHousehold(householdId, `${FIXTURE_PREFIX}bot_auth_user`);
 
 	// Create bot guardian
 	const guardianId = `${FIXTURE_PREFIX}bot_guardian`;
@@ -710,6 +765,9 @@ async function createDualCycleFixture(cycleId, ministryId, bibleBeeCycles, divis
 		console.log('✅ Created dual-cycle household');
 		counters.households++;
 	}
+
+	// Create user_household for guardian login
+	await createUserHousehold(householdId, `${FIXTURE_PREFIX}dual_auth_user`);
 
 	// Create guardian
 	const guardianId = `${FIXTURE_PREFIX}dual_guardian`;
@@ -998,6 +1056,9 @@ async function createResettableTestFixture(cycleId, ministryId, bibleBeeCycleId,
 		counters.households++;
 	}
 
+	// Create user_household for guardian login
+	await createUserHousehold(householdId, `${FIXTURE_PREFIX}reset_auth_user`);
+
 	// Create guardian
 	const guardianId = `${FIXTURE_PREFIX}reset_guardian`;
 	const guardianData = {
@@ -1213,20 +1274,24 @@ async function main() {
 			`   - ${counters.bible_bee_enrollments} Bible Bee enrollments created`
 		);
 		console.log(`   - ${counters.student_essays} student essays created`);
+		console.log(`   - ${counters.user_households} user households created`);
 		console.log('');
 		console.log('🎯 Fixtures Created:');
 		console.log('   1. Bot-guardian household (M\'Baku Bot Family)');
 		console.log('      - 2 children enrolled in Bible Bee');
 		console.log('      - Email: mbaku+bot@gatherkids.test');
+		console.log('      - Auth User ID: mbaku_bot_auth_user');
 		console.log('');
 		console.log('   2. Dual-cycle + essays household (Dual-Cycle Test Family)');
 		console.log(`      - 1 senior division student enrolled in ${bibleBeeCycles.length} cycles`);
 		console.log(`      - ${bibleBeeCycles.length} essay prompts + ${bibleBeeCycles.length} student essays created`);
 		console.log('      - Email: mbaku+dual@gatherkids.test');
+		console.log('      - Auth User ID: mbaku_dual_auth_user');
 		console.log('');
 		console.log('   3. Resettable test household (Reset Test Family)');
 		console.log('      - 1 child enrolled in Bible Bee');
 		console.log('      - Email: mbaku+reset@gatherkids.test');
+		console.log('      - Auth User ID: mbaku_reset_auth_user');
 		console.log('      - Prefix: mbaku_ for easy reset');
 		console.log('');
 		console.log('🔄 To reset these fixtures, run:');
