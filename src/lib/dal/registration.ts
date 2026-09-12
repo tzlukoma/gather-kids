@@ -47,7 +47,7 @@ export async function registerHousehold(
 ): Promise<{ household_id: string }> {
     const input = data as RegistrationPayload;
 
-    const householdId = input.household?.household_id || uuidv4();
+    let householdId = input.household?.household_id || uuidv4();
     const isUpdate = !!input.household?.household_id;
     const now = new Date().toISOString();
 
@@ -83,7 +83,8 @@ export async function registerHousehold(
                 await dbAdapter.deleteEmergencyContact(contact.contact_id);
             }
         } else {
-            await dbAdapter.createHousehold(household);
+            const created = await dbAdapter.createHousehold(household);
+            householdId = created.household_id;
         }
 
         // ---------------------------------------------------------------

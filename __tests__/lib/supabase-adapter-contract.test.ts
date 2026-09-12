@@ -91,6 +91,19 @@ function runContractTests(
 				expect(result.updated_at).toBeTruthy();
 			});
 
+			test('createHousehold persists a caller-provided household_id', async () => {
+				const providedId = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
+				const result = await adapter.createHousehold({
+					household_id: providedId,
+					address_line1: testHousehold.address_line1,
+					city: testHousehold.city,
+					state: testHousehold.state,
+					zip: testHousehold.zip,
+				});
+
+				expect(result.household_id).toBe(providedId);
+			});
+
 			test('getHousehold retrieves a household by ID', async () => {
 				// Create a household first
 				const created = await adapter.createHousehold({

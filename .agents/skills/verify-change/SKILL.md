@@ -53,7 +53,8 @@ Claude Code: [`.claude/skills/e2e/SKILL.md`](../../../.claude/skills/e2e/SKILL.m
 
 CI:
 
-- [`e2e-smoke.yml`](../../../.github/workflows/e2e-smoke.yml) runs `e2e/smoke-test.spec.ts` when `src/**` or `e2e/**` change.
+- [`e2e-smoke.yml`](../../../.github/workflows/e2e-smoke.yml) runs `e2e/smoke-test.spec.ts` (dummy Supabase page-load) when `src/**` or `e2e/**` change.
+- [`e2e-registration-smoke.yml`](../../../.github/workflows/e2e-registration-smoke.yml) runs first-time + returning `/register` submit on **push to `main`** only (ephemeral local Supabase). Job name `e2e-registration` — require it for Vercel Production, not as a PR check.
 - [`e2e-email.yml`](../../../.github/workflows/e2e-email.yml) is **not** PR-gating.
 
 If local Playwright cannot run (missing Docker/Supabase/browsers), say so in the PR and rely on CI smoke only when that workflow will fire.
