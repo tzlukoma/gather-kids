@@ -1,3 +1,5 @@
+import 'server-only';
+
 import {
 	shouldUseRemoteFlags,
 	type FlagEvalContext,
@@ -54,7 +56,7 @@ function getDefaultFlagAdapter(): FlagAdapter {
 
 /**
  * Server-side boolean flag. Defaults keep GatherSystem **off** (legacy UI).
- * Call from RSC / route handlers; do not import this into client components.
+ * Call from RSC / route handlers only — this module imports `server-only`.
  */
 export async function getBoolean(
 	key: FlagKey,

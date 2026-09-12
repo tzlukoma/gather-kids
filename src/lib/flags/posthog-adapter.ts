@@ -1,4 +1,5 @@
-import { PostHog } from 'posthog-node';
+import 'server-only';
+
 import type { FlagAdapter } from '@/lib/flags/types';
 import {
 	buildFlagDistinctId,
@@ -24,14 +25,19 @@ export type PostHogFlagsClient = {
 	): Promise<FlagSnapshot>;
 };
 
-let sharedClient: PostHog | null = null;
+let sharedClient: PostHogFlagsClient | null = null;
 
+/**
+ * Lazily construct the Node SDK so importing this module (and the façade)
+ * does not load `posthog-node` until remote evaluation is actually needed.
+ */
 export function getSharedPostHogFlagsClient(): PostHogFlagsClient | null {
 	const token = getPostHogProjectToken();
 	const host = getPostHogHost();
 	if (!token || !host) return null;
 
 	if (!sharedClient) {
+		const { PostHog } = require('posthog-node') as typeof import('posthog-node');
 		sharedClient = new PostHog(token, {
 			host,
 			disableGeoip: true,

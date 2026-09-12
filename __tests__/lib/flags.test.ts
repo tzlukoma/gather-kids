@@ -1,10 +1,19 @@
+jest.mock('server-only', () => ({}));
+
+jest.mock('posthog-node', () => ({
+	__esModule: true,
+	PostHog: jest.fn().mockImplementation(() => ({
+		evaluateFlags: jest.fn(),
+	})),
+}));
+
 import {
 	buildFlagDistinctId,
 	buildFlagPersonProperties,
-	createFlagEvaluator,
 	getFlagsDeployEnv,
 	shouldUseRemoteFlags,
-} from '@/lib/flags';
+} from '@/lib/flags/env';
+import { createFlagEvaluator } from '@/lib/flags';
 import { createPostHogFlagAdapter } from '@/lib/flags/posthog-adapter';
 
 describe('flags façade', () => {
