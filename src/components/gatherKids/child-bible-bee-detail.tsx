@@ -36,15 +36,17 @@ import { toast } from '@/hooks/use-toast';
 
 interface ChildBibleBeeDetailProps {
 	allowPhotoUpdates?: boolean;
+	isAdminContext?: boolean; // If true, bypass scripture visibility gate (admin/evaluation view)
 }
 
 export default function ChildBibleBeeDetail({
 	allowPhotoUpdates = false,
+	isAdminContext = false,
 }: ChildBibleBeeDetailProps) {
 	const params = useParams();
 	const childId = params.childId as string;
 	const { user } = useAuth();
-	const { data, isLoading } = useStudentAssignmentsQuery(childId);
+	const { data, isLoading } = useStudentAssignmentsQuery(childId, isAdminContext);
 	const [showPhotoCapture, setShowPhotoCapture] = useState<any>(null);
 	const toggleMutation = useToggleScriptureMutation(childId);
 	const essayMutation = useSubmitEssayMutation(childId);

@@ -4,9 +4,10 @@ import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { CardTitle } from '@/components/ui/card';
-import { Check } from 'lucide-react';
+import { Check, Lock } from 'lucide-react';
 import React from 'react';
 import DOMPurify from 'dompurify';
+import { formatStartDate } from '@/lib/bibleBeeScriptureGate';
 
 interface ScriptureCardProps {
 	assignment: any;
@@ -35,6 +36,8 @@ export default function ScriptureCard({
 		return undefined;
 	}
 	const completed = assignment.status === 'completed';
+	const isLocked = assignment.isLocked === true;
+	const competitionStartDate = assignment.competitionStartDate;
 
 	// Always prioritize the reference text as the primary identifier
 	const reference =
@@ -164,10 +167,20 @@ export default function ScriptureCard({
 			</CardHeader>
 
 			<CardContent className="px-4 pb-4 pt-3">
-				<div
-					className="prose max-w-none text-md scripture font-scripture"
-					dangerouslySetInnerHTML={{ __html: safeHtml }}
-				/>
+				{isLocked && competitionStartDate ? (
+					<div className="flex items-center gap-3 p-4 bg-muted rounded-md border border-border">
+						<Lock className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+						<div className="text-sm text-muted-foreground">
+							<div className="font-medium">Scriptures available on</div>
+							<div className="mt-1">{formatStartDate(competitionStartDate)}</div>
+						</div>
+					</div>
+				) : (
+					<div
+						className="prose max-w-none text-md scripture font-scripture"
+						dangerouslySetInnerHTML={{ __html: safeHtml }}
+					/>
+				)}
 			</CardContent>
 		</Card>
 	);

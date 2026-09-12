@@ -31,8 +31,8 @@ export async function getBibleBeeYears(): Promise<BibleBeeYear[]> {
         is_active: cycle.is_active,
         registration_open_date: undefined,
         registration_close_date: undefined,
-        competition_start_date: undefined,
-        competition_end_date: undefined,
+        competition_start_date: cycle.competition_start_date,
+        competition_end_date: cycle.competition_end_date,
         created_at: cycle.created_at,
         updated_at: cycle.updated_at || cycle.created_at,
     }));

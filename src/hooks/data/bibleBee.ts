@@ -19,6 +19,7 @@ import {
 } from '@/lib/dal';
 import { toggleScriptureCompletion, submitEssay } from '@/lib/bibleBee';
 import { gradeToCode } from '@/lib/gradeUtils';
+import { areScripturesAvailable } from '@/lib/bibleBeeScriptureGate';
 import { v4 as uuidv4 } from 'uuid';
 import { queryKeys } from './keys';
 import { cacheConfig } from './config';
@@ -161,9 +162,9 @@ export function useBibleBeeMinistry() {
 }
 
 // Student Assignments
-export function useStudentAssignmentsQuery(childId: string) {
+export function useStudentAssignmentsQuery(childId: string, isAdminContext: boolean = false) {
   return useQuery({
-    queryKey: queryKeys.studentAssignments(childId),
+    queryKey: queryKeys.studentAssignments(childId, isAdminContext),
     queryFn: async () => {
       try {
         console.log('🚀 Starting useStudentAssignmentsQuery for child:', childId);
@@ -381,8 +382,28 @@ export function useStudentAssignmentsQuery(childId: string) {
           const validEssays = essays.filter(e => e !== null);
           console.log('📝 Final essays for child:', validEssays.length, validEssays);
           
-          console.log('✅ Returning data:', { scriptures: scriptures.length, essays: validEssays.length });
-          return { scriptures, essays: validEssays };
+          // Apply scripture visibility gate for household views (not admin)
+          let finalScriptures = scriptures;
+          if (!isAdminContext && scriptures.length > 0) {
+            // Get the cycle to check competition_start_date
+            const cycleId = scriptures[0].bible_bee_cycle_id;
+            const cycles = await getBibleBeeCycles();
+            const cycle = cycles.find(c => c.id === cycleId);
+            
+            if (cycle && !areScripturesAvailable(cycle.competition_start_date)) {
+              console.log('🔒 Scripture text locked until:', cycle.competition_start_date);
+              // Redact verse text for household view - keep everything else visible
+              finalScriptures = scriptures.map(s => ({
+                ...s,
+                verseText: '', // Redact the text
+                isLocked: true, // Flag to show locked state in UI
+                competitionStartDate: cycle.competition_start_date,
+              }));
+            }
+          }
+          
+          console.log('✅ Returning data:', { scriptures: finalScriptures.length, essays: validEssays.length });
+          return { scriptures: finalScriptures, essays: validEssays };
       } catch (error) {
         console.error('❌ Error loading student assignments:', error);
         console.error('❌ Error details:', {

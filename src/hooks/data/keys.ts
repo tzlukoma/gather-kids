@@ -19,7 +19,7 @@ export const queryKeys = {
   
   // Bible Bee
   scriptures: (cycleId: string) => ['scriptures', cycleId] as const,
-  studentAssignments: (childId: string) => ['studentAssignments', childId] as const,
+  studentAssignments: (childId: string, isAdminContext?: boolean) => ['studentAssignments', childId, isAdminContext] as const,
   
   // Ministries
   ministries: () => ['ministries'] as const,
