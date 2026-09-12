@@ -66,9 +66,34 @@ export function getAnalyticsDeployEnv(env?: Env): string {
 	);
 }
 
-export function shouldInitBrowserPostHog(env?: Env): boolean {
+const LOCAL_ANALYTICS_HOSTNAMES = new Set(['localhost', '127.0.0.1', '[::1]']);
+
+export function isLocalAnalyticsHostname(hostname: string | undefined): boolean {
+	if (!hostname) return false;
+	return LOCAL_ANALYTICS_HOSTNAMES.has(hostname);
+}
+
+function runtimeAnalyticsHostname(): string | undefined {
+	if (typeof window === 'undefined') return undefined;
+	return window.location.hostname;
+}
+
+export function shouldInitBrowserPostHog(
+	env?: Env,
+	hostname?: string
+): boolean {
 	const source = readBrowserAnalyticsEnv(env);
-	if (source.NODE_ENV === 'test' || source.CI === 'true') return false;
+	if (
+		source.NODE_ENV === 'test' ||
+		source.NODE_ENV === 'development' ||
+		source.CI === 'true'
+	) {
+		return false;
+	}
+
+	const resolvedHostname =
+		hostname ?? (env ? undefined : runtimeAnalyticsHostname());
+	if (isLocalAnalyticsHostname(resolvedHostname)) return false;
 
 	const deployEnv = getAnalyticsDeployEnv(source);
 	if (deployEnv !== 'uat' && deployEnv !== 'production') return false;

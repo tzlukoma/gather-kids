@@ -73,6 +73,31 @@ describe('analytics browser helpers', () => {
 		).toBe(false);
 	});
 
+	it('does not init in development even when deploy env is uat', () => {
+		expect(
+			shouldInitBrowserPostHog({
+				NODE_ENV: 'development',
+				NEXT_PUBLIC_DEPLOY_ENV: 'uat',
+				NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN: 'phc_test',
+				NEXT_PUBLIC_POSTHOG_HOST: 'https://us.i.posthog.com',
+			})
+		).toBe(false);
+	});
+
+	it('does not init on localhost even with a production-like env', () => {
+		expect(
+			shouldInitBrowserPostHog(
+				{
+					NODE_ENV: 'production',
+					NEXT_PUBLIC_DEPLOY_ENV: 'uat',
+					NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN: 'phc_test',
+					NEXT_PUBLIC_POSTHOG_HOST: 'https://us.i.posthog.com',
+				},
+				'localhost'
+			)
+		).toBe(false);
+	});
+
 	it('does not init in CI', () => {
 		expect(
 			shouldInitBrowserPostHog({
