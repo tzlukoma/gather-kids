@@ -75,6 +75,27 @@ jest.mock('@/hooks/data', () => ({
 		data: [],
 		isLoading: false,
 	}),
+	useBibleBeeCycles: jest.fn().mockReturnValue({
+		data: [
+			{
+				id: 'test-cycle-1',
+				name: '2025 Bible Bee',
+				is_active: true,
+			},
+		],
+		isLoading: false,
+	}),
+	useChildEnrollments: jest.fn().mockReturnValue({
+		data: [
+			{
+				id: 'test-enrollment-1',
+				child_id: 'test-child',
+				bible_bee_cycle_id: 'test-cycle-1',
+				division_id: 'test-division-1',
+			},
+		],
+		isLoading: false,
+	}),
 	// Mock the missing Bible Bee hooks
 	useStudentAssignmentsQuery: jest.fn().mockImplementation(() => ({
 		data: mockScriptureData,
@@ -187,6 +208,17 @@ jest.mock('@/lib/db-utils', () => ({
 // Mock next/navigation useParams to return our test childId before importing the page
 jest.mock('next/navigation', () => ({
 	useParams: () => ({ childId: 'test-child' }),
+	useRouter: () => ({
+		replace: jest.fn(),
+		push: jest.fn(),
+		back: jest.fn(),
+		forward: jest.fn(),
+		refresh: jest.fn(),
+		prefetch: jest.fn(),
+	}),
+	useSearchParams: () => ({
+		get: jest.fn(() => null),
+	}),
 }));
 
 const ChildBibleBeePage =
