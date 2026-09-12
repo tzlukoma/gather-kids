@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 const ministrySelectionSchema = z.record(z.boolean().optional()).optional();
 const interestSelectionSchema = z.record(z.boolean().optional()).optional();
-const customDataSchema = z.record(z.any()).optional();
+const customFieldsSchema = z.record(z.record(z.any()).optional()).optional();
 
 const guardianSchema = z.object({
 	first_name: z.string().min(1, 'First name is required.'),
@@ -28,7 +28,7 @@ const childSchema = z.object({
 	special_needs_notes: z.string().optional(),
 	ministrySelections: ministrySelectionSchema,
 	interestSelections: interestSelectionSchema,
-	customData: customDataSchema,
+	customFields: customFieldsSchema,
 });
 
 export const registrationSchema = z
@@ -99,5 +99,5 @@ export const defaultChildValues = {
 	special_needs_notes: '',
 	ministrySelections: {},
 	interestSelections: {},
-	customData: {},
+	customFields: {},
 };

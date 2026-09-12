@@ -1,12 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { z } from 'zod';
 import { useFormCompat as useForm } from '@/hooks/useFormCompat';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Form } from '@/components/ui/form';
@@ -15,8 +14,33 @@ import { Step2Guardians } from './steps/step2-guardians';
 import { Step3Children } from './steps/step3-children';
 import { Step4Ministries } from './steps/step4-ministries';
 import { Step5Consents } from './steps/step5-consents';
+import { RegistrationEntry } from './registration-entry';
+import { RegistrationDone } from './registration-done';
 import { registrationSchema } from './registration-schema';
 import type { RegistrationFormInput } from './registration-schema';
+import { useDraftPersistence } from '@/hooks/useDraftPersistence';
+import { useFeatureFlags } from '@/contexts/feature-flag-context';
+import { useAuth } from '@/contexts/auth-context';
+import { useToast } from '@/hooks/use-toast';
+import { useQuery } from '@tanstack/react-query';
+import {
+	getRegistrationCycles,
+	registerHouseholdCanonical,
+} from '@/lib/dal';
+import { pickActiveRegistrationCycle } from '@/lib/dal/registration-cycle-utils';
+import { cleanPhone } from '@/hooks/usePhoneFormat';
+import { canonicalizeGradeForStorage } from '@/lib/gradeUtils';
+import { captureAnalyticsEvent } from '@/lib/analytics/browser';
+import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 const STEP_TITLES = [
 	'Household Information',
@@ -34,10 +58,36 @@ const STEP_DESCRIPTIONS = [
 	'Review and sign required consents',
 ];
 
+type WizardScreen = 'entry' | 'wizard' | 'done';
+
 export default function RegisterWizard() {
 	const router = useRouter();
+	const { toast } = useToast();
+	const { flags } = useFeatureFlags();
+	const { user } = useAuth();
+	const [screen, setScreen] = useState<WizardScreen>('entry');
 	const [currentStep, setCurrentStep] = useState(1);
 	const [isSubmitting, setIsSubmitting] = useState(false);
+	const [showCancelDialog, setShowCancelDialog] = useState(false);
+	const [childrenEnrolledInBibleBee, setChildrenEnrolledInBibleBee] = useState(false);
+	const [isReturningPrefill, setIsReturningPrefill] = useState(false);
+
+	const { data: registrationCycles = [] } = useQuery({
+		queryKey: ['registrationCycles'],
+		queryFn: () => getRegistrationCycles(),
+		staleTime: 15 * 60 * 1000,
+	});
+
+	const activeRegistrationCycle = pickActiveRegistrationCycle(registrationCycles);
+
+	// Draft persistence
+	const { loadDraft, saveDraft, clearDraft, draftStatus } =
+		useDraftPersistence<RegistrationFormInput>({
+			formName: 'registration_v1',
+			version: 1,
+			autoSaveDelay: 1000,
+			enabled: flags.registrationDraftPersistenceEnabled || false,
+		});
 
 	const form = useForm<RegistrationFormInput>({
 		resolver: zodResolver(registrationSchema),
@@ -56,7 +106,7 @@ export default function RegisterWizard() {
 					first_name: '',
 					last_name: '',
 					mobile_phone: '',
-					email: '',
+					email: user?.email || '',
 					relationship: 'Mother',
 					is_primary: true,
 				},
@@ -80,8 +130,92 @@ export default function RegisterWizard() {
 	const totalSteps = STEP_TITLES.length;
 	const progress = (currentStep / totalSteps) * 100;
 
+	// Handle entry screen start with optional prefill data
+	const handleStartRegistration = useCallback(
+		async (prefillData?: any) => {
+			if (prefillData?.data) {
+				// Prefill from household data
+				form.reset({
+					household: {
+						household_id: prefillData.data.household?.household_id || '',
+						name: prefillData.data.household?.name || '',
+						address_line1: prefillData.data.household?.address_line1 || '',
+						address_line2: prefillData.data.household?.address_line2 || '',
+						city: prefillData.data.household?.city || '',
+						state: prefillData.data.household?.state || '',
+						zip: prefillData.data.household?.zip || '',
+						preferredScriptureTranslation:
+							prefillData.data.household?.preferredScriptureTranslation || 'NIV',
+					},
+					guardians: prefillData.data.guardians || [
+						{
+							first_name: '',
+							last_name: '',
+							mobile_phone: '',
+							email: user?.email || '',
+							relationship: 'Mother',
+							is_primary: true,
+						},
+					],
+					emergencyContact: prefillData.data.emergencyContact || {
+						first_name: '',
+						last_name: '',
+						mobile_phone: '',
+						relationship: '',
+					},
+					children: prefillData.data.children || [],
+					consents: prefillData.data.consents || {
+						liability: false,
+						photoRelease: false,
+						group_consents: {},
+						custom_consents: {},
+					},
+				});
+				setIsReturningPrefill(prefillData.isReturningPrefill || false);
+				toast({
+					title: 'Household Found!',
+					description: 'Your information has been pre-filled for you to review.',
+				});
+			} else {
+				// Try to load draft
+				try {
+					const draftData = await loadDraft();
+					if (draftData && Object.keys(draftData).length > 0) {
+						form.reset(draftData);
+						toast({
+							title: 'Draft Restored',
+							description: 'Your previous registration progress has been restored.',
+						});
+					}
+				} catch (error) {
+					console.warn('Failed to load draft:', error);
+				}
+			}
+			setScreen('wizard');
+		},
+		[form, loadDraft, toast, user?.email]
+	);
+
+	// Auto-save draft
+	useEffect(() => {
+		if (screen !== 'wizard' || !flags.registrationDraftPersistenceEnabled) return;
+
+		const subscription = form.watch((data) => {
+			const hasData =
+				data.household?.address_line1 ||
+				data.household?.city ||
+				data.guardians?.some((g) => g && (g.first_name || g.last_name)) ||
+				(data.children?.length ?? 0) > 0;
+
+			if (hasData) {
+				saveDraft(data as RegistrationFormInput);
+			}
+		});
+
+		return () => subscription.unsubscribe();
+	}, [form, screen, flags.registrationDraftPersistenceEnabled, saveDraft]);
+
 	const canProceed = () => {
-		// Validate current step before allowing next
 		const values = form.getValues();
 		switch (currentStep) {
 			case 1:
@@ -105,9 +239,9 @@ export default function RegisterWizard() {
 			case 3:
 				return values.children.length > 0;
 			case 4:
-				return true; // Ministry selections are optional
+				return true;
 			case 5:
-				return true; // Final validation happens on submit
+				return true;
 			default:
 				return false;
 		}
@@ -127,19 +261,98 @@ export default function RegisterWizard() {
 		}
 	};
 
+	const handleCancel = () => {
+		setShowCancelDialog(true);
+	};
+
+	const confirmCancel = () => {
+		clearDraft();
+		router.push('/household');
+	};
+
 	const onSubmit = async (data: RegistrationFormInput) => {
+		if (!user?.email) {
+			toast({
+				title: 'Sign in required',
+				description: 'Please sign in before submitting your registration.',
+				variant: 'destructive',
+			});
+			router.push(`/login?next=${encodeURIComponent('/register')}`);
+			return;
+		}
+
+		const cycleId = activeRegistrationCycle?.cycle_id;
+		if (!cycleId) {
+			toast({
+				title: 'Registration unavailable',
+				description:
+					'No active registration cycle is configured. Please try again later.',
+				variant: 'destructive',
+			});
+			return;
+		}
+
 		setIsSubmitting(true);
+
 		try {
-			// TODO: Wire up to existing registration submission logic
-			console.log('Submitting registration:', data);
-			// Placeholder for now - will integrate with registerHouseholdCanonical
-			router.push('/household');
+			// Clean phone numbers
+			const cleanedData = {
+				...data,
+				guardians: data.guardians.map((guardian) => ({
+					...guardian,
+					mobile_phone: cleanPhone(guardian.mobile_phone),
+				})),
+				emergencyContact: {
+					...data.emergencyContact,
+					mobile_phone: cleanPhone(data.emergencyContact.mobile_phone),
+				},
+				children: data.children.map((child) => ({
+					...child,
+					grade: canonicalizeGradeForStorage(child.grade),
+					child_mobile: child.child_mobile
+						? cleanPhone(child.child_mobile)
+						: child.child_mobile,
+				})),
+			};
+
+			const result = await registerHouseholdCanonical(cleanedData, cycleId);
+
+			// Check if any children enrolled in Bible Bee
+			const hasBibleBee = data.children.some(
+				(child) => child.ministrySelections?.['bible-bee']
+			);
+			setChildrenEnrolledInBibleBee(hasBibleBee);
+
+			captureAnalyticsEvent('registration_submitted', {
+				child_count: data.children.length,
+				returning_household: isReturningPrefill,
+			});
+
+			// Clear draft after successful submission
+			clearDraft();
+
+			// Show done screen
+			setScreen('done');
 		} catch (error) {
 			console.error('Registration submission error:', error);
+			toast({
+				title: 'Submission Error',
+				description:
+					'There was an error processing your registration. Please try again.',
+				variant: 'destructive',
+			});
 		} finally {
 			setIsSubmitting(false);
 		}
 	};
+
+	if (screen === 'entry') {
+		return <RegistrationEntry onStart={handleStartRegistration} />;
+	}
+
+	if (screen === 'done') {
+		return <RegistrationDone childrenEnrolledInBibleBee={childrenEnrolledInBibleBee} />;
+	}
 
 	return (
 		<div className="min-h-screen bg-[#f7f5f1]">
@@ -148,7 +361,7 @@ export default function RegisterWizard() {
 				<div className="container mx-auto px-4 py-6">
 					<div className="max-w-3xl mx-auto">
 						<p className="text-xs font-semibold tracking-wider uppercase text-[#5b6b72] mb-2">
-							Fall 2026 Registration
+							{activeRegistrationCycle?.cycle_id || 'Fall 2026'} Registration
 						</p>
 						<h1 className="text-2xl font-bold text-[#1e2a2f] mb-2">
 							{STEP_TITLES[currentStep - 1]}
@@ -163,7 +376,7 @@ export default function RegisterWizard() {
 								</span>
 								<span>{Math.round(progress)}% Complete</span>
 							</div>
-							<Progress value={progress} className="h-2" />
+							<Progress value={progress} className="h-2 [&>div]:bg-[#017c7d]" />
 						</div>
 					</div>
 				</div>
@@ -184,15 +397,24 @@ export default function RegisterWizard() {
 							<Card>
 								<CardContent className="pt-6">
 									<div className="flex gap-3 justify-between">
-										<Button
-											type="button"
-											variant="outline"
-											onClick={handleBack}
-											disabled={currentStep === 1}
-											className="flex items-center gap-2">
-											<ChevronLeft className="h-4 w-4" />
-											Back
-										</Button>
+										<div className="flex gap-3">
+											<Button
+												type="button"
+												variant="outline"
+												onClick={handleBack}
+												disabled={currentStep === 1}
+												className="flex items-center gap-2">
+												<ChevronLeft className="h-4 w-4" />
+												Back
+											</Button>
+											<Button
+												type="button"
+												variant="outline"
+												onClick={handleCancel}
+												className="text-destructive hover:text-destructive">
+												Cancel
+											</Button>
+										</div>
 
 										{currentStep < totalSteps ? (
 											<Button
@@ -218,6 +440,27 @@ export default function RegisterWizard() {
 					</Form>
 				</div>
 			</div>
+
+			{/* Cancel Confirmation Dialog */}
+			<AlertDialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
+				<AlertDialogContent>
+					<AlertDialogHeader>
+						<AlertDialogTitle>Cancel Registration?</AlertDialogTitle>
+						<AlertDialogDescription>
+							Are you sure you want to cancel? Your progress will be lost and you&apos;ll
+							need to start over.
+						</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel>Continue Registration</AlertDialogCancel>
+						<AlertDialogAction
+							onClick={confirmCancel}
+							className="bg-destructive hover:bg-destructive/90">
+							Yes, Cancel
+						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
 		</div>
 	);
 }

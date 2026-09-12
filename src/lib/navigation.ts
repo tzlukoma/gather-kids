@@ -19,6 +19,7 @@ interface MenuItem {
     roles: AuthRole[];
     ministryCheck?: (ids: string[]) => boolean;
     isBeta?: boolean;
+    group?: 'TODAY' | 'PEOPLE' | 'PROGRAMS' | 'ADMINISTRATION';
 }
 
 export const MENU_ITEMS: MenuItem[] = [

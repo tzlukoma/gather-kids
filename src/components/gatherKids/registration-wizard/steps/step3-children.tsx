@@ -182,7 +182,7 @@ export function Step3Children({ form }: Step3ChildrenProps) {
 													render={({ field }) => (
 														<FormItem>
 															<FormLabel className="text-[#1e2a2f] font-semibold">
-																Child's Phone (Optional)
+																Child&apos;s Phone (Optional)
 															</FormLabel>
 															<FormControl>
 																<PhoneInput

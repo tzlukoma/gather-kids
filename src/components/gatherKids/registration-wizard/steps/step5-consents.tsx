@@ -42,9 +42,9 @@ export function Step5Consents({ form }: Step5ConsentsProps) {
 									Liability Release *
 								</FormLabel>
 								<FormDescription className="text-sm text-[#5b6b72] leading-relaxed whitespace-pre-wrap max-h-[300px] overflow-y-auto pr-2">
-									In consideration of my child's participation in the Youth Ministry, I
+									In consideration of my child&apos;s participation in the Youth Ministry, I
 									hereby release, waive, relinquish and forever discharge any and all
-									liability or claims I may have or which may arise from my child's
+									liability or claims I may have or which may arise from my child&apos;s
 									participation in the above described event, and agree to defend,
 									indemnify and hold harmless Cathedral International, Cathedral
 									International Youth Ministry, their affiliates, related entities,
@@ -52,7 +52,7 @@ export function Step5Consents({ form }: Step5ConsentsProps) {
 									from any and all liability, claims, lawsuits, demands, judgments or
 									damages for personal injury as well as property damage and any expenses,
 									costs and fees of any type, kind or nature which may arise from my
-									child's participation in the above described event. I hereby agree to
+									child&apos;s participation in the above described event. I hereby agree to
 									assume sole responsibility for any damages incurred as a result of the
 									negligent, willful or intentional act of my child and to reimburse
 									Cathedral International for the cost of same, including but not to any
