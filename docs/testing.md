@@ -50,7 +50,8 @@ E2E spec files:
 
 | File | Scope |
 |------|-------|
-| `e2e/smoke-test.spec.ts` | Navigate to create account and registration pages |
+| `e2e/smoke-test.spec.ts` | Navigate to create account and registration pages (PR dummy-Supabase smoke) |
+| `e2e/registration-smoke.spec.ts` | First-time + returning `/register` submit (runs on push to `main`) |
 | `e2e/auth-registration.spec.ts` | Email/password authentication + registration flow |
 | `e2e/simplified-registration.spec.ts` | Simplified registration path |
 | `e2e/browser-config-test.spec.ts` | Browser configuration smoke tests |
