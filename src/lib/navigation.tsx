@@ -12,6 +12,7 @@ import {
 	Book,
 	Palette,
 	UserCog,
+	Calendar,
 } from 'lucide-react';
 import { AuthRole } from './auth-types';
 
@@ -23,6 +24,7 @@ interface MenuItem {
 	requiresActive?: boolean;
 	ministryCheck?: (ministryIds: string[], userRole?: AuthRole) => boolean;
 	isBeta?: boolean;
+	group?: 'TODAY' | 'PEOPLE' | 'PROGRAMS' | 'ADMINISTRATION';
 }
 
 export const MENU_ITEMS: MenuItem[] = [
@@ -31,6 +33,7 @@ export const MENU_ITEMS: MenuItem[] = [
 		icon: LayoutDashboard,
 		label: 'Dashboard',
 		roles: [AuthRole.ADMIN],
+		group: 'TODAY',
 	},
 	{
 		href: '/check-in',
@@ -38,6 +41,7 @@ export const MENU_ITEMS: MenuItem[] = [
 		label: 'Check-In/Out',
 		roles: [AuthRole.ADMIN, AuthRole.MINISTRY_LEADER, AuthRole.GUARDIAN],
 		requiresActive: true,
+		group: 'TODAY',
 		// Only show check-in to admins or leaders assigned to Sunday School
 		ministryCheck: (ministryIds: string[], userRole?: AuthRole) =>
 			userRole === AuthRole.ADMIN || ministryIds.includes('min_sunday_school'),
@@ -48,6 +52,7 @@ export const MENU_ITEMS: MenuItem[] = [
 		label: 'Rosters',
 		roles: [AuthRole.ADMIN, AuthRole.MINISTRY_LEADER],
 		requiresActive: true,
+		group: 'PEOPLE',
 	},
 	{
 		href: '/registrations',
@@ -55,6 +60,7 @@ export const MENU_ITEMS: MenuItem[] = [
 		label: 'Registrations',
 		roles: [AuthRole.ADMIN, AuthRole.MINISTRY_LEADER],
 		requiresActive: true,
+		group: 'PEOPLE',
 	},
 	{
 		href: '/incidents',
@@ -62,6 +68,7 @@ export const MENU_ITEMS: MenuItem[] = [
 		label: 'Incidents',
 		roles: [AuthRole.ADMIN, AuthRole.MINISTRY_LEADER],
 		isBeta: true,
+		group: 'PEOPLE',
 	},
 	{
 		href: '/bible-bee',
@@ -84,6 +91,7 @@ export const MENU_ITEMS: MenuItem[] = [
 		label: 'Bible Bee',
 		roles: [AuthRole.ADMIN, AuthRole.MINISTRY_LEADER],
 		requiresActive: true,
+		group: 'PROGRAMS',
 		ministryCheck: (ministryIds: string[], userRole?: AuthRole) => {
 			if (userRole === AuthRole.ADMIN) return true;
 			// Check if any of the user's ministries have code 'bible-bee'
@@ -100,6 +108,7 @@ export const MENU_ITEMS: MenuItem[] = [
 		icon: Contact,
 		label: 'Leaders',
 		roles: [AuthRole.ADMIN],
+		group: 'ADMINISTRATION',
 	},
 	{
 		href: '/users',
@@ -107,6 +116,7 @@ export const MENU_ITEMS: MenuItem[] = [
 		label: 'Users',
 		roles: [AuthRole.ADMIN],
 		isBeta: true,
+		group: 'ADMINISTRATION',
 	},
 	{
 		href: '/reports',
@@ -114,20 +124,23 @@ export const MENU_ITEMS: MenuItem[] = [
 		label: 'Reports',
 		roles: [AuthRole.ADMIN],
 		isBeta: true,
+		group: 'ADMINISTRATION',
 	},
 	{
 		href: '/ministries',
 		icon: Settings,
 		label: 'Ministries',
 		roles: [AuthRole.ADMIN],
+		group: 'ADMINISTRATION',
 	},
 	{
 		href: '/branding',
 		icon: Palette,
 		label: 'Branding',
 		roles: [AuthRole.ADMIN],
+		group: 'ADMINISTRATION',
 	},
-	// Guardian menu items
+	// Guardian menu items (no group)
 	{
 		href: '/household',
 		icon: Users,

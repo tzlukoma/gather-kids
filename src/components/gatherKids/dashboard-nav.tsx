@@ -185,36 +185,53 @@ export function DashboardNav({ children }: DashboardNavProps) {
 					</SidebarHeader>
 					<SidebarContent>
 						<SidebarMenu>
-							{finalMenuItems.map((item) => {
-								const Icon = item.icon as
-									| React.ComponentType<any>
-									| React.ReactNode;
-								console.log(
-									'Rendering menu item:',
-									item.label,
-									'isBeta:',
-									item.isBeta
-								);
+							{/* Group menu items by section */}
+							{['TODAY', 'PEOPLE', 'PROGRAMS', 'ADMINISTRATION', undefined].map((group) => {
+								const groupItems = finalMenuItems.filter((item) => item.group === group);
+								if (groupItems.length === 0) return null;
+
 								return (
-									<SidebarMenuItem
-										key={item.href}
-										data-active={pathname === item.href}>
-										<SidebarMenuButton asChild>
-											<Link
-												href={item.href}
-												className="flex items-center gap-2 w-full">
-												{renderNavIcon(Icon)}
-												<span className="flex-1">{item.label}</span>
-												{item.isBeta && (
-													<Badge
-														variant="secondary"
-														className="text-xs px-1.5 py-0.5 ml-auto bg-blue-100 text-blue-800 border border-blue-200">
-														Beta
-													</Badge>
-												)}
-											</Link>
-										</SidebarMenuButton>
-									</SidebarMenuItem>
+									<React.Fragment key={group || 'ungrouped'}>
+										{group && (
+											<div className="px-3 py-2">
+												<h3 className="text-xs font-semibold tracking-wider uppercase text-muted-foreground">
+													{group}
+												</h3>
+											</div>
+										)}
+										{groupItems.map((item) => {
+											const Icon = item.icon as
+												| React.ComponentType<any>
+												| React.ReactNode;
+											console.log(
+												'Rendering menu item:',
+												item.label,
+												'isBeta:',
+												item.isBeta
+											);
+											return (
+												<SidebarMenuItem
+													key={item.href}
+													data-active={pathname === item.href}>
+													<SidebarMenuButton asChild>
+														<Link
+															href={item.href}
+															className="flex items-center gap-2 w-full">
+															{renderNavIcon(Icon)}
+															<span className="flex-1">{item.label}</span>
+															{item.isBeta && (
+																<Badge
+																	variant="secondary"
+																	className="text-xs px-1.5 py-0.5 ml-auto bg-blue-100 text-blue-800 border border-blue-200">
+																	Beta
+																</Badge>
+															)}
+														</Link>
+													</SidebarMenuButton>
+												</SidebarMenuItem>
+											);
+										})}
+									</React.Fragment>
 								);
 							})}
 						</SidebarMenu>
