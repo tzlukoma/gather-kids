@@ -1,6 +1,6 @@
 'use client';
 
-import { useParams, useSearchParams } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import {
 	useChild,
 	useHousehold,
@@ -50,6 +50,7 @@ export default function ChildBibleBeeDetail({
 	allowPhotoUpdates = false,
 }: ChildBibleBeeDetailProps) {
 	const params = useParams();
+	const router = useRouter();
 	const searchParams = useSearchParams();
 	const childId = params.childId as string;
 	const { user } = useAuth();
@@ -96,12 +97,13 @@ export default function ChildBibleBeeDetail({
 
 	const [userSelectedCycle, setUserSelectedCycle] = useState<string | null>(null);
 	
-	// Effective selected cycle: URL param > user selection > default
+	// Effective selected cycle: user selection > URL param > default
+	// User selection must win to fix picker-stuck bug when landing with ?cycleId=
 	const effectiveSelectedCycle = useMemo(() => {
-		if (urlCycleId) return urlCycleId;
 		if (userSelectedCycle) return userSelectedCycle;
+		if (urlCycleId) return urlCycleId;
 		return defaultCycle || '';
-	}, [urlCycleId, userSelectedCycle, defaultCycle]);
+	}, [userSelectedCycle, urlCycleId, defaultCycle]);
 	
 	// Use the selected cycle for data fetching
 	const { data, isLoading } = useStudentAssignmentsQuery(childId, effectiveSelectedCycle);
@@ -144,19 +146,6 @@ export default function ChildBibleBeeDetail({
 	const essaySummary = statsData?.essaySummary || null;
 	const divisionEssayPrompts = statsData?.divisionEssayPrompts || [];
 	const isComputingStats = statsLoading;
-	
-	// Compute the year label for display
-	const yearLabel = useMemo(() => {
-		if (bibleBeeCycles && bibleBeeCycles.length > 0) {
-			const bibleBeeCycle = bibleBeeCycles.find(
-				(c: any) => c.id === effectiveSelectedCycle
-			);
-			if (bibleBeeCycle && bibleBeeCycle.name) {
-				return bibleBeeCycle.name;
-			}
-		}
-		return 'Bible Bee';
-	}, [effectiveSelectedCycle, bibleBeeCycles]);
 
 	if (
 		isLoading ||
@@ -261,10 +250,8 @@ export default function ChildBibleBeeDetail({
 							value={effectiveSelectedCycle}
 							onValueChange={(value) => {
 								setUserSelectedCycle(value);
-								// Update URL without navigation
-								const url = new URL(window.location.href);
-								url.searchParams.set('cycleId', value);
-								window.history.replaceState({}, '', url.toString());
+								// Update URL using Next.js router to properly refresh searchParams
+								router.replace(`?cycleId=${value}`, { scroll: false });
 							}}
 						>
 							<SelectTrigger className="w-[180px]">
