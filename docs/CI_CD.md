@@ -168,6 +168,8 @@ GitHub CI (`ci.yml`) runs dummy `next build` jobs. Those builds must **not** upl
 
 ## PostHog (usage events + flags)
 
+Full agent/developer guide: [`docs/FEATURE_FLAGS.md`](./FEATURE_FLAGS.md).
+
 One PostHog Cloud project is shared by UAT and production. Isolation is `deploy_env` on persons and `{deploy_env}:{auth uuid}` distinct ids — not separate projects.
 
 | Variable | Production | Preview |
