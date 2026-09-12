@@ -18,7 +18,7 @@
  *   # Using UAT environment variables
  *   DOTENV_CONFIG_PATH=.env.uat node -r dotenv/config scripts/uat/mbaku-fixtures.js
  *   
- *   # With explicit --uat flag
+ *   # With explicit --uat flag (requires localhost/uat/staging URL)
  *   node scripts/uat/mbaku-fixtures.js --uat
  *
  *   # Reset mode (delete and re-seed)
@@ -233,6 +233,12 @@ async function resetMbakuFixtures() {
 		console.log('✅ Cleared student_essays');
 
 		await supabase
+			.from('essay_prompts')
+			.delete()
+			.like('id', `${FIXTURE_PREFIX}%`);
+		console.log('✅ Cleared essay_prompts');
+
+		await supabase
 			.from('bible_bee_enrollments')
 			.delete()
 			.like('id', `${FIXTURE_PREFIX}%`);
@@ -369,25 +375,62 @@ async function getActiveBibleBeeCycle() {
 
 /**
  * Get multiple active Bible Bee cycles for dual-cycle testing
+ * Returns active cycles + newest prior cycles to reach the limit
  */
 async function getActiveBibleBeeCycles(limit = 2) {
-	console.log(`📖 Finding up to ${limit} active Bible Bee cycles...`);
+	console.log(`📖 Finding up to ${limit} Bible Bee cycles (active + newest prior)...`);
 
-	const { data, error } = await supabase
+	// Get active cycles
+	const { data: activeCycles, error: activeError } = await supabase
 		.from('bible_bee_cycles')
-		.select('id, name')
+		.select('id, name, created_at')
 		.eq('is_active', true)
-		.limit(limit);
+		.order('name', { ascending: false });
 
-	if (error || !data || data.length === 0) {
-		console.error('❌ No active Bible Bee cycles found');
+	if (activeError) {
+		console.error('❌ Error fetching active Bible Bee cycles:', activeError.message);
+		process.exit(1);
+	}
+
+	const cycles = activeCycles || [];
+	console.log(`✅ Found ${cycles.length} active Bible Bee cycle(s)`);
+
+	// If we need more cycles to reach the limit, get newest prior (inactive) cycles
+	if (cycles.length < limit) {
+		const needed = limit - cycles.length;
+		console.log(`📖 Fetching ${needed} newest prior (inactive) cycle(s)...`);
+
+		const { data: priorCycles, error: priorError } = await supabase
+			.from('bible_bee_cycles')
+			.select('id, name, created_at')
+			.eq('is_active', false)
+			.order('created_at', { ascending: false })
+			.limit(needed);
+
+		if (!priorError && priorCycles && priorCycles.length > 0) {
+			cycles.push(...priorCycles);
+			console.log(`✅ Found ${priorCycles.length} prior cycle(s)`);
+		}
+	}
+
+	// Warn if we have fewer than 2 cycles total
+	if (cycles.length < 2) {
+		console.warn(`⚠️  WARNING: Only ${cycles.length} Bible Bee cycle(s) found (expected at least 2)`);
+		console.warn('   Fixture 2 (dual-cycle) may not function as expected.');
+		console.warn('   Consider running seed:uat:bible-bee to create more cycles.');
+	}
+
+	if (cycles.length === 0) {
+		console.error('❌ No Bible Bee cycles found');
 		console.error('   Please ensure Bible Bee cycles exist (run seed:uat:bible-bee)');
 		process.exit(1);
 	}
 
-	console.log(`✅ Found ${data.length} Bible Bee cycle(s):`);
-	data.forEach(cycle => console.log(`   - ${cycle.name} (${cycle.id})`));
-	return data;
+	// Limit to requested amount
+	const result = cycles.slice(0, limit);
+	console.log(`✅ Returning ${result.length} Bible Bee cycle(s):`);
+	result.forEach(cycle => console.log(`   - ${cycle.name} (${cycle.id})`));
+	return result;
 }
 
 /**
