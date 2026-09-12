@@ -11,15 +11,13 @@
  *
  * PRODUCTION SAFETY:
  * - Hard-gated off production
- * - Requires UAT environment variables or explicit --uat flag
+ * - Requires a Supabase URL containing uat, staging, or localhost
+ * - The --uat flag is NOT sufficient on its own and cannot authorize a non-UAT remote URL
  * - Will refuse to run against production project refs/URLs
  *
  * Usage:
- *   # Using UAT environment variables
+ *   # Using UAT environment variables (URL must contain uat/staging/localhost)
  *   DOTENV_CONFIG_PATH=.env.uat node -r dotenv/config scripts/uat/mbaku-fixtures.js
- *   
- *   # With explicit --uat flag (requires localhost/uat/staging URL)
- *   node scripts/uat/mbaku-fixtures.js --uat
  *
  *   # Reset mode (delete and re-seed)
  *   RESET=true DOTENV_CONFIG_PATH=.env.uat node -r dotenv/config scripts/uat/mbaku-fixtures.js
