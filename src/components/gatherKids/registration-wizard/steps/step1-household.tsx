@@ -9,6 +9,8 @@ import {
 	FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Info } from 'lucide-react';
 import type { RegistrationFormInput } from '../registration-schema';
 
 interface Step1HouseholdProps {
@@ -20,14 +22,21 @@ export function Step1Household({ form }: Step1HouseholdProps) {
 		<Card>
 			<CardHeader>
 				<CardTitle className="text-xl font-bold text-[#1e2a2f]">
-					Household Address
+					Confirm your household
 				</CardTitle>
 				<CardDescription className="text-[#5b6b72]">
-					Enter your primary household address for ministry communications and
-					emergency contact purposes.
+					Review and confirm your household address. This will be used for ministry
+					communications and emergency contact purposes.
 				</CardDescription>
 			</CardHeader>
 			<CardContent className="space-y-4">
+				<Alert className="bg-[#e8f5f5] border-[#017c7d]">
+					<Info className="h-4 w-4 text-[#017c7d]" />
+					<AlertDescription className="text-sm text-[#1e2a2f]">
+						This information is on file. Update if anything has changed.
+					</AlertDescription>
+				</Alert>
+
 				<FormField
 					control={form.control}
 					name="household.address_line1"
@@ -68,7 +77,7 @@ export function Step1Household({ form }: Step1HouseholdProps) {
 					)}
 				/>
 
-				<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+				<div className="grid grid-cols-2 gap-4">
 					<FormField
 						control={form.control}
 						name="household.city"
@@ -80,27 +89,6 @@ export function Step1Household({ form }: Step1HouseholdProps) {
 								<FormControl>
 									<Input
 										placeholder="Anytown"
-										{...field}
-										className="border-[#e0dacf] focus-visible:ring-[#017c7d]"
-									/>
-								</FormControl>
-								<FormMessage className="text-destructive" />
-							</FormItem>
-						)}
-					/>
-
-					<FormField
-						control={form.control}
-						name="household.state"
-						render={({ field }) => (
-							<FormItem>
-								<FormLabel className="text-[#1e2a2f] font-semibold">
-									State *
-								</FormLabel>
-								<FormControl>
-									<Input
-										placeholder="e.g., NJ"
-										maxLength={2}
 										{...field}
 										className="border-[#e0dacf] focus-visible:ring-[#017c7d]"
 									/>
@@ -131,6 +119,27 @@ export function Step1Household({ form }: Step1HouseholdProps) {
 						)}
 					/>
 				</div>
+
+				<FormField
+					control={form.control}
+					name="household.state"
+					render={({ field }) => (
+						<FormItem>
+							<FormLabel className="text-[#1e2a2f] font-semibold">
+								State *
+							</FormLabel>
+							<FormControl>
+								<Input
+									placeholder="e.g., NJ"
+									maxLength={2}
+									{...field}
+									className="border-[#e0dacf] focus-visible:ring-[#017c7d]"
+								/>
+							</FormControl>
+							<FormMessage className="text-destructive" />
+						</FormItem>
+					)}
+				/>
 
 				<FormField
 					control={form.control}

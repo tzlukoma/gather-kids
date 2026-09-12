@@ -12,7 +12,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Info } from 'lucide-react';
+import { Info, Clock, Users, CheckCircle2 } from 'lucide-react';
 import type { RegistrationFormInput } from '../registration-schema';
 import { useQuery } from '@tanstack/react-query';
 import { getMinistries } from '@/lib/dal';
@@ -21,86 +21,6 @@ import { useMemo } from 'react';
 
 interface Step4MinistriesProps {
 	form: UseFormReturn<RegistrationFormInput>;
-}
-
-interface ChildMinistryCheckboxProps {
-	ministry: Ministry;
-	form: UseFormReturn<RegistrationFormInput>;
-	fieldPrefix: string;
-	child: any;
-	childIndex: number;
-}
-
-function ChildMinistryCheckbox({
-	ministry,
-	form,
-	fieldPrefix,
-	child,
-	childIndex,
-}: ChildMinistryCheckboxProps) {
-	const isSelected = useWatch({
-		control: form.control,
-		name: `children.${childIndex}.${fieldPrefix}.${ministry.code}` as any,
-	});
-
-	return (
-		<div>
-			<FormField
-				control={form.control}
-				name={`children.${childIndex}.${fieldPrefix}.${ministry.code}` as any}
-				render={({ field }) => (
-					<FormItem className="flex flex-row items-start space-x-3 space-y-0">
-						<FormControl>
-							<Checkbox
-								checked={field.value}
-								onCheckedChange={field.onChange}
-								className="border-[#017c7d] data-[state=checked]:bg-[#017c7d]"
-							/>
-						</FormControl>
-						<FormLabel className="font-normal text-[#1e2a2f]">
-							{child.first_name || `Child ${childIndex + 1}`}
-						</FormLabel>
-					</FormItem>
-				)}
-			/>
-
-			{/* Optional custom questions per ministry */}
-			{isSelected && ministry.custom_questions && ministry.custom_questions.length > 0 && (
-				<div className="ml-8 mt-2 space-y-2">
-					{ministry.custom_questions.map((question, qIndex) => (
-						<FormField
-							key={`${ministry.code}-${childIndex}-q${qIndex}`}
-							control={form.control}
-							name={
-								`children.${childIndex}.customFields.${ministry.code}.${question.id}` as any
-							}
-							render={({ field: customField }) => (
-								<FormItem>
-									<FormLabel className="text-sm text-[#1e2a2f]">
-										{question.text}
-									</FormLabel>
-									<FormControl>
-										{question.type === 'text' ? (
-											<Input
-												{...customField}
-												className="border-[#e0dacf] focus:border-[#017c7d]"
-											/>
-										) : (
-											<Textarea
-												{...customField}
-												className="border-[#e0dacf] focus:border-[#017c7d]"
-												rows={2}
-											/>
-										)}
-									</FormControl>
-								</FormItem>
-							)}
-						/>
-					))}
-				</div>
-			)}
-		</div>
-	);
 }
 
 interface MinistryCardProps {
@@ -115,40 +35,77 @@ function MinistryCard({ ministry, form, selectionType, childrenData }: MinistryC
 		selectionType === 'enrollment' ? 'ministrySelections' : 'interestSelections';
 
 	return (
-		<div className="p-4 border border-[#e0dacf] rounded-md">
-			<h4 className="font-semibold text-[#1e2a2f]">{ministry.name}</h4>
-			{ministry.description && (
-				<p className="text-sm text-[#5b6b72] mb-2">{ministry.description}</p>
-			)}
-			{(ministry.min_age || ministry.max_age || ministry.min_grade || ministry.max_grade) && (
-				<p className="text-xs text-[#5b6b72] mb-2">
-					Eligible:{' '}
-					{ministry.min_age && ministry.max_age && `Ages ${ministry.min_age}-${ministry.max_age}`}
-					{ministry.min_grade &&
-						ministry.max_grade &&
-						` Grades ${ministry.min_grade}-${ministry.max_grade}`}
-				</p>
-			)}
-
-			<div className="flex flex-col gap-2 mt-2">
-				{childrenData.map((child, childIndex) => (
-					<ChildMinistryCheckbox
-						key={`${ministry.code}-${childIndex}`}
-						ministry={ministry}
-						form={form}
-						fieldPrefix={fieldPrefix}
-						child={child}
-						childIndex={childIndex}
-					/>
-				))}
-			</div>
-
-			{/* Optional consent text */}
-			{ministry.optional_consent_text && (
-				<div className="mt-3 p-3 bg-[#f7f5f1] border border-[#e6e1d8] rounded text-xs text-[#5b6b72]">
-					{ministry.optional_consent_text}
+		<div
+			className="border-2 rounded-lg overflow-hidden transition-all border-[#e0dacf] bg-white hover:border-[#017c7d]/50">
+			<div className="p-4">
+				<div className="flex items-start justify-between mb-3">
+					<div className="flex-1">
+						<h4 className="font-semibold text-[#1e2a2f] mb-1">{ministry.name}</h4>
+						{ministry.description && (
+							<p className="text-sm text-[#5b6b72]">{ministry.description}</p>
+						)}
+					</div>
 				</div>
-			)}
+
+				{/* Schedule / Meta Info */}
+				<div className="flex flex-wrap gap-3 text-xs text-[#5b6b72] mb-4">
+					{(ministry.min_age || ministry.max_age) && (
+						<div className="flex items-center gap-1">
+							<Users className="h-3 w-3" />
+							<span>
+								Ages {ministry.min_age || '0'}-{ministry.max_age || '18'}
+							</span>
+						</div>
+					)}
+					{(ministry.min_grade || ministry.max_grade) && (
+						<div className="flex items-center gap-1">
+							<Users className="h-3 w-3" />
+							<span>
+								Grades {ministry.min_grade}-{ministry.max_grade}
+							</span>
+						</div>
+					)}
+					{ministry.details && (
+						<div className="flex items-center gap-1">
+							<Clock className="h-3 w-3" />
+							<span>{ministry.details}</span>
+						</div>
+					)}
+				</div>
+
+				{/* Children Selection */}
+				<div className="space-y-2">
+					{childrenData.map((child, childIndex) => (
+						<div key={childIndex} className="flex items-center gap-2">
+							<FormField
+								control={form.control}
+								name={`children.${childIndex}.${fieldPrefix}.${ministry.code}` as any}
+								render={({ field }) => (
+									<FormItem className="flex items-center space-x-2 space-y-0">
+										<FormControl>
+											<Checkbox
+												checked={field.value}
+												onCheckedChange={field.onChange}
+												className="border-[#017c7d] data-[state=checked]:bg-[#017c7d]"
+											/>
+										</FormControl>
+										<FormLabel className="font-normal text-[#1e2a2f]">
+											{child.first_name || `Child ${childIndex + 1}`}
+										</FormLabel>
+									</FormItem>
+								)}
+							/>
+						</div>
+					))}
+				</div>
+
+				{/* Optional consent text */}
+				{ministry.optional_consent_text && (
+					<div className="mt-3 p-2 bg-[#fdf6e8] border border-[#e6d5a3] rounded text-xs text-[#5b6b72]">
+						{ministry.optional_consent_text}
+					</div>
+				)}
+			</div>
 		</div>
 	);
 }
@@ -173,6 +130,17 @@ export function Step4Ministries({ form }: Step4MinistriesProps) {
 		() => allMinistries.filter((m: Ministry) => m.enrollment_type === 'expressed_interest'),
 		[allMinistries]
 	);
+
+	// Count selections
+	const selectedEnrolledCount = useMemo(() => {
+		if (!childrenData) return 0;
+		return enrolledMinistries.reduce((count, ministry) => {
+			const hasSelection = childrenData.some(
+				(child: any) => child.ministrySelections?.[ministry.code]
+			);
+			return hasSelection ? count + 1 : count;
+		}, 0);
+	}, [childrenData, enrolledMinistries]);
 
 	if (loadingMinistries) {
 		return (
@@ -212,6 +180,16 @@ export function Step4Ministries({ form }: Step4MinistriesProps) {
 
 	return (
 		<div className="space-y-6">
+			{/* Review Summary */}
+			<Alert className="bg-[#e8f5f5] border-[#017c7d]">
+				<Info className="h-4 w-4 text-[#017c7d]" />
+				<AlertDescription className="text-sm text-[#1e2a2f]">
+					<strong>{selectedEnrolledCount} programs selected</strong> for{' '}
+					{childrenData.length} {childrenData.length === 1 ? 'child' : 'children'}. Sunday
+					School is included for all children.
+				</AlertDescription>
+			</Alert>
+
 			{enrolledMinistries.length > 0 && (
 				<Card>
 					<CardHeader>
@@ -219,41 +197,36 @@ export function Step4Ministries({ form }: Step4MinistriesProps) {
 							Ministry Programs
 						</CardTitle>
 						<CardDescription className="text-[#5b6b72]">
-							Select the programs each child wishes to enroll in.
+							Select programs for each child. Click a card to view details and enroll.
 						</CardDescription>
 					</CardHeader>
-					<CardContent className="space-y-6">
-						{/* Always show Sunday School as included */}
-						<div className="p-4 border border-[#e0dacf] rounded-md bg-[#f7f5f1]">
-							<h4 className="font-semibold text-[#1e2a2f] mb-2">
-								Sunday School / Children&apos;s Church
-							</h4>
-							<div className="text-sm text-[#5b6b72] space-y-2">
-								<p>
-									Sunday School takes place in the Family Life Enrichment Center on 1st,
-									4th, and 5th Sundays during the 9:30 AM Service. Sunday School serves ages
-									4-18.
-								</p>
-								<p>
-									Children&apos;s Church, for ages 4-12, will take place on 3rd Sundays in
-									the same location during the 9:30 AM service.
-								</p>
-							</div>
-							<div className="flex flex-col gap-2 mt-3">
-								{childrenData.map((child, index) => (
-									<div
-										key={index}
-										className="flex flex-row items-start space-x-3 space-y-0">
-										<Checkbox checked={true} disabled={true} className="border-[#017c7d]" />
-										<label className="font-normal text-sm text-[#5b6b72]">
-											{child.first_name || `Child ${index + 1}`}
-										</label>
+					<CardContent className="space-y-4">
+						{/* Sunday School Card - Always Included */}
+						<div className="border-2 border-[#017c7d] rounded-lg overflow-hidden bg-[#e8f5f5]">
+							<div className="p-4">
+								<div className="flex items-start justify-between mb-2">
+									<div>
+										<h4 className="font-semibold text-[#1e2a2f]">
+											Sunday School / Children&apos;s Church
+										</h4>
+										<p className="text-sm text-[#5b6b72] mt-1">
+											1st, 4th, 5th Sundays at 9:30 AM • Ages 4-18
+										</p>
 									</div>
-								))}
+									<CheckCircle2 className="h-5 w-5 text-[#017c7d] flex-shrink-0" />
+								</div>
+								<div className="mt-3 space-y-1">
+									{childrenData.map((child, index) => (
+										<div key={index} className="flex items-center gap-2 text-sm text-[#1e2a2f]">
+											<Checkbox checked={true} disabled={true} className="border-[#017c7d]" />
+											<span>{child.first_name || `Child ${index + 1}`}</span>
+										</div>
+									))}
+								</div>
 							</div>
 						</div>
 
-						{/* Render enrolled ministries */}
+						{/* Other Ministry Cards */}
 						{enrolledMinistries.map((ministry: Ministry) => (
 							<MinistryCard
 								key={ministry.ministry_id}

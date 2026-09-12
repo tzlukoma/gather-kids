@@ -42,20 +42,12 @@ import {
 	AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 
-const STEP_TITLES = [
-	'Household Information',
-	'Guardians & Emergency Contact',
-	'Children Information',
-	'Ministry Programs',
-	'Consents & Submit',
-];
-
-const STEP_DESCRIPTIONS = [
-	'Provide your household address',
-	'List all authorized adults for pickup',
-	'Add each child you are registering',
-	'Select programs for your children',
-	'Review and sign required consents',
+const STEPS = [
+	{ label: 'Household', title: 'Confirm your household', description: 'Review your household address' },
+	{ label: 'Guardians', title: 'Who can collect the children?', description: 'Authorized adults for pickup' },
+	{ label: 'Children', title: 'Tell us about your children', description: 'Add each child you are registering' },
+	{ label: 'Ministries', title: 'Choose ministry programs', description: 'Select programs for your children' },
+	{ label: 'Consents', title: 'Review and submit', description: 'Review and sign required consents' },
 ];
 
 type WizardScreen = 'entry' | 'wizard' | 'done';
@@ -70,6 +62,7 @@ export default function RegisterWizard() {
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [showCancelDialog, setShowCancelDialog] = useState(false);
 	const [childrenEnrolledInBibleBee, setChildrenEnrolledInBibleBee] = useState(false);
+	const [registeredChildren, setRegisteredChildren] = useState<Array<{name: string; ministries: string[]}>>([]);
 	const [isReturningPrefill, setIsReturningPrefill] = useState(false);
 
 	const { data: registrationCycles = [] } = useQuery({
@@ -127,8 +120,7 @@ export default function RegisterWizard() {
 		},
 	});
 
-	const totalSteps = STEP_TITLES.length;
-	const progress = (currentStep / totalSteps) * 100;
+	const totalSteps = STEPS.length;
 
 	// Handle entry screen start with optional prefill data
 	const handleStartRegistration = useCallback(
@@ -317,6 +309,27 @@ export default function RegisterWizard() {
 
 			const result = await registerHouseholdCanonical(cleanedData, cycleId);
 
+			// Build registered children summary
+			const childSummary = data.children.map((child) => {
+				const ministries: string[] = ['Sunday School'];
+				
+				// Add enrolled ministries
+				if (child.ministrySelections) {
+					Object.entries(child.ministrySelections).forEach(([code, selected]) => {
+						if (selected) {
+							// Try to find ministry name (fallback to code if not found)
+							ministries.push(code.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()));
+						}
+					});
+				}
+
+				return {
+					name: `${child.first_name} ${child.last_name}`,
+					ministries,
+				};
+			});
+			setRegisteredChildren(childSummary);
+
 			// Check if any children enrolled in Bible Bee
 			const hasBibleBee = data.children.some(
 				(child) => child.ministrySelections?.['bible-bee']
@@ -351,33 +364,107 @@ export default function RegisterWizard() {
 	}
 
 	if (screen === 'done') {
-		return <RegistrationDone childrenEnrolledInBibleBee={childrenEnrolledInBibleBee} />;
+		return <RegistrationDone childrenEnrolledInBibleBee={childrenEnrolledInBibleBee} registeredChildren={registeredChildren} />;
 	}
 
 	return (
 		<div className="min-h-screen bg-[#f7f5f1]">
-			{/* Header with Progress */}
+			{/* Header with Step Strip */}
 			<div className="bg-white border-b border-[#eae4da]">
 				<div className="container mx-auto px-4 py-6">
-					<div className="max-w-3xl mx-auto">
-						<p className="text-xs font-semibold tracking-wider uppercase text-[#5b6b72] mb-2">
+					<div className="max-w-5xl mx-auto">
+						<p className="text-xs font-semibold tracking-wider uppercase text-[#5b6b72] mb-4">
 							{activeRegistrationCycle?.cycle_id || 'Fall 2026'} Registration
 						</p>
-						<h1 className="text-2xl font-bold text-[#1e2a2f] mb-2">
-							{STEP_TITLES[currentStep - 1]}
-						</h1>
-						<p className="text-sm text-[#5b6b72] mb-4">
-							{STEP_DESCRIPTIONS[currentStep - 1]}
-						</p>
-						<div className="space-y-2">
-							<div className="flex justify-between text-sm text-[#5b6b72]">
-								<span>
-									Step {currentStep} of {totalSteps}
-								</span>
-								<span>{Math.round(progress)}% Complete</span>
-							</div>
-							<Progress value={progress} className="h-2 [&>div]:bg-[#017c7d]" />
+
+						{/* Desktop: Circular numbered stepper */}
+						<div className="hidden md:flex justify-between items-center mb-8">
+							{STEPS.map((step, index) => {
+								const stepNumber = index + 1;
+								const isActive = stepNumber === currentStep;
+								const isComplete = stepNumber < currentStep;
+
+								return (
+									<div key={index} className="flex items-center flex-1">
+										<div className="flex flex-col items-center">
+											<div
+												className={`w-12 h-12 rounded-full flex items-center justify-center text-sm font-semibold mb-2 ${
+													isComplete
+														? 'bg-[#017c7d] text-white'
+														: isActive
+														? 'bg-[#017c7d] text-white'
+														: 'bg-[#e6e1d8] text-[#5b6b72]'
+												}`}>
+												{isComplete ? (
+													<svg
+														className="w-5 h-5"
+														fill="none"
+														stroke="currentColor"
+														viewBox="0 0 24 24">
+														<path
+															strokeLinecap="round"
+															strokeLinejoin="round"
+															strokeWidth={2}
+															d="M5 13l4 4L19 7"
+														/>
+													</svg>
+												) : (
+													stepNumber
+												)}
+											</div>
+											<span
+												className={`text-xs font-medium ${
+													isActive ? 'text-[#017c7d]' : 'text-[#5b6b72]'
+												}`}>
+												{step.label}
+											</span>
+										</div>
+										{index < STEPS.length - 1 && (
+											<div
+												className={`flex-1 h-0.5 mx-4 -mt-6 ${
+													stepNumber < currentStep ? 'bg-[#017c7d]' : 'bg-[#e6e1d8]'
+												}`}
+											/>
+										)}
+									</div>
+								);
+							})}
 						</div>
+
+						{/* Mobile: Labeled strip */}
+						<div className="md:hidden flex justify-between mb-6 overflow-x-auto">
+							{STEPS.map((step, index) => {
+								const stepNumber = index + 1;
+								const isActive = stepNumber === currentStep;
+								const isComplete = stepNumber < currentStep;
+
+								return (
+									<div
+										key={index}
+										className={`flex-1 text-center px-2 pb-2 border-b-2 ${
+											isActive
+												? 'border-[#017c7d]'
+												: isComplete
+												? 'border-[#017c7d]'
+												: 'border-[#e6e1d8]'
+										}`}>
+										<span
+											className={`text-xs font-semibold ${
+												isActive || isComplete ? 'text-[#017c7d]' : 'text-[#5b6b72]'
+											}`}>
+											{step.label}
+										</span>
+									</div>
+								);
+							})}
+						</div>
+
+						<h1 className="text-2xl font-bold text-[#1e2a2f] mb-2">
+							{STEPS[currentStep - 1].title}
+						</h1>
+						<p className="text-sm text-[#5b6b72]">
+							{STEPS[currentStep - 1].description}
+						</p>
 					</div>
 				</div>
 			</div>
@@ -422,7 +509,7 @@ export default function RegisterWizard() {
 												onClick={handleNext}
 												disabled={!canProceed()}
 												className="flex items-center gap-2 bg-[#017c7d] hover:bg-[#016566] text-white">
-												Next
+												Save & continue
 												<ChevronRight className="h-4 w-4" />
 											</Button>
 										) : (
@@ -430,7 +517,7 @@ export default function RegisterWizard() {
 												type="submit"
 												disabled={isSubmitting || !form.formState.isValid}
 												className="bg-[#017c7d] hover:bg-[#016566] text-white">
-												{isSubmitting ? 'Submitting...' : 'Submit Registration'}
+												{isSubmitting ? 'Submitting...' : 'Submit registration'}
 											</Button>
 										)}
 									</div>
