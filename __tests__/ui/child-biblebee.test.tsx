@@ -197,6 +197,14 @@ jest.mock('@/lib/db-utils', () => ({
 // Mock next/navigation useParams to return our test childId before importing the page
 jest.mock('next/navigation', () => ({
 	useParams: () => ({ childId: 'test-child' }),
+	useRouter: () => ({
+		replace: jest.fn(),
+		push: jest.fn(),
+		back: jest.fn(),
+		forward: jest.fn(),
+		refresh: jest.fn(),
+		prefetch: jest.fn(),
+	}),
 	useSearchParams: () => ({
 		get: jest.fn(() => null),
 	}),
