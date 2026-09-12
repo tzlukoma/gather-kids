@@ -313,26 +313,66 @@ export function Step4Ministries({ form }: Step4MinistriesProps) {
 			.sort((a, b) => a.name.localeCompare(b.name));
 	}, [allMinistries, isChoir]);
 
-	// Choir programs for grouped rendering (dedupe by normalized name OR code within group)
+	// Choir programs for grouped rendering with robust deduplication
+	// Handles near-duplicates like "Keita Praise choir (Ages 9-12)" vs "Keita Praise choir (ages 9-12)"
 	const choirPrograms = useMemo(() => {
-		const seenNames = new Set<string>();
-		const seenCodes = new Set<string>();
+		if (choirMinistriesData.length === 0) return [];
 		
-		return choirMinistriesData
-			.filter((m: Ministry) => {
-				const normalizedName = normalizeCode(m.name);
-				const normalizedCode = normalizeCode(m.code);
-				
-				// Skip if we've seen this name OR this code before
-				if (seenNames.has(normalizedName) || seenCodes.has(normalizedCode)) {
-					return false;
+		// Helper to create a normalized identity for a choir (strips parentheticals, trailing "choir", etc.)
+		const choirIdentity = (name: string): string => {
+			// Strip parentheticals like (Ages 9-12) or (ages 9-12)
+			const withoutParens = name.replace(/\([^)]*\)/g, '').trim();
+			// Remove trailing "choir" word (case-insensitive)
+			const withoutChoir = withoutParens.replace(/\s+choir\s*$/i, '').trim();
+			// Normalize (lowercase, strip all non-alphanumerics)
+			return normalizeCode(withoutChoir);
+		};
+		
+		// Helper to determine if a description is useful (not just "Thank you for registering...")
+		const hasUsefulDescription = (ministry: Ministry): boolean => {
+			if (!ministry.description) return false;
+			const desc = ministry.description.toLowerCase();
+			return !desc.startsWith('thank you for registering');
+		};
+		
+		// Group choirs by identity cluster (using substring matching for near-duplicates)
+		const identityGroups = new Map<string, Ministry[]>();
+		
+		for (const choir of choirMinistriesData) {
+			const identity = choirIdentity(choir.name);
+			let foundCluster = false;
+			
+			// Check if this identity belongs to an existing cluster (substring match)
+			for (const [clusterIdentity, group] of identityGroups.entries()) {
+				if (identity.includes(clusterIdentity) || clusterIdentity.includes(identity)) {
+					// Belongs to this cluster
+					group.push(choir);
+					foundCluster = true;
+					break;
 				}
-				
-				seenNames.add(normalizedName);
-				seenCodes.add(normalizedCode);
-				return true;
-			})
-			.sort((a, b) => a.name.localeCompare(b.name));
+			}
+			
+			if (!foundCluster) {
+				// Start new cluster
+				identityGroups.set(identity, [choir]);
+			}
+		}
+		
+		// Pick best representative from each cluster
+		const representatives: Ministry[] = [];
+		
+		for (const group of identityGroups.values()) {
+			if (group.length === 1) {
+				representatives.push(group[0]);
+			} else {
+				// Pick the best: prefer useful description, then first occurrence
+				const withUsefulDesc = group.filter(hasUsefulDescription);
+				const best = withUsefulDesc.length > 0 ? withUsefulDesc[0] : group[0];
+				representatives.push(best);
+			}
+		}
+		
+		return representatives.sort((a, b) => a.name.localeCompare(b.name));
 	}, [choirMinistriesData]);
 
 	// Count selections
