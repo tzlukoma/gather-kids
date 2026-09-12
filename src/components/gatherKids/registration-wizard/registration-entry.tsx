@@ -69,10 +69,14 @@ export function RegistrationEntry({ onStart }: RegistrationEntryProps) {
 
 	const userName = user?.user_metadata?.firstName || user?.email?.split('@')[0] || 'there';
 	const householdName = householdData?.data?.household?.name || 'Your household';
+	
+	// Extract children - they're at householdData.data.children
+	const children = householdData?.data?.children || [];
+	const hasChildren = children.length > 0;
 
 	return (
 		<div className="min-h-screen bg-[#f7f5f1] flex flex-col">
-			<div className="flex-1 px-4 py-8">
+			<div className="flex-1 px-4 py-8 pb-20">
 				<div className="max-w-2xl mx-auto space-y-6">
 					{/* Header */}
 					<div>
@@ -121,19 +125,19 @@ export function RegistrationEntry({ onStart }: RegistrationEntryProps) {
 					</Card>
 
 					{/* Children list (if returning household) */}
-					{householdData?.data?.children && householdData.data.children.length > 0 && (
+					{hasChildren && (
 						<div>
 							<p className="text-xs font-semibold tracking-wider uppercase text-[#5b6b72] mb-3">
 								Children
 							</p>
 							<div className="space-y-2">
-								{householdData.data.children.map((child: any, index: number) => (
+								{children.map((child: any, index: number) => (
 									<Card key={index} className="border-[#eae4da] shadow-sm">
 										<CardContent className="p-4 flex items-center gap-4">
 											<div className="bg-[#ede8df] border border-[#e0dacf] rounded-lg w-14 h-14 flex items-center justify-center shrink-0">
 												<span className="text-base font-semibold text-[#5b6b72]">
-													{child.first_name?.substring(0, 1)}
-													{child.last_name?.substring(0, 1)}
+													{child.first_name?.substring(0, 1) || '?'}
+													{child.last_name?.substring(0, 1) || ''}
 												</span>
 											</div>
 											<div className="flex-1 min-w-0">
@@ -141,7 +145,7 @@ export function RegistrationEntry({ onStart }: RegistrationEntryProps) {
 													{child.first_name} {child.last_name}
 												</p>
 												<p className="text-sm text-[#5b6b72]">
-													{child.grade} · returning
+													{child.grade ? `${child.grade} · returning` : 'returning'}
 												</p>
 											</div>
 										</CardContent>

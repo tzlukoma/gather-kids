@@ -228,34 +228,29 @@ export function Step4Ministries({ form }: Step4MinistriesProps) {
 		staleTime: 15 * 60 * 1000,
 	});
 
-	// Fetch choir ministries if using groups
-	const showMinistryGroups = getFlag('SHOW_MINISTRY_GROUPS');
+	// ALWAYS fetch choir ministries from groups (not gated by flag)
+	// This ensures we identify ALL choirs to prevent duplicates
 	const { data: choirMinistriesData = [] } = useQuery({
 		queryKey: ['ministriesByGroup', 'choirs'],
 		queryFn: () => getMinistriesByGroupCode('choirs'),
-		enabled: !!showMinistryGroups,
 		staleTime: 10 * 60 * 1000,
 	});
 
-	const choirMinistries = useMemo(() => {
-		if (showMinistryGroups) {
-			return choirMinistriesData;
-		}
-		// Fallback: prefix-based choir detection
-		return allMinistries.filter((m: Ministry) => m.code.startsWith('choir-'));
-	}, [allMinistries, choirMinistriesData, showMinistryGroups]);
+	// Build set of all choir ministry IDs for exclusion
+	const choirMinistryIds = useMemo(() => {
+		return new Set(choirMinistriesData.map((c: Ministry) => c.ministry_id));
+	}, [choirMinistriesData]);
 
 	// Separate ministries by enrollment type with proper deduplication
-	// Deduplicate by code (stable), exclude Sunday School, exclude choir duplicates
+	// Deduplicate by code (stable), exclude Sunday School, exclude ALL choir ministries
 	const enrolledMinistries = useMemo(() => {
-		const choirIds = new Set(choirMinistries.map((c: Ministry) => c.ministry_id));
 		const seenCodes = new Set<string>();
 		
 		return allMinistries
 			.filter((m: Ministry) => {
 				if (m.enrollment_type !== 'enrolled') return false;
 				if (isSundaySchool(m)) return false; // Exclude Sunday School equivalents
-				if (choirIds.has(m.ministry_id)) return false; // Exclude individual choir entries (handled as group)
+				if (choirMinistryIds.has(m.ministry_id)) return false; // Exclude ALL choirs (handled in group)
 				
 				const normalized = normalizeCode(m.code);
 				if (seenCodes.has(normalized)) return false; // Dedupe by code
@@ -264,7 +259,7 @@ export function Step4Ministries({ form }: Step4MinistriesProps) {
 				return true;
 			})
 			.sort((a, b) => a.name.localeCompare(b.name));
-	}, [allMinistries, choirMinistries]);
+	}, [allMinistries, choirMinistryIds]);
 
 	const interestMinistries = useMemo(() => {
 		const seenCodes = new Set<string>();
@@ -282,15 +277,12 @@ export function Step4Ministries({ form }: Step4MinistriesProps) {
 			.sort((a, b) => a.name.localeCompare(b.name));
 	}, [allMinistries]);
 
-	// Choir programs for grouped rendering
+	// Choir programs for grouped rendering (dedupe by code within group)
 	const choirPrograms = useMemo(() => {
-		const choirIds = new Set(choirMinistries.map((c: Ministry) => c.ministry_id));
 		const seenCodes = new Set<string>();
 		
-		return allMinistries
+		return choirMinistriesData
 			.filter((m: Ministry) => {
-				if (!choirIds.has(m.ministry_id)) return false;
-				
 				const normalized = normalizeCode(m.code);
 				if (seenCodes.has(normalized)) return false;
 				
@@ -298,7 +290,7 @@ export function Step4Ministries({ form }: Step4MinistriesProps) {
 				return true;
 			})
 			.sort((a, b) => a.name.localeCompare(b.name));
-	}, [allMinistries, choirMinistries]);
+	}, [choirMinistriesData]);
 
 	// Count selections
 	const selectedEnrolledCount = useMemo(() => {
