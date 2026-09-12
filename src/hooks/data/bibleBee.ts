@@ -414,7 +414,7 @@ export function useStudentAssignmentsQuery(childId: string, cycleId?: string) {
         return { scriptures: [], essays: [] };
       }
     },
-    enabled: !!childId && !!cycleId,
+    enabled: !!childId,
     ...cacheConfig.volatile, // Assignments change frequently
     refetchOnWindowFocus: false,
     refetchOnMount: true,
@@ -865,7 +865,7 @@ export function useBibleBeeStats(childId: string, cycleId?: string) {
         return { bbStats: null, essaySummary: null, divisionEssayPrompts: [] };
       }
     },
-    enabled: !!childId && !!cycleId,
+    enabled: !!childId,
     ...cacheConfig.volatile,
     staleTime: 30 * 1000, // 30 seconds - stats change when scriptures are completed
   });
