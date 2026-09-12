@@ -205,9 +205,9 @@ function ChildMinistryCheckbox({
 	);
 }
 
-// Helper to normalize ministry code for comparison
+// Helper to normalize ministry code for comparison (strips ALL non-alphanumerics including spaces)
 function normalizeCode(code: string): string {
-	return code.toLowerCase().replace(/[-_]/g, '');
+	return code.toLowerCase().replace(/[^a-z0-9]/g, '');
 }
 
 // Helper to check if a ministry is Sunday School equivalent
