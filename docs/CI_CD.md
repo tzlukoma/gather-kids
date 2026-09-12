@@ -166,6 +166,30 @@ GitHub CI (`ci.yml`) runs dummy `next build` jobs. Those builds must **not** upl
 
 ---
 
+## PostHog (usage events + flags)
+
+One PostHog Cloud project is shared by UAT and production. Isolation is `deploy_env` on persons and `{deploy_env}:{auth uuid}` distinct ids — not separate projects.
+
+| Variable | Production | Preview |
+|----------|------------|---------|
+| `NEXT_PUBLIC_DEPLOY_ENV` | `production` | `uat` |
+| `NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN` | project API key (`phc_…`) | same |
+| `NEXT_PUBLIC_POSTHOG_HOST` | ingest host (`https://us.i.posthog.com` or `eu`) | same |
+
+Browser usage events initialize only in deployed UAT/production (`src/lib/analytics/browser.ts`). Local `next dev`, tests, CI, and localhost do not send.
+
+Server feature flags (`src/lib/flags/`) evaluate via `posthog-node` in UAT/production only. Local and test return caller defaults (GatherSystem **off**). Browser flag fetches stay disabled.
+
+Create these boolean flags in PostHog (default off; target `deploy_env = uat` until a production flip):
+
+- `gathersystem_door`
+- `gathersystem_guardian`
+- `gathersystem_bible_bee_household`
+
+Production flag flips are Thomas-only. Do not put email, names, or child identifiers in flag payloads or person properties.
+
+---
+
 ## Database deploy (manual)
 
 ### UAT — [`uat-db-deploy.yml`](../.github/workflows/uat-db-deploy.yml)
