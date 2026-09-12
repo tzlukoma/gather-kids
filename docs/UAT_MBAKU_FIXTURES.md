@@ -121,26 +121,45 @@ The production blocklist takes precedence over all other checks, including the U
 
 When `RESET=true`, the script:
 
-1. Deletes all student essays with `mbaku_` prefix
-2. Deletes all essay prompts with `mbaku_` prefix
-3. Deletes all Bible Bee enrollments with `mbaku_` prefix
-4. Deletes all ministry enrollments with `mbaku_` prefix
+1. Deletes all student essays (by specific UUIDs)
+2. Deletes all essay prompts (by specific UUIDs)
+3. Deletes all Bible Bee enrollments (by specific UUIDs)
+4. Deletes all ministry enrollments (by specific text IDs with `mbaku_` prefix)
 5. Deletes all registrations with `mbaku_` prefix
-6. Deletes all children with `mbaku_` prefix
-7. Deletes all guardians with `mbaku_` prefix
-8. Deletes all emergency contacts with `mbaku_` prefix
-9. Deletes all user_households with `mbaku_` prefix
-10. Deletes all households with `mbaku_` prefix
+6. Deletes all children (by specific UUIDs)
+7. Deletes all guardians (by specific UUIDs)
+8. Deletes all emergency contacts (by specific UUIDs)
+9. Deletes all user_households (by specific UUIDs)
+10. Deletes all households (by specific UUIDs)
 11. Re-creates all fixtures from scratch
 
 ## Fixture IDs
 
-All created records use the `mbaku_` prefix for easy identification and cleanup:
+### Deterministic UUIDs
 
-- Households: `mbaku_bot_household`, `mbaku_dual_household`, `mbaku_reset_household`
-- Children: `mbaku_bot_child_1`, `mbaku_bot_child_2`, `mbaku_dual_child_senior`, `mbaku_reset_child`
-- Enrollments: `mbaku_<child_id>_bible_bee`
-- Bible Bee enrollments: `mbaku_bee_<child_id>`
+The script uses **deterministic UUIDv5** generation for all UUID columns, ensuring idempotent re-runs produce the same IDs. This is critical because most database columns (households, children, guardians, emergency_contacts, bible_bee_enrollments, essay_prompts, student_essays, user_households) are defined as `uuid` type in the schema.
+
+**UUID columns** use UUIDv5 derived from `mbaku_` namespace strings:
+- Households: UUIDs for `mbaku_bot_household`, `mbaku_dual_household`, `mbaku_reset_household`
+- Children: UUIDs for `mbaku_bot_child_1`, `mbaku_bot_child_2`, `mbaku_dual_child_senior`, `mbaku_reset_child`
+- Guardians: UUIDs for `mbaku_bot_guardian`, `mbaku_dual_guardian`, `mbaku_reset_guardian`
+- Emergency contacts: UUIDs for `mbaku_bot_emergency`
+- Bible Bee enrollments: UUIDs for each enrollment record
+- Essay prompts and student essays: UUIDs for each essay-related record
+- User households: UUIDs for each user_household junction record
+
+**Text columns** still use text IDs with `mbaku_` prefix:
+- Ministry enrollments: `mbaku_<fixture>_<child>_bible_bee`
+- Auth user IDs: `mbaku_bot_auth_user`, `mbaku_dual_auth_user`, `mbaku_reset_auth_user`
+
+### Why UUIDs?
+
+The schema migration `20250905005600_fix_registration_schema_mismatches.sql` converted `emergency_contacts.contact_id` and other primary keys from `text` to `uuid`. Using string IDs like `"mbaku_bot_emergency"` causes SQL errors: `invalid input syntax for type uuid`.
+
+Deterministic UUIDs ensure:
+1. **Idempotency**: Re-running the script produces the same UUIDs
+2. **Schema compliance**: UUIDs match the `uuid` column types
+3. **Clean reset**: The script can delete by specific UUIDs during RESET mode
 
 ## Integration with existing UAT workflow
 
@@ -157,3 +176,7 @@ This script is designed to complement (not replace) the main UAT seed script:
 - Follows existing seed script patterns from `dev_seed.js` and `uat_seed.js`
 - Uses synthetic test data only
 - No real family data is used or exposed
+
+### Bible Bee schema note
+
+The script references `bible_bee_cycles` (not `bible_bee_years`). Migration `20250915130000_fresh_bible_bee_schema.sql` dropped the legacy `bible_bee_years` table and replaced it with `bible_bee_cycles`. Any warnings about missing `bible_bee_years` during seed runs are expected and can be ignored — the current schema uses `bible_bee_cycles` instead.
