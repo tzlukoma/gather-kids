@@ -1,7 +1,7 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { v4 as uuidv4 } from 'uuid';
 import crypto from 'crypto';
-import type { DatabaseAdapter, HouseholdFilters, ChildFilters, RegistrationFilters, AttendanceFilters, IncidentFilters } from './types';
+import type { DatabaseAdapter, HouseholdCreateInput, HouseholdFilters, ChildFilters, RegistrationFilters, AttendanceFilters, IncidentFilters } from './types';
 import type { Database } from './supabase-types';
 import { supabaseToHousehold, householdToSupabase, supabaseToChild, childToSupabase, supabaseToMinistry, supabaseToMinistryEnrollment, ministryEnrollmentToSupabase, supabaseToEnrollment, enrollmentToSupabase, supabaseToEnrollmentOverride, supabaseToRegistration, registrationToSupabase, supabaseToAttendance, supabaseToIncident, supabaseToEvent, supabaseToUser, supabaseToMinistryLeaderMembership, supabaseToMinistryAccount, supabaseToGuardian, supabaseToEmergencyContact, supabaseToBrandingSettings } from './type-mappings';
 import { serializeIfObject } from './type-mappings';
@@ -86,12 +86,10 @@ export class SupabaseAdapter implements DatabaseAdapter {
 	return data ? supabaseToHousehold(data as Database['public']['Tables']['households']['Row']) : null;
 	}
 
-	async createHousehold(
-		data: Omit<Household, 'household_id' | 'created_at' | 'updated_at'>
-	): Promise<Household> {
+	async createHousehold(data: HouseholdCreateInput): Promise<Household> {
 		// Map frontend field names to database column names
 		const household: Database['public']['Tables']['households']['Insert'] = {
-			household_id: uuidv4(), // Generate new ID (household_id is excluded from input)
+			household_id: data.household_id || uuidv4(),
 			created_at: new Date().toISOString(),
 			updated_at: new Date().toISOString(),
 			// Map name field

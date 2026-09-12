@@ -67,13 +67,19 @@ export interface IncidentFilters extends BaseFilters {
 	resolved?: boolean;
 }
 
+/** Create payload may include a caller-chosen id; the adapter generates one if omitted. */
+export type HouseholdCreateInput = Omit<
+	Household,
+	'household_id' | 'created_at' | 'updated_at'
+> & {
+	household_id?: string;
+};
+
 // Define the DatabaseAdapter interface with CRUD operations for each entity
 export interface DatabaseAdapter {
 	// Households
 	getHousehold(id: string): Promise<Household | null>;
-	createHousehold(
-		data: Omit<Household, 'household_id' | 'created_at' | 'updated_at'>
-	): Promise<Household>;
+	createHousehold(data: HouseholdCreateInput): Promise<Household>;
 	updateHousehold(id: string, data: Partial<Household>): Promise<Household>;
 	listHouseholds(filters?: HouseholdFilters): Promise<Household[]>;
 	deleteHousehold(id: string): Promise<void>;

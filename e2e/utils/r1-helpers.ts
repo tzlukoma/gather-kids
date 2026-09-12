@@ -127,3 +127,68 @@ export async function submitRegistration(page: Page) {
 export async function expectStayedOnRegister(page: Page) {
   await expect(page).toHaveURL(/\/register/, { timeout: 5000 });
 }
+
+export async function fillMinimumNewHouseholdRegistration(page: Page) {
+  await page.getByRole('textbox', { name: /^street address$/i }).fill('100 Test St');
+  await page.getByRole('textbox', { name: /^city$/i }).fill('Perth Amboy');
+  await page.getByRole('textbox', { name: /^state$/i }).fill('NJ');
+  await page.getByRole('textbox', { name: /^zip code$/i }).fill('08861');
+
+  await page.locator('input[name="guardians.0.first_name"]').fill('Alex');
+  await page.locator('input[name="guardians.0.last_name"]').fill('Rivera');
+  await page.locator('input[name="guardians.0.mobile_phone"]').fill('5551234567');
+  await page.locator('input[name="guardians.0.relationship"]').fill('Parent');
+
+  await page.locator('input[name="emergencyContact.first_name"]').fill('Sam');
+  await page.locator('input[name="emergencyContact.last_name"]').fill('Lee');
+  await page.locator('input[name="emergencyContact.relationship"]').fill('Aunt');
+  await page.locator('input[name="emergencyContact.mobile_phone"]').fill('5559876543');
+
+  const childTrigger = page.getByRole('button', { name: /child 1/i });
+  if (await childTrigger.count()) {
+    const expanded = await childTrigger.getAttribute('aria-expanded');
+    if (expanded !== 'true') {
+      await childTrigger.click();
+    }
+  }
+
+  await page.locator('input[name="children.0.first_name"]').fill('Jordan');
+  await page.locator('input[name="children.0.last_name"]').fill('Rivera');
+  await page.locator('input[name="children.0.dob"]').fill('2018-06-15');
+  await page.getByRole('combobox', { name: /grade/i }).click();
+  await page.getByRole('option', { name: /kindergarten/i }).click();
+}
+
+export function captureRegistrationSubmitFailures(page: Page): string[] {
+  const failures: string[] = [];
+
+  page.on('response', async (response) => {
+    const url = response.url();
+    const isRegistrationWrite =
+      /\/rest\/v1\/(households|guardians|children|emergency_contacts|registrations|ministry_enrollments)/.test(
+        url,
+      );
+    if (!isRegistrationWrite || response.ok()) {
+      return;
+    }
+    let body = '';
+    try {
+      body = await response.text();
+    } catch {
+      body = '';
+    }
+    failures.push(`${response.status()} ${url} ${body.slice(0, 500)}`);
+  });
+
+  page.on('console', (msg) => {
+    if (msg.type() !== 'error') {
+      return;
+    }
+    const text = msg.text();
+    if (/23503|guardians_household_id_fkey|Submission Error/i.test(text)) {
+      failures.push(`console: ${text}`);
+    }
+  });
+
+  return failures;
+}

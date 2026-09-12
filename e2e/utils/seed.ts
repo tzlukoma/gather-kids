@@ -39,6 +39,36 @@ export async function seedMinistries() {
   return ministries;
 }
 
+export function createE2EAdminClient() {
+  const url = process.env.SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE;
+  if (!url || !serviceKey) {
+    throw new Error('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE for e2e admin client');
+  }
+  return createClient(url, serviceKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+}
+
+export async function createConfirmedTestUser(email: string, password: string) {
+  const supabase = createE2EAdminClient();
+  const { data, error } = await supabase.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true,
+    user_metadata: { role: 'GUARDIAN' },
+  });
+  if (error || !data.user) {
+    throw new Error(`Failed to create e2e user: ${error?.message || 'no user returned'}`);
+  }
+  return data.user;
+}
+
+export async function deleteTestUser(userId: string) {
+  const supabase = createE2EAdminClient();
+  await supabase.auth.admin.deleteUser(userId);
+}
+
 export async function cleanupTestData() {
   const url = process.env.SUPABASE_URL!;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE!;
