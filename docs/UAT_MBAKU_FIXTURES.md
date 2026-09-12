@@ -70,15 +70,52 @@ DOTENV_CONFIG_PATH=.env.uat node -r dotenv/config scripts/uat/mbaku-fixtures.js
 RESET=true DOTENV_CONFIG_PATH=.env.uat node -r dotenv/config scripts/uat/mbaku-fixtures.js
 ```
 
-`--uat` alone does **not** confirm UAT. The script only runs when the Supabase URL contains `uat`, `staging`, or `localhost`. The flag cannot authorize a non-UAT remote URL.
+`--uat` alone does **not** confirm UAT. The script only runs when the Supabase URL contains `uat`, `staging`, or `localhost`, OR when the URL contains an allowlisted UAT project ref (see Production safety section). The flag cannot authorize a non-UAT remote URL.
 
 ## Production safety
 
 The script is **hard-gated off production** and will refuse to run if:
 
-1. The Supabase URL contains known production project references
-2. The Supabase URL does not contain `uat`, `staging`, or `localhost` (`--uat` alone is not enough)
+1. The Supabase URL contains known production project references (production blocklist)
+2. The Supabase URL does not contain `uat`, `staging`, or `localhost` AND is not in the UAT project allowlist (`--uat` alone is not enough)
 3. Required UAT environment variables are missing
+
+### UAT project allowlist
+
+The script maintains an allowlist of known UAT Supabase project references that are explicitly authorized to run this seed script:
+
+- **`gekouvbeujfkiaorshim`** - UAT Preview project ref
+
+If your UAT Supabase URL contains one of these project refs, the script will run even if the URL hostname doesn't contain "uat", "staging", or "localhost".
+
+#### Adding more UAT project refs to the allowlist
+
+To add a new UAT project reference:
+
+1. Open `scripts/uat/mbaku-fixtures.js`
+2. Locate the `UAT_PROJECT_ALLOWLIST` array (near the top of the file)
+3. Add the project ref as a new string in the array with a descriptive comment:
+
+```javascript
+const UAT_PROJECT_ALLOWLIST = [
+	'gekouvbeujfkiaorshim', // UAT Preview project ref
+	'your-new-uat-ref-here', // Description of this UAT environment
+	// Add more UAT project refs here as needed
+];
+```
+
+**IMPORTANT:** Never add the production project ref (`loekqsjtvvuuigxwavyq`) to this allowlist. The production blocklist takes precedence and will block execution regardless of allowlist entries.
+
+### Production blocklist
+
+The following project references are **hard-blocked** and will refuse to run:
+
+- **`loekqsjtvvuuigxwavyq`** - Production project ref (NEVER run against this)
+- `qjjvfxwcyipdifzqpnsy.supabase.co` - Production Supabase project
+- `gather-kids-production`
+- `prod.supabase`
+
+The production blocklist takes precedence over all other checks, including the UAT allowlist.
 
 ## Reset behavior
 

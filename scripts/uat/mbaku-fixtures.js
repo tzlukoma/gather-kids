@@ -11,9 +11,9 @@
  *
  * PRODUCTION SAFETY:
  * - Hard-gated off production
- * - Requires a Supabase URL containing uat, staging, or localhost
+ * - Requires a Supabase URL containing uat, staging, or localhost, OR an allowlisted UAT project ref
  * - The --uat flag is NOT sufficient on its own and cannot authorize a non-UAT remote URL
- * - Will refuse to run against production project refs/URLs
+ * - Will refuse to run against production project refs/URLs (production blocklist takes precedence)
  *
  * Usage:
  *   # Using UAT environment variables (URL must contain uat/staging/localhost)
@@ -35,8 +35,15 @@ const DRY_RUN = process.env.DRY_RUN === 'true';
 const UAT_FLAG = process.argv.includes('--uat');
 const FIXTURE_PREFIX = 'mbaku_';
 
-// Known production project references (refuse to run against these)
+// Known UAT project references (explicitly allowed, bypasses URL hostname check)
+const UAT_PROJECT_ALLOWLIST = [
+	'gekouvbeujfkiaorshim', // UAT Preview project ref
+	// Add more UAT project refs here as needed
+];
+
+// Known production project references (hard-blocked, refuse to run)
 const PRODUCTION_BLOCKLIST = [
+	'loekqsjtvvuuigxwavyq', // Production project ref (NEVER run against this)
 	'qjjvfxwcyipdifzqpnsy.supabase.co', // Production Supabase project
 	'gather-kids-production',
 	'prod.supabase',
@@ -85,7 +92,7 @@ function validateEnvironment() {
 		process.exit(1);
 	}
 
-	// Check for production blocklist
+	// Check for production blocklist (hard block - takes precedence over allowlist)
 	const isProduction = PRODUCTION_BLOCKLIST.some((pattern) =>
 		supabaseUrl.includes(pattern)
 	);
@@ -99,8 +106,14 @@ function validateEnvironment() {
 		process.exit(1);
 	}
 
-	// Require explicit UAT confirmation via URL only (--uat flag alone is NOT sufficient)
+	// Check if URL is in the UAT project allowlist
+	const isAllowlistedUatProject = UAT_PROJECT_ALLOWLIST.some((ref) =>
+		supabaseUrl.includes(ref)
+	);
+
+	// Require explicit UAT confirmation via allowlist OR URL pattern
 	const hasUatIndicator =
+		isAllowlistedUatProject ||
 		supabaseUrl.includes('uat') ||
 		supabaseUrl.includes('staging') ||
 		supabaseUrl.includes('127.0.0.1') ||
@@ -110,9 +123,9 @@ function validateEnvironment() {
 		console.error('❌ UAT environment not confirmed');
 		console.error(`   Supabase URL: ${supabaseUrl}`);
 		console.error('');
-		console.error('This script requires a UAT/staging/localhost Supabase URL.');
+		console.error('This script requires a UAT/staging/localhost Supabase URL or allowlisted project ref.');
 		console.error('The --uat flag alone is not sufficient for remote URLs.');
-		console.error('Use a Supabase URL containing "uat", "staging", or "localhost"');
+		console.error('Use a Supabase URL containing "uat", "staging", "localhost", or an allowlisted project ref.');
 		process.exit(1);
 	}
 
@@ -120,7 +133,7 @@ function validateEnvironment() {
 		console.error('❌ Invalid use of --uat flag');
 		console.error(`   Supabase URL: ${supabaseUrl}`);
 		console.error('');
-		console.error('The --uat flag cannot authorize a remote URL without uat/staging/localhost.');
+		console.error('The --uat flag cannot authorize a remote URL without uat/staging/localhost or allowlisted project ref.');
 		console.error('This is a production safety gate.');
 		console.error('Use a proper UAT Supabase URL instead.');
 		process.exit(1);
@@ -128,6 +141,9 @@ function validateEnvironment() {
 
 	console.log('✅ Environment validated as UAT');
 	console.log(`   Supabase URL: ${supabaseUrl}`);
+	if (isAllowlistedUatProject) {
+		console.log('   ✓ Allowlisted UAT project ref detected');
+	}
 	if (DRY_RUN) {
 		console.log('   Mode: DRY RUN (no changes will be made)');
 	}
