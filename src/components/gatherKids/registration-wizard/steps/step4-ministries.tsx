@@ -15,9 +15,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { Info, Clock, Users, CheckCircle2 } from 'lucide-react';
 import type { RegistrationFormInput } from '../registration-schema';
 import { useQuery } from '@tanstack/react-query';
-import { getMinistries } from '@/lib/dal';
+import { getMinistries, getMinistriesByGroupCode } from '@/lib/dal';
 import type { Ministry } from '@/lib/types';
 import { useMemo } from 'react';
+import { getFlag } from '@/lib/featureFlags';
 
 interface Step4MinistriesProps {
 	form: UseFormReturn<RegistrationFormInput>;
@@ -105,9 +106,116 @@ function MinistryCard({ ministry, form, selectionType, childrenData }: MinistryC
 						{ministry.optional_consent_text}
 					</div>
 				)}
+
+				{/* Custom Questions - show when any child selects this ministry */}
+				{ministry.custom_questions && ministry.custom_questions.length > 0 && (
+					<ChildMinistryCustomQuestions
+						ministry={ministry}
+						form={form}
+						childrenData={childrenData}
+						fieldPrefix={fieldPrefix}
+					/>
+				)}
 			</div>
 		</div>
 	);
+}
+
+function ChildMinistryCustomQuestions({
+	ministry,
+	form,
+	childrenData,
+	fieldPrefix,
+}: {
+	ministry: Ministry;
+	form: UseFormReturn<RegistrationFormInput>;
+	childrenData: any[];
+	fieldPrefix: string;
+}) {
+	return (
+		<>
+			{childrenData.map((child, childIndex) => (
+				<ChildMinistryCheckbox
+					key={childIndex}
+					ministry={ministry}
+					form={form}
+					childIndex={childIndex}
+					fieldPrefix={fieldPrefix}
+				/>
+			))}
+		</>
+	);
+}
+
+function ChildMinistryCheckbox({
+	ministry,
+	form,
+	childIndex,
+	fieldPrefix,
+}: {
+	ministry: Ministry;
+	form: UseFormReturn<RegistrationFormInput>;
+	childIndex: number;
+	fieldPrefix: string;
+}) {
+	const isSelected = useWatch({
+		control: form.control,
+		name: `children.${childIndex}.${fieldPrefix}.${ministry.code}` as any,
+	});
+
+	if (!isSelected || !ministry.custom_questions || ministry.custom_questions.length === 0) {
+		return null;
+	}
+
+	return (
+		<div className="mt-4 p-3 border border-[#e0dacf] rounded-lg bg-[#fafaf8] space-y-3">
+			<p className="text-sm font-semibold text-[#1e2a2f]">
+				Additional information for {form.watch(`children.${childIndex}.first_name` as any)}
+			</p>
+			{ministry.custom_questions.map((question, qIndex) => (
+				<FormField
+					key={qIndex}
+					control={form.control}
+					name={
+						`children.${childIndex}.customFields.${ministry.code}.${question.id}` as any
+					}
+					render={({ field }) => (
+						<FormItem>
+							<FormLabel className="text-[#1e2a2f]">
+								{question.text}
+							</FormLabel>
+							<FormControl>
+								{question.type === 'text' ? (
+									<Textarea
+										{...field}
+										className="border-[#e0dacf] focus-visible:ring-[#017c7d]"
+									/>
+								) : (
+									<Input
+										{...field}
+										type="text"
+										className="border-[#e0dacf] focus-visible:ring-[#017c7d]"
+									/>
+								)}
+							</FormControl>
+						</FormItem>
+					)}
+				/>
+			))}
+		</div>
+	);
+}
+
+// Helper to normalize ministry code for comparison
+function normalizeCode(code: string): string {
+	return code.toLowerCase().replace(/[-_]/g, '');
+}
+
+// Helper to check if a ministry is Sunday School equivalent
+function isSundaySchool(ministry: Ministry): boolean {
+	const normalized = normalizeCode(ministry.code);
+	const sundaySchoolCodes = ['minsundayschool', 'sundayschool', 'childrenschurch'];
+	return sundaySchoolCodes.includes(normalized);
 }
 
 export function Step4Ministries({ form }: Step4MinistriesProps) {
@@ -120,39 +228,95 @@ export function Step4Ministries({ form }: Step4MinistriesProps) {
 		staleTime: 15 * 60 * 1000,
 	});
 
-	// Separate ministries by enrollment type and deduplicate by ministry_id
+	// Fetch choir ministries if using groups
+	const showMinistryGroups = getFlag('SHOW_MINISTRY_GROUPS');
+	const { data: choirMinistriesData = [] } = useQuery({
+		queryKey: ['ministriesByGroup', 'choirs'],
+		queryFn: () => getMinistriesByGroupCode('choirs'),
+		enabled: !!showMinistryGroups,
+		staleTime: 10 * 60 * 1000,
+	});
+
+	const choirMinistries = useMemo(() => {
+		if (showMinistryGroups) {
+			return choirMinistriesData;
+		}
+		// Fallback: prefix-based choir detection
+		return allMinistries.filter((m: Ministry) => m.code.startsWith('choir-'));
+	}, [allMinistries, choirMinistriesData, showMinistryGroups]);
+
+	// Separate ministries by enrollment type with proper deduplication
+	// Deduplicate by code (stable), exclude Sunday School, exclude choir duplicates
 	const enrolledMinistries = useMemo(() => {
-		const seen = new Set<string>();
-		return allMinistries.filter((m: Ministry) => {
-			if (m.enrollment_type !== 'enrolled' || seen.has(m.ministry_id)) {
-				return false;
-			}
-			seen.add(m.ministry_id);
-			return true;
-		});
-	}, [allMinistries]);
+		const choirIds = new Set(choirMinistries.map((c: Ministry) => c.ministry_id));
+		const seenCodes = new Set<string>();
+		
+		return allMinistries
+			.filter((m: Ministry) => {
+				if (m.enrollment_type !== 'enrolled') return false;
+				if (isSundaySchool(m)) return false; // Exclude Sunday School equivalents
+				if (choirIds.has(m.ministry_id)) return false; // Exclude individual choir entries (handled as group)
+				
+				const normalized = normalizeCode(m.code);
+				if (seenCodes.has(normalized)) return false; // Dedupe by code
+				
+				seenCodes.add(normalized);
+				return true;
+			})
+			.sort((a, b) => a.name.localeCompare(b.name));
+	}, [allMinistries, choirMinistries]);
 
 	const interestMinistries = useMemo(() => {
-		const seen = new Set<string>();
-		return allMinistries.filter((m: Ministry) => {
-			if (m.enrollment_type !== 'expressed_interest' || seen.has(m.ministry_id)) {
-				return false;
-			}
-			seen.add(m.ministry_id);
-			return true;
-		});
+		const seenCodes = new Set<string>();
+		
+		return allMinistries
+			.filter((m: Ministry) => {
+				if (m.enrollment_type !== 'expressed_interest') return false;
+				
+				const normalized = normalizeCode(m.code);
+				if (seenCodes.has(normalized)) return false;
+				
+				seenCodes.add(normalized);
+				return true;
+			})
+			.sort((a, b) => a.name.localeCompare(b.name));
 	}, [allMinistries]);
+
+	// Choir programs for grouped rendering
+	const choirPrograms = useMemo(() => {
+		const choirIds = new Set(choirMinistries.map((c: Ministry) => c.ministry_id));
+		const seenCodes = new Set<string>();
+		
+		return allMinistries
+			.filter((m: Ministry) => {
+				if (!choirIds.has(m.ministry_id)) return false;
+				
+				const normalized = normalizeCode(m.code);
+				if (seenCodes.has(normalized)) return false;
+				
+				seenCodes.add(normalized);
+				return true;
+			})
+			.sort((a, b) => a.name.localeCompare(b.name));
+	}, [allMinistries, choirMinistries]);
 
 	// Count selections
 	const selectedEnrolledCount = useMemo(() => {
 		if (!childrenData) return 0;
-		return enrolledMinistries.reduce((count, ministry) => {
+		const regularCount = enrolledMinistries.reduce((count, ministry) => {
 			const hasSelection = childrenData.some(
 				(child: any) => child.ministrySelections?.[ministry.code]
 			);
 			return hasSelection ? count + 1 : count;
 		}, 0);
-	}, [childrenData, enrolledMinistries]);
+		
+		// Add choir if any child selects a choir program
+		const choirCount = choirPrograms.length > 0 && childrenData.some((child: any) =>
+			choirPrograms.some((choir) => child.ministrySelections?.[choir.code])
+		) ? 1 : 0;
+		
+		return regularCount + choirCount;
+	}, [childrenData, enrolledMinistries, choirPrograms]);
 
 	if (loadingMinistries) {
 		return (
@@ -202,7 +366,7 @@ export function Step4Ministries({ form }: Step4MinistriesProps) {
 				</AlertDescription>
 			</Alert>
 
-			{enrolledMinistries.length > 0 && (
+			{(enrolledMinistries.length > 0 || choirPrograms.length > 0) && (
 				<Card>
 					<CardHeader>
 						<CardTitle className="text-xl font-bold text-[#1e2a2f]">
@@ -241,13 +405,85 @@ export function Step4Ministries({ form }: Step4MinistriesProps) {
 						{/* Other Ministry Cards */}
 						{enrolledMinistries.map((ministry: Ministry) => (
 							<MinistryCard
-								key={ministry.ministry_id}
+								key={ministry.code}
 								ministry={ministry}
 								form={form}
 								selectionType="enrollment"
 								childrenData={childrenData}
 							/>
 						))}
+
+						{/* Choir Programs as single grouped card if present */}
+						{choirPrograms.length > 0 && (
+							<div className="border-2 rounded-lg overflow-hidden border-[#e0dacf] bg-white">
+								<div className="p-4">
+									<div className="flex items-start justify-between mb-3">
+										<div className="flex-1">
+											<h4 className="font-semibold text-[#1e2a2f] mb-1">Youth Choirs</h4>
+											<p className="text-sm text-[#5b6b72]">
+												Multiple choir programs available based on age and grade
+											</p>
+										</div>
+									</div>
+
+									{/* List each choir option within the group */}
+									<div className="space-y-4 mt-4">
+										{choirPrograms.map((choir: Ministry) => (
+											<div key={choir.code} className="border-t border-[#e0dacf] pt-4 first:border-t-0 first:pt-0">
+												<p className="font-medium text-[#1e2a2f] mb-1">{choir.name}</p>
+												{choir.description && (
+													<p className="text-sm text-[#5b6b72] mb-2">{choir.description}</p>
+												)}
+												<div className="flex flex-wrap gap-3 text-xs text-[#5b6b72] mb-3">
+													{(choir.min_age || choir.max_age) && (
+														<div className="flex items-center gap-1">
+															<Users className="h-3 w-3" />
+															<span>Ages {choir.min_age || '0'}-{choir.max_age || '18'}</span>
+														</div>
+													)}
+													{(choir.min_grade || choir.max_grade) && (
+														<div className="flex items-center gap-1">
+															<Users className="h-3 w-3" />
+															<span>Grades {choir.min_grade}-{choir.max_grade}</span>
+														</div>
+													)}
+													{choir.details && (
+														<div className="flex items-center gap-1">
+															<Clock className="h-3 w-3" />
+															<span>{choir.details}</span>
+														</div>
+													)}
+												</div>
+												<div className="space-y-2">
+													{childrenData.map((child, childIndex) => (
+														<div key={childIndex} className="flex items-center gap-2">
+															<FormField
+																control={form.control}
+																name={`children.${childIndex}.ministrySelections.${choir.code}` as any}
+																render={({ field }) => (
+																	<FormItem className="flex items-center space-x-2 space-y-0">
+																		<FormControl>
+																			<Checkbox
+																				checked={field.value}
+																				onCheckedChange={field.onChange}
+																				className="border-[#017c7d] data-[state=checked]:bg-[#017c7d]"
+																			/>
+																		</FormControl>
+																		<FormLabel className="font-normal text-[#1e2a2f]">
+																			{child.first_name || `Child ${childIndex + 1}`}
+																		</FormLabel>
+																	</FormItem>
+																)}
+															/>
+														</div>
+													))}
+												</div>
+											</div>
+										))}
+									</div>
+								</div>
+							</div>
+						)}
 					</CardContent>
 				</Card>
 			)}
@@ -266,7 +502,7 @@ export function Step4Ministries({ form }: Step4MinistriesProps) {
 					<CardContent className="space-y-4">
 						{interestMinistries.map((ministry: Ministry) => (
 							<MinistryCard
-								key={ministry.ministry_id}
+								key={ministry.code}
 								ministry={ministry}
 								form={form}
 								selectionType="interest"
