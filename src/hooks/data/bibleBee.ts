@@ -23,6 +23,15 @@ import { v4 as uuidv4 } from 'uuid';
 import { queryKeys } from './keys';
 import { cacheConfig } from './config';
 import type { Scripture } from '@/lib/types';
+import { enrollmentsForActiveBibleBeeCycle } from '@/lib/bible-bee-cycle';
+
+async function listActiveCycleEnrollments(childId: string) {
+	const [enrollments, cycles] = await Promise.all([
+		dbAdapter.listEnrollments(childId),
+		getBibleBeeCycles(),
+	]);
+	return enrollmentsForActiveBibleBeeCycle(enrollments, cycles);
+}
 
 // Bible Bee Cycles (Primary Pattern)
 export function useBibleBeeCycles(isActive?: boolean) {
@@ -168,13 +177,13 @@ export function useStudentAssignmentsQuery(childId: string) {
       try {
         console.log('🚀 Starting useStudentAssignmentsQuery for child:', childId);
         
-        // Get enrollments for this child
+        // Get enrollments for this child in the active Bible Bee cycle only
           console.log('🔍 Fetching enrollments for child:', childId);
-          const enrollments = await dbAdapter.listEnrollments(childId);
-          console.log('Child enrollments:', enrollments);
+          const enrollments = await listActiveCycleEnrollments(childId);
+          console.log('Child enrollments (active cycle):', enrollments);
           
           if (enrollments.length === 0) {
-            console.log('❌ No enrollments found for child:', childId);
+            console.log('❌ No active-cycle enrollments found for child:', childId);
             return { scriptures: [], essays: [] };
           }
           
@@ -521,13 +530,13 @@ export function useBibleBeeStats(childId: string) {
       try {
         console.log('🚀 Starting useBibleBeeStats for child:', childId);
         
-        // Get enrollments for this child
+        // Get enrollments for this child in the active Bible Bee cycle only
           console.log('🔍 Fetching enrollments for child:', childId);
-          const enrollments = await dbAdapter.listEnrollments(childId);
-          console.log('Child enrollments:', enrollments);
+          const enrollments = await listActiveCycleEnrollments(childId);
+          console.log('Child enrollments (active cycle):', enrollments);
           
           if (enrollments.length === 0) {
-            console.log('❌ No enrollments found for child:', childId);
+            console.log('❌ No active-cycle enrollments found for child:', childId);
             return { bbStats: null, essaySummary: null, divisionEssayPrompts: [] };
           }
           
