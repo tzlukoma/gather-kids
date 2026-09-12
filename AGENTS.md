@@ -24,6 +24,9 @@ Canonical product description: [`docs/PRODUCT_SPEC.md`](docs/PRODUCT_SPEC.md). P
 | App router, API routes | `src/app/` |
 | UI components | `src/components/` |
 | Auth, DAL, validation | `src/lib/` |
+| Remote feature flags (PostHog) | `src/lib/flags/` — see [`docs/FEATURE_FLAGS.md`](docs/FEATURE_FLAGS.md) |
+| Env feature toggles | `src/lib/featureFlags.ts` (login/draft flags; not PostHog) |
+| Usage analytics (PostHog browser) | `src/lib/analytics/browser.ts` |
 | React Query hooks | `src/hooks/` |
 | Jest tests | `__tests__/`, co-located `*.test.ts(x)` |
 | Playwright | `e2e/`, `tests/playwright/`, `e2e.config.ts` |
@@ -229,6 +232,28 @@ Agents must:
 
 Known unsafe surfaces exist (see `docs/PRODUCT_SPEC.md`). Do not copy them into new code.
 
+## Feature flags and PostHog
+
+Two separate mechanisms:
+
+| Mechanism | Module | Use for |
+|-----------|--------|---------|
+| **Remote flags** | `src/lib/flags/` (`getBoolean` / `getVariant`) | GatherSystem kill switches and % rollout without a redeploy |
+| **Env toggles** | `src/lib/featureFlags.ts` | Login magic/password/Google, registration draft persistence |
+
+Full guide: [`docs/FEATURE_FLAGS.md`](docs/FEATURE_FLAGS.md). Procedure: [`.agents/skills/feature-flags/SKILL.md`](.agents/skills/feature-flags/SKILL.md).
+
+Agents must:
+
+- Evaluate remote flags only on the **server** (`import 'server-only'`). Pass results into client UI as props if needed.
+- Default GatherSystem keys to **legacy off**: `await getBoolean('gathersystem_door', false, { userId, role })`.
+- Pass opaque auth uuids only — never email, name, or child/household ids in flag context or PostHog properties.
+- Keep authorization (roles, household, ministry scope) independent of flags.
+- Leave browser PostHog flag fetches **disabled** (`advanced_disable_feature_flags` in `src/lib/analytics/browser.ts`).
+- Escalate before production PostHog flag flips, new PostHog secrets, or billing/project changes (Thomas-only).
+
+Do not use PostHog as a second database of family PII. Do not treat env `getFlag` and remote `getBoolean` as interchangeable.
+
 ## PR size, evidence, and completion
 
 - Draft PRs only. Agents must not merge or deploy.
@@ -269,6 +294,7 @@ Template and resume rules: [`.agents/skills/escalate-to-human/SKILL.md`](.agents
 | Starting or implementing an issue | [`.agents/skills/implement-ticket/SKILL.md`](.agents/skills/implement-ticket/SKILL.md) |
 | Choosing and reporting checks | [`.agents/skills/verify-change/SKILL.md`](.agents/skills/verify-change/SKILL.md) |
 | Schema, SQL, or generated types | [`.agents/skills/database-migration-safety/SKILL.md`](.agents/skills/database-migration-safety/SKILL.md) |
+| Remote flags / GatherSystem gating / PostHog flag wiring | [`.agents/skills/feature-flags/SKILL.md`](.agents/skills/feature-flags/SKILL.md) |
 | Opening or updating the draft PR | [`.agents/skills/pr-evidence/SKILL.md`](.agents/skills/pr-evidence/SKILL.md) |
 | Blocked on a material decision | [`.agents/skills/escalate-to-human/SKILL.md`](.agents/skills/escalate-to-human/SKILL.md) |
 
@@ -278,6 +304,7 @@ Claude-specific Playwright setup remains in [`.claude/skills/e2e/SKILL.md`](.cla
 
 - [`docs/CONTRIBUTING.md`](docs/CONTRIBUTING.md) — branching and conventional commits
 - [`docs/CI_CD.md`](docs/CI_CD.md) — environments, workflows, deploy authority
+- [`docs/FEATURE_FLAGS.md`](docs/FEATURE_FLAGS.md) — PostHog remote flags vs env toggles
 - [`docs/REACT_QUERY_STANDARDS.md`](docs/REACT_QUERY_STANDARDS.md) — data-fetching conventions
 - [`docs/testing.md`](docs/testing.md) — Jest and Playwright layout
 - [`docs/GENERATE_SUPABASE_TYPES.md`](docs/GENERATE_SUPABASE_TYPES.md) — type generation
