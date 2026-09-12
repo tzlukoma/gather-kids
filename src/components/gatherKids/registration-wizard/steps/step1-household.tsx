@@ -1,5 +1,5 @@
 import { UseFormReturn } from 'react-hook-form';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import {
 	FormControl,
 	FormDescription,
@@ -20,22 +20,33 @@ interface Step1HouseholdProps {
 export function Step1Household({ form }: Step1HouseholdProps) {
 	return (
 		<Card>
-			<CardHeader>
-				<CardTitle className="text-xl font-bold text-[#1e2a2f]">
-					Confirm your household
-				</CardTitle>
-				<CardDescription className="text-[#5b6b72]">
-					Review and confirm your household address. This will be used for ministry
-					communications and emergency contact purposes.
-				</CardDescription>
-			</CardHeader>
-			<CardContent className="space-y-4">
+			<CardContent className="pt-6 space-y-4">
 				<Alert className="bg-[#e8f5f5] border-[#017c7d]">
 					<Info className="h-4 w-4 text-[#017c7d]" />
 					<AlertDescription className="text-sm text-[#1e2a2f]">
 						This information is on file. Update if anything has changed.
 					</AlertDescription>
 				</Alert>
+
+				<FormField
+					control={form.control}
+					name="household.name"
+					render={({ field }) => (
+						<FormItem>
+							<FormLabel className="text-[#1e2a2f] font-semibold text-base">
+								Household Name
+							</FormLabel>
+							<FormControl>
+								<Input
+									placeholder="The Smith Family"
+									{...field}
+									className="border-[#e0dacf] focus-visible:ring-[#017c7d]"
+								/>
+							</FormControl>
+							<FormMessage className="text-destructive" />
+						</FormItem>
+					)}
+				/>
 
 				<FormField
 					control={form.control}

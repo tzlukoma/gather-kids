@@ -19,9 +19,11 @@ export function Step5Consents({ form }: Step5ConsentsProps) {
 	return (
 		<Card>
 			<CardHeader>
-				<CardTitle className="text-xl font-bold text-[#1e2a2f]">Consents</CardTitle>
+				<CardTitle className="text-xl font-bold text-[#1e2a2f]">
+					Review and Sign Consents
+				</CardTitle>
 				<CardDescription className="text-[#5b6b72]">
-					Please review and accept the following terms to complete your registration.
+					Read and accept these required agreements to complete your registration.
 				</CardDescription>
 			</CardHeader>
 			<CardContent className="space-y-6">

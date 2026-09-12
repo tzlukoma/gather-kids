@@ -120,16 +120,28 @@ export function Step4Ministries({ form }: Step4MinistriesProps) {
 		staleTime: 15 * 60 * 1000,
 	});
 
-	// Separate ministries by enrollment type
-	const enrolledMinistries = useMemo(
-		() => allMinistries.filter((m: Ministry) => m.enrollment_type === 'enrolled'),
-		[allMinistries]
-	);
+	// Separate ministries by enrollment type and deduplicate by ministry_id
+	const enrolledMinistries = useMemo(() => {
+		const seen = new Set<string>();
+		return allMinistries.filter((m: Ministry) => {
+			if (m.enrollment_type !== 'enrolled' || seen.has(m.ministry_id)) {
+				return false;
+			}
+			seen.add(m.ministry_id);
+			return true;
+		});
+	}, [allMinistries]);
 
-	const interestMinistries = useMemo(
-		() => allMinistries.filter((m: Ministry) => m.enrollment_type === 'expressed_interest'),
-		[allMinistries]
-	);
+	const interestMinistries = useMemo(() => {
+		const seen = new Set<string>();
+		return allMinistries.filter((m: Ministry) => {
+			if (m.enrollment_type !== 'expressed_interest' || seen.has(m.ministry_id)) {
+				return false;
+			}
+			seen.add(m.ministry_id);
+			return true;
+		});
+	}, [allMinistries]);
 
 	// Count selections
 	const selectedEnrolledCount = useMemo(() => {
