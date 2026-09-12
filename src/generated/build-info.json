@@ -1,7 +1,7 @@
 {
-  "appVersion": "1.10.0",
+  "appVersion": "1.12.0",
   "gitSha": "local",
   "gitRef": "local",
   "deployEnv": "development",
-  "builtAt": "2026-09-05T19:51:31.899Z"
+  "builtAt": "2026-09-12T02:30:19.886Z"
 }

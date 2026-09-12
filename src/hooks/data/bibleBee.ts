@@ -170,17 +170,29 @@ export function useBibleBeeMinistry() {
 }
 
 // Student Assignments
-export function useStudentAssignmentsQuery(childId: string) {
+export function useStudentAssignmentsQuery(childId: string, cycleId?: string) {
   return useQuery({
-    queryKey: queryKeys.studentAssignments(childId),
+    queryKey: cycleId ? [...queryKeys.studentAssignments(childId), cycleId] : queryKeys.studentAssignments(childId),
     queryFn: async () => {
       try {
-        console.log('🚀 Starting useStudentAssignmentsQuery for child:', childId);
+        console.log('🚀 Starting useStudentAssignmentsQuery for child:', childId, 'cycleId:', cycleId);
         
-        // Get enrollments for this child in the active Bible Bee cycle only
+        // Get enrollments for this child, scoped to the specified cycle or active cycle
           console.log('🔍 Fetching enrollments for child:', childId);
-          const enrollments = await listActiveCycleEnrollments(childId);
-          console.log('Child enrollments (active cycle):', enrollments);
+          const allEnrollments = await dbAdapter.listEnrollments(childId);
+          console.log('All child enrollments:', allEnrollments);
+          
+          let enrollments;
+          if (cycleId) {
+            // If cycleId is provided, filter to only that cycle
+            enrollments = allEnrollments.filter(e => e.bible_bee_cycle_id === cycleId);
+            console.log(`Child enrollments (filtered to cycle ${cycleId}):`, enrollments);
+          } else {
+            // Fall back to active cycle filtering
+            const cycles = await getBibleBeeCycles();
+            enrollments = enrollmentsForActiveBibleBeeCycle(allEnrollments, cycles);
+            console.log('Child enrollments (active cycle):', enrollments);
+          }
           
           if (enrollments.length === 0) {
             console.log('❌ No active-cycle enrollments found for child:', childId);
@@ -409,7 +421,7 @@ export function useStudentAssignmentsQuery(childId: string) {
   });
 }
 
-export function useToggleScriptureMutation(childId: string) {
+export function useToggleScriptureMutation(childId: string, cycleId?: string) {
   const queryClient = useQueryClient();
   
   return useMutation({
@@ -417,15 +429,18 @@ export function useToggleScriptureMutation(childId: string) {
       toggleScriptureCompletion(id, complete),
     onMutate: async ({ id, complete }) => {
       // Cancel any outgoing refetches (so they don't overwrite our optimistic update)
-      await queryClient.cancelQueries({ queryKey: queryKeys.studentAssignments(childId) });
-      await queryClient.cancelQueries({ queryKey: queryKeys.bibleBeeStats(childId) });
+      const assignmentsKey = cycleId ? [...queryKeys.studentAssignments(childId), cycleId] : queryKeys.studentAssignments(childId);
+      const statsKey = cycleId ? [...queryKeys.bibleBeeStats(childId), cycleId] : queryKeys.bibleBeeStats(childId);
+      
+      await queryClient.cancelQueries({ queryKey: assignmentsKey });
+      await queryClient.cancelQueries({ queryKey: statsKey });
 
       // Snapshot the previous values
-      const previousStudentData = queryClient.getQueryData(queryKeys.studentAssignments(childId));
-      const previousStatsData = queryClient.getQueryData(queryKeys.bibleBeeStats(childId));
+      const previousStudentData = queryClient.getQueryData(assignmentsKey);
+      const previousStatsData = queryClient.getQueryData(statsKey);
 
       // Optimistically update the student assignments cache
-      queryClient.setQueryData(queryKeys.studentAssignments(childId), (old: any) => {
+      queryClient.setQueryData(assignmentsKey, (old: any) => {
         if (!old) return old;
         
         return {
@@ -439,7 +454,7 @@ export function useToggleScriptureMutation(childId: string) {
       });
 
       // Optimistically update the Bible Bee stats cache
-      queryClient.setQueryData(queryKeys.bibleBeeStats(childId), (old: any) => {
+      queryClient.setQueryData(statsKey, (old: any) => {
         if (!old || !old.bbStats) return old;
         
         const completedScriptures = complete 
@@ -468,18 +483,24 @@ export function useToggleScriptureMutation(childId: string) {
     },
     onError: (err, variables, context) => {
       // If the mutation fails, use the context returned from onMutate to roll back
+      const assignmentsKey = cycleId ? [...queryKeys.studentAssignments(childId), cycleId] : queryKeys.studentAssignments(childId);
+      const statsKey = cycleId ? [...queryKeys.bibleBeeStats(childId), cycleId] : queryKeys.bibleBeeStats(childId);
+      
       if (context?.previousStudentData) {
-        queryClient.setQueryData(queryKeys.studentAssignments(childId), context.previousStudentData);
+        queryClient.setQueryData(assignmentsKey, context.previousStudentData);
       }
       if (context?.previousStatsData) {
-        queryClient.setQueryData(queryKeys.bibleBeeStats(childId), context.previousStatsData);
+        queryClient.setQueryData(statsKey, context.previousStatsData);
       }
     },
     onSuccess: () => {
+      const assignmentsKey = cycleId ? [...queryKeys.studentAssignments(childId), cycleId] : queryKeys.studentAssignments(childId);
+      const statsKey = cycleId ? [...queryKeys.bibleBeeStats(childId), cycleId] : queryKeys.bibleBeeStats(childId);
+      
       // Invalidate related queries to ensure they refresh
-      queryClient.invalidateQueries({ queryKey: queryKeys.studentAssignments(childId) });
+      queryClient.invalidateQueries({ queryKey: assignmentsKey });
       // Invalidate Bible Bee stats to update the progress display
-      queryClient.invalidateQueries({ queryKey: queryKeys.bibleBeeStats(childId) });
+      queryClient.invalidateQueries({ queryKey: statsKey });
       // Invalidate Bible Bee progress queries that might be affected
       queryClient.invalidateQueries({ queryKey: ['bibleBeeProgressForCycle'] });
       queryClient.invalidateQueries({ queryKey: ['leaderBibleBeeProgress'] });
@@ -487,16 +508,17 @@ export function useToggleScriptureMutation(childId: string) {
   });
 }
 
-export function useSubmitEssayMutation(childId: string) {
+export function useSubmitEssayMutation(childId: string, cycleId?: string) {
   const queryClient = useQueryClient();
   
   return useMutation({
     mutationFn: async ({ bibleBeeCycleId }: { bibleBeeCycleId: string }) => 
       submitEssay(childId, bibleBeeCycleId),
     onMutate: async ({ bibleBeeCycleId }: { bibleBeeCycleId: string }) => {
-      await queryClient.cancelQueries({ queryKey: queryKeys.studentAssignments(childId) });
-      const previous = queryClient.getQueryData<any>(queryKeys.studentAssignments(childId));
-      queryClient.setQueryData(queryKeys.studentAssignments(childId), (old: any) => {
+      const assignmentsKey = cycleId ? [...queryKeys.studentAssignments(childId), cycleId] : queryKeys.studentAssignments(childId);
+      await queryClient.cancelQueries({ queryKey: assignmentsKey });
+      const previous = queryClient.getQueryData<any>(assignmentsKey);
+      queryClient.setQueryData(assignmentsKey, (old: any) => {
         if (!old) return old;
         const newEssays = old.essays.map((e: any) => 
           e.bible_bee_cycle_id === bibleBeeCycleId 
@@ -508,13 +530,15 @@ export function useSubmitEssayMutation(childId: string) {
       return { previous };
     },
     onError: (_err: unknown, _vars: { bibleBeeCycleId: string }, context: any) => {
+      const assignmentsKey = cycleId ? [...queryKeys.studentAssignments(childId), cycleId] : queryKeys.studentAssignments(childId);
       if (context?.previous) {
-        queryClient.setQueryData(queryKeys.studentAssignments(childId), context.previous);
+        queryClient.setQueryData(assignmentsKey, context.previous);
       }
     },
     onSettled: () => {
+      const assignmentsKey = cycleId ? [...queryKeys.studentAssignments(childId), cycleId] : queryKeys.studentAssignments(childId);
       // Invalidate related queries to ensure they refresh
-      queryClient.invalidateQueries({ queryKey: queryKeys.studentAssignments(childId) });
+      queryClient.invalidateQueries({ queryKey: assignmentsKey });
       queryClient.invalidateQueries({ queryKey: ['bibleBeeProgressForCycle'] });
       queryClient.invalidateQueries({ queryKey: ['leaderBibleBeeProgress'] });
     },
@@ -522,18 +546,30 @@ export function useSubmitEssayMutation(childId: string) {
 }
 
 // Bible Bee Stats - Computed from student assignments
-export function useBibleBeeStats(childId: string) {
+export function useBibleBeeStats(childId: string, cycleId?: string) {
   return useQuery({
-    queryKey: queryKeys.bibleBeeStats(childId),
+    queryKey: cycleId ? [...queryKeys.bibleBeeStats(childId), cycleId] : queryKeys.bibleBeeStats(childId),
     queryFn: async () => {
       // Use the same data fetching logic as useStudentAssignmentsQuery
       try {
-        console.log('🚀 Starting useBibleBeeStats for child:', childId);
+        console.log('🚀 Starting useBibleBeeStats for child:', childId, 'cycleId:', cycleId);
         
-        // Get enrollments for this child in the active Bible Bee cycle only
+        // Get enrollments for this child, scoped to the specified cycle or active cycle
           console.log('🔍 Fetching enrollments for child:', childId);
-          const enrollments = await listActiveCycleEnrollments(childId);
-          console.log('Child enrollments (active cycle):', enrollments);
+          const allEnrollments = await dbAdapter.listEnrollments(childId);
+          console.log('All child enrollments:', allEnrollments);
+          
+          let enrollments;
+          if (cycleId) {
+            // If cycleId is provided, filter to only that cycle
+            enrollments = allEnrollments.filter(e => e.bible_bee_cycle_id === cycleId);
+            console.log(`Child enrollments (filtered to cycle ${cycleId}):`, enrollments);
+          } else {
+            // Fall back to active cycle filtering
+            const cycles = await getBibleBeeCycles();
+            enrollments = enrollmentsForActiveBibleBeeCycle(allEnrollments, cycles);
+            console.log('Child enrollments (active cycle):', enrollments);
+          }
           
           if (enrollments.length === 0) {
             console.log('❌ No active-cycle enrollments found for child:', childId);

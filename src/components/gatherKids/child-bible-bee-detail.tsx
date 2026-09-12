@@ -1,6 +1,6 @@
 'use client';
 
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import {
 	useChild,
 	useHousehold,
@@ -9,10 +9,11 @@ import {
 	useToggleScriptureMutation,
 	useSubmitEssayMutation,
 	useBibleBeeStats,
+	useBibleBeeCycles,
 } from '@/hooks/data';
 import { ChildIdCard } from '@/components/gatherKids/child-id-card';
 import { updateChildPhoto } from '@/lib/dal';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import {
 	Card,
@@ -33,6 +34,13 @@ const SquareCropperModal = dynamic(
 import { useAuth } from '@/contexts/auth-context';
 import { canUpdateChildPhoto } from '@/lib/permissions';
 import { toast } from '@/hooks/use-toast';
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from '@/components/ui/select';
 
 interface ChildBibleBeeDetailProps {
 	allowPhotoUpdates?: boolean;
@@ -42,12 +50,64 @@ export default function ChildBibleBeeDetail({
 	allowPhotoUpdates = false,
 }: ChildBibleBeeDetailProps) {
 	const params = useParams();
+	const searchParams = useSearchParams();
 	const childId = params.childId as string;
 	const { user } = useAuth();
-	const { data, isLoading } = useStudentAssignmentsQuery(childId);
+	
+	// Load Bible Bee cycles for the year picker
+	const {
+		data: bibleBeeCycles = [],
+		isLoading: cyclesLoading,
+	} = useBibleBeeCycles();
+
+	// Determine the selected cycle (from URL param or default to active/recent)
+	const urlCycleId = searchParams?.get('cycleId');
+	
+	const defaultCycle = useMemo(() => {
+		if (!bibleBeeCycles || bibleBeeCycles.length === 0) return null;
+		
+		// First, try to find an active Bible Bee cycle
+		const activeBB = bibleBeeCycles.find((c: any) => {
+			const val: any = c?.is_active;
+			return val === true || val === 1 || String(val) === '1';
+		});
+
+		if (activeBB && activeBB.id) {
+			return String(activeBB.id);
+		}
+
+		// If no active cycle, use the most recent cycle (sorted by created_at)
+		const sortedCycles = [...bibleBeeCycles].sort((a: any, b: any) => {
+			// Try to sort by name first (e.g., "Fall 2025", "Spring 2025")
+			if (a.name && b.name) {
+				return b.name.localeCompare(a.name);
+			}
+			// Fallback to created_at
+			if (a.created_at && b.created_at) {
+				return (
+					new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+				);
+			}
+			return 0;
+		});
+
+		return sortedCycles.length > 0 ? String(sortedCycles[0].id) : null;
+	}, [bibleBeeCycles]);
+
+	const [userSelectedCycle, setUserSelectedCycle] = useState<string | null>(null);
+	
+	// Effective selected cycle: URL param > user selection > default
+	const effectiveSelectedCycle = useMemo(() => {
+		if (urlCycleId) return urlCycleId;
+		if (userSelectedCycle) return userSelectedCycle;
+		return defaultCycle || '';
+	}, [urlCycleId, userSelectedCycle, defaultCycle]);
+	
+	// Use the selected cycle for data fetching
+	const { data, isLoading } = useStudentAssignmentsQuery(childId, effectiveSelectedCycle);
 	const [showPhotoCapture, setShowPhotoCapture] = useState<any>(null);
-	const toggleMutation = useToggleScriptureMutation(childId);
-	const essayMutation = useSubmitEssayMutation(childId);
+	const toggleMutation = useToggleScriptureMutation(childId, effectiveSelectedCycle);
+	const essayMutation = useSubmitEssayMutation(childId, effectiveSelectedCycle);
 
 	// Use React Query hooks for child, household, and guardian data
 	const {
@@ -78,12 +138,25 @@ export default function ChildBibleBeeDetail({
 	const { 
 		data: statsData, 
 		isLoading: statsLoading 
-	} = useBibleBeeStats(childId);
+	} = useBibleBeeStats(childId, effectiveSelectedCycle);
 
 	const bbStats = statsData?.bbStats || null;
 	const essaySummary = statsData?.essaySummary || null;
 	const divisionEssayPrompts = statsData?.divisionEssayPrompts || [];
 	const isComputingStats = statsLoading;
+	
+	// Compute the year label for display
+	const yearLabel = useMemo(() => {
+		if (bibleBeeCycles && bibleBeeCycles.length > 0) {
+			const bibleBeeCycle = bibleBeeCycles.find(
+				(c: any) => c.id === effectiveSelectedCycle
+			);
+			if (bibleBeeCycle && bibleBeeCycle.name) {
+				return bibleBeeCycle.name;
+			}
+		}
+		return 'Bible Bee';
+	}, [effectiveSelectedCycle, bibleBeeCycles]);
 
 	if (
 		isLoading ||
@@ -91,6 +164,7 @@ export default function ChildBibleBeeDetail({
 		householdLoading ||
 		profileLoading ||
 		statsLoading ||
+		cyclesLoading ||
 		!data
 	) {
 		return <div>Loading Bible Bee assignments...</div>;
@@ -175,9 +249,38 @@ export default function ChildBibleBeeDetail({
 
 	return (
 		<div className="space-y-6">
-			<h1 className="text-3xl font-bold font-headline">
-				Bible Bee Assignments
-			</h1>
+			<div className="flex items-center justify-between gap-4">
+				<h1 className="text-3xl font-bold font-headline">
+					Bible Bee Assignments
+				</h1>
+				
+				{bibleBeeCycles.length > 1 && (
+					<div className="flex items-center gap-2">
+						<span className="text-sm text-muted-foreground">Year:</span>
+						<Select
+							value={effectiveSelectedCycle}
+							onValueChange={(value) => {
+								setUserSelectedCycle(value);
+								// Update URL without navigation
+								const url = new URL(window.location.href);
+								url.searchParams.set('cycleId', value);
+								window.history.replaceState({}, '', url.toString());
+							}}
+						>
+							<SelectTrigger className="w-[180px]">
+								<SelectValue placeholder="Select year" />
+							</SelectTrigger>
+							<SelectContent>
+								{bibleBeeCycles.map((cycle: any) => (
+									<SelectItem key={cycle.id} value={cycle.id}>
+										{cycle.name || cycle.id}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
+					</div>
+				)}
+			</div>
 
 			<ChildIdCard
 				child={enrichedChild}
