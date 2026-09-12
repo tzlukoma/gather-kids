@@ -1,0 +1,63 @@
+name: E2E Registration Smoke
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-registration-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e-registration:
+    name: e2e-registration
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-node-app
+        with:
+          checkout: 'false'
+      - uses: ./.github/actions/setup-supabase-cli
+        with:
+          version: '2.116.0'
+
+      - name: Start local Supabase
+        run: supabase start --exclude studio --exclude edge-runtime
+
+      - name: Export local Supabase env
+        run: |
+          set -euo pipefail
+          eval "$(supabase status -o env)"
+          {
+            echo "NEXT_PUBLIC_SUPABASE_URL=${API_URL}"
+            echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=${ANON_KEY}"
+            echo "SUPABASE_SERVICE_ROLE_KEY=${SERVICE_ROLE_KEY}"
+            echo "SUPABASE_URL=${API_URL}"
+            echo "SUPABASE_SERVICE_ROLE=${SERVICE_ROLE_KEY}"
+          } >> "$GITHUB_ENV"
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run first-time and returning registration submit
+        run: npx playwright test e2e/registration-smoke.spec.ts --config=e2e.config.ts --project=chromium
+        env:
+          CI: true
+          BASE_URL: http://localhost:9002
+          NEXT_PUBLIC_LOGIN_PASSWORD_ENABLED: 'true'
+          NEXT_PUBLIC_LOGIN_MAGIC_ENABLED: 'false'
+          NEXT_PUBLIC_SHOW_MINISTRY_GROUPS: 'false'
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-registration-smoke-report
+          path: playwright-report/
+          retention-days: 14
+          if-no-files-found: ignore

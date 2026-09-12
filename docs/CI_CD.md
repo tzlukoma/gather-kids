@@ -66,8 +66,18 @@ Path-filtered (not every PR):
 
 | Workflow | When |
 |----------|------|
-| [`e2e-smoke.yml`](../.github/workflows/e2e-smoke.yml) | Changes under `src/**` or `e2e/**` |
-| [`e2e-email.yml`](../.github/workflows/e2e-email.yml) | Push to `main` + manual dispatch (not PR-gating until registration CI fixtures land) |
+| [`e2e-smoke.yml`](../.github/workflows/e2e-smoke.yml) | Changes under `src/**` or `e2e/**` — dummy-Supabase page-load smoke (fast; not a deploy gate) |
+| [`e2e-email.yml`](../.github/workflows/e2e-email.yml) | Push to `main` + manual dispatch (not PR-gating) |
+
+### After merge to `main` (production deploy gate)
+
+| Workflow | When |
+|----------|------|
+| [`e2e-registration-smoke.yml`](../.github/workflows/e2e-registration-smoke.yml) | Push to `main` (+ manual dispatch). Starts ephemeral local Supabase and runs first-time + returning `/register` submit (`e2e/registration-smoke.spec.ts`). Job name: **`e2e-registration`**. |
+
+Vercel currently deploys Production as soon as `main` is updated. To make **`e2e-registration` required for Production**, add that GitHub check under the gatherKids Vercel project → **Settings → Git → Required Checks for Production** (or Deployment Checks). Until that is set, the workflow still runs on `main` and failures are visible, but Production can ship in parallel.
+
+Do not add `e2e-registration` as a **PR** required check — it does not run on pull requests.
 
 Node **22.22.2**, Supabase CLI **2.116.0** (pinned in composite action).
 

@@ -174,8 +174,12 @@ DAL/schema PRs also run the contract tests named in [`.github/PULL_REQUEST_TEMPL
 
 **CI path-filtered / not PR-gating:**
 
-- [`e2e-smoke.yml`](.github/workflows/e2e-smoke.yml) — changes under `src/**` or `e2e/**`
+- [`e2e-smoke.yml`](.github/workflows/e2e-smoke.yml) — dummy-Supabase page-load smoke when `src/**` or `e2e/**` change
 - [`e2e-email.yml`](.github/workflows/e2e-email.yml) — not PR-gating
+
+**After merge to `main` (production deploy gate):**
+
+- [`e2e-registration-smoke.yml`](.github/workflows/e2e-registration-smoke.yml) — first-time + returning registration submit against ephemeral local Supabase. Job name `e2e-registration`. Require this check for Vercel Production (not as a PR check).
 
 Report skipped, unavailable, or CI-only checks in the PR. Distinguish failures you introduced from pre-existing failures.
 

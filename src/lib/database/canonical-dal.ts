@@ -143,7 +143,7 @@ export async function registerHouseholdCanonical(data: Record<string, unknown>, 
   // Convert input data to canonical format and validate
   const canonicalData = convertFormDataToCanonical(data);
   
-  const householdId = canonicalData.household.household_id || uuidv4();
+  let householdId = canonicalData.household.household_id || uuidv4();
   const isUpdate = !!canonicalData.household.household_id;
   const now = new Date().toISOString();
 
@@ -175,7 +175,8 @@ export async function registerHouseholdCanonical(data: Record<string, unknown>, 
           await dbAdapter.deleteEmergencyContact(contact.contact_id);
         }
     } else {
-        await dbAdapter.createHousehold(household);
+        const created = await dbAdapter.createHousehold(household);
+        householdId = created.household_id;
       }
 
       // Create guardians using canonical data
