@@ -44,12 +44,12 @@ const PRODUCTION_BLOCKLIST = [
 	'prod.supabase',
 ];
 
-// Supabase client setup
-const supabaseUrl =
-	process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_UAT_URL;
-const serviceRoleKey =
-	process.env.SUPABASE_SERVICE_ROLE_KEY ||
-	process.env.SUPABASE_UAT_SERVICE_ROLE_KEY;
+// Global supabase client (initialized after validation)
+let supabase = null;
+
+// Supabase configuration (validated before use)
+let supabaseUrl = null;
+let serviceRoleKey = null;
 
 // Global counters
 const counters = {
@@ -67,6 +67,13 @@ const counters = {
  */
 function validateEnvironment() {
 	console.log('🔒 Validating environment for production safety...');
+
+	// Get environment variables
+	supabaseUrl =
+		process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_UAT_URL;
+	serviceRoleKey =
+		process.env.SUPABASE_SERVICE_ROLE_KEY ||
+		process.env.SUPABASE_UAT_SERVICE_ROLE_KEY;
 
 	if (!supabaseUrl || !serviceRoleKey) {
 		console.error('❌ Missing required environment variables:');
@@ -93,22 +100,30 @@ function validateEnvironment() {
 		process.exit(1);
 	}
 
-	// Require explicit UAT confirmation
+	// Require explicit UAT confirmation via URL only (--uat flag alone is NOT sufficient)
 	const hasUatIndicator =
 		supabaseUrl.includes('uat') ||
 		supabaseUrl.includes('staging') ||
 		supabaseUrl.includes('127.0.0.1') ||
-		supabaseUrl.includes('localhost') ||
-		UAT_FLAG;
+		supabaseUrl.includes('localhost');
 
-	if (!hasUatIndicator) {
+	if (!hasUatIndicator && !UAT_FLAG) {
 		console.error('❌ UAT environment not confirmed');
 		console.error(`   Supabase URL: ${supabaseUrl}`);
 		console.error('');
-		console.error('This script requires explicit UAT confirmation.');
-		console.error('Either:');
-		console.error('   - Use a Supabase URL containing "uat", "staging", or "localhost"');
-		console.error('   - Pass the --uat flag explicitly');
+		console.error('This script requires a UAT/staging/localhost Supabase URL.');
+		console.error('The --uat flag alone is not sufficient for remote URLs.');
+		console.error('Use a Supabase URL containing "uat", "staging", or "localhost"');
+		process.exit(1);
+	}
+
+	if (!hasUatIndicator && UAT_FLAG) {
+		console.error('❌ Invalid use of --uat flag');
+		console.error(`   Supabase URL: ${supabaseUrl}`);
+		console.error('');
+		console.error('The --uat flag cannot authorize a remote URL without uat/staging/localhost.');
+		console.error('This is a production safety gate.');
+		console.error('Use a proper UAT Supabase URL instead.');
 		process.exit(1);
 	}
 
@@ -189,10 +204,15 @@ function createDryRunProxy(realClient) {
 	});
 }
 
-// Initialize Supabase client
-const supabase = createDryRunProxy(
-	createClient(supabaseUrl, serviceRoleKey)
-);
+/**
+ * Initialize Supabase client (called after validation)
+ */
+function initializeClient() {
+	const rawClient = createClient(supabaseUrl, serviceRoleKey);
+	supabase = createDryRunProxy(rawClient);
+	console.log('✅ Supabase client initialized');
+	console.log('');
+}
 
 /**
  * Reset M'Baku fixtures when RESET mode is enabled
@@ -340,9 +360,54 @@ async function getActiveBibleBeeCycle() {
 }
 
 /**
+ * Get multiple active Bible Bee cycles for dual-cycle testing
+ */
+async function getActiveBibleBeeCycles(limit = 2) {
+	console.log(`📖 Finding up to ${limit} active Bible Bee cycles...`);
+
+	const { data, error } = await supabase
+		.from('bible_bee_cycles')
+		.select('id, name')
+		.eq('is_active', true)
+		.limit(limit);
+
+	if (error || !data || data.length === 0) {
+		console.error('❌ No active Bible Bee cycles found');
+		console.error('   Please ensure Bible Bee cycles exist (run seed:uat:bible-bee)');
+		process.exit(1);
+	}
+
+	console.log(`✅ Found ${data.length} Bible Bee cycle(s):`);
+	data.forEach(cycle => console.log(`   - ${cycle.name} (${cycle.id})`));
+	return data;
+}
+
+/**
+ * Get division by name (e.g., "Senior" or "Junior")
+ */
+async function getDivisionByName(divisionName) {
+	console.log(`📖 Finding division: ${divisionName}...`);
+
+	const { data, error } = await supabase
+		.from('divisions')
+		.select('id, name')
+		.eq('name', divisionName)
+		.limit(1);
+
+	if (error || !data || data.length === 0) {
+		console.error(`❌ Division "${divisionName}" not found`);
+		console.error('   Please ensure divisions exist (run seed:uat:bible-bee)');
+		process.exit(1);
+	}
+
+	console.log(`✅ Found division: ${data[0].name} (${data[0].id})`);
+	return data[0].id;
+}
+
+/**
  * Create Fixture 1: Bot-guardian household with Bible Bee children
  */
-async function createBotGuardianFixture(cycleId, ministryId, bibleBeeCycleId) {
+async function createBotGuardianFixture(cycleId, ministryId, bibleBeeCycleId, divisionIds) {
 	console.log('🤖 Creating Fixture 1: Bot-guardian household...');
 
 	// Create household
@@ -558,12 +623,13 @@ async function createBotGuardianFixture(cycleId, ministryId, bibleBeeCycleId) {
 
 		// Create Bible Bee enrollment record
 		const beeEnrollmentId = `${FIXTURE_PREFIX}bee_${childData.child_id}`;
+		const divisionId = childData.grade <= '5' ? divisionIds.junior : divisionIds.senior;
 		const beeEnrollmentData = {
 			id: beeEnrollmentId,
 			child_id: childData.child_id,
 			bible_bee_cycle_id: bibleBeeCycleId,
+			division_id: divisionId,
 			enrolled_at: new Date().toISOString(),
-			division_name: childData.grade <= '5' ? 'Junior' : 'Senior',
 		};
 
 		const { data: existingBeeEnrollment } = await supabase
@@ -604,7 +670,7 @@ async function createBotGuardianFixture(cycleId, ministryId, bibleBeeCycleId) {
 /**
  * Create Fixture 2: Dual-cycle + essays fixture
  */
-async function createDualCycleFixture(cycleId, ministryId, bibleBeeCycleId) {
+async function createDualCycleFixture(cycleId, ministryId, bibleBeeCycles, divisionIds) {
 	console.log('📝 Creating Fixture 2: Dual-cycle + essays fixture...');
 
 	// Create household
@@ -766,54 +832,132 @@ async function createDualCycleFixture(cycleId, ministryId, bibleBeeCycleId) {
 		counters.ministry_enrollments++;
 	}
 
-	// Create Bible Bee enrollment record
-	const beeEnrollmentId = `${FIXTURE_PREFIX}bee_${childId}`;
-	const beeEnrollmentData = {
-		id: beeEnrollmentId,
-		child_id: childId,
-		bible_bee_cycle_id: bibleBeeCycleId,
-		enrolled_at: new Date().toISOString(),
-		division_name: 'Senior',
-	};
+	// Enroll in MULTIPLE Bible Bee cycles (dual-cycle fixture)
+	const seniorDivisionId = divisionIds.senior;
+	
+	for (let i = 0; i < bibleBeeCycles.length; i++) {
+		const cycle = bibleBeeCycles[i];
+		const beeEnrollmentId = `${FIXTURE_PREFIX}bee_${childId}_cycle${i + 1}`;
+		const beeEnrollmentData = {
+			id: beeEnrollmentId,
+			child_id: childId,
+			bible_bee_cycle_id: cycle.id,
+			division_id: seniorDivisionId,
+			enrolled_at: new Date().toISOString(),
+		};
 
-	const { data: existingBeeEnrollment } = await supabase
-		.from('bible_bee_enrollments')
-		.select('id')
-		.eq('id', beeEnrollmentId)
-		.single();
-
-	if (existingBeeEnrollment) {
-		console.log('✅ Bible Bee enrollment record for senior child already exists');
-	} else {
-		const { error } = await supabase
+		const { data: existingBeeEnrollment } = await supabase
 			.from('bible_bee_enrollments')
-			.insert(beeEnrollmentData)
-			.select()
+			.select('id')
+			.eq('id', beeEnrollmentId)
 			.single();
 
-		if (error) {
-			console.error(
-				'❌ Failed to create Bible Bee enrollment record for senior child:',
-				error.message
-			);
-			// Non-fatal - continue
+		if (existingBeeEnrollment) {
+			console.log(`✅ Bible Bee enrollment for cycle ${i + 1} already exists`);
 		} else {
-			console.log('✅ Created Bible Bee enrollment record for senior child');
-			counters.bible_bee_enrollments++;
+			const { error } = await supabase
+				.from('bible_bee_enrollments')
+				.insert(beeEnrollmentData)
+				.select()
+				.single();
+
+			if (error) {
+				console.error(
+					`❌ Failed to create Bible Bee enrollment for cycle ${i + 1}:`,
+					error.message
+				);
+				// Non-fatal - continue
+			} else {
+				console.log(`✅ Created Bible Bee enrollment for cycle ${i + 1}: ${cycle.name}`);
+				counters.bible_bee_enrollments++;
+			}
+		}
+
+		// Create essay prompt for this cycle
+		const essayPromptId = `${FIXTURE_PREFIX}essay_prompt_${i + 1}`;
+		const essayPromptData = {
+			id: essayPromptId,
+			bible_bee_cycle_id: cycle.id,
+			division_id: seniorDivisionId,
+			title: `Senior Essay ${i + 1} - ${cycle.name}`,
+			prompt: `This is the essay prompt for ${cycle.name}. Students should reflect on their Bible Bee journey and demonstrate their understanding of scripture.`,
+			instructions: 'Write a thoughtful essay of 500-750 words. Use specific scripture references.',
+			due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days from now
+		};
+
+		const { data: existingPrompt } = await supabase
+			.from('essay_prompts')
+			.select('id')
+			.eq('id', essayPromptId)
+			.single();
+
+		if (existingPrompt) {
+			console.log(`✅ Essay prompt for cycle ${i + 1} already exists`);
+		} else {
+			const { error } = await supabase
+				.from('essay_prompts')
+				.insert(essayPromptData)
+				.select()
+				.single();
+
+			if (error) {
+				console.error(
+					`❌ Failed to create essay prompt for cycle ${i + 1}:`,
+					error.message
+				);
+				// Non-fatal - continue
+			} else {
+				console.log(`✅ Created essay prompt for cycle ${i + 1}`);
+			}
+		}
+
+		// Create student essay for this child + prompt
+		const studentEssayId = `${FIXTURE_PREFIX}student_essay_${i + 1}`;
+		const studentEssayData = {
+			id: studentEssayId,
+			child_id: childId,
+			bible_bee_cycle_id: cycle.id,
+			essay_prompt_id: essayPromptId,
+			status: 'assigned',
+		};
+
+		const { data: existingEssay } = await supabase
+			.from('student_essays')
+			.select('id')
+			.eq('id', studentEssayId)
+			.single();
+
+		if (existingEssay) {
+			console.log(`✅ Student essay for cycle ${i + 1} already exists`);
+		} else {
+			const { error } = await supabase
+				.from('student_essays')
+				.insert(studentEssayData)
+				.select()
+				.single();
+
+			if (error) {
+				console.error(
+					`❌ Failed to create student essay for cycle ${i + 1}:`,
+					error.message
+				);
+				// Non-fatal - continue
+			} else {
+				console.log(`✅ Created student essay for cycle ${i + 1}`);
+				counters.student_essays++;
+			}
 		}
 	}
 
-	// Note: Dual-essay data is created here as seed data only
-	// No UI filter will be implemented (per user instruction)
 	console.log(
-		'✅ Fixture 2 complete: Dual-cycle + essays (seed data only, no UI filter)'
+		`✅ Fixture 2 complete: Dual-cycle fixture with ${bibleBeeCycles.length} cycles + essays`
 	);
 }
 
 /**
  * Create Fixture 3: Resettable test household
  */
-async function createResettableTestFixture(cycleId, ministryId) {
+async function createResettableTestFixture(cycleId, ministryId, bibleBeeCycleId, divisionIds) {
 	console.log('🔄 Creating Fixture 3: Resettable test household...');
 
 	// Create household
@@ -972,6 +1116,44 @@ async function createResettableTestFixture(cycleId, ministryId) {
 		counters.ministry_enrollments++;
 	}
 
+	// Create Bible Bee enrollment record (like fixtures 1 and 2)
+	const beeEnrollmentId = `${FIXTURE_PREFIX}bee_${childId}`;
+	const juniorDivisionId = divisionIds.junior; // Grade 3 = Junior
+	const beeEnrollmentData = {
+		id: beeEnrollmentId,
+		child_id: childId,
+		bible_bee_cycle_id: bibleBeeCycleId,
+		division_id: juniorDivisionId,
+		enrolled_at: new Date().toISOString(),
+	};
+
+	const { data: existingBeeEnrollment } = await supabase
+		.from('bible_bee_enrollments')
+		.select('id')
+		.eq('id', beeEnrollmentId)
+		.single();
+
+	if (existingBeeEnrollment) {
+		console.log('✅ Bible Bee enrollment record for reset child already exists');
+	} else {
+		const { error } = await supabase
+			.from('bible_bee_enrollments')
+			.insert(beeEnrollmentData)
+			.select()
+			.single();
+
+		if (error) {
+			console.error(
+				'❌ Failed to create Bible Bee enrollment record for reset child:',
+				error.message
+			);
+			// Non-fatal - continue
+		} else {
+			console.log('✅ Created Bible Bee enrollment record for reset child');
+			counters.bible_bee_enrollments++;
+		}
+	}
+
 	console.log('✅ Fixture 3 complete: Resettable test household');
 }
 
@@ -983,6 +1165,9 @@ async function main() {
 		// Validate environment
 		validateEnvironment();
 
+		// Initialize Supabase client (after validation passes)
+		initializeClient();
+
 		console.log('🚀 M\'Baku UAT Fixtures Script Starting...');
 		console.log('');
 
@@ -993,17 +1178,24 @@ async function main() {
 		const cycleId = await getActiveCycle();
 		const ministryId = await getBibleBeeMinistry();
 		const bibleBeeCycleId = await getActiveBibleBeeCycle();
+		const bibleBeeCycles = await getActiveBibleBeeCycles(2); // Get 2 cycles for dual-cycle fixture
+		const juniorDivisionId = await getDivisionByName('Junior');
+		const seniorDivisionId = await getDivisionByName('Senior');
+		const divisionIds = {
+			junior: juniorDivisionId,
+			senior: seniorDivisionId,
+		};
 
 		console.log('');
 
 		// Create fixtures
-		await createBotGuardianFixture(cycleId, ministryId, bibleBeeCycleId);
+		await createBotGuardianFixture(cycleId, ministryId, bibleBeeCycleId, divisionIds);
 		console.log('');
 
-		await createDualCycleFixture(cycleId, ministryId, bibleBeeCycleId);
+		await createDualCycleFixture(cycleId, ministryId, bibleBeeCycles, divisionIds);
 		console.log('');
 
-		await createResettableTestFixture(cycleId, ministryId);
+		await createResettableTestFixture(cycleId, ministryId, bibleBeeCycleId, divisionIds);
 		console.log('');
 
 		// Summary
@@ -1020,6 +1212,7 @@ async function main() {
 		console.log(
 			`   - ${counters.bible_bee_enrollments} Bible Bee enrollments created`
 		);
+		console.log(`   - ${counters.student_essays} student essays created`);
 		console.log('');
 		console.log('🎯 Fixtures Created:');
 		console.log('   1. Bot-guardian household (M\'Baku Bot Family)');
@@ -1027,9 +1220,9 @@ async function main() {
 		console.log('      - Email: mbaku+bot@gatherkids.test');
 		console.log('');
 		console.log('   2. Dual-cycle + essays household (Dual-Cycle Test Family)');
-		console.log('      - 1 senior division student (requires essay)');
+		console.log(`      - 1 senior division student enrolled in ${bibleBeeCycles.length} cycles`);
+		console.log(`      - ${bibleBeeCycles.length} essay prompts + ${bibleBeeCycles.length} student essays created`);
 		console.log('      - Email: mbaku+dual@gatherkids.test');
-		console.log('      - Note: Seed data only, no UI filter per requirements');
 		console.log('');
 		console.log('   3. Resettable test household (Reset Test Family)');
 		console.log('      - 1 child enrolled in Bible Bee');
