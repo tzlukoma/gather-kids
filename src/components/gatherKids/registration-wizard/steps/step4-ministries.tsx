@@ -18,7 +18,6 @@ import { useQuery } from '@tanstack/react-query';
 import { getMinistries, getMinistriesByGroupCode } from '@/lib/dal';
 import type { Ministry } from '@/lib/types';
 import { useMemo } from 'react';
-import { getFlag } from '@/lib/featureFlags';
 
 interface Step4MinistriesProps {
 	form: UseFormReturn<RegistrationFormInput>;

@@ -9,6 +9,7 @@ import { useQuery } from '@tanstack/react-query';
 import { getRegistrationCycles, loadHouseholdForRegistration } from '@/lib/dal';
 import { pickActiveRegistrationCycle } from '@/lib/dal/registration-cycle-utils';
 import { Home, Users } from 'lucide-react';
+import { db as dbAdapter } from '@/lib/database/factory';
 
 interface RegistrationEntryProps {
 	onStart: (prefillData?: any) => void;
@@ -19,6 +20,7 @@ export function RegistrationEntry({ onStart }: RegistrationEntryProps) {
 	const { user } = useAuth();
 	const [isLoading, setIsLoading] = useState(true);
 	const [householdData, setHouseholdData] = useState<any>(null);
+	const [displayData, setDisplayData] = useState<{ household: any; children: any[] } | null>(null);
 
 	const { data: registrationCycles = [] } = useQuery({
 		queryKey: ['registrationCycles'],
@@ -37,11 +39,28 @@ export function RegistrationEntry({ onStart }: RegistrationEntryProps) {
 			}
 
 			try {
+				// Try to load prefill data (returns null if first-time or no prior enrollment)
 				const result = await loadHouseholdForRegistration(
 					user.uid,
 					activeRegistrationCycle.cycle_id
 				);
 				setHouseholdData(result);
+
+				// If no prefill data but user is signed in, still load household + children for display
+				if (!result) {
+					const householdId = await dbAdapter.getHouseholdForUser(user.uid);
+					if (householdId) {
+						const household = await dbAdapter.getHousehold(householdId);
+						const children = await dbAdapter.listChildren({ householdId, isActive: true });
+						setDisplayData({ household, children });
+					}
+				} else {
+					// Use prefill data for display
+					setDisplayData({
+						household: result.data.household,
+						children: result.data.children
+					});
+				}
 			} catch (error) {
 				console.error('Error loading household:', error);
 			} finally {
@@ -68,10 +87,10 @@ export function RegistrationEntry({ onStart }: RegistrationEntryProps) {
 	}
 
 	const userName = user?.user_metadata?.firstName || user?.email?.split('@')[0] || 'there';
-	const householdName = householdData?.data?.household?.name || 'Your household';
+	const householdName = displayData?.household?.name || 'Your household';
 	
-	// Extract children - they're at householdData.data.children
-	const children = householdData?.data?.children || [];
+	// Extract children from displayData
+	const children = displayData?.children || [];
 	const hasChildren = children.length > 0;
 
 	return (
