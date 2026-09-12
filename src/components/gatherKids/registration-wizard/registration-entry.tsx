@@ -57,11 +57,9 @@ export function RegistrationEntry({ onStart }: RegistrationEntryProps) {
 					activeRegistrationCycle.cycle_id
 				);
 				setHouseholdData(prefillResult);
-				console.log('[Entry] Prefill result:', prefillResult ? 'loaded' : 'null');
 
 				// Load household profile for display (works with RLS for guardians)
 				const householdId = await getHouseholdForUser(user.uid);
-				console.log('[Entry] Household ID:', householdId);
 				
 				let profileChildren: any[] = [];
 				let profileHouseholdName = 'Your household';
@@ -71,10 +69,8 @@ export function RegistrationEntry({ onStart }: RegistrationEntryProps) {
 						const profile = await getHouseholdProfile(householdId);
 						profileChildren = profile.children || [];
 						profileHouseholdName = profile.household?.name || 'Your household';
-						console.log('[Entry] Profile children count:', profileChildren.length);
-						console.log('[Entry] Profile household name:', profileHouseholdName);
 					} catch (error) {
-						console.warn('[Entry] Could not load household profile:', error);
+						// Household profile load failed - continue with empty profile data
 					}
 				}
 
@@ -82,13 +78,11 @@ export function RegistrationEntry({ onStart }: RegistrationEntryProps) {
 				let draftChildren: any[] = [];
 				try {
 					const draft = await loadDraft();
-					console.log('[Entry] Draft loaded:', draft ? 'yes' : 'no');
 					if (draft?.children && Array.isArray(draft.children)) {
 						draftChildren = draft.children.filter((c: any) => c?.first_name);
-						console.log('[Entry] Draft children count:', draftChildren.length, draftChildren.map((c: any) => c.first_name));
 					}
 				} catch (error) {
-					console.warn('[Entry] Could not load draft:', error);
+					// Draft load failed - continue without draft data
 				}
 
 				// Merge profile children with draft children (union, dedupe by first_name+last_name)
@@ -114,12 +108,11 @@ export function RegistrationEntry({ onStart }: RegistrationEntryProps) {
 				}
 
 				const mergedChildren = Array.from(childMap.values());
-				console.log('[Entry] Merged children count:', mergedChildren.length, mergedChildren.map((c: any) => c.first_name));
 				setChildren(mergedChildren);
 				setHouseholdName(profileHouseholdName);
 
 			} catch (error) {
-				console.error('[Entry] Error loading household:', error);
+				// Top-level error loading household data - silent fail with empty state
 			} finally {
 				setIsLoading(false);
 			}
