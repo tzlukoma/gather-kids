@@ -4,6 +4,10 @@ import { AuthRole } from '@/lib/auth-types';
 import { ReactNode } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { isOfflineSupabase } from '@/lib/offline-supabase';
+import {
+	identifyAnalyticsUser,
+	resetAnalyticsUser,
+} from '@/lib/analytics/browser';
 
 // Mock Supabase client
 jest.mock('@/lib/supabaseClient', () => ({
@@ -23,6 +27,11 @@ jest.mock('@/lib/offline-supabase', () => ({
 	persistOfflineSessionUser: jest.fn(),
 	readOfflineSessionUser: jest.fn(() => null),
 	clearOfflineSessionUser: jest.fn(),
+}));
+
+jest.mock('@/lib/analytics/browser', () => ({
+	identifyAnalyticsUser: jest.fn(),
+	resetAnalyticsUser: jest.fn(),
 }));
 
 // Mock DB adapter
@@ -100,6 +109,15 @@ describe('AuthContext', () => {
 			id: testUser.id,
 			email: testUser.email,
 		}));
+
+		expect(identifyAnalyticsUser).toHaveBeenCalledWith({
+			userId: 'test-id',
+			role: AuthRole.ADMIN,
+		});
+		const identifyPayload = (identifyAnalyticsUser as jest.Mock).mock.calls[0][0];
+		expect(identifyPayload).not.toHaveProperty('email');
+		expect(identifyPayload).not.toHaveProperty('name');
+		expect(JSON.stringify(identifyPayload)).not.toContain('test@example.com');
 	});
 
 	it('allows logout and clears user from context', async () => {
@@ -127,6 +145,7 @@ describe('AuthContext', () => {
 
 		// Check user is cleared from context
 		expect(result.current.user).toBe(null);
+		expect(resetAnalyticsUser).toHaveBeenCalled();
 	});
 
 	it('manages user role state', async () => {

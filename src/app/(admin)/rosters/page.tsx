@@ -92,6 +92,7 @@ import { RosterSkeleton } from '@/components/skeletons';
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/hooks/data/keys';
 import { EVENT_OPTIONS, getEventName } from '@/lib/constants';
+import { captureAnalyticsEvent } from '@/lib/analytics/browser';
 
 export type RosterChild = EnrichedChild;
 
@@ -461,6 +462,11 @@ export default function RostersPage() {
 				);
 			}
 			await Promise.all(promises);
+			captureAnalyticsEvent('bulk_attendance_updated', {
+				action: 'check_in',
+				child_count: childrenToUpdate.length,
+				check_in_event: selectedEvent,
+			});
 			toast({
 				title: 'Bulk Check-In Complete',
 				description: `${childrenToUpdate.length} children checked in.`,
@@ -480,6 +486,11 @@ export default function RostersPage() {
 				}
 			}
 			await Promise.all(promises);
+			captureAnalyticsEvent('bulk_attendance_updated', {
+				action: 'check_out',
+				child_count: childrenToUpdate.length,
+				check_in_event: selectedEvent,
+			});
 			toast({
 				title: 'Bulk Check-Out Complete',
 				description: `${childrenToUpdate.length} children checked out.`,
@@ -512,6 +523,7 @@ export default function RostersPage() {
 	const handleCheckIn = async (childId: string) => {
 		try {
 			await recordCheckIn(childId, selectedEvent, undefined, user?.id);
+			captureAnalyticsEvent('child_checked_in', { check_in_event: selectedEvent });
 
 			// Invalidate attendance queries to refresh UI
 			queryClient.invalidateQueries({ queryKey: queryKeys.attendance(today) });
@@ -544,6 +556,7 @@ export default function RostersPage() {
 	) => {
 		try {
 			await recordCheckOut(attendanceId, verifier, user?.id);
+			captureAnalyticsEvent('child_checked_out', { check_in_event: selectedEvent });
 
 			// Invalidate attendance queries to refresh UI
 			queryClient.invalidateQueries({ queryKey: queryKeys.attendance(today) });
