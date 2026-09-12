@@ -298,19 +298,23 @@ export function Step4Ministries({ form }: Step4MinistriesProps) {
 			.sort((a, b) => a.name.localeCompare(b.name));
 	}, [allMinistries, isChoir]);
 
-	// Choir programs for grouped rendering (dedupe by normalized name AND code within group)
+	// Choir programs for grouped rendering (dedupe by normalized name OR code within group)
 	const choirPrograms = useMemo(() => {
-		const seen = new Set<string>();
+		const seenNames = new Set<string>();
+		const seenCodes = new Set<string>();
 		
 		return choirMinistriesData
 			.filter((m: Ministry) => {
-				// Create composite key from normalized code and name
-				const codeKey = normalizeCode(m.code);
-				const nameKey = normalizeCode(m.name);
-				const compositeKey = `${codeKey}|${nameKey}`;
+				const normalizedName = normalizeCode(m.name);
+				const normalizedCode = normalizeCode(m.code);
 				
-				if (seen.has(compositeKey)) return false;
-				seen.add(compositeKey);
+				// Skip if we've seen this name OR this code before
+				if (seenNames.has(normalizedName) || seenCodes.has(normalizedCode)) {
+					return false;
+				}
+				
+				seenNames.add(normalizedName);
+				seenCodes.add(normalizedCode);
 				return true;
 			})
 			.sort((a, b) => a.name.localeCompare(b.name));
