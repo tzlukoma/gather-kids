@@ -16,7 +16,7 @@ import { Input } from '@/components/ui/input';
 import { getTodayIsoDate } from '@/lib/dal';
 import { useIncidents } from '@/hooks/data';
 import { CardGridSkeleton } from '@/components/skeletons/CardGridSkeleton';
-import type { StatusFilter } from '@/app/(admin)/check-in/page';
+import type { StatusFilter } from '@/components/gatherKids/check-in-content-legacy';
 import { IncidentDetailsDialog } from './incident-details-dialog';
 // PERF-06: Lazy-load camera/photo dialogs — heavy media components only needed on demand
 import dynamic from 'next/dynamic';

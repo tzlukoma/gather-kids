@@ -1,0 +1,328 @@
+'use client';
+
+import { useState, useMemo } from 'react';
+import { CheckInView } from '@/components/gatherKids/check-in-view';
+import {
+	Dialog,
+	DialogContent,
+	DialogHeader,
+	DialogTitle,
+	DialogTrigger,
+	DialogDescription,
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
+import { useAuth } from '@/contexts/auth-context';
+import { useSearchParams } from 'next/navigation';
+import { Users, Filter, Edit } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useChildrenForActiveCycle, useAttendance } from '@/hooks/data';
+import { CardGridSkeleton } from '@/components/skeletons/CardGridSkeleton';
+import { getTodayIsoDate } from '@/lib/dal';
+import type { Attendance } from '@/lib/types';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { normalizeGradeDisplay, getGradeSortOrder } from '@/lib/gradeUtils';
+import {
+	Sheet,
+	SheetContent,
+	SheetDescription,
+	SheetFooter,
+	SheetHeader,
+	SheetTitle,
+	SheetTrigger,
+} from '@/components/ui/sheet';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { EVENT_OPTIONS } from '@/lib/constants';
+
+export type StatusFilter = 'all' | 'checkedIn' | 'checkedOut';
+
+// Module-level constants to avoid new references on every render (PERF-13)
+const EMPTY_CHILDREN: import('@/lib/types').Child[] = [];
+const EMPTY_ATTENDANCE: Attendance[] = [];
+
+// FilterControls extracted from CheckInContent to prevent remount on every render (PERF-12)
+interface FilterControlsProps {
+	statusFilter: StatusFilter;
+	setStatusFilter: (f: StatusFilter) => void;
+	availableGrades: string[];
+	selectedGrades: Set<string>;
+	toggleGrade: (g: string) => void;
+	clearGrades: () => void;
+}
+
+function FilterControls({
+	statusFilter,
+	setStatusFilter,
+	availableGrades,
+	selectedGrades,
+	toggleGrade,
+	clearGrades,
+}: FilterControlsProps) {
+	return (
+		<div className="space-y-4">
+			<div className="space-y-2">
+				<Label className="font-semibold shrink-0">Filter by Status:</Label>
+				<div className="flex flex-wrap gap-2 items-center">
+					<Button
+						variant={statusFilter === 'all' ? 'default' : 'outline'}
+						size="sm"
+						onClick={() => setStatusFilter('all')}>
+						All
+					</Button>
+					<Button
+						variant={statusFilter === 'checkedIn' ? 'default' : 'outline'}
+						size="sm"
+						onClick={() => setStatusFilter('checkedIn')}>
+						Checked In
+					</Button>
+					<Button
+						variant={statusFilter === 'checkedOut' ? 'default' : 'outline'}
+						size="sm"
+						onClick={() => setStatusFilter('checkedOut')}>
+						Checked Out
+					</Button>
+				</div>
+			</div>
+			<div className="space-y-2">
+				<Label className="font-semibold shrink-0">Filter by Grade:</Label>
+				<div className="flex flex-wrap gap-2 items-center">
+					{availableGrades.map((grade) => (
+						<Button
+							key={grade}
+							variant={selectedGrades.has(grade) ? 'default' : 'outline'}
+							size="sm"
+							onClick={() => toggleGrade(grade)}
+							className="rounded-full">
+							{grade}
+						</Button>
+					))}
+					{selectedGrades.size > 0 && (
+						<Button variant="link" size="sm" onClick={clearGrades}>
+							Clear
+						</Button>
+					)}
+				</div>
+			</div>
+		</div>
+	);
+}
+
+export function CheckInContentLegacy() {
+	const { user } = useAuth();
+	const isMobile = useIsMobile();
+	const searchParams = useSearchParams();
+
+	const urlFilter = searchParams?.get('filter');
+	const urlEvent = searchParams?.get('event');
+	const searchKey = searchParams?.toString() ?? '';
+	const initialStatus: StatusFilter =
+		urlFilter === 'checkedIn' || urlFilter === 'checkedOut' || urlFilter === 'all'
+			? urlFilter
+			: 'all';
+	const initialEvent =
+		urlEvent && EVENT_OPTIONS.find((e) => e.id === urlEvent)
+			? urlEvent
+			: 'evt_sunday_school';
+
+	const [selectedEvent, setSelectedEvent] = useState(initialEvent);
+	const [selectedGrades, setSelectedGrades] = useState<Set<string>>(() => new Set());
+	const [statusFilter, setStatusFilter] = useState<StatusFilter>(initialStatus);
+	const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
+	const [isEventDialogOpen, setIsEventDialogOpen] = useState(false);
+	const [prevSearchKey, setPrevSearchKey] = useState(searchKey);
+
+	if (searchKey !== prevSearchKey) {
+		setPrevSearchKey(searchKey);
+		if (
+			urlFilter === 'checkedIn' ||
+			urlFilter === 'checkedOut' ||
+			urlFilter === 'all'
+		) {
+			setStatusFilter(urlFilter);
+		}
+		if (urlEvent && EVENT_OPTIONS.find((e) => e.id === urlEvent)) {
+			setSelectedEvent(urlEvent);
+		}
+	}
+
+	const today = getTodayIsoDate();
+
+	// Use React Query hooks for data fetching
+	const { data: children = EMPTY_CHILDREN, isLoading: childrenLoading } = useChildrenForActiveCycle();
+	const { data: todaysAttendance = EMPTY_ATTENDANCE, isLoading: attendanceLoading } =
+		useAttendance(today);
+
+	const loading = childrenLoading || attendanceLoading;
+
+	const checkedInCount = useMemo(() => {
+		if (!todaysAttendance) return 0;
+		return todaysAttendance.filter((a) => !a.check_out_at).length;
+	}, [todaysAttendance]);
+
+	const currentEventName = useMemo(() => {
+		return (
+			EVENT_OPTIONS.find((e) => e.id === selectedEvent)?.name || 'Select Event'
+		);
+	}, [selectedEvent]);
+
+	const availableGrades = useMemo(() => {
+		if (!children) return [];
+		const grades = new Set(
+			children
+				.map((c) => normalizeGradeDisplay(c.grade))
+				.filter(Boolean) as string[]
+		);
+		return Array.from(grades).sort(
+			(a, b) => getGradeSortOrder(a) - getGradeSortOrder(b)
+		);
+	}, [children]);
+
+	const toggleGrade = (grade: string) => {
+		setSelectedGrades((prev) => {
+			const newSet = new Set(prev);
+			if (newSet.has(grade)) {
+				newSet.delete(grade);
+			} else {
+				newSet.add(grade);
+			}
+			return newSet;
+		});
+	};
+
+	const clearGrades = () => setSelectedGrades(new Set());
+
+	if (loading) {
+		return <CardGridSkeleton count={8} />;
+	}
+
+	return (
+		<div className="flex flex-col gap-4">
+			<div className="flex items-start justify-between gap-4">
+				<div>
+					<div className="flex items-center gap-2">
+						<h1 className="text-xl font-bold font-headline text-muted-foreground">
+							Child Check-In & Out
+						</h1>
+					</div>
+					<Dialog open={isEventDialogOpen} onOpenChange={setIsEventDialogOpen}>
+						<DialogTrigger asChild>
+							<Button
+								variant="link"
+								className="text-3xl font-bold font-headline p-0 h-auto">
+								{currentEventName}
+								<Edit className="ml-2 h-5 w-5" />
+							</Button>
+						</DialogTrigger>
+						<DialogContent>
+							<DialogHeader>
+								<DialogTitle>Change Event</DialogTitle>
+								<DialogDescription>
+									Select the event you want to manage check-ins for.
+								</DialogDescription>
+							</DialogHeader>
+							<RadioGroup
+								value={selectedEvent}
+								onValueChange={(value) => {
+									setSelectedEvent(value);
+									setIsEventDialogOpen(false);
+								}}
+								className="space-y-2">
+								{EVENT_OPTIONS.map((event) => (
+									<Label
+										key={event.id}
+										htmlFor={event.id}
+										className="flex items-center gap-4 p-4 border rounded-md cursor-pointer hover:bg-muted/50 has-[input:checked]:bg-muted has-[input:checked]:border-primary">
+										<RadioGroupItem value={event.id} id={event.id} />
+										<span>{event.name}</span>
+									</Label>
+								))}
+							</RadioGroup>
+						</DialogContent>
+					</Dialog>
+				</div>
+			</div>
+
+			<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+				<Card className="md:col-span-1">
+					<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+						<CardTitle className="text-sm font-medium">
+							Currently Checked In
+						</CardTitle>
+						<Users className="h-4 w-4 text-muted-foreground" />
+					</CardHeader>
+					<CardContent>
+						<div className="text-2xl font-bold">
+							{checkedInCount}
+							<span className="text-base font-medium text-muted-foreground">
+								{' '}
+								of {children.length}
+							</span>
+						</div>
+						<p className="text-xs text-muted-foreground">
+							children currently on site
+						</p>
+					</CardContent>
+				</Card>
+
+				{isMobile ? (
+					<Sheet open={isFilterSheetOpen} onOpenChange={setIsFilterSheetOpen}>
+						<SheetTrigger asChild>
+							<Button variant="outline" className="w-full">
+								<Filter className="mr-2 h-4 w-4" />
+								Filters
+							</Button>
+						</SheetTrigger>
+						<SheetContent>
+							<SheetHeader>
+								<SheetTitle>Filters</SheetTitle>
+								<SheetDescription>
+									Refine the list of children below.
+								</SheetDescription>
+							</SheetHeader>
+							<div className="py-4">
+								<FilterControls
+									statusFilter={statusFilter}
+									setStatusFilter={setStatusFilter}
+									availableGrades={availableGrades}
+									selectedGrades={selectedGrades}
+									toggleGrade={toggleGrade}
+									clearGrades={clearGrades}
+								/>
+							</div>
+							<SheetFooter>
+								<Button
+									onClick={() => setIsFilterSheetOpen(false)}
+									className="w-full">
+									View Results
+								</Button>
+							</SheetFooter>
+						</SheetContent>
+					</Sheet>
+				) : (
+					<Card className="md:col-span-2">
+						<CardContent className="pt-6">
+							<FilterControls
+								statusFilter={statusFilter}
+								setStatusFilter={setStatusFilter}
+								availableGrades={availableGrades}
+								selectedGrades={selectedGrades}
+								toggleGrade={toggleGrade}
+								clearGrades={clearGrades}
+							/>
+						</CardContent>
+					</Card>
+				)}
+			</div>
+
+			{/* eslint-disable react/no-children-prop */}
+			<CheckInView
+				children={children}
+				todaysAttendance={todaysAttendance}
+				selectedEvent={selectedEvent}
+				selectedGrades={Array.from(selectedGrades)}
+				statusFilter={statusFilter}
+			/>
+			{/* eslint-enable react/no-children-prop */}
+		</div>
+	);
+}
