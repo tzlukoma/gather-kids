@@ -2,6 +2,8 @@ import { z } from 'zod';
 import {
 	childHasChoirEnrollment,
 	defaultConditionalConsentContext,
+	isNoKnownAllergies,
+	NO_KNOWN_ALLERGIES,
 	registrationSchema,
 	validateConditionalConsents,
 } from './registration-schema';
@@ -38,6 +40,7 @@ function buildValidPayload(
 				last_name: 'Rivera',
 				dob: '2015-05-15',
 				grade: '3rd',
+				allergies: NO_KNOWN_ALLERGIES,
 				ministrySelections: {},
 				interestSelections: {},
 				customFields: {},
@@ -52,6 +55,119 @@ function buildValidPayload(
 		...overrides,
 	};
 }
+
+describe('registrationSchema allergies', () => {
+	it('rejects blank allergy response', () => {
+		const result = registrationSchema.safeParse(
+			buildValidPayload({
+				children: [
+					{
+						...buildValidPayload().children[0],
+						allergies: '',
+					},
+				],
+			})
+		);
+
+		expect(result.success).toBe(false);
+		if (!result.success) {
+			expect(
+				result.error.issues.some((issue) => issue.path.join('.') === 'children.0.allergies')
+			).toBe(true);
+		}
+	});
+
+	it('accepts explicit none sentinel', () => {
+		const result = registrationSchema.safeParse(
+			buildValidPayload({
+				children: [
+					{
+						...buildValidPayload().children[0],
+						allergies: NO_KNOWN_ALLERGIES,
+					},
+				],
+			})
+		);
+
+		expect(result.success).toBe(true);
+		if (result.success) {
+			expect(result.data.children[0].allergies).toBe(NO_KNOWN_ALLERGIES);
+			expect(isNoKnownAllergies(result.data.children[0].allergies)).toBe(true);
+		}
+	});
+
+	it('accepts populated allergy details and preserves text', () => {
+		const details = 'Peanuts (anaphylaxis); tree nuts';
+		const result = registrationSchema.safeParse(
+			buildValidPayload({
+				children: [
+					{
+						...buildValidPayload().children[0],
+						allergies: details,
+					},
+				],
+			})
+		);
+
+		expect(result.success).toBe(true);
+		if (result.success) {
+			expect(result.data.children[0].allergies).toBe(details);
+			expect(isNoKnownAllergies(result.data.children[0].allergies)).toBe(false);
+		}
+	});
+
+	it('requires an independent allergy answer for every child', () => {
+		const result = registrationSchema.safeParse(
+			buildValidPayload({
+				children: [
+					{
+						...buildValidPayload().children[0],
+						first_name: 'Jordan',
+						allergies: NO_KNOWN_ALLERGIES,
+					},
+					{
+						...buildValidPayload().children[0],
+						first_name: 'Casey',
+						allergies: '',
+					},
+				],
+			})
+		);
+
+		expect(result.success).toBe(false);
+		if (!result.success) {
+			expect(
+				result.error.issues.some((issue) => issue.path.join('.') === 'children.1.allergies')
+			).toBe(true);
+		}
+	});
+
+	it('treats switching details to none as a single unambiguous stored result', () => {
+		const withDetails = buildValidPayload({
+			children: [
+				{
+					...buildValidPayload().children[0],
+					allergies: 'Shellfish',
+				},
+			],
+		});
+		const switchedToNone = {
+			...withDetails,
+			children: [
+				{
+					...withDetails.children[0],
+					allergies: NO_KNOWN_ALLERGIES,
+				},
+			],
+		};
+
+		const result = registrationSchema.safeParse(switchedToNone);
+		expect(result.success).toBe(true);
+		if (result.success) {
+			expect(result.data.children[0].allergies).toBe(NO_KNOWN_ALLERGIES);
+		}
+	});
+});
 
 describe('registrationSchema conditional consents', () => {
 	it('accepts submission without conditional consents when none are selected', () => {

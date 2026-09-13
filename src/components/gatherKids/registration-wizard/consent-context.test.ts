@@ -36,6 +36,7 @@ const baseForm: RegistrationFormInput = {
 			last_name: 'Rivera',
 			dob: '2015-05-15',
 			grade: '3rd',
+			allergies: 'none',
 			ministrySelections: { 'teen-choir': true },
 			interestSelections: { orators: true },
 			customFields: {},
