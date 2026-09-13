@@ -16,10 +16,40 @@ const E2E_CUSTOM_MINISTRY_CODE = 'e2e-custom-questions';
 const CUSTOM_QUESTION_ID = 'experience-notes';
 const CUSTOM_ANSWER = 'E2E custom answer for ministry question';
 
+const LOCAL_HOSTNAMES = new Set(['localhost', '127.0.0.1', '::1']);
+
+/**
+ * Exact-local hostname only — never trust substring matches.
+ * A misconfigured URL must not reach service-role seed/mutation helpers.
+ */
+function isDisposableLocalSupabaseUrl(url: string): boolean {
+  if (!url) return false;
+  try {
+    const hostname = new URL(url).hostname.toLowerCase();
+    const normalized =
+      hostname.startsWith('[') && hostname.endsWith(']')
+        ? hostname.slice(1, -1)
+        : hostname;
+    return LOCAL_HOSTNAMES.has(normalized);
+  } catch {
+    return false;
+  }
+}
+
+function assertDisposableLocalSupabase(): void {
+  const url = process.env.SUPABASE_URL || '';
+  const key = process.env.SUPABASE_SERVICE_ROLE || '';
+  if (!key || !isDisposableLocalSupabaseUrl(url)) {
+    throw new Error(
+      `GatherSystem custom-data E2E refuses non-disposable Supabase URL (exact localhost/127.0.0.1/::1 required): ${url || '(missing)'}`,
+    );
+  }
+}
+
 function isLocalSupabaseConfigured() {
   const url = process.env.SUPABASE_URL || '';
   const key = process.env.SUPABASE_SERVICE_ROLE || '';
-  return Boolean(key) && /localhost|127\.0\.0\.1/.test(url);
+  return Boolean(key) && isDisposableLocalSupabaseUrl(url);
 }
 
 /**
@@ -114,6 +144,14 @@ async function fillWizardChild(page: Page) {
   await grade.click();
   await page.getByRole('option').first().click();
 
+  // Compatible with #411 allergy gate: select sentinel when the control exists.
+  const noKnownAllergies = page.getByRole('radio', {
+    name: /no known allergies/i,
+  });
+  if (await noKnownAllergies.count()) {
+    await noKnownAllergies.click();
+  }
+
   await continueToNextStep(page);
 }
 
@@ -128,6 +166,7 @@ async function fillWizardThroughChildStep(page: Page) {
 }
 
 async function seedCustomQuestionMinistry() {
+  assertDisposableLocalSupabase();
   const supabase = createE2EAdminClient();
 
   const { error } = await supabase.from('ministries').upsert(
@@ -155,6 +194,7 @@ async function seedCustomQuestionMinistry() {
 }
 
 async function cleanupCustomQuestionMinistry() {
+  assertDisposableLocalSupabase();
   const supabase = createE2EAdminClient();
   await supabase.from('ministry_enrollments').delete().eq('ministry_id', E2E_CUSTOM_MINISTRY_ID);
   await supabase.from('ministries').delete().eq('ministry_id', E2E_CUSTOM_MINISTRY_ID);
@@ -168,12 +208,14 @@ gathersystemDescribe('GatherSystem registration custom data @mutating', () => {
 
   test.beforeAll(async () => {
     if (!isLocalSupabaseConfigured()) return;
+    assertDisposableLocalSupabase();
     await ensureRegistrationSmokeFixtures();
     await seedCustomQuestionMinistry();
   });
 
   test.afterAll(async () => {
     if (!isLocalSupabaseConfigured()) return;
+    assertDisposableLocalSupabase();
     await cleanupCustomQuestionMinistry();
   });
 
@@ -190,6 +232,7 @@ gathersystemDescribe('GatherSystem registration custom data @mutating', () => {
   }) => {
     test.skip(!isLocalSupabaseConfigured(), 'Requires local Supabase');
     test.slow();
+    assertDisposableLocalSupabase();
 
     const email = generateUniqueEmail('gs-custom-data');
     const user = await createConfirmedTestUser(email, TEST_PASSWORD);
