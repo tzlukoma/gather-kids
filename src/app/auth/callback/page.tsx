@@ -4,7 +4,10 @@ import { useEffect, useState, Suspense, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { handlePKCECodeExchange } from '@/lib/supabaseClient';
 import { decodeTestAuthCodeInBrowser } from '@/lib/test-auth-code';
-import { resolveSafePostAuthPath } from '@/lib/authRedirect';
+import {
+	appendSafePostAuthSearchParam,
+	resolveSafePostAuthPath,
+} from '@/lib/authRedirect';
 import { isOfflineSupabase, createOfflineSessionUser } from '@/lib/offline-supabase';
 import { useAuth } from '@/contexts/auth-context';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -141,7 +144,11 @@ The authentication process is taking longer than expected. This can happen if:
 									'/register'
 								);
 								router.push(
-									`${postAuthPath}?verified_email=${encodeURIComponent(decoded.email)}`
+									appendSafePostAuthSearchParam(
+										postAuthPath,
+										'verified_email',
+										decoded.email
+									)
 								);
 								return;
 							}
@@ -240,9 +247,11 @@ The authentication process is taking longer than expected. This can happen if:
 									);
 
 									// Redirect to registration form with verified email
-									const redirectUrl = `${targetRedirect}?verified_email=${encodeURIComponent(
+									const redirectUrl = appendSafePostAuthSearchParam(
+										targetRedirect,
+										'verified_email',
 										decoded.email
-									)}`;
+									);
 									console.log('Magic link redirect to:', redirectUrl);
 									router.push(redirectUrl);
 									return;

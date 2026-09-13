@@ -1,4 +1,5 @@
 import {
+	appendSafePostAuthSearchParam,
 	getAuthRedirectTo,
 	resolveSafePostAuthPath,
 } from '@/lib/authRedirect';
@@ -13,9 +14,32 @@ describe('resolveSafePostAuthPath', () => {
 		);
 	});
 
+	it('blocks URL-parser bypass vectors', () => {
+		expect(resolveSafePostAuthPath('/\\evil.com', '/household')).toBe('/household');
+		expect(resolveSafePostAuthPath('/\t/evil.com', '/household')).toBe('/household');
+		expect(resolveSafePostAuthPath('/\n/evil.com', '/household')).toBe('/household');
+	});
+
 	it('accepts same-origin relative paths', () => {
 		expect(resolveSafePostAuthPath('/register', '/household')).toBe('/register');
 		expect(resolveSafePostAuthPath('/household', '/register')).toBe('/household');
+		expect(resolveSafePostAuthPath('/register?foo=1', '/household')).toBe(
+			'/register?foo=1'
+		);
+	});
+
+	it('keeps encoded slashes on the app origin', () => {
+		expect(resolveSafePostAuthPath('/%2F%2Fevil.com', '/household')).toBe(
+			'/%2F%2Fevil.com'
+		);
+	});
+});
+
+describe('appendSafePostAuthSearchParam', () => {
+	it('appends query params without creating a double question mark', () => {
+		expect(
+			appendSafePostAuthSearchParam('/register?foo=1', 'verified_email', 'a@b.com')
+		).toBe('/register?foo=1&verified_email=a%40b.com');
 	});
 });
 
