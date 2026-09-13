@@ -135,7 +135,7 @@ describe('register page server wrapper', () => {
 		expect(mockRedirect).not.toHaveBeenCalled();
 	});
 
-	it('passes only opaque userId and role to flag evaluation', async () => {
+	it('passes userId and role from getFlagEvalContext to flag evaluation', async () => {
 		mockSupabaseUser({
 			id: '11111111-2222-3333-4444-555555555555',
 			user_metadata: { role: 'GUARDIAN' },
@@ -151,12 +151,6 @@ describe('register page server wrapper', () => {
 				role: 'GUARDIAN',
 			}
 		);
-
-		const contextArg = mockGetBoolean.mock.calls[0][2];
-		expect(contextArg).not.toHaveProperty('email');
-		expect(contextArg).not.toHaveProperty('name');
-		expect(contextArg).not.toHaveProperty('householdId');
-		expect(contextArg).not.toHaveProperty('childId');
 	});
 
 	it('honours GATHERSYSTEM_REGISTRATION_OVERRIDE for e2e and local smoke', async () => {

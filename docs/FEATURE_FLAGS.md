@@ -61,16 +61,30 @@ Constants: `GATHERSYSTEM_FLAG_KEYS` in `src/lib/flags/env.ts`. Multivariate expe
 
 ## How to call from code
 
-Only from **Server Components**, route handlers, or other server modules:
+Only from **Server Components**, route handlers, or other server modules. Prefer the shared session helper so cookie adapter and opaque context stay consistent:
 
 ```ts
 import { getBoolean } from '@/lib/flags';
+import { getFlagEvalContext } from '@/lib/flags/get-flag-eval-context';
 
-const useGatherSystemDoor = await getBoolean('gathersystem_door', false, {
-  userId: sessionUser.id, // opaque Supabase auth uuid only
-  role: sessionUser.role, // optional; ADMIN | GUARDIAN | …
-});
+const { userId, role, canEvaluateFlags } = await getFlagEvalContext();
+if (!canEvaluateFlags) {
+  // Missing NEXT_PUBLIC_SUPABASE_URL / ANON_KEY — no client, no flag call, legacy
+  return false;
+}
+
+let useGatherSystemDoor = false;
+try {
+  useGatherSystemDoor = await getBoolean('gathersystem_door', false, {
+    userId, // opaque Supabase auth uuid only
+    role, // optional; ADMIN | GUARDIAN | …
+  });
+} catch {
+  // Flag provider threw — fail closed to legacy
+}
 ```
+
+`getFlagEvalContext()` uses a `getAll`-only cookie adapter (`getUser()` validates server-side; `src/proxy.ts` refreshes with `setAll`). It never returns email, name, household, or child identifiers.
 
 Rules:
 
@@ -80,7 +94,7 @@ Rules:
 - Do **not** import `@/lib/flags` into Client Components (`server-only` will fail the build).
 - Do **not** use flags to grant elevated data access.
 
-Unit tests: mock `server-only` and `posthog-node` (see `__tests__/lib/flags.test.ts`). Prefer injecting `createFlagEvaluator(adapter)` when testing call sites.
+Unit tests: mock `server-only` and `posthog-node` (see `__tests__/lib/flags.test.ts`). Prefer injecting `createFlagEvaluator(adapter)` when testing call sites. Opaque-context assertions live on `getFlagEvalContext` (`__tests__/lib/flags/get-flag-eval-context.test.ts`).
 
 ---
 
