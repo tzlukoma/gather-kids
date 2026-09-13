@@ -21,6 +21,10 @@ export {
 	type FlagKey,
 	type GatherSystemFlagKey,
 } from '@/lib/flags/env';
+export {
+	getFlagEvalContext,
+	type FlagServerEvalContext,
+} from '@/lib/flags/get-flag-eval-context';
 export type { FlagAdapter } from '@/lib/flags/types';
 
 const localAdapter: FlagAdapter = {
