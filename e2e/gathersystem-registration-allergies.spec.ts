@@ -241,4 +241,61 @@ gathersystemDescribe('GatherSystem registration allergies @mobile @mutating', ()
     expect(children).toHaveLength(1);
     expect(children![0].allergies).toBe(SYNTHETIC_ALLERGY_DETAILS);
   });
+
+  test('keeps No known allergies through Back/Next and persists none', async ({
+    page,
+    context,
+  }) => {
+    test.slow();
+    assertDisposableLocalSupabase();
+
+    const email = generateUniqueEmail('gs-allergies-none');
+    const user = await createConfirmedTestUser(email, TEST_PASSWORD);
+    createdUserId = user.id;
+
+    await context.clearCookies();
+    await loginWithPassword(page, email, TEST_PASSWORD);
+    await waitForPostLoginRoute(page);
+    await startWizardRegistration(page);
+    await fillWizardHousehold(page);
+    await fillWizardGuardians(page);
+    await addChildThroughGrade(page);
+
+    const continueButton = page.getByRole('button', { name: /save & continue/i });
+    await expect(continueButton).toBeDisabled();
+
+    await page.getByRole('radio', { name: /no known allergies/i }).click();
+    await expect(continueButton).toBeEnabled();
+
+    await continueToNextStep(page);
+    await expect(
+      page.getByText(/ministry programs|sunday school|expressed interest/i).first()
+    ).toBeVisible({ timeout: 15000 });
+
+    await page.getByRole('button', { name: /^back$/i }).click();
+    await expect(
+      page.getByRole('radio', { name: /no known allergies/i })
+    ).toBeChecked();
+    await expect(page.getByLabel(/allergy details/i)).toHaveCount(0);
+    await expect(continueButton).toBeEnabled();
+
+    await continueToNextStep(page);
+    await finishMinistriesAndSubmit(page);
+
+    const supabase = createE2EAdminClient();
+    const { data: households, error: householdError } = await supabase
+      .from('households')
+      .select('household_id')
+      .eq('email', email);
+    expect(householdError).toBeNull();
+    expect(households).toHaveLength(1);
+
+    const { data: children, error: childError } = await supabase
+      .from('children')
+      .select('child_id, allergies, household_id')
+      .eq('household_id', households![0].household_id);
+    expect(childError).toBeNull();
+    expect(children).toHaveLength(1);
+    expect(children![0].allergies).toBe('none');
+  });
 });
