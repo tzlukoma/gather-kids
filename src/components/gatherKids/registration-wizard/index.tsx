@@ -121,7 +121,7 @@ export default function RegisterWizard() {
 		staleTime: 15 * 60 * 1000,
 	});
 
-	const { data: choirMinistries = [] } = useQuery({
+	const { data: choirMinistries } = useQuery({
 		queryKey: ['ministriesByGroup', 'choirs'],
 		queryFn: () => getMinistriesByGroupCode('choirs'),
 		staleTime: 10 * 60 * 1000,
@@ -132,6 +132,7 @@ export default function RegisterWizard() {
 			buildConditionalConsentContext({
 				allMinistries,
 				ministryGroups,
+				// undefined while loading — do not treat empty default as misconfig
 				choirMinistries,
 			}),
 		[allMinistries, ministryGroups, choirMinistries]

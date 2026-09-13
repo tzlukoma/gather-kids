@@ -1,9 +1,41 @@
+import * as Sentry from '@sentry/nextjs';
 import type { Ministry, MinistryGroup } from '@/lib/types';
 import type {
 	ConditionalConsentContext,
 	RegistrationFormInput,
 } from './registration-schema';
 import { childHasChoirEnrollment } from './registration-schema';
+
+/** Session-scoped: emit each misconfigured group code at most once (not per render/keystroke). */
+const warnedMisconfiguredConsentGroups = new Set<string>();
+
+/** Test-only: clear the once-per-session guard between cases. */
+export function resetMisconfiguredConsentWarningsForTests(): void {
+	warnedMisconfiguredConsentGroups.clear();
+}
+
+/**
+ * When a consent-requiring group (choirs) has no resolved ministries, the UI
+ * fails open and skips the consent. Surface that misconfiguration to Sentry
+ * once per browser session — no guardian/child identifiers.
+ */
+function warnMisconfiguredChoirGroupConsent(resolvedMinistryCount: number): void {
+	const groupCode = 'choirs';
+	if (warnedMisconfiguredConsentGroups.has(groupCode)) return;
+	warnedMisconfiguredConsentGroups.add(groupCode);
+
+	Sentry.captureMessage(
+		'Ministry group requires consent but resolved no ministries',
+		{
+			level: 'warning',
+			tags: { ministry_group_code: groupCode },
+			extra: {
+				groupCode,
+				resolvedMinistryCount,
+			},
+		}
+	);
+}
 
 export function getChoirMinistryCodes(choirMinistries: Ministry[]): string[] {
 	return choirMinistries.map((ministry) => ministry.code);
@@ -47,10 +79,26 @@ export function getSelectedCustomConsentMinistries(
 export function buildConditionalConsentContext(params: {
 	allMinistries: Ministry[];
 	ministryGroups: MinistryGroup[];
-	choirMinistries: Ministry[];
+	/**
+	 * Choir ministries from `getMinistriesByGroupCode('choirs')`.
+	 * Pass `undefined` while the query is still in flight so React Query's
+	 * empty default is not treated as a misconfiguration.
+	 */
+	choirMinistries: Ministry[] | undefined;
 }): ConditionalConsentContext {
-	const choirMinistryCodes = getChoirMinistryCodes(params.choirMinistries);
+	const choirMinistries = params.choirMinistries ?? [];
+	const choirMinistryCodes = getChoirMinistryCodes(choirMinistries);
 	const groupsRequiringConsent = getGroupsRequiringConsent(params.ministryGroups);
+
+	const choirsRequiresConsent = groupsRequiringConsent.some((group) => group.code === 'choirs');
+	// Only warn after the choir query has settled with an empty result.
+	if (
+		choirsRequiresConsent &&
+		params.choirMinistries !== undefined &&
+		params.choirMinistries.length === 0
+	) {
+		warnMisconfiguredChoirGroupConsent(params.choirMinistries.length);
+	}
 
 	return {
 		customConsentMinistryCodes: getCustomConsentMinistryCodes(params.allMinistries),

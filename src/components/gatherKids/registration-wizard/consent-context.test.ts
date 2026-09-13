@@ -1,12 +1,22 @@
+import * as Sentry from '@sentry/nextjs';
 import {
 	buildConditionalConsentContext,
 	childHasChoirSelection,
 	pruneStaleConsents,
+	resetMisconfiguredConsentWarningsForTests,
 	shouldShowChoirGroupConsent,
 } from './consent-context';
 import { childHasChoirEnrollment } from './registration-schema';
 import type { RegistrationFormInput } from './registration-schema';
 import type { Ministry, MinistryGroup } from '@/lib/types';
+
+jest.mock('@sentry/nextjs', () => ({
+	captureMessage: jest.fn(),
+}));
+
+const captureMessage = Sentry.captureMessage as jest.MockedFunction<
+	typeof Sentry.captureMessage
+>;
 
 const baseForm: RegistrationFormInput = {
 	household: {
@@ -83,6 +93,11 @@ const orators: Ministry = {
 };
 
 describe('consent-context', () => {
+	beforeEach(() => {
+		resetMisconfiguredConsentWarningsForTests();
+		captureMessage.mockClear();
+	});
+
 	it('does not require or show choir consent when choir ministry codes are unknown', () => {
 		const children = baseForm.children;
 
@@ -105,6 +120,62 @@ describe('consent-context', () => {
 		});
 
 		expect(context.groupConsentRules[0]?.isRequired(baseForm)).toBe(false);
+	});
+
+	it('warns once when choirs requires consent but no choir ministries resolve', () => {
+		buildConditionalConsentContext({
+			allMinistries: [orators],
+			ministryGroups: [choirsGroup],
+			choirMinistries: [],
+		});
+		buildConditionalConsentContext({
+			allMinistries: [orators],
+			ministryGroups: [choirsGroup],
+			choirMinistries: [],
+		});
+
+		expect(captureMessage).toHaveBeenCalledTimes(1);
+		expect(captureMessage).toHaveBeenCalledWith(
+			'Ministry group requires consent but resolved no ministries',
+			{
+				level: 'warning',
+				tags: { ministry_group_code: 'choirs' },
+				extra: {
+					groupCode: 'choirs',
+					resolvedMinistryCount: 0,
+				},
+			}
+		);
+	});
+
+	it('does not warn when choir ministries resolve for a consent-requiring choirs group', () => {
+		buildConditionalConsentContext({
+			allMinistries: [orators],
+			ministryGroups: [choirsGroup],
+			choirMinistries: [teenChoir],
+		});
+
+		expect(captureMessage).not.toHaveBeenCalled();
+	});
+
+	it('does not warn when the choirs group is not configured for consent', () => {
+		buildConditionalConsentContext({
+			allMinistries: [orators],
+			ministryGroups: [],
+			choirMinistries: [],
+		});
+
+		expect(captureMessage).not.toHaveBeenCalled();
+	});
+
+	it('does not warn while choir ministries are still loading (undefined)', () => {
+		buildConditionalConsentContext({
+			allMinistries: [orators],
+			ministryGroups: [choirsGroup],
+			choirMinistries: undefined,
+		});
+
+		expect(captureMessage).not.toHaveBeenCalled();
 	});
 
 	it('does not show choir consent when the choirs group is not configured', () => {
