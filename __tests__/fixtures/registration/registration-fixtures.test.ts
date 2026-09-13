@@ -55,11 +55,16 @@ describe('registration fixtures', () => {
 
 		it('builds allergy variants with expected fields', () => {
 			expect(allergyFieldsFor('none')).toMatchObject({
+				allergies: 'none',
+				special_needs: false,
+			});
+			expect(allergyFieldsFor('unanswered')).toMatchObject({
 				allergies: '',
 				special_needs: false,
 			});
 			expect(allergyFieldsFor('details').allergies).toMatch(/Peanuts/);
 			expect(allergyFieldsFor('special_needs')).toMatchObject({
+				allergies: 'none',
 				special_needs: true,
 				special_needs_notes: expect.stringMatching(/quiet space/),
 			});

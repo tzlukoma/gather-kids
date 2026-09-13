@@ -17,10 +17,17 @@ export type ChildFixture = RegistrationFormInput['children'][number] & {
 
 export type AllergyVariant =
 	| 'none'
+	| 'unanswered'
 	| 'none_labeled'
 	| 'details'
 	| 'special_needs'
 	| 'allergies_and_special_needs';
+
+/**
+ * Agreed sentinel for “No known allergies” (#396 / #411).
+ * Keep in sync with `NO_KNOWN_ALLERGIES` in registration-schema when that lands.
+ */
+export const NO_KNOWN_ALLERGIES_SENTINEL = 'none';
 
 const ALLERGY_VARIANT_FIELDS: Record<
 	AllergyVariant,
@@ -30,6 +37,13 @@ const ALLERGY_VARIANT_FIELDS: Record<
 	>
 > = {
 	none: {
+		allergies: NO_KNOWN_ALLERGIES_SENTINEL,
+		medical_notes: '',
+		special_needs: false,
+		special_needs_notes: '',
+	},
+	/** Explicit blank for negative validation / Step 3 gate tests. */
+	unanswered: {
 		allergies: '',
 		medical_notes: '',
 		special_needs: false,
@@ -48,7 +62,7 @@ const ALLERGY_VARIANT_FIELDS: Record<
 		special_needs_notes: '',
 	},
 	special_needs: {
-		allergies: '',
+		allergies: NO_KNOWN_ALLERGIES_SENTINEL,
 		medical_notes: '',
 		special_needs: true,
 		special_needs_notes: 'Needs quiet space during large-group activities',
