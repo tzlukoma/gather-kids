@@ -28,6 +28,7 @@ import {
 	withBibleBeeSelected,
 	withChoirGroupConsent,
 	withCustomMinistryConsent,
+	withCustomFieldAnswer,
 	withInterestSelection,
 	withMinistryEnrollment,
 } from './index';
@@ -194,6 +195,23 @@ describe('registration fixtures', () => {
 			).toBe(false);
 		});
 
+		it('rejects deceptive hostnames and query-string localhost decoys', () => {
+			expect(
+				isDisposableRegistrationSupabaseUrl(
+					'https://localhost.attacker.example'
+				)
+			).toBe(false);
+			expect(
+				isDisposableRegistrationSupabaseUrl(
+					'https://example.test/?next=127.0.0.1'
+				)
+			).toBe(false);
+			expect(
+				isDisposableRegistrationSupabaseUrl('https://127.0.0.1.evil.test')
+			).toBe(false);
+			expect(isDisposableRegistrationSupabaseUrl('not-a-url')).toBe(false);
+		});
+
 		it('assertDisposableRegistrationEnv throws for UAT/production', () => {
 			expect(() =>
 				assertDisposableRegistrationEnv({
@@ -206,6 +224,33 @@ describe('registration fixtures', () => {
 					SUPABASE_URL: 'http://127.0.0.1:54321',
 				})
 			).not.toThrow();
+		});
+	});
+
+	describe('customData persistence shape', () => {
+		it('writes flat customData that maps to enrollment custom_fields', () => {
+			const ministry = buildMinistryWithCustomQuestions();
+			const questionId = ministry.custom_questions![0].id;
+			const child = withCustomFieldAnswer(
+				buildChild(),
+				ministry.code,
+				questionId,
+				'Synthetic answer'
+			);
+
+			expect(child.customData).toEqual({ [questionId]: 'Synthetic answer' });
+			expect(child.customFields).toBeUndefined();
+
+			// Same slice registerHouseholdCanonical uses per ministry.
+			const custom_fields: Record<string, unknown> = {};
+			if (child.customData && ministry.custom_questions) {
+				for (const q of ministry.custom_questions) {
+					if (child.customData[q.id] !== undefined) {
+						custom_fields[q.id] = child.customData[q.id];
+					}
+				}
+			}
+			expect(custom_fields).toEqual({ [questionId]: 'Synthetic answer' });
 		});
 	});
 

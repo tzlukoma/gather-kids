@@ -21,4 +21,5 @@ export const BLOCKED_SUPABASE_PROJECT_REFS = [
 	'gekouvbeujfkiaorshim', // UAT preview
 ] as const;
 
-export const DISPOSABLE_SUPABASE_HOST_PATTERN = /localhost|127\.0\.0\.1/;
+/** @deprecated Prefer hostname parsing in isDisposableRegistrationSupabaseUrl. */
+export const DISPOSABLE_SUPABASE_HOST_PATTERN = /^(localhost|127\.0\.0\.1|::1)$/;

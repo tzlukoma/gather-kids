@@ -1,6 +1,5 @@
 import {
 	BLOCKED_SUPABASE_PROJECT_REFS,
-	DISPOSABLE_SUPABASE_HOST_PATTERN,
 } from './constants';
 
 export type RegistrationEnvLike = {
@@ -10,23 +9,45 @@ export type RegistrationEnvLike = {
 	SUPABASE_SERVICE_ROLE_KEY?: string;
 };
 
+const LOCAL_HOSTNAMES = new Set(['localhost', '127.0.0.1', '::1']);
+
 function resolveSupabaseUrl(env: RegistrationEnvLike): string {
 	return (env.SUPABASE_URL || env.NEXT_PUBLIC_SUPABASE_URL || '').trim();
 }
 
 /**
- * True when the URL points at a disposable local Supabase stack.
- * UAT and production project refs are never disposable for registration tests.
+ * True when the URL's hostname is an exact local disposable host.
+ * Rejects deceptive hosts such as `localhost.attacker.example` or
+ * query strings that merely contain `127.0.0.1`.
  */
 export function isDisposableRegistrationSupabaseUrl(url: string): boolean {
 	if (!url) return false;
+
+	let hostname: string;
+	try {
+		hostname = new URL(url).hostname.toLowerCase();
+	} catch {
+		return false;
+	}
+
+	// IPv6 URL hostnames may be wrapped in brackets.
+	const normalized =
+		hostname.startsWith('[') && hostname.endsWith(']')
+			? hostname.slice(1, -1)
+			: hostname;
+
+	if (!LOCAL_HOSTNAMES.has(normalized)) {
+		return false;
+	}
+
 	const lower = url.toLowerCase();
 	if (
 		BLOCKED_SUPABASE_PROJECT_REFS.some((ref) => lower.includes(ref.toLowerCase()))
 	) {
 		return false;
 	}
-	return DISPOSABLE_SUPABASE_HOST_PATTERN.test(lower);
+
+	return true;
 }
 
 /**

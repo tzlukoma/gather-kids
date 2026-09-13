@@ -8,7 +8,12 @@ import {
 } from './age';
 import { syntheticId } from './ids';
 
-export type ChildFixture = RegistrationFormInput['children'][number];
+export type ChildFixture = RegistrationFormInput['children'][number] & {
+	/** Flat question-id → answer map consumed by registerHouseholdCanonical. */
+	customData?: Record<string, unknown>;
+	/** @deprecated Prefer flat customData; kept optional for transitional fixtures. */
+	customFields?: Record<string, Record<string, unknown> | undefined>;
+};
 
 export type AllergyVariant =
 	| 'none'
@@ -89,7 +94,7 @@ export function buildChild(overrides: BuildChildOptions = {}): ChildFixture {
 		child_mobile: '',
 		ministrySelections: {},
 		interestSelections: {},
-		customFields: {},
+		customData: {},
 		...allergyFields,
 		...rest,
 	};
@@ -184,20 +189,25 @@ export function withInterestSelection(
 	};
 }
 
+/**
+ * Attach a ministry custom-question answer using the DAL/submit contract:
+ * flat `children[n].customData[questionId]` (not nested customFields).
+ */
 export function withCustomFieldAnswer(
 	child: ChildFixture,
-	ministryCode: string,
+	_ministryCode: string,
 	questionId: string,
 	value: unknown
 ): ChildFixture {
+	const { customFields: _legacyNested, ...rest } = child;
 	return {
-		...child,
-		customFields: {
-			...(child.customFields ?? {}),
-			[ministryCode]: {
-				...((child.customFields ?? {})[ministryCode] as Record<string, unknown> | undefined),
-				[questionId]: value,
-			},
+		...rest,
+		customData: {
+			...(child.customData ?? {}),
+			[questionId]: value,
 		},
 	};
 }
+
+/** @deprecated Alias — prefer withCustomFieldAnswer (writes flat customData). */
+export const withCustomDataAnswer = withCustomFieldAnswer;
