@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -123,9 +123,6 @@ export default function RegisterWizard() {
 		[allMinistries, ministryGroups, choirMinistries]
 	);
 
-	const consentContextSyncRef = useRef(consentContext);
-	consentContextSyncRef.current = consentContext;
-
 	// Draft persistence
 	const { loadDraft, saveDraft, clearDraft, draftStatus } =
 		useDraftPersistence<RegistrationFormInput>({
@@ -242,7 +239,7 @@ export default function RegisterWizard() {
 	);
 
 	useEffect(() => {
-		consentContextRef.current = consentContextSyncRef.current;
+		consentContextRef.current = consentContext;
 		void form.trigger('consents');
 	}, [consentContext, form]);
 
@@ -264,7 +261,7 @@ export default function RegisterWizard() {
 			const pruned = pruneStaleConsents(
 				values.consents,
 				values,
-				consentContextSyncRef.current
+				consentContextRef.current
 			);
 
 			if (

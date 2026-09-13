@@ -30,8 +30,11 @@ interface Step5ConsentsProps {
 const CHOIR_GROUP_CONSENT_TEXT =
 	'Cathedral International youth choirs communicate using the Planning Center app. By clicking yes, you agree to be added into the app, which will enable you to download the app, receive emails and push communications.';
 
+const EMPTY_CHILDREN: RegistrationFormInput['children'] = [];
+
 export function Step5Consents({ form }: Step5ConsentsProps) {
-	const children = useWatch({ control: form.control, name: 'children' }) ?? [];
+	const children =
+		useWatch({ control: form.control, name: 'children' }) ?? EMPTY_CHILDREN;
 
 	const { data: ministryGroups = [] } = useQuery({
 		queryKey: ['ministryGroups'],
