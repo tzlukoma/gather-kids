@@ -50,7 +50,10 @@ export function RegistrationOfflineAuth() {
 				const response = await fetch('/api/auth/magic-link', {
 					method: 'POST',
 					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ email: trimmed }),
+					body: JSON.stringify({
+						email: trimmed,
+						next: REGISTER_NEXT_PATH,
+					}),
 				});
 
 				if (response.ok) {

@@ -444,10 +444,6 @@ test.describe('GatherSystem wizard first-time auth (flag-on, mobile)', () => {
     await page.goto(magicLink!, { waitUntil: 'domcontentloaded' });
     await page.waitForTimeout(2000);
 
-    if (!page.url().includes('/register')) {
-      await page.goto('/register', { waitUntil: 'domcontentloaded' });
-    }
-
     await expect(page).toHaveURL(/\/register/, { timeout: 15000 });
 
     const wizardEntry = page.getByRole('button', { name: 'Start registration' });

@@ -4,6 +4,7 @@ import { useEffect, useState, Suspense, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { handlePKCECodeExchange } from '@/lib/supabaseClient';
 import { decodeTestAuthCodeInBrowser } from '@/lib/test-auth-code';
+import { resolveSafePostAuthPath } from '@/lib/authRedirect';
 import { isOfflineSupabase, createOfflineSessionUser } from '@/lib/offline-supabase';
 import { useAuth } from '@/contexts/auth-context';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -135,8 +136,12 @@ The authentication process is taking longer than expected. This can happen if:
 
 							if (decoded.type === 'magic_link' && decoded.email) {
 								await login(createOfflineSessionUser(decoded.email));
+								const postAuthPath = resolveSafePostAuthPath(
+									searchParams?.get('next'),
+									'/register'
+								);
 								router.push(
-									`/register?verified_email=${encodeURIComponent(decoded.email)}`
+									`${postAuthPath}?verified_email=${encodeURIComponent(decoded.email)}`
 								);
 								return;
 							}
@@ -191,12 +196,14 @@ The authentication process is taking longer than expected. This can happen if:
 				const isEmailConfirmationsDisabled =
 					process.env.NODE_ENV === 'development';
 
-				// For local dev with email confirmations disabled, redirect directly to register
-				// Otherwise, redirect to household first - it will handle redirecting to registration if needed
-				const targetRedirect =
+				const defaultFallback =
 					isLocalDev && isEmailConfirmationsDisabled
 						? '/register'
 						: '/household';
+				const targetRedirect = resolveSafePostAuthPath(
+					searchParams?.get('next'),
+					defaultFallback
+				);
 
 				// Try to use exchangeCodeForSession for PKCE flow, which is the modern approach
 				let data: any, authError: any;
@@ -439,9 +446,13 @@ The verification code required for magic links was not found. This happens when:
 							'Local dev detected - attempting redirect despite no session'
 						);
 						setSuccess(true);
+						const postAuthPath = resolveSafePostAuthPath(
+							searchParams?.get('next'),
+							'/register'
+						);
 						setTimeout(() => {
-							console.log('Executing local dev redirect to register');
-							router.push('/register');
+							console.log(`Executing local dev redirect to ${postAuthPath}`);
+							router.push(postAuthPath);
 						}, 1500);
 					} else {
 						setError(

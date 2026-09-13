@@ -39,9 +39,9 @@ jest.mock('@/app/register/page-legacy', () => ({
 
 import { createServerClient } from '@supabase/ssr';
 import { getBoolean } from '@/lib/flags';
+import { isOfflineSupabase } from '@/lib/offline-supabase';
 import RegisterPage, {
 	getRegisterPageContext,
-	isOfflineSupabaseUrl,
 	isWizardFlagOverrideEnabled,
 } from '@/app/register/page';
 
@@ -171,8 +171,26 @@ describe('register page server wrapper', () => {
 		expect(isWizardFlagOverrideEnabled()).toBe(true);
 	});
 
+	it('ignores GATHERSYSTEM_REGISTRATION_OVERRIDE in production', async () => {
+		const previousNodeEnv = process.env.NODE_ENV;
+		process.env.NODE_ENV = 'production';
+		process.env.GATHERSYSTEM_REGISTRATION_OVERRIDE = 'true';
+		mockGetBoolean.mockResolvedValue(false);
+		mockSupabaseUser({ id: 'user-abc' });
+
+		const page = await RegisterPage();
+		render(page);
+
+		expect(screen.getByTestId('register-legacy')).toBeInTheDocument();
+		expect(isWizardFlagOverrideEnabled()).toBe(false);
+
+		process.env.NODE_ENV = previousNodeEnv;
+	});
+
 	it('detects dummy Supabase URLs as offline', () => {
-		expect(isOfflineSupabaseUrl('https://dummy.supabase.co')).toBe(true);
-		expect(isOfflineSupabaseUrl('https://project.supabase.co')).toBe(false);
+		process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://dummy.supabase.co';
+		expect(isOfflineSupabase()).toBe(true);
+		process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://project.supabase.co';
+		expect(isOfflineSupabase()).toBe(false);
 	});
 });

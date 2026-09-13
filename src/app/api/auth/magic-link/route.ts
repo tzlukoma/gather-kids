@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createEmailService } from '@/lib/email-service';
+import { resolveSafePostAuthPath } from '@/lib/authRedirect';
 import { supabase } from '@/lib/supabaseClient';
 
 export async function POST(request: NextRequest) {
   try {
-    const { email } = await request.json();
+    const { email, next } = await request.json();
 
     if (!email) {
       return NextResponse.json(
@@ -48,7 +49,11 @@ export async function POST(request: NextRequest) {
     // This supports Vercel preview deployments, production, and local development
     const requestUrl = new URL(request.url);
     const baseUrl = `${requestUrl.protocol}//${requestUrl.host}`;
-    const redirectToUrl = `${baseUrl}/auth/callback`;
+    const postAuthPath = resolveSafePostAuthPath(
+      typeof next === 'string' ? next : null,
+      '/household'
+    );
+    const redirectToUrl = `${baseUrl}/auth/callback?next=${encodeURIComponent(postAuthPath)}`;
 
     console.log('Constructing magic link with redirectTo:', redirectToUrl);
 
@@ -88,7 +93,10 @@ export async function POST(request: NextRequest) {
           type: 'magic_link'
         })).toString('base64url');
 
-        const magicLink = `${redirectToUrl}?code=${code}&type=magiclink`;
+        const magicLinkUrl = new URL(redirectToUrl);
+        magicLinkUrl.searchParams.set('code', code);
+        magicLinkUrl.searchParams.set('type', 'magiclink');
+        const magicLink = magicLinkUrl.toString();
 
         await emailService.sendMagicLinkEmail({
           to: email,

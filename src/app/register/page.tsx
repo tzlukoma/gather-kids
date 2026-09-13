@@ -3,16 +3,14 @@ import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { getBoolean } from '@/lib/flags';
+import { isGatherSystemRegistrationOverrideEnabled } from '@/lib/flags/gathersystem-registration-override';
+import { isOfflineSupabase } from '@/lib/offline-supabase';
 import { AuthRole } from '@/lib/auth-types';
 import RegisterWizard from '@/components/gatherKids/registration-wizard';
 import RegisterPageLegacy from './page-legacy';
 
-function isOfflineSupabaseUrl(url: string | undefined): boolean {
-	return url?.includes('dummy.supabase.co') ?? false;
-}
-
 function isWizardFlagOverrideEnabled(): boolean {
-	return process.env.GATHERSYSTEM_REGISTRATION_OVERRIDE === 'true';
+	return isGatherSystemRegistrationOverrideEnabled();
 }
 
 type RegisterPageContext = {
@@ -24,7 +22,7 @@ type RegisterPageContext = {
 async function getRegisterPageContext(): Promise<RegisterPageContext> {
 	const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 	const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-	const isOffline = isOfflineSupabaseUrl(url);
+	const isOffline = isOfflineSupabase();
 
 	if (!url || !anonKey) {
 		return { useWizard: false, isOffline, userId: undefined };
@@ -77,6 +75,6 @@ export default async function RegisterPage() {
 
 export {
 	getRegisterPageContext,
-	isOfflineSupabaseUrl,
+	isGatherSystemRegistrationOverrideEnabled,
 	isWizardFlagOverrideEnabled,
 };
