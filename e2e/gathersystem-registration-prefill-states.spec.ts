@@ -89,6 +89,13 @@ async function advancePrefillWizardToConsents(page: Page) {
   await expect(page.getByText(/tell us about/i).first()).toBeVisible({
     timeout: 15000,
   });
+  // Compatible with #411: blank allergies block Save & continue.
+  const noKnownAllergies = page.getByRole('radio', {
+    name: /no known allergies/i,
+  });
+  if (await noKnownAllergies.count()) {
+    await noKnownAllergies.click();
+  }
   await continueToNextStep(page);
   await expect(page.getByText(/ministry programs|sunday school/i).first()).toBeVisible({
     timeout: 15000,
@@ -228,7 +235,8 @@ gathersystemDescribe('GatherSystem registration prefill states @mobile', () => {
       .select('child_id, household_id')
       .eq('household_id', householdId);
     expect(childError).toBeNull();
-    expect(children?.some((c) => c.child_id === childId)).toBe(true);
-    expect(children?.every((c) => c.household_id === householdId)).toBe(true);
+    expect(children).toHaveLength(1);
+    expect(children![0].child_id).toBe(childId);
+    expect(children![0].household_id).toBe(householdId);
   });
 });

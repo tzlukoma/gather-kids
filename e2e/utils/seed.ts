@@ -212,6 +212,7 @@ export async function createReturningGuardianFixture(email: string, password = T
         last_name: 'Rivera',
         dob: '2018-06-15',
         grade: 'K',
+        allergies: 'none',
         is_active: true,
       })
     ).error,
@@ -308,6 +309,7 @@ export async function createCurrentCycleGuardianFixture(
         last_name: 'Current',
         dob: '2018-06-15',
         grade: '1st',
+        allergies: 'none',
         is_active: true,
       })
     ).error,
