@@ -16,7 +16,10 @@ import { Step4Ministries } from './steps/step4-ministries';
 import { Step5Consents } from './steps/step5-consents';
 import { RegistrationEntry } from './registration-entry';
 import { RegistrationDone } from './registration-done';
-import { registrationSchema } from './registration-schema';
+import {
+	childHasChoirEnrollment,
+	registrationSchema,
+} from './registration-schema';
 import type { RegistrationFormInput } from './registration-schema';
 import { useDraftPersistence } from '@/hooks/useDraftPersistence';
 import { useFeatureFlags } from '@/contexts/feature-flag-context';
@@ -187,6 +190,55 @@ export default function RegisterWizard() {
 		},
 		[form, loadDraft, toast, user?.email]
 	);
+
+	// Drop obsolete conditional consents when ministry selections change
+	useEffect(() => {
+		if (screen !== 'wizard') return;
+
+		const subscription = form.watch((_values, { name }) => {
+			if (
+				!name ||
+				(!name.includes('ministrySelections') && !name.includes('interestSelections'))
+			) {
+				return;
+			}
+
+			const values = form.getValues();
+			const customConsents = { ...(values.consents.custom_consents ?? {}) };
+			let customConsentsChanged = false;
+
+			if (!values.children.some((child) => child.interestSelections?.orators)) {
+				if ('orators' in customConsents) {
+					delete customConsents.orators;
+					customConsentsChanged = true;
+				}
+			}
+
+			const groupConsents = { ...(values.consents.group_consents ?? {}) };
+			let groupConsentsChanged = false;
+
+			if (!childHasChoirEnrollment(values.children)) {
+				if ('choirs' in groupConsents) {
+					delete groupConsents.choirs;
+					groupConsentsChanged = true;
+				}
+			}
+
+			if (customConsentsChanged) {
+				form.setValue('consents.custom_consents', customConsents, {
+					shouldValidate: true,
+				});
+			}
+
+			if (groupConsentsChanged) {
+				form.setValue('consents.group_consents', groupConsents, {
+					shouldValidate: true,
+				});
+			}
+		});
+
+		return () => subscription.unsubscribe();
+	}, [form, screen]);
 
 	// Auto-save draft
 	useEffect(() => {

@@ -1,5 +1,8 @@
 import { z } from 'zod';
-import { registerHouseholdCanonical } from '@/lib/database/canonical-dal';
+import {
+  registerHouseholdCanonical,
+  testCanonicalConversion,
+} from '@/lib/database/canonical-dal';
 import { getHouseholdProfile } from '@/lib/dal';
 import * as CanonicalDtos from '@/lib/database/canonical-dtos';
 
@@ -85,6 +88,59 @@ describe('DAL Contract Tests - Registration/Household', () => {
         // Expected to fail in test environment, but validates the function signature
         expect(error).toBeDefined();
       }
+    });
+
+    test('wizard consent payload preserves group_consents and custom_consents casing', () => {
+      const wizardPayload = {
+        household: {
+          name: 'Test Household',
+          address_line1: '123 Test St',
+          city: 'Test City',
+          state: 'TS',
+          zip: '12345',
+          preferredScriptureTranslation: 'NIV',
+        },
+        guardians: [{
+          first_name: 'John',
+          last_name: 'Doe',
+          mobile_phone: '555-123-4567',
+          email: 'john@example.com',
+          relationship: 'Father',
+          is_primary: true,
+        }],
+        emergencyContact: {
+          first_name: 'Jane',
+          last_name: 'Smith',
+          mobile_phone: '555-987-6543',
+          relationship: 'Aunt',
+        },
+        children: [{
+          first_name: 'Child',
+          last_name: 'Doe',
+          dob: '2015-05-15',
+          grade: '3rd',
+          ministrySelections: { 'teen-choir': true },
+          interestSelections: { orators: true },
+        }],
+        consents: {
+          liability: true,
+          photoRelease: true,
+          group_consents: { choirs: 'yes' },
+          custom_consents: { orators: true },
+        },
+      };
+
+      expect(Object.keys(wizardPayload.consents)).toEqual(
+        expect.arrayContaining([
+          'liability',
+          'photoRelease',
+          'group_consents',
+          'custom_consents',
+        ])
+      );
+      expect(wizardPayload.consents.group_consents?.choirs).toBe('yes');
+      expect(wizardPayload.consents.custom_consents?.orators).toBe(true);
+      expect(testCanonicalConversion(wizardPayload)).toBe(true);
     });
 
     test('registration form validates required canonical fields', () => {

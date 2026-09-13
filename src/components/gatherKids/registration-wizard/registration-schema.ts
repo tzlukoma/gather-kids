@@ -31,6 +31,71 @@ const childSchema = z.object({
 	customFields: customFieldsSchema,
 });
 
+export type ConditionalConsentContext = {
+	customConsentMinistryCodes: string[];
+	groupConsentRules: Array<{
+		groupCode: string;
+		isRequired: (data: RegistrationFormInput) => boolean;
+	}>;
+};
+
+export function childHasChoirEnrollment(
+	children: RegistrationFormInput['children'],
+	choirMinistryCodes?: string[]
+): boolean {
+	return children.some((child) =>
+		Object.entries(child.ministrySelections ?? {}).some(([code, selected]) => {
+			if (!selected) return false;
+			if (choirMinistryCodes?.length) {
+				return choirMinistryCodes.includes(code);
+			}
+			return /choir/i.test(code);
+		})
+	);
+}
+
+export const defaultConditionalConsentContext: ConditionalConsentContext = {
+	customConsentMinistryCodes: ['orators'],
+	groupConsentRules: [
+		{
+			groupCode: 'choirs',
+			isRequired: (data) => childHasChoirEnrollment(data.children),
+		},
+	],
+};
+
+export function validateConditionalConsents(
+	data: RegistrationFormInput,
+	ctx: z.RefinementCtx,
+	context: ConditionalConsentContext = defaultConditionalConsentContext
+) {
+	context.customConsentMinistryCodes.forEach((code) => {
+		const isMinistrySelected = data.children.some(
+			(child) => child.interestSelections?.[code]
+		);
+		if (isMinistrySelected && !data.consents.custom_consents?.[code]) {
+			ctx.addIssue({
+				code: z.ZodIssueCode.custom,
+				path: [`consents.custom_consents.${code}`],
+				message: 'Consent for this ministry is required.',
+			});
+		}
+	});
+
+	context.groupConsentRules.forEach(({ groupCode, isRequired }) => {
+		if (!isRequired(data)) return;
+
+		const value = data.consents.group_consents?.[groupCode];
+		if (value !== 'yes' && value !== 'no') {
+			ctx.addIssue({
+				code: z.ZodIssueCode.custom,
+				path: [`consents.group_consents.${groupCode}`],
+				message: 'Please select Yes or No.',
+			});
+		}
+	});
+}
+
 export const registrationSchema = z
 	.object({
 		household: z.object({
@@ -65,22 +130,7 @@ export const registrationSchema = z
 		}),
 	})
 	.superRefine((data, ctx) => {
-		// Dynamic consent validation for ministries requiring consent
-		const ministriesRequiringConsent = ['orators'];
-		ministriesRequiringConsent.forEach((code) => {
-			const isMinistrySelected = data.children.some(
-				(child) => child.interestSelections?.[code]
-			);
-			if (isMinistrySelected) {
-				if (!data.consents.custom_consents?.[code]) {
-					ctx.addIssue({
-						code: z.ZodIssueCode.custom,
-						path: [`consents.custom_consents.${code}`],
-						message: `Consent for this ministry is required.`,
-					});
-				}
-			}
-		});
+		validateConditionalConsents(data, ctx);
 	});
 
 export type RegistrationFormInput = z.input<typeof registrationSchema>;
