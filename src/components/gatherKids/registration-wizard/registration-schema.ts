@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 const ministrySelectionSchema = z.record(z.boolean().optional()).optional();
 const interestSelectionSchema = z.record(z.boolean().optional()).optional();
-const customFieldsSchema = z.record(z.record(z.any()).optional()).optional();
+const customDataSchema = z.record(z.any()).optional();
 
 const guardianSchema = z.object({
 	first_name: z.string().min(1, 'First name is required.'),
@@ -28,7 +28,7 @@ const childSchema = z.object({
 	special_needs_notes: z.string().optional(),
 	ministrySelections: ministrySelectionSchema,
 	interestSelections: interestSelectionSchema,
-	customFields: customFieldsSchema,
+	customData: customDataSchema,
 });
 
 export type ConditionalConsentContext = {
@@ -158,5 +158,68 @@ export const defaultChildValues = {
 	special_needs_notes: '',
 	ministrySelections: {},
 	interestSelections: {},
-	customFields: {},
+	customData: {},
 };
+
+/**
+ * GatherSystem Step 4 previously nested answers as
+ * `children[n].customFields[ministryCode][questionId]`. The DAL and current
+ * wizard bind flat `children[n].customData[questionId]`. Saved drafts may
+ * still carry the legacy shape — flatten without dropping correct customData.
+ */
+type LegacyChildDraft = {
+	customData?: Record<string, unknown> | null;
+	customFields?: Record<string, Record<string, unknown> | undefined> | null;
+	[key: string]: unknown;
+};
+
+function flattenLegacyCustomFields(
+	customFields: NonNullable<LegacyChildDraft['customFields']>
+): Record<string, unknown> {
+	const flattened: Record<string, unknown> = {};
+	for (const ministryAnswers of Object.values(customFields)) {
+		if (!ministryAnswers || typeof ministryAnswers !== 'object') continue;
+		for (const [questionId, value] of Object.entries(ministryAnswers)) {
+			if (value === undefined) continue;
+			if (!(questionId in flattened)) {
+				flattened[questionId] = value;
+			}
+		}
+	}
+	return flattened;
+}
+
+export function migrateChildCustomFieldsToCustomData(
+	child: LegacyChildDraft
+): Record<string, unknown> & { customData: Record<string, unknown> } {
+	const { customFields, customData, ...rest } = child;
+	const existing =
+		customData && typeof customData === 'object' && !Array.isArray(customData)
+			? { ...customData }
+			: {};
+	const fromLegacy =
+		customFields && typeof customFields === 'object' && !Array.isArray(customFields)
+			? flattenLegacyCustomFields(customFields)
+			: {};
+
+	return {
+		...rest,
+		customData: { ...fromLegacy, ...existing },
+	};
+}
+
+export function migrateRegistrationDraftCustomFields<T extends Record<string, unknown>>(
+	draft: T
+): T {
+	const children = (draft as { children?: LegacyChildDraft[] | null }).children;
+	if (!children || !Array.isArray(children)) {
+		return draft;
+	}
+
+	return {
+		...draft,
+		children: children.map((child) =>
+			migrateChildCustomFieldsToCustomData(child ?? {})
+		),
+	};
+}

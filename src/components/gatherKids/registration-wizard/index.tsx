@@ -23,6 +23,7 @@ import {
 } from './consent-context';
 import {
 	defaultConditionalConsentContext,
+	migrateRegistrationDraftCustomFields,
 	registrationFormBaseSchema,
 	validateConditionalConsents,
 } from './registration-schema';
@@ -199,7 +200,7 @@ export default function RegisterWizard() {
 		async (prefillData?: any) => {
 			if (prefillData?.data) {
 				// Prefill from household data
-				form.reset({
+				const prefillFormData = migrateRegistrationDraftCustomFields({
 					household: {
 						household_id: prefillData.data.household?.household_id || '',
 						name: prefillData.data.household?.name || '',
@@ -235,6 +236,7 @@ export default function RegisterWizard() {
 						custom_consents: {},
 					},
 				});
+				form.reset(prefillFormData);
 				setIsReturningPrefill(prefillData.isReturningPrefill || false);
 				toast({
 					title: 'Household Found!',
@@ -245,7 +247,7 @@ export default function RegisterWizard() {
 				try {
 					const draftData = await loadDraft();
 					if (draftData && Object.keys(draftData).length > 0) {
-						form.reset(draftData);
+						form.reset(migrateRegistrationDraftCustomFields(draftData));
 						toast({
 							title: 'Draft Restored',
 							description: 'Your previous registration progress has been restored.',

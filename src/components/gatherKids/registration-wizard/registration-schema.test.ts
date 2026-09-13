@@ -2,6 +2,8 @@ import { z } from 'zod';
 import {
 	childHasChoirEnrollment,
 	defaultConditionalConsentContext,
+	migrateChildCustomFieldsToCustomData,
+	migrateRegistrationDraftCustomFields,
 	registrationSchema,
 	validateConditionalConsents,
 } from './registration-schema';
@@ -40,7 +42,7 @@ function buildValidPayload(
 				grade: '3rd',
 				ministrySelections: {},
 				interestSelections: {},
-				customFields: {},
+				customData: {},
 			},
 		],
 		consents: {
@@ -189,5 +191,73 @@ describe('validateConditionalConsents', () => {
 		});
 
 		expect(issues.some((issue) => issue.path.join('.') === 'consents.group_consents.choirs')).toBe(true);
+	});
+});
+
+describe('migrateRegistrationDraftCustomFields', () => {
+	it('flattens legacy nested customFields into customData by question id', () => {
+		const migrated = migrateChildCustomFieldsToCustomData({
+			first_name: 'Jordan',
+			customFields: {
+				'teen-choir': { 'shirt-size': 'M', 'experience-notes': 'Two years' },
+				orators: { 'speech-topic': 'Faith' },
+			},
+		});
+
+		expect(migrated.customData).toEqual({
+			'shirt-size': 'M',
+			'experience-notes': 'Two years',
+			'speech-topic': 'Faith',
+		});
+		expect('customFields' in migrated).toBe(false);
+	});
+
+	it('keeps existing customData and does not overwrite with legacy values', () => {
+		const migrated = migrateChildCustomFieldsToCustomData({
+			customData: { 'shirt-size': 'L', 'keep-me': true },
+			customFields: {
+				'teen-choir': { 'shirt-size': 'M', 'experience-notes': 'Legacy only' },
+			},
+		});
+
+		expect(migrated.customData).toEqual({
+			'shirt-size': 'L',
+			'keep-me': true,
+			'experience-notes': 'Legacy only',
+		});
+	});
+
+	it('migrates every child on a restored draft payload', () => {
+		const draft = migrateRegistrationDraftCustomFields({
+			household: { address_line1: '123 Main St' },
+			children: [
+				{
+					first_name: 'A',
+					customFields: { choir: { 'q-1': 'answer-a' } },
+				},
+				{
+					first_name: 'B',
+					customData: { 'q-2': 'already-flat' },
+					customFields: { choir: { 'q-2': 'legacy-ignored', 'q-3': 'from-legacy' } },
+				},
+			],
+		});
+
+		expect(draft.children[0].customData).toEqual({ 'q-1': 'answer-a' });
+		expect(draft.children[1].customData).toEqual({
+			'q-2': 'already-flat',
+			'q-3': 'from-legacy',
+		});
+		expect(draft.children.every((child) => !('customFields' in child))).toBe(true);
+	});
+
+	it('leaves drafts without children or customFields unchanged aside from identity', () => {
+		const empty = migrateRegistrationDraftCustomFields({ household: { city: 'X' } });
+		expect(empty).toEqual({ household: { city: 'X' } });
+
+		const noLegacy = migrateRegistrationDraftCustomFields({
+			children: [{ first_name: 'C', customData: { 'q-1': 'ok' } }],
+		});
+		expect(noLegacy.children[0].customData).toEqual({ 'q-1': 'ok' });
 	});
 });
