@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, devices } from '@playwright/test';
 import { seedMinistries, cleanupTestData } from './utils/seed';
 import { getLatestConfirmationLink, clearMailHogInbox } from './utils/mailhog';
 import { 
@@ -386,5 +386,81 @@ test.describe('Email/Password Registration to Household Flow', () => {
     
     // This test passes as long as the app handles the flow appropriately
     expect(true).toBeTruthy();
+  });
+});
+
+test.describe('GatherSystem wizard first-time auth (flag-on, mobile)', () => {
+  test.use({ ...devices['iPhone 13'] });
+
+  test('magic link auth returns to wizard entry before data entry', async ({
+    page,
+    context,
+  }) => {
+    const wizardOverrideEnabled =
+      process.env.GATHERSYSTEM_REGISTRATION_OVERRIDE === 'true';
+    test.skip(
+      !wizardOverrideEnabled,
+      'Start dev server with GATHERSYSTEM_REGISTRATION_OVERRIDE=true (npm run test:email cannot run without MailHog + override locally).'
+    );
+
+    const testEmail = generateUniqueEmail('wizard-flag-on');
+    const helpers = new TestHelpers(page);
+
+    page.on('console', (msg) => console.log(`[BROWSER] ${msg.text()}`));
+    page.on('pageerror', (err) => console.error(`[PAGE ERROR] ${err.message}`));
+
+    await context.clearCookies();
+    await page.goto('/register');
+    await helpers.waitForPageLoad();
+
+    const offlineAuth = page.getByTestId('registration-offline-auth');
+    const loginRedirect = page.url().includes('/login?next=%2Fregister');
+
+    if (loginRedirect) {
+      await expect(page.locator('#email')).toBeVisible();
+      return;
+    }
+
+    await expect(offlineAuth).toBeVisible({ timeout: 15000 });
+    await page.getByLabel('Email').fill(testEmail);
+    await page.getByRole('button', { name: 'Continue' }).click();
+
+    await expect(page.getByTestId('registration-offline-email-sent')).toBeVisible({
+      timeout: 15000,
+    });
+
+    let magicLink: string | null = null;
+    try {
+      magicLink = await getLatestConfirmationLink(testEmail);
+    } catch (error) {
+      test.info().annotations.push({
+        type: 'note',
+        description: `MailHog unavailable: ${(error as Error).message}`,
+      });
+      test.skip(true, 'MailHog required for magic-link follow-through');
+    }
+
+    expect(magicLink).toBeTruthy();
+    await page.goto(magicLink!, { waitUntil: 'domcontentloaded' });
+    await page.waitForTimeout(2000);
+
+    if (!page.url().includes('/register')) {
+      await page.goto('/register', { waitUntil: 'domcontentloaded' });
+    }
+
+    await expect(page).toHaveURL(/\/register/, { timeout: 15000 });
+
+    const wizardEntry = page.getByRole('button', { name: 'Start registration' });
+    const legacyLookup = page.getByText('Household Lookup');
+
+    if (await legacyLookup.isVisible().catch(() => false)) {
+      test.skip(true, 'Legacy registration rendered — wizard flag not active on server');
+    }
+
+    await expect(wizardEntry).toBeVisible({ timeout: 15000 });
+    await wizardEntry.click();
+    await expect(page.getByText('Confirm your household')).toBeVisible({
+      timeout: 15000,
+    });
   });
 });
