@@ -41,8 +41,16 @@ export default defineConfig({
     url: baseURL,
     // Wait up to 90s for the server to start in slower environments
     timeout: 90_000,
-    // In CI we always start a fresh server; locally reuse existing to speed up dev
-    reuseExistingServer: !process.env.CI,
+    // Never reuse a local server for GatherSystem flag-on suites — an existing
+    // `npm run dev` without OVERRIDE would serve the legacy registration page.
+    reuseExistingServer:
+      !process.env.CI && process.env.GATHERSYSTEM_REGISTRATION_E2E !== '1',
+    env: {
+      ...process.env,
+      ...(process.env.GATHERSYSTEM_REGISTRATION_E2E === '1'
+        ? { GATHERSYSTEM_REGISTRATION_OVERRIDE: 'true' }
+        : {}),
+    },
   },
   // Global setup for seeding if needed
   // globalSetup: './e2e/utils/global-setup.ts',
