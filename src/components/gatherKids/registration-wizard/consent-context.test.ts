@@ -38,7 +38,7 @@ const baseForm: RegistrationFormInput = {
 			grade: '3rd',
 			ministrySelections: { 'teen-choir': true },
 			interestSelections: { orators: true },
-			customFields: {},
+			customData: {},
 		},
 	],
 	consents: {

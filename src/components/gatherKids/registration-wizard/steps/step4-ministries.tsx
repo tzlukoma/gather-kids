@@ -10,8 +10,9 @@ import {
 } from '@/components/ui/form';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import type { CustomQuestion } from '@/lib/types';
 import { Info, Clock, Users, CheckCircle2 } from 'lucide-react';
 import type { RegistrationFormInput } from '../registration-schema';
 import { useQuery } from '@tanstack/react-query';
@@ -146,6 +147,117 @@ function ChildMinistryCustomQuestions({
 	);
 }
 
+export function customQuestionFieldName(childIndex: number, questionId: string) {
+	return `children.${childIndex}.customData.${questionId}` as const;
+}
+
+export function MinistryCustomQuestionField({
+	question,
+	form,
+	childIndex,
+}: {
+	question: CustomQuestion;
+	form: UseFormReturn<RegistrationFormInput>;
+	childIndex: number;
+}) {
+	const fieldName = customQuestionFieldName(childIndex, question.id);
+
+	if (question.type === 'radio') {
+		if (!question.options?.length) {
+			return (
+				<Alert variant="destructive" className="mt-2">
+					<AlertDescription>
+						{question.text} requires configured options before registration can
+						continue.
+					</AlertDescription>
+				</Alert>
+			);
+		}
+
+		return (
+			<FormField
+				control={form.control}
+				name={fieldName as any}
+				render={({ field }) => (
+					<FormItem>
+						<FormLabel className="text-[#1e2a2f]">{question.text}</FormLabel>
+						<FormControl>
+							<RadioGroup
+								onValueChange={field.onChange}
+								value={typeof field.value === 'string' ? field.value : ''}
+								className="space-y-2">
+								{question.options!.map((option) => (
+									<FormItem
+										key={option}
+										className="flex items-center space-x-2 space-y-0">
+										<FormControl>
+											<RadioGroupItem value={option} />
+										</FormControl>
+										<FormLabel className="font-normal">{option}</FormLabel>
+									</FormItem>
+								))}
+							</RadioGroup>
+						</FormControl>
+					</FormItem>
+				)}
+			/>
+		);
+	}
+
+	if (question.type === 'checkbox') {
+		return (
+			<FormField
+				control={form.control}
+				name={fieldName as any}
+				render={({ field }) => (
+					<FormItem className="flex flex-row items-start space-x-3 space-y-0">
+						<FormControl>
+							<Checkbox
+								checked={Boolean(field.value)}
+								onCheckedChange={field.onChange}
+								className="mt-1 border-[#017c7d] data-[state=checked]:bg-[#017c7d]"
+							/>
+						</FormControl>
+						<FormLabel className="font-normal text-[#1e2a2f]">
+							{question.text}
+						</FormLabel>
+					</FormItem>
+				)}
+			/>
+		);
+	}
+
+	if (question.type === 'text') {
+		return (
+			<FormField
+				control={form.control}
+				name={fieldName as any}
+				render={({ field }) => (
+					<FormItem>
+						<FormLabel className="text-[#1e2a2f]">{question.text}</FormLabel>
+						<FormControl>
+							<Textarea
+								{...field}
+								value={typeof field.value === 'string' ? field.value : ''}
+								className="border-[#e0dacf] focus-visible:ring-[#017c7d]"
+							/>
+						</FormControl>
+					</FormItem>
+				)}
+			/>
+		);
+	}
+
+	return (
+		<Alert variant="destructive" className="mt-2">
+			<AlertDescription>
+				Unsupported question type for &quot;{question.text}&quot;. Contact the
+				ministry office to complete this registration.
+			</AlertDescription>
+		</Alert>
+	);
+}
+
 function ChildMinistryCheckbox({
 	ministry,
 	form,
@@ -171,34 +283,12 @@ function ChildMinistryCheckbox({
 			<p className="text-sm font-semibold text-[#1e2a2f]">
 				Additional information for {form.watch(`children.${childIndex}.first_name` as any)}
 			</p>
-			{ministry.custom_questions.map((question, qIndex) => (
-				<FormField
-					key={qIndex}
-					control={form.control}
-					name={
-						`children.${childIndex}.customFields.${ministry.code}.${question.id}` as any
-					}
-					render={({ field }) => (
-						<FormItem>
-							<FormLabel className="text-[#1e2a2f]">
-								{question.text}
-							</FormLabel>
-							<FormControl>
-								{question.type === 'text' ? (
-									<Textarea
-										{...field}
-										className="border-[#e0dacf] focus-visible:ring-[#017c7d]"
-									/>
-								) : (
-									<Input
-										{...field}
-										type="text"
-										className="border-[#e0dacf] focus-visible:ring-[#017c7d]"
-									/>
-								)}
-							</FormControl>
-						</FormItem>
-					)}
+			{ministry.custom_questions.map((question) => (
+				<MinistryCustomQuestionField
+					key={question.id}
+					question={question}
+					form={form}
+					childIndex={childIndex}
 				/>
 			))}
 		</div>

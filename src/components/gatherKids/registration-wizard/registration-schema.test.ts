@@ -40,7 +40,7 @@ function buildValidPayload(
 				grade: '3rd',
 				ministrySelections: {},
 				interestSelections: {},
-				customFields: {},
+				customData: {},
 			},
 		],
 		consents: {
