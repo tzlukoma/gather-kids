@@ -1,4 +1,8 @@
-import { UseFormReturn } from 'react-hook-form';
+'use client';
+
+import { useMemo } from 'react';
+import { UseFormReturn, useWatch } from 'react-hook-form';
+import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
 	FormControl,
@@ -9,13 +13,69 @@ import {
 	FormMessage,
 } from '@/components/ui/form';
 import { Checkbox } from '@/components/ui/checkbox';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { getMinistries, getMinistriesByGroupCode, getMinistryGroups } from '@/lib/dal';
+import {
+	getGroupsRequiringConsent,
+	getSelectedCustomConsentMinistries,
+	shouldShowChoirGroupConsent,
+} from '../consent-context';
 import type { RegistrationFormInput } from '../registration-schema';
 
 interface Step5ConsentsProps {
 	form: UseFormReturn<RegistrationFormInput>;
 }
 
+/** Legacy choir consent copy from page-legacy.tsx — do not paraphrase. */
+const CHOIR_GROUP_CONSENT_TEXT =
+	'Cathedral International youth choirs communicate using the Planning Center app. By clicking yes, you agree to be added into the app, which will enable you to download the app, receive emails and push communications.';
+
+const EMPTY_CHILDREN: RegistrationFormInput['children'] = [];
+
 export function Step5Consents({ form }: Step5ConsentsProps) {
+	const children =
+		useWatch({ control: form.control, name: 'children' }) ?? EMPTY_CHILDREN;
+
+	const { data: ministryGroups = [] } = useQuery({
+		queryKey: ['ministryGroups'],
+		queryFn: getMinistryGroups,
+		staleTime: 10 * 60 * 1000,
+	});
+
+	const { data: allMinistries = [] } = useQuery({
+		queryKey: ['ministries', 'active'],
+		queryFn: () => getMinistries(true),
+		staleTime: 15 * 60 * 1000,
+	});
+
+	const { data: choirMinistries = [] } = useQuery({
+		queryKey: ['ministriesByGroup', 'choirs'],
+		queryFn: () => getMinistriesByGroupCode('choirs'),
+		staleTime: 10 * 60 * 1000,
+	});
+
+	const groupsRequiringConsent = useMemo(
+		() => getGroupsRequiringConsent(ministryGroups),
+		[ministryGroups]
+	);
+
+	const showChoirGroupConsent = useMemo(
+		() =>
+			shouldShowChoirGroupConsent({
+				children,
+				ministryGroups,
+				choirMinistries,
+			}),
+		[children, ministryGroups, choirMinistries]
+	);
+
+	const choirsGroup = groupsRequiringConsent.find((group) => group.code === 'choirs');
+
+	const ministriesWithOptionalConsent = useMemo(
+		() => getSelectedCustomConsentMinistries(children, allMinistries),
+		[allMinistries, children]
+	);
+
 	return (
 		<Card>
 			<CardHeader>
@@ -110,10 +170,75 @@ export function Step5Consents({ form }: Step5ConsentsProps) {
 					)}
 				/>
 
+				{showChoirGroupConsent && (
+					<div className="p-4 border border-[#e0dacf] rounded-lg space-y-4">
+						<h3 className="text-lg font-semibold text-[#1e2a2f]">Choirs</h3>
+						<FormField
+							control={form.control}
+							name="consents.group_consents.choirs"
+							render={({ field }) => (
+								<FormItem className="space-y-3 p-4 border border-[#e0dacf] rounded-md bg-[#fafaf8]">
+									<FormLabel className="font-normal leading-relaxed text-[#1e2a2f]">
+										{choirsGroup?.custom_consent_text || CHOIR_GROUP_CONSENT_TEXT}
+									</FormLabel>
+									<FormControl>
+										<RadioGroup
+											onValueChange={field.onChange}
+											value={field.value}
+											className="flex flex-col space-y-1">
+											<FormItem className="flex items-center space-x-3 space-y-0">
+												<FormControl>
+													<RadioGroupItem value="yes" />
+												</FormControl>
+												<FormLabel className="font-normal">Yes</FormLabel>
+											</FormItem>
+											<FormItem className="flex items-center space-x-3 space-y-0">
+												<FormControl>
+													<RadioGroupItem value="no" />
+												</FormControl>
+												<FormLabel className="font-normal">No</FormLabel>
+											</FormItem>
+										</RadioGroup>
+									</FormControl>
+									<FormMessage className="text-destructive" />
+								</FormItem>
+							)}
+						/>
+					</div>
+				)}
+
+				{ministriesWithOptionalConsent.map((ministry) => (
+					<FormField
+						key={ministry.ministry_id}
+						control={form.control}
+						name={`consents.custom_consents.${ministry.code}`}
+						render={({ field }) => (
+							<FormItem className="flex flex-row items-start space-x-3 space-y-0 border border-[#e0dacf] p-4 rounded-lg">
+								<FormControl>
+									<Checkbox
+										checked={field.value}
+										onCheckedChange={field.onChange}
+										className="mt-1 border-[#017c7d] data-[state=checked]:bg-[#017c7d]"
+									/>
+								</FormControl>
+								<div className="space-y-1 leading-none">
+									<FormLabel className="text-[#1e2a2f] font-semibold">
+										{ministry.name} Consent
+									</FormLabel>
+									<FormDescription className="text-sm text-[#5b6b72] leading-relaxed whitespace-pre-wrap max-h-[300px] overflow-y-auto pr-2">
+										{ministry.optional_consent_text}
+									</FormDescription>
+									<FormMessage className="text-destructive" />
+								</div>
+							</FormItem>
+						)}
+					/>
+				))}
+
 				<div className="pt-4 border-t border-[#e0dacf]">
 					<p className="text-sm text-[#5b6b72] italic">
-						By checking both boxes above and submitting this form, you acknowledge that you
-						have read, understood, and agree to these terms.
+						By checking the required boxes above and submitting this form, you acknowledge
+						that you have read, understood, and agree to these terms.
 					</p>
 				</div>
 			</CardContent>
