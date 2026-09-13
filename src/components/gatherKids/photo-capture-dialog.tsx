@@ -209,6 +209,7 @@ export function PhotoCaptureDialog({
 			await updatePhotoMutation.mutateAsync({
 				childId: child.child_id,
 				photoDataUrl: imageData,
+				householdId: child.household_id,
 			});
 
 			toast({
