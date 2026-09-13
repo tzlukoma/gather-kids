@@ -73,7 +73,7 @@ Thomas’s two primary queues are **Needs My Input** and **Ready to Review**.
 ## Issue-to-PR workflow
 
 1. Confirm the issue is still valid against latest `main`.
-2. Work on a separate branch (`feature/*`, `fix/*`, `chore/*`, `docs/*`, `ci/*`).
+2. Create a dedicated git worktree and branch (`feature/*`, `fix/*`, `chore/*`, `docs/*`, `ci/*`). Do not implement on the primary checkout.
 3. Set Project **Agent** (Cursor, Copilot, Codex, Claude, or Human) and **Risk** when permitted. Apply `agent:managed`.
 4. Move the issue to **Agent Working**.
 5. Implement only what the issue asks for.
@@ -81,6 +81,20 @@ Thomas’s two primary queues are **Needs My Input** and **Ready to Review**.
 7. Open a **draft** pull request with the evidence checklist. Do not mark it ready for review yourself.
 8. Apply `agent:review-ready`, request `@tzlukoma` as reviewer, move the **issue** to **PR Review**.
 9. Stop. Do not merge, deploy, or mark the work **Done**.
+10. After that PR is merged, remove the local worktree.
+
+## Git worktrees
+
+Every new piece of work happens in its own git worktree. Do not implement, commit, or open a PR from the primary checkout (the directory that tracks `main`).
+
+- Create the worktree **before** the first edit. Procedure: [`.agents/skills/git-worktree/SKILL.md`](.agents/skills/git-worktree/SKILL.md).
+- Canonical local path: `.worktrees/<slug>` next to the primary checkout. If the tool already created an isolated worktree (for example `.claude/worktrees/…`), use that worktree — do not nest a second one.
+- Cloud coding agents that already receive an isolated clone may treat that clone as the worktree. They still must not share Thomas’s primary checkout.
+- After the PR from that worktree is merged, delete the local worktree (`git worktree remove`, then `git worktree prune`). Do not leave merged worktrees on disk.
+- When starting new work, prune leftover worktrees whose PRs have already merged.
+- Do not `git worktree remove --force` to discard uncommitted work on an open PR.
+
+Agents still must not merge the PR. Cleanup runs when they learn it merged (next session, resume after merge, or when starting the next ticket).
 
 Opening a PR currently adds the *PR* to the Roadmap at **PR Review** via [`.github/workflows/add-pr-to-project.yml`](.github/workflows/add-pr-to-project.yml). Keep the *issue* in **Agent Working** until the evidence checklist is complete.
 
@@ -293,6 +307,7 @@ Template and resume rules: [`.agents/skills/escalate-to-human/SKILL.md`](.agents
 | When | Procedure |
 |------|-----------|
 | Starting or implementing an issue | [`.agents/skills/implement-ticket/SKILL.md`](.agents/skills/implement-ticket/SKILL.md) |
+| Creating or removing a worktree | [`.agents/skills/git-worktree/SKILL.md`](.agents/skills/git-worktree/SKILL.md) |
 | Choosing and reporting checks | [`.agents/skills/verify-change/SKILL.md`](.agents/skills/verify-change/SKILL.md) |
 | Schema, SQL, or generated types | [`.agents/skills/database-migration-safety/SKILL.md`](.agents/skills/database-migration-safety/SKILL.md) |
 | Remote flags / GatherSystem gating / PostHog flag wiring | [`.agents/skills/feature-flags/SKILL.md`](.agents/skills/feature-flags/SKILL.md) |

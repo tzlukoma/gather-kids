@@ -9,4 +9,6 @@ Follow [`AGENTS.md`](../../AGENTS.md) for safety, environments, autonomy, escala
 
 Use [`.agents/skills/`](../../.agents/skills/) for procedures. Do not copy or override those rules here.
 
+Start new work in a git worktree ([`.agents/skills/git-worktree/SKILL.md`](../../.agents/skills/git-worktree/SKILL.md)). After creating or selecting it, move the agent root there before the first edit. Remove the worktree after that PR is merged.
+
 Conventional commits remain in [`conventional-commits.mdc`](conventional-commits.mdc).
