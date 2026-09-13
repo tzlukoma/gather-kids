@@ -1,16 +1,19 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useForm } from 'react-hook-form';
 import { Form } from '@/components/ui/form';
+import { Button } from '@/components/ui/button';
 import type { RegistrationFormInput } from '../registration-schema';
 import { defaultChildValues } from '../registration-schema';
 import {
 	MinistryCustomQuestionField,
 	customQuestionFieldName,
+	findDuplicateCustomQuestionConflictsForChildren,
 	findDuplicateCustomQuestionIds,
 } from './step4-ministries';
 import type { CustomQuestion } from '@/lib/types';
+
 
 function Step4FormHarness({
 	question,
@@ -124,6 +127,45 @@ describe('step4 custom question field paths', () => {
 		).toEqual([]);
 	});
 
+	it('blocks Step 4 readiness while a child has colliding selected ministries', () => {
+		const ministries = [
+			{
+				code: 'choir',
+				name: 'Choir',
+				custom_questions: [{ id: 'experience-notes', text: 'A', type: 'text' as const }],
+			},
+			{
+				code: 'orators',
+				name: 'Orators',
+				custom_questions: [
+					{ id: 'experience-notes', text: 'B', type: 'text' as const },
+				],
+			},
+		];
+
+		expect(
+			findDuplicateCustomQuestionConflictsForChildren(
+				[
+					{
+						ministrySelections: { choir: true, orators: true },
+					},
+				],
+				ministries
+			)
+		).toHaveLength(1);
+
+		expect(
+			findDuplicateCustomQuestionConflictsForChildren(
+				[
+					{
+						ministrySelections: { choir: true, orators: false },
+					},
+				],
+				ministries
+			)
+		).toEqual([]);
+	});
+
 	it('writes text answers to children[n].customData[questionId]', async () => {
 		const user = userEvent.setup();
 		const question: CustomQuestion = {
@@ -216,5 +258,138 @@ describe('step4 custom question field paths', () => {
 		expect(customQuestionFieldName(0, 'notes')).not.toBe(
 			customQuestionFieldName(1, 'notes')
 		);
+	});
+});
+
+const COLLIDING_MINISTRIES = [
+	{
+		code: 'choir',
+		name: 'Choir',
+		custom_questions: [
+			{ id: 'experience-notes', text: 'A', type: 'text' as const },
+		],
+	},
+	{
+		code: 'orators',
+		name: 'Orators',
+		custom_questions: [
+			{ id: 'experience-notes', text: 'B', type: 'text' as const },
+		],
+	},
+];
+
+/**
+ * Mirrors RegisterWizard Step 4 CTA: watch form values and block Save & continue
+ * while selected ministries share a custom-question id.
+ */
+function Step4AdvanceHarness({
+	initialSelections,
+}: {
+	initialSelections: Record<string, boolean>;
+}) {
+	const form = useForm<RegistrationFormInput>({
+		defaultValues: {
+			household: {
+				address_line1: '1 Test St',
+				city: 'Perth Amboy',
+				state: 'NJ',
+				zip: '08861',
+			},
+			guardians: [
+				{
+					first_name: 'Alex',
+					last_name: 'Rivera',
+					mobile_phone: '5551234567',
+					relationship: 'Parent',
+					is_primary: true,
+				},
+			],
+			emergencyContact: {
+				first_name: 'Sam',
+				last_name: 'Lee',
+				mobile_phone: '5559876543',
+				relationship: 'Aunt',
+			},
+			children: [
+				{
+					...defaultChildValues,
+					first_name: 'Jordan',
+					ministrySelections: initialSelections,
+				},
+			],
+			consents: {
+				liability: false,
+				photoRelease: false,
+				group_consents: {},
+				custom_consents: {},
+			},
+		},
+	});
+
+	const watchedValues = form.watch();
+	const canProceed =
+		findDuplicateCustomQuestionConflictsForChildren(
+			watchedValues.children ?? [],
+			COLLIDING_MINISTRIES
+		).length === 0;
+
+	return (
+		<Form {...form}>
+			<form>
+				<label>
+					<input
+						type="checkbox"
+						checked={Boolean(watchedValues.children[0]?.ministrySelections?.choir)}
+						onChange={(event) =>
+							form.setValue(
+								'children.0.ministrySelections.choir',
+								event.target.checked,
+								{ shouldDirty: true }
+							)
+						}
+					/>
+					Choir
+				</label>
+				<label>
+					<input
+						type="checkbox"
+						checked={Boolean(
+							watchedValues.children[0]?.ministrySelections?.orators
+						)}
+						onChange={(event) =>
+							form.setValue(
+								'children.0.ministrySelections.orators',
+								event.target.checked,
+								{ shouldDirty: true }
+							)
+						}
+					/>
+					Orators
+				</label>
+				<Button type="button" disabled={!canProceed}>
+					Save & continue
+				</Button>
+			</form>
+		</Form>
+	);
+}
+
+describe('Step 4 duplicate custom-question advance guard', () => {
+	it('keeps Save & continue disabled until the collision is cleared', async () => {
+		const user = userEvent.setup();
+		render(
+			<Step4AdvanceHarness
+				initialSelections={{ choir: true, orators: true }}
+			/>
+		);
+
+		const cta = screen.getByRole('button', { name: /save & continue/i });
+		expect(cta).toBeDisabled();
+
+		await user.click(screen.getByLabelText('Orators'));
+
+		await waitFor(() => {
+			expect(cta).toBeEnabled();
+		});
 	});
 });

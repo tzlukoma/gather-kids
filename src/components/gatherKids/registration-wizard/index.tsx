@@ -31,6 +31,7 @@ import type {
 	ConditionalConsentContext,
 	RegistrationFormInput,
 } from './registration-schema';
+import { findDuplicateCustomQuestionConflictsForChildren } from './steps/step4-ministries';
 import { useDraftPersistence } from '@/hooks/useDraftPersistence';
 import { useFeatureFlags } from '@/contexts/feature-flag-context';
 import { useAuth } from '@/contexts/auth-context';
@@ -187,6 +188,19 @@ export default function RegisterWizard() {
 
 	const totalSteps = STEPS.length;
 
+	// Subscribe so Step 4 Save & continue re-disables when ministry selections collide.
+	const watchedValues = form.watch();
+
+	const ministriesForCustomQuestionCheck = useMemo(() => {
+		const byCode = new Map(
+			[...allMinistries, ...choirMinistries].map((ministry) => [
+				ministry.code,
+				ministry,
+			])
+		);
+		return [...byCode.values()];
+	}, [allMinistries, choirMinistries]);
+
 	useEffect(() => {
 		if (authLoading) return;
 		if (isOfflineSupabase()) return;
@@ -330,7 +344,7 @@ export default function RegisterWizard() {
 	}, [form, screen, flags.registrationDraftPersistenceEnabled, saveDraft]);
 
 	const canProceed = () => {
-		const values = form.getValues();
+		const values = watchedValues;
 		switch (currentStep) {
 			case 1:
 				return Boolean(
@@ -353,7 +367,12 @@ export default function RegisterWizard() {
 			case 3:
 				return values.children.length > 0;
 			case 4:
-				return true;
+				return (
+					findDuplicateCustomQuestionConflictsForChildren(
+						values.children ?? [],
+						ministriesForCustomQuestionCheck
+					).length === 0
+				);
 			case 5:
 				return true;
 			default:
@@ -401,6 +420,21 @@ export default function RegisterWizard() {
 				title: 'Registration unavailable',
 				description:
 					'No active registration cycle is configured. Please try again later.',
+				variant: 'destructive',
+			});
+			return;
+		}
+
+		const duplicateCustomQuestions =
+			findDuplicateCustomQuestionConflictsForChildren(
+				data.children ?? [],
+				ministriesForCustomQuestionCheck
+			);
+		if (duplicateCustomQuestions.length > 0) {
+			toast({
+				title: 'Cannot submit registration',
+				description:
+					'Selected ministries share custom-question ids that cannot be stored separately. Deselect one of the conflicting programs before continuing.',
 				variant: 'destructive',
 			});
 			return;

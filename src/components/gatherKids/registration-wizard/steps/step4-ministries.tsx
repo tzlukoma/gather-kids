@@ -167,8 +167,13 @@ export function customQuestionFieldName(childIndex: number, questionId: string) 
  * ministries share the same question id, both controls bind to one RHF value.
  * Detect that collision so the UI can block clearly without changing the model.
  */
+export type MinistryQuestionSource = Pick<
+	Ministry,
+	'code' | 'name' | 'custom_questions'
+>;
+
 export function findDuplicateCustomQuestionIds(
-	ministries: Array<Pick<Ministry, 'code' | 'name' | 'custom_questions'>>
+	ministries: MinistryQuestionSource[]
 ): Array<{ questionId: string; ministryLabels: string[] }> {
 	const owners = new Map<string, string[]>();
 
@@ -186,6 +191,45 @@ export function findDuplicateCustomQuestionIds(
 	return [...owners.entries()]
 		.filter(([, ministryLabels]) => ministryLabels.length > 1)
 		.map(([questionId, ministryLabels]) => ({ questionId, ministryLabels }));
+}
+
+type ChildMinistrySelections = {
+	ministrySelections?: Record<string, boolean | undefined> | null;
+	interestSelections?: Record<string, boolean | undefined> | null;
+};
+
+/**
+ * Per-child collisions across selected enrollment/interest ministries.
+ * Used by Step 4 UI and RegisterWizard `canProceed` so Save & continue stays blocked.
+ */
+export function findDuplicateCustomQuestionConflictsForChildren(
+	children: ChildMinistrySelections[],
+	ministries: MinistryQuestionSource[]
+): Array<{ questionId: string; ministryLabels: string[] }> {
+	const byCode = new Map(ministries.map((ministry) => [ministry.code, ministry]));
+	const byId = new Map<string, string[]>();
+
+	for (const child of children) {
+		const selected: MinistryQuestionSource[] = [];
+		for (const [code, on] of Object.entries(child.ministrySelections ?? {})) {
+			if (on && byCode.has(code)) {
+				selected.push(byCode.get(code)!);
+			}
+		}
+		for (const [code, on] of Object.entries(child.interestSelections ?? {})) {
+			if (on && byCode.has(code)) {
+				selected.push(byCode.get(code)!);
+			}
+		}
+		for (const dup of findDuplicateCustomQuestionIds(selected)) {
+			byId.set(dup.questionId, dup.ministryLabels);
+		}
+	}
+
+	return [...byId.entries()].map(([questionId, ministryLabels]) => ({
+		questionId,
+		ministryLabels,
+	}));
 }
 
 export function MinistryCustomQuestionField({
@@ -467,51 +511,20 @@ export function Step4Ministries({ form }: Step4MinistriesProps) {
 		return map;
 	}, [enrolledMinistries, interestMinistries, choirMinistriesData]);
 
-	/** Question ids that collide across ministries selected for the same child. */
-	const conflictingQuestionIds = useMemo(() => {
-		const conflicts = new Set<string>();
-		for (const child of childrenData ?? []) {
-			const selected: Ministry[] = [];
-			for (const [code, on] of Object.entries(child.ministrySelections ?? {})) {
-				if (on && ministriesByCode.has(code)) {
-					selected.push(ministriesByCode.get(code)!);
-				}
-			}
-			for (const [code, on] of Object.entries(child.interestSelections ?? {})) {
-				if (on && ministriesByCode.has(code)) {
-					selected.push(ministriesByCode.get(code)!);
-				}
-			}
-			for (const dup of findDuplicateCustomQuestionIds(selected)) {
-				conflicts.add(dup.questionId);
-			}
-		}
-		return conflicts;
-	}, [childrenData, ministriesByCode]);
+	const duplicateQuestionConflicts = useMemo(
+		() =>
+			findDuplicateCustomQuestionConflictsForChildren(
+				childrenData ?? [],
+				[...ministriesByCode.values()]
+			),
+		[childrenData, ministriesByCode]
+	);
 
-	const duplicateQuestionConflicts = useMemo(() => {
-		const byId = new Map<string, string[]>();
-		for (const child of childrenData ?? []) {
-			const selected: Ministry[] = [];
-			for (const [code, on] of Object.entries(child.ministrySelections ?? {})) {
-				if (on && ministriesByCode.has(code)) {
-					selected.push(ministriesByCode.get(code)!);
-				}
-			}
-			for (const [code, on] of Object.entries(child.interestSelections ?? {})) {
-				if (on && ministriesByCode.has(code)) {
-					selected.push(ministriesByCode.get(code)!);
-				}
-			}
-			for (const dup of findDuplicateCustomQuestionIds(selected)) {
-				byId.set(dup.questionId, dup.ministryLabels);
-			}
-		}
-		return [...byId.entries()].map(([questionId, ministryLabels]) => ({
-			questionId,
-			ministryLabels,
-		}));
-	}, [childrenData, ministriesByCode]);
+	/** Question ids that collide across ministries selected for the same child. */
+	const conflictingQuestionIds = useMemo(
+		() => new Set(duplicateQuestionConflicts.map((dup) => dup.questionId)),
+		[duplicateQuestionConflicts]
+	);
 
 	// Choir programs for grouped rendering with robust deduplication
 	// Handles near-duplicates like "Keita Praise choir (Ages 9-12)" vs "Keita Praise choir (ages 9-12)"
