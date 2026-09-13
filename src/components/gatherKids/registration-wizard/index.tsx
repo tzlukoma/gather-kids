@@ -20,6 +20,7 @@ import { RegistrationDone } from './registration-done';
 import {
 	buildConditionalConsentContext,
 	pruneStaleConsents,
+	resolveChoirMinistriesForConsentContext,
 } from './consent-context';
 import {
 	defaultConditionalConsentContext,
@@ -121,10 +122,15 @@ export default function RegisterWizard() {
 		staleTime: 15 * 60 * 1000,
 	});
 
-	const { data: choirMinistries } = useQuery({
+	const { data: choirMinistries, isPending: choirMinistriesPending } = useQuery({
 		queryKey: ['ministriesByGroup', 'choirs'],
 		queryFn: () => getMinistriesByGroupCode('choirs'),
 		staleTime: 10 * 60 * 1000,
+	});
+
+	const choirMinistriesForConsent = resolveChoirMinistriesForConsentContext({
+		data: choirMinistries,
+		isPending: choirMinistriesPending,
 	});
 
 	const consentContext = useMemo(
@@ -132,10 +138,9 @@ export default function RegisterWizard() {
 			buildConditionalConsentContext({
 				allMinistries,
 				ministryGroups,
-				// undefined while loading — do not treat empty default as misconfig
-				choirMinistries,
+				choirMinistries: choirMinistriesForConsent,
 			}),
-		[allMinistries, ministryGroups, choirMinistries]
+		[allMinistries, ministryGroups, choirMinistriesForConsent]
 	);
 
 	// Draft persistence

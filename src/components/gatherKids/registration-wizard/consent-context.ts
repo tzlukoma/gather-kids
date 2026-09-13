@@ -76,13 +76,27 @@ export function getSelectedCustomConsentMinistries(
 	);
 }
 
+/**
+ * Pass choir ministries into consent context:
+ * - `undefined` while the query is still pending (do not warn yet)
+ * - settled empty/`[]` after success-with-empty OR error (warn if group requires consent)
+ */
+export function resolveChoirMinistriesForConsentContext(query: {
+	data: Ministry[] | undefined;
+	isPending: boolean;
+}): Ministry[] | undefined {
+	if (query.isPending) return undefined;
+	return query.data ?? [];
+}
+
 export function buildConditionalConsentContext(params: {
 	allMinistries: Ministry[];
 	ministryGroups: MinistryGroup[];
 	/**
 	 * Choir ministries from `getMinistriesByGroupCode('choirs')`.
 	 * Pass `undefined` while the query is still in flight so React Query's
-	 * empty default is not treated as a misconfiguration.
+	 * empty default is not treated as a misconfiguration. After settlement
+	 * (including query error), pass `[]` or the resolved list.
 	 */
 	choirMinistries: Ministry[] | undefined;
 }): ConditionalConsentContext {

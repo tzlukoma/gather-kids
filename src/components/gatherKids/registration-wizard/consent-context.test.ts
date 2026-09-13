@@ -4,6 +4,7 @@ import {
 	childHasChoirSelection,
 	pruneStaleConsents,
 	resetMisconfiguredConsentWarningsForTests,
+	resolveChoirMinistriesForConsentContext,
 	shouldShowChoirGroupConsent,
 } from './consent-context';
 import { childHasChoirEnrollment } from './registration-schema';
@@ -176,6 +177,44 @@ describe('consent-context', () => {
 		});
 
 		expect(captureMessage).not.toHaveBeenCalled();
+	});
+
+	it('resolveChoirMinistriesForConsentContext keeps pending undefined and errors as []', () => {
+		expect(
+			resolveChoirMinistriesForConsentContext({
+				data: undefined,
+				isPending: true,
+			})
+		).toBeUndefined();
+
+		expect(
+			resolveChoirMinistriesForConsentContext({
+				data: undefined,
+				isPending: false,
+			})
+		).toEqual([]);
+
+		expect(
+			resolveChoirMinistriesForConsentContext({
+				data: [teenChoir],
+				isPending: false,
+			})
+		).toEqual([teenChoir]);
+	});
+
+	it('warns when a settled choir query error normalizes to empty ministries', () => {
+		const settledAfterError = resolveChoirMinistriesForConsentContext({
+			data: undefined,
+			isPending: false,
+		});
+
+		buildConditionalConsentContext({
+			allMinistries: [orators],
+			ministryGroups: [choirsGroup],
+			choirMinistries: settledAfterError,
+		});
+
+		expect(captureMessage).toHaveBeenCalledTimes(1);
 	});
 
 	it('does not show choir consent when the choirs group is not configured', () => {
