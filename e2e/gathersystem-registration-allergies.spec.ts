@@ -1,4 +1,4 @@
-import { test, expect, devices, type Page } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 import { generateUniqueEmail, TEST_PASSWORD } from './utils/data';
 import {
   createConfirmedTestUser,
@@ -164,7 +164,9 @@ async function finishMinistriesAndSubmit(page: Page) {
 }
 
 gathersystemDescribe('GatherSystem registration allergies @mobile @mutating', () => {
-  test.use({ ...devices['iPhone 13'] });
+  // Context-safe mobile viewport only — full iPhone 13 device descriptors include
+  // defaultBrowserType, which Playwright forbids inside a nested describe.
+  test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
 
   let createdUserId: string | undefined;
 
