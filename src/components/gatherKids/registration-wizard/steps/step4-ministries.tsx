@@ -29,9 +29,16 @@ interface MinistryCardProps {
 	form: UseFormReturn<RegistrationFormInput>;
 	selectionType: 'enrollment' | 'interest';
 	childrenData: any[];
+	conflictingQuestionIds: Set<string>;
 }
 
-function MinistryCard({ ministry, form, selectionType, childrenData }: MinistryCardProps) {
+function MinistryCard({
+	ministry,
+	form,
+	selectionType,
+	childrenData,
+	conflictingQuestionIds,
+}: MinistryCardProps) {
 	const fieldPrefix =
 		selectionType === 'enrollment' ? 'ministrySelections' : 'interestSelections';
 
@@ -114,6 +121,7 @@ function MinistryCard({ ministry, form, selectionType, childrenData }: MinistryC
 						form={form}
 						childrenData={childrenData}
 						fieldPrefix={fieldPrefix}
+						conflictingQuestionIds={conflictingQuestionIds}
 					/>
 				)}
 			</div>
@@ -126,11 +134,13 @@ function ChildMinistryCustomQuestions({
 	form,
 	childrenData,
 	fieldPrefix,
+	conflictingQuestionIds,
 }: {
 	ministry: Ministry;
 	form: UseFormReturn<RegistrationFormInput>;
 	childrenData: any[];
 	fieldPrefix: string;
+	conflictingQuestionIds: Set<string>;
 }) {
 	return (
 		<>
@@ -141,6 +151,7 @@ function ChildMinistryCustomQuestions({
 					form={form}
 					childIndex={childIndex}
 					fieldPrefix={fieldPrefix}
+					conflictingQuestionIds={conflictingQuestionIds}
 				/>
 			))}
 		</>
@@ -149,6 +160,32 @@ function ChildMinistryCustomQuestions({
 
 export function customQuestionFieldName(childIndex: number, questionId: string) {
 	return `children.${childIndex}.customData.${questionId}` as const;
+}
+
+/**
+ * Flat `customData` is keyed by question id (DAL contract). When two selected
+ * ministries share the same question id, both controls bind to one RHF value.
+ * Detect that collision so the UI can block clearly without changing the model.
+ */
+export function findDuplicateCustomQuestionIds(
+	ministries: Array<Pick<Ministry, 'code' | 'name' | 'custom_questions'>>
+): Array<{ questionId: string; ministryLabels: string[] }> {
+	const owners = new Map<string, string[]>();
+
+	for (const ministry of ministries) {
+		const label = ministry.name || ministry.code;
+		for (const question of ministry.custom_questions ?? []) {
+			const id = question.id?.trim();
+			if (!id) continue;
+			const existing = owners.get(id) ?? [];
+			existing.push(label);
+			owners.set(id, existing);
+		}
+	}
+
+	return [...owners.entries()]
+		.filter(([, ministryLabels]) => ministryLabels.length > 1)
+		.map(([questionId, ministryLabels]) => ({ questionId, ministryLabels }));
 }
 
 export function MinistryCustomQuestionField({
@@ -263,11 +300,13 @@ function ChildMinistryCheckbox({
 	form,
 	childIndex,
 	fieldPrefix,
+	conflictingQuestionIds,
 }: {
 	ministry: Ministry;
 	form: UseFormReturn<RegistrationFormInput>;
 	childIndex: number;
 	fieldPrefix: string;
+	conflictingQuestionIds: Set<string>;
 }) {
 	const isSelected = useWatch({
 		control: form.control,
@@ -278,19 +317,32 @@ function ChildMinistryCheckbox({
 		return null;
 	}
 
+	const childName =
+		form.watch(`children.${childIndex}.first_name` as any) || `Child ${childIndex + 1}`;
+
 	return (
 		<div className="mt-4 p-3 border border-[#e0dacf] rounded-lg bg-[#fafaf8] space-y-3">
 			<p className="text-sm font-semibold text-[#1e2a2f]">
-				Additional information for {form.watch(`children.${childIndex}.first_name` as any)}
+				Additional information for {childName}
 			</p>
-			{ministry.custom_questions.map((question) => (
-				<MinistryCustomQuestionField
-					key={question.id}
-					question={question}
-					form={form}
-					childIndex={childIndex}
-				/>
-			))}
+			{ministry.custom_questions.map((question) =>
+				conflictingQuestionIds.has(question.id) ? (
+					<Alert key={question.id} variant="destructive">
+						<AlertDescription>
+							Question &quot;{question.text}&quot; (id: {question.id}) is configured on
+							multiple selected ministries. Contact the ministry office — registration
+							cannot store separate answers for the same question id.
+						</AlertDescription>
+					</Alert>
+				) : (
+					<MinistryCustomQuestionField
+						key={question.id}
+						question={question}
+						form={form}
+						childIndex={childIndex}
+					/>
+				)
+			)}
 		</div>
 	);
 }
@@ -402,6 +454,64 @@ export function Step4Ministries({ form }: Step4MinistriesProps) {
 			})
 			.sort((a, b) => a.name.localeCompare(b.name));
 	}, [allMinistries, isChoir]);
+
+	const ministriesByCode = useMemo(() => {
+		const map = new Map<string, Ministry>();
+		for (const ministry of [
+			...enrolledMinistries,
+			...interestMinistries,
+			...choirMinistriesData,
+		]) {
+			map.set(ministry.code, ministry);
+		}
+		return map;
+	}, [enrolledMinistries, interestMinistries, choirMinistriesData]);
+
+	/** Question ids that collide across ministries selected for the same child. */
+	const conflictingQuestionIds = useMemo(() => {
+		const conflicts = new Set<string>();
+		for (const child of childrenData ?? []) {
+			const selected: Ministry[] = [];
+			for (const [code, on] of Object.entries(child.ministrySelections ?? {})) {
+				if (on && ministriesByCode.has(code)) {
+					selected.push(ministriesByCode.get(code)!);
+				}
+			}
+			for (const [code, on] of Object.entries(child.interestSelections ?? {})) {
+				if (on && ministriesByCode.has(code)) {
+					selected.push(ministriesByCode.get(code)!);
+				}
+			}
+			for (const dup of findDuplicateCustomQuestionIds(selected)) {
+				conflicts.add(dup.questionId);
+			}
+		}
+		return conflicts;
+	}, [childrenData, ministriesByCode]);
+
+	const duplicateQuestionConflicts = useMemo(() => {
+		const byId = new Map<string, string[]>();
+		for (const child of childrenData ?? []) {
+			const selected: Ministry[] = [];
+			for (const [code, on] of Object.entries(child.ministrySelections ?? {})) {
+				if (on && ministriesByCode.has(code)) {
+					selected.push(ministriesByCode.get(code)!);
+				}
+			}
+			for (const [code, on] of Object.entries(child.interestSelections ?? {})) {
+				if (on && ministriesByCode.has(code)) {
+					selected.push(ministriesByCode.get(code)!);
+				}
+			}
+			for (const dup of findDuplicateCustomQuestionIds(selected)) {
+				byId.set(dup.questionId, dup.ministryLabels);
+			}
+		}
+		return [...byId.entries()].map(([questionId, ministryLabels]) => ({
+			questionId,
+			ministryLabels,
+		}));
+	}, [childrenData, ministriesByCode]);
 
 	// Choir programs for grouped rendering with robust deduplication
 	// Handles near-duplicates like "Keita Praise choir (Ages 9-12)" vs "Keita Praise choir (ages 9-12)"
@@ -531,6 +641,23 @@ export function Step4Ministries({ form }: Step4MinistriesProps) {
 				</AlertDescription>
 			</Alert>
 
+			{duplicateQuestionConflicts.length > 0 && (
+				<Alert variant="destructive">
+					<AlertDescription className="text-sm">
+						Selected ministries share the same custom question id
+						{duplicateQuestionConflicts.length === 1 ? '' : 's'} (
+						{duplicateQuestionConflicts
+							.map(
+								(c) =>
+									`${c.questionId} on ${c.ministryLabels.join(' and ')}`
+							)
+							.join('; ')}
+						). Deselect one ministry or ask the ministry office to use unique question
+						ids — answers cannot be stored separately for duplicate ids.
+					</AlertDescription>
+				</Alert>
+			)}
+
 			{(enrolledMinistries.length > 0 || choirPrograms.length > 0) && (
 				<Card>
 					<CardHeader>
@@ -575,6 +702,7 @@ export function Step4Ministries({ form }: Step4MinistriesProps) {
 								form={form}
 								selectionType="enrollment"
 								childrenData={childrenData}
+								conflictingQuestionIds={conflictingQuestionIds}
 							/>
 						))}
 
@@ -672,6 +800,7 @@ export function Step4Ministries({ form }: Step4MinistriesProps) {
 								form={form}
 								selectionType="interest"
 								childrenData={childrenData}
+								conflictingQuestionIds={conflictingQuestionIds}
 							/>
 						))}
 					</CardContent>

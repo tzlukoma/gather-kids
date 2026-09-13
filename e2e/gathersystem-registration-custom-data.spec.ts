@@ -22,14 +22,27 @@ function isLocalSupabaseConfigured() {
   return Boolean(key) && /localhost|127\.0\.0\.1/.test(url);
 }
 
+/**
+ * Flag-on GatherSystem E2E requires:
+ * - GATHERSYSTEM_REGISTRATION_E2E=1 (unskip these tests)
+ * - GATHERSYSTEM_REGISTRATION_OVERRIDE=true on the Next.js process
+ *
+ * Prefer `npm run test:e2e:gathersystem`, which sets both and starts Playwright's
+ * webServer with the override (remote PostHog flags stay off in local/dev).
+ * When only E2E=1 is set, e2e.config.ts still injects OVERRIDE into webServer.env.
+ */
 function gathersystemDescribe(title: string, fn: () => void) {
   test.describe(title, () => {
     test.skip(
       process.env.GATHERSYSTEM_REGISTRATION_E2E !== '1',
-      'Set GATHERSYSTEM_REGISTRATION_E2E=1 with gathersystem_registration enabled for the test user',
+      'Set GATHERSYSTEM_REGISTRATION_E2E=1 (prefer: npm run test:e2e:gathersystem)',
     );
     fn();
   });
+}
+
+async function continueToNextStep(page: Page) {
+  await page.getByRole('button', { name: /save & continue/i }).click();
 }
 
 async function startWizardRegistration(page: Page) {
@@ -45,27 +58,52 @@ async function startWizardRegistration(page: Page) {
   });
 }
 
-async function fillWizardThroughChildStep(page: Page) {
+async function fillWizardHousehold(page: Page) {
   await page.getByRole('textbox', { name: /street address|address line 1/i }).first().fill('100 Custom Data St');
   await page.getByRole('textbox', { name: /^city$/i }).fill('Perth Amboy');
   await page.getByRole('textbox', { name: /^state$/i }).fill('NJ');
   await page.getByRole('textbox', { name: /zip/i }).fill('08861');
+  await continueToNextStep(page);
+}
+
+async function fillWizardGuardians(page: Page) {
+  // Step 2 shows guardian summary cards; open Edit to reach fields + relationship Select.
+  await expect(page.getByText(/who can collect the children/i)).toBeVisible({
+    timeout: 15000,
+  });
+
+  await page.getByRole('button', { name: /^edit$/i }).first().click();
 
   await page.locator('input[name="guardians.0.first_name"]').fill('Alex');
   await page.locator('input[name="guardians.0.last_name"]').fill('Custom');
   await page.locator('input[name="guardians.0.mobile_phone"]').fill('5551234567');
-  await page.locator('input[name="guardians.0.relationship"]').fill('Parent');
+
+  await page.getByRole('combobox').filter({ hasText: /mother|father|select relationship/i }).first().click();
+  await page.getByRole('option', { name: 'Mother' }).click();
+
+  await page.getByRole('button', { name: /^done$/i }).click();
 
   await page.locator('input[name="emergencyContact.first_name"]').fill('Sam');
   await page.locator('input[name="emergencyContact.last_name"]').fill('Lee');
   await page.locator('input[name="emergencyContact.relationship"]').fill('Aunt');
   await page.locator('input[name="emergencyContact.mobile_phone"]').fill('5559876543');
 
-  await page.getByRole('button', { name: /save & continue/i }).click();
+  await continueToNextStep(page);
+}
 
-  const addChild = page.getByRole('button', { name: /add child/i });
-  if (await addChild.count()) {
-    await addChild.click();
+async function fillWizardChild(page: Page) {
+  await expect(page.getByText(/tell us about your children/i)).toBeVisible({
+    timeout: 15000,
+  });
+
+  const addFirst = page.getByRole('button', { name: /add your first child/i });
+  if (await addFirst.count()) {
+    await addFirst.click();
+  } else {
+    const addChild = page.getByRole('button', { name: /add (another )?child/i });
+    if (await addChild.count()) {
+      await addChild.first().click();
+    }
   }
 
   await page.locator('input[name="children.0.first_name"]').fill('Jordan');
@@ -73,12 +111,20 @@ async function fillWizardThroughChildStep(page: Page) {
   await page.locator('input[name="children.0.dob"]').fill('2015-05-15');
 
   const grade = page.getByRole('combobox', { name: /grade/i }).first();
-  if (await grade.count()) {
-    await grade.click();
-    await page.getByRole('option').first().click();
-  }
+  await grade.click();
+  await page.getByRole('option').first().click();
 
-  await page.getByRole('button', { name: /save & continue/i }).click();
+  await continueToNextStep(page);
+}
+
+/** Advance through household → guardians → children so Step 4 (ministries) is active. */
+async function fillWizardThroughChildStep(page: Page) {
+  await fillWizardHousehold(page);
+  await fillWizardGuardians(page);
+  await fillWizardChild(page);
+  await expect(page.getByText(/ministry programs|expressed interest/i).first()).toBeVisible({
+    timeout: 15000,
+  });
 }
 
 async function seedCustomQuestionMinistry() {
@@ -170,12 +216,12 @@ gathersystemDescribe('GatherSystem registration custom data @mutating', () => {
     await expect(customField).toBeVisible({ timeout: 15000 });
     await customField.fill(CUSTOM_ANSWER);
 
-    await page.getByRole('button', { name: /save & continue/i }).click();
-    await page.getByRole('button', { name: /back/i }).click();
+    await continueToNextStep(page);
+    await page.getByRole('button', { name: /^back$/i }).click();
 
     await expect(customField).toHaveValue(CUSTOM_ANSWER);
 
-    await page.getByRole('button', { name: /save & continue/i }).click();
+    await continueToNextStep(page);
 
     const liability = page.getByRole('checkbox', { name: /liability release/i });
     const photo = page.getByRole('checkbox', { name: /photo release/i });
@@ -183,7 +229,7 @@ gathersystemDescribe('GatherSystem registration custom data @mutating', () => {
     if (!(await photo.isChecked())) await photo.check();
 
     await page.getByRole('button', { name: /submit registration/i }).click();
-    await expect(page.getByText(/registration complete|thank you/i)).toBeVisible({
+    await expect(page.getByText(/you.?re registered!/i)).toBeVisible({
       timeout: 30000,
     });
 

@@ -43,6 +43,14 @@ export default defineConfig({
     timeout: 90_000,
     // In CI we always start a fresh server; locally reuse existing to speed up dev
     reuseExistingServer: !process.env.CI,
+    env: {
+      ...process.env,
+      // When GatherSystem E2E is requested, force the local override on the
+      // Next.js process. Remote PostHog flags stay off in local/dev.
+      ...(process.env.GATHERSYSTEM_REGISTRATION_E2E === '1'
+        ? { GATHERSYSTEM_REGISTRATION_OVERRIDE: 'true' }
+        : {}),
+    },
   },
   // Global setup for seeding if needed
   // globalSetup: './e2e/utils/global-setup.ts',

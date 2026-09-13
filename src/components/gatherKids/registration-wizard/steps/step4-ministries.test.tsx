@@ -8,6 +8,7 @@ import { defaultChildValues } from '../registration-schema';
 import {
 	MinistryCustomQuestionField,
 	customQuestionFieldName,
+	findDuplicateCustomQuestionIds,
 } from './step4-ministries';
 import type { CustomQuestion } from '@/lib/types';
 
@@ -80,6 +81,47 @@ describe('step4 custom question field paths', () => {
 		expect(customQuestionFieldName(1, 'experience-notes')).toBe(
 			'children.1.customData.experience-notes'
 		);
+	});
+
+	it('detects duplicate question ids across ministries', () => {
+		const dups = findDuplicateCustomQuestionIds([
+			{
+				code: 'choir',
+				name: 'Choir',
+				custom_questions: [{ id: 'experience-notes', text: 'A', type: 'text' }],
+			},
+			{
+				code: 'orators',
+				name: 'Orators',
+				custom_questions: [
+					{ id: 'experience-notes', text: 'B', type: 'text' },
+					{ id: 'shirt-size', text: 'Size', type: 'text' },
+				],
+			},
+		]);
+		expect(dups).toEqual([
+			{
+				questionId: 'experience-notes',
+				ministryLabels: ['Choir', 'Orators'],
+			},
+		]);
+	});
+
+	it('returns no duplicates when question ids are unique', () => {
+		expect(
+			findDuplicateCustomQuestionIds([
+				{
+					code: 'a',
+					name: 'A',
+					custom_questions: [{ id: 'q1', text: 'One', type: 'text' }],
+				},
+				{
+					code: 'b',
+					name: 'B',
+					custom_questions: [{ id: 'q2', text: 'Two', type: 'text' }],
+				},
+			])
+		).toEqual([]);
 	});
 
 	it('writes text answers to children[n].customData[questionId]', async () => {
