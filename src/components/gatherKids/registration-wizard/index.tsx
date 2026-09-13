@@ -349,7 +349,12 @@ export default function RegisterWizard() {
 					values.emergencyContact.relationship
 				);
 			case 3:
-				return values.children.length > 0;
+				return (
+					values.children.length > 0 &&
+					values.children.every(
+						(child) => (child.allergies ?? '').trim().length > 0
+					)
+				);
 			case 4:
 				return true;
 			case 5:

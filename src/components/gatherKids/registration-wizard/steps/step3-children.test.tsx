@@ -211,6 +211,48 @@ describe('Step3Children allergies', () => {
 		expect(screen.queryByLabelText('Allergy details')).not.toBeInTheDocument();
 	});
 
+	it('does not reuse allergy details-open UI state after removing a child', async () => {
+		const user = userEvent.setup();
+		renderStep3(
+			buildDefaultValues({
+				children: [
+					{
+						...defaultChildValues,
+						first_name: 'Jordan',
+						last_name: 'Rivera',
+						dob: '2015-05-15',
+						grade: '3rd',
+						allergies: NO_KNOWN_ALLERGIES,
+					},
+					{
+						...defaultChildValues,
+						first_name: 'Casey',
+						last_name: 'Rivera',
+						dob: '2017-08-20',
+						grade: '1st',
+						allergies: '',
+					},
+				],
+			})
+		);
+
+		await user.click(screen.getByRole('button', { name: /^Next$/i }));
+		await waitFor(() => {
+			expect(screen.getByText(/Tell us about Casey/i)).toBeInTheDocument();
+		});
+
+		await user.click(screen.getByRole('radio', { name: /this child has allergies/i }));
+		expect(await screen.findByLabelText('Allergy details')).toBeInTheDocument();
+
+		await user.click(screen.getByRole('button', { name: /Remove Casey/i }));
+		await waitFor(() => {
+			expect(screen.getByText(/Tell us about Jordan/i)).toBeInTheDocument();
+		});
+
+		expect(screen.getByRole('radio', { name: /no known allergies/i })).toBeChecked();
+		expect(screen.queryByLabelText('Allergy details')).not.toBeInTheDocument();
+	});
+
 	it('exposes accessible allergy labels and check-in helper copy', () => {
 		renderStep3(buildDefaultValues());
 

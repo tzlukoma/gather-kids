@@ -418,8 +418,18 @@ export function Step3Children({ form }: Step3ChildrenProps) {
 					variant="outline"
 					size="sm"
 					onClick={() => {
-						removeChild(currentChildIndex);
-						setCurrentChildIndex(Math.max(0, currentChildIndex - 1));
+						const removedIndex = currentChildIndex;
+						removeChild(removedIndex);
+						setAllergyDetailsOpenByIndex((prev) => {
+							const next: Record<number, boolean> = {};
+							for (const [key, open] of Object.entries(prev)) {
+								const index = Number(key);
+								if (Number.isNaN(index) || index === removedIndex) continue;
+								next[index > removedIndex ? index - 1 : index] = open;
+							}
+							return next;
+						});
+						setCurrentChildIndex(Math.max(0, removedIndex - 1));
 					}}
 					className="w-full text-destructive hover:text-destructive">
 					Remove {currentChild.first_name || 'this child'}
