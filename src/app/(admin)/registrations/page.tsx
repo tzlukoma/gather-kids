@@ -28,7 +28,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Combobox } from '@/components/ui/combobox';
 import { useHouseholdList } from '@/hooks/data';
 import { useMinistries } from '@/hooks/data/ministries';
-import type { Household, Child, Ministry } from '@/lib/types';
+import type { Child } from '@/lib/types';
+import type { HouseholdListItem } from '@/lib/dal';
 
 export default function RegistrationsPage() {
 	const router = useRouter();
@@ -145,6 +146,23 @@ export default function RegistrationsPage() {
 
 	const handleRowClick = (householdId: string) => {
 		router.push(`/registrations/${householdId}`);
+	};
+
+	const formatRegistrationDate = (value: string | null) => {
+		if (!value) return null;
+		return format(new Date(value), 'PPP');
+	};
+
+	const renderLatestRegistration = (household: HouseholdListItem) => {
+		const formatted = formatRegistrationDate(
+			household.latest_registration_submitted_at
+		);
+		if (!formatted) {
+			return (
+				<span className="text-muted-foreground">No registration submitted</span>
+			);
+		}
+		return formatted;
 	};
 
 	const loading = ministriesLoading || householdsLoading;
@@ -287,7 +305,8 @@ export default function RegistrationsPage() {
 						<TableHeader>
 							<TableRow>
 								<TableHead>Household Name</TableHead>
-								<TableHead>Registration Date</TableHead>
+								<TableHead>Latest registration</TableHead>
+								<TableHead>Original registration</TableHead>
 								<TableHead>Children</TableHead>
 								<TableHead className="w-[50px]"></TableHead>
 							</TableRow>
@@ -302,7 +321,12 @@ export default function RegistrationsPage() {
 										{household.name}
 									</TableCell>
 									<TableCell>
-										{format(new Date(household.created_at), 'PPP')}
+										{renderLatestRegistration(household)}
+									</TableCell>
+									<TableCell>
+										{formatRegistrationDate(
+											household.original_registration_submitted_at
+										) ?? '—'}
 									</TableCell>
 									<TableCell>
 										{(household.children || []).map((c, idx) => (
@@ -319,7 +343,7 @@ export default function RegistrationsPage() {
 							))}
 							{filteredHouseholds.length === 0 && (
 								<TableRow>
-									<TableCell colSpan={4}>
+									<TableCell colSpan={5}>
 										<EmptyState
 											className="py-6"
 											icon={Home}
