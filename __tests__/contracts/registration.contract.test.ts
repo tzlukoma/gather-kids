@@ -1,5 +1,9 @@
 import { z } from 'zod';
-import { registerHouseholdCanonical } from '@/lib/database/canonical-dal';
+import {
+  buildRegistrationConsentRecords,
+  registerHouseholdCanonical,
+  testCanonicalConversion,
+} from '@/lib/database/canonical-dal';
 import { getHouseholdProfile } from '@/lib/dal';
 import * as CanonicalDtos from '@/lib/database/canonical-dtos';
 
@@ -85,6 +89,110 @@ describe('DAL Contract Tests - Registration/Household', () => {
         // Expected to fail in test environment, but validates the function signature
         expect(error).toBeDefined();
       }
+    });
+
+    test('buildRegistrationConsentRecords persists group and ministry consents', () => {
+      const acceptedAt = '2026-09-13T00:00:00.000Z';
+      const records = buildRegistrationConsentRecords({
+        liability: true,
+        photo_release: true,
+        group_consents: { choirs: 'yes' },
+        custom_consents: { orators: true },
+        signer_id: 'guardian-1',
+        signer_name: 'Alex Rivera',
+        accepted_at: acceptedAt,
+      });
+
+      expect(records).toHaveLength(4);
+      expect(records[0].type).toBe('liability');
+      expect(records[1].type).toBe('photo_release');
+      expect(records[2]).toMatchObject({
+        type: 'custom',
+        text: 'group_consent:choirs:yes',
+        accepted_at: acceptedAt,
+      });
+      expect(records[3]).toMatchObject({
+        type: 'custom',
+        text: 'ministry_consent:orators',
+        accepted_at: acceptedAt,
+      });
+    });
+
+    test('buildRegistrationConsentRecords stores declined group consents with null accepted_at', () => {
+      const acceptedAt = '2026-09-13T00:00:00.000Z';
+      const records = buildRegistrationConsentRecords({
+        liability: true,
+        photo_release: false,
+        group_consents: { choirs: 'no' },
+        custom_consents: {},
+        signer_id: 'guardian-1',
+        signer_name: 'Alex Rivera',
+        accepted_at: acceptedAt,
+      });
+
+      expect(records).toHaveLength(3);
+      expect(records[1]).toMatchObject({
+        type: 'photo_release',
+        accepted_at: null,
+      });
+      expect(records[2]).toMatchObject({
+        type: 'custom',
+        text: 'group_consent:choirs:no',
+        accepted_at: null,
+      });
+    });
+
+    test('wizard consent payload preserves group_consents and custom_consents casing', () => {
+      const wizardPayload = {
+        household: {
+          name: 'Test Household',
+          address_line1: '123 Test St',
+          city: 'Test City',
+          state: 'TS',
+          zip: '12345',
+          preferredScriptureTranslation: 'NIV',
+        },
+        guardians: [{
+          first_name: 'John',
+          last_name: 'Doe',
+          mobile_phone: '555-123-4567',
+          email: 'john@example.com',
+          relationship: 'Father',
+          is_primary: true,
+        }],
+        emergencyContact: {
+          first_name: 'Jane',
+          last_name: 'Smith',
+          mobile_phone: '555-987-6543',
+          relationship: 'Aunt',
+        },
+        children: [{
+          first_name: 'Child',
+          last_name: 'Doe',
+          dob: '2015-05-15',
+          grade: '3rd',
+          ministrySelections: { 'teen-choir': true },
+          interestSelections: { orators: true },
+        }],
+        consents: {
+          liability: true,
+          photoRelease: true,
+          group_consents: { choirs: 'yes' },
+          custom_consents: { orators: true },
+        },
+      };
+
+      expect(Object.keys(wizardPayload.consents)).toEqual(
+        expect.arrayContaining([
+          'liability',
+          'photoRelease',
+          'group_consents',
+          'custom_consents',
+        ])
+      );
+      expect(wizardPayload.consents.group_consents?.choirs).toBe('yes');
+      expect(wizardPayload.consents.custom_consents?.orators).toBe(true);
+      expect(testCanonicalConversion(wizardPayload)).toBe(true);
     });
 
     test('registration form validates required canonical fields', () => {

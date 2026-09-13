@@ -172,8 +172,9 @@ describe('register page server wrapper', () => {
 	});
 
 	it('ignores GATHERSYSTEM_REGISTRATION_OVERRIDE in production', async () => {
-		const previousNodeEnv = process.env.NODE_ENV;
-		process.env.NODE_ENV = 'production';
+		const env = process.env as Record<string, string | undefined>;
+		const previousNodeEnv = env.NODE_ENV;
+		env.NODE_ENV = 'production';
 		process.env.GATHERSYSTEM_REGISTRATION_OVERRIDE = 'true';
 		mockGetBoolean.mockResolvedValue(false);
 		mockSupabaseUser({ id: 'user-abc' });
@@ -184,7 +185,7 @@ describe('register page server wrapper', () => {
 		expect(screen.getByTestId('register-legacy')).toBeInTheDocument();
 		expect(isWizardFlagOverrideEnabled()).toBe(false);
 
-		process.env.NODE_ENV = previousNodeEnv;
+		env.NODE_ENV = previousNodeEnv;
 	});
 
 	it('detects dummy Supabase URLs as offline', () => {

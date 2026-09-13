@@ -30,8 +30,7 @@ describe('Magic Link API redirectTo', () => {
 
 	beforeEach(() => {
 		jest.clearAllMocks();
-		process.env = { ...originalEnv };
-		process.env.NODE_ENV = 'test';
+		process.env = { ...originalEnv, NODE_ENV: 'test' };
 		process.env.NEXT_PUBLIC_LOGIN_MAGIC_ENABLED = 'true';
 		process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://dummy.supabase.co';
 		process.env.SMTP_HOST = 'localhost';

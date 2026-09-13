@@ -34,6 +34,56 @@ function toArrayRecords(value: unknown): Array<Record<string, unknown>> {
   return [];
 }
 
+/** Interim write-only encoding for conditional consents (no downstream reader yet). */
+export function buildRegistrationConsentRecords(params: {
+  liability: boolean;
+  photo_release: boolean;
+  group_consents?: Record<string, string>;
+  custom_consents?: Record<string, boolean>;
+  signer_id: string;
+  signer_name: string;
+  accepted_at: string;
+}): CanonicalDtos.Consent[] {
+  const records: CanonicalDtos.Consent[] = [
+    {
+      type: 'liability',
+      accepted_at: params.liability ? params.accepted_at : null,
+      signer_id: params.signer_id,
+      signer_name: params.signer_name,
+    },
+    {
+      type: 'photo_release',
+      accepted_at: params.photo_release ? params.accepted_at : null,
+      signer_id: params.signer_id,
+      signer_name: params.signer_name,
+    },
+  ];
+
+  for (const [groupCode, answer] of Object.entries(params.group_consents ?? {})) {
+    if (answer !== 'yes' && answer !== 'no') continue;
+    records.push({
+      type: 'custom',
+      text: `group_consent:${groupCode}:${answer}`,
+      accepted_at: answer === 'yes' ? params.accepted_at : null,
+      signer_id: params.signer_id,
+      signer_name: params.signer_name,
+    });
+  }
+
+  for (const [ministryCode, accepted] of Object.entries(params.custom_consents ?? {})) {
+    if (!accepted) continue;
+    records.push({
+      type: 'custom',
+      text: `ministry_consent:${ministryCode}`,
+      accepted_at: params.accepted_at,
+      signer_id: params.signer_id,
+      signer_name: params.signer_name,
+    });
+  }
+
+  return records;
+}
+
 function convertFormDataToCanonical(data: Record<string, unknown>): {
   household: CanonicalDtos.HouseholdWrite;
   guardians: CanonicalDtos.GuardianWrite[];
@@ -272,25 +322,22 @@ export async function registerHouseholdCanonical(data: Record<string, unknown>, 
 
         // Create registration using canonical format
         const primaryGuardian = createdGuardians[0];
+        const consentRecords = buildRegistrationConsentRecords({
+          liability: canonicalData.consents[0].liability,
+          photo_release: canonicalData.consents[0].photo_release,
+          group_consents: canonicalData.consents[0].group_consents,
+          custom_consents: canonicalData.consents[0].custom_consents,
+          signer_id: primaryGuardian.guardian_id,
+          signer_name: `${primaryGuardian.first_name} ${primaryGuardian.last_name}`,
+          accepted_at: now,
+        });
+
         const registrationData = CanonicalDtos.RegistrationWriteDto.parse({
           child_id: childId,
           cycle_id: cycle_id,
           status: 'active',
           pre_registered_sunday_school: true,
-          consents: [
-            { 
-              type: 'liability' as const, 
-              accepted_at: canonicalData.consents[0].liability ? now : null, 
-              signer_id: primaryGuardian.guardian_id, 
-              signer_name: `${primaryGuardian.first_name} ${primaryGuardian.last_name}` 
-            },
-            { 
-              type: 'photo_release' as const, // Canonical snake_case
-              accepted_at: canonicalData.consents[0].photo_release ? now : null, 
-              signer_id: primaryGuardian.guardian_id, 
-              signer_name: `${primaryGuardian.first_name} ${primaryGuardian.last_name}` 
-            }
-          ],
+          consents: consentRecords,
           submitted_via: 'web',
           submitted_at: now, // Set submitted_at in canonical format
         });
