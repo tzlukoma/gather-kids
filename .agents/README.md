@@ -15,6 +15,7 @@ Claude’s Playwright runner remains at [`.claude/skills/e2e/SKILL.md`](../.clau
 | Skill | Use when |
 |-------|----------|
 | [implement-ticket](skills/implement-ticket/SKILL.md) | Taking a GitHub issue to a draft PR |
+| [git-worktree](skills/git-worktree/SKILL.md) | Creating a worktree for new work, or removing it after merge |
 | [verify-change](skills/verify-change/SKILL.md) | Choosing and reporting verification |
 | [database-migration-safety](skills/database-migration-safety/SKILL.md) | Schema, SQL, or generated types |
 | [pr-evidence](skills/pr-evidence/SKILL.md) | Draft PR handoff |

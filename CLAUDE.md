@@ -8,6 +8,7 @@ Procedures live in [`.agents/skills/`](.agents/skills/). Do not copy or override
 
 - Playwright setup for this machine/worktree: [`.claude/skills/e2e/SKILL.md`](.claude/skills/e2e/SKILL.md)
 - Bash allow/ask lists: [`.claude/settings.json`](.claude/settings.json)
+- New work goes in a git worktree. If Claude already created one under `.claude/worktrees/`, use it. Remove it after that PR merges. Procedure: [`.agents/skills/git-worktree/SKILL.md`](.agents/skills/git-worktree/SKILL.md).
 
 `gh pr create` is an ask permission. Creating a **draft** PR is required by the contract; merging is forbidden even if eventually allowed.
 

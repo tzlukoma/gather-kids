@@ -76,6 +76,9 @@ prod-backup-*.dump
 # PostHog CLI wizard cache (local only)
 .posthog-wizard-cache/
 
+# Agent git worktrees (local checkouts; never commit)
+.worktrees/
+
 # Claude local settings (personal overrides, not for team)
 .claude/settings.local.json
 .claude/worktrees/**/.claude/settings.local.json
