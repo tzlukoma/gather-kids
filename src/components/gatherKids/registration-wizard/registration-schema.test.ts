@@ -116,6 +116,39 @@ describe('registrationSchema allergies', () => {
 		}
 	});
 
+	it('preserves surrounding whitespace on allergy details (no trim mutation)', () => {
+		const details = '  Peanut allergy — EpiPen  ';
+		const result = registrationSchema.safeParse(
+			buildValidPayload({
+				children: [
+					{
+						...buildValidPayload().children[0],
+						allergies: details,
+					},
+				],
+			})
+		);
+
+		expect(result.success).toBe(true);
+		if (result.success) {
+			expect(result.data.children[0].allergies).toBe(details);
+		}
+	});
+
+	it('rejects whitespace-only allergy values', () => {
+		const result = registrationSchema.safeParse(
+			buildValidPayload({
+				children: [
+					{
+						...buildValidPayload().children[0],
+						allergies: '   ',
+					},
+				],
+			})
+		);
+		expect(result.success).toBe(false);
+	});
+
 	it('requires an independent allergy answer for every child', () => {
 		const result = registrationSchema.safeParse(
 			buildValidPayload({

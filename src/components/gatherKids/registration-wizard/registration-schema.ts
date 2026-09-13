@@ -36,8 +36,9 @@ const childSchema = z.object({
 	child_mobile: z.string().optional(),
 	allergies: z
 		.string({ required_error: allergyRequiredMessage })
-		.trim()
-		.min(1, allergyRequiredMessage),
+		.refine((value) => value.trim().length > 0, {
+			message: allergyRequiredMessage,
+		}),
 	medical_notes: z.string().optional(),
 	special_needs: z.boolean().optional(),
 	special_needs_notes: z.string().optional(),

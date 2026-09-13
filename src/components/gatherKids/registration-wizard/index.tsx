@@ -186,6 +186,9 @@ export default function RegisterWizard() {
 
 	const totalSteps = STEPS.length;
 
+	// Subscribe so Save & continue re-enables when Step 3 allergies change.
+	const watchedValues = form.watch();
+
 	useEffect(() => {
 		if (authLoading) return;
 		if (isOfflineSupabase()) return;
@@ -328,7 +331,7 @@ export default function RegisterWizard() {
 	}, [form, screen, flags.registrationDraftPersistenceEnabled, saveDraft]);
 
 	const canProceed = () => {
-		const values = form.getValues();
+		const values = watchedValues;
 		switch (currentStep) {
 			case 1:
 				return Boolean(
