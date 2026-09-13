@@ -4,6 +4,7 @@ import {
   createConfirmedTestUser,
   createCurrentCycleGuardianFixture,
   createReturningGuardianFixture,
+  createE2EAdminClient,
   deleteTestUser,
   ensureRegistrationSmokeFixtures,
 } from './utils/seed';
@@ -12,24 +13,62 @@ import {
   waitForPostLoginRoute,
 } from './utils/r1-helpers';
 
+const LOCAL_HOSTNAMES = new Set(['localhost', '127.0.0.1', '::1']);
+
+/**
+ * Exact-local hostname only — never trust CI env alone or substring matches.
+ * A misconfigured CI URL must not reach service-role seed/mutation helpers.
+ */
+function isDisposableLocalSupabaseUrl(url: string): boolean {
+  if (!url) return false;
+  try {
+    const hostname = new URL(url).hostname.toLowerCase();
+    const normalized =
+      hostname.startsWith('[') && hostname.endsWith(']')
+        ? hostname.slice(1, -1)
+        : hostname;
+    return LOCAL_HOSTNAMES.has(normalized);
+  } catch {
+    return false;
+  }
+}
+
+function assertDisposableLocalSupabase(): void {
+  const url = process.env.SUPABASE_URL || '';
+  const key = process.env.SUPABASE_SERVICE_ROLE || '';
+  if (!key || !isDisposableLocalSupabaseUrl(url)) {
+    throw new Error(
+      `GatherSystem prefill E2E refuses non-disposable Supabase URL (exact localhost/127.0.0.1/::1 required): ${url || '(missing)'}`,
+    );
+  }
+}
+
 function isLocalSupabaseConfigured() {
   const url = process.env.SUPABASE_URL || '';
   const key = process.env.SUPABASE_SERVICE_ROLE || '';
-  return Boolean(key) && /localhost|127\.0\.0\.1/.test(url);
+  return Boolean(key) && isDisposableLocalSupabaseUrl(url);
 }
 
+/**
+ * Prefer: `npm run test:e2e:gathersystem` which sets E2E=1 + OVERRIDE=true and
+ * injects OVERRIDE into Playwright webServer (remote PostHog flags stay off locally).
+ */
 function gathersystemDescribe(title: string, fn: () => void) {
   test.describe(title, () => {
     test.skip(
       process.env.GATHERSYSTEM_REGISTRATION_E2E !== '1',
-      'Set GATHERSYSTEM_REGISTRATION_E2E=1 with gathersystem_registration enabled for the test user',
+      'Set GATHERSYSTEM_REGISTRATION_E2E=1 (prefer: npm run test:e2e:gathersystem)',
     );
     test.skip(
-      !process.env.CI && !isLocalSupabaseConfigured(),
-      'Requires local Supabase credentials in .env.e2e.local',
+      !isLocalSupabaseConfigured(),
+      'Requires disposable local Supabase (exact localhost/127.0.0.1) in .env.e2e.local',
     );
     fn();
   });
+}
+
+async function continueToNextStep(page: Page) {
+  await page.getByRole('button', { name: /save & continue/i }).click();
 }
 
 async function openRegistrationEntry(page: Page) {
@@ -40,13 +79,29 @@ async function openRegistrationEntry(page: Page) {
   });
 }
 
+async function advancePrefillWizardToConsents(page: Page) {
+  // Step 1 (household prefilled) → 2 → 3 → 4 → 5
+  await continueToNextStep(page);
+  await expect(page.getByText(/who can collect the children/i)).toBeVisible({
+    timeout: 15000,
+  });
+  await continueToNextStep(page);
+  await expect(page.getByText(/tell us about/i).first()).toBeVisible({
+    timeout: 15000,
+  });
+  await continueToNextStep(page);
+  await expect(page.getByText(/ministry programs|sunday school/i).first()).toBeVisible({
+    timeout: 15000,
+  });
+  await continueToNextStep(page);
+}
+
 gathersystemDescribe('GatherSystem registration prefill states @mobile', () => {
   let createdUserId: string | undefined;
 
   test.beforeAll(async () => {
-    if (isLocalSupabaseConfigured()) {
-      await ensureRegistrationSmokeFixtures();
-    }
+    assertDisposableLocalSupabase();
+    await ensureRegistrationSmokeFixtures();
   });
 
   test.afterEach(async () => {
@@ -61,6 +116,7 @@ gathersystemDescribe('GatherSystem registration prefill states @mobile', () => {
     context,
   }) => {
     test.slow();
+    assertDisposableLocalSupabase();
     const email = generateUniqueEmail('gs-first');
     const user = await createConfirmedTestUser(email, TEST_PASSWORD);
     createdUserId = user.id;
@@ -86,6 +142,7 @@ gathersystemDescribe('GatherSystem registration prefill states @mobile', () => {
     context,
   }) => {
     test.slow();
+    assertDisposableLocalSupabase();
     const email = generateUniqueEmail('gs-prior');
     const fixture = await createReturningGuardianFixture(email, TEST_PASSWORD);
     createdUserId = fixture.user.id;
@@ -108,14 +165,16 @@ gathersystemDescribe('GatherSystem registration prefill states @mobile', () => {
     await expect(page.getByTestId('step1-overwrite-warning')).toHaveCount(0);
   });
 
-  test('current-cycle update shows overwrite warning before submit', async ({
+  test('current-cycle update shows overwrite warning before submit and preserves ids', async ({
     page,
     context,
   }) => {
     test.slow();
+    assertDisposableLocalSupabase();
     const email = generateUniqueEmail('gs-current');
     const fixture = await createCurrentCycleGuardianFixture(email, TEST_PASSWORD);
     createdUserId = fixture.user.id;
+    const { householdId, childId } = fixture;
 
     await context.clearCookies();
     await loginWithPassword(page, email, TEST_PASSWORD);
@@ -137,5 +196,39 @@ gathersystemDescribe('GatherSystem registration prefill states @mobile', () => {
     await expect(page.getByTestId('step1-overwrite-warning')).toBeVisible();
     await expect(page.getByTestId('step1-overwrite-warning')).toContainText(/overwrite/i);
     await expect(page.getByTestId('step1-on-file-notice')).toBeVisible();
+
+    await advancePrefillWizardToConsents(page);
+
+    await expect(page.getByTestId('step5-overwrite-warning')).toBeVisible({
+      timeout: 15000,
+    });
+    await expect(page.getByTestId('step5-overwrite-warning')).toContainText(/overwrite/i);
+
+    const liability = page.getByRole('checkbox', { name: /liability release/i });
+    const photo = page.getByRole('checkbox', { name: /photo release/i });
+    if (!(await liability.isChecked())) await liability.check();
+    if (!(await photo.isChecked())) await photo.check();
+
+    await page.getByRole('button', { name: /submit registration/i }).click();
+    await expect(page.getByText(/you.?re registered!/i)).toBeVisible({
+      timeout: 30000,
+    });
+
+    const supabase = createE2EAdminClient();
+    const { data: households, error: householdError } = await supabase
+      .from('households')
+      .select('household_id')
+      .eq('email', email);
+    expect(householdError).toBeNull();
+    expect(households).toHaveLength(1);
+    expect(households![0].household_id).toBe(householdId);
+
+    const { data: children, error: childError } = await supabase
+      .from('children')
+      .select('child_id, household_id')
+      .eq('household_id', householdId);
+    expect(childError).toBeNull();
+    expect(children?.some((c) => c.child_id === childId)).toBe(true);
+    expect(children?.every((c) => c.household_id === householdId)).toBe(true);
   });
 });
