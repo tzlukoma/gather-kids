@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import {
+  buildRegistrationConsentRecords,
   registerHouseholdCanonical,
   testCanonicalConversion,
 } from '@/lib/database/canonical-dal';
@@ -88,6 +89,30 @@ describe('DAL Contract Tests - Registration/Household', () => {
         // Expected to fail in test environment, but validates the function signature
         expect(error).toBeDefined();
       }
+    });
+
+    test('buildRegistrationConsentRecords persists group and ministry consents', () => {
+      const records = buildRegistrationConsentRecords({
+        liability: true,
+        photo_release: true,
+        group_consents: { choirs: 'yes' },
+        custom_consents: { orators: true },
+        signer_id: 'guardian-1',
+        signer_name: 'Alex Rivera',
+        accepted_at: '2026-09-13T00:00:00.000Z',
+      });
+
+      expect(records).toHaveLength(4);
+      expect(records[0].type).toBe('liability');
+      expect(records[1].type).toBe('photo_release');
+      expect(records[2]).toMatchObject({
+        type: 'custom',
+        text: 'group_consent:choirs:yes',
+      });
+      expect(records[3]).toMatchObject({
+        type: 'custom',
+        text: 'ministry_consent:orators',
+      });
     });
 
     test('wizard consent payload preserves group_consents and custom_consents casing', () => {

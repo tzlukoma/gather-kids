@@ -15,6 +15,11 @@ import {
 import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { getMinistries, getMinistriesByGroupCode, getMinistryGroups } from '@/lib/dal';
+import {
+	getGroupsRequiringConsent,
+	getSelectedCustomConsentMinistries,
+	shouldShowChoirGroupConsent,
+} from '../consent-context';
 import type { RegistrationFormInput } from '../registration-schema';
 
 interface Step5ConsentsProps {
@@ -26,7 +31,7 @@ const CHOIR_GROUP_CONSENT_TEXT =
 	'Cathedral International youth choirs communicate using the Planning Center app. By clicking yes, you agree to be added into the app, which will enable you to download the app, receive emails and push communications.';
 
 export function Step5Consents({ form }: Step5ConsentsProps) {
-	const children = useWatch({ control: form.control, name: 'children' });
+	const children = useWatch({ control: form.control, name: 'children' }) ?? [];
 
 	const { data: ministryGroups = [] } = useQuery({
 		queryKey: ['ministryGroups'],
@@ -47,42 +52,24 @@ export function Step5Consents({ form }: Step5ConsentsProps) {
 	});
 
 	const groupsRequiringConsent = useMemo(
-		() =>
-			ministryGroups.filter(
-				(group) => group.custom_consent_required && group.custom_consent_text
-			),
+		() => getGroupsRequiringConsent(ministryGroups),
 		[ministryGroups]
 	);
 
-	const choirCodes = useMemo(
-		() => new Set(choirMinistries.map((ministry) => ministry.code)),
-		[choirMinistries]
-	);
-
-	const hasChoirSelection = useMemo(
+	const showChoirGroupConsent = useMemo(
 		() =>
-			children?.some((child) =>
-				Object.entries(child.ministrySelections ?? {}).some(
-					([code, selected]) => selected && choirCodes.has(code)
-				)
-			) ?? false,
-		[children, choirCodes]
+			shouldShowChoirGroupConsent({
+				children,
+				ministryGroups,
+				choirMinistries,
+			}),
+		[children, ministryGroups, choirMinistries]
 	);
 
 	const choirsGroup = groupsRequiringConsent.find((group) => group.code === 'choirs');
-	const showChoirGroupConsent = Boolean(choirsGroup && hasChoirSelection);
 
 	const ministriesWithOptionalConsent = useMemo(
-		() =>
-			allMinistries
-				.filter(
-					(ministry) =>
-						ministry.enrollment_type === 'expressed_interest' &&
-						ministry.optional_consent_text
-				)
-				.filter((ministry) =>
-					children?.some((child) => child.interestSelections?.[ministry.code])
-				),
+		() => getSelectedCustomConsentMinistries(children, allMinistries),
 		[allMinistries, children]
 	);
 
@@ -219,7 +206,7 @@ export function Step5Consents({ form }: Step5ConsentsProps) {
 
 				{ministriesWithOptionalConsent.map((ministry) => (
 					<FormField
-						key={ministry.code}
+						key={ministry.ministry_id}
 						control={form.control}
 						name={`consents.custom_consents.${ministry.code}`}
 						render={({ field }) => (

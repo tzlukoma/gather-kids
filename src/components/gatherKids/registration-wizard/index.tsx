@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -17,16 +17,27 @@ import { Step5Consents } from './steps/step5-consents';
 import { RegistrationEntry } from './registration-entry';
 import { RegistrationDone } from './registration-done';
 import {
-	childHasChoirEnrollment,
-	registrationSchema,
+	buildConditionalConsentContext,
+	pruneStaleConsents,
+} from './consent-context';
+import {
+	defaultConditionalConsentContext,
+	registrationFormBaseSchema,
+	validateConditionalConsents,
 } from './registration-schema';
-import type { RegistrationFormInput } from './registration-schema';
+import type {
+	ConditionalConsentContext,
+	RegistrationFormInput,
+} from './registration-schema';
 import { useDraftPersistence } from '@/hooks/useDraftPersistence';
 import { useFeatureFlags } from '@/contexts/feature-flag-context';
 import { useAuth } from '@/contexts/auth-context';
 import { useToast } from '@/hooks/use-toast';
 import { useQuery } from '@tanstack/react-query';
 import {
+	getMinistries,
+	getMinistriesByGroupCode,
+	getMinistryGroups,
 	getRegistrationCycles,
 	registerHouseholdCanonical,
 } from '@/lib/dal';
@@ -55,6 +66,14 @@ const STEPS = [
 
 type WizardScreen = 'entry' | 'wizard' | 'done';
 
+const consentContextRef = { current: defaultConditionalConsentContext };
+
+const registrationSchemaWithLiveContext = registrationFormBaseSchema.superRefine(
+	(data, ctx) => {
+		validateConditionalConsents(data, ctx, consentContextRef.current);
+	}
+);
+
 export default function RegisterWizard() {
 	const router = useRouter();
 	const { toast } = useToast();
@@ -76,6 +95,37 @@ export default function RegisterWizard() {
 
 	const activeRegistrationCycle = pickActiveRegistrationCycle(registrationCycles);
 
+	const { data: ministryGroups = [] } = useQuery({
+		queryKey: ['ministryGroups'],
+		queryFn: getMinistryGroups,
+		staleTime: 10 * 60 * 1000,
+	});
+
+	const { data: allMinistries = [] } = useQuery({
+		queryKey: ['ministries', 'active'],
+		queryFn: () => getMinistries(true),
+		staleTime: 15 * 60 * 1000,
+	});
+
+	const { data: choirMinistries = [] } = useQuery({
+		queryKey: ['ministriesByGroup', 'choirs'],
+		queryFn: () => getMinistriesByGroupCode('choirs'),
+		staleTime: 10 * 60 * 1000,
+	});
+
+	const consentContext = useMemo(
+		(): ConditionalConsentContext =>
+			buildConditionalConsentContext({
+				allMinistries,
+				ministryGroups,
+				choirMinistries,
+			}),
+		[allMinistries, ministryGroups, choirMinistries]
+	);
+
+	const consentContextSyncRef = useRef(consentContext);
+	consentContextSyncRef.current = consentContext;
+
 	// Draft persistence
 	const { loadDraft, saveDraft, clearDraft, draftStatus } =
 		useDraftPersistence<RegistrationFormInput>({
@@ -86,7 +136,7 @@ export default function RegisterWizard() {
 		});
 
 	const form = useForm<RegistrationFormInput>({
-		resolver: zodResolver(registrationSchema),
+		resolver: zodResolver(registrationSchemaWithLiveContext),
 		defaultValues: {
 			household: {
 				name: '',
@@ -191,47 +241,46 @@ export default function RegisterWizard() {
 		[form, loadDraft, toast, user?.email]
 	);
 
-	// Drop obsolete conditional consents when ministry selections change
+	useEffect(() => {
+		consentContextRef.current = consentContextSyncRef.current;
+		void form.trigger('consents');
+	}, [consentContext, form]);
+
+	// Drop obsolete conditional consents when children or ministry selections change
 	useEffect(() => {
 		if (screen !== 'wizard') return;
 
 		const subscription = form.watch((_values, { name }) => {
 			if (
 				!name ||
-				(!name.includes('ministrySelections') && !name.includes('interestSelections'))
+				(name !== 'children' &&
+					!name.includes('ministrySelections') &&
+					!name.includes('interestSelections'))
 			) {
 				return;
 			}
 
 			const values = form.getValues();
-			const customConsents = { ...(values.consents.custom_consents ?? {}) };
-			let customConsentsChanged = false;
+			const pruned = pruneStaleConsents(
+				values.consents,
+				values,
+				consentContextSyncRef.current
+			);
 
-			if (!values.children.some((child) => child.interestSelections?.orators)) {
-				if ('orators' in customConsents) {
-					delete customConsents.orators;
-					customConsentsChanged = true;
-				}
-			}
-
-			const groupConsents = { ...(values.consents.group_consents ?? {}) };
-			let groupConsentsChanged = false;
-
-			if (!childHasChoirEnrollment(values.children)) {
-				if ('choirs' in groupConsents) {
-					delete groupConsents.choirs;
-					groupConsentsChanged = true;
-				}
-			}
-
-			if (customConsentsChanged) {
-				form.setValue('consents.custom_consents', customConsents, {
+			if (
+				JSON.stringify(pruned.custom_consents) !==
+				JSON.stringify(values.consents.custom_consents)
+			) {
+				form.setValue('consents.custom_consents', pruned.custom_consents, {
 					shouldValidate: true,
 				});
 			}
 
-			if (groupConsentsChanged) {
-				form.setValue('consents.group_consents', groupConsents, {
+			if (
+				JSON.stringify(pruned.group_consents) !==
+				JSON.stringify(values.consents.group_consents)
+			) {
+				form.setValue('consents.group_consents', pruned.group_consents, {
 					shouldValidate: true,
 				});
 			}
@@ -339,9 +388,12 @@ export default function RegisterWizard() {
 		setIsSubmitting(true);
 
 		try {
+			const prunedConsents = pruneStaleConsents(data.consents, data, consentContext);
+
 			// Clean phone numbers
 			const cleanedData = {
 				...data,
+				consents: prunedConsents,
 				guardians: data.guardians.map((guardian) => ({
 					...guardian,
 					mobile_phone: cleanPhone(guardian.mobile_phone),

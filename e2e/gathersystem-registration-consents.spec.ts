@@ -12,6 +12,7 @@ import {
 } from './utils/r1-helpers';
 
 const E2E_ORATORS_ID = 'e2e_orators';
+const E2E_ORATORS_CODE = 'e2e-orators';
 const E2E_TEEN_CHOIR_ID = 'e2e_teen_choir';
 const E2E_CHOIRS_GROUP_ID = 'e2e_choirs_group';
 
@@ -39,12 +40,13 @@ async function assertGatherSystemWizard(page: Page) {
 
 async function startWizardRegistration(page: Page) {
   await page.goto('/register');
-  await assertGatherSystemWizard(page);
 
   const startButton = page.getByRole('button', { name: /start registration|continue/i });
   if (await startButton.count()) {
     await startButton.first().click();
   }
+
+  await assertGatherSystemWizard(page);
 }
 
 async function fillWizardHouseholdAndGuardians(page: Page) {
@@ -96,7 +98,7 @@ async function acceptBaseConsents(page: Page) {
 async function seedConsentMinistries() {
   const supabase = createE2EAdminClient();
 
-  await supabase.from('ministry_groups').upsert(
+  const { error: groupError } = await supabase.from('ministry_groups').upsert(
     {
       id: E2E_CHOIRS_GROUP_ID,
       code: 'choirs',
@@ -107,8 +109,9 @@ async function seedConsentMinistries() {
     },
     { onConflict: 'id' },
   );
+  expect(groupError).toBeNull();
 
-  await supabase.from('ministries').upsert(
+  const { error: ministriesError } = await supabase.from('ministries').upsert(
     [
       {
         ministry_id: E2E_TEEN_CHOIR_ID,
@@ -121,7 +124,7 @@ async function seedConsentMinistries() {
       {
         ministry_id: E2E_ORATORS_ID,
         name: 'E2E New Jersey Orators',
-        code: 'orators',
+        code: E2E_ORATORS_CODE,
         enrollment_type: 'expressed_interest',
         data_profile: 'Basic',
         is_active: true,
@@ -130,14 +133,24 @@ async function seedConsentMinistries() {
     ],
     { onConflict: 'ministry_id' },
   );
+  expect(ministriesError).toBeNull();
 
-  await supabase.from('ministry_group_members').upsert(
+  const { error: memberError } = await supabase.from('ministry_group_members').upsert(
     {
       group_id: E2E_CHOIRS_GROUP_ID,
       ministry_id: E2E_TEEN_CHOIR_ID,
     },
     { onConflict: 'group_id,ministry_id' },
   );
+  expect(memberError).toBeNull();
+}
+
+async function cleanupConsentMinistries() {
+  const supabase = createE2EAdminClient();
+  await supabase.from('ministry_group_members').delete().eq('ministry_id', E2E_TEEN_CHOIR_ID);
+  await supabase.from('ministries').delete().eq('ministry_id', E2E_ORATORS_ID);
+  await supabase.from('ministries').delete().eq('ministry_id', E2E_TEEN_CHOIR_ID);
+  await supabase.from('ministry_groups').delete().eq('id', E2E_CHOIRS_GROUP_ID);
 }
 
 gathersystemDescribe('GatherSystem registration consents @mutating', () => {
@@ -147,6 +160,11 @@ gathersystemDescribe('GatherSystem registration consents @mutating', () => {
     if (!isLocalSupabaseConfigured()) return;
     await ensureRegistrationSmokeFixtures();
     await seedConsentMinistries();
+  });
+
+  test.afterAll(async () => {
+    if (!isLocalSupabaseConfigured()) return;
+    await cleanupConsentMinistries();
   });
 
   test.afterEach(async () => {
@@ -198,10 +216,9 @@ gathersystemDescribe('GatherSystem registration consents @mutating', () => {
     await addWizardChild(page);
     await continueToNextStep(page);
 
-    const oratorsCheckbox = page.getByRole('checkbox', { name: /orators/i }).first();
-    if (await oratorsCheckbox.count()) {
-      await oratorsCheckbox.check();
-    }
+    const oratorsCheckbox = page.getByRole('checkbox', { name: /e2e new jersey orators|orators/i }).first();
+    await expect(oratorsCheckbox).toBeVisible();
+    await oratorsCheckbox.check();
 
     await continueToNextStep(page);
     await acceptBaseConsents(page);
@@ -210,14 +227,13 @@ gathersystemDescribe('GatherSystem registration consents @mutating', () => {
     await expect(submit).toBeDisabled();
 
     const oratorsConsent = page.getByRole('checkbox', {
-      name: /new jersey orators consent|e2e new jersey orators consent/i,
+      name: /e2e new jersey orators consent/i,
     });
-    if (await oratorsConsent.count()) {
-      await oratorsConsent.check();
-      await expect(submit).toBeEnabled();
-      await submit.click();
-      await expect(page.getByText(/submission error/i)).toHaveCount(0);
-    }
+    await expect(oratorsConsent).toBeVisible();
+    await oratorsConsent.check();
+    await expect(submit).toBeEnabled();
+    await submit.click();
+    await expect(page.getByText(/submission error/i)).toHaveCount(0);
   });
 
   test('choir group consent survives Back/Next @desktop', async ({ page }) => {
@@ -233,23 +249,19 @@ gathersystemDescribe('GatherSystem registration consents @mutating', () => {
     await continueToNextStep(page);
 
     const choirCheckbox = page.getByRole('checkbox', { name: /e2e teen choir|teen choir/i }).first();
-    if (await choirCheckbox.count()) {
-      await choirCheckbox.check();
-    }
+    await expect(choirCheckbox).toBeVisible();
+    await choirCheckbox.check();
 
     await continueToNextStep(page);
 
     const choirNo = page.getByRole('radio', { name: 'No', exact: true });
-    if (await choirNo.count()) {
-      await choirNo.click();
-    }
+    await expect(choirNo).toBeVisible();
+    await choirNo.click();
 
     await page.getByRole('button', { name: /^back$/i }).click();
     await continueToNextStep(page);
 
-    if (await choirNo.count()) {
-      await expect(choirNo).toBeChecked();
-    }
+    await expect(choirNo).toBeChecked();
   });
 });
 
@@ -267,13 +279,10 @@ test.describe('GatherSystem registration consents mobile viewport', () => {
       await page.context().clearCookies();
       await loginWithPassword(page, email, TEST_PASSWORD);
       await waitForPostLoginRoute(page);
-      await page.goto('/register');
+      await startWizardRegistration(page);
 
-      const wizardButton = page.getByRole('button', { name: /save & continue/i });
-      if (await wizardButton.count()) {
-        await expect(wizardButton).toBeVisible();
-        await expect(page.getByText(/consents/i)).toBeVisible();
-      }
+      await expect(page.getByRole('button', { name: /save & continue/i })).toBeVisible();
+      await expect(page.getByText(/consents/i)).toBeVisible();
     } finally {
       await deleteTestUser(user.id).catch(() => undefined);
     }

@@ -96,44 +96,53 @@ export function validateConditionalConsents(
 	});
 }
 
-export const registrationSchema = z
-	.object({
-		household: z.object({
-			name: z.string().optional(),
-			address_line1: z.string().min(1, 'Address is required.'),
-			address_line2: z.string().optional(),
-			city: z.string().min(1, 'City is required.'),
-			state: z.string().min(1, 'State is required.'),
-			zip: z.string().min(1, 'ZIP code is required.'),
-			household_id: z.string().optional(),
-			preferredScriptureTranslation: z.string().optional(),
+export const registrationFormBaseSchema = z.object({
+	household: z.object({
+		name: z.string().optional(),
+		address_line1: z.string().min(1, 'Address is required.'),
+		address_line2: z.string().optional(),
+		city: z.string().min(1, 'City is required.'),
+		state: z.string().min(1, 'State is required.'),
+		zip: z.string().min(1, 'ZIP code is required.'),
+		household_id: z.string().optional(),
+		preferredScriptureTranslation: z.string().optional(),
+	}),
+	guardians: z
+		.array(guardianSchema)
+		.min(1, 'At least one guardian / authorized person is required.'),
+	emergencyContact: z.object({
+		first_name: z.string().min(1, 'First name is required.'),
+		last_name: z.string().min(1, 'Last name is required.'),
+		mobile_phone: z.string().min(10, 'A valid phone number is required.'),
+		relationship: z.string().min(1, 'Relationship is required.'),
+	}),
+	children: z.array(childSchema).min(1, 'At least one child is required.'),
+	consents: z.object({
+		liability: z.boolean().refine((val) => val === true, {
+			message: 'Liability consent is required.',
 		}),
-		guardians: z
-			.array(guardianSchema)
-			.min(1, 'At least one guardian / authorized person is required.'),
-		emergencyContact: z.object({
-			first_name: z.string().min(1, 'First name is required.'),
-			last_name: z.string().min(1, 'Last name is required.'),
-			mobile_phone: z.string().min(10, 'A valid phone number is required.'),
-			relationship: z.string().min(1, 'Relationship is required.'),
+		photoRelease: z.boolean().refine((val) => val === true, {
+			message: 'Photo release consent is required.',
 		}),
-		children: z.array(childSchema).min(1, 'At least one child is required.'),
-		consents: z.object({
-			liability: z.boolean().refine((val) => val === true, {
-				message: 'Liability consent is required.',
-			}),
-			photoRelease: z.boolean().refine((val) => val === true, {
-				message: 'Photo release consent is required.',
-			}),
-			group_consents: z.record(z.enum(['yes', 'no'])).optional(),
-			custom_consents: z.record(z.boolean().optional()).optional(),
-		}),
-	})
-	.superRefine((data, ctx) => {
-		validateConditionalConsents(data, ctx);
-	});
+		group_consents: z.record(z.enum(['yes', 'no'])).optional(),
+		custom_consents: z.record(z.boolean().optional()).optional(),
+	}),
+});
 
-export type RegistrationFormInput = z.input<typeof registrationSchema>;
+export function createRegistrationSchema(
+	context: ConditionalConsentContext = defaultConditionalConsentContext
+) {
+	return registrationFormBaseSchema.superRefine((data, ctx) => {
+		validateConditionalConsents(data, ctx, context);
+	});
+}
+
+/** Stable schema for tests; uses default legacy-like context. */
+export const registrationSchema = createRegistrationSchema(
+	defaultConditionalConsentContext
+);
+
+export type RegistrationFormInput = z.input<typeof registrationFormBaseSchema>;
 export type RegistrationFormOutput = z.output<typeof registrationSchema>;
 
 export const defaultChildValues = {
