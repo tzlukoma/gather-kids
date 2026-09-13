@@ -40,7 +40,7 @@ Mentioning production in an issue does **not** authorise production operations.
 1. Put the issue in **Ready for Agent**.
 2. Set **Agent** (Cursor, Copilot, Codex, Claude, or Human) and **Risk**.
 3. Apply `agent:managed` if you want the label visible on the issue.
-4. Point the agent at the issue URL. Expected output: a **draft** PR with the evidence checklist, or one decision-ready escalation.
+4. Point the agent at the issue URL. Expected output: a **draft** PR from a dedicated git worktree, with the evidence checklist, or one decision-ready escalation. After you merge, the agent should remove that local worktree (or prune it when they start the next ticket).
 
 Do not expect merge, deploy, or a **Done** status from the agent.
 

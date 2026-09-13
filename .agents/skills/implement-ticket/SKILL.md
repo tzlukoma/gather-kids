@@ -47,13 +47,19 @@ Do not ask Thomas to make routine, reversible implementation choices.
 - No unrelated schema + auth + UI + ops mix.
 - If handwritten changes will exceed ~500 lines or the issue hides several concerns, stop and propose sub-issues.
 
-## 5. Branch and status
+## 5. Worktree, branch, and status
+
+Do not implement on the primary checkout. Create a dedicated worktree first: [git-worktree](../git-worktree/SKILL.md).
 
 ```bash
-git checkout -b <type>/<short-name> origin/main
+git fetch origin main
+mkdir -p .worktrees
+git worktree add -b <type>/<short-name> .worktrees/<short-name> origin/main
 ```
 
 `<type>` is `feat`, `fix`, `chore`, `docs`, `ci`, `refactor`, or `test`.
+
+Continue implementation, commits, and the draft PR from that worktree.
 
 When permitted:
 
@@ -92,8 +98,14 @@ After two attempts, escalate with logs, what you tried, and a recommendation. Do
 
 Continue independent work only when the pending decision cannot invalidate it. Do not guess the blocked decision. Do not post reminder comments.
 
-## 10. Never
+## 10. After the PR is merged
 
+When you learn Thomas merged the PR, remove the local worktree. Follow [git-worktree](../git-worktree/SKILL.md) section 4. When starting the next ticket, prune leftover merged worktrees first.
+
+## 11. Never
+
+- Implement or commit on the primary checkout.
 - Merge, deploy, or operate UAT/production.
 - Reset or seed shared environments unless the issue explicitly authorises that named workflow.
 - Mark the item **Done**.
+- Leave a merged worktree on disk.

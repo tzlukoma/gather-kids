@@ -4,6 +4,7 @@
 
 - **Trunk-based:** one long-lived branch, **`main`**
 - Feature work: `feature/*`, `chore/*`, `fix/*` → **PR → `main`**
+- **Agents** implement on a dedicated git worktree (`.worktrees/<slug>`), not the primary checkout. Remove that worktree after the PR merges. See [`AGENTS.md`](../AGENTS.md) and [`.agents/skills/git-worktree/SKILL.md`](../.agents/skills/git-worktree/SKILL.md).
 - **UAT** is a Supabase project + GitHub Environment + Vercel Preview — not a git branch
 
 See [`docs/CI_CD.md`](./CI_CD.md) (added during CI/CD cleanup) for deploy and release flow.
