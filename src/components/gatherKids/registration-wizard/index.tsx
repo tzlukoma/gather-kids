@@ -193,7 +193,7 @@ export default function RegisterWizard() {
 
 	const ministriesForCustomQuestionCheck = useMemo(() => {
 		const byCode = new Map(
-			[...allMinistries, ...choirMinistries].map((ministry) => [
+			[...(allMinistries ?? []), ...(choirMinistries ?? [])].map((ministry) => [
 				ministry.code,
 				ministry,
 			])
