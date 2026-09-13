@@ -99,6 +99,10 @@ cp .env.e2e.ci.example .env.e2e.ci
 # Local development (headless)
 npm run test:e2e:local
 
+# GatherSystem registration wizard (flag-on) — sets E2E=1 and
+# GATHERSYSTEM_REGISTRATION_OVERRIDE=true for Playwright's webServer
+npm run test:e2e:gathersystem
+
 # Admin User Management flow (uses offline dummy Supabase plus mocked /api/users)
 npm run test:e2e:admin
 
@@ -111,6 +115,12 @@ npm run test:e2e:ci
 # Debug mode (local)
 npm run test:e2e:debug
 ```
+
+Remote PostHog flags are disabled in local development. For GatherSystem wizard
+specs (`e2e/gathersystem-registration-*.spec.ts`), use `npm run test:e2e:gathersystem`
+so the Next.js process receives `GATHERSYSTEM_REGISTRATION_OVERRIDE=true`.
+If you already have `npm run dev` running, restart it with that override, or stop
+it so Playwright can start a fresh webServer.
 
 ### Test Execution
 

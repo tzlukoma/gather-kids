@@ -10,8 +10,9 @@ import {
 } from '@/components/ui/form';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import type { CustomQuestion } from '@/lib/types';
 import { Info, Clock, Users, CheckCircle2 } from 'lucide-react';
 import type { RegistrationFormInput } from '../registration-schema';
 import { useQuery } from '@tanstack/react-query';
@@ -28,9 +29,16 @@ interface MinistryCardProps {
 	form: UseFormReturn<RegistrationFormInput>;
 	selectionType: 'enrollment' | 'interest';
 	childrenData: any[];
+	conflictingQuestionIds: Set<string>;
 }
 
-function MinistryCard({ ministry, form, selectionType, childrenData }: MinistryCardProps) {
+function MinistryCard({
+	ministry,
+	form,
+	selectionType,
+	childrenData,
+	conflictingQuestionIds,
+}: MinistryCardProps) {
 	const fieldPrefix =
 		selectionType === 'enrollment' ? 'ministrySelections' : 'interestSelections';
 
@@ -113,6 +121,7 @@ function MinistryCard({ ministry, form, selectionType, childrenData }: MinistryC
 						form={form}
 						childrenData={childrenData}
 						fieldPrefix={fieldPrefix}
+						conflictingQuestionIds={conflictingQuestionIds}
 					/>
 				)}
 			</div>
@@ -125,11 +134,13 @@ function ChildMinistryCustomQuestions({
 	form,
 	childrenData,
 	fieldPrefix,
+	conflictingQuestionIds,
 }: {
 	ministry: Ministry;
 	form: UseFormReturn<RegistrationFormInput>;
 	childrenData: any[];
 	fieldPrefix: string;
+	conflictingQuestionIds: Set<string>;
 }) {
 	return (
 		<>
@@ -140,9 +151,191 @@ function ChildMinistryCustomQuestions({
 					form={form}
 					childIndex={childIndex}
 					fieldPrefix={fieldPrefix}
+					conflictingQuestionIds={conflictingQuestionIds}
 				/>
 			))}
 		</>
+	);
+}
+
+export function customQuestionFieldName(childIndex: number, questionId: string) {
+	return `children.${childIndex}.customData.${questionId}` as const;
+}
+
+/**
+ * Flat `customData` is keyed by question id (DAL contract). When two selected
+ * ministries share the same question id, both controls bind to one RHF value.
+ * Detect that collision so the UI can block clearly without changing the model.
+ */
+export type MinistryQuestionSource = Pick<
+	Ministry,
+	'code' | 'name' | 'custom_questions'
+>;
+
+export function findDuplicateCustomQuestionIds(
+	ministries: MinistryQuestionSource[]
+): Array<{ questionId: string; ministryLabels: string[] }> {
+	const owners = new Map<string, string[]>();
+
+	for (const ministry of ministries) {
+		const label = ministry.name || ministry.code;
+		for (const question of ministry.custom_questions ?? []) {
+			const id = question.id?.trim();
+			if (!id) continue;
+			const existing = owners.get(id) ?? [];
+			existing.push(label);
+			owners.set(id, existing);
+		}
+	}
+
+	return [...owners.entries()]
+		.filter(([, ministryLabels]) => ministryLabels.length > 1)
+		.map(([questionId, ministryLabels]) => ({ questionId, ministryLabels }));
+}
+
+type ChildMinistrySelections = {
+	ministrySelections?: Record<string, boolean | undefined> | null;
+	interestSelections?: Record<string, boolean | undefined> | null;
+};
+
+/**
+ * Per-child collisions across selected enrollment/interest ministries.
+ * Used by Step 4 UI and RegisterWizard `canProceed` so Save & continue stays blocked.
+ */
+export function findDuplicateCustomQuestionConflictsForChildren(
+	children: ChildMinistrySelections[],
+	ministries: MinistryQuestionSource[]
+): Array<{ questionId: string; ministryLabels: string[] }> {
+	const byCode = new Map(ministries.map((ministry) => [ministry.code, ministry]));
+	const byId = new Map<string, string[]>();
+
+	for (const child of children) {
+		const selected: MinistryQuestionSource[] = [];
+		for (const [code, on] of Object.entries(child.ministrySelections ?? {})) {
+			if (on && byCode.has(code)) {
+				selected.push(byCode.get(code)!);
+			}
+		}
+		for (const [code, on] of Object.entries(child.interestSelections ?? {})) {
+			if (on && byCode.has(code)) {
+				selected.push(byCode.get(code)!);
+			}
+		}
+		for (const dup of findDuplicateCustomQuestionIds(selected)) {
+			byId.set(dup.questionId, dup.ministryLabels);
+		}
+	}
+
+	return [...byId.entries()].map(([questionId, ministryLabels]) => ({
+		questionId,
+		ministryLabels,
+	}));
+}
+
+export function MinistryCustomQuestionField({
+	question,
+	form,
+	childIndex,
+}: {
+	question: CustomQuestion;
+	form: UseFormReturn<RegistrationFormInput>;
+	childIndex: number;
+}) {
+	const fieldName = customQuestionFieldName(childIndex, question.id);
+
+	if (question.type === 'radio') {
+		if (!question.options?.length) {
+			return (
+				<Alert variant="destructive" className="mt-2">
+					<AlertDescription>
+						{question.text} requires configured options before registration can
+						continue.
+					</AlertDescription>
+				</Alert>
+			);
+		}
+
+		return (
+			<FormField
+				control={form.control}
+				name={fieldName as any}
+				render={({ field }) => (
+					<FormItem>
+						<FormLabel className="text-[#1e2a2f]">{question.text}</FormLabel>
+						<FormControl>
+							<RadioGroup
+								onValueChange={field.onChange}
+								value={typeof field.value === 'string' ? field.value : ''}
+								className="space-y-2">
+								{question.options!.map((option) => (
+									<FormItem
+										key={option}
+										className="flex items-center space-x-2 space-y-0">
+										<FormControl>
+											<RadioGroupItem value={option} />
+										</FormControl>
+										<FormLabel className="font-normal">{option}</FormLabel>
+									</FormItem>
+								))}
+							</RadioGroup>
+						</FormControl>
+					</FormItem>
+				)}
+			/>
+		);
+	}
+
+	if (question.type === 'checkbox') {
+		return (
+			<FormField
+				control={form.control}
+				name={fieldName as any}
+				render={({ field }) => (
+					<FormItem className="flex flex-row items-start space-x-3 space-y-0">
+						<FormControl>
+							<Checkbox
+								checked={Boolean(field.value)}
+								onCheckedChange={field.onChange}
+								className="mt-1 border-[#017c7d] data-[state=checked]:bg-[#017c7d]"
+							/>
+						</FormControl>
+						<FormLabel className="font-normal text-[#1e2a2f]">
+							{question.text}
+						</FormLabel>
+					</FormItem>
+				)}
+			/>
+		);
+	}
+
+	if (question.type === 'text') {
+		return (
+			<FormField
+				control={form.control}
+				name={fieldName as any}
+				render={({ field }) => (
+					<FormItem>
+						<FormLabel className="text-[#1e2a2f]">{question.text}</FormLabel>
+						<FormControl>
+							<Textarea
+								{...field}
+								value={typeof field.value === 'string' ? field.value : ''}
+								className="border-[#e0dacf] focus-visible:ring-[#017c7d]"
+							/>
+						</FormControl>
+					</FormItem>
+				)}
+			/>
+		);
+	}
+
+	return (
+		<Alert variant="destructive" className="mt-2">
+			<AlertDescription>
+				Unsupported question type for &quot;{question.text}&quot;. Contact the
+				ministry office to complete this registration.
+			</AlertDescription>
+		</Alert>
 	);
 }
 
@@ -151,11 +344,13 @@ function ChildMinistryCheckbox({
 	form,
 	childIndex,
 	fieldPrefix,
+	conflictingQuestionIds,
 }: {
 	ministry: Ministry;
 	form: UseFormReturn<RegistrationFormInput>;
 	childIndex: number;
 	fieldPrefix: string;
+	conflictingQuestionIds: Set<string>;
 }) {
 	const isSelected = useWatch({
 		control: form.control,
@@ -166,41 +361,32 @@ function ChildMinistryCheckbox({
 		return null;
 	}
 
+	const childName =
+		form.watch(`children.${childIndex}.first_name` as any) || `Child ${childIndex + 1}`;
+
 	return (
 		<div className="mt-4 p-3 border border-[#e0dacf] rounded-lg bg-[#fafaf8] space-y-3">
 			<p className="text-sm font-semibold text-[#1e2a2f]">
-				Additional information for {form.watch(`children.${childIndex}.first_name` as any)}
+				Additional information for {childName}
 			</p>
-			{ministry.custom_questions.map((question, qIndex) => (
-				<FormField
-					key={qIndex}
-					control={form.control}
-					name={
-						`children.${childIndex}.customFields.${ministry.code}.${question.id}` as any
-					}
-					render={({ field }) => (
-						<FormItem>
-							<FormLabel className="text-[#1e2a2f]">
-								{question.text}
-							</FormLabel>
-							<FormControl>
-								{question.type === 'text' ? (
-									<Textarea
-										{...field}
-										className="border-[#e0dacf] focus-visible:ring-[#017c7d]"
-									/>
-								) : (
-									<Input
-										{...field}
-										type="text"
-										className="border-[#e0dacf] focus-visible:ring-[#017c7d]"
-									/>
-								)}
-							</FormControl>
-						</FormItem>
-					)}
-				/>
-			))}
+			{ministry.custom_questions.map((question) =>
+				conflictingQuestionIds.has(question.id) ? (
+					<Alert key={question.id} variant="destructive">
+						<AlertDescription>
+							Question &quot;{question.text}&quot; (id: {question.id}) is configured on
+							multiple selected ministries. Contact the ministry office — registration
+							cannot store separate answers for the same question id.
+						</AlertDescription>
+					</Alert>
+				) : (
+					<MinistryCustomQuestionField
+						key={question.id}
+						question={question}
+						form={form}
+						childIndex={childIndex}
+					/>
+				)
+			)}
 		</div>
 	);
 }
@@ -312,6 +498,33 @@ export function Step4Ministries({ form }: Step4MinistriesProps) {
 			})
 			.sort((a, b) => a.name.localeCompare(b.name));
 	}, [allMinistries, isChoir]);
+
+	const ministriesByCode = useMemo(() => {
+		const map = new Map<string, Ministry>();
+		for (const ministry of [
+			...enrolledMinistries,
+			...interestMinistries,
+			...choirMinistriesData,
+		]) {
+			map.set(ministry.code, ministry);
+		}
+		return map;
+	}, [enrolledMinistries, interestMinistries, choirMinistriesData]);
+
+	const duplicateQuestionConflicts = useMemo(
+		() =>
+			findDuplicateCustomQuestionConflictsForChildren(
+				childrenData ?? [],
+				[...ministriesByCode.values()]
+			),
+		[childrenData, ministriesByCode]
+	);
+
+	/** Question ids that collide across ministries selected for the same child. */
+	const conflictingQuestionIds = useMemo(
+		() => new Set(duplicateQuestionConflicts.map((dup) => dup.questionId)),
+		[duplicateQuestionConflicts]
+	);
 
 	// Choir programs for grouped rendering with robust deduplication
 	// Handles near-duplicates like "Keita Praise choir (Ages 9-12)" vs "Keita Praise choir (ages 9-12)"
@@ -441,6 +654,23 @@ export function Step4Ministries({ form }: Step4MinistriesProps) {
 				</AlertDescription>
 			</Alert>
 
+			{duplicateQuestionConflicts.length > 0 && (
+				<Alert variant="destructive">
+					<AlertDescription className="text-sm">
+						Selected ministries share the same custom question id
+						{duplicateQuestionConflicts.length === 1 ? '' : 's'} (
+						{duplicateQuestionConflicts
+							.map(
+								(c) =>
+									`${c.questionId} on ${c.ministryLabels.join(' and ')}`
+							)
+							.join('; ')}
+						). Deselect one ministry or ask the ministry office to use unique question
+						ids — answers cannot be stored separately for duplicate ids.
+					</AlertDescription>
+				</Alert>
+			)}
+
 			{(enrolledMinistries.length > 0 || choirPrograms.length > 0) && (
 				<Card>
 					<CardHeader>
@@ -485,6 +715,7 @@ export function Step4Ministries({ form }: Step4MinistriesProps) {
 								form={form}
 								selectionType="enrollment"
 								childrenData={childrenData}
+								conflictingQuestionIds={conflictingQuestionIds}
 							/>
 						))}
 
@@ -582,6 +813,7 @@ export function Step4Ministries({ form }: Step4MinistriesProps) {
 								form={form}
 								selectionType="interest"
 								childrenData={childrenData}
+								conflictingQuestionIds={conflictingQuestionIds}
 							/>
 						))}
 					</CardContent>

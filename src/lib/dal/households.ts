@@ -165,11 +165,13 @@ export async function fetchFullHouseholdDataFromAdapter(
 
             if (enrollment.status === 'enrolled') {
                 ministrySelections[ministry.code] = true;
-                if (enrollment.custom_fields) {
-                    customData = { ...customData, ...enrollment.custom_fields as Record<string, unknown> };
-                }
             } else if (enrollment.status === 'expressed_interest') {
                 interestSelections[ministry.code] = true;
+            }
+
+            // Custom answers persist for both enrolled and expressed_interest rows.
+            if (enrollment.custom_fields) {
+                customData = { ...customData, ...enrollment.custom_fields as Record<string, unknown> };
             }
         });
 
