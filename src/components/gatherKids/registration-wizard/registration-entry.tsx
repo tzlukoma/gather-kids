@@ -1,16 +1,170 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useAuth } from '@/contexts/auth-context';
+import { useFeatureFlags } from '@/contexts/feature-flag-context';
+import { useToast } from '@/hooks/use-toast';
 import { useQuery } from '@tanstack/react-query';
 import { getRegistrationCycles, getHouseholdForUser, getHouseholdProfile } from '@/lib/dal';
 import { pickActiveRegistrationCycle } from '@/lib/dal/registration-cycle-utils';
-import { Home, Users } from 'lucide-react';
+import { Home, Users, Info } from 'lucide-react';
 import { useDraftPersistence } from '@/hooks/useDraftPersistence';
+import Link from 'next/link';
 import type { RegistrationFormInput } from './registration-schema';
+
+const REGISTER_NEXT_PATH = '/register';
+const LOGIN_WITH_NEXT = `/login?next=${encodeURIComponent(REGISTER_NEXT_PATH)}`;
+const CREATE_ACCOUNT_WITH_NEXT = `/create-account?next=${encodeURIComponent(REGISTER_NEXT_PATH)}`;
+
+type OfflineAuthStep = 'enter_email' | 'email_sent';
+
+/**
+ * First-time auth gate for offline/dummy Supabase e2e runs.
+ * Uses magic link only — no household lookup by email.
+ */
+export function RegistrationOfflineAuth() {
+	const router = useRouter();
+	const { toast } = useToast();
+	const { flags } = useFeatureFlags();
+	const [step, setStep] = useState<OfflineAuthStep>('enter_email');
+	const [email, setEmail] = useState('');
+
+	const handleContinue = useCallback(async () => {
+		const trimmed = email.trim();
+		if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+			toast({
+				title: 'Invalid email',
+				description: 'Please enter a valid email address.',
+				variant: 'destructive',
+			});
+			return;
+		}
+
+		if (flags.loginMagicEnabled) {
+			try {
+				const response = await fetch('/api/auth/magic-link', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({
+						email: trimmed,
+						next: REGISTER_NEXT_PATH,
+					}),
+				});
+
+				if (response.ok) {
+					setStep('email_sent');
+					toast({
+						title: 'Verification Email Sent',
+						description: "We've sent a magic link to your email address.",
+					});
+					return;
+				}
+			} catch (error) {
+				console.error('Magic link request failed:', error);
+			}
+
+			toast({
+				title: 'Verification Email Failed',
+				description: 'Could not send a verification email. Please try again.',
+				variant: 'destructive',
+			});
+			return;
+		}
+
+		router.replace(LOGIN_WITH_NEXT);
+	}, [email, flags.loginMagicEnabled, router, toast]);
+
+	if (step === 'email_sent') {
+		return (
+			<div
+				className="min-h-screen bg-[#f7f5f1] flex items-center justify-center px-4"
+				data-testid="registration-offline-email-sent">
+				<Card className="w-full max-w-md border-[#eae4da]">
+					<CardHeader>
+						<CardTitle className="font-headline">Check Your Email</CardTitle>
+						<CardDescription>
+							We&apos;ve sent a verification link to your email address.
+						</CardDescription>
+					</CardHeader>
+					<CardContent className="space-y-4">
+						<Alert>
+							<Info className="h-4 w-4" />
+							<AlertTitle>Verification Email Sent</AlertTitle>
+							<AlertDescription>
+								<p>
+									We&apos;ve sent a magic link to <strong>{email}</strong>
+								</p>
+								<p className="mt-2">
+									Click the link in your email to sign in and continue registration.
+									You&apos;ll return to this registration flow when verification
+									completes.
+								</p>
+							</AlertDescription>
+						</Alert>
+						<Button variant="outline" onClick={() => setStep('enter_email')}>
+							Use Different Email
+						</Button>
+					</CardContent>
+				</Card>
+			</div>
+		);
+	}
+
+	return (
+		<div
+			className="min-h-screen bg-[#f7f5f1] flex items-center justify-center px-4"
+			data-testid="registration-offline-auth">
+			<Card className="w-full max-w-md border-[#eae4da]">
+				<CardHeader>
+					<CardTitle className="font-headline">Register Your Family</CardTitle>
+					<CardDescription>
+						Sign in or create an account before entering registration details.
+					</CardDescription>
+				</CardHeader>
+				<CardContent className="space-y-4">
+					<div className="space-y-2">
+						<label htmlFor="registration-auth-email" className="text-sm font-medium">
+							Email
+						</label>
+						<Input
+							id="registration-auth-email"
+							type="email"
+							placeholder="your.email@example.com"
+							value={email}
+							onChange={(e) => setEmail(e.target.value)}
+							onKeyDown={(e) => {
+								if (e.key === 'Enter') {
+									e.preventDefault();
+									void handleContinue();
+								}
+							}}
+						/>
+					</div>
+					<Button
+						onClick={() => void handleContinue()}
+						className="w-full bg-[#017c7d] hover:bg-[#016566] text-white">
+						Continue
+					</Button>
+					<p className="text-center text-sm text-[#5b6b72]">
+						Already have an account?{' '}
+						<Link href={LOGIN_WITH_NEXT} className="underline">
+							Sign in
+						</Link>
+						{' · '}
+						<Link href={CREATE_ACCOUNT_WITH_NEXT} className="underline">
+							Create account
+						</Link>
+					</p>
+				</CardContent>
+			</Card>
+		</div>
+	);
+}
 
 interface RegistrationEntryProps {
 	onStart: (prefillData?: any) => void;

@@ -4,92 +4,103 @@
 
 import { NextRequest } from 'next/server';
 
-// Mock test to verify redirectTo functionality works with Vercel preview URLs
-
-// Mock the email service
 const mockEmailService = {
-  testConnection: jest.fn().mockResolvedValue(true),
-  sendMagicLinkEmail: jest.fn().mockResolvedValue(true),
+	testConnection: jest.fn().mockResolvedValue(true),
+	sendMagicLinkEmail: jest.fn().mockResolvedValue(true),
 };
 
 jest.mock('@/lib/email-service', () => ({
-  createEmailService: () => mockEmailService,
+	createEmailService: () => mockEmailService,
 }));
 
-// Mock Supabase client to avoid real calls
+const mockSignInWithOtp = jest.fn().mockResolvedValue({ error: null });
+
 jest.mock('@/lib/supabaseClient', () => ({
-  supabase: {
-    auth: {
-      signInWithOtp: jest.fn().mockResolvedValue({ error: null }),
-    },
-  },
+	supabase: {
+		auth: {
+			signInWithOtp: (...args: unknown[]) => mockSignInWithOtp(...args),
+		},
+	},
 }));
 
-describe('Magic Link API redirectTo Feature', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
+import { POST } from '@/app/api/auth/magic-link/route';
 
-  it('should construct redirectTo URL from request URL for Vercel preview deployments', async () => {
-    // Simulate a Vercel preview deployment URL
-    const previewUrl = 'https://gather-kids-abc123.vercel.app/api/auth/magic-link';
-    
-    const mockRequest = new NextRequest(previewUrl, {
-      method: 'POST',
-      body: JSON.stringify({ email: 'test@example.com' }),
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
+describe('Magic Link API redirectTo', () => {
+	const originalEnv = process.env;
 
-    // Test the URL construction logic directly
-    const requestUrl = new URL(mockRequest.url);
-    const baseUrl = `${requestUrl.protocol}//${requestUrl.host}`;
-    const redirectToUrl = `${baseUrl}/auth/callback`;
+	beforeEach(() => {
+		jest.clearAllMocks();
+		process.env = { ...originalEnv, NODE_ENV: 'test' };
+		process.env.NEXT_PUBLIC_LOGIN_MAGIC_ENABLED = 'true';
+		process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://dummy.supabase.co';
+		process.env.SMTP_HOST = 'localhost';
+	});
 
-    // Verify the redirectTo URL is constructed correctly
-    expect(redirectToUrl).toBe('https://gather-kids-abc123.vercel.app/auth/callback');
-  });
+	afterAll(() => {
+		process.env = originalEnv;
+	});
 
-  it('should construct redirectTo URL from localhost for local development', async () => {
-    // Simulate local development URL
-    const localUrl = 'http://localhost:9002/api/auth/magic-link';
-    
-    const mockRequest = new NextRequest(localUrl, {
-      method: 'POST',
-      body: JSON.stringify({ email: 'local@example.com' }),
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
+	it('embeds safe next path in MailHog callback URL', async () => {
+		const request = new NextRequest('http://localhost:9002/api/auth/magic-link', {
+			method: 'POST',
+			body: JSON.stringify({ email: 'test@example.com', next: '/register' }),
+			headers: { 'Content-Type': 'application/json' },
+		});
 
-    // Test the URL construction logic directly
-    const requestUrl = new URL(mockRequest.url);
-    const baseUrl = `${requestUrl.protocol}//${requestUrl.host}`;
-    const redirectToUrl = `${baseUrl}/auth/callback`;
+		const response = await POST(request);
+		expect(response.status).toBe(200);
 
-    // Verify the redirectTo URL is constructed correctly for localhost
-    expect(redirectToUrl).toBe('http://localhost:9002/auth/callback');
-  });
+		expect(mockEmailService.sendMagicLinkEmail).toHaveBeenCalledWith(
+			expect.objectContaining({
+				magicLink: expect.stringContaining(
+					'http://localhost:9002/auth/callback?next=%2Fregister'
+				),
+			})
+		);
 
-  it('should work with production URLs', async () => {
-    // Simulate production URL
-    const prodUrl = 'https://gatherkids.example.com/api/auth/magic-link';
-    
-    const mockRequest = new NextRequest(prodUrl, {
-      method: 'POST',
-      body: JSON.stringify({ email: 'prod@example.com' }),
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
+		const magicLink = mockEmailService.sendMagicLinkEmail.mock.calls[0][0]
+			.magicLink as string;
+		expect(magicLink).toMatch(/next=%2Fregister&code=/);
+	});
 
-    // Test the URL construction logic directly
-    const requestUrl = new URL(mockRequest.url);
-    const baseUrl = `${requestUrl.protocol}//${requestUrl.host}`;
-    const redirectToUrl = `${baseUrl}/auth/callback`;
+	it('rejects unsafe next paths', async () => {
+		const request = new NextRequest('http://localhost:9002/api/auth/magic-link', {
+			method: 'POST',
+			body: JSON.stringify({
+				email: 'test@example.com',
+				next: 'https://evil.com',
+			}),
+			headers: { 'Content-Type': 'application/json' },
+		});
 
-    // Verify the redirectTo URL is constructed correctly for production
-    expect(redirectToUrl).toBe('https://gatherkids.example.com/auth/callback');
-  });
+		await POST(request);
+
+		const magicLink = mockEmailService.sendMagicLinkEmail.mock.calls[0][0]
+			.magicLink as string;
+		expect(magicLink).toContain('next=%2Fhousehold');
+		expect(magicLink).not.toContain('evil.com');
+	});
+
+	it('passes redirect URL with next to Supabase when configured', async () => {
+		process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://project.supabase.co';
+
+		const request = new NextRequest(
+			'https://gather-kids-abc123.vercel.app/api/auth/magic-link',
+			{
+				method: 'POST',
+				body: JSON.stringify({ email: 'prod@example.com', next: '/register' }),
+				headers: { 'Content-Type': 'application/json' },
+			}
+		);
+
+		await POST(request);
+
+		expect(mockSignInWithOtp).toHaveBeenCalledWith({
+			email: 'prod@example.com',
+			options: {
+				emailRedirectTo:
+					'https://gather-kids-abc123.vercel.app/auth/callback?next=%2Fregister',
+			},
+		});
+	});
 });

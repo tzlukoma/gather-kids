@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
+import { isOfflineSupabase } from '@/lib/offline-supabase';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -14,7 +15,7 @@ import { Step2Guardians } from './steps/step2-guardians';
 import { Step3Children } from './steps/step3-children';
 import { Step4Ministries } from './steps/step4-ministries';
 import { Step5Consents } from './steps/step5-consents';
-import { RegistrationEntry } from './registration-entry';
+import { RegistrationEntry, RegistrationOfflineAuth } from './registration-entry';
 import { RegistrationDone } from './registration-done';
 import {
 	buildConditionalConsentContext,
@@ -66,6 +67,19 @@ const STEPS = [
 
 type WizardScreen = 'entry' | 'wizard' | 'done';
 
+function RegistrationAuthLoading() {
+	return (
+		<div
+			className="flex items-center justify-center min-h-[400px]"
+			data-testid="registration-auth-loading">
+			<div className="flex items-center gap-2 text-[#5b6b72]">
+				<div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+				<span>Preparing registration...</span>
+			</div>
+		</div>
+	);
+}
+
 const consentContextRef = { current: defaultConditionalConsentContext };
 
 const registrationSchemaWithLiveContext = registrationFormBaseSchema.superRefine(
@@ -78,7 +92,7 @@ export default function RegisterWizard() {
 	const router = useRouter();
 	const { toast } = useToast();
 	const { flags } = useFeatureFlags();
-	const { user } = useAuth();
+	const { user, loading: authLoading } = useAuth();
 	const [screen, setScreen] = useState<WizardScreen>('entry');
 	const [currentStep, setCurrentStep] = useState(1);
 	const [isSubmitting, setIsSubmitting] = useState(false);
@@ -171,6 +185,14 @@ export default function RegisterWizard() {
 	});
 
 	const totalSteps = STEPS.length;
+
+	useEffect(() => {
+		if (authLoading) return;
+		if (isOfflineSupabase()) return;
+		if (!user) {
+			router.replace(`/login?next=${encodeURIComponent('/register')}`);
+		}
+	}, [authLoading, user, router]);
 
 	// Handle entry screen start with optional prefill data
 	const handleStartRegistration = useCallback(
@@ -459,6 +481,14 @@ export default function RegisterWizard() {
 			setIsSubmitting(false);
 		}
 	};
+
+	if (authLoading || (!user && !isOfflineSupabase())) {
+		return <RegistrationAuthLoading />;
+	}
+
+	if (!user && isOfflineSupabase()) {
+		return <RegistrationOfflineAuth />;
+	}
 
 	if (screen === 'entry') {
 		return <RegistrationEntry onStart={handleStartRegistration} />;
