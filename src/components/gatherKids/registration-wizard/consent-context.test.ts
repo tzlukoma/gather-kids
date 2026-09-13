@@ -168,6 +168,16 @@ describe('consent-context', () => {
 		expect(captureMessage).not.toHaveBeenCalled();
 	});
 
+	it('does not warn while choir ministries are still loading (undefined)', () => {
+		buildConditionalConsentContext({
+			allMinistries: [orators],
+			ministryGroups: [choirsGroup],
+			choirMinistries: undefined,
+		});
+
+		expect(captureMessage).not.toHaveBeenCalled();
+	});
+
 	it('does not show choir consent when the choirs group is not configured', () => {
 		expect(
 			shouldShowChoirGroupConsent({

@@ -79,13 +79,24 @@ export function getSelectedCustomConsentMinistries(
 export function buildConditionalConsentContext(params: {
 	allMinistries: Ministry[];
 	ministryGroups: MinistryGroup[];
-	choirMinistries: Ministry[];
+	/**
+	 * Choir ministries from `getMinistriesByGroupCode('choirs')`.
+	 * Pass `undefined` while the query is still in flight so React Query's
+	 * empty default is not treated as a misconfiguration.
+	 */
+	choirMinistries: Ministry[] | undefined;
 }): ConditionalConsentContext {
-	const choirMinistryCodes = getChoirMinistryCodes(params.choirMinistries);
+	const choirMinistries = params.choirMinistries ?? [];
+	const choirMinistryCodes = getChoirMinistryCodes(choirMinistries);
 	const groupsRequiringConsent = getGroupsRequiringConsent(params.ministryGroups);
 
 	const choirsRequiresConsent = groupsRequiringConsent.some((group) => group.code === 'choirs');
-	if (choirsRequiresConsent && params.choirMinistries.length === 0) {
+	// Only warn after the choir query has settled with an empty result.
+	if (
+		choirsRequiresConsent &&
+		params.choirMinistries !== undefined &&
+		params.choirMinistries.length === 0
+	) {
 		warnMisconfiguredChoirGroupConsent(params.choirMinistries.length);
 	}
 
