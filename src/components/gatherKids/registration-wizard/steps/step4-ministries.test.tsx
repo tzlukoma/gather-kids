@@ -89,9 +89,13 @@ describe('step4 custom question field paths', () => {
 			text: 'Tell us about prior experience',
 			type: 'text',
 		};
+		const capturedValues: RegistrationFormInput[] = [];
 
-		let getValuesRef: (() => RegistrationFormInput) | undefined;
-		function Observer() {
+		function Observer({
+			onCapture,
+		}: {
+			onCapture: (values: RegistrationFormInput) => void;
+		}) {
 			const methods = useForm<RegistrationFormInput>({
 				defaultValues: {
 					household: {
@@ -125,8 +129,6 @@ describe('step4 custom question field paths', () => {
 				},
 			});
 
-			getValuesRef = methods.getValues;
-
 			return (
 				<Form {...methods}>
 					<MinistryCustomQuestionField
@@ -134,17 +136,21 @@ describe('step4 custom question field paths', () => {
 						form={methods}
 						childIndex={0}
 					/>
+					<button type="button" onClick={() => onCapture(methods.getValues())}>
+						Capture values
+					</button>
 				</Form>
 			);
 		}
 
-		render(<Observer />);
+		render(<Observer onCapture={(values) => capturedValues.push(values)} />);
 		await user.type(
 			screen.getByLabelText('Tell us about prior experience'),
 			'Two years in choir'
 		);
+		await user.click(screen.getByRole('button', { name: 'Capture values' }));
 
-		expect(getValuesRef?.().children[0].customData).toEqual({
+		expect(capturedValues.at(-1)?.children[0].customData).toEqual({
 			'experience-notes': 'Two years in choir',
 		});
 	});
