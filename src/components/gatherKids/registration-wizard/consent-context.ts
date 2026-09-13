@@ -29,11 +29,7 @@ export function childHasChoirSelection(
 	children: RegistrationFormInput['children'],
 	choirMinistryCodes: string[]
 ): boolean {
-	return children.some((child) =>
-		Object.entries(child.ministrySelections ?? {}).some(
-			([code, selected]) => selected && choirMinistryCodes.includes(code)
-		)
-	);
+	return childHasChoirEnrollment(children, choirMinistryCodes);
 }
 
 export function getSelectedCustomConsentMinistries(
@@ -58,6 +54,8 @@ export function buildConditionalConsentContext(params: {
 
 	return {
 		customConsentMinistryCodes: getCustomConsentMinistryCodes(params.allMinistries),
+		// Only choirs has selection-matching logic today; Step 5 renders choirs only.
+		// Additional consent-requiring groups need matching rules before isRequired can be true.
 		groupConsentRules: groupsRequiringConsent.map((group) => ({
 			groupCode: group.code,
 			isRequired: (data: RegistrationFormInput) => {

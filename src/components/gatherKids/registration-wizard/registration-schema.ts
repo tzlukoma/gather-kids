@@ -46,7 +46,7 @@ export function childHasChoirEnrollment(
 	return children.some((child) =>
 		Object.entries(child.ministrySelections ?? {}).some(([code, selected]) => {
 			if (!selected) return false;
-			if (choirMinistryCodes?.length) {
+			if (choirMinistryCodes !== undefined) {
 				return choirMinistryCodes.includes(code);
 			}
 			return /choir/i.test(code);

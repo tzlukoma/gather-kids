@@ -34,6 +34,7 @@ function toArrayRecords(value: unknown): Array<Record<string, unknown>> {
   return [];
 }
 
+/** Interim write-only encoding for conditional consents (no downstream reader yet). */
 export function buildRegistrationConsentRecords(params: {
   liability: boolean;
   photo_release: boolean;
@@ -63,7 +64,7 @@ export function buildRegistrationConsentRecords(params: {
     records.push({
       type: 'custom',
       text: `group_consent:${groupCode}:${answer}`,
-      accepted_at: params.accepted_at,
+      accepted_at: answer === 'yes' ? params.accepted_at : null,
       signer_id: params.signer_id,
       signer_name: params.signer_name,
     });

@@ -1,8 +1,10 @@
 import {
 	buildConditionalConsentContext,
+	childHasChoirSelection,
 	pruneStaleConsents,
 	shouldShowChoirGroupConsent,
 } from './consent-context';
+import { childHasChoirEnrollment } from './registration-schema';
 import type { RegistrationFormInput } from './registration-schema';
 import type { Ministry, MinistryGroup } from '@/lib/types';
 
@@ -81,6 +83,30 @@ const orators: Ministry = {
 };
 
 describe('consent-context', () => {
+	it('does not require or show choir consent when choir ministry codes are unknown', () => {
+		const children = baseForm.children;
+
+		expect(
+			childHasChoirEnrollment(children, [])
+		).toBe(false);
+		expect(childHasChoirSelection(children, [])).toBe(false);
+		expect(
+			shouldShowChoirGroupConsent({
+				children,
+				ministryGroups: [choirsGroup],
+				choirMinistries: [],
+			})
+		).toBe(false);
+
+		const context = buildConditionalConsentContext({
+			allMinistries: [orators],
+			ministryGroups: [choirsGroup],
+			choirMinistries: [],
+		});
+
+		expect(context.groupConsentRules[0]?.isRequired(baseForm)).toBe(false);
+	});
+
 	it('does not show choir consent when the choirs group is not configured', () => {
 		expect(
 			shouldShowChoirGroupConsent({

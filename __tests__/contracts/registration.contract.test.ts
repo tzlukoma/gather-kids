@@ -92,6 +92,7 @@ describe('DAL Contract Tests - Registration/Household', () => {
     });
 
     test('buildRegistrationConsentRecords persists group and ministry consents', () => {
+      const acceptedAt = '2026-09-13T00:00:00.000Z';
       const records = buildRegistrationConsentRecords({
         liability: true,
         photo_release: true,
@@ -99,7 +100,7 @@ describe('DAL Contract Tests - Registration/Household', () => {
         custom_consents: { orators: true },
         signer_id: 'guardian-1',
         signer_name: 'Alex Rivera',
-        accepted_at: '2026-09-13T00:00:00.000Z',
+        accepted_at: acceptedAt,
       });
 
       expect(records).toHaveLength(4);
@@ -108,10 +109,36 @@ describe('DAL Contract Tests - Registration/Household', () => {
       expect(records[2]).toMatchObject({
         type: 'custom',
         text: 'group_consent:choirs:yes',
+        accepted_at: acceptedAt,
       });
       expect(records[3]).toMatchObject({
         type: 'custom',
         text: 'ministry_consent:orators',
+        accepted_at: acceptedAt,
+      });
+    });
+
+    test('buildRegistrationConsentRecords stores declined group consents with null accepted_at', () => {
+      const acceptedAt = '2026-09-13T00:00:00.000Z';
+      const records = buildRegistrationConsentRecords({
+        liability: true,
+        photo_release: false,
+        group_consents: { choirs: 'no' },
+        custom_consents: {},
+        signer_id: 'guardian-1',
+        signer_name: 'Alex Rivera',
+        accepted_at: acceptedAt,
+      });
+
+      expect(records).toHaveLength(3);
+      expect(records[1]).toMatchObject({
+        type: 'photo_release',
+        accepted_at: null,
+      });
+      expect(records[2]).toMatchObject({
+        type: 'custom',
+        text: 'group_consent:choirs:no',
+        accepted_at: null,
       });
     });
 
