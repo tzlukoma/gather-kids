@@ -13,10 +13,11 @@ import type {
     Guardian,
     Household,
     MinistryEnrollment,
+    Registration,
 } from '../types';
 import { ageOn } from './utils';
 import { getPriorRegistrationCycle, getCurrentRegistrationCycle, requireActiveRegistrationCycle } from './ministries';
-import { householdIdsForCycle } from './cycle-scoping';
+import { getChildIdsForCycle, householdIdsForCycle } from './cycle-scoping';
 import { pickActiveRegistrationCycle } from './registration-cycle-utils';
 import {
     applyReturningGradePrefill,
@@ -38,6 +39,68 @@ export type HouseholdRegistrationLoadResult = {
     gradeHintsByChildId: Record<string, HouseholdPrefillGradeHint>;
     data: Awaited<ReturnType<typeof fetchFullHouseholdDataFromAdapter>>;
 };
+
+export type HouseholdListChild = Child & { age: number | null };
+
+export type HouseholdListItem = Household & {
+    children: HouseholdListChild[];
+    original_registration_submitted_at: string | null;
+    latest_registration_submitted_at: string | null;
+};
+
+type RegistrationDateSource = Pick<
+    Registration,
+    'child_id' | 'cycle_id' | 'submitted_at'
+>;
+
+/**
+ * Derive household registration dates from registration rows.
+ * Original = earliest submitted_at for any household child, any cycle.
+ * Latest = latest submitted_at for any household child in the active cycle.
+ * Enrollment timestamps are never used.
+ */
+export function aggregateHouseholdRegistrationDates(
+    registrations: RegistrationDateSource[],
+    householdChildIds: Iterable<string>,
+    activeCycleId: string,
+): {
+    original_registration_submitted_at: string | null;
+    latest_registration_submitted_at: string | null;
+} {
+    const childIds = householdChildIds instanceof Set
+        ? householdChildIds
+        : new Set(householdChildIds);
+
+    let original: string | null = null;
+    let originalMs = Infinity;
+    let latest: string | null = null;
+    let latestMs = -Infinity;
+
+    for (const registration of registrations) {
+        if (!childIds.has(registration.child_id) || !registration.submitted_at) {
+            continue;
+        }
+        const submittedMs = Date.parse(registration.submitted_at);
+        if (Number.isNaN(submittedMs)) {
+            continue;
+        }
+
+        if (submittedMs < originalMs) {
+            originalMs = submittedMs;
+            original = registration.submitted_at;
+        }
+
+        if (registration.cycle_id === activeCycleId && submittedMs > latestMs) {
+            latestMs = submittedMs;
+            latest = registration.submitted_at;
+        }
+    }
+
+    return {
+        original_registration_submitted_at: original,
+        latest_registration_submitted_at: latest,
+    };
+}
 
 // ---------------------------------------------------------------------------
 // Internal helpers
@@ -253,15 +316,24 @@ export async function resolveGuardianPostLoginRoute(
 // ---------------------------------------------------------------------------
 
 /**
- * Return a list of households enriched with each household's active children
- * and their ages.  Optionally filters to households whose children are
- * enrolled in the given ministry IDs.
+ * Staff registrations list: cycle-scoped active children plus household
+ * registration dates. Household eligibility for a ministry filter is unchanged
+ * (enrolled in that ministry in the active cycle). Displayed children are the
+ * active-cycle union scope, not every child on the household.
  */
 export async function queryHouseholdList(
     leaderMinistryIds?: string[],
     ministryId?: string,
-) {
+): Promise<HouseholdListItem[]> {
+    let activeCycle;
+    try {
+        activeCycle = await requireActiveRegistrationCycle();
+    } catch {
+        return [];
+    }
+
     const households = await dbAdapter.listHouseholds();
+    const cycleId = activeCycle.cycle_id;
 
     let filteredHouseholds = households;
     let ministryFilterIds = leaderMinistryIds;
@@ -271,17 +343,10 @@ export async function queryHouseholdList(
     }
 
     if (ministryFilterIds && ministryFilterIds.length > 0) {
-        let activeCycle;
-        try {
-            activeCycle = await requireActiveRegistrationCycle();
-        } catch {
-            return [];
-        }
-
         const enrollments = await dbAdapter.listMinistryEnrollments(
             undefined,
             undefined,
-            activeCycle.cycle_id,
+            cycleId,
         );
         const relevantEnrollments = enrollments.filter(
             (e) =>
@@ -293,8 +358,8 @@ export async function queryHouseholdList(
             ...new Set(relevantEnrollments.map((e) => e.child_id)),
         ];
 
-        const allChildren = await dbAdapter.listChildren({ isActive: true });
-        const relevantChildren = allChildren.filter((c) =>
+        const activeChildren = await dbAdapter.listChildren({ isActive: true });
+        const relevantChildren = activeChildren.filter((c) =>
             relevantChildIds.includes(c.child_id),
         );
 
@@ -305,43 +370,60 @@ export async function queryHouseholdList(
             relevantHouseholdIds.includes(h.household_id),
         );
     } else {
-        // Admin default: households with children in the active cycle scope
-        try {
-            const activeCycle = await requireActiveRegistrationCycle();
-            const cycleHouseholdIds = new Set(
-                await householdIdsForCycle(activeCycle.cycle_id, 'union'),
-            );
-            filteredHouseholds = households.filter((h) =>
-                cycleHouseholdIds.has(h.household_id),
-            );
-        } catch {
-            return [];
-        }
+        const cycleHouseholdIds = new Set(
+            await householdIdsForCycle(cycleId, 'union'),
+        );
+        filteredHouseholds = households.filter((h) =>
+            cycleHouseholdIds.has(h.household_id),
+        );
     }
 
-    const allChildren = await dbAdapter.listChildren();
-    const householdIds = filteredHouseholds.map(h => h.household_id);
-    const relevantChildren = allChildren.filter(c =>
-        householdIds.includes(c.household_id),
-    );
+    if (filteredHouseholds.length === 0) {
+        return [];
+    }
 
-    const childrenByHousehold = new Map<
-        string,
-        (Child & { age: number | null })[]
-    >();
-    for (const child of relevantChildren) {
+    const cycleChildIds = new Set(await getChildIdsForCycle(cycleId, 'union'));
+    const [allChildren, registrations] = await Promise.all([
+        dbAdapter.listChildren(),
+        dbAdapter.listRegistrations(),
+    ]);
+
+    const householdIds = new Set(filteredHouseholds.map((h) => h.household_id));
+    const childrenByHousehold = new Map<string, HouseholdListChild[]>();
+    const childIdsByHousehold = new Map<string, string[]>();
+    const todayIso = new Date().toISOString();
+
+    for (const child of allChildren) {
+        if (!householdIds.has(child.household_id)) {
+            continue;
+        }
+
+        if (!childIdsByHousehold.has(child.household_id)) {
+            childIdsByHousehold.set(child.household_id, []);
+        }
+        childIdsByHousehold.get(child.household_id)!.push(child.child_id);
+
+        if (child.is_active === false || !cycleChildIds.has(child.child_id)) {
+            continue;
+        }
+
         if (!childrenByHousehold.has(child.household_id)) {
             childrenByHousehold.set(child.household_id, []);
         }
         childrenByHousehold.get(child.household_id)!.push({
             ...child,
-            age: child.dob ? ageOn(new Date().toISOString(), child.dob) : null,
+            age: child.dob ? ageOn(todayIso, child.dob) : null,
         });
     }
 
-    return filteredHouseholds.map(h => ({
-        ...h,
-        children: childrenByHousehold.get(h.household_id) || [],
+    return filteredHouseholds.map((household) => ({
+        ...household,
+        children: childrenByHousehold.get(household.household_id) || [],
+        ...aggregateHouseholdRegistrationDates(
+            registrations,
+            childIdsByHousehold.get(household.household_id) || [],
+            cycleId,
+        ),
     }));
 }
 

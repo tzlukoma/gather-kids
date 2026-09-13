@@ -61,11 +61,15 @@ const mockChild2: Child & { age: number | null } = {
 
 const mockHousehold: Household & {
 	children: (Child & { age: number | null })[];
+	original_registration_submitted_at: string | null;
+	latest_registration_submitted_at: string | null;
 } = {
 	household_id: 'household-1',
 	name: 'Doe Family',
-	created_at: '2024-01-01T00:00:00Z',
+	created_at: '2020-01-01T00:00:00Z',
 	updated_at: '2024-01-01T00:00:00Z',
+	original_registration_submitted_at: '2021-08-15T12:00:00Z',
+	latest_registration_submitted_at: '2026-09-02T15:00:00Z',
 	children: [mockChild1, mockChild2],
 };
 
@@ -133,8 +137,41 @@ describe('RegistrationsPage', () => {
 
 		// Verify the table structure
 		expect(screen.getByText('Household Name')).toBeInTheDocument();
-		expect(screen.getByText('Registration Date')).toBeInTheDocument();
+		expect(screen.getByText('Latest registration')).toBeInTheDocument();
+		expect(screen.getByText('Original registration')).toBeInTheDocument();
+		expect(screen.queryByText('Registration Date')).not.toBeInTheDocument();
 		expect(screen.getByText('Children')).toBeInTheDocument();
+		expect(screen.getByText('September 2nd, 2026')).toBeInTheDocument();
+		expect(screen.getByText('August 15th, 2021')).toBeInTheDocument();
+		expect(screen.queryByText('January 1st, 2020')).not.toBeInTheDocument();
+	});
+
+	test('shows an explicit blank state when there is no active-cycle registration', async () => {
+		mockUseHouseholdList.mockReturnValue({
+			data: [
+				{
+					...mockHousehold,
+					latest_registration_submitted_at: null,
+				},
+			],
+			isLoading: false,
+			error: null,
+		} as any);
+
+		mockUseMinistries.mockReturnValue({
+			data: [mockMinistry],
+			isLoading: false,
+			error: null,
+		} as any);
+
+		renderWithProviders(<RegistrationsPage />);
+
+		await waitFor(() => {
+			expect(screen.getByText('Doe Family')).toBeInTheDocument();
+		});
+
+		expect(screen.getByText('No registration submitted')).toBeInTheDocument();
+		expect(screen.getByText('August 15th, 2021')).toBeInTheDocument();
 	});
 
 	test('displays empty state when no households are found', async () => {
