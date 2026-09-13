@@ -147,4 +147,27 @@ describe('analytics browser helpers', () => {
 			returning_household: true,
 		});
 	});
+
+	it('classifies first-time versus returning without PII keys', () => {
+		const firstTime = sanitizeAnalyticsProperties({
+			child_count: 1,
+			returning_household: false,
+			email: 'first@example.com',
+			household_id: 'hh-secret',
+		});
+		expect(firstTime).toEqual({
+			child_count: 1,
+			returning_household: false,
+		});
+
+		const returning = sanitizeAnalyticsProperties({
+			child_count: 2,
+			returning_household: true,
+			name: 'Should Strip',
+		});
+		expect(returning).toEqual({
+			child_count: 2,
+			returning_household: true,
+		});
+	});
 });

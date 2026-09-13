@@ -12,10 +12,18 @@ import { useToast } from '@/hooks/use-toast';
 import { useQuery } from '@tanstack/react-query';
 import { getRegistrationCycles, getHouseholdForUser, getHouseholdProfile } from '@/lib/dal';
 import { pickActiveRegistrationCycle } from '@/lib/dal/registration-cycle-utils';
-import { Home, Users, Info } from 'lucide-react';
+import { AlertTriangle, Home, Users, Info } from 'lucide-react';
 import { useDraftPersistence } from '@/hooks/useDraftPersistence';
 import Link from 'next/link';
 import type { RegistrationFormInput } from './registration-schema';
+import type { HouseholdRegistrationLoadResult } from '@/lib/dal/households';
+import {
+	currentCycleOverwriteWarning,
+	entryChildStatus,
+	entryDescriptionForPrefillState,
+	mapRegistrationPrefillState,
+	type RegistrationPrefillState,
+} from './registration-prefill-state';
 
 const REGISTER_NEXT_PATH = '/register';
 const LOGIN_WITH_NEXT = `/login?next=${encodeURIComponent(REGISTER_NEXT_PATH)}`;
@@ -167,16 +175,26 @@ export function RegistrationOfflineAuth() {
 }
 
 interface RegistrationEntryProps {
-	onStart: (prefillData?: any) => void;
+	onStart: (prefillData?: HouseholdRegistrationLoadResult | null) => void;
 }
+
+type EntryChild = {
+	first_name?: string;
+	last_name?: string;
+	grade?: string | null;
+	child_id?: string | null;
+	fromHouseholdProfile?: boolean;
+};
 
 export function RegistrationEntry({ onStart }: RegistrationEntryProps) {
 	const router = useRouter();
 	const { user } = useAuth();
 	const [isLoading, setIsLoading] = useState(true);
-	const [householdData, setHouseholdData] = useState<any>(null);
-	const [children, setChildren] = useState<any[]>([]);
+	const [householdData, setHouseholdData] =
+		useState<HouseholdRegistrationLoadResult | null>(null);
+	const [children, setChildren] = useState<EntryChild[]>([]);
 	const [householdName, setHouseholdName] = useState<string>('Your household');
+	const [hasDraftChildren, setHasDraftChildren] = useState(false);
 
 	const { data: registrationCycles = [] } = useQuery({
 		queryKey: ['registrationCycles'],
@@ -187,7 +205,6 @@ export function RegistrationEntry({ onStart }: RegistrationEntryProps) {
 	const activeRegistrationCycle = pickActiveRegistrationCycle(registrationCycles);
 	const cycleName = activeRegistrationCycle?.cycle_id || 'Fall 2026';
 
-	// Set up draft persistence to peek at draft children
 	const { loadDraft } = useDraftPersistence<RegistrationFormInput>({
 		formName: 'registration_v1',
 		version: 1,
@@ -202,78 +219,80 @@ export function RegistrationEntry({ onStart }: RegistrationEntryProps) {
 			}
 
 			try {
-				// Import loadHouseholdForRegistration dynamically to avoid circular deps
 				const { loadHouseholdForRegistration } = await import('@/lib/dal');
-				
-				// Try to load prefill data for form
+
 				const prefillResult = await loadHouseholdForRegistration(
 					user.uid,
 					activeRegistrationCycle.cycle_id
 				);
 				setHouseholdData(prefillResult);
 
-				// Load household profile for display (works with RLS for guardians)
 				const householdId = await getHouseholdForUser(user.uid);
-				
-				let profileChildren: any[] = [];
+
+				let profileChildren: EntryChild[] = [];
 				let profileHouseholdName = 'Your household';
 
 				if (householdId) {
 					try {
 						const profile = await getHouseholdProfile(householdId);
-						profileChildren = profile.children || [];
+						profileChildren = (profile.children || []).map((child) => ({
+							...child,
+							fromHouseholdProfile: true,
+						}));
 						profileHouseholdName = profile.household?.name || 'Your household';
-					} catch (error) {
+					} catch {
 						// Household profile load failed - continue with empty profile data
 					}
 				}
 
-				// Also peek at draft to get children from draft
-				let draftChildren: any[] = [];
+				let draftChildren: EntryChild[] = [];
 				try {
 					const draft = await loadDraft();
 					if (draft?.children && Array.isArray(draft.children)) {
-						draftChildren = draft.children.filter((c: any) => c?.first_name);
+						draftChildren = draft.children
+							.filter((c) => c?.first_name)
+							.map((c) => ({ ...c, fromHouseholdProfile: false }));
 					}
-				} catch (error) {
+				} catch {
 					// Draft load failed - continue without draft data
 				}
 
-				// Merge profile children with draft children (union, dedupe by first_name+last_name)
-				const childMap = new Map<string, any>();
-				
-				// Add profile children first (these have child_id from DB)
+				setHasDraftChildren(draftChildren.length > 0);
+
+				const childMap = new Map<string, EntryChild>();
+
 				for (const child of profileChildren) {
 					if (child?.first_name) {
 						const key = `${child.first_name}|${child.last_name || ''}`;
 						childMap.set(key, child);
 					}
 				}
-				
-				// Add draft children if not already in map (draft may have children not yet in profile)
+
 				for (const child of draftChildren) {
 					if (child?.first_name) {
 						const key = `${child.first_name}|${child.last_name || ''}`;
 						if (!childMap.has(key)) {
-							// Child in draft but not in profile - add it
 							childMap.set(key, child);
 						}
 					}
 				}
 
-				const mergedChildren = Array.from(childMap.values());
-				setChildren(mergedChildren);
+				setChildren(Array.from(childMap.values()));
 				setHouseholdName(profileHouseholdName);
-
-			} catch (error) {
+			} catch {
 				// Top-level error loading household data - silent fail with empty state
 			} finally {
 				setIsLoading(false);
 			}
 		};
 
-		loadHouseholdAndChildren();
+		void loadHouseholdAndChildren();
 	}, [user?.uid, activeRegistrationCycle?.cycle_id, loadDraft]);
+
+	const prefillState: RegistrationPrefillState = mapRegistrationPrefillState({
+		loadResult: householdData,
+		hasDraftChildren,
+	});
 
 	const handleStart = () => {
 		onStart(householdData);
@@ -292,25 +311,43 @@ export function RegistrationEntry({ onStart }: RegistrationEntryProps) {
 
 	const userName = user?.user_metadata?.firstName || user?.email?.split('@')[0] || 'there';
 	const hasChildren = children.length > 0;
+	const entryDescription = entryDescriptionForPrefillState(prefillState, cycleName);
+	const overwriteWarning = prefillState.isCurrentYearOverwrite
+		? currentCycleOverwriteWarning(cycleName)
+		: null;
 
 	return (
-		<div className="min-h-screen bg-[#f7f5f1] flex flex-col">
+		<div className="min-h-screen bg-[#f7f5f1] flex flex-col" data-testid="registration-entry">
 			<div className="flex-1 px-4 py-8 pb-20">
 				<div className="max-w-2xl mx-auto space-y-6">
-					{/* Header */}
 					<div>
 						<p className="text-xs font-semibold tracking-wider uppercase text-[#5b6b72] mb-2">
 							My household
 						</p>
 						<h1 className="text-3xl font-bold text-[#1e2a2f] mb-2">
-							Good {new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 18 ? 'afternoon' : 'evening'}, {userName}
+							Good{' '}
+							{new Date().getHours() < 12
+								? 'morning'
+								: new Date().getHours() < 18
+									? 'afternoon'
+									: 'evening'}
+							, {userName}
 						</h1>
 						<p className="text-[#5b6b72]">
 							{householdName} · {cycleName} cycle
 						</p>
 					</div>
 
-					{/* Action Card */}
+					{overwriteWarning && (
+						<Alert
+							variant="destructive"
+							data-testid="registration-entry-overwrite-warning">
+							<AlertTriangle className="h-4 w-4" />
+							<AlertTitle>{overwriteWarning.title}</AlertTitle>
+							<AlertDescription>{overwriteWarning.description}</AlertDescription>
+						</Alert>
+					)}
+
 					<Card className="border-[#eae4da] shadow-sm">
 						<CardContent className="p-6 space-y-4">
 							<div className="bg-[#fdf6e8] px-3 py-1.5 rounded-full inline-block">
@@ -321,18 +358,15 @@ export function RegistrationEntry({ onStart }: RegistrationEntryProps) {
 							<h2 className="text-2xl font-bold text-[#1e2a2f]">
 								Register for {cycleName}
 							</h2>
-							<p className="text-[#5b6b72] leading-relaxed">
-								{householdData
-									? `We found your household from ${user?.email}. Last year's answers are already filled in.`
-									: `Complete your family registration for ${cycleName} programs.`}
+							<p
+								className="text-[#5b6b72] leading-relaxed"
+								data-testid="registration-entry-description"
+								data-prefill-kind={prefillState.kind}>
+								{entryDescription}
 							</p>
-							{/* Progress dots */}
 							<div className="flex gap-1.5">
 								{[0, 1, 2, 3, 4].map((i) => (
-									<div
-										key={i}
-										className="h-1.5 w-2.5 rounded-full bg-[#e6e1d8]"
-									/>
+									<div key={i} className="h-1.5 w-2.5 rounded-full bg-[#e6e1d8]" />
 								))}
 							</div>
 							<Button
@@ -343,40 +377,52 @@ export function RegistrationEntry({ onStart }: RegistrationEntryProps) {
 						</CardContent>
 					</Card>
 
-					{/* Children list */}
 					{hasChildren && (
 						<div>
 							<p className="text-xs font-semibold tracking-wider uppercase text-[#5b6b72] mb-3">
 								Children
 							</p>
 							<div className="space-y-2">
-								{children.map((child: any, index: number) => (
-									<Card key={index} className="border-[#eae4da] shadow-sm">
-										<CardContent className="p-4 flex items-center gap-4">
-											<div className="bg-[#ede8df] border border-[#e0dacf] rounded-lg w-14 h-14 flex items-center justify-center shrink-0">
-												<span className="text-base font-semibold text-[#5b6b72]">
-													{child.first_name?.substring(0, 1) || '?'}
-													{child.last_name?.substring(0, 1) || ''}
-												</span>
-											</div>
-											<div className="flex-1 min-w-0">
-												<p className="font-semibold text-[#1e2a2f]">
-													{child.first_name} {child.last_name || ''}
-												</p>
-												<p className="text-sm text-[#5b6b72]">
-													{child.grade ? `${child.grade}` : ''}{child.grade && ' · '}returning
-												</p>
-											</div>
-										</CardContent>
-									</Card>
-								))}
+								{children.map((child, index) => {
+									const status = entryChildStatus(
+										prefillState,
+										child,
+										Boolean(child.fromHouseholdProfile)
+									);
+									const gradePart = child.grade ? `${child.grade}` : '';
+									const metaParts = [gradePart, status].filter(Boolean);
+
+									return (
+										<Card key={index} className="border-[#eae4da] shadow-sm">
+											<CardContent className="p-4 flex items-center gap-4">
+												<div className="bg-[#ede8df] border border-[#e0dacf] rounded-lg w-14 h-14 flex items-center justify-center shrink-0">
+													<span className="text-base font-semibold text-[#5b6b72]">
+														{child.first_name?.substring(0, 1) || '?'}
+														{child.last_name?.substring(0, 1) || ''}
+													</span>
+												</div>
+												<div className="flex-1 min-w-0">
+													<p className="font-semibold text-[#1e2a2f]">
+														{child.first_name} {child.last_name || ''}
+													</p>
+													{metaParts.length > 0 && (
+														<p
+															className="text-sm text-[#5b6b72]"
+															data-testid="registration-entry-child-status">
+															{metaParts.join(' · ')}
+														</p>
+													)}
+												</div>
+											</CardContent>
+										</Card>
+									);
+								})}
 							</div>
 						</div>
 					)}
 				</div>
 			</div>
 
-			{/* Bottom Navigation - Show Home/Household, hide Bible Bee/Help during registration */}
 			<div className="border-t border-[#eae4da] bg-white">
 				<div className="container mx-auto px-4">
 					<div className="flex justify-around py-3">

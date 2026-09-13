@@ -243,6 +243,117 @@ export async function createReturningGuardianFixture(email: string, password = T
   return { user, householdId, childId };
 }
 
+/** Household already registered for the active cycle (current-year overwrite). */
+export async function createCurrentCycleGuardianFixture(
+  email: string,
+  password = TEST_PASSWORD,
+) {
+  await ensureRegistrationSmokeFixtures();
+  const supabase = createE2EAdminClient();
+  const user = await createConfirmedTestUser(email, password);
+  const householdId = randomUUID();
+  const childId = randomUUID();
+
+  await throwIfError(
+    'insert household',
+    (
+      await supabase.from('households').insert({
+        household_id: householdId,
+        name: 'Current Cycle Household',
+        address_line1: '300 Current St',
+        city: 'Perth Amboy',
+        state: 'NJ',
+        zip: '08861',
+        email,
+      })
+    ).error,
+  );
+
+  await throwIfError(
+    'insert guardian',
+    (
+      await supabase.from('guardians').insert({
+        guardian_id: randomUUID(),
+        household_id: householdId,
+        first_name: 'Alex',
+        last_name: 'Current',
+        mobile_phone: '5551234567',
+        email,
+        relationship: 'Parent',
+        is_primary: true,
+      })
+    ).error,
+  );
+
+  await throwIfError(
+    'insert emergency contact',
+    (
+      await supabase.from('emergency_contacts').insert({
+        household_id: householdId,
+        first_name: 'Sam',
+        last_name: 'Lee',
+        mobile_phone: '5559876543',
+        relationship: 'Aunt',
+      })
+    ).error,
+  );
+
+  await throwIfError(
+    'insert child',
+    (
+      await supabase.from('children').insert({
+        child_id: childId,
+        household_id: householdId,
+        first_name: 'Jordan',
+        last_name: 'Current',
+        dob: '2018-06-15',
+        grade: '1st',
+        is_active: true,
+      })
+    ).error,
+  );
+
+  await throwIfError(
+    'insert active enrollment',
+    (
+      await supabase.from('ministry_enrollments').insert({
+        enrollment_id: randomUUID(),
+        child_id: childId,
+        cycle_id: E2E_ACTIVE_CYCLE_ID,
+        ministry_id: SUNDAY_SCHOOL_ID,
+        status: 'enrolled',
+      })
+    ).error,
+  );
+
+  await throwIfError(
+    'insert active registration',
+    (
+      await supabase.from('registrations').insert({
+        registration_id: randomUUID(),
+        child_id: childId,
+        cycle_id: E2E_ACTIVE_CYCLE_ID,
+        status: 'registered',
+        pre_registered_sunday_school: true,
+        submitted_at: new Date().toISOString(),
+        submitted_via: 'e2e',
+      })
+    ).error,
+  );
+
+  await throwIfError(
+    'insert user_households',
+    (
+      await supabase.from('user_households').insert({
+        auth_user_id: user.id,
+        household_id: householdId,
+      })
+    ).error,
+  );
+
+  return { user, householdId, childId };
+}
+
 export async function cleanupTestData() {
   const url = process.env.SUPABASE_URL!;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE!;

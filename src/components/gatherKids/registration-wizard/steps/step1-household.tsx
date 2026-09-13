@@ -9,24 +9,67 @@ import {
 	FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Info } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { AlertTriangle, Info } from 'lucide-react';
 import type { RegistrationFormInput } from '../registration-schema';
+import {
+	currentCycleOverwriteWarning,
+	step1OnFileCopy,
+	type RegistrationPrefillState,
+} from '../registration-prefill-state';
 
 interface Step1HouseholdProps {
 	form: UseFormReturn<RegistrationFormInput>;
+	prefillState?: RegistrationPrefillState;
+	cycleLabel?: string;
 }
 
-export function Step1Household({ form }: Step1HouseholdProps) {
+const defaultPrefillState: RegistrationPrefillState = {
+	kind: 'first_time',
+	isReturningPrefill: false,
+	isCurrentYearOverwrite: false,
+	hasHouseholdSource: false,
+};
+
+export function Step1Household({
+	form,
+	prefillState = defaultPrefillState,
+	cycleLabel = 'current',
+}: Step1HouseholdProps) {
+	const onFileCopy = step1OnFileCopy(prefillState);
+	const overwriteWarning = prefillState.isCurrentYearOverwrite
+		? currentCycleOverwriteWarning(cycleLabel)
+		: null;
+
 	return (
 		<Card>
 			<CardContent className="pt-6 space-y-4">
-				<Alert className="bg-[#e8f5f5] border-[#017c7d]">
-					<Info className="h-4 w-4 text-[#017c7d]" />
-					<AlertDescription className="text-sm text-[#1e2a2f]">
-						This information is on file. Update if anything has changed.
-					</AlertDescription>
-				</Alert>
+				{overwriteWarning && (
+					<Alert
+						variant="destructive"
+						data-testid="step1-overwrite-warning">
+						<AlertTriangle className="h-4 w-4" />
+						<AlertTitle>{overwriteWarning.title}</AlertTitle>
+						<AlertDescription>{overwriteWarning.description}</AlertDescription>
+					</Alert>
+				)}
+
+				{onFileCopy && (
+					<Alert
+						className="bg-[#e8f5f5] border-[#017c7d]"
+						data-testid="step1-on-file-notice">
+						<Info className="h-4 w-4 text-[#017c7d]" />
+						<AlertDescription className="text-sm text-[#1e2a2f]">
+							{onFileCopy}
+						</AlertDescription>
+					</Alert>
+				)}
+
+				{!onFileCopy && !overwriteWarning && (
+					<div data-testid="step1-empty-notice" className="sr-only">
+						New household registration
+					</div>
+				)}
 
 				<FormField
 					control={form.control}

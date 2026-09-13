@@ -6,7 +6,7 @@ import { isOfflineSupabase } from '@/lib/offline-supabase';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { AlertTriangle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useFormCompat as useForm } from '@/hooks/useFormCompat';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Form } from '@/components/ui/form';
@@ -56,6 +56,14 @@ import {
 	AlertDialogHeader,
 	AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import {
+	analyticsReturningHousehold,
+	currentCycleOverwriteWarning,
+	mapRegistrationPrefillState,
+	type RegistrationPrefillState,
+} from './registration-prefill-state';
+import type { HouseholdRegistrationLoadResult } from '@/lib/dal/households';
 
 const STEPS = [
 	{ label: 'Household', title: 'Confirm your household', description: 'Review your household address' },
@@ -99,7 +107,9 @@ export default function RegisterWizard() {
 	const [showCancelDialog, setShowCancelDialog] = useState(false);
 	const [childrenEnrolledInBibleBee, setChildrenEnrolledInBibleBee] = useState(false);
 	const [registeredChildren, setRegisteredChildren] = useState<Array<{name: string; ministries: string[]}>>([]);
-	const [isReturningPrefill, setIsReturningPrefill] = useState(false);
+	const [prefillState, setPrefillState] = useState<RegistrationPrefillState>(() =>
+		mapRegistrationPrefillState({ loadResult: null })
+	);
 
 	const { data: registrationCycles = [] } = useQuery({
 		queryKey: ['registrationCycles'],
@@ -196,63 +206,84 @@ export default function RegisterWizard() {
 
 	// Handle entry screen start with optional prefill data
 	const handleStartRegistration = useCallback(
-		async (prefillData?: any) => {
+		async (prefillData?: HouseholdRegistrationLoadResult | null) => {
+			const nextState = mapRegistrationPrefillState({
+				loadResult: prefillData ?? null,
+				hasDraftChildren: false,
+			});
+
 			if (prefillData?.data) {
-				// Prefill from household data
+				const data = prefillData.data;
 				form.reset({
 					household: {
-						household_id: prefillData.data.household?.household_id || '',
-						name: prefillData.data.household?.name || '',
-						address_line1: prefillData.data.household?.address_line1 || '',
-						address_line2: prefillData.data.household?.address_line2 || '',
-						city: prefillData.data.household?.city || '',
-						state: prefillData.data.household?.state || '',
-						zip: prefillData.data.household?.zip || '',
+						household_id: data.household?.household_id || '',
+						name: data.household?.name || '',
+						address_line1: data.household?.address_line1 || '',
+						address_line2: data.household?.address_line2 || '',
+						city: data.household?.city || '',
+						state: data.household?.state || '',
+						zip: data.household?.zip || '',
 						preferredScriptureTranslation:
-							prefillData.data.household?.preferredScriptureTranslation || 'NIV',
+							data.household?.preferredScriptureTranslation || 'NIV',
 					},
-					guardians: prefillData.data.guardians || [
-						{
-							first_name: '',
-							last_name: '',
-							mobile_phone: '',
-							email: user?.email || '',
-							relationship: 'Mother',
-							is_primary: true,
-						},
-					],
-					emergencyContact: prefillData.data.emergencyContact || {
+					guardians: data.guardians?.length
+						? data.guardians
+						: [
+								{
+									first_name: '',
+									last_name: '',
+									mobile_phone: '',
+									email: user?.email || '',
+									relationship: 'Mother',
+									is_primary: true,
+								},
+							],
+					emergencyContact: data.emergencyContact || {
 						first_name: '',
 						last_name: '',
 						mobile_phone: '',
 						relationship: '',
 					},
-					children: prefillData.data.children || [],
-					consents: prefillData.data.consents || {
+					children: data.children || [],
+					consents: data.consents || {
 						liability: false,
 						photoRelease: false,
 						group_consents: {},
 						custom_consents: {},
 					},
 				});
-				setIsReturningPrefill(prefillData.isReturningPrefill || false);
+				setPrefillState(nextState);
 				toast({
-					title: 'Household Found!',
-					description: 'Your information has been pre-filled for you to review.',
+					title: nextState.isCurrentYearOverwrite
+						? 'Existing Registration Found'
+						: 'Household Found!',
+					description: nextState.isCurrentYearOverwrite
+						? 'Review your current-cycle registration. Submitting will overwrite this year.'
+						: 'Your information has been pre-filled for you to review.',
 				});
 			} else {
-				// Try to load draft
 				try {
 					const draftData = await loadDraft();
+					const hasDraftChildren = Boolean(
+						draftData?.children?.some((c) => c?.first_name)
+					);
+					const draftState = mapRegistrationPrefillState({
+						loadResult: null,
+						hasDraftChildren,
+					});
+					setPrefillState(draftState);
 					if (draftData && Object.keys(draftData).length > 0) {
 						form.reset(draftData);
 						toast({
 							title: 'Draft Restored',
 							description: 'Your previous registration progress has been restored.',
 						});
+					} else {
+						setPrefillState(mapRegistrationPrefillState({ loadResult: null }));
 					}
 				} catch (error) {
 					console.warn('Failed to load draft:', error);
+					setPrefillState(mapRegistrationPrefillState({ loadResult: null }));
 				}
 			}
 			setScreen('wizard');
@@ -461,7 +492,7 @@ export default function RegisterWizard() {
 
 			captureAnalyticsEvent('registration_submitted', {
 				child_count: data.children.length,
-				returning_household: isReturningPrefill,
+				returning_household: analyticsReturningHousehold(prefillState),
 			});
 
 			// Clear draft after successful submission
@@ -605,11 +636,42 @@ export default function RegisterWizard() {
 				<div className="max-w-3xl mx-auto">
 					<Form {...form}>
 						<form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-							{currentStep === 1 && <Step1Household form={form} />}
+							{currentStep === 1 && (
+								<Step1Household
+									form={form}
+									prefillState={prefillState}
+									cycleLabel={activeRegistrationCycle?.cycle_id || 'current'}
+								/>
+							)}
 							{currentStep === 2 && <Step2Guardians form={form} />}
 							{currentStep === 3 && <Step3Children form={form} />}
 							{currentStep === 4 && <Step4Ministries form={form} />}
-							{currentStep === 5 && <Step5Consents form={form} />}
+							{currentStep === 5 && (
+								<>
+									{prefillState.isCurrentYearOverwrite && (
+										<Alert
+											variant="destructive"
+											data-testid="step5-overwrite-warning">
+											<AlertTriangle className="h-4 w-4" />
+											<AlertTitle>
+												{
+													currentCycleOverwriteWarning(
+														activeRegistrationCycle?.cycle_id || 'current'
+													).title
+												}
+											</AlertTitle>
+											<AlertDescription>
+												{
+													currentCycleOverwriteWarning(
+														activeRegistrationCycle?.cycle_id || 'current'
+													).description
+												}
+											</AlertDescription>
+										</Alert>
+									)}
+									<Step5Consents form={form} />
+								</>
+							)}
 
 							{/* Navigation Buttons */}
 							<Card>
