@@ -1,11 +1,8 @@
 import 'server-only';
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { getBoolean } from '@/lib/flags';
+import { getFlagEvalContext } from '@/lib/flags/get-flag-eval-context';
 import { isGatherSystemRegistrationOverrideEnabled } from '@/lib/flags/gathersystem-registration-override';
-import { isOfflineSupabase } from '@/lib/offline-supabase';
-import { AuthRole } from '@/lib/auth-types';
 import RegisterWizard from '@/components/gatherKids/registration-wizard';
 import RegisterPageLegacy from './page-legacy';
 
@@ -20,28 +17,12 @@ type RegisterPageContext = {
 };
 
 async function getRegisterPageContext(): Promise<RegisterPageContext> {
-	const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-	const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-	const isOffline = isOfflineSupabase();
+	const { userId, role, isOffline, canEvaluateFlags } =
+		await getFlagEvalContext();
 
-	if (!url || !anonKey) {
+	if (!canEvaluateFlags) {
 		return { useWizard: false, isOffline, userId: undefined };
 	}
-
-	const cookieStore = await cookies();
-	const supabase = createServerClient(url, anonKey, {
-		cookies: {
-			getAll() {
-				return cookieStore.getAll();
-			},
-		},
-	});
-
-	const {
-		data: { user },
-	} = await supabase.auth.getUser();
-	const userId = user?.id;
-	const role = user?.user_metadata?.role as AuthRole | undefined;
 
 	let useWizard = false;
 	try {
