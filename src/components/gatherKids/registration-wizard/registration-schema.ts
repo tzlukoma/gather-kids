@@ -4,6 +4,18 @@ const ministrySelectionSchema = z.record(z.boolean().optional()).optional();
 const interestSelectionSchema = z.record(z.boolean().optional()).optional();
 const customFieldsSchema = z.record(z.record(z.any()).optional()).optional();
 
+/** Stored value when a guardian selects “No known allergies”. Check-in treats this case-insensitively. */
+export const NO_KNOWN_ALLERGIES = 'none';
+
+export function isNoKnownAllergies(
+	value: string | null | undefined
+): boolean {
+	return (value ?? '').trim().toLowerCase() === NO_KNOWN_ALLERGIES;
+}
+
+const allergyRequiredMessage =
+	'Please select “No known allergies” or enter allergy details.';
+
 const guardianSchema = z.object({
 	first_name: z.string().min(1, 'First name is required.'),
 	last_name: z.string().min(1, 'Last name is required.'),
@@ -22,7 +34,10 @@ const childSchema = z.object({
 	}),
 	grade: z.string().min(1, 'Grade is required.'),
 	child_mobile: z.string().optional(),
-	allergies: z.string().optional(),
+	allergies: z
+		.string({ required_error: allergyRequiredMessage })
+		.trim()
+		.min(1, allergyRequiredMessage),
 	medical_notes: z.string().optional(),
 	special_needs: z.boolean().optional(),
 	special_needs_notes: z.string().optional(),

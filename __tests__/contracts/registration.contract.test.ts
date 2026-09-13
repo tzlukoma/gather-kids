@@ -171,6 +171,7 @@ describe('DAL Contract Tests - Registration/Household', () => {
           last_name: 'Doe',
           dob: '2015-05-15',
           grade: '3rd',
+          allergies: 'none',
           ministrySelections: { 'teen-choir': true },
           interestSelections: { orators: true },
         }],
@@ -193,6 +194,79 @@ describe('DAL Contract Tests - Registration/Household', () => {
       expect(wizardPayload.consents.group_consents?.choirs).toBe('yes');
       expect(wizardPayload.consents.custom_consents?.orators).toBe(true);
       expect(testCanonicalConversion(wizardPayload)).toBe(true);
+    });
+
+    test('registration mapping preserves allergy text and explicit-none representation', () => {
+      const allergyDetails = 'Peanuts (anaphylaxis); tree nuts';
+      const withDetails = {
+        household: {
+          name: 'Allergy Household',
+          address_line1: '123 Test St',
+          city: 'Test City',
+          state: 'TS',
+          zip: '12345',
+          preferredScriptureTranslation: 'NIV',
+        },
+        guardians: [{
+          first_name: 'John',
+          last_name: 'Doe',
+          mobile_phone: '555-123-4567',
+          email: 'john@example.com',
+          relationship: 'Father',
+          is_primary: true,
+        }],
+        emergencyContact: {
+          first_name: 'Jane',
+          last_name: 'Smith',
+          mobile_phone: '555-987-6543',
+          relationship: 'Aunt',
+        },
+        children: [{
+          first_name: 'Child',
+          last_name: 'Doe',
+          dob: '2015-05-15',
+          grade: '3rd',
+          allergies: allergyDetails,
+          is_active: true,
+        }],
+        consents: {
+          liability: true,
+          photoRelease: true,
+        },
+      };
+
+      const withNone = {
+        ...withDetails,
+        children: [{
+          ...withDetails.children[0],
+          allergies: 'none',
+        }],
+      };
+
+      expect(testCanonicalConversion(withDetails)).toBe(true);
+      expect(testCanonicalConversion(withNone)).toBe(true);
+
+      const detailsChild = CanonicalDtos.ChildWriteDto.parse({
+        household_id: 'test-household-id',
+        first_name: 'Child',
+        last_name: 'Doe',
+        dob: '2015-05-15',
+        grade: '3rd',
+        allergies: allergyDetails,
+        is_active: true,
+      });
+      const noneChild = CanonicalDtos.ChildWriteDto.parse({
+        household_id: 'test-household-id',
+        first_name: 'Child',
+        last_name: 'Doe',
+        dob: '2015-05-15',
+        grade: '3rd',
+        allergies: 'none',
+        is_active: true,
+      });
+
+      expect(detailsChild.allergies).toBe(allergyDetails);
+      expect(noneChild.allergies).toBe('none');
     });
 
     test('registration form validates required canonical fields', () => {
