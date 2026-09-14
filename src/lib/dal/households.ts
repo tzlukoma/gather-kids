@@ -7,6 +7,9 @@
  */
 
 import { db as dbAdapter } from '../database/factory';
+import type { SupabaseAdapter } from '../database/supabase-adapter';
+// Cast to SupabaseAdapter when direct client access is needed (avatars table operations)
+const supabaseAdapter = dbAdapter as unknown as SupabaseAdapter;
 import type {
     Child,
     EmergencyContact,
@@ -439,6 +442,7 @@ export interface HouseholdProfileData {
 
 /**
  * Get a full household profile including children with enrollment data.
+ * Children are enriched with avatar-backed photo_url (same source as getAllChildren).
  */
 export async function getHouseholdProfile(
     householdId: string,
@@ -450,6 +454,27 @@ export async function getHouseholdProfile(
     const children = await dbAdapter.listChildren({ householdId });
 
     const childIds = children.map(c => c.child_id);
+
+    // Match getAllChildren(): photo_url comes from the generic avatars table.
+    const avatarMap = new Map<string, string>();
+    if (childIds.length > 0) {
+        const { data: avatars, error: avatarError } = await supabaseAdapter.client
+            .from('avatars')
+            .select('entity_id, storage_path')
+            .eq('entity_type', 'child')
+            .in('entity_id', childIds);
+
+        if (avatarError) {
+            console.warn('Failed to load avatars for household profile:', avatarError);
+        }
+
+        if (avatars) {
+            avatars.forEach((avatar: { entity_id: string; storage_path: string }) => {
+                avatarMap.set(avatar.entity_id, avatar.storage_path);
+            });
+        }
+    }
+
     const allEnrollments = await dbAdapter.listMinistryEnrollments();
     const childEnrollments = allEnrollments.filter(e =>
         childIds.includes(e.child_id),
@@ -477,7 +502,12 @@ export async function getHouseholdProfile(
             enrollmentsByCycle[cycleKey].push(enrollment);
         }
 
-        return { ...child, enrollments, enrollmentsByCycle };
+        return {
+            ...child,
+            photo_url: avatarMap.get(child.child_id) || undefined,
+            enrollments,
+            enrollmentsByCycle,
+        };
     });
 
     const registrationCycles = await dbAdapter.listRegistrationCycles();

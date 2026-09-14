@@ -55,17 +55,30 @@ export function useUpdateChildPhotoMutation() {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: ({ childId, photoDataUrl }: { childId: string; photoDataUrl: string }) => 
-      updateChildPhoto(childId, photoDataUrl),
-    onSuccess: (_, { childId }) => {
+    mutationFn: ({
+      childId,
+      photoDataUrl,
+      householdId,
+    }: {
+      childId: string;
+      photoDataUrl: string;
+      householdId?: string;
+    }) => updateChildPhoto(childId, photoDataUrl),
+    onSuccess: (_, { childId, householdId }) => {
       // Invalidate all queries that might contain child data
       queryClient.invalidateQueries({ queryKey: queryKeys.children() });
       queryClient.invalidateQueries({ queryKey: queryKeys.child(childId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.households() });
       queryClient.invalidateQueries({ queryKey: queryKeys.guardians() });
-      
-      // Invalidate household profile queries (they contain child data)
-      queryClient.invalidateQueries({ queryKey: queryKeys.households() });
+
+      // Household cards read child photos from householdProfile
+      if (householdId) {
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.householdProfile(householdId),
+        });
+      } else {
+        queryClient.invalidateQueries({ queryKey: ['householdProfile'] });
+      }
 
       // Invalidate all attendance queries (broad prefix match - no date-specific factory key)
       queryClient.invalidateQueries({ queryKey: ['attendance'] });
