@@ -15,6 +15,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Plus, ChevronLeft, ChevronRight } from 'lucide-react';
 import {
 	Select,
@@ -24,7 +25,14 @@ import {
 	SelectValue,
 } from '@/components/ui/select';
 import type { RegistrationFormInput } from '../registration-schema';
-import { defaultChildValues } from '../registration-schema';
+import {
+	defaultChildValues,
+	isNoKnownAllergies,
+	NO_KNOWN_ALLERGIES,
+} from '../registration-schema';
+
+const ALLERGY_CHECK_IN_HELPER =
+	'Leaders see this information during check-in.';
 
 interface Step3ChildrenProps {
 	form: UseFormReturn<RegistrationFormInput>;
@@ -41,6 +49,10 @@ export function Step3Children({ form }: Step3ChildrenProps) {
 	});
 
 	const [currentChildIndex, setCurrentChildIndex] = useState(0);
+	/** Keeps the details textarea visible while the guardian is still typing (blank is not yet a stored answer). */
+	const [allergyDetailsOpenByIndex, setAllergyDetailsOpenByIndex] = useState<
+		Record<number, boolean>
+	>({});
 
 	const handleAddChild = () => {
 		appendChild(defaultChildValues);
@@ -237,22 +249,92 @@ export function Step3Children({ form }: Step3ChildrenProps) {
 					<FormField
 						control={form.control}
 						name={`children.${currentChildIndex}.allergies`}
-						render={({ field }) => (
-							<FormItem>
-								<FormLabel className="text-[#1e2a2f] font-semibold">
-									Allergies (Optional)
-								</FormLabel>
-								<FormControl>
-									<Textarea
-										{...field}
-										placeholder="List any known allergies"
-										className="border-[#e0dacf] focus-visible:ring-[#017c7d]"
-										rows={2}
-									/>
-								</FormControl>
-								<FormMessage />
-							</FormItem>
-						)}
+						render={({ field }) => {
+							const allergyMode =
+								allergyDetailsOpenByIndex[currentChildIndex] ||
+								(Boolean(field.value?.trim()) && !isNoKnownAllergies(field.value))
+									? 'details'
+									: isNoKnownAllergies(field.value)
+										? 'none'
+										: '';
+
+							return (
+								<FormItem className="space-y-3">
+									<FormLabel className="text-[#1e2a2f] font-semibold">
+										Allergies *
+									</FormLabel>
+									<FormControl>
+										<RadioGroup
+											value={allergyMode}
+											onValueChange={(value) => {
+												if (value === 'none') {
+													setAllergyDetailsOpenByIndex((prev) => ({
+														...prev,
+														[currentChildIndex]: false,
+													}));
+													field.onChange(NO_KNOWN_ALLERGIES);
+													return;
+												}
+												setAllergyDetailsOpenByIndex((prev) => ({
+													...prev,
+													[currentChildIndex]: true,
+												}));
+												if (isNoKnownAllergies(field.value)) {
+													field.onChange('');
+												}
+											}}
+											className="flex flex-col space-y-2"
+											aria-describedby={`children-${currentChildIndex}-allergies-help`}>
+											<FormItem className="flex items-center space-x-3 space-y-0">
+												<FormControl>
+													<RadioGroupItem value="none" />
+												</FormControl>
+												<FormLabel className="font-normal text-[#1e2a2f]">
+													No known allergies
+												</FormLabel>
+											</FormItem>
+											<FormItem className="flex items-center space-x-3 space-y-0">
+												<FormControl>
+													<RadioGroupItem value="details" />
+												</FormControl>
+												<FormLabel className="font-normal text-[#1e2a2f]">
+													This child has allergies
+												</FormLabel>
+											</FormItem>
+										</RadioGroup>
+									</FormControl>
+									{allergyMode === 'details' && (
+										<FormControl>
+											<Textarea
+												value={
+													isNoKnownAllergies(field.value) ? '' : (field.value ?? '')
+												}
+												onChange={(event) => {
+													setAllergyDetailsOpenByIndex((prev) => ({
+														...prev,
+														[currentChildIndex]: true,
+													}));
+													field.onChange(event.target.value);
+												}}
+												onBlur={field.onBlur}
+												name={field.name}
+												ref={field.ref}
+												placeholder="List any known allergies"
+												className="border-[#e0dacf] focus-visible:ring-[#017c7d]"
+												rows={2}
+												aria-label="Allergy details"
+											/>
+										</FormControl>
+									)}
+									<FormDescription
+										id={`children-${currentChildIndex}-allergies-help`}
+										className="text-xs text-[#5b6b72]">
+										{ALLERGY_CHECK_IN_HELPER}
+									</FormDescription>
+									<FormMessage />
+								</FormItem>
+							);
+						}}
 					/>
 
 					<FormField
@@ -336,8 +418,18 @@ export function Step3Children({ form }: Step3ChildrenProps) {
 					variant="outline"
 					size="sm"
 					onClick={() => {
-						removeChild(currentChildIndex);
-						setCurrentChildIndex(Math.max(0, currentChildIndex - 1));
+						const removedIndex = currentChildIndex;
+						removeChild(removedIndex);
+						setAllergyDetailsOpenByIndex((prev) => {
+							const next: Record<number, boolean> = {};
+							for (const [key, open] of Object.entries(prev)) {
+								const index = Number(key);
+								if (Number.isNaN(index) || index === removedIndex) continue;
+								next[index > removedIndex ? index - 1 : index] = open;
+							}
+							return next;
+						});
+						setCurrentChildIndex(Math.max(0, removedIndex - 1));
 					}}
 					className="w-full text-destructive hover:text-destructive">
 					Remove {currentChild.first_name || 'this child'}

@@ -83,6 +83,7 @@ function buildDefaultValues(
 				last_name: 'Rivera',
 				dob: '2015-05-15',
 				grade: '3rd',
+				allergies: 'none',
 				ministrySelections: {},
 				interestSelections: {},
 				customFields: {},
