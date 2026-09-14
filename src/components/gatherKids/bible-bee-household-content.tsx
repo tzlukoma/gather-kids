@@ -1,0 +1,164 @@
+'use client';
+
+import React, { useEffect, useState } from 'react';
+import { useAuth } from '@/contexts/auth-context';
+import {
+	getBibleBeeMinistry,
+	getHouseholdForUser,
+} from '@/lib/dal';
+import { useHouseholdProfile } from '@/hooks/data';
+import { ParentBibleBeeView } from '@/components/gatherKids/parent-bible-bee-view';
+import { BookOpen, Calendar } from 'lucide-react';
+import { EmptyState } from '@/components/ui/empty-state';
+import { Card, CardContent } from '@/components/ui/card';
+import { isOnOrAfterInET, formatDateInET } from '@/lib/utils/timezone';
+import type { Ministry } from '@/lib/types';
+
+export function BibleBeeHouseholdContent() {
+	const { user } = useAuth();
+	const [bibleBeeMinistry, setBibleBeeMinistry] = useState<Ministry | null>(
+		null
+	);
+	const [isBeforeOpenDate, setIsBeforeOpenDate] = useState<boolean>(false);
+	const [openDateFormatted, setOpenDateFormatted] = useState<string>('');
+	const [householdId, setHouseholdId] = useState<string | null>(null);
+
+	const { data: profileData, isLoading } = useHouseholdProfile(householdId || '');
+
+	useEffect(() => {
+		const loadMinistry = async () => {
+			try {
+				const ministry = await getBibleBeeMinistry();
+				setBibleBeeMinistry(ministry);
+
+				if (ministry?.open_at) {
+					const now = new Date();
+					const beforeOpen = !isOnOrAfterInET(now, ministry.open_at);
+					setIsBeforeOpenDate(beforeOpen);
+					setOpenDateFormatted(formatDateInET(ministry.open_at));
+				} else {
+					setIsBeforeOpenDate(false);
+					if (ministry) {
+						console.warn('Bible Bee ministry open date not configured');
+					}
+				}
+			} catch (error) {
+				console.error('Failed to load Bible Bee ministry:', error);
+				setIsBeforeOpenDate(false);
+			}
+		};
+
+		loadMinistry();
+	}, []);
+
+	useEffect(() => {
+		const load = async () => {
+			console.log('Bible Bee page: Starting profile load, user:', user);
+			if (!user) return;
+
+			let targetHouseholdId = user.metadata?.household_id ?? undefined;
+
+			if (!targetHouseholdId && user?.uid) {
+				console.log(
+					'Bible Bee page: No household_id in metadata, checking user_households table'
+				);
+				targetHouseholdId = (await getHouseholdForUser(user.uid)) ?? undefined;
+			}
+
+			if (!targetHouseholdId) {
+				console.log('Bible Bee page: No household_id found for user');
+				return;
+			}
+
+			console.log(
+				'Bible Bee page: Loading profile for household_id:',
+				targetHouseholdId
+			);
+			setHouseholdId(targetHouseholdId);
+		};
+		load();
+	}, [user]);
+
+	if (isLoading || !profileData) {
+		console.log('Bible Bee page: profileData not loaded yet');
+		return <div>Loading Bible Bee progress...</div>;
+	}
+
+	const enrolledChildren = profileData.children.filter((child: any) =>
+		Object.values(child.enrollmentsByCycle).some((enrollments: any) =>
+			enrollments.some(
+				(enrollment: any) => enrollment.ministry_code === 'bible-bee'
+			)
+		)
+	);
+
+	console.log(
+		'Bible Bee page: enrolledChildren count:',
+		enrolledChildren.length
+	);
+	console.log('Bible Bee page: profileData.children:', profileData.children);
+
+	if (enrolledChildren.length === 0) {
+		console.log('Bible Bee page: No enrolled children found');
+		return (
+			<EmptyState
+				className="py-8"
+				icon={BookOpen}
+				title="No Bible Bee enrollments"
+				description="No children in this household are enrolled in the Bible Bee."
+			/>
+		);
+	}
+
+	if (isBeforeOpenDate) {
+		console.log('Bible Bee page: Before open date, showing message');
+		return (
+			<div className="flex flex-col gap-6">
+				<div>
+					<h1 className="text-3xl font-bold font-headline">Bible Bee</h1>
+					<p className="text-muted-foreground">
+						View progress and resources for your children enrolled in the Bible
+						Bee.
+					</p>
+				</div>
+
+				<Card className="text-center py-12">
+					<CardContent className="flex flex-col items-center gap-4">
+						<Calendar className="h-16 w-16 text-muted-foreground" />
+						<div>
+							<h2 className="text-xl font-semibold mb-2">
+								Bible Bee Opening Soon
+							</h2>
+							<p className="text-muted-foreground text-lg">
+								The Bible Bee will begin on {openDateFormatted}.
+							</p>
+						</div>
+					</CardContent>
+				</Card>
+			</div>
+		);
+	}
+
+	console.log(
+		'Bible Bee page: Rendering ParentBibleBeeView with',
+		enrolledChildren.length,
+		'children'
+	);
+	return (
+		<div className="flex flex-col gap-6">
+			<div>
+				<h1 className="text-3xl font-bold font-headline">Bible Bee</h1>
+				<p className="text-muted-foreground">
+					Progress and resources for your children enrolled in the Bible Bee.
+				</p>
+			</div>
+
+			{/* eslint-disable react/no-children-prop */}
+			<ParentBibleBeeView
+				householdId={householdId || ''}
+				children={enrolledChildren}
+			/>
+			{/* eslint-enable react/no-children-prop */}
+		</div>
+	);
+}
