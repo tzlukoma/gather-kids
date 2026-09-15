@@ -42,20 +42,23 @@ export const POST_ACCOUNT_CREATION_PATH = '/register';
 /**
  * Build the `emailRedirectTo` for account-creation confirmation emails.
  *
- * The callback falls back to `/household` everywhere except local development,
- * so the intended destination has to ride along as a sanitized `next`. Without
- * it a family who confirms their email lands on an empty household page instead
- * of the registration form the home page promised them.
+ * Deliberately carries NO query string. Supabase validates `redirect_to`
+ * against the project's redirect allowlist and silently falls back to
+ * SITE_URL on a miss. Preview entries have been path-only
+ * (`https://*.vercel.app/auth/callback`), so appending `?next=/register` made
+ * every preview confirmation land on SITE_URL — a stale UAT domain — instead
+ * of the app.
+ *
+ * The destination is resolved after sign-in instead: see the role-aware
+ * fallback in src/app/auth/callback/page.tsx, which sends a guardian who still
+ * needs the active cycle to POST_ACCOUNT_CREATION_PATH and leaves staff on
+ * their own landing page.
+ *
+ * Before reintroducing an explicit `next`, confirm every deployment target has
+ * an allowlist entry ending in `/**` — a path-only entry will not match it.
  */
-export function buildAccountCreationRedirectUrl(
-	origin: string,
-	nextParam?: string | null
-): string {
-	const safeNext = resolveSafePostAuthPath(
-		nextParam,
-		POST_ACCOUNT_CREATION_PATH
-	);
-	return `${origin}/auth/callback?next=${encodeURIComponent(safeNext)}`;
+export function buildAccountCreationRedirectUrl(origin: string): string {
+	return `${origin}/auth/callback`;
 }
 
 /**
