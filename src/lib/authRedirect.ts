@@ -36,6 +36,28 @@ export function appendSafePostAuthSearchParam(
 	}
 }
 
+/** Where a family lands after confirming a newly created account. */
+export const POST_ACCOUNT_CREATION_PATH = '/register';
+
+/**
+ * Build the `emailRedirectTo` for account-creation confirmation emails.
+ *
+ * The callback falls back to `/household` everywhere except local development,
+ * so the intended destination has to ride along as a sanitized `next`. Without
+ * it a family who confirms their email lands on an empty household page instead
+ * of the registration form the home page promised them.
+ */
+export function buildAccountCreationRedirectUrl(
+	origin: string,
+	nextParam?: string | null
+): string {
+	const safeNext = resolveSafePostAuthPath(
+		nextParam,
+		POST_ACCOUNT_CREATION_PATH
+	);
+	return `${origin}/auth/callback?next=${encodeURIComponent(safeNext)}`;
+}
+
 /**
  * Get the redirect URL for Supabase auth callbacks
  * This ensures preview deployments use their own URL for redirects

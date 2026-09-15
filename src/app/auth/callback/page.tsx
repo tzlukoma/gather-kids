@@ -9,6 +9,7 @@ import {
 	resolveSafePostAuthPath,
 } from '@/lib/authRedirect';
 import { isOfflineSupabase, createOfflineSessionUser } from '@/lib/offline-supabase';
+import { resolveGuardianPostLoginRoute } from '@/lib/dal/households';
 import { useAuth } from '@/contexts/auth-context';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -401,19 +402,39 @@ The verification code required for magic links was not found. This happens when:
 					}
 				} else if (data.session) {
 					setSuccess(true);
+
+					// A link that carries no `next` (an older email, or a provider that
+					// dropped the query) must not strand a family on an empty household
+					// page. Ask the same resolver the login page uses: it returns
+					// /register while the household still needs the active cycle.
+					let resolvedRedirect = targetRedirect;
+					if (!searchParams?.get('next')) {
+						try {
+							resolvedRedirect = await resolveGuardianPostLoginRoute(
+								data.session.user.id
+							);
+						} catch (routeError) {
+							console.error(
+								'Failed to resolve post-auth route, using fallback:',
+								routeError
+							);
+						}
+					}
+					const finalRedirect = resolvedRedirect;
+
 					console.log(
-						`🔍 AuthCallback: Auth successful! Redirecting to ${targetRedirect} in 1.5 seconds...`
+						`🔍 AuthCallback: Auth successful! Redirecting to ${finalRedirect} in 1.5 seconds...`
 					);
 
 					// Set up redirect with timeout fallback
 					setTimeout(() => {
 						console.log(
-							`🔍 AuthCallback: Executing redirect to ${targetRedirect}`
+							`🔍 AuthCallback: Executing redirect to ${finalRedirect}`
 						);
 						console.log(
 							`🔍 AuthCallback: Current URL before redirect: ${window.location.href}`
 						);
-						const redirectResult = router.push(targetRedirect);
+						const redirectResult = router.push(finalRedirect);
 						console.log(`🔍 AuthCallback: router.push result:`, redirectResult);
 
 						// Check if redirect worked after a short delay
@@ -421,9 +442,9 @@ The verification code required for magic links was not found. This happens when:
 							console.log(
 								`🔍 AuthCallback: URL after redirect attempt: ${window.location.href}`
 							);
-							if (window.location.pathname !== targetRedirect) {
+							if (window.location.pathname !== finalRedirect) {
 								console.warn(
-									`🔍 AuthCallback: Redirect may not have worked. Expected: ${targetRedirect}, Actual: ${window.location.pathname}`
+									`🔍 AuthCallback: Redirect may not have worked. Expected: ${finalRedirect}, Actual: ${window.location.pathname}`
 								);
 								// Only show error if redirect actually failed
 								setError(

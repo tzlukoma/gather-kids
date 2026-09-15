@@ -21,6 +21,7 @@ import { useFeatureFlags } from '@/contexts/feature-flag-context';
 import { useBranding } from '@/contexts/branding-context';
 import { supabase } from '@/lib/supabaseClient';
 import { isOfflineSupabase } from '@/lib/offline-supabase';
+import { buildAccountCreationRedirectUrl } from '@/lib/authRedirect';
 import { captureAnalyticsEvent } from '@/lib/analytics/browser';
 
 export default function CreateAccountPage() {
@@ -121,10 +122,16 @@ export default function CreateAccountPage() {
 			);
 
 			const baseUrl = window.location.origin;
+			// Read `next` off the live URL rather than useSearchParams so this page
+			// stays statically rendered; the value is sanitized before it is used.
+			const emailRedirectTo = buildAccountCreationRedirectUrl(
+				baseUrl,
+				new URLSearchParams(window.location.search).get('next')
+			);
 			console.log('🔍 Create Account: About to call supabase.auth.signUp', {
 				email,
 				baseUrl,
-				redirectTo: `${baseUrl}/auth/callback`,
+				redirectTo: emailRedirectTo,
 			});
 
 			// Add timeout to prevent hanging
@@ -132,7 +139,7 @@ export default function CreateAccountPage() {
 				email,
 				password,
 				options: {
-					emailRedirectTo: `${baseUrl}/auth/callback`,
+					emailRedirectTo,
 				},
 			});
 
@@ -389,7 +396,10 @@ export default function CreateAccountPage() {
 				type: 'signup',
 				email,
 				options: {
-					emailRedirectTo: `${baseUrl}/auth/callback`,
+					emailRedirectTo: buildAccountCreationRedirectUrl(
+						baseUrl,
+						new URLSearchParams(window.location.search).get('next')
+					),
 				},
 			});
 
