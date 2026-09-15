@@ -18,6 +18,10 @@ body {
     /* #FCB131 - brand.yellow (marigold) */
     --color-orange: 13 81% 55%;
     /* #E86A2F - brand.orange */
+    --color-gold: 41 60% 34%;
+    /* #8A6A22 - brand.gold (readable marigold, for text/marks on light ground) */
+    --color-gold-soft: 40 84% 95%;
+    /* #FDF6E8 - brand.goldSoft (tinted ground behind brand.gold) */
     --color-aqua: 174 85% 41%;
     /* #1FB6AA - brand.aqua */
     --color-bg: 40 33% 96%;
@@ -70,6 +74,9 @@ body {
     /* #0f1416 - Dark background */
     --color-ink: 40 33% 91%;
     /* #e8edf0 - Light text */
+    --color-gold: 41 70% 62%;
+    /* Lifted so brand.gold stays readable on the dark ground */
+    --color-gold-soft: 41 30% 16%;
 
     /* System tokens for dark mode */
     --background: var(--color-bg);
