@@ -10,6 +10,8 @@ import {
 } from '@/lib/authRedirect';
 import { isOfflineSupabase, createOfflineSessionUser } from '@/lib/offline-supabase';
 import { resolveGuardianPostLoginRoute } from '@/lib/dal/households';
+import { AuthRole } from '@/lib/auth-types';
+import { getPostLoginRoute } from '@/lib/auth-utils';
 import { useAuth } from '@/contexts/auth-context';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -405,19 +407,32 @@ The verification code required for magic links was not found. This happens when:
 
 					// A link that carries no `next` (an older email, or a provider that
 					// dropped the query) must not strand a family on an empty household
-					// page. Ask the same resolver the login page uses: it returns
-					// /register while the household still needs the active cycle.
+					// page. Mirror the login page exactly: start from the role's own
+					// landing page, and only ask the guardian resolver for
+					// guardian/guest/unassigned users so staff are never sent to
+					// /register.
 					let resolvedRedirect = targetRedirect;
 					if (!searchParams?.get('next')) {
-						try {
-							resolvedRedirect = await resolveGuardianPostLoginRoute(
-								data.session.user.id
-							);
-						} catch (routeError) {
-							console.error(
-								'Failed to resolve post-auth route, using fallback:',
-								routeError
-							);
+						const userRole = data.session.user?.user_metadata?.role as
+							| AuthRole
+							| undefined;
+						resolvedRedirect = getPostLoginRoute(userRole ?? null);
+
+						if (
+							userRole === AuthRole.GUARDIAN ||
+							userRole === AuthRole.GUEST ||
+							!userRole
+						) {
+							try {
+								resolvedRedirect = await resolveGuardianPostLoginRoute(
+									data.session.user.id
+								);
+							} catch (routeError) {
+								console.error(
+									'Failed to resolve guardian post-auth route, using the role default:',
+									routeError
+								);
+							}
 						}
 					}
 					const finalRedirect = resolvedRedirect;
