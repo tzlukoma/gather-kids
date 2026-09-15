@@ -14,6 +14,21 @@ export function pickActiveRegistrationCycle(
   )[0];
 }
 
+/**
+ * Human-readable label for a registration cycle.
+ *
+ * `cycle_id` is a key, not a label — "2026" locally but a UUID in UAT and
+ * production — so it must never reach a guardian-facing screen. Prefer the
+ * cycle's own name (`name` is NOT NULL in the schema) and fall back to the
+ * caller's wording, never to the id.
+ */
+export function registrationCycleLabel(
+  cycle: Pick<RegistrationCycle, 'name'> | null | undefined,
+  fallback: string,
+): string {
+  return cycle?.name?.trim() || fallback;
+}
+
 /** Prior cycle = latest cycle with start_date strictly before current.start_date. */
 export function pickPriorRegistrationCycle(
   cycles: RegistrationCycle[],

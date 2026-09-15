@@ -48,7 +48,10 @@ import {
 } from '@/lib/dal';
 import type { HouseholdPrefillGradeHint } from '@/lib/dal/households';
 import { canonicalizeGradeForStorage, gradeToCode } from '@/lib/gradeUtils';
-import { pickActiveRegistrationCycle } from '@/lib/dal/registration-cycle-utils';
+import {
+	pickActiveRegistrationCycle,
+	registrationCycleLabel,
+} from '@/lib/dal/registration-cycle-utils';
 import { devLog } from '@/lib/dev-log';
 import { getFlag } from '@/lib/featureFlags';
 import { isOfflineSupabase } from '@/lib/offline-supabase';
@@ -1976,7 +1979,8 @@ function RegisterPageContent() {
 								<AlertTitle>Existing Registration Found</AlertTitle>
 								<AlertDescription>
 									A registration for the{' '}
-									{activeRegistrationCycle?.cycle_id || 'current'} cycle already
+									{registrationCycleLabel(activeRegistrationCycle, 'current')}{' '}
+									cycle already
 									exists for this household. Review the information below and
 									make any necessary changes. Submitting this form will{' '}
 									<span className="font-semibold">overwrite</span> the previous
