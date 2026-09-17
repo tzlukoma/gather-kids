@@ -131,10 +131,33 @@ jobs:
         with:
           version: '2.116.0'
 
+      # `supabase gen types` pulls postgres-meta from ECR Public, which
+      # rate-limits anonymous pulls per source IP. CI runners share NAT
+      # addresses, so `toomanyrequests: Rate exceeded` lands here regularly and
+      # says nothing about the schema. It is a throttle, not an exhausted quota,
+      # so a short backoff clears it.
+      #
+      # Only exit 2 (generation failed) is retried. Exit 1 means the types are
+      # genuinely out of sync, and retrying that would reprint the diff three
+      # times and triple the runtime of the failure this job exists to catch.
       - name: Check Supabase types match migrated schema
         run: |
           chmod +x scripts/db/check_types_sync.sh
-          scripts/db/check_types_sync.sh "postgresql://postgres:postgres@localhost:54322/postgres"
+          for attempt in 1 2 3; do
+            set +e
+            scripts/db/check_types_sync.sh "postgresql://postgres:postgres@localhost:54322/postgres"
+            status=$?
+            set -e
+            if [ "$status" -ne 2 ]; then
+              exit "$status"
+            fi
+            if [ "$attempt" -lt 3 ]; then
+              echo "::warning::Type generation failed on attempt $attempt (transient registry error); retrying in $((attempt * 15))s"
+              sleep $((attempt * 15))
+            fi
+          done
+          echo "::error::Type generation failed on all 3 attempts. If this is still a registry throttle, re-run the job; if it is persistent, the postgres-meta image or the pinned Supabase CLI version is the place to look."
+          exit 1
 
   pr-title:
     name: Conventional PR title

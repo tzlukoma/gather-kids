@@ -5,7 +5,6 @@ import {
   getAttendanceForDate, 
   getIncidentsForDate,
   getIncidentsForUser,
-  getScopedIncidents,
   acknowledgeIncident,
   recordCheckIn,
   recordCheckOut,
@@ -38,21 +37,6 @@ export function useIncidentsForUser(user: { uid?: string } | null | undefined) {
     queryFn: () => getIncidentsForUser(user),
     enabled: !!user,
     ...cacheConfig.volatile, // Incidents change frequently
-  });
-}
-
-/**
- * Incidents for the GatherSystem incidents screen, scoped server-side.
- *
- * Separate from `useIncidentsForUser` on purpose: the legacy screen must keep
- * reading exactly as it does on `main` while `gathersystem_incidents` is off.
- */
-export function useScopedIncidents(enabled = true) {
-  return useQuery({
-    queryKey: queryKeys.scopedIncidents(),
-    queryFn: getScopedIncidents,
-    enabled,
-    ...cacheConfig.volatile,
   });
 }
 

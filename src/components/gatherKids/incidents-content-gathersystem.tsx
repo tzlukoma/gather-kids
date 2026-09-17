@@ -46,7 +46,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Info, CalendarIcon, CheckCircle2, ShieldAlert } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
-	useScopedIncidents,
+	useIncidentsForUser,
 	useAcknowledgeIncident,
 } from '@/hooks/data/attendance';
 import {
@@ -111,18 +111,16 @@ export function IncidentsContentGatherSystem() {
 		setStatusFilter(filterParam === 'pending' ? 'pending' : 'all');
 	}
 
-	// Authorization boundary. The visible set matches the legacy screen exactly —
-	// an admin sees every incident, anyone else only the incidents they logged —
-	// but it is resolved by `/api/incidents` from the validated session and
-	// applied as a database predicate, so rows this screen will not render never
-	// reach the browser. The legacy screen still filters client-side (#428); this
-	// screen is gated by `gathersystem_incidents`, so nothing changes until the
-	// flag is on.
+	// Authorization boundary. An admin sees every incident, anyone else only the
+	// incidents they logged — resolved by `/api/incidents` from the validated
+	// session and applied as a database predicate, so rows this screen will not
+	// render never reach the browser (#428). The legacy screen calls the same
+	// function and gets the same scoping.
 	const {
 		data: incidents = [],
 		isLoading: loading,
 		error,
-	} = useScopedIncidents(!!user);
+	} = useIncidentsForUser(user);
 	const { data: cycleChildren = [] } = useChildrenForActiveCycle();
 	const { data: activeCycles = [] } = useRegistrationCycles(true);
 	const activeCycleId = activeCycles[0]?.cycle_id ?? '';
