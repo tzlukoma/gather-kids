@@ -26,8 +26,8 @@ export const queryKeys = {
   ministriesByGroupCode: (groupCode: string) => ['ministriesByGroupCode', groupCode] as const,
   ministriesInGroup: (groupId: string) => ['ministriesInGroup', groupId] as const,
   ministryEnrollments: (cycleId: string) => ['ministryEnrollments', cycleId] as const,
-  ministryIdsForChildren: (childIds: string[], cycleId?: string) =>
-    ['ministryIdsForChildren', cycleId ?? 'all-cycles', childIds] as const,
+  incidentMinistryScope: (cycleId?: string) =>
+    ['incidentMinistryScope', cycleId ?? 'all-cycles'] as const,
   ministryGroup: (id: string) => ['ministryGroup', id] as const,
   groupsForMinistry: (ministryId: string) => ['groupsForMinistry', ministryId] as const,
   

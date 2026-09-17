@@ -52,7 +52,7 @@ import {
 import {
 	useChildrenForActiveCycle,
 	useMinistries,
-	useMinistryIdsForChildren,
+	useIncidentMinistryScope,
 	useRegistrationCycles,
 } from '@/hooks/data';
 import { IncidentDetailDialogGatherSystem } from '@/components/gatherKids/incident-detail-dialog-gathersystem';
@@ -121,21 +121,16 @@ export function IncidentsContentGatherSystem() {
 	const { data: activeCycles = [] } = useRegistrationCycles(true);
 	const activeCycleId = activeCycles[0]?.cycle_id ?? '';
 	const { data: ministries = [] } = useMinistries(true);
-	// Ministry membership for the ministry filter, fetched for exactly the
-	// children that appear in incidents this user is already allowed to see, and
-	// returning only child/ministry ids — never whole enrollment records, which
-	// carry `custom_fields`.
+	// Ministry membership for the ministry filter. Resolved by
+	// `/api/incidents/ministry-scope`, which derives the allowed children from the
+	// session server-side — this component sends no child ids, so the scope is not
+	// something the browser can widen. Only child/ministry id pairs come back.
 	//
 	// An `Incident` carries no cycle, so a child in a past-cycle incident has no
 	// active-cycle enrollment row. Scoping to the active cycle would drop those
 	// incidents from any ministry selection and omit history-only ministries from
 	// the options, so the cycle scope is dropped once past cycles are shown.
-	const incidentChildIds = useMemo(
-		() => Array.from(new Set(incidents.map((incident) => incident.child_id))),
-		[incidents]
-	);
-	const { data: ministryEnrollments = [] } = useMinistryIdsForChildren(
-		incidentChildIds,
+	const { data: ministryEnrollments = [] } = useIncidentMinistryScope(
 		showAllCycles ? undefined : activeCycleId
 	);
 	const acknowledgeMutation = useAcknowledgeIncident();

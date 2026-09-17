@@ -154,22 +154,29 @@ export async function getMinistryEnrollmentsByCycle(
 }
 
 /**
- * The child -> ministry edges for a specific set of children, and nothing else.
+ * Child -> ministry memberships for the incidents the signed-in user may see.
  *
- * For surfaces that only need to know which ministries a child belongs to, such
- * as a ministry filter. Returns two ids per row rather than whole enrollment
- * records, so `custom_fields` never reaches a client that is only filtering.
- *
- * Callers must pass children the requester is already authorized to see — for
- * the incidents screen that means children drawn from `getIncidentsForUser`.
- * Omit `cycleId` to span every cycle, which surfaces showing historical records
- * need because an `Incident` carries no cycle of its own.
+ * Goes through `/api/incidents/ministry-scope` rather than Supabase directly.
+ * The allowed children are derived on the server from the session, so this
+ * takes no child list: a browser cannot ask about children it may not see.
+ * Only `child_id` / `ministry_id` come back, never enrollment payloads such as
+ * `custom_fields`. Omit `cycleId` to span every cycle, which the incidents
+ * screen needs because an `Incident` carries no cycle of its own.
  */
-export async function getMinistryIdsForChildren(
-    childIds: string[],
+export async function getIncidentMinistryScope(
     cycleId?: string,
 ): Promise<ChildMinistryId[]> {
-    return dbAdapter.listMinistryIdsForChildren(childIds, cycleId);
+    const query = cycleId ? `?cycleId=${encodeURIComponent(cycleId)}` : '';
+    const response = await fetch(`/api/incidents/ministry-scope${query}`);
+
+    if (!response.ok) {
+        throw new Error(
+            `Failed to load ministry scope for incidents (${response.status})`,
+        );
+    }
+
+    const body = (await response.json()) as { pairs?: ChildMinistryId[] };
+    return body.pairs ?? [];
 }
 
 // ---------------------------------------------------------------------------

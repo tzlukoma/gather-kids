@@ -6,7 +6,7 @@ import {
   getMinistriesByGroupCode,
   getMinistriesInGroup,
   getMinistryEnrollmentsByCycle,
-  getMinistryIdsForChildren,
+  getIncidentMinistryScope,
   getMinistryGroups,
   getMinistryGroup,
   getGroupsForMinistry,
@@ -56,19 +56,18 @@ export function useMinistryEnrollments(cycleId: string) {
 }
 
 /**
- * Which ministries the given children belong to, as bare id pairs.
+ * Child -> ministry memberships for the incidents the signed-in user may see.
  *
- * Pass only children the signed-in user is already authorized to see. Omit
- * `cycleId` to span every cycle. `placeholderData` holds the previous result
- * while a changed child set refetches, so a filter built on this never blinks
- * through an empty map and reports a spurious "no matches".
+ * Deliberately takes no child list. The server route derives the allowed
+ * children from the session, so the browser cannot widen the query by asking
+ * about other children. `placeholderData` holds the previous result while a
+ * changed scope refetches, so a filter built on this never blinks through an
+ * empty map and reports a spurious "no matches".
  */
-export function useMinistryIdsForChildren(childIds: string[], cycleId?: string) {
-  const key = [...childIds].sort();
+export function useIncidentMinistryScope(cycleId?: string) {
   return useQuery({
-    queryKey: queryKeys.ministryIdsForChildren(key, cycleId),
-    queryFn: () => getMinistryIdsForChildren(key, cycleId),
-    enabled: key.length > 0,
+    queryKey: queryKeys.incidentMinistryScope(cycleId),
+    queryFn: () => getIncidentMinistryScope(cycleId),
     placeholderData: (previous) => previous,
     ...cacheConfig.moderate,
   });

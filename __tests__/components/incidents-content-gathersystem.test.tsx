@@ -33,13 +33,13 @@ jest.mock('@/hooks/data/attendance', () => ({
 
 const mockUseChildrenForActiveCycle = jest.fn();
 const mockUseMinistries = jest.fn();
-const mockUseMinistryIdsForChildren = jest.fn();
+const mockUseIncidentMinistryScope = jest.fn();
 const mockUseRegistrationCycles = jest.fn();
 jest.mock('@/hooks/data', () => ({
 	useChildrenForActiveCycle: () => mockUseChildrenForActiveCycle(),
 	useMinistries: () => mockUseMinistries(),
-	useMinistryIdsForChildren: (...args: unknown[]) =>
-		mockUseMinistryIdsForChildren(...args),
+	useIncidentMinistryScope: (...args: unknown[]) =>
+		mockUseIncidentMinistryScope(...args),
 	useRegistrationCycles: () => mockUseRegistrationCycles(),
 }));
 
@@ -80,7 +80,7 @@ function setup({ incidents = [pending, acknowledged] } = {}) {
 	mockUseMinistries.mockReturnValue({
 		data: [{ ministry_id: 'min-ss', name: 'Sunday School' }],
 	});
-	mockUseMinistryIdsForChildren.mockReturnValue({
+	mockUseIncidentMinistryScope.mockReturnValue({
 		data: [{ child_id: 'child-1', ministry_id: 'min-ss' }],
 	});
 }
@@ -281,27 +281,23 @@ describe('IncidentsContentGatherSystem', () => {
 					{ ministry_id: 'min-choir', name: 'Choir' },
 				],
 			});
-			// child-3's only membership lives in a past cycle, so it is returned
-			// only when the query drops its cycle scope.
-			mockUseMinistryIdsForChildren.mockImplementation(
-				(_childIds: string[], cycleId?: string) => ({
-					data: cycleId
-						? []
-						: [{ child_id: 'child-3', ministry_id: 'min-choir' }],
-				})
-			);
+			// child-3's only membership lives in a past cycle, so the server
+			// returns it only when the request drops its cycle scope.
+			mockUseIncidentMinistryScope.mockImplementation((cycleId?: string) => ({
+				data: cycleId
+					? []
+					: [{ child_id: 'child-3', ministry_id: 'min-choir' }],
+			}));
 		}
 
-		it('asks only for children drawn from the authorized incident list', () => {
+		it('never sends a child list: the server derives the scope', () => {
 			setupHistorical();
 			renderAs(AuthRole.ADMIN);
 
-			// Never a blanket fetch: the child set is exactly the children appearing
-			// in incidents this user may already see.
-			expect(mockUseMinistryIdsForChildren).toHaveBeenCalledWith(
-				['child-3'],
-				'cycle-1'
-			);
+			// Only a cycle scope crosses the wire. Child ids are resolved from the
+			// session inside /api/incidents/ministry-scope, so the browser has no
+			// say in which children it may ask about.
+			expect(mockUseIncidentMinistryScope).toHaveBeenCalledWith('cycle-1');
 		});
 
 		it('offers the ministry of a past-cycle incident once past cycles are shown', () => {
@@ -318,10 +314,7 @@ describe('IncidentsContentGatherSystem', () => {
 
 			// The cycle scope is dropped, so the past-cycle incident is in context and
 			// its history-only ministry becomes available as a filter option.
-			expect(mockUseMinistryIdsForChildren).toHaveBeenLastCalledWith(
-				['child-3'],
-				undefined
-			);
+			expect(mockUseIncidentMinistryScope).toHaveBeenLastCalledWith(undefined);
 			expect(screen.getByText('Past Cycle Child')).toBeInTheDocument();
 			expect(screen.getByText('Ministry')).toBeInTheDocument();
 		});
