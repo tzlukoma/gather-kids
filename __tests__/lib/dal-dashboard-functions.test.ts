@@ -38,10 +38,39 @@ import {
 } from '@/lib/dal';
 
 describe('Dashboard DAL Functions', () => {
+  // This read goes through `GET /api/incidents` rather than the adapter, so the
+  // scope is applied as a database predicate from the validated session instead
+  // of in the browser (#428). The test asserts the request it makes, because the
+  // query string is what carries the scope.
   describe('getUnacknowledgedIncidents', () => {
-    it('should return empty array when no incidents exist', async () => {
+    const originalFetch = global.fetch;
+
+    afterEach(() => {
+      global.fetch = originalFetch;
+    });
+
+    it('asks the server for unacknowledged incidents only', async () => {
+      const mockFetch = jest.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ incidents: [] }),
+      });
+      global.fetch = mockFetch as unknown as typeof fetch;
+
       const incidents = await getUnacknowledgedIncidents();
+
+      expect(mockFetch).toHaveBeenCalledWith('/api/incidents?unacknowledged=true');
       expect(Array.isArray(incidents)).toBe(true);
+    });
+
+    it('throws rather than reporting an empty list when the request fails', async () => {
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: false,
+        status: 403,
+      }) as unknown as typeof fetch;
+
+      // An empty array here would render as "no pending incidents", which is a
+      // worse failure than an error on a screen that exists to surface them.
+      await expect(getUnacknowledgedIncidents()).rejects.toThrow('403');
     });
   });
 

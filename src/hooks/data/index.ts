@@ -4,7 +4,7 @@ export { useBibleBeeStats } from './bibleBee';
 export { useHouseholds, useHousehold, useHouseholdProfile, useHouseholdList, useGuardians, useEmergencyContacts, useUpdateHousehold, useUpdateEmergencyContact } from './households';
 export { useAddGuardian, useUpdateGuardian, useRemoveGuardian } from './guardians';
 export { useAddChildEnrollment, useRemoveChildEnrollment, useUpdateChildEnrollmentFields } from './enrollments';
-export { useAttendance, useIncidents, useIncidentsForUser, useScopedIncidents, useAcknowledgeIncident, useCheckInMutation, useCheckOutMutation } from './attendance';
+export { useAttendance, useIncidents, useIncidentsForUser, useAcknowledgeIncident, useCheckInMutation, useCheckOutMutation } from './attendance';
 export { 
   useMinistries, 
   useMinistriesByGroupCode, 

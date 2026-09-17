@@ -22,9 +22,9 @@ jest.mock('@/components/gatherKids/incident-form', () => ({
 }));
 
 const mockMutateAsync = jest.fn();
-const mockUseScopedIncidents = jest.fn();
+const mockUseIncidentsForUser = jest.fn();
 jest.mock('@/hooks/data/attendance', () => ({
-	useScopedIncidents: (...args: unknown[]) => mockUseScopedIncidents(...args),
+	useIncidentsForUser: (...args: unknown[]) => mockUseIncidentsForUser(...args),
 	useAcknowledgeIncident: () => ({
 		mutateAsync: mockMutateAsync,
 		isPending: false,
@@ -66,7 +66,7 @@ const acknowledged = {
 };
 
 function setup({ incidents = [pending, acknowledged] } = {}) {
-	mockUseScopedIncidents.mockReturnValue({
+	mockUseIncidentsForUser.mockReturnValue({
 		data: incidents,
 		isLoading: false,
 		error: null,
@@ -103,13 +103,12 @@ describe('IncidentsContentGatherSystem', () => {
 		setup();
 	});
 
-	// This screen must not use the legacy `useIncidentsForUser`, which reads the
-	// whole `incidents` table into the browser and filters client-side (#428).
-	// `useScopedIncidents` gets the same visible set from `/api/incidents`, which
-	// scopes it as a database predicate from the validated session.
-	it('reads incidents through useScopedIncidents (authorization boundary)', () => {
+	// Both screens read through `useIncidentsForUser`, which now resolves its
+	// scope server-side via `/api/incidents` rather than pulling the whole table
+	// into the browser and filtering in JavaScript (#428).
+	it('reads incidents through useIncidentsForUser (authorization boundary)', () => {
 		renderAs(AuthRole.ADMIN);
-		expect(mockUseScopedIncidents).toHaveBeenCalled();
+		expect(mockUseIncidentsForUser).toHaveBeenCalled();
 	});
 
 	it('honours the ?tab=view&filter=pending deep link from the dashboard', () => {
