@@ -7,7 +7,9 @@
     "node": ">=22.22.2"
   },
   "scripts": {
-    "dev": "node scripts/inject-build-info.mjs && next dev --turbopack -p 9002",
+    "postinstall": "node scripts/inject-build-info.mjs",
+    "predev": "node scripts/inject-build-info.mjs",
+    "dev": "next dev --turbopack -p 9002",
     "dev:seeded": "npm run seed:dev && npm run dev",
     "dev:uat": "./scripts/dev/dev-uat.sh",
     "genkit:dev": "genkit start -- tsx src/ai/dev.ts",
@@ -17,8 +19,11 @@
     "start": "next start",
     "lint": "eslint .",
     "lint:colors": "./scripts/lint-colors.sh",
-    "typecheck": "node scripts/inject-build-info.mjs && tsc --noEmit",
+    "pretypecheck": "node scripts/inject-build-info.mjs",
+    "typecheck": "tsc --noEmit",
+    "pretest": "node scripts/inject-build-info.mjs",
     "test": "jest",
+    "pretest:watch": "node scripts/inject-build-info.mjs",
     "test:watch": "jest --watch",
     "test:email": "playwright test --config=playwright-email.config.ts",
     "test:email:ui": "playwright test --config=playwright-email.config.ts --ui",
