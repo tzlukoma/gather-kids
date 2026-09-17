@@ -71,7 +71,7 @@ Run once per environment, **before** raising the rollout there:
 SUPABASE_URL=… SUPABASE_SERVICE_ROLE_KEY=… node scripts/backfill-app-metadata-roles.mjs --apply
 ```
 
-The script copies `user_metadata.role` to `app_metadata.role` for existing accounts. It is a **dry run without `--apply`** — run it without the flag first and read the output.
+The script copies `user_metadata.role` to `app_metadata.role` for existing accounts. Without `--apply` it is a **dry run**: run that form first and read the output before committing to the change.
 
 **Why:** `GET /api/incidents`, which only this screen calls, resolves the caller's role from `app_metadata`, because `user_metadata` is rewritable by the signed-in user themselves and so cannot carry a privilege claim. Existing accounts hold the role only in `user_metadata`.
 
