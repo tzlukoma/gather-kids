@@ -80,6 +80,30 @@ describe('admin-overview page GatherSystem admin gate', () => {
 		expect(screen.getByTestId('admin-dashboard-legacy')).toBeInTheDocument();
 	});
 
+	it('returns legacy when there is no session, without evaluating the flag', async () => {
+		// canEvaluateFlags is true whenever Supabase public env exists, even with
+		// no user. Evaluating would bucket on the shared `<env>:anonymous`
+		// distinct id, so a globally enabled flag could select the new shell for
+		// an unauthenticated request.
+		mockSupabaseUser(null);
+		mockGetBoolean.mockResolvedValue(true);
+
+		await expect(getGatherSystemAdminFlag()).resolves.toBe(false);
+		expect(mockGetBoolean).not.toHaveBeenCalled();
+
+		const page = await AdminOverviewPage();
+		render(page);
+		expect(screen.getByTestId('admin-dashboard-legacy')).toBeInTheDocument();
+	});
+
+	it('returns legacy when the session has no user id', async () => {
+		mockSupabaseUser({ id: '', user_metadata: { role: 'ADMIN' } });
+		mockGetBoolean.mockResolvedValue(true);
+
+		await expect(getGatherSystemAdminFlag()).resolves.toBe(false);
+		expect(mockGetBoolean).not.toHaveBeenCalled();
+	});
+
 	it('returns legacy when flag evaluation fails closed', async () => {
 		mockGetBoolean.mockRejectedValue(new Error('posthog down'));
 		mockSupabaseUser({ id: 'user-abc', user_metadata: { role: 'ADMIN' } });

@@ -18,6 +18,15 @@ export async function getGatherSystemAdminFlag(): Promise<boolean> {
 			return false;
 		}
 
+		// `canEvaluateFlags` only reports that Supabase public env exists, so it
+		// is still true when `getUser()` found no session. Evaluating here would
+		// bucket the request under the shared `<env>:anonymous` distinct id, and
+		// a globally enabled flag would then select the new shell for an
+		// unauthenticated request. This surface is ADMIN-only: no session, legacy.
+		if (!userId) {
+			return false;
+		}
+
 		return await getBoolean('gathersystem_admin', false, { userId, role });
 	} catch (error) {
 		console.error('Failed to evaluate gathersystem_admin flag:', error);
