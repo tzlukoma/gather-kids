@@ -153,6 +153,18 @@ export async function getMinistryEnrollmentsByCycle(
     return dbAdapter.listMinistryEnrollments(undefined, undefined, cycleId);
 }
 
+/**
+ * Every ministry enrollment, across all registration cycles.
+ *
+ * Needed by surfaces that show records spanning more than the active cycle:
+ * an `Incident` carries no cycle, so a child involved in a historical incident
+ * has no active-cycle enrollment row and would otherwise be invisible to any
+ * ministry-based filter.
+ */
+export async function getAllMinistryEnrollments(): Promise<MinistryEnrollment[]> {
+    return dbAdapter.listMinistryEnrollments();
+}
+
 // ---------------------------------------------------------------------------
 // Child mutations (thin adapters)
 // ---------------------------------------------------------------------------

@@ -34,11 +34,14 @@ jest.mock('@/hooks/data/attendance', () => ({
 const mockUseChildrenForActiveCycle = jest.fn();
 const mockUseMinistries = jest.fn();
 const mockUseMinistryEnrollments = jest.fn();
+const mockUseAllMinistryEnrollments = jest.fn();
 const mockUseRegistrationCycles = jest.fn();
 jest.mock('@/hooks/data', () => ({
 	useChildrenForActiveCycle: () => mockUseChildrenForActiveCycle(),
 	useMinistries: () => mockUseMinistries(),
 	useMinistryEnrollments: () => mockUseMinistryEnrollments(),
+	useAllMinistryEnrollments: (...args: unknown[]) =>
+		mockUseAllMinistryEnrollments(...args),
 	useRegistrationCycles: () => mockUseRegistrationCycles(),
 }));
 
@@ -82,6 +85,7 @@ function setup({ incidents = [pending, acknowledged] } = {}) {
 	mockUseMinistryEnrollments.mockReturnValue({
 		data: [{ child_id: 'child-1', ministry_id: 'min-ss' }],
 	});
+	mockUseAllMinistryEnrollments.mockReturnValue({ data: [] });
 }
 
 function renderAs(role: AuthRole, overrides = {}) {
@@ -249,6 +253,67 @@ describe('IncidentsContentGatherSystem', () => {
 			fireEvent.click(screen.getByRole('button', { name: 'Show all incidents' }));
 
 			expect(screen.getByText('Test Child Two')).toBeInTheDocument();
+		});
+	});
+
+	describe('ministry filter across cycles', () => {
+		// An Incident carries no cycle. A child involved in a past-cycle incident
+		// therefore has no active-cycle enrollment row, so joining against the
+		// active-cycle enrollments alone drops that incident from any ministry
+		// filter and omits the ministry from the options entirely.
+		const historical = {
+			incident_id: 'inc-old',
+			child_id: 'child-3',
+			child_name: 'Past Cycle Child',
+			severity: 'medium',
+			description: 'Incident from an earlier cycle.',
+			leader_id: 'leader-1',
+			timestamp: '2025-04-02T10:00:00.000Z',
+			admin_acknowledged_at: null as string | null,
+		};
+
+		function setupHistorical() {
+			setup({ incidents: [historical] });
+			// child-3 is not in the active cycle, so nothing is in context yet.
+			mockUseChildrenForActiveCycle.mockReturnValue({
+				data: [{ child_id: 'child-1' }],
+			});
+			mockUseMinistries.mockReturnValue({
+				data: [
+					{ ministry_id: 'min-ss', name: 'Sunday School' },
+					{ ministry_id: 'min-choir', name: 'Choir' },
+				],
+			});
+			// child-3's only enrollment lives in a past cycle.
+			mockUseAllMinistryEnrollments.mockReturnValue({
+				data: [{ child_id: 'child-3', ministry_id: 'min-choir' }],
+			});
+		}
+
+		it('does not fetch all-cycle enrollments until past cycles are shown', () => {
+			setupHistorical();
+			renderAs(AuthRole.ADMIN);
+
+			expect(mockUseAllMinistryEnrollments).toHaveBeenCalledWith(false);
+		});
+
+		it('offers the ministry of a past-cycle incident once past cycles are shown', () => {
+			setupHistorical();
+			renderAs(AuthRole.ADMIN);
+
+			// Nothing in the active cycle, so no ministry has any incident behind it
+			// and the whole Ministry control is withheld.
+			expect(screen.queryByText('Ministry')).not.toBeInTheDocument();
+
+			fireEvent.click(
+				screen.getByRole('button', { name: 'Include past cycles' })
+			);
+
+			// The past-cycle incident is now in context, and its ministry — known
+			// only from the all-cycle enrollments — is offered as a filter option.
+			expect(screen.getByText('Past Cycle Child')).toBeInTheDocument();
+			expect(screen.getByText('Ministry')).toBeInTheDocument();
+			expect(mockUseAllMinistryEnrollments).toHaveBeenCalledWith(true);
 		});
 	});
 

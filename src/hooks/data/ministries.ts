@@ -6,6 +6,7 @@ import {
   getMinistriesByGroupCode,
   getMinistriesInGroup,
   getMinistryEnrollmentsByCycle,
+  getAllMinistryEnrollments,
   getMinistryGroups,
   getMinistryGroup,
   getGroupsForMinistry,
@@ -51,6 +52,20 @@ export function useMinistryEnrollments(cycleId: string) {
     queryFn: () => getMinistryEnrollmentsByCycle(cycleId),
     enabled: !!cycleId,
     ...cacheConfig.moderate, // Enrollments change moderately
+  });
+}
+
+/**
+ * Ministry enrollments across every cycle. Only fetch this when a surface
+ * actually shows records from outside the active cycle — pass `enabled: false`
+ * otherwise so the scoped `useMinistryEnrollments` query stays the default.
+ */
+export function useAllMinistryEnrollments(enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.allMinistryEnrollments(),
+    queryFn: () => getAllMinistryEnrollments(),
+    enabled,
+    ...cacheConfig.moderate,
   });
 }
 
