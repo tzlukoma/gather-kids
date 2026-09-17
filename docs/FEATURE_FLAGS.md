@@ -65,17 +65,29 @@ A prerequisite is something that must be true **in the target environment** befo
 
 #### `gathersystem_incidents` — trusted role claims
 
-**#429 must merge first, and its backfill must have run in this environment.**
+**The backfill must have run in this environment.**
 
-`GET /api/incidents`, which only this screen calls, resolves the caller's role from `app_metadata`, because `user_metadata` is rewritable by the signed-in user themselves and so cannot carry a privilege claim.
+```bash
+SUPABASE_URL=… SUPABASE_SERVICE_ROLE_KEY=… \
+  node scripts/backfill-app-metadata-roles.mjs --admins=a@example.com,b@example.com --apply
+```
 
-Nothing populates `app_metadata.role` yet. That is deliberate, and the reason is worth understanding before anyone "helpfully" adds it:
+Dry run without `--apply`. Always run the dry form first and read the output.
 
-> `requireAdmin` still trusts `user_metadata`, so a user who self-asserts ADMIN passes it. Any **privileged writer sitting behind that guard** would let them launder that forged claim into a durable, service-role-written one — which then survives the repair. A writer must not be added before the guard is fixed. #429 does both in one change.
+`GET /api/incidents`, which only this screen calls, resolves the caller's role from `app_metadata`, because `user_metadata` is rewritable by the signed-in user themselves and so cannot carry a privilege claim. Existing accounts hold the role only in `user_metadata`, so until the backfill runs they resolve as `GUEST` and an admin opening this screen is scoped to incidents they logged personally — **narrower than intended, never wider**, and invisible while the flag is at 0%.
 
-Until #429 lands, every caller resolves as `GUEST`, so an admin opening this screen is scoped to incidents they logged personally — **narrower than intended, never wider**, and invisible while the flag is at 0%.
+**`--admins` is required to grant ADMIN, and that is not a formality.** The backfill's source, `user_metadata.role`, is the very claim this migration exists to stop trusting. Copying it wholesale would launder a self-asserted ADMIN into the trusted store, reintroducing the hole through the fix. So ADMIN is granted only to the addresses you name, and every other ADMIN claim is refused and listed:
 
-**Status:** #429 open; backfill not run in any environment. Ops checklist in #433.
+```
+REFUSED 2 self-asserted ADMIN claim(s) not named in --admins:
+  someone@example.com
+```
+
+An account in that list you do not recognise is a self-promotion attempt. Leave it out and clear its `user_metadata.role` separately. Lower-privilege roles copy freely — they confer far less and are too many to enumerate.
+
+**Related invariant, for whoever touches this next:** a privileged writer must never sit behind a guard weaker than the claim it writes. `requireAdmin` reads `app_metadata.role` and the routes that write it are guarded by `requireAdmin`; those two facts have to move together. Separating them lets a forged claim be laundered into a durable one that survives the repair.
+
+**Whether it has already been run in a given environment is tracked in #433, not here.** Check there before running it. This file describes the procedure; it deliberately does not record run state, which changes per environment and goes stale in a document.
 
 ---
 

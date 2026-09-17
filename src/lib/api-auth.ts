@@ -25,19 +25,12 @@ interface AuthUser {
  * Fails closed: no `app_metadata.role` means GUEST. There is deliberately no
  * fallback to `user_metadata`, which would reopen the hole.
  *
- * **Nothing in this branch writes `app_metadata`, on purpose.** `requireAdmin`
- * below still trusts `user_metadata` (as on `main`), so any route it guards is
- * reachable by a user who has self-asserted ADMIN. A privileged writer behind
- * that guard would let such a user launder their forged claim into a *durable,
- * trusted* one — strictly worse than the existing hole, because the minted
- * claim survives the fix. So the `app_metadata` writes on the user routes, and
- * the backfill that populates existing accounts, both belong to #429, which
- * repairs `requireAdmin` in the same change.
- *
- * Consequence until #429 lands: every caller resolves as GUEST here, so an
- * admin on the flagged incidents screen is scoped to incidents they logged.
- * Narrower than intended, never wider, and invisible while the flag is off.
- * **#429 is therefore a prerequisite for enabling `gathersystem_incidents`.**
+ * Populated by `POST /api/users/create` and `PATCH /api/users/[userId]`, both
+ * guarded by `requireAdmin` below, which now reads this same trusted claim —
+ * a privileged writer must never sit behind a guard weaker than the claim it
+ * writes, or a forged claim can be laundered into a durable one that survives
+ * the repair. Existing accounts are populated once per environment by
+ * `scripts/backfill-app-metadata-roles.mjs`.
  */
 export function resolveTrustedRole(user: Pick<AuthUser, 'app_metadata'>): string {
 	const role = user.app_metadata?.role;
@@ -45,7 +38,8 @@ export function resolveTrustedRole(user: Pick<AuthUser, 'app_metadata'>): string
 }
 
 async function getAuthenticatedUser(): Promise<
-	{ ok: true; user: AuthUser } | { ok: false; response: NextResponse }
+	| { ok: true; user: AuthUser }
+	| { ok: false; reason: 'misconfigured' | 'unauthenticated'; response: NextResponse }
 > {
 	const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 	const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -55,6 +49,7 @@ async function getAuthenticatedUser(): Promise<
 		);
 		return {
 			ok: false,
+			reason: 'misconfigured',
 			response: NextResponse.json({ error: 'Server configuration error' }, { status: 503 }),
 		};
 	}
@@ -74,6 +69,7 @@ async function getAuthenticatedUser(): Promise<
 	if (error || !user) {
 		return {
 			ok: false,
+			reason: 'unauthenticated',
 			response: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }),
 		};
 	}
@@ -87,16 +83,22 @@ export async function requireAdmin(): Promise<
 > {
 	const result = await getAuthenticatedUser();
 	if (!result.ok) {
-		// Preserve the historical 403 for this helper rather than leaking whether
-		// the caller was unauthenticated or merely not an admin.
+		// A misconfigured server is not an authorization outcome and keeps its
+		// 503 — collapsing it to 403 would tell an operator their credentials
+		// were rejected when the deployment is simply missing its Supabase env.
+		// An unauthenticated caller does get 403, matching this helper's
+		// historical behaviour, so the response cannot be used to distinguish
+		// "not signed in" from "signed in but not an admin".
+		if (result.reason === 'misconfigured') {
+			return { authorized: false, response: result.response };
+		}
 		return {
 			authorized: false,
 			response: NextResponse.json({ error: 'Unauthorized' }, { status: 403 }),
 		};
 	}
 
-	// Deliberately still `user_metadata`, matching `main`. See `resolveTrustedRole`.
-	if (result.user.user_metadata?.role !== 'ADMIN') {
+	if (resolveTrustedRole(result.user) !== 'ADMIN') {
 		return {
 			authorized: false,
 			response: NextResponse.json({ error: 'Unauthorized' }, { status: 403 }),

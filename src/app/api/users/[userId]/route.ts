@@ -59,10 +59,12 @@ export async function PATCH(
 		}
 
 		const existingMetadata = currentUserData.user.user_metadata || {};
+		const existingAppMetadata = currentUserData.user.app_metadata || {};
 		const updatePayload: {
 			password?: string;
 			email_confirmed_at?: string;
 			user_metadata?: Record<string, unknown>;
+			app_metadata?: Record<string, unknown>;
 		} = {};
 
 		if (hasPassword) {
@@ -72,6 +74,14 @@ export async function PATCH(
 			updatePayload.email_confirmed_at = new Date().toISOString();
 		}
 		if (hasRole) {
+			// `app_metadata` is the claim authorization trusts, because only the
+			// service role can write it. `user_metadata` is kept in step for UI
+			// that still reads it, but must never be the basis for a privilege
+			// decision — a signed-in user can rewrite their own.
+			updatePayload.app_metadata = {
+				...existingAppMetadata,
+				role: String(role),
+			};
 			updatePayload.user_metadata = {
 				...existingMetadata,
 				role: String(role),
