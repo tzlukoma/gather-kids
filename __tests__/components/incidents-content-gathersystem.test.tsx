@@ -136,6 +136,18 @@ describe('IncidentsContentGatherSystem', () => {
 			).not.toBeInTheDocument();
 		});
 
+		it('does not promise acknowledgement to a MINISTRY_LEADER in the page copy', () => {
+			renderAs(AuthRole.MINISTRY_LEADER);
+			expect(
+				screen.getByText('Log anything that happened during a session.')
+			).toBeInTheDocument();
+			expect(
+				screen.queryByText(
+					'Log and acknowledge anything that happened during a session.'
+				)
+			).not.toBeInTheDocument();
+		});
+
 		it('never offers Acknowledge to a MINISTRY_LEADER in incident detail', () => {
 			renderAs(AuthRole.MINISTRY_LEADER);
 			fireEvent.click(screen.getByText('Test Child One'));

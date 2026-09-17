@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button';
 import {
 	Form,
 	FormControl,
-	FormDescription,
 	FormField,
 	FormItem,
 	FormLabel,
@@ -147,9 +146,6 @@ export function IncidentForm() {
 									<SelectItem value="high">High</SelectItem>
 								</SelectContent>
 							</Select>
-							<FormDescription>
-								High severity will send an immediate notification to admins.
-							</FormDescription>
 							<FormMessage />
 						</FormItem>
 					)}

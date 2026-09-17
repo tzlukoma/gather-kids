@@ -329,7 +329,9 @@ export function IncidentsContentGatherSystem() {
 					</Badge>
 				</div>
 				<p className="text-muted-foreground">
-					Log and acknowledge anything that happened during a session.
+					{isAdmin
+						? 'Log and acknowledge anything that happened during a session.'
+						: 'Log anything that happened during a session.'}
 				</p>
 			</div>
 
@@ -359,7 +361,9 @@ export function IncidentsContentGatherSystem() {
 						<CardHeader>
 							<div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
 								<div>
-									<CardTitle className="font-headline">All Incidents</CardTitle>
+									<CardTitle className="font-headline">
+										{showAllCycles ? 'All Incidents' : 'Incidents This Cycle'}
+									</CardTitle>
 									<CardDescription>
 										{isAdmin
 											? 'Acknowledge each one so it clears the dashboard.'
@@ -654,8 +658,8 @@ function NoFilterMatches({
 				No incidents match the current filter
 			</h3>
 			<p className="max-w-md text-sm text-muted-foreground">
-				Nothing needs your acknowledgement right now. Clear the filter to see
-				acknowledged incidents from earlier sessions.
+				Incidents have been logged, but none match the filters you have
+				applied. Clear them to see everything in this view.
 			</p>
 			<div className="flex flex-wrap justify-center gap-2">
 				<Button onClick={onClearFilters}>Show all incidents</Button>
