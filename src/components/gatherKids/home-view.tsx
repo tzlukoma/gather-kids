@@ -167,7 +167,7 @@ export function HomeView({ cycleName }: HomeViewProps) {
 							</span>
 						</div>
 					)}
-					<h1 className="mt-4 font-headline text-[27px] font-bold leading-8 tracking-[-0.025em] sm:text-[40px] sm:leading-[46px]">
+					<h1 className="mt-4 font-headline text-[27px] font-bold leading-8 tracking-tight sm:text-[40px] sm:leading-[46px]">
 						{cycleName
 							? `Register your children for ${cycleName}`
 							: 'Register your children'}
@@ -185,7 +185,7 @@ export function HomeView({ cycleName }: HomeViewProps) {
 				</div>
 
 				<div className="container mx-auto grid items-start gap-3 px-4 pt-4 sm:gap-[22px] sm:px-6 sm:pt-6 md:grid-cols-2">
-					<section className="rounded-xl border bg-card p-[18px] shadow-sm sm:p-[26px] sm:pt-6">
+					<section className="rounded-xl border bg-card p-[18px] shadow-xs sm:p-[26px] sm:pt-6">
 						<div className="flex items-center gap-2.5 sm:gap-[11px]">
 							<span className="flex h-8 w-8 flex-none items-center justify-center rounded-lg bg-primary/10 sm:h-[38px] sm:w-[38px] sm:rounded-[9px]">
 								<UserPlus
@@ -246,7 +246,7 @@ export function HomeView({ cycleName }: HomeViewProps) {
 						</p>
 					</section>
 
-					<section className="rounded-xl border bg-card p-[18px] shadow-sm sm:p-[26px] sm:pt-6">
+					<section className="rounded-xl border bg-card p-[18px] shadow-xs sm:p-[26px] sm:pt-6">
 						<div className="flex items-center gap-2.5 sm:gap-[11px]">
 							<span className="flex h-8 w-8 flex-none items-center justify-center rounded-lg bg-muted sm:h-[38px] sm:w-[38px] sm:rounded-[9px]">
 								<LogIn

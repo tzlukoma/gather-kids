@@ -34,7 +34,7 @@ export function DebugFooterIcon({ onClick }: DebugFooterIconProps) {
       variant="outline"
       size="sm"
       onClick={onClick}
-      className="fixed bottom-4 left-4 z-50 bg-background/80 backdrop-blur-sm border-dashed"
+      className="fixed bottom-4 left-4 z-50 bg-background/80 backdrop-blur-xs border-dashed"
       aria-label="Open Debug Panel"
       title="Open Debug Panel (Ctrl+Shift+D)"
     >

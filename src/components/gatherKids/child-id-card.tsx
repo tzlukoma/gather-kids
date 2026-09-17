@@ -100,7 +100,7 @@ export function ChildIdCard({
 					</div>
 				)}
 				<CardHeader className="flex flex-col items-center gap-4 p-4 pt-6 text-center sm:flex-row sm:items-start sm:p-6 sm:text-left">
-					<div className="relative w-24 h-24 sm:w-[60px] sm:h-[60px] flex-shrink-0">
+					<div className="relative w-24 h-24 sm:w-[60px] sm:h-[60px] shrink-0">
 						<Button
 							variant="ghost"
 							className="w-full h-full p-0 rounded-full"

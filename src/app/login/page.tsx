@@ -188,7 +188,7 @@ export default function LoginPage() {
 
 	return (
 		<div className="flex flex-col min-h-screen bg-muted/50">
-			<main id="main-content" className="flex-grow flex flex-col items-center justify-center p-4">
+			<main id="main-content" className="grow flex flex-col items-center justify-center p-4">
 				<div className="mb-8">
 					<Link
 						href="/"

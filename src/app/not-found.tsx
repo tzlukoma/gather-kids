@@ -57,7 +57,7 @@ export default function NotFound() {
 						</div>
 
 						{/* 404 Icon */}
-						<div className="mx-auto mb-6 w-24 h-24 bg-gradient-to-br from-brand-teal to-brand-aqua rounded-full flex items-center justify-center">
+						<div className="mx-auto mb-6 w-24 h-24 bg-linear-to-br from-brand-teal to-brand-aqua rounded-full flex items-center justify-center">
 							<Search className="w-12 h-12 text-white" />
 						</div>
 
@@ -88,7 +88,7 @@ export default function NotFound() {
 							<div className="grid gap-4 md:grid-cols-2">
 								<div className="p-4 bg-brand-teal/10 rounded-lg border border-brand-teal/20">
 									<div className="flex items-start space-x-3">
-										<Home className="w-5 h-5 text-brand-teal mt-0.5 flex-shrink-0" />
+										<Home className="w-5 h-5 text-brand-teal mt-0.5 shrink-0" />
 										<div>
 											<h4 className="font-medium font-headline text-foreground">
 												Go Home
@@ -102,7 +102,7 @@ export default function NotFound() {
 
 								<div className="p-4 bg-brand-aqua/10 rounded-lg border border-brand-aqua/20">
 									<div className="flex items-start space-x-3">
-										<ArrowLeft className="w-5 h-5 text-brand-aqua mt-0.5 flex-shrink-0" />
+										<ArrowLeft className="w-5 h-5 text-brand-aqua mt-0.5 shrink-0" />
 										<div>
 											<h4 className="font-medium font-headline text-foreground">
 												Go Back

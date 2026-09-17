@@ -89,7 +89,7 @@ export function HelpShell({
 
 	return (
 		<div className="flex min-h-screen flex-col bg-background">
-			<header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur">
+			<header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur-sm">
 				<div className="mx-auto flex h-14 w-full max-w-6xl items-center gap-3 px-4">
 					<Sheet>
 						<SheetTrigger asChild>

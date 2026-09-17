@@ -151,7 +151,7 @@ export function EditLeaderMembershipDialog({
 							</RadioGroup>
 						</div>
 
-						<div className="flex items-center justify-between rounded-lg border p-3 shadow-sm">
+						<div className="flex items-center justify-between rounded-lg border p-3 shadow-xs">
 							<div className="space-y-0.5">
 								<Label htmlFor="membership-active" className="font-medium">
 									Active Membership

@@ -1,12 +1,159 @@
 /* PERF-09: Google Fonts @import removed — fonts are now loaded via next/font in layout.tsx
    which provides automatic self-hosting, preloading, and zero layout shift. */
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
 
-body {
-  font-family: var(--font-work-sans, var(--font-body, 'Work Sans')), sans-serif;
+@plugin 'tailwindcss-animate';
+
+@custom-variant dark (&:is(.dark *));
+
+@utility container {
+  margin-inline: auto;
+  padding-inline: 2rem;
+  @media (width >= --theme(--breakpoint-sm)) {
+    max-width: none;
+  }
+  @media (width >= 1400px) {
+    max-width: 1400px;
+  }
+}
+
+@theme {
+  --font-display: var(--font-work-sans), Work Sans, sans-serif;
+  --font-body: var(--font-work-sans), Work Sans, sans-serif;
+  --font-headline: var(--font-work-sans), Work Sans, sans-serif;
+  --font-scripture: var(--font-merriweather), Merriweather, serif;
+  --font-code: Source Code Pro, monospace;
+
+  --color-brand-teal: hsl(var(--color-teal));
+  --color-brand-yellow: hsl(var(--color-yellow));
+  --color-brand-orange: hsl(var(--color-orange));
+  --color-brand-aqua: hsl(var(--color-aqua));
+  --color-brand-ground: hsl(var(--color-bg));
+  --color-brand-gold: hsl(var(--color-gold));
+  --color-brand-gold-soft: hsl(var(--color-gold-soft));
+
+  --color-surface: hsl(var(--color-bg));
+  --color-ink: hsl(var(--color-ink));
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+
+  --color-chart-1: hsl(var(--chart-1));
+  --color-chart-2: hsl(var(--chart-2));
+  --color-chart-3: hsl(var(--chart-3));
+  --color-chart-4: hsl(var(--chart-4));
+  --color-chart-5: hsl(var(--chart-5));
+
+  --color-sidebar: hsl(var(--sidebar-background));
+  --color-sidebar-foreground: hsl(var(--sidebar-foreground));
+  --color-sidebar-primary: hsl(var(--sidebar-primary));
+  --color-sidebar-primary-foreground: hsl(var(--sidebar-primary-foreground));
+  --color-sidebar-accent: hsl(var(--sidebar-accent));
+  --color-sidebar-accent-foreground: hsl(var(--sidebar-accent-foreground));
+  --color-sidebar-border: hsl(var(--sidebar-border));
+  --color-sidebar-ring: hsl(var(--sidebar-ring));
+
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 4px);
+
+  --animate-accordion-down: accordion-down 0.2s ease-out;
+  --animate-accordion-up: accordion-up 0.2s ease-out;
+
+  @keyframes accordion-down {
+    from {
+      height: 0;
+    }
+    to {
+      height: var(--radix-accordion-content-height);
+    }
+  }
+  @keyframes accordion-up {
+    from {
+      height: var(--radix-accordion-content-height);
+    }
+    to {
+      height: 0;
+    }
+  }
+}
+
+/*
+  The default border color has changed to `currentcolor` in Tailwind CSS v4,
+  so we've added these compatibility styles to make sure everything still
+  looks the same as it did with Tailwind CSS v3.
+
+  If we ever want to remove these styles, we need to add an explicit border
+  color utility to any element that depends on these defaults.
+*/
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentcolor);
+  }
+}
+
+@utility btn-primary {
+  @apply bg-brand-teal text-white font-semibold hover:opacity-90 transition-opacity;
+}
+
+@utility btn-door {
+  @apply bg-brand-yellow text-ink font-semibold hover:opacity-90 transition-opacity;
+}
+
+@utility link {
+  @apply text-brand-teal underline-offset-2 hover:underline transition-colors;
+}
+
+@utility card {
+  @apply bg-surface text-ink shadow-xs rounded-xl border border-border;
+}
+
+@utility badge-success {
+  @apply bg-brand-aqua text-white;
+}
+
+@utility text-brand-primary {
+  @apply text-brand-teal;
+}
+
+@utility bg-brand-primary {
+  @apply bg-brand-teal;
+}
+
+@layer utilities {
+  body {
+    font-family:
+      var(--font-work-sans, var(--font-body, 'Work Sans')), sans-serif;
+  }
 }
 
 @layer base {
@@ -124,73 +271,62 @@ body {
   }
 }
 
-/* Font variables for use in components and utilities.
+@layer utilities {
+  /* Font variables for use in components and utilities.
    --font-work-sans and --font-merriweather are injected by next/font in layout.tsx. */
-:root {
-  --font-display: var(--font-work-sans, 'Work Sans'), ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
-  --font-body: var(--font-work-sans, 'Work Sans'), ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
-  --font-scripture: var(--font-merriweather, 'Merriweather'), Georgia, 'Times New Roman', serif;
-}
+  :root {
+    --font-display:
+      var(--font-work-sans, 'Work Sans'), ui-sans-serif, system-ui,
+      -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+    --font-body:
+      var(--font-work-sans, 'Work Sans'), ui-sans-serif, system-ui,
+      -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+    --font-scripture:
+      var(--font-merriweather, 'Merriweather'), Georgia, 'Times New Roman',
+      serif;
+  }
 
-/* Apply display font to headings and accent UI text */
-h1, h2, h3, h4, h5, h6, .display, .ui-accent {
-  font-family: var(--font-display);
-}
+  /* Apply display font to headings and accent UI text */
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6,
+  .display,
+  .ui-accent {
+    font-family: var(--font-display);
+  }
 
-/* Apply body font to paragraph text */
-p, li, blockquote {
-  font-family: var(--font-body);
-}
+  /* Apply body font to paragraph text */
+  p,
+  li,
+  blockquote {
+    font-family: var(--font-body);
+  }
 
-/* Apply Merriweather to scripture passages only */
-.scripture, .scripture-passages {
-  font-family: var(--font-scripture);
-}
+  /* Apply Merriweather to scripture passages only */
+  .scripture,
+  .scripture-passages {
+    font-family: var(--font-scripture);
+  }
 
-/* Override Tailwind generated utility classes until a full rebuild regenerates them */
-.font-headline {
-  font-family: var(--font-display) !important;
-}
+  /* Override Tailwind generated utility classes until a full rebuild regenerates them */
+  .font-headline {
+    font-family: var(--font-display) !important;
+  }
 
-.font-body {
-  font-family: var(--font-body) !important;
-}
+  .font-body {
+    font-family: var(--font-body) !important;
+  }
 
-.font-scripture {
-  font-family: var(--font-scripture) !important;
-}
+  .font-scripture {
+    font-family: var(--font-scripture) !important;
+  }
 
-/* gatherKids Design System Utility Classes
+  /* gatherKids Design System Utility Classes
    Rule A: teal = guardian/admin primary; marigold = door-staff only
    See docs/DESIGN_TOKENS.md for full guidance */
-@layer utilities {
-  .btn-primary { 
-    @apply bg-brand-teal text-white font-semibold hover:opacity-90 transition-opacity; 
-  }
-  
-  .btn-door { 
-    @apply bg-brand-yellow text-ink font-semibold hover:opacity-90 transition-opacity; 
-  }
-  
-  .link { 
-    @apply text-brand-teal underline-offset-2 hover:underline transition-colors; 
-  }
-  
-  .card { 
-    @apply bg-surface text-ink shadow-sm rounded-xl border border-border; 
-  }
-  
-  .badge-success {
-    @apply bg-brand-aqua text-white;
-  }
-  
-  .text-brand-primary {
-    @apply text-brand-teal;
-  }
-  
-  .bg-brand-primary {
-    @apply bg-brand-teal;
-  }
 }
 
 /* Print pagination: "Page x of y" in footer */

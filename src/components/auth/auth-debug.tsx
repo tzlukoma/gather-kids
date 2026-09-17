@@ -381,7 +381,7 @@ export function AuthDebug({
 					<Button
 						variant="outline"
 						size="sm"
-						className="fixed bottom-4 right-4 z-50 bg-background/80 backdrop-blur-sm">
+						className="fixed bottom-4 right-4 z-50 bg-background/80 backdrop-blur-xs">
 						<Bug className="h-4 w-4 mr-2" />
 						Auth Debug
 					</Button>

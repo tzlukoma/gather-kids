@@ -38,14 +38,14 @@ function Calendar({
         weekday:
           "text-muted-foreground rounded-md w-9 h-9 font-normal text-[0.8rem] flex items-center justify-center",
         week: "flex w-full mt-2",
-        day: "relative h-9 w-9 p-0 text-center text-sm focus-within:relative focus-within:z-20 [&:has([aria-selected])]:bg-accent [&:has([aria-selected].day-range-end)]:rounded-r-md first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md",
+        day: "relative h-9 w-9 p-0 text-center text-sm focus-within:relative focus-within:z-20 has-aria-[selected]:bg-accent [&:has([aria-selected].day-range-end)]:rounded-r-md first:has-aria-[selected]:rounded-l-md last:has-aria-[selected]:rounded-r-md",
         day_button: cn(
           buttonVariants({ variant: "ghost" }),
           "h-9 w-9 p-0 font-normal aria-selected:opacity-100"
         ),
         range_end: "day-range-end",
         selected:
-          "[&>button]:bg-primary [&>button]:text-primary-foreground [&>button]:hover:bg-primary [&>button]:hover:text-primary-foreground [&>button]:focus:bg-primary [&>button]:focus:text-primary-foreground",
+          "[&>button]:bg-primary [&>button]:text-primary-foreground hover:[&>button]:bg-primary hover:[&>button]:text-primary-foreground focus:[&>button]:bg-primary focus:[&>button]:text-primary-foreground",
         today: "[&>button]:bg-accent [&>button]:text-accent-foreground",
         outside:
           "day-outside text-muted-foreground [&>button]:text-muted-foreground aria-selected:bg-accent/50",
