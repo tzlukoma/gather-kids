@@ -30,15 +30,10 @@
  * never commit a service-role key.
  */
 import { createClient } from '@supabase/supabase-js';
+import { decideBackfill, parseAllowedAdmins } from './lib/backfill-role-decision.mjs';
 
 const apply = process.argv.includes('--apply');
-const adminsArg = process.argv.find((a) => a.startsWith('--admins='));
-const allowedAdmins = new Set(
-	(adminsArg ? adminsArg.slice('--admins='.length) : '')
-		.split(',')
-		.map((e) => e.trim().toLowerCase())
-		.filter(Boolean)
-);
+const allowedAdmins = parseAllowedAdmins(process.argv);
 
 const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -76,26 +71,23 @@ while (true) {
 	for (const user of users) {
 		summary.scanned += 1;
 		const label = user.email || user.id;
-		const trusted = user.app_metadata?.role;
-		const asserted = user.user_metadata?.role;
+		const decision = decideBackfill(user, allowedAdmins);
 
-		if (typeof trusted === 'string' && trusted.length > 0) {
+		if (decision.action === 'already-set') {
 			summary.alreadySet += 1;
-			continue;
-		}
-		if (typeof asserted !== 'string' || asserted.length === 0) {
+		} else if (decision.action === 'no-role') {
 			summary.noRole += 1;
-			continue;
-		}
-
-		// The load-bearing check. See the note at the top of this file.
-		if (asserted === 'ADMIN' && !allowedAdmins.has(String(user.email || '').toLowerCase())) {
+		} else if (decision.action === 'refuse-admin') {
 			summary.adminRefused += 1;
 			refusedAdmins.push(label);
-			continue;
+		} else {
+			pending.push({
+				id: user.id,
+				label,
+				role: decision.role,
+				appMetadata: user.app_metadata,
+			});
 		}
-
-		pending.push({ id: user.id, label, role: asserted, appMetadata: user.app_metadata });
 	}
 
 	page += 1;
