@@ -13,9 +13,13 @@ import { getGatherSystemFlag } from '@/lib/flags/get-gathersystem-flag';
 
 /**
  * Every case here sets the provider to return `true` first, so a helper that
- * skipped its guard would return `true` and fail the test. The door flag
- * shipped without the no-session guard, which is why this is shared and
- * covered once for all GatherSystem keys.
+ * skipped its guard would return `true` and fail the test.
+ *
+ * `gathersystem_door` is exercised as a key because this evaluator is generic,
+ * but `getGatherSystemDoorFlag` does **not** delegate here yet: it still has
+ * its own copy of the logic in `src/app/(admin)/check-in/page.tsx`, without
+ * the guard. Switching it over changes a default-path surface, so it is #432
+ * rather than part of this flag-gated PR.
  */
 describe('getGatherSystemFlag fails closed', () => {
 	beforeEach(() => {

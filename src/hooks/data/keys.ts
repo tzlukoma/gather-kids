@@ -16,6 +16,12 @@ export const queryKeys = {
   incidents: (date: string, eventId?: string) =>
     eventId ? ['incidents', date, eventId] : ['incidents', date],
   incidentsForUser: (userId: string | undefined) => ['incidents', 'user', userId] as const,
+  /**
+   * Server-scoped incident list for the GatherSystem incidents screen.
+   * Kept under the 'incidents' prefix so the acknowledge mutation's
+   * invalidateQueries({ queryKey: ['incidents'] }) still reaches it.
+   */
+  scopedIncidents: () => ['incidents', 'scoped'] as const,
   
   // Bible Bee
   scriptures: (cycleId: string) => ['scriptures', cycleId] as const,

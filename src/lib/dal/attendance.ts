@@ -113,19 +113,67 @@ export async function recordCheckOut(
 // ---------------------------------------------------------------------------
 
 /**
- * Read incidents through the server route that scopes them to the session.
- *
- * Incidents are sensitive and RLS does not constrain them, so the browser must
- * not query the table directly.
+ * Get all unacknowledged incidents.
  */
-async function fetchScopedIncidents(
-    options: { unacknowledged?: boolean; date?: string } = {},
-): Promise<Incident[]> {
-    const params = new URLSearchParams();
-    if (options.unacknowledged) params.set('unacknowledged', 'true');
-    if (options.date) params.set('date', options.date);
-    const query = params.size > 0 ? `?${params.toString()}` : '';
-    const response = await fetch(`/api/incidents${query}`);
+export async function getUnacknowledgedIncidents(): Promise<Incident[]> {
+    const incidents = await dbAdapter.listIncidents();
+    return incidents.filter(incident => !incident.admin_acknowledged_at);
+}
+
+/**
+ * Get incidents for a specific date.
+ */
+export async function getIncidentsForDate(dateISO: string): Promise<Incident[]> {
+    const incidents = await dbAdapter.listIncidents();
+    return incidents.filter(i => i.timestamp.startsWith(dateISO));
+}
+
+/**
+ * Get incidents visible to a given user.
+ *
+ * Ministry leaders only see incidents they logged; admins see all.
+ */
+export async function getIncidentsForUser(user: unknown): Promise<Incident[]> {
+    function isMinistryLeaderUser(u: unknown): boolean {
+        if (!u || typeof u !== 'object') return false;
+        const rec = u as Record<string, unknown>;
+        const meta = rec?.metadata as Record<string, unknown> | undefined;
+        return (meta?.role as unknown) === 'MINISTRY_LEADER';
+    }
+
+    function extractUserId(u: unknown): string | undefined {
+        const rec = u as Record<string, unknown> | undefined;
+        return (rec?.uid as string | undefined) || (rec?.id as string | undefined) || (rec?.user_id as string | undefined);
+    }
+
+    const allIncidents = await dbAdapter.listIncidents();
+
+    if (isMinistryLeaderUser(user)) {
+        const leaderId = extractUserId(user);
+        if (!leaderId) return [];
+        return allIncidents.filter(incident => incident.leader_id === leaderId);
+    }
+
+    return allIncidents.sort(
+        (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
+    );
+}
+
+/**
+ * Incidents visible to the signed-in user, scoped **server-side**.
+ *
+ * Used only by the GatherSystem incidents screen, which is gated by
+ * `gathersystem_incidents`. The scope is resolved by `GET /api/incidents` from
+ * the validated session and applied as a database predicate, so the browser
+ * never receives rows it will not render.
+ *
+ * The legacy `getIncidentsForUser` above deliberately still reads the whole
+ * table and filters in JavaScript (#428). Fixing that would change the default
+ * path, which this PR keeps byte-identical to `main`; #428 tracks it for the
+ * legacy screen, the dashboard, rosters and check-in.
+ */
+export async function getScopedIncidents(): Promise<Incident[]> {
+    const response = await fetch('/api/incidents');
 
     if (!response.ok) {
         throw new Error(`Failed to load incidents (${response.status})`);
@@ -133,47 +181,6 @@ async function fetchScopedIncidents(
 
     const body = (await response.json()) as { incidents?: Incident[] };
     return body.incidents ?? [];
-}
-
-/**
- * Get unacknowledged incidents the signed-in user is allowed to see.
- *
- * Scoped server-side by `/api/incidents`; see the note on
- * `getIncidentsForUser`.
- */
-export async function getUnacknowledgedIncidents(): Promise<Incident[]> {
-    return fetchScopedIncidents({ unacknowledged: true });
-}
-
-/**
- * Incidents on a given day that the signed-in user is allowed to see.
- *
- * Scoped server-side by `/api/incidents`; see the note on `getIncidentsForUser`.
- *
- * This is the door/roster view, and it stays visible to all **staff**, not just
- * the leader who logged the incident: check-in renders a marker per child, and a
- * child hurt earlier must still be flagged to whoever hands them back at pickup.
- * Guardians reach check-in too, and they no longer see other people's incidents.
- */
-export async function getIncidentsForDate(dateISO: string): Promise<Incident[]> {
-    return fetchScopedIncidents({ date: dateISO });
-}
-
-/**
- * Incidents visible to the signed-in user.
- *
- * The scope is resolved by `/api/incidents` from the session: an admin sees
- * every incident, anyone else only the incidents they logged. It used to read
- * the whole `incidents` table into the browser and filter in JavaScript, which
- * handed every leader every child's name and incident description whatever the
- * UI chose to render (#428).
- *
- * `user` is retained for call-site compatibility and is deliberately **not**
- * used to decide scope — an argument supplied by client code cannot be an
- * authorization input.
- */
-export async function getIncidentsForUser(_user?: unknown): Promise<Incident[]> {
-    return fetchScopedIncidents();
 }
 
 /**

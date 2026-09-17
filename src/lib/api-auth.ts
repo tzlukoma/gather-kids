@@ -14,7 +14,7 @@ interface AuthUser {
 }
 
 /**
- * Role resolution for API routes.
+ * Role resolution for **GatherSystem** API routes.
  *
  * The role is read from `app_metadata`, never `user_metadata`. Supabase lets a
  * signed-in user rewrite their own `user_metadata` with a plain
@@ -24,8 +24,15 @@ interface AuthUser {
  *
  * Fails closed. A user with no `app_metadata.role` is treated as GUEST rather
  * than falling back to the self-asserted claim, which would reopen the hole.
- * Existing accounts need `scripts/backfill-app-metadata-roles.mjs` run once
- * before they are recognised again — see the rollout notes in the PR.
+ *
+ * **Only `requireUser` uses this, and only flag-gated routes call
+ * `requireUser`.** `requireAdmin` below still reads `user_metadata`, exactly as
+ * on `main`: moving it would 403 every existing admin until
+ * `scripts/backfill-app-metadata-roles.mjs --apply` had been run against the
+ * environment, which is a change to the default path. That fix belongs in its
+ * own PR with its own backfill window. Run the backfill before enabling
+ * `gathersystem_incidents`, or admins will see the new screen scoped as
+ * leaders — narrower, never wider.
  */
 export function resolveTrustedRole(user: Pick<AuthUser, 'app_metadata'>): string {
 	const role = user.app_metadata?.role;
@@ -83,7 +90,8 @@ export async function requireAdmin(): Promise<
 		};
 	}
 
-	if (resolveTrustedRole(result.user) !== 'ADMIN') {
+	// Deliberately still `user_metadata`, matching `main`. See `resolveTrustedRole`.
+	if (result.user.user_metadata?.role !== 'ADMIN') {
 		return {
 			authorized: false,
 			response: NextResponse.json({ error: 'Unauthorized' }, { status: 403 }),
