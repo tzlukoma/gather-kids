@@ -219,6 +219,18 @@ Legacy secret names (`UAT_*`, `PROD_*`) are supported as fallbacks during transi
 
 **On every PR:** `db-fk` job runs [`scripts/db/check_types_sync.sh`](../scripts/db/check_types_sync.sh) against a local Postgres with migrations applied.
 
+The script distinguishes a real failure from an infrastructure one, and CI depends on the difference:
+
+| Exit | Meaning | CI behaviour |
+|------|---------|--------------|
+| `0` | Types match the migrated schema | pass |
+| `1` | Types are out of sync — **a real failure**, diff is printed | fail immediately, no retry |
+| `2` | Generation failed before any comparison happened | retried up to 3 times with backoff, then fail |
+
+Exit `2` is almost always a container-registry throttle. `supabase gen types` starts a `postgres-meta` container pulled from ECR Public, which rate-limits anonymous pulls per source IP; CI runners share NAT addresses, so `toomanyrequests: Rate exceeded` appears periodically and says nothing about the schema. It is a throttle rather than an exhausted quota, so a short backoff clears it.
+
+If exit `2` persists across all three attempts, look at the pinned Supabase CLI version in [`.github/actions/setup-supabase-cli`](../.github/actions/setup-supabase-cli/action.yml) and the `postgres-meta` image it resolves to — not at the schema.
+
 **After adding a migration locally:**
 
 ```bash
