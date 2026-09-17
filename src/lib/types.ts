@@ -149,6 +149,15 @@ export interface MinistryEnrollment {
     customQuestions?: Array<{ id: string; text: string }>;
 }
 
+/**
+ * A single child -> ministry membership edge, with no enrollment payload.
+ * Used by surfaces that only need to know which ministries a child belongs to.
+ */
+export interface ChildMinistryId {
+    child_id: string;
+    ministry_id: string;
+}
+
 // Legacy - keeping for backward compatibility during migration
 export interface LeaderAssignment {
     assignment_id: string; // PK
