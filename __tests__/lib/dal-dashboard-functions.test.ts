@@ -39,9 +39,31 @@ import {
 
 describe('Dashboard DAL Functions', () => {
   describe('getUnacknowledgedIncidents', () => {
-    it('should return empty array when no incidents exist', async () => {
+    // Incidents are now scoped by /api/incidents rather than read from the
+    // adapter in the browser, so this asserts the request, not a table read.
+    const mockFetch = jest.fn();
+
+    beforeEach(() => {
+      mockFetch.mockReset();
+      (global as unknown as { fetch: unknown }).fetch = mockFetch;
+    });
+
+    it('asks the server for unacknowledged incidents only', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: async () => ({ incidents: [] }),
+      });
+
       const incidents = await getUnacknowledgedIncidents();
+
+      expect(mockFetch).toHaveBeenCalledWith('/api/incidents?unacknowledged=true');
       expect(Array.isArray(incidents)).toBe(true);
+    });
+
+    it('throws rather than returning an unscoped list when the request fails', async () => {
+      mockFetch.mockResolvedValue({ ok: false, status: 403 });
+
+      await expect(getUnacknowledgedIncidents()).rejects.toThrow('403');
     });
   });
 
