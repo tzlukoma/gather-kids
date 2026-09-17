@@ -54,6 +54,7 @@ Defaults in call sites should keep **legacy UI on** (`getBoolean(key, false)` â†
 | `gathersystem_guardian` | Guardian household GatherSystem UX |
 | `gathersystem_bible_bee_household` | Bible Bee household GatherSystem path |
 | `gathersystem_registration` | Guardian registration wizard GatherSystem UI |
+| `gathersystem_admin` | Staff shell (grouped nav) + admin overview GatherSystem UI |
 
 Constants: `GATHERSYSTEM_FLAG_KEYS` in `src/lib/flags/env.ts`. Multivariate experiments use `getVariant(key, 'control')` when an issue defines arms.
 

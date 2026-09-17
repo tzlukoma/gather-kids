@@ -48,6 +48,10 @@ export function useAcknowledgeIncident() {
     onSuccess: () => {
       // Invalidate all incidents queries to refresh data
       queryClient.invalidateQueries({ queryKey: ['incidents'] });
+      // Dashboard pending-incidents card/table uses its own key
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.unacknowledgedIncidents(),
+      });
     },
   });
 }
