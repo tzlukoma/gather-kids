@@ -13,8 +13,18 @@ import { requireUser } from '@/lib/api-auth';
  * reach. See #428.
  *
  * `?unacknowledged=true` returns only incidents awaiting acknowledgement.
- * `?date=YYYY-MM-DD` returns only incidents on that UTC day.
+ *
+ * `?date=YYYY-MM-DD` is the door/roster view and scopes differently on purpose:
+ * any **staff** member sees that day's incidents, not only their own. Check-in
+ * shows an incident marker per child, and a child hurt earlier must still be
+ * flagged to whoever hands them back at pickup, even though a different leader
+ * logged it. Narrowing that to `leader_id` would delete a child-safety signal.
+ * It is still narrower than before: the day view previously ran unauthenticated
+ * against the whole table from the browser, and reached guardians too, who now
+ * get only their own.
  */
+
+const STAFF_ROLES = new Set(['ADMIN', 'MINISTRY_LEADER']);
 
 function getSupabaseAdmin(): SupabaseClient | null {
 	const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -40,13 +50,18 @@ export async function GET(request: NextRequest) {
 			return NextResponse.json({ error: 'Server configuration error' }, { status: 503 });
 		}
 
+		const date = request.nextUrl.searchParams.get('date');
+
 		let query = supabase.from('incidents').select('*');
 
-		// An admin sees every incident; anyone else sees only what they logged.
-		// `auth.role` comes from service-role-owned `app_metadata` and
-		// `auth.userId` from the validated JWT, so neither can be forged by the
-		// caller. Applied as a database predicate, not a post-filter.
-		if (auth.role !== 'ADMIN') {
+		// An admin sees every incident. For the single-day door view, so does any
+		// staff member, for the child-safety reason above. Everyone else sees only
+		// what they logged. `auth.role` comes from service-role-owned
+		// `app_metadata` and `auth.userId` from the validated JWT, so neither can
+		// be forged. Applied as a database predicate, not a post-filter.
+		const seesAll =
+			auth.role === 'ADMIN' || (!!date && STAFF_ROLES.has(auth.role));
+		if (!seesAll) {
 			query = query.eq('leader_id', auth.userId);
 		}
 
@@ -54,7 +69,6 @@ export async function GET(request: NextRequest) {
 			query = query.is('admin_acknowledged_at', null);
 		}
 
-		const date = request.nextUrl.searchParams.get('date');
 		if (date) {
 			if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
 				return NextResponse.json({ error: 'Invalid date' }, { status: 400 });

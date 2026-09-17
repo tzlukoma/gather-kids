@@ -148,8 +148,12 @@ export async function getUnacknowledgedIncidents(): Promise<Incident[]> {
 /**
  * Incidents on a given day that the signed-in user is allowed to see.
  *
- * Scoped server-side by `/api/incidents`; see the note on
- * `getIncidentsForUser`.
+ * Scoped server-side by `/api/incidents`; see the note on `getIncidentsForUser`.
+ *
+ * This is the door/roster view, and it stays visible to all **staff**, not just
+ * the leader who logged the incident: check-in renders a marker per child, and a
+ * child hurt earlier must still be flagged to whoever hands them back at pickup.
+ * Guardians reach check-in too, and they no longer see other people's incidents.
  */
 export async function getIncidentsForDate(dateISO: string): Promise<Incident[]> {
     return fetchScopedIncidents({ date: dateISO });

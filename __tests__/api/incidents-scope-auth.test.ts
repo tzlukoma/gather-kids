@@ -109,7 +109,12 @@ describe('GET /api/incidents authorization', () => {
 		expect(calls.some((c) => c.method === 'is')).toBe(true);
 	});
 
-	it('keeps the leader constraint when filtering by date', async () => {
+	// The single-day door view is the one deliberate exception. Check-in shows an
+	// incident marker per child, and a child hurt earlier must stay flagged to
+	// whoever hands them back at pickup, whichever leader logged it. Scoping this
+	// to `leader_id` would delete a child-safety signal that legacy check-in and
+	// rosters have always shown.
+	it('lets a MINISTRY_LEADER see the whole day on the door view', async () => {
 		(requireUser as jest.Mock).mockResolvedValue({
 			authorized: true,
 			userId: 'leader-1',
@@ -119,8 +124,55 @@ describe('GET /api/incidents authorization', () => {
 		const { GET } = await import('@/app/api/incidents/route');
 		await GET(req('http://localhost:9002/api/incidents?date=2026-09-16'));
 
-		expect(eqCalls()).toContainEqual(['leader_id', 'leader-1']);
+		expect(eqCalls().some(([col]) => col === 'leader_id')).toBe(false);
 		expect(calls.some((c) => c.method === 'gte')).toBe(true);
+	});
+
+	it('still bounds the day view to that single day', async () => {
+		(requireUser as jest.Mock).mockResolvedValue({
+			authorized: true,
+			userId: 'leader-1',
+			role: 'MINISTRY_LEADER',
+		});
+
+		const { GET } = await import('@/app/api/incidents/route');
+		await GET(req('http://localhost:9002/api/incidents?date=2026-09-16'));
+
+		expect(calls.filter((c) => c.method === 'gte').map((c) => c.args)).toContainEqual([
+			'timestamp',
+			'2026-09-16T00:00:00.000Z',
+		]);
+		expect(calls.filter((c) => c.method === 'lt').map((c) => c.args)).toContainEqual([
+			'timestamp',
+			'2026-09-17T00:00:00.000Z',
+		]);
+	});
+
+	// Guardians reach check-in too, so the day view has to stop at staff.
+	it('does not open the day view to a guardian', async () => {
+		(requireUser as jest.Mock).mockResolvedValue({
+			authorized: true,
+			userId: 'guardian-1',
+			role: 'GUARDIAN',
+		});
+
+		const { GET } = await import('@/app/api/incidents/route');
+		await GET(req('http://localhost:9002/api/incidents?date=2026-09-16'));
+
+		expect(eqCalls()).toContainEqual(['leader_id', 'guardian-1']);
+	});
+
+	it('does not let the day view widen the unscoped incident list', async () => {
+		(requireUser as jest.Mock).mockResolvedValue({
+			authorized: true,
+			userId: 'leader-1',
+			role: 'MINISTRY_LEADER',
+		});
+
+		const { GET } = await import('@/app/api/incidents/route');
+		await GET(req('http://localhost:9002/api/incidents'));
+
+		expect(eqCalls()).toContainEqual(['leader_id', 'leader-1']);
 	});
 
 	it('rejects a malformed date instead of ignoring it', async () => {
