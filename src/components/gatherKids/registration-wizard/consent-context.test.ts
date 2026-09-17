@@ -50,7 +50,7 @@ const baseForm: RegistrationFormInput = {
 			allergies: 'none',
 			ministrySelections: { 'teen-choir': true },
 			interestSelections: { orators: true },
-			customFields: {},
+			customData: {},
 		},
 	],
 	consents: {

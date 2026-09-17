@@ -24,6 +24,7 @@ import {
 } from './consent-context';
 import {
 	defaultConditionalConsentContext,
+	migrateRegistrationDraftCustomFields,
 	registrationFormBaseSchema,
 	validateConditionalConsents,
 } from './registration-schema';
@@ -31,6 +32,7 @@ import type {
 	ConditionalConsentContext,
 	RegistrationFormInput,
 } from './registration-schema';
+import { findDuplicateCustomQuestionConflictsForChildren } from './steps/step4-ministries';
 import { useDraftPersistence } from '@/hooks/useDraftPersistence';
 import { useFeatureFlags } from '@/contexts/feature-flag-context';
 import { useAuth } from '@/contexts/auth-context';
@@ -208,8 +210,19 @@ export default function RegisterWizard() {
 
 	const totalSteps = STEPS.length;
 
-	// Subscribe so Save & continue re-enables when Step 3 allergies change.
+	// Subscribe so Save & continue re-enables when Step 3 allergies change, and
+	// re-disables when Step 4 ministry selections collide.
 	const watchedValues = form.watch();
+
+	const ministriesForCustomQuestionCheck = useMemo(() => {
+		const byCode = new Map(
+			[...(allMinistries ?? []), ...(choirMinistries ?? [])].map((ministry) => [
+				ministry.code,
+				ministry,
+			])
+		);
+		return [...byCode.values()];
+	}, [allMinistries, choirMinistries]);
 
 	useEffect(() => {
 		if (authLoading) return;
@@ -229,44 +242,46 @@ export default function RegisterWizard() {
 
 			if (prefillData?.data) {
 				const data = prefillData.data;
-				form.reset({
-					household: {
-						household_id: data.household?.household_id || '',
-						name: data.household?.name || '',
-						address_line1: data.household?.address_line1 || '',
-						address_line2: data.household?.address_line2 || '',
-						city: data.household?.city || '',
-						state: data.household?.state || '',
-						zip: data.household?.zip || '',
-						preferredScriptureTranslation:
-							data.household?.preferredScriptureTranslation || 'NIV',
-					},
-					guardians: data.guardians?.length
-						? data.guardians
-						: [
-								{
-									first_name: '',
-									last_name: '',
-									mobile_phone: '',
-									email: user?.email || '',
-									relationship: 'Mother',
-									is_primary: true,
-								},
-							],
-					emergencyContact: data.emergencyContact || {
-						first_name: '',
-						last_name: '',
-						mobile_phone: '',
-						relationship: '',
-					},
-					children: data.children || [],
-					consents: data.consents || {
-						liability: false,
-						photoRelease: false,
-						group_consents: {},
-						custom_consents: {},
-					},
-				});
+				form.reset(
+					migrateRegistrationDraftCustomFields({
+						household: {
+							household_id: data.household?.household_id || '',
+							name: data.household?.name || '',
+							address_line1: data.household?.address_line1 || '',
+							address_line2: data.household?.address_line2 || '',
+							city: data.household?.city || '',
+							state: data.household?.state || '',
+							zip: data.household?.zip || '',
+							preferredScriptureTranslation:
+								data.household?.preferredScriptureTranslation || 'NIV',
+						},
+						guardians: data.guardians?.length
+							? data.guardians
+							: [
+									{
+										first_name: '',
+										last_name: '',
+										mobile_phone: '',
+										email: user?.email || '',
+										relationship: 'Mother',
+										is_primary: true,
+									},
+								],
+						emergencyContact: data.emergencyContact || {
+							first_name: '',
+							last_name: '',
+							mobile_phone: '',
+							relationship: '',
+						},
+						children: data.children || [],
+						consents: data.consents || {
+							liability: false,
+							photoRelease: false,
+							group_consents: {},
+							custom_consents: {},
+						},
+					})
+				);
 				setPrefillState(nextState);
 				toast({
 					title: nextState.isCurrentYearOverwrite
@@ -288,7 +303,7 @@ export default function RegisterWizard() {
 					});
 					setPrefillState(draftState);
 					if (draftData && Object.keys(draftData).length > 0) {
-						form.reset(draftData);
+						form.reset(migrateRegistrationDraftCustomFields(draftData));
 						toast({
 							title: 'Draft Restored',
 							description: 'Your previous registration progress has been restored.',
@@ -402,7 +417,12 @@ export default function RegisterWizard() {
 					)
 				);
 			case 4:
-				return true;
+				return (
+					findDuplicateCustomQuestionConflictsForChildren(
+						values.children ?? [],
+						ministriesForCustomQuestionCheck
+					).length === 0
+				);
 			case 5:
 				return true;
 			default:
@@ -450,6 +470,21 @@ export default function RegisterWizard() {
 				title: 'Registration unavailable',
 				description:
 					'No active registration cycle is configured. Please try again later.',
+				variant: 'destructive',
+			});
+			return;
+		}
+
+		const duplicateCustomQuestions =
+			findDuplicateCustomQuestionConflictsForChildren(
+				data.children ?? [],
+				ministriesForCustomQuestionCheck
+			);
+		if (duplicateCustomQuestions.length > 0) {
+			toast({
+				title: 'Cannot submit registration',
+				description:
+					'Selected ministries share custom-question ids that cannot be stored separately. Deselect one of the conflicting programs before continuing.',
 				variant: 'destructive',
 			});
 			return;

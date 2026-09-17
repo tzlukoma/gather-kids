@@ -49,6 +49,8 @@ export default defineConfig({
       !process.env.CI && process.env.GATHERSYSTEM_REGISTRATION_E2E !== '1',
     env: {
       ...process.env,
+      // When GatherSystem E2E is requested, force the local override on the
+      // Next.js process. Remote PostHog flags stay off in local/dev.
       ...(process.env.GATHERSYSTEM_REGISTRATION_E2E === '1'
         ? { GATHERSYSTEM_REGISTRATION_OVERRIDE: 'true' }
         : {}),

@@ -86,7 +86,7 @@ function buildDefaultValues(
 				allergies: 'none',
 				ministrySelections: {},
 				interestSelections: {},
-				customFields: {},
+				customData: {},
 			},
 		],
 		consents: {
