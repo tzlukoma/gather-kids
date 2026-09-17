@@ -45,7 +45,10 @@ import {
 	getRegistrationCycles,
 	registerHouseholdCanonical,
 } from '@/lib/dal';
-import { pickActiveRegistrationCycle } from '@/lib/dal/registration-cycle-utils';
+import {
+	pickActiveRegistrationCycle,
+	registrationCycleLabel,
+} from '@/lib/dal/registration-cycle-utils';
 import { cleanPhone } from '@/hooks/usePhoneFormat';
 import { canonicalizeGradeForStorage } from '@/lib/gradeUtils';
 import { captureAnalyticsEvent } from '@/lib/analytics/browser';
@@ -121,6 +124,9 @@ export default function RegisterWizard() {
 	});
 
 	const activeRegistrationCycle = pickActiveRegistrationCycle(registrationCycles);
+	// Guardians see the cycle's name ("Fall 2026"), never its id — which is a
+	// UUID in UAT and production.
+	const cycleLabel = registrationCycleLabel(activeRegistrationCycle, 'current');
 
 	const { data: ministryGroups = [] } = useQuery({
 		queryKey: ['ministryGroups'],
@@ -204,7 +210,8 @@ export default function RegisterWizard() {
 
 	const totalSteps = STEPS.length;
 
-	// Subscribe so Step 4 Save & continue re-disables when ministry selections collide.
+	// Subscribe so Save & continue re-enables when Step 3 allergies change, and
+	// re-disables when Step 4 ministry selections collide.
 	const watchedValues = form.watch();
 
 	const ministriesForCustomQuestionCheck = useMemo(() => {
@@ -403,7 +410,12 @@ export default function RegisterWizard() {
 					values.emergencyContact.relationship
 				);
 			case 3:
-				return values.children.length > 0;
+				return (
+					values.children.length > 0 &&
+					values.children.every(
+						(child) => (child.allergies ?? '').trim().length > 0
+					)
+				);
 			case 4:
 				return (
 					findDuplicateCustomQuestionConflictsForChildren(
@@ -579,7 +591,7 @@ export default function RegisterWizard() {
 				<div className="container mx-auto px-4 py-6">
 					<div className="max-w-5xl mx-auto">
 						<p className="text-xs font-semibold tracking-wider uppercase text-[#5b6b72] mb-4">
-							{activeRegistrationCycle?.cycle_id || 'Fall 2026'} Registration
+							{cycleLabel} Registration
 						</p>
 
 						{/* Desktop: Circular numbered stepper */}
@@ -683,7 +695,7 @@ export default function RegisterWizard() {
 								<Step1Household
 									form={form}
 									prefillState={prefillState}
-									cycleLabel={activeRegistrationCycle?.cycle_id || 'current'}
+									cycleLabel={cycleLabel}
 								/>
 							)}
 							{currentStep === 2 && <Step2Guardians form={form} />}
@@ -698,16 +710,13 @@ export default function RegisterWizard() {
 											<AlertTriangle className="h-4 w-4" />
 											<AlertTitle>
 												{
-													currentCycleOverwriteWarning(
-														activeRegistrationCycle?.cycle_id || 'current'
-													).title
+													currentCycleOverwriteWarning(cycleLabel).title
 												}
 											</AlertTitle>
 											<AlertDescription>
 												{
-													currentCycleOverwriteWarning(
-														activeRegistrationCycle?.cycle_id || 'current'
-													).description
+													currentCycleOverwriteWarning(cycleLabel)
+														.description
 												}
 											</AlertDescription>
 										</Alert>

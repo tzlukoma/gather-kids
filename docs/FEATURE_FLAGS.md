@@ -48,14 +48,46 @@ Browser PostHog must **not** evaluate flags. Server evaluation is authoritative 
 
 Defaults in call sites should keep **legacy UI on** (`getBoolean(key, false)` → new UI only when true).
 
-| Key | Intent |
-|-----|--------|
-| `gathersystem_door` | New door / check-in GatherSystem surface |
-| `gathersystem_guardian` | Guardian household GatherSystem UX |
-| `gathersystem_bible_bee_household` | Bible Bee household GatherSystem path |
-| `gathersystem_registration` | Guardian registration wizard GatherSystem UI |
+| Key | Intent | Prerequisite before enabling |
+|-----|--------|------------------------------|
+| `gathersystem_door` | New door / check-in GatherSystem surface | — |
+| `gathersystem_guardian` | Guardian household GatherSystem UX | — |
+| `gathersystem_bible_bee_household` | Bible Bee household GatherSystem path | — |
+| `gathersystem_registration` | Guardian registration wizard GatherSystem UI | **#389 must close first.** Do not broaden this key until then. |
+| `gathersystem_admin` | Staff shell (grouped nav) + admin overview GatherSystem UI | — |
+| `gathersystem_incidents` | Staff incidents log + acknowledgement GatherSystem UI | **#429 must land, and its backfill run in that environment.** See below. |
 
 Constants: `GATHERSYSTEM_FLAG_KEYS` in `src/lib/flags/env.ts`. Multivariate experiments use `getVariant(key, 'control')` when an issue defines arms.
+
+### Enablement prerequisites
+
+A prerequisite is something that must be true **in the target environment** before the key is raised above 0% there. Merging the code does not satisfy it, and it is per-environment: satisfying it in UAT says nothing about production.
+
+#### `gathersystem_incidents` — trusted role claims
+
+**The backfill must have run in this environment.**
+
+```bash
+SUPABASE_URL=… SUPABASE_SERVICE_ROLE_KEY=… \
+  node scripts/backfill-app-metadata-roles.mjs --admins=a@example.com,b@example.com --apply
+```
+
+Dry run without `--apply`. Always run the dry form first and read the output.
+
+`GET /api/incidents`, which only this screen calls, resolves the caller's role from `app_metadata`, because `user_metadata` is rewritable by the signed-in user themselves and so cannot carry a privilege claim. Existing accounts hold the role only in `user_metadata`, so until the backfill runs they resolve as `GUEST` and an admin opening this screen is scoped to incidents they logged personally — **narrower than intended, never wider**, and invisible while the flag is at 0%.
+
+**`--admins` is required to grant ADMIN, and that is not a formality.** The backfill's source, `user_metadata.role`, is the very claim this migration exists to stop trusting. Copying it wholesale would launder a self-asserted ADMIN into the trusted store, reintroducing the hole through the fix. So ADMIN is granted only to the addresses you name, and every other ADMIN claim is refused and listed:
+
+```
+REFUSED 2 self-asserted ADMIN claim(s) not named in --admins:
+  someone@example.com
+```
+
+An account in that list you do not recognise is a self-promotion attempt. Leave it out and clear its `user_metadata.role` separately. Lower-privilege roles copy freely — they confer far less and are too many to enumerate.
+
+**Related invariant, for whoever touches this next:** a privileged writer must never sit behind a guard weaker than the claim it writes. `requireAdmin` reads `app_metadata.role` and the routes that write it are guarded by `requireAdmin`; those two facts have to move together. Separating them lets a forged claim be laundered into a durable one that survives the repair.
+
+**Whether it has already been run in a given environment is tracked in #433, not here.** Check there before running it. This file describes the procedure; it deliberately does not record run state, which changes per environment and goes stale in a document.
 
 ---
 
@@ -124,12 +156,13 @@ Env vars (Vercel Production and Preview):
 
 Creating a boolean flag in the PostHog UI:
 
-1. **Flag key** — exact string (e.g. `gathersystem_door`).
-2. **Enabled** — ON (flag is evaluable).
-3. **Type** — Boolean; leave payload empty unless the issue needs one.
-4. **Match by** — Properties; filter `deploy_env` **equals** `uat` until a deliberate production rollout.
-5. **Rollout** — **0%** until Thomas wants UAT exposure; then raise (often 100% under the UAT filter).
-6. Production flips are **Thomas-only**. Do not add a production condition set or raise prod rollout without an issue that authorises it.
+1. **Check the prerequisite column** in *Named GatherSystem keys* above. If the key has one, satisfy it **in this environment** before raising the rollout. This is per-environment: UAT being done does not cover production.
+2. **Flag key** — exact string (e.g. `gathersystem_door`).
+3. **Enabled** — ON (flag is evaluable).
+4. **Type** — Boolean; leave payload empty unless the issue needs one.
+5. **Match by** — Properties; filter `deploy_env` **equals** `uat` until a deliberate production rollout.
+6. **Rollout** — **0%** until Thomas wants UAT exposure; then raise (often 100% under the UAT filter).
+7. Production flips are **Thomas-only**. Do not add a production condition set or raise prod rollout without an issue that authorises it.
 
 Privacy: no email, names, photos, DOB, allergies, addresses, child ids, or household ids in flag payloads, person properties, or filters beyond opaque ids / `deploy_env` / `role`.
 

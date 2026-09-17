@@ -17,8 +17,10 @@ export default defineConfig({
   ],
   use: {
     baseURL,
-    trace: 'off', // Disable trace recording
-    screenshot: 'off', // Disable screenshots
+    // Synthetic data is used in CI. Keep artifacts only when a test fails so
+    // intermittent smoke failures have enough evidence to diagnose.
+    trace: process.env.CI ? 'retain-on-failure' : 'off',
+    screenshot: process.env.CI ? 'only-on-failure' : 'off',
     video: 'off', // Disable video recording
     actionTimeout: 10000,
   },

@@ -11,7 +11,10 @@ import { useFeatureFlags } from '@/contexts/feature-flag-context';
 import { useToast } from '@/hooks/use-toast';
 import { useQuery } from '@tanstack/react-query';
 import { getRegistrationCycles, getHouseholdForUser, getHouseholdProfile } from '@/lib/dal';
-import { pickActiveRegistrationCycle } from '@/lib/dal/registration-cycle-utils';
+import {
+	pickActiveRegistrationCycle,
+	registrationCycleLabel,
+} from '@/lib/dal/registration-cycle-utils';
 import { AlertTriangle, Home, Users, Info } from 'lucide-react';
 import { useDraftPersistence } from '@/hooks/useDraftPersistence';
 import Link from 'next/link';
@@ -203,7 +206,9 @@ export function RegistrationEntry({ onStart }: RegistrationEntryProps) {
 	});
 
 	const activeRegistrationCycle = pickActiveRegistrationCycle(registrationCycles);
-	const cycleName = activeRegistrationCycle?.cycle_id || 'Fall 2026';
+	// The cycle's own name ("Fall 2026"), never its id — which is a UUID in UAT
+	// and production.
+	const cycleName = registrationCycleLabel(activeRegistrationCycle, 'current');
 
 	const { loadDraft } = useDraftPersistence<RegistrationFormInput>({
 		formName: 'registration_v1',
@@ -356,7 +361,11 @@ export function RegistrationEntry({ onStart }: RegistrationEntryProps) {
 								</p>
 							</div>
 							<h2 className="text-2xl font-bold text-[#1e2a2f]">
-								Register for {cycleName}
+								Register for{' '}
+								{registrationCycleLabel(
+									activeRegistrationCycle,
+									'this year'
+								)}
 							</h2>
 							<p
 								className="text-[#5b6b72] leading-relaxed"

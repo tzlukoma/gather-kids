@@ -34,7 +34,13 @@ export async function loginWithPassword(
 }
 
 export async function waitForPostLoginRoute(page: Page) {
-  await page.waitForURL(/\/(household|register|rosters)/, { timeout: 45000 });
+  // The login page uses a client-side redirect. The smoke test only needs the
+  // new route to be committed; waiting for `load` also waits on unrelated
+  // Next.js resources and has caused otherwise-successful sign-ins to time out.
+  await page.waitForURL(/\/(household|register|rosters)/, {
+    timeout: 45000,
+    waitUntil: 'commit',
+  });
 }
 
 export async function waitForRegisterFormReady(page: Page) {

@@ -160,6 +160,30 @@ export async function getIncidentsForUser(user: unknown): Promise<Incident[]> {
 }
 
 /**
+ * Incidents visible to the signed-in user, scoped **server-side**.
+ *
+ * Used only by the GatherSystem incidents screen, which is gated by
+ * `gathersystem_incidents`. The scope is resolved by `GET /api/incidents` from
+ * the validated session and applied as a database predicate, so the browser
+ * never receives rows it will not render.
+ *
+ * The legacy `getIncidentsForUser` above deliberately still reads the whole
+ * table and filters in JavaScript (#428). Fixing that would change the default
+ * path, which this PR keeps byte-identical to `main`; #428 tracks it for the
+ * legacy screen, the dashboard, rosters and check-in.
+ */
+export async function getScopedIncidents(): Promise<Incident[]> {
+    const response = await fetch('/api/incidents');
+
+    if (!response.ok) {
+        throw new Error(`Failed to load incidents (${response.status})`);
+    }
+
+    const body = (await response.json()) as { incidents?: Incident[] };
+    return body.incidents ?? [];
+}
+
+/**
  * Acknowledge an incident (admin action).
  */
 export async function acknowledgeIncident(incidentId: string): Promise<number | string> {

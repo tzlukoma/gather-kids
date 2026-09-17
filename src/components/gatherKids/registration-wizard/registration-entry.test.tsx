@@ -31,8 +31,22 @@ jest.mock('@/hooks/use-toast', () => ({
 	useToast: () => ({ toast: jest.fn() }),
 }));
 
+// Prod/UAT shape: the id is a UUID and the human label lives in `name`.
+const CYCLE_UUID = '8f14e45f-ceea-467a-9c2b-7b1f2c0d3e4a';
+
 jest.mock('@tanstack/react-query', () => ({
-	useQuery: () => ({ data: [{ cycle_id: '2026-fall', is_active: true }], isLoading: false }),
+	useQuery: () => ({
+		data: [
+			{
+				cycle_id: '8f14e45f-ceea-467a-9c2b-7b1f2c0d3e4a',
+				name: 'Fall 2026',
+				start_date: '2026-08-01',
+				end_date: '2027-05-31',
+				is_active: true,
+			},
+		],
+		isLoading: false,
+	}),
 }));
 
 const mockLoadHouseholdForRegistration = jest.fn();
@@ -40,15 +54,19 @@ const mockGetHouseholdForUser = jest.fn();
 const mockGetHouseholdProfile = jest.fn();
 
 jest.mock('@/lib/dal', () => ({
-	getRegistrationCycles: jest.fn().mockResolvedValue([{ cycle_id: '2026-fall', is_active: true }]),
+	getRegistrationCycles: jest.fn().mockResolvedValue([
+		{
+			cycle_id: '8f14e45f-ceea-467a-9c2b-7b1f2c0d3e4a',
+			name: 'Fall 2026',
+			start_date: '2026-08-01',
+			end_date: '2027-05-31',
+			is_active: true,
+		},
+	]),
 	getHouseholdForUser: (...args: unknown[]) => mockGetHouseholdForUser(...args),
 	getHouseholdProfile: (...args: unknown[]) => mockGetHouseholdProfile(...args),
 	loadHouseholdForRegistration: (...args: unknown[]) =>
 		mockLoadHouseholdForRegistration(...args),
-}));
-
-jest.mock('@/lib/dal/registration-cycle-utils', () => ({
-	pickActiveRegistrationCycle: (cycles: Array<{ cycle_id: string }>) => cycles[0],
 }));
 
 function renderEntry() {
@@ -65,6 +83,18 @@ describe('RegistrationEntry prefill copy', () => {
 		mockGetHouseholdForUser.mockResolvedValue(null);
 		mockGetHouseholdProfile.mockResolvedValue({ children: [], household: null });
 		mockLoadHouseholdForRegistration.mockResolvedValue(null);
+	});
+
+	it('shows the cycle name and never the cycle id', async () => {
+		renderEntry();
+
+		await waitFor(() => {
+			expect(screen.getByTestId('registration-entry-description')).toBeInTheDocument();
+		});
+
+		// The id is a UUID in UAT and production; guardians must never see it.
+		expect(document.body.textContent).not.toContain(CYCLE_UUID);
+		expect(screen.getByText(/Register for Fall 2026/i)).toBeInTheDocument();
 	});
 
 	it('shows first-time neutral copy with no returning/last-year claims', async () => {

@@ -57,6 +57,12 @@ export async function POST(request: NextRequest) {
 			email,
 			password,
 			email_confirm: !!email_confirm,
+			// `app_metadata` is the trusted role claim: only the service role can
+			// write it, so it is what authorization reads. `user_metadata` is kept
+			// in step for existing UI that displays it, but is self-asserted.
+			app_metadata: {
+				role: role || 'GUEST',
+			},
 			user_metadata: {
 				role: role || 'GUEST',
 				full_name: name,

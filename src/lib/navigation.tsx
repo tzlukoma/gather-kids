@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { AuthRole } from './auth-types';
 
-interface MenuItem {
+export interface MenuItem {
 	href: string;
 	icon: ComponentType<any> | ReactNode;
 	label: string;
@@ -149,6 +149,25 @@ export const MENU_ITEMS: MenuItem[] = [
 	},
 ];
 
+const isAuthorizedItem = (
+	item: MenuItem,
+	userRole: AuthRole,
+	ministryIds: string[],
+	isActive: boolean
+): boolean => {
+	// Check if user has the required role
+	if (!item.roles.includes(userRole)) return false;
+
+	// Check if the item requires an active user
+	if (item.requiresActive && !isActive) return false;
+
+	// Check if the item requires specific ministry assignments
+	if (item.ministryCheck && !item.ministryCheck(ministryIds, userRole))
+		return false;
+
+	return true;
+};
+
 export const getAuthorizedMenuItems = (
 	userRole: AuthRole | null,
 	ministryIds: string[] = [],
@@ -156,17 +175,45 @@ export const getAuthorizedMenuItems = (
 ): MenuItem[] => {
 	if (!userRole) return [];
 
-	return MENU_ITEMS.filter((item) => {
-		// Check if user has the required role
-		if (!item.roles.includes(userRole)) return false;
+	return MENU_ITEMS.filter((item) =>
+		isAuthorizedItem(item, userRole, ministryIds, isActive)
+	);
+};
 
-		// Check if the item requires an active user
-		if (item.requiresActive && !isActive) return false;
+/**
+ * GatherSystem staff shell IA (locked, see Screen SPEC — Admin Dashboard):
+ * TODAY / PEOPLE / PROGRAMS / ADMINISTRATION, Calendar stays removed, Users
+ * lives under Administration. Rendered only when `gathersystem_admin` is on;
+ * the legacy flat nav keeps using `getAuthorizedMenuItems` unchanged. Role,
+ * active-status, and ministry gating are identical to the legacy nav.
+ */
+export interface GatherSystemNavGroup {
+	label: 'TODAY' | 'PEOPLE' | 'PROGRAMS' | 'ADMINISTRATION';
+	items: MenuItem[];
+}
 
-		// Check if the item requires specific ministry assignments
-		if (item.ministryCheck && !item.ministryCheck(ministryIds, userRole))
-			return false;
+const GATHERSYSTEM_GROUP_DEFS: ReadonlyArray<{
+	label: GatherSystemNavGroup['label'];
+	hrefs: ReadonlyArray<string>;
+}> = [
+	{ label: 'TODAY', hrefs: ['/admin-overview', '/check-in', '/incidents'] },
+	{ label: 'PEOPLE', hrefs: ['/rosters', '/registrations', '/leaders'] },
+	{ label: 'PROGRAMS', hrefs: ['/bible-bee', '/ministries'] },
+	{ label: 'ADMINISTRATION', hrefs: ['/reports', '/branding', '/users'] },
+];
 
-		return true;
-	});
+export const getAuthorizedGatherSystemNavGroups = (
+	userRole: AuthRole | null,
+	ministryIds: string[] = [],
+	isActive: boolean = true
+): GatherSystemNavGroup[] => {
+	if (!userRole) return [];
+
+	return GATHERSYSTEM_GROUP_DEFS.map((group) => ({
+		label: group.label,
+		items: group.hrefs
+			.map((href) => MENU_ITEMS.find((item) => item.href === href))
+			.filter((item): item is MenuItem => !!item)
+			.filter((item) => isAuthorizedItem(item, userRole, ministryIds, isActive)),
+	})).filter((group) => group.items.length > 0);
 };
