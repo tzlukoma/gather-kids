@@ -229,6 +229,47 @@ describe('GET /api/incidents authorization', () => {
 			expect(mockFrom).not.toHaveBeenCalled();
 		});
 
+		// A shape check alone lets `2026-99-99` through, which parses to NaN and
+		// makes `toISOString` throw — turning a bad request into a 500.
+		it.each(['2026-99-99', '2026-13-01', '2026-00-10', '2026-01-32'])(
+			'rejects the unparseable date %s with 400, not 500',
+			async (bad) => {
+				asUser('ADMIN', 'admin-1');
+
+				const { GET } = await import('@/app/api/incidents/route');
+				const res = await GET(dateReq(bad));
+
+				expect(res.status).toBe(400);
+				expect(mockFrom).not.toHaveBeenCalled();
+			}
+		);
+
+		// The worse case: `2026-02-30` parses fine and silently normalises to
+		// 2026-03-02, so without a round-trip check the route would answer for a
+		// different day than the caller asked for, with no error at all.
+		it('rejects a date that parses but normalises to a different day', async () => {
+			asUser('ADMIN', 'admin-1');
+
+			const { GET } = await import('@/app/api/incidents/route');
+			const res = await GET(dateReq('2026-02-30'));
+
+			expect(res.status).toBe(400);
+			expect(mockFrom).not.toHaveBeenCalled();
+		});
+
+		// A real leap day must still be accepted — the round-trip check must
+		// reject normalisation, not every February 29th.
+		it('accepts a genuine leap day', async () => {
+			asUser('ADMIN', 'admin-1');
+
+			const { GET } = await import('@/app/api/incidents/route');
+			const res = await GET(dateReq('2028-02-29'));
+
+			expect(res.status).toBe(200);
+			expect(argsFor('gte')).toContainEqual(['timestamp', '2028-02-29T00:00:00.000Z']);
+			expect(argsFor('lt')).toContainEqual(['timestamp', '2028-03-01T00:00:00.000Z']);
+		});
+
 		it('does not let the day view widen the plain incident list', async () => {
 			asUser('MINISTRY_LEADER', 'leader-1');
 

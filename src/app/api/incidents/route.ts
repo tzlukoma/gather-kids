@@ -57,6 +57,33 @@ function isLiveServiceWindow(date: string, now: number = Date.now()): boolean {
 	return date === utcDay(now) || date === utcDay(now - DAY_MS);
 }
 
+/**
+ * The caller's `date`, as a UTC-midnight timestamp, or null when it is not a
+ * real calendar day.
+ *
+ * A shape check alone is not enough. `^\d{4}-\d{2}-\d{2}$` accepts
+ * `2026-02-30`, which `Date.parse` silently normalises to 2026-03-02 — so the
+ * route would answer for a different day than the one requested, with no error.
+ * It also accepts `2026-99-99`, which parses to `NaN` and makes `toISOString`
+ * throw, turning a bad request into a 500 instead of the documented 400.
+ *
+ * Requiring the parsed date to round-trip to exactly what the caller sent
+ * rejects both: normalisation changes the string, and `NaN` never round-trips.
+ */
+function parseUtcDayStart(date: string): number | null {
+	if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+		return null;
+	}
+	const ms = Date.parse(`${date}T00:00:00.000Z`);
+	if (Number.isNaN(ms)) {
+		return null;
+	}
+	if (new Date(ms).toISOString().slice(0, 10) !== date) {
+		return null;
+	}
+	return ms;
+}
+
 function getSupabaseAdmin(): SupabaseClient | null {
 	const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 	const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -82,8 +109,12 @@ export async function GET(request: NextRequest) {
 		}
 
 		const date = request.nextUrl.searchParams.get('date');
-		if (date !== null && !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-			return NextResponse.json({ error: 'Invalid date' }, { status: 400 });
+		let dayStartMs: number | null = null;
+		if (date !== null) {
+			dayStartMs = parseUtcDayStart(date);
+			if (dayStartMs === null) {
+				return NextResponse.json({ error: 'Invalid date' }, { status: 400 });
+			}
 		}
 
 		let query = supabase.from('incidents').select('*');
@@ -105,12 +136,13 @@ export async function GET(request: NextRequest) {
 			query = query.is('admin_acknowledged_at', null);
 		}
 
-		if (date !== null) {
+		if (dayStartMs !== null) {
 			// Matches the previous client-side `timestamp.startsWith(date)`, which
 			// compared the UTC ISO prefix. `getTodayIsoDate` is UTC too, so the
-			// window is unchanged.
-			const start = `${date}T00:00:00.000Z`;
-			const end = new Date(Date.parse(start) + DAY_MS).toISOString();
+			// window is unchanged. Built from the validated timestamp, so there is
+			// no second parse that could disagree with the one that gated the 400.
+			const start = new Date(dayStartMs).toISOString();
+			const end = new Date(dayStartMs + DAY_MS).toISOString();
 			query = query.gte('timestamp', start).lt('timestamp', end);
 		}
 
