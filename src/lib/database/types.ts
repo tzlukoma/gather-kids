@@ -9,6 +9,7 @@ import type {
 	Registration,
 	Ministry,
 	MinistryEnrollment,
+	ChildMinistryId,
 	LeaderProfile,
 	MinistryLeaderMembership,
 	MinistryAccount,
@@ -169,6 +170,18 @@ export interface DatabaseAdapter {
 		ministryId?: string,
 		cycleId?: string
 	): Promise<MinistryEnrollment[]>;
+	/**
+	 * The child -> ministry edges for the given children, and nothing else.
+	 *
+	 * For surfaces that only need to know which ministries a child belongs to
+	 * (filters, groupings). Returns just the two ids, so enrollment payloads such
+	 * as `custom_fields` are never shipped to a client that has no use for them.
+	 * Callers must pass children the requester is already authorized to see.
+	 */
+	listMinistryIdsForChildren(
+		childIds: string[],
+		cycleId?: string
+	): Promise<ChildMinistryId[]>;
 	deleteMinistryEnrollment(id: string): Promise<void>;
 
 	// Attendance

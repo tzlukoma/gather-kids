@@ -52,8 +52,7 @@ import {
 import {
 	useChildrenForActiveCycle,
 	useMinistries,
-	useMinistryEnrollments,
-	useAllMinistryEnrollments,
+	useMinistryIdsForChildren,
 	useRegistrationCycles,
 } from '@/hooks/data';
 import { IncidentDetailDialogGatherSystem } from '@/components/gatherKids/incident-detail-dialog-gathersystem';
@@ -122,25 +121,22 @@ export function IncidentsContentGatherSystem() {
 	const { data: activeCycles = [] } = useRegistrationCycles(true);
 	const activeCycleId = activeCycles[0]?.cycle_id ?? '';
 	const { data: ministries = [] } = useMinistries(true);
-	const { data: cycleMinistryEnrollments = [] } =
-		useMinistryEnrollments(activeCycleId);
-	// An `Incident` carries no cycle, so a child in a historical incident has no
-	// active-cycle enrollment row. Filtering by ministry against the active-cycle
-	// map alone would silently drop every past-cycle incident and omit ministries
-	// that only appear historically. Once past cycles are shown, join against
-	// enrollments from every cycle instead. Fetched only when the toggle is on.
-	const { data: allMinistryEnrollments = [] } =
-		useAllMinistryEnrollments(showAllCycles);
-	// Union rather than swap: the all-cycles query is empty while it loads, and
-	// swapping to it would briefly empty the map and flash a false "no matches"
-	// for anyone who already had a ministry selected. `buildMinistryIdsByChild`
-	// de-duplicates, so the overlap is harmless.
-	const ministryEnrollments = useMemo(
-		() =>
-			showAllCycles
-				? [...cycleMinistryEnrollments, ...allMinistryEnrollments]
-				: cycleMinistryEnrollments,
-		[showAllCycles, cycleMinistryEnrollments, allMinistryEnrollments]
+	// Ministry membership for the ministry filter, fetched for exactly the
+	// children that appear in incidents this user is already allowed to see, and
+	// returning only child/ministry ids — never whole enrollment records, which
+	// carry `custom_fields`.
+	//
+	// An `Incident` carries no cycle, so a child in a past-cycle incident has no
+	// active-cycle enrollment row. Scoping to the active cycle would drop those
+	// incidents from any ministry selection and omit history-only ministries from
+	// the options, so the cycle scope is dropped once past cycles are shown.
+	const incidentChildIds = useMemo(
+		() => Array.from(new Set(incidents.map((incident) => incident.child_id))),
+		[incidents]
+	);
+	const { data: ministryEnrollments = [] } = useMinistryIdsForChildren(
+		incidentChildIds,
+		showAllCycles ? undefined : activeCycleId
 	);
 	const acknowledgeMutation = useAcknowledgeIncident();
 

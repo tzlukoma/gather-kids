@@ -10,7 +10,7 @@ import { db as dbAdapter } from '../database/factory';
 import type { SupabaseAdapter } from '../database/supabase-adapter';
 // Cast to SupabaseAdapter when direct client access is needed (avatars table operations)
 const supabaseAdapter = dbAdapter as unknown as SupabaseAdapter;
-import type { Child, MinistryEnrollment } from '../types';
+import type { Child, ChildMinistryId, MinistryEnrollment } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import { AvatarService } from '../avatar/avatar-service';
 import {
@@ -154,15 +154,22 @@ export async function getMinistryEnrollmentsByCycle(
 }
 
 /**
- * Every ministry enrollment, across all registration cycles.
+ * The child -> ministry edges for a specific set of children, and nothing else.
  *
- * Needed by surfaces that show records spanning more than the active cycle:
- * an `Incident` carries no cycle, so a child involved in a historical incident
- * has no active-cycle enrollment row and would otherwise be invisible to any
- * ministry-based filter.
+ * For surfaces that only need to know which ministries a child belongs to, such
+ * as a ministry filter. Returns two ids per row rather than whole enrollment
+ * records, so `custom_fields` never reaches a client that is only filtering.
+ *
+ * Callers must pass children the requester is already authorized to see — for
+ * the incidents screen that means children drawn from `getIncidentsForUser`.
+ * Omit `cycleId` to span every cycle, which surfaces showing historical records
+ * need because an `Incident` carries no cycle of its own.
  */
-export async function getAllMinistryEnrollments(): Promise<MinistryEnrollment[]> {
-    return dbAdapter.listMinistryEnrollments();
+export async function getMinistryIdsForChildren(
+    childIds: string[],
+    cycleId?: string,
+): Promise<ChildMinistryId[]> {
+    return dbAdapter.listMinistryIdsForChildren(childIds, cycleId);
 }
 
 // ---------------------------------------------------------------------------

@@ -10,7 +10,7 @@ export {
   useMinistriesByGroupCode, 
   useMinistriesInGroup, 
   useMinistryEnrollments,
-  useAllMinistryEnrollments,
+  useMinistryIdsForChildren,
   useMinistryGroups, 
   useMinistryGroup, 
   useGroupsForMinistry,

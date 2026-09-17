@@ -33,15 +33,13 @@ jest.mock('@/hooks/data/attendance', () => ({
 
 const mockUseChildrenForActiveCycle = jest.fn();
 const mockUseMinistries = jest.fn();
-const mockUseMinistryEnrollments = jest.fn();
-const mockUseAllMinistryEnrollments = jest.fn();
+const mockUseMinistryIdsForChildren = jest.fn();
 const mockUseRegistrationCycles = jest.fn();
 jest.mock('@/hooks/data', () => ({
 	useChildrenForActiveCycle: () => mockUseChildrenForActiveCycle(),
 	useMinistries: () => mockUseMinistries(),
-	useMinistryEnrollments: () => mockUseMinistryEnrollments(),
-	useAllMinistryEnrollments: (...args: unknown[]) =>
-		mockUseAllMinistryEnrollments(...args),
+	useMinistryIdsForChildren: (...args: unknown[]) =>
+		mockUseMinistryIdsForChildren(...args),
 	useRegistrationCycles: () => mockUseRegistrationCycles(),
 }));
 
@@ -82,10 +80,9 @@ function setup({ incidents = [pending, acknowledged] } = {}) {
 	mockUseMinistries.mockReturnValue({
 		data: [{ ministry_id: 'min-ss', name: 'Sunday School' }],
 	});
-	mockUseMinistryEnrollments.mockReturnValue({
+	mockUseMinistryIdsForChildren.mockReturnValue({
 		data: [{ child_id: 'child-1', ministry_id: 'min-ss' }],
 	});
-	mockUseAllMinistryEnrollments.mockReturnValue({ data: [] });
 }
 
 function renderAs(role: AuthRole, overrides = {}) {
@@ -284,17 +281,27 @@ describe('IncidentsContentGatherSystem', () => {
 					{ ministry_id: 'min-choir', name: 'Choir' },
 				],
 			});
-			// child-3's only enrollment lives in a past cycle.
-			mockUseAllMinistryEnrollments.mockReturnValue({
-				data: [{ child_id: 'child-3', ministry_id: 'min-choir' }],
-			});
+			// child-3's only membership lives in a past cycle, so it is returned
+			// only when the query drops its cycle scope.
+			mockUseMinistryIdsForChildren.mockImplementation(
+				(_childIds: string[], cycleId?: string) => ({
+					data: cycleId
+						? []
+						: [{ child_id: 'child-3', ministry_id: 'min-choir' }],
+				})
+			);
 		}
 
-		it('does not fetch all-cycle enrollments until past cycles are shown', () => {
+		it('asks only for children drawn from the authorized incident list', () => {
 			setupHistorical();
 			renderAs(AuthRole.ADMIN);
 
-			expect(mockUseAllMinistryEnrollments).toHaveBeenCalledWith(false);
+			// Never a blanket fetch: the child set is exactly the children appearing
+			// in incidents this user may already see.
+			expect(mockUseMinistryIdsForChildren).toHaveBeenCalledWith(
+				['child-3'],
+				'cycle-1'
+			);
 		});
 
 		it('offers the ministry of a past-cycle incident once past cycles are shown', () => {
@@ -309,11 +316,14 @@ describe('IncidentsContentGatherSystem', () => {
 				screen.getByRole('button', { name: 'Include past cycles' })
 			);
 
-			// The past-cycle incident is now in context, and its ministry — known
-			// only from the all-cycle enrollments — is offered as a filter option.
+			// The cycle scope is dropped, so the past-cycle incident is in context and
+			// its history-only ministry becomes available as a filter option.
+			expect(mockUseMinistryIdsForChildren).toHaveBeenLastCalledWith(
+				['child-3'],
+				undefined
+			);
 			expect(screen.getByText('Past Cycle Child')).toBeInTheDocument();
 			expect(screen.getByText('Ministry')).toBeInTheDocument();
-			expect(mockUseAllMinistryEnrollments).toHaveBeenCalledWith(true);
 		});
 	});
 

@@ -6,7 +6,7 @@ import {
   getMinistriesByGroupCode,
   getMinistriesInGroup,
   getMinistryEnrollmentsByCycle,
-  getAllMinistryEnrollments,
+  getMinistryIdsForChildren,
   getMinistryGroups,
   getMinistryGroup,
   getGroupsForMinistry,
@@ -56,15 +56,20 @@ export function useMinistryEnrollments(cycleId: string) {
 }
 
 /**
- * Ministry enrollments across every cycle. Only fetch this when a surface
- * actually shows records from outside the active cycle — pass `enabled: false`
- * otherwise so the scoped `useMinistryEnrollments` query stays the default.
+ * Which ministries the given children belong to, as bare id pairs.
+ *
+ * Pass only children the signed-in user is already authorized to see. Omit
+ * `cycleId` to span every cycle. `placeholderData` holds the previous result
+ * while a changed child set refetches, so a filter built on this never blinks
+ * through an empty map and reports a spurious "no matches".
  */
-export function useAllMinistryEnrollments(enabled = true) {
+export function useMinistryIdsForChildren(childIds: string[], cycleId?: string) {
+  const key = [...childIds].sort();
   return useQuery({
-    queryKey: queryKeys.allMinistryEnrollments(),
-    queryFn: () => getAllMinistryEnrollments(),
-    enabled,
+    queryKey: queryKeys.ministryIdsForChildren(key, cycleId),
+    queryFn: () => getMinistryIdsForChildren(key, cycleId),
+    enabled: key.length > 0,
+    placeholderData: (previous) => previous,
     ...cacheConfig.moderate,
   });
 }

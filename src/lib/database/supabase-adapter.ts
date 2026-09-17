@@ -14,6 +14,7 @@ import type {
 	Registration,
 	Ministry,
 	MinistryEnrollment,
+	ChildMinistryId,
 	Attendance,
 	Incident,
 	Event,
@@ -1092,6 +1093,42 @@ export class SupabaseAdapter implements DatabaseAdapter {
 		const { data, error } = await query;
 	if (error) throw error;
 	return (data || []).map((d) => supabaseToMinistryEnrollment(d as Database['public']['Tables']['ministry_enrollments']['Row']));
+	}
+
+	async listMinistryIdsForChildren(
+		childIds: string[],
+		cycleId?: string
+	): Promise<ChildMinistryId[]> {
+		if (childIds.length === 0) return [];
+
+		// Deliberately NOT `select('*')`. Callers only need the child -> ministry
+		// edge to drive filters, and enrollment rows carry `custom_fields`, which
+		// must not reach a client that is merely filtering a list.
+		const unique = Array.from(new Set(childIds));
+		const CHUNK = 200;
+		const rows: ChildMinistryId[] = [];
+
+		for (let i = 0; i < unique.length; i += CHUNK) {
+			let query = this.client
+				.from('ministry_enrollments')
+				.select('child_id, ministry_id')
+				.in('child_id', unique.slice(i, i + CHUNK));
+
+			if (cycleId) {
+				query = query.eq('cycle_id', cycleId);
+			}
+
+			const { data, error } = await query;
+			if (error) throw error;
+
+			for (const row of data || []) {
+				if (row.child_id && row.ministry_id) {
+					rows.push({ child_id: row.child_id, ministry_id: row.ministry_id });
+				}
+			}
+		}
+
+		return rows;
 	}
 
 	async deleteMinistryEnrollment(id: string): Promise<void> {
