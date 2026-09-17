@@ -34,6 +34,15 @@ import { NextRequest } from 'next/server';
 const eqCalls = () => calls.filter((c) => c.method === 'eq').map((c) => c.args);
 const argsFor = (m: string) => calls.filter((c) => c.method === m).map((c) => c.args);
 const req = (url = 'http://localhost:9002/api/incidents') => new NextRequest(url);
+
+// Computed, not hardcoded: a literal date would start failing the day it aged
+// out of the live window, which is the behaviour under test, not a bug.
+const DAY_MS = 24 * 60 * 60 * 1000;
+const utcDay = (ms: number) => new Date(ms).toISOString().slice(0, 10);
+const TODAY = utcDay(Date.now());
+const YESTERDAY = utcDay(Date.now() - DAY_MS);
+const TWO_DAYS_AGO = utcDay(Date.now() - 2 * DAY_MS);
+const dateReq = (d: string) => req(`http://localhost:9002/api/incidents?date=${d}`);
 const asUser = (role: string, userId = 'u1') =>
 	(requireUser as jest.Mock).mockResolvedValue({ authorized: true, userId, role });
 
@@ -133,12 +142,60 @@ describe('GET /api/incidents authorization', () => {
 	// incident marker per child, so a child hurt in an earlier service must stay
 	// flagged to whoever hands them back at pickup, whichever leader logged it.
 	// Scoping this to `leader_id` would silently remove that signal.
+	//
+	// `date` is caller-controlled, so the exception is bounded in time as well as
+	// by role — otherwise a leader could walk it backwards a day at a time and
+	// rebuild the history this endpoint exists to stop exposing.
 	describe('?date= — the door / roster view', () => {
 		it('lets a MINISTRY_LEADER see the whole day, not only their own', async () => {
 			asUser('MINISTRY_LEADER', 'leader-1');
 
 			const { GET } = await import('@/app/api/incidents/route');
-			await GET(req('http://localhost:9002/api/incidents?date=2026-09-16'));
+			await GET(dateReq(TODAY));
+
+			expect(eqCalls().some(([col]) => col === 'leader_id')).toBe(false);
+		});
+
+		// 00:00 UTC is 20:00 US Eastern, which can fall mid-service. A check-in
+		// screen open across that boundary asks for the previous UTC day; if that
+		// dropped to `leader_id` scope the pickup marker would vanish nightly.
+		it('still opens the day view across the UTC midnight boundary', async () => {
+			asUser('MINISTRY_LEADER', 'leader-1');
+
+			const { GET } = await import('@/app/api/incidents/route');
+			await GET(dateReq(YESTERDAY));
+
+			expect(eqCalls().some(([col]) => col === 'leader_id')).toBe(false);
+		});
+
+		// The reconstruction attack: iterate `date` backwards and reassemble the
+		// table. The carve-out has no child-safety justification outside the live
+		// window, so outside it a leader sees only what they logged.
+		it('constrains a MINISTRY_LEADER to their own incidents on a historical date', async () => {
+			asUser('MINISTRY_LEADER', 'leader-1');
+
+			const { GET } = await import('@/app/api/incidents/route');
+			await GET(dateReq(TWO_DAYS_AGO));
+
+			expect(eqCalls()).toContainEqual(['leader_id', 'leader-1']);
+		});
+
+		it('constrains a MINISTRY_LEADER to their own incidents on a future date', async () => {
+			asUser('MINISTRY_LEADER', 'leader-1');
+
+			const { GET } = await import('@/app/api/incidents/route');
+			await GET(dateReq(utcDay(Date.now() + DAY_MS)));
+
+			expect(eqCalls()).toContainEqual(['leader_id', 'leader-1']);
+		});
+
+		// An admin already sees the unfiltered list with no parameter at all, so
+		// bounding them here would protect nothing.
+		it('does not time-bound an ADMIN', async () => {
+			asUser('ADMIN', 'admin-1');
+
+			const { GET } = await import('@/app/api/incidents/route');
+			await GET(dateReq(TWO_DAYS_AGO));
 
 			expect(eqCalls().some(([col]) => col === 'leader_id')).toBe(false);
 		});
@@ -147,7 +204,7 @@ describe('GET /api/incidents authorization', () => {
 			asUser('GUARDIAN', 'guardian-1');
 
 			const { GET } = await import('@/app/api/incidents/route');
-			await GET(req('http://localhost:9002/api/incidents?date=2026-09-16'));
+			await GET(dateReq(TODAY));
 
 			expect(eqCalls()).toContainEqual(['leader_id', 'guardian-1']);
 		});
@@ -156,7 +213,7 @@ describe('GET /api/incidents authorization', () => {
 			asUser('ADMIN', 'admin-1');
 
 			const { GET } = await import('@/app/api/incidents/route');
-			await GET(req('http://localhost:9002/api/incidents?date=2026-09-16'));
+			await GET(dateReq('2026-09-16'));
 
 			expect(argsFor('gte')).toContainEqual(['timestamp', '2026-09-16T00:00:00.000Z']);
 			expect(argsFor('lt')).toContainEqual(['timestamp', '2026-09-17T00:00:00.000Z']);
@@ -166,7 +223,7 @@ describe('GET /api/incidents authorization', () => {
 			asUser('ADMIN', 'admin-1');
 
 			const { GET } = await import('@/app/api/incidents/route');
-			const res = await GET(req('http://localhost:9002/api/incidents?date=not-a-date'));
+			const res = await GET(dateReq('not-a-date'));
 
 			expect(res.status).toBe(400);
 			expect(mockFrom).not.toHaveBeenCalled();
