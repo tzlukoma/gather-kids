@@ -50,7 +50,7 @@ Defaults in call sites should keep **legacy UI on** (`getBoolean(key, false)` �
 
 | Key | Intent | Prerequisite before enabling |
 |-----|--------|------------------------------|
-| `gathersystem_door` | New door / check-in GatherSystem surface | **#385 must land first.** The GatherSystem door surface cannot check a child out. See below. |
+| `gathersystem_door` | New door / check-in GatherSystem surface | **#432 and #385 must both land first.** The flag can resolve true without a session, and the surface cannot check a child out. See below. |
 | `gathersystem_guardian` | Guardian household GatherSystem UX | — |
 | `gathersystem_bible_bee_household` | Bible Bee household GatherSystem path | — |
 | `gathersystem_registration` | Guardian registration wizard GatherSystem UI | **#389 must close first.** Do not broaden this key until then. |
@@ -63,15 +63,31 @@ Constants: `GATHERSYSTEM_FLAG_KEYS` in `src/lib/flags/env.ts`. Multivariate expe
 
 A prerequisite is something that must be true **in the target environment** before the key is raised above 0% there. Merging the code does not satisfy it, and it is per-environment: satisfying it in UAT says nothing about production.
 
-#### `gathersystem_door` — check-out is missing
+**Percentage rollouts and session-less traffic.** `getFlagEvalContext` fails closed on missing Supabase env, not on a missing session, and `buildFlagDistinctId(undefined)` collapses every session-less caller into one `<env>:anonymous` bucket. So for unauthenticated traffic a percentage rollout is not gradual — the whole bucket resolves together. This affects any key evaluated on a route reachable without a session; #432 tracks it for `gathersystem_door`. Prefer targeting by `userId` over a blanket percentage until it closes.
 
-**Do not enable this key for real door usage until #385 lands.**
+#### `gathersystem_door` — two open blockers
+
+**Do not enable this key for real door usage until both #432 and #385 land.** They are independent problems and neither fixes the other.
+
+**1. The flag can resolve true without a session (#432).**
+
+`src/app/(admin)/check-in/page.tsx` does use the shared `getFlagEvalContext`, but that helper fails closed only on **missing Supabase env** — `canEvaluateFlags` is `true` whenever the env exists, session or not. A request with no session therefore reaches `getBoolean` with `userId: undefined`, and `buildFlagDistinctId(undefined)` (`src/lib/flags/env.ts:81`) maps every such caller to a single shared bucket:
+
+```
+`${deployEnv}:anonymous`
+```
+
+So all session-less requests share one evaluation. If PostHog resolves that bucket to true — which a percentage rollout can do — every session-less request gets the new surface, regardless of who they are. Raising this key by percentage is therefore not a gradual rollout for unauthenticated traffic; it is all-or-nothing for the whole anonymous bucket.
+
+`ProtectedRoute` still redirects an unauthorised viewer, so this is unexpected surface exposure rather than a data leak. It does mean the flag is not a reliable rollout control until #432 closes.
+
+**2. The surface cannot check a child out (#385).**
 
 `src/components/gatherKids/check-in-content-gathersystem.tsx` imports `useCheckInMutation` only. The legacy `check-in-view.tsx` imports both `useCheckInMutation` and `useCheckOutMutation`. The GatherSystem surface's two `check_out_at` references (lines 160, 189) are reads that compute who is currently on site; nothing performs a check-out.
 
 So with this flag on, staff can check children **in** but not **out** — on the screen used to release children to their guardians at pickup. This is a feature-parity break, not styling debt, and no amount of visual work on #385 fixes it unless the check-out action is restored with it.
 
-Turning the flag **off** restores the legacy screen and full check-out, so the mitigation is immediate if it is ever enabled by mistake.
+**Mitigation is immediate either way.** Turning the flag off restores the legacy screen, full check-out, and deterministic behaviour.
 
 PR #383 delivered the interaction model for this surface (search, grade chips, multi-select, sticky dock, photos, allergy/incident chips). #385 carries the remainder: stats cards, status tabs, header chrome, table layout — and check-out.
 
