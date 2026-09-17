@@ -55,7 +55,7 @@ Defaults in call sites should keep **legacy UI on** (`getBoolean(key, false)` �
 | `gathersystem_bible_bee_household` | Bible Bee household GatherSystem path | — |
 | `gathersystem_registration` | Guardian registration wizard GatherSystem UI | **#389 must close first.** Do not broaden this key until then. |
 | `gathersystem_admin` | Staff shell (grouped nav) + admin overview GatherSystem UI | — |
-| `gathersystem_incidents` | Staff incidents log + acknowledgement GatherSystem UI | **Role backfill must run in that environment.** See below. |
+| `gathersystem_incidents` | Staff incidents log + acknowledgement GatherSystem UI | **#429 must land, and its backfill run in that environment.** See below. |
 
 Constants: `GATHERSYSTEM_FLAG_KEYS` in `src/lib/flags/env.ts`. Multivariate experiments use `getVariant(key, 'control')` when an issue defines arms.
 
@@ -63,23 +63,19 @@ Constants: `GATHERSYSTEM_FLAG_KEYS` in `src/lib/flags/env.ts`. Multivariate expe
 
 A prerequisite is something that must be true **in the target environment** before the key is raised above 0% there. Merging the code does not satisfy it, and it is per-environment: satisfying it in UAT says nothing about production.
 
-#### `gathersystem_incidents` — role backfill
+#### `gathersystem_incidents` — trusted role claims
 
-Run once per environment, **before** raising the rollout there:
+**#429 must merge first, and its backfill must have run in this environment.**
 
-```bash
-SUPABASE_URL=… SUPABASE_SERVICE_ROLE_KEY=… node scripts/backfill-app-metadata-roles.mjs --apply
-```
+`GET /api/incidents`, which only this screen calls, resolves the caller's role from `app_metadata`, because `user_metadata` is rewritable by the signed-in user themselves and so cannot carry a privilege claim.
 
-The script copies `user_metadata.role` to `app_metadata.role` for existing accounts. Without `--apply` it is a **dry run**: run that form first and read the output before committing to the change.
+Nothing populates `app_metadata.role` yet. That is deliberate, and the reason is worth understanding before anyone "helpfully" adds it:
 
-**Why:** `GET /api/incidents`, which only this screen calls, resolves the caller's role from `app_metadata`, because `user_metadata` is rewritable by the signed-in user themselves and so cannot carry a privilege claim. Existing accounts hold the role only in `user_metadata`.
+> `requireAdmin` still trusts `user_metadata`, so a user who self-asserts ADMIN passes it. Any **privileged writer sitting behind that guard** would let them launder that forged claim into a durable, service-role-written one — which then survives the repair. A writer must not be added before the guard is fixed. #429 does both in one change.
 
-**If you skip it:** an admin opening the new screen resolves as `GUEST` and is scoped to incidents they logged personally — **narrower than intended, never wider**. It is a visibly wrong screen, not a data leak, and it disappears the moment the flag goes back to 0%.
+Until #429 lands, every caller resolves as `GUEST`, so an admin opening this screen is scoped to incidents they logged personally — **narrower than intended, never wider**, and invisible while the flag is at 0%.
 
-**Status:** not run in any environment as of this writing. Tracked in #433.
-
-Accounts created or edited after PR #427 get `app_metadata.role` written automatically, so this is a one-time catch-up per environment, not an ongoing chore.
+**Status:** #429 open; backfill not run in any environment. Ops checklist in #433.
 
 ---
 

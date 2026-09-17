@@ -20,19 +20,24 @@ interface AuthUser {
  * signed-in user rewrite their own `user_metadata` with a plain
  * `auth.updateUser({ data: … })` call, so a role claim stored there is
  * self-asserted: anyone could grant themselves ADMIN. `app_metadata` can only
- * be written by the service role, through the admin API.
+ * be written by the service role.
  *
- * Fails closed. A user with no `app_metadata.role` is treated as GUEST rather
- * than falling back to the self-asserted claim, which would reopen the hole.
+ * Fails closed: no `app_metadata.role` means GUEST. There is deliberately no
+ * fallback to `user_metadata`, which would reopen the hole.
  *
- * **Only `requireUser` uses this, and only flag-gated routes call
- * `requireUser`.** `requireAdmin` below still reads `user_metadata`, exactly as
- * on `main`: moving it would 403 every existing admin until
- * `scripts/backfill-app-metadata-roles.mjs --apply` had been run against the
- * environment, which is a change to the default path. That fix belongs in its
- * own PR with its own backfill window. Run the backfill before enabling
- * `gathersystem_incidents`, or admins will see the new screen scoped as
- * leaders — narrower, never wider.
+ * **Nothing in this branch writes `app_metadata`, on purpose.** `requireAdmin`
+ * below still trusts `user_metadata` (as on `main`), so any route it guards is
+ * reachable by a user who has self-asserted ADMIN. A privileged writer behind
+ * that guard would let such a user launder their forged claim into a *durable,
+ * trusted* one — strictly worse than the existing hole, because the minted
+ * claim survives the fix. So the `app_metadata` writes on the user routes, and
+ * the backfill that populates existing accounts, both belong to #429, which
+ * repairs `requireAdmin` in the same change.
+ *
+ * Consequence until #429 lands: every caller resolves as GUEST here, so an
+ * admin on the flagged incidents screen is scoped to incidents they logged.
+ * Narrower than intended, never wider, and invisible while the flag is off.
+ * **#429 is therefore a prerequisite for enabling `gathersystem_incidents`.**
  */
 export function resolveTrustedRole(user: Pick<AuthUser, 'app_metadata'>): string {
 	const role = user.app_metadata?.role;
