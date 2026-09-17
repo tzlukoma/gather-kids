@@ -1,0 +1,257 @@
+import React from 'react';
+import { screen, fireEvent, waitFor, within } from '@testing-library/react';
+import { IncidentsContentGatherSystem } from '@/components/gatherKids/incidents-content-gathersystem';
+import { renderWithAuth, mockUsers } from '@/test-utils/auth/test-utils';
+import { AuthRole } from '@/lib/auth-types';
+
+const mockToast = jest.fn();
+jest.mock('@/hooks/use-toast', () => ({
+	useToast: () => ({ toast: mockToast }),
+}));
+
+// Filter *logic* is covered directly in __tests__/lib/incidents-filter.test.ts.
+// Radix Select/Tabs need pointer-event polyfills this repo does not have, so
+// this suite drives state through the URL deep-link and the data instead.
+let searchParams = new URLSearchParams('tab=view');
+jest.mock('next/navigation', () => ({
+	useSearchParams: () => searchParams,
+}));
+
+jest.mock('@/components/gatherKids/incident-form', () => ({
+	IncidentForm: () => <div data-testid="incident-form" />,
+}));
+
+const mockMutateAsync = jest.fn();
+const mockUseIncidentsForUser = jest.fn();
+jest.mock('@/hooks/data/attendance', () => ({
+	useIncidentsForUser: (...args: unknown[]) => mockUseIncidentsForUser(...args),
+	useAcknowledgeIncident: () => ({
+		mutateAsync: mockMutateAsync,
+		isPending: false,
+	}),
+}));
+
+const mockUseChildrenForActiveCycle = jest.fn();
+const mockUseMinistries = jest.fn();
+const mockUseMinistryEnrollments = jest.fn();
+const mockUseRegistrationCycles = jest.fn();
+jest.mock('@/hooks/data', () => ({
+	useChildrenForActiveCycle: () => mockUseChildrenForActiveCycle(),
+	useMinistries: () => mockUseMinistries(),
+	useMinistryEnrollments: () => mockUseMinistryEnrollments(),
+	useRegistrationCycles: () => mockUseRegistrationCycles(),
+}));
+
+const pending = {
+	incident_id: 'inc-1',
+	child_id: 'child-1',
+	child_name: 'Test Child One',
+	severity: 'high',
+	description: 'Synthetic pending incident.',
+	leader_id: 'leader-1',
+	timestamp: '2026-09-13T14:20:00.000Z',
+	admin_acknowledged_at: null as string | null,
+};
+
+const acknowledged = {
+	incident_id: 'inc-2',
+	child_id: 'child-2',
+	child_name: 'Test Child Two',
+	severity: 'low',
+	description: 'Synthetic acknowledged incident.',
+	leader_id: 'leader-1',
+	timestamp: '2026-09-06T13:44:00.000Z',
+	admin_acknowledged_at: '2026-09-06T15:00:00.000Z' as string | null,
+};
+
+function setup({ incidents = [pending, acknowledged] } = {}) {
+	mockUseIncidentsForUser.mockReturnValue({
+		data: incidents,
+		isLoading: false,
+		error: null,
+	});
+	mockUseChildrenForActiveCycle.mockReturnValue({
+		data: [{ child_id: 'child-1' }, { child_id: 'child-2' }],
+	});
+	mockUseRegistrationCycles.mockReturnValue({
+		data: [{ cycle_id: 'cycle-1', name: 'Fall 2026' }],
+	});
+	mockUseMinistries.mockReturnValue({
+		data: [{ ministry_id: 'min-ss', name: 'Sunday School' }],
+	});
+	mockUseMinistryEnrollments.mockReturnValue({
+		data: [{ child_id: 'child-1', ministry_id: 'min-ss' }],
+	});
+}
+
+function renderAs(role: AuthRole, overrides = {}) {
+	const user =
+		role === AuthRole.ADMIN
+			? mockUsers.admin
+			: { ...mockUsers.ministryLeader, ...overrides };
+	return renderWithAuth(<IncidentsContentGatherSystem />, {
+		user: user as never,
+		userRole: role,
+	});
+}
+
+describe('IncidentsContentGatherSystem', () => {
+	beforeEach(() => {
+		jest.clearAllMocks();
+		searchParams = new URLSearchParams('tab=view');
+		setup();
+	});
+
+	it('reads incidents through useIncidentsForUser (authorization boundary)', () => {
+		renderAs(AuthRole.ADMIN);
+		expect(mockUseIncidentsForUser).toHaveBeenCalled();
+	});
+
+	it('honours the ?tab=view&filter=pending deep link from the dashboard', () => {
+		searchParams = new URLSearchParams('tab=view&filter=pending');
+		renderAs(AuthRole.ADMIN);
+
+		expect(screen.getByText('Test Child One')).toBeInTheDocument();
+		expect(screen.queryByText('Test Child Two')).not.toBeInTheDocument();
+	});
+
+	describe('acknowledge authorization', () => {
+		it('offers Acknowledge to ADMIN for pending incidents only', () => {
+			renderAs(AuthRole.ADMIN);
+
+			expect(
+				screen.getAllByRole('button', { name: 'Acknowledge' })
+			).toHaveLength(1);
+
+			const ackRow = screen.getByText('Test Child Two').closest('tr')!;
+			expect(
+				within(ackRow).queryByRole('button', { name: 'Acknowledge' })
+			).not.toBeInTheDocument();
+		});
+
+		it('never offers Acknowledge to a MINISTRY_LEADER in the list', () => {
+			renderAs(AuthRole.MINISTRY_LEADER);
+			expect(
+				screen.queryByRole('button', { name: 'Acknowledge' })
+			).not.toBeInTheDocument();
+		});
+
+		it('never offers Acknowledge to a MINISTRY_LEADER in incident detail', () => {
+			renderAs(AuthRole.MINISTRY_LEADER);
+			fireEvent.click(screen.getByText('Test Child One'));
+
+			const dialog = screen.getByRole('dialog');
+			expect(within(dialog).getByText('Incident Details')).toBeInTheDocument();
+			expect(
+				within(dialog).queryByRole('button', { name: 'Acknowledge' })
+			).not.toBeInTheDocument();
+		});
+
+		it('does not offer Acknowledge in detail for an already-acknowledged incident', () => {
+			renderAs(AuthRole.ADMIN);
+			fireEvent.click(screen.getByText('Test Child Two'));
+
+			const dialog = screen.getByRole('dialog');
+			expect(
+				within(dialog).queryByRole('button', { name: 'Acknowledge' })
+			).not.toBeInTheDocument();
+		});
+
+		it('acknowledges from the inline list action', async () => {
+			mockMutateAsync.mockResolvedValue('inc-1');
+			renderAs(AuthRole.ADMIN);
+
+			fireEvent.click(screen.getByRole('button', { name: 'Acknowledge' }));
+
+			await waitFor(() => expect(mockMutateAsync).toHaveBeenCalledWith('inc-1'));
+			await waitFor(() =>
+				expect(mockToast).toHaveBeenCalledWith(
+					expect.objectContaining({ title: 'Incident Acknowledged' })
+				)
+			);
+		});
+
+		it('acknowledges from incident detail with the same mutation', async () => {
+			mockMutateAsync.mockResolvedValue('inc-1');
+			renderAs(AuthRole.ADMIN);
+			fireEvent.click(screen.getByText('Test Child One'));
+
+			const dialog = screen.getByRole('dialog');
+			fireEvent.click(
+				within(dialog).getByRole('button', { name: 'Acknowledge' })
+			);
+
+			await waitFor(() => expect(mockMutateAsync).toHaveBeenCalledWith('inc-1'));
+		});
+
+		it('surfaces a destructive toast when acknowledge fails', async () => {
+			mockMutateAsync.mockRejectedValue(new Error('nope'));
+			renderAs(AuthRole.ADMIN);
+
+			fireEvent.click(screen.getByRole('button', { name: 'Acknowledge' }));
+
+			await waitFor(() =>
+				expect(mockToast).toHaveBeenCalledWith(
+					expect.objectContaining({
+						title: 'Acknowledgement Failed',
+						variant: 'destructive',
+					})
+				)
+			);
+		});
+	});
+
+	describe('empty states', () => {
+		it('distinguishes a filter miss from an empty log', () => {
+			// Only an acknowledged incident exists, so ?filter=pending matches none.
+			setup({ incidents: [acknowledged] });
+			searchParams = new URLSearchParams('tab=view&filter=pending');
+			renderAs(AuthRole.ADMIN);
+
+			expect(
+				screen.getByText('No incidents match the current filter')
+			).toBeInTheDocument();
+			expect(
+				screen.getByRole('button', { name: 'Show all incidents' })
+			).toBeInTheDocument();
+			expect(
+				screen.queryByText('No incidents this cycle')
+			).not.toBeInTheDocument();
+		});
+
+		it('shows the empty-log state when nothing is in context', () => {
+			setup({ incidents: [] });
+			renderAs(AuthRole.ADMIN);
+
+			expect(screen.getByText('No incidents this cycle')).toBeInTheDocument();
+			expect(
+				screen.queryByText('No incidents match the current filter')
+			).not.toBeInTheDocument();
+		});
+
+		it('clears filters from the filter-miss empty state', () => {
+			setup({ incidents: [acknowledged] });
+			searchParams = new URLSearchParams('tab=view&filter=pending');
+			renderAs(AuthRole.ADMIN);
+
+			fireEvent.click(screen.getByRole('button', { name: 'Show all incidents' }));
+
+			expect(screen.getByText('Test Child Two')).toBeInTheDocument();
+		});
+	});
+
+	it('summarises pending and total from in-context incidents', () => {
+		renderAs(AuthRole.ADMIN);
+		expect(screen.getByText('1 pending · 2 total')).toBeInTheDocument();
+	});
+
+	it('keeps the inactive-leader restricted view', () => {
+		renderAs(AuthRole.MINISTRY_LEADER, { is_active: false });
+
+		expect(screen.getByText('Account Inactive')).toBeInTheDocument();
+		expect(screen.getByText('Your Logged Incidents')).toBeInTheDocument();
+		expect(
+			screen.queryByRole('tab', { name: 'Log New Incident' })
+		).not.toBeInTheDocument();
+	});
+});
