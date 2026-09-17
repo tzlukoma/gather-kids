@@ -48,16 +48,38 @@ Browser PostHog must **not** evaluate flags. Server evaluation is authoritative 
 
 Defaults in call sites should keep **legacy UI on** (`getBoolean(key, false)` → new UI only when true).
 
-| Key | Intent |
-|-----|--------|
-| `gathersystem_door` | New door / check-in GatherSystem surface |
-| `gathersystem_guardian` | Guardian household GatherSystem UX |
-| `gathersystem_bible_bee_household` | Bible Bee household GatherSystem path |
-| `gathersystem_registration` | Guardian registration wizard GatherSystem UI |
-| `gathersystem_admin` | Staff shell (grouped nav) + admin overview GatherSystem UI |
-| `gathersystem_incidents` | Staff incidents log + acknowledgement GatherSystem UI |
+| Key | Intent | Prerequisite before enabling |
+|-----|--------|------------------------------|
+| `gathersystem_door` | New door / check-in GatherSystem surface | — |
+| `gathersystem_guardian` | Guardian household GatherSystem UX | — |
+| `gathersystem_bible_bee_household` | Bible Bee household GatherSystem path | — |
+| `gathersystem_registration` | Guardian registration wizard GatherSystem UI | **#389 must close first.** Do not broaden this key until then. |
+| `gathersystem_admin` | Staff shell (grouped nav) + admin overview GatherSystem UI | — |
+| `gathersystem_incidents` | Staff incidents log + acknowledgement GatherSystem UI | **Role backfill must run in that environment.** See below. |
 
 Constants: `GATHERSYSTEM_FLAG_KEYS` in `src/lib/flags/env.ts`. Multivariate experiments use `getVariant(key, 'control')` when an issue defines arms.
+
+### Enablement prerequisites
+
+A prerequisite is something that must be true **in the target environment** before the key is raised above 0% there. Merging the code does not satisfy it, and it is per-environment: satisfying it in UAT says nothing about production.
+
+#### `gathersystem_incidents` — role backfill
+
+Run once per environment, **before** raising the rollout there:
+
+```bash
+SUPABASE_URL=… SUPABASE_SERVICE_ROLE_KEY=… node scripts/backfill-app-metadata-roles.mjs --apply
+```
+
+The script copies `user_metadata.role` to `app_metadata.role` for existing accounts. It is a **dry run without `--apply`** — run it without the flag first and read the output.
+
+**Why:** `GET /api/incidents`, which only this screen calls, resolves the caller's role from `app_metadata`, because `user_metadata` is rewritable by the signed-in user themselves and so cannot carry a privilege claim. Existing accounts hold the role only in `user_metadata`.
+
+**If you skip it:** an admin opening the new screen resolves as `GUEST` and is scoped to incidents they logged personally — **narrower than intended, never wider**. It is a visibly wrong screen, not a data leak, and it disappears the moment the flag goes back to 0%.
+
+**Status:** not run in any environment as of this writing. Tracked in #433.
+
+Accounts created or edited after PR #427 get `app_metadata.role` written automatically, so this is a one-time catch-up per environment, not an ongoing chore.
 
 ---
 
@@ -126,12 +148,13 @@ Env vars (Vercel Production and Preview):
 
 Creating a boolean flag in the PostHog UI:
 
-1. **Flag key** — exact string (e.g. `gathersystem_door`).
-2. **Enabled** — ON (flag is evaluable).
-3. **Type** — Boolean; leave payload empty unless the issue needs one.
-4. **Match by** — Properties; filter `deploy_env` **equals** `uat` until a deliberate production rollout.
-5. **Rollout** — **0%** until Thomas wants UAT exposure; then raise (often 100% under the UAT filter).
-6. Production flips are **Thomas-only**. Do not add a production condition set or raise prod rollout without an issue that authorises it.
+1. **Check the prerequisite column** in *Named GatherSystem keys* above. If the key has one, satisfy it **in this environment** before raising the rollout. This is per-environment: UAT being done does not cover production.
+2. **Flag key** — exact string (e.g. `gathersystem_door`).
+3. **Enabled** — ON (flag is evaluable).
+4. **Type** — Boolean; leave payload empty unless the issue needs one.
+5. **Match by** — Properties; filter `deploy_env` **equals** `uat` until a deliberate production rollout.
+6. **Rollout** — **0%** until Thomas wants UAT exposure; then raise (often 100% under the UAT filter).
+7. Production flips are **Thomas-only**. Do not add a production condition set or raise prod rollout without an issue that authorises it.
 
 Privacy: no email, names, photos, DOB, allergies, addresses, child ids, or household ids in flag payloads, person properties, or filters beyond opaque ids / `deploy_env` / `role`.
 
