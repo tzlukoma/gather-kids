@@ -87,7 +87,7 @@ An account in that list you do not recognise is a self-promotion attempt. Leave 
 
 **Related invariant, for whoever touches this next:** a privileged writer must never sit behind a guard weaker than the claim it writes. `requireAdmin` reads `app_metadata.role` and the routes that write it are guarded by `requireAdmin`; those two facts have to move together. Separating them lets a forged claim be laundered into a durable one that survives the repair.
 
-**Status:** backfill not run in any environment. Ops checklist in #433.
+**Whether it has already been run in a given environment is tracked in #433, not here.** Check there before running it. This file describes the procedure; it deliberately does not record run state, which changes per environment and goes stale in a document.
 
 ---
 
