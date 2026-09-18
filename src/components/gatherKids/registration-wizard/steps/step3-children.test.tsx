@@ -78,7 +78,7 @@ function Step3Harness({
 	return (
 		<Form {...form}>
 			<form>
-				<Step3Children form={form} />
+				<Step3Children form={form} blockedAt={0} />
 			</form>
 		</Form>
 	);
