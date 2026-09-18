@@ -418,10 +418,28 @@ describe('parseDoorStatusFilter', () => {
 		expect(parseDoorStatusFilter('checkedIn')).toBe('checkedIn');
 	});
 
-	it('rejects anything else rather than guessing', () => {
+	it('ignores case and separators, because these get hand-typed', () => {
+		for (const value of [
+			'checkedout',
+			'CheckedOut',
+			'CHECKEDOUT',
+			'checked-out',
+			'checked_out',
+			' checkedOut ',
+			'notcheckedin',
+			'not-checked-in',
+			'Not Checked In',
+		]) {
+			expect(parseDoorStatusFilter(value)).toBe('checkedOut');
+		}
+		expect(parseDoorStatusFilter('CHECKEDIN')).toBe('checkedIn');
+		expect(parseDoorStatusFilter('checked-in')).toBe('checkedIn');
+	});
+
+	it('still rejects a value that is not one of the three', () => {
 		// The caller falls back to `all`; returning a filter here would answer a
 		// typo with an empty roster.
-		for (const value of ['', 'checked-out', 'CheckedOut', 'notcheckedin', null, undefined]) {
+		for (const value of ['', 'checked', 'pending', 'onsite', null, undefined]) {
 			expect(parseDoorStatusFilter(value)).toBeNull();
 		}
 	});

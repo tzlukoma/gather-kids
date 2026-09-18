@@ -544,9 +544,17 @@ describe('CheckInContentGatherSystem', () => {
 			expect(screen.queryByText('Jordan Kim')).not.toBeInTheDocument();
 		});
 
+		it('reads a hand-typed filter whatever its case or separators', () => {
+			searchParams = new URLSearchParams('filter=checked-out');
+			render(<CheckInContentGatherSystem />);
+
+			expect(screen.getByText('Amara Bennett')).toBeInTheDocument();
+			expect(screen.queryByText('Jordan Kim')).not.toBeInTheDocument();
+		});
+
 		it('falls back to the full roster on an unrecognised filter', () => {
 			// A typo in a hand-typed link should not read as "show nothing".
-			searchParams = new URLSearchParams('filter=checked-out');
+			searchParams = new URLSearchParams('filter=pending');
 			render(<CheckInContentGatherSystem />);
 
 			expect(screen.getByText('Amara Bennett')).toBeInTheDocument();

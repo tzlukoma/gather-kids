@@ -37,11 +37,25 @@ export type DoorStatusFilter = 'all' | 'checkedIn' | 'checkedOut';
 export function parseDoorStatusFilter(
 	value: string | null | undefined
 ): DoorStatusFilter | null {
-	if (value === 'all' || value === 'checkedIn' || value === 'checkedOut') {
-		return value;
+	if (typeof value !== 'string') return null;
+
+	// Case and separators are ignored. These links get typed into an address
+	// bar, and an exact-match parser answers `checkedout` or `not-checked-in`
+	// by silently falling back to the full roster — which reads on screen as
+	// "the filter did nothing" rather than as "that value was not understood".
+	const normalized = value.trim().toLowerCase().replace(/[-_\s]/g, '');
+
+	switch (normalized) {
+		case 'all':
+			return 'all';
+		case 'checkedin':
+			return 'checkedIn';
+		case 'notcheckedin':
+		case 'checkedout':
+			return 'checkedOut';
+		default:
+			return null;
 	}
-	if (value === 'notCheckedIn') return 'checkedOut';
-	return null;
 }
 
 /** The minimum shape the door screen needs from an enriched child row. */
