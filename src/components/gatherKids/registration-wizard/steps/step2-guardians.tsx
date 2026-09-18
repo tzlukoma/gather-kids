@@ -25,9 +25,11 @@ import { firstInvalidEntryIndex } from '../step-validation';
 
 interface Step2GuardiansProps {
 	form: UseFormReturn<RegistrationFormInput>;
+	/** Increments every time this step refuses to advance. */
+	blockedAt: number;
 }
 
-export function Step2Guardians({ form }: Step2GuardiansProps) {
+export function Step2Guardians({ form, blockedAt }: Step2GuardiansProps) {
 	const {
 		fields: guardianFields,
 		append: appendGuardian,
@@ -41,20 +43,28 @@ export function Step2Guardians({ form }: Step2GuardiansProps) {
 
 	// A guardian card collapses to a summary when it is not being edited, so an
 	// invalid field on guardian 2 has no input mounted to show its message or
-	// receive focus. Open the first card that has an error.
+	// receive focus. Every time the step is blocked, open the first card that
+	// has an error — unconditionally, even if another card is already open. The
+	// summary has just named that guardian and the wizard is about to focus the
+	// field; leaving a different card open would point the user at a control
+	// that is not on screen.
 	//
-	// Adjusting state during render rather than in an effect: the new value is
-	// derived entirely from props/state, and React re-runs the render before
-	// committing, so nothing flashes. An effect here would be a cascading
-	// render, which the compiler lint rejects.
-	const invalidGuardian = firstInvalidEntryIndex(
-		form.formState.errors,
-		'guardians'
-	);
-	const [openedForGuardian, setOpenedForGuardian] = useState<number | null>(null);
-	if (invalidGuardian !== undefined && invalidGuardian !== openedForGuardian) {
-		setOpenedForGuardian(invalidGuardian);
-		if (editingGuardian === null) {
+	// Keyed on the block counter rather than on the invalid index, so it fires
+	// once per refusal: between refusals the user is free to open any card, and
+	// a second press with the same guardian still at fault brings them back.
+	//
+	// Adjusted during render rather than in an effect: the new value is derived
+	// entirely from props/state, and React re-runs the render before committing,
+	// so nothing flashes. An effect here would be a cascading render, which the
+	// compiler lint rejects.
+	const [openedForBlock, setOpenedForBlock] = useState<number | null>(null);
+	if (blockedAt !== openedForBlock) {
+		setOpenedForBlock(blockedAt);
+		const invalidGuardian = firstInvalidEntryIndex(
+			form.formState.errors,
+			'guardians'
+		);
+		if (invalidGuardian !== undefined) {
 			setEditingGuardian(invalidGuardian);
 		}
 	}

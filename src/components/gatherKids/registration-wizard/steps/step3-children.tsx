@@ -37,9 +37,11 @@ const ALLERGY_CHECK_IN_HELPER =
 
 interface Step3ChildrenProps {
 	form: UseFormReturn<RegistrationFormInput>;
+	/** Increments every time this step refuses to advance. */
+	blockedAt: number;
 }
 
-export function Step3Children({ form }: Step3ChildrenProps) {
+export function Step3Children({ form, blockedAt }: Step3ChildrenProps) {
 	const {
 		fields: childrenFields,
 		append: appendChild,
@@ -55,11 +57,19 @@ export function Step3Children({ form }: Step3ChildrenProps) {
 	// nothing on screen to show its message or take focus. Switch to the first
 	// child that has one. Adjusted during render, not in an effect — see the
 	// same note on step 2.
-	const invalidChild = firstInvalidEntryIndex(form.formState.errors, 'children');
-	const [switchedForChild, setSwitchedForChild] = useState<number | null>(null);
-	if (invalidChild !== undefined && invalidChild !== switchedForChild) {
-		setSwitchedForChild(invalidChild);
-		setCurrentChildIndex(invalidChild);
+	// Keyed on the block counter, not on the invalid index: the user may page to
+	// another child between refusals, and a second press with the same child
+	// still at fault has to bring them back.
+	const [switchedForBlock, setSwitchedForBlock] = useState<number | null>(null);
+	if (blockedAt !== switchedForBlock) {
+		setSwitchedForBlock(blockedAt);
+		const invalidChild = firstInvalidEntryIndex(
+			form.formState.errors,
+			'children'
+		);
+		if (invalidChild !== undefined) {
+			setCurrentChildIndex(invalidChild);
+		}
 	}
 	/** Keeps the details textarea visible while the guardian is still typing (blank is not yet a stored answer). */
 	const [allergyDetailsOpenByIndex, setAllergyDetailsOpenByIndex] = useState<

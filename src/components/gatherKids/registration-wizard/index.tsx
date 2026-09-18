@@ -120,6 +120,11 @@ export default function RegisterWizard() {
 	// has actually tried to move on.
 	const [stepProblems, setStepProblems] = useState<StepProblem[]>([]);
 	const [stepBlockMessage, setStepBlockMessage] = useState<string | null>(null);
+	// Counts refusals, not problems. Steps 2 and 3 mount one entry at a time, so
+	// each refusal has to move them to the entry the summary names — including a
+	// second refusal naming the same entry the user has since navigated away
+	// from. An index alone cannot tell those two apart; a counter can.
+	const [blockedAt, setBlockedAt] = useState(0);
 	const [prefillState, setPrefillState] = useState<RegistrationPrefillState>(() =>
 		mapRegistrationPrefillState({ loadResult: null })
 	);
@@ -445,6 +450,7 @@ export default function RegisterWizard() {
 		const conflicts = step === 4 ? duplicateCustomQuestionConflicts() : [];
 
 		if (owned.length > 0 || conflicts.length > 0) {
+			setBlockedAt((count) => count + 1);
 			setStepProblems(owned);
 			setStepBlockMessage(
 				conflicts.length > 0
@@ -473,6 +479,7 @@ export default function RegisterWizard() {
 	 * the step that owns the first problem and list the rest.
 	 */
 	const handleInvalidSubmit = (errors: typeof form.formState.errors) => {
+		setBlockedAt((count) => count + 1);
 		setStepProblems(summarizeStepErrors(errors));
 		setStepBlockMessage(null);
 
@@ -747,8 +754,12 @@ export default function RegisterWizard() {
 									cycleLabel={cycleLabel}
 								/>
 							)}
-							{currentStep === 2 && <Step2Guardians form={form} />}
-							{currentStep === 3 && <Step3Children form={form} />}
+							{currentStep === 2 && (
+								<Step2Guardians form={form} blockedAt={blockedAt} />
+							)}
+							{currentStep === 3 && (
+								<Step3Children form={form} blockedAt={blockedAt} />
+							)}
 							{currentStep === 4 && <Step4Ministries form={form} />}
 							{currentStep === 5 && (
 								<>
