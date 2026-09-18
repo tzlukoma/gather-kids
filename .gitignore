@@ -82,3 +82,6 @@ prod-backup-*.dump
 # Claude local settings (personal overrides, not for team)
 .claude/settings.local.json
 .claude/worktrees/**/.claude/settings.local.json
+
+# Local screenshot captures for PR evidence (scripts/dev/capture-screens.mjs)
+.screenshots/
