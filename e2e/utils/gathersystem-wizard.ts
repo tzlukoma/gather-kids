@@ -67,7 +67,29 @@ export async function continueToNextStep(page: Page) {
   await page.getByRole('button', { name: /save & continue/i }).click();
 }
 
-export async function startWizardRegistration(page: Page) {
+export type WizardPrefillKind =
+  | 'first_time'
+  | 'prior_cycle'
+  | 'current_cycle'
+  | 'draft_only';
+
+export async function startWizardRegistration(
+  page: Page,
+  options?: {
+    /**
+     * Wait for the entry card to report this state before pressing Start.
+     *
+     * The household load is a query, and the entry screen renders as
+     * `first_time` until it resolves. Start is clickable throughout, so a test
+     * for a returning household can press it before the prefill arrives and
+     * then drive an *empty* wizard — which fails later, somewhere unrelated,
+     * looking like a prefill bug in the product.
+     *
+     * Omit it for a first-time family, where there is nothing to wait for.
+     */
+    expectPrefillKind?: WizardPrefillKind;
+  },
+) {
   await page.goto('/register');
 
   const startButton = page.getByRole('button', { name: /start registration/i }).first();
@@ -77,6 +99,14 @@ export async function startWizardRegistration(page: Page) {
   // straight in the wizard otherwise. Wait for whichever arrives rather than
   // counting the start button before the page has hydrated.
   await expect(startButton.or(saveAndContinue)).toBeVisible({ timeout: 30000 });
+
+  if (options?.expectPrefillKind) {
+    await expect(page.getByTestId('registration-entry-description')).toHaveAttribute(
+      'data-prefill-kind',
+      options.expectPrefillKind,
+      { timeout: 30000 },
+    );
+  }
 
   if (await startButton.isVisible().catch(() => false)) {
     await startButton.click();
@@ -158,7 +188,13 @@ export async function fillChildAtIndex(
   // clicking whatever happens to be first.
   const gradeTrigger = page.getByRole('combobox', { name: /grade/i }).first();
   await gradeTrigger.click();
-  await page.getByRole('option', { name: child.grade, exact: true }).click();
+  // Fixtures say "3rd"; the options read "3rd Grade" (and "Pre-K" reads just
+  // "Pre-K"). Accept the optional suffix so a fixture states the grade the way
+  // a person would, rather than restating the control's wording.
+  const gradeLabel = new RegExp(
+    `^${child.grade.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}( Grade)?$`,
+  );
+  await page.getByRole('option', { name: gradeLabel }).click();
   await expect(gradeTrigger).toContainText(child.grade);
 
   // The #411 allergy gate is mandatory — step 3 will not advance until every
