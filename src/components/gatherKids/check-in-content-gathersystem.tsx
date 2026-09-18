@@ -2,7 +2,19 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { AlertTriangle, Printer, Search, ShieldAlert, Users, X } from 'lucide-react';
+import dynamic from 'next/dynamic';
+import {
+	AlertTriangle,
+	Camera,
+	CheckCircle,
+	Info,
+	Printer,
+	Search,
+	ShieldAlert,
+	Smartphone,
+	Users,
+	X,
+} from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useChildrenForActiveCycle, useAttendance } from '@/hooks/data';
 import { CardGridSkeleton } from '@/components/skeletons/CardGridSkeleton';
@@ -35,6 +47,12 @@ import {
 } from '@/components/ui/dialog';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import {
+	Popover,
+	PopoverContent,
+	PopoverTrigger,
+} from '@/components/ui/popover';
+import { Separator } from '@/components/ui/separator';
+import {
 	useGuardians,
 	useHouseholds,
 	useEmergencyContacts,
@@ -45,19 +63,142 @@ import { useToast } from '@/hooks/use-toast';
 import { parseISO, differenceInYears, format } from 'date-fns';
 import type { EnrichedChild } from '@/components/gatherKids/check-in-view';
 import { CheckoutDialog } from '@/components/gatherKids/checkout-dialog';
+import { IncidentDetailsDialog } from '@/components/gatherKids/incident-details-dialog';
+// PERF-06: the camera/photo dialogs are heavy and only needed on demand. Loaded
+// the same way `check-in-view.tsx` loads them so the door's first paint is not
+// carrying a media stack it will usually never open.
+const PhotoCaptureDialog = dynamic(
+	() =>
+		import('@/components/gatherKids/photo-capture-dialog').then(
+			(m) => m.PhotoCaptureDialog
+		),
+	{ loading: () => null }
+);
+const PhotoViewerDialog = dynamic(
+	() =>
+		import('@/components/gatherKids/photo-viewer-dialog').then(
+			(m) => m.PhotoViewerDialog
+		),
+	{ loading: () => null }
+);
 import { useIncidents } from '@/hooks/data';
 import { captureAnalyticsEvent } from '@/lib/analytics/browser';
+import { useAuth } from '@/contexts/auth-context';
+import { canUpdateChildPhoto } from '@/lib/permissions';
+import { formatPhone } from '@/hooks/usePhoneFormat';
 import { getEventName } from '@/lib/constants';
 import {
 	computeDoorStats,
 	countDoorStatuses,
 	deriveDoorRowStatus,
 	formatDoorStatusLabel,
+	isOnSite,
 	matchesDoorStatusFilter,
 	selectableForCheckIn,
 	summarizeSelectedHouseholds,
 	type DoorStatusFilter,
 } from '@/lib/door-check-in';
+
+/**
+ * The contact detail the door needs in hand before releasing a child: who may
+ * collect them, on what number, and whether they may leave on their own.
+ *
+ * This mirrors the popover on the legacy `ChildCard` field for field. It is a
+ * local component rather than a shared one because extracting it would mean
+ * editing `child-card.tsx`, which sits on the flag-off path this PR guarantees
+ * is byte-identical to `main`. Worth folding together once the door is no
+ * longer behind a flag.
+ */
+function ChildDoorInfo({ child }: { child: EnrichedChild }) {
+	const canSelfCheckout = child.age !== null && child.age >= 13;
+
+	return (
+		<div className="space-y-4">
+			<div>
+				<h4 className="font-semibold font-headline mb-2">
+					{child.first_name} {child.last_name}
+				</h4>
+				<div className="text-sm text-muted-foreground space-y-1">
+					<p>
+						<strong className="text-foreground">DOB:</strong>{' '}
+						{child.dob ? format(parseISO(child.dob), 'MMM d, yyyy') : 'N/A'}
+						{child.age !== null ? ` (${child.age} yrs)` : ''}
+					</p>
+					<p>
+						<strong className="text-foreground">Grade:</strong>{' '}
+						{normalizeGradeDisplay(child.grade)}
+					</p>
+					{child.medical_notes && (
+						<p>
+							<strong className="text-foreground">Notes:</strong>{' '}
+							{child.medical_notes}
+						</p>
+					)}
+				</div>
+			</div>
+
+			{canSelfCheckout && child.child_mobile && (
+				<div>
+					<h4 className="font-semibold font-headline mb-2 flex items-center gap-2">
+						<CheckCircle aria-hidden="true" className="h-4 w-4 text-green-500" />{' '}
+						Self-Checkout Allowed
+					</h4>
+					<p className="text-sm text-muted-foreground flex items-center gap-2">
+						<Smartphone aria-hidden="true" size={14} />
+						{formatPhone(child.child_mobile)}
+					</p>
+				</div>
+			)}
+
+			<Separator />
+
+			<div>
+				<h4 className="font-semibold font-headline mb-2">Guardians</h4>
+				<div className="space-y-3">
+					{child.guardians?.map((g) => (
+						<div key={g.guardian_id} className="text-sm">
+							<p className="font-medium">
+								{g.first_name} {g.last_name} ({g.relationship})
+							</p>
+							<p className="text-muted-foreground">
+								{g.mobile_phone ? formatPhone(g.mobile_phone) : 'N/A'}
+							</p>
+						</div>
+					))}
+					{!child.guardians?.length && (
+						<p className="text-sm text-muted-foreground">
+							No guardian information available.
+						</p>
+					)}
+				</div>
+			</div>
+
+			<Separator />
+
+			<div>
+				<h4 className="font-semibold font-headline mb-2">Emergency Contact</h4>
+				{child.emergencyContact ? (
+					<div className="text-sm">
+						<p className="font-medium">
+							{child.emergencyContact.first_name}{' '}
+							{child.emergencyContact.last_name} (
+							{child.emergencyContact.relationship})
+						</p>
+						<p className="text-muted-foreground">
+							{child.emergencyContact.mobile_phone
+								? formatPhone(child.emergencyContact.mobile_phone)
+								: 'N/A'}
+						</p>
+					</div>
+				) : (
+					<p className="text-sm text-muted-foreground">
+						No emergency contact available.
+					</p>
+				)}
+			</div>
+		</div>
+	);
+}
 
 /**
  * Wire value for the status tabs. `checkedOut` is the historical value for
@@ -76,6 +217,7 @@ const EMPTY_INCIDENTS: import('@/lib/types').Incident[] = [];
 export function CheckInContentGatherSystem() {
 	const searchParams = useSearchParams();
 	const { toast } = useToast();
+	const { user } = useAuth();
 
 	const urlFilter = searchParams?.get('filter');
 	const urlEvent = searchParams?.get('event');
@@ -97,6 +239,20 @@ export function CheckInContentGatherSystem() {
 	const [prevSearchKey, setPrevSearchKey] = useState(searchKey);
 	const [isEventDialogOpen, setIsEventDialogOpen] = useState(false);
 	const [childToCheckout, setChildToCheckout] = useState<EnrichedChild | null>(null);
+	/**
+	 * Detail surfaces the legacy `ChildCard` owned and the GatherSystem door lost
+	 * in #383: the incident detail, the full-size photo, and photo capture. Same
+	 * components, same props, same authorization helper as `check-in-view.tsx`.
+	 */
+	const [selectedIncidents, setSelectedIncidents] = useState<
+		import('@/lib/types').Incident[] | null
+	>(null);
+	const [selectedChildForPhoto, setSelectedChildForPhoto] =
+		useState<EnrichedChild | null>(null);
+	const [viewingPhoto, setViewingPhoto] = useState<{
+		name: string;
+		url: string;
+	} | null>(null);
 
 	const today = getTodayIsoDate();
 
@@ -230,12 +386,12 @@ export function CheckInContentGatherSystem() {
 
 	// Stats cards (item 2) and live tab counts (item 3) — see lib/door-check-in.
 	const stats = useMemo(
-		() => computeDoorStats(enrichedChildren, todaysIncidents),
-		[enrichedChildren, todaysIncidents]
+		() => computeDoorStats(enrichedChildren, todaysIncidents, selectedEvent),
+		[enrichedChildren, todaysIncidents, selectedEvent]
 	);
 	const statusCounts = useMemo(
-		() => countDoorStatuses(enrichedChildren),
-		[enrichedChildren]
+		() => countDoorStatuses(enrichedChildren, selectedEvent),
+		[enrichedChildren, selectedEvent]
 	);
 
 	const currentEventName = useMemo(
@@ -308,12 +464,19 @@ export function CheckInContentGatherSystem() {
 			);
 		}
 
-		return results.filter((child) => matchesDoorStatusFilter(child, statusFilter));
-	}, [searchQuery, enrichedChildren, selectedGrades, statusFilter]);
+		return results.filter((child) =>
+			matchesDoorStatusFilter(child, statusFilter, selectedEvent)
+		);
+	}, [searchQuery, enrichedChildren, selectedGrades, statusFilter, selectedEvent]);
 
-	/** Rows in view that a bulk check-in would act on (not already on site). */
+	/**
+	 * Rows in view that a bulk check-in would act on. A child already on site at
+	 * *any* event is excluded, not just at this one — checking a child into two
+	 * events at once is what the legacy card's `disabled={!!checkedInEvent}`
+	 * prevented.
+	 */
 	const selectableRows = useMemo(
-		() => filteredChildren.filter((child) => !child.activeAttendance),
+		() => filteredChildren.filter((child) => !isOnSite(child)),
 		[filteredChildren]
 	);
 	const allSelectableSelected =
@@ -518,7 +681,14 @@ export function CheckInContentGatherSystem() {
 						</CardTitle>
 					</CardHeader>
 					<CardContent>
-						<div className="text-3xl font-bold">{stats.notCheckedIn}</div>
+						<div className="flex items-baseline gap-2">
+							<span className="text-3xl font-bold">{stats.notCheckedIn}</span>
+							{stats.checkedInElsewhere > 0 && (
+								<span className="text-xs text-muted-foreground">
+									{stats.checkedInElsewhere} in another event
+								</span>
+							)}
+						</div>
 					</CardContent>
 				</Card>
 				<Card className="h-full">
@@ -696,8 +866,12 @@ export function CheckInContentGatherSystem() {
 							</TableHeader>
 							<TableBody>
 								{filteredChildren.map((child) => {
-									const rowStatus = deriveDoorRowStatus(child);
+									const rowStatus = deriveDoorRowStatus(child, selectedEvent);
 									const isCheckedIn = rowStatus.status === 'checkedIn';
+									const isElsewhere = rowStatus.status === 'checkedInElsewhere';
+									// On site at any event — the check-in guard, as distinct from
+									// `isCheckedIn`, which is scoped to the event this door runs.
+									const onSiteAnywhere = isOnSite(child);
 									const isSelected = selectedChildIds.has(child.child_id);
 									const hasAllergies =
 										!!child.allergies &&
@@ -712,7 +886,7 @@ export function CheckInContentGatherSystem() {
 											<TableCell className="print:hidden">
 												<Checkbox
 													checked={isSelected}
-													disabled={isCheckedIn}
+													disabled={onSiteAnywhere}
 													onCheckedChange={() =>
 														toggleChildSelection(child.child_id)
 													}
@@ -722,17 +896,48 @@ export function CheckInContentGatherSystem() {
 
 											<TableCell>
 												<div className="flex items-center gap-3">
-													{/* 56×56 photo, radius 0.5rem (item 7) */}
-													<Avatar className="w-12 h-12 md:w-14 md:h-14 shrink-0 rounded-lg">
-														<AvatarImage
-															src={child.photo_url}
-															alt={`${child.first_name} ${child.last_name}`}
-														/>
-														<AvatarFallback className="rounded-lg text-sm font-semibold bg-muted">
-															{child.first_name[0]}
-															{child.last_name[0]}
-														</AvatarFallback>
-													</Avatar>
+													{/* 56×56 photo, radius 0.5rem (item 7). Tapping it opens
+													    the full-size viewer and the camera badge opens capture,
+													    both as the legacy card offered. */}
+													<div className="relative w-12 h-12 md:w-14 md:h-14 shrink-0">
+														<button
+															type="button"
+															disabled={!child.photo_url}
+															onClick={() =>
+																child.photo_url &&
+																setViewingPhoto({
+																	name: `${child.first_name} ${child.last_name}`,
+																	url: child.photo_url,
+																})
+															}
+															className="w-full h-full rounded-lg disabled:cursor-default"
+															aria-label={
+																child.photo_url
+																	? `View photo of ${child.first_name} ${child.last_name}`
+																	: `No photo on file for ${child.first_name} ${child.last_name}`
+															}>
+															<Avatar className="w-full h-full rounded-lg">
+																<AvatarImage
+																	src={child.photo_url}
+																	alt={`${child.first_name} ${child.last_name}`}
+																/>
+																<AvatarFallback className="rounded-lg text-sm font-semibold bg-muted">
+																	{child.first_name[0]}
+																	{child.last_name[0]}
+																</AvatarFallback>
+															</Avatar>
+														</button>
+														{canUpdateChildPhoto(user, child) && (
+															<Button
+																variant="outline"
+																size="icon"
+																onClick={() => setSelectedChildForPhoto(child)}
+																className="absolute -bottom-1 -right-1 h-6 w-6 rounded-full bg-background print:hidden"
+																aria-label={`Update photo for ${child.first_name} ${child.last_name}`}>
+																<Camera aria-hidden="true" className="h-3 w-3" />
+															</Button>
+														)}
+													</div>
 													<div className="min-w-0">
 														<div className="flex flex-wrap items-center gap-2">
 															<span className="font-semibold text-sm md:text-base">
@@ -753,15 +958,22 @@ export function CheckInContentGatherSystem() {
 																</Badge>
 															)}
 															{hasIncidents && (
-																<Badge
-																	variant="destructive"
-																	className="gap-1 text-xs whitespace-nowrap">
-																	<ShieldAlert
-																		aria-hidden="true"
-																		className="h-3 w-3"
-																	/>
-																	Incident today
-																</Badge>
+																<button
+																	type="button"
+																	onClick={() =>
+																		setSelectedIncidents(child.incidents)
+																	}
+																	aria-label={`View ${child.incidents.length === 1 ? 'incident' : 'incidents'} for ${child.first_name} ${child.last_name}`}>
+																	<Badge
+																		variant="destructive"
+																		className="gap-1 text-xs whitespace-nowrap cursor-pointer">
+																		<ShieldAlert
+																			aria-hidden="true"
+																			className="h-3 w-3"
+																		/>
+																		Incident today
+																	</Badge>
+																</button>
 															)}
 														</div>
 														<div className="text-xs md:text-sm text-muted-foreground truncate">
@@ -785,14 +997,18 @@ export function CheckInContentGatherSystem() {
 													className={`inline-flex items-center gap-2 rounded-full px-2.5 py-1 text-xs font-medium whitespace-nowrap ${
 														isCheckedIn
 															? 'bg-brand-aqua/15 text-brand-teal'
-															: 'bg-muted text-muted-foreground'
+															: isElsewhere
+																? 'bg-background text-foreground border border-border'
+																: 'bg-muted text-muted-foreground'
 													}`}>
 													<span
 														aria-hidden="true"
 														className={`h-1.5 w-1.5 rounded-full ${
 															isCheckedIn
 																? 'bg-brand-teal'
-																: 'bg-muted-foreground/60'
+																: isElsewhere
+																	? 'bg-foreground/50'
+																	: 'bg-muted-foreground/60'
 														}`}
 													/>
 													{formatDoorStatusLabel(rowStatus)}
@@ -800,21 +1016,50 @@ export function CheckInContentGatherSystem() {
 											</TableCell>
 
 											<TableCell className="text-right print:hidden">
-												{isCheckedIn ? (
-													<Button
-														variant="outline"
-														size="sm"
-														onClick={() => setChildToCheckout(child)}>
-														Check out
-													</Button>
-												) : (
-													<Button
-														variant="door"
-														size="sm"
-														onClick={() => handleCheckIn(child.child_id)}>
-														Check in
-													</Button>
-												)}
+												<div className="flex items-center justify-end gap-1">
+													<Popover>
+														<PopoverTrigger asChild>
+															<Button
+																variant="ghost"
+																size="icon"
+																className="h-8 w-8 shrink-0"
+																aria-label={`Guardian and contact details for ${child.first_name} ${child.last_name}`}>
+																<Info aria-hidden="true" className="h-4 w-4" />
+															</Button>
+														</PopoverTrigger>
+														<PopoverContent className="w-80 text-left" align="end">
+															<ChildDoorInfo child={child} />
+														</PopoverContent>
+													</Popover>
+
+													{isCheckedIn ? (
+														<Button
+															variant="outline"
+															size="sm"
+															onClick={() => setChildToCheckout(child)}>
+															Check out
+														</Button>
+													) : (
+														// Checked in elsewhere: the check-out path deliberately
+														// is not offered, because this door cannot release a
+														// child from another event's roster. Check in is
+														// disabled rather than hidden so the row still reads as
+														// an action that is unavailable, with the status chip
+														// naming the event holding them.
+														<Button
+															variant="door"
+															size="sm"
+															disabled={isElsewhere}
+															title={
+																isElsewhere
+																	? `Checked in to ${getEventName(rowStatus.elsewhereEventId)} — check out there first`
+																	: undefined
+															}
+															onClick={() => handleCheckIn(child.child_id)}>
+															Check in
+														</Button>
+													)}
+												</div>
 											</TableCell>
 										</TableRow>
 									);
@@ -899,6 +1144,21 @@ export function CheckInContentGatherSystem() {
 				onCheckout={(childId, attendanceId, verifier) =>
 					handleCheckOut(childId, attendanceId, verifier)
 				}
+			/>
+
+			<IncidentDetailsDialog
+				incidents={selectedIncidents}
+				onClose={() => setSelectedIncidents(null)}
+			/>
+
+			<PhotoCaptureDialog
+				child={selectedChildForPhoto}
+				onClose={() => setSelectedChildForPhoto(null)}
+			/>
+
+			<PhotoViewerDialog
+				photo={viewingPhoto}
+				onClose={() => setViewingPhoto(null)}
 			/>
 		</div>
 	);

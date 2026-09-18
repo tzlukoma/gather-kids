@@ -4,6 +4,7 @@ import {
 	deriveDoorRowStatus,
 	filterByDoorStatus,
 	formatDoorStatusLabel,
+	isCheckedInTo,
 	isOnSite,
 	matchesDoorStatusFilter,
 	selectableForCheckIn,
@@ -11,12 +12,19 @@ import {
 	type DoorRosterEntry,
 } from '@/lib/door-check-in';
 
+/** The event the door is running in these fixtures. */
+const SUNDAY = 'evt_sunday_school';
+/** A concurrent event a child can be on site at instead. */
+const CHILDRENS = 'evt_childrens_church';
+
 function entry(
 	child_id: string,
 	options: {
 		attendanceId?: string;
 		checkInAt?: string;
 		household?: string;
+		/** Defaults to the event the door is running. */
+		eventId?: string | null;
 	} = {}
 ): DoorRosterEntry {
 	return {
@@ -25,6 +33,8 @@ function entry(
 			? {
 					attendance_id: options.attendanceId,
 					check_in_at: options.checkInAt,
+					event_id:
+						options.eventId === undefined ? SUNDAY : options.eventId,
 			  }
 			: null,
 		household: options.household ? { name: options.household } : null,
@@ -56,50 +66,54 @@ describe('isOnSite', () => {
 
 describe('deriveDoorRowStatus', () => {
 	it('exposes the attendance id the check-out mutation needs', () => {
-		expect(deriveDoorRowStatus(jordan)).toEqual({
+		expect(deriveDoorRowStatus(jordan, SUNDAY)).toEqual({
 			status: 'checkedIn',
 			attendanceId: 'att-jordan',
 			checkInAt: '2026-09-13T14:04:00.000Z',
+			elsewhereEventId: null,
 		});
 	});
 
 	it('reports not checked in with no attendance id to check out against', () => {
-		expect(deriveDoorRowStatus(amara)).toEqual({
+		expect(deriveDoorRowStatus(amara, SUNDAY)).toEqual({
 			status: 'notCheckedIn',
 			attendanceId: null,
 			checkInAt: null,
+			elsewhereEventId: null,
 		});
 	});
 
 	it('tolerates an attendance row with no check-in timestamp', () => {
-		expect(deriveDoorRowStatus(maya)).toEqual({
+		expect(deriveDoorRowStatus(maya, SUNDAY)).toEqual({
 			status: 'checkedIn',
 			attendanceId: 'att-maya',
 			checkInAt: null,
+			elsewhereEventId: null,
 		});
 	});
 });
 
 describe('formatDoorStatusLabel', () => {
 	it('labels a not-checked-in row', () => {
-		expect(formatDoorStatusLabel(deriveDoorRowStatus(amara))).toBe(
+		expect(formatDoorStatusLabel(deriveDoorRowStatus(amara, SUNDAY))).toBe(
 			'Not checked in'
 		);
 	});
 
 	it('appends the check-in time when there is one', () => {
-		expect(formatDoorStatusLabel(deriveDoorRowStatus(jordan))).toMatch(
+		expect(formatDoorStatusLabel(deriveDoorRowStatus(jordan, SUNDAY))).toMatch(
 			/^Checked in \d{1,2}:\d{2} (AM|PM)$/
 		);
 	});
 
 	it('falls back to the bare label rather than rendering an invalid date', () => {
-		expect(formatDoorStatusLabel(deriveDoorRowStatus(maya))).toBe('Checked in');
+		expect(formatDoorStatusLabel(deriveDoorRowStatus(maya, SUNDAY))).toBe('Checked in');
 		expect(
 			formatDoorStatusLabel({
 				status: 'checkedIn',
 				attendanceId: 'att-x',
 				checkInAt: 'not-a-timestamp',
+				elsewhereEventId: null,
 			})
 		).toBe('Checked in');
 	});
@@ -107,31 +121,36 @@ describe('formatDoorStatusLabel', () => {
 
 describe('computeDoorStats', () => {
 	it('counts on site, the roster total and the remainder', () => {
-		const stats = computeDoorStats(roster, []);
+		const stats = computeDoorStats(roster, [], SUNDAY);
 		expect(stats.onSite).toBe(3);
 		expect(stats.total).toBe(6);
 		expect(stats.notCheckedIn).toBe(3);
 	});
 
 	it('always reconciles: on site + not checked in === total', () => {
-		const stats = computeDoorStats(roster, []);
+		const stats = computeDoorStats(roster, [], SUNDAY);
 		expect(stats.onSite + stats.notCheckedIn).toBe(stats.total);
 	});
 
 	it('counts only incidents still awaiting admin acknowledgement', () => {
-		const stats = computeDoorStats(roster, [
-			{ admin_acknowledged_at: null },
-			{ admin_acknowledged_at: undefined },
-			{ admin_acknowledged_at: '2026-09-13T16:00:00.000Z' },
-		]);
+		const stats = computeDoorStats(
+			roster,
+			[
+				{ admin_acknowledged_at: null },
+				{ admin_acknowledged_at: undefined },
+				{ admin_acknowledged_at: '2026-09-13T16:00:00.000Z' },
+			],
+			SUNDAY
+		);
 		expect(stats.openIncidents).toBe(2);
 	});
 
 	it('handles an empty roster without dividing by anything', () => {
-		expect(computeDoorStats([], [])).toEqual({
+		expect(computeDoorStats([], [], SUNDAY)).toEqual({
 			onSite: 0,
 			total: 0,
 			notCheckedIn: 0,
+			checkedInElsewhere: 0,
 			openIncidents: 0,
 		});
 	});
@@ -139,7 +158,7 @@ describe('computeDoorStats', () => {
 
 describe('countDoorStatuses', () => {
 	it('produces the live tab counts', () => {
-		expect(countDoorStatuses(roster)).toEqual({
+		expect(countDoorStatuses(roster, SUNDAY)).toEqual({
 			all: 6,
 			checkedIn: 3,
 			notCheckedIn: 3,
@@ -147,8 +166,8 @@ describe('countDoorStatuses', () => {
 	});
 
 	it('agrees with the stats cards', () => {
-		const stats = computeDoorStats(roster, []);
-		const counts = countDoorStatuses(roster);
+		const stats = computeDoorStats(roster, [], SUNDAY);
+		const counts = countDoorStatuses(roster, SUNDAY);
 		expect(counts.all).toBe(stats.total);
 		expect(counts.checkedIn).toBe(stats.onSite);
 		expect(counts.notCheckedIn).toBe(stats.notCheckedIn);
@@ -157,12 +176,12 @@ describe('countDoorStatuses', () => {
 
 describe('matchesDoorStatusFilter / filterByDoorStatus', () => {
 	it('matches everything under "all"', () => {
-		expect(roster.every((e) => matchesDoorStatusFilter(e, 'all'))).toBe(true);
-		expect(ids(filterByDoorStatus(roster, 'all'))).toEqual(ids(roster));
+		expect(roster.every((e) => matchesDoorStatusFilter(e, 'all', SUNDAY))).toBe(true);
+		expect(ids(filterByDoorStatus(roster, 'all', SUNDAY))).toEqual(ids(roster));
 	});
 
 	it('keeps only children on site under "checkedIn"', () => {
-		expect(ids(filterByDoorStatus(roster, 'checkedIn'))).toEqual([
+		expect(ids(filterByDoorStatus(roster, 'checkedIn', SUNDAY))).toEqual([
 			'jordan',
 			'maya',
 			'noah',
@@ -170,7 +189,7 @@ describe('matchesDoorStatusFilter / filterByDoorStatus', () => {
 	});
 
 	it('keeps only children not on site under "checkedOut" (the Not checked in tab)', () => {
-		expect(ids(filterByDoorStatus(roster, 'checkedOut'))).toEqual([
+		expect(ids(filterByDoorStatus(roster, 'checkedOut', SUNDAY))).toEqual([
 			'amara',
 			'eli',
 			'sofia',
@@ -178,12 +197,113 @@ describe('matchesDoorStatusFilter / filterByDoorStatus', () => {
 	});
 
 	it('partitions the roster with no row counted twice or lost', () => {
-		const checkedIn = filterByDoorStatus(roster, 'checkedIn');
-		const notCheckedIn = filterByDoorStatus(roster, 'checkedOut');
+		const checkedIn = filterByDoorStatus(roster, 'checkedIn', SUNDAY);
+		const notCheckedIn = filterByDoorStatus(roster, 'checkedOut', SUNDAY);
 		expect(checkedIn.length + notCheckedIn.length).toBe(roster.length);
 		expect(
 			checkedIn.some((c) => notCheckedIn.some((n) => n.child_id === c.child_id))
 		).toBe(false);
+	});
+});
+
+/**
+ * Cross-event behaviour.
+ *
+ * A child can be on site at an event other than the one this door is running.
+ * The legacy `ChildCard` distinguished the two ("In Children's Church", with
+ * Check In disabled); the GatherSystem door lost that in #383, which matters
+ * once the door can also check children *out*: without it, the Sunday School
+ * door would happily release a child from the Children's Church roster.
+ */
+describe('a child on site at a different event', () => {
+	const elsewhere = entry('priya', {
+		attendanceId: 'att-priya',
+		checkInAt: '2026-09-13T14:10:00.000Z',
+		household: 'Okonjo',
+		eventId: CHILDRENS,
+	});
+	const mixed = [amara, jordan, elsewhere];
+
+	it('is on site, but not checked in to this door\'s event', () => {
+		expect(isOnSite(elsewhere)).toBe(true);
+		expect(isCheckedInTo(elsewhere, SUNDAY)).toBe(false);
+		expect(isCheckedInTo(elsewhere, CHILDRENS)).toBe(true);
+	});
+
+	it('offers no attendance id, so this door cannot check them out', () => {
+		const state = deriveDoorRowStatus(elsewhere, SUNDAY);
+		expect(state.status).toBe('checkedInElsewhere');
+		expect(state.attendanceId).toBeNull();
+		expect(state.elsewhereEventId).toBe(CHILDRENS);
+	});
+
+	it('names the event holding them', () => {
+		expect(formatDoorStatusLabel(deriveDoorRowStatus(elsewhere, SUNDAY))).toBe(
+			"In Children's Church"
+		);
+	});
+
+	it('falls back to a generic label rather than a blank chip', () => {
+		expect(
+			formatDoorStatusLabel({
+				status: 'checkedInElsewhere',
+				attendanceId: null,
+				checkInAt: null,
+				elsewhereEventId: null,
+			})
+		).toBe('In another event');
+	});
+
+	it('is not counted as on site here, and is called out on the card', () => {
+		const stats = computeDoorStats(mixed, [], SUNDAY);
+		expect(stats.onSite).toBe(1);
+		expect(stats.notCheckedIn).toBe(2);
+		expect(stats.checkedInElsewhere).toBe(1);
+		expect(stats.onSite + stats.notCheckedIn).toBe(stats.total);
+	});
+
+	it('lands in the Not checked in tab, never in Checked in', () => {
+		expect(matchesDoorStatusFilter(elsewhere, 'checkedIn', SUNDAY)).toBe(false);
+		expect(matchesDoorStatusFilter(elsewhere, 'checkedOut', SUNDAY)).toBe(true);
+		expect(countDoorStatuses(mixed, SUNDAY)).toEqual({
+			all: 3,
+			checkedIn: 1,
+			notCheckedIn: 2,
+		});
+	});
+
+	it('cannot be swept into this event by a bulk check-in', () => {
+		expect(
+			ids(selectableForCheckIn(mixed, ['amara', 'priya', 'jordan']))
+		).toEqual(['amara']);
+	});
+
+	it('swaps sides when the door changes to that event', () => {
+		expect(countDoorStatuses(mixed, CHILDRENS)).toEqual({
+			all: 3,
+			checkedIn: 1,
+			notCheckedIn: 2,
+		});
+		expect(deriveDoorRowStatus(elsewhere, CHILDRENS).attendanceId).toBe(
+			'att-priya'
+		);
+		// ...and Jordan, checked in to Sunday School, becomes the one held elsewhere.
+		expect(deriveDoorRowStatus(jordan, CHILDRENS).status).toBe(
+			'checkedInElsewhere'
+		);
+	});
+
+	it('treats an attendance row with no event at all as this door\'s own', () => {
+		// Otherwise such a row could never be closed from any door, leaving a
+		// child marked on site after they have gone home.
+		const noEvent = entry('legacy-row', {
+			attendanceId: 'att-legacy',
+			eventId: null,
+		});
+		expect(deriveDoorRowStatus(noEvent, SUNDAY).attendanceId).toBe('att-legacy');
+		expect(deriveDoorRowStatus(noEvent, CHILDRENS).attendanceId).toBe(
+			'att-legacy'
+		);
 	});
 });
 
