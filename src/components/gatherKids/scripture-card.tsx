@@ -116,7 +116,7 @@ export default function ScriptureCard({
 	}, [verseHtml]);
 
 	return (
-		<Card className="w-full rounded-lg shadow-sm bg-white border border-border">
+		<Card className="w-full rounded-lg shadow-xs bg-white border border-border">
 			<CardHeader
 				className={`${
 					completed ? 'bg-brand-aqua/10' : 'bg-white'
@@ -136,7 +136,7 @@ export default function ScriptureCard({
 				</div>
 
 				{!readOnly && (
-					<div className="flex-shrink-0">
+					<div className="shrink-0">
 						<Button
 							type="button"
 							size="icon"
@@ -149,7 +149,7 @@ export default function ScriptureCard({
 							className={cn(
 								'rounded-full',
 								completed
-									? 'bg-brand-aqua text-white shadow hover:bg-brand-aqua/90'
+									? 'bg-brand-aqua text-white shadow-sm hover:bg-brand-aqua/90'
 									: 'border border-border text-muted-foreground bg-white'
 							)}>
 							<Check

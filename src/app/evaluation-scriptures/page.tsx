@@ -248,7 +248,7 @@ function ScriptureBlock({
 	];
 
 	return (
-		<div className="break-inside-avoid rounded-lg border border-border bg-card p-4 shadow-sm">
+		<div className="break-inside-avoid rounded-lg border border-border bg-card p-4 shadow-xs">
 			<h2 className="mb-4 font-semibold text-foreground">{title}</h2>
 			<div className="space-y-2">
 				{orderedKeys.map((key) => {

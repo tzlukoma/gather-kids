@@ -62,7 +62,7 @@ export function EssayRichTextEditor({
 				...(id ? { id } : {}),
 				class: cn(
 					essayRichTextClassName,
-					'text-foreground px-3 py-2 focus:outline-none',
+					'text-foreground px-3 py-2 focus:outline-hidden',
 					minHeightClassName
 				),
 				'aria-label': ariaLabel || placeholder || 'Rich text editor',

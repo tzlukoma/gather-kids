@@ -418,7 +418,7 @@ export default function CreateAccountPage() {
 	if (needsVerification) {
 		return (
 			<div className="flex flex-col min-h-screen bg-muted/50">
-				<main className="flex-grow flex flex-col items-center justify-center p-4">
+				<main className="grow flex flex-col items-center justify-center p-4">
 					<div className="mb-8">
 						<Link
 							href="/"
@@ -498,7 +498,7 @@ export default function CreateAccountPage() {
 
 	return (
 		<div className="flex flex-col min-h-screen bg-muted/50">
-			<main className="flex-grow flex flex-col items-center justify-center p-4">
+			<main className="grow flex flex-col items-center justify-center p-4">
 				<div className="mb-8">
 					<Link
 						href="/"

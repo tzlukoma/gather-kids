@@ -250,7 +250,7 @@ const ChildCard = ({
 					</div>
 				)}
 				<div className="flex gap-4 items-start">
-					<div className="relative w-16 h-16 flex-shrink-0">
+					<div className="relative w-16 h-16 shrink-0">
 						<Button
 							variant="ghost"
 							className="w-full h-full p-0 rounded-full"

@@ -407,7 +407,7 @@ export function CheckInContentGatherSystem() {
 										/>
 										
 										{/* Photo - 56x56 per product rule */}
-										<Avatar className="w-12 h-12 md:w-14 md:h-14 flex-shrink-0">
+										<Avatar className="w-12 h-12 md:w-14 md:h-14 shrink-0">
 											<AvatarImage src={child.photo_url} alt={child.first_name} />
 											<AvatarFallback className="text-xs font-semibold bg-muted">
 												{child.first_name[0]}{child.last_name[0]}
@@ -425,7 +425,7 @@ export function CheckInContentGatherSystem() {
 										</div>
 
 										{/* Chips - stack on mobile, inline on desktop */}
-										<div className="flex flex-col md:flex-row items-end md:items-center gap-1 md:gap-2 flex-shrink-0">
+										<div className="flex flex-col md:flex-row items-end md:items-center gap-1 md:gap-2 shrink-0">
 											{hasAllergies && (
 												<Badge variant="outline" className="border-destructive text-destructive gap-1 text-xs whitespace-nowrap">
 													<AlertTriangle className="h-3 w-3" />
@@ -458,7 +458,7 @@ export function CheckInContentGatherSystem() {
 			{/* Sticky Confirm Dock - mobile responsive */}
 			{selectedCount > 0 && (
 				<div className="fixed bottom-0 left-0 right-0 bg-background border-t shadow-lg p-3 md:p-4 z-50">
-					<div className="max-w-screen-xl mx-auto flex flex-col md:flex-row items-stretch md:items-center justify-between gap-2 md:gap-4">
+					<div className="max-w-(--breakpoint-xl) mx-auto flex flex-col md:flex-row items-stretch md:items-center justify-between gap-2 md:gap-4">
 						<div className="flex items-center justify-between md:justify-start gap-2 md:gap-4">
 							<span className="font-semibold text-sm md:text-base">
 								{selectedCount} {selectedCount === 1 ? 'child' : 'children'} selected

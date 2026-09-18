@@ -694,7 +694,7 @@ export function Step4Ministries({ form }: Step4MinistriesProps) {
 											1st, 4th, 5th Sundays at 9:30 AM • Ages 4-18
 										</p>
 									</div>
-									<CheckCircle2 className="h-5 w-5 text-[#017c7d] flex-shrink-0" />
+									<CheckCircle2 className="h-5 w-5 text-[#017c7d] shrink-0" />
 								</div>
 								<div className="mt-3 space-y-1">
 									{childrenData.map((child, index) => (

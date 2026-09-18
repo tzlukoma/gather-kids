@@ -294,7 +294,7 @@ export default function BrandingPage() {
 									</Button>
 								</div>
 								{formData.logo_url && (
-									<div className="flex-shrink-0">
+									<div className="shrink-0">
 										<div className="w-16 h-16 border border-border rounded-md overflow-hidden bg-muted flex items-center justify-center">
 											{formData.logo_url.startsWith('data:') ? (
 												<Image

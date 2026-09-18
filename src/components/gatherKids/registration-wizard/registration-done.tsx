@@ -53,7 +53,7 @@ export function RegistrationDone({
 
 				{/* Confirmed Summary */}
 				{registeredChildren.length > 0 && (
-					<Card className="border-[#eae4da] shadow-sm">
+					<Card className="border-[#eae4da] shadow-xs">
 						<CardContent className="p-6">
 							<div className="flex items-center gap-2 mb-4">
 								<CheckCircle2 className="h-5 w-5 text-[#017c7d]" />
@@ -88,10 +88,10 @@ export function RegistrationDone({
 				)}
 
 				{/* This Sunday Card */}
-				<Card className="border-[#017c7d] border-2 bg-[#e8f5f5] shadow-sm">
+				<Card className="border-[#017c7d] border-2 bg-[#e8f5f5] shadow-xs">
 					<CardContent className="p-6">
 						<div className="flex items-start gap-3 mb-4">
-							<Calendar className="h-5 w-5 text-[#017c7d] flex-shrink-0 mt-0.5" />
+							<Calendar className="h-5 w-5 text-[#017c7d] shrink-0 mt-0.5" />
 							<div>
 								<h3 className="font-semibold text-[#1e2a2f] mb-1">This Sunday</h3>
 								<p className="text-sm text-[#5b6b72]">{getNextSunday()}</p>
@@ -99,7 +99,7 @@ export function RegistrationDone({
 						</div>
 						<div className="space-y-3 text-sm text-[#1e2a2f]">
 							<div className="flex items-start gap-3">
-								<MapPin className="h-4 w-4 text-[#017c7d] flex-shrink-0 mt-0.5" />
+								<MapPin className="h-4 w-4 text-[#017c7d] shrink-0 mt-0.5" />
 								<div>
 									<p className="font-medium">Sunday School</p>
 									<p className="text-[#5b6b72]">
@@ -116,7 +116,7 @@ export function RegistrationDone({
 
 				{/* Bible Bee Link */}
 				{childrenEnrolledInBibleBee && (
-					<Card className="border-[#eae4da] shadow-sm">
+					<Card className="border-[#eae4da] shadow-xs">
 						<CardContent className="p-6">
 							<h3 className="font-semibold text-[#1e2a2f] mb-3">
 								Bible Bee Enrollment

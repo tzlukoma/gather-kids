@@ -18,7 +18,7 @@ export function PhotoViewerDialog({ photo, onClose }: PhotoViewerDialogProps) {
                     <DialogTitle className="font-headline">Photo of {photo?.name}</DialogTitle>
                 </DialogHeader>
                 {/* PERF-08: next/image with fill for responsive photo display */}
-                <div className="my-4 relative w-full aspect-[4/3]">
+                <div className="my-4 relative w-full aspect-4/3">
                     {photo?.url && (
                         <Image
                             src={photo.url}

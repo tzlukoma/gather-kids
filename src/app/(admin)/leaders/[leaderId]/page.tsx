@@ -415,7 +415,7 @@ export default function LeaderProfilePage() {
 						</div>
 					</CardHeader>
 					<CardContent className="space-y-4">
-						<div className="flex items-center justify-between rounded-lg border p-3 shadow-sm">
+						<div className="flex items-center justify-between rounded-lg border p-3 shadow-xs">
 							<div className="space-y-0.5">
 								<Label htmlFor="leader-status" className="font-medium">
 									Leader Status
@@ -518,7 +518,7 @@ export default function LeaderProfilePage() {
 									/>
 								</div>
 
-								<div className="flex items-center space-x-3 rounded-lg border p-3 shadow-sm">
+								<div className="flex items-center space-x-3 rounded-lg border p-3 shadow-xs">
 									<Checkbox
 										id="background-check"
 										checked={profileForm.background_check_complete}

@@ -353,7 +353,7 @@ export function RegistrationEntry({ onStart }: RegistrationEntryProps) {
 						</Alert>
 					)}
 
-					<Card className="border-[#eae4da] shadow-sm">
+					<Card className="border-[#eae4da] shadow-xs">
 						<CardContent className="p-6 space-y-4">
 							<div className="bg-[#fdf6e8] px-3 py-1.5 rounded-full inline-block">
 								<p className="text-xs font-semibold tracking-wider uppercase text-[#8a6a22]">
@@ -402,7 +402,7 @@ export function RegistrationEntry({ onStart }: RegistrationEntryProps) {
 									const metaParts = [gradePart, status].filter(Boolean);
 
 									return (
-										<Card key={index} className="border-[#eae4da] shadow-sm">
+										<Card key={index} className="border-[#eae4da] shadow-xs">
 											<CardContent className="p-4 flex items-center gap-4">
 												<div className="bg-[#ede8df] border border-[#e0dacf] rounded-lg w-14 h-14 flex items-center justify-center shrink-0">
 													<span className="text-base font-semibold text-[#5b6b72]">
