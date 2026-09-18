@@ -155,7 +155,8 @@ const waitingChild = {
 const openAttendance = {
 	attendance_id: 'att-jordan',
 	child_id: 'child-on-site',
-	event_id: 'evt_sunday_school',
+	// Widened so a test can drop the event without re-declaring the row.
+	event_id: 'evt_sunday_school' as string | undefined,
 	date: '2026-09-13',
 	check_in_at: '2026-09-13T14:04:00.000Z',
 };
@@ -710,6 +711,44 @@ describe('CheckInContentGatherSystem', () => {
 					name: 'Check out',
 				})
 			).not.toBeInTheDocument();
+		});
+	});
+
+	/**
+	 * An open row with no `event_id` belongs to whichever door is asking, so it
+	 * stays closable. The screen has to apply that everywhere at once: a row
+	 * offering Check out while the tab, the card and the "in another event"
+	 * label disagreed about it would be worse than either answer alone.
+	 */
+	describe('an open attendance row with no event', () => {
+		beforeEach(() => {
+			setup({
+				attendance: [{ ...openAttendance, event_id: undefined }],
+			});
+		});
+
+		it('reads as checked in and offers a check-out', () => {
+			render(<CheckInContentGatherSystem />);
+
+			expect(
+				within(rowFor('Jordan Kim')).getByRole('button', { name: 'Check out' })
+			).toBeInTheDocument();
+			expect(
+				within(rowFor('Jordan Kim')).getByText(/^Checked in/)
+			).toBeInTheDocument();
+		});
+
+		it('is not labelled as being in another event', () => {
+			render(<CheckInContentGatherSystem />);
+			expect(screen.queryByText(/in another event/)).not.toBeInTheDocument();
+		});
+
+		it('appears in the Checked in tab it offers that check-out from', () => {
+			searchParams = new URLSearchParams('filter=checkedIn');
+			render(<CheckInContentGatherSystem />);
+
+			expect(screen.getByText('Jordan Kim')).toBeInTheDocument();
+			expect(screen.queryByText('Amara Bennett')).not.toBeInTheDocument();
 		});
 	});
 });

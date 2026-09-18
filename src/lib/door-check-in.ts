@@ -93,11 +93,25 @@ export function isOnSite(entry: DoorRosterEntry): boolean {
 	return entry.activeAttendance !== null && entry.activeAttendance !== undefined;
 }
 
-/** True when the child's open attendance row belongs to `eventId`. */
+/**
+ * True when the child's open attendance row belongs to `eventId`.
+ *
+ * This is the single predicate behind the row's own status, the status tabs and
+ * the stats cards, so that they cannot give different answers about the same
+ * row — see `deriveDoorRowStatus`, which is defined in terms of it.
+ *
+ * A row carrying no `event_id` at all belongs to **whichever door is asking**.
+ * `Attendance.event_id` is non-optional in the schema, so this is a defence
+ * against data drift rather than a routine case, and the alternative is worse:
+ * a row that matches no door can be closed from none of them, leaving a child
+ * marked on site after they have gone home.
+ */
 export function isCheckedInTo(entry: DoorRosterEntry, eventId: string): boolean {
 	const attendance = entry.activeAttendance;
 	if (!attendance) return false;
-	return (attendance.event_id ?? null) === eventId;
+	const rowEvent = attendance.event_id ?? null;
+	if (rowEvent === null) return true;
+	return rowEvent === eventId;
 }
 
 /**
@@ -107,10 +121,10 @@ export function isCheckedInTo(entry: DoorRosterEntry, eventId: string): boolean 
  * straight to `useCheckOutMutation` as `{ attendanceId, verifier }`, matching
  * the legacy `check-in-view.tsx` contract.
  *
- * An attendance row with no `event_id` at all is treated as belonging to the
- * selected event. Rows predating per-event attendance would otherwise become
- * permanently unclosable from every door — the failure mode that leaves a child
- * marked on site after they have gone home.
+ * The three states come straight from `isCheckedInTo`, so this row's action,
+ * the tab it falls into and the number on the card can never disagree about it
+ * — including for a row with no `event_id`, whose policy lives in that
+ * predicate.
  */
 export function deriveDoorRowStatus(
 	entry: DoorRosterEntry,
@@ -126,13 +140,12 @@ export function deriveDoorRowStatus(
 		};
 	}
 
-	const eventId = attendance.event_id ?? null;
-	if (eventId !== null && eventId !== selectedEvent) {
+	if (!isCheckedInTo(entry, selectedEvent)) {
 		return {
 			status: 'checkedInElsewhere',
 			attendanceId: null,
 			checkInAt: attendance.check_in_at ?? null,
-			elsewhereEventId: eventId,
+			elsewhereEventId: attendance.event_id ?? null,
 		};
 	}
 
