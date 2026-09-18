@@ -153,6 +153,25 @@ describe('register page server wrapper', () => {
 		);
 	});
 
+	// #432 gave the session-only GatherSystem surfaces a shared no-session
+	// guard (`getGatherSystemFlag`). `/register` must never adopt it: it exists
+	// to serve signed-out visitors, so it still evaluates the flag without a
+	// session and only then decides where to send them.
+	it('still evaluates gathersystem_registration without a session', async () => {
+		mockGetBoolean.mockResolvedValue(true);
+		mockSupabaseUser(null);
+
+		const context = await getRegisterPageContext();
+
+		expect(mockGetBoolean).toHaveBeenCalledWith(
+			'gathersystem_registration',
+			false,
+			{ userId: undefined, role: undefined }
+		);
+		expect(context.useWizard).toBe(true);
+		expect(context.userId).toBeUndefined();
+	});
+
 	it('honours GATHERSYSTEM_REGISTRATION_OVERRIDE for e2e and local smoke', async () => {
 		process.env.GATHERSYSTEM_REGISTRATION_OVERRIDE = 'true';
 		mockGetBoolean.mockResolvedValue(false);

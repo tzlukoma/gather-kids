@@ -1,23 +1,8 @@
-import { getBoolean } from '@/lib/flags';
-import { getFlagEvalContext } from '@/lib/flags/get-flag-eval-context';
 import { AuthRole } from '@/lib/auth-types';
+import { getGatherSystemDoorFlag } from '@/lib/flags/get-gathersystem-door-flag';
 import { ProtectedRoute } from '@/components/auth/protected-route';
 import { CheckInContentLegacy } from '@/components/gatherKids/check-in-content-legacy';
 import { CheckInContentGatherSystem } from '@/components/gatherKids/check-in-content-gathersystem';
-
-async function getGatherSystemDoorFlag(): Promise<boolean> {
-	try {
-		const { userId, role, canEvaluateFlags } = await getFlagEvalContext();
-		if (!canEvaluateFlags) {
-			return false;
-		}
-
-		return await getBoolean('gathersystem_door', false, { userId, role });
-	} catch (error) {
-		console.error('Failed to evaluate gathersystem_door flag:', error);
-		return false;
-	}
-}
 
 export default async function Page() {
 	const useGatherSystemDoor = await getGatherSystemDoorFlag();
@@ -30,4 +15,7 @@ export default async function Page() {
 	);
 }
 
+// Re-exported for the existing page tests, which assert the gate through the
+// route module. The evaluation itself lives in
+// `src/lib/flags/get-gathersystem-door-flag.ts`.
 export { getGatherSystemDoorFlag };
