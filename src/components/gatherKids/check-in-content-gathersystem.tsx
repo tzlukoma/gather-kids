@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import {
 	AlertTriangle,
@@ -96,6 +96,7 @@ import {
 	matchesDoorStatusFilter,
 	parseDoorStatusFilter,
 	selectableForCheckIn,
+	toDoorFilterParam,
 	summarizeSelectedHouseholds,
 	type DoorStatusFilter,
 } from '@/lib/door-check-in';
@@ -218,6 +219,8 @@ const EMPTY_INCIDENTS: import('@/lib/types').Incident[] = [];
 
 export function CheckInContentGatherSystem() {
 	const searchParams = useSearchParams();
+	const router = useRouter();
+	const pathname = usePathname();
 	const { toast } = useToast();
 	const { user } = useAuth();
 
@@ -283,13 +286,48 @@ export function CheckInContentGatherSystem() {
 		// `?? 'all'` for the same reason the initial state has it: the URL is the
 		// source of truth for this filter, so arriving at one the screen cannot
 		// read must land on the full roster rather than leaving whatever the
-		// previous URL selected. Nothing here writes the query string, so a tab
-		// the user picked by hand is never clobbered by this path.
+		// previous URL selected.
+		//
+		// This also runs after `writeScreenStateToUrl`, which is why that helper
+		// writes the filter as well as the event: the sync reads back the value
+		// just chosen and the assignment is a no-op. Writing only the event would
+		// reset a hand-picked tab to All.
 		setStatusFilter(parseDoorStatusFilter(urlFilter) ?? 'all');
 		if (urlEvent && EVENT_OPTIONS.find((e) => e.id === urlEvent)) {
 			setSelectedEvent(urlEvent);
 		}
 	}
+
+	/**
+	 * Keep the URL describing what is on screen.
+	 *
+	 * Both parameters are read on entry, so leaving them stale means a reload
+	 * silently reverts the screen — and for the event that is not cosmetic: the
+	 * next check-in would be written against whichever event the URL still named
+	 * while staff believed they were on the one they had picked. It also makes
+	 * the door linkable, which is how the admin dashboard already reaches it.
+	 *
+	 * `replace` rather than `push`, so a shift's worth of tab clicks does not
+	 * bury the back button.
+	 */
+	const writeScreenStateToUrl = (next: {
+		status?: StatusFilter;
+		event?: string;
+	}) => {
+		const params = new URLSearchParams(searchKey);
+		const filterParam = toDoorFilterParam(next.status ?? statusFilter);
+		if (filterParam === null) {
+			params.delete('filter');
+		} else {
+			params.set('filter', filterParam);
+		}
+		params.set('event', next.event ?? selectedEvent);
+
+		const query = params.toString();
+		router.replace(query ? `${pathname}?${query}` : pathname, {
+			scroll: false,
+		});
+	};
 
 	// "/" shortcut for search
 	useEffect(() => {
@@ -769,7 +807,11 @@ export function CheckInContentGatherSystem() {
 				*/}
 				<Tabs
 					value={statusFilter}
-					onValueChange={(value) => setStatusFilter(value as StatusFilter)}>
+					onValueChange={(value) => {
+						const next = value as StatusFilter;
+						setStatusFilter(next);
+						writeScreenStateToUrl({ status: next });
+					}}>
 					<TabsList className="grid w-full grid-cols-3 lg:w-auto lg:inline-grid">
 						<TabsTrigger
 							value="all"
@@ -1157,6 +1199,7 @@ export function CheckInContentGatherSystem() {
 						value={selectedEvent}
 						onValueChange={(value) => {
 							setSelectedEvent(value);
+							writeScreenStateToUrl({ event: value });
 							setIsEventDialogOpen(false);
 						}}
 						className="space-y-2">

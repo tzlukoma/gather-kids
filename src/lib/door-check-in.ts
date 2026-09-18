@@ -133,6 +133,21 @@ export function isOnSite(entry: DoorRosterEntry): boolean {
 }
 
 /**
+ * The `?filter=` value to write for a given filter state, or `null` when the
+ * parameter should be dropped.
+ *
+ * `all` is the default, so it is omitted rather than spelled out — a URL should
+ * not carry a parameter that changes nothing. `checkedOut` is never *written*,
+ * only accepted: new links get the `notCheckedIn` spelling that says what the
+ * tab actually does.
+ */
+export function toDoorFilterParam(filter: DoorStatusFilter): string | null {
+	if (filter === 'all') return null;
+	if (filter === 'checkedIn') return 'checkedIn';
+	return 'notCheckedIn';
+}
+
+/**
  * True when the child's open attendance row belongs to `eventId`.
  *
  * This is the single predicate behind the row's own status, the status tabs and

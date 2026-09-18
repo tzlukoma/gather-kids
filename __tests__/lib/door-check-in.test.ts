@@ -9,6 +9,7 @@ import {
 	matchesDoorStatusFilter,
 	parseDoorStatusFilter,
 	selectableForCheckIn,
+	toDoorFilterParam,
 	summarizeSelectedHouseholds,
 	type DoorRosterEntry,
 } from '@/lib/door-check-in';
@@ -441,6 +442,26 @@ describe('parseDoorStatusFilter', () => {
 		// typo with an empty roster.
 		for (const value of ['', 'checked', 'pending', 'onsite', null, undefined]) {
 			expect(parseDoorStatusFilter(value)).toBeNull();
+		}
+	});
+});
+
+describe('toDoorFilterParam', () => {
+	it('omits the parameter for the default', () => {
+		// A URL should not carry a value that changes nothing.
+		expect(toDoorFilterParam('all')).toBeNull();
+	});
+
+	it('writes the spelling that says what the tab does', () => {
+		expect(toDoorFilterParam('checkedIn')).toBe('checkedIn');
+		expect(toDoorFilterParam('checkedOut')).toBe('notCheckedIn');
+	});
+
+	it('round-trips through the parser', () => {
+		for (const filter of ['all', 'checkedIn', 'checkedOut'] as const) {
+			expect(parseDoorStatusFilter(toDoorFilterParam(filter)) ?? 'all').toBe(
+				filter
+			);
 		}
 	});
 });

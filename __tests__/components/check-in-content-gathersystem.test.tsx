@@ -19,8 +19,19 @@ jest.mock('@/hooks/use-toast', () => ({
 }));
 
 let searchParams = new URLSearchParams('');
+/**
+ * `replace` feeds the new query straight back into `useSearchParams`, the way
+ * the router does, so a test can assert the round trip: what the screen writes
+ * is what it then reads.
+ */
+const mockReplace = jest.fn((url: string) => {
+	const at = url.indexOf('?');
+	searchParams = new URLSearchParams(at === -1 ? '' : url.slice(at + 1));
+});
 jest.mock('next/navigation', () => ({
 	useSearchParams: () => searchParams,
+	useRouter: () => ({ replace: mockReplace }),
+	usePathname: () => '/check-in',
 }));
 
 jest.mock('@/lib/dal', () => ({
@@ -736,6 +747,75 @@ describe('CheckInContentGatherSystem', () => {
 					name: 'Check out',
 				})
 			).not.toBeInTheDocument();
+		});
+	});
+
+	/**
+	 * The URL describes what is on screen, not just how you arrived.
+	 *
+	 * Both `?filter=` and `?event=` are read on entry, so leaving them stale
+	 * after the picker changes means a reload silently reverts the screen. For
+	 * the event that has a data consequence: the next check-in is written
+	 * against the selected event, so staff could be looking at a door they did
+	 * not pick.
+	 *
+	 * The tabs cannot be driven in this jsdom setup (Radix Tabs), so the filter
+	 * side is covered through the event path, which carries it, plus
+	 * `toDoorFilterParam` in the logic suite.
+	 */
+	describe('writing screen state back to the URL', () => {
+		const changeEventTo = (name: string) => {
+			fireEvent.click(screen.getByRole('button', { name: 'Change event' }));
+			fireEvent.click(screen.getByText(name));
+		};
+
+		it('records the event the picker selected', () => {
+			render(<CheckInContentGatherSystem />);
+
+			changeEventTo("Children's Church");
+
+			expect(mockReplace).toHaveBeenCalledWith(
+				'/check-in?event=evt_childrens_church',
+				{ scroll: false }
+			);
+		});
+
+		it('carries the current filter along, so the tab is not reset', () => {
+			searchParams = new URLSearchParams('filter=checkedIn');
+			render(<CheckInContentGatherSystem />);
+
+			changeEventTo("Children's Church");
+
+			expect(mockReplace).toHaveBeenCalledWith(
+				'/check-in?filter=checkedIn&event=evt_childrens_church',
+				{ scroll: false }
+			);
+		});
+
+		it('normalises the legacy alias to the documented spelling', () => {
+			searchParams = new URLSearchParams('filter=checkedOut');
+			render(<CheckInContentGatherSystem />);
+
+			changeEventTo("Children's Church");
+
+			expect(mockReplace).toHaveBeenCalledWith(
+				'/check-in?filter=notCheckedIn&event=evt_childrens_church',
+				{ scroll: false }
+			);
+		});
+
+		it('survives the round trip: what it writes is what it reads back', () => {
+			searchParams = new URLSearchParams('filter=checkedIn');
+			const { rerender } = render(<CheckInContentGatherSystem />);
+
+			changeEventTo("Children's Church");
+			// mockReplace fed the new query back into useSearchParams, as the
+			// router does; this is the re-render that follows.
+			rerender(<CheckInContentGatherSystem />);
+
+			expect(screen.getByText(/Children's Church ·/)).toBeInTheDocument();
+			// Still on Checked in — the filter was not dropped by the sync.
+			expect(screen.queryByText('Amara Bennett')).not.toBeInTheDocument();
 		});
 	});
 
