@@ -20,7 +20,7 @@ test.describe('Email/Password Registration to Household Flow', () => {
     try {
       seededMinistries = await seedMinistries();
     } catch (error) {
-      console.log('⚠️ Could not seed ministries - using demo mode');
+      console.log('⚠️ Could not seed ministries - continuing without seeded data');
       seededMinistries = [];
     }
     
@@ -28,7 +28,7 @@ test.describe('Email/Password Registration to Household Flow', () => {
     try {
       await clearMailHogInbox();
     } catch (error) {
-      console.log('⚠️ MailHog not available - tests will use demo mode');
+      console.log('⚠️ MailHog not available - tests will skip email assertions');
     }
   });
 
@@ -53,7 +53,7 @@ test.describe('Email/Password Registration to Household Flow', () => {
 
     console.log('🚀 Starting complete registration flow test');
 
-    // For demo mode, start with household lookup to access registration
+    // Start with household lookup to access registration
     console.log('📝 Step 1: Navigate to registration and handle household lookup');
     await page.goto('/register');
     await helpers.waitForPageLoad();
@@ -379,7 +379,7 @@ test.describe('Email/Password Registration to Household Flow', () => {
     }
     
     if (!authRequired && currentUrl.includes('/register')) {
-      console.log('ℹ️ Direct access to registration allowed - may be demo mode');
+      console.log('ℹ️ Direct access to registration allowed');
     } else if (currentUrl.includes('/login') || currentUrl.includes('/auth')) {
       console.log('✅ Redirected to auth - access control working');
     }

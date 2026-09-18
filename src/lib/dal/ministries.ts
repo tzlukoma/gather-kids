@@ -2,9 +2,7 @@
  * DAL — Ministries domain
  *
  * Covers Ministry CRUD, Ministry Groups, and Ministry Accounts.
- * All functions delegate to the Supabase adapter (dbAdapter).  The legacy
- * Dexie/IndexedDB branches have been removed following the demo-mode
- * removal in Wave 3 (issue #191).
+ * All functions delegate to the Supabase adapter (dbAdapter).
  */
 
 import { db as dbAdapter } from '../database/factory';

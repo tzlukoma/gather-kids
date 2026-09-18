@@ -1,4 +1,4 @@
-import type * as DexieTypes from '../types';
+import type * as AppTypes from '../types';
 import type * as SupabaseTypes from './supabase-types';
 import type * as CanonicalDtos from './canonical-dtos';
 import type { Attendance, Incident, Event, User, MinistryLeaderMembership, MinistryAccount, BrandingSettings, EventTimeslot, Consent, CustomQuestion } from '../types';
@@ -26,7 +26,7 @@ type WithOptionalId<T, K extends keyof T> = Omit<T, K> & Partial<Pick<T, K>>;
  */
 
 // Household: Legacy -> Canonical
-export function householdToCanonical(household: DexieTypes.Household): CanonicalDtos.HouseholdRead {
+export function householdToCanonical(household: AppTypes.Household): CanonicalDtos.HouseholdRead {
 	return {
 		household_id: household.household_id,
 		name: household.name,
@@ -45,7 +45,7 @@ export function householdToCanonical(household: DexieTypes.Household): Canonical
 }
 
 // Household: Canonical -> Legacy (for backward compatibility)
-export function canonicalToHousehold(canonical: CanonicalDtos.HouseholdWrite, id?: string): DexieTypes.Household {
+export function canonicalToHousehold(canonical: CanonicalDtos.HouseholdWrite, id?: string): AppTypes.Household {
 	const now = new Date().toISOString();
 	return {
 		household_id: canonical.household_id || id || '',
@@ -65,7 +65,7 @@ export function canonicalToHousehold(canonical: CanonicalDtos.HouseholdWrite, id
 }
 
 // Guardian: Legacy -> Canonical
-export function guardianToCanonical(guardian: DexieTypes.Guardian): CanonicalDtos.GuardianRead {
+export function guardianToCanonical(guardian: AppTypes.Guardian): CanonicalDtos.GuardianRead {
 	return {
 		guardian_id: guardian.guardian_id,
 		household_id: guardian.household_id,
@@ -81,7 +81,7 @@ export function guardianToCanonical(guardian: DexieTypes.Guardian): CanonicalDto
 }
 
 // Guardian: Canonical -> Legacy
-export function canonicalToGuardian(canonical: CanonicalDtos.GuardianWrite, id?: string): DexieTypes.Guardian {
+export function canonicalToGuardian(canonical: CanonicalDtos.GuardianWrite, id?: string): AppTypes.Guardian {
 	const now = new Date().toISOString();
 	return {
 		guardian_id: canonical.guardian_id || id || '',
@@ -98,7 +98,7 @@ export function canonicalToGuardian(canonical: CanonicalDtos.GuardianWrite, id?:
 }
 
 // Emergency Contact: Legacy -> Canonical
-export function emergencyContactToCanonical(contact: DexieTypes.EmergencyContact): CanonicalDtos.EmergencyContactRead {
+export function emergencyContactToCanonical(contact: AppTypes.EmergencyContact): CanonicalDtos.EmergencyContactRead {
 	return {
 		contact_id: contact.contact_id,
 		household_id: contact.household_id,
@@ -112,7 +112,7 @@ export function emergencyContactToCanonical(contact: DexieTypes.EmergencyContact
 }
 
 // Emergency Contact: Canonical -> Legacy
-export function canonicalToEmergencyContact(canonical: CanonicalDtos.EmergencyContactWrite, id?: string): DexieTypes.EmergencyContact {
+export function canonicalToEmergencyContact(canonical: CanonicalDtos.EmergencyContactWrite, id?: string): AppTypes.EmergencyContact {
 	return {
 		contact_id: canonical.contact_id || id || '',
 		household_id: canonical.household_id,
@@ -124,7 +124,7 @@ export function canonicalToEmergencyContact(canonical: CanonicalDtos.EmergencyCo
 }
 
 // Child: Legacy -> Canonical
-export function childToCanonical(child: DexieTypes.Child): CanonicalDtos.ChildRead {
+export function childToCanonical(child: AppTypes.Child): CanonicalDtos.ChildRead {
 	return {
 		child_id: child.child_id,
 		household_id: child.household_id,
@@ -145,7 +145,7 @@ export function childToCanonical(child: DexieTypes.Child): CanonicalDtos.ChildRe
 }
 
 // Child: Canonical -> Legacy
-export function canonicalToChild(canonical: CanonicalDtos.ChildWrite, id?: string): DexieTypes.Child {
+export function canonicalToChild(canonical: CanonicalDtos.ChildWrite, id?: string): AppTypes.Child {
 	const now = new Date().toISOString();
 	return {
 		child_id: canonical.child_id || id || '',
@@ -167,7 +167,7 @@ export function canonicalToChild(canonical: CanonicalDtos.ChildWrite, id?: strin
 }
 
 // Registration: Legacy -> Canonical (with consent normalization)
-export function registrationToCanonical(registration: DexieTypes.Registration): CanonicalDtos.RegistrationRead {
+export function registrationToCanonical(registration: AppTypes.Registration): CanonicalDtos.RegistrationRead {
 	return {
 		registration_id: registration.registration_id,
 		child_id: registration.child_id,
@@ -194,7 +194,7 @@ export function registrationToCanonical(registration: DexieTypes.Registration): 
 }
 
 // Registration: Canonical -> Legacy (with consent normalization)
-export function canonicalToRegistration(canonical: CanonicalDtos.RegistrationWrite, id?: string): DexieTypes.Registration {
+export function canonicalToRegistration(canonical: CanonicalDtos.RegistrationWrite, id?: string): AppTypes.Registration {
 	return {
 		registration_id: canonical.registration_id || id || '',
 		child_id: canonical.child_id,
@@ -223,9 +223,9 @@ export function canonicalToRegistration(canonical: CanonicalDtos.RegistrationWri
 // =====================================
 
 export type CreateHouseholdDTO = OmitSystemFields<
-	WithOptionalId<DexieTypes.Household, 'household_id'>
+	WithOptionalId<AppTypes.Household, 'household_id'>
 >;
-export type HouseholdEntity = DexieTypes.Household;
+export type HouseholdEntity = AppTypes.Household;
 export type SupabaseHousehold =
 	SupabaseTypes.Database['public']['Tables']['households']['Row'];
 
@@ -278,9 +278,9 @@ export function householdToSupabase(
 // =====================================
 
 export type CreateChildDTO = OmitSystemFields<
-	WithOptionalId<DexieTypes.Child, 'child_id'>
+	WithOptionalId<AppTypes.Child, 'child_id'>
 >;
-export type ChildEntity = DexieTypes.Child;
+export type ChildEntity = AppTypes.Child;
 export type SupabaseChild =
 	SupabaseTypes.Database['public']['Tables']['children']['Row'];
 
@@ -523,9 +523,9 @@ export function childToSupabase(
 // =====================================
 
 export type CreateGuardianDTO = OmitSystemFields<
-	WithOptionalId<DexieTypes.Guardian, 'guardian_id'>
+	WithOptionalId<AppTypes.Guardian, 'guardian_id'>
 >;
-export type GuardianEntity = DexieTypes.Guardian;
+export type GuardianEntity = AppTypes.Guardian;
 export type SupabaseGuardian =
 	SupabaseTypes.Database['public']['Tables']['guardians']['Row'];
 
@@ -565,9 +565,9 @@ export function guardianToSupabase(
 // =====================================
 
 export type CreateEmergencyContactDTO = OmitSystemFields<
-	WithOptionalId<DexieTypes.EmergencyContact, 'contact_id'>
+	WithOptionalId<AppTypes.EmergencyContact, 'contact_id'>
 >;
-export type EmergencyContactEntity = DexieTypes.EmergencyContact;
+export type EmergencyContactEntity = AppTypes.EmergencyContact;
 export type SupabaseEmergencyContact =
 	SupabaseTypes.Database['public']['Tables']['emergency_contacts']['Row'];
 
@@ -603,9 +603,9 @@ export function emergencyContactToSupabase(
 // =====================================
 
 export type CreateMinistryDTO = OmitSystemFields<
-	WithOptionalId<DexieTypes.Ministry, 'ministry_id'>
+	WithOptionalId<AppTypes.Ministry, 'ministry_id'>
 >;
-export type MinistryEntity = DexieTypes.Ministry;
+export type MinistryEntity = AppTypes.Ministry;
 export type SupabaseMinistry =
 	SupabaseTypes.Database['public']['Tables']['ministries']['Row'];
 
@@ -690,7 +690,7 @@ export type SupabaseMinistryEnrollment =
 
 export function supabaseToMinistryEnrollment(
 	record: SupabaseMinistryEnrollment
-): DexieTypes.MinistryEnrollment {
+): AppTypes.MinistryEnrollment {
 	// Normalize nullable id fields to empty string so callers don't have to handle null
 	return {
 		enrollment_id: record.enrollment_id || '',
@@ -700,11 +700,11 @@ export function supabaseToMinistryEnrollment(
 		status: (record.status as unknown as string) ?? 'enrolled',
 		custom_fields: parseCustomFields(record.custom_fields),
 		notes: undefined,
-	} as unknown as DexieTypes.MinistryEnrollment;
+	} as unknown as AppTypes.MinistryEnrollment;
 }
 
 export function ministryEnrollmentToSupabase(
-	enrollment: Omit<DexieTypes.MinistryEnrollment, 'created_at' | 'updated_at'>
+	enrollment: Omit<AppTypes.MinistryEnrollment, 'created_at' | 'updated_at'>
 ): Omit<SupabaseMinistryEnrollment, 'created_at'> {
 	return {
 		enrollment_id: enrollment.enrollment_id,
@@ -738,9 +738,9 @@ export function ministryToSupabase(
 // =====================================
 
 export type CreateBrandingSettingsDTO = OmitSystemFields<
-	WithOptionalId<DexieTypes.BrandingSettings, 'setting_id'>
+	WithOptionalId<AppTypes.BrandingSettings, 'setting_id'>
 >;
-export type BrandingSettingsEntity = DexieTypes.BrandingSettings;
+export type BrandingSettingsEntity = AppTypes.BrandingSettings;
 export type SupabaseBrandingSettings =
 	SupabaseTypes.Database['public']['Tables']['branding_settings']['Row'];
 
@@ -782,7 +782,7 @@ export function supabaseToBrandingSettings(
 // The codebase uses a couple enrollment representations (legacy camelCase tables and new snake_case).
 // Keep these functions permissive: accept either convention and coerce nullable DB fields to domain expectations.
 
-export function supabaseToEnrollment(record: Record<string, unknown> | null | undefined): DexieTypes.Enrollment {
+export function supabaseToEnrollment(record: Record<string, unknown> | null | undefined): AppTypes.Enrollment {
 	// Support both `bible_bee_enrollments` (camelCase) and `enrollments` (snake_case)
 	const r = (record ?? {}) as Record<string, unknown>;
 	return {
@@ -792,10 +792,10 @@ export function supabaseToEnrollment(record: Record<string, unknown> | null | un
 		division_id: (r['division_id'] as string) ?? (r['divisionId'] as string) ?? '',
 		auto_enrolled: (r['auto_enrolled'] as boolean) ?? false,
 		enrolled_at: (r['enrolled_at'] as string) ?? (r['enrolledAt'] as string) ?? new Date().toISOString(),
-	} as DexieTypes.Enrollment;
+	} as AppTypes.Enrollment;
 }
 
-export function enrollmentToSupabase(enrollment: Partial<DexieTypes.Enrollment>): Record<string, unknown> {
+export function enrollmentToSupabase(enrollment: Partial<AppTypes.Enrollment>): Record<string, unknown> {
 	return {
 		id: enrollment.id,
 		bible_bee_cycle_id: enrollment.bible_bee_cycle_id,
@@ -806,7 +806,7 @@ export function enrollmentToSupabase(enrollment: Partial<DexieTypes.Enrollment>)
 	} as Record<string, unknown>;
 }
 
-export function supabaseToEnrollmentOverride(record: Record<string, unknown> | null | undefined): DexieTypes.EnrollmentOverride {
+export function supabaseToEnrollmentOverride(record: Record<string, unknown> | null | undefined): AppTypes.EnrollmentOverride {
 	const r = (record ?? {}) as Record<string, unknown>;
 	return {
 		id: (r['id'] as string) || (r['override_id'] as string) || '',
@@ -816,7 +816,7 @@ export function supabaseToEnrollmentOverride(record: Record<string, unknown> | n
 		reason: (r['reason'] as string) ?? undefined,
 		created_by: (r['created_by'] as string) ?? (r['createdBy'] as string) ?? undefined,
 		created_at: (r['created_at'] as string) ?? new Date().toISOString(),
-	} as DexieTypes.EnrollmentOverride;
+	} as AppTypes.EnrollmentOverride;
 }
 
 // =====================================
@@ -826,7 +826,7 @@ export function supabaseToEnrollmentOverride(record: Record<string, unknown> | n
 export type SupabaseRegistration =
 	SupabaseTypes.Database['public']['Tables']['registrations']['Row'];
 
-export function supabaseToRegistration(record: SupabaseRegistration | Record<string, unknown>): DexieTypes.Registration {
+export function supabaseToRegistration(record: SupabaseRegistration | Record<string, unknown>): AppTypes.Registration {
 	const r = record as Record<string, unknown>;
 	return {
 		registration_id: (r['registration_id'] as string) || '',
@@ -837,10 +837,10 @@ export function supabaseToRegistration(record: SupabaseRegistration | Record<str
 		consents: parseConsents(r['consents']),
 		submitted_via: (r['submitted_via'] as string) ?? 'web',
 		submitted_at: (r['submitted_at'] as string) ?? new Date().toISOString(),
-	} as DexieTypes.Registration;
+	} as AppTypes.Registration;
 }
 
-export function registrationToSupabase(reg: Partial<DexieTypes.Registration>): Partial<SupabaseRegistration> {
+export function registrationToSupabase(reg: Partial<AppTypes.Registration>): Partial<SupabaseRegistration> {
 	return {
 		registration_id: reg.registration_id,
 		child_id: reg.child_id,

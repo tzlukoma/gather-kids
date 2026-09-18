@@ -4,7 +4,7 @@
  */
 
 export interface DebugEvent {
-  type: 'dal:call' | 'idb:op' | 'fetch:direct' | 'fetch:dal' | 'page:summary';
+  type: 'dal:call' | 'fetch:direct' | 'fetch:dal' | 'page:summary';
   name: string;
   timestamp: number;
   route: string;
@@ -14,12 +14,6 @@ export interface DebugEvent {
 export interface DebugEventDALCall extends DebugEvent {
   type: 'dal:call';
   method: string;
-}
-
-export interface DebugEventIDBOp extends DebugEvent {
-  type: 'idb:op';
-  operation: string;
-  database?: string;
 }
 
 export interface DebugEventFetch extends DebugEvent {
@@ -34,7 +28,7 @@ export interface DebugEventPageSummary extends DebugEvent {
   operationCount: number;
 }
 
-export type AnyDebugEvent = DebugEventDALCall | DebugEventIDBOp | DebugEventFetch | DebugEventPageSummary;
+export type AnyDebugEvent = DebugEventDALCall | DebugEventFetch | DebugEventPageSummary;
 
 /**
  * Global event store for persistent event storage

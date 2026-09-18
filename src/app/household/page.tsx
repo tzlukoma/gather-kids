@@ -2,7 +2,6 @@
 
 import { useAuth } from '@/contexts/auth-context';
 import { HouseholdProfile } from '@/components/gatherKids/household-profile';
-import { OnboardingModal } from '@/components/gatherKids/onboarding-modal';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useHouseholdProfile } from '@/hooks/data';
@@ -17,31 +16,6 @@ export default function GuardianHouseholdPage() {
 	const { user } = useAuth();
 	const router = useRouter();
 	const [householdId, setHouseholdId] = useState<string | null>(null);
-	const onboardingUserId =
-		user && !user.metadata?.onboarding_dismissed && user.uid === 'user_parent_demo'
-			? user.uid
-			: '';
-	const [showOnboarding, setShowOnboarding] = useState(false);
-	const [prevOnboardingUserId, setPrevOnboardingUserId] = useState('');
-
-	if (onboardingUserId !== prevOnboardingUserId) {
-		setPrevOnboardingUserId(onboardingUserId);
-		if (!onboardingUserId) {
-			setShowOnboarding(false);
-		} else {
-			const alreadyShown =
-				typeof sessionStorage !== 'undefined' &&
-				!!sessionStorage.getItem(`onboarding_shown_${onboardingUserId}`);
-			setShowOnboarding(!alreadyShown);
-		}
-	}
-
-	useEffect(() => {
-		if (!onboardingUserId || !showOnboarding) {
-			return;
-		}
-		sessionStorage.setItem(`onboarding_shown_${onboardingUserId}`, 'true');
-	}, [onboardingUserId, showOnboarding]);
 
 	const {
 		data: profileData,
@@ -112,11 +86,6 @@ export default function GuardianHouseholdPage() {
 	return (
 		<div>
 			<HouseholdProfile profileData={profileData} />
-
-			<OnboardingModal
-				isOpen={showOnboarding}
-				onClose={() => setShowOnboarding(false)}
-			/>
 		</div>
 	);
 }

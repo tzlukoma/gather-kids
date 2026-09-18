@@ -11,11 +11,11 @@ Always go through the DAL (`dbAdapter` from `@/lib/dal`). Do not import `@supaba
 ### ❌ NEVER query storage from application code
 
 ```typescript
-// ❌ BAD: bypasses the DAL (legacy Dexie / raw client)
+// ❌ BAD: bypasses the DAL (raw client)
 const bibleBeeYears = await db.bible_bee_years.toArray();
 ```
 
-That pattern is leftover from demo mode and is not a supported runtime path.
+That pattern is not a supported runtime path.
 
 ## Correct Access Patterns
 
@@ -75,7 +75,7 @@ Here are some commonly used methods from the `DatabaseAdapter` interface:
 If your component is not showing data:
 
 1. Confirm `.env.local` has `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-2. Verify the code uses adapter methods (or React Query hooks), not a leftover Dexie import
+2. Verify the code uses adapter methods (or React Query hooks), not a direct storage client
 3. Test the API endpoint directly if applicable
 4. Look for console errors that might indicate permission issues
 

@@ -428,7 +428,6 @@ function runContractTests(
 				const households = await adapter.listHouseholds({
 					city: 'Transactionville',
 				});
-				// Note: IndexedDB may not support full transactions, so this test may be lenient
 				// The important thing is that the adapter provides the transaction interface
 			});
 		});

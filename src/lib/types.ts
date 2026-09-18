@@ -467,7 +467,7 @@ export interface StudentEssay {
 export interface BrandingSettings {
     setting_id: string; // PK
     org_id: string; // Organization identifier (for multi-tenant support)
-    logo_url?: string; // File URL for production, base64 data URL for demo
+    logo_url?: string; // Stored file URL
     app_name?: string; // Custom app name
     description?: string; // Custom description/tagline
     use_logo_only?: boolean; // When true, show only logo in headers (logo required)

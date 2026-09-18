@@ -1,6 +1,6 @@
 # Issue: Set Up Proper Type Generation from Supabase Schema
 
-> Runtime is Supabase-only. Domain types live in `src/lib/types.ts`; generated types in `src/lib/database/supabase-types.ts`. “Dexie types” in the mapping examples below are historical names for those domain types.
+> Runtime is Supabase-only. Domain types live in `src/lib/types.ts`; generated types in `src/lib/database/supabase-types.ts`. The mapping examples below refer to those domain types; `type-mappings.ts` imports them as `AppTypes`.
 
 ## Overview
 
