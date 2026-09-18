@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { optionalEmail } from '@/lib/validation/optional-email';
 
 /**
  * Canonical Registration Flow DTOs - Snake Case Standard
@@ -70,7 +71,7 @@ export const GuardianWriteDto = z.object({
   first_name: z.string().min(1, 'First name is required'),
   last_name: z.string().min(1, 'Last name is required'),
   mobile_phone: z.string().min(10, 'Valid phone number is required'),
-  email: z.string().email('Valid email is required').optional(),
+  email: optionalEmail('Valid email is required'),
   relationship: z.string().min(1, 'Relationship is required'),
   is_primary: z.boolean().default(false),
 });

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { optionalEmail } from '@/lib/validation/optional-email';
 
 const ministrySelectionSchema = z.record(z.boolean().optional()).optional();
 const interestSelectionSchema = z.record(z.boolean().optional()).optional();
@@ -20,7 +21,7 @@ const guardianSchema = z.object({
 	first_name: z.string().min(1, 'First name is required.'),
 	last_name: z.string().min(1, 'Last name is required.'),
 	mobile_phone: z.string().min(10, 'A valid phone number is required.'),
-	email: z.string().email('A valid email is required.').optional(),
+	email: optionalEmail('A valid email is required.'),
 	relationship: z.string().min(1, 'Relationship is required.'),
 	is_primary: z.boolean().default(false),
 });
