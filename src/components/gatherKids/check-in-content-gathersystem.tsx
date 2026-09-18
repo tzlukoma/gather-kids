@@ -2,8 +2,8 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Search, Users, X } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
+import { AlertTriangle, Printer, Search, ShieldAlert, Users, X } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useChildrenForActiveCycle, useAttendance } from '@/hooks/data';
 import { CardGridSkeleton } from '@/components/skeletons/CardGridSkeleton';
 import { getTodayIsoDate } from '@/lib/dal';
@@ -14,22 +14,56 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { EmptyState } from '@/components/ui/empty-state';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+	Table,
+	TableBody,
+	TableCell,
+	TableHead,
+	TableHeader,
+	TableRow,
+} from '@/components/ui/table';
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogHeader,
+	DialogTitle,
+} from '@/components/ui/dialog';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import {
 	useGuardians,
 	useHouseholds,
 	useEmergencyContacts,
 	useCheckInMutation,
+	useCheckOutMutation,
 } from '@/hooks/data';
 import { useToast } from '@/hooks/use-toast';
-import { parseISO, differenceInYears } from 'date-fns';
-import { AlertTriangle, ShieldAlert } from 'lucide-react';
+import { parseISO, differenceInYears, format } from 'date-fns';
 import type { EnrichedChild } from '@/components/gatherKids/check-in-view';
+import { CheckoutDialog } from '@/components/gatherKids/checkout-dialog';
 import { useIncidents } from '@/hooks/data';
 import { captureAnalyticsEvent } from '@/lib/analytics/browser';
 import { getEventName } from '@/lib/constants';
+import {
+	computeDoorStats,
+	countDoorStatuses,
+	deriveDoorRowStatus,
+	formatDoorStatusLabel,
+	matchesDoorStatusFilter,
+	selectableForCheckIn,
+	summarizeSelectedHouseholds,
+	type DoorStatusFilter,
+} from '@/lib/door-check-in';
 
-export type StatusFilter = 'all' | 'checkedIn' | 'checkedOut';
+/**
+ * Wire value for the status tabs. `checkedOut` is the historical value for
+ * "Not checked in" and is deep-linked from the admin dashboard, so it is kept.
+ */
+export type StatusFilter = DoorStatusFilter;
 
 // Module-level constants
 const EMPTY_CHILDREN: Child[] = [];
@@ -61,21 +95,32 @@ export function CheckInContentGatherSystem() {
 	const [searchQuery, setSearchQuery] = useState('');
 	const [selectedChildIds, setSelectedChildIds] = useState<Set<string>>(new Set());
 	const [prevSearchKey, setPrevSearchKey] = useState(searchKey);
+	const [isEventDialogOpen, setIsEventDialogOpen] = useState(false);
+	const [childToCheckout, setChildToCheckout] = useState<EnrichedChild | null>(null);
 
 	const today = getTodayIsoDate();
 
 	// Data hooks
-	const { data: children = EMPTY_CHILDREN, isLoading: childrenLoading } = useChildrenForActiveCycle();
-	const { data: todaysAttendance = EMPTY_ATTENDANCE, isLoading: attendanceLoading } =
-		useAttendance(today);
+	const {
+		data: children = EMPTY_CHILDREN,
+		isLoading: childrenLoading,
+		error: childrenError,
+	} = useChildrenForActiveCycle();
+	const {
+		data: todaysAttendance = EMPTY_ATTENDANCE,
+		isLoading: attendanceLoading,
+		error: attendanceError,
+	} = useAttendance(today);
 	const { data: allGuardians = EMPTY_GUARDIANS } = useGuardians();
 	const { data: allHouseholds = EMPTY_HOUSEHOLDS } = useHouseholds();
 	const { data: allEmergencyContacts = EMPTY_EMERGENCY_CONTACTS } = useEmergencyContacts();
 	const { data: todaysIncidents = EMPTY_INCIDENTS, isLoading: incidentsLoading } = useIncidents(today);
-	
+
 	const checkInMutation = useCheckInMutation();
+	const checkOutMutation = useCheckOutMutation();
 
 	const loading = childrenLoading || attendanceLoading || incidentsLoading;
+	const loadError = childrenError || attendanceError;
 
 	// URL param sync
 	if (searchKey !== prevSearchKey) {
@@ -183,11 +228,22 @@ export function CheckInContentGatherSystem() {
 		allEmergencyContacts,
 	]);
 
-	// Stats
-	const checkedInCount = useMemo(() => {
-		if (!todaysAttendance) return 0;
-		return todaysAttendance.filter((a) => !a.check_out_at).length;
-	}, [todaysAttendance]);
+	// Stats cards (item 2) and live tab counts (item 3) — see lib/door-check-in.
+	const stats = useMemo(
+		() => computeDoorStats(enrichedChildren, todaysIncidents),
+		[enrichedChildren, todaysIncidents]
+	);
+	const statusCounts = useMemo(
+		() => countDoorStatuses(enrichedChildren),
+		[enrichedChildren]
+	);
+
+	const currentEventName = useMemo(
+		() => EVENT_OPTIONS.find((e) => e.id === selectedEvent)?.name || 'Select Event',
+		[selectedEvent]
+	);
+
+	const eyebrow = `${currentEventName} · ${format(new Date(), 'EEE MMM d')}`;
 
 	const availableGrades = useMemo(() => {
 		if (!children) return [];
@@ -247,21 +303,100 @@ export function CheckInContentGatherSystem() {
 			);
 		}
 
-		if (statusFilter !== 'all') {
-			if (statusFilter === 'checkedIn') {
-				results = results.filter((child) => child.activeAttendance !== null);
-			} else {
-				results = results.filter((child) => child.activeAttendance === null);
-			}
-		}
-
-		return results;
+		return results.filter((child) => matchesDoorStatusFilter(child, statusFilter));
 	}, [searchQuery, enrichedChildren, selectedGrades, statusFilter]);
 
+	/** Rows in view that a bulk check-in would act on (not already on site). */
+	const selectableRows = useMemo(
+		() => filteredChildren.filter((child) => !child.activeAttendance),
+		[filteredChildren]
+	);
+	const allSelectableSelected =
+		selectableRows.length > 0 &&
+		selectableRows.every((child) => selectedChildIds.has(child.child_id));
+
+	const toggleSelectAll = () => {
+		setSelectedChildIds((prev) => {
+			const next = new Set(prev);
+			if (allSelectableSelected) {
+				selectableRows.forEach((child) => next.delete(child.child_id));
+			} else {
+				selectableRows.forEach((child) => next.add(child.child_id));
+			}
+			return next;
+		});
+	};
+
+	/** Single-row check-in. Same mutation contract as the legacy screen. */
+	const handleCheckIn = async (childId: string) => {
+		try {
+			await checkInMutation.mutateAsync({
+				childId,
+				eventId: selectedEvent,
+				userId: 'user_admin',
+			});
+			captureAnalyticsEvent('child_checked_in', { check_in_event: selectedEvent });
+
+			const child = enrichedChildren.find((c) => c.child_id === childId);
+
+			toast({
+				title: 'Checked In',
+				description: `${child?.first_name} ${
+					child?.last_name
+				} has been checked in to ${getEventName(selectedEvent)}.`,
+			});
+
+			setSelectedChildIds((prev) => {
+				if (!prev.has(childId)) return prev;
+				const next = new Set(prev);
+				next.delete(childId);
+				return next;
+			});
+		} catch (e: any) {
+			console.error(e);
+			toast({
+				title: 'Check-in Failed',
+				description: e?.message || 'Failed to check in child. Please try again.',
+			});
+		}
+	};
+
+	/**
+	 * Check-out. Restores the parity gap against the legacy door screen: the
+	 * mutation argument shape, the analytics event, and the toast copy all match
+	 * `check-in-view.tsx`, and verification still runs through `CheckoutDialog`
+	 * (guardian/emergency-contact PIN or a logged admin override).
+	 */
+	const handleCheckOut = async (
+		childId: string,
+		attendanceId: string,
+		verifier: { method: 'PIN' | 'other'; value: string; pickedUpBy?: string }
+	) => {
+		try {
+			await checkOutMutation.mutateAsync({
+				attendanceId,
+				verifier,
+			});
+			captureAnalyticsEvent('child_checked_out', { check_in_event: selectedEvent });
+
+			const child = enrichedChildren.find((c) => c.child_id === childId);
+
+			toast({
+				title: 'Checked Out',
+				description: `${child?.first_name} ${child?.last_name} has been checked out successfully.`,
+			});
+		} catch (e: any) {
+			console.error(e);
+			toast({
+				title: 'Check-out Failed',
+				description:
+					e?.message || 'Failed to check out child. Please try again.',
+			});
+		}
+	};
+
 	const handleCheckInSelected = async () => {
-		const childrenToCheckIn = Array.from(selectedChildIds)
-			.map(id => enrichedChildren.find(c => c.child_id === id))
-			.filter(c => c && !c.activeAttendance);
+		const childrenToCheckIn = selectableForCheckIn(enrichedChildren, selectedChildIds);
 
 		if (childrenToCheckIn.length === 0) {
 			toast({
@@ -275,14 +410,14 @@ export function CheckInContentGatherSystem() {
 			await Promise.all(
 				childrenToCheckIn.map((child) =>
 					checkInMutation.mutateAsync({
-						childId: child!.child_id,
+						childId: child.child_id,
 						eventId: selectedEvent,
 						userId: 'user_admin',
 					})
 				)
 			);
-			
-			captureAnalyticsEvent('child_checked_in', { 
+
+			captureAnalyticsEvent('child_checked_in', {
 				check_in_event: selectedEvent,
 			});
 
@@ -301,168 +436,364 @@ export function CheckInContentGatherSystem() {
 		}
 	};
 
+	const handlePrintRoster = () => {
+		if (typeof window !== 'undefined') window.print();
+	};
+
 	if (loading) {
 		return <CardGridSkeleton count={8} />;
 	}
 
 	const selectedCount = selectedChildIds.size;
-	const canCheckIn = Array.from(selectedChildIds).some(id => {
-		const child = enrichedChildren.find(c => c.child_id === id);
-		return child && !child.activeAttendance;
-	});
+	const householdSummary = summarizeSelectedHouseholds(
+		enrichedChildren,
+		selectedChildIds
+	);
+	const canCheckIn =
+		selectableForCheckIn(enrichedChildren, selectedChildIds).length > 0;
+	const hasActiveFilters =
+		!!searchQuery || selectedGrades.size > 0 || statusFilter !== 'all';
 
 	return (
-		<div className="flex flex-col gap-4 md:gap-6 pb-24">
-			{/* Header with Stats */}
-			<div className="flex flex-col gap-3 md:gap-4">
-				<div className="flex items-center justify-between gap-4">
-					<h1 className="text-xl md:text-2xl font-bold font-headline">Door Check-In</h1>
-					<div className="text-right">
-						<div className="text-2xl md:text-3xl font-bold text-brand-teal">{checkedInCount}</div>
-						<div className="text-xs md:text-sm text-muted-foreground">checked in today</div>
-					</div>
+		<div className="flex flex-col gap-4 md:gap-6 pb-28">
+			{/* Header: event context, Change event, Print roster (item 4) */}
+			<div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+				<div>
+					<p className="text-xs font-semibold tracking-wider uppercase text-muted-foreground">
+						{eyebrow}
+					</p>
+					<h1 className="text-2xl md:text-3xl font-bold font-headline">
+						Child Check-In &amp; Out
+					</h1>
 				</div>
+				<div className="flex flex-wrap gap-2 print:hidden">
+					<Button variant="outline" onClick={() => setIsEventDialogOpen(true)}>
+						Change event
+					</Button>
+					<Button onClick={handlePrintRoster}>
+						<Printer aria-hidden="true" />
+						Print roster
+					</Button>
+				</div>
+			</div>
 
-				{/* Search */}
-				<div className="relative">
-					<Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 md:h-5 w-4 md:w-5 text-muted-foreground" />
+			{loadError && (
+				<div
+					role="alert"
+					className="rounded-md border border-destructive bg-destructive/5 p-3 text-sm text-destructive">
+					We could not load the check-in roster. Check the connection and refresh
+					before using this screen at the door.
+				</div>
+			)}
+
+			{/* Stats cards (item 2) */}
+			<section
+				aria-label="Check-in summary"
+				className="grid gap-3 md:gap-4 sm:grid-cols-2 lg:grid-cols-3">
+				<Card className="h-full">
+					<CardHeader className="pb-2">
+						<CardTitle className="text-xs font-semibold tracking-wider uppercase text-muted-foreground">
+							On site now
+						</CardTitle>
+					</CardHeader>
+					<CardContent>
+						<div className="text-3xl font-bold">
+							{stats.onSite}
+							<span className="text-base font-medium text-muted-foreground">
+								{' '}
+								of {stats.total}
+							</span>
+						</div>
+					</CardContent>
+				</Card>
+				<Card className="h-full">
+					<CardHeader className="pb-2">
+						<CardTitle className="text-xs font-semibold tracking-wider uppercase text-muted-foreground">
+							Not checked in
+						</CardTitle>
+					</CardHeader>
+					<CardContent>
+						<div className="text-3xl font-bold">{stats.notCheckedIn}</div>
+					</CardContent>
+				</Card>
+				<Card className="h-full">
+					<CardHeader className="pb-2">
+						<CardTitle className="text-xs font-semibold tracking-wider uppercase text-muted-foreground">
+							Open incidents
+						</CardTitle>
+					</CardHeader>
+					<CardContent>
+						<div className="flex items-baseline gap-2">
+							<span
+								className={`text-3xl font-bold ${
+									stats.openIncidents > 0 ? 'text-destructive' : ''
+								}`}>
+								{stats.openIncidents}
+							</span>
+							<span className="text-xs text-muted-foreground">
+								{stats.openIncidents > 0
+									? 'needs admin acknowledgment'
+									: 'nothing needs acknowledgment'}
+							</span>
+						</div>
+					</CardContent>
+				</Card>
+			</section>
+
+			{/* Search + status tabs (item 3) */}
+			<div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between print:hidden">
+				<div className="relative flex-1">
+					<Search
+						aria-hidden="true"
+						className="absolute left-3 top-1/2 -translate-y-1/2 h-4 md:h-5 w-4 md:w-5 text-muted-foreground"
+					/>
 					<Input
 						id="gathersystem-search"
-						placeholder='Search children (press "/" to focus)...'
+						placeholder="Search children or household…"
+						aria-label="Search children or household"
 						value={searchQuery}
 						onChange={(e) => setSearchQuery(e.target.value)}
-						className="pl-9 md:pl-10 h-10 md:h-12 text-sm md:text-base"
+						className="pl-9 md:pl-10 pr-16 h-10 md:h-12 text-sm md:text-base"
 					/>
-					{searchQuery && (
+					{searchQuery ? (
 						<button
+							type="button"
+							aria-label="Clear search"
 							onClick={() => setSearchQuery('')}
 							className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
 							<X className="h-4 md:h-5 w-4 md:w-5" />
 						</button>
+					) : (
+						<kbd
+							aria-hidden="true"
+							className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 rounded border bg-muted px-1.5 py-0.5 font-mono text-xs text-muted-foreground">
+							/
+						</kbd>
 					)}
 				</div>
 
-				{/* Grade Chips */}
-				<div className="flex flex-wrap gap-2 items-center">
-					<span className="text-xs md:text-sm font-semibold text-muted-foreground">Grades:</span>
-					{availableGrades.map((grade) => (
-						<Badge
-							key={grade}
-							variant={selectedGrades.has(grade) ? 'default' : 'outline'}
-							className="cursor-pointer px-2 md:px-3 py-0.5 md:py-1 rounded-full text-xs md:text-sm"
-							onClick={() => toggleGrade(grade)}>
-							{grade}
-						</Badge>
-					))}
-					{selectedGrades.size > 0 && (
-						<Button
-							variant="ghost"
-							size="sm"
-							onClick={() => setSelectedGrades(new Set())}
-							className="h-6 md:h-7 text-xs px-2">
-							Clear
-						</Button>
-					)}
-				</div>
-
-				{/* Stats bar */}
-				<div className="flex gap-3 md:gap-4 text-xs md:text-sm text-muted-foreground">
-					<span>{filteredChildren.length} children</span>
-					{selectedCount > 0 && (
-						<span className="font-semibold text-foreground">{selectedCount} selected</span>
-					)}
-				</div>
+				<Tabs
+					value={statusFilter}
+					onValueChange={(value) => setStatusFilter(value as StatusFilter)}>
+					<TabsList className="grid w-full grid-cols-3 lg:w-auto lg:inline-grid">
+						<TabsTrigger value="all">All {statusCounts.all}</TabsTrigger>
+						<TabsTrigger value="checkedIn">
+							Checked in {statusCounts.checkedIn}
+						</TabsTrigger>
+						<TabsTrigger value="checkedOut">
+							Not checked in {statusCounts.notCheckedIn}
+						</TabsTrigger>
+					</TabsList>
+				</Tabs>
 			</div>
 
-			{/* Children List (Multi-select rows) */}
+			{/* Grade chips (item 8) */}
+			<div className="flex flex-wrap gap-2 items-center print:hidden">
+				<span className="text-xs md:text-sm font-semibold text-muted-foreground">
+					Grade
+				</span>
+				{availableGrades.map((grade) => (
+					<Badge
+						key={grade}
+						variant={selectedGrades.has(grade) ? 'default' : 'outline'}
+						className="cursor-pointer px-2 md:px-3 py-0.5 md:py-1 rounded-full text-xs md:text-sm"
+						onClick={() => toggleGrade(grade)}>
+						{grade}
+					</Badge>
+				))}
+				{selectedGrades.size > 0 && (
+					<Button
+						variant="ghost"
+						size="sm"
+						onClick={() => setSelectedGrades(new Set())}
+						className="h-6 md:h-7 text-xs px-2">
+						Clear
+					</Button>
+				)}
+			</div>
+
+			{/* Roster table (item 5) */}
 			<Card>
 				<CardContent className="p-0">
 					{filteredChildren.length === 0 ? (
-						<div className="p-6 md:p-8 text-center text-muted-foreground">
-							<Users className="h-10 md:h-12 w-10 md:w-12 mx-auto mb-2 opacity-50" />
-							<p className="text-sm md:text-base">No children match your filters.</p>
-						</div>
+						<EmptyState
+							icon={Users}
+							title={
+								hasActiveFilters
+									? 'No children match your current filters.'
+									: 'No children found.'
+							}
+							description={
+								hasActiveFilters
+									? 'Clear the search, grade or status filters to see the full roster.'
+									: 'No children are registered for the active cycle yet.'
+							}
+						/>
 					) : (
-						<div className="divide-y">
-							{filteredChildren.map((child) => {
-								const isCheckedIn = !!child.activeAttendance;
-								const isSelected = selectedChildIds.has(child.child_id);
-								const hasAllergies = child.allergies && child.allergies.toLowerCase() !== 'none';
-								const hasIncidents = child.incidents.length > 0;
-
-								return (
-									<div
-										key={child.child_id}
-										onClick={() => !isCheckedIn && toggleChildSelection(child.child_id)}
-										className={`
-											flex items-center gap-2 md:gap-4 p-3 md:p-4 cursor-pointer transition-colors
-											${isCheckedIn ? 'bg-muted/30 cursor-not-allowed opacity-60' : 'hover:bg-muted/50'}
-											${isSelected && !isCheckedIn ? 'bg-brand-teal/10' : ''}
-										`}>
+						<Table>
+							<TableHeader>
+								<TableRow>
+									<TableHead className="w-10 print:hidden">
 										<Checkbox
-											checked={isSelected}
-											disabled={isCheckedIn}
-											onCheckedChange={() => toggleChildSelection(child.child_id)}
-											onClick={(e) => e.stopPropagation()}
+											checked={allSelectableSelected}
+											disabled={selectableRows.length === 0}
+											onCheckedChange={toggleSelectAll}
+											aria-label="Select all children not yet checked in"
 										/>
-										
-										{/* Photo - 56x56 per product rule */}
-										<Avatar className="w-12 h-12 md:w-14 md:h-14 shrink-0">
-											<AvatarImage src={child.photo_url} alt={child.first_name} />
-											<AvatarFallback className="text-xs font-semibold bg-muted">
-												{child.first_name[0]}{child.last_name[0]}
-											</AvatarFallback>
-										</Avatar>
+									</TableHead>
+									<TableHead>Child</TableHead>
+									<TableHead className="hidden md:table-cell">Grade</TableHead>
+									<TableHead>Status</TableHead>
+									<TableHead className="text-right print:hidden">Action</TableHead>
+								</TableRow>
+							</TableHeader>
+							<TableBody>
+								{filteredChildren.map((child) => {
+									const rowStatus = deriveDoorRowStatus(child);
+									const isCheckedIn = rowStatus.status === 'checkedIn';
+									const isSelected = selectedChildIds.has(child.child_id);
+									const hasAllergies =
+										!!child.allergies &&
+										child.allergies.toLowerCase() !== 'none';
+									const hasIncidents = child.incidents.length > 0;
 
-										{/* Info */}
-										<div className="flex-1 min-w-0">
-											<div className="font-semibold text-sm md:text-base">
-												{child.first_name} {child.last_name}
-											</div>
-											<div className="text-xs md:text-sm text-muted-foreground truncate">
-												{child.household?.name || 'Unknown household'} • Grade {normalizeGradeDisplay(child.grade)}
-											</div>
-										</div>
+									return (
+										<TableRow
+											key={child.child_id}
+											data-state={isSelected ? 'selected' : undefined}
+											className={isSelected ? 'bg-brand-teal/10' : undefined}>
+											<TableCell className="print:hidden">
+												<Checkbox
+													checked={isSelected}
+													disabled={isCheckedIn}
+													onCheckedChange={() =>
+														toggleChildSelection(child.child_id)
+													}
+													aria-label={`Select ${child.first_name} ${child.last_name}`}
+												/>
+											</TableCell>
 
-										{/* Chips - stack on mobile, inline on desktop */}
-										<div className="flex flex-col md:flex-row items-end md:items-center gap-1 md:gap-2 shrink-0">
-											{hasAllergies && (
-												<Badge variant="outline" className="border-destructive text-destructive gap-1 text-xs whitespace-nowrap">
-													<AlertTriangle className="h-3 w-3" />
-													<span className="hidden sm:inline">Allergy</span>
-													<span className="sm:hidden">!</span>
-												</Badge>
-											)}
-											{hasIncidents && (
-												<Badge variant="destructive" className="gap-1 text-xs whitespace-nowrap">
-													<ShieldAlert className="h-3 w-3" />
-													<span className="hidden sm:inline">Incident</span>
-													<span className="sm:hidden">!</span>
-												</Badge>
-											)}
-											{isCheckedIn && (
-												<Badge variant="default" className="bg-brand-aqua text-xs whitespace-nowrap">
-													<span className="hidden sm:inline">Checked In</span>
-													<span className="sm:hidden">✓</span>
-												</Badge>
-											)}
-										</div>
-									</div>
-								);
-							})}
-						</div>
+											<TableCell>
+												<div className="flex items-center gap-3">
+													{/* 56×56 photo, radius 0.5rem (item 7) */}
+													<Avatar className="w-12 h-12 md:w-14 md:h-14 shrink-0 rounded-lg">
+														<AvatarImage
+															src={child.photo_url}
+															alt={`${child.first_name} ${child.last_name}`}
+														/>
+														<AvatarFallback className="rounded-lg text-sm font-semibold bg-muted">
+															{child.first_name[0]}
+															{child.last_name[0]}
+														</AvatarFallback>
+													</Avatar>
+													<div className="min-w-0">
+														<div className="flex flex-wrap items-center gap-2">
+															<span className="font-semibold text-sm md:text-base">
+																{child.first_name} {child.last_name}
+															</span>
+															{hasAllergies && (
+																<Badge
+																	variant="outline"
+																	title={child.allergies ?? undefined}
+																	className="border-destructive text-destructive gap-1 text-xs max-w-[12rem] truncate">
+																	<AlertTriangle
+																		aria-hidden="true"
+																		className="h-3 w-3"
+																	/>
+																	<span className="truncate">
+																		{child.allergies}
+																	</span>
+																</Badge>
+															)}
+															{hasIncidents && (
+																<Badge
+																	variant="destructive"
+																	className="gap-1 text-xs whitespace-nowrap">
+																	<ShieldAlert
+																		aria-hidden="true"
+																		className="h-3 w-3"
+																	/>
+																	Incident today
+																</Badge>
+															)}
+														</div>
+														<div className="text-xs md:text-sm text-muted-foreground truncate">
+															{child.household?.name || 'Unknown household'}
+															<span className="md:hidden">
+																{' '}
+																· Grade{' '}
+																{normalizeGradeDisplay(child.grade)}
+															</span>
+														</div>
+													</div>
+												</div>
+											</TableCell>
+
+											<TableCell className="hidden md:table-cell whitespace-nowrap">
+												{normalizeGradeDisplay(child.grade)}
+											</TableCell>
+
+											<TableCell>
+												<span
+													className={`inline-flex items-center gap-2 rounded-full px-2.5 py-1 text-xs font-medium whitespace-nowrap ${
+														isCheckedIn
+															? 'bg-brand-aqua/15 text-brand-teal'
+															: 'bg-muted text-muted-foreground'
+													}`}>
+													<span
+														aria-hidden="true"
+														className={`h-1.5 w-1.5 rounded-full ${
+															isCheckedIn
+																? 'bg-brand-teal'
+																: 'bg-muted-foreground/60'
+														}`}
+													/>
+													{formatDoorStatusLabel(rowStatus)}
+												</span>
+											</TableCell>
+
+											<TableCell className="text-right print:hidden">
+												{isCheckedIn ? (
+													<Button
+														variant="outline"
+														size="sm"
+														onClick={() => setChildToCheckout(child)}>
+														Check out
+													</Button>
+												) : (
+													<Button
+														variant="door"
+														size="sm"
+														onClick={() => handleCheckIn(child.child_id)}>
+														Check in
+													</Button>
+												)}
+											</TableCell>
+										</TableRow>
+									);
+								})}
+							</TableBody>
+						</Table>
 					)}
 				</CardContent>
 			</Card>
 
-			{/* Sticky Confirm Dock - mobile responsive */}
+			{/* Sticky confirm dock (item 6) */}
 			{selectedCount > 0 && (
-				<div className="fixed bottom-0 left-0 right-0 bg-background border-t shadow-lg p-3 md:p-4 z-50">
+				<div
+					role="region"
+					aria-label="Check-in selection"
+					className="fixed bottom-0 left-0 right-0 bg-background border-t shadow-lg p-3 md:p-4 z-50 print:hidden">
 					<div className="max-w-(--breakpoint-xl) mx-auto flex flex-col md:flex-row items-stretch md:items-center justify-between gap-2 md:gap-4">
-						<div className="flex items-center justify-between md:justify-start gap-2 md:gap-4">
-							<span className="font-semibold text-sm md:text-base">
+						<div className="flex items-center justify-between md:justify-start gap-2 md:gap-4 min-w-0">
+							<span className="font-semibold text-sm md:text-base whitespace-nowrap">
 								{selectedCount} {selectedCount === 1 ? 'child' : 'children'} selected
 							</span>
+							{householdSummary && (
+								<span className="text-xs md:text-sm text-muted-foreground truncate">
+									{householdSummary}
+								</span>
+							)}
 							<Button
 								variant="ghost"
 								size="sm"
@@ -477,11 +808,51 @@ export function CheckInContentGatherSystem() {
 							onClick={handleCheckInSelected}
 							disabled={!canCheckIn}
 							className="w-full md:w-auto md:min-w-[200px]">
-							Check In
+							Confirm check-in · {selectedCount}
 						</Button>
 					</div>
 				</div>
 			)}
+
+			{/* Change event (item 4) — same options and behaviour as the legacy screen */}
+			<Dialog open={isEventDialogOpen} onOpenChange={setIsEventDialogOpen}>
+				<DialogContent>
+					<DialogHeader>
+						<DialogTitle>Change Event</DialogTitle>
+						<DialogDescription>
+							Select the event you want to manage check-ins for.
+						</DialogDescription>
+					</DialogHeader>
+					<RadioGroup
+						value={selectedEvent}
+						onValueChange={(value) => {
+							setSelectedEvent(value);
+							setIsEventDialogOpen(false);
+						}}
+						className="space-y-2">
+						{EVENT_OPTIONS.map((event) => (
+							<Label
+								key={event.id}
+								htmlFor={`gathersystem-event-${event.id}`}
+								className="flex items-center gap-4 p-4 border rounded-md cursor-pointer hover:bg-muted/50 has-[input:checked]:bg-muted has-[input:checked]:border-primary">
+								<RadioGroupItem
+									value={event.id}
+									id={`gathersystem-event-${event.id}`}
+								/>
+								<span>{event.name}</span>
+							</Label>
+						))}
+					</RadioGroup>
+				</DialogContent>
+			</Dialog>
+
+			<CheckoutDialog
+				child={childToCheckout}
+				onClose={() => setChildToCheckout(null)}
+				onCheckout={(childId, attendanceId, verifier) =>
+					handleCheckOut(childId, attendanceId, verifier)
+				}
+			/>
 		</div>
 	);
 }
