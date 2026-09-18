@@ -829,6 +829,28 @@ export function CheckInContentGatherSystem() {
 				)}
 			</div>
 
+			{/*
+			  Select-all for phone widths, where the table header that carries it
+			  is hidden. Same control and same handler; it just has nowhere to
+			  live once the rows stop being rows, and here it can afford a
+			  visible label instead of an aria-label.
+			*/}
+			{selectableRows.length > 0 && (
+				<div className="flex items-center gap-2 md:hidden print:hidden">
+					{/* Named by the visible Label beside it, not an aria-label. */}
+					<Checkbox
+						id="door-select-all-mobile"
+						checked={allSelectableSelected}
+						onCheckedChange={toggleSelectAll}
+					/>
+					<Label
+						htmlFor="door-select-all-mobile"
+						className="text-xs font-semibold text-muted-foreground">
+						Select all not checked in ({selectableRows.length})
+					</Label>
+				</div>
+			)}
+
 			{/* Roster table (item 5) */}
 			<Card>
 				<CardContent className="p-0">
@@ -848,7 +870,12 @@ export function CheckInContentGatherSystem() {
 						/>
 					) : (
 						<Table>
-							<TableHeader>
+							{/*
+							  Below `md` each row becomes a two-line block (see TableRow), so
+							  the column headings no longer sit above anything. The select-all
+							  control moves into the filter bar for those widths.
+							*/}
+							<TableHeader className="hidden md:table-header-group">
 								<TableRow>
 									<TableHead className="w-10 print:hidden">
 										<Checkbox
@@ -879,11 +906,24 @@ export function CheckInContentGatherSystem() {
 									const hasIncidents = child.incidents.length > 0;
 
 									return (
+										/*
+										 * A five-column table does not fit a phone. Rather than
+										 * let the Action column scroll off the right — which is
+										 * how the check-out button became unreachable at the door
+										 * — the row becomes a two-line grid below `md`:
+										 *
+										 *   [✓] [photo] Name · chips · household
+										 *       [status]            [info] [Check out]
+										 *
+										 * and goes back to being a table row at `md` and up.
+										 */
 										<TableRow
 											key={child.child_id}
 											data-state={isSelected ? 'selected' : undefined}
-											className={isSelected ? 'bg-brand-teal/10' : undefined}>
-											<TableCell className="print:hidden">
+											className={`grid grid-cols-[auto_1fr_auto] items-center gap-x-3 gap-y-2 p-3 md:table-row md:p-0 ${
+												isSelected ? 'bg-brand-teal/10' : ''
+											}`}>
+											<TableCell className="col-start-1 row-start-1 p-0 md:table-cell md:p-4 print:hidden">
 												<Checkbox
 													checked={isSelected}
 													disabled={onSiteAnywhere}
@@ -894,7 +934,7 @@ export function CheckInContentGatherSystem() {
 												/>
 											</TableCell>
 
-											<TableCell>
+											<TableCell className="col-start-2 col-span-2 row-start-1 min-w-0 p-0 md:table-cell md:p-4">
 												<div className="flex items-center gap-3">
 													{/* 56×56 photo, radius 0.5rem (item 7). Tapping it opens
 													    the full-size viewer and the camera badge opens capture,
@@ -988,11 +1028,11 @@ export function CheckInContentGatherSystem() {
 												</div>
 											</TableCell>
 
-											<TableCell className="hidden md:table-cell whitespace-nowrap">
+											<TableCell className="hidden whitespace-nowrap md:table-cell">
 												{normalizeGradeDisplay(child.grade)}
 											</TableCell>
 
-											<TableCell>
+											<TableCell className="col-start-2 row-start-2 p-0 md:table-cell md:p-4">
 												<span
 													className={`inline-flex items-center gap-2 rounded-full px-2.5 py-1 text-xs font-medium whitespace-nowrap ${
 														isCheckedIn
@@ -1015,7 +1055,7 @@ export function CheckInContentGatherSystem() {
 												</span>
 											</TableCell>
 
-											<TableCell className="text-right print:hidden">
+											<TableCell className="col-start-3 row-start-2 justify-self-end p-0 text-right md:table-cell md:p-4 print:hidden">
 												<div className="flex items-center justify-end gap-1">
 													<Popover>
 														<PopoverTrigger asChild>

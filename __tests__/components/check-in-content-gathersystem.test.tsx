@@ -715,6 +715,32 @@ describe('CheckInContentGatherSystem', () => {
 	});
 
 	/**
+	 * Below `md` the table header is hidden, because the rows stop being rows —
+	 * so the select-all it carries has to live somewhere else or the control
+	 * disappears on a phone.
+	 */
+	describe('select-all outside the table header', () => {
+		it('selects every child not already on site', () => {
+			render(<CheckInContentGatherSystem />);
+
+			fireEvent.click(screen.getByLabelText(/Select all not checked in/));
+
+			expect(
+				screen.getByRole('button', { name: 'Confirm check-in · 1' })
+			).toBeInTheDocument();
+		});
+
+		it('is not offered when there is nobody left to check in', () => {
+			setup({ children: [onSiteChild] });
+			render(<CheckInContentGatherSystem />);
+
+			expect(
+				screen.queryByLabelText(/Select all not checked in/)
+			).not.toBeInTheDocument();
+		});
+	});
+
+	/**
 	 * An open row with no `event_id` belongs to whichever door is asking, so it
 	 * stays closable. The screen has to apply that everywhere at once: a row
 	 * offering Check out while the tab, the card and the "in another event"
