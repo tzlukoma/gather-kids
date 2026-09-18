@@ -27,7 +27,7 @@ import {
 	ChevronRight,
 } from 'lucide-react';
 import { format } from 'date-fns';
-import { getTodayIsoDate } from '@/lib/dal';
+import { getServiceDayIso } from '@/lib/dal';
 import { useAuth } from '@/contexts/auth-context';
 import { useEffect } from 'react';
 import { AuthRole } from '@/lib/auth-types';
@@ -71,7 +71,7 @@ export function AdminDashboardGatherSystem() {
 	const isAuthorized =
 		!loading && !!user && user.metadata?.role === AuthRole.ADMIN;
 
-	const today = getTodayIsoDate();
+	const today = getServiceDayIso();
 
 	const {
 		data: unacknowledgedIncidents = EMPTY_INCIDENTS,

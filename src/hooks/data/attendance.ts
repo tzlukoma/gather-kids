@@ -8,7 +8,7 @@ import {
   acknowledgeIncident,
   recordCheckIn,
   recordCheckOut,
-  getTodayIsoDate
+  getServiceDayIso
 } from '@/lib/dal';
 import { queryKeys } from './keys';
 import { cacheConfig } from './config';
@@ -67,7 +67,7 @@ export function useCheckInMutation() {
       userId?: string;
     }) => recordCheckIn(childId, eventId, timeslotId, userId),
     onSuccess: (_, { eventId }) => {
-      const today = getTodayIsoDate();
+      const today = getServiceDayIso();
       // Invalidate attendance queries
       queryClient.invalidateQueries({ queryKey: queryKeys.attendance(today) });
       queryClient.invalidateQueries({ queryKey: queryKeys.attendance(today, eventId) });
@@ -91,7 +91,7 @@ export function useCheckOutMutation() {
       userId?: string;
     }) => recordCheckOut(attendanceId, verifier, userId),
     onSuccess: () => {
-      const today = getTodayIsoDate();
+      const today = getServiceDayIso();
       // Invalidate all attendance queries (general and event-specific)
       queryClient.invalidateQueries({ queryKey: queryKeys.attendance(today) });
       // Invalidate checked-in children

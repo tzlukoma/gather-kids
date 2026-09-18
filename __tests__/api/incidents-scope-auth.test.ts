@@ -30,6 +30,7 @@ jest.mock('@supabase/supabase-js', () => ({
 const { requireUser } = require('@/lib/api-auth');
 
 import { NextRequest } from 'next/server';
+import { getServiceDayIso } from '@/lib/utils/timezone';
 
 const eqCalls = () => calls.filter((c) => c.method === 'eq').map((c) => c.args);
 const argsFor = (m: string) => calls.filter((c) => c.method === m).map((c) => c.args);
@@ -37,11 +38,17 @@ const req = (url = 'http://localhost:9002/api/incidents') => new NextRequest(url
 
 // Computed, not hardcoded: a literal date would start failing the day it aged
 // out of the live window, which is the behaviour under test, not a bug.
+//
+// These must be **service** days, not UTC days. Deriving them from
+// `toISOString()` made the suite time-dependent: run between 8pm ET and
+// midnight, `utcDay(Date.now())` is already tomorrow locally, so `TODAY` fell
+// outside the route's live window and the staff carve-out tests failed for
+// reasons that had nothing to do with the code under test.
 const DAY_MS = 24 * 60 * 60 * 1000;
-const utcDay = (ms: number) => new Date(ms).toISOString().slice(0, 10);
-const TODAY = utcDay(Date.now());
-const YESTERDAY = utcDay(Date.now() - DAY_MS);
-const TWO_DAYS_AGO = utcDay(Date.now() - 2 * DAY_MS);
+const serviceDay = (ms: number) => getServiceDayIso(new Date(ms));
+const TODAY = serviceDay(Date.now());
+const YESTERDAY = serviceDay(Date.now() - DAY_MS);
+const TWO_DAYS_AGO = serviceDay(Date.now() - 2 * DAY_MS);
 const dateReq = (d: string) => req(`http://localhost:9002/api/incidents?date=${d}`);
 const asUser = (role: string, userId = 'u1') =>
 	(requireUser as jest.Mock).mockResolvedValue({ authorized: true, userId, role });
@@ -184,7 +191,7 @@ describe('GET /api/incidents authorization', () => {
 			asUser('MINISTRY_LEADER', 'leader-1');
 
 			const { GET } = await import('@/app/api/incidents/route');
-			await GET(dateReq(utcDay(Date.now() + DAY_MS)));
+			await GET(dateReq(serviceDay(Date.now() + DAY_MS)));
 
 			expect(eqCalls()).toContainEqual(['leader_id', 'leader-1']);
 		});
@@ -209,14 +216,47 @@ describe('GET /api/incidents authorization', () => {
 			expect(eqCalls()).toContainEqual(['leader_id', 'guardian-1']);
 		});
 
-		it('bounds the query to that single UTC day', async () => {
+		// `date` is a church-local service day, not a UTC one (#447): midnight ET
+		// is 04:00Z during EDT. Anchoring the window to UTC put the rollover at
+		// 8pm ET, so an incident logged during an evening programme was stamped
+		// with the next UTC day and fell outside the window the door screen asked
+		// for — the marker disappeared mid-service.
+		it('bounds the query to that single service day, in church-local time', async () => {
 			asUser('ADMIN', 'admin-1');
 
 			const { GET } = await import('@/app/api/incidents/route');
 			await GET(dateReq('2026-09-16'));
 
-			expect(argsFor('gte')).toContainEqual(['timestamp', '2026-09-16T00:00:00.000Z']);
-			expect(argsFor('lt')).toContainEqual(['timestamp', '2026-09-17T00:00:00.000Z']);
+			expect(argsFor('gte')).toContainEqual(['timestamp', '2026-09-16T04:00:00.000Z']);
+			expect(argsFor('lt')).toContainEqual(['timestamp', '2026-09-17T04:00:00.000Z']);
+		});
+
+		// The regression in one assertion: 8:30pm ET on the 16th is 00:30Z on the
+		// 17th, so the old UTC window for '2026-09-16' excluded it.
+		it('includes an incident logged after the old UTC rollover', async () => {
+			asUser('ADMIN', 'admin-1');
+
+			const { GET } = await import('@/app/api/incidents/route');
+			await GET(dateReq('2026-09-16'));
+
+			const eveningIncident = '2026-09-17T00:30:00.000Z';
+			const [, start] = argsFor('gte').find(([col]) => col === 'timestamp')!;
+			const [, end] = argsFor('lt').find(([col]) => col === 'timestamp')!;
+
+			expect(eveningIncident >= (start as string)).toBe(true);
+			expect(eveningIncident < (end as string)).toBe(true);
+		});
+
+		// A spring-forward day is 23 hours long and a fall-back day 25, so the end
+		// bound has to be the next day's local midnight rather than start + 24h.
+		it('sizes a DST transition day correctly', async () => {
+			asUser('ADMIN', 'admin-1');
+
+			const { GET } = await import('@/app/api/incidents/route');
+			await GET(dateReq('2026-03-08'));
+
+			expect(argsFor('gte')).toContainEqual(['timestamp', '2026-03-08T05:00:00.000Z']);
+			expect(argsFor('lt')).toContainEqual(['timestamp', '2026-03-09T04:00:00.000Z']);
 		});
 
 		it('rejects a malformed date rather than ignoring the filter', async () => {
@@ -266,8 +306,9 @@ describe('GET /api/incidents authorization', () => {
 			const res = await GET(dateReq('2028-02-29'));
 
 			expect(res.status).toBe(200);
-			expect(argsFor('gte')).toContainEqual(['timestamp', '2028-02-29T00:00:00.000Z']);
-			expect(argsFor('lt')).toContainEqual(['timestamp', '2028-03-01T00:00:00.000Z']);
+			// EST in February, so local midnight is 05:00Z.
+			expect(argsFor('gte')).toContainEqual(['timestamp', '2028-02-29T05:00:00.000Z']);
+			expect(argsFor('lt')).toContainEqual(['timestamp', '2028-03-01T05:00:00.000Z']);
 		});
 
 		it('does not let the day view widen the plain incident list', async () => {

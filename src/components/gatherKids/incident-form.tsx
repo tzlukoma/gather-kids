@@ -22,7 +22,7 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { getTodayIsoDate, logIncident } from '@/lib/dal';
+import { getServiceDayIso, logIncident } from '@/lib/dal';
 import { useCheckedInChildren, useChildrenForActiveCycle } from '@/hooks/data';
 import type { IncidentSeverity } from '@/lib/types';
 import { useAuth } from '@/contexts/auth-context';
@@ -56,7 +56,7 @@ export function IncidentForm() {
 		mode: 'onChange',
 	});
 
-	const today = getTodayIsoDate();
+	const today = getServiceDayIso();
 	const { data: checkedInChildren = [] } = useCheckedInChildren(today);
 	const { data: cycleChildren = [] } = useChildrenForActiveCycle();
 

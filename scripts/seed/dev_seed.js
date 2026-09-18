@@ -1303,8 +1303,9 @@ async function createIncidentsData() {
  * => on site 2 of 4, not checked in 2, and the two unacknowledged incidents
  *    created by createIncidentsData.
  *
- * `date` must match `getTodayIsoDate()` in `src/lib/dal/utils.ts`, which is the
- * UTC day, because `listAttendance({ date })` filters on that column exactly.
+ * `date` must match `getServiceDayIso()` in `src/lib/dal/utils.ts` — the church's
+ * local (America/New_York) day — because `listAttendance({ date })` filters on
+ * that column exactly.
  *
  * Idempotent at the level of the screen rather than the row: if today already
  * has attendance, this step does nothing. A per-child check is not enough,
@@ -1317,7 +1318,16 @@ async function createDoorCheckInStateData() {
 	try {
 		console.log('🚪 Creating door check-in state...');
 
-		const today = new Date().toISOString().split('T')[0];
+		// Mirror of `getServiceDayIso()` in `src/lib/dal/utils.ts`. This script is
+		// plain JS and cannot import from `src/`, so the timezone is repeated here.
+		// Seeding the UTC day instead would make the seeded door state invisible on
+		// the screen every evening after 8pm ET.
+		const today = new Intl.DateTimeFormat('en-CA', {
+			timeZone: 'America/New_York',
+			year: 'numeric',
+			month: '2-digit',
+			day: '2-digit',
+		}).format(new Date());
 		const EVENT_ID = 'evt_sunday_school';
 
 		const { count: existingToday, error: countError } = await client

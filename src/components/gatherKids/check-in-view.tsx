@@ -13,7 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Search, Users } from 'lucide-react';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Input } from '@/components/ui/input';
-import { getTodayIsoDate } from '@/lib/dal';
+import { getServiceDayIso } from '@/lib/dal';
 import { useIncidents } from '@/hooks/data';
 import { CardGridSkeleton } from '@/components/skeletons/CardGridSkeleton';
 import type { StatusFilter } from '@/components/gatherKids/check-in-content-legacy';
@@ -99,7 +99,7 @@ export function CheckInView({
 	const checkInMutation = useCheckInMutation();
 	const checkOutMutation = useCheckOutMutation();
 
-	const today = getTodayIsoDate();
+	const today = getServiceDayIso();
 
 	// Use React Query hook for incidents data
 	const { data: todaysIncidents = EMPTY_INCIDENTS, isLoading: incidentsLoading } = useIncidents(today);

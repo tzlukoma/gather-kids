@@ -19,7 +19,7 @@ import {
 } from '@/components/ui/table';
 import { AlertTriangle, Users, CheckCircle2, Home } from 'lucide-react';
 import { format } from 'date-fns';
-import { getTodayIsoDate } from '@/lib/dal';
+import { getServiceDayIso } from '@/lib/dal';
 import { useAuth } from '@/contexts/auth-context';
 import { useEffect } from 'react';
 import { AuthRole } from '@/lib/auth-types';
@@ -43,7 +43,7 @@ export function AdminDashboardLegacy() {
 	const { user, loading } = useAuth();
 	const isAuthorized = !loading && !!user && user.metadata?.role === AuthRole.ADMIN;
 
-	const today = getTodayIsoDate();
+	const today = getServiceDayIso();
 
 	// Use React Query hooks for data fetching
 	const {

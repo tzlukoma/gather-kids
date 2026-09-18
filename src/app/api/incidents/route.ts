@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { requireUser } from '@/lib/api-auth';
+import {
+	getServiceDayIso,
+	getServiceDayRangeUtc,
+} from '@/lib/utils/timezone';
 
 /**
  * Incidents the caller is allowed to see.
@@ -30,58 +34,36 @@ import { requireUser } from '@/lib/api-auth';
  * role. Without that bound a ministry leader could walk the parameter backwards
  * one day at a time and reassemble the whole historical table this endpoint
  * exists to stop exposing.
+ *
+ * `date` is a **service day** — the church-local calendar day, not the UTC one
+ * (#447). Anchoring it to UTC put the rollover at 8pm EDT, so incidents logged
+ * during an evening programme landed on the following day and dropped out of the
+ * door screen's window while the service was still running.
  */
 
 const STAFF_ROLES = new Set(['ADMIN', 'MINISTRY_LEADER']);
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-const utcDay = (ms: number): string => new Date(ms).toISOString().slice(0, 10);
-
 /**
  * Is `date` inside the window the pickup signal actually needs?
  *
  * The carve-out exists so a child hurt earlier in *the session currently
- * running* stays flagged at the door. That justifies today and nothing else —
- * except that "today" is a UTC day, and 00:00 UTC is 20:00 US Eastern, which
- * lands mid-service for an evening program. A check-in screen open across that
- * boundary would ask for the previous UTC day and silently lose the marker for
- * incidents logged by other leaders, which is the exact regression this scope
- * was written to prevent.
+ * running* stays flagged at the door. That justifies today and nothing else.
  *
- * So the window is the current UTC day plus the one before it: wide enough that
- * the boundary can never fall inside a service, narrow enough that it cannot be
- * used to enumerate history.
+ * `date` is a **service day** (church-local, see `getServiceDayIso`), so the
+ * rollover is local midnight and can no longer fall inside a service the way the
+ * UTC day's 8pm EDT boundary did (#447). The previous day is still allowed: it
+ * keeps the span exactly as permissive as the UTC version this replaces, so a
+ * screen left open across midnight during a late event does not lose the marker.
+ * Two days is wide enough that the boundary can never bite and narrow enough
+ * that the parameter cannot be walked backwards to enumerate history.
  */
 function isLiveServiceWindow(date: string, now: number = Date.now()): boolean {
-	return date === utcDay(now) || date === utcDay(now - DAY_MS);
-}
-
-/**
- * The caller's `date`, as a UTC-midnight timestamp, or null when it is not a
- * real calendar day.
- *
- * A shape check alone is not enough. `^\d{4}-\d{2}-\d{2}$` accepts
- * `2026-02-30`, which `Date.parse` silently normalises to 2026-03-02 — so the
- * route would answer for a different day than the one requested, with no error.
- * It also accepts `2026-99-99`, which parses to `NaN` and makes `toISOString`
- * throw, turning a bad request into a 500 instead of the documented 400.
- *
- * Requiring the parsed date to round-trip to exactly what the caller sent
- * rejects both: normalisation changes the string, and `NaN` never round-trips.
- */
-function parseUtcDayStart(date: string): number | null {
-	if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-		return null;
-	}
-	const ms = Date.parse(`${date}T00:00:00.000Z`);
-	if (Number.isNaN(ms)) {
-		return null;
-	}
-	if (new Date(ms).toISOString().slice(0, 10) !== date) {
-		return null;
-	}
-	return ms;
+	return (
+		date === getServiceDayIso(new Date(now)) ||
+		date === getServiceDayIso(new Date(now - DAY_MS))
+	);
 }
 
 function getSupabaseAdmin(): SupabaseClient | null {
@@ -109,10 +91,10 @@ export async function GET(request: NextRequest) {
 		}
 
 		const date = request.nextUrl.searchParams.get('date');
-		let dayStartMs: number | null = null;
+		let dayRange: { start: string; end: string } | null = null;
 		if (date !== null) {
-			dayStartMs = parseUtcDayStart(date);
-			if (dayStartMs === null) {
+			dayRange = getServiceDayRangeUtc(date);
+			if (dayRange === null) {
 				return NextResponse.json({ error: 'Invalid date' }, { status: 400 });
 			}
 		}
@@ -136,14 +118,15 @@ export async function GET(request: NextRequest) {
 			query = query.is('admin_acknowledged_at', null);
 		}
 
-		if (dayStartMs !== null) {
-			// Matches the previous client-side `timestamp.startsWith(date)`, which
-			// compared the UTC ISO prefix. `getTodayIsoDate` is UTC too, so the
-			// window is unchanged. Built from the validated timestamp, so there is
-			// no second parse that could disagree with the one that gated the 400.
-			const start = new Date(dayStartMs).toISOString();
-			const end = new Date(dayStartMs + DAY_MS).toISOString();
-			query = query.gte('timestamp', start).lt('timestamp', end);
+		if (dayRange !== null) {
+			// `timestamp` is stored in UTC, so the church-local day is applied as
+			// the UTC instants that bracket it. The end bound is the next service
+			// day's midnight rather than `start + 24h`, because a DST transition
+			// day is 23 or 25 hours long. Built from the same validated range that
+			// gated the 400, so there is no second parse that could disagree.
+			query = query
+				.gte('timestamp', dayRange.start)
+				.lt('timestamp', dayRange.end);
 		}
 
 		const { data, error } = await query.order('timestamp', { ascending: false });

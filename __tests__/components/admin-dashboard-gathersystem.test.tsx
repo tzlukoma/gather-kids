@@ -27,7 +27,7 @@ jest.mock('@/hooks/data/dashboard', () => ({
 }));
 
 jest.mock('@/lib/dal', () => ({
-	getTodayIsoDate: () => '2026-09-13',
+	getServiceDayIso: () => '2026-09-13',
 }));
 
 const pendingIncident = {

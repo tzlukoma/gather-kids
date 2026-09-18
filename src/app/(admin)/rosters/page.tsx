@@ -23,7 +23,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { format, parseISO, differenceInYears } from 'date-fns';
 import { normalizeGradeDisplay } from '@/lib/gradeUtils';
 import {
-	getTodayIsoDate,
+	getServiceDayIso,
 	recordCheckIn,
 	recordCheckOut,
 	exportRosterCSV,
@@ -137,7 +137,7 @@ export default function RostersPage() {
 	const router = useRouter();
 	const isAuthorized = !loading && !!user;
 	const queryClient = useQueryClient();
-	const today = getTodayIsoDate();
+	const today = getServiceDayIso();
 
 	const [selectedEvent, setSelectedEvent] = useState('evt_sunday_school');
 	const [childToCheckout, setChildToCheckout] = useState<RosterChild | null>(

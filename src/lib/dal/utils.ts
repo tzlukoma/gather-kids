@@ -7,9 +7,22 @@
 import { differenceInYears, parseISO, isValid, isAfter, isBefore } from 'date-fns';
 import type { Ministry } from '../types';
 
-/** Return today's date as a YYYY-MM-DD string (UTC). */
+/**
+ * Return today's date as a YYYY-MM-DD string (UTC).
+ *
+ * Do NOT use this for anything that means "what happened at church today" —
+ * see `getServiceDayIso`. Retained for age arithmetic, where the UTC day is
+ * close enough and a change would shift eligibility boundaries.
+ */
 export const getTodayIsoDate = (): string =>
     new Date().toISOString().split('T')[0];
+
+/**
+ * Re-exported so `@/lib/dal` consumers can reach the service day without
+ * knowing where the timezone convention lives. The implementation is in
+ * `src/lib/utils/timezone.ts`, which already owned America/New_York.
+ */
+export { SERVICE_DAY_TIMEZONE, getServiceDayIso } from '../utils/timezone';
 
 /**
  * Compute age (in whole years) on the given ISO date.
