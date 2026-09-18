@@ -97,6 +97,7 @@ const counters = {
 	ministry_enrollments: 0,
 	events: 0,
 	incidents: 0,
+	attendance: 0,
 	leader_profiles: 0,
 	leader_assignments: 0,
 };
@@ -1285,6 +1286,130 @@ async function createIncidentsData() {
 }
 
 /**
+ * Door check-in state.
+ *
+ * Without this the door screen renders with every child "Not checked in": no
+ * check-out control to inspect, and "on site 0 of M". That made it impossible
+ * to validate the check-in/check-out surface locally.
+ *
+ * Produces a deliberate mix so all three stats cards and all three status tabs
+ * have a non-trivial value:
+ *
+ *   Emma    - checked in, still on site
+ *   Sophia  - checked in, still on site
+ *   Liam    - checked in earlier and already checked out (not on site)
+ *   Noah    - never checked in
+ *
+ * => on site 2 of 4, not checked in 2, and the two unacknowledged incidents
+ *    created by createIncidentsData.
+ *
+ * `date` must match `getTodayIsoDate()` in `src/lib/dal/utils.ts`, which is the
+ * UTC day, because `listAttendance({ date })` filters on that column exactly.
+ *
+ * Idempotent at the level of the screen rather than the row: if today already
+ * has attendance, this step does nothing. A per-child check is not enough,
+ * because `createHouseholdsAndFamiliesData` has no existence guard and creates a
+ * fresh Emma/Liam/Sophia/Noah on every run — so "no row for this child today"
+ * stays true forever and the state inflates on each reseed. Children are also
+ * picked oldest-first per name so repeat runs converge on the same family.
+ */
+async function createDoorCheckInStateData() {
+	try {
+		console.log('🚪 Creating door check-in state...');
+
+		const today = new Date().toISOString().split('T')[0];
+		const EVENT_ID = 'evt_sunday_school';
+
+		const { count: existingToday, error: countError } = await client
+			.from('attendance')
+			.select('attendance_id', { count: 'exact', head: true })
+			.eq('date', today);
+
+		if (countError) {
+			throw new Error(`Failed to read attendance: ${countError.message}`);
+		}
+
+		if (existingToday && existingToday > 0) {
+			console.log(
+				`✅ Today already has ${existingToday} attendance row(s); leaving door state alone`
+			);
+			return;
+		}
+
+		const { data: children, error: childrenError } = await client
+			.from('children')
+			.select('child_id, first_name, last_name, created_at')
+			.in('first_name', ['Emma', 'Liam', 'Sophia', 'Noah'])
+			.order('created_at', { ascending: true });
+
+		if (childrenError) {
+			throw new Error(`Failed to get children: ${childrenError.message}`);
+		}
+
+		if (!children || children.length === 0) {
+			console.log('⚠️ No children found for door check-in state');
+			return;
+		}
+
+		// Oldest first, so the first occurrence of each name wins.
+		const byName = new Map();
+		for (const child of children) {
+			if (!byName.has(child.first_name)) byName.set(child.first_name, child);
+		}
+		const minutesAgo = (n) => new Date(Date.now() - n * 60 * 1000).toISOString();
+
+		const plan = [
+			{ name: 'Emma', checkInAt: minutesAgo(35), checkOutAt: null },
+			{ name: 'Sophia', checkInAt: minutesAgo(18), checkOutAt: null },
+			{ name: 'Liam', checkInAt: minutesAgo(95), checkOutAt: minutesAgo(12) },
+		];
+
+		for (const entry of plan) {
+			const child = byName.get(entry.name);
+			if (!child) {
+				console.log(`⚠️ Child not found, skipping: ${entry.name}`);
+				continue;
+			}
+
+			try {
+				const { error } = await client.from('attendance').insert({
+					attendance_id: crypto.randomUUID(),
+					child_id: child.child_id,
+					event_id: EVENT_ID,
+					date: today,
+					check_in_at: entry.checkInAt,
+					check_out_at: entry.checkOutAt,
+					checked_in_by: 'dev-seed',
+					checked_out_by: entry.checkOutAt ? 'dev-seed' : null,
+					pickup_method: entry.checkOutAt ? 'PIN' : null,
+					picked_up_by: entry.checkOutAt ? 'Jane Smith' : null,
+					first_time_flag: false,
+				});
+
+				if (error) {
+					throw new Error(`Failed to create attendance: ${error.message}`);
+				}
+
+				const state = entry.checkOutAt ? 'checked in + out' : 'on site';
+				console.log(`✅ Created attendance for ${entry.name} (${state})`);
+				counters.attendance++;
+			} catch (error) {
+				console.log(
+					`⚠️ Failed to create attendance for ${entry.name}: ${error.message}`
+				);
+			}
+		}
+
+		console.log(
+			`✅ Created ${counters.attendance} attendance rows for the door screen`
+		);
+	} catch (error) {
+		console.error('❌ Failed to create door check-in state:', error.message);
+		throw error;
+	}
+}
+
+/**
  * Main seeding function
  */
 async function seedDevData() {
@@ -1321,6 +1446,9 @@ async function seedDevData() {
 		// Create some incidents for testing
 		await createIncidentsData();
 
+		// Check-in / check-out state so the door screen has something to show
+		await createDoorCheckInStateData();
+
 		console.log('✨ Dev seeding completed successfully!');
 		console.log('📊 Summary:');
 		console.log(`- ${counters.ministries} ministries created`);
@@ -1339,6 +1467,7 @@ async function seedDevData() {
 		);
 		console.log(`- ${counters.events} events created`);
 		console.log(`- ${counters.incidents} incidents created`);
+		console.log(`- ${counters.attendance} attendance rows created`);
 		console.log('');
 		console.log('🎯 Test Data Summary:');
 		console.log('- 2 households with 2 children each');
