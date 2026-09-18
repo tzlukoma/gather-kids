@@ -25,6 +25,7 @@ import {
 	SelectValue,
 } from '@/components/ui/select';
 import type { RegistrationFormInput } from '../registration-schema';
+import { firstInvalidEntryIndex } from '../step-validation';
 import {
 	defaultChildValues,
 	isNoKnownAllergies,
@@ -49,6 +50,17 @@ export function Step3Children({ form }: Step3ChildrenProps) {
 	});
 
 	const [currentChildIndex, setCurrentChildIndex] = useState(0);
+
+	// Only one child's fields are mounted at a time, so an error on child 3 has
+	// nothing on screen to show its message or take focus. Switch to the first
+	// child that has one. Adjusted during render, not in an effect — see the
+	// same note on step 2.
+	const invalidChild = firstInvalidEntryIndex(form.formState.errors, 'children');
+	const [switchedForChild, setSwitchedForChild] = useState<number | null>(null);
+	if (invalidChild !== undefined && invalidChild !== switchedForChild) {
+		setSwitchedForChild(invalidChild);
+		setCurrentChildIndex(invalidChild);
+	}
 	/** Keeps the details textarea visible while the guardian is still typing (blank is not yet a stored answer). */
 	const [allergyDetailsOpenByIndex, setAllergyDetailsOpenByIndex] = useState<
 		Record<number, boolean>

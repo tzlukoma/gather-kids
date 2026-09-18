@@ -21,6 +21,7 @@ import {
 	SelectValue,
 } from '@/components/ui/select';
 import type { RegistrationFormInput } from '../registration-schema';
+import { firstInvalidEntryIndex } from '../step-validation';
 
 interface Step2GuardiansProps {
 	form: UseFormReturn<RegistrationFormInput>;
@@ -37,6 +38,26 @@ export function Step2Guardians({ form }: Step2GuardiansProps) {
 	});
 
 	const [editingGuardian, setEditingGuardian] = useState<number | null>(null);
+
+	// A guardian card collapses to a summary when it is not being edited, so an
+	// invalid field on guardian 2 has no input mounted to show its message or
+	// receive focus. Open the first card that has an error.
+	//
+	// Adjusting state during render rather than in an effect: the new value is
+	// derived entirely from props/state, and React re-runs the render before
+	// committing, so nothing flashes. An effect here would be a cascading
+	// render, which the compiler lint rejects.
+	const invalidGuardian = firstInvalidEntryIndex(
+		form.formState.errors,
+		'guardians'
+	);
+	const [openedForGuardian, setOpenedForGuardian] = useState<number | null>(null);
+	if (invalidGuardian !== undefined && invalidGuardian !== openedForGuardian) {
+		setOpenedForGuardian(invalidGuardian);
+		if (editingGuardian === null) {
+			setEditingGuardian(invalidGuardian);
+		}
+	}
 
 	const handleAddGuardian = () => {
 		appendGuardian({

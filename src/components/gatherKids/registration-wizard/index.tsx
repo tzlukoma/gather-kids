@@ -34,6 +34,13 @@ import type {
 } from './registration-schema';
 import type { RegisteredChildReceipt } from '@/lib/types';
 import { findDuplicateCustomQuestionConflictsForChildren } from './steps/step4-ministries';
+import {
+	STEPS,
+	firstInvalidStep,
+	firstProblemOnStep,
+	summarizeStepErrors,
+} from './step-validation';
+import type { StepProblem, WizardStep } from './step-validation';
 import { useDraftPersistence } from '@/hooks/useDraftPersistence';
 import { useFeatureFlags } from '@/contexts/feature-flag-context';
 import { useAuth } from '@/contexts/auth-context';
@@ -64,6 +71,7 @@ import {
 	AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { RegistrationProblemSummary } from './registration-problem-summary';
 import {
 	analyticsReturningHousehold,
 	currentCycleOverwriteWarning,
@@ -72,13 +80,6 @@ import {
 } from './registration-prefill-state';
 import type { HouseholdRegistrationLoadResult } from '@/lib/dal/households';
 
-const STEPS = [
-	{ label: 'Household', title: 'Confirm your household', description: 'Review your household address' },
-	{ label: 'Guardians', title: 'Who can collect the children?', description: 'Authorized adults for pickup' },
-	{ label: 'Children', title: 'Tell us about your children', description: 'Add each child you are registering' },
-	{ label: 'Ministries', title: 'Choose ministry programs', description: 'Select programs for your children' },
-	{ label: 'Consents', title: 'Review and submit', description: 'Review and sign required consents' },
-];
 
 type WizardScreen = 'entry' | 'wizard' | 'done';
 
@@ -114,6 +115,11 @@ export default function RegisterWizard() {
 	const [showCancelDialog, setShowCancelDialog] = useState(false);
 	const [childrenEnrolledInBibleBee, setChildrenEnrolledInBibleBee] = useState(false);
 	const [registeredChildren, setRegisteredChildren] = useState<RegisteredChildReceipt[]>([]);
+	// Problems surfaced by a blocked Continue or a refused Submit. Kept in state
+	// rather than read from formState so the summary only appears once the user
+	// has actually tried to move on.
+	const [stepProblems, setStepProblems] = useState<StepProblem[]>([]);
+	const [stepBlockMessage, setStepBlockMessage] = useState<string | null>(null);
 	const [prefillState, setPrefillState] = useState<RegistrationPrefillState>(() =>
 		mapRegistrationPrefillState({ loadResult: null })
 	);
@@ -389,57 +395,99 @@ export default function RegisterWizard() {
 		return () => subscription.unsubscribe();
 	}, [form, screen, flags.registrationDraftPersistenceEnabled, saveDraft]);
 
-	const canProceed = () => {
-		const values = watchedValues;
-		switch (currentStep) {
-			case 1:
-				return Boolean(
-					values.household.address_line1 &&
-						values.household.city &&
-						values.household.state &&
-						values.household.zip
-				);
-			case 2:
-				return (
-					values.guardians.length > 0 &&
-					values.guardians[0].first_name &&
-					values.guardians[0].last_name &&
-					values.guardians[0].mobile_phone &&
-					values.emergencyContact.first_name &&
-					values.emergencyContact.last_name &&
-					values.emergencyContact.mobile_phone &&
-					values.emergencyContact.relationship
-				);
-			case 3:
-				return (
-					values.children.length > 0 &&
-					values.children.every(
-						(child) => (child.allergies ?? '').trim().length > 0
-					)
-				);
-			case 4:
-				return (
-					findDuplicateCustomQuestionConflictsForChildren(
-						values.children ?? [],
-						ministriesForCustomQuestionCheck
-					).length === 0
-				);
-			case 5:
-				return true;
-			default:
-				return false;
-		}
+	/**
+	 * Step 4's one rule — the same custom question asked by two ministries a
+	 * child is enrolled in — has no schema equivalent, so it stays here. Step 4
+	 * already highlights the colliding questions inline; this only decides
+	 * whether Continue may advance.
+	 */
+	const duplicateCustomQuestionConflicts = () =>
+		findDuplicateCustomQuestionConflictsForChildren(
+			form.getValues('children') ?? [],
+			ministriesForCustomQuestionCheck
+		);
+
+	/**
+	 * Put the cursor on the problem rather than leaving the user to hunt for it.
+	 *
+	 * Steps 2 and 3 mount one entry at a time, so those steps open the offending
+	 * guardian or child themselves; this runs on the next frame, once the
+	 * control exists.
+	 */
+	const focusFirstProblemOnStep = (step: WizardStep) => {
+		const problem = firstProblemOnStep(form.formState.errors, step);
+		if (!problem) return;
+		window.requestAnimationFrame(() => {
+			try {
+				form.setFocus(problem.path as Parameters<typeof form.setFocus>[0], {
+					shouldSelect: false,
+				});
+			} catch {
+				// setFocus throws when the control is not mounted — a collapsed entry
+				// that has not re-rendered yet, for instance. The visible message and
+				// the summary still carry the user there.
+			}
+		});
 	};
 
-	const handleNext = () => {
-		if (canProceed() && currentStep < totalSteps) {
-			setCurrentStep(currentStep + 1);
-			window.scrollTo({ top: 0, behavior: 'smooth' });
+	const handleNext = async () => {
+		if (currentStep >= totalSteps) return;
+		const step = currentStep as WizardStep;
+
+		// One whole-form pass, then keep only what this step owns. `trigger()`
+		// with a name list drops nested object paths — see step-validation.ts.
+		// The boolean it returns is about the whole form, so it is ignored: a
+		// user on step 1 has not filled in step 5 yet and must still advance.
+		await form.trigger();
+		const owned = summarizeStepErrors(form.formState.errors).filter(
+			(problem) => problem.step === step
+		);
+		const conflicts = step === 4 ? duplicateCustomQuestionConflicts() : [];
+
+		if (owned.length > 0 || conflicts.length > 0) {
+			setStepProblems(owned);
+			setStepBlockMessage(
+				conflicts.length > 0
+					? 'Two ministries ask the same question for one of your children. Answer it on one ministry only.'
+					: null
+			);
+			focusFirstProblemOnStep(step);
+			return;
 		}
+
+		setStepProblems([]);
+		setStepBlockMessage(null);
+		// The pass above validated the whole form, so `errors` now also holds
+		// problems for steps the user has not reached. Left in place, the next
+		// step mounts pre-reddened — "First name is required." under an empty
+		// field nobody has touched — and step 2 would auto-open a guardian card
+		// on arrival. Clear them; the next Continue regenerates them.
+		form.clearErrors();
+		setCurrentStep(currentStep + 1);
+		window.scrollTo({ top: 0, behavior: 'smooth' });
+	};
+
+	/**
+	 * Submit refused. The invalid control is usually on a step that is no longer
+	 * mounted — which is exactly the dead end this replaces. Send the user to
+	 * the step that owns the first problem and list the rest.
+	 */
+	const handleInvalidSubmit = (errors: typeof form.formState.errors) => {
+		setStepProblems(summarizeStepErrors(errors));
+		setStepBlockMessage(null);
+
+		const target = firstInvalidStep(errors);
+		if (target) {
+			if (target !== currentStep) setCurrentStep(target);
+			focusFirstProblemOnStep(target);
+		}
+		window.scrollTo({ top: 0, behavior: 'smooth' });
 	};
 
 	const handleBack = () => {
 		if (currentStep > 1) {
+			setStepProblems([]);
+			setStepBlockMessage(null);
 			setCurrentStep(currentStep - 1);
 			window.scrollTo({ top: 0, behavior: 'smooth' });
 		}
@@ -684,7 +732,14 @@ export default function RegisterWizard() {
 			<div className="container mx-auto px-4 py-8">
 				<div className="max-w-3xl mx-auto">
 					<Form {...form}>
-						<form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+						<form
+							onSubmit={form.handleSubmit(onSubmit, handleInvalidSubmit)}
+							className="space-y-6">
+							<RegistrationProblemSummary
+								problems={stepProblems}
+								blockMessage={stepBlockMessage}
+								currentStep={currentStep}
+							/>
 							{currentStep === 1 && (
 								<Step1Household
 									form={form}
@@ -746,7 +801,6 @@ export default function RegisterWizard() {
 											<Button
 												type="button"
 												onClick={handleNext}
-												disabled={!canProceed()}
 												className="flex items-center gap-2 bg-[#017c7d] hover:bg-[#016566] text-white">
 												Save & continue
 												<ChevronRight className="h-4 w-4" />
@@ -754,7 +808,7 @@ export default function RegisterWizard() {
 										) : (
 											<Button
 												type="submit"
-												disabled={isSubmitting || !form.formState.isValid}
+												disabled={isSubmitting}
 												className="bg-[#017c7d] hover:bg-[#016566] text-white">
 												{isSubmitting ? 'Submitting...' : 'Submit registration'}
 											</Button>
