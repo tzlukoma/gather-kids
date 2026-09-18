@@ -243,7 +243,12 @@ export function CheckInContentGatherSystem() {
 		[selectedEvent]
 	);
 
-	const eyebrow = `${currentEventName} · ${format(new Date(), 'EEE MMM d')}`;
+	// Derived from `today` — the same string the roster, counts and incidents are
+	// queried with — rather than from `new Date()`. Read independently, the label
+	// and the data below it can disagree: whenever the browser's local day differs
+	// from the day being queried, the header names one date while the rows belong
+	// to another, with nothing on screen to say so.
+	const eyebrow = `${currentEventName} · ${format(parseISO(today), 'EEE MMM d')}`;
 
 	const availableGrades = useMemo(() => {
 		if (!children) return [];
