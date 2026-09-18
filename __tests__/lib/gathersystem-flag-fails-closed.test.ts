@@ -15,11 +15,14 @@ import { getGatherSystemFlag } from '@/lib/flags/get-gathersystem-flag';
  * Every case here sets the provider to return `true` first, so a helper that
  * skipped its guard would return `true` and fail the test.
  *
- * `gathersystem_door` is exercised as a key because this evaluator is generic,
- * but `getGatherSystemDoorFlag` does **not** delegate here yet: it still has
- * its own copy of the logic in `src/app/(admin)/check-in/page.tsx`, without
- * the guard. Switching it over changes a default-path surface, so it is #432
- * rather than part of this flag-gated PR.
+ * All three GatherSystem kill switches now delegate here — `gathersystem_door`
+ * joined `gathersystem_admin` and `gathersystem_incidents` in #432, which
+ * deleted the inline copy that lived in `src/app/(admin)/check-in/page.tsx`
+ * without the no-session guard. The door helper keeps its own cover in
+ * `__tests__/lib/gathersystem-door-flag.test.ts`.
+ *
+ * `gathersystem_registration` is deliberately absent: `/register` serves
+ * signed-out visitors and must not adopt the no-session guard.
  */
 describe('getGatherSystemFlag fails closed', () => {
 	beforeEach(() => {
