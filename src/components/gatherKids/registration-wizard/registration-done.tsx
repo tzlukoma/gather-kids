@@ -4,13 +4,18 @@ import { useRouter } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { CheckCircle2, Calendar, MapPin } from 'lucide-react';
+import type { RegisteredChildReceipt } from '@/lib/types';
 
 interface RegistrationDoneProps {
 	childrenEnrolledInBibleBee?: boolean;
-	registeredChildren?: Array<{
-		name: string;
-		ministries: string[];
-	}>;
+	/**
+	 * What registration actually persisted, straight from the DAL.
+	 *
+	 * This used to be assembled from the submitted form, so it announced
+	 * ministries the DAL had declined to enrol the child in (#400). It is the
+	 * receipt now: if it is not here, it was not stored.
+	 */
+	registeredChildren?: RegisteredChildReceipt[];
 }
 
 export function RegistrationDone({
@@ -62,26 +67,57 @@ export function RegistrationDone({
 								</h2>
 							</div>
 							<div className="space-y-4">
-								{registeredChildren.map((child, index) => (
-									<div key={index} className="pb-4 border-b border-[#eae4da] last:border-0 last:pb-0">
-										<p className="font-semibold text-[#1e2a2f] mb-2">{child.name}</p>
-										<div className="space-y-1">
-											{child.ministries.length > 0 ? (
-												child.ministries.map((ministry, mIndex) => (
-													<div key={mIndex} className="flex items-center gap-2 text-sm text-[#5b6b72]">
+								{registeredChildren.map((child) => {
+									const enrolled = child.enrollments.filter(
+										(e) => e.status === 'enrolled'
+									);
+									const interested = child.enrollments.filter(
+										(e) => e.status === 'expressed_interest'
+									);
+
+									return (
+										<div
+											key={child.child_id}
+											className="pb-4 border-b border-[#eae4da] last:border-0 last:pb-0">
+											<p className="font-semibold text-[#1e2a2f] mb-2">
+												{`${child.first_name} ${child.last_name}`.trim()}
+											</p>
+											<div className="space-y-1">
+												{enrolled.map((enrollment) => (
+													<div
+														key={enrollment.ministry_id}
+														className="flex items-center gap-2 text-sm text-[#5b6b72]">
 														<div className="h-1.5 w-1.5 rounded-full bg-[#017c7d]" />
-														<span>{ministry}</span>
+														<span>{enrollment.ministry_name}</span>
 													</div>
-												))
-											) : (
-												<div className="flex items-center gap-2 text-sm text-[#5b6b72]">
-													<div className="h-1.5 w-1.5 rounded-full bg-[#017c7d]" />
-													<span>Sunday School</span>
+												))}
+											</div>
+
+											{/* Interest is a request to be contacted, not a place in the
+											    ministry, so it is never listed beside the enrollments. */}
+											{interested.length > 0 && (
+												<div className="mt-3">
+													<p className="text-xs font-medium uppercase tracking-wide text-[#8a7f6d]">
+														Interest noted — not yet registered
+													</p>
+													<div className="mt-1 space-y-1">
+														{interested.map((enrollment) => (
+															<div
+																key={enrollment.ministry_id}
+																className="flex items-center gap-2 text-sm text-[#5b6b72]">
+																<div className="h-1.5 w-1.5 rounded-full border border-[#8a7f6d]" />
+																<span>{enrollment.ministry_name}</span>
+															</div>
+														))}
+													</div>
+													<p className="mt-1 text-xs text-[#5b6b72]">
+														Someone will be in touch about these.
+													</p>
 												</div>
 											)}
 										</div>
-									</div>
-								))}
+									);
+								})}
 							</div>
 						</CardContent>
 					</Card>

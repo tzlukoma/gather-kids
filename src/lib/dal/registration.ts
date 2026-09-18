@@ -9,10 +9,17 @@
  */
 
 import { db as dbAdapter } from '../database/factory';
-import type { Child, Guardian, Household, EmergencyContact } from '../types';
+import type {
+    Child,
+    Guardian,
+    Household,
+    EmergencyContact,
+    RegisteredChildReceipt,
+    RegisteredEnrollmentReceipt,
+} from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import { gradeToCode } from '../gradeUtils';
-import { ageOn } from './utils';
+import { evaluateMinistryEligibility, describeIneligibility } from '../ministry-eligibility';
 
 // ---------------------------------------------------------------------------
 // Registration
@@ -44,7 +51,7 @@ export async function registerHousehold(
     data: unknown,
     cycle_id: string,
     isPrefill: boolean,
-): Promise<{ household_id: string }> {
+): Promise<{ household_id: string; registeredChildren: RegisteredChildReceipt[] }> {
     const input = data as RegistrationPayload;
 
     let householdId = input.household?.household_id || uuidv4();
@@ -131,6 +138,17 @@ export async function registerHousehold(
             existingChildrenBeforeLoop.map(c => c.child_id),
         );
 
+        // One ministry lookup for the whole registration rather than one per
+        // child; it also names the enrollments on the receipt below.
+        const allMinistries = await dbAdapter.listMinistries();
+        const ministryMap = new Map(allMinistries.map(m => [m.code, m]));
+        const sundaySchool = allMinistries.find(
+            m => m.ministry_id === 'min_sunday_school',
+        );
+
+        // What was actually persisted, per child, for the confirmation screen.
+        const registeredChildren: RegisteredChildReceipt[] = [];
+
         for (const childData of input.children || []) {
             type IncomingChild = Partial<Child> & {
                 ministrySelections?: Record<string, boolean>;
@@ -208,24 +226,39 @@ export async function registerHousehold(
                 status: 'enrolled',
             });
 
+            // Sunday School is enrolled here and nowhere else — the selection
+            // loop below skips the `min_sunday_school` key — so it appears once
+            // on the receipt and once on the confirmation screen.
+            const enrollments: RegisteredEnrollmentReceipt[] = [
+                {
+                    ministry_id: 'min_sunday_school',
+                    ministry_name: sundaySchool?.name ?? 'Sunday School',
+                    ministry_code: sundaySchool?.code ?? 'min_sunday_school',
+                    status: 'enrolled',
+                },
+            ];
+
             // Handle ministry and interest selections
             const allSelections = {
                 ...(ministrySelections || {}),
                 ...(interestSelections || {}),
             };
-            const allMinistries = await dbAdapter.listMinistries();
-            const ministryMap = new Map(allMinistries.map(m => [m.code, m]));
-
             for (const ministryCode in allSelections) {
                 if (allSelections[ministryCode] && ministryCode !== 'min_sunday_school') {
                     const ministry = ministryMap.get(ministryCode);
                     if (ministry) {
-                        const age = child.dob ? ageOn(now, child.dob) : null;
-                        const minAge = ministry.min_age ?? -1;
-                        const maxAge = ministry.max_age ?? 999;
-                        if (age !== null && (age < minAge || age > maxAge)) {
+                        // Defence in depth: the wizard already hides ministries
+                        // a child is not eligible for, but this path also serves
+                        // imports and direct callers, so the rule is enforced
+                        // again at the boundary.
+                        const eligibility = evaluateMinistryEligibility(
+                            ministry,
+                            child,
+                            new Date(now),
+                        );
+                        if (!eligibility.eligible) {
                             console.warn(
-                                `Skipping enrollment for ${child.first_name} in ${ministry.name} due to age restrictions.`,
+                                `Skipping enrollment for ${child.first_name} in ${ministry.name}: ${describeIneligibility(eligibility.reason, ministry)}.`,
                             );
                             continue;
                         }
@@ -246,6 +279,13 @@ export async function registerHousehold(
                             status: ministry.enrollment_type,
                             custom_fields:
                                 Object.keys(custom_fields).length > 0 ? custom_fields : undefined,
+                        });
+
+                        enrollments.push({
+                            ministry_id: ministry.ministry_id,
+                            ministry_name: ministry.name,
+                            ministry_code: ministry.code,
+                            status: ministry.enrollment_type,
                         });
 
                         // Handle Bible Bee enrollment
@@ -286,8 +326,15 @@ export async function registerHousehold(
                     }
                 }
             }
+
+            registeredChildren.push({
+                child_id: childId,
+                first_name: child.first_name ?? '',
+                last_name: child.last_name ?? '',
+                enrollments,
+            });
         }
 
-        return { household_id: householdId };
+        return { household_id: householdId, registeredChildren };
     });
 }

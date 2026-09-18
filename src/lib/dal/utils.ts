@@ -4,8 +4,7 @@
  * Pure helpers with no database dependency, re-exported from dal.ts.
  */
 
-import { differenceInYears, parseISO, isValid, isAfter, isBefore } from 'date-fns';
-import type { Ministry } from '../types';
+import { differenceInYears, parseISO, isValid } from 'date-fns';
 
 /**
  * Return today's date as a YYYY-MM-DD string (UTC).
@@ -36,16 +35,6 @@ export function ageOn(dateISO: string, dobISO?: string): number | null {
     const years = differenceInYears(date, dob);
     if (Number.isNaN(years)) return null;
     return years;
-}
-
-/**
- * Return true when today falls within the ministry's open/close window.
- */
-export function isWithinWindowSync(ministry: Ministry, todayISO: string): boolean {
-    const today = parseISO(todayISO);
-    const isOpen = ministry.open_at ? isAfter(today, parseISO(ministry.open_at)) : true;
-    const isClosed = ministry.close_at ? isBefore(today, parseISO(ministry.close_at)) : true;
-    return isOpen && isClosed;
 }
 
 /** Normalize email to lowercase + trimmed. */
