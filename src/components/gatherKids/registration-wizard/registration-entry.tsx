@@ -17,6 +17,10 @@ import {
 } from '@/lib/dal/registration-cycle-utils';
 import { AlertTriangle, Home, Users, Info } from 'lucide-react';
 import { useDraftPersistence } from '@/hooks/useDraftPersistence';
+import {
+	buildRegistrationMagicLinkPayload,
+	POST_ACCOUNT_CREATION_PATH,
+} from '@/lib/authRedirect';
 import Link from 'next/link';
 import type { RegistrationFormInput } from './registration-schema';
 import type { HouseholdRegistrationLoadResult } from '@/lib/dal/households';
@@ -28,9 +32,8 @@ import {
 	type RegistrationPrefillState,
 } from './registration-prefill-state';
 
-const REGISTER_NEXT_PATH = '/register';
-const LOGIN_WITH_NEXT = `/login?next=${encodeURIComponent(REGISTER_NEXT_PATH)}`;
-const CREATE_ACCOUNT_WITH_NEXT = `/create-account?next=${encodeURIComponent(REGISTER_NEXT_PATH)}`;
+const LOGIN_WITH_NEXT = `/login?next=${encodeURIComponent(POST_ACCOUNT_CREATION_PATH)}`;
+const CREATE_ACCOUNT_WITH_NEXT = `/create-account?next=${encodeURIComponent(POST_ACCOUNT_CREATION_PATH)}`;
 
 type OfflineAuthStep = 'enter_email' | 'email_sent';
 
@@ -61,10 +64,7 @@ export function RegistrationOfflineAuth() {
 				const response = await fetch('/api/auth/magic-link', {
 					method: 'POST',
 					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({
-						email: trimmed,
-						next: REGISTER_NEXT_PATH,
-					}),
+					body: JSON.stringify(buildRegistrationMagicLinkPayload(trimmed)),
 				});
 
 				if (response.ok) {

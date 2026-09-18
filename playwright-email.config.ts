@@ -6,6 +6,7 @@ export default defineConfig({
   timeout: 60_000, // Increased timeout for email delivery
   expect: { timeout: 10_000 },
   fullyParallel: false, // Sequential execution for email tests
+  workers: 1, // Shared MailHog inbox — parallel workers clear each other's mail
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   reporter: [
