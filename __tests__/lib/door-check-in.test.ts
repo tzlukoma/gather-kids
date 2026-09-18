@@ -7,6 +7,7 @@ import {
 	isCheckedInTo,
 	isOnSite,
 	matchesDoorStatusFilter,
+	parseDoorStatusFilter,
 	selectableForCheckIn,
 	summarizeSelectedHouseholds,
 	type DoorRosterEntry,
@@ -401,6 +402,29 @@ describe('row status, tabs and cards agree for every row', () => {
 			);
 		});
 	}
+});
+
+describe('parseDoorStatusFilter', () => {
+	it('accepts the documented spelling for the Not checked in tab', () => {
+		expect(parseDoorStatusFilter('notCheckedIn')).toBe('checkedOut');
+	});
+
+	it('still accepts the legacy alias every existing link uses', () => {
+		expect(parseDoorStatusFilter('checkedOut')).toBe('checkedOut');
+	});
+
+	it('passes the other two through unchanged', () => {
+		expect(parseDoorStatusFilter('all')).toBe('all');
+		expect(parseDoorStatusFilter('checkedIn')).toBe('checkedIn');
+	});
+
+	it('rejects anything else rather than guessing', () => {
+		// The caller falls back to `all`; returning a filter here would answer a
+		// typo with an empty roster.
+		for (const value of ['', 'checked-out', 'CheckedOut', 'notcheckedin', null, undefined]) {
+			expect(parseDoorStatusFilter(value)).toBeNull();
+		}
+	});
 });
 
 describe('summarizeSelectedHouseholds', () => {

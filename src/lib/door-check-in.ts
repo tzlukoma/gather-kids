@@ -12,12 +12,37 @@ import { getEventName } from '@/lib/constants';
  */
 
 /**
- * URL/filter contract shared with the legacy screen and the admin dashboard
- * deep links (`/check-in?filter=checkedIn`). `checkedOut` means "not currently
- * on site" — it is the historical wire value for the "Not checked in" tab and
- * must not be renamed without updating those links.
+ * The screen's internal filter state, shared with the legacy screen.
+ *
+ * `checkedOut` is a misnomer worth knowing about: it has never meant "has been
+ * checked out", only **"not currently on site"**, which lumps a child who has
+ * already gone home together with one who never arrived. Both screens have
+ * always behaved that way. It stays as the internal value because the admin
+ * dashboard deep-links it and older links exist in the wild; `notCheckedIn` is
+ * the spelling to write in new links, and `parseDoorStatusFilter` maps it here.
  */
 export type DoorStatusFilter = 'all' | 'checkedIn' | 'checkedOut';
+
+/**
+ * Read a `?filter=` value off the URL, or `null` when it is not one we know.
+ *
+ * `notCheckedIn` is the documented spelling, and says what the tab actually
+ * does. `checkedOut` is accepted as an alias so every link already out there —
+ * including `/check-in?filter=checkedIn`'s sibling on the admin dashboard —
+ * keeps working; a URL is a contract we do not get to break quietly.
+ *
+ * Unknown values return `null` so the caller can fall back to `all` rather
+ * than showing an empty roster because of a typo in a hand-typed link.
+ */
+export function parseDoorStatusFilter(
+	value: string | null | undefined
+): DoorStatusFilter | null {
+	if (value === 'all' || value === 'checkedIn' || value === 'checkedOut') {
+		return value;
+	}
+	if (value === 'notCheckedIn') return 'checkedOut';
+	return null;
+}
 
 /** The minimum shape the door screen needs from an enriched child row. */
 export interface DoorRosterEntry {

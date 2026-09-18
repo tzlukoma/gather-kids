@@ -528,12 +528,29 @@ describe('CheckInContentGatherSystem', () => {
 			expect(screen.queryByText('Amara Bennett')).not.toBeInTheDocument();
 		});
 
-		it('honours the ?filter=checkedOut deep link', () => {
+		it('honours the ?filter=checkedOut deep link (the legacy alias)', () => {
 			searchParams = new URLSearchParams('filter=checkedOut');
 			render(<CheckInContentGatherSystem />);
 
 			expect(screen.getByText('Amara Bennett')).toBeInTheDocument();
 			expect(screen.queryByText('Jordan Kim')).not.toBeInTheDocument();
+		});
+
+		it('honours ?filter=notCheckedIn, the spelling that says what it does', () => {
+			searchParams = new URLSearchParams('filter=notCheckedIn');
+			render(<CheckInContentGatherSystem />);
+
+			expect(screen.getByText('Amara Bennett')).toBeInTheDocument();
+			expect(screen.queryByText('Jordan Kim')).not.toBeInTheDocument();
+		});
+
+		it('falls back to the full roster on an unrecognised filter', () => {
+			// A typo in a hand-typed link should not read as "show nothing".
+			searchParams = new URLSearchParams('filter=checked-out');
+			render(<CheckInContentGatherSystem />);
+
+			expect(screen.getByText('Amara Bennett')).toBeInTheDocument();
+			expect(screen.getByText('Jordan Kim')).toBeInTheDocument();
 		});
 	});
 

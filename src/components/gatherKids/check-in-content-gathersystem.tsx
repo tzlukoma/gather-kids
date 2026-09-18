@@ -94,6 +94,7 @@ import {
 	formatDoorStatusLabel,
 	isOnSite,
 	matchesDoorStatusFilter,
+	parseDoorStatusFilter,
 	selectableForCheckIn,
 	summarizeSelectedHouseholds,
 	type DoorStatusFilter,
@@ -201,8 +202,9 @@ function ChildDoorInfo({ child }: { child: EnrichedChild }) {
 }
 
 /**
- * Wire value for the status tabs. `checkedOut` is the historical value for
- * "Not checked in" and is deep-linked from the admin dashboard, so it is kept.
+ * Filter state for the status tabs. See `DoorStatusFilter` for why the
+ * "Not checked in" tab is spelled `checkedOut` internally, and
+ * `parseDoorStatusFilter` for the `?filter=` values that reach it.
  */
 export type StatusFilter = DoorStatusFilter;
 
@@ -222,10 +224,7 @@ export function CheckInContentGatherSystem() {
 	const urlFilter = searchParams?.get('filter');
 	const urlEvent = searchParams?.get('event');
 	const searchKey = searchParams?.toString() ?? '';
-	const initialStatus: StatusFilter =
-		urlFilter === 'checkedIn' || urlFilter === 'checkedOut' || urlFilter === 'all'
-			? urlFilter
-			: 'all';
+	const initialStatus: StatusFilter = parseDoorStatusFilter(urlFilter) ?? 'all';
 	const initialEvent =
 		urlEvent && EVENT_OPTIONS.find((e) => e.id === urlEvent)
 			? urlEvent
@@ -281,12 +280,9 @@ export function CheckInContentGatherSystem() {
 	// URL param sync
 	if (searchKey !== prevSearchKey) {
 		setPrevSearchKey(searchKey);
-		if (
-			urlFilter === 'checkedIn' ||
-			urlFilter === 'checkedOut' ||
-			urlFilter === 'all'
-		) {
-			setStatusFilter(urlFilter);
+		const nextStatus = parseDoorStatusFilter(urlFilter);
+		if (nextStatus !== null) {
+			setStatusFilter(nextStatus);
 		}
 		if (urlEvent && EVENT_OPTIONS.find((e) => e.id === urlEvent)) {
 			setSelectedEvent(urlEvent);
