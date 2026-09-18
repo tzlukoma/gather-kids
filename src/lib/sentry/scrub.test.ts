@@ -83,19 +83,22 @@ describe('scrubSentryEvent', () => {
 	});
 
 	it('keeps stack traces and exception type', () => {
-		const event = sentryBeforeSend({
-			type: undefined,
-			message: `Unhandled error for ${SYNTHETIC_EMAIL}`,
-			exception: {
-				values: [
-					{
-						type: 'TypeError',
-						value: `Cannot read properties of undefined (${SYNTHETIC_EMAIL})`,
-						stacktrace: { frames: SYNTHETIC_STACK_FRAMES },
-					},
-				],
+		const event = sentryBeforeSend(
+			{
+				type: undefined,
+				message: `Unhandled error for ${SYNTHETIC_EMAIL}`,
+				exception: {
+					values: [
+						{
+							type: 'TypeError',
+							value: `Cannot read properties of undefined (${SYNTHETIC_EMAIL})`,
+							stacktrace: { frames: SYNTHETIC_STACK_FRAMES },
+						},
+					],
+				},
 			},
-		});
+			{},
+		)!;
 
 		expect(event.exception?.values?.[0]?.type).toBe('TypeError');
 		expect(event.exception?.values?.[0]?.stacktrace).toEqual({

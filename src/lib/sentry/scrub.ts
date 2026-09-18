@@ -1,4 +1,4 @@
-import type { ErrorEvent, EventHint } from '@sentry/core';
+import type { ErrorEvent, EventHint } from '@sentry/nextjs';
 
 /**
  * Strip emails, obvious person-name fields, and request/response bodies
@@ -208,6 +208,6 @@ export function scrubSentryEvent<T extends ScrubbableSentryEvent>(event: T): T {
 }
 
 /** `Sentry.init({ beforeSend })` hook used by client, server, and edge. */
-export function sentryBeforeSend(event: ErrorEvent, _hint?: EventHint): ErrorEvent {
+export function sentryBeforeSend(event: ErrorEvent, _hint: EventHint): ErrorEvent | null {
 	return scrubSentryEvent(event as unknown as ScrubbableSentryEvent) as unknown as ErrorEvent;
 }
