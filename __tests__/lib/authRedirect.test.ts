@@ -1,6 +1,8 @@
 import {
 	appendSafePostAuthSearchParam,
+	buildRegistrationMagicLinkPayload,
 	getAuthRedirectTo,
+	POST_ACCOUNT_CREATION_PATH,
 	resolveSafePostAuthPath,
 } from '@/lib/authRedirect';
 
@@ -32,6 +34,16 @@ describe('resolveSafePostAuthPath', () => {
 		expect(resolveSafePostAuthPath('/%2F%2Fevil.com', '/household')).toBe(
 			'/%2F%2Fevil.com'
 		);
+	});
+});
+
+describe('buildRegistrationMagicLinkPayload', () => {
+	it('sends first-time registrants back to /register after the magic link', () => {
+		expect(buildRegistrationMagicLinkPayload('parent@example.com')).toEqual({
+			email: 'parent@example.com',
+			next: POST_ACCOUNT_CREATION_PATH,
+		});
+		expect(POST_ACCOUNT_CREATION_PATH).toBe('/register');
 	});
 });
 

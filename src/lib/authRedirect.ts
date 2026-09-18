@@ -39,6 +39,11 @@ export function appendSafePostAuthSearchParam(
 /** Where a family lands after confirming a newly created account. */
 export const POST_ACCOUNT_CREATION_PATH = '/register';
 
+/** MailHog / magic-link body so first-time registration returns to `/register`. */
+export function buildRegistrationMagicLinkPayload(email: string) {
+	return { email, next: POST_ACCOUNT_CREATION_PATH };
+}
+
 /**
  * Build the `emailRedirectTo` for account-creation confirmation emails.
  *
