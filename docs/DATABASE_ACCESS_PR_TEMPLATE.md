@@ -8,7 +8,7 @@
 
 When accessing database tables, please check all that apply:
 
-- [ ] I've updated components to use database adapter methods (`dbAdapter.methodName()`) instead of leftover Dexie queries
+- [ ] I've updated components to use database adapter methods (`dbAdapter.methodName()`) rather than querying storage directly
 - [ ] I've replaced `useLiveQuery` with React Query hooks where needed
 - [ ] I've tested against local or UAT Supabase
 - [ ] I've added appropriate error handling for database operations

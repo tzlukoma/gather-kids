@@ -1,4 +1,4 @@
-> **Historical spec.** Bible Bee now runs against **Supabase** through the DAL. Do not implement or revive a client-side IndexedDB/Dexie path. Leftover Dexie helpers are tracked in [#266](https://github.com/tzlukoma/gather-kids/issues/266).
+> **Historical spec.** Bible Bee now runs against **Supabase** through the DAL. Do not implement or revive a client-side IndexedDB/Dexie path. The Dexie helpers it describes were removed in [#266](https://github.com/tzlukoma/gather-kids/issues/266); the schema and flow sections below are kept for their product intent, not as implementation guidance.
 
 **Original task (kept for product rules):** Integrate Bible Bee functionality end-to-end behind the DAL, following the specs and user stories below.
 

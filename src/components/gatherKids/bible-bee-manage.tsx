@@ -155,8 +155,7 @@ export default function BibleBeeManage({
 	React.useEffect(() => {
 		const loadCompetitionYears = async () => {
 			try {
-				// Use DAL function instead of direct Dexie call
-				const years = await getCompetitionYears();
+								const years = await getCompetitionYears();
 				setCompetitionYears(years);
 			} catch (error) {
 				console.error('Error loading competition years:', error);
@@ -390,8 +389,7 @@ function YearManagement({
 	React.useEffect(() => {
 		const loadRegistrationCycles = async () => {
 			try {
-				// Use DAL function instead of direct Dexie call
-				const cycles = await getRegistrationCycles();
+								const cycles = await getRegistrationCycles();
 				setRegistrationCycles(
 					cycles.sort((a, b) => a.cycle_id.localeCompare(b.cycle_id))
 				);

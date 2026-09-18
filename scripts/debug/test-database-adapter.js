@@ -4,7 +4,7 @@
  *
  * This script creates a database adapter instance using the
  * same logic as the application and prints the type.
- * Note: Demo mode has been removed. The app always uses SupabaseAdapter.
+ * The app always uses SupabaseAdapter.
  */
 
 import { createDatabaseAdapter } from '../lib/database/factory.js';

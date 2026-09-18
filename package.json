@@ -151,7 +151,6 @@
     "dotenv-cli": "^11.0.0",
     "eslint": "9.34.0",
     "eslint-config-next": "^16.3.4",
-    "fake-indexeddb": "^6.2.2",
     "genkit-cli": "^1.42.0",
     "jest": "^30.5.1",
     "jest-environment-jsdom": "^30.5.1",

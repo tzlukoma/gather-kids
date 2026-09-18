@@ -51,7 +51,7 @@ if (envLocalExists) {
 	);
 }
 
-// Database mode is always Supabase (demo mode removed)
+// Database mode is always Supabase
 console.log(`\n${colors.blue}🔄 Database Mode:${colors.reset} supabase (always)`);
 
 // Check Supabase configuration

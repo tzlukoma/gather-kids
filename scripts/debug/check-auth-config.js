@@ -4,7 +4,7 @@
  *
  * This script shows which authentication provider is configured
  * and helps diagnose auth-related issues.
- * Note: Demo mode has been removed. The app always uses Supabase.
+ * The app always uses Supabase.
  */
 
 import { getFlag } from '../lib/featureFlags';
@@ -34,9 +34,7 @@ console.log(`- LOGIN_PASSWORD_ENABLED: ${getFlag('LOGIN_PASSWORD_ENABLED')}`);
 console.log(`- LOGIN_MAGIC_ENABLED: ${getFlag('LOGIN_MAGIC_ENABLED')}`);
 console.log(`- LOGIN_GOOGLE_ENABLED: ${getFlag('LOGIN_GOOGLE_ENABLED')}`);
 
-// Demo mode removed
 console.log('\n📊 Database Mode:');
-console.log('- Demo mode: ❌ Removed (app always uses Supabase)');
 
 // Check Supabase configuration
 console.log('\n📊 Supabase Configuration:');
