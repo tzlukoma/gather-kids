@@ -280,10 +280,12 @@ export function CheckInContentGatherSystem() {
 	// URL param sync
 	if (searchKey !== prevSearchKey) {
 		setPrevSearchKey(searchKey);
-		const nextStatus = parseDoorStatusFilter(urlFilter);
-		if (nextStatus !== null) {
-			setStatusFilter(nextStatus);
-		}
+		// `?? 'all'` for the same reason the initial state has it: the URL is the
+		// source of truth for this filter, so arriving at one the screen cannot
+		// read must land on the full roster rather than leaving whatever the
+		// previous URL selected. Nothing here writes the query string, so a tab
+		// the user picked by hand is never clobbered by this path.
+		setStatusFilter(parseDoorStatusFilter(urlFilter) ?? 'all');
 		if (urlEvent && EVENT_OPTIONS.find((e) => e.id === urlEvent)) {
 			setSelectedEvent(urlEvent);
 		}

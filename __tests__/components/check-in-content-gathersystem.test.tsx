@@ -740,6 +740,50 @@ describe('CheckInContentGatherSystem', () => {
 	});
 
 	/**
+	 * The filter follows the URL on navigation, not only on first render.
+	 * Landing on an unreadable filter has to mean the same thing whether you
+	 * arrived there directly or from another filtered URL — otherwise the screen
+	 * keeps showing the previous filter's rows under a URL that does not say so.
+	 */
+	describe('following the URL after it changes', () => {
+		it('switches filters on navigation', () => {
+			searchParams = new URLSearchParams('filter=checkedIn');
+			const { rerender } = render(<CheckInContentGatherSystem />);
+			expect(screen.queryByText('Amara Bennett')).not.toBeInTheDocument();
+
+			searchParams = new URLSearchParams('filter=notCheckedIn');
+			rerender(<CheckInContentGatherSystem />);
+
+			expect(screen.getByText('Amara Bennett')).toBeInTheDocument();
+			expect(screen.queryByText('Jordan Kim')).not.toBeInTheDocument();
+		});
+
+		it('falls back to the full roster on an unreadable filter', () => {
+			searchParams = new URLSearchParams('filter=checkedIn');
+			const { rerender } = render(<CheckInContentGatherSystem />);
+			expect(screen.queryByText('Amara Bennett')).not.toBeInTheDocument();
+
+			searchParams = new URLSearchParams('filter=pending');
+			rerender(<CheckInContentGatherSystem />);
+
+			expect(screen.getByText('Amara Bennett')).toBeInTheDocument();
+			expect(screen.getByText('Jordan Kim')).toBeInTheDocument();
+		});
+
+		it('falls back to the full roster when the filter is dropped entirely', () => {
+			searchParams = new URLSearchParams('filter=checkedIn');
+			const { rerender } = render(<CheckInContentGatherSystem />);
+			expect(screen.queryByText('Amara Bennett')).not.toBeInTheDocument();
+
+			searchParams = new URLSearchParams('event=evt_childrens_church');
+			rerender(<CheckInContentGatherSystem />);
+
+			expect(screen.getByText('Amara Bennett')).toBeInTheDocument();
+			expect(screen.getByText('Jordan Kim')).toBeInTheDocument();
+		});
+	});
+
+	/**
 	 * Below `md` the table header is hidden, because the rows stop being rows —
 	 * so the select-all it carries has to live somewhere else or the control
 	 * disappears on a phone.
