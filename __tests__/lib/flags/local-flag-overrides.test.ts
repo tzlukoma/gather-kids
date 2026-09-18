@@ -5,7 +5,7 @@ import {
 	isLocalFlagOverrideEnabled,
 	parseLocalFlagOverrides,
 } from '@/lib/flags/local-flag-overrides';
-import { GATHERSYSTEM_FLAG_KEYS } from '@/lib/flags/env';
+import { GATHERSYSTEM_FLAG_KEYS, shouldUseRemoteFlags } from '@/lib/flags/env';
 
 /**
  * Every "refuses" case below lists **all six** GatherSystem keys, so a guard
@@ -31,6 +31,62 @@ describe('areLocalFlagOverridesAllowed', () => {
 		expect(areLocalFlagOverridesAllowed(local({ NODE_ENV: 'production' }))).toBe(
 			false
 		);
+	});
+
+	// Regression for the review finding on #445. NODE_ENV is an allowlist rather
+	// than "not production" because `uat` slipped through the denylist: it is not
+	// production, so the guard passed, and it is neither test nor development, so
+	// shouldUseRemoteFlags fell through to the deploy env — which resolves to
+	// `development` when unset and selects the LOCAL adapter. Permitted override
+	// plus local adapter meant a gate could be forced on in a UAT runtime.
+	it('refuses NODE_ENV=uat even with no deploy env set', () => {
+		const env = {
+			NODE_ENV: 'uat',
+			[LOCAL_FLAG_OVERRIDES_ENV_VAR]: ALL_KEYS,
+		};
+
+		// The precondition that made this exploitable: the local adapter is chosen.
+		expect(shouldUseRemoteFlags(env)).toBe(false);
+
+		expect(areLocalFlagOverridesAllowed(env)).toBe(false);
+		expect(getLocalFlagOverrides(env).size).toBe(0);
+	});
+
+	it('refuses NODE_ENV=uat with a preview deploy env', () => {
+		const env = {
+			NODE_ENV: 'uat',
+			NEXT_PUBLIC_DEPLOY_ENV: 'preview',
+			[LOCAL_FLAG_OVERRIDES_ENV_VAR]: ALL_KEYS,
+		};
+		expect(shouldUseRemoteFlags(env)).toBe(false);
+		expect(areLocalFlagOverridesAllowed(env)).toBe(false);
+		expect(getLocalFlagOverrides(env).size).toBe(0);
+	});
+
+	// The general property the allowlist buys: anything not positively recognised
+	// as a dev machine or a test process is refused, including values nobody has
+	// thought of yet.
+	it.each([
+		'uat',
+		'staging',
+		'preview',
+		'qa',
+		'Production',
+		'PRODUCTION',
+		'',
+		'  ',
+	])('refuses unrecognised NODE_ENV %p', (nodeEnv) => {
+		expect(areLocalFlagOverridesAllowed(local({ NODE_ENV: nodeEnv }))).toBe(
+			false
+		);
+	});
+
+	it('refuses a missing NODE_ENV', () => {
+		expect(
+			areLocalFlagOverridesAllowed({
+				[LOCAL_FLAG_OVERRIDES_ENV_VAR]: ALL_KEYS,
+			})
+		).toBe(false);
 	});
 
 	// The two signals are independent: a production deployment can be built with
@@ -83,6 +139,8 @@ describe('production can never force a flag on', () => {
 			'production both ways',
 			{ NODE_ENV: 'production', NEXT_PUBLIC_DEPLOY_ENV: 'production' },
 		],
+		['NODE_ENV=uat, deploy env unset', { NODE_ENV: 'uat' }],
+		['NODE_ENV=staging, deploy env unset', { NODE_ENV: 'staging' }],
 	])('%s yields no overrides at all', (_label, extra) => {
 		const env = local(extra as Record<string, string>);
 		expect(getLocalFlagOverrides(env).size).toBe(0);

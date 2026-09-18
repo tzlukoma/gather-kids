@@ -190,9 +190,16 @@ Rules:
   misspelled keys are **ignored**, never matched loosely, so a typo cannot
   enable a different flag.
 - The override only ever forces a flag **on**. It cannot turn one off.
-- It is refused outright when `NODE_ENV` is `production`, and when the deploy env
-  is `production` or `uat` — checked on both signals independently, because a
-  production deployment can be built with a non-production `NODE_ENV`.
+- It is honoured **only** when `NODE_ENV` is `development` or `test`, and is
+  refused when the deploy env is `production` or `uat` — two independent signals,
+  because a production deployment can be built with a non-production `NODE_ENV`.
+- `NODE_ENV` is an **allowlist**, not "not production". `NODE_ENV=uat` with an
+  unset deploy env otherwise slipped through: it is not `production`, so a
+  denylist passed it, and it is neither `test` nor `development`, so
+  `shouldUseRemoteFlags()` fell through to the deploy env — which resolves to
+  `development` when unset and selects the local adapter. Permitted override plus
+  local adapter meant a gate could be forced on in a UAT runtime. The deploy env
+  stays a denylist because it is optional and usually unset locally.
 - The check is an **explicit environment check**, not an inference from which
   adapter is in play. `getDefaultFlagAdapter()` falls back to the local adapter
   whenever the PostHog client is missing, and that fallback is reachable in

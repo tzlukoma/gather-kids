@@ -37,6 +37,21 @@ export const LOCAL_FLAG_OVERRIDES_ENV_VAR = 'GATHERSYSTEM_LOCAL_FLAGS';
 
 const KNOWN_KEYS: ReadonlySet<string> = new Set(GATHERSYSTEM_FLAG_KEYS);
 
+/**
+ * The only `NODE_ENV` values an override is honoured under — an allowlist, not
+ * a denylist, so anything unrecognised fails closed.
+ *
+ * These are exactly the two values for which `shouldUseRemoteFlags()` returns
+ * false on the strength of `NODE_ENV` alone, i.e. the two runtimes that are
+ * unambiguously a dev machine or a test process. A denylist of "not production"
+ * let `NODE_ENV=uat` through: it is not `production`, so it passed, and it is
+ * also neither `test` nor `development`, so `shouldUseRemoteFlags` fell through
+ * to the deploy env — which, when unset, resolves to `development` and selects
+ * the local adapter. Override permitted plus local adapter selected meant a
+ * gate could be forced on in a UAT runtime.
+ */
+const ALLOWED_NODE_ENVS: ReadonlySet<string> = new Set(['development', 'test']);
+
 /** Deploy environments where an override is never honoured, whatever is set. */
 const FORBIDDEN_DEPLOY_ENVS: ReadonlySet<string> = new Set([
 	'production',
@@ -56,16 +71,23 @@ function readEnv(override?: Env): Env {
 /**
  * Whether this environment may honour local flag overrides at all.
  *
- * Deliberately refuses on two independent signals, because they can disagree:
- * `NODE_ENV` is set by the build/runtime, while the deploy env comes from
- * `NEXT_PUBLIC_DEPLOY_ENV` / `VERCEL_ENV`. A production deployment built with a
- * non-production `NODE_ENV`, or a preview build pointed at UAT, must be refused
- * by whichever signal catches it.
+ * Two independent signals, because they can disagree: `NODE_ENV` is set by the
+ * build/runtime, while the deploy env comes from `NEXT_PUBLIC_DEPLOY_ENV` /
+ * `VERCEL_ENV`. A production deployment built with a non-production `NODE_ENV`,
+ * or a preview build pointed at UAT, must be refused by whichever catches it.
+ *
+ * Both are fail-closed, but in opposite directions, and that asymmetry is
+ * deliberate. `NODE_ENV` is an **allowlist**: the runtime has to positively
+ * identify itself as a dev machine or a test process, so an unexpected or
+ * missing value is refused. The deploy env is a **denylist**: it is optional and
+ * frequently unset locally, so requiring a value would refuse ordinary `npm run
+ * dev`; it only has to name the environments that must never be overridden.
  */
 export function areLocalFlagOverridesAllowed(env?: Env): boolean {
 	const source = readEnv(env);
 
-	if (source.NODE_ENV === 'production') return false;
+	const nodeEnv = source.NODE_ENV?.trim().toLowerCase();
+	if (!nodeEnv || !ALLOWED_NODE_ENVS.has(nodeEnv)) return false;
 
 	const deployEnv = getFlagsDeployEnv(env)?.trim().toLowerCase();
 	if (deployEnv && FORBIDDEN_DEPLOY_ENVS.has(deployEnv)) return false;
