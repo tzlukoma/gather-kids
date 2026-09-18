@@ -6,7 +6,7 @@ import { Search, Users, X } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { useChildrenForActiveCycle, useAttendance } from '@/hooks/data';
 import { CardGridSkeleton } from '@/components/skeletons/CardGridSkeleton';
-import { getTodayIsoDate } from '@/lib/dal';
+import { getServiceDayIso } from '@/lib/dal';
 import type { Attendance, Child } from '@/lib/types';
 import { normalizeGradeDisplay, getGradeSortOrder } from '@/lib/gradeUtils';
 import { EVENT_OPTIONS } from '@/lib/constants';
@@ -62,7 +62,7 @@ export function CheckInContentGatherSystem() {
 	const [selectedChildIds, setSelectedChildIds] = useState<Set<string>>(new Set());
 	const [prevSearchKey, setPrevSearchKey] = useState(searchKey);
 
-	const today = getTodayIsoDate();
+	const today = getServiceDayIso();
 
 	// Data hooks
 	const { data: children = EMPTY_CHILDREN, isLoading: childrenLoading } = useChildrenForActiveCycle();

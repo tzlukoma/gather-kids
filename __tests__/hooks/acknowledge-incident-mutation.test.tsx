@@ -12,7 +12,7 @@ jest.unmock('@tanstack/react-query');
 
 jest.mock('@/lib/dal', () => ({
 	acknowledgeIncident: jest.fn().mockResolvedValue(1),
-	getTodayIsoDate: () => '2026-09-16',
+	getServiceDayIso: () => '2026-09-16',
 }));
 
 import { acknowledgeIncident } from '@/lib/dal';

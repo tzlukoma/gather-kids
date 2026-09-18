@@ -8,7 +8,7 @@
 
 import { db as dbAdapter } from '../database/factory';
 import type { Attendance, Child, Incident, IncidentSeverity } from '../types';
-import { getTodayIsoDate } from './utils';
+import { getServiceDayIso } from './utils';
 import { v4 as uuidv4 } from 'uuid';
 
 // ---------------------------------------------------------------------------
@@ -61,7 +61,7 @@ export async function recordCheckIn(
     timeslotId?: string,
     userId?: string,
 ): Promise<string> {
-    const today = getTodayIsoDate();
+    const today = getServiceDayIso();
 
     const activeCheckIns = await dbAdapter.listAttendance({
         childId: childId,

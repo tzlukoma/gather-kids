@@ -384,7 +384,7 @@ export function useCheckInMutation() {
 			userId?: string;
 		}) => recordCheckIn(childId, eventId, timeslotId, userId),
 		onSuccess: (_, { eventId }) => {
-			const today = getTodayIsoDate();
+			const today = getServiceDayIso();
 			// Invalidate attendance queries
 			queryClient.invalidateQueries({ queryKey: queryKeys.attendance(today) });
 			queryClient.invalidateQueries({

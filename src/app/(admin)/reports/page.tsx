@@ -34,7 +34,7 @@ import {
 import {
 	exportAttendanceRollupCSV,
 	exportEmergencySnapshotCSV,
-	getTodayIsoDate,
+	getServiceDayIso,
 } from '@/lib/dal';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/auth-context';
@@ -45,7 +45,7 @@ export default function ReportsPage() {
 	const { user, loading } = useAuth();
 	const isAuthorized = !loading && !!user && user.metadata?.role === AuthRole.ADMIN;
 
-	const today = getTodayIsoDate();
+	const today = getServiceDayIso();
 	const { toast } = useToast();
 
 	const [date, setDate] = useState<DateRange | undefined>({

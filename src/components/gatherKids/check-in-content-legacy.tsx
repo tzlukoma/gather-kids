@@ -18,7 +18,7 @@ import { Users, Filter, Edit } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useChildrenForActiveCycle, useAttendance } from '@/hooks/data';
 import { CardGridSkeleton } from '@/components/skeletons/CardGridSkeleton';
-import { getTodayIsoDate } from '@/lib/dal';
+import { getServiceDayIso } from '@/lib/dal';
 import type { Attendance } from '@/lib/types';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { normalizeGradeDisplay, getGradeSortOrder } from '@/lib/gradeUtils';
@@ -145,7 +145,7 @@ export function CheckInContentLegacy() {
 		}
 	}
 
-	const today = getTodayIsoDate();
+	const today = getServiceDayIso();
 
 	// Use React Query hooks for data fetching
 	const { data: children = EMPTY_CHILDREN, isLoading: childrenLoading } = useChildrenForActiveCycle();

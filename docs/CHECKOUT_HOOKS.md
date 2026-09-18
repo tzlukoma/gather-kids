@@ -14,7 +14,7 @@ Move and update the existing mutation hooks from `src/lib/hooks/useData.ts` (lin
 'use client';
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { recordCheckIn, recordCheckOut, getTodayIsoDate } from '@/lib/dal';
+import { recordCheckIn, recordCheckOut, getServiceDayIso } from '@/lib/dal';
 import { queryKeys } from './keys';
 
 export function useCheckInMutation() {
@@ -33,7 +33,7 @@ export function useCheckInMutation() {
 			userId?: string;
 		}) => recordCheckIn(childId, eventId, timeslotId, userId),
 		onSuccess: (_, { eventId }) => {
-			const today = getTodayIsoDate();
+			const today = getServiceDayIso();
 			// Invalidate attendance queries
 			queryClient.invalidateQueries({ queryKey: queryKeys.attendance(today) });
 			queryClient.invalidateQueries({
@@ -67,7 +67,7 @@ export function useCheckOutMutation() {
 			userId?: string;
 		}) => recordCheckOut(attendanceId, verifier, userId),
 		onSuccess: () => {
-			const today = getTodayIsoDate();
+			const today = getServiceDayIso();
 			// Invalidate attendance queries
 			queryClient.invalidateQueries({ queryKey: queryKeys.attendance(today) });
 			// Invalidate checked-in children
@@ -136,7 +136,7 @@ Commit message should include `Closes #170` to auto-close the GitHub issue.
 ## Key Differences from Legacy
 
 1. **Query keys**: Use centralized `queryKeys` from `./keys` instead of hardcoded arrays
-2. **Date helper**: Use `getTodayIsoDate()` instead of manual date formatting
+2. **Date helper**: Use `getServiceDayIso()` — the church-local service day — instead of manual date formatting or `getTodayIsoDate()` (which is UTC and rolls over mid-evening ET)
 3. **Granular invalidation**: Invalidate both general and event-specific attendance queries
 4. **Additional invalidations**: Include `checkedInChildren` and `checkedInCount` queries
 
