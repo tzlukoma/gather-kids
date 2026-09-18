@@ -32,6 +32,7 @@ import type {
 	ConditionalConsentContext,
 	RegistrationFormInput,
 } from './registration-schema';
+import type { RegisteredChildReceipt } from '@/lib/types';
 import { findDuplicateCustomQuestionConflictsForChildren } from './steps/step4-ministries';
 import { useDraftPersistence } from '@/hooks/useDraftPersistence';
 import { useFeatureFlags } from '@/contexts/feature-flag-context';
@@ -112,7 +113,7 @@ export default function RegisterWizard() {
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [showCancelDialog, setShowCancelDialog] = useState(false);
 	const [childrenEnrolledInBibleBee, setChildrenEnrolledInBibleBee] = useState(false);
-	const [registeredChildren, setRegisteredChildren] = useState<Array<{name: string; ministries: string[]}>>([]);
+	const [registeredChildren, setRegisteredChildren] = useState<RegisteredChildReceipt[]>([]);
 	const [prefillState, setPrefillState] = useState<RegistrationPrefillState>(() =>
 		mapRegistrationPrefillState({ loadResult: null })
 	);
@@ -518,32 +519,25 @@ export default function RegisterWizard() {
 
 			const result = await registerHouseholdCanonical(cleanedData, cycleId);
 
-			// Build registered children summary
-			const childSummary = data.children.map((child) => {
-				const ministries: string[] = ['Sunday School'];
-				
-				// Add enrolled ministries
-				if (child.ministrySelections) {
-					Object.entries(child.ministrySelections).forEach(([code, selected]) => {
-						if (selected) {
-							// Try to find ministry name (fallback to code if not found)
-							ministries.push(code.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()));
-						}
-					});
-				}
+			// The confirmation screen reports what registration actually stored,
+			// not what the guardian ticked. Before #400 this summary was built
+			// from the form, prettifying ministry *codes* into labels, so it
+			// announced enrollments the DAL had declined to create.
+			const registeredChildren = result.registeredChildren ?? [];
+			setRegisteredChildren(registeredChildren);
 
-				return {
-					name: `${child.first_name} ${child.last_name}`,
-					ministries,
-				};
-			});
-			setRegisteredChildren(childSummary);
-
-			// Check if any children enrolled in Bible Bee
-			const hasBibleBee = data.children.some(
-				(child) => child.ministrySelections?.['bible-bee']
+			// Likewise the Bible Bee panel: it follows the stored enrollment, so
+			// it cannot offer scripture assignments to a child who was not
+			// actually enrolled.
+			setChildrenEnrolledInBibleBee(
+				registeredChildren.some((child) =>
+					child.enrollments.some(
+						(enrollment) =>
+							enrollment.ministry_code === 'bible-bee' &&
+							enrollment.status === 'enrolled'
+					)
+				)
 			);
-			setChildrenEnrolledInBibleBee(hasBibleBee);
 
 			captureAnalyticsEvent('registration_submitted', {
 				child_count: data.children.length,
