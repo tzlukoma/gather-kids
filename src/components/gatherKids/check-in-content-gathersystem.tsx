@@ -572,16 +572,58 @@ export function CheckInContentGatherSystem() {
 					)}
 				</div>
 
+				{/*
+				  Labels shorten below `lg`. TabsTrigger is `whitespace-nowrap` with
+				  `px-3`, so in a three-column grid on a 320px phone the full copy is
+				  wider than its cell and adjacent triggers overlap into each other —
+				  no page overflow, just unreadable. The counts are appended to the
+				  label, so a larger roster makes it worse. `aria-label` keeps the
+				  full phrase for assistive tech at every width, and the counts are
+				  `tabular-nums` so they do not jitter as children check in.
+
+				  The breakpoint is measured, not guessed: "Not checked in 18" needs a
+				  ~148px cell, and while the list is `w-full grid-cols-3` the columns
+				  split the container evenly — 127px at 420px, 121px at 402px. An
+				  earlier 420px breakpoint looked correct in a 320px screenshot and
+				  still clipped at 420.
+
+				  `lg` rather than `sm` because that is where the row layout gives the
+				  list its own width. At `md` the admin sidebar appears and squeezes
+				  the content column: a 768px tablet gave 152px per cell, four short of
+				  the 156px "Not checked in 188" needs once a roster reaches three
+				  digits. Full labels therefore wait for `lg`, where the list is
+				  content-sized and the measurement is clean from 320px to 1536px.
+				*/}
 				<Tabs
 					value={statusFilter}
 					onValueChange={(value) => setStatusFilter(value as StatusFilter)}>
 					<TabsList className="grid w-full grid-cols-3 lg:w-auto lg:inline-grid">
-						<TabsTrigger value="all">All {statusCounts.all}</TabsTrigger>
-						<TabsTrigger value="checkedIn">
-							Checked in {statusCounts.checkedIn}
+						<TabsTrigger
+							value="all"
+							aria-label={`All ${statusCounts.all}`}
+							className="min-w-0 gap-1 px-1.5 text-xs lg:px-3 lg:text-sm">
+							<span className="truncate">All</span>
+							<span className="tabular-nums">{statusCounts.all}</span>
 						</TabsTrigger>
-						<TabsTrigger value="checkedOut">
-							Not checked in {statusCounts.notCheckedIn}
+						<TabsTrigger
+							value="checkedIn"
+							aria-label={`Checked in ${statusCounts.checkedIn}`}
+							className="min-w-0 gap-1 px-1.5 text-xs lg:px-3 lg:text-sm">
+							<span className="truncate">
+								<span className="lg:hidden">In</span>
+								<span className="hidden lg:inline">Checked in</span>
+							</span>
+							<span className="tabular-nums">{statusCounts.checkedIn}</span>
+						</TabsTrigger>
+						<TabsTrigger
+							value="checkedOut"
+							aria-label={`Not checked in ${statusCounts.notCheckedIn}`}
+							className="min-w-0 gap-1 px-1.5 text-xs lg:px-3 lg:text-sm">
+							<span className="truncate">
+								<span className="lg:hidden">Not in</span>
+								<span className="hidden lg:inline">Not checked in</span>
+							</span>
+							<span className="tabular-nums">{statusCounts.notCheckedIn}</span>
 						</TabsTrigger>
 					</TabsList>
 				</Tabs>
