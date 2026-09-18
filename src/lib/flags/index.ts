@@ -9,6 +9,7 @@ import {
 	createPostHogFlagAdapter,
 	getSharedPostHogFlagsClient,
 } from '@/lib/flags/posthog-adapter';
+import { isLocalFlagOverrideEnabled } from '@/lib/flags/local-flag-overrides';
 import type { FlagAdapter } from '@/lib/flags/types';
 
 export {
@@ -27,8 +28,20 @@ export {
 } from '@/lib/flags/get-flag-eval-context';
 export type { FlagAdapter } from '@/lib/flags/types';
 
+/**
+ * Used whenever remote flags are unavailable — always in development and test,
+ * and in any deployment without a usable PostHog client.
+ *
+ * Returns each flag's default, which keeps GatherSystem off, EXCEPT for keys
+ * explicitly listed in `GATHERSYSTEM_LOCAL_FLAGS`. That override is refused
+ * outright in production and UAT by `isLocalFlagOverrideEnabled`, which asks the
+ * environment directly rather than assuming this adapter implies a local run —
+ * `getDefaultFlagAdapter` can select it in production when the client is
+ * missing. See `src/lib/flags/local-flag-overrides.ts`.
+ */
 const localAdapter: FlagAdapter = {
-	async getBoolean(_key, defaultValue) {
+	async getBoolean(key, defaultValue) {
+		if (isLocalFlagOverrideEnabled(key)) return true;
 		return defaultValue;
 	},
 	async getVariant(_key, defaultValue) {

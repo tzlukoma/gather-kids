@@ -170,6 +170,67 @@ Local `next dev`, Jest, and CI therefore always get defaults. A production-like 
 
 ---
 
+## Turning a flag on locally
+
+Because remote evaluation never runs locally, the local adapter returns each
+flag's default — and every GatherSystem default is **off**. Without an override
+there is no way to render a GatherSystem screen on a dev machine at all.
+
+`GATHERSYSTEM_LOCAL_FLAGS` is a comma-separated allowlist read by the **server**:
+
+```bash
+GATHERSYSTEM_LOCAL_FLAGS=gathersystem_door NEXT_PUBLIC_LOGIN_PASSWORD_ENABLED=true npm run dev
+```
+
+`npm run dev:gathersystem` boots with all six keys on, plus password login.
+
+Rules:
+
+- Only the six keys in `GATHERSYSTEM_FLAG_KEYS` are honoured. Unknown or
+  misspelled keys are **ignored**, never matched loosely, so a typo cannot
+  enable a different flag.
+- The override only ever forces a flag **on**. It cannot turn one off.
+- It is honoured **only** when `NODE_ENV` is `development` or `test`, and is
+  refused when the deploy env is `production` or `uat` — two independent signals,
+  because a production deployment can be built with a non-production `NODE_ENV`.
+- `NODE_ENV` is an **allowlist**, not "not production". `NODE_ENV=uat` with an
+  unset deploy env otherwise slipped through: it is not `production`, so a
+  denylist passed it, and it is neither `test` nor `development`, so
+  `shouldUseRemoteFlags()` fell through to the deploy env — which resolves to
+  `development` when unset and selects the local adapter. Permitted override plus
+  local adapter meant a gate could be forced on in a UAT runtime. The deploy env
+  stays a denylist because it is optional and usually unset locally.
+- The check is an **explicit environment check**, not an inference from which
+  adapter is in play. `getDefaultFlagAdapter()` falls back to the local adapter
+  whenever the PostHog client is missing, and that fallback is reachable in
+  production, so "we are on the local adapter" does not mean "we are local".
+- It is a **development affordance, not flag QA**. It says nothing about whether
+  PostHog would return true for a given person: percentage rollouts, role
+  targeting, and the session-less `<env>:anonymous` bucketing are only
+  observable in UAT.
+
+Implementation: `src/lib/flags/local-flag-overrides.ts`.
+`GATHERSYSTEM_REGISTRATION_OVERRIDE` predates this and still works —
+`/register` consumes it outside the adapter because it serves signed-out
+visitors, and `npm run test:e2e:gathersystem` depends on it.
+
+### Capturing screenshots for a PR
+
+With the dev server booted as above and local data seeded (`npm run dev:seeded`):
+
+```bash
+npm run screens:capture -- --routes /check-in --role admin \
+  --widths 375,1280 --expect-text "Not checked in" --label door
+```
+
+Local only — it refuses production and UAT with no opt-in. `--expect-text`
+asserts a marker unique to the flag-gated UI and **fails instead of saving** when
+the dev server was started without the flag, which otherwise files a screenshot
+of the legacy screen as evidence for the new one. Output lands in `.screenshots/`
+(gitignored); attach the PNGs to the PR, never commit them.
+
+---
+
 ## PostHog project setup (Thomas / ops)
 
 One PostHog Cloud project for UAT + production. Isolation is person `deploy_env` + distinct-id prefix, not separate projects.
