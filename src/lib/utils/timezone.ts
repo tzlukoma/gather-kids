@@ -145,6 +145,29 @@ export function getServiceDayStartMs(date: string): number | null {
 }
 
 /**
+ * The service day before `date`, or `null` when `date` is not a real calendar
+ * day.
+ *
+ * Derived from the calendar rather than by subtracting 24 hours, because a DST
+ * transition day is 23 or 25 hours long and a fixed duration lands on the wrong
+ * day at both ends of it:
+ *
+ * - 11:30pm EST on the 25-hour fall-back day, minus 24h, is still *that same*
+ *   service day — so the previous day is never reached and the window silently
+ *   collapses to one day for that final hour.
+ * - 12:30am EDT on the day after the 23-hour spring-forward day, minus 24h,
+ *   skips the previous day entirely and lands two days back.
+ *
+ * Stepping back 12 hours from this day's local midnight always lands inside the
+ * previous local day, whether that day is 23, 24 or 25 hours long.
+ */
+export function getPreviousServiceDay(date: string): string | null {
+    const start = getServiceDayStartMs(date);
+    if (start === null) return null;
+    return getServiceDayIso(new Date(start - 12 * 60 * 60 * 1000));
+}
+
+/**
  * The half-open UTC instant range `[start, end)` covering the service day
  * `date`, as ISO strings, or `null` when `date` is not a real calendar day.
  *

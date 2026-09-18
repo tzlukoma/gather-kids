@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { requireUser } from '@/lib/api-auth';
 import {
+	getPreviousServiceDay,
 	getServiceDayIso,
 	getServiceDayRangeUtc,
 } from '@/lib/utils/timezone';
@@ -43,8 +44,6 @@ import {
 
 const STAFF_ROLES = new Set(['ADMIN', 'MINISTRY_LEADER']);
 
-const DAY_MS = 24 * 60 * 60 * 1000;
-
 /**
  * Is `date` inside the window the pickup signal actually needs?
  *
@@ -58,12 +57,15 @@ const DAY_MS = 24 * 60 * 60 * 1000;
  * screen left open across midnight during a late event does not lose the marker.
  * Two days is wide enough that the boundary can never bite and narrow enough
  * that the parameter cannot be walked backwards to enumerate history.
+ *
+ * The previous day comes from `getPreviousServiceDay`, not from subtracting 24
+ * hours: on a DST transition day a fixed duration lands on the wrong day, either
+ * collapsing the window to a single day or skipping a day and admitting one it
+ * should not. Both are covered by tests.
  */
 function isLiveServiceWindow(date: string, now: number = Date.now()): boolean {
-	return (
-		date === getServiceDayIso(new Date(now)) ||
-		date === getServiceDayIso(new Date(now - DAY_MS))
-	);
+	const today = getServiceDayIso(new Date(now));
+	return date === today || date === getPreviousServiceDay(today);
 }
 
 function getSupabaseAdmin(): SupabaseClient | null {

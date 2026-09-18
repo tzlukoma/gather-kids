@@ -1,5 +1,6 @@
 import {
 	SERVICE_DAY_TIMEZONE,
+	getPreviousServiceDay,
 	getServiceDayIso,
 	getServiceDayRangeUtc,
 	getServiceDayStartMs,
@@ -158,6 +159,77 @@ describe('getServiceDayStartMs', () => {
 
 	it('accepts a genuine leap day', () => {
 		expect(getServiceDayStartMs('2028-02-29')).not.toBeNull();
+	});
+});
+
+describe('getPreviousServiceDay', () => {
+	it('steps back one calendar day on an ordinary day', () => {
+		expect(getPreviousServiceDay('2026-09-17')).toBe('2026-09-16');
+		expect(getPreviousServiceDay('2026-01-01')).toBe('2025-12-31');
+	});
+
+	// Regression, reported on #449. A fixed 24-hour subtraction is wrong at both
+	// ends of a DST transition, in opposite directions.
+	describe('across a DST transition', () => {
+		const DAY_MS = 24 * 60 * 60 * 1000;
+
+		// 11:30pm EST on the 25-hour fall-back day. Minus 24 hours is 12:30am EDT
+		// on that *same* service day, so the previous day was never reached and
+		// the staff pickup window silently collapsed to one day for that hour.
+		it('still reaches the previous day in the last hour of a 25-hour day', () => {
+			const lateOnFallBackDay = Date.parse('2026-11-02T04:30:00.000Z');
+
+			expect(getServiceDayIso(new Date(lateOnFallBackDay))).toBe('2026-11-01');
+			// What the fixed-duration version produced:
+			expect(getServiceDayIso(new Date(lateOnFallBackDay - DAY_MS))).toBe(
+				'2026-11-01'
+			);
+			// What it must produce:
+			expect(getPreviousServiceDay('2026-11-01')).toBe('2026-10-31');
+		});
+
+		// 12:30am EDT the day after the 23-hour spring-forward day. Minus 24 hours
+		// skips the previous day entirely and lands two days back — rejecting the
+		// day that should be in the window and admitting one that should not.
+		it('does not skip a day after a 23-hour day', () => {
+			const earlyAfterSpringForward = Date.parse('2026-03-09T04:30:00.000Z');
+
+			expect(getServiceDayIso(new Date(earlyAfterSpringForward))).toBe(
+				'2026-03-09'
+			);
+			// What the fixed-duration version produced:
+			expect(getServiceDayIso(new Date(earlyAfterSpringForward - DAY_MS))).toBe(
+				'2026-03-07'
+			);
+			// What it must produce:
+			expect(getPreviousServiceDay('2026-03-09')).toBe('2026-03-08');
+		});
+
+		it('steps back onto and off each transition day itself', () => {
+			expect(getPreviousServiceDay('2026-03-08')).toBe('2026-03-07');
+			expect(getPreviousServiceDay('2026-11-01')).toBe('2026-10-31');
+			expect(getPreviousServiceDay('2026-11-02')).toBe('2026-11-01');
+		});
+	});
+
+	it('never skips or repeats a day across a whole year', () => {
+		let cursor = '2027-01-01';
+		const seen: string[] = [];
+		for (let i = 0; i < 365; i++) {
+			const previous = getPreviousServiceDay(cursor)!;
+			expect(previous).not.toBeNull();
+			expect(previous < cursor).toBe(true);
+			seen.push(previous);
+			cursor = previous;
+		}
+		// 365 strictly decreasing steps back from 1 Jan 2027 must land on 1 Jan
+		// 2026 exactly — one short or one long would miss it.
+		expect(cursor).toBe('2026-01-01');
+		expect(new Set(seen).size).toBe(365);
+	});
+
+	it.each(['2026-02-30', '2026-99-99', 'not-a-date'])('rejects %p', (bad) => {
+		expect(getPreviousServiceDay(bad)).toBeNull();
 	});
 });
 

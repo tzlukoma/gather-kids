@@ -175,6 +175,58 @@ describe('GET /api/incidents authorization', () => {
 			expect(eqCalls().some(([col]) => col === 'leader_id')).toBe(false);
 		});
 
+		// Regression, reported on #449. The previous day used to come from
+		// `now - 24h`, which is wrong on a DST transition day in both directions:
+		// on the 25-hour fall-back day that subtraction stays inside the *current*
+		// service day, so the window collapsed to one day and a leader lost the
+		// pickup marker for a child hurt the evening before; on the day after the
+		// 23-hour spring-forward day it skipped a day, rejecting the day that
+		// belongs in the window and admitting one that does not.
+		describe('across a DST transition', () => {
+			afterEach(() => {
+				jest.useRealTimers();
+			});
+
+			const at = (iso: string) => {
+				jest.useFakeTimers({ doNotFake: ['nextTick'] });
+				jest.setSystemTime(new Date(iso));
+			};
+
+			// 11:30pm EST on the 25-hour fall-back day (service day 1 Nov).
+			it('keeps the previous service day open in the last hour of a 25-hour day', async () => {
+				asUser('MINISTRY_LEADER', 'leader-1');
+				at('2026-11-02T04:30:00.000Z');
+
+				const { GET } = await import('@/app/api/incidents/route');
+				await GET(dateReq('2026-10-31'));
+
+				expect(eqCalls().some(([col]) => col === 'leader_id')).toBe(false);
+			});
+
+			// 12:30am EDT the day after the 23-hour spring-forward day.
+			it('keeps the previous service day open after a 23-hour day', async () => {
+				asUser('MINISTRY_LEADER', 'leader-1');
+				at('2026-03-09T04:30:00.000Z');
+
+				const { GET } = await import('@/app/api/incidents/route');
+				await GET(dateReq('2026-03-08'));
+
+				expect(eqCalls().some(([col]) => col === 'leader_id')).toBe(false);
+			});
+
+			// ...and the day the fixed-duration version wrongly let through must
+			// still be refused, so this is not simply a widening.
+			it('does not admit a day outside the window after a 23-hour day', async () => {
+				asUser('MINISTRY_LEADER', 'leader-1');
+				at('2026-03-09T04:30:00.000Z');
+
+				const { GET } = await import('@/app/api/incidents/route');
+				await GET(dateReq('2026-03-07'));
+
+				expect(eqCalls()).toContainEqual(['leader_id', 'leader-1']);
+			});
+		});
+
 		// The reconstruction attack: iterate `date` backwards and reassemble the
 		// table. The carve-out has no child-safety justification outside the live
 		// window, so outside it a leader sees only what they logged.
