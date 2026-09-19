@@ -3,13 +3,12 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { isOfflineSupabase } from '@/lib/offline-supabase';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { AlertTriangle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
 import { useFormCompat as useForm } from '@/hooks/useFormCompat';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Form } from '@/components/ui/form';
+import { WizardActionBar } from './wizard-action-bar';
 import { Step1Household } from './steps/step1-household';
 import { Step2Guardians } from './steps/step2-guardians';
 import { Step3Children } from './steps/step3-children';
@@ -820,64 +819,14 @@ export default function RegisterWizard() {
 								</>
 							)}
 
-							{/* Navigation. Pinned to the bottom on phones only: step 4 and
-							    step 5 are long enough that the primary action was scrolled
-							    far below the fold, which on a phone reads as a dead end.
-							    `-mx-4` bleeds it back through the content gutter so the bar
-							    spans the screen, and the safe-area inset keeps it clear of
-							    the home indicator.
-
-							    From md up it goes back to being a card in the flow. Desktop
-							    has the room, the layout stays aligned to the signed frame,
-							    and — the reason it is not merely cosmetic — the global toast
-							    viewport sits bottom-right above sm, so a pinned bar there
-							    would sit under every toast the wizard raises.
-
-							    `flex-wrap` stays: at phone widths Back + Cancel + Submit
-							    overflow one row, which pushed Submit outside its container
-							    where it could not be tapped at all. */}
-							<div
-								className="sticky bottom-0 z-30 -mx-4 border-t border-[#eae4da] bg-white px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:static md:mx-0 md:rounded-lg md:border md:p-6">
-								<div className="mx-auto max-w-3xl">
-									<div className="flex flex-wrap gap-3 justify-between">
-										<div className="flex gap-3">
-											<Button
-												type="button"
-												variant="outline"
-												onClick={handleBack}
-												disabled={currentStep === 1}
-												className="flex items-center gap-2">
-												<ChevronLeft className="h-4 w-4" />
-												Back
-											</Button>
-											<Button
-												type="button"
-												variant="outline"
-												onClick={handleCancel}
-												className="text-destructive hover:text-destructive">
-												Cancel
-											</Button>
-										</div>
-
-										{currentStep < totalSteps ? (
-											<Button
-												type="button"
-												onClick={handleNext}
-												className="flex items-center gap-2 bg-[#017c7d] hover:bg-[#016566] text-white">
-												Save & continue
-												<ChevronRight className="h-4 w-4" />
-											</Button>
-										) : (
-											<Button
-												type="submit"
-												disabled={isSubmitting}
-												className="bg-[#017c7d] hover:bg-[#016566] text-white">
-												{isSubmitting ? 'Submitting...' : 'Submit registration'}
-											</Button>
-										)}
-									</div>
-								</div>
-							</div>
+							<WizardActionBar
+								currentStep={currentStep}
+								totalSteps={totalSteps}
+								isSubmitting={isSubmitting}
+								onBack={handleBack}
+								onCancel={handleCancel}
+								onNext={handleNext}
+							/>
 						</form>
 					</Form>
 				</div>

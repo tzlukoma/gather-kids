@@ -26,8 +26,23 @@ import {
  * difference between one fix-and-rerun cycle and a dozen.
  */
 
-const WIDTHS = [320, 375, 390, 402];
-const HEIGHT = 844;
+/**
+ * The frames the ticket names, as width AND height.
+ *
+ * Height is not decoration here. A single tall viewport hides the case that
+ * matters: at 568px the pinned action bar and the sticky step strip together
+ * take a far larger share of the screen, so a control that comfortably clears
+ * the fold at 844px may not clear it at all. 390 carries the acceptance
+ * criterion's fourth width; it has no frame of its own in the spec, so it is
+ * paired with a common phone height.
+ */
+const FRAMES = [
+  { label: '320x568', width: 320, height: 568 },
+  { label: '375x812', width: 375, height: 812 },
+  { label: '390x844', width: 390, height: 844 },
+  { label: '402x874', width: 402, height: 874 },
+  { label: 'desktop 1280x900', width: 1280, height: 900 },
+];
 
 type Overflow = {
   screen: string;
@@ -119,14 +134,20 @@ async function measure(page: Page, screen: string, width: number) {
   );
 }
 
-function describeMobileLayout(width: number) {
+function describeLayoutFrame(frame: (typeof FRAMES)[number]) {
+  const { label, width, height } = frame;
+  // The action bar is pinned on phones and returns to the flow from md up, so
+  // the reachability assertion only applies below that breakpoint. On desktop
+  // the primary action sitting below a long step is the intended layout.
+  const isPhone = width < 768;
+
   gathersystemDescribe(
-    `GatherSystem registration layout at ${width}px @mutating`,
+    `GatherSystem registration layout at ${label} @mutating`,
     () => {
       test.use({
-        viewport: { width, height: HEIGHT },
-        isMobile: true,
-        hasTouch: true,
+        viewport: { width, height },
+        isMobile: isPhone,
+        hasTouch: isPhone,
       });
 
       let createdUserId: string | undefined;
@@ -145,7 +166,7 @@ function describeMobileLayout(width: number) {
         }
       });
 
-      test(`never overflows horizontally at ${width}px`, async ({ page }) => {
+      test(`never overflows horizontally at ${label}`, async ({ page }) => {
         test.skip(!isLocalSupabaseConfigured(), 'Requires local Supabase');
         test.slow();
         assertDisposableLocalSupabase();
@@ -172,18 +193,22 @@ function describeMobileLayout(width: number) {
          * scrolled to the bottom it would be reachable either way, and the
          * test would prove nothing.
          */
-        const expectPrimaryActionOnScreen = async (label: string) => {
+        const expectPrimaryActionOnScreen = async (step: string) => {
+          if (!isPhone) return;
           await page.evaluate(() => window.scrollTo(0, 0));
           const cta = page
             .getByRole('button', { name: /save & continue|submit registration/i })
             .first();
           const box = await cta.boundingBox();
-          expect(box, `${label}: no primary action`).not.toBeNull();
-          expect(box!.y, `${label}: primary action above the viewport`).toBeGreaterThan(0);
+          expect(box, `${step} @ ${label}: no primary action`).not.toBeNull();
+          expect(
+            box!.y,
+            `${step} @ ${label}: primary action above the viewport`,
+          ).toBeGreaterThan(0);
           expect(
             box!.y + box!.height,
-            `${label}: primary action below the fold at the top of the step`,
-          ).toBeLessThanOrEqual(HEIGHT + 1);
+            `${step} @ ${label}: primary action below the fold at the top of the step`,
+          ).toBeLessThanOrEqual(height + 1);
         };
 
         // ---- Entry -------------------------------------------------------
@@ -246,4 +271,4 @@ function describeMobileLayout(width: number) {
   );
 }
 
-for (const width of WIDTHS) describeMobileLayout(width);
+for (const frame of FRAMES) describeLayoutFrame(frame);

@@ -3,6 +3,7 @@ import { render } from '@testing-library/react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Form } from '@/components/ui/form';
+import { WizardActionBar } from '@/components/gatherKids/registration-wizard/wizard-action-bar';
 import { Step1Household } from '@/components/gatherKids/registration-wizard/steps/step1-household';
 import { Step2Guardians } from '@/components/gatherKids/registration-wizard/steps/step2-guardians';
 import { Step3Children } from '@/components/gatherKids/registration-wizard/steps/step3-children';
@@ -168,5 +169,66 @@ describe('child navigation header', () => {
 	it('lets a long child name break instead of widening the row', () => {
 		const container = renderStep(3);
 		expect(container.querySelector('h2')!.className).toContain('break-words');
+	});
+});
+
+describe('wizard action bar', () => {
+	const renderBar = (currentStep: number) =>
+		render(
+			<WizardActionBar
+				currentStep={currentStep}
+				totalSteps={5}
+				isSubmitting={false}
+				onBack={() => undefined}
+				onCancel={() => undefined}
+				onNext={() => undefined}
+			/>
+		).container;
+
+	// shadcn's default Button is `h-10` — 40px, under the 44px minimum. These
+	// four were missed when the other mobile controls were raised, because the
+	// bar was inline in the wizard and nothing rendered it in jsdom.
+	it.each([
+		['Back', 4],
+		['Cancel', 4],
+		['Save & continue', 4],
+		['Submit registration', 5],
+	])('gives %s a 44px target on phones', (name, step) => {
+		const container = renderBar(step as number);
+		const button = Array.from(container.querySelectorAll('button')).find(
+			(b) => (b.textContent || '').trim() === name
+		);
+		expect(button).toBeDefined();
+		expect(button!.className).toContain('min-h-11');
+		// …and back to the default height where a pointer is doing the work.
+		expect(button!.className).toContain('md:min-h-10');
+	});
+
+	it('shows the primary action for the step it is on', () => {
+		expect(
+			Array.from(renderBar(5).querySelectorAll('button')).map((b) =>
+				(b.textContent || '').trim()
+			)
+		).toContain('Submit registration');
+		expect(
+			Array.from(renderBar(4).querySelectorAll('button')).map((b) =>
+				(b.textContent || '').trim()
+			)
+		).toContain('Save & continue');
+	});
+
+	it('pins to the bottom on phones and returns to the flow from md up', () => {
+		// Not cosmetic: the global toast viewport sits bottom-right above sm, so
+		// a bar pinned there would sit under every toast the wizard raises.
+		const bar = renderBar(4).querySelector('[data-testid="wizard-action-bar"]');
+		expect(bar).not.toBeNull();
+		expect(bar!.className).toContain('sticky');
+		expect(bar!.className).toContain('bottom-0');
+		expect(bar!.className).toContain('md:static');
+	});
+
+	it('wraps, so the primary action cannot be pushed out of the bar', () => {
+		const bar = renderBar(4).querySelector('[data-testid="wizard-action-bar"]');
+		expect(bar!.querySelector('.flex-wrap')).not.toBeNull();
 	});
 });
