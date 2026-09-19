@@ -7,6 +7,10 @@ import {
 	withCanonicalGrades,
 } from '@/components/gatherKids/registration-wizard/grade-options';
 import { canonicalizeGradeForStorage } from '@/lib/gradeUtils';
+import {
+	defaultChildValues,
+	registrationSchema,
+} from '@/components/gatherKids/registration-wizard/registration-schema';
 
 describe('GRADE_OPTIONS', () => {
 	it('covers Pre-K through 12 and nothing else', () => {
@@ -145,5 +149,103 @@ describe('withCanonicalGrades', () => {
 	it('handles a form with no children yet', () => {
 		expect(withCanonicalGrades({ children: [] })).toEqual({ children: [] });
 		expect(withCanonicalGrades({})).toEqual({});
+	});
+});
+
+describe('the schema agrees with what the control can display', () => {
+	// The point of the whole fix: a field that looks unanswered must not be
+	// treated as answered. `gradeSelectValue` deciding a stored grade is
+	// unusable, and the schema deciding it is fine, is exactly the mismatch
+	// that let a blank-looking required field advance and submit.
+	const gradeErrors = (grade: string) => {
+		const result = registrationSchema.safeParse(buildForm(grade));
+		if (result.success) return [];
+		return result.error.issues
+			.filter((i) => i.path[0] === 'children' && i.path[2] === 'grade')
+			.map((i) => i.message);
+	};
+
+	function buildForm(grade: string) {
+		return {
+			household: {
+				address_line1: '123 Main St',
+				city: 'Perth Amboy',
+				state: 'NJ',
+				zip: '08861',
+			},
+			guardians: [
+				{
+					first_name: 'Alex',
+					last_name: 'Rivera',
+					mobile_phone: '5551234567',
+					email: '',
+					relationship: 'Mother',
+					is_primary: true,
+				},
+			],
+			emergencyContact: {
+				first_name: 'Sam',
+				last_name: 'Lee',
+				mobile_phone: '5559876543',
+				relationship: 'Aunt',
+			},
+			children: [
+				{
+					...defaultChildValues,
+					first_name: 'Amara',
+					last_name: 'Rivera',
+					dob: '2015-04-02',
+					grade,
+					allergies: 'None',
+				},
+			],
+			consents: {
+				liability: true,
+				photoRelease: true,
+				group_consents: {},
+				custom_consents: {},
+			},
+		};
+	}
+
+	it.each(GRADE_CODES.map((code) => [String(code)]))(
+		'accepts canonical %s',
+		(grade) => {
+			expect(gradeErrors(grade)).toEqual([]);
+		}
+	);
+
+	it.each([['5th'], ['Pre-K'], ['K'], ['Grade 5']])(
+		'accepts %s, which the control can still resolve',
+		(grade) => {
+			expect(gradeErrors(grade)).toEqual([]);
+		}
+	);
+
+	it('still reports an empty grade as required', () => {
+		expect(gradeErrors('')).toEqual(['Grade is required.']);
+	});
+
+	it.each([['Freshman'], ['13'], ['-2'], ['not a grade']])(
+		'blocks %s rather than letting a blank-looking field through',
+		(grade) => {
+			// The regression this guards: the value is non-empty, so `.min(1)`
+			// passed it, while the Select rendered "Select grade" because the
+			// value matches no option. The step advanced on a field the parent
+			// could see was empty.
+			expect(gradeSelectValue(grade)).toBe('');
+			expect(gradeErrors(grade)).toEqual(['Select a grade from the list.']);
+		}
+	);
+
+	it('blocks the value withCanonicalGrades deliberately preserved', () => {
+		// `withCanonicalGrades` keeps an unrecognised grade rather than blanking
+		// it, so the original is not destroyed. That is only safe because the
+		// schema refuses it — otherwise preserving it would smuggle it past
+		// validation and into storage.
+		const preserved = withCanonicalGrades({ children: [{ grade: 'Freshman' }] })
+			.children[0].grade;
+		expect(preserved).toBe('Freshman');
+		expect(gradeErrors(preserved)).toEqual(['Select a grade from the list.']);
 	});
 });
