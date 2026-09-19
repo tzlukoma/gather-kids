@@ -329,7 +329,11 @@ export function RegistrationEntry({ onStart }: RegistrationEntryProps) {
 						<p className="text-xs font-semibold tracking-wider uppercase text-[#5b6b72] mb-2">
 							My household
 						</p>
-						<h1 className="text-3xl font-bold text-[#1e2a2f] mb-2">
+						{/* `break-words`: the greeting falls back to the email local
+						    part, which is one long unbreakable token. At text-3xl on a
+						    320px phone that pushed the whole document wider than the
+						    viewport — measured at 379px inside a 256px box. */}
+						<h1 className="text-3xl font-bold text-[#1e2a2f] mb-2 break-words">
 							Good{' '}
 							{new Date().getHours() < 12
 								? 'morning'
@@ -338,7 +342,7 @@ export function RegistrationEntry({ onStart }: RegistrationEntryProps) {
 									: 'evening'}
 							, {userName}
 						</h1>
-						<p className="text-[#5b6b72]">
+						<p className="text-[#5b6b72] break-words">
 							{householdName} · {cycleName} cycle
 						</p>
 					</div>
