@@ -78,7 +78,11 @@ import {
 	mapRegistrationPrefillState,
 	type RegistrationPrefillState,
 } from './registration-prefill-state';
-import type { HouseholdRegistrationLoadResult } from '@/lib/dal/households';
+import type {
+	HouseholdPrefillGradeHint,
+	HouseholdRegistrationLoadResult,
+} from '@/lib/dal/households';
+import { withCanonicalGrades } from './grade-options';
 
 
 type WizardScreen = 'entry' | 'wizard' | 'done';
@@ -128,6 +132,15 @@ export default function RegisterWizard() {
 	const [prefillState, setPrefillState] = useState<RegistrationPrefillState>(() =>
 		mapRegistrationPrefillState({ loadResult: null })
 	);
+	// "Last year they were in 3rd, so we suggest 4th", keyed by child_id. Built
+	// by the DAL from the prior cycle; the wizard previously read only
+	// `prefillData.data` and dropped this entirely.
+	const [gradeHints, setGradeHints] = useState<
+		Record<string, HouseholdPrefillGradeHint>
+	>({});
+	// Children already on the household record. Step 4 uses this to tell a
+	// carried-over ministry choice apart from one made in this sitting.
+	const [existingChildIds, setExistingChildIds] = useState<string[]>([]);
 
 	const { data: registrationCycles = [] } = useQuery({
 		queryKey: ['registrationCycles'],
@@ -254,8 +267,10 @@ export default function RegisterWizard() {
 
 			if (prefillData?.data) {
 				const data = prefillData.data;
+				setGradeHints(prefillData.gradeHintsByChildId ?? {});
+				setExistingChildIds(prefillData.existingChildIds ?? []);
 				form.reset(
-					migrateRegistrationDraftCustomFields({
+					withCanonicalGrades(migrateRegistrationDraftCustomFields({
 						household: {
 							household_id: data.household?.household_id || '',
 							name: data.household?.name || '',
@@ -292,7 +307,7 @@ export default function RegisterWizard() {
 							group_consents: {},
 							custom_consents: {},
 						},
-					})
+					}))
 				);
 				setPrefillState(nextState);
 				toast({
@@ -315,7 +330,11 @@ export default function RegisterWizard() {
 					});
 					setPrefillState(draftState);
 					if (draftData && Object.keys(draftData).length > 0) {
-						form.reset(migrateRegistrationDraftCustomFields(draftData));
+						// A draft written by the first version of this wizard holds
+						// "5th", which matches no option once the control is canonical.
+						form.reset(
+							withCanonicalGrades(migrateRegistrationDraftCustomFields(draftData))
+						);
 						toast({
 							title: 'Draft Restored',
 							description: 'Your previous registration progress has been restored.',
@@ -758,9 +777,20 @@ export default function RegisterWizard() {
 								<Step2Guardians form={form} blockedAt={blockedAt} />
 							)}
 							{currentStep === 3 && (
-								<Step3Children form={form} blockedAt={blockedAt} />
+								<Step3Children
+									form={form}
+									blockedAt={blockedAt}
+									gradeHints={gradeHints}
+									showGradeHints={prefillState.isReturningPrefill}
+								/>
 							)}
-							{currentStep === 4 && <Step4Ministries form={form} />}
+							{currentStep === 4 && (
+								<Step4Ministries
+									form={form}
+									existingChildIds={existingChildIds}
+									hasHouseholdSource={prefillState.hasHouseholdSource}
+								/>
+							)}
 							{currentStep === 5 && (
 								<>
 									{prefillState.isCurrentYearOverwrite && (
@@ -788,7 +818,10 @@ export default function RegisterWizard() {
 							{/* Navigation Buttons */}
 							<Card>
 								<CardContent className="pt-6">
-									<div className="flex gap-3 justify-between">
+									{/* `flex-wrap`: at phone widths Back + Cancel + Submit overflow one
+									    row, which pushed Submit outside the card where it could
+									    not be tapped at all. */}
+									<div className="flex flex-wrap gap-3 justify-between">
 										<div className="flex gap-3">
 											<Button
 												type="button"

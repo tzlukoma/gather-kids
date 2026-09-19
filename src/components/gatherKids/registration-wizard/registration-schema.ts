@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { optionalEmail } from '@/lib/validation/optional-email';
+import { isSelectableGrade } from './grade-options';
 
 const ministrySelectionSchema = z.record(z.boolean().optional()).optional();
 const interestSelectionSchema = z.record(z.boolean().optional()).optional();
@@ -33,7 +34,29 @@ const childSchema = z.object({
 	dob: z.string().refine((val) => val && !isNaN(Date.parse(val)), {
 		message: 'Valid date of birth is required.',
 	}),
-	grade: z.string().min(1, 'Grade is required.'),
+	// Validated against the option set, not just for emptiness. A grade the
+	// control cannot display — one written by an older version, or by an import —
+	// renders as "Select grade" while still being a non-empty string, so a bare
+	// `.min(1)` let a blank-looking required field pass validation and submit
+	// unchanged. That is the same silent validity this fix exists to remove.
+	// One issue, not two: `.min(1).refine(...)` reported both messages for a
+	// blank field, and the step's problem summary lists every message, so a
+	// single empty grade appeared twice.
+	grade: z.string().superRefine((value, ctx) => {
+		if (value.trim().length === 0) {
+			ctx.addIssue({
+				code: z.ZodIssueCode.custom,
+				message: 'Grade is required.',
+			});
+			return;
+		}
+		if (!isSelectableGrade(value)) {
+			ctx.addIssue({
+				code: z.ZodIssueCode.custom,
+				message: 'Select a grade from the list.',
+			});
+		}
+	}),
 	child_mobile: z.string().optional(),
 	allergies: z
 		.string({ required_error: allergyRequiredMessage })

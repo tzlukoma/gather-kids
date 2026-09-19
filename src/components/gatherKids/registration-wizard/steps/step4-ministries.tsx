@@ -23,10 +23,19 @@ import {
 	evaluateMinistryEligibility,
 	type MinistryEligibility,
 } from '@/lib/ministry-eligibility';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { SiblingMinistryCard } from '../sibling-ministry-card';
+import {
+	siblingMinistryStatuses,
+	type SiblingMinistryStatus,
+} from '../sibling-ministry-status';
 
 interface Step4MinistriesProps {
 	form: UseFormReturn<RegistrationFormInput>;
+	/** Children already on the household record, from the prefill load. */
+	existingChildIds?: string[];
+	/** False for a first-time or draft-only session: nothing was ever saved. */
+	hasHouseholdSource?: boolean;
 }
 
 /** The label a child is shown under before they have a name typed in. */
@@ -137,11 +146,14 @@ function MinistryChildSelector({
 	form,
 	fieldPrefix,
 	childrenData,
+	reviewingChildIndex,
 }: {
 	ministry: Ministry;
 	form: UseFormReturn<RegistrationFormInput>;
 	fieldPrefix: 'ministrySelections' | 'interestSelections';
 	childrenData: any[];
+	/** Set while a sibling's saved choices are being reviewed; -1 otherwise. */
+	reviewingChildIndex?: number;
 }) {
 	const { eligible, ineligible } = useMemo(
 		() => partitionChildrenByEligibility(ministry, childrenData ?? []),
@@ -151,7 +163,15 @@ function MinistryChildSelector({
 	return (
 		<div className="space-y-2">
 			{eligible.map(({ child, childIndex }) => (
-				<div key={childIndex} className="flex items-center gap-2">
+				<div
+					key={childIndex}
+					data-child-index={childIndex}
+					data-reviewing={childIndex === reviewingChildIndex ? 'true' : undefined}
+					className={
+						childIndex === reviewingChildIndex
+							? 'flex items-center gap-2 rounded-md bg-[#e8f5f5] ring-1 ring-[#017c7d] px-2 py-1 -mx-2'
+							: 'flex items-center gap-2'
+					}>
 					<FormField
 						control={form.control}
 						name={`children.${childIndex}.${fieldPrefix}.${ministry.code}` as any}
@@ -195,6 +215,7 @@ interface MinistryCardProps {
 	selectionType: 'enrollment' | 'interest';
 	childrenData: any[];
 	conflictingQuestionIds: Set<string>;
+	reviewingChildIndex?: number;
 }
 
 function MinistryCard({
@@ -203,12 +224,14 @@ function MinistryCard({
 	selectionType,
 	childrenData,
 	conflictingQuestionIds,
+	reviewingChildIndex,
 }: MinistryCardProps) {
 	const fieldPrefix =
 		selectionType === 'enrollment' ? 'ministrySelections' : 'interestSelections';
 
 	return (
 		<div
+			data-ministry-code={ministry.code}
 			className="border-2 rounded-lg overflow-hidden transition-all border-[#e0dacf] bg-white hover:border-[#017c7d]/50">
 			<div className="p-4">
 				<div className="flex items-start justify-between mb-3">
@@ -252,6 +275,7 @@ function MinistryCard({
 					form={form}
 					fieldPrefix={fieldPrefix}
 					childrenData={childrenData}
+					reviewingChildIndex={reviewingChildIndex}
 				/>
 
 				{/* Optional consent text */}
@@ -550,8 +574,13 @@ function isSundaySchool(ministry: Ministry): boolean {
 	return sundaySchoolCodes.includes(normalized);
 }
 
-export function Step4Ministries({ form }: Step4MinistriesProps) {
+export function Step4Ministries({
+	form,
+	existingChildIds,
+	hasHouseholdSource = false,
+}: Step4MinistriesProps) {
 	const childrenData = useWatch({ control: form.control, name: 'children' });
+	const [reviewingChildIndex, setReviewingChildIndex] = useState(-1);
 
 	// Fetch all active ministries
 	const { data: allMinistries = [], isLoading: loadingMinistries } = useQuery({
@@ -823,8 +852,40 @@ export function Step4Ministries({ form }: Step4MinistriesProps) {
 		);
 	}
 
+	const siblingStatuses = siblingMinistryStatuses({
+		children: childrenData,
+		ministries: allMinistries,
+		existingChildIds,
+		enabled: hasHouseholdSource,
+	});
+
+	const handleReview = (status: SiblingMinistryStatus) => {
+		// Toggle: pressing Review on the child already under review clears it, so
+		// the button is not a one-way door.
+		const next =
+			status.childIndex === reviewingChildIndex ? -1 : status.childIndex;
+		setReviewingChildIndex(next);
+		if (next === -1) return;
+
+		// Bring the first ministry they kept into view. Nothing about the form
+		// changes — reviewing is a way of looking, not an edit — so there is no
+		// data to lose on the way back.
+		window.requestAnimationFrame(() => {
+			document
+				.querySelector(`[data-ministry-code="${status.firstMinistryCode}"]`)
+				?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+		});
+	};
+
 	return (
 		<div className="space-y-6">
+			<SiblingMinistryCard
+				statuses={siblingStatuses}
+				reviewingChildIndex={reviewingChildIndex}
+				onReview={handleReview}
+				onStopReviewing={() => setReviewingChildIndex(-1)}
+			/>
+
 			{/* Review Summary */}
 			<Alert className="bg-[#e8f5f5] border-[#017c7d]">
 				<Info className="h-4 w-4 text-[#017c7d]" />
@@ -897,6 +958,7 @@ export function Step4Ministries({ form }: Step4MinistriesProps) {
 								selectionType="enrollment"
 								childrenData={childrenData}
 								conflictingQuestionIds={conflictingQuestionIds}
+								reviewingChildIndex={reviewingChildIndex}
 							/>
 						))}
 
@@ -946,6 +1008,7 @@ export function Step4Ministries({ form }: Step4MinistriesProps) {
 													form={form}
 													fieldPrefix="ministrySelections"
 													childrenData={childrenData}
+													reviewingChildIndex={reviewingChildIndex}
 												/>
 											</div>
 										))}
@@ -977,6 +1040,7 @@ export function Step4Ministries({ form }: Step4MinistriesProps) {
 								selectionType="interest"
 								childrenData={childrenData}
 								conflictingQuestionIds={conflictingQuestionIds}
+								reviewingChildIndex={reviewingChildIndex}
 							/>
 						))}
 					</CardContent>

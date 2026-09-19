@@ -365,3 +365,165 @@ export async function cleanupTestData() {
   await supabase.from('ministries').delete().like('ministry_id', 'test_%');
   // Add other cleanup operations as needed
 }
+/** A second non-Sunday-School ministry, so a saved sibling has a real card to review. */
+export const E2E_ACOLYTE_ID = 'min_acolyte';
+
+/**
+ * Returning household with two children, both carrying prior-cycle enrollments.
+ *
+ * `createReturningGuardianFixture` has one child, which cannot exercise the
+ * things #397 is about: a grade hint belongs to one child and not the others,
+ * and "your other child's ministries are already saved" needs an other child.
+ *
+ * Grades are stored canonically (`'3'`, `'K'`) because that is what the DAL
+ * writes. The wizard used to store the label instead, which is the bug.
+ */
+export async function createReturningSiblingFixture(
+  email: string,
+  password = TEST_PASSWORD,
+) {
+  await ensureRegistrationSmokeFixtures();
+  const supabase = createE2EAdminClient();
+  const user = await createConfirmedTestUser(email, password);
+  const householdId = randomUUID();
+  const olderChildId = randomUUID();
+  const youngerChildId = randomUUID();
+
+  await throwIfError(
+    'upsert acolyte ministry',
+    (
+      await supabase.from('ministries').upsert(
+        {
+          ministry_id: E2E_ACOLYTE_ID,
+          name: 'Acolytes',
+          code: 'min_acolyte',
+          enrollment_type: 'enrolled',
+          data_profile: 'Basic',
+          is_active: true,
+        },
+        { onConflict: 'ministry_id' },
+      )
+    ).error,
+  );
+
+  await throwIfError(
+    'insert household',
+    (
+      await supabase.from('households').insert({
+        household_id: householdId,
+        name: 'Okoye Household',
+        address_line1: '300 Sibling Way',
+        city: 'Perth Amboy',
+        state: 'NJ',
+        zip: '08861',
+        email,
+      })
+    ).error,
+  );
+
+  await throwIfError(
+    'insert guardian',
+    (
+      await supabase.from('guardians').insert({
+        guardian_id: randomUUID(),
+        household_id: householdId,
+        first_name: 'Ada',
+        last_name: 'Okoye',
+        mobile_phone: '5551234567',
+        email,
+        relationship: 'Mother',
+        is_primary: true,
+      })
+    ).error,
+  );
+
+  await throwIfError(
+    'insert emergency contact',
+    (
+      await supabase.from('emergency_contacts').insert({
+        household_id: householdId,
+        first_name: 'Sam',
+        last_name: 'Lee',
+        mobile_phone: '5559876543',
+        relationship: 'Aunt',
+      })
+    ).error,
+  );
+
+  await throwIfError(
+    'insert children',
+    (
+      await supabase.from('children').insert([
+        {
+          child_id: olderChildId,
+          household_id: householdId,
+          first_name: 'Amara',
+          last_name: 'Okoye',
+          dob: '2015-04-02',
+          grade: '3',
+          allergies: 'none',
+          is_active: true,
+        },
+        {
+          child_id: youngerChildId,
+          household_id: householdId,
+          first_name: 'Kofi',
+          last_name: 'Okoye',
+          dob: '2019-06-11',
+          grade: 'K',
+          allergies: 'none',
+          is_active: true,
+        },
+      ])
+    ).error,
+  );
+
+  await throwIfError(
+    'insert prior enrollments',
+    (
+      await supabase.from('ministry_enrollments').insert(
+        [olderChildId, youngerChildId].flatMap((childId) =>
+          [SUNDAY_SCHOOL_ID, E2E_ACOLYTE_ID].map((ministryId) => ({
+            enrollment_id: randomUUID(),
+            child_id: childId,
+            cycle_id: E2E_PRIOR_CYCLE_ID,
+            ministry_id: ministryId,
+            status: 'enrolled',
+          })),
+        ),
+      )
+    ).error,
+  );
+
+  await throwIfError(
+    'insert user_households',
+    (
+      await supabase.from('user_households').insert({
+        auth_user_id: user.id,
+        household_id: householdId,
+      })
+    ).error,
+  );
+
+  return { user, householdId, olderChildId, youngerChildId };
+}
+
+/** Remove everything `createReturningSiblingFixture` created, children first. */
+export async function cleanupReturningSiblingFixture(householdId: string) {
+  const supabase = createE2EAdminClient();
+  const { data: children } = await supabase
+    .from('children')
+    .select('child_id')
+    .eq('household_id', householdId);
+
+  for (const child of children ?? []) {
+    await supabase.from('ministry_enrollments').delete().eq('child_id', child.child_id);
+    await supabase.from('registrations').delete().eq('child_id', child.child_id);
+    await supabase.from('children').delete().eq('child_id', child.child_id);
+  }
+
+  await supabase.from('user_households').delete().eq('household_id', householdId);
+  await supabase.from('emergency_contacts').delete().eq('household_id', householdId);
+  await supabase.from('guardians').delete().eq('household_id', householdId);
+  await supabase.from('households').delete().eq('household_id', householdId);
+}

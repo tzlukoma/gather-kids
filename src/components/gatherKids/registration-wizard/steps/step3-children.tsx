@@ -16,7 +16,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Plus, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, ChevronLeft, ChevronRight, Info } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
 	Select,
 	SelectContent,
@@ -26,6 +27,8 @@ import {
 } from '@/components/ui/select';
 import type { RegistrationFormInput } from '../registration-schema';
 import { firstInvalidEntryIndex } from '../step-validation';
+import { GRADE_OPTIONS, gradeSelectValue } from '../grade-options';
+import type { HouseholdPrefillGradeHint } from '@/lib/dal/households';
 import {
 	defaultChildValues,
 	isNoKnownAllergies,
@@ -39,9 +42,23 @@ interface Step3ChildrenProps {
 	form: UseFormReturn<RegistrationFormInput>;
 	/** Increments every time this step refuses to advance. */
 	blockedAt: number;
+	/** Last-year → suggested-this-year, keyed by `child_id`, from the household load. */
+	gradeHints?: Record<string, HouseholdPrefillGradeHint>;
+	/**
+	 * Only a prior-cycle returning household has a "last year". A current-cycle
+	 * update is this year's data, and a first-time family has no last year at
+	 * all — telling either one what their child was in last year would be a
+	 * claim the app cannot support.
+	 */
+	showGradeHints?: boolean;
 }
 
-export function Step3Children({ form, blockedAt }: Step3ChildrenProps) {
+export function Step3Children({
+	form,
+	blockedAt,
+	gradeHints,
+	showGradeHints = false,
+}: Step3ChildrenProps) {
 	const {
 		fields: childrenFields,
 		append: appendChild,
@@ -106,6 +123,12 @@ export function Step3Children({ form, blockedAt }: Step3ChildrenProps) {
 	}
 
 	const currentChild = form.watch(`children.${currentChildIndex}`);
+
+	// Keyed by `child_id`, so a child added during this session — who has no id
+	// yet — correctly gets no hint.
+	const currentChildId = currentChild?.child_id;
+	const currentGradeHint =
+		showGradeHints && currentChildId ? gradeHints?.[currentChildId] : undefined;
 
 	return (
 		<div className="space-y-6">
@@ -215,27 +238,35 @@ export function Step3Children({ form, blockedAt }: Step3ChildrenProps) {
 									<FormLabel className="text-[#1e2a2f] font-semibold">
 										Grade *
 									</FormLabel>
-									<Select onValueChange={field.onChange} value={field.value}>
+									{currentGradeHint && (
+										<Alert className="border-[#017c7d] bg-[#e8f5f5]">
+											<Info className="h-4 w-4 text-[#017c7d]" />
+											<AlertDescription className="text-[#1e2a2f]">
+												Last year: {currentGradeHint.lastYearLabel} → Suggested
+												this year: {currentGradeHint.suggestedLabel}
+											</AlertDescription>
+										</Alert>
+									)}
+									{/*
+										The value is normalised rather than passed through. A
+										household load supplies the canonical "5", and a draft
+										written by the first version of this wizard supplies "5th";
+										both have to select the same option.
+									*/}
+									<Select
+										onValueChange={field.onChange}
+										value={gradeSelectValue(field.value)}>
 										<FormControl>
 											<SelectTrigger className="border-[#e0dacf] focus:ring-[#017c7d]">
 												<SelectValue placeholder="Select grade" />
 											</SelectTrigger>
 										</FormControl>
 										<SelectContent>
-											<SelectItem value="Pre-K">Pre-K</SelectItem>
-											<SelectItem value="Kindergarten">Kindergarten</SelectItem>
-											<SelectItem value="1st">1st</SelectItem>
-											<SelectItem value="2nd">2nd</SelectItem>
-											<SelectItem value="3rd">3rd</SelectItem>
-											<SelectItem value="4th">4th</SelectItem>
-											<SelectItem value="5th">5th</SelectItem>
-											<SelectItem value="6th">6th</SelectItem>
-											<SelectItem value="7th">7th</SelectItem>
-											<SelectItem value="8th">8th</SelectItem>
-											<SelectItem value="9th">9th</SelectItem>
-											<SelectItem value="10th">10th</SelectItem>
-											<SelectItem value="11th">11th</SelectItem>
-											<SelectItem value="12th">12th</SelectItem>
+											{GRADE_OPTIONS.map((option) => (
+												<SelectItem key={option.value} value={option.value}>
+													{option.label}
+												</SelectItem>
+											))}
 										</SelectContent>
 									</Select>
 									<FormMessage />
