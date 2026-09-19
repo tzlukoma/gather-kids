@@ -82,7 +82,12 @@ async function openRegistrationEntry(page: Page) {
 async function advancePrefillWizardToConsents(page: Page) {
   // Step 1 (household prefilled) → 2 → 3 → 4 → 5
   await continueToNextStep(page);
-  await expect(page.getByText(/who can collect the children/i)).toBeVisible({
+  // The step title renders twice — the page heading and the card title — so a
+  // bare text match trips strict mode. Carried over from #461, now tracked on
+  // #399.
+  await expect(
+    page.getByRole('heading', { name: /who can collect the children/i }).first()
+  ).toBeVisible({
     timeout: 15000,
   });
   await continueToNextStep(page);

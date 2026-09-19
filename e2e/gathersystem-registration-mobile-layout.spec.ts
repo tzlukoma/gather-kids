@@ -27,6 +27,7 @@ import {
  */
 
 const WIDTHS = [320, 375, 390, 402];
+const HEIGHT = 844;
 
 type Overflow = {
   screen: string;
@@ -123,7 +124,7 @@ function describeMobileLayout(width: number) {
     `GatherSystem registration layout at ${width}px @mutating`,
     () => {
       test.use({
-        viewport: { width, height: 844 },
+        viewport: { width, height: HEIGHT },
         isMobile: true,
         hasTouch: true,
       });
@@ -164,6 +165,27 @@ function describeMobileLayout(width: number) {
           if (hit) found.push(hit);
         };
 
+        /**
+         * The reason the action bar is pinned: steps 4 and 5 are long enough
+         * that the primary action used to sit far below the fold, which on a
+         * phone reads as a dead end. So assert it from the *top* of the step —
+         * scrolled to the bottom it would be reachable either way, and the
+         * test would prove nothing.
+         */
+        const expectPrimaryActionOnScreen = async (label: string) => {
+          await page.evaluate(() => window.scrollTo(0, 0));
+          const cta = page
+            .getByRole('button', { name: /save & continue|submit registration/i })
+            .first();
+          const box = await cta.boundingBox();
+          expect(box, `${label}: no primary action`).not.toBeNull();
+          expect(box!.y, `${label}: primary action above the viewport`).toBeGreaterThan(0);
+          expect(
+            box!.y + box!.height,
+            `${label}: primary action below the fold at the top of the step`,
+          ).toBeLessThanOrEqual(HEIGHT + 1);
+        };
+
         // ---- Entry -------------------------------------------------------
         await page.goto('/register');
         await expect(page.getByTestId('registration-entry')).toBeVisible({
@@ -191,9 +213,11 @@ function describeMobileLayout(width: number) {
         await continueToNextStep(page);
 
         await check('Step 4 — Ministries');
+        await expectPrimaryActionOnScreen('Step 4');
         await continueToNextStep(page);
 
         await check('Step 5 — Consents');
+        await expectPrimaryActionOnScreen('Step 5');
 
         // ---- Done --------------------------------------------------------
         const liability = page.getByRole('checkbox', { name: /liability release/i });
