@@ -2863,8 +2863,13 @@ function RegisterSkeleton() {
 
 export default function RegisterPage() {
 	return (
-		<Suspense fallback={<RegisterSkeleton />}>
-			<RegisterPageContent />
-		</Suspense>
+		// The gutter the shared register layout used to apply. Kept here so the
+		// flag-off page renders exactly as before while the wizard goes
+		// full-bleed.
+		<div className="container mx-auto p-4 md:p-6 lg:p-8">
+			<Suspense fallback={<RegisterSkeleton />}>
+				<RegisterPageContent />
+			</Suspense>
+		</div>
 	);
 }

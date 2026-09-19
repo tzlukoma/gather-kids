@@ -133,12 +133,14 @@ export function Step3Children({
 	return (
 		<div className="space-y-6">
 			{/* Child Navigation Header */}
-			<div className="flex items-center justify-between">
-				<div>
+			{/* The title and Previous/Next shared one non-wrapping row; a long
+			    child name pushed the buttons off at phone widths. */}
+			<div className="flex flex-wrap items-center justify-between gap-3">
+				<div className="min-w-0">
 					<p className="text-sm font-semibold tracking-wider uppercase text-[#5b6b72]">
 						Child {currentChildIndex + 1} of {childrenFields.length}
 					</p>
-					<h2 className="text-xl font-bold text-[#1e2a2f] mt-1">
+					<h2 className="text-xl font-bold text-[#1e2a2f] mt-1 break-words">
 						Tell us about {currentChild.first_name || 'your child'}
 					</h2>
 				</div>
@@ -149,7 +151,7 @@ export function Step3Children({
 						size="sm"
 						onClick={() => setCurrentChildIndex(Math.max(0, currentChildIndex - 1))}
 						disabled={currentChildIndex === 0}
-						className="flex items-center gap-1">
+						className="flex min-h-11 items-center gap-1 md:min-h-9">
 						<ChevronLeft className="h-3 w-3" />
 						Previous
 					</Button>
@@ -161,7 +163,7 @@ export function Step3Children({
 							setCurrentChildIndex(Math.min(childrenFields.length - 1, currentChildIndex + 1))
 						}
 						disabled={currentChildIndex === childrenFields.length - 1}
-						className="flex items-center gap-1">
+						className="flex min-h-11 items-center gap-1 md:min-h-9">
 						Next
 						<ChevronRight className="h-3 w-3" />
 					</Button>
@@ -171,7 +173,7 @@ export function Step3Children({
 			{/* Child Form Card */}
 			<Card>
 				<CardContent className="pt-6 space-y-6">
-					<div className="grid grid-cols-2 gap-4">
+					<div className="grid grid-cols-1 gap-4 md:grid-cols-2">
 						<FormField
 							control={form.control}
 							name={`children.${currentChildIndex}.first_name`}
@@ -210,7 +212,7 @@ export function Step3Children({
 						/>
 					</div>
 
-					<div className="grid grid-cols-2 gap-4">
+					<div className="grid grid-cols-1 gap-4 md:grid-cols-2">
 						<FormField
 							control={form.control}
 							name={`children.${currentChildIndex}.dob`}

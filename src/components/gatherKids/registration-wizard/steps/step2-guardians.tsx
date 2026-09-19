@@ -103,18 +103,22 @@ export function Step2Guardians({ form, blockedAt }: Step2GuardiansProps) {
 								key={field.id}
 								className="border border-[#e0dacf] rounded-lg overflow-hidden">
 								{!isEditing ? (
-									// Card View
-									<div className="p-4 flex items-center justify-between bg-white">
-										<div className="flex items-center gap-4">
+									// Card View. Avatar, identity and the two actions shared
+									// one non-wrapping row, so a long name squeezed
+									// Edit/Delete. `min-w-0` lets the identity block actually
+									// shrink — without it a flex child refuses to go below
+									// the width of its own content.
+									<div className="p-4 flex flex-wrap items-center justify-between gap-3 bg-white">
+										<div className="flex min-w-0 items-center gap-4">
 											<div className="w-12 h-12 rounded-full bg-[#e8f5f5] border border-[#017c7d] flex items-center justify-center">
 												<span className="text-sm font-semibold text-[#017c7d]">
 													{guardian.first_name?.substring(0, 1) || '?'}
 													{guardian.last_name?.substring(0, 1) || '?'}
 												</span>
 											</div>
-											<div>
-												<div className="flex items-center gap-2">
-													<p className="font-semibold text-[#1e2a2f]">
+											<div className="min-w-0">
+												<div className="flex flex-wrap items-center gap-2">
+													<p className="font-semibold text-[#1e2a2f] break-words">
 														{guardian.first_name || 'First'} {guardian.last_name || 'Last'}
 													</p>
 													{guardian.is_primary && (
@@ -123,7 +127,7 @@ export function Step2Guardians({ form, blockedAt }: Step2GuardiansProps) {
 														</Badge>
 													)}
 												</div>
-												<p className="text-sm text-[#5b6b72]">
+												<p className="text-sm text-[#5b6b72] break-words">
 													{guardian.mobile_phone || 'No phone'} · {guardian.relationship || 'No relationship'}
 												</p>
 											</div>
@@ -134,7 +138,7 @@ export function Step2Guardians({ form, blockedAt }: Step2GuardiansProps) {
 												variant="outline"
 												size="sm"
 												onClick={() => setEditingGuardian(index)}
-												className="flex items-center gap-2">
+												className="flex min-h-11 items-center gap-2 md:min-h-9">
 												<Edit2 className="h-3 w-3" />
 												Edit
 											</Button>
@@ -149,7 +153,7 @@ export function Step2Guardians({ form, blockedAt }: Step2GuardiansProps) {
 															setEditingGuardian(null);
 														}
 													}}
-													className="text-destructive hover:text-destructive">
+													className="min-h-11 text-destructive hover:text-destructive md:min-h-9">
 													<Trash2 className="h-3 w-3" />
 												</Button>
 											)}
@@ -158,7 +162,7 @@ export function Step2Guardians({ form, blockedAt }: Step2GuardiansProps) {
 								) : (
 									// Edit Form
 									<div className="p-4 bg-[#fafaf8] space-y-4">
-										<div className="grid grid-cols-2 gap-4">
+										<div className="grid grid-cols-1 gap-4 md:grid-cols-2">
 											<FormField
 												control={form.control}
 												name={`guardians.${index}.first_name`}
@@ -324,7 +328,7 @@ export function Step2Guardians({ form, blockedAt }: Step2GuardiansProps) {
 					</CardDescription>
 				</CardHeader>
 				<CardContent className="space-y-4">
-					<div className="grid grid-cols-2 gap-4">
+					<div className="grid grid-cols-1 gap-4 md:grid-cols-2">
 						<FormField
 							control={form.control}
 							name="emergencyContact.first_name"

@@ -39,7 +39,7 @@ export function RegistrationDone({
 	};
 
 	return (
-		<div className="min-h-screen bg-[#f7f5f1] flex items-center justify-center px-4 py-8">
+		<div className="flex flex-1 items-center justify-center bg-[#f7f5f1] px-4 py-8">
 			<div className="max-w-2xl w-full space-y-6">
 				{/* Success Header */}
 				<div className="text-center">

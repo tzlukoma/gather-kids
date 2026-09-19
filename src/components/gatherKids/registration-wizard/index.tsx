@@ -3,13 +3,12 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { isOfflineSupabase } from '@/lib/offline-supabase';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { AlertTriangle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
 import { useFormCompat as useForm } from '@/hooks/useFormCompat';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Form } from '@/components/ui/form';
+import { WizardActionBar } from './wizard-action-bar';
 import { Step1Household } from './steps/step1-household';
 import { Step2Guardians } from './steps/step2-guardians';
 import { Step3Children } from './steps/step3-children';
@@ -653,17 +652,21 @@ export default function RegisterWizard() {
 	}
 
 	return (
-		<div className="min-h-screen bg-[#f7f5f1]">
-			{/* Header with Step Strip */}
-			<div className="bg-white border-b border-[#eae4da]">
-				<div className="container mx-auto px-4 py-6">
-					<div className="max-w-5xl mx-auto">
-						<p className="text-xs font-semibold tracking-wider uppercase text-[#5b6b72] mb-4">
+		<div className="flex flex-1 flex-col bg-[#f7f5f1]">
+			{/* Progress chrome, pinned. The spec is mobile-primary: which step
+			    you are on has to stay on screen through long ministry and
+			    consent lists. Only the strip is sticky — the title and
+			    description scroll with the content, because a header tall
+			    enough to hold them costs a quarter of a 320x568 screen. */}
+			<div className="sticky top-0 z-30 bg-white border-b border-[#eae4da]">
+				<div className="mx-auto max-w-5xl px-4 py-3 md:py-6">
+					<div>
+						<p className="text-xs font-semibold tracking-wider uppercase text-[#5b6b72] mb-3 md:mb-4">
 							{cycleLabel} Registration
 						</p>
 
 						{/* Desktop: Circular numbered stepper */}
-						<div className="hidden md:flex justify-between items-center mb-8">
+						<div className="hidden md:flex justify-between items-center">
 							{STEPS.map((step, index) => {
 								const stepNumber = index + 1;
 								const isActive = stepNumber === currentStep;
@@ -717,7 +720,7 @@ export default function RegisterWizard() {
 						</div>
 
 						{/* Mobile: Labeled strip */}
-						<div className="md:hidden flex justify-between mb-6 overflow-x-auto">
+						<div className="md:hidden flex justify-between overflow-x-auto">
 							{STEPS.map((step, index) => {
 								const stepNumber = index + 1;
 								const isActive = stepNumber === currentStep;
@@ -744,23 +747,24 @@ export default function RegisterWizard() {
 							})}
 						</div>
 
-						<h1 className="text-2xl font-bold text-[#1e2a2f] mb-2">
-							{STEPS[currentStep - 1].title}
-						</h1>
-						<p className="text-sm text-[#5b6b72]">
-							{STEPS[currentStep - 1].description}
-						</p>
 					</div>
 				</div>
 			</div>
 
-			{/* Form Content */}
-			<div className="container mx-auto px-4 py-8">
-				<div className="max-w-3xl mx-auto">
+			{/* Form Content. One gutter: the register layout no longer adds its
+			    own, so `px-4` here is the only horizontal padding. */}
+			<div className="mx-auto max-w-3xl px-4 py-6">
+				<div>
+					<h1 className="text-2xl font-bold text-[#1e2a2f] mb-2 break-words">
+						{STEPS[currentStep - 1].title}
+					</h1>
+					<p className="text-sm text-[#5b6b72] mb-6">
+						{STEPS[currentStep - 1].description}
+					</p>
 					<Form {...form}>
 						<form
 							onSubmit={form.handleSubmit(onSubmit, handleInvalidSubmit)}
-							className="space-y-6">
+							className="space-y-6 pb-4">
 							<RegistrationProblemSummary
 								problems={stepProblems}
 								blockMessage={stepBlockMessage}
@@ -815,51 +819,14 @@ export default function RegisterWizard() {
 								</>
 							)}
 
-							{/* Navigation Buttons */}
-							<Card>
-								<CardContent className="pt-6">
-									{/* `flex-wrap`: at phone widths Back + Cancel + Submit overflow one
-									    row, which pushed Submit outside the card where it could
-									    not be tapped at all. */}
-									<div className="flex flex-wrap gap-3 justify-between">
-										<div className="flex gap-3">
-											<Button
-												type="button"
-												variant="outline"
-												onClick={handleBack}
-												disabled={currentStep === 1}
-												className="flex items-center gap-2">
-												<ChevronLeft className="h-4 w-4" />
-												Back
-											</Button>
-											<Button
-												type="button"
-												variant="outline"
-												onClick={handleCancel}
-												className="text-destructive hover:text-destructive">
-												Cancel
-											</Button>
-										</div>
-
-										{currentStep < totalSteps ? (
-											<Button
-												type="button"
-												onClick={handleNext}
-												className="flex items-center gap-2 bg-[#017c7d] hover:bg-[#016566] text-white">
-												Save & continue
-												<ChevronRight className="h-4 w-4" />
-											</Button>
-										) : (
-											<Button
-												type="submit"
-												disabled={isSubmitting}
-												className="bg-[#017c7d] hover:bg-[#016566] text-white">
-												{isSubmitting ? 'Submitting...' : 'Submit registration'}
-											</Button>
-										)}
-									</div>
-								</CardContent>
-							</Card>
+							<WizardActionBar
+								currentStep={currentStep}
+								totalSteps={totalSteps}
+								isSubmitting={isSubmitting}
+								onBack={handleBack}
+								onCancel={handleCancel}
+								onNext={handleNext}
+							/>
 						</form>
 					</Form>
 				</div>
