@@ -77,6 +77,8 @@ import {
 	mapRegistrationPrefillState,
 	type RegistrationPrefillState,
 } from './registration-prefill-state';
+import { resolveRegistrationDraft } from './registration-draft-merge';
+import { DraftStatusIndicator } from '@/components/ui/draft-status-indicator';
 import type {
 	HouseholdPrefillGradeHint,
 	HouseholdRegistrationLoadResult,
@@ -259,17 +261,14 @@ export default function RegisterWizard() {
 	// Handle entry screen start with optional prefill data
 	const handleStartRegistration = useCallback(
 		async (prefillData?: HouseholdRegistrationLoadResult | null) => {
-			const nextState = mapRegistrationPrefillState({
-				loadResult: prefillData ?? null,
-				hasDraftChildren: false,
-			});
+			const data = prefillData?.data;
 
-			if (prefillData?.data) {
-				const data = prefillData.data;
-				setGradeHints(prefillData.gradeHintsByChildId ?? {});
-				setExistingChildIds(prefillData.existingChildIds ?? []);
-				form.reset(
-					withCanonicalGrades(migrateRegistrationDraftCustomFields({
+			// A household load and a saved draft are not alternatives — a guardian
+			// with a prior-cycle household can also have unsubmitted work. Load
+			// both and let the shared rule decide. `loadDraft` is a no-op returning
+			// null when persistence is disabled, so the toggle-off path is unchanged.
+			const prefillValues: RegistrationFormInput | null = data
+				? ({
 						household: {
 							household_id: data.household?.household_id || '',
 							name: data.household?.name || '',
@@ -306,9 +305,55 @@ export default function RegisterWizard() {
 							group_consents: {},
 							custom_consents: {},
 						},
-					}))
+					} as RegistrationFormInput)
+				: null;
+
+			if (prefillData?.data) {
+				setGradeHints(prefillData.gradeHintsByChildId ?? {});
+				setExistingChildIds(prefillData.existingChildIds ?? []);
+			}
+
+			let draftValues: Partial<RegistrationFormInput> | null = null;
+			try {
+				draftValues = await loadDraft();
+			} catch (error) {
+				console.warn('Failed to load draft:', error);
+			}
+
+			const { values, resolution } = resolveRegistrationDraft({
+				prefillValues,
+				draftValues,
+			});
+
+			if (values) {
+				// A draft written by the first version of this wizard holds
+				// "5th", which matches no option once the control is canonical.
+				form.reset(
+					withCanonicalGrades(migrateRegistrationDraftCustomFields(values))
 				);
-				setPrefillState(nextState);
+			}
+
+			const nextState = mapRegistrationPrefillState({
+				loadResult: prefillData ?? null,
+				hasDraftChildren:
+					resolution === 'draft_only' &&
+					Boolean(draftValues?.children?.some((c) => c?.first_name)),
+			});
+			setPrefillState(nextState);
+
+			if (resolution === 'draft_only') {
+				toast({
+					title: 'Draft Restored',
+					description: 'Your previous registration progress has been restored.',
+				});
+			} else if (resolution === 'merged') {
+				// Locked spec: surface the draft, never silently drop it.
+				toast({
+					title: 'Draft Restored',
+					description:
+						'We kept your unsubmitted changes and filled in the rest from your household record.',
+				});
+			} else if (resolution === 'prefill_only') {
 				toast({
 					title: nextState.isCurrentYearOverwrite
 						? 'Existing Registration Found'
@@ -317,35 +362,8 @@ export default function RegisterWizard() {
 						? 'Review your current-cycle registration. Submitting will overwrite this year.'
 						: 'Your information has been pre-filled for you to review.',
 				});
-			} else {
-				try {
-					const draftData = await loadDraft();
-					const hasDraftChildren = Boolean(
-						draftData?.children?.some((c) => c?.first_name)
-					);
-					const draftState = mapRegistrationPrefillState({
-						loadResult: null,
-						hasDraftChildren,
-					});
-					setPrefillState(draftState);
-					if (draftData && Object.keys(draftData).length > 0) {
-						// A draft written by the first version of this wizard holds
-						// "5th", which matches no option once the control is canonical.
-						form.reset(
-							withCanonicalGrades(migrateRegistrationDraftCustomFields(draftData))
-						);
-						toast({
-							title: 'Draft Restored',
-							description: 'Your previous registration progress has been restored.',
-						});
-					} else {
-						setPrefillState(mapRegistrationPrefillState({ loadResult: null }));
-					}
-				} catch (error) {
-					console.warn('Failed to load draft:', error);
-					setPrefillState(mapRegistrationPrefillState({ loadResult: null }));
-				}
 			}
+
 			setScreen('wizard');
 		},
 		[form, loadDraft, toast, user?.email]
@@ -661,9 +679,35 @@ export default function RegisterWizard() {
 			<div className="sticky top-0 z-30 bg-white border-b border-[#eae4da]">
 				<div className="mx-auto max-w-5xl px-4 py-3 md:py-6">
 					<div>
-						<p className="text-xs font-semibold tracking-wider uppercase text-[#5b6b72] mb-3 md:mb-4">
-							{cycleLabel} Registration
-						</p>
+						{/* Auto-save state rides with the pinned step strip so it stays
+						    visible while the guardian is typing, not only at the top
+						    of the page. Wraps at 320px rather than forcing overflow. */}
+						<div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 mb-3 md:mb-4">
+							<p className="min-w-0 text-xs font-semibold tracking-wider uppercase text-[#5b6b72] break-words">
+								{cycleLabel} Registration
+							</p>
+							{flags.registrationDraftPersistenceEnabled && (
+								<div
+									data-testid="registration-draft-status"
+									data-draft-state={
+										draftStatus.error
+											? 'error'
+											: draftStatus.isSaving
+												? 'saving'
+												: draftStatus.lastSaved
+													? 'saved'
+													: 'idle'
+									}
+									aria-live="polite">
+									<DraftStatusIndicator
+										isSaving={draftStatus.isSaving}
+										lastSaved={draftStatus.lastSaved}
+										error={draftStatus.error}
+										className="text-xs"
+									/>
+								</div>
+							)}
+						</div>
 
 						{/* Desktop: Circular numbered stepper */}
 						<div className="hidden md:flex justify-between items-center">

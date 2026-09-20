@@ -12,19 +12,32 @@ jest.mock('next/navigation', () => ({
 	}),
 }));
 
+const mockLoadDraft = jest.fn();
+const draftOptionsSeen: Array<{ enabled?: boolean }> = [];
+
 jest.mock('@/hooks/useDraftPersistence', () => ({
-	useDraftPersistence: () => ({
-		loadDraft: jest.fn().mockResolvedValue(null),
-		saveDraft: jest.fn(),
-		clearDraft: jest.fn(),
-		draftStatus: { isSaving: false, lastSaved: null, error: null },
-	}),
+	useDraftPersistence: (options: { enabled?: boolean }) => {
+		draftOptionsSeen.push(options);
+		return {
+			// The real hook returns null without touching the adapter when
+			// disabled; mirror that so the toggle is what the test exercises.
+			loadDraft: options.enabled
+				? mockLoadDraft
+				: jest.fn().mockResolvedValue(null),
+			saveDraft: jest.fn(),
+			clearDraft: jest.fn(),
+			draftStatus: { isSaving: false, lastSaved: null, error: null },
+		};
+	},
 }));
 
+let mockFlags = {
+	registrationDraftPersistenceEnabled: false,
+	loginMagicEnabled: true,
+};
+
 jest.mock('@/contexts/feature-flag-context', () => ({
-	useFeatureFlags: () => ({
-		flags: { registrationDraftPersistenceEnabled: false, loginMagicEnabled: true },
-	}),
+	useFeatureFlags: () => ({ flags: mockFlags }),
 }));
 
 jest.mock('@/hooks/use-toast', () => ({
@@ -80,6 +93,12 @@ function renderEntry() {
 describe('RegistrationEntry prefill copy', () => {
 	beforeEach(() => {
 		jest.clearAllMocks();
+		draftOptionsSeen.length = 0;
+		mockFlags = {
+			registrationDraftPersistenceEnabled: false,
+			loginMagicEnabled: true,
+		};
+		mockLoadDraft.mockResolvedValue(null);
 		mockGetHouseholdForUser.mockResolvedValue(null);
 		mockGetHouseholdProfile.mockResolvedValue({ children: [], household: null });
 		mockLoadHouseholdForRegistration.mockResolvedValue(null);
@@ -186,5 +205,79 @@ describe('RegistrationEntry prefill copy', () => {
 		expect(screen.getByTestId('registration-entry-child-status').textContent).not.toMatch(
 			/returning/i
 		);
+	});
+});
+
+/**
+ * #392 — Entry used to hardcode `enabled: true`, so it read draft storage and
+ * listed draft-derived children even with persistence switched off.
+ */
+describe('RegistrationEntry draft toggle', () => {
+	const DRAFT_WITH_CHILD = {
+		children: [{ first_name: 'Riri', last_name: 'Williams' }],
+	};
+
+	beforeEach(() => {
+		jest.clearAllMocks();
+		draftOptionsSeen.length = 0;
+		mockLoadDraft.mockResolvedValue(DRAFT_WITH_CHILD);
+		mockGetHouseholdForUser.mockResolvedValue(null);
+		mockGetHouseholdProfile.mockResolvedValue({ children: [], household: null });
+		mockLoadHouseholdForRegistration.mockResolvedValue(null);
+	});
+
+	it('passes the flag through to the persistence hook when off', async () => {
+		mockFlags = {
+			registrationDraftPersistenceEnabled: false,
+			loginMagicEnabled: true,
+		};
+
+		renderEntry();
+
+		await waitFor(() => {
+			expect(screen.getByTestId('registration-entry-description')).toBeInTheDocument();
+		});
+		expect(draftOptionsSeen.length).toBeGreaterThan(0);
+		expect(draftOptionsSeen.every((o) => o.enabled === false)).toBe(true);
+	});
+
+	it('shows no draft-derived child and no draft copy when off', async () => {
+		mockFlags = {
+			registrationDraftPersistenceEnabled: false,
+			loginMagicEnabled: true,
+		};
+
+		renderEntry();
+
+		await waitFor(() => {
+			expect(screen.getByTestId('registration-entry-description')).toBeInTheDocument();
+		});
+
+		expect(mockLoadDraft).not.toHaveBeenCalled();
+		expect(screen.queryByText(/Riri/)).not.toBeInTheDocument();
+		expect(screen.getByTestId('registration-entry-description')).toHaveAttribute(
+			'data-prefill-kind',
+			'first_time'
+		);
+	});
+
+	it('passes the flag through and surfaces the draft child when on', async () => {
+		mockFlags = {
+			registrationDraftPersistenceEnabled: true,
+			loginMagicEnabled: true,
+		};
+
+		renderEntry();
+
+		await waitFor(() => {
+			expect(screen.getByTestId('registration-entry-description')).toHaveAttribute(
+				'data-prefill-kind',
+				'draft_only'
+			);
+		});
+
+		expect(draftOptionsSeen.every((o) => o.enabled === true)).toBe(true);
+		expect(mockLoadDraft).toHaveBeenCalled();
+		expect(screen.getByText(/Riri/)).toBeInTheDocument();
 	});
 });

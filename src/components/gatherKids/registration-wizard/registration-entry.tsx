@@ -192,6 +192,7 @@ type EntryChild = {
 export function RegistrationEntry({ onStart }: RegistrationEntryProps) {
 	const router = useRouter();
 	const { user } = useAuth();
+	const { flags } = useFeatureFlags();
 	const [isLoading, setIsLoading] = useState(true);
 	const [householdData, setHouseholdData] =
 		useState<HouseholdRegistrationLoadResult | null>(null);
@@ -210,10 +211,12 @@ export function RegistrationEntry({ onStart }: RegistrationEntryProps) {
 	// and production.
 	const cycleName = registrationCycleLabel(activeRegistrationCycle, 'current');
 
+	// Entry must honour the same toggle as the wizard: with persistence off it
+	// performs no draft read at all, so no draft-derived child can appear here.
 	const { loadDraft } = useDraftPersistence<RegistrationFormInput>({
 		formName: 'registration_v1',
 		version: 1,
-		enabled: true,
+		enabled: flags.registrationDraftPersistenceEnabled,
 	});
 
 	useEffect(() => {
