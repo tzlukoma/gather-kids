@@ -370,6 +370,11 @@
     --font-scripture:
       var(--font-merriweather, 'Merriweather'), Georgia, 'Times New Roman',
       serif;
+    /* Source Code Pro is not loaded by next/font, so this resolves to the
+       system monospace today. See docs/DESIGN_TOKENS.md. */
+    --font-code:
+      'Source Code Pro', ui-monospace, SFMono-Regular, Menlo, Consolas,
+      monospace;
   }
 
   /* Apply display font to headings and accent UI text */
@@ -408,6 +413,38 @@
 
   .font-scripture {
     font-family: var(--font-scripture) !important;
+  }
+
+  /* Families for the Figma type scale.
+     Tailwind v4 has no `--text-*--font-family` modifier — a `--text-*` token
+     emits font-size, line-height, letter-spacing and font-weight only, and
+     silently drops a family if you declare one. Without these rules the
+     family falls through to whatever is inherited, which is Work Sans from
+     `body`: `text-scripture-*` rendered in Work Sans rather than Merriweather,
+     and `text-mono-*` never reached the monospace fallback at all.
+     Pairing the family onto the same class names makes each step the whole
+     Figma text style. The `font-*` utilities above carry `!important`, so an
+     explicit `font-body` / `font-scripture` at the call site still wins. */
+  .text-display-28,
+  .text-headline-22,
+  .text-title-18,
+  .text-title-16,
+  .text-body-15,
+  .text-body-14,
+  .text-body-13,
+  .text-label-12,
+  .text-eyebrow-11 {
+    font-family: var(--font-body);
+  }
+
+  .text-scripture-18,
+  .text-scripture-16 {
+    font-family: var(--font-scripture);
+  }
+
+  .text-mono-12,
+  .text-mono-11 {
+    font-family: var(--font-code);
   }
 
   /* gatherKids Design System Utility Classes

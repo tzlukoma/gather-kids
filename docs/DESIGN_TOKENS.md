@@ -94,7 +94,8 @@ interface, Merriweather is reserved for scripture passages, and Source Code Pro
 labels tokens and codes.** Merriweather is never interface text.
 
 Each step is a complete Figma text style — family, weight, size, line height and
-tracking — exposed as one Tailwind utility. Token names mirror Figma's own, so
+tracking — exposed as one Tailwind utility. (Family comes from a companion rule
+in `globals.css`; see the notes below.) Token names mirror Figma's own, so
 `Body/14` in the design file is `text-body-14` in markup with no translation
 step.
 
@@ -128,10 +129,16 @@ Figma's pixel values are at a 16px root (8px = 0.5rem).
   not need to worry about class ordering.
 - **`letter-spacing` is only emitted where Figma sets non-zero tracking**, so a
   `tracking-*` utility composes normally on every other step.
+- **The family is applied by a companion rule, not by the token.** Tailwind v4
+  has no `--text-*--font-family` modifier — it emits font-size, line-height,
+  letter-spacing and font-weight only, and silently drops a family declared
+  that way. `globals.css` therefore pairs `font-family` onto the same class
+  names, so each step is the whole Figma style. If you add a step, add it to
+  the matching family rule too or it will inherit Work Sans from `body`.
 - **Source Code Pro is not loaded.** `layout.tsx` loads only Work Sans and
-  Merriweather via `next/font`, so `text-mono-*` currently renders in the system
-  monospace fallback declared on `--font-code`. Nothing consumes these tokens
-  yet; load the family when the first screen does.
+  Merriweather via `next/font`, so `text-mono-*` resolves to the system
+  monospace in the `--font-code` stack. Nothing consumes these tokens yet;
+  load the family when the first screen does.
 
 ## Radius & Elevation
 
@@ -199,4 +206,4 @@ Do not implement alternate themes unless explicitly authorized in a GitHub issue
 ## Changelog
 
 - **2026-09-12 (Okoye):** Initial documentation. Added `brand.ground` alias, `door` button variant, documented Rule A.
-- **2026-09-20 (#380):** Added the Figma type scale (13 steps), the four-step elevation scale, and density notes. Verified radius was already conformant. Dropped the stale `tailwind.config.ts` row — Tailwind 4 configures in CSS.
+- **2026-09-20 (#380):** Added the Figma type scale (13 steps), the four-step elevation scale, and density notes. Verified radius was already conformant. Dropped the stale `tailwind.config.ts` row — Tailwind 4 configures in CSS. Families are applied by a companion rule because Tailwind v4 has no `--text-*--font-family` modifier.
