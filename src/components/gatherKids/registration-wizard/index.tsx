@@ -54,7 +54,7 @@ import {
 } from '@/lib/dal';
 import {
 	pickActiveRegistrationCycle,
-	registrationCycleLabel,
+	registrationCycleDisplayLabel,
 } from '@/lib/dal/registration-cycle-utils';
 import { cleanPhone } from '@/hooks/usePhoneFormat';
 import { canonicalizeGradeForStorage } from '@/lib/gradeUtils';
@@ -153,7 +153,9 @@ export default function RegisterWizard() {
 	const activeRegistrationCycle = pickActiveRegistrationCycle(registrationCycles);
 	// Guardians see the cycle's name ("Fall 2026"), never its id — which is a
 	// UUID in UAT and production.
-	const cycleLabel = registrationCycleLabel(activeRegistrationCycle, 'current');
+	// Same derived label the entry and Done use — see
+	// REGISTRATION_CYCLE_FALLBACK_LABEL for why the fallback lives in one place.
+	const cycleLabel = registrationCycleDisplayLabel(activeRegistrationCycle);
 
 	const { data: ministryGroups = [] } = useQuery({
 		queryKey: ['ministryGroups'],
@@ -685,10 +687,10 @@ export default function RegisterWizard() {
 						    of the page. Wraps at 320px rather than forcing overflow. */}
 						<div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 mb-3 md:mb-4">
 							<p className="min-w-0 text-xs font-semibold tracking-wider uppercase text-[#5b6b72] break-words">
+								Registration ·{' '}
 								<span data-testid="registration-wizard-cycle-label">
 									{cycleLabel}
-								</span>{' '}
-								Registration
+								</span>
 							</p>
 							{flags.registrationDraftPersistenceEnabled && (
 								<div

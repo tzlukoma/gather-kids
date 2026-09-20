@@ -13,7 +13,7 @@ import { useQuery } from '@tanstack/react-query';
 import { getRegistrationCycles, getHouseholdForUser, getHouseholdProfile } from '@/lib/dal';
 import {
 	pickActiveRegistrationCycle,
-	registrationCycleLabel,
+	registrationCycleDisplayLabel,
 } from '@/lib/dal/registration-cycle-utils';
 import { AlertTriangle, Home, Users, Info } from 'lucide-react';
 import { useDraftPersistence } from '@/hooks/useDraftPersistence';
@@ -209,7 +209,10 @@ export function RegistrationEntry({ onStart }: RegistrationEntryProps) {
 	const activeRegistrationCycle = pickActiveRegistrationCycle(registrationCycles);
 	// The cycle's own name ("Fall 2026"), never its id — which is a UUID in UAT
 	// and production.
-	const cycleName = registrationCycleLabel(activeRegistrationCycle, 'current');
+	// The cycle's own name ("Fall 2026"), never its id. The neutral
+	// no-cycle fallback is derived once, in the DAL helper, so this screen, the
+	// wizard and Done cannot drift apart on that path.
+	const cycleName = registrationCycleDisplayLabel(activeRegistrationCycle);
 
 	// Entry must honour the same toggle as the wizard: with persistence off it
 	// performs no draft read at all, so no draft-derived child can appear here.
@@ -346,7 +349,7 @@ export function RegistrationEntry({ onStart }: RegistrationEntryProps) {
 							, {userName}
 						</h1>
 						<p className="text-[#5b6b72] break-words">
-							{householdName} · {cycleName} cycle
+							{householdName} · {cycleName}
 						</p>
 					</div>
 
@@ -370,10 +373,7 @@ export function RegistrationEntry({ onStart }: RegistrationEntryProps) {
 							<h2 className="text-2xl font-bold text-[#1e2a2f]">
 								Register for{' '}
 								<span data-testid="registration-entry-cycle-label">
-									{registrationCycleLabel(
-										activeRegistrationCycle,
-										'this year'
-									)}
+									{cycleName}
 								</span>
 							</h2>
 							<p
