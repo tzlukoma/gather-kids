@@ -25,6 +25,80 @@
   --font-scripture: var(--font-merriweather), Merriweather, serif;
   --font-code: Source Code Pro, monospace;
 
+  /* Type scale — Figma Foundations · Type (node-id 4-55).
+     Each step is a complete Figma text style: family, weight, size, line
+     height and tracking. Sizes are rem so the scale honours the reader's
+     browser font size; Figma's px are at a 16px root (8px = 0.5rem).
+     `letter-spacing` is emitted only where Figma sets non-zero tracking, so
+     a `tracking-*` utility still composes on every other step.
+     Names mirror Figma's own (Body/14 -> text-body-14) so there is no
+     translation step between the design file and the markup. */
+
+  /* Work Sans — the interface family. */
+  --text-display-28: 1.75rem;
+  --text-display-28--line-height: 2rem;
+  --text-display-28--letter-spacing: -0.02em;
+  --text-display-28--font-weight: 700;
+
+  --text-headline-22: 1.375rem;
+  --text-headline-22--line-height: 1.75rem;
+  --text-headline-22--letter-spacing: -0.01em;
+  --text-headline-22--font-weight: 700;
+
+  --text-title-18: 1.125rem;
+  --text-title-18--line-height: 1.5rem;
+  --text-title-18--letter-spacing: -0.01em;
+  --text-title-18--font-weight: 600;
+
+  --text-title-16: 1rem;
+  --text-title-16--line-height: 1.375rem;
+  --text-title-16--font-weight: 600;
+
+  --text-body-15: 0.9375rem;
+  --text-body-15--line-height: 1.375rem;
+  --text-body-15--font-weight: 400;
+
+  --text-body-14: 0.875rem;
+  --text-body-14--line-height: 1.25rem;
+  --text-body-14--font-weight: 400;
+
+  --text-body-13: 0.8125rem;
+  --text-body-13--line-height: 1.1875rem;
+  --text-body-13--font-weight: 400;
+
+  --text-label-12: 0.75rem;
+  --text-label-12--line-height: 1rem;
+  --text-label-12--font-weight: 600;
+
+  /* Figma's Eyebrow style is uppercase. Text transform is not part of a
+     Tailwind type token, so pair this with `uppercase` at the call site. */
+  --text-eyebrow-11: 0.6875rem;
+  --text-eyebrow-11--line-height: 0.875rem;
+  --text-eyebrow-11--letter-spacing: 0.09em;
+  --text-eyebrow-11--font-weight: 600;
+
+  /* Merriweather — scripture passages only, never interface text. */
+  --text-scripture-18: 1.125rem;
+  --text-scripture-18--line-height: 1.75rem;
+  --text-scripture-18--font-weight: 400;
+
+  --text-scripture-16: 1rem;
+  --text-scripture-16--line-height: 1.625rem;
+  --text-scripture-16--font-weight: 400;
+
+  /* Source Code Pro — token names, icon names, reference codes.
+     NOTE: the family is not loaded by next/font (layout.tsx loads only Work
+     Sans and Merriweather), so these currently render in the system
+     monospace fallback declared on --font-code. Nothing consumes them yet;
+     load the family when the first screen does. See docs/DESIGN_TOKENS.md. */
+  --text-mono-12: 0.75rem;
+  --text-mono-12--line-height: 1rem;
+  --text-mono-12--font-weight: 400;
+
+  --text-mono-11: 0.71875rem;
+  --text-mono-11--line-height: 1rem;
+  --text-mono-11--font-weight: 400;
+
   --color-brand-teal: hsl(var(--color-teal));
   --color-brand-yellow: hsl(var(--color-yellow));
   --color-brand-orange: hsl(var(--color-orange));
@@ -81,6 +155,18 @@
   --radius-lg: var(--radius);
   --radius-md: calc(var(--radius) - 2px);
   --radius-sm: calc(var(--radius) - 4px);
+
+  /* Elevation — Figma Foundations · Radius & Elevation (node-id 4-56).
+     A short, warm-shadow scale: surfaces lift only as much as their job
+     requires. The tints are the brand palette, not neutral grey —
+     rgb(30 42 47) is `ink` and rgb(1 124 125) is `brand.teal`.
+     Deliberately NOT named --shadow-sm/--shadow-md: those names already
+     exist in Tailwind's default scale and are in use at 9 call sites, so
+     redefining them would restyle existing screens. */
+  --shadow-card: 0 1px 3px rgb(0 0 0 / 0.07);
+  --shadow-raised: 0 2px 8px rgb(30 42 47 / 0.07);
+  --shadow-dock: 0 4px 14px rgb(30 42 47 / 0.28);
+  --shadow-rail: 0 1px 3px rgb(1 124 125 / 0.4);
 
   --animate-accordion-down: accordion-down 0.2s ease-out;
   --animate-accordion-up: accordion-up 0.2s ease-out;
