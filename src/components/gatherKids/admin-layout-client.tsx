@@ -31,6 +31,7 @@ import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/auth-context';
 import { ProtectedRoute } from '@/components/auth/protected-route';
 import { AuthRole } from '@/lib/auth-types';
+import { GatherSystemShellProvider } from '@/components/gatherKids/gathersystem-shell-context';
 import { AdminSkeleton } from '@/components/skeletons/admin-skeleton';
 import { useBranding } from '@/contexts/branding-context';
 import { SettingsModal } from '@/components/settings/settings-modal';
@@ -291,12 +292,14 @@ export function AdminLayoutClient({
 	useGatherSystemShell?: boolean;
 }) {
 	return (
-		<ProtectedRoute
-			allowedRoles={[AuthRole.ADMIN, AuthRole.MINISTRY_LEADER]}
-			loadingComponent={<AdminSkeleton />}>
-			<DashboardLayoutContent useGatherSystemShell={useGatherSystemShell}>
-				{children}
-			</DashboardLayoutContent>
-		</ProtectedRoute>
+		<GatherSystemShellProvider value={useGatherSystemShell}>
+			<ProtectedRoute
+				allowedRoles={[AuthRole.ADMIN, AuthRole.MINISTRY_LEADER]}
+				loadingComponent={<AdminSkeleton />}>
+				<DashboardLayoutContent useGatherSystemShell={useGatherSystemShell}>
+					{children}
+				</DashboardLayoutContent>
+			</ProtectedRoute>
+		</GatherSystemShellProvider>
 	);
 }

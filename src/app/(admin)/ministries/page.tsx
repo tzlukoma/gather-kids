@@ -30,6 +30,15 @@ import {
 	Inbox,
 } from 'lucide-react';
 import { EmptyState } from '@/components/ui/empty-state';
+import { cn } from '@/lib/utils';
+import { useGatherSystemShell } from '@/components/gatherKids/gathersystem-shell-context';
+import {
+	STAFF_CARD,
+	STAFF_PAGE_TITLE,
+	STAFF_SECTION_DESCRIPTION,
+	STAFF_SECTION_TITLE,
+	STAFF_TABLE_DENSE,
+} from '@/components/gatherKids/staff-list-styles';
 import { MinistryFormDialog } from '@/components/gatherKids/ministry-form-dialog';
 import { MinistryGroupFormDialog } from '@/components/gatherKids/ministry-group-form-dialog';
 import { MinistryAssignmentDialog } from '@/components/gatherKids/ministry-assignment-dialog';
@@ -84,14 +93,22 @@ function MinistryTable({
 	onDelete: (ministryId: string) => void;
 	groupsForMinistries?: Map<string, MinistryGroup[]>;
 }) {
+	const gatherSystem = useGatherSystemShell();
+
 	return (
-		<Card>
+		<Card className={cn(gatherSystem && STAFF_CARD)}>
 			<CardHeader>
-				<CardTitle className="font-headline">{title}</CardTitle>
-				<CardDescription>{description}</CardDescription>
+				<CardTitle
+					className={cn(gatherSystem ? STAFF_SECTION_TITLE : 'font-headline')}>
+					{title}
+				</CardTitle>
+				<CardDescription
+					className={cn(gatherSystem && STAFF_SECTION_DESCRIPTION)}>
+					{description}
+				</CardDescription>
 			</CardHeader>
 			<CardContent>
-				<Table>
+				<Table className={cn(gatherSystem && STAFF_TABLE_DENSE)}>
 					<TableHeader>
 						<TableRow>
 							<TableHead>Name</TableHead>
@@ -205,17 +222,23 @@ function MinistryGroupTable({
 	onAssignMinistries: (group: MinistryGroup) => void;
 	ministriesInGroups?: Map<string, Ministry[]>;
 }) {
+	const gatherSystem = useGatherSystemShell();
+
 	return (
-		<Card>
+		<Card className={cn(gatherSystem && STAFF_CARD)}>
 			<CardHeader>
-				<CardTitle className="font-headline">Ministry Groups</CardTitle>
-				<CardDescription>
+				<CardTitle
+					className={cn(gatherSystem ? STAFF_SECTION_TITLE : 'font-headline')}>
+					Ministry Groups
+				</CardTitle>
+				<CardDescription
+					className={cn(gatherSystem && STAFF_SECTION_DESCRIPTION)}>
 					Organize ministries into groups for easier management and group-level
 					permissions.
 				</CardDescription>
 			</CardHeader>
 			<CardContent>
-				<Table>
+				<Table className={cn(gatherSystem && STAFF_TABLE_DENSE)}>
 					<TableHeader>
 						<TableRow>
 							<TableHead>Name</TableHead>
@@ -320,6 +343,7 @@ function MinistryGroupTable({
 }
 
 export default function MinistryPage() {
+	const gatherSystem = useGatherSystemShell();
 	const router = useRouter();
 	const { user, loading } = useAuth();
 	const queryClient = useQueryClient();
@@ -491,7 +515,14 @@ export default function MinistryPage() {
 		<div className="flex flex-col gap-8">
 			<div className="flex items-center justify-between">
 				<div>
-					<h1 className="text-3xl font-bold font-headline">Ministries</h1>
+					<h1
+						className={cn(
+							gatherSystem
+								? STAFF_PAGE_TITLE
+								: 'text-3xl font-bold font-headline'
+						)}>
+						Ministries
+					</h1>
 					<p className="text-muted-foreground">
 						Manage the ministries and activities available for registration.
 					</p>
