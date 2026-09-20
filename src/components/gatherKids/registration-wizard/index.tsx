@@ -54,7 +54,7 @@ import {
 } from '@/lib/dal';
 import {
 	pickActiveRegistrationCycle,
-	registrationCycleLabel,
+	registrationCycleDisplayLabel,
 } from '@/lib/dal/registration-cycle-utils';
 import { cleanPhone } from '@/hooks/usePhoneFormat';
 import { canonicalizeGradeForStorage } from '@/lib/gradeUtils';
@@ -78,6 +78,7 @@ import {
 	type RegistrationPrefillState,
 } from './registration-prefill-state';
 import { resolveRegistrationDraft } from './registration-draft-merge';
+import { hasPersistedBibleBeeEnrollment } from './registration-receipt';
 import { DraftStatusIndicator } from '@/components/ui/draft-status-indicator';
 import type {
 	HouseholdPrefillGradeHint,
@@ -152,7 +153,9 @@ export default function RegisterWizard() {
 	const activeRegistrationCycle = pickActiveRegistrationCycle(registrationCycles);
 	// Guardians see the cycle's name ("Fall 2026"), never its id — which is a
 	// UUID in UAT and production.
-	const cycleLabel = registrationCycleLabel(activeRegistrationCycle, 'current');
+	// Same derived label the entry and Done use — see
+	// REGISTRATION_CYCLE_FALLBACK_LABEL for why the fallback lives in one place.
+	const cycleLabel = registrationCycleDisplayLabel(activeRegistrationCycle);
 
 	const { data: ministryGroups = [] } = useQuery({
 		queryKey: ['ministryGroups'],
@@ -621,13 +624,7 @@ export default function RegisterWizard() {
 			// it cannot offer scripture assignments to a child who was not
 			// actually enrolled.
 			setChildrenEnrolledInBibleBee(
-				registeredChildren.some((child) =>
-					child.enrollments.some(
-						(enrollment) =>
-							enrollment.ministry_code === 'bible-bee' &&
-							enrollment.status === 'enrolled'
-					)
-				)
+				hasPersistedBibleBeeEnrollment(registeredChildren)
 			);
 
 			captureAnalyticsEvent('registration_submitted', {
@@ -666,7 +663,13 @@ export default function RegisterWizard() {
 	}
 
 	if (screen === 'done') {
-		return <RegistrationDone childrenEnrolledInBibleBee={childrenEnrolledInBibleBee} registeredChildren={registeredChildren} />;
+		return (
+			<RegistrationDone
+				childrenEnrolledInBibleBee={childrenEnrolledInBibleBee}
+				registeredChildren={registeredChildren}
+				cycleLabel={cycleLabel}
+			/>
+		);
 	}
 
 	return (
@@ -684,7 +687,10 @@ export default function RegisterWizard() {
 						    of the page. Wraps at 320px rather than forcing overflow. */}
 						<div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 mb-3 md:mb-4">
 							<p className="min-w-0 text-xs font-semibold tracking-wider uppercase text-[#5b6b72] break-words">
-								{cycleLabel} Registration
+								Registration ·{' '}
+								<span data-testid="registration-wizard-cycle-label">
+									{cycleLabel}
+								</span>
 							</p>
 							{flags.registrationDraftPersistenceEnabled && (
 								<div

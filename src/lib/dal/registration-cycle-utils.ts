@@ -29,6 +29,28 @@ export function registrationCycleLabel(
   return cycle?.name?.trim() || fallback;
 }
 
+/**
+ * The one neutral label every guardian-facing screen falls back to when no
+ * cycle is configured.
+ *
+ * Entry, wizard and Done each used to pass their own wording — "this year" in
+ * one place, "current" in another — so the three screens disagreed on exactly
+ * the path nobody exercises. Deriving it here makes them agree by construction.
+ *
+ * It is a bare noun phrase on purpose, so it drops into the same slots a real
+ * cycle name does: "Register for Fall 2026" / "Register for this year". Copy
+ * that wants a modifier ("the ___ cycle", "___ programs") must be reworded to
+ * take a standalone label rather than given a second fallback.
+ */
+export const REGISTRATION_CYCLE_FALLBACK_LABEL = 'this year';
+
+/** Guardian-facing cycle label, with the shared neutral fallback applied. */
+export function registrationCycleDisplayLabel(
+  cycle: Pick<RegistrationCycle, 'name'> | null | undefined,
+): string {
+  return registrationCycleLabel(cycle, REGISTRATION_CYCLE_FALLBACK_LABEL);
+}
+
 /** Prior cycle = latest cycle with start_date strictly before current.start_date. */
 export function pickPriorRegistrationCycle(
   cycles: RegistrationCycle[],
