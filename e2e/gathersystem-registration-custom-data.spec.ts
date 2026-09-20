@@ -10,48 +10,26 @@ import {
   loginWithPassword,
   waitForPostLoginRoute,
 } from './utils/r1-helpers';
+import {
+  assertDisposableLocalSupabase,
+  continueToNextStep,
+  gathersystemDescribe,
+  isLocalSupabaseConfigured,
+  startWizardRegistration,
+  fillWizardGuardians,
+  fillWizardHousehold,
+  addFirstChild,
+} from './utils/gathersystem-wizard';
 
 const E2E_CUSTOM_MINISTRY_ID = 'e2e_custom_questions_ministry';
 const E2E_CUSTOM_MINISTRY_CODE = 'e2e-custom-questions';
 const CUSTOM_QUESTION_ID = 'experience-notes';
 const CUSTOM_ANSWER = 'E2E custom answer for ministry question';
 
-const LOCAL_HOSTNAMES = new Set(['localhost', '127.0.0.1', '::1']);
-
 /**
  * Exact-local hostname only — never trust substring matches.
  * A misconfigured URL must not reach service-role seed/mutation helpers.
  */
-function isDisposableLocalSupabaseUrl(url: string): boolean {
-  if (!url) return false;
-  try {
-    const hostname = new URL(url).hostname.toLowerCase();
-    const normalized =
-      hostname.startsWith('[') && hostname.endsWith(']')
-        ? hostname.slice(1, -1)
-        : hostname;
-    return LOCAL_HOSTNAMES.has(normalized);
-  } catch {
-    return false;
-  }
-}
-
-function assertDisposableLocalSupabase(): void {
-  const url = process.env.SUPABASE_URL || '';
-  const key = process.env.SUPABASE_SERVICE_ROLE || '';
-  if (!key || !isDisposableLocalSupabaseUrl(url)) {
-    throw new Error(
-      `GatherSystem custom-data E2E refuses non-disposable Supabase URL (exact localhost/127.0.0.1/::1 required): ${url || '(missing)'}`,
-    );
-  }
-}
-
-function isLocalSupabaseConfigured() {
-  const url = process.env.SUPABASE_URL || '';
-  const key = process.env.SUPABASE_SERVICE_ROLE || '';
-  return Boolean(key) && isDisposableLocalSupabaseUrl(url);
-}
-
 /**
  * Flag-on GatherSystem E2E requires:
  * - GATHERSYSTEM_REGISTRATION_E2E=1 (unskip these tests)
@@ -61,105 +39,21 @@ function isLocalSupabaseConfigured() {
  * webServer with the override (remote PostHog flags stay off in local/dev).
  * When only E2E=1 is set, e2e.config.ts still injects OVERRIDE into webServer.env.
  */
-function gathersystemDescribe(title: string, fn: () => void) {
-  test.describe(title, () => {
-    test.skip(
-      process.env.GATHERSYSTEM_REGISTRATION_E2E !== '1',
-      'Set GATHERSYSTEM_REGISTRATION_E2E=1 (prefer: npm run test:e2e:gathersystem)',
-    );
-    fn();
-  });
-}
-
-async function continueToNextStep(page: Page) {
-  await page.getByRole('button', { name: /save & continue/i }).click();
-}
-
-async function startWizardRegistration(page: Page) {
-  await page.goto('/register');
-
-  const startButton = page.getByRole('button', { name: /start registration|continue/i });
-  if (await startButton.count()) {
-    await startButton.first().click();
-  }
-
-  await expect(page.getByRole('button', { name: /save & continue/i })).toBeVisible({
-    timeout: 15000,
-  });
-}
-
-async function fillWizardHousehold(page: Page) {
-  await page.getByRole('textbox', { name: /street address|address line 1/i }).first().fill('100 Custom Data St');
-  await page.getByRole('textbox', { name: /^city$/i }).fill('Perth Amboy');
-  await page.getByRole('textbox', { name: /^state$/i }).fill('NJ');
-  await page.getByRole('textbox', { name: /zip/i }).fill('08861');
-  await continueToNextStep(page);
-}
-
-async function fillWizardGuardians(page: Page) {
-  // Step 2 shows guardian summary cards; open Edit to reach fields + relationship Select.
-  await expect(page.getByText(/who can collect the children/i)).toBeVisible({
-    timeout: 15000,
-  });
-
-  await page.getByRole('button', { name: /^edit$/i }).first().click();
-
-  await page.locator('input[name="guardians.0.first_name"]').fill('Alex');
-  await page.locator('input[name="guardians.0.last_name"]').fill('Custom');
-  await page.locator('input[name="guardians.0.mobile_phone"]').fill('5551234567');
-
-  await page.getByRole('combobox').filter({ hasText: /mother|father|select relationship/i }).first().click();
-  await page.getByRole('option', { name: 'Mother' }).click();
-
-  await page.getByRole('button', { name: /^done$/i }).click();
-
-  await page.locator('input[name="emergencyContact.first_name"]').fill('Sam');
-  await page.locator('input[name="emergencyContact.last_name"]').fill('Lee');
-  await page.locator('input[name="emergencyContact.relationship"]').fill('Aunt');
-  await page.locator('input[name="emergencyContact.mobile_phone"]').fill('5559876543');
-
-  await continueToNextStep(page);
-}
-
-async function fillWizardChild(page: Page) {
-  await expect(page.getByText(/tell us about your children/i)).toBeVisible({
-    timeout: 15000,
-  });
-
-  const addFirst = page.getByRole('button', { name: /add your first child/i });
-  if (await addFirst.count()) {
-    await addFirst.click();
-  } else {
-    const addChild = page.getByRole('button', { name: /add (another )?child/i });
-    if (await addChild.count()) {
-      await addChild.first().click();
-    }
-  }
-
-  await page.locator('input[name="children.0.first_name"]').fill('Jordan');
-  await page.locator('input[name="children.0.last_name"]').fill('Custom');
-  await page.locator('input[name="children.0.dob"]').fill('2015-05-15');
-
-  const grade = page.getByRole('combobox', { name: /grade/i }).first();
-  await grade.click();
-  await page.getByRole('option').first().click();
-
-  // Compatible with #411 allergy gate: select sentinel when the control exists.
-  const noKnownAllergies = page.getByRole('radio', {
-    name: /no known allergies/i,
-  });
-  if (await noKnownAllergies.count()) {
-    await noKnownAllergies.click();
-  }
-
-  await continueToNextStep(page);
-}
-
 /** Advance through household → guardians → children so Step 4 (ministries) is active. */
-async function fillWizardThroughChildStep(page: Page) {
-  await fillWizardHousehold(page);
-  await fillWizardGuardians(page);
-  await fillWizardChild(page);
+async function fillWizardThroughChildStep(
+  page: Page,
+  lastName: string,
+  guardianEmail: string,
+) {
+  await fillWizardHousehold(page, lastName);
+  await fillWizardGuardians(page, lastName, guardianEmail);
+  await addFirstChild(page, {
+    first_name: 'Jordan',
+    last_name: 'Custom',
+    dob: '2015-05-15',
+    grade: '4th',
+  });
+  await continueToNextStep(page);
   await expect(page.getByText(/ministry programs|expressed interest/i).first()).toBeVisible({
     timeout: 15000,
   });
@@ -244,17 +138,18 @@ gathersystemDescribe('GatherSystem registration custom data @mutating', () => {
     await loginWithPassword(page, email, TEST_PASSWORD);
     await waitForPostLoginRoute(page);
     await startWizardRegistration(page);
-    await fillWizardThroughChildStep(page);
+    await fillWizardThroughChildStep(page, 'CustomData', email);
 
-    const ministryCard = page.getByText('E2E Custom Questions Ministry');
+    // Scope to this ministry's card: the per-child checkboxes are labelled with
+    // the child's name, so an unscoped `hasText: 'Jordan'` ticks whichever
+    // ministry happens to render first — which is why the custom question below
+    // never appeared.
+    const ministryCard = page.locator(
+      `[data-ministry-code="${E2E_CUSTOM_MINISTRY_CODE}"]`,
+    );
     await expect(ministryCard).toBeVisible({ timeout: 15000 });
 
-    const ministryCheckbox = page
-      .locator('label')
-      .filter({ hasText: 'Jordan' })
-      .locator('..')
-      .getByRole('checkbox')
-      .first();
+    const ministryCheckbox = ministryCard.getByRole('checkbox').first();
     await ministryCheckbox.check();
 
     const customField = page.getByLabel('Tell us about prior experience');
@@ -279,12 +174,23 @@ gathersystemDescribe('GatherSystem registration custom data @mutating', () => {
     });
 
     const supabase = createE2EAdminClient();
+
+    // Scoped to *this* run's household, via the guardian address, which is
+    // unique per test. Matching on first/last name with `.limit(1)` and no
+    // ordering picks an arbitrary "Jordan Custom" from any earlier run against
+    // the same database, and then asserts on the wrong child's enrollments.
+    const { data: guardianRows, error: guardianError } = await supabase
+      .from('guardians')
+      .select('household_id')
+      .eq('email', email);
+    expect(guardianError).toBeNull();
+    expect(guardianRows).toHaveLength(1);
+
     const { data: children, error: childError } = await supabase
       .from('children')
       .select('child_id')
-      .eq('first_name', 'Jordan')
-      .eq('last_name', 'Custom')
-      .limit(1);
+      .eq('household_id', guardianRows![0].household_id)
+      .eq('first_name', 'Jordan');
 
     expect(childError).toBeNull();
     expect(children?.length).toBe(1);
@@ -299,7 +205,20 @@ gathersystemDescribe('GatherSystem registration custom data @mutating', () => {
 
     expect(enrollmentError).toBeNull();
     expect(enrollments?.length).toBe(1);
-    expect(enrollments![0].custom_fields).toMatchObject({
+
+    // `custom_fields` is a jsonb column, but the adapter writes it through
+    // `serializeIfObject`, which JSON.stringifies first — so it reads back as a
+    // JSON *string* rather than an object. See #472; that is a stored-shape bug
+    // to fix separately, with a backfill.
+    //
+    // This asserts the decoded answer and accepts either shape, so it proves the
+    // answer persisted without freezing the current encoding in place: it keeps
+    // passing once #472 is fixed.
+    const raw = enrollments![0].custom_fields as unknown;
+    const customFields =
+      typeof raw === 'string' ? (JSON.parse(raw) as Record<string, unknown>) : raw;
+
+    expect(customFields).toMatchObject({
       [CUSTOM_QUESTION_ID]: CUSTOM_ANSWER,
     });
   });

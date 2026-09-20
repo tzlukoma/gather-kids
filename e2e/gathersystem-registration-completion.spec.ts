@@ -4,6 +4,7 @@ import {
   createConfirmedTestUser,
   createE2EAdminClient,
   deleteTestUser,
+  ensureRegistrationSmokeFixtures,
   E2E_ACTIVE_CYCLE_ID,
 } from './utils/seed';
 import { loginWithPassword, waitForPostLoginRoute } from './utils/r1-helpers';
@@ -72,6 +73,19 @@ gathersystemDescribe('GatherSystem registration completion @mobile @mutating', (
 
   let createdUserId: string | undefined;
 
+  /**
+   * This spec used to have no `beforeAll` and passed only because an
+   * alphabetically earlier spec happened to seed the active cycle. When that
+   * ordering shifted it read the neutral fallback instead of the cycle name and
+   * failed on its own central assertion. A spec that depends on its neighbours
+   * is not a gate, so it seeds what it asserts on.
+   */
+  test.beforeAll(async () => {
+    if (!isLocalSupabaseConfigured()) return;
+    assertDisposableLocalSupabase();
+    await ensureRegistrationSmokeFixtures();
+  });
+
   test.afterEach(async () => {
     if (createdUserId) {
       await deleteTestUser(createdUserId).catch(() => undefined);
@@ -105,11 +119,14 @@ gathersystemDescribe('GatherSystem registration completion @mobile @mutating', (
     const entryLabel = page.getByTestId('registration-entry-cycle-label');
     await expect(entryLabel).toBeVisible({ timeout: 30000 });
 
+    // The cycle list is fetched, so the heading renders the neutral fallback for
+    // a moment first. Wait for the resolved value with an auto-retrying
+    // assertion rather than sampling textContent mid-flight.
+    await expect(entryLabel).not.toHaveText('this year', { timeout: 30000 });
+
     const cycleName = (await entryLabel.textContent())?.trim() ?? '';
     expect(cycleName).not.toBe('');
     expect(cycleName).not.toMatch(UUID_RE);
-    // A cycle really is configured, so this is the name rather than a fallback.
-    expect(cycleName).not.toBe('this year');
     expect(await page.textContent('body')).not.toMatch(UUID_RE);
 
     // ---- Wizard names the same cycle -------------------------------------

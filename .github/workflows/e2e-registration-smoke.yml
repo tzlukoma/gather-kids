@@ -16,7 +16,7 @@ jobs:
   e2e-registration:
     name: e2e-registration
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-node-app
@@ -44,7 +44,11 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
-      - name: Run first-time and returning registration submit
+      # ---------------------------------------------------------------------
+      # Flag state 1 of 2 — gathersystem_registration OFF (legacy path).
+      # ---------------------------------------------------------------------
+      - name: Run legacy registration submit (flag off)
+        id: legacy
         run: npx playwright test e2e/registration-smoke.spec.ts --config=e2e.config.ts --project=chromium
         env:
           CI: true
@@ -52,6 +56,63 @@ jobs:
           NEXT_PUBLIC_LOGIN_PASSWORD_ENABLED: 'true'
           NEXT_PUBLIC_LOGIN_MAGIC_ENABLED: 'false'
           NEXT_PUBLIC_SHOW_MINISTRY_GROUPS: 'false'
+
+      # ---------------------------------------------------------------------
+      # Flag state 2 of 2 — gathersystem_registration ON (the redesign).
+      #
+      # Until this step existed, none of the eleven gathersystem-registration
+      # specs ran anywhere but on a developer's machine, by hand.
+      #
+      # `NEXT_PUBLIC_*` values are inlined at build time, so they are set here
+      # rather than read from a file: CI has no `.env.local`, and these must
+      # match the configuration the suite is actually validated against.
+      # `GATHERSYSTEM_REGISTRATION_OVERRIDE` keeps the server-evaluated flag on
+      # for this run only — the remote flag still defaults to legacy/off.
+      #
+      # A failing legacy step must not hide the flag-on answer — a rollout gate
+      # that reports half its result is not a gate. This deliberately does not
+      # use `always()`, which would also fire when Supabase never started and
+      # turn one infrastructure failure into three red steps.
+      # ---------------------------------------------------------------------
+      - name: Run GatherSystem registration suite (flag on)
+        id: gathersystem
+        if: success() || steps.legacy.conclusion == 'failure'
+        run: npx playwright test e2e/gathersystem-registration-*.spec.ts --config=e2e.config.ts --project=chromium
+        env:
+          CI: true
+          BASE_URL: http://localhost:9002
+          GATHERSYSTEM_REGISTRATION_E2E: '1'
+          GATHERSYSTEM_REGISTRATION_OVERRIDE: 'true'
+          NEXT_PUBLIC_LOGIN_PASSWORD_ENABLED: 'true'
+          NEXT_PUBLIC_LOGIN_MAGIC_ENABLED: 'false'
+          NEXT_PUBLIC_SHOW_MINISTRY_GROUPS: 'true'
+          NEXT_PUBLIC_REGISTRATION_DRAFT_PERSISTENCE_ENABLED: 'true'
+
+      # Draft persistence is a separate build-time flag, so the off-state needs
+      # its own run; the drafts spec asserts the wizard stays usable without it.
+      #
+      # This is an independent pass, not a continuation of the one above, so it
+      # runs after *either* earlier suite failed. Gating it on `success()` alone
+      # would skip it exactly when the flag-on suite went red — the run whose
+      # second data point is worth most, since it tells you whether the failure
+      # tracks draft persistence or is independent of it. Naming both upstream
+      # failures rather than using `always()` still keeps it from firing when
+      # Supabase never started.
+      - name: Run draft-persistence-off registration drafts (flag on)
+        if: >-
+          success()
+          || steps.legacy.conclusion == 'failure'
+          || steps.gathersystem.conclusion == 'failure'
+        run: npx playwright test e2e/gathersystem-registration-drafts.spec.ts --config=e2e.config.ts --project=chromium
+        env:
+          CI: true
+          BASE_URL: http://localhost:9002
+          GATHERSYSTEM_REGISTRATION_E2E: '1'
+          GATHERSYSTEM_REGISTRATION_OVERRIDE: 'true'
+          NEXT_PUBLIC_LOGIN_PASSWORD_ENABLED: 'true'
+          NEXT_PUBLIC_LOGIN_MAGIC_ENABLED: 'false'
+          NEXT_PUBLIC_SHOW_MINISTRY_GROUPS: 'true'
+          NEXT_PUBLIC_REGISTRATION_DRAFT_PERSISTENCE_ENABLED: 'false'
 
       - name: Upload Playwright report
         if: always()
