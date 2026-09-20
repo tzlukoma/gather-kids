@@ -2,6 +2,12 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { cn, GATHERSYSTEM_TEXT_TOKENS } from '@/lib/utils';
+import {
+	STAFF_EYEBROW,
+	STAFF_PAGE_TITLE,
+	STAFF_SECTION_DESCRIPTION,
+	STAFF_SECTION_TITLE,
+} from '@/components/gatherKids/staff-list-styles';
 
 /**
  * tailwind-merge recognises a font size by its shape (`text-sm`, `text-2xl`,
@@ -44,5 +50,45 @@ describe('cn() and the GatherSystem type scale', () => {
 		expect(cn('text-muted-foreground', 'text-foreground')).toBe(
 			'text-foreground'
 		);
+	});
+});
+
+/**
+ * Tailwind emits weight, leading and tracking through override slots, so an
+ * explicit utility on the host component beats the token regardless of class
+ * order. These are the host class strings the staff constants are actually
+ * merged onto; if a shadcn component gains a conflicting utility, this fails.
+ */
+describe('staff list constants survive their host components', () => {
+	const BUTTON = 'inline-flex items-center rounded-md text-sm font-medium';
+	const CARD_TITLE = 'text-2xl font-semibold leading-none tracking-tight';
+	const CARD_DESCRIPTION = 'text-sm text-muted-foreground';
+
+	it('gives the page title Display/28 at its own weight', () => {
+		const merged = cn(BUTTON, 'p-0 h-auto', STAFF_PAGE_TITLE);
+		expect(merged).toContain('text-display-28');
+		expect(merged).toContain('font-bold');
+		expect(merged).not.toContain('text-sm');
+		expect(merged).not.toContain('font-medium');
+	});
+
+	it('gives a card heading Title/18 at its own leading and tracking', () => {
+		const merged = cn(CARD_TITLE, STAFF_SECTION_TITLE);
+		expect(merged).toContain('text-title-18');
+		expect(merged).not.toContain('text-2xl');
+		expect(merged).not.toContain('leading-none');
+		expect(merged).not.toContain('tracking-tight');
+		expect(merged).toContain('leading-(--text-title-18--line-height)');
+		expect(merged).toContain('tracking-(--text-title-18--letter-spacing)');
+	});
+
+	it('gives a card description Body/14', () => {
+		const merged = cn(CARD_DESCRIPTION, STAFF_SECTION_DESCRIPTION);
+		expect(merged).toContain('text-body-14');
+		expect(merged).not.toContain('text-sm');
+	});
+
+	it('keeps the eyebrow at Eyebrow/11', () => {
+		expect(cn(STAFF_EYEBROW)).toContain('text-eyebrow-11');
 	});
 });

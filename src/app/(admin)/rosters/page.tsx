@@ -20,6 +20,17 @@ import {
 import { Button } from '@/components/ui/button';
 import { FileDown, ArrowUpDown, Edit, Camera, Users } from 'lucide-react';
 import { EmptyState } from '@/components/ui/empty-state';
+import { PermissionEmpty } from '@/components/ui/permission-empty';
+import { cn } from '@/lib/utils';
+import {
+	STAFF_CARD,
+	STAFF_EYEBROW,
+	STAFF_PAGE_TITLE,
+	STAFF_SECTION_DESCRIPTION,
+	STAFF_SECTION_TITLE,
+	STAFF_TABLE_DENSE,
+} from '@/components/gatherKids/staff-list-styles';
+import { useGatherSystemShell } from '@/components/gatherKids/gathersystem-shell-context';
 import { format, parseISO, differenceInYears } from 'date-fns';
 import { normalizeGradeDisplay } from '@/lib/gradeUtils';
 import {
@@ -130,6 +141,7 @@ const getGradeValue = (grade?: string): number => {
 };
 
 export default function RostersPage() {
+	const gatherSystem = useGatherSystemShell();
 	const { toast } = useToast();
 	const isMobile = useIsMobile();
 	const searchParams = useSearchParams();
@@ -631,9 +643,24 @@ export default function RostersPage() {
 		return <RosterSkeleton />;
 	}
 
-	// Show empty state for ministry leaders without assigned ministry
+	// Show empty state for ministry leaders without assigned ministry.
+	// This is a `restricted` state, not an empty one: rosters almost certainly
+	// exist, this account just cannot see any of them.
 	if (user?.metadata?.role === AuthRole.MINISTRY_LEADER && noMinistryAssigned) {
-		return (
+		return gatherSystem ? (
+			<PermissionEmpty
+				reason="restricted"
+				className="min-h-[400px]"
+				title="No ministry assigned"
+				description={`Your email address (${user.email}) is not currently associated with any active ministry, so there are no rosters to show you.`}
+				remedy="An administrator can assign you to a ministry."
+				action={
+					<Button variant="outline" onClick={() => window.location.reload()}>
+						Refresh page
+					</Button>
+				}
+			/>
+		) : (
 			<div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
 				<div className="text-center space-y-2">
 					<h1 className="text-2xl font-semibold">No Ministry Assigned</h1>
@@ -654,7 +681,7 @@ export default function RostersPage() {
 		(showCheckedIn && !showCheckedOut) || (!showCheckedIn && showCheckedOut);
 
 	const renderTable = () => (
-		<Table>
+		<Table className={cn(gatherSystem && STAFF_TABLE_DENSE)}>
 			<TableHeader>
 				<TableRow>
 					{showBulkActions && (
@@ -924,7 +951,12 @@ export default function RostersPage() {
 				<div className="flex items-start justify-between gap-4">
 					<div>
 						<div className="flex items-center gap-2">
-							<h1 className="text-xl font-bold font-headline text-muted-foreground">
+							<h1
+								className={cn(
+									gatherSystem
+										? STAFF_EYEBROW
+										: 'text-xl font-bold font-headline text-muted-foreground'
+								)}>
 								Ministry Rosters
 							</h1>
 						</div>
@@ -934,7 +966,12 @@ export default function RostersPage() {
 							<DialogTrigger asChild>
 								<Button
 									variant="link"
-									className="text-3xl font-bold font-headline p-0 h-auto">
+									className={cn(
+										'p-0 h-auto',
+										gatherSystem
+											? STAFF_PAGE_TITLE
+											: 'text-3xl font-bold font-headline'
+									)}>
 									Check-in: {currentEventName}
 									<Edit className="ml-2 h-5 w-5" />
 								</Button>
@@ -968,13 +1005,19 @@ export default function RostersPage() {
 					</div>
 				</div>
 
-				<Card>
+				<Card className={cn(gatherSystem && STAFF_CARD)}>
 					<CardHeader className="p-0">
 						<div className="p-6 bg-muted/25 border-b">
 							<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
 								<div>
-									<CardTitle className="font-headline">All Children</CardTitle>
-									<CardDescription>
+									<CardTitle
+										className={cn(
+											gatherSystem ? STAFF_SECTION_TITLE : 'font-headline'
+										)}>
+										All Children
+									</CardTitle>
+									<CardDescription
+										className={cn(gatherSystem && STAFF_SECTION_DESCRIPTION)}>
 										A complete list of children in the active registration
 										cycle
 										{activeCycleName ? ` (${activeCycleName})` : ''}.

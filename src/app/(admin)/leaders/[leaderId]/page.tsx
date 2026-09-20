@@ -44,6 +44,14 @@ import { Switch } from '@/components/ui/switch';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useAuth } from '@/contexts/auth-context';
 import { AuthRole } from '@/lib/auth-types';
+import { cn } from '@/lib/utils';
+import { useGatherSystemShell } from '@/components/gatherKids/gathersystem-shell-context';
+import {
+	STAFF_CARD,
+	STAFF_PAGE_TITLE,
+	STAFF_SECTION_DESCRIPTION,
+	STAFF_SECTION_TITLE,
+} from '@/components/gatherKids/staff-list-styles';
 import Link from 'next/link';
 import {
 	Select,
@@ -83,6 +91,7 @@ type AssignmentState = {
 };
 
 export default function LeaderProfilePage() {
+	const gatherSystem = useGatherSystemShell();
 	const params = useParams();
 	const router = useRouter();
 	const { user, loading } = useAuth();
@@ -356,7 +365,10 @@ export default function LeaderProfilePage() {
 	return (
 		<div className="flex flex-col gap-8">
 			<div>
-				<h1 className="text-3xl font-bold font-headline">
+				<h1
+					className={cn(
+						gatherSystem ? STAFF_PAGE_TITLE : 'text-3xl font-bold font-headline'
+					)}>
 					{isEditingProfile && profileForm.first_name && profileForm.last_name
 						? `${profileForm.first_name} ${profileForm.last_name}`
 						: `${profile.first_name} ${profile.last_name}`}
@@ -376,10 +388,14 @@ export default function LeaderProfilePage() {
 			</div>
 
 			<div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-				<Card className="lg:col-span-1 h-fit">
+				<Card className={cn('lg:col-span-1 h-fit', gatherSystem && STAFF_CARD)}>
 					<CardHeader>
 						<div className="flex items-center justify-between">
-							<CardTitle className="font-headline flex items-center gap-2">
+							<CardTitle
+								className={cn(
+									'flex items-center gap-2',
+									gatherSystem ? STAFF_SECTION_TITLE : 'font-headline'
+								)}>
 								<User /> Leader Information
 							</CardTitle>
 							{!isEditingProfile ? (
@@ -587,12 +603,17 @@ export default function LeaderProfilePage() {
 					</CardContent>
 				</Card>
 
-				<Card className="lg:col-span-2">
+				<Card className={cn('lg:col-span-2', gatherSystem && STAFF_CARD)}>
 					<CardHeader>
-						<CardTitle className="font-headline flex items-center gap-2">
+						<CardTitle
+							className={cn(
+								'flex items-center gap-2',
+								gatherSystem ? STAFF_SECTION_TITLE : 'font-headline'
+							)}>
 							Ministry Assignments
 						</CardTitle>
-						<CardDescription>
+						<CardDescription
+							className={cn(gatherSystem && STAFF_SECTION_DESCRIPTION)}>
 							Select the ministries this leader is assigned to for the 2025
 							cycle.
 						</CardDescription>

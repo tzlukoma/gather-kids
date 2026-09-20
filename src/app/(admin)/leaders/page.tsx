@@ -25,12 +25,22 @@ import { ChevronRight, Plus, Search, UserPlus, User } from 'lucide-react';
 import type { LeaderProfile } from '@/lib/types';
 import { useAuth } from '@/contexts/auth-context';
 import { AuthRole } from '@/lib/auth-types';
+import { cn } from '@/lib/utils';
+import { useGatherSystemShell } from '@/components/gatherKids/gathersystem-shell-context';
+import {
+	STAFF_CARD,
+	STAFF_PAGE_TITLE,
+	STAFF_SECTION_DESCRIPTION,
+	STAFF_SECTION_TITLE,
+	STAFF_TABLE_DENSE,
+} from '@/components/gatherKids/staff-list-styles';
 import { LeaderProfileDialog } from './leader-profile-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { useLeaders, useLeaderSearch } from '@/hooks/data/leaders';
 import { TableSkeleton } from '@/components/skeletons/TableSkeleton';
 
 export default function LeadersPage() {
+	const gatherSystem = useGatherSystemShell();
 	const router = useRouter();
 	const { user, loading } = useAuth();
 	const { toast } = useToast();
@@ -122,7 +132,14 @@ export default function LeadersPage() {
 		<div className="flex flex-col gap-8">
 			<div className="flex justify-between items-start">
 				<div>
-					<h1 className="text-3xl font-bold font-headline">Leaders</h1>
+					<h1
+						className={cn(
+							gatherSystem
+								? STAFF_PAGE_TITLE
+								: 'text-3xl font-bold font-headline'
+						)}>
+						Leaders
+					</h1>
 					<p className="text-muted-foreground">
 						Manage leader profiles and their ministry memberships.
 					</p>
@@ -133,14 +150,18 @@ export default function LeadersPage() {
 				</Button>
 			</div>
 
-			<Card>
+			<Card className={cn(gatherSystem && STAFF_CARD)}>
 				<CardHeader>
 					<div className="flex justify-between items-center">
 						<div>
-							<CardTitle className="font-headline">
+							<CardTitle
+								className={cn(
+									gatherSystem ? STAFF_SECTION_TITLE : 'font-headline'
+								)}>
 								All Leader Profiles
 							</CardTitle>
-							<CardDescription>
+							<CardDescription
+								className={cn(gatherSystem && STAFF_SECTION_DESCRIPTION)}>
 								Search and manage leader profiles. Click a row or button to edit
 								profile and ministry assignments.
 							</CardDescription>
@@ -157,7 +178,7 @@ export default function LeadersPage() {
 					</div>
 				</CardHeader>
 				<CardContent>
-					<Table>
+					<Table className={cn(gatherSystem && STAFF_TABLE_DENSE)}>
 						<TableHeader>
 							<TableRow>
 								<TableHead>Name</TableHead>
