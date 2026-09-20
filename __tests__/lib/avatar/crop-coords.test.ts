@@ -1,8 +1,10 @@
 import {
 	clampSourceSquare,
 	containedLayout,
+	drawPreviewCrop,
 	drawSquareCrop,
 	initialCenteredSquareCrop,
+	mapCropCornersToSource,
 	mapCropToSource,
 } from '@/lib/avatar/crop-coords';
 
@@ -130,5 +132,71 @@ describe('contained crop coordinates', () => {
 			4,
 			4
 		);
+	});
+
+	it('maps a rotated and moved overlay through inverse CSS rotation', () => {
+		const image = { width: 400, height: 400 };
+		const crop = { x: 150, y: 100, size: 200 };
+		const source = mapCropToSource({
+			crop,
+			container: squareContainer,
+			image,
+			userScale: 1,
+			rotationDeg: 90,
+		});
+		const unrotated = mapCropToSource({
+			crop,
+			container: squareContainer,
+			image,
+			userScale: 1,
+			rotationDeg: 0,
+		});
+		const corners = mapCropCornersToSource({
+			crop,
+			container: squareContainer,
+			image,
+			userScale: 1,
+			rotationDeg: 90,
+		});
+
+		// Without inverse rotation, save would treat screen (150,100) as source (150,100).
+		expect(unrotated.sx).toBeCloseTo(150);
+		expect(unrotated.sy).toBeCloseTo(100);
+		expect(source.sx).toBeCloseTo(100);
+		expect(source.sy).toBeCloseTo(250);
+		expect(corners[0].x).toBeCloseTo(100);
+		expect(corners[0].y).toBeCloseTo(250);
+		expect(corners[1].x).toBeCloseTo(100);
+		expect(corners[1].y).toBeCloseTo(50);
+	});
+
+	it('replays preview rotation when drawing a moved crop', () => {
+		const calls: string[] = [];
+		const ctx = {
+			save: () => calls.push('save'),
+			restore: () => calls.push('restore'),
+			scale: (...args: number[]) => calls.push(`scale:${args.join(',')}`),
+			translate: (...args: number[]) =>
+				calls.push(`translate:${args.join(',')}`),
+			rotate: (rad: number) => calls.push(`rotate:${rad}`),
+			drawImage: jest.fn(),
+		} as unknown as CanvasRenderingContext2D;
+		const bitmap = {} as CanvasImageSource;
+		const crop = { x: 150, y: 100, size: 200 };
+
+		drawPreviewCrop(ctx, bitmap, {
+			crop,
+			container: squareContainer,
+			imageSize: { width: 400, height: 400 },
+			userScale: 1,
+			rotationDeg: 90,
+			outputSize: 512,
+		});
+
+		expect(calls).toContain(`rotate:${Math.PI / 2}`);
+		expect(calls).toContain('translate:-150,-100');
+		expect((ctx.drawImage as jest.Mock).mock.calls[0].slice(1)).toEqual([
+			0, 0, 400, 400,
+		]);
 	});
 });

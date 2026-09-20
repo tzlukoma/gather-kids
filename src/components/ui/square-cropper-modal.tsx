@@ -11,11 +11,9 @@ import { toast } from '@/hooks/use-toast';
 import { Upload, ZoomIn, ZoomOut, RotateCw, X, Save, Camera, AlertTriangle, RefreshCw } from 'lucide-react';
 import {
 	clampCropToVisibleImage,
-	clampSourceSquare,
 	containedLayout,
-	drawSquareCrop,
+	drawPreviewCrop,
 	initialCenteredSquareCrop,
-	mapCropToSource,
 } from '@/lib/avatar/crop-coords';
 
 interface SquareCropperModalProps {
@@ -573,32 +571,24 @@ export function SquareCropperModal({
 
 		ctx.save();
 
-		if (crop.rotation !== 0) {
-			ctx.translate(outputSize / 2, outputSize / 2);
-			ctx.rotate((crop.rotation * Math.PI) / 180);
-			ctx.translate(-outputSize / 2, -outputSize / 2);
-		}
-
 		const container = measureContainer();
 		if (!container) {
 			throw new Error('Crop container not available');
 		}
 
-		const image = {
+		const imageSize = {
 			width: img.naturalWidth || imageNaturalSize.width,
 			height: img.naturalHeight || imageNaturalSize.height,
 		};
-		const source = clampSourceSquare(
-			mapCropToSource({
-				crop: { x: crop.x, y: crop.y, size: crop.size },
-				container,
-				image,
-				userScale: crop.scale,
-			}),
-			image
-		);
 
-		drawSquareCrop(ctx, img, source, outputSize);
+		drawPreviewCrop(ctx, img, {
+			crop: { x: crop.x, y: crop.y, size: crop.size },
+			container,
+			imageSize,
+			userScale: crop.scale,
+			rotationDeg: crop.rotation,
+			outputSize,
+		});
 
 		ctx.restore();
 

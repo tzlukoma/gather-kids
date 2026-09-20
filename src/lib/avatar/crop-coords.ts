@@ -69,34 +69,115 @@ export function initialCenteredSquareCrop(layout: ContainedLayout): CropRect {
 }
 
 /**
- * Inverse of `transform: scale(userScale)` around the container centre, then
- * undo object-contain letterboxing to reach natural image pixels.
+ * Inverse of `transform: scale(userScale) rotate(rotationDeg)` around the
+ * container centre (CSS order: scale, then rotate). Positive CSS rotate is
+ * clockwise on screen.
+ */
+export function overlayPointToWrapper(
+	point: { x: number; y: number },
+	container: Size,
+	userScale: number,
+	rotationDeg = 0
+): { x: number; y: number } {
+	const scale = userScale > 0 ? userScale : 1;
+	const centerX = container.width / 2;
+	const centerY = container.height / 2;
+	const dx = point.x - centerX;
+	const dy = point.y - centerY;
+	const rad = (-rotationDeg * Math.PI) / 180;
+	const cos = Math.cos(rad);
+	const sin = Math.sin(rad);
+
+	return {
+		x: centerX + (dx * cos - dy * sin) / scale,
+		y: centerY + (dx * sin + dy * cos) / scale,
+	};
+}
+
+export function overlayPointToSource(
+	point: { x: number; y: number },
+	{
+		container,
+		image,
+		userScale,
+		rotationDeg = 0,
+	}: {
+		container: Size;
+		image: Size;
+		userScale: number;
+		rotationDeg?: number;
+	}
+): { x: number; y: number } {
+	const layout = containedLayout(container, image);
+	const wrapper = overlayPointToWrapper(
+		point,
+		container,
+		userScale,
+		rotationDeg
+	);
+
+	return {
+		x: (wrapper.x - layout.offsetX) / layout.fitScale,
+		y: (wrapper.y - layout.offsetY) / layout.fitScale,
+	};
+}
+
+/**
+ * Inverse of the preview transform, then undo object-contain letterboxing.
+ * `sx`/`sy` are the source pixels under the overlay's top-left. After a
+ * rotation the overlay is a rotated square in source space; use
+ * `drawPreviewCrop` to sample it.
  */
 export function mapCropToSource({
 	crop,
 	container,
 	image,
 	userScale,
+	rotationDeg = 0,
 }: {
 	crop: CropRect;
 	container: Size;
 	image: Size;
 	userScale: number;
+	rotationDeg?: number;
 }): SourceSquare {
+	const topLeft = overlayPointToSource(
+		{ x: crop.x, y: crop.y },
+		{ container, image, userScale, rotationDeg }
+	);
 	const layout = containedLayout(container, image);
 	const scale = userScale > 0 ? userScale : 1;
-	const centerX = container.width / 2;
-	const centerY = container.height / 2;
-
-	const wrapperX = centerX + (crop.x - centerX) / scale;
-	const wrapperY = centerY + (crop.y - centerY) / scale;
-	const wrapperSize = crop.size / scale;
 
 	return {
-		sx: (wrapperX - layout.offsetX) / layout.fitScale,
-		sy: (wrapperY - layout.offsetY) / layout.fitScale,
-		sSize: wrapperSize / layout.fitScale,
+		sx: topLeft.x,
+		sy: topLeft.y,
+		sSize: crop.size / scale / layout.fitScale,
 	};
+}
+
+export function mapCropCornersToSource({
+	crop,
+	container,
+	image,
+	userScale,
+	rotationDeg = 0,
+}: {
+	crop: CropRect;
+	container: Size;
+	image: Size;
+	userScale: number;
+	rotationDeg?: number;
+}): { x: number; y: number }[] {
+	const args = { container, image, userScale, rotationDeg };
+	return [
+		overlayPointToSource({ x: crop.x, y: crop.y }, args),
+		overlayPointToSource({ x: crop.x + crop.size, y: crop.y }, args),
+		overlayPointToSource(
+			{ x: crop.x + crop.size, y: crop.y + crop.size },
+			args
+		),
+		overlayPointToSource({ x: crop.x, y: crop.y + crop.size }, args),
+	];
 }
 
 export function clampSourceSquare(
@@ -167,4 +248,52 @@ export function drawSquareCrop(
 		outputSize,
 		outputSize
 	);
+}
+
+/**
+ * Sample the overlay by replaying the preview: object-contain, then
+ * `scale(userScale) rotate(rotationDeg)` around the container centre.
+ */
+export function drawPreviewCrop(
+	ctx: CanvasRenderingContext2D,
+	image: CanvasImageSource,
+	{
+		crop,
+		container,
+		imageSize,
+		userScale,
+		rotationDeg,
+		outputSize,
+	}: {
+		crop: CropRect;
+		container: Size;
+		imageSize: Size;
+		userScale: number;
+		rotationDeg: number;
+		outputSize: number;
+	}
+): void {
+	if (crop.size <= 0) return;
+
+	const layout = containedLayout(container, imageSize);
+	const scale = userScale > 0 ? userScale : 1;
+	const centerX = container.width / 2;
+	const centerY = container.height / 2;
+	const outputScale = outputSize / crop.size;
+
+	ctx.save();
+	ctx.scale(outputScale, outputScale);
+	ctx.translate(-crop.x, -crop.y);
+	ctx.translate(centerX, centerY);
+	ctx.rotate((rotationDeg * Math.PI) / 180);
+	ctx.scale(scale, scale);
+	ctx.translate(-centerX, -centerY);
+	ctx.drawImage(
+		image,
+		layout.offsetX,
+		layout.offsetY,
+		layout.fittedWidth,
+		layout.fittedHeight
+	);
+	ctx.restore();
 }
