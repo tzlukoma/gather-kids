@@ -85,12 +85,113 @@ The `Button` component (`src/components/ui/button.tsx`) provides these variants:
 - When implementing guardian/admin UI, use `variant="default"` for primary actions.
 - Never use `variant="door"` outside the check-in/check-out context.
 
+## Type Scale
+
+Aligned with **Figma Foundations · Type** ([node 4-55](https://www.figma.com/design/vSkNkDF9A7vNpOGIsM44XZ?node-id=4-55)).
+
+Three families, with a strict division of labour: **Work Sans carries the
+interface, Merriweather is reserved for scripture passages, and Source Code Pro
+labels tokens and codes.** Merriweather is never interface text.
+
+Each step is a complete Figma text style — family, weight, size, line height and
+tracking — exposed as one Tailwind utility. (Family comes from a companion rule
+in `globals.css`; see the notes below.) Token names mirror Figma's own, so
+`Body/14` in the design file is `text-body-14` in markup with no translation
+step.
+
+| Utility | Family | Weight | Size | Line height | Tracking |
+|---|---|---|---|---|---|
+| `text-display-28` | Work Sans | 700 | 28px | 32px | −0.02em |
+| `text-headline-22` | Work Sans | 700 | 22px | 28px | −0.01em |
+| `text-title-18` | Work Sans | 600 | 18px | 24px | −0.01em |
+| `text-title-16` | Work Sans | 600 | 16px | 22px | — |
+| `text-body-15` | Work Sans | 400 | 15px | 22px | — |
+| `text-body-14` | Work Sans | 400 | 14px | 20px | — |
+| `text-body-13` | Work Sans | 400 | 13px | 19px | — |
+| `text-label-12` | Work Sans | 600 | 12px | 16px | — |
+| `text-eyebrow-11` | Work Sans | 600 | 11px | 14px | +0.09em |
+| `text-scripture-18` | Merriweather | 400 | 18px | 28px | — |
+| `text-scripture-16` | Merriweather | 400 | 16px | 26px | — |
+| `text-mono-12` | Source Code Pro | 400 | 12px | 16px | — |
+| `text-mono-11` | Source Code Pro | 400 | 11.5px | 16px | — |
+
+Sizes are declared in `rem` so the scale honours the reader's browser font size.
+Figma's pixel values are at a 16px root (8px = 0.5rem).
+
+### Notes for agents
+
+- **`text-eyebrow-11` does not uppercase on its own.** Figma's Eyebrow style is
+  uppercase, but text transform is not part of a Tailwind type token — pair it
+  with `uppercase` at the call site.
+- **Overrides compose cleanly.** Tailwind v4 emits each composite property
+  through an override slot (`var(--tw-font-weight, …)`), so `font-bold`,
+  `leading-*` and `tracking-*` beat the token regardless of source order. You do
+  not need to worry about class ordering.
+- **`letter-spacing` is only emitted where Figma sets non-zero tracking**, so a
+  `tracking-*` utility composes normally on every other step.
+- **The family is applied by a companion rule, not by the token.** Tailwind v4
+  has no `--text-*--font-family` modifier — it emits font-size, line-height,
+  letter-spacing and font-weight only, and silently drops a family declared
+  that way. `globals.css` therefore pairs `font-family` onto the same class
+  names, so each step is the whole Figma style. If you add a step, add it to
+  the matching family rule too or it will inherit Work Sans from `body`.
+- **Source Code Pro is not loaded.** `layout.tsx` loads only Work Sans and
+  Merriweather via `next/font`, so `text-mono-*` resolves to the system
+  monospace in the `--font-code` stack. Nothing consumes these tokens yet;
+  load the family when the first screen does.
+
+## Radius & Elevation
+
+Aligned with **Figma Foundations · Radius & Elevation**
+([node 4-56](https://www.figma.com/design/vSkNkDF9A7vNpOGIsM44XZ?node-id=4-56)).
+
+### Radius
+
+All corner radii derive from a single `--radius` token (`0.5rem`). This was
+already conformant before this document described it.
+
+| Utility | Value | Derivation |
+|---|---|---|
+| `rounded-sm` | 4px | `calc(var(--radius) - 4px)` |
+| `rounded-md` | 6px | `calc(var(--radius) - 2px)` |
+| `rounded-lg` | 8px | `var(--radius)` |
+
+### Elevation
+
+A short, warm-shadow scale — surfaces lift only as much as their job requires.
+The tints are drawn from the brand palette rather than neutral grey:
+`rgb(30 42 47)` is `ink` and `rgb(1 124 125)` is `brand.teal`.
+
+| Utility | Shadow | Use for |
+|---|---|---|
+| `shadow-card` | `0 1px 3px rgb(0 0 0 / 0.07)` | Resting cards, rows, stat tiles |
+| `shadow-raised` | `0 2px 8px rgb(30 42 47 / 0.07)` | Bottom nav, floating plates |
+| `shadow-dock` | `0 4px 14px rgb(30 42 47 / 0.28)` | Sticky confirm dock, tooltips |
+| `shadow-rail` | `0 1px 3px rgb(1 124 125 / 0.4)` | Selected teal nav item |
+
+These deliberately do **not** reuse the names `shadow-sm` / `shadow-md`. Those
+already exist in Tailwind's default scale and are in use across the app, so
+redefining them would silently restyle existing screens.
+
+## Density
+
+Two densities, chosen by surface rather than by preference:
+
+| Density | Surfaces |
+|---|---|
+| **Compact** | Check-in door, Bible Bee admin |
+| **Comfy** | Guardian and household screens on mobile |
+
+Compact surfaces are worked at speed by staff who need more on screen at once;
+comfy surfaces are read by families on a phone, often one-handed. Pick the
+density from the surface you are building, not from the component.
+
 ## Files
 
 | File | Purpose |
 |------|---------|
-| `src/app/globals.css` | CSS custom properties (HSL format) |
-| `tailwind.config.ts` | Tailwind theme extension, brand color aliases |
+| `src/app/globals.css` | All design tokens: the `@theme` block (type scale, elevation, radius, colour aliases) and the `:root` custom properties. Tailwind 4 is configured in CSS — there is no `tailwind.config.ts`. |
+| `src/app/layout.tsx` | `next/font` loading for Work Sans and Merriweather |
 | `src/components/ui/button.tsx` | Button variants including `door` |
 
 ## Future Theme Modes (NOT IMPLEMENTED)
@@ -105,3 +206,4 @@ Do not implement alternate themes unless explicitly authorized in a GitHub issue
 ## Changelog
 
 - **2026-09-12 (Okoye):** Initial documentation. Added `brand.ground` alias, `door` button variant, documented Rule A.
+- **2026-09-20 (#380):** Added the Figma type scale (13 steps), the four-step elevation scale, and density notes. Verified radius was already conformant. Dropped the stale `tailwind.config.ts` row — Tailwind 4 configures in CSS. Families are applied by a companion rule because Tailwind v4 has no `--text-*--font-family` modifier.

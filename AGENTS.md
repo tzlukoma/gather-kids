@@ -35,7 +35,7 @@ Canonical product description: [`docs/PRODUCT_SPEC.md`](docs/PRODUCT_SPEC.md). P
 | Seed / DB / ops scripts | `scripts/` |
 | CI workflows | `.github/workflows/` |
 | Operational docs | `docs/`, especially [`docs/CI_CD.md`](docs/CI_CD.md) |
-| Design tokens, color foundations | [`docs/DESIGN_TOKENS.md`](docs/DESIGN_TOKENS.md) — GatherSystem tokens + Rule A |
+| Design tokens: color, type, radius, elevation, density | [`docs/DESIGN_TOKENS.md`](docs/DESIGN_TOKENS.md) — GatherSystem tokens, the type scale (`text-body-14` etc.), the elevation scale (`shadow-card` etc.) + Rule A |
 | User-facing docs | `content/help/` (in-app `/help`) |
 | This contract’s procedures | `.agents/skills/` |
 
