@@ -334,7 +334,7 @@ export default function ChildBibleBeeDetail({
 							? `Update Photo for ${showPhotoCapture.first_name}`
 							: ''
 					}
-					description="Use your camera to take a new photo or upload an existing one."
+					description="Crop to a square. Anything outside the box will not appear in the avatar."
 				/>
 			)}
 		</div>

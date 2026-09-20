@@ -46,7 +46,7 @@ export function SquareCropperModal({
 	onClose,
 	onSave,
 	title,
-	description,
+	description = 'Crop to a square. Anything outside the box will not appear in the avatar.',
 	acceptedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'],
 	maxFileSize = 10 * 1024 * 1024, // 10MB
 	outputSize = 512,
