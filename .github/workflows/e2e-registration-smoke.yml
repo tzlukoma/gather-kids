@@ -75,6 +75,7 @@ jobs:
       # turn one infrastructure failure into three red steps.
       # ---------------------------------------------------------------------
       - name: Run GatherSystem registration suite (flag on)
+        id: gathersystem
         if: success() || steps.legacy.conclusion == 'failure'
         run: npx playwright test e2e/gathersystem-registration-*.spec.ts --config=e2e.config.ts --project=chromium
         env:
@@ -89,8 +90,19 @@ jobs:
 
       # Draft persistence is a separate build-time flag, so the off-state needs
       # its own run; the drafts spec asserts the wizard stays usable without it.
+      #
+      # This is an independent pass, not a continuation of the one above, so it
+      # runs after *either* earlier suite failed. Gating it on `success()` alone
+      # would skip it exactly when the flag-on suite went red — the run whose
+      # second data point is worth most, since it tells you whether the failure
+      # tracks draft persistence or is independent of it. Naming both upstream
+      # failures rather than using `always()` still keeps it from firing when
+      # Supabase never started.
       - name: Run draft-persistence-off registration drafts (flag on)
-        if: success() || steps.legacy.conclusion == 'failure'
+        if: >-
+          success()
+          || steps.legacy.conclusion == 'failure'
+          || steps.gathersystem.conclusion == 'failure'
         run: npx playwright test e2e/gathersystem-registration-drafts.spec.ts --config=e2e.config.ts --project=chromium
         env:
           CI: true
