@@ -57,30 +57,6 @@ describe('Debug Event Bus', () => {
       );
     });
 
-    it('should emit an IndexedDB event', () => {
-      const event = {
-        type: 'idb:op' as const,
-        name: 'IDB: open(testdb)',
-        operation: 'open',
-        database: 'testdb',
-      };
-
-      emitDebugEvent(event as any);
-
-      expect(mockDispatchEvent).toHaveBeenCalledWith(
-        expect.objectContaining({
-          detail: expect.objectContaining({
-            type: 'idb:op',
-            name: 'IDB: open(testdb)',
-            operation: 'open',
-            database: 'testdb',
-            timestamp: 1234567890,
-            route: '/', // jsdom default route
-          }),
-        })
-      );
-    });
-
     it('should emit a fetch event', () => {
       const event = {
         type: 'fetch:direct' as const,

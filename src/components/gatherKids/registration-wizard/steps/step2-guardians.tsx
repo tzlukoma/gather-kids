@@ -21,12 +21,15 @@ import {
 	SelectValue,
 } from '@/components/ui/select';
 import type { RegistrationFormInput } from '../registration-schema';
+import { firstInvalidEntryIndex } from '../step-validation';
 
 interface Step2GuardiansProps {
 	form: UseFormReturn<RegistrationFormInput>;
+	/** Increments every time this step refuses to advance. */
+	blockedAt: number;
 }
 
-export function Step2Guardians({ form }: Step2GuardiansProps) {
+export function Step2Guardians({ form, blockedAt }: Step2GuardiansProps) {
 	const {
 		fields: guardianFields,
 		append: appendGuardian,
@@ -37,6 +40,34 @@ export function Step2Guardians({ form }: Step2GuardiansProps) {
 	});
 
 	const [editingGuardian, setEditingGuardian] = useState<number | null>(null);
+
+	// A guardian card collapses to a summary when it is not being edited, so an
+	// invalid field on guardian 2 has no input mounted to show its message or
+	// receive focus. Every time the step is blocked, open the first card that
+	// has an error — unconditionally, even if another card is already open. The
+	// summary has just named that guardian and the wizard is about to focus the
+	// field; leaving a different card open would point the user at a control
+	// that is not on screen.
+	//
+	// Keyed on the block counter rather than on the invalid index, so it fires
+	// once per refusal: between refusals the user is free to open any card, and
+	// a second press with the same guardian still at fault brings them back.
+	//
+	// Adjusted during render rather than in an effect: the new value is derived
+	// entirely from props/state, and React re-runs the render before committing,
+	// so nothing flashes. An effect here would be a cascading render, which the
+	// compiler lint rejects.
+	const [openedForBlock, setOpenedForBlock] = useState<number | null>(null);
+	if (blockedAt !== openedForBlock) {
+		setOpenedForBlock(blockedAt);
+		const invalidGuardian = firstInvalidEntryIndex(
+			form.formState.errors,
+			'guardians'
+		);
+		if (invalidGuardian !== undefined) {
+			setEditingGuardian(invalidGuardian);
+		}
+	}
 
 	const handleAddGuardian = () => {
 		appendGuardian({
@@ -72,18 +103,22 @@ export function Step2Guardians({ form }: Step2GuardiansProps) {
 								key={field.id}
 								className="border border-[#e0dacf] rounded-lg overflow-hidden">
 								{!isEditing ? (
-									// Card View
-									<div className="p-4 flex items-center justify-between bg-white">
-										<div className="flex items-center gap-4">
+									// Card View. Avatar, identity and the two actions shared
+									// one non-wrapping row, so a long name squeezed
+									// Edit/Delete. `min-w-0` lets the identity block actually
+									// shrink — without it a flex child refuses to go below
+									// the width of its own content.
+									<div className="p-4 flex flex-wrap items-center justify-between gap-3 bg-white">
+										<div className="flex min-w-0 items-center gap-4">
 											<div className="w-12 h-12 rounded-full bg-[#e8f5f5] border border-[#017c7d] flex items-center justify-center">
 												<span className="text-sm font-semibold text-[#017c7d]">
 													{guardian.first_name?.substring(0, 1) || '?'}
 													{guardian.last_name?.substring(0, 1) || '?'}
 												</span>
 											</div>
-											<div>
-												<div className="flex items-center gap-2">
-													<p className="font-semibold text-[#1e2a2f]">
+											<div className="min-w-0">
+												<div className="flex flex-wrap items-center gap-2">
+													<p className="font-semibold text-[#1e2a2f] break-words">
 														{guardian.first_name || 'First'} {guardian.last_name || 'Last'}
 													</p>
 													{guardian.is_primary && (
@@ -92,7 +127,7 @@ export function Step2Guardians({ form }: Step2GuardiansProps) {
 														</Badge>
 													)}
 												</div>
-												<p className="text-sm text-[#5b6b72]">
+												<p className="text-sm text-[#5b6b72] break-words">
 													{guardian.mobile_phone || 'No phone'} · {guardian.relationship || 'No relationship'}
 												</p>
 											</div>
@@ -103,7 +138,7 @@ export function Step2Guardians({ form }: Step2GuardiansProps) {
 												variant="outline"
 												size="sm"
 												onClick={() => setEditingGuardian(index)}
-												className="flex items-center gap-2">
+												className="flex min-h-11 items-center gap-2 md:min-h-9">
 												<Edit2 className="h-3 w-3" />
 												Edit
 											</Button>
@@ -118,7 +153,7 @@ export function Step2Guardians({ form }: Step2GuardiansProps) {
 															setEditingGuardian(null);
 														}
 													}}
-													className="text-destructive hover:text-destructive">
+													className="min-h-11 text-destructive hover:text-destructive md:min-h-9">
 													<Trash2 className="h-3 w-3" />
 												</Button>
 											)}
@@ -127,7 +162,7 @@ export function Step2Guardians({ form }: Step2GuardiansProps) {
 								) : (
 									// Edit Form
 									<div className="p-4 bg-[#fafaf8] space-y-4">
-										<div className="grid grid-cols-2 gap-4">
+										<div className="grid grid-cols-1 gap-4 md:grid-cols-2">
 											<FormField
 												control={form.control}
 												name={`guardians.${index}.first_name`}
@@ -293,7 +328,7 @@ export function Step2Guardians({ form }: Step2GuardiansProps) {
 					</CardDescription>
 				</CardHeader>
 				<CardContent className="space-y-4">
-					<div className="grid grid-cols-2 gap-4">
+					<div className="grid grid-cols-1 gap-4 md:grid-cols-2">
 						<FormField
 							control={form.control}
 							name="emergencyContact.first_name"

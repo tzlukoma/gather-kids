@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Debug Script: Check which database adapter is being used by the application
- * Note: Demo mode has been removed. The app always uses SupabaseAdapter.
+ * The app always uses SupabaseAdapter.
  */
 
 import { createDatabaseAdapter } from '../lib/database/factory';

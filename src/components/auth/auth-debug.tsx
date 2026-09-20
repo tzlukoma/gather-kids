@@ -378,9 +378,14 @@ export function AuthDebug({
 		<Dialog open={open} onOpenChange={setOpen}>
 			<DialogTrigger asChild>
 				{children || (
+					// `data-dev-overlay`: this floating trigger is mounted only when
+					// NODE_ENV !== 'production' (see app/layout.tsx). The marker lets
+					// layout tests exclude development-only chrome rather than matching
+					// on utility classes that are free to change.
 					<Button
 						variant="outline"
 						size="sm"
+						data-dev-overlay="auth-debug"
 						className="fixed bottom-4 right-4 z-50 bg-background/80 backdrop-blur-xs">
 						<Bug className="h-4 w-4 mr-2" />
 						Auth Debug

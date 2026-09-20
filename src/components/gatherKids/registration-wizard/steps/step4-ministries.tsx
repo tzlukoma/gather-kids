@@ -18,10 +18,195 @@ import type { RegistrationFormInput } from '../registration-schema';
 import { useQuery } from '@tanstack/react-query';
 import { getMinistries, getMinistriesByGroupCode } from '@/lib/dal';
 import type { Ministry } from '@/lib/types';
-import { useMemo } from 'react';
+import {
+	describeIneligibility,
+	evaluateMinistryEligibility,
+	type MinistryEligibility,
+} from '@/lib/ministry-eligibility';
+import { useEffect, useMemo, useState } from 'react';
+import { SiblingMinistryCard } from '../sibling-ministry-card';
+import {
+	siblingMinistryStatuses,
+	type SiblingMinistryStatus,
+} from '../sibling-ministry-status';
 
 interface Step4MinistriesProps {
 	form: UseFormReturn<RegistrationFormInput>;
+	/** Children already on the household record, from the prefill load. */
+	existingChildIds?: string[];
+	/** False for a first-time or draft-only session: nothing was ever saved. */
+	hasHouseholdSource?: boolean;
+}
+
+/** The label a child is shown under before they have a name typed in. */
+export function childDisplayName(
+	child: { first_name?: string | null } | undefined,
+	childIndex: number
+): string {
+	return child?.first_name || `Child ${childIndex + 1}`;
+}
+
+/**
+ * Whether a ministry is worth showing at all. A ministry no child in the
+ * household can join is hidden, as the legacy registration screen hid it —
+ * listing it would only invite a guardian to look for a checkbox that is not
+ * there.
+ */
+export function hasAnyEligibleChild(
+	ministry: Pick<Ministry, 'min_age' | 'max_age' | 'open_at' | 'close_at'>,
+	children: Array<{ first_name?: string | null; dob?: string | null }>,
+	at: Date = new Date()
+): boolean {
+	return partitionChildrenByEligibility(ministry, children, at).eligible.length > 0;
+}
+
+/**
+ * Selections left checked for a child who is no longer eligible — the guardian
+ * ticked a ministry, then went back and corrected a birth date.
+ *
+ * Returns the RHF field paths to clear. Persistence would drop these anyway and
+ * the confirmation screen now reports what was stored rather than what was
+ * ticked, so nobody would be misled; clearing them keeps the wizard's own
+ * "N ministries selected" count honest about what it will send.
+ */
+export function staleSelectionFieldPaths(
+	children: Array<{
+		first_name?: string | null;
+		dob?: string | null;
+		ministrySelections?: Record<string, boolean | undefined> | null;
+		interestSelections?: Record<string, boolean | undefined> | null;
+	}>,
+	ministriesByCode: Map<string, Ministry>,
+	at: Date = new Date()
+): string[] {
+	const stale: string[] = [];
+
+	children.forEach((child, childIndex) => {
+		for (const fieldPrefix of ['ministrySelections', 'interestSelections'] as const) {
+			for (const [code, selected] of Object.entries(child?.[fieldPrefix] ?? {})) {
+				if (!selected) continue;
+				const ministry = ministriesByCode.get(code);
+				// An unknown code is left alone: it is not this rule's to judge.
+				if (!ministry) continue;
+				if (!evaluateMinistryEligibility(ministry, child, at).eligible) {
+					stale.push(`children.${childIndex}.${fieldPrefix}.${code}`);
+				}
+			}
+		}
+	});
+
+	return stale;
+}
+
+export interface ChildEligibility {
+	child: { first_name?: string | null; dob?: string | null };
+	/** Index into the form's `children` array — the checkbox's field path. */
+	childIndex: number;
+	eligibility: MinistryEligibility;
+}
+
+/**
+ * Split a household's children into those who may join a ministry and those who
+ * may not, keeping each child's original form index.
+ *
+ * Kept free of React so the eligibility boundaries can be asserted directly —
+ * this repo's jsdom cannot drive the Radix checkboxes these feed.
+ */
+export function partitionChildrenByEligibility(
+	ministry: Pick<Ministry, 'min_age' | 'max_age' | 'open_at' | 'close_at'>,
+	children: Array<{ first_name?: string | null; dob?: string | null }>,
+	at: Date = new Date()
+): { eligible: ChildEligibility[]; ineligible: ChildEligibility[] } {
+	const eligible: ChildEligibility[] = [];
+	const ineligible: ChildEligibility[] = [];
+
+	children.forEach((child, childIndex) => {
+		const eligibility = evaluateMinistryEligibility(ministry, child, at);
+		(eligibility.eligible ? eligible : ineligible).push({
+			child,
+			childIndex,
+			eligibility,
+		});
+	});
+
+	return { eligible, ineligible };
+}
+
+/**
+ * The per-child checkboxes for one ministry, offered only to the children who
+ * are actually eligible.
+ *
+ * Before #400 every child got a checkbox for every ministry; persistence then
+ * discarded the ineligible ones without telling anybody. Siblings who cannot
+ * join are named with the reason rather than silently omitted, so a guardian
+ * looking for a missing child's name finds an answer instead of a gap.
+ */
+function MinistryChildSelector({
+	ministry,
+	form,
+	fieldPrefix,
+	childrenData,
+	reviewingChildIndex,
+}: {
+	ministry: Ministry;
+	form: UseFormReturn<RegistrationFormInput>;
+	fieldPrefix: 'ministrySelections' | 'interestSelections';
+	childrenData: any[];
+	/** Set while a sibling's saved choices are being reviewed; -1 otherwise. */
+	reviewingChildIndex?: number;
+}) {
+	const { eligible, ineligible } = useMemo(
+		() => partitionChildrenByEligibility(ministry, childrenData ?? []),
+		[ministry, childrenData]
+	);
+
+	return (
+		<div className="space-y-2">
+			{eligible.map(({ child, childIndex }) => (
+				<div
+					key={childIndex}
+					data-child-index={childIndex}
+					data-reviewing={childIndex === reviewingChildIndex ? 'true' : undefined}
+					className={
+						childIndex === reviewingChildIndex
+							? 'flex items-center gap-2 rounded-md bg-[#e8f5f5] ring-1 ring-[#017c7d] px-2 py-1 -mx-2'
+							: 'flex items-center gap-2'
+					}>
+					<FormField
+						control={form.control}
+						name={`children.${childIndex}.${fieldPrefix}.${ministry.code}` as any}
+						render={({ field }) => (
+							<FormItem className="flex items-center space-x-2 space-y-0">
+								<FormControl>
+									<Checkbox
+										checked={field.value}
+										onCheckedChange={field.onChange}
+										className="border-[#017c7d] data-[state=checked]:bg-[#017c7d]"
+									/>
+								</FormControl>
+								<FormLabel className="font-normal text-[#1e2a2f]">
+									{childDisplayName(child, childIndex)}
+								</FormLabel>
+							</FormItem>
+						)}
+					/>
+				</div>
+			))}
+
+			{ineligible.length > 0 && (
+				<ul className="space-y-1 text-xs text-[#5b6b72]">
+					{ineligible.map(({ child, childIndex, eligibility }) => (
+						<li key={childIndex}>
+							{childDisplayName(child, childIndex)} —{' '}
+							{eligibility.reason
+								? describeIneligibility(eligibility.reason, ministry)
+								: null}
+						</li>
+					))}
+				</ul>
+			)}
+		</div>
+	);
 }
 
 interface MinistryCardProps {
@@ -30,6 +215,7 @@ interface MinistryCardProps {
 	selectionType: 'enrollment' | 'interest';
 	childrenData: any[];
 	conflictingQuestionIds: Set<string>;
+	reviewingChildIndex?: number;
 }
 
 function MinistryCard({
@@ -38,12 +224,14 @@ function MinistryCard({
 	selectionType,
 	childrenData,
 	conflictingQuestionIds,
+	reviewingChildIndex,
 }: MinistryCardProps) {
 	const fieldPrefix =
 		selectionType === 'enrollment' ? 'ministrySelections' : 'interestSelections';
 
 	return (
 		<div
+			data-ministry-code={ministry.code}
 			className="border-2 rounded-lg overflow-hidden transition-all border-[#e0dacf] bg-white hover:border-[#017c7d]/50">
 			<div className="p-4">
 				<div className="flex items-start justify-between mb-3">
@@ -82,30 +270,13 @@ function MinistryCard({
 				</div>
 
 				{/* Children Selection */}
-				<div className="space-y-2">
-					{childrenData.map((child, childIndex) => (
-						<div key={childIndex} className="flex items-center gap-2">
-							<FormField
-								control={form.control}
-								name={`children.${childIndex}.${fieldPrefix}.${ministry.code}` as any}
-								render={({ field }) => (
-									<FormItem className="flex items-center space-x-2 space-y-0">
-										<FormControl>
-											<Checkbox
-												checked={field.value}
-												onCheckedChange={field.onChange}
-												className="border-[#017c7d] data-[state=checked]:bg-[#017c7d]"
-											/>
-										</FormControl>
-										<FormLabel className="font-normal text-[#1e2a2f]">
-											{child.first_name || `Child ${childIndex + 1}`}
-										</FormLabel>
-									</FormItem>
-								)}
-							/>
-						</div>
-					))}
-				</div>
+				<MinistryChildSelector
+					ministry={ministry}
+					form={form}
+					fieldPrefix={fieldPrefix}
+					childrenData={childrenData}
+					reviewingChildIndex={reviewingChildIndex}
+				/>
 
 				{/* Optional consent text */}
 				{ministry.optional_consent_text && (
@@ -403,8 +574,13 @@ function isSundaySchool(ministry: Ministry): boolean {
 	return sundaySchoolCodes.includes(normalized);
 }
 
-export function Step4Ministries({ form }: Step4MinistriesProps) {
+export function Step4Ministries({
+	form,
+	existingChildIds,
+	hasHouseholdSource = false,
+}: Step4MinistriesProps) {
 	const childrenData = useWatch({ control: form.control, name: 'children' });
+	const [reviewingChildIndex, setReviewingChildIndex] = useState(-1);
 
 	// Fetch all active ministries
 	const { data: allMinistries = [], isLoading: loadingMinistries } = useQuery({
@@ -526,6 +702,16 @@ export function Step4Ministries({ form }: Step4MinistriesProps) {
 		[duplicateQuestionConflicts]
 	);
 
+	// Drop selections that a change of birth date back in step 2 has made
+	// ineligible, so the checkbox the guardian can no longer see is not still
+	// counted as chosen.
+	useEffect(() => {
+		if (!childrenData || ministriesByCode.size === 0) return;
+		for (const path of staleSelectionFieldPaths(childrenData, ministriesByCode)) {
+			form.setValue(path as any, false, { shouldDirty: false });
+		}
+	}, [childrenData, ministriesByCode, form]);
+
 	// Choir programs for grouped rendering with robust deduplication
 	// Handles near-duplicates like "Keita Praise choir (Ages 9-12)" vs "Keita Praise choir (ages 9-12)"
 	const choirPrograms = useMemo(() => {
@@ -588,10 +774,34 @@ export function Step4Ministries({ form }: Step4MinistriesProps) {
 		return representatives.sort((a, b) => a.name.localeCompare(b.name));
 	}, [choirMinistriesData]);
 
+	/** Optional enrollment ministries at least one child can join. */
+	const eligibleEnrolledMinistries = useMemo(
+		() =>
+			enrolledMinistries.filter((ministry: Ministry) =>
+				hasAnyEligibleChild(ministry, childrenData ?? [])
+			),
+		[enrolledMinistries, childrenData]
+	);
+
+	/** Interest ministries at least one child can join. */
+	const eligibleInterestMinistries = useMemo(
+		() =>
+			interestMinistries.filter((ministry: Ministry) =>
+				hasAnyEligibleChild(ministry, childrenData ?? [])
+			),
+		[interestMinistries, childrenData]
+	);
+
+	/** Choirs at least one child in this household can join. */
+	const eligibleChoirPrograms = useMemo(
+		() => choirPrograms.filter((choir) => hasAnyEligibleChild(choir, childrenData ?? [])),
+		[choirPrograms, childrenData]
+	);
+
 	// Count selections
 	const selectedEnrolledCount = useMemo(() => {
 		if (!childrenData) return 0;
-		const regularCount = enrolledMinistries.reduce((count, ministry) => {
+		const regularCount = eligibleEnrolledMinistries.reduce((count, ministry) => {
 			const hasSelection = childrenData.some(
 				(child: any) => child.ministrySelections?.[ministry.code]
 			);
@@ -599,12 +809,12 @@ export function Step4Ministries({ form }: Step4MinistriesProps) {
 		}, 0);
 		
 		// Add choir if any child selects a choir program
-		const choirCount = choirPrograms.length > 0 && childrenData.some((child: any) =>
-			choirPrograms.some((choir) => child.ministrySelections?.[choir.code])
+		const choirCount = eligibleChoirPrograms.length > 0 && childrenData.some((child: any) =>
+			eligibleChoirPrograms.some((choir) => child.ministrySelections?.[choir.code])
 		) ? 1 : 0;
 		
 		return regularCount + choirCount;
-	}, [childrenData, enrolledMinistries, choirPrograms]);
+	}, [childrenData, eligibleEnrolledMinistries, eligibleChoirPrograms]);
 
 	if (loadingMinistries) {
 		return (
@@ -642,8 +852,40 @@ export function Step4Ministries({ form }: Step4MinistriesProps) {
 		);
 	}
 
+	const siblingStatuses = siblingMinistryStatuses({
+		children: childrenData,
+		ministries: allMinistries,
+		existingChildIds,
+		enabled: hasHouseholdSource,
+	});
+
+	const handleReview = (status: SiblingMinistryStatus) => {
+		// Toggle: pressing Review on the child already under review clears it, so
+		// the button is not a one-way door.
+		const next =
+			status.childIndex === reviewingChildIndex ? -1 : status.childIndex;
+		setReviewingChildIndex(next);
+		if (next === -1) return;
+
+		// Bring the first ministry they kept into view. Nothing about the form
+		// changes — reviewing is a way of looking, not an edit — so there is no
+		// data to lose on the way back.
+		window.requestAnimationFrame(() => {
+			document
+				.querySelector(`[data-ministry-code="${status.firstMinistryCode}"]`)
+				?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+		});
+	};
+
 	return (
 		<div className="space-y-6">
+			<SiblingMinistryCard
+				statuses={siblingStatuses}
+				reviewingChildIndex={reviewingChildIndex}
+				onReview={handleReview}
+				onStopReviewing={() => setReviewingChildIndex(-1)}
+			/>
+
 			{/* Review Summary */}
 			<Alert className="bg-[#e8f5f5] border-[#017c7d]">
 				<Info className="h-4 w-4 text-[#017c7d]" />
@@ -707,8 +949,8 @@ export function Step4Ministries({ form }: Step4MinistriesProps) {
 							</div>
 						</div>
 
-						{/* Other Ministry Cards */}
-						{enrolledMinistries.map((ministry: Ministry) => (
+						{/* Other Ministry Cards — a ministry no child can join is hidden */}
+						{eligibleEnrolledMinistries.map((ministry: Ministry) => (
 							<MinistryCard
 								key={ministry.code}
 								ministry={ministry}
@@ -716,11 +958,12 @@ export function Step4Ministries({ form }: Step4MinistriesProps) {
 								selectionType="enrollment"
 								childrenData={childrenData}
 								conflictingQuestionIds={conflictingQuestionIds}
+								reviewingChildIndex={reviewingChildIndex}
 							/>
 						))}
 
 						{/* Choir Programs as single grouped card if present */}
-						{choirPrograms.length > 0 && (
+						{eligibleChoirPrograms.length > 0 && (
 							<div className="border-2 rounded-lg overflow-hidden border-[#e0dacf] bg-white">
 								<div className="p-4">
 									<div className="flex items-start justify-between mb-3">
@@ -734,7 +977,7 @@ export function Step4Ministries({ form }: Step4MinistriesProps) {
 
 									{/* List each choir option within the group */}
 									<div className="space-y-4 mt-4">
-										{choirPrograms.map((choir: Ministry) => (
+										{eligibleChoirPrograms.map((choir: Ministry) => (
 											<div key={choir.code} className="border-t border-[#e0dacf] pt-4 first:border-t-0 first:pt-0">
 												<p className="font-medium text-[#1e2a2f] mb-1">{choir.name}</p>
 												{choir.description && (
@@ -760,30 +1003,13 @@ export function Step4Ministries({ form }: Step4MinistriesProps) {
 														</div>
 													)}
 												</div>
-												<div className="space-y-2">
-													{childrenData.map((child, childIndex) => (
-														<div key={childIndex} className="flex items-center gap-2">
-															<FormField
-																control={form.control}
-																name={`children.${childIndex}.ministrySelections.${choir.code}` as any}
-																render={({ field }) => (
-																	<FormItem className="flex items-center space-x-2 space-y-0">
-																		<FormControl>
-																			<Checkbox
-																				checked={field.value}
-																				onCheckedChange={field.onChange}
-																				className="border-[#017c7d] data-[state=checked]:bg-[#017c7d]"
-																			/>
-																		</FormControl>
-																		<FormLabel className="font-normal text-[#1e2a2f]">
-																			{child.first_name || `Child ${childIndex + 1}`}
-																		</FormLabel>
-																	</FormItem>
-																)}
-															/>
-														</div>
-													))}
-												</div>
+												<MinistryChildSelector
+													ministry={choir}
+													form={form}
+													fieldPrefix="ministrySelections"
+													childrenData={childrenData}
+													reviewingChildIndex={reviewingChildIndex}
+												/>
 											</div>
 										))}
 									</div>
@@ -794,7 +1020,7 @@ export function Step4Ministries({ form }: Step4MinistriesProps) {
 				</Card>
 			)}
 
-			{interestMinistries.length > 0 && (
+			{eligibleInterestMinistries.length > 0 && (
 				<Card>
 					<CardHeader>
 						<CardTitle className="text-xl font-bold text-[#1e2a2f]">
@@ -806,7 +1032,7 @@ export function Step4Ministries({ form }: Step4MinistriesProps) {
 						</CardDescription>
 					</CardHeader>
 					<CardContent className="space-y-4">
-						{interestMinistries.map((ministry: Ministry) => (
+						{eligibleInterestMinistries.map((ministry: Ministry) => (
 							<MinistryCard
 								key={ministry.code}
 								ministry={ministry}
@@ -814,6 +1040,7 @@ export function Step4Ministries({ form }: Step4MinistriesProps) {
 								selectionType="interest"
 								childrenData={childrenData}
 								conflictingQuestionIds={conflictingQuestionIds}
+								reviewingChildIndex={reviewingChildIndex}
 							/>
 						))}
 					</CardContent>

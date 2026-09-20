@@ -3,8 +3,7 @@
  *
  * Covers Bible Bee cycles, divisions, scriptures, essay prompts, and
  * enrollment operations.  All functions delegate to the Supabase adapter
- * (dbAdapter).  The legacy Dexie/IndexedDB branches have been removed
- * following the demo-mode removal in Wave 3 (issue #191).
+ * (dbAdapter).
  */
 
 import { db as dbAdapter } from '../database/factory';

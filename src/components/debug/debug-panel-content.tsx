@@ -28,7 +28,6 @@ export function DebugPanelContent() {
   const calculateDataSources = useCallback((eventsToAnalyze: AnyDebugEvent[]) => {
     const sources = [
       { name: 'dbAdapter', active: false, count: 0 },
-      { name: 'IndexedDB', active: false, count: 0 },
       { name: 'Direct DB', active: false, count: 0 },
     ];
 
@@ -38,13 +37,9 @@ export function DebugPanelContent() {
           sources[0].active = true;
           sources[0].count++;
           break;
-        case 'idb:op':
+        case 'fetch:direct':
           sources[1].active = true;
           sources[1].count++;
-          break;
-        case 'fetch:direct':
-          sources[2].active = true;
-          sources[2].count++;
           break;
         case 'fetch:dal':
           // fetch:dal counts as dbAdapter usage since it's via DAL
@@ -109,7 +104,7 @@ export function DebugPanelContent() {
           // Green for dbAdapter
           badgeClassName += " bg-green-500 text-white hover:bg-green-600 border-transparent";
         } else {
-          // Orange for IndexedDB and Direct DB
+          // Orange for Direct DB
           badgeClassName += " bg-orange-500 text-white hover:bg-orange-600 border-transparent";
         }
       }

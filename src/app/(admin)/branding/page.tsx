@@ -266,8 +266,7 @@ export default function BrandingPage() {
 							Logo
 						</CardTitle>
 						<CardDescription>
-							Upload a custom logo to replace the default cross icon. For demo
-							mode, the image is stored locally.
+							Upload a custom logo to replace the default cross icon.
 						</CardDescription>
 					</CardHeader>
 					<CardContent className="space-y-4">

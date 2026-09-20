@@ -2,9 +2,7 @@
  * DAL — Ministries domain
  *
  * Covers Ministry CRUD, Ministry Groups, and Ministry Accounts.
- * All functions delegate to the Supabase adapter (dbAdapter).  The legacy
- * Dexie/IndexedDB branches have been removed following the demo-mode
- * removal in Wave 3 (issue #191).
+ * All functions delegate to the Supabase adapter (dbAdapter).
  */
 
 import { db as dbAdapter } from '../database/factory';
@@ -13,7 +11,11 @@ import {
     pickActiveRegistrationCycle,
     pickPriorRegistrationCycle,
 } from './registration-cycle-utils';
-import { ageOn, getTodayIsoDate, isWithinWindowSync, normalizeEmail } from './utils';
+import { getTodayIsoDate, normalizeEmail } from './utils';
+import {
+    isEligibleForMinistryOn,
+    isMinistryWindowOpenOn,
+} from '../ministry-eligibility';
 
 // ---------------------------------------------------------------------------
 // Ministry CRUD
@@ -32,27 +34,35 @@ export async function getMinistry(ministryId: string): Promise<Ministry | null> 
 
 /**
  * Whether a child is within a ministry's min/max age range today.
+ *
+ * The age comparison itself lives in `@/lib/ministry-eligibility`, so this
+ * agrees with what registration will actually persist. The guards here are its
+ * own: an unknown ministry, an unknown child, or a child with no date of birth
+ * answers `false`, because a lookup that found nothing is not an eligibility
+ * judgement.
  */
 export async function isEligibleForChoir(ministryId: string, childId: string): Promise<boolean> {
     const ministry = await dbAdapter.getMinistry(ministryId);
     const child = await dbAdapter.getChild(childId);
     if (!ministry || !child?.dob) return false;
 
-    const childAge = ageOn(getTodayIsoDate(), child.dob);
-    if (childAge === null) return false;
-
-    const minAge = ministry.min_age ?? 0;
-    const maxAge = ministry.max_age ?? 99;
-    return childAge >= minAge && childAge <= maxAge;
+    return isEligibleForMinistryOn(
+        { min_age: ministry.min_age, max_age: ministry.max_age },
+        { dob: child.dob },
+        getTodayIsoDate(),
+    );
 }
 
 /**
  * Whether `todayISO` falls inside a ministry's open/close window.
+ *
+ * Bounds are inclusive, matching registration. The previous implementation used
+ * strict comparisons, so a ministry was shut on the very day it opened.
  */
 export async function isWithinWindow(ministryId: string, todayISO: string): Promise<boolean> {
     const ministry = await dbAdapter.getMinistry(ministryId);
     if (!ministry) return false;
-    return isWithinWindowSync(ministry, todayISO);
+    return isMinistryWindowOpenOn(ministry, todayISO);
 }
 
 /**

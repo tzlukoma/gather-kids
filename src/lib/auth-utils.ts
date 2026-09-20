@@ -31,7 +31,7 @@ export const DEFAULT_ROUTE = '/register';
 
 /**
  * Determines the primary role for a user based on priority rules
- * In the current demo system, users have single roles, but this function
+ * Users currently have a single role, but this function
  * is designed to handle multiple roles for future Supabase implementation
  * 
  * @param roles - Array of roles the user has (or single role)
@@ -42,7 +42,7 @@ export function getUserRole(roles: AuthRole | AuthRole[] | null | undefined): Au
     return null;
   }
 
-  // Handle single role (current demo system)
+  // Handle single role
   if (typeof roles === 'string') {
     return roles as AuthRole;
   }

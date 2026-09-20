@@ -56,7 +56,11 @@ export default function RegisterLayout({
 					</Button>
 				</div>
 			</header>
-			<main id="main-content" className="flex-1 container mx-auto p-4 md:p-6 lg:p-8">
+			{/* No gutter here. The wizard screens are full-bleed by design —
+			    sticky chrome has to reach the edges of a phone — and they set
+			    their own single gutter inside. The legacy page keeps the gutter
+			    this used to apply, so nothing about it changes. */}
+			<main id="main-content" className="flex flex-1 flex-col">
 				{children}
 			</main>
 			<AppFooter appName={settings.app_name || 'gatherKids'} />

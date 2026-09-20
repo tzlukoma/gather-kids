@@ -35,7 +35,10 @@ jest.mock('next/navigation', () => ({
 }));
 
 jest.mock('@/lib/dal', () => ({
-	getTodayIsoDate: () => '2026-09-13',
+	// The component reads the church-local service day (#449). A module-factory
+	// mock drops every export it does not name, so stubbing the wrong one makes
+	// the whole suite throw at render rather than fail a single assertion.
+	getServiceDayIso: () => '2026-09-13',
 }));
 
 // An ADMIN so `canUpdateChildPhoto` is true and the photo-capture affordance is

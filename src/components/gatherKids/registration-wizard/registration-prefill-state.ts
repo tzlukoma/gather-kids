@@ -107,12 +107,12 @@ export function entryDescriptionForPrefillState(
 		case 'prior_cycle':
 			return "We found your household. Last year's answers are already filled in — review and update as needed.";
 		case 'current_cycle':
-			return `You already registered for the ${cycleLabel} cycle. Review your information and submit to update your registration.`;
+			return `You already registered for ${cycleLabel}. Review your information and submit to update your registration.`;
 		case 'draft_only':
-			return `Continue your ${cycleLabel} registration. Your draft progress will be restored when you start.`;
+			return `Continue your registration for ${cycleLabel}. Your draft progress will be restored when you start.`;
 		case 'first_time':
 		default:
-			return `Complete your family registration for ${cycleLabel} programs.`;
+			return `Complete your family registration for ${cycleLabel}.`;
 	}
 }
 
@@ -131,7 +131,7 @@ export function currentCycleOverwriteWarning(cycleLabel: string): {
 } {
 	return {
 		title: 'Existing Registration Found',
-		description: `A registration for the ${cycleLabel} cycle already exists for this household. Review the information below and make any necessary changes. Submitting this form will overwrite the previous submission for this year.`,
+		description: `A registration for ${cycleLabel} already exists for this household. Review the information below and make any necessary changes. Submitting this form will overwrite the previous submission for this year.`,
 	};
 }
 

@@ -2,8 +2,13 @@ import { z } from 'zod';
 import { v4 as uuidv4 } from 'uuid';
 import * as CanonicalDtos from './canonical-dtos';
 import { db as dbAdapter } from './factory';
-import type { Guardian, Registration } from '../types';
-import { ageOn } from '../dal/utils';
+import type {
+  Guardian,
+  Registration,
+  RegisteredChildReceipt,
+  RegisteredEnrollmentReceipt,
+} from '../types';
+import { evaluateMinistryEligibility, describeIneligibility } from '../ministry-eligibility';
 import { gradeToCode } from '../gradeUtils';
 import { enrollChildInBibleBee } from '../bibleBee';
 import { devLog } from '../dev-log';
@@ -288,6 +293,15 @@ export async function registerHouseholdCanonical(data: Record<string, unknown>, 
         }
       }
 
+      // One ministry lookup for the whole registration, rather than one per
+      // child. It also names the enrolments on the receipt below.
+      const allMinistries = await dbAdapter.listMinistries();
+      const ministryMap = new Map(allMinistries.map(m => [m.code, m]));
+      const sundaySchool = allMinistries.find(m => m.ministry_id === 'min_sunday_school');
+
+      // What was actually persisted, per child, for the confirmation screen.
+      const registeredChildren: RegisteredChildReceipt[] = [];
+
       // Handle children and enrollments with canonical data
       for (const [index, childData] of canonicalData.children.entries()) {
         log.log('DEBUG: Processing child at index', index, 'childData:', childData);
@@ -375,6 +389,18 @@ export async function registerHouseholdCanonical(data: Record<string, unknown>, 
           status: 'enrolled',
         });
 
+        // Sunday School is enrolled here and nowhere else — the selection loop
+        // below skips the `min_sunday_school` key — so the receipt records it
+        // once, which is what keeps it off the confirmation screen twice.
+        const enrollments: RegisteredEnrollmentReceipt[] = [
+          {
+            ministry_id: 'min_sunday_school',
+            ministry_name: sundaySchool?.name ?? 'Sunday School',
+            ministry_code: sundaySchool?.code ?? 'min_sunday_school',
+            status: 'enrolled',
+          },
+        ];
+
         // Handle ministry and interest selections with age validation and custom fields
   const childrenArray = toArrayRecords(data['children']);
         const originalChildData = childrenArray[index] ?? {};
@@ -384,19 +410,19 @@ export async function registerHouseholdCanonical(data: Record<string, unknown>, 
         
         // Combine ministry and interest selections
         const allSelections = { ...(ministrySelections || {}), ...(interestSelections || {}) };
-        const allMinistries = await dbAdapter.listMinistries();
-        const ministryMap = new Map(allMinistries.map(m => [m.code, m]));
 
         for (const ministryCode in allSelections) {
           if (allSelections[ministryCode] && ministryCode !== 'min_sunday_school') {
             const ministry = ministryMap.get(ministryCode);
             if (ministry) {
-              // Age validation
-              const age = child.dob ? ageOn(now, child.dob) : null;
-              const minAge = ministry.min_age ?? -1;
-              const maxAge = ministry.max_age ?? 999;
-              if (age !== null && (age < minAge || age > maxAge)) {
-                console.warn(`Skipping enrollment for ${child.first_name} in ${ministry.name} due to age restrictions.`);
+              // Defence in depth: the wizard already hides ministries a child
+              // is not eligible for, but this path also serves imports and
+              // direct callers, so the rule is enforced again at the boundary.
+              const eligibility = evaluateMinistryEligibility(ministry, child, new Date(now));
+              if (!eligibility.eligible) {
+                console.warn(
+                  `Skipping enrollment for ${child.first_name} in ${ministry.name}: ${describeIneligibility(eligibility.reason, ministry)}.`
+                );
                 continue;
               }
 
@@ -428,6 +454,13 @@ export async function registerHouseholdCanonical(data: Record<string, unknown>, 
                 });
                 
                 log.log('DEBUG: Successfully created ministry enrollment for ministry:', ministry.name);
+
+                enrollments.push({
+                  ministry_id: ministry.ministry_id,
+                  ministry_name: ministry.name,
+                  ministry_code: ministry.code,
+                  status: ministry.enrollment_type,
+                });
               } catch (enrollmentError) {
                 console.error('DEBUG: Failed to create ministry enrollment:', enrollmentError);
                 throw enrollmentError;
@@ -480,6 +513,13 @@ export async function registerHouseholdCanonical(data: Record<string, unknown>, 
             }
           }
         }
+
+        registeredChildren.push({
+          child_id: childId,
+          first_name: child.first_name,
+          last_name: child.last_name,
+          enrollments,
+        });
       }
 
       log.log('✅ Canonical registration completed successfully');
@@ -566,7 +606,8 @@ export async function registerHouseholdCanonical(data: Record<string, unknown>, 
         household_id: householdId,
         userHouseholdsCreated,
         roleAssigned,
-        isComplete: userHouseholdsCreated && roleAssigned
+        isComplete: userHouseholdsCreated && roleAssigned,
+        registeredChildren,
       };
     });
 }

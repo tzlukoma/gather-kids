@@ -3,13 +3,12 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { isOfflineSupabase } from '@/lib/offline-supabase';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { AlertTriangle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
 import { useFormCompat as useForm } from '@/hooks/useFormCompat';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Form } from '@/components/ui/form';
+import { WizardActionBar } from './wizard-action-bar';
 import { Step1Household } from './steps/step1-household';
 import { Step2Guardians } from './steps/step2-guardians';
 import { Step3Children } from './steps/step3-children';
@@ -32,7 +31,15 @@ import type {
 	ConditionalConsentContext,
 	RegistrationFormInput,
 } from './registration-schema';
+import type { RegisteredChildReceipt } from '@/lib/types';
 import { findDuplicateCustomQuestionConflictsForChildren } from './steps/step4-ministries';
+import {
+	STEPS,
+	firstInvalidStep,
+	firstProblemOnStep,
+	summarizeStepErrors,
+} from './step-validation';
+import type { StepProblem, WizardStep } from './step-validation';
 import { useDraftPersistence } from '@/hooks/useDraftPersistence';
 import { useFeatureFlags } from '@/contexts/feature-flag-context';
 import { useAuth } from '@/contexts/auth-context';
@@ -47,7 +54,7 @@ import {
 } from '@/lib/dal';
 import {
 	pickActiveRegistrationCycle,
-	registrationCycleLabel,
+	registrationCycleDisplayLabel,
 } from '@/lib/dal/registration-cycle-utils';
 import { cleanPhone } from '@/hooks/usePhoneFormat';
 import { canonicalizeGradeForStorage } from '@/lib/gradeUtils';
@@ -63,21 +70,22 @@ import {
 	AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { RegistrationProblemSummary } from './registration-problem-summary';
 import {
 	analyticsReturningHousehold,
 	currentCycleOverwriteWarning,
 	mapRegistrationPrefillState,
 	type RegistrationPrefillState,
 } from './registration-prefill-state';
-import type { HouseholdRegistrationLoadResult } from '@/lib/dal/households';
+import { resolveRegistrationDraft } from './registration-draft-merge';
+import { hasPersistedBibleBeeEnrollment } from './registration-receipt';
+import { DraftStatusIndicator } from '@/components/ui/draft-status-indicator';
+import type {
+	HouseholdPrefillGradeHint,
+	HouseholdRegistrationLoadResult,
+} from '@/lib/dal/households';
+import { withCanonicalGrades } from './grade-options';
 
-const STEPS = [
-	{ label: 'Household', title: 'Confirm your household', description: 'Review your household address' },
-	{ label: 'Guardians', title: 'Who can collect the children?', description: 'Authorized adults for pickup' },
-	{ label: 'Children', title: 'Tell us about your children', description: 'Add each child you are registering' },
-	{ label: 'Ministries', title: 'Choose ministry programs', description: 'Select programs for your children' },
-	{ label: 'Consents', title: 'Review and submit', description: 'Review and sign required consents' },
-];
 
 type WizardScreen = 'entry' | 'wizard' | 'done';
 
@@ -112,10 +120,29 @@ export default function RegisterWizard() {
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [showCancelDialog, setShowCancelDialog] = useState(false);
 	const [childrenEnrolledInBibleBee, setChildrenEnrolledInBibleBee] = useState(false);
-	const [registeredChildren, setRegisteredChildren] = useState<Array<{name: string; ministries: string[]}>>([]);
+	const [registeredChildren, setRegisteredChildren] = useState<RegisteredChildReceipt[]>([]);
+	// Problems surfaced by a blocked Continue or a refused Submit. Kept in state
+	// rather than read from formState so the summary only appears once the user
+	// has actually tried to move on.
+	const [stepProblems, setStepProblems] = useState<StepProblem[]>([]);
+	const [stepBlockMessage, setStepBlockMessage] = useState<string | null>(null);
+	// Counts refusals, not problems. Steps 2 and 3 mount one entry at a time, so
+	// each refusal has to move them to the entry the summary names — including a
+	// second refusal naming the same entry the user has since navigated away
+	// from. An index alone cannot tell those two apart; a counter can.
+	const [blockedAt, setBlockedAt] = useState(0);
 	const [prefillState, setPrefillState] = useState<RegistrationPrefillState>(() =>
 		mapRegistrationPrefillState({ loadResult: null })
 	);
+	// "Last year they were in 3rd, so we suggest 4th", keyed by child_id. Built
+	// by the DAL from the prior cycle; the wizard previously read only
+	// `prefillData.data` and dropped this entirely.
+	const [gradeHints, setGradeHints] = useState<
+		Record<string, HouseholdPrefillGradeHint>
+	>({});
+	// Children already on the household record. Step 4 uses this to tell a
+	// carried-over ministry choice apart from one made in this sitting.
+	const [existingChildIds, setExistingChildIds] = useState<string[]>([]);
 
 	const { data: registrationCycles = [] } = useQuery({
 		queryKey: ['registrationCycles'],
@@ -126,7 +153,9 @@ export default function RegisterWizard() {
 	const activeRegistrationCycle = pickActiveRegistrationCycle(registrationCycles);
 	// Guardians see the cycle's name ("Fall 2026"), never its id — which is a
 	// UUID in UAT and production.
-	const cycleLabel = registrationCycleLabel(activeRegistrationCycle, 'current');
+	// Same derived label the entry and Done use — see
+	// REGISTRATION_CYCLE_FALLBACK_LABEL for why the fallback lives in one place.
+	const cycleLabel = registrationCycleDisplayLabel(activeRegistrationCycle);
 
 	const { data: ministryGroups = [] } = useQuery({
 		queryKey: ['ministryGroups'],
@@ -235,15 +264,14 @@ export default function RegisterWizard() {
 	// Handle entry screen start with optional prefill data
 	const handleStartRegistration = useCallback(
 		async (prefillData?: HouseholdRegistrationLoadResult | null) => {
-			const nextState = mapRegistrationPrefillState({
-				loadResult: prefillData ?? null,
-				hasDraftChildren: false,
-			});
+			const data = prefillData?.data;
 
-			if (prefillData?.data) {
-				const data = prefillData.data;
-				form.reset(
-					migrateRegistrationDraftCustomFields({
+			// A household load and a saved draft are not alternatives — a guardian
+			// with a prior-cycle household can also have unsubmitted work. Load
+			// both and let the shared rule decide. `loadDraft` is a no-op returning
+			// null when persistence is disabled, so the toggle-off path is unchanged.
+			const prefillValues: RegistrationFormInput | null = data
+				? ({
 						household: {
 							household_id: data.household?.household_id || '',
 							name: data.household?.name || '',
@@ -280,9 +308,55 @@ export default function RegisterWizard() {
 							group_consents: {},
 							custom_consents: {},
 						},
-					})
+					} as RegistrationFormInput)
+				: null;
+
+			if (prefillData?.data) {
+				setGradeHints(prefillData.gradeHintsByChildId ?? {});
+				setExistingChildIds(prefillData.existingChildIds ?? []);
+			}
+
+			let draftValues: Partial<RegistrationFormInput> | null = null;
+			try {
+				draftValues = await loadDraft();
+			} catch (error) {
+				console.warn('Failed to load draft:', error);
+			}
+
+			const { values, resolution } = resolveRegistrationDraft({
+				prefillValues,
+				draftValues,
+			});
+
+			if (values) {
+				// A draft written by the first version of this wizard holds
+				// "5th", which matches no option once the control is canonical.
+				form.reset(
+					withCanonicalGrades(migrateRegistrationDraftCustomFields(values))
 				);
-				setPrefillState(nextState);
+			}
+
+			const nextState = mapRegistrationPrefillState({
+				loadResult: prefillData ?? null,
+				hasDraftChildren:
+					resolution === 'draft_only' &&
+					Boolean(draftValues?.children?.some((c) => c?.first_name)),
+			});
+			setPrefillState(nextState);
+
+			if (resolution === 'draft_only') {
+				toast({
+					title: 'Draft Restored',
+					description: 'Your previous registration progress has been restored.',
+				});
+			} else if (resolution === 'merged') {
+				// Locked spec: surface the draft, never silently drop it.
+				toast({
+					title: 'Draft Restored',
+					description:
+						'We kept your unsubmitted changes and filled in the rest from your household record.',
+				});
+			} else if (resolution === 'prefill_only') {
 				toast({
 					title: nextState.isCurrentYearOverwrite
 						? 'Existing Registration Found'
@@ -291,31 +365,8 @@ export default function RegisterWizard() {
 						? 'Review your current-cycle registration. Submitting will overwrite this year.'
 						: 'Your information has been pre-filled for you to review.',
 				});
-			} else {
-				try {
-					const draftData = await loadDraft();
-					const hasDraftChildren = Boolean(
-						draftData?.children?.some((c) => c?.first_name)
-					);
-					const draftState = mapRegistrationPrefillState({
-						loadResult: null,
-						hasDraftChildren,
-					});
-					setPrefillState(draftState);
-					if (draftData && Object.keys(draftData).length > 0) {
-						form.reset(migrateRegistrationDraftCustomFields(draftData));
-						toast({
-							title: 'Draft Restored',
-							description: 'Your previous registration progress has been restored.',
-						});
-					} else {
-						setPrefillState(mapRegistrationPrefillState({ loadResult: null }));
-					}
-				} catch (error) {
-					console.warn('Failed to load draft:', error);
-					setPrefillState(mapRegistrationPrefillState({ loadResult: null }));
-				}
 			}
+
 			setScreen('wizard');
 		},
 		[form, loadDraft, toast, user?.email]
@@ -388,57 +439,101 @@ export default function RegisterWizard() {
 		return () => subscription.unsubscribe();
 	}, [form, screen, flags.registrationDraftPersistenceEnabled, saveDraft]);
 
-	const canProceed = () => {
-		const values = watchedValues;
-		switch (currentStep) {
-			case 1:
-				return Boolean(
-					values.household.address_line1 &&
-						values.household.city &&
-						values.household.state &&
-						values.household.zip
-				);
-			case 2:
-				return (
-					values.guardians.length > 0 &&
-					values.guardians[0].first_name &&
-					values.guardians[0].last_name &&
-					values.guardians[0].mobile_phone &&
-					values.emergencyContact.first_name &&
-					values.emergencyContact.last_name &&
-					values.emergencyContact.mobile_phone &&
-					values.emergencyContact.relationship
-				);
-			case 3:
-				return (
-					values.children.length > 0 &&
-					values.children.every(
-						(child) => (child.allergies ?? '').trim().length > 0
-					)
-				);
-			case 4:
-				return (
-					findDuplicateCustomQuestionConflictsForChildren(
-						values.children ?? [],
-						ministriesForCustomQuestionCheck
-					).length === 0
-				);
-			case 5:
-				return true;
-			default:
-				return false;
-		}
+	/**
+	 * Step 4's one rule — the same custom question asked by two ministries a
+	 * child is enrolled in — has no schema equivalent, so it stays here. Step 4
+	 * already highlights the colliding questions inline; this only decides
+	 * whether Continue may advance.
+	 */
+	const duplicateCustomQuestionConflicts = () =>
+		findDuplicateCustomQuestionConflictsForChildren(
+			form.getValues('children') ?? [],
+			ministriesForCustomQuestionCheck
+		);
+
+	/**
+	 * Put the cursor on the problem rather than leaving the user to hunt for it.
+	 *
+	 * Steps 2 and 3 mount one entry at a time, so those steps open the offending
+	 * guardian or child themselves; this runs on the next frame, once the
+	 * control exists.
+	 */
+	const focusFirstProblemOnStep = (step: WizardStep) => {
+		const problem = firstProblemOnStep(form.formState.errors, step);
+		if (!problem) return;
+		window.requestAnimationFrame(() => {
+			try {
+				form.setFocus(problem.path as Parameters<typeof form.setFocus>[0], {
+					shouldSelect: false,
+				});
+			} catch {
+				// setFocus throws when the control is not mounted — a collapsed entry
+				// that has not re-rendered yet, for instance. The visible message and
+				// the summary still carry the user there.
+			}
+		});
 	};
 
-	const handleNext = () => {
-		if (canProceed() && currentStep < totalSteps) {
-			setCurrentStep(currentStep + 1);
-			window.scrollTo({ top: 0, behavior: 'smooth' });
+	const handleNext = async () => {
+		if (currentStep >= totalSteps) return;
+		const step = currentStep as WizardStep;
+
+		// One whole-form pass, then keep only what this step owns. `trigger()`
+		// with a name list drops nested object paths — see step-validation.ts.
+		// The boolean it returns is about the whole form, so it is ignored: a
+		// user on step 1 has not filled in step 5 yet and must still advance.
+		await form.trigger();
+		const owned = summarizeStepErrors(form.formState.errors).filter(
+			(problem) => problem.step === step
+		);
+		const conflicts = step === 4 ? duplicateCustomQuestionConflicts() : [];
+
+		if (owned.length > 0 || conflicts.length > 0) {
+			setBlockedAt((count) => count + 1);
+			setStepProblems(owned);
+			setStepBlockMessage(
+				conflicts.length > 0
+					? 'Two ministries ask the same question for one of your children. Answer it on one ministry only.'
+					: null
+			);
+			focusFirstProblemOnStep(step);
+			return;
 		}
+
+		setStepProblems([]);
+		setStepBlockMessage(null);
+		// The pass above validated the whole form, so `errors` now also holds
+		// problems for steps the user has not reached. Left in place, the next
+		// step mounts pre-reddened — "First name is required." under an empty
+		// field nobody has touched — and step 2 would auto-open a guardian card
+		// on arrival. Clear them; the next Continue regenerates them.
+		form.clearErrors();
+		setCurrentStep(currentStep + 1);
+		window.scrollTo({ top: 0, behavior: 'smooth' });
+	};
+
+	/**
+	 * Submit refused. The invalid control is usually on a step that is no longer
+	 * mounted — which is exactly the dead end this replaces. Send the user to
+	 * the step that owns the first problem and list the rest.
+	 */
+	const handleInvalidSubmit = (errors: typeof form.formState.errors) => {
+		setBlockedAt((count) => count + 1);
+		setStepProblems(summarizeStepErrors(errors));
+		setStepBlockMessage(null);
+
+		const target = firstInvalidStep(errors);
+		if (target) {
+			if (target !== currentStep) setCurrentStep(target);
+			focusFirstProblemOnStep(target);
+		}
+		window.scrollTo({ top: 0, behavior: 'smooth' });
 	};
 
 	const handleBack = () => {
 		if (currentStep > 1) {
+			setStepProblems([]);
+			setStepBlockMessage(null);
 			setCurrentStep(currentStep - 1);
 			window.scrollTo({ top: 0, behavior: 'smooth' });
 		}
@@ -518,32 +613,19 @@ export default function RegisterWizard() {
 
 			const result = await registerHouseholdCanonical(cleanedData, cycleId);
 
-			// Build registered children summary
-			const childSummary = data.children.map((child) => {
-				const ministries: string[] = ['Sunday School'];
-				
-				// Add enrolled ministries
-				if (child.ministrySelections) {
-					Object.entries(child.ministrySelections).forEach(([code, selected]) => {
-						if (selected) {
-							// Try to find ministry name (fallback to code if not found)
-							ministries.push(code.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()));
-						}
-					});
-				}
+			// The confirmation screen reports what registration actually stored,
+			// not what the guardian ticked. Before #400 this summary was built
+			// from the form, prettifying ministry *codes* into labels, so it
+			// announced enrollments the DAL had declined to create.
+			const registeredChildren = result.registeredChildren ?? [];
+			setRegisteredChildren(registeredChildren);
 
-				return {
-					name: `${child.first_name} ${child.last_name}`,
-					ministries,
-				};
-			});
-			setRegisteredChildren(childSummary);
-
-			// Check if any children enrolled in Bible Bee
-			const hasBibleBee = data.children.some(
-				(child) => child.ministrySelections?.['bible-bee']
+			// Likewise the Bible Bee panel: it follows the stored enrollment, so
+			// it cannot offer scripture assignments to a child who was not
+			// actually enrolled.
+			setChildrenEnrolledInBibleBee(
+				hasPersistedBibleBeeEnrollment(registeredChildren)
 			);
-			setChildrenEnrolledInBibleBee(hasBibleBee);
 
 			captureAnalyticsEvent('registration_submitted', {
 				child_count: data.children.length,
@@ -581,21 +663,60 @@ export default function RegisterWizard() {
 	}
 
 	if (screen === 'done') {
-		return <RegistrationDone childrenEnrolledInBibleBee={childrenEnrolledInBibleBee} registeredChildren={registeredChildren} />;
+		return (
+			<RegistrationDone
+				childrenEnrolledInBibleBee={childrenEnrolledInBibleBee}
+				registeredChildren={registeredChildren}
+				cycleLabel={cycleLabel}
+			/>
+		);
 	}
 
 	return (
-		<div className="min-h-screen bg-[#f7f5f1]">
-			{/* Header with Step Strip */}
-			<div className="bg-white border-b border-[#eae4da]">
-				<div className="container mx-auto px-4 py-6">
-					<div className="max-w-5xl mx-auto">
-						<p className="text-xs font-semibold tracking-wider uppercase text-[#5b6b72] mb-4">
-							{cycleLabel} Registration
-						</p>
+		<div className="flex flex-1 flex-col bg-[#f7f5f1]">
+			{/* Progress chrome, pinned. The spec is mobile-primary: which step
+			    you are on has to stay on screen through long ministry and
+			    consent lists. Only the strip is sticky — the title and
+			    description scroll with the content, because a header tall
+			    enough to hold them costs a quarter of a 320x568 screen. */}
+			<div className="sticky top-0 z-30 bg-white border-b border-[#eae4da]">
+				<div className="mx-auto max-w-5xl px-4 py-3 md:py-6">
+					<div>
+						{/* Auto-save state rides with the pinned step strip so it stays
+						    visible while the guardian is typing, not only at the top
+						    of the page. Wraps at 320px rather than forcing overflow. */}
+						<div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 mb-3 md:mb-4">
+							<p className="min-w-0 text-xs font-semibold tracking-wider uppercase text-[#5b6b72] break-words">
+								Registration ·{' '}
+								<span data-testid="registration-wizard-cycle-label">
+									{cycleLabel}
+								</span>
+							</p>
+							{flags.registrationDraftPersistenceEnabled && (
+								<div
+									data-testid="registration-draft-status"
+									data-draft-state={
+										draftStatus.error
+											? 'error'
+											: draftStatus.isSaving
+												? 'saving'
+												: draftStatus.lastSaved
+													? 'saved'
+													: 'idle'
+									}
+									aria-live="polite">
+									<DraftStatusIndicator
+										isSaving={draftStatus.isSaving}
+										lastSaved={draftStatus.lastSaved}
+										error={draftStatus.error}
+										className="text-xs"
+									/>
+								</div>
+							)}
+						</div>
 
 						{/* Desktop: Circular numbered stepper */}
-						<div className="hidden md:flex justify-between items-center mb-8">
+						<div className="hidden md:flex justify-between items-center">
 							{STEPS.map((step, index) => {
 								const stepNumber = index + 1;
 								const isActive = stepNumber === currentStep;
@@ -649,7 +770,7 @@ export default function RegisterWizard() {
 						</div>
 
 						{/* Mobile: Labeled strip */}
-						<div className="md:hidden flex justify-between mb-6 overflow-x-auto">
+						<div className="md:hidden flex justify-between overflow-x-auto">
 							{STEPS.map((step, index) => {
 								const stepNumber = index + 1;
 								const isActive = stepNumber === currentStep;
@@ -676,21 +797,29 @@ export default function RegisterWizard() {
 							})}
 						</div>
 
-						<h1 className="text-2xl font-bold text-[#1e2a2f] mb-2">
-							{STEPS[currentStep - 1].title}
-						</h1>
-						<p className="text-sm text-[#5b6b72]">
-							{STEPS[currentStep - 1].description}
-						</p>
 					</div>
 				</div>
 			</div>
 
-			{/* Form Content */}
-			<div className="container mx-auto px-4 py-8">
-				<div className="max-w-3xl mx-auto">
+			{/* Form Content. One gutter: the register layout no longer adds its
+			    own, so `px-4` here is the only horizontal padding. */}
+			<div className="mx-auto max-w-3xl px-4 py-6">
+				<div>
+					<h1 className="text-2xl font-bold text-[#1e2a2f] mb-2 break-words">
+						{STEPS[currentStep - 1].title}
+					</h1>
+					<p className="text-sm text-[#5b6b72] mb-6">
+						{STEPS[currentStep - 1].description}
+					</p>
 					<Form {...form}>
-						<form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+						<form
+							onSubmit={form.handleSubmit(onSubmit, handleInvalidSubmit)}
+							className="space-y-6 pb-4">
+							<RegistrationProblemSummary
+								problems={stepProblems}
+								blockMessage={stepBlockMessage}
+								currentStep={currentStep}
+							/>
 							{currentStep === 1 && (
 								<Step1Household
 									form={form}
@@ -698,9 +827,24 @@ export default function RegisterWizard() {
 									cycleLabel={cycleLabel}
 								/>
 							)}
-							{currentStep === 2 && <Step2Guardians form={form} />}
-							{currentStep === 3 && <Step3Children form={form} />}
-							{currentStep === 4 && <Step4Ministries form={form} />}
+							{currentStep === 2 && (
+								<Step2Guardians form={form} blockedAt={blockedAt} />
+							)}
+							{currentStep === 3 && (
+								<Step3Children
+									form={form}
+									blockedAt={blockedAt}
+									gradeHints={gradeHints}
+									showGradeHints={prefillState.isReturningPrefill}
+								/>
+							)}
+							{currentStep === 4 && (
+								<Step4Ministries
+									form={form}
+									existingChildIds={existingChildIds}
+									hasHouseholdSource={prefillState.hasHouseholdSource}
+								/>
+							)}
 							{currentStep === 5 && (
 								<>
 									{prefillState.isCurrentYearOverwrite && (
@@ -725,49 +869,14 @@ export default function RegisterWizard() {
 								</>
 							)}
 
-							{/* Navigation Buttons */}
-							<Card>
-								<CardContent className="pt-6">
-									<div className="flex gap-3 justify-between">
-										<div className="flex gap-3">
-											<Button
-												type="button"
-												variant="outline"
-												onClick={handleBack}
-												disabled={currentStep === 1}
-												className="flex items-center gap-2">
-												<ChevronLeft className="h-4 w-4" />
-												Back
-											</Button>
-											<Button
-												type="button"
-												variant="outline"
-												onClick={handleCancel}
-												className="text-destructive hover:text-destructive">
-												Cancel
-											</Button>
-										</div>
-
-										{currentStep < totalSteps ? (
-											<Button
-												type="button"
-												onClick={handleNext}
-												disabled={!canProceed()}
-												className="flex items-center gap-2 bg-[#017c7d] hover:bg-[#016566] text-white">
-												Save & continue
-												<ChevronRight className="h-4 w-4" />
-											</Button>
-										) : (
-											<Button
-												type="submit"
-												disabled={isSubmitting || !form.formState.isValid}
-												className="bg-[#017c7d] hover:bg-[#016566] text-white">
-												{isSubmitting ? 'Submitting...' : 'Submit registration'}
-											</Button>
-										)}
-									</div>
-								</CardContent>
-							</Card>
+							<WizardActionBar
+								currentStep={currentStep}
+								totalSteps={totalSteps}
+								isSubmitting={isSubmitting}
+								onBack={handleBack}
+								onCancel={handleCancel}
+								onNext={handleNext}
+							/>
 						</form>
 					</Form>
 				</div>

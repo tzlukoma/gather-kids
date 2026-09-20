@@ -113,6 +113,32 @@ export interface Registration {
     submitted_at: string;
 }
 
+/**
+ * What a registration actually persisted for one child.
+ *
+ * The confirmation screen used to be built from the form the guardian filled
+ * in, so it announced ministries that persistence had silently declined to
+ * enrol the child in (#400). Registration now hands back this receipt and the
+ * screen reports it, so what a family is told matches what is stored.
+ */
+export interface RegisteredChildReceipt {
+    child_id: string;
+    first_name: string;
+    last_name: string;
+    enrollments: RegisteredEnrollmentReceipt[];
+}
+
+export interface RegisteredEnrollmentReceipt {
+    ministry_id: string;
+    ministry_name: string;
+    ministry_code: string;
+    /**
+     * `expressed_interest` is a request to be contacted, not a place in the
+     * ministry — the confirmation screen must not present the two alike.
+     */
+    status: 'enrolled' | 'expressed_interest';
+}
+
 export interface Ministry {
     ministry_id: string; // PK
     name: string;
@@ -441,7 +467,7 @@ export interface StudentEssay {
 export interface BrandingSettings {
     setting_id: string; // PK
     org_id: string; // Organization identifier (for multi-tenant support)
-    logo_url?: string; // File URL for production, base64 data URL for demo
+    logo_url?: string; // Stored file URL
     app_name?: string; // Custom app name
     description?: string; // Custom description/tagline
     use_logo_only?: boolean; // When true, show only logo in headers (logo required)

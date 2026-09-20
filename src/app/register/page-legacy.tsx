@@ -99,28 +99,6 @@ import { captureAnalyticsEvent } from '@/lib/analytics/browser';
 
 const log = devLog('register');
 
-const MOCK_EMAILS = {
-	PREFILL_OVERWRITE: 'reg.overwrite@example.com',
-	PREFILL_NO_OVERWRITE: 'reg.prefill@example.com',
-	VERIFY: 'reg.verify@example.com',
-	NEW: 'new@example.com',
-};
-
-const GENERIC_VERIFICATION_ERROR =
-	'At least one of your answers does not match our records.';
-
-const verificationSchema = z.object({
-	childDob: z
-		.string()
-		.refine((val): val is string => val === '2020-05-10', GENERIC_VERIFICATION_ERROR),
-	streetNumber: z
-		.string()
-		.refine((val): val is string => val === '456', GENERIC_VERIFICATION_ERROR),
-	emergencyContactFirstName: z
-		.string()
-		.refine((val): val is string => val.toLowerCase() === 'susan', GENERIC_VERIFICATION_ERROR),
-});
-
 const ministrySelectionSchema = z.record(z.boolean().optional()).optional();
 const interestSelectionSchema = z.record(z.boolean().optional()).optional();
 const customDataSchema = z.record(z.any()).optional();
@@ -211,116 +189,11 @@ const registrationSchema = z
 
 type RegistrationFormInput = z.input<typeof registrationSchema>;
 type RegistrationFormOutput = z.output<typeof registrationSchema>;
-type VerificationFormValues = z.infer<typeof verificationSchema>;
 
 type VerificationStep =
 	| 'enter_email'
-	| 'verify_identity'
 	| 'email_verification_sent'
 	| 'form_visible';
-
-function VerificationStepTwoForm({
-	onVerifySuccess,
-	onGoBack,
-}: {
-	onVerifySuccess: () => void;
-	onGoBack: () => void;
-}) {
-	const { toast } = useToast();
-	const form = useForm<VerificationFormValues>({
-		resolver: zodResolver(verificationSchema),
-		defaultValues: {
-			childDob: '',
-			streetNumber: '',
-			emergencyContactFirstName: '',
-		},
-	});
-
-	async function onSubmit() {
-		onVerifySuccess();
-		toast({
-			title: 'Verification Successful!',
-			description: 'Please sign in to continue registration.',
-		});
-	}
-
-	return (
-		<Card>
-			<CardHeader>
-				<CardTitle className="font-headline">Verify Your Identity</CardTitle>
-				<CardDescription>
-					To protect your information, please answer a few questions to
-					continue.
-				</CardDescription>
-			</CardHeader>
-			<CardContent className="space-y-4">
-				<Form {...form}>
-					<form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-						<Alert>
-							<Info className="h-4 w-4" />
-							<AlertTitle>For Prototype Demo</AlertTitle>
-							<AlertDescription>
-								<p>
-									To pass this step, you would need to implement a real
-									verification flow. For now, this is just a placeholder.
-								</p>
-								<p>
-									You can go back and use the `{MOCK_EMAILS.PREFILL_OVERWRITE}`
-									email to see the pre-fill flow.
-								</p>
-							</AlertDescription>
-						</Alert>
-						<FormField
-							control={form.control}
-							name="childDob"
-							render={({ field }) => (
-								<FormItem>
-									<FormLabel>Oldest Child&apos;s Date of Birth</FormLabel>
-									<FormControl>
-										<Input type="date" {...field} />
-									</FormControl>
-									<FormMessage />
-								</FormItem>
-							)}
-						/>
-						<FormField
-							control={form.control}
-							name="streetNumber"
-							render={({ field }) => (
-								<FormItem>
-									<FormLabel>Street Address Number</FormLabel>
-									<FormControl>
-										<Input placeholder="e.g., 123" {...field} />
-									</FormControl>
-									<FormMessage />
-								</FormItem>
-							)}
-						/>
-						<FormField
-							control={form.control}
-							name="emergencyContactFirstName"
-							render={({ field }) => (
-								<FormItem>
-									<FormLabel>Emergency Contact&apos;s First Name</FormLabel>
-									<FormControl>
-										<Input placeholder="e.g., Jane" {...field} />
-									</FormControl>
-									<FormMessage />
-								</FormItem>
-							)}
-						/>
-						<div className="flex gap-2 pt-4">
-							<Button type="button" variant="outline" onClick={onGoBack}>
-								Back
-							</Button>
-							<Button type="submit">Verify & Continue</Button>
-						</div>
-					</form>
-				</Form>
-			</CardContent>
-		</Card>
-	);
-}
 
 const defaultChildValues = {
 	child_id: '', // Will be generated when child is added
@@ -1804,62 +1677,8 @@ function RegisterPageContent() {
 							/>
 							<Button onClick={handleEmailLookup}>Continue</Button>
 						</div>
-						{false && (
-							<Alert>
-								<Info className="h-4 w-4" />
-								<AlertTitle>For Prototype Demo</AlertTitle>
-								<AlertDescription>
-									<p>Click an email below or type one to begin:</p>
-									<ul className="list-disc pl-5 text-sm">
-										<li>
-											Use{' '}
-											<button
-												className="text-left font-semibold underline"
-												onClick={() =>
-													setVerificationEmail(MOCK_EMAILS.PREFILL_OVERWRITE)
-												}>
-												{MOCK_EMAILS.PREFILL_OVERWRITE}
-											</button>{' '}
-											to pre-fill the form and see the overwrite warning.
-										</li>
-										<li>
-											Use{' '}
-											<button
-												className="text-left font-semibold underline"
-												onClick={() =>
-													setVerificationEmail(MOCK_EMAILS.PREFILL_NO_OVERWRITE)
-												}>
-												{MOCK_EMAILS.PREFILL_NO_OVERWRITE}
-											</button>{' '}
-											to pre-fill from a prior year&apos;s registration.
-										</li>
-										<li>
-											Use{' '}
-											<button
-												className="text-left font-semibold underline"
-												onClick={() =>
-													setVerificationEmail(MOCK_EMAILS.VERIFY)
-												}>
-												{MOCK_EMAILS.VERIFY}
-											</button>{' '}
-											to see the (mock) verification step.
-										</li>
-										<li>Any other email will start a new registration.</li>
-									</ul>
-								</AlertDescription>
-							</Alert>
-						)}
 					</CardContent>
 				</Card>
-			)}
-
-			{verificationStep === 'verify_identity' && (
-				<VerificationStepTwoForm
-					onVerifySuccess={() => {
-						router.replace(`/login?next=${encodeURIComponent('/register')}`);
-					}}
-					onGoBack={() => setVerificationStep('enter_email')}
-				/>
 			)}
 
 			{verificationStep === 'email_verification_sent' && (
@@ -3051,8 +2870,13 @@ function RegisterSkeleton() {
 
 export default function RegisterPage() {
 	return (
-		<Suspense fallback={<RegisterSkeleton />}>
-			<RegisterPageContent />
-		</Suspense>
+		// The gutter the shared register layout used to apply. Kept here so the
+		// flag-off page renders exactly as before while the wizard goes
+		// full-bleed.
+		<div className="container mx-auto p-4 md:p-6 lg:p-8">
+			<Suspense fallback={<RegisterSkeleton />}>
+				<RegisterPageContent />
+			</Suspense>
+		</div>
 	);
 }

@@ -4,7 +4,7 @@ This document describes the comprehensive test suite created to validate the Sup
 
 ## Overview
 
-The test suite ensures that the Supabase database adapter correctly implements the DatabaseAdapter interface. The factory always returns `SupabaseAdapter`; IndexedDB/demo adapter tests are leftover and should not be treated as current coverage.
+The test suite ensures that the Supabase database adapter correctly implements the DatabaseAdapter interface. The factory always returns `SupabaseAdapter`.
 
 ## Test Files Implemented
 
@@ -38,7 +38,7 @@ The test suite ensures that the Supabase database adapter correctly implements t
   - Realtime subscriptions
   - Error handling scenarios
 - **Status**: Supabase tests mostly working
-- **Notes**: IndexedDB adapter half is leftover; not a supported runtime path (#266)
+- **Notes**: Supabase is the only runtime path
 
 #### `__tests__/lib/supabase-adapter-errors.test.ts` ⚠️ PARTIAL
 - **Purpose**: Specific error condition testing
@@ -100,7 +100,6 @@ The test suite ensures that the Supabase database adapter correctly implements t
 
 ### ⚠️ Partially Implemented:
 1. **Advanced Filtering** - Complex query operations need mock enhancement
-2. Leftover IndexedDB contract-test harness (delete with #266)
 3. **Performance Testing** - Framework ready, needs mock refinements
 4. **Error Simulation** - Basic cases work, complex scenarios need work
 

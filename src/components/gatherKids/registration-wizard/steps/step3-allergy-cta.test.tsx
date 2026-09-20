@@ -63,7 +63,7 @@ function Step3WizardHarness({
 	return (
 		<Form {...form}>
 			<form>
-				<Step3Children form={form} />
+				<Step3Children form={form} blockedAt={0} />
 				<Button type="button" disabled={!canProceed}>
 					Save & continue
 				</Button>
