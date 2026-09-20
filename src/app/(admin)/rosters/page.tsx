@@ -18,7 +18,8 @@ import {
 	CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { FileDown, ArrowUpDown, Edit, Camera, Users } from 'lucide-react';
+import { FileDown, ArrowUpDown, Edit, User, Users } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { EmptyState } from '@/components/ui/empty-state';
 import { PermissionEmpty } from '@/components/ui/permission-empty';
 import { cn } from '@/lib/utils';
@@ -139,6 +140,46 @@ const getGradeValue = (grade?: string): number => {
 	const value = gradeSortOrder[grade];
 	return value !== undefined ? value : 99;
 };
+
+/**
+ * Photo cell for the roster tables.
+ *
+ * The column is headed "Photo", so it shows one. It previously rendered a
+ * camera icon button and only when a child actually had a photo, which left
+ * the column blank for every child without one and never showed the image
+ * even for those who did. The mobile child card has always rendered the
+ * avatar itself; this is the same treatment, at table scale.
+ */
+function RosterPhotoCell({
+	child,
+	onViewPhoto,
+}: {
+	child: { first_name: string; last_name: string; photo_url?: string };
+	onViewPhoto: (photo: { name: string; url: string }) => void;
+}) {
+	const name = `${child.first_name} ${child.last_name}`;
+	// The name is in the adjacent cell, so the image itself is decorative.
+	const avatar = (
+		<Avatar className="h-8 w-8 border border-border">
+			<AvatarImage src={child.photo_url} alt="" />
+			<AvatarFallback>
+				<User className="h-4 w-4 text-muted-foreground" />
+			</AvatarFallback>
+		</Avatar>
+	);
+
+	if (!child.photo_url) return avatar;
+
+	return (
+		<Button
+			variant="ghost"
+			className="h-8 w-8 rounded-full p-0"
+			aria-label={`View photo of ${name}`}
+			onClick={() => onViewPhoto({ name, url: child.photo_url! })}>
+			{avatar}
+		</Button>
+	);
+}
 
 export default function RostersPage() {
 	const gatherSystem = useGatherSystemShell();
@@ -726,19 +767,7 @@ export default function RostersPage() {
 								</TableCell>
 							)}
 							<TableCell>
-								{child.photo_url && (
-									<Button
-										variant="ghost"
-										size="icon"
-										onClick={() =>
-											setViewingPhoto({
-												name: `${child.first_name} ${child.last_name}`,
-												url: child.photo_url!,
-											})
-										}>
-										<Camera className="h-4 w-4" />
-									</Button>
-								)}
+								<RosterPhotoCell child={child} onViewPhoto={setViewingPhoto} />
 							</TableCell>
 							<TableCell className="font-medium">{`${child.first_name} ${child.last_name}`}</TableCell>
 							<TableCell>{normalizeGradeDisplay(child.grade)}</TableCell>
@@ -815,19 +844,7 @@ export default function RostersPage() {
 											</TableCell>
 										)}
 										<TableCell>
-											{child.photo_url && (
-												<Button
-													variant="ghost"
-													size="icon"
-													onClick={() =>
-														setViewingPhoto({
-															name: `${child.first_name} ${child.last_name}`,
-															url: child.photo_url!,
-														})
-													}>
-													<Camera className="h-4 w-4" />
-												</Button>
-											)}
+											<RosterPhotoCell child={child} onViewPhoto={setViewingPhoto} />
 										</TableCell>
 										<TableCell className="font-medium">{`${child.first_name} ${child.last_name}`}</TableCell>
 										<TableCell>{normalizeGradeDisplay(child.grade)}</TableCell>
