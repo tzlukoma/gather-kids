@@ -39,9 +39,21 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/auth-context';
 import { useCheckedInChildren } from '@/hooks/data/children';
-import type { Child } from '@/lib/types';
+import { useGatherSystemShell } from '@/components/gatherKids/gathersystem-shell-context';
+import {
+	STAFF_CARD,
+	STAFF_PAGE_TITLE,
+	STAFF_SECTION_DESCRIPTION,
+	STAFF_SECTION_TITLE,
+	STAFF_TABLE_DENSE,
+} from '@/components/gatherKids/staff-list-styles';
+import { PermissionEmpty } from '@/components/ui/permission-empty';
+import { LoadStalled } from '@/components/ui/load-stalled';
+import { useLoadingTimeout } from '@/hooks/use-loading-timeout';
+import { TableSkeleton } from '@/components/skeletons/TableSkeleton';
 
 export default function ReportsPage() {
+	const gatherSystem = useGatherSystemShell();
 	const { user, loading } = useAuth();
 	const isAuthorized = !loading && !!user && user.metadata?.role === AuthRole.ADMIN;
 
@@ -58,7 +70,12 @@ export default function ReportsPage() {
 		data: checkedInChildren = [],
 		isLoading: dataLoading,
 		error: dataError,
+		refetch: refetchCheckedIn,
 	} = useCheckedInChildren(today);
+
+	// A skeleton promises something is about to arrive. Once a load runs long
+	// enough that the promise is no longer credible, say so instead.
+	const rosterOverdue = useLoadingTimeout(dataLoading);
 
 	const handleExportEmergency = async () => {
 		const blob = await exportEmergencySnapshotCSV(today);
@@ -102,20 +119,38 @@ export default function ReportsPage() {
 		});
 	};
 
-	if (!isAuthorized || dataLoading) {
-		return <div>Loading reports...</div>;
+	// These were one branch, so a non-admin sat on "Loading reports..." for ever:
+	// the page cannot load for them and never said so. Authorisation is a
+	// settled answer, not a slow one.
+	if (loading) {
+		return <TableSkeleton rows={6} columns={3} />;
+	}
+
+	if (!isAuthorized) {
+		return (
+			<PermissionEmpty
+				reason="restricted"
+				title="Reports are limited to administrators"
+				description="Your account does not have access to ministry reports and exports."
+				remedy="If you need access, ask an administrator to update your role."
+			/>
+		);
 	}
 
 	if (dataError) {
 		console.error('Error loading checked-in children:', dataError);
-		return <div>Error loading reports data. Please try again.</div>;
 	}
 
 	return (
 		<div className="flex flex-col gap-8">
 			<div>
 				<div className="flex items-center gap-2">
-					<h1 className="text-3xl font-bold font-headline">
+					<h1
+						className={cn(
+							gatherSystem
+								? STAFF_PAGE_TITLE
+								: 'text-3xl font-bold font-headline'
+						)}>
 						Reports & Exports
 					</h1>
 					<Badge
@@ -124,21 +159,47 @@ export default function ReportsPage() {
 						Beta
 					</Badge>
 				</div>
-				<p className="text-muted-foreground">
+				<p
+					className={cn(
+						gatherSystem ? STAFF_SECTION_DESCRIPTION : 'text-muted-foreground'
+					)}>
 					Generate reports and export data for ministry records.
 				</p>
 			</div>
 
 			<div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2">
-				<Card>
+				<Card className={cn(gatherSystem && STAFF_CARD)}>
 					<CardHeader>
-						<CardTitle className="font-headline">Emergency Snapshot</CardTitle>
-						<CardDescription>
+						<CardTitle
+							className={cn(
+								gatherSystem ? STAFF_SECTION_TITLE : 'font-headline'
+							)}>
+							Emergency Snapshot
+						</CardTitle>
+						<CardDescription
+							className={cn(gatherSystem && STAFF_SECTION_DESCRIPTION)}>
 							Today’s roster with critical allergy and contact information.
 						</CardDescription>
 					</CardHeader>
 					<CardContent>
-						<Table>
+						{dataError ? (
+							<LoadStalled
+								tone="error"
+								title="Today’s roster didn’t load"
+								description="The emergency snapshot could not be fetched. The CSV export below still works."
+								onRetry={() => void refetchCheckedIn()}
+							/>
+						) : rosterOverdue ? (
+							<LoadStalled
+								tone="slow"
+								title="Today’s roster is slow to load"
+								description="This is taking longer than expected. It may still arrive, or you can ask for it again."
+								onRetry={() => void refetchCheckedIn()}
+							/>
+						) : dataLoading ? (
+							<TableSkeleton rows={5} columns={3} />
+						) : (
+						<Table className={cn(gatherSystem && STAFF_TABLE_DENSE)}>
 							<TableHeader>
 								<TableRow>
 									<TableHead>Name</TableHead>
@@ -175,6 +236,7 @@ export default function ReportsPage() {
 								)}
 							</TableBody>
 						</Table>
+						)}
 					</CardContent>
 					<CardFooter>
 						<Button className="ml-auto" onClick={handleExportEmergency}>
@@ -184,10 +246,16 @@ export default function ReportsPage() {
 					</CardFooter>
 				</Card>
 
-				<Card>
+				<Card className={cn(gatherSystem && STAFF_CARD)}>
 					<CardHeader>
-						<CardTitle className="font-headline">Attendance Rollup</CardTitle>
-						<CardDescription>
+						<CardTitle
+							className={cn(
+								gatherSystem ? STAFF_SECTION_TITLE : 'font-headline'
+							)}>
+							Attendance Rollup
+						</CardTitle>
+						<CardDescription
+							className={cn(gatherSystem && STAFF_SECTION_DESCRIPTION)}>
 							Generate an attendance report for a specific date range.
 						</CardDescription>
 					</CardHeader>

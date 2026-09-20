@@ -23,6 +23,17 @@ import { Upload, Image as ImageIcon, Palette } from 'lucide-react';
 import { Youtube, Instagram } from '@/components/icons/brand';
 import { useBrandingSettings, useSaveBrandingSettings } from '@/hooks/data';
 import { CardGridSkeleton } from '@/components/skeletons/CardGridSkeleton';
+import { cn } from '@/lib/utils';
+import { useGatherSystemShell } from '@/components/gatherKids/gathersystem-shell-context';
+import {
+	STAFF_CARD,
+	STAFF_PAGE_TITLE,
+	STAFF_SECTION_DESCRIPTION,
+	STAFF_SECTION_TITLE,
+} from '@/components/gatherKids/staff-list-styles';
+import { PermissionEmpty } from '@/components/ui/permission-empty';
+import { LoadStalled } from '@/components/ui/load-stalled';
+import { useLoadingTimeout } from '@/hooks/use-loading-timeout';
 
 interface BrandingFormData {
 	app_name: string;
@@ -64,12 +75,19 @@ function brandingSettingsToForm(
 
 export default function BrandingPage() {
 	const router = useRouter();
+	const gatherSystem = useGatherSystemShell();
 	const { user, loading: authLoading } = useAuth();
 	const { toast } = useToast();
 	const isAuthorized = !authLoading && !!user && user.metadata?.role === AuthRole.ADMIN;
 
 	// Use React Query hooks for data fetching
-	const { data: brandingSettings, isLoading: settingsLoading, error: settingsError } = useBrandingSettings('default');
+	const {
+		data: brandingSettings,
+		isLoading: settingsLoading,
+		error: settingsError,
+		refetch: refetchBranding,
+	} = useBrandingSettings('default');
+	const settingsOverdue = useLoadingTimeout(settingsLoading);
 	const saveBrandingMutation = useSaveBrandingSettings();
 
 	const [formData, setFormData] = useState<BrandingFormData>(() =>
@@ -192,7 +210,47 @@ export default function BrandingPage() {
 		});
 	};
 
-	if (!isAuthorized || settingsLoading) {
+	// Previously one branch, so a non-admin got an animating skeleton that could
+	// never resolve. The redirect below usually moves them on first, but a
+	// skeleton must not be what stands in for "you cannot see this".
+	if (authLoading) {
+		return <CardGridSkeleton count={4} />;
+	}
+
+	if (!isAuthorized) {
+		return (
+			<PermissionEmpty
+				reason="restricted"
+				title="Branding is limited to administrators"
+				description="Your account does not have access to this organisation’s branding settings."
+				remedy="If you need access, ask an administrator to update your role."
+			/>
+		);
+	}
+
+	if (settingsError) {
+		return (
+			<LoadStalled
+				tone="error"
+				title="Branding settings didn’t load"
+				description="These settings could not be fetched, so editing them now risks saving over values you cannot see."
+				onRetry={() => void refetchBranding()}
+			/>
+		);
+	}
+
+	if (settingsOverdue) {
+		return (
+			<LoadStalled
+				tone="slow"
+				title="Branding settings are slow to load"
+				description="This is taking longer than expected. It may still arrive, or you can ask for them again."
+				onRetry={() => void refetchBranding()}
+			/>
+		);
+	}
+
+	if (settingsLoading) {
 		return <CardGridSkeleton count={4} />;
 	}
 
@@ -200,11 +258,20 @@ export default function BrandingPage() {
 		<div className="flex flex-col gap-8">
 			<div className="flex items-center justify-between">
 				<div>
-					<h1 className="text-3xl font-bold font-headline flex items-center gap-2">
+					<h1
+						className={cn(
+							'flex items-center gap-2',
+							gatherSystem
+								? STAFF_PAGE_TITLE
+								: 'text-3xl font-bold font-headline'
+						)}>
 						<Palette className="h-8 w-8" />
 						Branding & Private Label
 					</h1>
-					<p className="text-muted-foreground">
+					<p
+						className={cn(
+							gatherSystem ? STAFF_SECTION_DESCRIPTION : 'text-muted-foreground'
+						)}>
 						Customize your app&apos;s appearance and branding to match your
 						organization.
 					</p>
@@ -213,11 +280,15 @@ export default function BrandingPage() {
 
 			<form onSubmit={handleSubmit} className="space-y-6">
 				{/* App Identity Section */}
-				<Card>
+				<Card className={cn(gatherSystem && STAFF_CARD)}>
 					<CardHeader>
-						<CardTitle>App Identity</CardTitle>
+						<CardTitle
+							className={cn(gatherSystem && STAFF_SECTION_TITLE)}>
+							App Identity
+						</CardTitle>
 
-						<CardDescription>
+						<CardDescription
+							className={cn(gatherSystem && STAFF_SECTION_DESCRIPTION)}>
 							Configure your app&apos;s name and description that appears
 							throughout the interface.
 						</CardDescription>
@@ -259,13 +330,18 @@ export default function BrandingPage() {
 				</Card>
 
 				{/* Logo Section */}
-				<Card>
+				<Card className={cn(gatherSystem && STAFF_CARD)}>
 					<CardHeader>
-						<CardTitle className="flex items-center gap-2">
+						<CardTitle
+							className={cn(
+								'flex items-center gap-2',
+								gatherSystem && STAFF_SECTION_TITLE
+							)}>
 							<ImageIcon className="h-5 w-5" />
 							Logo
 						</CardTitle>
-						<CardDescription>
+						<CardDescription
+							className={cn(gatherSystem && STAFF_SECTION_DESCRIPTION)}>
 							Upload a custom logo to replace the default cross icon.
 						</CardDescription>
 					</CardHeader>
@@ -358,10 +434,14 @@ export default function BrandingPage() {
 				</Card>
 
 				{/* Social Media Section */}
-				<Card>
+				<Card className={cn(gatherSystem && STAFF_CARD)}>
 					<CardHeader>
-						<CardTitle>Social Media Links</CardTitle>
-						<CardDescription>
+						<CardTitle
+							className={cn(gatherSystem && STAFF_SECTION_TITLE)}>
+							Social Media Links
+						</CardTitle>
+						<CardDescription
+							className={cn(gatherSystem && STAFF_SECTION_DESCRIPTION)}>
 							Add links to your organization&apos;s social media profiles. These
 							will appear on the home page when provided.
 						</CardDescription>
