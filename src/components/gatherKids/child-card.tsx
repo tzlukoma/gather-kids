@@ -52,6 +52,7 @@ interface ChildCardProps {
 	onUpdatePhoto: (child: Child) => void;
 	onViewPhoto: (photo: { name: string; url: string }) => void;
 	canUpdatePhoto?: boolean; // New prop to control photo update visibility
+	isCheckInPending?: boolean;
 }
 
 const isBirthdayThisWeek = (dob?: string): boolean => {
@@ -110,6 +111,7 @@ export function ChildCard({
 	onUpdatePhoto,
 	onViewPhoto,
 	canUpdatePhoto = true, // Default to true for backward compatibility
+	isCheckInPending = false,
 }: ChildCardProps) {
 	const canSelfCheckout = child.age !== null && child.age >= 13;
 	const checkedInEvent = child.activeAttendance?.event_id;
@@ -302,7 +304,7 @@ export function ChildCard({
 						className="w-full"
 						variant="door"
 						onClick={() => onCheckIn(child.child_id)}
-						disabled={!!checkedInEvent}>
+						disabled={!!checkedInEvent || isCheckInPending}>
 						Check In
 					</Button>
 				)}

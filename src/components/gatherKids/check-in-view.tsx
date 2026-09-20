@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import type {
 	Child,
 	Guardian,
@@ -184,7 +184,11 @@ export function CheckInView({
 		allEmergencyContacts,
 	]);
 
+	const checkInInFlight = useRef(new Set<string>());
+
 	const handleCheckIn = async (childId: string) => {
+		if (checkInInFlight.current.has(childId)) return;
+		checkInInFlight.current.add(childId);
 		try {
 			await checkInMutation.mutateAsync({
 				childId,
@@ -208,6 +212,8 @@ export function CheckInView({
 				description:
 					e?.message || 'Failed to check in child. Please try again.',
 			});
+		} finally {
+			checkInInFlight.current.delete(childId);
 		}
 	};
 
@@ -314,6 +320,10 @@ export function CheckInView({
 						onUpdatePhoto={setSelectedChildForPhoto}
 						onViewPhoto={setViewingPhoto}
 						canUpdatePhoto={canUpdateChildPhoto(user, child)}
+						isCheckInPending={
+							checkInMutation.isPending &&
+							checkInMutation.variables?.childId === child.child_id
+						}
 					/>
 				))}
 			</div>
