@@ -27,14 +27,19 @@ const E2E_TEEN_CHOIR_ID = 'e2e_teen_choir';
 /**
  * The wizard asks for this group by code — `getMinistriesByGroupCode('choirs')`
  * is hard-coded in `registration-wizard/index.tsx` — so the choir-consent path
- * can only be exercised through the real `choirs` row. Its id is a
- * `uuid PRIMARY KEY` assigned by the database, so it is looked up, never
- * invented: this fixture used to upsert the string `'e2e_choirs_group'` as the
- * id and failed every run with `invalid input syntax for type uuid`, which is
- * why the group-consent case has not actually been covered since
- * 20250913150711_add_ministry_groups.
+ * can only be exercised through a `ministry_groups` row with code `choirs`.
+ * Its id is a `uuid PRIMARY KEY` assigned by the database: never invent it.
+ * This fixture used to upsert the string `'e2e_choirs_group'` as the id and
+ * failed every run with `invalid input syntax for type uuid`.
+ *
+ * CI registration-smoke starts a migration-only local Supabase (no
+ * `seed:dev`), so the shared `choirs` row from `scripts/seed/dev_seed.js` is
+ * often missing. Insert when absent; reuse and restore when `seed:dev` already
+ * created it.
  */
 const CHOIRS_GROUP_CODE = 'choirs';
+const CHOIRS_CONSENT_TEXT =
+  'Cathedral International youth choirs communicate using the Planning Center app.';
 
 /**
  * Step 4 shows one checkbox per child per ministry, and each checkbox is
@@ -53,43 +58,62 @@ async function acceptBaseConsents(page: Page) {
   if (!(await photo.isChecked())) await photo.check();
 }
 
-/**
- * `choirs` is shared seed data, not ours to create or destroy. The test needs
- * it to carry a custom consent, so the prior values are captured here and put
- * back in cleanup — deleting the group (as this fixture used to) would take the
- * real one with it and break every later run against the same database.
- */
-let priorChoirsConsent: {
+type ChoirsGroupConsent = {
   id: string;
   custom_consent_required: boolean | null;
   custom_consent_text: string | null;
-} | null = null;
+};
+
+/**
+ * When `seed:dev` already inserted `choirs`, capture its consent fields and
+ * restore them. When CI has no such row, insert one (database UUID) and delete
+ * that row in cleanup — never delete a pre-existing shared group.
+ */
+let createdChoirsGroup = false;
+let priorChoirsConsent: ChoirsGroupConsent | null = null;
 
 async function seedConsentMinistries() {
   const supabase = createE2EAdminClient();
 
-  const { data: group, error: lookupError } = await supabase
+  const { data: existing, error: lookupError } = await supabase
     .from('ministry_groups')
     .select('id, custom_consent_required, custom_consent_text')
     .eq('code', CHOIRS_GROUP_CODE)
     .maybeSingle();
   expect(lookupError).toBeNull();
-  expect(
-    group,
-    `no "${CHOIRS_GROUP_CODE}" ministry group in this database — the wizard looks it up by code, so the group-consent path cannot be exercised without it`,
-  ).not.toBeNull();
 
-  priorChoirsConsent = group as typeof priorChoirsConsent;
-
-  const { error: groupError } = await supabase
-    .from('ministry_groups')
-    .update({
-      custom_consent_required: true,
-      custom_consent_text:
-        'Cathedral International youth choirs communicate using the Planning Center app.',
-    })
-    .eq('id', priorChoirsConsent!.id);
-  expect(groupError).toBeNull();
+  if (existing) {
+    createdChoirsGroup = false;
+    priorChoirsConsent = existing;
+    const { error: groupError } = await supabase
+      .from('ministry_groups')
+      .update({
+        custom_consent_required: true,
+        custom_consent_text: CHOIRS_CONSENT_TEXT,
+      })
+      .eq('id', existing.id);
+    expect(groupError).toBeNull();
+  } else {
+    createdChoirsGroup = true;
+    const { data: inserted, error: insertError } = await supabase
+      .from('ministry_groups')
+      .insert({
+        code: CHOIRS_GROUP_CODE,
+        name: 'Choirs',
+        description:
+          'Youth choir ministries grouped together for shared management and notifications',
+        custom_consent_required: true,
+        custom_consent_text: CHOIRS_CONSENT_TEXT,
+      })
+      .select('id, custom_consent_required, custom_consent_text')
+      .single();
+    expect(insertError, insertError?.message).toBeNull();
+    expect(
+      inserted,
+      'inserting the choirs ministry group should return a database-assigned uuid',
+    ).not.toBeNull();
+    priorChoirsConsent = inserted;
+  }
 
   const { error: ministriesError } = await supabase.from('ministries').upsert(
     [
@@ -131,16 +155,20 @@ async function cleanupConsentMinistries() {
   await supabase.from('ministries').delete().eq('ministry_id', E2E_ORATORS_ID);
   await supabase.from('ministries').delete().eq('ministry_id', E2E_TEEN_CHOIR_ID);
 
-  // Restore, never delete: the group is shared seed data.
   if (priorChoirsConsent) {
-    await supabase
-      .from('ministry_groups')
-      .update({
-        custom_consent_required: priorChoirsConsent.custom_consent_required,
-        custom_consent_text: priorChoirsConsent.custom_consent_text,
-      })
-      .eq('id', priorChoirsConsent.id);
+    if (createdChoirsGroup) {
+      await supabase.from('ministry_groups').delete().eq('id', priorChoirsConsent.id);
+    } else {
+      await supabase
+        .from('ministry_groups')
+        .update({
+          custom_consent_required: priorChoirsConsent.custom_consent_required,
+          custom_consent_text: priorChoirsConsent.custom_consent_text,
+        })
+        .eq('id', priorChoirsConsent.id);
+    }
     priorChoirsConsent = null;
+    createdChoirsGroup = false;
   }
 }
 
