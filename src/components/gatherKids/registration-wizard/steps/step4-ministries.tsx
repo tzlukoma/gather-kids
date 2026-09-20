@@ -978,7 +978,10 @@ export function Step4Ministries({
 									{/* List each choir option within the group */}
 									<div className="space-y-4 mt-4">
 										{eligibleChoirPrograms.map((choir: Ministry) => (
-											<div key={choir.code} className="border-t border-[#e0dacf] pt-4 first:border-t-0 first:pt-0">
+											<div
+												key={choir.code}
+												data-ministry-code={choir.code}
+												className="border-t border-[#e0dacf] pt-4 first:border-t-0 first:pt-0">
 												<p className="font-medium text-[#1e2a2f] mb-1">{choir.name}</p>
 												{choir.description && (
 													<p className="text-sm text-[#5b6b72] mb-2">{choir.description}</p>

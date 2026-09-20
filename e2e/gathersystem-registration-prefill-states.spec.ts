@@ -12,65 +12,21 @@ import {
   loginWithPassword,
   waitForPostLoginRoute,
 } from './utils/r1-helpers';
-
-const LOCAL_HOSTNAMES = new Set(['localhost', '127.0.0.1', '::1']);
+import {
+  assertDisposableLocalSupabase,
+  continueToNextStep,
+  gathersystemDescribe,
+  isLocalSupabaseConfigured,
+} from './utils/gathersystem-wizard';
 
 /**
  * Exact-local hostname only — never trust CI env alone or substring matches.
  * A misconfigured CI URL must not reach service-role seed/mutation helpers.
  */
-function isDisposableLocalSupabaseUrl(url: string): boolean {
-  if (!url) return false;
-  try {
-    const hostname = new URL(url).hostname.toLowerCase();
-    const normalized =
-      hostname.startsWith('[') && hostname.endsWith(']')
-        ? hostname.slice(1, -1)
-        : hostname;
-    return LOCAL_HOSTNAMES.has(normalized);
-  } catch {
-    return false;
-  }
-}
-
-function assertDisposableLocalSupabase(): void {
-  const url = process.env.SUPABASE_URL || '';
-  const key = process.env.SUPABASE_SERVICE_ROLE || '';
-  if (!key || !isDisposableLocalSupabaseUrl(url)) {
-    throw new Error(
-      `GatherSystem prefill E2E refuses non-disposable Supabase URL (exact localhost/127.0.0.1/::1 required): ${url || '(missing)'}`,
-    );
-  }
-}
-
-function isLocalSupabaseConfigured() {
-  const url = process.env.SUPABASE_URL || '';
-  const key = process.env.SUPABASE_SERVICE_ROLE || '';
-  return Boolean(key) && isDisposableLocalSupabaseUrl(url);
-}
-
 /**
  * Prefer: `npm run test:e2e:gathersystem` which sets E2E=1 + OVERRIDE=true and
  * injects OVERRIDE into Playwright webServer (remote PostHog flags stay off locally).
  */
-function gathersystemDescribe(title: string, fn: () => void) {
-  test.describe(title, () => {
-    test.skip(
-      process.env.GATHERSYSTEM_REGISTRATION_E2E !== '1',
-      'Set GATHERSYSTEM_REGISTRATION_E2E=1 (prefer: npm run test:e2e:gathersystem)',
-    );
-    test.skip(
-      !isLocalSupabaseConfigured(),
-      'Requires disposable local Supabase (exact localhost/127.0.0.1) in .env.e2e.local',
-    );
-    fn();
-  });
-}
-
-async function continueToNextStep(page: Page) {
-  await page.getByRole('button', { name: /save & continue/i }).click();
-}
-
 async function openRegistrationEntry(page: Page) {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/register');
@@ -109,6 +65,10 @@ async function advancePrefillWizardToConsents(page: Page) {
 }
 
 gathersystemDescribe('GatherSystem registration prefill states @mobile', () => {
+  test.skip(
+    !isLocalSupabaseConfigured(),
+    'Requires disposable local Supabase (exact localhost/127.0.0.1) in .env.e2e.local',
+  );
   let createdUserId: string | undefined;
 
   test.beforeAll(async () => {

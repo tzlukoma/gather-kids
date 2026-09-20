@@ -37,6 +37,18 @@ import {
 
 const DRAFT_FORM_NAME = 'registration_v1';
 
+/**
+ * Whether the *app under test* has draft persistence on.
+ *
+ * Deliberately `!== 'false'`, not `=== 'true'`. The app reads this flag at build
+ * time from `.env.local`, which the Playwright process never loads — so the
+ * variable is normally *absent here* while the dev server has it on. Mirroring
+ * the app's `=== 'true'` would make this guard read "off" on every ordinary
+ * local run and invert which tests execute.
+ *
+ * CI has no `.env.local`, so the workflow sets this variable explicitly for both
+ * the flag-on and drafts-off steps; with it set, both readings agree.
+ */
 const draftPersistenceEnabled =
   process.env.NEXT_PUBLIC_REGISTRATION_DRAFT_PERSISTENCE_ENABLED !== 'false';
 

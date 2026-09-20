@@ -169,6 +169,44 @@ export async function fillWizardGuardians(
   await continueToNextStep(page);
 }
 
+/**
+ * Open the step-3 child form.
+ *
+ * The control reads "Add your first child" for an empty household and
+ * "Add another child" afterwards. Specs used to probe with `count()`, which
+ * resolves before the step has rendered, silently skips the click, and then
+ * fails much later on a missing `children.0.*` field — one spec looked for
+ * `/add child/i`, which matches neither label, so its click never fired at all.
+ */
+export async function addChildFormOpen(page: Page) {
+  await expect(
+    page.getByRole('heading', { name: /tell us about your children/i }).first(),
+  ).toBeVisible({ timeout: 20000 });
+
+  const addButton = page
+    .getByRole('button', { name: /add (your first child|another child|child)/i })
+    .first();
+
+  // An existing child is already expanded, so the button is absent by design.
+  const firstNameField = page.locator('input[name="children.0.first_name"]');
+  await expect(addButton.or(firstNameField).first()).toBeVisible({ timeout: 20000 });
+
+  if (await addButton.isVisible().catch(() => false)) {
+    await addButton.click();
+  }
+
+  await expect(firstNameField).toBeVisible({ timeout: 20000 });
+}
+
+/** Open the child form and fill the first child. */
+export async function addFirstChild(
+  page: Page,
+  child: { first_name: string; last_name: string; dob: string; grade: string },
+) {
+  await addChildFormOpen(page);
+  await fillChildAtIndex(page, 0, child);
+}
+
 /** Step 3 shows one child at a time, so the fields are always the active index. */
 export async function fillChildAtIndex(
   page: Page,

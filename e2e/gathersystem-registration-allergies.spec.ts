@@ -10,132 +10,32 @@ import {
   loginWithPassword,
   waitForPostLoginRoute,
 } from './utils/r1-helpers';
+import {
+  assertDisposableLocalSupabase,
+  continueToNextStep,
+  gathersystemDescribe,
+  isLocalSupabaseConfigured,
+  startWizardRegistration,
+  fillWizardGuardians,
+  fillWizardHousehold,
+  addChildFormOpen,
+} from './utils/gathersystem-wizard';
 
 const SYNTHETIC_ALLERGY_DETAILS = '  Peanut allergy — EpiPen (synthetic E2E)  ';
-
-const LOCAL_HOSTNAMES = new Set(['localhost', '127.0.0.1', '::1']);
-
-function isDisposableLocalSupabaseUrl(url: string): boolean {
-  if (!url) return false;
-  try {
-    const hostname = new URL(url).hostname.toLowerCase();
-    const normalized =
-      hostname.startsWith('[') && hostname.endsWith(']')
-        ? hostname.slice(1, -1)
-        : hostname;
-    return LOCAL_HOSTNAMES.has(normalized);
-  } catch {
-    return false;
-  }
-}
-
-function assertDisposableLocalSupabase(): void {
-  const url = process.env.SUPABASE_URL || '';
-  const key = process.env.SUPABASE_SERVICE_ROLE || '';
-  if (!key || !isDisposableLocalSupabaseUrl(url)) {
-    throw new Error(
-      `GatherSystem allergy E2E refuses non-disposable Supabase URL (exact localhost/127.0.0.1/::1 required): ${url || '(missing)'}`,
-    );
-  }
-}
-
-function isLocalSupabaseConfigured() {
-  const url = process.env.SUPABASE_URL || '';
-  const key = process.env.SUPABASE_SERVICE_ROLE || '';
-  return Boolean(key) && isDisposableLocalSupabaseUrl(url);
-}
 
 /**
  * Prefer: `npm run test:e2e:gathersystem` which sets E2E=1 + OVERRIDE=true and
  * injects OVERRIDE into Playwright webServer (remote PostHog flags stay off locally).
  */
-function gathersystemDescribe(title: string, fn: () => void) {
-  test.describe(title, () => {
-    test.skip(
-      process.env.GATHERSYSTEM_REGISTRATION_E2E !== '1',
-      'Set GATHERSYSTEM_REGISTRATION_E2E=1 (prefer: npm run test:e2e:gathersystem)',
-    );
-    test.skip(
-      !isLocalSupabaseConfigured(),
-      'Requires disposable local Supabase (exact localhost/127.0.0.1) in .env.e2e.local',
-    );
-    fn();
-  });
-}
-
-async function continueToNextStep(page: Page) {
-  await page.getByRole('button', { name: /save & continue/i }).click();
-}
-
-async function startWizardRegistration(page: Page) {
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto('/register');
-
-  const startButton = page.getByRole('button', {
-    name: /start registration|continue/i,
-  });
-  if (await startButton.count()) {
-    await startButton.first().click();
-  }
-
-  await expect(page.getByRole('button', { name: /save & continue/i })).toBeVisible({
-    timeout: 15000,
-  });
-}
-
-async function fillWizardHousehold(page: Page) {
-  await page
-    .getByRole('textbox', { name: /street address|address line 1/i })
-    .first()
-    .fill('100 Allergy E2E St');
-  await page.getByRole('textbox', { name: /^city$/i }).fill('Perth Amboy');
-  await page.getByRole('textbox', { name: /^state$/i }).fill('NJ');
-  await page.getByRole('textbox', { name: /zip/i }).fill('08861');
-  await continueToNextStep(page);
-}
-
-async function fillWizardGuardians(page: Page) {
-  await expect(page.getByText(/who can collect the children/i)).toBeVisible({
-    timeout: 15000,
-  });
-
-  await page.getByRole('button', { name: /^edit$/i }).first().click();
-
-  await page.locator('input[name="guardians.0.first_name"]').fill('Alex');
-  await page.locator('input[name="guardians.0.last_name"]').fill('Allergy');
-  await page.locator('input[name="guardians.0.mobile_phone"]').fill('5551234567');
-
-  await page
-    .getByRole('combobox')
-    .filter({ hasText: /mother|father|select relationship/i })
-    .first()
-    .click();
-  await page.getByRole('option', { name: 'Mother' }).click();
-
-  await page.getByRole('button', { name: /^done$/i }).click();
-
-  await page.locator('input[name="emergencyContact.first_name"]').fill('Sam');
-  await page.locator('input[name="emergencyContact.last_name"]').fill('Lee');
-  await page.locator('input[name="emergencyContact.relationship"]').fill('Aunt');
-  await page.locator('input[name="emergencyContact.mobile_phone"]').fill('5559876543');
-
-  await continueToNextStep(page);
-}
-
 async function addChildThroughGrade(page: Page) {
-  await expect(page.getByText(/tell us about your children/i)).toBeVisible({
+  await expect(page.getByRole('heading', { name: /tell us about your children/i }).first()).toBeVisible({
     timeout: 15000,
   });
 
-  const addFirst = page.getByRole('button', { name: /add your first child/i });
-  if (await addFirst.count()) {
-    await addFirst.click();
-  } else {
-    const addChild = page.getByRole('button', { name: /add (another )?child/i });
-    if (await addChild.count()) {
-      await addChild.first().click();
-    }
-  }
+  // Deliberately NOT the shared helper: it answers the allergy question, which
+  // is the very gate under test here. `count()` is avoided for the #461 reason —
+  // it resolves before the step renders and silently skips the click.
+  await addChildFormOpen(page);
 
   await page.locator('input[name="children.0.first_name"]').fill('Jordan');
   await page.locator('input[name="children.0.last_name"]').fill('Allergy');
@@ -143,7 +43,8 @@ async function addChildThroughGrade(page: Page) {
 
   const grade = page.getByRole('combobox', { name: /grade/i }).first();
   await grade.click();
-  await page.getByRole('option').first().click();
+  await page.getByRole('option', { name: '4th Grade', exact: true }).click();
+  await expect(grade).toContainText('4th');
 }
 
 async function finishMinistriesAndSubmit(page: Page) {
@@ -164,6 +65,10 @@ async function finishMinistriesAndSubmit(page: Page) {
 }
 
 gathersystemDescribe('GatherSystem registration allergies @mobile @mutating', () => {
+  test.skip(
+    !isLocalSupabaseConfigured(),
+    'Requires disposable local Supabase (exact localhost/127.0.0.1) in .env.e2e.local',
+  );
   // Context-safe mobile viewport only — full iPhone 13 device descriptors include
   // defaultBrowserType, which Playwright forbids inside a nested describe.
   test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
@@ -197,21 +102,28 @@ gathersystemDescribe('GatherSystem registration allergies @mobile @mutating', ()
     await loginWithPassword(page, email, TEST_PASSWORD);
     await waitForPostLoginRoute(page);
     await startWizardRegistration(page);
-    await fillWizardHousehold(page);
-    await fillWizardGuardians(page);
+    await fillWizardHousehold(page, 'Allergy');
+    await fillWizardGuardians(page, 'Allergy', email);
     await addChildThroughGrade(page);
 
-    const continueButton = page.getByRole('button', { name: /save & continue/i });
-    await expect(continueButton).toBeDisabled();
+    // #398 replaced the disabled-button gate with a recoverable one: Continue
+    // stays enabled, and pressing it holds the step and names the problem. This
+    // spec asserted `toBeDisabled()`, i.e. behaviour the product deliberately
+    // dropped, so it failed on a contract that no longer exists.
+    await continueToNextStep(page);
+    await expect(page.locator('[data-testid="registration-problem-summary"]')).toBeVisible();
+    await expect(
+      page.getByText(/no known allergies.*or enter allergy details/i).first(),
+    ).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: /tell us about your children/i }).first(),
+    ).toBeVisible();
 
     await page.getByRole('radio', { name: /no known allergies/i }).click();
-    await expect(continueButton).toBeEnabled();
 
     // Switch to details and keep surrounding whitespace (#396 exact persistence).
     await page.getByRole('radio', { name: /this child has allergies/i }).click();
     await page.getByLabel(/allergy details/i).fill(SYNTHETIC_ALLERGY_DETAILS);
-    await expect(continueButton).toBeEnabled();
-
     await continueToNextStep(page);
     await expect(
       page.getByText(/ministry programs|sunday school|expressed interest/i).first()
@@ -226,8 +138,12 @@ gathersystemDescribe('GatherSystem registration allergies @mobile @mutating', ()
     await finishMinistriesAndSubmit(page);
 
     const supabase = createE2EAdminClient();
+    // The address typed into the wizard is the *guardian's*; registration does
+    // not copy it onto `households.email`, so looking the household up by that
+    // column always returned zero rows and the allergy assertions below were
+    // never reached.
     const { data: households, error: householdError } = await supabase
-      .from('households')
+      .from('guardians')
       .select('household_id')
       .eq('email', email);
     expect(householdError).toBeNull();
@@ -257,15 +173,24 @@ gathersystemDescribe('GatherSystem registration allergies @mobile @mutating', ()
     await loginWithPassword(page, email, TEST_PASSWORD);
     await waitForPostLoginRoute(page);
     await startWizardRegistration(page);
-    await fillWizardHousehold(page);
-    await fillWizardGuardians(page);
+    await fillWizardHousehold(page, 'Allergy');
+    await fillWizardGuardians(page, 'Allergy', email);
     await addChildThroughGrade(page);
 
-    const continueButton = page.getByRole('button', { name: /save & continue/i });
-    await expect(continueButton).toBeDisabled();
+    // #398 replaced the disabled-button gate with a recoverable one: Continue
+    // stays enabled, and pressing it holds the step and names the problem. This
+    // spec asserted `toBeDisabled()`, i.e. behaviour the product deliberately
+    // dropped, so it failed on a contract that no longer exists.
+    await continueToNextStep(page);
+    await expect(page.locator('[data-testid="registration-problem-summary"]')).toBeVisible();
+    await expect(
+      page.getByText(/no known allergies.*or enter allergy details/i).first(),
+    ).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: /tell us about your children/i }).first(),
+    ).toBeVisible();
 
     await page.getByRole('radio', { name: /no known allergies/i }).click();
-    await expect(continueButton).toBeEnabled();
 
     await continueToNextStep(page);
     await expect(
@@ -277,14 +202,16 @@ gathersystemDescribe('GatherSystem registration allergies @mobile @mutating', ()
       page.getByRole('radio', { name: /no known allergies/i })
     ).toBeChecked();
     await expect(page.getByLabel(/allergy details/i)).toHaveCount(0);
-    await expect(continueButton).toBeEnabled();
-
     await continueToNextStep(page);
     await finishMinistriesAndSubmit(page);
 
     const supabase = createE2EAdminClient();
+    // The address typed into the wizard is the *guardian's*; registration does
+    // not copy it onto `households.email`, so looking the household up by that
+    // column always returned zero rows and the allergy assertions below were
+    // never reached.
     const { data: households, error: householdError } = await supabase
-      .from('households')
+      .from('guardians')
       .select('household_id')
       .eq('email', email);
     expect(householdError).toBeNull();
