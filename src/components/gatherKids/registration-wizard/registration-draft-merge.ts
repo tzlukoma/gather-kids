@@ -46,11 +46,41 @@ function childKey(child: { first_name?: string | null; last_name?: string | null
 	return `${first}|${last}`;
 }
 
+/** Any value a guardian could have typed or chosen, as opposed to a default. */
+function hasTypedValue(value: unknown): boolean {
+	if (value == null) return false;
+	if (typeof value === 'string') return value.trim().length > 0;
+	if (typeof value === 'boolean') return value;
+	if (Array.isArray(value)) return value.length > 0;
+	if (typeof value === 'object') {
+		return Object.values(value as Record<string, unknown>).some(hasTypedValue);
+	}
+	return true;
+}
+
+/**
+ * Whether a child row holds restorable work.
+ *
+ * Every field counts, not just the name. The wizard auto-saves as soon as a
+ * child row exists, so a guardian who fills a date of birth, grade, allergy
+ * details or ministry selections before typing a name has real work on disk —
+ * treating that as "no draft" would throw it away on the next load. Identity
+ * (`child_id`) is deliberately excluded: it comes from the household load, not
+ * from the guardian, so a prefilled-but-untouched child is not work.
+ */
+function isMeaningfulChild(child: unknown): boolean {
+	if (!child || typeof child !== 'object') return false;
+	return Object.entries(child as Record<string, unknown>).some(
+		([key, value]) => key !== 'child_id' && hasTypedValue(value)
+	);
+}
+
 /**
  * Whether a draft holds anything worth restoring.
  *
- * Mirrors the wizard's auto-save guard so an empty autosaved shell is never
- * treated as user work.
+ * Deliberately at least as permissive as the wizard's auto-save guard: any
+ * payload that guard chose to write must be recognised here, or the draft is
+ * saved and then silently discarded on restore.
  */
 export function isMeaningfulDraft(draft: RegistrationDraftLike): boolean {
 	if (!draft) return false;
@@ -76,7 +106,7 @@ export function isMeaningfulDraft(draft: RegistrationDraftLike): boolean {
 		return true;
 	}
 
-	return Boolean(draft.children?.some((c) => c?.first_name));
+	return Boolean(draft.children?.some(isMeaningfulChild));
 }
 
 /**

@@ -75,6 +75,84 @@ describe('isMeaningfulDraft', () => {
 		).toBe(false);
 	});
 
+	/**
+	 * The wizard auto-saves as soon as a child row exists, so anything a
+	 * guardian fills in before typing the name is already on disk. Requiring
+	 * `first_name` here would classify that payload as "no draft" and discard
+	 * it on the next load.
+	 */
+	describe('a child completed out of order', () => {
+		const BLANK_CHILD = {
+			child_id: '',
+			first_name: '',
+			last_name: '',
+			dob: '',
+			grade: '',
+			child_mobile: '',
+			allergies: '',
+			medical_notes: '',
+			special_needs: false,
+			special_needs_notes: '',
+			ministrySelections: {},
+			interestSelections: {},
+			customData: {},
+		};
+
+		function draftWithChild(overrides: Record<string, unknown>) {
+			return {
+				children: [{ ...BLANK_CHILD, ...overrides }],
+			} as unknown as Partial<RegistrationFormInput>;
+		}
+
+		it.each([
+			['a date of birth', { dob: '2016-04-02' }],
+			['a grade', { grade: '3' }],
+			['allergy details', { allergies: 'peanuts' }],
+			['medical notes', { medical_notes: 'inhaler' }],
+			['a mobile number', { child_mobile: '5551234567' }],
+			['a special-needs flag', { special_needs: true }],
+			['special-needs notes', { special_needs_notes: 'quiet room' }],
+			['a ministry selection', { ministrySelections: { min_acolyte: true } }],
+			['an expressed interest', { interestSelections: { min_choir: true } }],
+			['a custom answer', { customData: { shirt_size: 'YM' } }],
+			['a last name only', { last_name: 'Williams' }],
+		])('treats %s as restorable work without a first name', (_label, overrides) => {
+			expect(isMeaningfulDraft(draftWithChild(overrides))).toBe(true);
+		});
+
+		it('still rejects a freshly added, untouched child row', () => {
+			expect(isMeaningfulDraft(draftWithChild({}))).toBe(false);
+		});
+
+		it('does not count a prefilled child id as work the guardian did', () => {
+			expect(isMeaningfulDraft(draftWithChild({ child_id: 'child-1' }))).toBe(false);
+		});
+
+		it('does not count a ministry that was selected and then cleared', () => {
+			expect(
+				isMeaningfulDraft(draftWithChild({ ministrySelections: { min_acolyte: false } }))
+			).toBe(false);
+		});
+
+		it('restores the partial child rather than resolving to no draft', () => {
+			const draft = draftWithChild({
+				dob: '2016-04-02',
+				grade: '3',
+				allergies: 'peanuts',
+			});
+
+			const result = resolveRegistrationDraft({
+				prefillValues: null,
+				draftValues: draft,
+			});
+
+			expect(result.resolution).toBe('draft_only');
+			expect(result.values?.children?.[0].dob).toBe('2016-04-02');
+			expect(result.values?.children?.[0].grade).toBe('3');
+			expect(result.values?.children?.[0].allergies).toBe('peanuts');
+		});
+	});
+
 	it('accepts a draft holding any typed household, guardian or child value', () => {
 		expect(
 			isMeaningfulDraft({ household: { city: 'Oakland' } } as Partial<RegistrationFormInput>)
