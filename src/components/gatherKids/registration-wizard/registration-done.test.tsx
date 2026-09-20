@@ -141,3 +141,117 @@ describe('RegistrationDone', () => {
 		expect(screen.getByText('Bible Bee Enrollment')).toBeInTheDocument();
 	});
 });
+
+/**
+ * #394 — the Done screen must name the season the same way the entry and wizard
+ * do, and must not invent logistics or promise an email nobody sends.
+ */
+describe('RegistrationDone completion content', () => {
+	const WEDNESDAY = new Date('2026-09-23T16:00:00.000Z');
+
+	function renderDone(props: Partial<React.ComponentProps<typeof RegistrationDone>> = {}) {
+		return render(
+			<RegistrationDone
+				registeredChildren={[receipt({})]}
+				cycleLabel="Fall 2026"
+				now={WEDNESDAY}
+				{...props}
+			/>
+		);
+	}
+
+	describe('cycle name', () => {
+		it('names the active cycle', () => {
+			renderDone();
+
+			expect(screen.getByTestId('registration-done-subtitle')).toHaveTextContent(
+				'Your family is registered for Fall 2026.'
+			);
+		});
+
+		it('falls back to neutral copy when no cycle name is available', () => {
+			renderDone({ cycleLabel: undefined });
+
+			const subtitle = screen.getByTestId('registration-done-subtitle');
+			expect(subtitle).toHaveTextContent(
+				"Your family's registration has been confirmed."
+			);
+			expect(subtitle.textContent).not.toMatch(/undefined|null/i);
+		});
+
+		/**
+		 * The cycle id is a UUID in UAT and production. It must never reach copy —
+		 * this asserts on the whole rendered screen, not just the subtitle, so a
+		 * future addition cannot leak it somewhere else.
+		 */
+		it('never renders a cycle id anywhere on the screen', () => {
+			const CYCLE_UUID = '8f14e45f-ceea-467a-9c2b-7b1f2c0d3e4a';
+			renderDone({ cycleLabel: CYCLE_UUID });
+
+			// Guard the guard: a raw UUID passed as a label would render, which is
+			// why the wizard passes `registrationCycleLabel(...)` and never the id.
+			expect(document.body.textContent).toContain(CYCLE_UUID);
+
+			// The real assertion — with a proper label, nothing UUID-shaped shows.
+			document.body.innerHTML = '';
+			renderDone({ cycleLabel: 'Fall 2026' });
+			expect(document.body.textContent).not.toMatch(
+				/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i
+			);
+		});
+	});
+
+	describe('Sunday logistics', () => {
+		it('shows the upcoming service day', () => {
+			renderDone();
+
+			expect(screen.getByTestId('registration-done-service-day')).toHaveTextContent(
+				'Sunday, September 27'
+			);
+			expect(screen.getByText('This Sunday')).toBeInTheDocument();
+		});
+
+		it('says Today when the family registers on a Sunday', () => {
+			renderDone({ now: new Date('2026-09-27T15:00:00.000Z') });
+
+			expect(screen.getByText('Today')).toBeInTheDocument();
+			expect(screen.queryByText('This Sunday')).not.toBeInTheDocument();
+		});
+
+		/**
+		 * Nothing in the data model configures a service time, campus or room —
+		 * not BrandingSettings, not Ministry — and the product is multi-tenant, so
+		 * every one of these was simply invented for one congregation.
+		 */
+		it('invents no service time, campus or room', () => {
+			renderDone();
+
+			const body = document.body.textContent ?? '';
+			expect(body).not.toMatch(/Family Life Enrichment Center/i);
+			expect(body).not.toMatch(/\d{1,2}:\d{2}\s*(AM|PM)/i);
+			expect(body).not.toMatch(/\broom\b/i);
+		});
+
+		it('keeps the check-in guidance generic', () => {
+			renderDone();
+
+			expect(screen.getByTestId('registration-done-logistics')).toHaveTextContent(
+				/bring your children to the check-in desk/i
+			);
+		});
+	});
+
+	/**
+	 * The signed Done frame shows an email confirmation, but the only mail this
+	 * app sends is auth magic-link and verification — there is no registration
+	 * confirmation email. Promising one would be a lie the product cannot keep.
+	 */
+	it('promises no confirmation email, because none is sent', () => {
+		renderDone();
+
+		const body = document.body.textContent ?? '';
+		expect(body).not.toMatch(/check your (inbox|email)/i);
+		expect(body).not.toMatch(/confirmation email|email confirmation/i);
+		expect(body).not.toMatch(/we(?:'ve| have) (?:sent|emailed)/i);
+	});
+});

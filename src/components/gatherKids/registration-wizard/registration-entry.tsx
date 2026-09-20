@@ -369,10 +369,12 @@ export function RegistrationEntry({ onStart }: RegistrationEntryProps) {
 							</div>
 							<h2 className="text-2xl font-bold text-[#1e2a2f]">
 								Register for{' '}
-								{registrationCycleLabel(
-									activeRegistrationCycle,
-									'this year'
-								)}
+								<span data-testid="registration-entry-cycle-label">
+									{registrationCycleLabel(
+										activeRegistrationCycle,
+										'this year'
+									)}
+								</span>
 							</h2>
 							<p
 								className="text-[#5b6b72] leading-relaxed"

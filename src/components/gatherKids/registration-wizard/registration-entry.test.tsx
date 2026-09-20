@@ -113,7 +113,14 @@ describe('RegistrationEntry prefill copy', () => {
 
 		// The id is a UUID in UAT and production; guardians must never see it.
 		expect(document.body.textContent).not.toContain(CYCLE_UUID);
-		expect(screen.getByText(/Register for Fall 2026/i)).toBeInTheDocument();
+		// Matched on the heading's accessible name: the cycle label sits in its
+		// own span (so E2E can read it), so the text spans two elements.
+		expect(
+			screen.getByRole('heading', { name: /Register for Fall 2026/i })
+		).toBeInTheDocument();
+		expect(screen.getByTestId('registration-entry-cycle-label')).toHaveTextContent(
+			'Fall 2026'
+		);
 	});
 
 	it('shows first-time neutral copy with no returning/last-year claims', async () => {
