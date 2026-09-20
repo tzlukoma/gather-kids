@@ -91,25 +91,8 @@ test.describe('Registration Auth Flow with Email Verification', () => {
       
       console.log('🔗 Navigating to magic link:', magicLink);
       await page.goto(magicLink, { waitUntil: 'domcontentloaded' });
-      
-      // Wait for auth callback to process
-      await page.waitForTimeout(3000);
-      
-      // Check if we're redirected back to registration or if auth was successful
-      const currentUrl = page.url();
-      console.log('📍 Current URL after magic link:', currentUrl);
-      
-      // If redirected to register, we should now be authenticated
-      if (currentUrl.includes('/register')) {
-        console.log('🔄 Redirected back to registration - user is now authenticated');
-      } else if (currentUrl.includes('/auth/callback')) {
-        console.log('🔄 On auth callback page - waiting for redirect');
-        await page.waitForTimeout(2000);
-        // May need to continue to registration manually
-        if (page.url().includes('/auth/callback')) {
-          await page.goto('/register', { waitUntil: 'domcontentloaded' });
-        }
-      }
+      await page.waitForURL(/\/register(?:\?|$)/, { timeout: 15000 });
+      console.log('📍 Current URL after magic link:', page.url());
     } else {
       console.log('⚡ Step 3: No email verification required - proceeding directly to form');
     }

@@ -55,6 +55,7 @@ import {
 import { devLog } from '@/lib/dev-log';
 import { getFlag } from '@/lib/featureFlags';
 import { isOfflineSupabase } from '@/lib/offline-supabase';
+import { buildRegistrationMagicLinkPayload } from '@/lib/authRedirect';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import {
 	AlertDialog,
@@ -1216,7 +1217,9 @@ function RegisterPageContent() {
 					headers: {
 						'Content-Type': 'application/json',
 					},
-					body: JSON.stringify({ email: verificationEmail }),
+					body: JSON.stringify(
+						buildRegistrationMagicLinkPayload(verificationEmail)
+					),
 				});
 
 				if (response.ok) {
@@ -1719,7 +1722,11 @@ function RegisterPageContent() {
 											headers: {
 												'Content-Type': 'application/json',
 											},
-											body: JSON.stringify({ email: verificationEmail }),
+											body: JSON.stringify(
+												buildRegistrationMagicLinkPayload(
+													verificationEmail
+												)
+											),
 										});
 
 										if (response.ok) {
