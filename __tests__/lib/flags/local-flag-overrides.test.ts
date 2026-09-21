@@ -8,9 +8,13 @@ import {
 import { GATHERSYSTEM_FLAG_KEYS, shouldUseRemoteFlags } from '@/lib/flags/env';
 
 /**
- * Every "refuses" case below lists **all six** GatherSystem keys, so a guard
+ * Every "refuses" case below requests **every** GatherSystem key, so a guard
  * that had been dropped or weakened would return `true` and fail the test
  * rather than passing because nothing was requested.
+ *
+ * Derived from `GATHERSYSTEM_FLAG_KEYS` rather than listed here, so a key added
+ * later is covered without anyone remembering to come back — which is what
+ * happened when `gathersystem_auth` was added in #379.
  */
 const ALL_KEYS = GATHERSYSTEM_FLAG_KEYS.join(',');
 
