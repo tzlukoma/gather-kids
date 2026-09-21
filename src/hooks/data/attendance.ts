@@ -3,7 +3,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
   getAttendanceForDate, 
-  getAttendanceForChildrenOnDate,
   getIncidentsForDate,
   getIncidentsForUser,
   acknowledgeIncident,
@@ -24,17 +23,29 @@ export function useAttendance(date: string, eventId?: string) {
 }
 
 /**
- * Attendance for this household's own children on one date.
+ * The signed-in guardian's own children's attendance for one day.
  *
- * Scoped deliberately: see `getAttendanceForChildrenOnDate`. Disabled until
- * there is at least one child id, so the guardian home does not fire a query
- * while its household profile is still loading.
+ * Deliberately takes no child list. `attendance` has no RLS and the browser's
+ * Supabase client holds the anon key, so a client-side query is bounded only by
+ * what the client asks for. The household is derived from the session inside
+ * `GET /api/household/attendance`; this hook sends a date and nothing else, so
+ * there is no parameter a guardian could edit to reach another household.
  */
-export function useAttendanceForChildren(date: string, childIds: string[]) {
+export function useHouseholdAttendance(date: string) {
   return useQuery({
-    queryKey: queryKeys.attendanceForChildren(date, childIds),
-    queryFn: () => getAttendanceForChildrenOnDate(childIds, date),
-    enabled: !!date && childIds.length > 0,
+    queryKey: queryKeys.householdAttendance(date),
+    queryFn: async (): Promise<Array<{ child_id: string; check_out_at: string | null }>> => {
+      const response = await fetch(
+        `/api/household/attendance?date=${encodeURIComponent(date)}`,
+        { credentials: 'same-origin' },
+      );
+      if (!response.ok) {
+        throw new Error(`Failed to load attendance (${response.status})`);
+      }
+      const body = await response.json();
+      return body.attendance ?? [];
+    },
+    enabled: !!date,
     ...cacheConfig.volatile, // Attendance changes frequently
   });
 }

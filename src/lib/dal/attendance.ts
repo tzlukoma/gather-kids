@@ -34,25 +34,6 @@ export async function getAttendanceForDate(dateISO: string): Promise<Attendance[
 }
 
 /**
- * Attendance for a known set of children on one date.
- *
- * The guardian home needs each of its own children's on-site state and nothing
- * else. `getAttendanceForDate` would answer that, but it pulls every household's
- * rows for the day into the browser to do it — attendance has no RLS, so the
- * scope of the read is the scope of the query. Passing the household's own child
- * ids keeps the guardian's request to the rows they are already entitled to.
- *
- * Returns `[]` for an empty id list without going to the database.
- */
-export async function getAttendanceForChildrenOnDate(
-    childIds: string[],
-    dateISO: string,
-): Promise<Attendance[]> {
-    if (childIds.length === 0) return [];
-    return dbAdapter.listAttendance({ childIds, date: dateISO });
-}
-
-/**
  * Get the count of children currently checked in for a specific date.
  */
 export async function getCheckedInCount(dateISO: string): Promise<number> {

@@ -1156,13 +1156,6 @@ export class SupabaseAdapter implements DatabaseAdapter {
 		if (filters?.childId) {
 			query = query.eq('child_id', filters.childId);
 		}
-		if (filters?.childIds) {
-			// An empty list has to short-circuit: `.in('child_id', [])` is valid
-			// PostgREST that matches nothing, but building the request at all is
-			// a round trip for an answer we already have.
-			if (filters.childIds.length === 0) return [];
-			query = query.in('child_id', filters.childIds);
-		}
 		if (filters?.eventId) {
 			query = query.eq('event_id', filters.eventId);
 		}

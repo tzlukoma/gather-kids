@@ -134,10 +134,18 @@ this key alone gives a GatherSystem home whose `Open scripture list` lands on
 the legacy scripture screen — deliberate, and the reason the two are separate
 keys — but worth knowing before a UAT walkthrough.
 
-The home's on-site pills read attendance **scoped to the household's own
-children** (`getAttendanceForChildrenOnDate`). Attendance carries no RLS, so the
-scope of the query is the scope of what reaches the browser; do not replace that
-call with `getAttendanceForDate`.
+**The on-site pills read attendance through a server route, and must keep
+doing so.** `GET /api/household/attendance` takes a date and nothing else: it
+derives the household from the session, the children from the household, and
+the rows from those children. Do not move this read back into a client hook and
+do not add a `childIds` parameter. `attendance` has no RLS and the browser holds
+an anon-key Supabase client, so a browser-supplied child list is payload shaping,
+not authorization — `__tests__/api/household-attendance-auth.test.ts` fails if
+either the child list or the household id becomes something the request carries.
+
+The wider problem this route does *not* solve — RLS is absent across `children`,
+`households` and `guardians`, and `src/lib/database/factory.ts` publishes the
+adapter as `window.gatherKidsDbAdapter` — is tracked on its own issue.
 
 #### `gathersystem_incidents` — trusted role claims
 

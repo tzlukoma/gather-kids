@@ -6,7 +6,7 @@ import { ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { useBibleBeeStats } from '@/hooks/data';
-import { useAttendanceForChildren } from '@/hooks/data/attendance';
+import { useHouseholdAttendance } from '@/hooks/data/attendance';
 import { getServiceDayIso } from '@/lib/dal';
 import type { HouseholdProfileData } from '@/lib/dal';
 import { cn } from '@/lib/utils';
@@ -253,12 +253,12 @@ export function GuardianHomeGatherSystem({
 
 	// `getServiceDayIso` is what check-in writes attendance under, so asking for
 	// the same day is what makes "On site" agree with the door.
+	//
+	// No child list is sent. The route derives this household's children from
+	// the session, so the presence pills cannot be pointed at anyone else's
+	// child by editing what the browser asks for.
 	const today = React.useMemo(() => getServiceDayIso(), []);
-	const childIds = React.useMemo(
-		() => children.map((child) => child.child_id),
-		[children]
-	);
-	const { data: attendance } = useAttendanceForChildren(today, childIds);
+	const { data: attendance } = useHouseholdAttendance(today);
 
 	// Read at render, from the guardian's own clock. Safe against a hydration
 	// mismatch because `HouseholdProtectedRoute` renders the skeleton until it
