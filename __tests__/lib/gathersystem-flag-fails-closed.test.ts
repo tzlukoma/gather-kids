@@ -21,6 +21,11 @@ import { getGatherSystemFlag } from '@/lib/flags/get-gathersystem-flag';
  * without the no-session guard. The door helper keeps its own cover in
  * `__tests__/lib/gathersystem-door-flag.test.ts`.
  *
+ * `gathersystem_auth` joined them in #379. It covers `/onboarding` and
+ * `/unauthorized`, which both require a session — not `/login` or
+ * `/create-account`, whose signed-out audience cannot be bucketed per user and
+ * which are held pending a rollout decision on that issue.
+ *
  * `gathersystem_registration` is deliberately absent: `/register` serves
  * signed-out visitors and must not adopt the no-session guard.
  */
@@ -34,6 +39,7 @@ describe('getGatherSystemFlag fails closed', () => {
 		'gathersystem_door',
 		'gathersystem_admin',
 		'gathersystem_incidents',
+		'gathersystem_auth',
 	] as const)('returns false for %s when there is no session', async (key) => {
 		mockGetFlagEvalContext.mockResolvedValue({
 			userId: undefined,

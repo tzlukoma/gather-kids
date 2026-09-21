@@ -56,6 +56,7 @@ Defaults in call sites should keep **legacy UI on** (`getBoolean(key, false)` �
 | `gathersystem_registration` | Guardian registration wizard GatherSystem UI | **#389 must close first.** Do not broaden this key until then. |
 | `gathersystem_admin` | Staff shell (grouped nav) + admin overview GatherSystem UI | — |
 | `gathersystem_incidents` | Staff incidents log + acknowledgement GatherSystem UI | **#429 must land, and its backfill run in that environment.** See below. |
+| `gathersystem_auth` | Account surfaces — `/onboarding` and `/unauthorized` — GatherSystem type scale | — for what it covers. **It must not be extended to `/login` or `/create-account`** until the question on #379 is answered. See below. |
 
 Constants: `GATHERSYSTEM_FLAG_KEYS` in `src/lib/flags/env.ts`. Multivariate experiments use `getVariant(key, 'control')` when an issue defines arms.
 
@@ -63,7 +64,7 @@ Constants: `GATHERSYSTEM_FLAG_KEYS` in `src/lib/flags/env.ts`. Multivariate expe
 
 A prerequisite is something that must be true **in the target environment** before the key is raised above 0% there. Merging the code does not satisfy it, and it is per-environment: satisfying it in UAT says nothing about production.
 
-**Percentage rollouts and session-less traffic.** `getFlagEvalContext` fails closed on missing Supabase env, not on a missing session, and `buildFlagDistinctId(undefined)` collapses every session-less caller into one `<env>:anonymous` bucket. So for unauthenticated traffic a percentage rollout is not gradual — the whole bucket resolves together. This affects any key evaluated on a route reachable without a session; #432 tracks it for `gathersystem_door`. Prefer targeting by `userId` over a blanket percentage until it closes.
+**Percentage rollouts and session-less traffic.** `getFlagEvalContext` fails closed on missing Supabase env, not on a missing session, and `buildFlagDistinctId(undefined)` collapses every session-less caller into one `<env>:anonymous` bucket. So for unauthenticated traffic a percentage rollout is not gradual — the whole bucket resolves together. This affects any key evaluated on a route reachable without a session; #432 tracks it for `gathersystem_door`, and #379 is the open decision about what to do on routes whose audience is *entirely* session-less. Prefer targeting by `userId` over a blanket percentage until it closes.
 
 #### `gathersystem_door` — two open blockers
 
@@ -90,6 +91,26 @@ So with this flag on, staff can check children **in** but not **out** — on the
 **Mitigation is immediate either way.** Turning the flag off restores the legacy screen, full check-out, and deterministic behaviour.
 
 PR #383 delivered the interaction model for this surface (search, grade chips, multi-select, sticky dock, photos, allergy/incident chips). #385 carries the remainder: stats cards, status tabs, header chrome, table layout — and check-out.
+
+#### `gathersystem_auth` — scoped to session-bearing routes only
+
+**This key covers `/onboarding` and `/unauthorized`, and nothing else.** Both
+require a session and redirect to `/login` without one, so
+`getGatherSystemFlag`'s no-session guard is correct for them and a percentage
+rollout buckets per user in the ordinary way. There is no prerequisite; it is
+safe to raise.
+
+**It must not be extended to `/login` or `/create-account`.** Their audience is
+unauthenticated, so every request collapses into the one `<env>:anonymous`
+bucket described above: the key would be on for all signed-out traffic or none,
+which is not a rollout. #379 carries that decision with options; until it is
+answered those two routes stay legacy on both sides of the flag.
+
+A second-order effect worth knowing before you raise this key: a visitor can
+meet a GatherSystem `/onboarding` immediately after a legacy `/login`, because
+the two sides of that journey are gated differently. That is a cosmetic
+inconsistency rather than a fault, but it is the reason #379 shipped partially
+rather than waiting.
 
 #### `gathersystem_incidents` — trusted role claims
 
@@ -182,11 +203,11 @@ there is no way to render a GatherSystem screen on a dev machine at all.
 GATHERSYSTEM_LOCAL_FLAGS=gathersystem_door NEXT_PUBLIC_LOGIN_PASSWORD_ENABLED=true npm run dev
 ```
 
-`npm run dev:gathersystem` boots with all six keys on, plus password login.
+`npm run dev:gathersystem` boots with every key in `GATHERSYSTEM_FLAG_KEYS` on, plus password login.
 
 Rules:
 
-- Only the six keys in `GATHERSYSTEM_FLAG_KEYS` are honoured. Unknown or
+- Only the keys in `GATHERSYSTEM_FLAG_KEYS` are honoured. Unknown or
   misspelled keys are **ignored**, never matched loosely, so a typo cannot
   enable a different flag.
 - The override only ever forces a flag **on**. It cannot turn one off.
