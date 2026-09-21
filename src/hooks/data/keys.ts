@@ -13,6 +13,12 @@ export const queryKeys = {
   // Event-scoped attendance for granular invalidation
   attendance: (date: string, eventId?: string) =>
     eventId ? ['attendance', date, eventId] : ['attendance', date],
+  // Shares the ['attendance', date] prefix the check-in and check-out
+  // mutations invalidate, so a child checked in at the door updates the
+  // guardian's home. The household is not part of the key: the route derives
+  // it from the session, so one signed-in user can only ever populate their
+  // own entry.
+  householdAttendance: (date: string) => ['attendance', date, 'household'],
   incidents: (date: string, eventId?: string) =>
     eventId ? ['incidents', date, eventId] : ['incidents', date],
   incidentsForUser: (userId: string | undefined) => ['incidents', 'user', userId] as const,

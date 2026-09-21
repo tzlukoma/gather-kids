@@ -36,6 +36,7 @@ import { fileURLToPath } from 'node:url';
 import { config as loadEnv } from 'dotenv';
 import { chromium } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
+import { devSeedUuid } from '../lib/dev-seed-ids.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 loadEnv({ path: join(root, '.env.e2e.local') });
@@ -55,11 +56,18 @@ const ROLES = {
 		role: 'ADMIN',
 		fullName: 'Administrator',
 	},
+	// A guardian is only useful for capture if the account actually reaches a
+	// household: without one, `/household` redirects straight to `/register`
+	// and every guardian capture is of the registration wizard. So this points
+	// at the deterministic Johnson Family household `seed:dev` creates (#446) —
+	// two active children, both enrolled in Bible Bee — and `ensureUser` links
+	// the auth user to it.
 	guardian: {
-		email: 'household-complete@example.com',
+		email: 'bob.johnson@example.com',
 		password: 'TestPassword123!',
 		role: 'GUARDIAN',
-		fullName: 'Casey Household',
+		fullName: 'Bob Johnson',
+		householdId: devSeedUuid('household', 'Johnson Family'),
 	},
 	// A ministry leader gets past the (admin) route guard but is not an admin,
 	// which is the only way to reach the admin-only branches of /reports and
@@ -245,6 +253,34 @@ async function ensureUser(spec) {
 		updated_at: new Date().toISOString(),
 	});
 
+	if (spec.householdId) {
+		const { data: household } = await supabase
+			.from('households')
+			.select('household_id')
+			.eq('household_id', spec.householdId)
+			.maybeSingle();
+		if (!household) {
+			throw new Error(
+				`Household ${spec.householdId} is not in this database. Run \`npm run seed:dev\` before capturing as ${spec.role}.`
+			);
+		}
+
+		const { data: existingLink } = await supabase
+			.from('user_households')
+			.select('user_household_id')
+			.eq('auth_user_id', userId)
+			.eq('household_id', spec.householdId)
+			.maybeSingle();
+
+		if (!existingLink) {
+			const { error } = await supabase
+				.from('user_households')
+				.insert({ auth_user_id: userId, household_id: spec.householdId });
+			if (error) throw error;
+		}
+		console.log(`Linked ${spec.email} to household ${spec.householdId}`);
+	}
+
 	console.log(`Ensured local ${spec.role} user ${spec.email}`);
 	return userId;
 }
@@ -281,7 +317,13 @@ async function hideDevChrome(page) {
 	await page.addStyleTag({
 		content: `
 			[data-debug-footer], [data-testid="debug-footer"] { display: none !important; }
-			.fixed.bottom-0.right-0 { display: none !important; }
+			.fixed.bottom-0.right-0, .fixed.bottom-4.right-4, .fixed.bottom-4.left-4 { display: none !important; }
+			/* TanStack Query devtools launcher and the Next.js dev badge, which
+			   otherwise sit on top of the guardian tab bar in every phone capture. */
+			.tsqd-open-btn-container, .tsqd-parent-container { display: none !important; }
+			/* Next.js dev tools badge, which otherwise sits on top of the
+			   guardian tab bar in every phone-width capture. */
+			nextjs-portal { display: none !important; }
 		`,
 	});
 	await page.evaluate(() => {

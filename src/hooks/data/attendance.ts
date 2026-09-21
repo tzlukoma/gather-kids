@@ -22,6 +22,34 @@ export function useAttendance(date: string, eventId?: string) {
   });
 }
 
+/**
+ * The signed-in guardian's own children's attendance for one day.
+ *
+ * Deliberately takes no child list. `attendance` has no RLS and the browser's
+ * Supabase client holds the anon key, so a client-side query is bounded only by
+ * what the client asks for. The household is derived from the session inside
+ * `GET /api/household/attendance`; this hook sends a date and nothing else, so
+ * there is no parameter a guardian could edit to reach another household.
+ */
+export function useHouseholdAttendance(date: string) {
+  return useQuery({
+    queryKey: queryKeys.householdAttendance(date),
+    queryFn: async (): Promise<Array<{ child_id: string; check_out_at: string | null }>> => {
+      const response = await fetch(
+        `/api/household/attendance?date=${encodeURIComponent(date)}`,
+        { credentials: 'same-origin' },
+      );
+      if (!response.ok) {
+        throw new Error(`Failed to load attendance (${response.status})`);
+      }
+      const body = await response.json();
+      return body.attendance ?? [];
+    },
+    enabled: !!date,
+    ...cacheConfig.volatile, // Attendance changes frequently
+  });
+}
+
 export function useIncidents(date: string, eventId?: string) {
   return useQuery({
     queryKey: queryKeys.incidents(date, eventId),
