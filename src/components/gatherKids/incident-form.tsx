@@ -148,7 +148,8 @@ export function IncidentForm() {
 								</SelectContent>
 							</Select>
 							<FormDescription>
-								High severity will send an immediate notification to admins.
+								Severity is recorded on the report and shown on the incidents
+								list.
 							</FormDescription>
 							<FormMessage />
 						</FormItem>
