@@ -43,7 +43,7 @@ describe('fn_schema_migration_status authorization', () => {
     expect(migration).not.toMatch(/GRANT EXECUTE[\s\S]*TO authenticated/);
   });
 
-  it('CI db-fk asserts the live negative and positive privileges', () => {
+  it('CI db-fk asserts grants and that the RPC reads numeric-max history', () => {
     expect(grantCheck).toContain("has_function_privilege('anon'");
     expect(grantCheck).toContain("has_function_privilege('authenticated'");
     expect(grantCheck).toContain("has_function_privilege(\n    'service_role'");
@@ -51,5 +51,12 @@ describe('fn_schema_migration_status authorization', () => {
     expect(grantCheck).toContain(
       "RAISE EXCEPTION 'service_role cannot execute"
     );
+    expect(grantCheck).toContain('TRUNCATE supabase_migrations.schema_migrations');
+    expect(grantCheck).toContain("('9999', 'squashed_schema')");
+    expect(grantCheck).toContain('SET ROLE service_role');
+    expect(grantCheck).toContain(
+      "got.applied_migration IS DISTINCT FROM '20260921200000'"
+    );
+    expect(grantCheck).toContain('got.applied_count IS DISTINCT FROM 4');
   });
 });

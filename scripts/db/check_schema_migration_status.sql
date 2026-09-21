@@ -56,4 +56,42 @@ BEGIN
 END
 $$;
 
-SELECT 'fn_schema_migration_status privilege checks passed' AS result;
+-- Prove the RPC reads supabase_migrations.schema_migrations and returns the
+-- numeric-max version (not lexicographic max). Fixture is rolled back so this
+-- file is safe against a local database that already has real history.
+BEGIN;
+
+TRUNCATE supabase_migrations.schema_migrations;
+
+INSERT INTO supabase_migrations.schema_migrations (version, name) VALUES
+  ('0001', 'init'),
+  ('9999', 'squashed_schema'),
+  ('20251001000000', 'older_timestamp'),
+  ('20260921200000', 'schema_migration_status');
+
+SET ROLE service_role;
+
+DO $$
+DECLARE
+  got record;
+BEGIN
+  SELECT * INTO got FROM public.fn_schema_migration_status();
+
+  IF got.applied_migration IS DISTINCT FROM '20260921200000' THEN
+    RAISE EXCEPTION
+      'fn_schema_migration_status applied_migration: expected 20260921200000, got %',
+      got.applied_migration;
+  END IF;
+
+  IF got.applied_count IS DISTINCT FROM 4 THEN
+    RAISE EXCEPTION
+      'fn_schema_migration_status applied_count: expected 4, got %',
+      got.applied_count;
+  END IF;
+END
+$$;
+
+RESET ROLE;
+ROLLBACK;
+
+SELECT 'fn_schema_migration_status privilege and history checks passed' AS result;
