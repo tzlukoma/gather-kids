@@ -143,8 +143,18 @@ an anon-key Supabase client, so a browser-supplied child list is payload shaping
 not authorization — `__tests__/api/household-attendance-auth.test.ts` fails if
 either the child list or the household id becomes something the request carries.
 
-The wider problem this route does *not* solve — RLS is absent across `children`,
-`households` and `guardians`, and `src/lib/database/factory.ts` publishes the
+That route is only as trustworthy as the table it derives the household from.
+`user_households` used to be writable with the anon key, so a guardian could
+repoint their own row at another family and the route would serve that family's
+attendance. `20260921170000_protect_user_households_writes` takes the write
+grants away and keeps reads to the caller's own row; the one legitimate write,
+at the end of registration, goes through `POST /api/household/link`, which
+creates a link but never repoints one. The db-fk CI job runs
+`scripts/db/check_household_link_writes.sql` against the migrated schema, so a
+later migration handing those grants back fails the build.
+
+The wider problem neither of these routes solves — RLS is absent across
+`children`, `households` and `guardians`, and `src/lib/database/factory.ts` publishes the
 adapter as `window.gatherKidsDbAdapter` — is tracked on its own issue.
 
 #### `gathersystem_incidents` — trusted role claims

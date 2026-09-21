@@ -545,21 +545,29 @@ export async function registerHouseholdCanonical(data: Record<string, unknown>, 
               const existingHouseholdId = await dbAdapter.getHouseholdForUser(session.user.id);
               
               if (!existingHouseholdId) {
-                // Create the user_households relationship using adapter
-                const userHousehold = {
-                  user_household_id: uuidv4(),
-                  auth_user_id: session.user.id,
-                  household_id: householdId,
-                  created_at: now,
-                };
-                
-                // For Supabase mode, we need to insert directly since there's no createUserHousehold method
-                const { supabase } = await import('@/lib/supabaseClient');
-                const { error } = await supabase.from('user_households').insert(userHousehold);
-                if (error) {
-                  console.error('Could not create user_households relationship:', error);
+                // Through the server, never straight to the table. `user_households`
+                // decides which household a guardian may see, so the browser has no
+                // write access to it — see
+                // `20260921170000_protect_user_households_writes`. The route takes
+                // the auth user from the session, not from anything sent here.
+                const response = await fetch('/api/household/link', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  credentials: 'same-origin',
+                  body: JSON.stringify({ householdId }),
+                });
+                if (!response.ok) {
+                  const detail = await response.json().catch(() => ({}));
+                  console.error(
+                    'Could not create user_households relationship:',
+                    response.status,
+                    detail?.error ?? ''
+                  );
                 } else {
-                  log.log('Created user_households relationship:', userHousehold);
+                  log.log('Created user_households relationship:', {
+                    auth_user_id: session.user.id,
+                    household_id: householdId,
+                  });
                   userHouseholdsCreated = true;
                 }
               } else {
