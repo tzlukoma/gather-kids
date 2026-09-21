@@ -13,8 +13,12 @@ import {
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/auth-context';
-import { useSearchParams } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Users, Filter, Edit } from 'lucide-react';
+import {
+	buildDoorQuery,
+	parseDoorStatusFilter,
+} from '@/lib/door-check-in';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useChildrenForActiveCycle, useAttendance } from '@/hooks/data';
 import { CardGridSkeleton } from '@/components/skeletons/CardGridSkeleton';
@@ -112,14 +116,16 @@ export function CheckInContentLegacy() {
 	const { user } = useAuth();
 	const isMobile = useIsMobile();
 	const searchParams = useSearchParams();
+	const router = useRouter();
+	const pathname = usePathname();
 
 	const urlFilter = searchParams?.get('filter');
 	const urlEvent = searchParams?.get('event');
 	const searchKey = searchParams?.toString() ?? '';
-	const initialStatus: StatusFilter =
-		urlFilter === 'checkedIn' || urlFilter === 'checkedOut' || urlFilter === 'all'
-			? urlFilter
-			: 'all';
+	// Shared with the GatherSystem door so one link works on either. It also
+	// accepts the `notCheckedIn` spelling and is case-insensitive, which the
+	// hand-rolled comparison here was not.
+	const initialStatus: StatusFilter = parseDoorStatusFilter(urlFilter) ?? 'all';
 	const initialEvent =
 		urlEvent && EVENT_OPTIONS.find((e) => e.id === urlEvent)
 			? urlEvent
@@ -134,17 +140,46 @@ export function CheckInContentLegacy() {
 
 	if (searchKey !== prevSearchKey) {
 		setPrevSearchKey(searchKey);
-		if (
-			urlFilter === 'checkedIn' ||
-			urlFilter === 'checkedOut' ||
-			urlFilter === 'all'
-		) {
-			setStatusFilter(urlFilter);
+		const parsedFilter = parseDoorStatusFilter(urlFilter);
+		if (parsedFilter) {
+			setStatusFilter(parsedFilter);
 		}
 		if (urlEvent && EVENT_OPTIONS.find((e) => e.id === urlEvent)) {
 			setSelectedEvent(urlEvent);
 		}
 	}
+
+	/**
+	 * Write the screen's state to the query string.
+	 *
+	 * The picker was local state that the URL was only ever read from, so a
+	 * reload — a slept phone, a restored tab, a stray refresh — silently
+	 * reverted to whatever the URL still named. The next check-in is written
+	 * against `selectedEvent`, so that meant staff could be looking at a door
+	 * they did not pick.
+	 *
+	 * Both parameters are written together: writing one alone would drop the
+	 * other on the next read and reset a hand-picked tab. `replace` rather than
+	 * `push`, so a shift's worth of picker changes does not bury the back
+	 * button. This mirrors the GatherSystem door's fix in #443.
+	 */
+	const writeScreenStateToUrl = (next: {
+		status?: StatusFilter;
+		event?: string;
+	}) => {
+		const query = buildDoorQuery(searchKey, {
+			status: next.status ?? statusFilter,
+			event: next.event ?? selectedEvent,
+		});
+		router.replace(query ? `${pathname}?${query}` : pathname, {
+			scroll: false,
+		});
+	};
+
+	const selectStatusFilter = (status: StatusFilter) => {
+		setStatusFilter(status);
+		writeScreenStateToUrl({ status });
+	};
 
 	const today = getServiceDayIso();
 
@@ -225,6 +260,7 @@ export function CheckInContentLegacy() {
 								value={selectedEvent}
 								onValueChange={(value) => {
 									setSelectedEvent(value);
+									writeScreenStateToUrl({ event: value });
 									setIsEventDialogOpen(false);
 								}}
 								className="space-y-2">
@@ -283,7 +319,7 @@ export function CheckInContentLegacy() {
 							<div className="py-4">
 								<FilterControls
 									statusFilter={statusFilter}
-									setStatusFilter={setStatusFilter}
+									setStatusFilter={selectStatusFilter}
 									availableGrades={availableGrades}
 									selectedGrades={selectedGrades}
 									toggleGrade={toggleGrade}
@@ -304,7 +340,7 @@ export function CheckInContentLegacy() {
 						<CardContent className="pt-6">
 							<FilterControls
 								statusFilter={statusFilter}
-								setStatusFilter={setStatusFilter}
+								setStatusFilter={selectStatusFilter}
 								availableGrades={availableGrades}
 								selectedGrades={selectedGrades}
 								toggleGrade={toggleGrade}

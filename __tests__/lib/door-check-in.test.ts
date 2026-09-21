@@ -1,4 +1,5 @@
 import {
+	buildDoorQuery,
 	computeDoorStats,
 	countDoorStatuses,
 	deriveDoorRowStatus,
@@ -511,5 +512,80 @@ describe('selectableForCheckIn', () => {
 
 	it('is empty when every selected child is already checked in', () => {
 		expect(selectableForCheckIn(roster, ['jordan', 'maya'])).toEqual([]);
+	});
+});
+
+describe('buildDoorQuery', () => {
+	/** What a reload would read back out of the query this produced. */
+	const roundTrip = (query: string) => {
+		const params = new URLSearchParams(query);
+		return {
+			status: parseDoorStatusFilter(params.get('filter')) ?? 'all',
+			event: params.get('event'),
+		};
+	};
+
+	it('writes both parameters when only one changed', () => {
+		// The defect: writing the event alone dropped the filter, so picking a
+		// different event silently reset a hand-chosen tab to All.
+		const query = buildDoorQuery('filter=checkedIn&event=evt_sunday_school', {
+			status: 'checkedIn',
+			event: CHILDRENS,
+		});
+
+		expect(roundTrip(query)).toEqual({
+			status: 'checkedIn',
+			event: CHILDRENS,
+		});
+	});
+
+	it('survives a round trip for every status', () => {
+		const statuses = ['all', 'checkedIn', 'checkedOut'] as const;
+
+		for (const status of statuses) {
+			const query = buildDoorQuery('', { status, event: SUNDAY });
+			expect(roundTrip(query)).toEqual({ status, event: SUNDAY });
+		}
+	});
+
+	it('omits the filter for "all" rather than spelling it out', () => {
+		const query = buildDoorQuery('', { status: 'all', event: SUNDAY });
+
+		expect(new URLSearchParams(query).has('filter')).toBe(false);
+	});
+
+	it('clears a filter that was in the URL when the tab returns to All', () => {
+		const query = buildDoorQuery('filter=checkedOut', {
+			status: 'all',
+			event: SUNDAY,
+		});
+
+		expect(new URLSearchParams(query).has('filter')).toBe(false);
+		expect(roundTrip(query).status).toBe('all');
+	});
+
+	it('keeps unrelated parameters a deep link carried in', () => {
+		const query = buildDoorQuery('ministry=choir&filter=checkedIn', {
+			status: 'checkedOut',
+			event: SUNDAY,
+		});
+
+		expect(new URLSearchParams(query).get('ministry')).toBe('choir');
+	});
+
+	it('replaces rather than appends a parameter that is already present', () => {
+		const query = buildDoorQuery('event=evt_sunday_school', {
+			status: 'all',
+			event: CHILDRENS,
+		});
+
+		expect(new URLSearchParams(query).getAll('event')).toEqual([CHILDRENS]);
+	});
+
+	it('reads back the checked-out tab written in either spelling', () => {
+		// `toDoorFilterParam` writes `notCheckedIn`; the legacy door historically
+		// wrote `checkedOut`. A link from one door has to work on the other.
+		expect(parseDoorStatusFilter('notCheckedIn')).toBe('checkedOut');
+		expect(parseDoorStatusFilter('checkedOut')).toBe('checkedOut');
 	});
 });
