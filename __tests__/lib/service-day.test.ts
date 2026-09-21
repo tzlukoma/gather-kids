@@ -49,6 +49,13 @@ describe('getServiceDayIso', () => {
 			expect(getServiceDayIso(afterRollover)).toBe('2026-09-17');
 		});
 
+		it('keeps 20 Sep across 8:57pm ET (the production network-tab instant in #488)', () => {
+			// 8:57pm ET Sun 20 Sep 2026 -> 00:57 UTC Mon 21 Sep
+			const at = new Date('2026-09-21T00:57:00.000Z');
+			expect(at.toISOString().slice(0, 10)).toBe('2026-09-21');
+			expect(getServiceDayIso(at)).toBe('2026-09-20');
+		});
+
 		it('rolls over at local midnight', () => {
 			expect(getServiceDayIso(new Date('2026-09-18T03:59:00.000Z'))).toBe(
 				'2026-09-17'
