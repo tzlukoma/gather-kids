@@ -1,4 +1,5 @@
 import {
+	buildBibleBeeCardHeading,
 	buildChildMeta,
 	buildChildRows,
 	buildGreeting,
@@ -285,6 +286,50 @@ describe('buildScriptureProgressCopy', () => {
 	it('starts the nothing-marked state at the full count', () => {
 		expect(buildScriptureProgressCopy(0, 20)).toBe(
 			'Twenty scriptures left to memorize.'
+		);
+	});
+});
+
+describe('buildBibleBeeCardHeading', () => {
+	it('matches the signed frame when the household has one Bible Bee child', () => {
+		expect(buildBibleBeeCardHeading(false, 'Eli', 'Junior')).toEqual({
+			title: 'Bible Bee',
+			note: 'Eli · Junior',
+		});
+	});
+
+	it('titles each card by its child once there is more than one', () => {
+		expect(buildBibleBeeCardHeading(true, 'Sophia', 'Junior')).toEqual({
+			title: 'Sophia',
+			note: 'Junior',
+		});
+		expect(buildBibleBeeCardHeading(true, 'Noah', 'Primary')).toEqual({
+			title: 'Noah',
+			note: 'Primary',
+		});
+	});
+
+	it('never repeats the ministry name as a card title in a group', () => {
+		expect(buildBibleBeeCardHeading(true, 'Sophia', 'Junior').title).not.toBe(
+			'Bible Bee'
+		);
+	});
+
+	it('drops the note rather than printing an empty division', () => {
+		expect(buildBibleBeeCardHeading(true, 'Sophia', null).note).toBeNull();
+		expect(buildBibleBeeCardHeading(true, 'Sophia', '  ').note).toBeNull();
+	});
+
+	it('still names the child when the solo card has no division', () => {
+		expect(buildBibleBeeCardHeading(false, 'Eli', undefined)).toEqual({
+			title: 'Bible Bee',
+			note: 'Eli',
+		});
+	});
+
+	it('falls back rather than printing a nameless heading', () => {
+		expect(buildBibleBeeCardHeading(true, '   ', 'Junior').title).toBe(
+			'This child'
 		);
 	});
 });

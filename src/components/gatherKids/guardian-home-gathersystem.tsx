@@ -13,6 +13,7 @@ import {
 	buildChildRows,
 	buildGreeting,
 	buildHouseholdLine,
+	buildBibleBeeCardHeading,
 	buildScriptureProgressCopy,
 	greetingSlotForHour,
 	pickGreetedGuardianName,
@@ -68,14 +69,40 @@ function bibleBeeChildren(
  * child: the signed frame draws a household with a single Bible Bee child, and
  * collapsing two children into one card would have to pick which of them the
  * number belongs to.
+ *
+ * `grouped` handles the case the frame does not draw. With one enrolled child
+ * the card is titled `Bible Bee` and notes `Eli · Junior`, exactly as signed.
+ * With two, repeating `Bible Bee` as the heading of every card says nothing and
+ * pushes the children list off a phone screen, so the group takes one eyebrow
+ * and each card is titled by the child it is about.
  */
-function GuardianBibleBeeCard({ child }: { child: ProfileChild }) {
+function GuardianBibleBeeCard({
+	child,
+	grouped,
+}: {
+	child: ProfileChild;
+	grouped: boolean;
+}) {
 	const { data, isLoading } = useBibleBeeStats(child.child_id);
 	const stats = data?.bbStats ?? null;
 	const essaySummary = data?.essaySummary ?? null;
 
 	const childFirstName = (child.first_name ?? '').trim() || 'This child';
 	const divisionName = stats?.division?.name;
+
+	const { title, note } = buildBibleBeeCardHeading(
+		grouped,
+		childFirstName,
+		divisionName
+	);
+	const heading = (
+		<div className="flex items-baseline gap-3">
+			<h3 className={cn(GUARDIAN_CARD_TITLE, 'flex-1 truncate')}>{title}</h3>
+			{note ? (
+				<span className={cn(GUARDIAN_CARD_NOTE, 'shrink-0')}>{note}</span>
+			) : null}
+		</div>
+	);
 
 	if (isLoading) {
 		return (
@@ -95,14 +122,7 @@ function GuardianBibleBeeCard({ child }: { child: ProfileChild }) {
 		return (
 			<Card className={GUARDIAN_CARD}>
 				<CardContent className="flex flex-col gap-3 p-5">
-					<div className="flex items-baseline gap-3">
-						<h2 className={cn(GUARDIAN_CARD_TITLE, 'flex-1')}>Bible Bee</h2>
-						{divisionName ? (
-							<span className={GUARDIAN_CARD_NOTE}>
-								{childFirstName} · {divisionName}
-							</span>
-						) : null}
-					</div>
+					{heading}
 					<p className={GUARDIAN_CARD_BODY}>
 						{count === 0
 							? `${childFirstName}'s division is assigned an essay.`
@@ -120,53 +140,56 @@ function GuardianBibleBeeCard({ child }: { child: ProfileChild }) {
 		);
 	}
 
-	if (!stats) return null;
-
-	const completed = stats.completedScriptures ?? 0;
-	const total = stats.requiredScriptures ?? 0;
+	// No stats means the child is enrolled in the Bible Bee ministry but has no
+	// assignments in the current Bible Bee cycle yet. Returning `null` here would
+	// drop a child the household believes is taking part — and would also make
+	// the card count disagree with the number of children the group heading was
+	// built from. The card says so instead, and the counts below fall to zero,
+	// which `buildScriptureProgressCopy` already has copy for.
+	const completed = stats?.completedScriptures ?? 0;
+	const total = stats?.requiredScriptures ?? 0;
 	const percent = progressPercent(completed, total);
 
 	return (
 		<Card className={GUARDIAN_CARD}>
 			<CardContent className="flex flex-col gap-3 p-5">
-				<div className="flex items-baseline gap-3">
-					<h2 className={cn(GUARDIAN_CARD_TITLE, 'flex-1')}>Bible Bee</h2>
-					{divisionName ? (
-						<span className={GUARDIAN_CARD_NOTE}>
-							{childFirstName} · {divisionName}
+				{heading}
+
+				{total > 0 ? (
+					<p className="flex items-baseline gap-2">
+						<span className={GUARDIAN_METRIC}>{completed}</span>
+						<span className={GUARDIAN_METRIC_UNIT}>
+							of {total} scriptures memorized
 						</span>
-					) : null}
-				</div>
+					</p>
+				) : null}
 
-				<p className="flex items-baseline gap-2">
-					<span className={GUARDIAN_METRIC}>{completed}</span>
-					<span className={GUARDIAN_METRIC_UNIT}>
-						of {total} scriptures memorized
-					</span>
-				</p>
-
-				<div
-					className="h-2 w-full overflow-hidden rounded-full bg-muted"
-					role="progressbar"
-					aria-valuemin={0}
-					aria-valuemax={total}
-					aria-valuenow={Math.min(completed, total)}
-					aria-label={`${childFirstName}'s scriptures memorized`}>
+				{total > 0 ? (
 					<div
-						className="h-full rounded-full bg-brand-aqua"
-						style={{ width: `${percent}%` }}
-					/>
-				</div>
+						className="h-2 w-full overflow-hidden rounded-full bg-muted"
+						role="progressbar"
+						aria-valuemin={0}
+						aria-valuemax={total}
+						aria-valuenow={Math.min(completed, total)}
+						aria-label={`${childFirstName}'s scriptures memorized`}>
+						<div
+							className="h-full rounded-full bg-brand-aqua"
+							style={{ width: `${percent}%` }}
+						/>
+					</div>
+				) : null}
 
 				<p className={GUARDIAN_CARD_BODY}>
 					{buildScriptureProgressCopy(completed, total)}
 				</p>
 
-				<Button asChild variant="outline" className={GUARDIAN_CTA}>
-					<Link href={`/household/children/${child.child_id}/bible-bee`}>
-						Open scripture list
-					</Link>
-				</Button>
+				{total > 0 ? (
+					<Button asChild variant="outline" className={GUARDIAN_CTA}>
+						<Link href={`/household/children/${child.child_id}/bible-bee`}>
+							Open scripture list
+						</Link>
+					</Button>
+				) : null}
 			</CardContent>
 		</Card>
 	);
@@ -230,11 +253,18 @@ export function GuardianHomeGatherSystem({
 				{/* Bible Bee first on a phone, where it is the reason to open the
 				    app; alongside the children list from `lg` up, as in `36:2`. */}
 				{beeChildren.length > 0 ? (
-					<div className="flex min-w-0 flex-col gap-4 lg:order-2">
+					<section className="flex min-w-0 flex-col gap-3 lg:order-2">
+						{beeChildren.length > 1 ? (
+							<h2 className={GUARDIAN_EYEBROW}>Bible Bee</h2>
+						) : null}
 						{beeChildren.map((child) => (
-							<GuardianBibleBeeCard key={child.child_id} child={child} />
+							<GuardianBibleBeeCard
+								key={child.child_id}
+								child={child}
+								grouped={beeChildren.length > 1}
+							/>
 						))}
-					</div>
+					</section>
 				) : null}
 
 				<section className="flex min-w-0 flex-col gap-3 lg:order-1">

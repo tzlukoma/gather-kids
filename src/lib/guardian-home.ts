@@ -280,6 +280,35 @@ export function buildScriptureProgressCopy(
 	return `${countWord(remaining)} ${noun} left to memorize.`;
 }
 
+/**
+ * The Bible Bee card's heading row.
+ *
+ * With one enrolled child the card is the signed frame: titled `Bible Bee`,
+ * noting `Eli · Junior` opposite. With more than one the group takes a single
+ * `BIBLE BEE` eyebrow and each card is titled by the child it is about —
+ * repeating the ministry's name as the heading of every card says nothing the
+ * eyebrow has not already said, and on a phone it pushes the children list off
+ * the screen. The frame does not draw that case; this is how it is handled.
+ *
+ * A missing division drops the note rather than printing an empty one.
+ */
+export function buildBibleBeeCardHeading(
+	grouped: boolean,
+	childFirstName: string,
+	divisionName?: string | null
+): { title: string; note: string | null } {
+	const name = childFirstName.trim() || 'This child';
+	const division = (divisionName ?? '').trim();
+
+	if (grouped) {
+		return { title: name, note: division || null };
+	}
+	return {
+		title: 'Bible Bee',
+		note: division ? `${name} · ${division}` : name,
+	};
+}
+
 /** Bar fill, clamped so bad data cannot paint past the track or negative. */
 export function progressPercent(completed: number, total: number): number {
 	if (!Number.isFinite(total) || total <= 0) return 0;
