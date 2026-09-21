@@ -61,6 +61,15 @@ const ROLES = {
 		role: 'GUARDIAN',
 		fullName: 'Casey Household',
 	},
+	// A ministry leader gets past the (admin) route guard but is not an admin,
+	// which is the only way to reach the admin-only branches of /reports and
+	// /branding — and the leader-without-assignment state on /rosters.
+	leader: {
+		email: 'leader-capture@example.com',
+		password: 'TestPassword123!',
+		role: 'MINISTRY_LEADER',
+		fullName: 'Capture Leader',
+	},
 };
 
 function parseArgs(argv) {
