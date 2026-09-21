@@ -1,14 +1,16 @@
 import {
-	buildBibleBeeCardHeading,
+	buildBibleBeeStripLabel,
 	buildChildMeta,
 	buildChildRows,
 	buildGreeting,
 	buildHouseholdLine,
+	buildScriptureCountLabel,
 	buildScriptureProgressCopy,
 	countWord,
 	derivePresence,
 	greetingSlotForHour,
 	initialsForName,
+	isEnrolledInBibleBee,
 	ministryNamesForCycle,
 	pickGreetedGuardianName,
 	progressPercent,
@@ -129,9 +131,9 @@ describe('ministryNamesForCycle', () => {
 		child_id: 'eli',
 		enrollmentsByCycle: {
 			'cycle-2026': [
-				{ ministryName: 'Bible Bee' },
-				{ ministryName: 'Choir' },
-				{ ministryName: 'Bible Bee' },
+				{ ministryName: 'Bible Bee', ministry_code: 'bible-bee' },
+				{ ministryName: 'Choir', ministry_code: 'choir' },
+				{ ministryName: 'Bible Bee', ministry_code: 'bible-bee' },
 			],
 			'cycle-2025': [{ ministryName: 'Sunday School' }],
 		},
@@ -147,6 +149,29 @@ describe('ministryNamesForCycle', () => {
 
 	it('falls back to the flat list when there is no active cycle', () => {
 		expect(ministryNamesForCycle(child, null)).toEqual(['Flat fallback']);
+	});
+
+	it('drops an excluded ministry by code, not by display name', () => {
+		expect(
+			ministryNamesForCycle(child, 'cycle-2026', {
+				excludeCodes: ['bible-bee'],
+			})
+		).toEqual(['Choir']);
+	});
+
+	it('leaves a same-named ministry alone when its code differs', () => {
+		expect(
+			ministryNamesForCycle(
+				{
+					child_id: 'eli',
+					enrollmentsByCycle: {
+						c1: [{ ministryName: 'Bible Bee', ministry_code: 'bible-study' }],
+					},
+				},
+				'c1',
+				{ excludeCodes: ['bible-bee'] }
+			)
+		).toEqual(['Bible Bee']);
 	});
 
 	it('returns nothing when the active cycle has no enrollments', () => {
@@ -190,7 +215,9 @@ describe('buildChildRows', () => {
 			first_name: 'Amara',
 			last_name: 'Bennett',
 			grade: '1',
-			enrollmentsByCycle: { c1: [{ ministryName: 'Sunday School' }] },
+			enrollmentsByCycle: {
+				c1: [{ ministryName: 'Sunday School', ministry_code: 'sunday-school' }],
+			},
 		},
 		{
 			child_id: 'eli',
@@ -198,7 +225,10 @@ describe('buildChildRows', () => {
 			last_name: 'Bennett',
 			grade: '3',
 			enrollmentsByCycle: {
-				c1: [{ ministryName: 'Bible Bee' }, { ministryName: 'Choir' }],
+				c1: [
+					{ ministryName: 'Bible Bee', ministry_code: 'bible-bee' },
+					{ ministryName: 'Choir', ministry_code: 'choir' },
+				],
 			},
 		},
 	];
@@ -214,18 +244,34 @@ describe('buildChildRows', () => {
 			{
 				childId: 'amara',
 				name: 'Amara Bennett',
+				firstName: 'Amara',
 				initials: 'AB',
 				meta: '1st Grade · Sunday School',
 				presence: 'on-site',
+				inBibleBee: false,
 			},
 			{
 				childId: 'eli',
 				name: 'Eli Bennett',
+				firstName: 'Eli',
 				initials: 'EB',
-				meta: '3rd Grade · Bible Bee, Choir',
+				meta: '3rd Grade · Choir',
 				presence: 'not-checked-in',
+				inBibleBee: true,
 			},
 		]);
+	});
+
+	it('never names Bible Bee in the meta of a child whose card carries the strip', () => {
+		const rows = buildChildRows(children, [], 'c1');
+		for (const row of rows) {
+			if (row.inBibleBee) expect(row.meta).not.toContain('Bible Bee');
+		}
+		// And the other ministries survive the exclusion rather than being lost
+		// with it \u2014 dropping the whole list would also pass the check above.
+		expect(rows.find((row) => row.childId === 'eli')?.meta).toBe(
+			'3rd Grade \u00b7 Choir'
+		);
 	});
 
 	it('leaves inactive children off the list', () => {
@@ -290,47 +336,87 @@ describe('buildScriptureProgressCopy', () => {
 	});
 });
 
-describe('buildBibleBeeCardHeading', () => {
-	it('matches the signed frame when the household has one Bible Bee child', () => {
-		expect(buildBibleBeeCardHeading(false, 'Eli', 'Junior')).toEqual({
-			title: 'Bible Bee',
-			note: 'Eli · Junior',
-		});
+describe('buildBibleBeeStripLabel', () => {
+	it('names the division the child is in', () => {
+		expect(buildBibleBeeStripLabel('Junior')).toBe('Bible Bee · Junior');
+		expect(buildBibleBeeStripLabel('Primary')).toBe('Bible Bee · Primary');
 	});
 
-	it('titles each card by its child once there is more than one', () => {
-		expect(buildBibleBeeCardHeading(true, 'Sophia', 'Junior')).toEqual({
-			title: 'Sophia',
-			note: 'Junior',
-		});
-		expect(buildBibleBeeCardHeading(true, 'Noah', 'Primary')).toEqual({
-			title: 'Noah',
-			note: 'Primary',
-		});
+	it('drops the separator rather than trailing it', () => {
+		expect(buildBibleBeeStripLabel(null)).toBe('Bible Bee');
+		expect(buildBibleBeeStripLabel(undefined)).toBe('Bible Bee');
+		expect(buildBibleBeeStripLabel('   ')).toBe('Bible Bee');
 	});
 
-	it('never repeats the ministry name as a card title in a group', () => {
-		expect(buildBibleBeeCardHeading(true, 'Sophia', 'Junior').title).not.toBe(
-			'Bible Bee'
-		);
+	it('never repeats the child\u2019s name \u2014 the card already carries it', () => {
+		expect(buildBibleBeeStripLabel('Junior')).not.toMatch(/Sophia|Eli|Noah/);
+	});
+});
+
+describe('buildScriptureCountLabel', () => {
+	it('counts completed against required', () => {
+		expect(buildScriptureCountLabel(9, 20)).toBe('9 of 20');
+		expect(buildScriptureCountLabel(0, 12)).toBe('0 of 12');
 	});
 
-	it('drops the note rather than printing an empty division', () => {
-		expect(buildBibleBeeCardHeading(true, 'Sophia', null).note).toBeNull();
-		expect(buildBibleBeeCardHeading(true, 'Sophia', '  ').note).toBeNull();
+	it('says nothing rather than \u201c0 of 0\u201d when nothing is assigned', () => {
+		expect(buildScriptureCountLabel(0, 0)).toBeNull();
+		expect(buildScriptureCountLabel(3, -1)).toBeNull();
+		expect(buildScriptureCountLabel(3, Number.NaN)).toBeNull();
 	});
 
-	it('still names the child when the solo card has no division', () => {
-		expect(buildBibleBeeCardHeading(false, 'Eli', undefined)).toEqual({
-			title: 'Bible Bee',
-			note: 'Eli',
-		});
+	it('cannot print more completed than required', () => {
+		expect(buildScriptureCountLabel(25, 20)).toBe('20 of 20');
+		expect(buildScriptureCountLabel(-4, 20)).toBe('0 of 20');
+	});
+});
+
+describe('isEnrolledInBibleBee', () => {
+	const bee = { ministryName: 'Bible Bee', ministry_code: 'bible-bee' };
+	const choir = { ministryName: 'Choir', ministry_code: 'choir' };
+
+	it('reads the active cycle\u2019s enrollments', () => {
+		const child = {
+			child_id: 'eli',
+			enrollmentsByCycle: { c1: [choir, bee], c2: [choir] },
+		};
+		expect(isEnrolledInBibleBee(child, 'c1')).toBe(true);
+		expect(isEnrolledInBibleBee(child, 'c2')).toBe(false);
 	});
 
-	it('falls back rather than printing a nameless heading', () => {
-		expect(buildBibleBeeCardHeading(true, '   ', 'Junior').title).toBe(
-			'This child'
-		);
+	it('is false for a child with no Bible Bee enrollment', () => {
+		expect(
+			isEnrolledInBibleBee(
+				{ child_id: 'amara', enrollmentsByCycle: { c1: [choir] } },
+				'c1'
+			)
+		).toBe(false);
+	});
+
+	it('matches the ministry code, not the display name', () => {
+		expect(
+			isEnrolledInBibleBee(
+				{
+					child_id: 'eli',
+					enrollmentsByCycle: {
+						c1: [{ ministryName: 'Bible Bee', ministry_code: 'choir' }],
+					},
+				},
+				'c1'
+			)
+		).toBe(false);
+	});
+
+	it('decides the same way the meta line does, including between cycles', () => {
+		// The strip and the meta read the same enrollments, so a child can never
+		// get a strip whose ministry the meta denies, or the reverse.
+		const child = { child_id: 'eli', enrollments: [bee] };
+		expect(isEnrolledInBibleBee(child, null)).toBe(true);
+		expect(ministryNamesForCycle(child, null)).toContain('Bible Bee');
+
+		const other = { child_id: 'amara', enrollments: [choir] };
+		expect(isEnrolledInBibleBee(other, null)).toBe(false);
+		expect(ministryNamesForCycle(other, null)).not.toContain('Bible Bee');
 	});
 });
 

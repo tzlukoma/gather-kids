@@ -10,10 +10,11 @@
  * `font-weight: var(--tw-font-weight, var(--text-display-28--font-weight))`.
  * Any explicit `font-*` / `leading-*` / `tracking-*` utility already on the host
  * component sets the slot and therefore beats the token, whatever the class
- * order. `CardTitle` ships `font-semibold leading-none tracking-tight`, so a
- * constant used on one has to restate its token's values or the token is
- * declared and never applied. The restated values point back at the token's own
- * custom properties, so there is still one source of truth.
+ * order. `Button` ships `font-medium` and the card primitives ship their own
+ * weight and leading, so a constant used on one has to restate its token's
+ * values or the token is declared and never applied. Where a restated leading
+ * or tracking is needed it points back at the token's own custom properties, so
+ * there is still one source of truth.
  */
 
 /** Small muted label above the greeting and over the children list. */
@@ -24,27 +25,6 @@ export const GUARDIAN_GREETING = 'text-display-28 font-bold text-foreground';
 
 /** `Bennett household · Fall 2026 cycle`. */
 export const GUARDIAN_SUBTITLE = 'text-body-15 text-muted-foreground';
-
-/**
- * Card headings — `Bible Bee`. Figma Title/18, weight 600. Restates what
- * `CardTitle` would otherwise win.
- */
-export const GUARDIAN_CARD_TITLE = [
-	'text-title-18',
-	'font-semibold',
-	'leading-(--text-title-18--line-height)',
-	'tracking-(--text-title-18--letter-spacing)',
-	'text-foreground',
-].join(' ');
-
-/** The `Eli · Junior` note opposite a card heading. */
-export const GUARDIAN_CARD_NOTE = 'text-body-13 text-muted-foreground';
-
-/** `9` — the big count in the Bible Bee card. Display/28, weight 700. */
-export const GUARDIAN_METRIC = 'text-display-28 font-bold text-foreground';
-
-/** `of 20 scriptures memorized`, sitting on the metric's baseline. */
-export const GUARDIAN_METRIC_UNIT = 'text-body-14 text-muted-foreground';
 
 /** The sentence under the progress bar. */
 export const GUARDIAN_CARD_BODY = 'text-body-13 text-muted-foreground';
@@ -76,6 +56,46 @@ export const GUARDIAN_CTA = [
 	'w-full',
 	'border-primary/30',
 	'bg-card',
+	'text-body-15',
+	'font-semibold',
+	'text-primary',
+	'hover:bg-brand-aqua/10',
+	'hover:text-primary',
+].join(' ');
+
+/**
+ * The `BIBLE BEE · JUNIOR` label opening a child card's progress strip, and the
+ * `9 of 20` opposite it.
+ *
+ * Both are Label/12 rather than anything larger: everything in the strip is
+ * subordinate to the child's name, which is Title/16 and has to stay the
+ * largest thing on the card. This is the departure that folding the Bible Bee
+ * card into the child card forces — the signed frame's Display/28 figure cannot
+ * survive inside a card whose subject is the child, because it would outweigh
+ * the name. `tabular-nums` keeps the counts aligned down a column of children.
+ */
+export const GUARDIAN_STRIP_LABEL = [
+	'text-label-12',
+	'uppercase',
+	'tracking-wide',
+	'text-muted-foreground',
+].join(' ');
+
+export const GUARDIAN_STRIP_COUNT = [
+	'text-label-12',
+	'tabular-nums',
+	'text-foreground',
+].join(' ');
+
+/**
+ * `View full household`.
+ *
+ * Quieter than `GUARDIAN_CTA` on purpose. The card CTAs are the screen's
+ * primary actions and carry a border; this one leaves the summary for the
+ * record behind it, so it takes the teal but not the box — two identically
+ * weighted buttons would make the reader choose between them.
+ */
+export const GUARDIAN_SECONDARY_CTA = [
 	'text-body-15',
 	'font-semibold',
 	'text-primary',

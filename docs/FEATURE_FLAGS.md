@@ -117,10 +117,12 @@ rather than waiting.
 **This key covers the `/household` shell and the guardian home, and nothing
 else.** Off, `/household` is the legacy household profile inside the legacy
 sidebar and nothing about the section changes. On, `/household` is the
-GatherSystem home (greeting, Bible Bee summary, children with their on-site
-state) and the household record it used to show moves to `/household/details`,
-which the shell links as `Household`. Nothing a guardian can reach today becomes
-unreachable on either side of the flag.
+GatherSystem home (greeting, then one card per child carrying that child's
+on-site state and, for a child in Bible Bee, their scripture progress) and the
+household record it used to show moves to `/household/details`, which the shell
+links as `Household` and which `View full household` on the home also reaches.
+Nothing a guardian can reach today becomes unreachable on either side of the
+flag.
 
 `/household` is behind the guardian session guard, so the flag is always
 evaluated with a real user id and a percentage rollout buckets per user in the

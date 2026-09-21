@@ -23,10 +23,17 @@ export type ChildPresence = 'on-site' | 'not-checked-in';
 export type GuardianChildRow = {
 	childId: string;
 	name: string;
+	firstName: string;
 	initials: string;
 	/** `1st grade · Sunday School`, or just the grade, or just the ministries. */
 	meta: string;
 	presence: ChildPresence;
+	/**
+	 * Whether this child's card carries a Bible Bee strip. Derived from the same
+	 * enrollments `meta` is built from, so a child whose meta lists Bible Bee
+	 * always has the strip and a child whose meta does not, never does.
+	 */
+	inBibleBee: boolean;
 };
 
 type AttendanceRow = {
@@ -154,24 +161,65 @@ export const PRESENCE_LABEL: Record<ChildPresence, string> = {
 	'not-checked-in': 'Not checked in',
 };
 
+/** This cycle's enrollments for one child, with the between-cycles fallback. */
+export function enrollmentsForCycle(
+	child: ChildLike,
+	activeCycleId: string | null | undefined
+): EnrollmentLike[] {
+	const byCycle = child.enrollmentsByCycle ?? {};
+	return (
+		(activeCycleId ? byCycle[activeCycleId] : undefined) ??
+		child.enrollments ??
+		[]
+	);
+}
+
+/** The ministry code Bible Bee is registered under. */
+export const BIBLE_BEE_MINISTRY_CODE = 'bible-bee';
+
+/**
+ * Whether the child is in Bible Bee this cycle.
+ *
+ * Reads the same enrollments `ministryNamesForCycle` does, deliberately: the
+ * child's card states both facts — `Bible Bee` in the meta line and the
+ * progress strip underneath — and two different answers on one card would be a
+ * bug the guardian has no way to resolve.
+ */
+export function isEnrolledInBibleBee(
+	child: ChildLike,
+	activeCycleId: string | null | undefined
+): boolean {
+	return enrollmentsForCycle(child, activeCycleId).some(
+		(enrollment) => enrollment.ministry_code === BIBLE_BEE_MINISTRY_CODE
+	);
+}
+
 /**
  * Ministry names the child is enrolled in for the active cycle, in enrollment
  * order and without duplicates. Falls back to the flat `enrollments` list when
  * there is no active cycle, so a household viewed between cycles still shows
  * what its children are signed up for.
+ *
+ * `excludeCodes` drops a ministry the card states another way. Matching is by
+ * code, not display name: a cycle is free to call its ministry `Bible Bee 2026`
+ * and the exclusion still has to find it.
  */
 export function ministryNamesForCycle(
 	child: ChildLike,
-	activeCycleId: string | null | undefined
+	activeCycleId: string | null | undefined,
+	options?: { excludeCodes?: readonly string[] }
 ): string[] {
-	const byCycle = child.enrollmentsByCycle ?? {};
-	const enrollments =
-		(activeCycleId ? byCycle[activeCycleId] : undefined) ??
-		child.enrollments ??
-		[];
+	const enrollments = enrollmentsForCycle(child, activeCycleId);
+	const excluded = options?.excludeCodes ?? [];
 
 	const names: string[] = [];
 	for (const enrollment of enrollments) {
+		if (
+			enrollment.ministry_code &&
+			excluded.includes(enrollment.ministry_code)
+		) {
+			continue;
+		}
 		const name = (enrollment.ministryName ?? '').trim();
 		if (name && !names.includes(name)) names.push(name);
 	}
@@ -216,12 +264,22 @@ export function buildChildRows(
 				.map((part) => (part ?? '').trim())
 				.filter(Boolean)
 				.join(' '),
+			firstName: (child.first_name ?? '').trim(),
 			initials: initialsForName(child.first_name, child.last_name),
+			// A child in Bible Bee carries a whole progress strip about it, so
+			// naming it again in the meta line spends the row's only line of text
+			// on the one ministry the card is about to describe in full — and on a
+			// phone that truncation is what hides the child's other ministries.
 			meta: buildChildMeta(
 				child.grade,
-				ministryNamesForCycle(child, activeCycleId)
+				ministryNamesForCycle(child, activeCycleId, {
+					excludeCodes: isEnrolledInBibleBee(child, activeCycleId)
+						? [BIBLE_BEE_MINISTRY_CODE]
+						: [],
+				}),
 			),
 			presence: derivePresence(child.child_id, attendance),
+			inBibleBee: isEnrolledInBibleBee(child, activeCycleId),
 		}));
 }
 
@@ -281,32 +339,35 @@ export function buildScriptureProgressCopy(
 }
 
 /**
- * The Bible Bee card's heading row.
+ * The label above a child's Bible Bee strip — `Bible Bee · Junior`.
  *
- * With one enrolled child the card is the signed frame: titled `Bible Bee`,
- * noting `Eli · Junior` opposite. With more than one the group takes a single
- * `BIBLE BEE` eyebrow and each card is titled by the child it is about —
- * repeating the ministry's name as the heading of every card says nothing the
- * eyebrow has not already said, and on a phone it pushes the children list off
- * the screen. The frame does not draw that case; this is how it is handled.
- *
- * A missing division drops the note rather than printing an empty one.
+ * The strip sits inside the child's own card, so it never repeats the child's
+ * name: the card is already titled with it. The division is what the strip
+ * adds, and a child without one yet gets the ministry name alone rather than a
+ * trailing separator.
  */
-export function buildBibleBeeCardHeading(
-	grouped: boolean,
-	childFirstName: string,
-	divisionName?: string | null
-): { title: string; note: string | null } {
-	const name = childFirstName.trim() || 'This child';
+export function buildBibleBeeStripLabel(divisionName?: string | null): string {
 	const division = (divisionName ?? '').trim();
+	return division ? `Bible Bee · ${division}` : 'Bible Bee';
+}
 
-	if (grouped) {
-		return { title: name, note: division || null };
-	}
-	return {
-		title: 'Bible Bee',
-		note: division ? `${name} · ${division}` : name,
-	};
+/**
+ * `9 of 20`, the count opposite the strip label.
+ *
+ * Returns null rather than `0 of 0` when nothing is assigned: zero out of zero
+ * reads as a child who has memorized nothing, when in fact nobody has given
+ * them anything to memorize yet. The copy line under the bar says which it is.
+ */
+export function buildScriptureCountLabel(
+	completed: number,
+	total: number
+): string | null {
+	if (!Number.isFinite(total) || total <= 0) return null;
+	const whole = Math.floor(total);
+	const done = Number.isFinite(completed)
+		? Math.min(Math.max(Math.floor(completed), 0), whole)
+		: 0;
+	return `${done} of ${whole}`;
 }
 
 /** Bar fill, clamped so bad data cannot paint past the track or negative. */
