@@ -32,3 +32,10 @@ revoke insert, update, delete, truncate on user_households from authenticated;
 -- `anon` has no legitimate read either: the link is only meaningful to a
 -- signed-in user asking about themselves.
 revoke select on user_households from anon;
+
+-- Granted explicitly rather than left to Supabase's default ACL for new tables.
+-- The CI database is bootstrapped without those defaults, so the read a guardian
+-- needs has to be stated here to be the same everywhere — and after the revokes
+-- above, an explicit grant is the only thing that makes the end state
+-- deterministic rather than dependent on how the table was created.
+grant select on user_households to authenticated;
