@@ -7,6 +7,11 @@ on:
         description: List migrations only, do not apply
         type: boolean
         default: false
+      git_sha:
+        description: Full 40-character main commit. Empty uses the selected ref.
+        type: string
+        required: false
+        default: ''
 
 permissions:
   contents: read
@@ -18,6 +23,29 @@ jobs:
     environment: uat
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve immutable main commit
+        env:
+          INPUT_SHA: ${{ inputs.git_sha }}
+          RUN_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          SHA="${INPUT_SHA:-$RUN_SHA}"
+          SHA=$(printf '%s' "$SHA" | tr '[:upper:]' '[:lower:]')
+          if ! printf '%s' "$SHA" | grep -Eq '^[0-9a-f]{40}$'; then
+            echo "::error::git_sha must be a full 40-character commit SHA."
+            exit 1
+          fi
+          git cat-file -e "${SHA}^{commit}"
+          if ! git merge-base --is-ancestor "$SHA" origin/main; then
+            echo "::error::SHA is not on main. UAT verification only accepts main commits."
+            exit 1
+          fi
+          git checkout --detach "$SHA"
+          echo "RESOLVED_SHA=$SHA" >> "$GITHUB_ENV"
 
       - uses: ./.github/actions/setup-node-app
         with:
@@ -62,6 +90,13 @@ jobs:
         run: |
           supabase link --project-ref "$PROJECT_ID" --password "$SUPABASE_DB_PASSWORD"
           supabase db push --dry-run --include-all --yes
+          {
+            echo "## UAT DB deploy"
+            echo ""
+            echo "- **State:** dry run — not UAT verified"
+            echo "- **SHA:** \`$RESOLVED_SHA\`"
+            echo "- **Project:** \`$PROJECT_ID\`"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Apply migrations to UAT
         if: ${{ !inputs.dry_run }}
@@ -78,23 +113,105 @@ jobs:
           chmod +x scripts/db/check_fks.sh
           scripts/db/check_fks.sh "$DATABASE_URL"
 
-      - name: Log latest applied migration
+      - name: Read applied migration
         if: ${{ !inputs.dry_run }}
         run: |
-          LATEST=$(psql "$DATABASE_URL" -tA -c \
-            "SELECT version FROM supabase_migrations.schema_migrations WHERE version ~ '^[0-9]+\$' ORDER BY version::numeric DESC LIMIT 1" \
-            || echo "unknown")
-          COUNT=$(psql "$DATABASE_URL" -tA -c \
-            "SELECT count(*) FROM supabase_migrations.schema_migrations" \
-            || echo "0")
+          set -euo pipefail
+          LATEST=$(psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -tA -c \
+            "SELECT version FROM supabase_migrations.schema_migrations WHERE version ~ '^[0-9]+\$' ORDER BY version::numeric DESC LIMIT 1")
+          COUNT=$(psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -tA -c \
+            "SELECT count(*) FROM supabase_migrations.schema_migrations")
+          if [[ -z "$LATEST" || -z "$COUNT" ]]; then
+            echo "::error::Could not read supabase_migrations.schema_migrations."
+            exit 1
+          fi
+          echo "APPLIED_MIGRATION=$LATEST" >> "$GITHUB_ENV"
+          echo "APPLIED_COUNT=$COUNT" >> "$GITHUB_ENV"
+
+      - name: Verify deployed UAT app
+        if: ${{ !inputs.dry_run }}
+        env:
+          UAT_APP_URL: ${{ vars.UAT_APP_URL }}
+        run: |
+          set -euo pipefail
+          base="${UAT_APP_URL%/}"
+          if [[ -z "$base" || "$base" != https://* ]]; then
+            echo "::error::Set the uat environment variable UAT_APP_URL to the UAT app origin (https, no path)."
+            exit 1
+          fi
+
+          set +e
+          version_code=$(curl -sS -o /tmp/uat-version.json -w '%{http_code}' "$base/api/version")
+          version_curl=$?
+          set -e
+          if [[ "$version_curl" -ne 0 || "$version_code" != "200" ]]; then
+            echo "::error::GET /api/version returned HTTP $version_code."
+            {
+              echo "## UAT DB deploy"
+              echo ""
+              echo "- **State:** failed"
+              echo "- **SHA:** \`$RESOLVED_SHA\`"
+              echo "- **App URL:** $base"
+              echo "- **Reason:** /api/version returned HTTP $version_code"
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+
+          set +e
+          node scripts/db/verify_release_version.mjs /tmp/uat-version.json "$RESOLVED_SHA" "$APPLIED_MIGRATION" > /tmp/uat-release.json
+          verify_status=$?
+          set -e
+          if [[ ! -s /tmp/uat-release.json ]]; then
+            echo "::error::Release check did not return a result."
+            exit 1
+          fi
+
+          state=$(node -e "process.stdout.write(JSON.parse(require('fs').readFileSync('/tmp/uat-release.json','utf8')).state)")
+          reason=$(node -e "process.stdout.write(JSON.parse(require('fs').readFileSync('/tmp/uat-release.json','utf8')).reason)")
+          app=$(node -e "const b=JSON.parse(require('fs').readFileSync('/tmp/uat-release.json','utf8')); process.stdout.write(b.app ?? '')")
+          expected=$(node -e "const b=JSON.parse(require('fs').readFileSync('/tmp/uat-release.json','utf8')); process.stdout.write(b.expectedMigration ?? '')")
+          applied=$(node -e "const b=JSON.parse(require('fs').readFileSync('/tmp/uat-release.json','utf8')); process.stdout.write(b.appliedMigration ?? '')")
+          count=$(node -e "const b=JSON.parse(require('fs').readFileSync('/tmp/uat-release.json','utf8')); process.stdout.write(String(b.appliedCount ?? ''))")
+          in_sync=$(node -e "const b=JSON.parse(require('fs').readFileSync('/tmp/uat-release.json','utf8')); process.stdout.write(String(b.inSync))")
+
+          health="not run"
+          if [[ "$verify_status" -eq 0 ]]; then
+            set +e
+            health_code=$(curl -sS -o /tmp/uat-health.json -w '%{http_code}' "$base/api/health")
+            health_curl=$?
+            set -e
+            health_status=$(node -e "try{process.stdout.write(JSON.parse(require('fs').readFileSync('/tmp/uat-health.json','utf8')).status||'')}catch{process.stdout.write('')}")
+            if [[ "$health_curl" -ne 0 || "$health_code" != "200" || "$health_status" != "ok" ]]; then
+              state="failed"
+              reason="GET /api/health did not return status ok"
+              verify_status=1
+              health="failed"
+            else
+              health="ok"
+            fi
+          fi
+
           {
-            echo "## UAT DB deploy summary"
+            echo "## UAT DB deploy"
             echo ""
-            echo "- **Project:** \`$PROJECT_ID\`"
-            echo "- **Latest migration:** \`$LATEST\`"
-            echo "- **Applied count:** $COUNT"
-            echo "- **Supabase CLI:** $(supabase --version)"
+            echo "- **State:** $state"
+            echo "- **SHA:** \`$RESOLVED_SHA\`"
+            echo "- **App:** \`$app\`"
+            echo "- **App URL:** $base"
+            echo "- **Expected migration:** \`$expected\`"
+            echo "- **Applied migration:** \`$applied\`"
+            echo "- **Applied count:** $count"
+            echo "- **Database applied migration:** \`$APPLIED_MIGRATION\`"
+            echo "- **Database applied count:** $APPLIED_COUNT"
+            echo "- **inSync:** $in_sync"
+            echo "- **Health:** $health"
+            echo "- **Reason:** $reason"
           } >> "$GITHUB_STEP_SUMMARY"
+
+          if [[ "$state" != "UAT verified" ]]; then
+            echo "::error::$state — $reason"
+            exit 1
+          fi
 
       - name: Snapshot schema (optional artifact)
         if: ${{ !inputs.dry_run }}

@@ -1,0 +1,134 @@
+import { spawnSync } from 'node:child_process';
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+
+const root = process.cwd();
+const sha = 'a'.repeat(40);
+const otherSha = 'b'.repeat(40);
+
+function version(overrides: Record<string, unknown> = {}) {
+  return {
+    app: '1.18.0',
+    gitSha: sha,
+    deployEnv: 'uat',
+    db: {
+      expectedMigration: '20260921200000',
+      appliedMigration: '20260921200000',
+      appliedCount: 4,
+      inSync: true,
+    },
+    ...overrides,
+  };
+}
+
+function run(payload: unknown, expectedSha = sha, sqlApplied = '') {
+  const dir = mkdtempSync(path.join(tmpdir(), 'uat-version-'));
+  const file = path.join(dir, 'version.json');
+  writeFileSync(file, typeof payload === 'string' ? payload : JSON.stringify(payload));
+  const args = ['scripts/db/verify_release_version.mjs', file, expectedSha];
+  if (sqlApplied) args.push(sqlApplied);
+  const result = spawnSync('node', args, { cwd: root, encoding: 'utf8' });
+  let parsed: { state?: string; reason?: string } = {};
+  try {
+    parsed = JSON.parse(result.stdout);
+  } catch {
+    parsed = {};
+  }
+  return { status: result.status, parsed, stderr: result.stderr };
+}
+
+describe('UAT release version gate', () => {
+  it('verifies only when the deployed UAT build matches the selected commit and schema', () => {
+    const result = run(version(), sha, '20260921200000');
+    expect(result.status).toBe(0);
+    expect(result.parsed.state).toBe('UAT verified');
+  });
+
+  it('labels a matching build with a schema mismatch as UAT schema pending', () => {
+    const result = run(
+      version({
+        db: {
+          expectedMigration: '20260922000000',
+          appliedMigration: '20260921200000',
+          appliedCount: 4,
+          inSync: false,
+        },
+      })
+    );
+    expect(result.status).toBe(1);
+    expect(result.parsed.state).toBe('UAT schema pending');
+  });
+
+  it('does not verify a different build', () => {
+    const result = run(version({ gitSha: otherSha }));
+    expect(result.status).toBe(1);
+    expect(result.parsed.state).toBe('UAT schema pending');
+    expect(result.parsed.reason).toContain('selected commit');
+  });
+
+  it('fails closed when migration status is missing', () => {
+    const result = run(
+      version({
+        db: {
+          expectedMigration: '20260921200000',
+          appliedMigration: null,
+          appliedCount: null,
+          inSync: false,
+        },
+      })
+    );
+    expect(result.status).toBe(1);
+    expect(result.parsed.state).toBe('failed');
+  });
+
+  it('fails closed when the endpoint is not the UAT deploy', () => {
+    const result = run(version({ deployEnv: 'production' }));
+    expect(result.status).toBe(1);
+    expect(result.parsed.state).toBe('failed');
+    expect(result.parsed.reason).toContain('uat');
+  });
+
+  it('fails closed when inSync is true but the versions differ', () => {
+    const result = run(
+      version({
+        db: {
+          expectedMigration: '20260922000000',
+          appliedMigration: '20260921200000',
+          appliedCount: 4,
+          inSync: true,
+        },
+      })
+    );
+    expect(result.status).toBe(1);
+    expect(result.parsed.state).not.toBe('UAT verified');
+  });
+
+  it('fails closed when the endpoint and the database query disagree', () => {
+    const result = run(version(), sha, '20260901000000');
+    expect(result.status).toBe(1);
+    expect(result.parsed.state).toBe('failed');
+  });
+
+  it('fails closed on invalid JSON', () => {
+    const result = run('{');
+    expect(result.status).toBe(1);
+    expect(result.parsed.state).toBe('failed');
+  });
+});
+
+describe('UAT deploy workflow', () => {
+  const workflow = readFileSync(
+    path.join(root, '.github/workflows/uat-db-deploy.yml'),
+    'utf8'
+  );
+
+  it('verifies the UAT app for the selected main SHA and does not call production', () => {
+    expect(workflow).toContain('verify_release_version.mjs');
+    expect(workflow).toContain('vars.UAT_APP_URL');
+    expect(workflow).toContain('/api/version');
+    expect(workflow).toContain('/api/health');
+    expect(workflow).toContain('origin/main');
+    expect(workflow).not.toMatch(/PROD_|production/);
+  });
+});

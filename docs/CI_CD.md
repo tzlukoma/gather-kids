@@ -250,11 +250,21 @@ Schema change: documented
 
 ### UAT — [`uat-db-deploy.yml`](../.github/workflows/uat-db-deploy.yml)
 
-1. GitHub → **Actions** → **UAT DB deploy** → **Run workflow**
-2. Optional: `dry_run: true` lists pending migrations without applying
-3. Uses GitHub Environment **`uat`** secrets
-4. Applies migrations via `scripts/db/apply_migrations_cli.sh`, runs FK checks, uploads schema snapshot artifact. `check_fks.sh` treats `leader_assignments.leader_id` as a `leader_profiles` reference, not `users`.
-5. Job summary logs latest numeric version from `supabase_migrations.schema_migrations`
+Set GitHub Environment variable **`UAT_APP_URL`** on **`uat`** to the UAT app origin (`https://…`, no path). The workflow fails closed when it is missing. It is not a secret.
+
+#### Dry-run → apply → verify
+
+1. GitHub → **Actions** → **UAT DB deploy** → **Run workflow** on **`main`**.
+2. `dry_run: true` lists pending migrations and does not apply them. The summary says `dry run — not UAT verified`.
+3. Run again with `dry_run: false`. Leave `git_sha` empty to use the selected `main` commit, or paste a full 40-character SHA that is already on `main`.
+4. The job checks out that SHA, applies migrations with `scripts/db/apply_migrations_cli.sh`, and runs FK checks. `check_fks.sh` treats `leader_assignments.leader_id` as a `leader_profiles` reference, not `users`.
+5. It reads `supabase_migrations.schema_migrations`, then `GET $UAT_APP_URL/api/version` and `GET /api/health`.
+
+**`UAT verified`** requires all of these: HTTP 200, `deployEnv` is `uat`, `gitSha` equals the selected commit, `expectedMigration` equals `appliedMigration`, `inSync` is true, the endpoint's applied version equals the database query, and `/api/health` returns `{ "status": "ok" }`.
+
+Anything else fails the job. A deployed build that is not this commit, or a build whose expected migration does not match the database, is **`UAT schema pending`**. A missing URL, a non-200 response, a missing status RPC, or a non-UAT `deployEnv` is **`failed`**. Neither state is UAT verified.
+
+The summary shows SHA, app version, app URL, expected and applied migrations, applied count, `inSync`, health, and the state. It does not print database URLs or keys.
 
 **No auto-commit** of generated types.
 
@@ -339,6 +349,8 @@ DB deploy / types jobs (`uat`, `production`):
 | `SUPABASE_SERVICE_ROLE_KEY` | ✓ | ✓ |
 
 Legacy aliases: `UAT_SUPABASE_URL`, `PROD_SUPABASE_URL`, `UAT_DATABASE_URL`, `PROD_DATABASE_URL`.
+
+Environment **variable** (not a secret) on `uat`: `UAT_APP_URL` — UAT app origin used by UAT DB deploy to read `/api/version` and `/api/health`.
 
 Scheduled prod ops (`production-ops`) — same production credential **values** as `production`, ops-scoped names only. Do **not** add `SENTRY_AUTH_TOKEN` or DB-deploy tokens unless a workflow truly needs them. Do **not** add required reviewers on this environment.
 
