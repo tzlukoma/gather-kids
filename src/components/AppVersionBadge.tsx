@@ -18,10 +18,26 @@ type VersionResponse = {
   builtAt: string | null;
   supabaseProjectRef: string | null;
   db: {
-    latestMigration: string | null;
-    appliedCount: number;
+    expectedMigration: string | null;
+    appliedMigration: string | null;
+    appliedCount: number | null;
+    inSync: boolean;
   };
 };
+
+function schemaStatusLabel(db: VersionResponse['db']): string {
+  if (db.inSync) return 'in sync with this build';
+  if (db.appliedMigration === null) return 'status unavailable';
+  if (db.expectedMigration === null) return 'expected version unknown';
+  try {
+    if (BigInt(db.appliedMigration) < BigInt(db.expectedMigration)) {
+      return 'behind this build — run the DB deploy workflow';
+    }
+    return 'ahead of this build';
+  } catch {
+    return 'does not match this build';
+  }
+}
 
 export function AppVersionBadge() {
   const [version, setVersion] = useState<VersionResponse | null>(null);
@@ -52,6 +68,8 @@ export function AppVersionBadge() {
   }
 
   const label = `v${version.app} · ${version.deployEnv}`;
+  const appliedCountLabel =
+    version.db.appliedCount === null ? 'unknown' : String(version.db.appliedCount);
 
   return (
     <TooltipProvider>
@@ -83,9 +101,16 @@ export function AppVersionBadge() {
             </p>
           )}
           <p>
-            <span className="font-medium">DB migration:</span>{' '}
-            {version.db.latestMigration ?? 'unknown'} ({version.db.appliedCount}{' '}
+            <span className="font-medium">DB expected:</span>{' '}
+            {version.db.expectedMigration ?? 'unknown'}
+          </p>
+          <p>
+            <span className="font-medium">DB applied:</span>{' '}
+            {version.db.appliedMigration ?? 'unknown'} ({appliedCountLabel}{' '}
             applied)
+          </p>
+          <p>
+            <span className="font-medium">Schema:</span> {schemaStatusLabel(version.db)}
           </p>
           {version.builtAt && (
             <p>

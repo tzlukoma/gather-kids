@@ -1567,6 +1567,13 @@ export type Database = {
           ministry_id: string
         }[]
       }
+      fn_schema_migration_status: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          applied_migration: string
+          applied_count: number
+        }[]
+      }
       safe_add_column: {
         Args: {
           p_column_def: string

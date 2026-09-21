@@ -4,6 +4,23 @@ import path from 'node:path';
 const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
 const outDir = path.join(process.cwd(), 'src', 'generated');
 const outFile = path.join(outDir, 'build-info.json');
+const migrationsDir = path.join(process.cwd(), 'supabase', 'migrations');
+
+function latestMigrationVersion(dir) {
+  if (!fs.existsSync(dir)) return null;
+  let best = null;
+  let bestNum = -1n;
+  for (const name of fs.readdirSync(dir)) {
+    const match = name.match(/^(\d+)_.*\.sql$/);
+    if (!match) continue;
+    const n = BigInt(match[1]);
+    if (n > bestNum) {
+      bestNum = n;
+      best = match[1];
+    }
+  }
+  return best;
+}
 
 const info = {
   appVersion:
@@ -21,6 +38,7 @@ const info = {
     process.env.VERCEL_ENV ||
     'development',
   builtAt: new Date().toISOString(),
+  expectedMigration: latestMigrationVersion(migrationsDir),
 };
 
 fs.mkdirSync(outDir, { recursive: true });

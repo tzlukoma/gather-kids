@@ -24,3 +24,13 @@ STABLE
 AS $$
   SELECT NULL::uuid;
 $$;
+
+-- Shape of the table `supabase db push` writes. CI applies SQL with raw psql,
+-- so this history never appears unless we create it. The status RPC reads it.
+CREATE SCHEMA IF NOT EXISTS supabase_migrations;
+
+CREATE TABLE IF NOT EXISTS supabase_migrations.schema_migrations (
+  version text PRIMARY KEY,
+  statements text[],
+  name text
+);
