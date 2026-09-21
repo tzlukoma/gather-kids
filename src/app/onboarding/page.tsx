@@ -11,8 +11,17 @@ import Link from 'next/link';
 import { AlertCircle, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { AuthDebug } from '@/components/auth/auth-debug';
+import { cn } from '@/lib/utils';
+import { useGatherSystemAuth } from '@/components/auth/gathersystem-auth-context';
+import {
+	AUTH_BODY_TEXT,
+	AUTH_CARD,
+	AUTH_CARD_DESCRIPTION,
+	AUTH_CARD_TITLE,
+} from '@/components/auth/auth-page-styles';
 
 export default function OnboardingPage() {
+	const gatherSystem = useGatherSystemAuth();
 	const router = useRouter();
 	const { toast } = useToast();
 	const [loading, setLoading] = useState(true);
@@ -253,10 +262,13 @@ export default function OnboardingPage() {
 	if (loading) {
 		return (
 			<div className="flex min-h-screen items-center justify-center bg-muted/50 p-4">
-				<Card className="w-full max-w-md">
+				<Card className={cn('w-full max-w-md', gatherSystem && AUTH_CARD)}>
 					<CardContent className="flex flex-col items-center justify-center py-8 space-y-4">
 						<Loader2 className="h-6 w-6 animate-spin" />
-						<p className="text-sm text-muted-foreground">
+						<p
+							className={cn(
+								gatherSystem ? AUTH_BODY_TEXT : 'text-sm text-muted-foreground'
+							)}>
 							Setting up your account...
 						</p>
 					</CardContent>
@@ -269,14 +281,20 @@ export default function OnboardingPage() {
 		// Show a helpful recovery UI instead of just returning null
 		return (
 			<div className="flex min-h-screen items-center justify-center bg-muted/50 p-4">
-				<Card className="w-full max-w-md">
+				<Card className={cn('w-full max-w-md', gatherSystem && AUTH_CARD)}>
 					<CardHeader className="text-center">
-						<CardTitle className="text-xl font-headline">
+						<CardTitle
+							className={cn(
+								gatherSystem ? AUTH_CARD_TITLE : 'text-xl font-headline'
+							)}>
 							Session Issue
 						</CardTitle>
 					</CardHeader>
 					<CardContent className="space-y-4 text-center">
-						<p className="text-muted-foreground">
+						<p
+							className={cn(
+								gatherSystem ? AUTH_CARD_DESCRIPTION : 'text-muted-foreground'
+							)}>
 							We&apos;re having trouble setting up your account. This sometimes
 							happens when authentication was partially successful.
 						</p>
@@ -294,12 +312,20 @@ export default function OnboardingPage() {
 
 	return (
 		<div className="flex min-h-screen items-center justify-center bg-muted/50 p-4">
-			<Card className="w-full max-w-md">
+			<Card className={cn('w-full max-w-md', gatherSystem && AUTH_CARD)}>
 				<CardHeader className="text-center">
-					<CardTitle className="text-xl font-headline">
+					<CardTitle
+							className={cn(
+								gatherSystem ? AUTH_CARD_TITLE : 'text-xl font-headline'
+							)}>
 						Make future sign-ins faster
 					</CardTitle>
-					<p className="text-base text-muted-foreground">
+					<p
+						className={cn(
+							gatherSystem
+								? AUTH_CARD_DESCRIPTION
+								: 'text-base text-muted-foreground'
+						)}>
 						You&apos;re all set with magic link. Prefer a password next time? You can
 						still use a magic link anytime.
 					</p>

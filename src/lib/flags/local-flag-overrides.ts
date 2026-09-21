@@ -24,8 +24,8 @@ import {
  * never infer permission from which adapter is in play. It asks the
  * environment directly and refuses production and UAT by name.
  *
- * Same shape as `isGatherSystemRegistrationOverrideEnabled`, generalised to all
- * six keys. That one predates this and stays in place: `/register` consumes it
+ * Same shape as `isGatherSystemRegistrationOverrideEnabled`, generalised to
+ * every key in `GATHERSYSTEM_FLAG_KEYS`. That one predates this and stays in place: `/register` consumes it
  * outside the adapter because it serves signed-out visitors, and
  * `npm run test:e2e:gathersystem` depends on it.
  */
