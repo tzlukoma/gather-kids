@@ -1,0 +1,266 @@
+name: Production release
+
+# Approval-gated promotion. A merge to main must not receive production
+# traffic until this workflow verifies the production schema and promotes
+# the staged deployment. See docs/CI_CD.md.
+
+on:
+  workflow_dispatch:
+    inputs:
+      git_sha:
+        description: Full 40-character main commit to release
+        required: true
+        type: string
+      deployment_url:
+        description: Staged production deployment URL (https://….vercel.app)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    name: Promote after database verification
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve immutable main commit
+        env:
+          INPUT_SHA: ${{ inputs.git_sha }}
+          DEPLOYMENT_URL: ${{ inputs.deployment_url }}
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          SHA=$(printf '%s' "$INPUT_SHA" | tr '[:upper:]' '[:lower:]')
+          if ! printf '%s' "$SHA" | grep -Eq '^[0-9a-f]{40}$'; then
+            echo "::error::git_sha must be a full 40-character commit SHA."
+            exit 1
+          fi
+          git cat-file -e "${SHA}^{commit}"
+          if ! git merge-base --is-ancestor "$SHA" origin/main; then
+            echo "::error::SHA is not on main."
+            exit 1
+          fi
+          url="${DEPLOYMENT_URL%/}"
+          if [[ "$url" != https://*.vercel.app ]]; then
+            echo "::error::deployment_url must be the staged https://….vercel.app URL, not a production domain."
+            exit 1
+          fi
+          git checkout --detach "$SHA"
+          echo "RESOLVED_SHA=$SHA" >> "$GITHUB_ENV"
+          echo "STAGED_URL=$url" >> "$GITHUB_ENV"
+
+      - uses: ./.github/actions/setup-node-app
+        with:
+          checkout: 'false'
+
+      - uses: ./.github/actions/setup-supabase-cli
+        with:
+          version: '2.116.0'
+
+      - name: Install Postgres client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Resolve environment secrets
+        shell: bash
+        env:
+          SECRET_DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          LEGACY_DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
+          SECRET_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          LEGACY_SUPABASE_URL: ${{ secrets.PROD_SUPABASE_URL }}
+        run: |
+          set -euo pipefail
+          DATABASE_URL="${SECRET_DATABASE_URL:-$LEGACY_DATABASE_URL}"
+          SUPABASE_URL="${SECRET_SUPABASE_URL:-$LEGACY_SUPABASE_URL}"
+          if [[ -z "$DATABASE_URL" || -z "$SUPABASE_URL" ]]; then
+            echo "::error::DATABASE_URL and SUPABASE_URL must be set in the production environment."
+            exit 1
+          fi
+          if [[ "$DATABASE_URL" != *"sslmode="* ]]; then
+            echo "::error::DATABASE_URL must include sslmode=require."
+            exit 1
+          fi
+          PROJECT_ID=$(echo "$SUPABASE_URL" | sed -E 's|https://([^.]+)\.supabase\.co.*|\1|')
+          echo "DATABASE_URL=$DATABASE_URL" >> "$GITHUB_ENV"
+          echo "SUPABASE_URL=$SUPABASE_URL" >> "$GITHUB_ENV"
+          echo "PROJECT_ID=$PROJECT_ID" >> "$GITHUB_ENV"
+
+      - name: Link Supabase project
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: supabase link --project-ref "$PROJECT_ID" --password "$SUPABASE_DB_PASSWORD"
+
+      - name: Ensure pgcrypto extension
+        env:
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: |
+          chmod +x scripts/db/ensure_pgcrypto.sh
+          scripts/db/ensure_pgcrypto.sh "$SUPABASE_DB_PASSWORD" "$PROJECT_ID"
+
+      - name: Apply migrations
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: |
+          chmod +x scripts/db/apply_migrations_cli.sh
+          scripts/db/apply_migrations_cli.sh "$PROJECT_ID" "$SUPABASE_ACCESS_TOKEN" "$SUPABASE_DB_PASSWORD"
+
+      - name: Run FK integrity checks
+        run: |
+          chmod +x scripts/db/check_fks.sh
+          scripts/db/check_fks.sh "$DATABASE_URL"
+
+      - name: Read applied migration
+        run: |
+          set -euo pipefail
+          LATEST=$(psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -tA -c \
+            "SELECT version FROM supabase_migrations.schema_migrations WHERE version ~ '^[0-9]+\$' ORDER BY version::numeric DESC LIMIT 1")
+          COUNT=$(psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -tA -c \
+            "SELECT count(*) FROM supabase_migrations.schema_migrations")
+          if [[ -z "$LATEST" || -z "$COUNT" ]]; then
+            echo "::error::Could not read supabase_migrations.schema_migrations."
+            exit 1
+          fi
+          echo "APPLIED_MIGRATION=$LATEST" >> "$GITHUB_ENV"
+          echo "APPLIED_COUNT=$COUNT" >> "$GITHUB_ENV"
+
+      - name: Verify staged deployment
+        id: staged
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          PROD_APP_URL: ${{ vars.PROD_APP_URL }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$VERCEL_TOKEN" ]]; then
+            echo "::error::Set VERCEL_TOKEN on the production environment. Promotion did not run."
+            exit 1
+          fi
+          if [[ -z "$PROD_APP_URL" || "$PROD_APP_URL" != https://* ]]; then
+            echo "::error::Set the production environment variable PROD_APP_URL to the production origin (https, no path)."
+            exit 1
+          fi
+
+          set +e
+          version_code=$(curl -sS -o /tmp/staged-version.json -w '%{http_code}' "$STAGED_URL/api/version")
+          version_curl=$?
+          set -e
+          if [[ "$version_curl" -ne 0 || "$version_code" != "200" ]]; then
+            {
+              echo "## Production release"
+              echo ""
+              echo "- **State:** failed"
+              echo "- **SHA:** \`$RESOLVED_SHA\`"
+              echo "- **Staged URL:** $STAGED_URL"
+              echo "- **Promotion:** not run"
+              echo "- **Reason:** staged /api/version returned HTTP ${version_code:-curl-failed}"
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "::error::Staged /api/version did not return HTTP 200. Production domains were not changed."
+            exit 1
+          fi
+
+          set +e
+          node scripts/db/verify_release_version.mjs /tmp/staged-version.json "$RESOLVED_SHA" "$APPLIED_MIGRATION" production > /tmp/staged-release.json
+          verify_status=$?
+          set -e
+          state=$(node -e "const b=JSON.parse(require('fs').readFileSync('/tmp/staged-release.json','utf8')); process.stdout.write(b.state||'')")
+          reason=$(node -e "const b=JSON.parse(require('fs').readFileSync('/tmp/staged-release.json','utf8')); process.stdout.write(b.reason||'')")
+          if [[ "$verify_status" -ne 0 || "$state" != "Production DB verified" ]]; then
+            {
+              echo "## Production release"
+              echo ""
+              echo "- **State:** failed"
+              echo "- **SHA:** \`$RESOLVED_SHA\`"
+              echo "- **Staged URL:** $STAGED_URL"
+              echo "- **Database applied migration:** \`$APPLIED_MIGRATION\`"
+              echo "- **Promotion:** not run"
+              echo "- **Reason:** $reason"
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "::error::Staged build is not Production DB verified. Production domains were not changed."
+            exit 1
+          fi
+          echo "verified=true" >> "$GITHUB_OUTPUT"
+
+      - name: Promote staged deployment
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          set -euo pipefail
+          npx --yes vercel@59.24.0 promote "$STAGED_URL" --token "$VERCEL_TOKEN" --yes
+
+      - name: Confirm production domain
+        env:
+          PROD_APP_URL: ${{ vars.PROD_APP_URL }}
+        run: |
+          set -euo pipefail
+          base="${PROD_APP_URL%/}"
+          set +e
+          version_code=$(curl -sS -o /tmp/prod-version.json -w '%{http_code}' "$base/api/version")
+          version_curl=$?
+          set -e
+          state="failed"
+          reason="production /api/version did not return HTTP 200"
+          health="not run"
+          app=""
+          expected=""
+          applied=""
+          count=""
+          in_sync=""
+          if [[ "$version_curl" -eq 0 && "$version_code" == "200" ]]; then
+            set +e
+            node scripts/db/verify_release_version.mjs /tmp/prod-version.json "$RESOLVED_SHA" "$APPLIED_MIGRATION" production > /tmp/prod-release.json
+            verify_status=$?
+            set -e
+            state=$(node -e "const b=JSON.parse(require('fs').readFileSync('/tmp/prod-release.json','utf8')); process.stdout.write(b.state||'')")
+            reason=$(node -e "const b=JSON.parse(require('fs').readFileSync('/tmp/prod-release.json','utf8')); process.stdout.write(b.reason||'')")
+            app=$(node -e "const b=JSON.parse(require('fs').readFileSync('/tmp/prod-release.json','utf8')); process.stdout.write(b.app||'')")
+            expected=$(node -e "const b=JSON.parse(require('fs').readFileSync('/tmp/prod-release.json','utf8')); process.stdout.write(b.expectedMigration||'')")
+            applied=$(node -e "const b=JSON.parse(require('fs').readFileSync('/tmp/prod-release.json','utf8')); process.stdout.write(b.appliedMigration||'')")
+            count=$(node -e "const b=JSON.parse(require('fs').readFileSync('/tmp/prod-release.json','utf8')); process.stdout.write(String(b.appliedCount??''))")
+            in_sync=$(node -e "const b=JSON.parse(require('fs').readFileSync('/tmp/prod-release.json','utf8')); process.stdout.write(String(b.inSync))")
+            if [[ "$verify_status" -eq 0 ]]; then
+              set +e
+              health_code=$(curl -sS -o /tmp/prod-health.json -w '%{http_code}' "$base/api/health")
+              health_curl=$?
+              set -e
+              health_status=$(node -e "try{process.stdout.write(JSON.parse(require('fs').readFileSync('/tmp/prod-health.json','utf8')).status||'')}catch{process.stdout.write('')}")
+              if [[ "$health_curl" -eq 0 && "$health_code" == "200" && "$health_status" == "ok" ]]; then
+                state="Production released"
+                health="ok"
+                reason="production domain serves the verified build"
+              else
+                state="failed"
+                health="failed"
+                reason="GET /api/health did not return status ok after promotion"
+              fi
+            fi
+          fi
+
+          {
+            echo "## Production release"
+            echo ""
+            echo "- **State:** $state"
+            echo "- **SHA:** \`$RESOLVED_SHA\`"
+            echo "- **App:** \`$app\`"
+            echo "- **Staged URL:** $STAGED_URL"
+            echo "- **Production URL:** $base"
+            echo "- **Expected migration:** \`$expected\`"
+            echo "- **Applied migration:** \`$applied\`"
+            echo "- **Applied count:** $count"
+            echo "- **Database applied migration:** \`$APPLIED_MIGRATION\`"
+            echo "- **Database applied count:** $APPLIED_COUNT"
+            echo "- **inSync:** $in_sync"
+            echo "- **Health:** $health"
+            echo "- **Promotion:** attempted"
+            echo "- **Reason:** $reason"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [[ "$state" != "Production released" ]]; then
+            echo "::error::$state — $reason. Schema was not rolled back. To put the previous app build back on the production domain, promote that deployment URL. Do not restore an old database backup over an additive migration."
+            exit 1
+          fi

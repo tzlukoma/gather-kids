@@ -269,12 +269,38 @@ The summary shows SHA, app version, app URL, expected and applied migrations, ap
 
 **No auto-commit** of generated types.
 
-### Production — [`prod-db-deploy.yml`](../.github/workflows/prod-db-deploy.yml)
+### Production schema — [`prod-db-deploy.yml`](../.github/workflows/prod-db-deploy.yml)
+
+Schema only. This does not assign production traffic.
 
 1. **Actions** → **Production DB deploy** → **Run workflow**
 2. Requires GitHub Environment **`production`** approval
 3. Runs `ensure_pgcrypto` → migrations (**fail-fast**) → FK checks → snapshot
 4. **No auto-commit** of types
+
+### Production release — [`prod-release.yml`](../.github/workflows/prod-release.yml)
+
+This is the only path that should put a new build on production domains.
+
+Before the first release, in the Vercel project turn off automatic assignment of production domains (**Auto-assign Custom Production Domains**, under the production environment or Git settings). `main` must still create a production deployment. That deployment stays staged until this workflow promotes it. Until that setting is off, a merge to `main` can still take production traffic by itself, and this workflow cannot stop that.
+
+On the `production` GitHub Environment, set:
+
+| Name | Kind | Purpose |
+|------|------|---------|
+| `VERCEL_TOKEN` | secret | `vercel promote` of the staged deployment |
+| `PROD_APP_URL` | variable | Production origin (`https://…`, no path) for the post-promotion check |
+
+1. Merge to `main` and wait until Vercel has a staged production deployment for that SHA. Copy its `https://….vercel.app` URL. Do not paste the production domain.
+2. **Actions** → **Production release** → **Run workflow**. Enter the full `main` SHA and that staged URL.
+3. GitHub Environment **`production`** approval is required. The summary before approval is **Production approval pending** (the environment gate). Nothing is promoted until a reviewer approves.
+4. The job checks out that SHA, dry-runs and applies migrations with `scripts/db/apply_migrations_cli.sh`, runs FK checks, then requires the staged URL's `/api/version` to be **Production DB verified** (`deployEnv` production, `gitSha` matches, `inSync` true).
+5. Only then does it run `vercel promote` on that staged URL.
+6. It calls `PROD_APP_URL` `/api/version` and `/api/health`. The summary says **Production released** only when those checks pass.
+
+A failed migration, status check, or staged-build mismatch exits before promotion. Production domains stay on the previous deployment. The summary state is `failed`.
+
+If promotion succeeds and the domain check fails, the summary says `failed` and **Promotion: attempted**. The schema is not rolled back. Put the previous app back by promoting that earlier deployment URL. Do not restore an old database backup over an additive migration; ship a forward fix.
 
 Legacy secret names (`UAT_*`, `PROD_*`) are supported as fallbacks during transition.
 

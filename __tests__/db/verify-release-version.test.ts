@@ -23,12 +23,21 @@ function version(overrides: Record<string, unknown> = {}) {
   };
 }
 
-function run(payload: unknown, expectedSha = sha, sqlApplied = '') {
+function run(
+  payload: unknown,
+  expectedSha = sha,
+  sqlApplied = '',
+  deployEnv = ''
+) {
   const dir = mkdtempSync(path.join(tmpdir(), 'uat-version-'));
   const file = path.join(dir, 'version.json');
   writeFileSync(file, typeof payload === 'string' ? payload : JSON.stringify(payload));
   const args = ['scripts/db/verify_release_version.mjs', file, expectedSha];
-  if (sqlApplied) args.push(sqlApplied);
+  if (deployEnv) {
+    args.push(sqlApplied, deployEnv);
+  } else if (sqlApplied) {
+    args.push(sqlApplied);
+  }
   const result = spawnSync('node', args, { cwd: root, encoding: 'utf8' });
   let parsed: { state?: string; reason?: string } = {};
   try {
@@ -166,10 +175,61 @@ describe('UAT release version gate', () => {
     expect(result.parsed.state).toBe('UAT verified');
   });
 
+  it('verifies a production payload only when the staged build matches', () => {
+    const result = run(
+      version({ deployEnv: 'production' }),
+      sha,
+      '20260921200000',
+      'production'
+    );
+    expect(result.status).toBe(0);
+    expect(result.parsed.state).toBe('Production DB verified');
+  });
+
+  it('does not verify a production build whose schema does not match', () => {
+    const result = run(
+      version({
+        deployEnv: 'production',
+        db: {
+          expectedMigration: '20260922000000',
+          appliedMigration: '20260921200000',
+          appliedCount: 4,
+          inSync: false,
+        },
+      }),
+      sha,
+      '',
+      'production'
+    );
+    expect(result.status).toBe(1);
+    expect(result.parsed.state).toBe('failed');
+  });
+
   it('fails closed on invalid JSON', () => {
     const result = run('{');
     expect(result.status).toBe(1);
     expect(result.parsed.state).toBe('failed');
+  });
+});
+
+describe('production release workflow', () => {
+  const workflow = readFileSync(
+    path.join(root, '.github/workflows/prod-release.yml'),
+    'utf8'
+  );
+
+  it('promotes only after the staged production build is in sync', () => {
+    expect(workflow).toContain('workflow_dispatch:');
+    expect(workflow).not.toContain('push:');
+    expect(workflow).toContain('environment: production');
+    expect(workflow).toContain('verify_release_version.mjs');
+    expect(workflow).toContain('production');
+    expect(workflow).toContain("vercel@59.24.0 promote");
+    expect(workflow).toContain('Production domains were not changed');
+    const verifyAt = workflow.indexOf('Verify staged deployment');
+    const promoteAt = workflow.indexOf('Promote staged deployment');
+    expect(verifyAt).toBeGreaterThan(0);
+    expect(promoteAt).toBeGreaterThan(verifyAt);
   });
 });
 

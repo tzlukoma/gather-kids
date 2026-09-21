@@ -4,7 +4,7 @@
  * selected commit. Prints one JSON object on stdout. Exits 0 only for
  * `UAT verified`.
  *
- * Usage: node scripts/db/verify_release_version.mjs <version.json> <sha> [sqlAppliedVersion]
+ * Usage: node scripts/db/verify_release_version.mjs <version.json> <sha> [sqlAppliedVersion] [uat|production]
  */
 import { readFileSync } from 'node:fs';
 
@@ -27,13 +27,22 @@ function emit(state, reason, payload) {
     inSync: db.inSync === true,
   };
   process.stdout.write(`${JSON.stringify(body)}\n`);
-  process.exit(state === 'UAT verified' ? 0 : 1);
+  const verified = state === 'UAT verified' || state === 'Production DB verified';
+  process.exit(verified ? 0 : 1);
 }
 
 function main() {
   const file = process.argv[2];
   const expectedSha = (process.argv[3] || '').trim().toLowerCase();
   const sqlApplied = (process.argv[4] || '').trim();
+  const targetEnv = (process.argv[5] || 'uat').trim();
+  const verifiedState =
+    targetEnv === 'production' ? 'Production DB verified' : 'UAT verified';
+  const pendingState = targetEnv === 'production' ? 'failed' : 'UAT schema pending';
+
+  if (targetEnv !== 'uat' && targetEnv !== 'production') {
+    emit('failed', 'target environment must be uat or production', null);
+  }
 
   if (!file || !/^[0-9a-f]{40}$/.test(expectedSha)) {
     emit('failed', 'expected a version JSON path and a 40-character commit SHA', null);
@@ -50,8 +59,8 @@ function main() {
     emit('failed', 'version response is missing db status', payload);
   }
 
-  if (payload.deployEnv !== 'uat') {
-    emit('failed', 'endpoint deployEnv is not uat', payload);
+  if (payload.deployEnv !== targetEnv) {
+    emit('failed', `endpoint deployEnv is not ${targetEnv}`, payload);
   }
 
   const gitSha =
@@ -61,7 +70,7 @@ function main() {
   }
 
   if (gitSha !== expectedSha) {
-    emit('UAT schema pending', 'deployed build is not the selected commit', payload);
+    emit(pendingState, 'deployed build is not the selected commit', payload);
   }
 
   const expected =
@@ -77,10 +86,10 @@ function main() {
   }
 
   if (payload.db.inSync !== true || expected !== applied) {
-    emit('UAT schema pending', 'expected and applied migrations do not match', payload);
+    emit(pendingState, 'expected and applied migrations do not match', payload);
   }
 
-  emit('UAT verified', 'expected and applied migrations match this build', payload);
+  emit(verifiedState, 'expected and applied migrations match this build', payload);
 }
 
 main();
