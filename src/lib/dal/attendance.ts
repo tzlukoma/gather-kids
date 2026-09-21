@@ -6,8 +6,21 @@
 
 import { db as dbAdapter } from '../database/factory';
 import type { Attendance, Child, Incident, IncidentSeverity } from '../types';
+import { countChildrenOnSite } from '../attendance-open-count';
 import { getServiceDayIso } from './utils';
 import { v4 as uuidv4 } from 'uuid';
+
+export const ALREADY_CHECKED_IN_MESSAGE =
+    'This child is already checked in to another event.';
+
+function isUniqueViolation(error: unknown): boolean {
+    return (
+        typeof error === 'object' &&
+        error !== null &&
+        'code' in error &&
+        (error as { code?: string }).code === '23505'
+    );
+}
 
 // ---------------------------------------------------------------------------
 // Attendance queries
@@ -25,8 +38,7 @@ export async function getAttendanceForDate(dateISO: string): Promise<Attendance[
  */
 export async function getCheckedInCount(dateISO: string): Promise<number> {
     const attendance = await dbAdapter.listAttendance({ date: dateISO });
-    const checkedIn = attendance.filter(a => !a.check_out_at);
-    return checkedIn.length;
+    return countChildrenOnSite(attendance);
 }
 
 /**
@@ -68,19 +80,26 @@ export async function recordCheckIn(
 
     const activeCheckIn = activeCheckIns.find(rec => !rec.check_out_at);
     if (activeCheckIn) {
-        throw new Error('This child is already checked in to another event.');
+        throw new Error(ALREADY_CHECKED_IN_MESSAGE);
     }
 
-    const attendanceRecord = await dbAdapter.createAttendance({
-        event_id: eventId,
-        child_id: childId,
-        date: today,
-        timeslot_id: timeslotId,
-        check_in_at: new Date().toISOString(),
-        checked_in_by: userId,
-    });
+    try {
+        const attendanceRecord = await dbAdapter.createAttendance({
+            event_id: eventId,
+            child_id: childId,
+            date: today,
+            timeslot_id: timeslotId,
+            check_in_at: new Date().toISOString(),
+            checked_in_by: userId,
+        });
 
-    return attendanceRecord.attendance_id;
+        return attendanceRecord.attendance_id;
+    } catch (error) {
+        if (isUniqueViolation(error)) {
+            throw new Error(ALREADY_CHECKED_IN_MESSAGE);
+        }
+        throw error;
+    }
 }
 
 /**

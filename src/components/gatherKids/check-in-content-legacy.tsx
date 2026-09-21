@@ -19,6 +19,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useChildrenForActiveCycle, useAttendance } from '@/hooks/data';
 import { CardGridSkeleton } from '@/components/skeletons/CardGridSkeleton';
 import { getServiceDayIso } from '@/lib/dal';
+import { countChildrenOnSite } from '@/lib/attendance-open-count';
 import type { Attendance } from '@/lib/types';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { normalizeGradeDisplay, getGradeSortOrder } from '@/lib/gradeUtils';
@@ -156,7 +157,7 @@ export function CheckInContentLegacy() {
 
 	const checkedInCount = useMemo(() => {
 		if (!todaysAttendance) return 0;
-		return todaysAttendance.filter((a) => !a.check_out_at).length;
+		return countChildrenOnSite(todaysAttendance);
 	}, [todaysAttendance]);
 
 	const currentEventName = useMemo(() => {
