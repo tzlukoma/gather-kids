@@ -54,12 +54,39 @@ export function getCurrentDateInET(): Date {
  */
 export const SERVICE_DAY_TIMEZONE = 'America/New_York';
 
-const SERVICE_DAY_FORMATTER = new Intl.DateTimeFormat('en-CA', {
+/**
+ * Calendar parts in church-local time.
+ *
+ * Do **not** use `DateTimeFormat#format()` with an ISO-shaped locale such as
+ * `en-CA`. That API can emit `YYYY-MM-DD`, and some runtimes treat that string
+ * as a UTC date and ignore `timeZone`. Production then queried
+ * `attendance?date=eq.` the UTC day after 8pm EDT, so tonight's open check-ins
+ * vanished from the door (#488). `formatToParts` plus an explicit `en-US`
+ * locale keeps year/month/day in `America/New_York` without going through that
+ * ISO string.
+ */
+const SERVICE_DAY_CALENDAR_FORMATTER = new Intl.DateTimeFormat('en-US', {
     timeZone: SERVICE_DAY_TIMEZONE,
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
 });
+
+function churchLocalCalendarParts(at: Date): {
+    year: string;
+    month: string;
+    day: string;
+} {
+    const read: Record<string, string> = {};
+    for (const part of SERVICE_DAY_CALENDAR_FORMATTER.formatToParts(at)) {
+        if (part.type !== 'literal') read[part.type] = part.value;
+    }
+    const { year, month, day } = read;
+    if (!year || !month || !day) {
+        throw new Error('getServiceDayIso: failed to read church-local calendar parts');
+    }
+    return { year, month, day };
+}
 
 /**
  * The **service day** for an instant, as a YYYY-MM-DD string in church-local
@@ -77,14 +104,14 @@ const SERVICE_DAY_FORMATTER = new Intl.DateTimeFormat('en-CA', {
  * a two-day window would report children who went home yesterday without being
  * checked out as still on site.
  *
- * `en-CA` yields YYYY-MM-DD directly and `Intl` resolves EST/EDT, so this needs
- * no DST arithmetic. `at` is injectable so the boundary can be tested without
- * faking the clock.
+ * `at` is injectable so the boundary can be tested without faking the clock.
  */
-export const getServiceDayIso = (at: Date = new Date()): string =>
-    SERVICE_DAY_FORMATTER.format(at);
+export const getServiceDayIso = (at: Date = new Date()): string => {
+    const { year, month, day } = churchLocalCalendarParts(at);
+    return `${year}-${month}-${day}`;
+};
 
-const SERVICE_DAY_PARTS_FORMATTER = new Intl.DateTimeFormat('en-CA', {
+const SERVICE_DAY_PARTS_FORMATTER = new Intl.DateTimeFormat('en-US', {
     timeZone: SERVICE_DAY_TIMEZONE,
     year: 'numeric',
     month: '2-digit',
