@@ -64,6 +64,23 @@ describe('SquareCropperModal', () => {
 		expect(screen.queryByText('Test Upload')).not.toBeInTheDocument();
 	});
 
+	it('defaults to copy that tells the user they are choosing a square crop', () => {
+		render(
+			<SquareCropperModal
+				isOpen={true}
+				onClose={mockOnClose}
+				onSave={mockOnSave}
+				title="Test Upload"
+			/>
+		);
+
+		expect(
+			screen.getByText(
+				'Crop to a square. Anything outside the box will not appear in the avatar.'
+			)
+		).toBeInTheDocument();
+	});
+
 	it('shows file upload area initially', () => {
 		render(
 			<SquareCropperModal

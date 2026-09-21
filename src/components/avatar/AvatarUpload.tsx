@@ -1,4 +1,6 @@
-import { useState, useRef } from 'react';
+'use client';
+
+import { useState } from 'react';
 import { AvatarService, MAX_AVATAR_SIZE } from '@/lib/avatar/avatar-service';
 import type { AvatarType } from '@/lib/avatar/types';
 import { toast } from '@/hooks/use-toast';
@@ -6,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Loader2, Upload, X } from 'lucide-react';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
+import { SquareCropperModal } from '@/components/ui/square-cropper-modal';
 
 interface AvatarUploadProps {
 	entityType: AvatarType;
@@ -25,23 +28,23 @@ export function AvatarUpload({
 	className,
 }: AvatarUploadProps) {
 	const [isUploading, setIsUploading] = useState(false);
+	const [showCropper, setShowCropper] = useState(false);
 	const [avatarUrl, setAvatarUrl] = useState<string | null>(currentUrl || null);
-	const fileInputRef = useRef<HTMLInputElement>(null);
 
-	// Size mapping
 	const sizeMap = {
 		sm: 'h-12 w-12',
 		md: 'h-24 w-24',
 		lg: 'h-32 w-32',
 	};
 
-	const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-		const file = e.target.files?.[0];
-		if (!file) return;
-
+	const handleCropSave = async (croppedBlob: Blob) => {
 		setIsUploading(true);
 
 		try {
+			const file = new File([croppedBlob], 'avatar.webp', {
+				type: croppedBlob.type || 'image/webp',
+				lastModified: Date.now(),
+			});
 			const url = await AvatarService.uploadAvatar(entityType, entityId, file);
 			setAvatarUrl(url);
 			if (onUploadComplete) {
@@ -55,13 +58,9 @@ export function AvatarUpload({
 				description: error instanceof Error ? error.message : 'Unknown error',
 				variant: 'destructive',
 			});
+			throw error;
 		} finally {
 			setIsUploading(false);
-
-			// Reset file input
-			if (fileInputRef.current) {
-				fileInputRef.current.value = '';
-			}
 		}
 	};
 
@@ -120,7 +119,7 @@ export function AvatarUpload({
 					type="button"
 					size="sm"
 					variant="outline"
-					onClick={() => fileInputRef.current?.click()}
+					onClick={() => setShowCropper(true)}
 					disabled={isUploading}>
 					<Upload size={14} className="mr-1" />
 					{avatarUrl ? 'Change' : 'Upload'}
@@ -139,17 +138,17 @@ export function AvatarUpload({
 				)}
 			</div>
 
-			<input
-				type="file"
-				ref={fileInputRef}
-				onChange={handleFileChange}
-				accept="image/*"
-				className="hidden"
-			/>
-
 			<p className="text-xs text-muted-foreground mt-1">
-				Upload an image (max {MAX_AVATAR_SIZE / 1024}KB)
+				Upload a square crop (max {MAX_AVATAR_SIZE / 1024}KB)
 			</p>
+
+			<SquareCropperModal
+				isOpen={showCropper}
+				onClose={() => setShowCropper(false)}
+				onSave={handleCropSave}
+				title={avatarUrl ? 'Change Avatar' : 'Upload Avatar'}
+				outputSize={200}
+			/>
 		</div>
 	);
 }

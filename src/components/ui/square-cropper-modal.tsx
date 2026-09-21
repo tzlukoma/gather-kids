@@ -9,6 +9,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { toast } from '@/hooks/use-toast';
 import { Upload, ZoomIn, ZoomOut, RotateCw, X, Save, Camera, AlertTriangle, RefreshCw } from 'lucide-react';
+import {
+	clampCropToVisibleImage,
+	containedLayout,
+	drawPreviewCrop,
+	initialCenteredSquareCrop,
+} from '@/lib/avatar/crop-coords';
 
 interface SquareCropperModalProps {
 	isOpen: boolean;
@@ -46,7 +52,7 @@ export function SquareCropperModal({
 	onClose,
 	onSave,
 	title,
-	description,
+	description = 'Crop to a square. Anything outside the box will not appear in the avatar.',
 	acceptedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'],
 	maxFileSize = 10 * 1024 * 1024, // 10MB
 	outputSize = 512,
@@ -65,6 +71,7 @@ export function SquareCropperModal({
 	const [dragStart, setDragStart] = useState({ x: 0, y: 0, cropX: 0, cropY: 0 });
 	const [isSaving, setIsSaving] = useState(false);
 	const [progress, setProgress] = useState(0);
+	const [imageNaturalSize, setImageNaturalSize] = useState({ width: 0, height: 0 });
 
 	// Camera-specific states
 	const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
@@ -99,6 +106,7 @@ export function SquareCropperModal({
 			setImageUrl('');
 			setCrop({ x: 0, y: 0, size: 0, scale: 1, rotation: 0 });
 			setProgress(0);
+			setImageNaturalSize({ width: 0, height: 0 });
 		}
 	}
 
@@ -309,6 +317,29 @@ export function SquareCropperModal({
 		});
 	};
 
+	const measureContainer = useCallback(() => {
+		const el = containerRef.current;
+		if (!el) return null;
+		const rect = el.getBoundingClientRect();
+		if (rect.width <= 0 || rect.height <= 0) return null;
+		return { width: rect.width, height: rect.height };
+	}, []);
+
+	const assignContainer = useCallback((el: HTMLDivElement | null) => {
+		containerRef.current = el;
+		if (!el || imageNaturalSize.width <= 0) return;
+		const rect = el.getBoundingClientRect();
+		if (rect.width <= 0 || rect.height <= 0) return;
+		const square = initialCenteredSquareCrop(
+			containedLayout({ width: rect.width, height: rect.height }, imageNaturalSize)
+		);
+		queueMicrotask(() => {
+			setCrop((prev) =>
+				prev.size > 0 ? prev : { ...prev, ...square, scale: 1 }
+			);
+		});
+	}, [imageNaturalSize]);
+
 	const handleFileSelect = async (selectedFile: File, existingDataUrl?: string) => {
 		// Validate file type
 		if (!acceptedTypes.includes(selectedFile.type)) {
@@ -342,29 +373,17 @@ export function SquareCropperModal({
 			setImageUrl(url);
 			setProgress(30);
 
-			// Wait for image to load to calculate initial crop
 			const img = new Image();
 			img.onload = () => {
-				const containerWidth = 400; // Fixed container width
-				const containerHeight = 400; // Fixed container height
-				
-				// Calculate scale to fit image in container
-				const scaleX = containerWidth / img.naturalWidth;
-				const scaleY = containerHeight / img.naturalHeight;
-				const initialScale = Math.min(scaleX, scaleY);
-				
-				// Calculate crop size (square that fits in the image)
-				const maxCropSize = Math.min(img.naturalWidth, img.naturalHeight) * initialScale;
-				
-				// Center the crop
-				const x = (containerWidth - maxCropSize) / 2;
-				const y = (containerHeight - maxCropSize) / 2;
-
+				setImageNaturalSize({
+					width: img.naturalWidth,
+					height: img.naturalHeight,
+				});
 				setCrop({
-					x,
-					y,
-					size: maxCropSize,
-					scale: initialScale,
+					x: 0,
+					y: 0,
+					size: 0,
+					scale: 1,
 					rotation: exifRotation,
 				});
 				setProgress(100);
@@ -413,17 +432,23 @@ export function SquareCropperModal({
 	};
 
 	const handleMouseMove = useCallback((e: MouseEvent) => {
-		if (!isDragging || !containerRef.current) return;
+		if (!isDragging || !containerRef.current || imageNaturalSize.width <= 0) return;
 
-		const deltaX = e.clientX - dragStart.x;
-		const deltaY = e.clientY - dragStart.y;
-		const containerRect = containerRef.current.getBoundingClientRect();
-		
-		const newX = Math.max(0, Math.min(dragStart.cropX + deltaX, containerRect.width - crop.size));
-		const newY = Math.max(0, Math.min(dragStart.cropY + deltaY, containerRect.height - crop.size));
+		const rect = containerRef.current.getBoundingClientRect();
+		const container = { width: rect.width, height: rect.height };
+		const next = clampCropToVisibleImage(
+			{
+				x: dragStart.cropX + (e.clientX - dragStart.x),
+				y: dragStart.cropY + (e.clientY - dragStart.y),
+				size: crop.size,
+			},
+			container,
+			imageNaturalSize,
+			crop.scale
+		);
 
-		setCrop(prev => ({ ...prev, x: newX, y: newY }));
-	}, [isDragging, dragStart, crop.size]);
+		setCrop((prev) => ({ ...prev, x: next.x, y: next.y }));
+	}, [isDragging, dragStart, crop.size, crop.scale, imageNaturalSize]);
 
 	const handleMouseUp = useCallback(() => {
 		setIsDragging(false);
@@ -442,18 +467,29 @@ export function SquareCropperModal({
 	}, [isDragging, handleMouseMove, handleMouseUp]);
 
 	// Zoom handlers
+	const applyUserScale = (nextScale: number) => {
+		const container = measureContainer();
+		setCrop((prev) => {
+			const scale = Math.min(3, Math.max(1, nextScale));
+			if (!container || imageNaturalSize.width <= 0) {
+				return { ...prev, scale };
+			}
+			const clamped = clampCropToVisibleImage(
+				{ x: prev.x, y: prev.y, size: prev.size },
+				container,
+				imageNaturalSize,
+				scale
+			);
+			return { ...prev, ...clamped, scale };
+		});
+	};
+
 	const handleZoomIn = () => {
-		setCrop(prev => ({
-			...prev,
-			scale: Math.min(prev.scale * 1.2, 3),
-		}));
+		applyUserScale(crop.scale * 1.2);
 	};
 
 	const handleZoomOut = () => {
-		setCrop(prev => ({
-			...prev,
-			scale: Math.max(prev.scale / 1.2, 0.1),
-		}));
+		applyUserScale(crop.scale / 1.2);
 	};
 
 	// Rotate handler
@@ -467,22 +503,39 @@ export function SquareCropperModal({
 	// Keyboard handlers for accessibility
 	const handleKeyDown = (e: React.KeyboardEvent) => {
 		const step = 5;
+		const container = measureContainer();
+		const move = (dx: number, dy: number) => {
+			setCrop((prev) => {
+				if (!container || imageNaturalSize.width <= 0) {
+					return { ...prev, x: prev.x + dx, y: prev.y + dy };
+				}
+				return {
+					...prev,
+					...clampCropToVisibleImage(
+						{ x: prev.x + dx, y: prev.y + dy, size: prev.size },
+						container,
+						imageNaturalSize,
+						prev.scale
+					),
+				};
+			});
+		};
 		switch (e.key) {
 			case 'ArrowLeft':
 				e.preventDefault();
-				setCrop(prev => ({ ...prev, x: Math.max(0, prev.x - step) }));
+				move(-step, 0);
 				break;
 			case 'ArrowRight':
 				e.preventDefault();
-				setCrop(prev => ({ ...prev, x: Math.min(400 - prev.size, prev.x + step) }));
+				move(step, 0);
 				break;
 			case 'ArrowUp':
 				e.preventDefault();
-				setCrop(prev => ({ ...prev, y: Math.max(0, prev.y - step) }));
+				move(0, -step);
 				break;
 			case 'ArrowDown':
 				e.preventDefault();
-				setCrop(prev => ({ ...prev, y: Math.min(400 - prev.size, prev.y + step) }));
+				move(0, step);
 				break;
 			case '+':
 			case '=':
@@ -516,35 +569,27 @@ export function SquareCropperModal({
 		canvas.width = outputSize;
 		canvas.height = outputSize;
 
-		// Save context
 		ctx.save();
 
-		// Apply rotation
-		if (crop.rotation !== 0) {
-			ctx.translate(outputSize / 2, outputSize / 2);
-			ctx.rotate((crop.rotation * Math.PI) / 180);
-			ctx.translate(-outputSize / 2, -outputSize / 2);
+		const container = measureContainer();
+		if (!container) {
+			throw new Error('Crop container not available');
 		}
 
-		// Calculate source coordinates
-		const sourceSize = crop.size / crop.scale;
-		const sourceX = crop.x / crop.scale;
-		const sourceY = crop.y / crop.scale;
+		const imageSize = {
+			width: img.naturalWidth || imageNaturalSize.width,
+			height: img.naturalHeight || imageNaturalSize.height,
+		};
 
-		// Draw cropped image
-		ctx.drawImage(
-			img,
-			sourceX,
-			sourceY,
-			sourceSize,
-			sourceSize,
-			0,
-			0,
+		drawPreviewCrop(ctx, img, {
+			crop: { x: crop.x, y: crop.y, size: crop.size },
+			container,
+			imageSize,
+			userScale: crop.scale,
+			rotationDeg: crop.rotation,
 			outputSize,
-			outputSize
-		);
+		});
 
-		// Restore context
 		ctx.restore();
 
 		// Convert to blob (prefer WebP, fallback to JPEG)
@@ -609,6 +654,7 @@ export function SquareCropperModal({
 		setImageUrl('');
 		setCrop({ x: 0, y: 0, size: 0, scale: 1, rotation: 0 });
 		setProgress(0);
+		setImageNaturalSize({ width: 0, height: 0 });
 		
 		// Restart camera if on camera tab
 		if (activeTab === 'camera' && selectedDeviceId) {
@@ -623,6 +669,7 @@ export function SquareCropperModal({
 		setImageUrl('');
 		setCrop({ x: 0, y: 0, size: 0, scale: 1, rotation: 0 });
 		setProgress(0);
+		setImageNaturalSize({ width: 0, height: 0 });
 	};
 
 	return (
@@ -752,7 +799,7 @@ export function SquareCropperModal({
 					<div className="space-y-4">
 						{/* Crop area */}
 						<div
-							ref={containerRef}
+							ref={assignContainer}
 							className="relative w-full h-96 bg-black rounded-lg overflow-hidden"
 							tabIndex={0}
 							onKeyDown={handleKeyDown}
@@ -803,7 +850,7 @@ export function SquareCropperModal({
 								variant="outline"
 								size="sm"
 								onClick={handleZoomOut}
-								disabled={crop.scale <= 0.1}
+								disabled={crop.scale <= 1}
 								aria-label="Zoom out"
 							>
 								<ZoomOut className="h-4 w-4" />
@@ -853,7 +900,7 @@ export function SquareCropperModal({
 					</Button>
 					<Button 
 						onClick={handleSave} 
-						disabled={!file || progress < 100 || isSaving}
+						disabled={!file || progress < 100 || crop.size <= 0 || isSaving}
 						aria-label="Save cropped image"
 					>
 						{isSaving ? (
