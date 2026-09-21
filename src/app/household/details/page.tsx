@@ -1,15 +1,20 @@
 'use client';
 
 import { HouseholdProfile } from '@/components/gatherKids/household-profile';
-import { GuardianHomeGatherSystem } from '@/components/gatherKids/guardian-home-gathersystem';
-import { useGuardianShell } from '@/components/gatherKids/guardian-shell-context';
 import { useGuardianHouseholdProfile } from '@/hooks/use-guardian-household-profile';
 import { GuardianSkeleton } from '@/components/skeletons/guardian-skeleton';
 import { isOfflineSupabase } from '@/lib/offline-supabase';
 
-export default function GuardianHouseholdPage() {
-	// Published by the household layout, which resolved the flag on the server.
-	const useGatherSystemGuardian = useGuardianShell();
+/**
+ * The household record — guardians, address, emergency contact, per-child
+ * detail — which is what `/household` shows today.
+ *
+ * It gets its own route because the GatherSystem home takes `/household`, and
+ * the record has to stay reachable: the shell's `Household` tab points here.
+ * Deliberately the same `HouseholdProfile` component, unmodified, so the flag
+ * moves the screen without changing it. Restyling this screen is #378.
+ */
+export default function GuardianHouseholdDetailsPage() {
 	const { profileData, isLoading, error } = useGuardianHouseholdProfile();
 
 	if (isOfflineSupabase()) {
@@ -35,13 +40,6 @@ export default function GuardianHouseholdPage() {
 	}
 
 	if (isLoading || !profileData) return <GuardianSkeleton />;
-
-	// Flag on, this route is the GatherSystem home and the household record it
-	// used to show moves to `/household/details`, which the shell links as
-	// `Household`. Flag off, nothing about this route changes.
-	if (useGatherSystemGuardian) {
-		return <GuardianHomeGatherSystem profileData={profileData} />;
-	}
 
 	return (
 		<div>

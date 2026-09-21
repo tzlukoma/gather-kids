@@ -3,6 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
   getAttendanceForDate, 
+  getAttendanceForChildrenOnDate,
   getIncidentsForDate,
   getIncidentsForUser,
   acknowledgeIncident,
@@ -18,6 +19,22 @@ export function useAttendance(date: string, eventId?: string) {
     queryKey: queryKeys.attendance(date, eventId),
     queryFn: () => getAttendanceForDate(date),
     enabled: !!date,
+    ...cacheConfig.volatile, // Attendance changes frequently
+  });
+}
+
+/**
+ * Attendance for this household's own children on one date.
+ *
+ * Scoped deliberately: see `getAttendanceForChildrenOnDate`. Disabled until
+ * there is at least one child id, so the guardian home does not fire a query
+ * while its household profile is still loading.
+ */
+export function useAttendanceForChildren(date: string, childIds: string[]) {
+  return useQuery({
+    queryKey: queryKeys.attendanceForChildren(date, childIds),
+    queryFn: () => getAttendanceForChildrenOnDate(childIds, date),
+    enabled: !!date && childIds.length > 0,
     ...cacheConfig.volatile, // Attendance changes frequently
   });
 }

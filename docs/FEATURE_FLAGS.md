@@ -51,7 +51,7 @@ Defaults in call sites should keep **legacy UI on** (`getBoolean(key, false)` �
 | Key | Intent | Prerequisite before enabling |
 |-----|--------|------------------------------|
 | `gathersystem_door` | New door / check-in GatherSystem surface | **#432 and #385 must both land first.** The flag can resolve true without a session, and the surface cannot check a child out. See below. |
-| `gathersystem_guardian` | Guardian household GatherSystem UX | — |
+| `gathersystem_guardian` | Guardian household shell + home | — for the shell and home. The Bible Bee scripture and essay screens are a separate key. See below. |
 | `gathersystem_bible_bee_household` | Bible Bee household GatherSystem path | — |
 | `gathersystem_registration` | Guardian registration wizard GatherSystem UI | **#389 must close first.** Do not broaden this key until then. |
 | `gathersystem_admin` | Staff shell (grouped nav) + admin overview GatherSystem UI | — |
@@ -111,6 +111,31 @@ meet a GatherSystem `/onboarding` immediately after a legacy `/login`, because
 the two sides of that journey are gated differently. That is a cosmetic
 inconsistency rather than a fault, but it is the reason #379 shipped partially
 rather than waiting.
+
+#### `gathersystem_guardian` — shell and home only
+
+**This key covers the `/household` shell and the guardian home, and nothing
+else.** Off, `/household` is the legacy household profile inside the legacy
+sidebar and nothing about the section changes. On, `/household` is the
+GatherSystem home (greeting, Bible Bee summary, children with their on-site
+state) and the household record it used to show moves to `/household/details`,
+which the shell links as `Household`. Nothing a guardian can reach today becomes
+unreachable on either side of the flag.
+
+`/household` is behind the guardian session guard, so the flag is always
+evaluated with a real user id and a percentage rollout buckets per user in the
+ordinary way. There is no prerequisite; it is safe to raise.
+
+**It is not the Bible Bee household key.** The scripture list and the essay
+screens are `gathersystem_bible_bee_household` and are still legacy. Raising
+this key alone gives a GatherSystem home whose `Open scripture list` lands on
+the legacy scripture screen — deliberate, and the reason the two are separate
+keys — but worth knowing before a UAT walkthrough.
+
+The home's on-site pills read attendance **scoped to the household's own
+children** (`getAttendanceForChildrenOnDate`). Attendance carries no RLS, so the
+scope of the query is the scope of what reaches the browser; do not replace that
+call with `getAttendanceForDate`.
 
 #### `gathersystem_incidents` — trusted role claims
 
@@ -243,6 +268,12 @@ With the dev server booted as above and local data seeded (`npm run dev:seeded`)
 npm run screens:capture -- --routes /check-in --role admin \
   --widths 375,1280 --expect-text "Not checked in" --label door
 ```
+
+`--role guardian` signs in as the seeded Johnson Family household (#446) and
+links the auth user to it, so guardian captures land on `/household` instead of
+being redirected to `/register`. That household needs a registration row for the
+active cycle; without one the redirect fires and `--expect-text` fails the run
+rather than saving the wizard.
 
 Local only — it refuses production and UAT with no opt-in. `--expect-text`
 asserts a marker unique to the flag-gated UI and **fails instead of saving** when

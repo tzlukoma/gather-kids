@@ -13,6 +13,11 @@ export const queryKeys = {
   // Event-scoped attendance for granular invalidation
   attendance: (date: string, eventId?: string) =>
     eventId ? ['attendance', date, eventId] : ['attendance', date],
+  // Household-scoped attendance. The child ids are sorted into the key so the
+  // same household hits the same cache entry whatever order the profile
+  // returned its children in.
+  attendanceForChildren: (date: string, childIds: string[]) =>
+    ['attendance', date, 'children', [...childIds].sort().join(',')],
   incidents: (date: string, eventId?: string) =>
     eventId ? ['incidents', date, eventId] : ['incidents', date],
   incidentsForUser: (userId: string | undefined) => ['incidents', 'user', userId] as const,

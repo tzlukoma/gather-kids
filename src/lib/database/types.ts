@@ -58,6 +58,13 @@ export interface RegistrationFilters extends BaseFilters {
 
 export interface AttendanceFilters extends BaseFilters {
 	childId?: string;
+	/**
+	 * Restrict the read to a known set of children. Lets a caller that is only
+	 * entitled to some children — a guardian looking at their own household —
+	 * scope the query instead of fetching the whole day and filtering in the
+	 * browser. An empty array means "no children", not "all of them".
+	 */
+	childIds?: string[];
 	eventId?: string;
 	date?: string;
 }
