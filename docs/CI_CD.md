@@ -218,7 +218,7 @@ Production flag flips are Thomas-only. Do not put email, names, or child identif
 1. GitHub → **Actions** → **UAT DB deploy** → **Run workflow**
 2. Optional: `dry_run: true` lists pending migrations without applying
 3. Uses GitHub Environment **`uat`** secrets
-4. Applies migrations via `scripts/db/apply_migrations_cli.sh`, runs FK checks, uploads schema snapshot artifact
+4. Applies migrations via `scripts/db/apply_migrations_cli.sh`, runs FK checks, uploads schema snapshot artifact. `check_fks.sh` treats `leader_assignments.leader_id` as a `leader_profiles` reference, not `users`.
 5. Job summary logs latest numeric version from `supabase_migrations.schema_migrations`
 
 **No auto-commit** of generated types.

@@ -30,11 +30,13 @@ fi
 failed=0
 
 # Define checks as: child_table child_col parent_table parent_col
+# leader_assignments.leader_id is leader_profiles.leader_id, not users.user_id
+# (ministry memberships are stored in leader_assignments; see supabase-adapter).
 checks=(
   "registrations child_id children child_id"
   "ministry_enrollments child_id children child_id"
   "ministry_enrollments ministry_id ministries ministry_id"
-  "leader_assignments leader_id users user_id"
+  "leader_assignments leader_id leader_profiles leader_id"
   "leader_assignments ministry_id ministries ministry_id"
   "emergency_contacts household_id_uuid households household_id"
   "student_scriptures scripture_id scriptures id"
@@ -72,7 +74,7 @@ for entry in "${checks[@]}"; do
   cnt=$(${psql_base[@]} "SELECT count(*) FROM ${child_tbl} t LEFT JOIN ${parent_tbl} p ON t.${effective_child_col} = p.${parent_col} WHERE t.${effective_child_col} IS NOT NULL AND p.${parent_col} IS NULL;") || true
 
   # If previous query failed due to type mismatch, retry using text cast on both sides
-  if [[ -z \"$cnt\" ]]; then
+  if [[ -z "${cnt}" ]]; then
     cnt=$(${psql_base[@]} "SELECT count(*) FROM ${child_tbl} t LEFT JOIN ${parent_tbl} p ON t.${effective_child_col}::text = p.${parent_col}::text WHERE t.${effective_child_col} IS NOT NULL AND p.${parent_col} IS NULL;") || true
   fi
 
