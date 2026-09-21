@@ -360,3 +360,34 @@ export function selectableForCheckIn<T extends DoorRosterEntry>(
 	const selected = new Set(selectedChildIds);
 	return roster.filter((entry) => selected.has(entry.child_id) && !isOnSite(entry));
 }
+
+/**
+ * The query string to write for a given door screen state.
+ *
+ * Both parameters are always written together. Writing one alone drops the
+ * other on the next read, which is how a hand-picked tab silently resets when
+ * the event changes — the defect this exists to prevent. Anything else already
+ * in the query (a deep link's own parameters) is preserved.
+ *
+ * `all` is omitted rather than spelled out, matching `toDoorFilterParam`: a URL
+ * should not carry a parameter that changes nothing.
+ *
+ * Returns the query alone, without a leading `?`, so the caller decides what to
+ * do when it is empty.
+ */
+export function buildDoorQuery(
+	currentSearch: string,
+	next: { status: DoorStatusFilter; event: string }
+): string {
+	const params = new URLSearchParams(currentSearch);
+
+	const filterParam = toDoorFilterParam(next.status);
+	if (filterParam === null) {
+		params.delete('filter');
+	} else {
+		params.set('filter', filterParam);
+	}
+	params.set('event', next.event);
+
+	return params.toString();
+}
