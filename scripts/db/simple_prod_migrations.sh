@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Quarantined remote schema mutation. The remainder of this file does not run.
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/refuse_quarantined_mutation.sh"
 # This is a simplified script for production migrations that only uses core Supabase CLI features
 # It avoids any flags that might not be supported in all Supabase CLI versions
 

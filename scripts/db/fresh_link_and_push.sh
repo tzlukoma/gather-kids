@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Quarantined remote schema mutation. The remainder of this file does not run.
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/refuse_quarantined_mutation.sh"
 # This script does a clean setup for linking and pushing to a Supabase project
 # It creates a completely fresh temp directory and avoids any cached state
 

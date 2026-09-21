@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Quarantined remote schema mutation. The remainder of this file does not run.
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/refuse_quarantined_mutation.sh"
 # This script fixes migration issues by safely applying UUID to text conversions
 
 set -euo pipefail

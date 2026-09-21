@@ -213,10 +213,10 @@ npm run genkit:watch # Start Genkit with file watching
 
 Quick helpers added for UAT and migration validation:
 
-- `scripts/db/snapshot_uat.sh` - create a pg_dump snapshot of a target DATABASE_URL
+- `scripts/db/snapshot_uat.sh` - create a pg_dump snapshot of a target DATABASE_URL (read-only)
 - `scripts/test/uat_smoke.sh` - small curl-based smoke checks (assumes app running)
 - `scripts/db/check_fks.sh` - FK integrity checker used by CI
-- `.github/workflows/uat-db-check.yml` - manual workflow to apply `supabase/migrations` and run FK checks against UAT (trigger via GitHub Actions > Workflows)
+- Remote schema apply is **UAT DB deploy** / **Production DB deploy** only (`supabase db push`). See [docs/CI_CD.md](docs/CI_CD.md).
 
 See `docs/PROD_PROMOTION_RUNBOOK.md` for the promotion runbook.
 
@@ -271,7 +271,7 @@ Runtime storage is **Supabase (PostgreSQL)** in every environment. The factory a
 
 ### Database Schema
 
-The database schema is managed as raw PostgreSQL SQL migrations stored in `supabase/migrations/`. Use the Supabase CLI or the repo helper scripts to apply migrations and generate TypeScript types.
+The database schema is managed as raw PostgreSQL SQL migrations stored in `supabase/migrations/`. Apply them locally with `supabase db push`. UAT and production go through the GitHub DB deploy workflows only. See [docs/CI_CD.md](docs/CI_CD.md).
 
 Run `npm run gen:types` to generate TypeScript types from the Supabase schema.
 
@@ -305,11 +305,9 @@ All data access goes through the DAL (`@/lib/dal`) and `dbAdapter`. Do not impor
 The application uses **raw SQL migrations** stored in `supabase/migrations/` for database schema management:
 
 ```bash
-# Apply migrations locally (requires database connection)
-scripts/db/apply_migrations_safe.sh "$DATABASE_URL"
-
-# List unapplied migrations
-scripts/db/list_unapplied_migrations.sh "$DATABASE_URL"
+# Local disposable database only
+supabase start
+supabase db push
 
 # Generate TypeScript types from schema
 npm run gen:types
@@ -317,9 +315,11 @@ npm run gen:types
 
 #### Migration Strategy
 
-1. **Development**: Create and test SQL migrations locally
-2. **UAT**: Auto-deploy via GitHub Actions on push to `uat` branch
-3. **Production**: Manual deployment via GitHub Actions with approval
+1. **Development**: Create and test SQL migrations on a local disposable database
+2. **UAT**: After merge, run **UAT DB deploy** (`supabase db push`)
+3. **Production**: Run **Production DB deploy** after approval (`supabase db push`)
+
+`scripts/db/apply_migrations_safe.sh` is quarantined. It does not update `supabase_migrations.schema_migrations`.
 
 #### Environment-Specific Development
 

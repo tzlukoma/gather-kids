@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Quarantined remote schema mutation. The remainder of this file does not run.
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/refuse_quarantined_mutation.sh"
 # This script creates a simplified table setup SQL file that contains only the essential tables
 # and foreign key relationships. It focuses on the tables that aren't being created properly.
 

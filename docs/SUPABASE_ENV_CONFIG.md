@@ -199,35 +199,23 @@ When deploying to Vercel, configure environment variables in the Vercel project 
 
 ### Running Migrations in Different Environments
 
-Migrations are raw SQL files in `supabase/migrations/`. Use the Supabase CLI or repository helper scripts to apply them.
+Migrations are raw SQL files in `supabase/migrations/`. The only remote apply path is `supabase db push` from **UAT DB deploy** and **Production DB deploy**. See [docs/CI_CD.md](./CI_CD.md).
 
 ```bash
 # Development (create a new timestamped SQL migration)
 supabase migration new "<change_name>"
 
-# Apply migrations to local or remote DB
-supabase migration up
-
-# For CI or non-interactive deploys, ensure DATABASE_URL is set and use the repo scripts that apply migrations
-scripts/db/apply_migrations_safe.sh "$DATABASE_URL"
+# Apply to a local disposable database
+supabase db push
 ```
 
-For CI/CD pipelines, run `supabase migration up` (or the repo helper script) against the target `DATABASE_URL`.
+`scripts/db/apply_migrations_safe.sh` is quarantined. Do not point it at UAT or production.
 
 ### Safe Migration Process
 
-Follow this process for safe database migrations:
-
-1. Develop and test migrations locally
-2. Apply migrations to development environment
-3. Apply migrations to UAT/preview environment and test
-4. Apply migrations to production using the `scripts/db/apply_migrations_safe.sh` script
-
-Example usage:
-
-```bash
-bash scripts/db/apply_migrations_safe.sh "$PROD_DATABASE_URL"
-```
+1. Develop and test migrations on a local disposable database
+2. Merge, then run **UAT DB deploy**
+3. After UAT checks out, run **Production DB deploy** (approval required)
 
 ## Row Level Security (RLS) and Policies
 

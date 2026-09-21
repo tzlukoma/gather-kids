@@ -40,7 +40,7 @@ Copy into the PR (also in [`.github/PULL_REQUEST_TEMPLATE.md`](../../../.github/
 - [ ] Relevant unit, integration or E2E coverage added or updated
 - [ ] UI screenshots or recordings attached, or marked not applicable
 - [ ] Accessibility and responsive behaviour checked where applicable
-- [ ] Schema/migration impact documented, or marked none
+- [ ] Schema/migration impact documented, or marked none (`Schema change: documented` when `supabase/migrations/` changes; `Schema change: none` otherwise)
 - [ ] Generated Supabase types updated or verified where applicable
 - [ ] Auth, RLS, role, household and ministry-scope impact documented
 - [ ] Secrets and sensitive child/guardian data reviewed

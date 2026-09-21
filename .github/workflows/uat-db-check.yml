@@ -1,25 +1,19 @@
-name: UAT DB checks
+name: UAT DB checks (quarantined)
+
+# Quarantined by #506. This workflow used to apply migrations with
+# scripts/db/apply_migrations_safe.sh, which writes public.schema_migration_ledger
+# instead of supabase_migrations.schema_migrations. Do not restore it as a
+# deploy path. See docs/CI_CD.md.
 
 on:
   workflow_dispatch:
 
 jobs:
-  apply-migrations-and-check:
+  quarantined:
+    name: quarantined
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
     steps:
-      - uses: actions/checkout@v4
-      - name: Install psql
-        run: sudo apt-get update && sudo apt-get install -y postgresql-client
-      - name: Apply migrations (safe runner)
-        env:
-          DATABASE_URL: ${{ secrets.UAT_DATABASE_URL }}
+      - name: Refuse legacy schema apply
         run: |
-          chmod +x scripts/db/apply_migrations_safe.sh
-          ./scripts/db/apply_migrations_safe.sh "$DATABASE_URL"
-      - name: Run FK checks
-        env:
-          DATABASE_URL: ${{ secrets.UAT_DATABASE_URL }}
-        run: |
-          bash scripts/db/check_fks.sh "$DATABASE_URL"
+          echo "::error::uat-db-check is quarantined. Apply UAT schema with UAT DB deploy (supabase db push). See docs/CI_CD.md."
+          exit 1

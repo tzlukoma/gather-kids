@@ -257,20 +257,18 @@ For full local development with Supabase CLI:
 
 #### Development
 
-- [ ] Create and test migrations locally
-- [ ] Use `scripts/db/apply_migrations_safe.sh` for local testing
+- [ ] Create and test migrations on a local disposable database (`supabase db push`)
 
-#### UAT Deployment (Automatic)
+#### UAT
 
-- [ ] Push changes to `uat` branch
-- [ ] GitHub Actions automatically applies migrations
-- [ ] Monitor workflow logs for any issues
+- [ ] After merge, run **UAT DB deploy** (manual `workflow_dispatch`, `supabase db push`)
+- [ ] There is no `uat` git branch and no automatic schema apply on push
 
-#### Production Deployment (Manual)
+#### Production
 
-- [ ] Trigger production workflow manually via GitHub Actions
+- [ ] Run **Production DB deploy** via GitHub Actions
 - [ ] Require approval from designated reviewers
-- [ ] Monitor application after migration completion
+- [ ] Do not use `scripts/db/apply_migrations_safe.sh`
 
 ### 5.3 Migration Safety
 

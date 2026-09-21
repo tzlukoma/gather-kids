@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Quarantined remote schema mutation. The remainder of this file does not run.
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/refuse_quarantined_mutation.sh"
 # This script directly creates all required tables in your Supabase production database
 # Use when migrations aren't creating all expected tables
 

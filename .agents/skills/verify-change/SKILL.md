@@ -63,7 +63,7 @@ If local Playwright cannot run (missing Docker/Supabase/browsers), say so in the
 
 Do not try to reproduce the full `db-fk` job unless you have a local Postgres 15 matching CI. CI will:
 
-1. Apply `supabase/migrations/*.sql` to ephemeral Postgres 15.
+1. Apply `supabase/migrations/*.sql` to ephemeral Postgres 15 with `ON_ERROR_STOP=1` (a SQL error fails the job).
 2. Run `scripts/db/check_fks.sh`.
 3. Run `scripts/db/check_types_sync.sh`.
 

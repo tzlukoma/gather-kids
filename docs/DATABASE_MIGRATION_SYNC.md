@@ -47,25 +47,7 @@ A new migration file (`0023_add_missing_tables.sql`) has been created to add the
 
 ## How to Apply the Migration
 
-### Development Environment
-
-```bash
-supabase migration apply --project-ref your-dev-project
-```
-
-### UAT Environment
-
-```bash
-supabase migration apply --project-ref your-uat-project
-```
-
-### Production Environment
-
-Using the safe migration script:
-
-```bash
-bash scripts/db/apply_migrations_safe.sh "$PROD_DATABASE_URL"
-```
+Remote apply is **UAT DB deploy** and **Production DB deploy** (`supabase db push` only). See [docs/CI_CD.md](./CI_CD.md). `scripts/db/apply_migrations_safe.sh` is quarantined and must not be used.
 
 ## Verification
 
