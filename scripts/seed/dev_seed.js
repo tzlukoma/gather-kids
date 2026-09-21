@@ -15,6 +15,7 @@ import path from 'path';
 import { createClient } from '@supabase/supabase-js';
 import { fileURLToPath } from 'url';
 import crypto from 'crypto';
+import { devSeedUuid } from '../lib/dev-seed-ids.mjs';
 
 // ES module equivalent of __dirname
 const __filename = fileURLToPath(import.meta.url);
@@ -24,6 +25,11 @@ const __dirname = path.dirname(__filename);
 const projectRoot = path.resolve(__dirname, '../..');
 const DRY_RUN = process.env.DRY_RUN === 'true';
 const EXTERNAL_ID_PREFIX = 'dev_';
+
+// The two seeded households, named once so every row that belongs to one can
+// derive a stable id from the same string.
+const SMITH_HOUSEHOLD = 'Smith Family';
+const JOHNSON_HOUSEHOLD = 'Johnson Family';
 
 // Supabase client setup
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -101,6 +107,47 @@ const counters = {
 	leader_profiles: 0,
 	leader_assignments: 0,
 };
+
+/**
+ * Insert a fixture row unless it is already there.
+ *
+ * Households used to be "guarded" by looking up a `crypto.randomUUID()`
+ * generated microseconds earlier, which no database could ever have seen, so
+ * the guard always fell through to the insert. Guardians, emergency contacts,
+ * children and incidents had no guard at all. Every run added another copy of
+ * the same four children.
+ *
+ * Fixture ids are now derived from the row's natural key
+ * (`scripts/lib/dev-seed-ids.mjs`), so asking whether the id is present is a
+ * real question. Logging matches `createEventsData`, which has always done
+ * this correctly.
+ *
+ * @returns {Promise<boolean>} true when this run created the row.
+ */
+async function insertFixtureIfAbsent({ table, idColumn, row, label, counter }) {
+	const { data: existing } = await client
+		.from(table)
+		.select(idColumn)
+		.eq(idColumn, row[idColumn])
+		.single();
+
+	if (existing) {
+		console.log(`✅ ${label} already exists`);
+		return false;
+	}
+
+	const { error } = await client.from(table).insert(row).select().single();
+
+	if (error) {
+		throw new Error(`Failed to create ${label}: ${error.message}`);
+	}
+
+	console.log(`✅ Created ${label}`);
+	if (counter) {
+		counters[counter]++;
+	}
+	return true;
+}
 
 // Helper function to convert ministry name to email
 function ministryNameToEmail(ministryName) {
@@ -624,8 +671,8 @@ async function createHouseholdsAndFamiliesData() {
 		// Create households using database schema format
 		const householdsData = [
 			{
-				household_id: crypto.randomUUID(),
-				name: 'Smith Family',
+				household_id: devSeedUuid('household', SMITH_HOUSEHOLD),
+				name: SMITH_HOUSEHOLD,
 				address_line1: '123 Main St',
 				city: 'Anytown',
 				state: 'NJ',
@@ -635,8 +682,8 @@ async function createHouseholdsAndFamiliesData() {
 				created_at: new Date().toISOString(),
 			},
 			{
-				household_id: crypto.randomUUID(),
-				name: 'Johnson Family',
+				household_id: devSeedUuid('household', JOHNSON_HOUSEHOLD),
+				name: JOHNSON_HOUSEHOLD,
 				address_line1: '456 Oak Ave',
 				city: 'Anytown',
 				state: 'NJ',
@@ -647,46 +694,27 @@ async function createHouseholdsAndFamiliesData() {
 			},
 		];
 
-		const householdIds = [];
-
 		for (const householdData of householdsData) {
-			try {
-				// Check if household already exists
-				const { data: existing } = await client
-					.from('households')
-					.select('household_id')
-					.eq('household_id', householdData.household_id)
-					.single();
-
-				if (existing) {
-					console.log(`✅ Household already exists: ${householdData.name}`);
-					householdIds.push(existing.household_id);
-				} else {
-					const { data, error } = await client
-						.from('households')
-						.insert(householdData)
-						.select()
-						.single();
-
-					if (error) {
-						throw new Error(`Failed to create household: ${error.message}`);
-					}
-
-					console.log(`✅ Created household: ${householdData.name}`);
-					householdIds.push(data.household_id);
-					counters.households++;
-				}
-			} catch (error) {
-				throw new Error(
-					`Failed to create household ${householdData.name}: ${error.message}`
-				);
-			}
+			await insertFixtureIfAbsent({
+				table: 'households',
+				idColumn: 'household_id',
+				row: householdData,
+				label: `Household: ${householdData.name}`,
+				counter: 'households',
+			});
 		}
+
+		// Stable by construction now, rather than whatever the inserts returned.
+		const householdIds = householdsData.map((h) => h.household_id);
 
 		// Create emergency contacts
 		const emergencyContactsData = [
 			{
-				contact_id: crypto.randomUUID(),
+				contact_id: devSeedUuid(
+					'emergency_contact',
+					SMITH_HOUSEHOLD,
+					'Emergency Contact1'
+				),
 				household_id: householdIds[0],
 				first_name: 'Emergency',
 				last_name: 'Contact1',
@@ -695,7 +723,11 @@ async function createHouseholdsAndFamiliesData() {
 				created_at: new Date().toISOString(),
 			},
 			{
-				contact_id: crypto.randomUUID(),
+				contact_id: devSeedUuid(
+					'emergency_contact',
+					JOHNSON_HOUSEHOLD,
+					'Emergency Contact2'
+				),
 				household_id: householdIds[1],
 				first_name: 'Emergency',
 				last_name: 'Contact2',
@@ -706,34 +738,19 @@ async function createHouseholdsAndFamiliesData() {
 		];
 
 		for (const contactData of emergencyContactsData) {
-			try {
-				const { data, error } = await client
-					.from('emergency_contacts')
-					.insert(contactData)
-					.select()
-					.single();
-
-				if (error) {
-					throw new Error(
-						`Failed to create emergency contact: ${error.message}`
-					);
-				}
-
-				console.log(
-					`✅ Created emergency contact: ${contactData.first_name} ${contactData.last_name}`
-				);
-				counters.emergency_contacts++;
-			} catch (error) {
-				throw new Error(
-					`Failed to create emergency contact ${contactData.first_name} ${contactData.last_name}: ${error.message}`
-				);
-			}
+			await insertFixtureIfAbsent({
+				table: 'emergency_contacts',
+				idColumn: 'contact_id',
+				row: contactData,
+				label: `Emergency contact: ${contactData.first_name} ${contactData.last_name}`,
+				counter: 'emergency_contacts',
+			});
 		}
 
 		// Create guardians
 		const guardiansData = [
 			{
-				guardian_id: crypto.randomUUID(),
+				guardian_id: devSeedUuid('guardian', 'john.smith@example.com'),
 				household_id: householdIds[0],
 				first_name: 'John',
 				last_name: 'Smith',
@@ -744,7 +761,7 @@ async function createHouseholdsAndFamiliesData() {
 				created_at: new Date().toISOString(),
 			},
 			{
-				guardian_id: crypto.randomUUID(),
+				guardian_id: devSeedUuid('guardian', 'jane.smith@example.com'),
 				household_id: householdIds[0],
 				first_name: 'Jane',
 				last_name: 'Smith',
@@ -755,7 +772,7 @@ async function createHouseholdsAndFamiliesData() {
 				created_at: new Date().toISOString(),
 			},
 			{
-				guardian_id: crypto.randomUUID(),
+				guardian_id: devSeedUuid('guardian', 'bob.johnson@example.com'),
 				household_id: householdIds[1],
 				first_name: 'Bob',
 				last_name: 'Johnson',
@@ -766,7 +783,7 @@ async function createHouseholdsAndFamiliesData() {
 				created_at: new Date().toISOString(),
 			},
 			{
-				guardian_id: crypto.randomUUID(),
+				guardian_id: devSeedUuid('guardian', 'mary.johnson@example.com'),
 				household_id: householdIds[1],
 				first_name: 'Mary',
 				last_name: 'Johnson',
@@ -779,33 +796,20 @@ async function createHouseholdsAndFamiliesData() {
 		];
 
 		for (const guardianData of guardiansData) {
-			try {
-				const { data, error } = await client
-					.from('guardians')
-					.insert(guardianData)
-					.select()
-					.single();
-
-				if (error) {
-					throw new Error(`Failed to create guardian: ${error.message}`);
-				}
-
-				console.log(
-					`✅ Created guardian: ${guardianData.first_name} ${guardianData.last_name}`
-				);
-				counters.guardians++;
-			} catch (error) {
-				throw new Error(
-					`Failed to create guardian ${guardianData.first_name} ${guardianData.last_name}: ${error.message}`
-				);
-			}
+			await insertFixtureIfAbsent({
+				table: 'guardians',
+				idColumn: 'guardian_id',
+				row: guardianData,
+				label: `Guardian: ${guardianData.first_name} ${guardianData.last_name}`,
+				counter: 'guardians',
+			});
 		}
 
 		// Create children
 		const childrenData = [
 			// Smith family children
 			{
-				child_id: crypto.randomUUID(),
+				child_id: devSeedUuid('child', SMITH_HOUSEHOLD, 'Emma', 'Smith'),
 				household_id: householdIds[0],
 				first_name: 'Emma',
 				last_name: 'Smith',
@@ -820,7 +824,7 @@ async function createHouseholdsAndFamiliesData() {
 				created_at: new Date().toISOString(),
 			},
 			{
-				child_id: crypto.randomUUID(),
+				child_id: devSeedUuid('child', SMITH_HOUSEHOLD, 'Liam', 'Smith'),
 				household_id: householdIds[0],
 				first_name: 'Liam',
 				last_name: 'Smith',
@@ -836,7 +840,7 @@ async function createHouseholdsAndFamiliesData() {
 			},
 			// Johnson family children
 			{
-				child_id: crypto.randomUUID(),
+				child_id: devSeedUuid('child', JOHNSON_HOUSEHOLD, 'Sophia', 'Johnson'),
 				household_id: householdIds[1],
 				first_name: 'Sophia',
 				last_name: 'Johnson',
@@ -851,7 +855,7 @@ async function createHouseholdsAndFamiliesData() {
 				created_at: new Date().toISOString(),
 			},
 			{
-				child_id: crypto.randomUUID(),
+				child_id: devSeedUuid('child', JOHNSON_HOUSEHOLD, 'Noah', 'Johnson'),
 				household_id: householdIds[1],
 				first_name: 'Noah',
 				last_name: 'Johnson',
@@ -868,26 +872,13 @@ async function createHouseholdsAndFamiliesData() {
 		];
 
 		for (const childData of childrenData) {
-			try {
-				const { data, error } = await client
-					.from('children')
-					.insert(childData)
-					.select()
-					.single();
-
-				if (error) {
-					throw new Error(`Failed to create child: ${error.message}`);
-				}
-
-				console.log(
-					`✅ Created child: ${childData.first_name} ${childData.last_name}`
-				);
-				counters.children++;
-			} catch (error) {
-				throw new Error(
-					`Failed to create child ${childData.first_name} ${childData.last_name}: ${error.message}`
-				);
-			}
+			await insertFixtureIfAbsent({
+				table: 'children',
+				idColumn: 'child_id',
+				row: childData,
+				label: `Child: ${childData.first_name} ${childData.last_name}`,
+				counter: 'children',
+			});
 		}
 
 		return householdIds;
@@ -1235,45 +1226,54 @@ async function createIncidentsData() {
 			return;
 		}
 
-		const incidentsData = [
+		// By first name, not by array position: the query above is unordered, so
+		// `children[0]` was whichever row the database happened to return first.
+		const childByName = Object.fromEntries(
+			children.map((child) => [child.first_name, child])
+		);
+
+		const incidentSpecs = [
 			{
-				incident_id: crypto.randomUUID(),
-				child_id: children[0].child_id,
-				child_name: `${children[0].first_name} ${children[0].last_name}`,
+				child: childByName.Emma,
 				severity: 'medium',
 				description: 'Minor behavioral issue during Sunday School',
 				timestamp: new Date().toISOString(),
-				admin_acknowledged_at: null, // Unacknowledged incident
 			},
 			{
-				incident_id: crypto.randomUUID(),
-				child_id: children[1].child_id,
-				child_name: `${children[1].first_name} ${children[1].last_name}`,
+				child: childByName.Liam,
 				severity: 'high',
-				description:
-					'Allergic reaction to snack - immediate attention required',
-				timestamp: new Date(Date.now() - 30 * 60 * 1000).toISOString(), // 30 minutes ago
-				admin_acknowledged_at: null, // Unacknowledged incident
+				description: 'Allergic reaction to snack - immediate attention required',
+				timestamp: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
 			},
 		];
 
-		for (const incidentData of incidentsData) {
+		for (const spec of incidentSpecs) {
+			if (!spec.child) {
+				console.log(`⚠️ Skipping incident, child not seeded: ${spec.description}`);
+				continue;
+			}
+
+			const childName = `${spec.child.first_name} ${spec.child.last_name}`;
+
 			try {
-				const { data, error } = await client
-					.from('incidents')
-					.insert(incidentData)
-					.select()
-					.single();
-
-				if (error) {
-					throw new Error(`Failed to create incident: ${error.message}`);
-				}
-
-				console.log(`✅ Created incident: ${incidentData.description}`);
-				counters.incidents++;
+				await insertFixtureIfAbsent({
+					table: 'incidents',
+					idColumn: 'incident_id',
+					row: {
+						incident_id: devSeedUuid('incident', childName, spec.description),
+						child_id: spec.child.child_id,
+						child_name: childName,
+						severity: spec.severity,
+						description: spec.description,
+						timestamp: spec.timestamp,
+						admin_acknowledged_at: null, // Unacknowledged, so the admin badge has something to show
+					},
+					label: `Incident: ${spec.description}`,
+					counter: 'incidents',
+				});
 			} catch (error) {
 				console.log(
-					`⚠️ Failed to create incident ${incidentData.description}: ${error.message}`
+					`⚠️ Failed to create incident ${spec.description}: ${error.message}`
 				);
 			}
 		}
@@ -1308,11 +1308,16 @@ async function createIncidentsData() {
  * that column exactly.
  *
  * Idempotent at the level of the screen rather than the row: if today already
- * has attendance, this step does nothing. A per-child check is not enough,
- * because `createHouseholdsAndFamiliesData` has no existence guard and creates a
- * fresh Emma/Liam/Sophia/Noah on every run — so "no row for this child today"
- * stays true forever and the state inflates on each reseed. Children are also
- * picked oldest-first per name so repeat runs converge on the same family.
+ * has attendance, this step does nothing.
+ *
+ * This was originally the only workable shape, because
+ * `createHouseholdsAndFamiliesData` created a fresh Emma/Liam/Sophia/Noah on
+ * every run, so "no row for this child today" stayed true forever and the state
+ * inflated on each reseed. #446 fixed that, and a per-child check would now
+ * work — but the day-level check is still the cheaper and more honest question
+ * to ask about a screen's state, so it stays. Children are still picked
+ * oldest-first per name, which keeps this correct on a dev database that was
+ * already duplicated before the fix landed.
  */
 async function createDoorCheckInStateData() {
 	try {

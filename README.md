@@ -70,6 +70,21 @@ npm run gen:types
 npm run seed:dev
 ```
 
+`npm run seed:dev` is safe to run repeatedly: households, guardians, emergency
+contacts, children and incidents are keyed on stable ids derived from their
+natural keys, so a second run reports `already exists` and changes nothing. Each
+run does still create a new registration cycle (and the enrollments belonging to
+it), which is deliberate — the newest cycle becomes the active one.
+
+If your local database was seeded before this was fixed, it holds several copies
+of the Smith and Johnson families. Reseeding will not clean those up. Start over
+on the disposable local stack instead:
+
+```bash
+supabase db reset
+npm run seed:dev
+```
+
 3. Point `.env.local` at that local instance (URLs and keys are printed by `supabase start`):
 
 ```env
