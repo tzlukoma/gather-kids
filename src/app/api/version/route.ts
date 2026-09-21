@@ -1,18 +1,62 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { buildInfo, parseSupabaseProjectRef } from '@/lib/build-info';
+import { migrationsAreInSync } from '@/lib/schema-migration-version';
 
-type DbVersionInfo = {
-  latestMigration: string | null;
-  appliedCount: number;
+export type DbVersionInfo = {
+  expectedMigration: string | null;
+  appliedMigration: string | null;
+  appliedCount: number | null;
+  inSync: boolean;
 };
 
-async function fetchDbVersionInfo(): Promise<DbVersionInfo> {
+type StatusRow = {
+  applied_migration?: string | null;
+  applied_count?: number | null;
+};
+
+function unavailableStatus(expectedMigration: string | null): DbVersionInfo {
+  return {
+    expectedMigration,
+    appliedMigration: null,
+    appliedCount: null,
+    inSync: false,
+  };
+}
+
+function hasUsableServiceRole(
+  supabaseUrl: string | undefined,
+  serviceKey: string | undefined
+): boolean {
+  if (!supabaseUrl || !serviceKey) return false;
+  if (supabaseUrl.includes('dummy.supabase.co')) return false;
+  if (serviceKey === 'dummy-service-role-key') return false;
+  return true;
+}
+
+export function dbStatusFromRpcRow(
+  expectedMigration: string | null,
+  row: StatusRow | null | undefined
+): DbVersionInfo {
+  const appliedMigration = row?.applied_migration ?? null;
+  const appliedCount =
+    typeof row?.applied_count === 'number' ? row.applied_count : null;
+
+  return {
+    expectedMigration,
+    appliedMigration,
+    appliedCount,
+    inSync: migrationsAreInSync(expectedMigration, appliedMigration),
+  };
+}
+
+export async function fetchDbVersionInfo(): Promise<DbVersionInfo> {
+  const expectedMigration = buildInfo.expectedMigration;
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-  if (!supabaseUrl || !serviceKey) {
-    return { latestMigration: null, appliedCount: 0 };
+  if (!hasUsableServiceRole(supabaseUrl, serviceKey) || !supabaseUrl || !serviceKey) {
+    return unavailableStatus(expectedMigration);
   }
 
   try {
@@ -20,33 +64,20 @@ async function fetchDbVersionInfo(): Promise<DbVersionInfo> {
       auth: { persistSession: false, autoRefreshToken: false },
     });
 
-    const { data: latestRows, error: latestError } = await supabase
-      .from('schema_migration_ledger')
-      .select('filename')
-      .order('applied_at', { ascending: false })
-      .limit(1);
+    const { data, error } = await supabase.rpc('fn_schema_migration_status');
 
-    if (latestError) {
-      return { latestMigration: null, appliedCount: 0 };
+    if (error) {
+      return unavailableStatus(expectedMigration);
     }
 
-    const { count, error: countError } = await supabase
-      .from('schema_migration_ledger')
-      .select('*', { count: 'exact', head: true });
-
-    if (countError) {
-      return {
-        latestMigration: latestRows?.[0]?.filename ?? null,
-        appliedCount: 0,
-      };
+    const row = Array.isArray(data) ? data[0] : data;
+    if (!row) {
+      return unavailableStatus(expectedMigration);
     }
 
-    return {
-      latestMigration: latestRows?.[0]?.filename ?? null,
-      appliedCount: count ?? 0,
-    };
+    return dbStatusFromRpcRow(expectedMigration, row);
   } catch {
-    return { latestMigration: null, appliedCount: 0 };
+    return unavailableStatus(expectedMigration);
   }
 }
 

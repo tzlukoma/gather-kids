@@ -79,10 +79,10 @@ jobs:
       - name: Log latest applied migration
         run: |
           LATEST=$(psql "$DATABASE_URL" -tA -c \
-            "SELECT filename FROM public.schema_migration_ledger ORDER BY applied_at DESC LIMIT 1" \
+            "SELECT version FROM supabase_migrations.schema_migrations WHERE version ~ '^[0-9]+\$' ORDER BY version::numeric DESC LIMIT 1" \
             || echo "unknown")
           COUNT=$(psql "$DATABASE_URL" -tA -c \
-            "SELECT count(*) FROM public.schema_migration_ledger" \
+            "SELECT count(*) FROM supabase_migrations.schema_migrations" \
             || echo "0")
           {
             echo "## Production DB deploy summary"

@@ -134,6 +134,13 @@ jobs:
           psql -h localhost -p 54322 -U postgres -d postgres \
             -v ON_ERROR_STOP=1 -f scripts/db/check_household_link_writes.sql
 
+      - name: Check schema migration status RPC grants
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -h localhost -p 54322 -U postgres -d postgres \
+            -v ON_ERROR_STOP=1 -f scripts/db/check_schema_migration_status.sql
+
       - uses: ./.github/actions/setup-supabase-cli
         with:
           version: '2.116.0'

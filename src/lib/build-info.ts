@@ -1,5 +1,16 @@
 import packageJson from '../../package.json';
-import generatedBuildInfo from '../generated/build-info.json';
+import generatedBuildInfoJson from '../generated/build-info.json';
+
+type GeneratedBuildInfo = {
+  appVersion?: string;
+  gitSha?: string;
+  gitRef?: string;
+  deployEnv?: string;
+  builtAt?: string;
+  expectedMigration?: string | null;
+};
+
+const generatedBuildInfo = generatedBuildInfoJson as GeneratedBuildInfo;
 
 export type BuildInfo = {
   appVersion: string;
@@ -7,6 +18,8 @@ export type BuildInfo = {
   gitRef: string;
   deployEnv: string;
   builtAt: string;
+  /** Supabase migration version stamped from supabase/migrations at build time. */
+  expectedMigration: string | null;
 };
 
 /** Ignore empty env vars (Vercel sometimes sets these to blank strings). */
@@ -40,6 +53,7 @@ export const buildInfo: BuildInfo = {
     envValue(process.env.VERCEL_ENV) ||
     'development',
   builtAt: generatedBuildInfo.builtAt || envValue(process.env.NEXT_PUBLIC_BUILD_TIME) || '',
+  expectedMigration: envValue(generatedBuildInfo.expectedMigration ?? undefined) ?? null,
 };
 
 export function parseSupabaseProjectRef(url?: string): string | null {

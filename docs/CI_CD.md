@@ -109,7 +109,9 @@ Two independent identifiers:
 | Identifier | Source |
 |------------|--------|
 | **App release** | Git tag / `package.json` semver (release-please) |
-| **DB schema** | Latest row in `public.schema_migration_ledger` |
+| **DB schema** | Latest numeric `version` in `supabase_migrations.schema_migrations` (what `supabase db push` records) |
+
+`inSync` on `/api/version` is the code/schema deployment-order signal: it is `true` only when the build's stamped expected version equals the remote applied version. Anything else — older remote, newer remote, missing RPC, or missing credentials — is `false`. The endpoint never treats an undetermined database as current.
 
 ### `GET /api/version`
 
@@ -122,15 +124,31 @@ Returns JSON:
   "gitRef": "main",
   "deployEnv": "uat",
   "supabaseProjectRef": "abcd1234",
-  "db": { "latestMigration": "20250920120000_add_avatar_tables", "appliedCount": 68 }
+  "db": {
+    "expectedMigration": "20260921200000",
+    "appliedMigration": "20260921200000",
+    "appliedCount": 72,
+    "inSync": true
+  }
 }
 ```
 
 `Cache-Control: no-store` — reflects post-migrate state.
 
+| `db` field | Meaning |
+|------------|---------|
+| `expectedMigration` | Numeric Supabase version stamped from `supabase/migrations/` at build time (not a filename) |
+| `appliedMigration` | Latest numeric version from `supabase_migrations.schema_migrations` via `fn_schema_migration_status()` |
+| `appliedCount` | Row count in that history table, or `null` if status could not be read |
+| `inSync` | `true` only when both versions are present and equal |
+
+`latestMigration` (a ledger filename) is no longer returned. Use `appliedMigration`. History is **not** `public.schema_migration_ledger` — that table is leftover from an older runner and is not updated by `supabase db push`.
+
+The status function is `SECURITY DEFINER`, takes no arguments, and is executable only by `service_role`. `/api/version` calls it with the server-only service-role client. Browser code only sees the aggregate JSON above.
+
 ### Admin footer badge
 
-[`AppVersionBadge`](../src/components/AppVersionBadge.tsx) in the admin sidebar shows `v1.7.0 · uat` with a tooltip for git, Supabase ref, and DB migration.
+[`AppVersionBadge`](../src/components/AppVersionBadge.tsx) in the admin sidebar shows `v1.7.0 · uat` with a tooltip for git, Supabase ref, expected vs applied migration versions, and whether the schema is in sync with this build.
 
 Set in Vercel:
 
@@ -142,8 +160,9 @@ Set in Vercel:
 
 | Symptom | Likely cause |
 |---------|----------------|
-| App version new, DB migration old | Vercel deployed; UAT/prod DB deploy workflow not run |
-| DB migration new, app version old | Migrations applied; Vercel not redeployed (OK if code unchanged) |
+| App version new, `inSync: false`, applied version older | Vercel deployed; UAT/prod DB deploy workflow not run |
+| `inSync: false`, applied version newer than expected | Migrations applied; this build is older than the database (OK if code unchanged) |
+| `appliedMigration` null, `inSync: false` | Status RPC missing (migration not applied yet), service-role misconfigured, or dummy CI env |
 | Same URL, wrong Supabase ref | Vercel env vars point at wrong project |
 | Preview shows prod keys | Vercel Preview env misconfigured |
 | Workflow fires on `uat` branch push | Legacy workflow not removed — should not happen after cleanup |
@@ -200,7 +219,7 @@ Production flag flips are Thomas-only. Do not put email, names, or child identif
 2. Optional: `dry_run: true` lists pending migrations without applying
 3. Uses GitHub Environment **`uat`** secrets
 4. Applies migrations via `scripts/db/apply_migrations_cli.sh`, runs FK checks, uploads schema snapshot artifact
-5. Job summary logs latest migration from `schema_migration_ledger`
+5. Job summary logs latest numeric version from `supabase_migrations.schema_migrations`
 
 **No auto-commit** of generated types.
 
