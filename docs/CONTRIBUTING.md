@@ -68,6 +68,15 @@ For day-to-day work, prefer `echo "…" | npx commitlint` or `commitlint:last` b
 
 Config: [`commitlint.config.js`](../commitlint.config.js)
 
+## Schema changes
+
+Remote schema changes have one path: approval-gated `supabase db push`. See [Canonical remote schema path](./CI_CD.md#canonical-remote-schema-path).
+
+1. Add a timestamped file under `supabase/migrations/`.
+2. Apply it to a local disposable database (`supabase db push`) and run `npm run gen:types`.
+3. In the pull request body, include a line exactly `Schema change: documented` and list the migration. CI job `schema-change` fails without that line. Use `Schema change: none` only when `supabase/migrations/` is unchanged.
+4. After merge, Thomas runs **UAT DB deploy**, then **Production DB deploy**. Do not run `scripts/db/apply_migrations_safe.sh`, table-setup scripts, or `psql` against UAT or production.
+
 ## User guide (`/help`)
 
 Edit markdown under `content/help/`. Validate with `npm run docs:validate`. Capture screenshots only from local seeded data (`npm run help:capture-screenshots`). See [`docs/HELP_DOCS.md`](./HELP_DOCS.md).

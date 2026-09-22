@@ -17,6 +17,14 @@ CI blocks non-conventional titles. See [`docs/CONTRIBUTING.md`](../docs/CONTRIBU
 - Linked issue:
 - What changed and why:
 
+## Schema change
+
+If this PR does not change `supabase/migrations/`, leave the line below. If it does, replace `none` with `documented` and list the files. CI job `schema-change` fails when migration files change and that exact line is missing. Remote apply is UAT DB deploy, then Production DB deploy (`supabase db push` only).
+
+```text
+Schema change: none
+```
+
 ## Agent evidence checklist
 
 - [ ] Linked issue and concise change summary

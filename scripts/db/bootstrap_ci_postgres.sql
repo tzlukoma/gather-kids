@@ -25,6 +25,14 @@ AS $$
   SELECT NULL::uuid;
 $$;
 
+-- Minimal auth.users so policies can be created. Supabase provides this
+-- table; CI Postgres does not. The audit-log policy reads id and
+-- raw_user_meta_data. No rows are inserted.
+CREATE TABLE IF NOT EXISTS auth.users (
+  id uuid PRIMARY KEY,
+  raw_user_meta_data jsonb
+);
+
 -- Shape of the table `supabase db push` writes. CI applies SQL with raw psql,
 -- so this history never appears unless we create it. The status RPC reads it.
 CREATE SCHEMA IF NOT EXISTS supabase_migrations;

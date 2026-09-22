@@ -188,7 +188,7 @@ Email/auth mail flows: `npm run test:email` only when those specs are in scope.
 
 DAL/schema PRs also run the contract tests named in [`.github/PULL_REQUEST_TEMPLATE.md`](.github/PULL_REQUEST_TEMPLATE.md).
 
-**CI on every PR** ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)): `lint`, `typecheck`, `test`, `build`, `db-fk` (apply `supabase/migrations/*.sql` to Postgres 15, `scripts/db/check_fks.sh`, `scripts/db/check_types_sync.sh`), Conventional PR title.
+**CI on every PR** ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)): `lint`, `typecheck`, `test`, `build`, `db-fk` (fail-fast apply of `supabase/migrations/*.sql` to Postgres 15 with `ON_ERROR_STOP=1`, `scripts/db/check_fks.sh`, migration-status RPC, `scripts/db/check_types_sync.sh`), `schema-change` (PRs that touch `supabase/migrations/` must include `Schema change: documented`), Conventional PR title.
 
 **CI path-filtered / not PR-gating:**
 

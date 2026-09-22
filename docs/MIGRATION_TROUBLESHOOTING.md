@@ -1,5 +1,7 @@
 # Supabase Migration Troubleshooting Guide
 
+> **Remote schema path:** UAT DB deploy and Production DB deploy (`supabase db push`). Scripts such as `safe_table_setup.sh`, `fix_uuid_to_text.sh`, `fresh_link_and_push.sh`, and `apply_migrations_safe.sh` now refuse to run. See [docs/CI_CD.md](./CI_CD.md). `ensure_pgcrypto.sh` remains only as the pre-step inside Production DB deploy.
+
 This guide helps troubleshoot and fix common issues with Supabas### 4. Fresh Link and ### 5. Fix UUID to TEXT Conversion
 
 This script safely converts UUID columns to TEXT type:

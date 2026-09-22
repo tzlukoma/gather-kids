@@ -59,7 +59,8 @@ Workflow: [`.github/workflows/ci.yml`](../.github/workflows/ci.yml)
 | `typecheck` | `npm run typecheck` |
 | `test` | `npm test` |
 | `build` | `npm run build` (dummy Supabase env vars) |
-| `db-fk` | Apply `supabase/migrations/*.sql` to Postgres 15, `check_fks.sh`, types drift check |
+| `db-fk` | Fail-fast apply (`ON_ERROR_STOP=1`) of `supabase/migrations/*.sql` to Postgres 15, FK checks, migration-status RPC, types drift check |
+| `schema-change` | When `supabase/migrations/**` changes, require a `Schema change: documented` line in the PR body |
 | `Conventional PR title` | `amannn/action-semantic-pull-request` |
 
 Path-filtered (not every PR):
@@ -211,6 +212,40 @@ Production flag flips are Thomas-only. Do not put email, names, or child identif
 
 ---
 
+## Canonical remote schema path
+
+`supabase_migrations.schema_migrations` is the only migration history. A remote schema change is complete only when `supabase db push` records it there.
+
+| Environment | Workflow | Gate |
+|-------------|---------|------|
+| Local disposable | `supabase db push` after `supabase start` | None |
+| UAT | [`.github/workflows/uat-db-deploy.yml`](../.github/workflows/uat-db-deploy.yml) | GitHub Environment `uat` |
+| Production | [`.github/workflows/prod-db-deploy.yml`](../.github/workflows/prod-db-deploy.yml) | GitHub Environment `production` (required reviewers) |
+
+Both remote workflows call [`scripts/db/apply_migrations_cli.sh`](../scripts/db/apply_migrations_cli.sh), which dry-runs and then runs `supabase db push --include-all`. Production runs [`scripts/db/ensure_pgcrypto.sh`](../scripts/db/ensure_pgcrypto.sh) first. That extension pre-step is part of this workflow, not a second schema path.
+
+Do not apply remote SQL with `psql`, a ledger runner, or an ad-hoc executor. [`scripts/db/apply_migrations_safe.sh`](../scripts/db/apply_migrations_safe.sh) writes `public.schema_migration_ledger`, which `supabase db push` does not read. That script, the table-setup scripts, and `execute_sql_reliable.sh` now exit immediately.
+
+### Quarantined workflows
+
+These files stay in `.github/workflows/` so a manual run refuses before it can touch a database. They do not load secrets.
+
+| Workflow | Former behavior |
+|----------|-----------------|
+| [`uat-db-check.yml`](../.github/workflows/uat-db-check.yml) | Ledger apply via `apply_migrations_safe.sh` |
+| [`setup-tables-on-demand.yml`](../.github/workflows/setup-tables-on-demand.yml) | Ad-hoc `CREATE TABLE` on UAT or production |
+| [`ensure-pgcrypto.yml`](../.github/workflows/ensure-pgcrypto.yml) | Standalone `CREATE EXTENSION` |
+
+### Pull request signal
+
+Job `schema-change` compares the PR to its base. No migration diff prints `Schema change: none` and passes. A diff under `supabase/migrations/` fails unless the PR body contains this line on its own:
+
+```text
+Schema change: documented
+```
+
+`Schema change: none` does not satisfy that check. Add `schema-change` to the required checks on `main` next to `db-fk` so a missing declaration cannot merge.
+
 ## Database deploy (manual)
 
 ### UAT — [`uat-db-deploy.yml`](../.github/workflows/uat-db-deploy.yml)
@@ -337,7 +372,7 @@ Optional: `echo "ci: my change" | npx commitlint`
 
 1. Merge cleanup PR to **`main`**
 2. Delete legacy git branches `develop`, `uat`, `release` if not already done
-3. Enable branch protection required checks on **`main`**: `lint`, `typecheck`, `test`, `build`, `db-fk`, `Conventional PR title`
+3. Enable branch protection required checks on **`main`**: `lint`, `typecheck`, `test`, `build`, `db-fk`, `schema-change`, `Conventional PR title`
 4. Run **UAT DB deploy** (dry-run, then apply)
 5. Confirm Vercel preview + production + `/api/version` footer
 

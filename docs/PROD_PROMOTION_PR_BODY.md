@@ -1,5 +1,7 @@
 PROD Promotion Runbook and Checklist
 
+> **Superseded.** Do not run the commands below. Remote schema changes go through Production DB deploy (`supabase db push`) as documented in [docs/CI_CD.md](./CI_CD.md). `apply_migrations_safe.sh` and a raw `psql` loop are quarantined.
+
 This PR contains the runbook and exact commands to promote the current schema and data to PRODUCTION.
 
 Summary of UAT verification
