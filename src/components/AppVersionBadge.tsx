@@ -13,6 +13,7 @@ import {
 type VersionResponse = {
   app: string;
   gitSha: string;
+  gitShaShort?: string;
   gitRef: string;
   deployEnv: string;
   builtAt: string | null;
@@ -89,7 +90,7 @@ export function AppVersionBadge() {
             <span className="font-medium">App:</span> v{version.app}
           </p>
           <p>
-            <span className="font-medium">Git:</span> {version.gitSha} ({version.gitRef})
+            <span className="font-medium">Git:</span> {version.gitShaShort || version.gitSha} ({version.gitRef})
           </p>
           <p>
             <span className="font-medium">Env:</span> {version.deployEnv}
