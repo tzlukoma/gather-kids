@@ -18,7 +18,7 @@ feature/* ──PR──► main  ◄── release-please Release PR (semver ta
                     │
         ┌───────────┴────────────────┐
         ▼                            ▼
-   UAT DB deploy                Production release
+   UAT release                  Production release
    (GitHub env: uat)            (GitHub env: production, reviewers)
    dry-run → apply →            approval pending → schema →
    /api/version + /api/health   staged /api/version → promote →
@@ -33,7 +33,7 @@ and do not promote a release.
 | Name | What it is |
 |------|------------|
 | **`main`** | Only long-lived git branch and PR target. A merge is **Build complete**, not a finished production release. |
-| **UAT** | GitHub Environment `uat` + UAT Supabase + an explicit immutable UAT Vercel deployment URL |
+| **UAT** | GitHub Environment `uat` + UAT Supabase + an immutable Preview created by the UAT release workflow |
 | **Production** | Staged Vercel production deployment + GitHub Environment `production` (required reviewers). Live only after **Production released**. |
 | **Production ops** | GitHub Environment `production-ops` — unattended scheduled prod jobs (no reviewers). Not a release path. |
 
@@ -41,7 +41,7 @@ and do not promote a release.
 
 | Environment | Required reviewers | Used by |
 |-------------|-------------------|---------|
-| **`uat`** | No | UAT DB deploy, UAT digest, UAT keepalive |
+| **`uat`** | No | UAT release, UAT DB deploy (break-glass), UAT digest, UAT keepalive |
 | **`production`** | Yes (Thomas) | Destructive / promote jobs: [`prod-db-deploy.yml`](../.github/workflows/prod-db-deploy.yml), [`db-backup.yml`](../.github/workflows/db-backup.yml) when input is `PROD`, [`ministry-enrollment-report.yml`](../.github/workflows/ministry-enrollment-report.yml) prod job |
 | **`production-ops`** | **No** | Scheduled + routine prod ops: `digest-prod` in [`daily-digest.yml`](../.github/workflows/daily-digest.yml), prod [`supabase-keepalive.yml`](../.github/workflows/supabase-keepalive.yml) |
 
@@ -110,8 +110,8 @@ These names are the only ones a workflow summary should use for a release. The s
 | State | What is true | Who advances it | Evidence |
 |-------|----------------|-----------------|----------|
 | **Build complete** | CI passed and Vercel built the commit. Production domains were not intentionally moved. | Merge to `main` | Green CI and a Vercel deployment for the SHA |
-| **UAT schema pending** | The UAT app for this commit is not in sync with the UAT database, or the deployed build is a different commit. | Nobody. The UAT job fails. | UAT DB deploy summary |
-| **UAT verified** | UAT `/api/version` has `inSync: true` for this SHA, and `/api/health` is ok. | UAT DB deploy, run by someone who can use the `uat` environment | Summary state `UAT verified` |
+| **UAT schema pending** | The UAT app for this commit is not in sync with the UAT database, or the deployed build is a different commit. | Nobody. The UAT job fails. | UAT release summary |
+| **UAT verified** | UAT `/api/version` has `inSync: true` for this SHA, and `/api/health` is ok. | UAT release, run by someone who can use the `uat` environment | Summary state `UAT verified` |
 | **Production approval pending** | Production release is waiting on the `production` environment reviewers. | Thomas approves that GitHub deployment | The waiting environment review |
 | **Production DB verified** | The staged production build matches the applied production schema. Domains have not moved yet. | Production release, after approval and before promote | Staged `/api/version` check inside the job |
 | **Production released** | The production domain serves that build, `inSync` is true, and health is ok. | Production release, after `vercel promote` and the domain check | Summary state `Production released` |
@@ -276,23 +276,22 @@ Schema change: documented
 
 ## Database deploy (manual)
 
-### UAT — [`uat-db-deploy.yml`](../.github/workflows/uat-db-deploy.yml)
+### UAT — [`uat-release.yml`](../.github/workflows/uat-release.yml)
 
 #### Dry-run → apply → verify
 
-1. GitHub → **Actions** → **UAT DB deploy** → **Run workflow** on **`main`**.
-2. Enter `deployment_url`: the full immutable `https://….vercel.app` origin for the UAT deployment built from the selected `main` SHA. Find it in Vercel's deployment details for that exact commit; do not use a pull-request preview, a mutable branch alias such as `…-git-main-….vercel.app`, or a production/custom domain. The workflow rejects non-Vercel URLs, paths, branch aliases, production domains, a non-`uat` response, and SHA mismatches.
-3. `dry_run: true` lists pending migrations and does not apply them. The summary says `dry run — not UAT verified`.
-4. Run again with `dry_run: false`. Leave `git_sha` empty to use the selected `main` commit, or paste a full 40-character SHA that is already on `main`.
-5. Before any database command, the workflow requests `<deployment_url>/api/version`. It requires HTTP 200, `deployEnv: "uat"`, an exact full-SHA match, and usable schema status. A schema mismatch is allowed only at this preflight point because the pending migration has not yet run.
-6. The job checks out that SHA, applies migrations with `scripts/db/apply_migrations_cli.sh`, and runs FK checks. `check_fks.sh` treats `leader_assignments.leader_id` as a `leader_profiles` reference, not `users`.
-7. It reads `supabase_migrations.schema_migrations`, then re-checks that same deployment URL's `/api/version` and `/api/health`.
+1. GitHub → **Actions** → **UAT release** → **Run workflow** on **`main`**.
+2. Leave `git_sha` empty to use the selected ref/current `main`, or enter a full 40-character SHA already on `main`. Select `dry-run` or `apply`.
+3. The workflow checks out that exact SHA and creates its own immutable Vercel **Preview** using the UAT environment's least-privilege `VERCEL_TOKEN`, project linkage, and Preview-scoped UAT variables. It compares the downloaded Preview `NEXT_PUBLIC_SUPABASE_URL` with the UAT environment URL without printing either value, explicitly stamps `NEXT_PUBLIC_DEPLOY_ENV=uat`, and never uses `--prod`.
+4. The generated `https://….vercel.app` origin is published in the summary. Operators do not create a temporary branch or copy a Vercel URL into another workflow. The legacy **UAT DB deploy** workflow retains its explicit URL input for break-glass use only; use **UAT release** for normal releases.
+5. Before any database command, the reusable database workflow requests `<generated-url>/api/version`. It requires HTTP 200, `deployEnv: "uat"`, an exact full-SHA match, and usable schema status. A schema mismatch is allowed only at this preflight point because the pending migration has not yet run.
+6. `dry-run` lists pending migrations and does not mutate UAT. `apply` runs `scripts/db/apply_migrations_cli.sh`, FK checks, migration-history checks, then re-checks that same generated URL's `/api/version` and `/api/health`.
 
 **`UAT verified`** requires all of these: HTTP 200, `deployEnv` is `uat`, `gitSha` equals the selected commit, `expectedMigration` equals `appliedMigration`, `inSync` is true, the endpoint's applied version equals the database query, and `/api/health` returns `{ "status": "ok" }`.
 
 Anything else fails the job. A deployed build that is not this commit, or a build whose expected migration does not match the database, is **`UAT schema pending`**. A missing URL, a non-200 response, a missing status RPC, or a non-UAT `deployEnv` is **`failed`**. Neither state is UAT verified.
 
-The summary shows the selected SHA, verified deployment URL, app version, expected and applied migrations, applied count, `inSync`, health, and release state. It does not print database URLs or keys. Automatic deployment lookup is intentionally not enabled: no documented least-privilege Vercel metadata token or post-merge UAT deployment path exists yet, so zero or ambiguous matches cannot be guessed.
+The summaries show the selected SHA, generated immutable deployment URL, app version, expected and applied migrations, applied count, `inSync`, health, and release state. They do not print database URLs or keys. The workflow creates a single Preview from the selected checkout; it does not look up a deployment by branch, PR number, recency, or a mutable alias.
 
 **No auto-commit** of generated types.
 
@@ -401,10 +400,11 @@ DB deploy / types jobs (`uat`, `production`):
 | `SUPABASE_ACCESS_TOKEN` | ✓ | ✓ |
 | `SUPABASE_DB_PASSWORD` | ✓ | ✓ |
 | `SUPABASE_SERVICE_ROLE_KEY` | ✓ | ✓ |
+| `VERCEL_TOKEN` | Preview deploy only | promote only |
 
-Legacy aliases: `UAT_SUPABASE_URL`, `PROD_SUPABASE_URL`, `UAT_DATABASE_URL`, `PROD_DATABASE_URL`.
+The `uat` environment also needs `VERCEL_TOKEN` plus `VERCEL_ORG_ID` and `VERCEL_PROJECT_ID` variables (or equivalent linked-project configuration). Vercel's **Preview** variables must point to UAT Supabase and must not contain production credentials. Legacy aliases: `UAT_SUPABASE_URL`, `PROD_SUPABASE_URL`, `UAT_DATABASE_URL`, `PROD_DATABASE_URL`.
 
-`UAT_APP_URL` is no longer used by UAT DB deploy for correctness. It may remain temporarily for other operational consumers, but operators must provide the immutable deployment URL when dispatching UAT DB deploy.
+`UAT_APP_URL` is not used for release correctness. The normal UAT release path creates its own immutable deployment URL; the direct UAT DB deploy input exists only for break-glass use.
 
 Scheduled prod ops (`production-ops`) — same production credential **values** as `production`, ops-scoped names only. Do **not** add `SENTRY_AUTH_TOKEN` or DB-deploy tokens unless a workflow truly needs them. Do **not** add required reviewers on this environment.
 
@@ -439,7 +439,7 @@ Optional: `echo "ci: my change" | npx commitlint`
 1. Merge cleanup PR to **`main`**
 2. Delete legacy git branches `develop`, `uat`, `release` if not already done
 3. Enable branch protection required checks on **`main`**: `lint`, `typecheck`, `test`, `build`, `db-fk`, `schema-change`, `Conventional PR title`
-4. Run **UAT DB deploy** (dry-run, then apply)
+4. Run **UAT release** (dry-run, then apply)
 5. Confirm Vercel preview + production + `/api/version` footer
 
 Then start [`docs/R1_IMPLEMENTATION_PLAN.md`](./R1_IMPLEMENTATION_PLAN.md).
