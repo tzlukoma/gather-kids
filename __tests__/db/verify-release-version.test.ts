@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { stampGitSha } from '@/lib/build-info';
@@ -297,5 +297,67 @@ describe('UAT deploy workflow', () => {
     expect(workflow).toContain('/api/health');
     expect(workflow).toContain('origin/main');
     expect(workflow).not.toContain('PROD_');
+  });
+});
+
+describe('UAT release Preview workflow', () => {
+  const workflow = readFileSync(path.join(root, '.github/workflows/uat-release.yml'), 'utf8');
+  const deployScript = readFileSync(path.join(root, 'scripts/ci/deploy_uat_preview.sh'), 'utf8');
+
+  it('creates a Preview from a main SHA before delegating to the UAT database gate', () => {
+    expect(workflow).toContain('workflow_dispatch:');
+    expect(workflow).toContain('mode:');
+    expect(workflow).toContain('git merge-base --is-ancestor "$SHA" origin/main');
+    expect(workflow).toContain('environment: uat');
+    expect(workflow).toContain('uses: ./.github/workflows/uat-db-deploy.yml');
+    expect(workflow).toContain('deployment_url: ${{ needs.create-uat-preview.outputs.deployment_url }}');
+    expect(workflow).toContain("dry_run: ${{ inputs.mode == 'dry-run' }}");
+  });
+
+  it('constructs only a pinned Preview deployment and rejects production deployment flags', () => {
+    expect(deployScript).toContain('vercel@59.24.0 pull --yes --environment=preview');
+    expect(deployScript).toContain('vercel@59.24.0 deploy --yes');
+    expect(deployScript).toContain('--build-env "NEXT_PUBLIC_DEPLOY_ENV=uat"');
+    expect(deployScript).toContain('--env "NEXT_PUBLIC_DEPLOY_ENV=uat"');
+    expect(deployScript).not.toMatch(/deploy[^\n]*--prod/);
+    expect(deployScript).toContain('validate_uat_deployment_url.sh');
+  });
+
+  it('runs the pinned CLI with Preview and UAT arguments only', () => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'uat-preview-command-'));
+    const bin = path.join(dir, 'bin');
+    const log = path.join(dir, 'commands.log');
+    const previewEnv = path.join(dir, 'preview.env');
+    mkdirSync(bin);
+    writeFileSync(previewEnv, 'NEXT_PUBLIC_SUPABASE_URL=https://uat.supabase.co\n');
+    const npx = path.join(bin, 'npx');
+    writeFileSync(
+      npx,
+      '#!/usr/bin/env bash\nprintf "%s\\n" "$*" >> "$COMMAND_LOG"\nif [[ "$*" == *" deploy "* ]]; then\n  printf "%s\\n" "https://gather-kids-abc123.vercel.app"\nfi\n'
+    );
+    chmodSync(npx, 0o755);
+
+    const result = spawnSync('bash', ['scripts/ci/deploy_uat_preview.sh', sha], {
+      cwd: root,
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        PATH: `${bin}:${process.env.PATH}`,
+        COMMAND_LOG: log,
+        VERCEL_TOKEN: 'test-token',
+        VERCEL_ORG_ID: 'test-org',
+        VERCEL_PROJECT_ID: 'test-project',
+        UAT_SUPABASE_URL: 'https://uat.supabase.co',
+        VERCEL_PREVIEW_ENV_FILE: previewEnv,
+      },
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.stdout.trim()).toBe('https://gather-kids-abc123.vercel.app');
+    const commands = readFileSync(log, 'utf8');
+    expect(commands).toContain('vercel@59.24.0 pull --yes --environment=preview');
+    expect(commands).toContain('vercel@59.24.0 deploy --yes');
+    expect(commands).toContain('NEXT_PUBLIC_DEPLOY_ENV=uat');
+    expect(commands).not.toContain('--prod');
   });
 });

@@ -1,6 +1,20 @@
 name: UAT DB deploy
 
 on:
+  workflow_call:
+    inputs:
+      dry_run:
+        description: List migrations only, do not apply
+        required: true
+        type: boolean
+      git_sha:
+        description: Full 40-character main commit to verify
+        required: true
+        type: string
+      deployment_url:
+        description: Immutable UAT Vercel deployment URL for the selected commit
+        required: true
+        type: string
   workflow_dispatch:
     inputs:
       dry_run:

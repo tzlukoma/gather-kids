@@ -1,0 +1,102 @@
+name: UAT release
+
+# The operator supplies only an immutable main SHA and whether to dry-run or
+# apply. This workflow creates the Preview itself, then delegates all database
+# verification to the canonical UAT DB deploy workflow.
+on:
+  workflow_dispatch:
+    inputs:
+      git_sha:
+        description: Full 40-character main commit. Empty uses the selected ref.
+        type: string
+        required: false
+        default: ''
+      mode:
+        description: Validate only or apply UAT migrations after preflight
+        type: choice
+        required: true
+        default: dry-run
+        options:
+          - dry-run
+          - apply
+
+permissions:
+  contents: read
+
+jobs:
+  create-uat-preview:
+    name: Create SHA-bound UAT Preview
+    runs-on: ubuntu-latest
+    environment: uat
+    outputs:
+      git_sha: ${{ steps.resolve.outputs.git_sha }}
+      deployment_url: ${{ steps.deploy.outputs.deployment_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve immutable main commit
+        id: resolve
+        env:
+          INPUT_SHA: ${{ inputs.git_sha }}
+          RUN_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          SHA="${INPUT_SHA:-$RUN_SHA}"
+          SHA=$(printf '%s' "$SHA" | tr '[:upper:]' '[:lower:]')
+          if ! printf '%s' "$SHA" | grep -Eq '^[0-9a-f]{40}$'; then
+            echo "::error::git_sha must be a full 40-character commit SHA."
+            exit 1
+          fi
+          git cat-file -e "${SHA}^{commit}"
+          if ! git merge-base --is-ancestor "$SHA" origin/main; then
+            echo "::error::SHA is not on main. UAT releases only accept main commits."
+            exit 1
+          fi
+          git checkout --detach "$SHA"
+          echo "git_sha=$SHA" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.22.2'
+
+      - name: Create immutable UAT Preview
+        id: deploy
+        env:
+          RESOLVED_SHA: ${{ steps.resolve.outputs.git_sha }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+          UAT_SUPABASE_URL: ${{ secrets.SUPABASE_URL || secrets.UAT_SUPABASE_URL }}
+        run: |
+          set -euo pipefail
+          url=$(bash scripts/ci/deploy_uat_preview.sh "$RESOLVED_SHA")
+          echo "deployment_url=$url" >> "$GITHUB_OUTPUT"
+
+      - name: Summarize candidate
+        env:
+          RESOLVED_SHA: ${{ steps.resolve.outputs.git_sha }}
+          DEPLOYMENT_URL: ${{ steps.deploy.outputs.deployment_url }}
+          MODE: ${{ inputs.mode }}
+        run: |
+          {
+            echo "## UAT release"
+            echo ""
+            echo "- **State:** candidate created — database verification pending"
+            echo "- **Mode:** $MODE"
+            echo "- **SHA:** \`$RESOLVED_SHA\`"
+            echo "- **Generated UAT Preview URL:** $DEPLOYMENT_URL"
+            echo "- **Database mutation:** not run"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  verify-uat-database:
+    name: Verify UAT database
+    needs: create-uat-preview
+    uses: ./.github/workflows/uat-db-deploy.yml
+    with:
+      git_sha: ${{ needs.create-uat-preview.outputs.git_sha }}
+      deployment_url: ${{ needs.create-uat-preview.outputs.deployment_url }}
+      dry_run: ${{ inputs.mode == 'dry-run' }}
+    secrets: inherit
