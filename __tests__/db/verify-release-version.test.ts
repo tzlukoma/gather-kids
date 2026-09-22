@@ -98,6 +98,29 @@ describe('UAT release version gate', () => {
     expect(result.parsed.state).toBe('UAT deployment verified');
   });
 
+  it('rejects a mutable Vercel branch alias as a UAT deployment URL', () => {
+    const result = spawnSync(
+      'bash',
+      [
+        'scripts/db/validate_uat_deployment_url.sh',
+        'https://gather-kids-git-main-tzlukomas-projects.vercel.app',
+      ],
+      { cwd: root, encoding: 'utf8' }
+    );
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('branch alias');
+  });
+
+  it('accepts an immutable Vercel deployment URL', () => {
+    const result = spawnSync(
+      'bash',
+      ['scripts/db/validate_uat_deployment_url.sh', 'https://gather-kids-abc123.vercel.app'],
+      { cwd: root, encoding: 'utf8' }
+    );
+    expect(result.status).toBe(0);
+    expect(result.stdout.trim()).toBe('https://gather-kids-abc123.vercel.app');
+  });
+
   it('fails closed when migration status is missing', () => {
     const result = run(
       version({
@@ -268,7 +291,7 @@ describe('UAT deploy workflow', () => {
     expect(workflow.indexOf('Verify selected UAT deployment before database changes')).toBeLessThan(
       workflow.indexOf('- name: Apply migrations to UAT')
     );
-    expect(workflow).toContain('^https://[a-z0-9][a-z0-9-]*\\.vercel\\.app$');
+    expect(workflow).toContain('validate_uat_deployment_url.sh');
     expect(workflow).not.toContain('vars.UAT_APP_URL');
     expect(workflow).toContain('/api/version');
     expect(workflow).toContain('/api/health');

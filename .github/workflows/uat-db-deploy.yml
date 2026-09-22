@@ -49,9 +49,8 @@ jobs:
             echo "::error::SHA is not on main. UAT verification only accepts main commits."
             exit 1
           fi
-          url="${DEPLOYMENT_URL%/}"
-          if [[ ! "$url" =~ ^https://[a-z0-9][a-z0-9-]*\.vercel\.app$ ]]; then
-            echo "::error::deployment_url must be an immutable https://….vercel.app deployment origin, not a production domain or path."
+          if ! url=$(bash scripts/db/validate_uat_deployment_url.sh "$DEPLOYMENT_URL"); then
+            echo "::error::deployment_url must be an immutable Vercel deployment origin, not a branch alias, production domain, or path."
             exit 1
           fi
           git checkout --detach "$SHA"

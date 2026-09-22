@@ -281,7 +281,7 @@ Schema change: documented
 #### Dry-run → apply → verify
 
 1. GitHub → **Actions** → **UAT DB deploy** → **Run workflow** on **`main`**.
-2. Enter `deployment_url`: the full `https://….vercel.app` origin for the UAT deployment built from the selected `main` SHA. Find it in Vercel's deployment details for that exact commit; do not use a pull-request preview or a production/custom domain. The workflow rejects non-Vercel URLs, paths, production domains, a non-`uat` response, and SHA mismatches.
+2. Enter `deployment_url`: the full immutable `https://….vercel.app` origin for the UAT deployment built from the selected `main` SHA. Find it in Vercel's deployment details for that exact commit; do not use a pull-request preview, a mutable branch alias such as `…-git-main-….vercel.app`, or a production/custom domain. The workflow rejects non-Vercel URLs, paths, branch aliases, production domains, a non-`uat` response, and SHA mismatches.
 3. `dry_run: true` lists pending migrations and does not apply them. The summary says `dry run — not UAT verified`.
 4. Run again with `dry_run: false`. Leave `git_sha` empty to use the selected `main` commit, or paste a full 40-character SHA that is already on `main`.
 5. Before any database command, the workflow requests `<deployment_url>/api/version`. It requires HTTP 200, `deployEnv: "uat"`, an exact full-SHA match, and usable schema status. A schema mismatch is allowed only at this preflight point because the pending migration has not yet run.
