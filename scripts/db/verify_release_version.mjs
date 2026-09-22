@@ -4,7 +4,7 @@
  * selected commit. Prints one JSON object on stdout. Exits 0 only for
  * `UAT verified`.
  *
- * Usage: node scripts/db/verify_release_version.mjs <version.json> <sha> [sqlAppliedVersion] [uat|production]
+ * Usage: node scripts/db/verify_release_version.mjs <version.json> <sha> [sqlAppliedVersion] [uat|production] [preflight]
  */
 import { readFileSync } from 'node:fs';
 
@@ -27,7 +27,10 @@ function emit(state, reason, payload) {
     inSync: db.inSync === true,
   };
   process.stdout.write(`${JSON.stringify(body)}\n`);
-  const verified = state === 'UAT verified' || state === 'Production DB verified';
+  const verified =
+    state === 'UAT verified' ||
+    state === 'UAT deployment verified' ||
+    state === 'Production DB verified';
   process.exit(verified ? 0 : 1);
 }
 
@@ -36,12 +39,16 @@ function main() {
   const expectedSha = (process.argv[3] || '').trim().toLowerCase();
   const sqlApplied = (process.argv[4] || '').trim();
   const targetEnv = (process.argv[5] || 'uat').trim();
+  const mode = (process.argv[6] || 'release').trim();
   const verifiedState =
     targetEnv === 'production' ? 'Production DB verified' : 'UAT verified';
   const pendingState = targetEnv === 'production' ? 'failed' : 'UAT schema pending';
 
   if (targetEnv !== 'uat' && targetEnv !== 'production') {
     emit('failed', 'target environment must be uat or production', null);
+  }
+  if (mode !== 'release' && mode !== 'preflight') {
+    emit('failed', 'verification mode must be release or preflight', null);
   }
 
   if (!file || !/^[0-9a-f]{40}$/.test(expectedSha)) {
@@ -79,6 +86,13 @@ function main() {
     typeof payload.db.appliedMigration === 'string' ? payload.db.appliedMigration : '';
   if (!expected || !applied) {
     emit('failed', 'migration status is unavailable', payload);
+  }
+
+  // Before a UAT migration changes the database, the selected deployment must
+  // prove its identity and expose a usable schema-status response. It may be
+  // out of sync at this point precisely because the migration has not run yet.
+  if (mode === 'preflight') {
+    emit('UAT deployment verified', 'deployment matches the selected commit', payload);
   }
 
   if (sqlApplied && applied !== sqlApplied) {
