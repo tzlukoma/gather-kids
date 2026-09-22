@@ -1,8 +1,7 @@
 #!/usr/bin/env node
 /**
- * Decide whether a deployed /api/version payload is UAT verified for a
- * selected commit. Prints one JSON object on stdout. Exits 0 only for
- * `UAT verified`.
+ * Decide whether a deployed /api/version payload is verified for a selected
+ * commit. Prints one JSON object on stdout.
  *
  * Usage: node scripts/db/verify_release_version.mjs <version.json> <sha> [sqlAppliedVersion] [uat|production] [preflight]
  */
@@ -30,6 +29,7 @@ function emit(state, reason, payload) {
   const verified =
     state === 'UAT verified' ||
     state === 'UAT deployment verified' ||
+    state === 'Production deployment verified' ||
     state === 'Production DB verified';
   process.exit(verified ? 0 : 1);
 }
@@ -88,11 +88,15 @@ function main() {
     emit('failed', 'migration status is unavailable', payload);
   }
 
-  // Before a UAT migration changes the database, the selected deployment must
+  // Before a migration changes a shared database, the selected deployment must
   // prove its identity and expose a usable schema-status response. It may be
   // out of sync at this point precisely because the migration has not run yet.
   if (mode === 'preflight') {
-    emit('UAT deployment verified', 'deployment matches the selected commit', payload);
+    emit(
+      targetEnv === 'production' ? 'Production deployment verified' : 'UAT deployment verified',
+      'deployment matches the selected commit',
+      payload
+    );
   }
 
   if (sqlApplied && applied !== sqlApplied) {
