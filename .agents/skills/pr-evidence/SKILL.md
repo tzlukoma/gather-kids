@@ -41,6 +41,7 @@ Copy into the PR (also in [`.github/PULL_REQUEST_TEMPLATE.md`](../../../.github/
 - [ ] UI screenshots or recordings attached, or marked not applicable
 - [ ] Accessibility and responsive behaviour checked where applicable
 - [ ] Schema/migration impact documented, or marked none (`Schema change: documented` when `supabase/migrations/` changes; `Schema change: none` otherwise)
+- [ ] Release state named when the diff changes deploy or promotion (`Build complete`, `UAT schema pending`, `UAT verified`, `Production approval pending`, `Production DB verified`, `Production released`). A Vercel build is not `Production released`.
 - [ ] Generated Supabase types updated or verified where applicable
 - [ ] Auth, RLS, role, household and ministry-scope impact documented
 - [ ] Secrets and sensitive child/guardian data reviewed

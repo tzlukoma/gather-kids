@@ -34,6 +34,7 @@ Schema change: none
 - [ ] UI screenshots or recordings attached, or marked not applicable
 - [ ] Accessibility and responsive behaviour checked where applicable
 - [ ] Schema/migration impact documented, or marked none
+- [ ] Release state named if this changes deploy or promotion. A Vercel build is not `Production released`. See [docs/CI_CD.md](../docs/CI_CD.md#release-states).
 - [ ] Generated Supabase types updated or verified where applicable
 - [ ] Auth, RLS, role, household and ministry-scope impact documented
 - [ ] Secrets and sensitive child/guardian data reviewed
