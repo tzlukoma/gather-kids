@@ -33,7 +33,7 @@ and do not promote a release.
 | Name | What it is |
 |------|------------|
 | **`main`** | Only long-lived git branch and PR target. A merge is **Build complete**, not a finished production release. |
-| **UAT** | GitHub Environment `uat` + UAT Supabase + the UAT app named by `UAT_APP_URL` |
+| **UAT** | GitHub Environment `uat` + UAT Supabase + an explicit immutable UAT Vercel deployment URL |
 | **Production** | Staged Vercel production deployment + GitHub Environment `production` (required reviewers). Live only after **Production released**. |
 | **Production ops** | GitHub Environment `production-ops` — unattended scheduled prod jobs (no reviewers). Not a release path. |
 
@@ -278,21 +278,21 @@ Schema change: documented
 
 ### UAT — [`uat-db-deploy.yml`](../.github/workflows/uat-db-deploy.yml)
 
-Set GitHub Environment variable **`UAT_APP_URL`** on **`uat`** to the UAT app origin (`https://…`, no path). The workflow fails closed when it is missing. It is not a secret.
-
 #### Dry-run → apply → verify
 
 1. GitHub → **Actions** → **UAT DB deploy** → **Run workflow** on **`main`**.
-2. `dry_run: true` lists pending migrations and does not apply them. The summary says `dry run — not UAT verified`.
-3. Run again with `dry_run: false`. Leave `git_sha` empty to use the selected `main` commit, or paste a full 40-character SHA that is already on `main`.
-4. The job checks out that SHA, applies migrations with `scripts/db/apply_migrations_cli.sh`, and runs FK checks. `check_fks.sh` treats `leader_assignments.leader_id` as a `leader_profiles` reference, not `users`.
-5. It reads `supabase_migrations.schema_migrations`, then `GET $UAT_APP_URL/api/version` and `GET /api/health`.
+2. Enter `deployment_url`: the full immutable `https://….vercel.app` origin for the UAT deployment built from the selected `main` SHA. Find it in Vercel's deployment details for that exact commit; do not use a pull-request preview, a mutable branch alias such as `…-git-main-….vercel.app`, or a production/custom domain. The workflow rejects non-Vercel URLs, paths, branch aliases, production domains, a non-`uat` response, and SHA mismatches.
+3. `dry_run: true` lists pending migrations and does not apply them. The summary says `dry run — not UAT verified`.
+4. Run again with `dry_run: false`. Leave `git_sha` empty to use the selected `main` commit, or paste a full 40-character SHA that is already on `main`.
+5. Before any database command, the workflow requests `<deployment_url>/api/version`. It requires HTTP 200, `deployEnv: "uat"`, an exact full-SHA match, and usable schema status. A schema mismatch is allowed only at this preflight point because the pending migration has not yet run.
+6. The job checks out that SHA, applies migrations with `scripts/db/apply_migrations_cli.sh`, and runs FK checks. `check_fks.sh` treats `leader_assignments.leader_id` as a `leader_profiles` reference, not `users`.
+7. It reads `supabase_migrations.schema_migrations`, then re-checks that same deployment URL's `/api/version` and `/api/health`.
 
 **`UAT verified`** requires all of these: HTTP 200, `deployEnv` is `uat`, `gitSha` equals the selected commit, `expectedMigration` equals `appliedMigration`, `inSync` is true, the endpoint's applied version equals the database query, and `/api/health` returns `{ "status": "ok" }`.
 
 Anything else fails the job. A deployed build that is not this commit, or a build whose expected migration does not match the database, is **`UAT schema pending`**. A missing URL, a non-200 response, a missing status RPC, or a non-UAT `deployEnv` is **`failed`**. Neither state is UAT verified.
 
-The summary shows SHA, app version, app URL, expected and applied migrations, applied count, `inSync`, health, and the state. It does not print database URLs or keys.
+The summary shows the selected SHA, verified deployment URL, app version, expected and applied migrations, applied count, `inSync`, health, and release state. It does not print database URLs or keys. Automatic deployment lookup is intentionally not enabled: no documented least-privilege Vercel metadata token or post-merge UAT deployment path exists yet, so zero or ambiguous matches cannot be guessed.
 
 **No auto-commit** of generated types.
 
@@ -404,7 +404,7 @@ DB deploy / types jobs (`uat`, `production`):
 
 Legacy aliases: `UAT_SUPABASE_URL`, `PROD_SUPABASE_URL`, `UAT_DATABASE_URL`, `PROD_DATABASE_URL`.
 
-Environment **variable** (not a secret) on `uat`: `UAT_APP_URL` — UAT app origin used by UAT DB deploy to read `/api/version` and `/api/health`.
+`UAT_APP_URL` is no longer used by UAT DB deploy for correctness. It may remain temporarily for other operational consumers, but operators must provide the immutable deployment URL when dispatching UAT DB deploy.
 
 Scheduled prod ops (`production-ops`) — same production credential **values** as `production`, ops-scoped names only. Do **not** add `SENTRY_AUTH_TOKEN` or DB-deploy tokens unless a workflow truly needs them. Do **not** add required reviewers on this environment.
 

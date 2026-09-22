@@ -27,7 +27,8 @@ function run(
   payload: unknown,
   expectedSha = sha,
   sqlApplied = '',
-  deployEnv = ''
+  deployEnv = '',
+  mode = ''
 ) {
   const dir = mkdtempSync(path.join(tmpdir(), 'uat-version-'));
   const file = path.join(dir, 'version.json');
@@ -35,6 +36,7 @@ function run(
   const args = ['scripts/db/verify_release_version.mjs', file, expectedSha];
   if (deployEnv) {
     args.push(sqlApplied, deployEnv);
+    if (mode) args.push(mode);
   } else if (sqlApplied) {
     args.push(sqlApplied);
   }
@@ -75,6 +77,48 @@ describe('UAT release version gate', () => {
     expect(result.status).toBe(1);
     expect(result.parsed.state).toBe('UAT schema pending');
     expect(result.parsed.reason).toContain('selected commit');
+  });
+
+  it('preflights the exact UAT deployment while allowing a pending migration', () => {
+    const result = run(
+      version({
+        db: {
+          expectedMigration: '20260922000000',
+          appliedMigration: '20260921200000',
+          appliedCount: 4,
+          inSync: false,
+        },
+      }),
+      sha,
+      '',
+      'uat',
+      'preflight'
+    );
+    expect(result.status).toBe(0);
+    expect(result.parsed.state).toBe('UAT deployment verified');
+  });
+
+  it('rejects a mutable Vercel branch alias as a UAT deployment URL', () => {
+    const result = spawnSync(
+      'bash',
+      [
+        'scripts/db/validate_uat_deployment_url.sh',
+        'https://gather-kids-git-main-tzlukomas-projects.vercel.app',
+      ],
+      { cwd: root, encoding: 'utf8' }
+    );
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('branch alias');
+  });
+
+  it('accepts an immutable Vercel deployment URL', () => {
+    const result = spawnSync(
+      'bash',
+      ['scripts/db/validate_uat_deployment_url.sh', 'https://gather-kids-abc123.vercel.app'],
+      { cwd: root, encoding: 'utf8' }
+    );
+    expect(result.status).toBe(0);
+    expect(result.stdout.trim()).toBe('https://gather-kids-abc123.vercel.app');
   });
 
   it('fails closed when migration status is missing', () => {
@@ -239,12 +283,19 @@ describe('UAT deploy workflow', () => {
     'utf8'
   );
 
-  it('verifies the UAT app for the selected main SHA and does not call production', () => {
+  it('preflights an explicit UAT deployment for the selected main SHA and does not call production', () => {
     expect(workflow).toContain('verify_release_version.mjs');
-    expect(workflow).toContain('vars.UAT_APP_URL');
+    expect(workflow).toContain('deployment_url:');
+    expect(workflow).toContain('Verify selected UAT deployment before database changes');
+    expect(workflow).toContain('UAT deployment does not identify the selected UAT commit. No database changes were made.');
+    expect(workflow.indexOf('Verify selected UAT deployment before database changes')).toBeLessThan(
+      workflow.indexOf('- name: Apply migrations to UAT')
+    );
+    expect(workflow).toContain('validate_uat_deployment_url.sh');
+    expect(workflow).not.toContain('vars.UAT_APP_URL');
     expect(workflow).toContain('/api/version');
     expect(workflow).toContain('/api/health');
     expect(workflow).toContain('origin/main');
-    expect(workflow).not.toMatch(/PROD_|production/);
+    expect(workflow).not.toContain('PROD_');
   });
 });

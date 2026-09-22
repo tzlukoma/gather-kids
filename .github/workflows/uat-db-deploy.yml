@@ -12,6 +12,10 @@ on:
         type: string
         required: false
         default: ''
+      deployment_url:
+        description: Immutable UAT Vercel deployment URL for the selected commit (https://….vercel.app)
+        type: string
+        required: true
 
 permissions:
   contents: read
@@ -30,6 +34,7 @@ jobs:
         env:
           INPUT_SHA: ${{ inputs.git_sha }}
           RUN_SHA: ${{ github.sha }}
+          DEPLOYMENT_URL: ${{ inputs.deployment_url }}
         run: |
           set -euo pipefail
           git fetch origin main
@@ -44,8 +49,13 @@ jobs:
             echo "::error::SHA is not on main. UAT verification only accepts main commits."
             exit 1
           fi
+          if ! url=$(bash scripts/db/validate_uat_deployment_url.sh "$DEPLOYMENT_URL"); then
+            echo "::error::deployment_url must be an immutable Vercel deployment origin, not a branch alias, production domain, or path."
+            exit 1
+          fi
           git checkout --detach "$SHA"
           echo "RESOLVED_SHA=$SHA" >> "$GITHUB_ENV"
+          echo "UAT_DEPLOYMENT_URL=$url" >> "$GITHUB_ENV"
 
       - uses: ./.github/actions/setup-node-app
         with:
@@ -82,6 +92,61 @@ jobs:
           echo "SUPABASE_URL=$SUPABASE_URL" >> "$GITHUB_ENV"
           echo "PROJECT_ID=$PROJECT_ID" >> "$GITHUB_ENV"
 
+      - name: Verify selected UAT deployment before database changes
+        env:
+          UAT_DEPLOYMENT_URL: ${{ env.UAT_DEPLOYMENT_URL }}
+        run: |
+          set -euo pipefail
+          set +e
+          version_code=$(curl -sS -o /tmp/uat-preflight-version.json -w '%{http_code}' "$UAT_DEPLOYMENT_URL/api/version")
+          version_curl=$?
+          set -e
+          if [[ "$version_curl" -ne 0 || "$version_code" != "200" ]]; then
+            {
+              echo "## UAT DB deploy"
+              echo ""
+              echo "- **State:** failed"
+              echo "- **SHA:** \`$RESOLVED_SHA\`"
+              echo "- **Verified deployment URL:** $UAT_DEPLOYMENT_URL"
+              echo "- **Reason:** /api/version returned HTTP ${version_code:-curl-failed} before database changes"
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "::error::GET /api/version did not return HTTP 200. No database changes were made."
+            exit 1
+          fi
+
+          set +e
+          node scripts/db/verify_release_version.mjs /tmp/uat-preflight-version.json "$RESOLVED_SHA" '' uat preflight > /tmp/uat-preflight.json
+          verify_status=$?
+          set -e
+          if [[ ! -s /tmp/uat-preflight.json ]]; then
+            echo "::error::UAT deployment preflight did not return a result. No database changes were made."
+            exit 1
+          fi
+
+          state=$(node -e "process.stdout.write(JSON.parse(require('fs').readFileSync('/tmp/uat-preflight.json','utf8')).state || '')")
+          reason=$(node -e "process.stdout.write(JSON.parse(require('fs').readFileSync('/tmp/uat-preflight.json','utf8')).reason || '')")
+          expected=$(node -e "const b=JSON.parse(require('fs').readFileSync('/tmp/uat-preflight.json','utf8')); process.stdout.write(b.expectedMigration ?? '')")
+          applied=$(node -e "const b=JSON.parse(require('fs').readFileSync('/tmp/uat-preflight.json','utf8')); process.stdout.write(b.appliedMigration ?? '')")
+          in_sync=$(node -e "const b=JSON.parse(require('fs').readFileSync('/tmp/uat-preflight.json','utf8')); process.stdout.write(String(b.inSync))")
+          if [[ "$verify_status" -ne 0 || "$state" != "UAT deployment verified" ]]; then
+            {
+              echo "## UAT DB deploy"
+              echo ""
+              echo "- **State:** failed"
+              echo "- **SHA:** \`$RESOLVED_SHA\`"
+              echo "- **Verified deployment URL:** $UAT_DEPLOYMENT_URL"
+              echo "- **Expected migration:** \`$expected\`"
+              echo "- **Applied migration:** \`$applied\`"
+              echo "- **inSync:** $in_sync"
+              echo "- **Reason:** $reason"
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "::error::UAT deployment does not identify the selected UAT commit. No database changes were made."
+            exit 1
+          fi
+          echo "PREFLIGHT_EXPECTED_MIGRATION=$expected" >> "$GITHUB_ENV"
+          echo "PREFLIGHT_APPLIED_MIGRATION=$applied" >> "$GITHUB_ENV"
+          echo "PREFLIGHT_IN_SYNC=$in_sync" >> "$GITHUB_ENV"
+
       - name: Dry-run migrations (optional)
         if: inputs.dry_run
         env:
@@ -96,6 +161,10 @@ jobs:
             echo "- **State:** dry run — not UAT verified"
             echo "- **SHA:** \`$RESOLVED_SHA\`"
             echo "- **Project:** \`$PROJECT_ID\`"
+            echo "- **Verified deployment URL:** $UAT_DEPLOYMENT_URL"
+            echo "- **Expected migration:** \`$PREFLIGHT_EXPECTED_MIGRATION\`"
+            echo "- **Applied migration:** \`$PREFLIGHT_APPLIED_MIGRATION\`"
+            echo "- **inSync:** $PREFLIGHT_IN_SYNC"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Apply migrations to UAT
@@ -130,15 +199,9 @@ jobs:
 
       - name: Verify deployed UAT app
         if: ${{ !inputs.dry_run }}
-        env:
-          UAT_APP_URL: ${{ vars.UAT_APP_URL }}
         run: |
           set -euo pipefail
-          base="${UAT_APP_URL%/}"
-          if [[ -z "$base" || "$base" != https://* ]]; then
-            echo "::error::Set the uat environment variable UAT_APP_URL to the UAT app origin (https, no path)."
-            exit 1
-          fi
+          base="$UAT_DEPLOYMENT_URL"
 
           set +e
           version_code=$(curl -sS -o /tmp/uat-version.json -w '%{http_code}' "$base/api/version")
@@ -151,7 +214,7 @@ jobs:
               echo ""
               echo "- **State:** failed"
               echo "- **SHA:** \`$RESOLVED_SHA\`"
-              echo "- **App URL:** $base"
+              echo "- **Verified deployment URL:** $base"
               echo "- **Reason:** /api/version returned HTTP $version_code"
             } >> "$GITHUB_STEP_SUMMARY"
             exit 1
@@ -197,7 +260,7 @@ jobs:
             echo "- **State:** $state"
             echo "- **SHA:** \`$RESOLVED_SHA\`"
             echo "- **App:** \`$app\`"
-            echo "- **App URL:** $base"
+            echo "- **Verified deployment URL:** $base"
             echo "- **Expected migration:** \`$expected\`"
             echo "- **Applied migration:** \`$applied\`"
             echo "- **Applied count:** $count"
