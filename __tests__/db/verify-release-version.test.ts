@@ -1,7 +1,8 @@
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { stampGitSha } from '@/lib/build-info';
 
 const root = process.cwd();
 const sha = 'a'.repeat(40);
@@ -108,6 +109,61 @@ describe('UAT release version gate', () => {
     const result = run(version(), sha, '20260901000000');
     expect(result.status).toBe(1);
     expect(result.parsed.state).toBe('failed');
+  });
+
+  it('fails closed when the deployed SHA is only the short display value', () => {
+    const result = run(version({ gitSha: sha.slice(0, 7) }));
+    expect(result.status).toBe(1);
+    expect(result.parsed.state).toBe('failed');
+    expect(result.parsed.reason).toContain('full commit SHA');
+  });
+
+  it('keeps a full SHA at runtime and shortens only the display value', () => {
+    const stamped = stampGitSha(sha);
+    expect(stamped.gitSha).toBe(sha);
+    expect(stamped.gitShaShort).toBe(sha.slice(0, 7));
+  });
+
+  it('verifies the SHA format inject-build-info actually writes', () => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'build-info-'));
+    writeFileSync(path.join(dir, 'package.json'), JSON.stringify({ version: '1.2.3' }));
+    mkdirSync(path.join(dir, 'supabase', 'migrations'), { recursive: true });
+    writeFileSync(
+      path.join(dir, 'supabase', 'migrations', '20260921200000_example.sql'),
+      '-- example\n'
+    );
+    const injected = spawnSync('node', [path.join(root, 'scripts/inject-build-info.mjs')], {
+      cwd: dir,
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        VERCEL_GIT_COMMIT_SHA: sha,
+        VERCEL_GIT_COMMIT_REF: 'main',
+        NEXT_PUBLIC_DEPLOY_ENV: 'uat',
+      },
+    });
+    expect(injected.status).toBe(0);
+    const stamped = JSON.parse(
+      readFileSync(path.join(dir, 'src', 'generated', 'build-info.json'), 'utf8')
+    );
+    expect(stamped.gitSha).toBe(sha);
+    expect(stamped.gitShaShort).toBe(sha.slice(0, 7));
+
+    const result = run(
+      version({
+        app: stamped.appVersion,
+        gitSha: stamped.gitSha,
+        db: {
+          expectedMigration: stamped.expectedMigration,
+          appliedMigration: stamped.expectedMigration,
+          appliedCount: 1,
+          inSync: true,
+        },
+      }),
+      sha
+    );
+    expect(result.status).toBe(0);
+    expect(result.parsed.state).toBe('UAT verified');
   });
 
   it('fails closed on invalid JSON', () => {

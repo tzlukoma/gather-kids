@@ -121,7 +121,8 @@ Returns JSON:
 ```json
 {
   "app": "1.7.0",
-  "gitSha": "a1b2c3d",
+  "gitSha": "a1b2c3d4e5f6789012345678901234567890abcd",
+  "gitShaShort": "a1b2c3d",
   "gitRef": "main",
   "deployEnv": "uat",
   "supabaseProjectRef": "abcd1234",

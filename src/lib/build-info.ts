@@ -4,6 +4,7 @@ import generatedBuildInfoJson from '../generated/build-info.json';
 type GeneratedBuildInfo = {
   appVersion?: string;
   gitSha?: string;
+  gitShaShort?: string;
   gitRef?: string;
   deployEnv?: string;
   builtAt?: string;
@@ -14,13 +15,23 @@ const generatedBuildInfo = generatedBuildInfoJson as GeneratedBuildInfo;
 
 export type BuildInfo = {
   appVersion: string;
+  /** Full commit SHA when the build environment provided one. */
   gitSha: string;
+  /** First 7 hex characters, for display. */
+  gitShaShort: string;
   gitRef: string;
   deployEnv: string;
   builtAt: string;
   /** Supabase migration version stamped from supabase/migrations at build time. */
   expectedMigration: string | null;
 };
+
+/** Keep a full SHA for release checks. Shorten only the display value. */
+export function stampGitSha(raw: string | undefined): { gitSha: string; gitShaShort: string } {
+  const gitSha = raw?.trim() || 'local';
+  const gitShaShort = /^[0-9a-f]{7,40}$/i.test(gitSha) ? gitSha.slice(0, 7) : gitSha;
+  return { gitSha, gitShaShort };
+}
 
 /** Ignore empty env vars (Vercel sometimes sets these to blank strings). */
 function envValue(value: string | undefined): string | undefined {
@@ -32,17 +43,20 @@ function envValue(value: string | undefined): string | undefined {
  * Build metadata captured at `prebuild` time (see scripts/inject-build-info.mjs).
  * Prefer this snapshot over runtime env so /api/version reflects the deploy that was built.
  */
+const stampedSha = stampGitSha(
+  generatedBuildInfo.gitSha ||
+    envValue(process.env.NEXT_PUBLIC_GIT_SHA) ||
+    envValue(process.env.VERCEL_GIT_COMMIT_SHA) ||
+    'local'
+);
+
 export const buildInfo: BuildInfo = {
   appVersion:
     generatedBuildInfo.appVersion ||
     envValue(process.env.NEXT_PUBLIC_APP_VERSION) ||
     packageJson.version,
-  gitSha: (
-    generatedBuildInfo.gitSha ||
-    envValue(process.env.NEXT_PUBLIC_GIT_SHA) ||
-    envValue(process.env.VERCEL_GIT_COMMIT_SHA) ||
-    'local'
-  ).slice(0, 7),
+  gitSha: stampedSha.gitSha,
+  gitShaShort: generatedBuildInfo.gitShaShort || stampedSha.gitShaShort,
   gitRef:
     generatedBuildInfo.gitRef ||
     envValue(process.env.VERCEL_GIT_COMMIT_REF) ||

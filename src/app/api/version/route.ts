@@ -88,6 +88,7 @@ export async function GET() {
     {
       app: buildInfo.appVersion,
       gitSha: buildInfo.gitSha,
+      gitShaShort: buildInfo.gitShaShort,
       gitRef: buildInfo.gitRef,
       deployEnv: buildInfo.deployEnv,
       builtAt: buildInfo.builtAt || null,

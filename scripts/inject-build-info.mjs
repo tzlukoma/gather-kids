@@ -22,16 +22,23 @@ function latestMigrationVersion(dir) {
   return best;
 }
 
+function stampGitSha(raw) {
+  const gitSha = raw.trim() || 'local';
+  const gitShaShort = /^[0-9a-f]{7,40}$/i.test(gitSha) ? gitSha.slice(0, 7) : gitSha;
+  return { gitSha, gitShaShort };
+}
+
+const sha = stampGitSha(
+  process.env.NEXT_PUBLIC_GIT_SHA || process.env.VERCEL_GIT_COMMIT_SHA || 'local'
+);
+
 const info = {
   appVersion:
     process.env.NEXT_PUBLIC_APP_VERSION ||
     process.env.npm_package_version ||
     pkg.version,
-  gitSha: (
-    process.env.NEXT_PUBLIC_GIT_SHA ||
-    process.env.VERCEL_GIT_COMMIT_SHA ||
-    'local'
-  ).slice(0, 7),
+  gitSha: sha.gitSha,
+  gitShaShort: sha.gitShaShort,
   gitRef: process.env.VERCEL_GIT_COMMIT_REF || 'local',
   deployEnv:
     process.env.NEXT_PUBLIC_DEPLOY_ENV ||
