@@ -76,11 +76,25 @@ jobs:
             exit 1
           fi
 
+          write_preflight_failure_summary() {
+            local failure_reason="$1"
+            {
+              echo "## Production release"
+              echo ""
+              echo "- **State:** failed"
+              echo "- **SHA:** \`$RESOLVED_SHA\`"
+              echo "- **Staged URL:** $staged_url"
+              echo "- **Promotion:** not run"
+              echo "- **Reason:** $failure_reason"
+            } >> "$GITHUB_STEP_SUMMARY"
+          }
+
           set +e
           version_code=$(curl -sS -o /tmp/staged-preflight-version.json -w '%{http_code}' "$staged_url/api/version")
           version_curl=$?
           set -e
           if [[ "$version_curl" -ne 0 || "$version_code" != "200" ]]; then
+            write_preflight_failure_summary "staged /api/version returned HTTP ${version_code:-curl-failed}"
             echo "::error::Staged /api/version did not return HTTP 200. No database changes were made."
             exit 1
           fi
@@ -89,6 +103,7 @@ jobs:
             /tmp/staged-preflight-version.json "$RESOLVED_SHA" '' production preflight \
             > /tmp/staged-preflight.json; then
             reason=$(node -e "const b=JSON.parse(require('fs').readFileSync('/tmp/staged-preflight.json','utf8')); process.stdout.write(b.reason||'unknown verification failure')")
+            write_preflight_failure_summary "$reason"
             echo "::error::Staged deployment is not the selected production build: $reason. No database changes were made."
             exit 1
           fi

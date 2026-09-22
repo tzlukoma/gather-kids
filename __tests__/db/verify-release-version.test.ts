@@ -302,6 +302,10 @@ describe('production release workflow', () => {
     expect(discoverAt).toBeGreaterThan(0);
     expect(discoverAt).toBeLessThan(workflow.indexOf('- name: Apply migrations'));
     expect(promoteAt).toBeGreaterThan(verifyAt);
+    const preflight = workflow.slice(discoverAt, workflow.indexOf('- uses: ./.github/actions/setup-supabase-cli'));
+    expect(preflight).toContain('write_preflight_failure_summary "staged /api/version returned HTTP');
+    expect(preflight).toContain('write_preflight_failure_summary "$reason"');
+    expect(preflight).toContain('- **Staged URL:** $staged_url');
   });
 });
 
