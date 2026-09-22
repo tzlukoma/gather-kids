@@ -51,6 +51,16 @@ describe('CI migration application fails fast', () => {
     expect(bootstrap).toContain('scripts/db/bootstrap_ci_postgres.sql');
   });
 
+  it('bootstraps auth.users so RLS policies that read it can be created', () => {
+    const bootstrap = read('scripts/db/bootstrap_ci_postgres.sql');
+    const audit = read('supabase/migrations/20250120120000_add_audit_log_table.sql');
+    expect(audit).toContain('FROM auth.users');
+    expect(audit).toContain("raw_user_meta_data->>'role'");
+    expect(bootstrap).toContain('CREATE TABLE IF NOT EXISTS auth.users');
+    expect(bootstrap).toContain('id uuid PRIMARY KEY');
+    expect(bootstrap).toContain('raw_user_meta_data jsonb');
+  });
+
   it('keeps the migration-status RPC check in db-fk', () => {
     expect(ci).toContain('scripts/db/check_schema_migration_status.sql');
     expect(ci).toContain('scripts/db/check_fks.sh');
