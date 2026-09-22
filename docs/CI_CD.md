@@ -320,7 +320,7 @@ On the `production` GitHub Environment, set:
 
 1. Merge to `main` and wait until Vercel has a staged production deployment for that SHA. Copy its `https://….vercel.app` URL. Do not paste the production domain.
 2. **Actions** → **Production release** → **Run workflow**. Enter the full `main` SHA and that staged URL.
-3. GitHub Environment **`production`** approval is required. The summary before approval is **Production approval pending** (the environment gate). Nothing is promoted until a reviewer approves.
+3. GitHub Environment **`production`** approval is required. That review is **Production approval pending**. Nothing is promoted until a reviewer approves. The workflow summary is written only after the job starts.
 4. The job checks out that SHA, dry-runs and applies migrations with `scripts/db/apply_migrations_cli.sh`, runs FK checks, then requires the staged URL's `/api/version` to be **Production DB verified** (`deployEnv` production, `gitSha` matches, `inSync` true).
 5. Only then does it run `vercel promote` on that staged URL.
 6. It calls `PROD_APP_URL` `/api/version` and `/api/health`. The summary says **Production released** only when those checks pass.
