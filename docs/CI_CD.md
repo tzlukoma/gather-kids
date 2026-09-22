@@ -11,29 +11,31 @@ Related: [`docs/CI_CD_CLEANUP_PLAN.md`](./CI_CD_CLEANUP_PLAN.md), [`docs/CONTRIB
 ```
 feature/* ──PR──► main  ◄── release-please Release PR (semver tag)
                     │
-        ┌───────────┼───────────┐
-        │           │           │
-        ▼           ▼           ▼
-   ci.yml      Vercel       workflow_dispatch
-   on PR       Preview      uat-db-deploy  (GitHub env: uat)
-   + push      per PR       → UAT Supabase migrations
-   main        UAT env vars
-        │
-        └── merge to main ──► Vercel Production (prod Supabase)
+                    ▼
+              Build complete
+              Vercel builds the commit. With production-domain
+              auto-assign off, that build is staged, not live.
                     │
-                    └── workflow_dispatch prod-db-deploy (GitHub env: production)
-                    └── scheduled digest / keepalive (GitHub env: production-ops)
+        ┌───────────┴────────────────┐
+        ▼                            ▼
+   UAT DB deploy                Production release
+   (GitHub env: uat)            (GitHub env: production, reviewers)
+   dry-run → apply →            approval pending → schema →
+   /api/version + /api/health   staged /api/version → promote →
+        │                       production /api/version + /api/health
+        ▼                            ▼
+   UAT verified                 Production released
 
-footer tooltip (admin): app vX.Y.Z · uat|production · db migration
-scheduled / manual ops workflows (digest, keepalive, backup, …)
+scheduled digest / keepalive stay on GitHub env production-ops
+and do not promote a release.
 ```
 
 | Name | What it is |
 |------|------------|
-| **`main`** | Only long-lived git branch; PR target; Vercel production |
-| **UAT** | GitHub Environment `uat` + UAT Supabase + Vercel Preview env vars |
-| **Production** | Vercel Production on `main` + GitHub Environment `production` (required reviewers) |
-| **Production ops** | GitHub Environment `production-ops` — unattended scheduled prod jobs (no reviewers) |
+| **`main`** | Only long-lived git branch and PR target. A merge is **Build complete**, not a finished production release. |
+| **UAT** | GitHub Environment `uat` + UAT Supabase + the UAT app named by `UAT_APP_URL` |
+| **Production** | Staged Vercel production deployment + GitHub Environment `production` (required reviewers). Live only after **Production released**. |
+| **Production ops** | GitHub Environment `production-ops` — unattended scheduled prod jobs (no reviewers). Not a release path. |
 
 ### GitHub Environments
 
@@ -96,10 +98,35 @@ See [`docs/CONTRIBUTING.md`](./CONTRIBUTING.md) and [`commitlint.config.js`](../
 
 ## How releases work
 
-1. Conventional commits land on **`main`** via squash merge.
+1. Conventional commits land on **`main`** via squash merge. That is **Build complete**.
 2. [`release-please.yml`](../.github/workflows/release-please.yml) opens a **Release PR** updating `package.json` + `CHANGELOG.md`.
-3. Merging the Release PR creates git tag `vX.Y.Z` and a GitHub Release.
-4. Vercel production build picks up the new version from `package.json`.
+3. Merging the Release PR creates git tag `vX.Y.Z` and a GitHub Release. The tag is the app version, not a database release and not production traffic.
+4. **UAT verified** and **Production released** are separate manual workflows. A green Vercel build does not complete either one.
+
+## Release states
+
+These names are the only ones a workflow summary should use for a release. The summary also lists SHA, app version, target environment, expected migration, applied migration, applied count, `inSync`, health, and the deployment URL. It does not print database URLs or keys.
+
+| State | What is true | Who advances it | Evidence |
+|-------|----------------|-----------------|----------|
+| **Build complete** | CI passed and Vercel built the commit. Production domains were not intentionally moved. | Merge to `main` | Green CI and a Vercel deployment for the SHA |
+| **UAT schema pending** | The UAT app for this commit is not in sync with the UAT database, or the deployed build is a different commit. | Nobody. The UAT job fails. | UAT DB deploy summary |
+| **UAT verified** | UAT `/api/version` has `inSync: true` for this SHA, and `/api/health` is ok. | UAT DB deploy, run by someone who can use the `uat` environment | Summary state `UAT verified` |
+| **Production approval pending** | Production release is waiting on the `production` environment reviewers. | Thomas approves that GitHub deployment | The waiting environment review |
+| **Production DB verified** | The staged production build matches the applied production schema. Domains have not moved yet. | Production release, after approval and before promote | Staged `/api/version` check inside the job |
+| **Production released** | The production domain serves that build, `inSync` is true, and health is ok. | Production release, after `vercel promote` and the domain check | Summary state `Production released` |
+
+**Production released** is the only completed production deployment. **Build complete** is not.
+
+### Failure paths
+
+| What failed | What you see | What stays in place |
+|-------------|----------------|---------------------|
+| Migration dry-run | Job fails. Summary is not `UAT verified`. | UAT schema unchanged |
+| Migration apply | Job fails before verification or promotion | Previous schema. Production domains stay if promote has not run |
+| Status RPC missing, or `/api/version` not HTTP 200 | State `failed` | No promote |
+| Build SHA and database disagree | `UAT schema pending`, or `failed` on a production release | No promote |
+| App needs to go back after an additive migration | Promote the previous deployment URL | Schema stays. Do not restore an old database backup. Ship a forward migration if the schema itself must change. |
 
 ---
 
@@ -293,7 +320,7 @@ On the `production` GitHub Environment, set:
 
 1. Merge to `main` and wait until Vercel has a staged production deployment for that SHA. Copy its `https://….vercel.app` URL. Do not paste the production domain.
 2. **Actions** → **Production release** → **Run workflow**. Enter the full `main` SHA and that staged URL.
-3. GitHub Environment **`production`** approval is required. The summary before approval is **Production approval pending** (the environment gate). Nothing is promoted until a reviewer approves.
+3. GitHub Environment **`production`** approval is required. That review is **Production approval pending**. Nothing is promoted until a reviewer approves. The workflow summary is written only after the job starts.
 4. The job checks out that SHA, dry-runs and applies migrations with `scripts/db/apply_migrations_cli.sh`, runs FK checks, then requires the staged URL's `/api/version` to be **Production DB verified** (`deployEnv` production, `gitSha` matches, `inSync` true).
 5. Only then does it run `vercel promote` on that staged URL.
 6. It calls `PROD_APP_URL` `/api/version` and `/api/health`. The summary says **Production released** only when those checks pass.
