@@ -3,6 +3,7 @@ import { chmodSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from '
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { stampGitSha } from '@/lib/build-info';
+import { confirmProductionRelease } from '../../scripts/ci/confirm_production_release.mjs';
 
 const root = process.cwd();
 const sha = 'a'.repeat(40);
@@ -306,6 +307,56 @@ describe('production release workflow', () => {
     expect(preflight).toContain('write_preflight_failure_summary "staged /api/version returned HTTP');
     expect(preflight).toContain('write_preflight_failure_summary "$reason"');
     expect(preflight).toContain('- **Staged URL:** $staged_url');
+    expect(workflow).toContain('confirm_production_release.mjs');
+    expect(workflow).toContain('Confirmation attempts');
+  });
+});
+
+describe('post-promotion production confirmation', () => {
+  const productionVersion = (gitSha = sha) =>
+    version({
+      gitSha,
+      deployEnv: 'production',
+    });
+
+  it('retries an outdated production alias and succeeds after it converges', async () => {
+    const responses = [
+      { ok: true, status: 200, json: async () => productionVersion(otherSha) },
+      { ok: true, status: 200, json: async () => productionVersion() },
+      { ok: true, status: 200, json: async () => ({ status: 'ok' }) },
+    ];
+    const sleep = jest.fn().mockResolvedValue(undefined);
+    const result = await confirmProductionRelease({
+      baseUrl: 'https://gatherkidslive.example',
+      expectedSha: sha,
+      appliedMigration: '20260921200000',
+      attempts: 3,
+      intervalMs: 0,
+      request: async () => responses.shift(),
+      sleep,
+    });
+
+    expect(result.state).toBe('Production released');
+    expect(result.attempts).toBe(2);
+    expect(result.health).toBe('ok');
+    expect(sleep).toHaveBeenCalledTimes(1);
+  });
+
+  it('fails closed when the production alias does not converge within the retry window', async () => {
+    const result = await confirmProductionRelease({
+      baseUrl: 'https://gatherkidslive.example',
+      expectedSha: sha,
+      appliedMigration: '20260921200000',
+      attempts: 3,
+      intervalMs: 0,
+      request: async () => ({ ok: true, status: 200, json: async () => productionVersion(otherSha) }),
+      sleep: async () => undefined,
+    });
+
+    expect(result.state).toBe('failed');
+    expect(result.attempts).toBe(3);
+    expect(result.reason).toContain('did not converge');
+    expect(result.reason).toContain('selected commit');
   });
 });
 

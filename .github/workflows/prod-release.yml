@@ -244,53 +244,26 @@ jobs:
           set -euo pipefail
           npx --yes vercel@59.24.0 promote "$STAGED_URL" --token "$VERCEL_TOKEN" --yes
 
-      - name: Confirm production domain
+      - name: Confirm production domain after promotion
         env:
           PROD_APP_URL: ${{ vars.PROD_APP_URL }}
         run: |
           set -euo pipefail
           base="${PROD_APP_URL%/}"
           set +e
-          version_code=$(curl -sS -o /tmp/prod-version.json -w '%{http_code}' "$base/api/version")
-          version_curl=$?
+          node scripts/ci/confirm_production_release.mjs \
+            "$PROD_APP_URL" "$RESOLVED_SHA" "$APPLIED_MIGRATION" > /tmp/prod-release.json
+          confirmation_status=$?
           set -e
-          state="failed"
-          reason="production /api/version did not return HTTP 200"
-          health="not run"
-          app=""
-          expected=""
-          applied=""
-          count=""
-          in_sync=""
-          if [[ "$version_curl" -eq 0 && "$version_code" == "200" ]]; then
-            set +e
-            node scripts/db/verify_release_version.mjs /tmp/prod-version.json "$RESOLVED_SHA" "$APPLIED_MIGRATION" production > /tmp/prod-release.json
-            verify_status=$?
-            set -e
-            state=$(node -e "const b=JSON.parse(require('fs').readFileSync('/tmp/prod-release.json','utf8')); process.stdout.write(b.state||'')")
-            reason=$(node -e "const b=JSON.parse(require('fs').readFileSync('/tmp/prod-release.json','utf8')); process.stdout.write(b.reason||'')")
-            app=$(node -e "const b=JSON.parse(require('fs').readFileSync('/tmp/prod-release.json','utf8')); process.stdout.write(b.app||'')")
-            expected=$(node -e "const b=JSON.parse(require('fs').readFileSync('/tmp/prod-release.json','utf8')); process.stdout.write(b.expectedMigration||'')")
-            applied=$(node -e "const b=JSON.parse(require('fs').readFileSync('/tmp/prod-release.json','utf8')); process.stdout.write(b.appliedMigration||'')")
-            count=$(node -e "const b=JSON.parse(require('fs').readFileSync('/tmp/prod-release.json','utf8')); process.stdout.write(String(b.appliedCount??''))")
-            in_sync=$(node -e "const b=JSON.parse(require('fs').readFileSync('/tmp/prod-release.json','utf8')); process.stdout.write(String(b.inSync))")
-            if [[ "$verify_status" -eq 0 ]]; then
-              set +e
-              health_code=$(curl -sS -o /tmp/prod-health.json -w '%{http_code}' "$base/api/health")
-              health_curl=$?
-              set -e
-              health_status=$(node -e "try{process.stdout.write(JSON.parse(require('fs').readFileSync('/tmp/prod-health.json','utf8')).status||'')}catch{process.stdout.write('')}")
-              if [[ "$health_curl" -eq 0 && "$health_code" == "200" && "$health_status" == "ok" ]]; then
-                state="Production released"
-                health="ok"
-                reason="production domain serves the verified build"
-              else
-                state="failed"
-                health="failed"
-                reason="GET /api/health did not return status ok after promotion"
-              fi
-            fi
-          fi
+          state=$(node -e "const b=JSON.parse(require('fs').readFileSync('/tmp/prod-release.json','utf8')); process.stdout.write(b.state||'')")
+          reason=$(node -e "const b=JSON.parse(require('fs').readFileSync('/tmp/prod-release.json','utf8')); process.stdout.write(b.reason||'')")
+          app=$(node -e "const b=JSON.parse(require('fs').readFileSync('/tmp/prod-release.json','utf8')); process.stdout.write(b.app||'')")
+          expected=$(node -e "const b=JSON.parse(require('fs').readFileSync('/tmp/prod-release.json','utf8')); process.stdout.write(b.expectedMigration||'')")
+          applied=$(node -e "const b=JSON.parse(require('fs').readFileSync('/tmp/prod-release.json','utf8')); process.stdout.write(b.appliedMigration||'')")
+          count=$(node -e "const b=JSON.parse(require('fs').readFileSync('/tmp/prod-release.json','utf8')); process.stdout.write(String(b.appliedCount??''))")
+          in_sync=$(node -e "const b=JSON.parse(require('fs').readFileSync('/tmp/prod-release.json','utf8')); process.stdout.write(String(b.inSync))")
+          health=$(node -e "const b=JSON.parse(require('fs').readFileSync('/tmp/prod-release.json','utf8')); process.stdout.write(b.health||'')")
+          attempts=$(node -e "const b=JSON.parse(require('fs').readFileSync('/tmp/prod-release.json','utf8')); process.stdout.write(String(b.attempts??''))")
 
           {
             echo "## Production release"
@@ -307,11 +280,12 @@ jobs:
             echo "- **Database applied count:** $APPLIED_COUNT"
             echo "- **inSync:** $in_sync"
             echo "- **Health:** $health"
+            echo "- **Confirmation attempts:** $attempts"
             echo "- **Promotion:** attempted"
             echo "- **Reason:** $reason"
           } >> "$GITHUB_STEP_SUMMARY"
 
-          if [[ "$state" != "Production released" ]]; then
+          if [[ "$confirmation_status" -ne 0 || "$state" != "Production released" ]]; then
             echo "::error::$state — $reason. Schema was not rolled back. To put the previous app build back on the production domain, promote that deployment URL. Do not restore an old database backup over an additive migration."
             exit 1
           fi
