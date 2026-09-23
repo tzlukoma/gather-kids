@@ -8,13 +8,10 @@ on:
   workflow_dispatch:
     inputs:
       git_sha:
-        description: Full 40-character main commit to release
-        required: true
+        description: Full 40-character main commit to release. Empty uses the selected ref.
+        required: false
         type: string
-      deployment_url:
-        description: Staged production deployment URL (https://….vercel.app)
-        required: true
-        type: string
+        default: ''
 
 permissions:
   contents: read
@@ -32,11 +29,12 @@ jobs:
       - name: Resolve immutable main commit
         env:
           INPUT_SHA: ${{ inputs.git_sha }}
-          DEPLOYMENT_URL: ${{ inputs.deployment_url }}
+          RUN_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
           git fetch origin main
-          SHA=$(printf '%s' "$INPUT_SHA" | tr '[:upper:]' '[:lower:]')
+          SHA="${INPUT_SHA:-$RUN_SHA}"
+          SHA=$(printf '%s' "$SHA" | tr '[:upper:]' '[:lower:]')
           if ! printf '%s' "$SHA" | grep -Eq '^[0-9a-f]{40}$'; then
             echo "::error::git_sha must be a full 40-character commit SHA."
             exit 1
@@ -46,18 +44,71 @@ jobs:
             echo "::error::SHA is not on main."
             exit 1
           fi
-          url="${DEPLOYMENT_URL%/}"
-          if [[ "$url" != https://*.vercel.app ]]; then
-            echo "::error::deployment_url must be the staged https://….vercel.app URL, not a production domain."
-            exit 1
-          fi
           git checkout --detach "$SHA"
           echo "RESOLVED_SHA=$SHA" >> "$GITHUB_ENV"
-          echo "STAGED_URL=$url" >> "$GITHUB_ENV"
 
       - uses: ./.github/actions/setup-node-app
         with:
           checkout: 'false'
+
+      - name: Discover and verify staged deployment before database changes
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+          PROD_APP_URL: ${{ vars.PROD_APP_URL }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$PROD_APP_URL" || "$PROD_APP_URL" != https://* ]]; then
+            echo "::error::Set the production environment variable PROD_APP_URL to the production origin (https, no path). No database changes were made."
+            exit 1
+          fi
+          if ! staged_url=$(bash scripts/ci/discover_staged_production_deployment.sh "$RESOLVED_SHA"); then
+            {
+              echo "## Production release"
+              echo ""
+              echo "- **State:** failed"
+              echo "- **SHA:** \`$RESOLVED_SHA\`"
+              echo "- **Promotion:** not run"
+              echo "- **Reason:** could not discover exactly one ready staged Production deployment"
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "::error::Could not discover exactly one ready staged Production deployment. No database changes were made."
+            exit 1
+          fi
+
+          write_preflight_failure_summary() {
+            local failure_reason="$1"
+            {
+              echo "## Production release"
+              echo ""
+              echo "- **State:** failed"
+              echo "- **SHA:** \`$RESOLVED_SHA\`"
+              echo "- **Staged URL:** $staged_url"
+              echo "- **Promotion:** not run"
+              echo "- **Reason:** $failure_reason"
+            } >> "$GITHUB_STEP_SUMMARY"
+          }
+
+          set +e
+          version_code=$(curl -sS -o /tmp/staged-preflight-version.json -w '%{http_code}' "$staged_url/api/version")
+          version_curl=$?
+          set -e
+          if [[ "$version_curl" -ne 0 || "$version_code" != "200" ]]; then
+            write_preflight_failure_summary "staged /api/version returned HTTP ${version_code:-curl-failed}"
+            echo "::error::Staged /api/version did not return HTTP 200. No database changes were made."
+            exit 1
+          fi
+
+          if ! node scripts/db/verify_release_version.mjs \
+            /tmp/staged-preflight-version.json "$RESOLVED_SHA" '' production preflight \
+            > /tmp/staged-preflight.json; then
+            reason=$(node -e "const b=JSON.parse(require('fs').readFileSync('/tmp/staged-preflight.json','utf8')); process.stdout.write(b.reason||'unknown verification failure')")
+            write_preflight_failure_summary "$reason"
+            echo "::error::Staged deployment is not the selected production build: $reason. No database changes were made."
+            exit 1
+          fi
+
+          echo "STAGED_URL=$staged_url" >> "$GITHUB_ENV"
 
       - uses: ./.github/actions/setup-supabase-cli
         with:

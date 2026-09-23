@@ -230,6 +230,26 @@ describe('UAT release version gate', () => {
     expect(result.parsed.state).toBe('Production DB verified');
   });
 
+  it('preflights the exact production deployment while allowing a pending migration', () => {
+    const result = run(
+      version({
+        deployEnv: 'production',
+        db: {
+          expectedMigration: '20260922000000',
+          appliedMigration: '20260921200000',
+          appliedCount: 4,
+          inSync: false,
+        },
+      }),
+      sha,
+      '',
+      'production',
+      'preflight'
+    );
+    expect(result.status).toBe(0);
+    expect(result.parsed.state).toBe('Production deployment verified');
+  });
+
   it('does not verify a production build whose schema does not match', () => {
     const result = run(
       version({
@@ -270,10 +290,68 @@ describe('production release workflow', () => {
     expect(workflow).toContain('production');
     expect(workflow).toContain("vercel@59.24.0 promote");
     expect(workflow).toContain('Production domains were not changed');
+    expect(workflow).not.toContain('deployment_url:');
+    expect(workflow).toContain('Discover and verify staged deployment before database changes');
+    expect(workflow).toContain('discover_staged_production_deployment.sh');
+    expect(workflow).toContain('VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}');
+    expect(workflow).toContain('VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}');
     const verifyAt = workflow.indexOf('Verify staged deployment');
+    const discoverAt = workflow.indexOf('Discover and verify staged deployment before database changes');
     const promoteAt = workflow.indexOf('Promote staged deployment');
     expect(verifyAt).toBeGreaterThan(0);
+    expect(discoverAt).toBeGreaterThan(0);
+    expect(discoverAt).toBeLessThan(workflow.indexOf('- name: Apply migrations'));
     expect(promoteAt).toBeGreaterThan(verifyAt);
+    const preflight = workflow.slice(discoverAt, workflow.indexOf('- uses: ./.github/actions/setup-supabase-cli'));
+    expect(preflight).toContain('write_preflight_failure_summary "staged /api/version returned HTTP');
+    expect(preflight).toContain('write_preflight_failure_summary "$reason"');
+    expect(preflight).toContain('- **Staged URL:** $staged_url');
+  });
+});
+
+describe('staged production deployment discovery', () => {
+  function selectDeployment(deployments: unknown[]) {
+    const dir = mkdtempSync(path.join(tmpdir(), 'staged-production-deployment-'));
+    const file = path.join(dir, 'deployments.json');
+    writeFileSync(file, JSON.stringify({ deployments }));
+    return spawnSync(
+      'node',
+      [
+        'scripts/ci/select_staged_production_deployment.mjs',
+        file,
+        sha,
+        'project-id',
+        'team-id',
+      ],
+      { cwd: root, encoding: 'utf8' }
+    );
+  }
+
+  const deployment = {
+    target: 'production',
+    readyState: 'READY',
+    projectId: 'project-id',
+    teamId: 'team-id',
+    meta: { githubCommitSha: sha },
+    url: 'gather-kids-abc123.vercel.app',
+  };
+
+  it('selects one ready immutable Production deployment for the exact SHA', () => {
+    const result = selectDeployment([deployment]);
+    expect(result.status).toBe(0);
+    expect(result.stdout.trim()).toBe('https://gather-kids-abc123.vercel.app');
+  });
+
+  it('fails closed for an ambiguous, mutable, or mismatched deployment result', () => {
+    const ambiguous = selectDeployment([deployment, { ...deployment, url: 'gather-kids-def456.vercel.app' }]);
+    expect(ambiguous.status).toBe(1);
+    expect(ambiguous.stderr).toContain('exactly one');
+
+    const mutable = selectDeployment([{ ...deployment, url: 'gather-kids-git-main-team.vercel.app' }]);
+    expect(mutable.status).toBe(1);
+
+    const wrongSha = selectDeployment([{ ...deployment, meta: { githubCommitSha: otherSha } }]);
+    expect(wrongSha.status).toBe(1);
   });
 });
 
