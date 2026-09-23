@@ -310,47 +310,47 @@ describe('production release workflow', () => {
 });
 
 describe('staged production deployment discovery', () => {
-  function selectDeployment(deployments: unknown[]) {
+  function selectDeployment(mode: 'list' | 'select', payloads: unknown[]) {
     const dir = mkdtempSync(path.join(tmpdir(), 'staged-production-deployment-'));
-    const file = path.join(dir, 'deployments.json');
-    writeFileSync(file, JSON.stringify({ deployments }));
-    return spawnSync(
-      'node',
-      [
-        'scripts/ci/select_staged_production_deployment.mjs',
-        file,
-        sha,
-        'project-id',
-        'team-id',
-      ],
-      { cwd: root, encoding: 'utf8' }
-    );
+    const files = payloads.map((payload, index) => {
+      const file = path.join(dir, `deployment-${index}.json`);
+      writeFileSync(file, JSON.stringify(payload));
+      return file;
+    });
+    const args =
+      mode === 'list'
+        ? ['scripts/ci/select_staged_production_deployment.mjs', 'list', files[0], 'project-id']
+        : ['scripts/ci/select_staged_production_deployment.mjs', 'select', sha, 'project-id', ...files];
+    return spawnSync('node', args, { cwd: root, encoding: 'utf8' });
   }
 
-  const deployment = {
+  const listedDeployment = {
     target: 'production',
     readyState: 'READY',
     projectId: 'project-id',
-    teamId: 'team-id',
-    meta: { githubCommitSha: sha },
     url: 'gather-kids-abc123.vercel.app',
   };
+  const detailedDeployment = { ...listedDeployment, meta: { githubCommitSha: sha } };
 
-  it('selects one ready immutable Production deployment for the exact SHA', () => {
-    const result = selectDeployment([deployment]);
+  it('finds a list candidate without list-response Git metadata, then accepts its detailed exact-SHA record', () => {
+    const listed = selectDeployment('list', [{ deployments: [listedDeployment] }]);
+    expect(listed.status).toBe(0);
+    expect(listed.stdout.trim()).toBe('gather-kids-abc123.vercel.app');
+
+    const result = selectDeployment('select', [detailedDeployment]);
     expect(result.status).toBe(0);
     expect(result.stdout.trim()).toBe('https://gather-kids-abc123.vercel.app');
   });
 
-  it('fails closed for an ambiguous, mutable, or mismatched deployment result', () => {
-    const ambiguous = selectDeployment([deployment, { ...deployment, url: 'gather-kids-def456.vercel.app' }]);
+  it('fails closed for ambiguous, mutable, or mismatched detailed records', () => {
+    const ambiguous = selectDeployment('select', [detailedDeployment, { ...detailedDeployment, url: 'gather-kids-def456.vercel.app' }]);
     expect(ambiguous.status).toBe(1);
     expect(ambiguous.stderr).toContain('exactly one');
 
-    const mutable = selectDeployment([{ ...deployment, url: 'gather-kids-git-main-team.vercel.app' }]);
+    const mutable = selectDeployment('select', [{ ...detailedDeployment, url: 'gather-kids-git-main-team.vercel.app' }]);
     expect(mutable.status).toBe(1);
 
-    const wrongSha = selectDeployment([{ ...deployment, meta: { githubCommitSha: otherSha } }]);
+    const wrongSha = selectDeployment('select', [{ ...detailedDeployment, meta: { githubCommitSha: otherSha } }]);
     expect(wrongSha.status).toBe(1);
   });
 });
