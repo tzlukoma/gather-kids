@@ -230,8 +230,34 @@ export async function registerHouseholdCanonical(data: Record<string, unknown>, 
           await dbAdapter.deleteEmergencyContact(contact.contact_id);
         }
     } else {
-        const created = await dbAdapter.createHousehold(household);
-        householdId = created.household_id;
+        // Through the server, never straight to the table. The household row
+        // and its `user_households` link are created together from the
+        // session's own auth user, so the id never comes from the browser and
+        // no unlinked household is ever created for someone else to claim —
+        // see `src/app/api/household/route.ts` and #496.
+        const response = await fetch('/api/household', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'same-origin',
+          body: JSON.stringify({
+            name: household.name,
+            address_line1: household.address_line1,
+            address_line2: household.address_line2,
+            city: household.city,
+            state: household.state,
+            zip: household.zip,
+            email: household.email,
+            preferred_scripture_translation: household.preferredScriptureTranslation,
+          }),
+        });
+        if (!response.ok) {
+          const detail = await response.json().catch(() => ({}));
+          throw new Error(
+            `Could not create household (${response.status}): ${detail?.error ?? 'unknown error'}`
+          );
+        }
+        const created = await response.json();
+        householdId = created.householdId;
       }
 
       // Create guardians using canonical data
