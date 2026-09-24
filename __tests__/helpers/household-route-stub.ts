@@ -15,11 +15,22 @@
 export function stubHouseholdRoute() {
 	const createdHouseholdIds: string[] = [];
 	const requests: Array<Record<string, unknown>> = [];
+	// Bible Bee enrollment is also decided on the server (#527).
+	const bibleBeeEnrollRequests: Array<Record<string, unknown>> = [];
 
 	beforeEach(() => {
 		createdHouseholdIds.length = 0;
 		requests.length = 0;
+		bibleBeeEnrollRequests.length = 0;
 		global.fetch = jest.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+			if (String(input) === '/api/bible-bee/enroll') {
+				bibleBeeEnrollRequests.push(JSON.parse(String(init?.body ?? '{}')));
+				return {
+					ok: true,
+					status: 200,
+					json: async () => ({ enrolled: true }),
+				} as Response;
+			}
 			if (String(input).startsWith('/api/household')) {
 				requests.push(JSON.parse(String(init?.body ?? '{}')));
 				const householdId = `server-made-${createdHouseholdIds.length + 1}`;
@@ -34,5 +45,5 @@ export function stubHouseholdRoute() {
 		}) as unknown as typeof fetch;
 	});
 
-	return { createdHouseholdIds, requests };
+	return { createdHouseholdIds, requests, bibleBeeEnrollRequests };
 }

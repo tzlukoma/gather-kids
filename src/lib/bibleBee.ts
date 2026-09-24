@@ -83,52 +83,6 @@ export async function getChildDivisionInfo(
 	}
 }
 
-export async function enrollChildInBibleBee(childId: string, competitionYearId: string) {
-	const child = await dbAdapter.getChild(childId);
-	if (!child) {
-		return { assigned: 0, error: 'Child not found' };
-	}
-
-	const scriptures = (await dbAdapter.listScriptures({ yearId: competitionYearId })).sort(
-		(a: Scripture, b: Scripture) => {
-			const aRec = a as unknown as Record<string, unknown>;
-			const bRec = b as unknown as Record<string, unknown>;
-			const aOrder = Number(aRec['scripture_order'] ?? aRec['sortOrder'] ?? 0);
-			const bOrder = Number(bRec['scripture_order'] ?? bRec['sortOrder'] ?? 0);
-			return aOrder - bOrder;
-		},
-	);
-
-	if (scriptures.length === 0) {
-		return { assigned: 0, error: 'No scriptures found for this year' };
-	}
-
-	const existing = await dbAdapter.listStudentScriptures(childId, competitionYearId);
-	const existingKeys = new Set(
-		existing.map(
-			(s) =>
-				(s as unknown as { scripture_id?: string; scriptureId?: string }).scripture_id ||
-				(s as unknown as { scriptureId?: string }).scriptureId,
-		),
-	);
-
-	const toInsert: Omit<StudentScripture, 'created_at' | 'updated_at'>[] = scriptures
-		.filter((s) => !existingKeys.has(s.id))
-		.map((s) => ({
-			id: crypto.randomUUID(),
-			child_id: childId,
-			bible_bee_cycle_id: competitionYearId,
-			scripture_id: s.id,
-			is_completed: false,
-		}));
-
-	for (const record of toInsert) {
-		await dbAdapter.createStudentScripture(record);
-	}
-
-	return { assigned: toInsert.length };
-}
-
 export async function toggleScriptureCompletion(studentScriptureId: string, complete: boolean) {
 	const now = new Date().toISOString();
 	await dbAdapter.updateStudentScripture(studentScriptureId, {
