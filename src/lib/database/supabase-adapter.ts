@@ -3064,6 +3064,16 @@ export class SupabaseAdapter implements DatabaseAdapter {
 		return data ? this.mapStudentScripture(data) : null;
 	}
 
+	async ensureStudentAssignments(childId: string): Promise<void> {
+		// The rows are created by the database, not by the viewer, so a family
+		// opening their child's page never needs to write Bible Bee records
+		// (#527). See `ensure_student_assignments`.
+		const { error } = await this.client.rpc('ensure_student_assignments', {
+			p_child_id: childId,
+		});
+		if (error) throw error;
+	}
+
 	async createStudentScripture(data: Omit<StudentScripture, 'created_at' | 'updated_at'>): Promise<StudentScripture> {
 		const insertPayload: Database['public']['Tables']['student_scriptures']['Insert'] = {
 			child_id: data.child_id,

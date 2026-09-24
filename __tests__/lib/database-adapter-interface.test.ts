@@ -148,6 +148,7 @@ describe('Database Adapter Interface Compliance', () => {
 		'deleteEnrollmentOverride',
 		
 		// Student Scripture methods
+		'ensureStudentAssignments',
 		'getStudentScripture',
 		'createStudentScripture',
 		'updateStudentScripture',

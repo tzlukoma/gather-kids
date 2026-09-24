@@ -19,7 +19,6 @@ import {
 } from '@/lib/dal';
 import { toggleScriptureCompletion, submitEssay } from '@/lib/bibleBee';
 import { gradeToCode } from '@/lib/gradeUtils';
-import { v4 as uuidv4 } from 'uuid';
 import { queryKeys } from './keys';
 import { cacheConfig } from './config';
 import type { Scripture } from '@/lib/types';
@@ -239,6 +238,12 @@ export function useStudentAssignmentsQuery(childId: string, cycleId?: string) {
             console.log('⚠️ No household_id found for child, using default NIV');
           }
           
+          // The rows are created by the database from the child's enrollments,
+          // never by the viewer: a family opening their own child's page may not
+          // write Bible Bee records (#527). After this every scripture and essay
+          // below already has its row.
+          await dbAdapter.ensureStudentAssignments(childId);
+
           // Create student scripture assignments for enrolled children
           // This creates actual student scripture records in the database
           console.log('🔍 Creating student scripture assignments...');
@@ -299,38 +304,9 @@ export function useStudentAssignmentsQuery(childId: string, cycleId?: string) {
                   updatedAt: existingRecord.updated_at,
                 };
               } else {
-                // Create new student scripture record
-                console.log('Creating new student scripture record for:', scripture.id);
-                console.log('Using bible_bee_cycle_id:', scripture.bible_bee_cycle_id);
-                const studentScriptureData = {
-                  id: uuidv4(),
-                  child_id: childId,
-                  bible_bee_cycle_id: scripture.bible_bee_cycle_id,
-                  scripture_id: scripture.id,
-                  is_completed: false,
-                  completed_at: undefined,
-                };
-                
-                const newStudentScripture = await dbAdapter.createStudentScripture(studentScriptureData);
-                console.log('Created student scripture record:', newStudentScripture);
-                
-                // Get verse text and translation based on household preference
-                const { verseText, displayTranslation } = getVerseText();
-                
-                return {
-                  id: newStudentScripture.id,
-                  childId: childId,
-                  scriptureId: scripture.id,
-                  bible_bee_cycle_id: scripture.bible_bee_cycle_id,
-                  status: 'not_started' as const,
-                  scripture: scripture,
-                  counts_for: scripture.counts_for || 1,
-                  verseText: verseText,
-                  displayTranslation: displayTranslation,
-                  completedAt: null,
-                  createdAt: newStudentScripture.created_at,
-                  updatedAt: newStudentScripture.updated_at,
-                };
+                throw new Error(
+                  `No assignment row for scripture ${scripture.id} after ensureStudentAssignments`
+                );
               }
             } catch (error) {
               console.error('❌ Error processing scripture:', scripture.id, error);
@@ -361,10 +337,14 @@ export function useStudentAssignmentsQuery(childId: string, cycleId?: string) {
               }
               
               // Check if student essay already exists
-              const existingEssay = existingEssays.find(e => 
-                e.bible_bee_cycle_id === enrollment.bible_bee_cycle_id && 
-                e.essay_prompt_id === essayPrompts[0].id
+              // Any of the division's prompts: the database picks one in a fixed
+              // order, and this query returns them unordered.
+              const existingEssay = existingEssays.find(e =>
+                e.bible_bee_cycle_id === enrollment.bible_bee_cycle_id &&
+                essayPrompts.some(p => p.id === e.essay_prompt_id)
               );
+              const essayPrompt =
+                essayPrompts.find(p => p.id === existingEssay?.essay_prompt_id) ?? essayPrompts[0];
               
               if (existingEssay) {
                 console.log(`Student essay already exists for child ${childId}, cycle ${enrollment.bible_bee_cycle_id}`);
@@ -375,34 +355,15 @@ export function useStudentAssignmentsQuery(childId: string, cycleId?: string) {
                   essay_prompt_id: existingEssay.essay_prompt_id,
                   status: existingEssay.status,
                   submitted_at: existingEssay.submitted_at,
-                  essayPrompt: essayPrompts[0],
+                  essayPrompt: essayPrompt,
                   created_at: existingEssay.created_at,
                   updated_at: existingEssay.updated_at,
                 };
               }
-              
-              // Create new student essay
-              console.log(`Creating new student essay for child ${childId}, cycle ${enrollment.bible_bee_cycle_id}`);
-              const newStudentEssay = await dbAdapter.createStudentEssay({
-                id: uuidv4(),
-                child_id: childId,
-                bible_bee_cycle_id: enrollment.bible_bee_cycle_id,
-                essay_prompt_id: essayPrompts[0].id,
-                status: 'assigned',
-                submitted_at: undefined,
-              });
-              
-              return {
-                id: newStudentEssay.id,
-                childId: childId,
-                bible_bee_cycle_id: newStudentEssay.bible_bee_cycle_id,
-                essay_prompt_id: newStudentEssay.essay_prompt_id,
-                status: newStudentEssay.status,
-                submitted_at: newStudentEssay.submitted_at,
-                essayPrompt: essayPrompts[0],
-                created_at: newStudentEssay.created_at,
-                updated_at: newStudentEssay.updated_at,
-              };
+
+              throw new Error(
+                `No essay row for child ${childId}, cycle ${enrollment.bible_bee_cycle_id} after ensureStudentAssignments`
+              );
             } catch (error) {
               console.error('❌ Error processing essay for enrollment:', enrollment.id, error);
               throw error;
@@ -616,6 +577,12 @@ export function useBibleBeeStats(childId: string, cycleId?: string) {
             console.log('⚠️ No household_id found for child (stats), using default NIV');
           }
           
+          // The rows are created by the database from the child's enrollments,
+          // never by the viewer: a family opening their own child's page may not
+          // write Bible Bee records (#527). After this every scripture and essay
+          // below already has its row.
+          await dbAdapter.ensureStudentAssignments(childId);
+
           // Create student scripture assignments for enrolled children
           console.log('🔍 Creating student scripture assignments...');
           const scriptures = await Promise.all(rawScriptures.map(async scripture => {
@@ -664,37 +631,9 @@ export function useBibleBeeStats(childId: string, cycleId?: string) {
                   updatedAt: existingRecord.updated_at,
                 };
               } else {
-                // Create new student scripture record
-                console.log('Creating new student scripture record for:', scripture.id);
-                const studentScriptureData = {
-                  id: uuidv4(),
-                  child_id: childId,
-                  bible_bee_cycle_id: scripture.bible_bee_cycle_id,
-                  scripture_id: scripture.id,
-                  is_completed: false,
-                  completed_at: undefined,
-                };
-                
-                const newStudentScripture = await dbAdapter.createStudentScripture(studentScriptureData);
-                console.log('Created student scripture record:', newStudentScripture);
-                
-                // Get verse text and translation based on household preference
-                const { verseText, displayTranslation } = getVerseTextStats();
-                
-                return {
-                  id: newStudentScripture.id,
-                  childId: childId,
-                  scriptureId: scripture.id,
-                  bible_bee_cycle_id: scripture.bible_bee_cycle_id,
-                  status: 'not_started' as const,
-                  scripture: scripture,
-                  counts_for: scripture.counts_for || 1,
-                  verseText: verseText,
-                  displayTranslation: displayTranslation,
-                  completedAt: null,
-                  createdAt: newStudentScripture.created_at,
-                  updatedAt: newStudentScripture.updated_at,
-                };
+                throw new Error(
+                  `No assignment row for scripture ${scripture.id} after ensureStudentAssignments`
+                );
               }
             } catch (error) {
               console.error('❌ Error processing scripture:', scripture.id, error);
@@ -725,10 +664,14 @@ export function useBibleBeeStats(childId: string, cycleId?: string) {
               }
               
               // Check if student essay already exists
-              const existingEssay = existingEssays.find(e => 
-                e.bible_bee_cycle_id === enrollment.bible_bee_cycle_id && 
-                e.essay_prompt_id === essayPrompts[0].id
+              // Any of the division's prompts: the database picks one in a fixed
+              // order, and this query returns them unordered.
+              const existingEssay = existingEssays.find(e =>
+                e.bible_bee_cycle_id === enrollment.bible_bee_cycle_id &&
+                essayPrompts.some(p => p.id === e.essay_prompt_id)
               );
+              const essayPrompt =
+                essayPrompts.find(p => p.id === existingEssay?.essay_prompt_id) ?? essayPrompts[0];
               
               if (existingEssay) {
                 console.log(`Student essay already exists for child ${childId}, cycle ${enrollment.bible_bee_cycle_id}`);
@@ -739,34 +682,15 @@ export function useBibleBeeStats(childId: string, cycleId?: string) {
                   essay_prompt_id: existingEssay.essay_prompt_id,
                   status: existingEssay.status,
                   submitted_at: existingEssay.submitted_at,
-                  essayPrompt: essayPrompts[0],
+                  essayPrompt: essayPrompt,
                   created_at: existingEssay.created_at,
                   updated_at: existingEssay.updated_at,
                 };
               }
-              
-              // Create new student essay
-              console.log(`Creating new student essay for child ${childId}, cycle ${enrollment.bible_bee_cycle_id}`);
-              const newStudentEssay = await dbAdapter.createStudentEssay({
-                id: uuidv4(),
-                child_id: childId,
-                bible_bee_cycle_id: enrollment.bible_bee_cycle_id,
-                essay_prompt_id: essayPrompts[0].id,
-                status: 'assigned',
-                submitted_at: undefined,
-              });
-              
-              return {
-                id: newStudentEssay.id,
-                childId: childId,
-                bible_bee_cycle_id: newStudentEssay.bible_bee_cycle_id,
-                essay_prompt_id: newStudentEssay.essay_prompt_id,
-                status: newStudentEssay.status,
-                submitted_at: newStudentEssay.submitted_at,
-                essayPrompt: essayPrompts[0],
-                created_at: newStudentEssay.created_at,
-                updated_at: newStudentEssay.updated_at,
-              };
+
+              throw new Error(
+                `No essay row for child ${childId}, cycle ${enrollment.bible_bee_cycle_id} after ensureStudentAssignments`
+              );
             } catch (error) {
               console.error('❌ Error processing essay for enrollment:', enrollment.id, error);
               throw error;

@@ -1555,6 +1555,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      ensure_student_assignments: {
+        Args: { p_child_id: string }
+        Returns: undefined
+      }
       fn_ministry_ids_email_can_access: {
         Args: { p_email: string }
         Returns: {

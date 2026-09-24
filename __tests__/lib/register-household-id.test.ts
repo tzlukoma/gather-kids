@@ -30,7 +30,7 @@ jest.mock('@/lib/bibleBee', () => ({
 
 import { stubHouseholdRoute } from '../helpers/household-route-stub';
 
-const { createdHouseholdIds } = stubHouseholdRoute();
+const { createdHouseholdIds, bibleBeeEnrollRequests, calls } = stubHouseholdRoute();
 
 const newHouseholdPayload = {
 	household: {
@@ -140,5 +140,39 @@ describe('new household registration ids', () => {
 			expect.objectContaining({ household_id: PERSISTED_HOUSEHOLD_ID }),
 		);
 		expect(result.household_id).toBe(PERSISTED_HOUSEHOLD_ID);
+	});
+
+	// Families may not write Bible Bee records (#527), so signing a child up
+	// for Bible Bee asks the server to enroll them, naming only the child. The
+	// cycle and division are the server's to decide.
+	test('Bible Bee sign-up is enrolled by the server, never from the browser', async () => {
+		(db.listMinistries as jest.Mock).mockResolvedValue([
+			{
+				ministry_id: 'min-bible-bee',
+				code: 'bible-bee',
+				name: 'Bible Bee',
+				enrollment_type: 'enrolled',
+				is_active: true,
+			},
+		]);
+		const payload = {
+			...newHouseholdPayload,
+			children: [{ ...newHouseholdPayload.children[0], ministrySelections: { 'bible-bee': true } }],
+		};
+
+		await registerHouseholdCanonical(payload, 'test-cycle-id');
+
+		const childId = (db.createChild as jest.Mock).mock.calls[0][0].child_id;
+		expect(db.createMinistryEnrollment).toHaveBeenCalledWith(
+			expect.objectContaining({ child_id: childId, ministry_id: 'min-bible-bee' }),
+		);
+		expect(bibleBeeEnrollRequests).toEqual([{ childId }]);
+		// The route authorizes a guardian through their `user_households` link.
+		// `/api/household` creates that link together with the household, so
+		// it must come first. (`/api/household/link`, later in registration,
+		// only covers an existing household and would be too late.)
+		expect(calls.indexOf('/api/household')).toBe(0);
+		expect(calls.indexOf('/api/bible-bee/enroll')).toBeGreaterThan(0);
+		expect((db as unknown as Record<string, unknown>).createEnrollment).toBeUndefined();
 	});
 });

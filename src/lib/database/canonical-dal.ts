@@ -9,8 +9,6 @@ import type {
   RegisteredEnrollmentReceipt,
 } from '../types';
 import { evaluateMinistryEligibility, describeIneligibility } from '../ministry-eligibility';
-import { gradeToCode } from '../gradeUtils';
-import { enrollChildInBibleBee } from '../bibleBee';
 import { devLog } from '../dev-log';
 
 const log = devLog('register');
@@ -492,44 +490,25 @@ export async function registerHouseholdCanonical(data: Record<string, unknown>, 
                 throw enrollmentError;
               }
 
-              // Handle Bible Bee enrollment through new system
+              // Bible Bee enrollment is decided on the server: families may not
+              // write Bible Bee records, and the division follows from the
+              // child's grade rather than from anything sent here (#527).
+              // Best-effort, as before: a failure here never fails registration.
               if (ministry.code === 'bible-bee') {
                 try {
-                  const bibleBeeCycles = await dbAdapter.listBibleBeeCycles(true);
-                  const bibleBeeCycle = bibleBeeCycles.find(cycle => cycle.is_active);
-                  
-                  if (bibleBeeCycle) {
-                    const gradeNum = child.grade ? gradeToCode(child.grade) : 0;
-                      const divisions = await dbAdapter.listDivisions(bibleBeeCycle.id);
-                    
-                    const appropriateDivision = divisions.find(d => 
-                      gradeNum !== null && gradeNum >= d.min_grade && gradeNum <= d.max_grade
-                    );
-                    
-                    if (appropriateDivision) {
-                      await dbAdapter.createEnrollment({
-                        id: uuidv4(),
-                        child_id: childId,
-                        bible_bee_cycle_id: bibleBeeCycle.id, // Fixed: was year_id
-                        division_id: appropriateDivision.id,
-                        auto_enrolled: false,
-                        enrolled_at: now,
-                      });
-                      log.log(`Created Bible Bee enrollment for child ${child.first_name} in division ${appropriateDivision.name}`);
-                      
-                      // Also assign scriptures for the child
-                      try {
-                        await enrollChildInBibleBee(childId, bibleBeeCycle.id);
-                      } catch (scriptureError) {
-                        console.warn(`Warning: Failed to assign scriptures for child ${child.first_name}:`, scriptureError);
-                        // Don't fail the entire registration if scripture assignment fails
-                      }
-                    } else {
-                      console.warn(`No appropriate Bible Bee division found for child ${child.first_name} in grade ${child.grade}`);
-                    }
+                  const response = await fetch('/api/bible-bee/enroll', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({ childId }),
+                  });
+                  const result = await response.json().catch(() => ({}));
+                  if (!response.ok) {
+                    console.error('Error creating Bible Bee enrollment:', response.status, result?.error ?? '');
+                  } else if (!result?.enrolled) {
+                    console.warn(`Bible Bee enrollment skipped for ${child.first_name}: ${result?.reason ?? 'unknown'}`);
                   } else {
-                    console.warn(`No active Bible Bee year found - skipping Bible Bee enrollment for ${child.first_name}`);
-                    // Don't fail the entire registration if no Bible Bee year exists
+                    log.log(`Created Bible Bee enrollment for child ${child.first_name}`);
                   }
                 } catch (error) {
                   console.error('Error creating Bible Bee enrollment:', error);

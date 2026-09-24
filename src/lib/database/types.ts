@@ -361,6 +361,10 @@ export interface DatabaseAdapter {
 	deleteEnrollmentOverride(id: string): Promise<void>;
 	deleteEnrollmentOverrideByChild(childId: string): Promise<void>;
 
+	// Creates any of the child's missing scripture and essay assignment rows,
+	// derived in the database from the child's Bible Bee enrollments (#527).
+	ensureStudentAssignments(childId: string): Promise<void>;
+
 	// Student Scripture methods
 	getStudentScripture(id: string): Promise<StudentScripture | null>;
 	createStudentScripture(data: Omit<StudentScripture, 'created_at' | 'updated_at'>): Promise<StudentScripture>;
