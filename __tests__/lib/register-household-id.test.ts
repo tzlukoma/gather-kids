@@ -27,6 +27,11 @@ jest.mock('@/lib/bibleBee', () => ({
 	enrollChildInBibleBee: jest.fn(),
 }));
 
+
+import { stubHouseholdRoute } from '../helpers/household-route-stub';
+
+const { createdHouseholdIds } = stubHouseholdRoute();
+
 const newHouseholdPayload = {
 	household: {
 		name: 'Rivera Household',
@@ -100,20 +105,25 @@ describe('new household registration ids', () => {
 		(db.getHouseholdForUser as jest.Mock).mockResolvedValue(null);
 	});
 
-	test('registerHouseholdCanonical uses createHousehold return id for related rows', async () => {
+	// The guarantee is unchanged — related rows must carry the id the household
+	// was actually persisted under, never one invented locally. What changed is
+	// where that id comes from: `POST /api/household` returns it, because the
+	// browser no longer chooses it (#496).
+	test('registerHouseholdCanonical uses the server-issued id for related rows', async () => {
 		const result = await registerHouseholdCanonical(newHouseholdPayload, 'test-cycle-id');
 
-		expect(db.createHousehold).toHaveBeenCalled();
+		expect(db.createHousehold).not.toHaveBeenCalled();
+		const serverIssuedId = createdHouseholdIds[0];
 		expect(db.createGuardian).toHaveBeenCalledWith(
-			expect.objectContaining({ household_id: PERSISTED_HOUSEHOLD_ID }),
+			expect.objectContaining({ household_id: serverIssuedId }),
 		);
 		expect(db.createEmergencyContact).toHaveBeenCalledWith(
-			expect.objectContaining({ household_id: PERSISTED_HOUSEHOLD_ID }),
+			expect.objectContaining({ household_id: serverIssuedId }),
 		);
 		expect(db.createChild).toHaveBeenCalledWith(
-			expect.objectContaining({ household_id: PERSISTED_HOUSEHOLD_ID }),
+			expect.objectContaining({ household_id: serverIssuedId }),
 		);
-		expect(result.household_id).toBe(PERSISTED_HOUSEHOLD_ID);
+		expect(result.household_id).toBe(serverIssuedId);
 	});
 
 	test('registerHousehold uses createHousehold return id for related rows', async () => {

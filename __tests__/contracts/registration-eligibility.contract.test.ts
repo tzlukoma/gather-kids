@@ -31,6 +31,11 @@ jest.mock('@/lib/database/factory', () => ({
 jest.mock('@/lib/supabaseClient', () => ({ supabase: null }));
 jest.mock('@/lib/bibleBee', () => ({ enrollChildInBibleBee: jest.fn() }));
 
+
+import { stubHouseholdRoute } from '../helpers/household-route-stub';
+
+const { createdHouseholdIds } = stubHouseholdRoute();
+
 const TODAY = '2026-09-18';
 
 const SUNDAY_SCHOOL = {
