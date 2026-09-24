@@ -61,6 +61,11 @@ insert into ministry_accounts (ministry_id, email, is_active) values
 	('rls-min-email', 'rls-ministry@example.test', true);
 insert into households (household_id, name) values ('rls-hh-email', 'Household in an email-led ministry');
 insert into children (child_id, household_id) values ('rls-ch-email', 'rls-hh-email');
+-- The accounts behind the email-identified callers below. The leader helper
+-- takes the address from here, confirmed, rather than from the token.
+insert into auth.users (id, email, email_confirmed_at) values
+	('00000000-0000-0000-0000-0000000000f1', 'rls-ministry@example.test', now()),
+	('00000000-0000-0000-0000-0000000000f2', 'nobody@example.test', now());
 insert into ministry_enrollments (enrollment_id, child_id, ministry_id) values
 	('rls-en-email', 'rls-ch-email', 'rls-min-email');
 
@@ -132,6 +137,23 @@ set local request.jwt.claims = '{"sub":"00000000-0000-0000-0000-0000000000f2","e
 insert into rls_probe select 'signed-in stranger: households', count(*), 0 from households where household_id like 'rls-hh-%';
 insert into rls_probe select 'signed-in stranger: children', count(*), 0 from children where child_id like 'rls-ch-%';
 reset role;
+
+-- The token says the ministry address; the account does not. A token's email
+-- is whatever the account held when it was minted, so it is not the source.
+set local role authenticated;
+set local request.jwt.claims = '{"sub":"00000000-0000-0000-0000-0000000000f2","email":"rls-ministry@example.test","role":"authenticated","app_metadata":{}}';
+insert into rls_probe select 'token email only: households', count(*), 0 from households where household_id like 'rls-hh-%';
+insert into rls_probe select 'token email only: children', count(*), 0 from children where child_id like 'rls-ch-%';
+reset role;
+
+-- The ministry address, not yet confirmed: the same account one column apart.
+update auth.users set email_confirmed_at = null where id = '00000000-0000-0000-0000-0000000000f1';
+set local role authenticated;
+set local request.jwt.claims = '{"sub":"00000000-0000-0000-0000-0000000000f1","email":"rls-ministry@example.test","role":"authenticated","app_metadata":{}}';
+insert into rls_probe select 'unconfirmed ministry address: households', count(*), 0 from households where household_id like 'rls-hh-%';
+insert into rls_probe select 'unconfirmed ministry address: children', count(*), 0 from children where child_id like 'rls-ch-%';
+reset role;
+update auth.users set email_confirmed_at = now() where id = '00000000-0000-0000-0000-0000000000f1';
 
 -- The same ministry, the same child, one flag apart.
 set local role authenticated;

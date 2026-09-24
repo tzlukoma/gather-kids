@@ -17,8 +17,18 @@
 -- 1. The caller's ministries, by the app's rule, plus any direct assignment.
 --    Takes no argument on purpose: it answers for the signed-in caller only,
 --    so it cannot be used to ask what some other address may reach.
---    Security definer so it can read `ministry_accounts` whatever that table's
---    own policy says; the invoker function it calls runs with these privileges.
+--    Security definer so it can read `ministry_accounts` and `auth.users`
+--    whatever their own policies say; the invoker function it calls runs with
+--    these privileges.
+--
+--    The address comes from `auth.users`, not the token, and only once it is
+--    confirmed. The token's `email` claim is whatever the account held when the
+--    token was minted; `auth.users` is the server's current record, and
+--    `email_confirmed_at` is the only verification signal Supabase keeps. What
+--    this does NOT cover: with the project's "Confirm email" setting off,
+--    Supabase stamps `email_confirmed_at` at sign-up, so the column cannot tell
+--    a proven address from a typed one. That setting is the control; this is
+--    the check that holds when it is on.
 create or replace function app_leader_ministry_ids()
 returns table (ministry_id text)
 language sql
@@ -27,8 +37,11 @@ security definer
 set search_path = public
 as $$
 	select f.ministry_id
-	  from fn_ministry_ids_email_can_access(auth.jwt() ->> 'email') f
-	 where coalesce(auth.jwt() ->> 'email', '') <> ''
+	  from auth.users u
+	 cross join lateral fn_ministry_ids_email_can_access(u.email) f
+	 where u.id = auth.uid()
+	   and u.email_confirmed_at is not null
+	   and coalesce(u.email, '') <> ''
 	union
 	select la.ministry_id
 	  from leader_assignments la
