@@ -50,11 +50,15 @@ $$;
 
 -- Minimal auth.users so policies can be created. Supabase provides this
 -- table; CI Postgres does not. The audit-log policy reads id and
--- raw_user_meta_data. No rows are inserted.
+-- raw_user_meta_data. The RLS read check inserts rows inside a transaction
+-- it rolls back.
 CREATE TABLE IF NOT EXISTS auth.users (
   id uuid PRIMARY KEY,
   raw_user_meta_data jsonb
 );
+-- The leader helper reads the caller's confirmed address from here.
+ALTER TABLE auth.users ADD COLUMN IF NOT EXISTS email text;
+ALTER TABLE auth.users ADD COLUMN IF NOT EXISTS email_confirmed_at timestamptz;
 
 -- Shape of the table `supabase db push` writes. CI applies SQL with raw psql,
 -- so this history never appears unless we create it. The status RPC reads it.

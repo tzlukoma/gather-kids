@@ -23,6 +23,8 @@ grant select on branding_settings to authenticated, anon;
 -- this the anon assertions below would fail on permissions and never reach a
 -- policy, which is passing for the wrong reason.
 grant select on households, children to anon;
+-- The app's leader lookup runs as the caller and reads all three of these.
+grant select on ministry_accounts, ministry_groups, ministry_group_members to authenticated;
 
 -- Fixtures, written as the table owner, which RLS does not apply to.
 insert into households (household_id, name) values
@@ -49,6 +51,27 @@ insert into leader_assignments (assignment_id, leader_id, ministry_id, is_active
 
 insert into branding_settings (org_id) values ('rls-org');
 
+-- The way the app actually grants leadership: a ministry's shared address.
+-- `auth-context.tsx` resolves ministries from the sign-in email through
+-- `fn_ministry_ids_email_can_access`; `leader_assignments` above is the
+-- secondary path. Phase 1 modelled only the secondary one, and this check
+-- faithfully tested it while every email-identified leader was locked out.
+insert into ministries (ministry_id) values ('rls-min-email');
+insert into ministry_accounts (ministry_id, email, is_active) values
+	('rls-min-email', 'rls-ministry@example.test', true);
+insert into households (household_id, name) values ('rls-hh-email', 'Household in an email-led ministry');
+insert into children (child_id, household_id) values ('rls-ch-email', 'rls-hh-email');
+-- The accounts behind the email-identified callers below. The leader helper
+-- takes the address from here, confirmed, rather than from the token.
+insert into auth.users (id, email, email_confirmed_at) values
+	('00000000-0000-0000-0000-0000000000f1', 'rls-ministry@example.test', now()),
+	('00000000-0000-0000-0000-0000000000f2', 'nobody@example.test', now());
+insert into ministry_enrollments (enrollment_id, child_id, ministry_id) values
+	('rls-en-email', 'rls-ch-email', 'rls-min-email');
+
+insert into registration_cycles (cycle_id, name, start_date, end_date) values
+	('rls-cycle', 'RLS check cycle', now(), now() + interval '1 day');
+
 create temp table rls_probe (what text, got bigint, want bigint);
 grant insert on rls_probe to authenticated, anon;
 
@@ -56,6 +79,7 @@ grant insert on rls_probe to authenticated, anon;
 set local role anon;
 insert into rls_probe select 'anon: households', count(*), 0 from households where household_id like 'rls-hh-%';
 insert into rls_probe select 'anon: branding_settings (logo on /login)', count(*), 1 from branding_settings where org_id = 'rls-org';
+insert into rls_probe select 'anon: registration_cycles (cycle on the home page)', count(*), 1 from registration_cycles where cycle_id = 'rls-cycle';
 reset role;
 
 -- Signed in, but carrying no app role: the GUEST default, not a free pass.
@@ -94,6 +118,43 @@ insert into rls_probe select 'leader: unrelated households', count(*), 0 from ho
 insert into rls_probe select 'leader: child in a led ministry', count(*), 1 from children where child_id = 'rls-ch-led';
 reset role;
 
+-- A leader identified by email alone: no app role in the token, no
+-- leader_assignments row. This is what a real ministry sign-in looks like.
+set local role authenticated;
+set local request.jwt.claims = '{"sub":"00000000-0000-0000-0000-0000000000f1","email":"rls-ministry@example.test","role":"authenticated","app_metadata":{}}';
+-- The app calls this RPC from the browser, as the caller, to decide the user
+-- is a leader at all. Zero here means the role never leaves GUEST.
+insert into rls_probe select 'email leader: app''s ministry lookup, as caller', count(*), 1 from fn_ministry_ids_email_can_access('rls-ministry@example.test');
+insert into rls_probe select 'email leader: household in their ministry', count(*), 1 from households where household_id = 'rls-hh-email';
+insert into rls_probe select 'email leader: child in their ministry', count(*), 1 from children where child_id = 'rls-ch-email';
+insert into rls_probe select 'email leader: unrelated households', count(*), 0 from households where household_id in ('rls-hh-a', 'rls-hh-b', 'rls-hh-led');
+reset role;
+
+-- Signed in with an address that leads nothing. Proves the email branch
+-- filters on the caller's address rather than admitting anyone with one.
+set local role authenticated;
+set local request.jwt.claims = '{"sub":"00000000-0000-0000-0000-0000000000f2","email":"nobody@example.test","role":"authenticated","app_metadata":{}}';
+insert into rls_probe select 'signed-in stranger: households', count(*), 0 from households where household_id like 'rls-hh-%';
+insert into rls_probe select 'signed-in stranger: children', count(*), 0 from children where child_id like 'rls-ch-%';
+reset role;
+
+-- The token says the ministry address; the account does not. A token's email
+-- is whatever the account held when it was minted, so it is not the source.
+set local role authenticated;
+set local request.jwt.claims = '{"sub":"00000000-0000-0000-0000-0000000000f2","email":"rls-ministry@example.test","role":"authenticated","app_metadata":{}}';
+insert into rls_probe select 'token email only: households', count(*), 0 from households where household_id like 'rls-hh-%';
+insert into rls_probe select 'token email only: children', count(*), 0 from children where child_id like 'rls-ch-%';
+reset role;
+
+-- The ministry address, not yet confirmed: the same account one column apart.
+update auth.users set email_confirmed_at = null where id = '00000000-0000-0000-0000-0000000000f1';
+set local role authenticated;
+set local request.jwt.claims = '{"sub":"00000000-0000-0000-0000-0000000000f1","email":"rls-ministry@example.test","role":"authenticated","app_metadata":{}}';
+insert into rls_probe select 'unconfirmed ministry address: households', count(*), 0 from households where household_id like 'rls-hh-%';
+insert into rls_probe select 'unconfirmed ministry address: children', count(*), 0 from children where child_id like 'rls-ch-%';
+reset role;
+update auth.users set email_confirmed_at = now() where id = '00000000-0000-0000-0000-0000000000f1';
+
 -- The same ministry, the same child, one flag apart.
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"00000000-0000-0000-0000-00000000000e","role":"authenticated","app_metadata":{"role":"MINISTRY_LEADER"}}';
@@ -107,8 +168,8 @@ reset role;
 -- `role` is `authenticated` in the very same token.
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"00000000-0000-0000-0000-00000000000d","role":"authenticated","app_metadata":{"role":"ADMIN"}}';
-insert into rls_probe select 'admin: every household', count(*), 3 from households where household_id like 'rls-hh-%';
-insert into rls_probe select 'admin: every child', count(*), 3 from children where child_id like 'rls-ch-%';
+insert into rls_probe select 'admin: every household', count(*), 4 from households where household_id like 'rls-hh-%';
+insert into rls_probe select 'admin: every child', count(*), 4 from children where child_id like 'rls-ch-%';
 reset role;
 
 -- Structural: a table added later must not arrive unprotected. `keepalive` is
