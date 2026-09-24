@@ -243,6 +243,86 @@ begin
 end;
 $$;
 
+-- Attendance. The policy decides WHICH rows a leader may write (children in
+-- their ministries); these decide WHAT they may write, so the record is a
+-- check-in and a check-out and not an editable history.
+--
+-- Attribution is stamped here rather than trusted from the browser, which
+-- today sends the literal 'user_admin' for every check-in and nothing for a
+-- check-out. Only the CSV export reads either field.
+--
+-- A leader's check-in is for today (the church's calendar day, the same zone
+-- as `SERVICE_DAY_TIMEZONE` in src/lib/utils/timezone.ts), timed by the
+-- server, and not already checked out. A leader's update is a check-out: once,
+-- timed by the server, touching only the pickup fields. Admins may correct any
+-- field; their writes are still attributed to them.
+create or replace function guard_attendance_insert()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+	if current_user <> 'authenticated' then
+		return new;
+	end if;
+	new.checked_in_by := auth.uid()::text;
+	if app_is_admin() then
+		return new;
+	end if;
+	if new.date is distinct from (now() at time zone 'America/New_York')::date then
+		raise exception 'a check-in is for today' using errcode = '42501';
+	end if;
+	if new.check_out_at is not null or new.checked_out_by is not null
+	   or new.picked_up_by is not null or new.pickup_method is not null then
+		raise exception 'a check-in cannot arrive already checked out' using errcode = '42501';
+	end if;
+	new.check_in_at := now();
+	return new;
+end;
+$$;
+
+create or replace function guard_attendance_update()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+declare
+	checkout constant text[] := array['check_out_at', 'checked_out_by', 'picked_up_by', 'pickup_method'];
+begin
+	if current_user <> 'authenticated' then
+		return new;
+	end if;
+	if app_is_admin() then
+		if old.check_out_at is null and new.check_out_at is not null then
+			new.checked_out_by := auth.uid()::text;
+		end if;
+		return new;
+	end if;
+	if (to_jsonb(new) - checkout) is distinct from (to_jsonb(old) - checkout) then
+		raise exception 'a leader may only check a child out' using errcode = '42501';
+	end if;
+	if old.check_out_at is not null then
+		raise exception 'this child is already checked out' using errcode = '42501';
+	end if;
+	if new.check_out_at is null then
+		raise exception 'an attendance update is a check-out' using errcode = '42501';
+	end if;
+	new.check_out_at := now();
+	new.checked_out_by := auth.uid()::text;
+	return new;
+end;
+$$;
+
+drop trigger if exists guard_attendance_insert on attendance;
+create trigger guard_attendance_insert
+	before insert on attendance
+	for each row execute function guard_attendance_insert();
+
+drop trigger if exists guard_attendance_update on attendance;
+create trigger guard_attendance_update
+	before update on attendance
+	for each row execute function guard_attendance_update();
+
 drop trigger if exists guard_family_student_scripture_update on student_scriptures;
 create trigger guard_family_student_scripture_update
 	before update on student_scriptures

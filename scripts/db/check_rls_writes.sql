@@ -82,8 +82,13 @@ insert into leader_profiles (leader_id, first_name, email, is_active) values
 	('00000000-0000-0000-0000-0000000000c1', 'Leader', 'w-led@example.test', true),
 	('00000000-0000-0000-0000-0000000000c2', 'Other leader', 'w-other@example.test', true);
 
+-- Yesterday, church time: the check-in probes check w-ch-led in for today, and
+-- an open row on the same day would trip the one-open-check-in index instead
+-- of the policy.
 insert into attendance (attendance_id, event_id, child_id, date) values
-	('w-att-led', 'w-event', 'w-ch-led', current_date);
+	('w-att-led', 'w-event', 'w-ch-led', (now() at time zone 'America/New_York')::date - 1);
+insert into attendance (attendance_id, event_id, child_id, date, check_in_at, check_out_at) values
+	('w-att-out', 'w-event', 'w-ch-led', current_date, now(), now());
 insert into incidents (incident_id, child_id, leader_id, description) values
 	('w-inc-led', 'w-ch-led', '00000000-0000-0000-0000-0000000000c1', 'scraped knee');
 
@@ -196,9 +201,25 @@ insert into w_probe values
 	('leader: edit a child they can read',          pg_temp.try_write($q$update children set first_name = 'x' where child_id = 'w-ch-led'$q$), 0),
 	('leader: add a guardian to a household they read', pg_temp.try_write($q$insert into guardians (guardian_id, household_id) values ('w-g-new', 'w-hh-led')$q$), -1),
 	('leader: change a child''s enrollment',        pg_temp.try_write($q$update ministry_enrollments set status = 'x' where enrollment_id = 'w-me-led'$q$), 0),
-	('leader: check in a child they serve',         pg_temp.try_write($q$insert into attendance (attendance_id, event_id, child_id) values ('w-att-new', 'w-event', 'w-ch-led')$q$), 1),
-	('leader: check out a child they serve',        pg_temp.try_write($q$update attendance set check_out_at = now() where attendance_id = 'w-att-led'$q$), 1),
-	('leader: check in a child they do not serve',  pg_temp.try_write($q$insert into attendance (attendance_id, event_id, child_id) values ('w-att-new', 'w-event', 'w-ch-a')$q$), -1),
+	('leader: check in a child they serve',         pg_temp.try_write($q$insert into attendance (attendance_id, event_id, child_id, date) values ('w-att-new', 'w-event', 'w-ch-led', (now() at time zone 'America/New_York')::date)$q$), 1),
+	('leader: check out a child they serve',        pg_temp.try_write($q$update attendance set check_out_at = now(), pickup_method = 'PIN' where attendance_id = 'w-att-led'$q$), 1),
+	('leader: check in a child they do not serve',  pg_temp.try_write($q$insert into attendance (attendance_id, event_id, child_id, date) values ('w-att-new', 'w-event', 'w-ch-a', (now() at time zone 'America/New_York')::date)$q$), -1),
+	-- The policy picks the rows; the attendance guards pick what may change.
+	-- Attribution is the caller whatever the browser sends, and times are the
+	-- server's. Each stamp probe counts 1 only if the stored value is right.
+	('leader: check-in is attributed to the caller', pg_temp.try_write($q$with i as (insert into attendance (attendance_id, event_id, child_id, date, checked_in_by) values ('w-att-new', 'w-event', 'w-ch-led', (now() at time zone 'America/New_York')::date, 'user_admin') returning checked_in_by) insert into w_probe select 'stamp', 0, 0 from i where checked_in_by = '00000000-0000-0000-0000-0000000000c1'$q$), 1),
+	('leader: check-in time is the server''s',      pg_temp.try_write($q$with i as (insert into attendance (attendance_id, event_id, child_id, date, check_in_at) values ('w-att-new', 'w-event', 'w-ch-led', (now() at time zone 'America/New_York')::date, '2020-01-01') returning check_in_at) insert into w_probe select 'stamp', 0, 0 from i where check_in_at = now()$q$), 1),
+	('leader: check out is attributed to the caller', pg_temp.try_write($q$with u as (update attendance set check_out_at = '2020-01-01', checked_out_by = 'someone-else' where attendance_id = 'w-att-led' returning check_out_at, checked_out_by) insert into w_probe select 'stamp', 0, 0 from u where checked_out_by = '00000000-0000-0000-0000-0000000000c1' and check_out_at = now()$q$), 1),
+	('leader: backdate a check-in',                 pg_temp.try_write($q$insert into attendance (attendance_id, event_id, child_id, date) values ('w-att-new', 'w-event', 'w-ch-led', (now() at time zone 'America/New_York')::date - 7)$q$), -1),
+	('leader: check in already checked out',        pg_temp.try_write($q$insert into attendance (attendance_id, event_id, child_id, date, check_out_at) values ('w-att-new', 'w-event', 'w-ch-led', (now() at time zone 'America/New_York')::date, now())$q$), -1),
+	('leader: edit notes while checking out', pg_temp.try_write($q$update attendance set check_out_at = now(), notes = 'edited' where attendance_id = 'w-att-led'$q$), -1),
+	-- The rewrites below ride along with a genuine check-out, so only the
+	-- column guard can refuse them.
+	('leader: change the date of an attendance row', pg_temp.try_write($q$update attendance set check_out_at = now(), date = date - 7 where attendance_id = 'w-att-led'$q$), -1),
+	('leader: rewrite the check-in time',           pg_temp.try_write($q$update attendance set check_out_at = now(), check_in_at = '2020-01-01' where attendance_id = 'w-att-led'$q$), -1),
+	('leader: rewrite who checked the child in',    pg_temp.try_write($q$update attendance set check_out_at = now(), checked_in_by = 'someone-else' where attendance_id = 'w-att-led'$q$), -1),
+	('leader: an update that is not a check-out',   pg_temp.try_write($q$update attendance set pickup_method = 'PIN' where attendance_id = 'w-att-led'$q$), -1),
+	('leader: check out twice',                     pg_temp.try_write($q$update attendance set check_out_at = now() where attendance_id = 'w-att-out'$q$), -1),
 	('leader: delete attendance',                   pg_temp.try_write($q$delete from attendance where attendance_id = 'w-att-led'$q$), 0),
 	('leader: log an incident, own name',           pg_temp.try_write($q$insert into incidents (incident_id, child_id, leader_id) values ('w-inc-new', 'w-ch-led', '00000000-0000-0000-0000-0000000000c1')$q$), 1),
 	('leader: log an incident in someone else''s name', pg_temp.try_write($q$insert into incidents (incident_id, child_id, leader_id) values ('w-inc-new', 'w-ch-led', '00000000-0000-0000-0000-0000000000c2')$q$), -1),
@@ -226,7 +247,7 @@ reset role;
 -- An assignment that has been stood down grants nothing.
 select pg_temp.as_caller('{"sub":"00000000-0000-0000-0000-0000000000c2","role":"authenticated","app_metadata":{"role":"MINISTRY_LEADER"}}');
 insert into w_probe values
-	('stood-down leader: check in a child',         pg_temp.try_write($q$insert into attendance (attendance_id, event_id, child_id) values ('w-att-new', 'w-event', 'w-ch-led')$q$), -1);
+	('stood-down leader: check in a child',         pg_temp.try_write($q$insert into attendance (attendance_id, event_id, child_id, date) values ('w-att-new', 'w-event', 'w-ch-led', (now() at time zone 'America/New_York')::date)$q$), -1);
 reset role;
 
 -- ---------------------------------------------------------------------------
@@ -258,6 +279,8 @@ insert into w_probe values
 	('admin: rename any household',                 pg_temp.try_write($q$update households set name = 'x' where household_id = 'w-hh-led'$q$), 1),
 	('admin: create a household',                   pg_temp.try_write($q$insert into households (household_id, name) values ('w-hh-new', 'x')$q$), 1),
 	('admin: delete a guardian',                    pg_temp.try_write($q$delete from guardians where guardian_id = 'w-g-b'$q$), 1),
+	('admin: correct a check-in time',              pg_temp.try_write($q$update attendance set check_in_at = '2020-01-01' where attendance_id = 'w-att-led'$q$), 1),
+	('admin: check-in is attributed to the admin',  pg_temp.try_write($q$with i as (insert into attendance (attendance_id, event_id, child_id, date, checked_in_by) values ('w-att-new', 'w-event', 'w-ch-led', (now() at time zone 'America/New_York')::date - 7, 'user_admin_bulk') returning checked_in_by) insert into w_probe select 'stamp', 0, 0 from i where checked_in_by = '00000000-0000-0000-0000-0000000000ad'$q$), 1),
 	('admin: delete attendance',                    pg_temp.try_write($q$delete from attendance where attendance_id = 'w-att-led'$q$), 1),
 	('admin: acknowledge an incident',              pg_temp.try_write($q$update incidents set admin_acknowledged_at = now() where incident_id = 'w-inc-led'$q$), 1),
 	('admin: edit a ministry',                      pg_temp.try_write($q$update ministries set name = 'x' where ministry_id = 'w-min-led'$q$), 1),
