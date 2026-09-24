@@ -30,6 +30,11 @@ jest.mock('@/lib/database/factory', () => ({
 jest.mock('@/lib/supabaseClient', () => ({ supabase: null }));
 jest.mock('@/lib/bibleBee', () => ({ enrollChildInBibleBee: jest.fn() }));
 
+
+import { stubHouseholdRoute } from '../helpers/household-route-stub';
+
+const { createdHouseholdIds, requests: householdRequests } = stubHouseholdRoute();
+
 const SUNDAY_SCHOOL = {
 	ministry_id: 'min_sunday_school',
 	code: 'min_sunday_school',
@@ -101,7 +106,8 @@ describe('registration with a blank guardian email', () => {
 	it('completes rather than throwing part-way through', async () => {
 		const result = await registerHouseholdCanonical(payload(''), 'cycle-1');
 
-		expect(result.household_id).toBe('household-1');
+		// The id now comes back from `POST /api/household`, not from the browser.
+		expect(result.household_id).toBe(createdHouseholdIds[0]);
 		expect(db.createGuardian).toHaveBeenCalledTimes(1);
 		expect(db.createChild).toHaveBeenCalledTimes(1);
 		// The child is registered, which is the thing the blank email was costing.
@@ -115,8 +121,11 @@ describe('registration with a blank guardian email', () => {
 		// stay blank rather than become a bogus address.
 		await registerHouseholdCanonical(payload(''), 'cycle-1');
 
-		const household = (db.createHousehold as jest.Mock).mock.calls[0][0];
-		expect(household.email === '' || household.email === undefined).toBe(true);
+		// The household is created through the server now, so the thing to check
+		// is what registration *sends* — an invented address would be in the body.
+		expect(db.createHousehold as jest.Mock).not.toHaveBeenCalled();
+		const sent = householdRequests[0];
+		expect(sent.email === '' || sent.email === undefined || sent.email === null).toBe(true);
 	});
 
 	it('still registers when the email is present', async () => {

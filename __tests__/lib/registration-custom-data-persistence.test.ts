@@ -24,6 +24,11 @@ jest.mock('@/lib/bibleBee', () => ({
 	enrollChildInBibleBee: jest.fn(),
 }));
 
+
+import { stubHouseholdRoute } from '../helpers/household-route-stub';
+
+const { createdHouseholdIds } = stubHouseholdRoute();
+
 const CUSTOM_MINISTRY = {
 	ministry_id: 'min_custom',
 	code: 'e2e-custom-questions',

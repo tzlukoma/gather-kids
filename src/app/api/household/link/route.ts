@@ -20,13 +20,21 @@ import { requireUser } from '@/lib/api-auth';
  *   2. A household already linked to a different auth user is refused, so an
  *      existing family cannot be claimed.
  *
- * **What this does not establish.** A household with no link yet can still be
- * claimed by any signed-in caller who learns its id. Proving ownership properly
- * needs a source the client cannot forge, and with RLS absent from `guardians`
- * and `households` there currently is none — an attacker who can write those
- * tables can manufacture whatever evidence a stricter check would ask for. That
- * is #495. Until it lands, treat this as narrowing the window from "any
- * household, at any time" to "an unlinked household, once".
+ * **Registration no longer calls this for a new household.** `POST
+ * /api/household` creates the household and its link together, so the id never
+ * comes from the browser and no unlinked household is created (#496). By the
+ * time this route would run, `getHouseholdForUser` already returns a link and
+ * the call is skipped.
+ *
+ * **The one caller left, and what it still cannot establish.** A *returning*
+ * guardian whose household predates their account arrives with a household id
+ * from the registration prefill and no link. This route creates it — and it
+ * cannot verify that the household is theirs. A household with no link yet can
+ * still be claimed by any signed-in caller who learns its id. Proving ownership
+ * needs a source the client cannot forge; the proposal is an emailed link to
+ * the address already on file, which is #497. Removing this route before that
+ * lands would strand those families, because every household lookup in the app
+ * goes through the link.
  */
 
 function getSupabaseAdmin(): SupabaseClient | null {
