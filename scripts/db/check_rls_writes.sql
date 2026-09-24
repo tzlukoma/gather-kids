@@ -164,6 +164,8 @@ insert into w_probe values
 	('guardian: add guardian to another household', pg_temp.try_write($q$insert into guardians (guardian_id, household_id) values ('w-g-new', 'w-hh-b')$q$), -1),
 	('guardian: delete another household''s guardian', pg_temp.try_write($q$delete from guardians where guardian_id = 'w-g-b'$q$), 0),
 	('guardian: delete own guardian row',           pg_temp.try_write($q$delete from guardians where guardian_id = 'w-g-a'$q$), 1),
+	('guardian: disable own child',                 pg_temp.try_write($q$update children set is_active = false where child_id = 'w-ch-a'$q$), 1),
+	('guardian: disable another household''s child', pg_temp.try_write($q$update children set is_active = false where child_id = 'w-ch-b'$q$), 0),
 	('guardian: move own child to another household', pg_temp.try_write($q$update children set household_id = 'w-hh-b' where child_id = 'w-ch-a'$q$), -1),
 	('guardian: register own child',                pg_temp.try_write($q$insert into registrations (registration_id, child_id, cycle_id) values ('w-r-new', 'w-ch-a', 'w-cycle')$q$), 1),
 	('guardian: register another child',            pg_temp.try_write($q$insert into registrations (registration_id, child_id, cycle_id) values ('w-r-new', 'w-ch-b', 'w-cycle')$q$), -1),
