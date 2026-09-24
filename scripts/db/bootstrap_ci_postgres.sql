@@ -16,6 +16,13 @@ DO $$ BEGIN
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 
+-- Supabase grants these, and a policy that calls auth.uid() in its own text --
+-- rather than inside a security-definer helper -- is evaluated as the querying
+-- role, so without this it fails with "permission denied for schema auth"
+-- instead of deciding. That is the difference between a policy CI has applied
+-- and a policy CI has exercised.
+GRANT USAGE ON SCHEMA auth TO anon, authenticated;
+
 -- auth.jwt() and auth.uid() stubs used by RLS policies in several migrations.
 -- Both read the same request-scoped setting Supabase's own versions read, so a
 -- CI check can impersonate a caller with
