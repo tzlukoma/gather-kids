@@ -9,18 +9,18 @@ jest.unmock('@tanstack/react-query');
 // missing rows. There is deliberately no `createStudentScripture` or
 // `createStudentEssay` here: a family opening their own child's page may not
 // write Bible Bee records (#527), so the hooks must never reach for them.
-const mockAdapter = {
-	listEnrollments: jest.fn(),
-	listScriptures: jest.fn(),
-	listStudentScriptures: jest.fn(),
-	listStudentEssays: jest.fn(),
-	listEssayPrompts: jest.fn(),
-	getHousehold: jest.fn(),
-	ensureStudentAssignments: jest.fn(),
-};
-
+// Defined inside the factory: jest hoists `jest.mock` above the imports, and
+// the SWC transform CI uses hoists the imports above any top-level const.
 jest.mock('@/lib/dal', () => ({
-	dbAdapter: mockAdapter,
+	dbAdapter: {
+		listEnrollments: jest.fn(),
+		listScriptures: jest.fn(),
+		listStudentScriptures: jest.fn(),
+		listStudentEssays: jest.fn(),
+		listEssayPrompts: jest.fn(),
+		getHousehold: jest.fn(),
+		ensureStudentAssignments: jest.fn(),
+	},
 	getChild: jest.fn(async () => ({ child_id: 'ch-1', household_id: 'hh-1' })),
 	getBibleBeeCycles: jest.fn(async () => []),
 }));
@@ -30,6 +30,8 @@ jest.mock('@/lib/bibleBee', () => ({
 }));
 
 import { useStudentAssignmentsQuery, useBibleBeeStats } from '@/hooks/data/bibleBee';
+
+const mockAdapter = jest.requireMock('@/lib/dal').dbAdapter as Record<string, jest.Mock>;
 
 const CYCLE = 'cycle-1';
 const scripture = { id: 'sc-1', bible_bee_cycle_id: CYCLE, reference: 'John 3:16', text: 't', counts_for: 1 };
