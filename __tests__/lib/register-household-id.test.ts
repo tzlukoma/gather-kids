@@ -30,7 +30,7 @@ jest.mock('@/lib/bibleBee', () => ({
 
 import { stubHouseholdRoute } from '../helpers/household-route-stub';
 
-const { createdHouseholdIds, bibleBeeEnrollRequests } = stubHouseholdRoute();
+const { createdHouseholdIds, bibleBeeEnrollRequests, calls } = stubHouseholdRoute();
 
 const newHouseholdPayload = {
 	household: {
@@ -167,6 +167,12 @@ describe('new household registration ids', () => {
 			expect.objectContaining({ child_id: childId, ministry_id: 'min-bible-bee' }),
 		);
 		expect(bibleBeeEnrollRequests).toEqual([{ childId }]);
+		// The route authorizes a guardian through their `user_households` link.
+		// `/api/household` creates that link together with the household, so
+		// it must come first. (`/api/household/link`, later in registration,
+		// only covers an existing household and would be too late.)
+		expect(calls.indexOf('/api/household')).toBe(0);
+		expect(calls.indexOf('/api/bible-bee/enroll')).toBeGreaterThan(0);
 		expect((db as unknown as Record<string, unknown>).createEnrollment).toBeUndefined();
 	});
 });

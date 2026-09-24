@@ -17,12 +17,16 @@ export function stubHouseholdRoute() {
 	const requests: Array<Record<string, unknown>> = [];
 	// Bible Bee enrollment is also decided on the server (#527).
 	const bibleBeeEnrollRequests: Array<Record<string, unknown>> = [];
+	// Every route called, in order, so a test can assert on sequencing.
+	const calls: string[] = [];
 
 	beforeEach(() => {
 		createdHouseholdIds.length = 0;
 		requests.length = 0;
 		bibleBeeEnrollRequests.length = 0;
+		calls.length = 0;
 		global.fetch = jest.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+			calls.push(String(input));
 			if (String(input) === '/api/bible-bee/enroll') {
 				bibleBeeEnrollRequests.push(JSON.parse(String(init?.body ?? '{}')));
 				return {
@@ -45,5 +49,5 @@ export function stubHouseholdRoute() {
 		}) as unknown as typeof fetch;
 	});
 
-	return { createdHouseholdIds, requests, bibleBeeEnrollRequests };
+	return { createdHouseholdIds, requests, bibleBeeEnrollRequests, calls };
 }
