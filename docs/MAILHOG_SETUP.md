@@ -179,26 +179,30 @@ await emailPage.submitRegistration();
 
 ### POST /api/auth/magic-link
 
-Sends a magic link verification email.
+Sends a mock magic link to MailHog. Test-only: it answers only when
+`NEXT_PUBLIC_SUPABASE_URL` is the dummy project and `SMTP_HOST=localhost` (or
+`NODE_ENV=test`). Live magic links are requested from the browser with
+`supabase.auth.signInWithOtp`, because `/auth/callback` needs the PKCE verifier
+stored by the browser that asked for the link.
 
 **Request:**
 ```json
 {
-  "email": "user@example.com"
+  "email": "user@example.com",
+  "next": "/register"
 }
 ```
 
 **Response:**
 ```json
 {
-  "message": "Verification email sent successfully",
-  "email": "user@example.com"
+  "message": "Verification email sent successfully"
 }
 ```
 
 **Error Responses:**
 - `400` - Invalid email format
-- `503` - Magic links not enabled
+- `503` - Not a dummy-Supabase MailHog run
 - `500` - Email sending failed
 
 ## MailHog API Usage

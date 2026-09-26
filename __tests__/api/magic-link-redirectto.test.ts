@@ -13,16 +13,6 @@ jest.mock('@/lib/email-service', () => ({
 	createEmailService: () => mockEmailService,
 }));
 
-const mockSignInWithOtp = jest.fn().mockResolvedValue({ error: null });
-
-jest.mock('@/lib/supabaseClient', () => ({
-	supabase: {
-		auth: {
-			signInWithOtp: (...args: unknown[]) => mockSignInWithOtp(...args),
-		},
-	},
-}));
-
 import { POST } from '@/app/api/auth/magic-link/route';
 
 describe('Magic Link API redirectTo', () => {
@@ -81,27 +71,37 @@ describe('Magic Link API redirectTo', () => {
 		expect(magicLink).not.toContain('evil.com');
 	});
 
-	it('passes redirect URL with next to Supabase when configured', async () => {
+	// The browser Supabase client is null on the server, and /auth/callback
+	// needs the PKCE verifier from the requesting browser, so live links are
+	// requested client-side. This route only serves the dummy/MailHog e2e runs.
+	it('refuses to run against a live Supabase project', async () => {
 		process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://project.supabase.co';
 
-		const request = new NextRequest(
-			'https://gather-kids-abc123.vercel.app/api/auth/magic-link',
-			{
+		const response = await POST(
+			new NextRequest('https://gather-kids-abc123.vercel.app/api/auth/magic-link', {
 				method: 'POST',
 				body: JSON.stringify({ email: 'prod@example.com', next: '/register' }),
 				headers: { 'Content-Type': 'application/json' },
-			}
+			})
 		);
 
-		await POST(request);
+		expect(response.status).toBe(503);
+		expect(mockEmailService.sendMagicLinkEmail).not.toHaveBeenCalled();
+	});
 
-		expect(mockSignInWithOtp).toHaveBeenCalledWith({
-			email: 'prod@example.com',
-			options: {
-				emailRedirectTo:
-					'https://gather-kids-abc123.vercel.app/auth/callback?next=%2Fregister',
-				shouldCreateUser: true,
-			},
-		});
+	it('refuses to run outside MailHog test mode', async () => {
+		process.env = { ...process.env, NODE_ENV: 'production' };
+		delete process.env.SMTP_HOST;
+
+		const response = await POST(
+			new NextRequest('http://localhost:9002/api/auth/magic-link', {
+				method: 'POST',
+				body: JSON.stringify({ email: 'test@example.com' }),
+				headers: { 'Content-Type': 'application/json' },
+			})
+		);
+
+		expect(response.status).toBe(503);
+		expect(mockEmailService.sendMagicLinkEmail).not.toHaveBeenCalled();
 	});
 });

@@ -1,9 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createEmailService } from '@/lib/email-service';
 import { resolveSafePostAuthPath } from '@/lib/authRedirect';
-import { supabase } from '@/lib/supabaseClient';
+import { isTestAuthApiEnabled } from '@/lib/offline-supabase';
 
+/**
+ * MailHog magic links for dummy-Supabase e2e runs only.
+ *
+ * Live magic links are requested from the browser with
+ * `supabase.auth.signInWithOtp`: /auth/callback exchanges the PKCE code with
+ * the verifier the requesting browser stored, so a link requested here could
+ * never be completed (and the browser client is null on the server).
+ */
 export async function POST(request: NextRequest) {
+  if (!isTestAuthApiEnabled()) {
+    return NextResponse.json(
+      { error: 'Test auth is not enabled' },
+      { status: 503 }
+    );
+  }
+
   try {
     const { email, next } = await request.json();
 
@@ -23,30 +38,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if we're in a test environment or if magic links are enabled
-    const isMagicEnabled = process.env.NEXT_PUBLIC_LOGIN_MAGIC_ENABLED === 'true';
-    const isTestMode = process.env.NODE_ENV === 'test' || process.env.SMTP_HOST === 'localhost';
-
-    if (!isMagicEnabled && !isTestMode) {
-      return NextResponse.json(
-        { error: 'Magic link authentication is not enabled' },
-        { status: 503 }
-      );
-    }
-
-    // Check if Supabase is configured for live magic links
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const isSupabaseConfigured = supabaseUrl && !supabaseUrl.includes('dummy');
-
-    if (!isSupabaseConfigured && !isTestMode) {
-      return NextResponse.json(
-        { error: 'Authentication service not configured' },
-        { status: 503 }
-      );
-    }
-
-    // Get the current request URL to construct the redirectTo URL
-    // This supports Vercel preview deployments, production, and local development
     const requestUrl = new URL(request.url);
     const baseUrl = `${requestUrl.protocol}//${requestUrl.host}`;
     const postAuthPath = resolveSafePostAuthPath(
@@ -55,60 +46,39 @@ export async function POST(request: NextRequest) {
     );
     const redirectToUrl = `${baseUrl}/auth/callback?next=${encodeURIComponent(postAuthPath)}`;
 
-    if (isSupabaseConfigured) {
-      // Use Supabase's built-in magic link functionality
-      const { error } = await supabase.auth.signInWithOtp({
-        email: email,
-        options: {
-          emailRedirectTo: redirectToUrl,
-          shouldCreateUser: true,
-        }
+    try {
+      const emailService = createEmailService();
+
+      // Test connection first
+      const isConnected = await emailService.testConnection();
+      if (!isConnected) {
+        throw new Error('Email service not available');
+      }
+
+      // Create a mock magic link for testing using the current request URL
+      const code = Buffer.from(JSON.stringify({
+        email,
+        timestamp: Date.now(),
+        type: 'magic_link'
+      })).toString('base64url');
+
+      const magicLinkUrl = new URL(redirectToUrl);
+      magicLinkUrl.searchParams.set('code', code);
+      magicLinkUrl.searchParams.set('type', 'magiclink');
+      const magicLink = magicLinkUrl.toString();
+
+      await emailService.sendMagicLinkEmail({
+        to: email,
+        magicLink: magicLink,
+        appName: process.env.NEXT_PUBLIC_APP_NAME || 'gatherKids'
       });
 
-      if (error) {
-        console.error('Supabase magic link error:', error);
-        return NextResponse.json(
-          { error: 'Failed to send verification email' },
-          { status: 500 }
-        );
-      }
-
-    } else if (isTestMode) {
-      // For testing with MailHog, send a mock magic link
-      try {
-        const emailService = createEmailService();
-        
-        // Test connection first
-        const isConnected = await emailService.testConnection();
-        if (!isConnected) {
-          throw new Error('Email service not available');
-        }
-
-        // Create a mock magic link for testing using the current request URL
-        const code = Buffer.from(JSON.stringify({
-          email,
-          timestamp: Date.now(),
-          type: 'magic_link'
-        })).toString('base64url');
-
-        const magicLinkUrl = new URL(redirectToUrl);
-        magicLinkUrl.searchParams.set('code', code);
-        magicLinkUrl.searchParams.set('type', 'magiclink');
-        const magicLink = magicLinkUrl.toString();
-
-        await emailService.sendMagicLinkEmail({
-          to: email,
-          magicLink: magicLink,
-          appName: process.env.NEXT_PUBLIC_APP_NAME || 'gatherKids'
-        });
-
-      } catch (emailError) {
-        console.error('MailHog email error:', emailError);
-        return NextResponse.json(
-          { error: 'Failed to send test verification email' },
-          { status: 500 }
-        );
-      }
+    } catch (emailError) {
+      console.error('MailHog email error:', emailError);
+      return NextResponse.json(
+        { error: 'Failed to send test verification email' },
+        { status: 500 }
+      );
     }
 
     return NextResponse.json({
