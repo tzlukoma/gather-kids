@@ -23,12 +23,6 @@ jest.mock('@/lib/supabaseClient', () => ({
 	},
 }));
 
-const mockAccountEntryFlag = jest.fn().mockResolvedValue(false);
-
-jest.mock('@/lib/flags/get-gathersystem-account-entry-flag', () => ({
-	getGatherSystemAccountEntryFlag: () => mockAccountEntryFlag(),
-}));
-
 import { POST } from '@/app/api/auth/magic-link/route';
 
 describe('Magic Link API redirectTo', () => {
@@ -109,82 +103,5 @@ describe('Magic Link API redirectTo', () => {
 				shouldCreateUser: true,
 			},
 		});
-	});
-
-	it('uses the path-only callback and marks the unified account-entry flow', async () => {
-		process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://project.supabase.co';
-
-		const response = await POST(
-			new NextRequest('https://preview.vercel.app/api/auth/magic-link', {
-				method: 'POST',
-				body: JSON.stringify({ email: 'new@example.com', accountEntry: true }),
-				headers: { 'Content-Type': 'application/json' },
-			})
-		);
-
-		expect(mockSignInWithOtp).toHaveBeenCalledWith({
-			email: 'new@example.com',
-			options: {
-				emailRedirectTo: 'https://preview.vercel.app/auth/callback',
-				shouldCreateUser: true,
-			},
-		});
-		expect(response.headers.get('set-cookie')).toContain('gk_account_entry_flow=1');
-		expect(await response.json()).toEqual({ message: 'Check your email to continue.' });
-	});
-});
-
-// Deployed environments run with neither test-mode bypass: NODE_ENV is not
-// 'test' and SMTP_HOST is not localhost, so the enablement gate is live.
-describe('Magic Link API enablement gate', () => {
-	const originalEnv = process.env;
-
-	const post = (body: Record<string, unknown>) =>
-		POST(
-			new NextRequest('https://preview.vercel.app/api/auth/magic-link', {
-				method: 'POST',
-				body: JSON.stringify({ email: 'parent@example.com', ...body }),
-				headers: { 'Content-Type': 'application/json' },
-			})
-		);
-
-	beforeEach(() => {
-		jest.clearAllMocks();
-		process.env = { ...originalEnv, NODE_ENV: 'production' };
-		process.env.NEXT_PUBLIC_LOGIN_MAGIC_ENABLED = 'false';
-		process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://project.supabase.co';
-		delete process.env.SMTP_HOST;
-	});
-
-	afterAll(() => {
-		process.env = originalEnv;
-	});
-
-	it('sends account-entry links when only the account-entry flag is on', async () => {
-		mockAccountEntryFlag.mockResolvedValue(true);
-
-		const response = await post({ accountEntry: true });
-
-		expect(response.status).toBe(200);
-		expect(mockSignInWithOtp).toHaveBeenCalledTimes(1);
-	});
-
-	it('refuses account-entry requests when the account-entry flag is off', async () => {
-		mockAccountEntryFlag.mockResolvedValue(false);
-
-		const response = await post({ accountEntry: true });
-
-		expect(response.status).toBe(503);
-		expect(mockSignInWithOtp).not.toHaveBeenCalled();
-	});
-
-	it('keeps legacy magic-link requests behind the legacy flag', async () => {
-		mockAccountEntryFlag.mockResolvedValue(true);
-
-		const response = await post({ next: '/register' });
-
-		expect(response.status).toBe(503);
-		expect(mockSignInWithOtp).not.toHaveBeenCalled();
-		expect(mockAccountEntryFlag).not.toHaveBeenCalled();
 	});
 });

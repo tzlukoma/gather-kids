@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { captureAnalyticsEvent } from '@/lib/analytics/browser';
+import { supabase } from '@/lib/supabaseClient';
 
 const RESEND_COOLDOWN_SECONDS = 60;
 
@@ -31,14 +32,22 @@ export default function MagicLinkAccountEntry() {
 		setPending(true);
 		setError(null);
 		try {
-			const response = await fetch('/api/auth/magic-link', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ email, accountEntry: true }),
+			// Requested from the browser so the PKCE code verifier is stored where
+			// /auth/callback exchanges the code. The path-only callback URL matches
+			// a path-only Supabase redirect allowlist on Preview deployments.
+			const { error: otpError } = await supabase.auth.signInWithOtp({
+				email,
+				options: {
+					emailRedirectTo: `${window.location.origin}/auth/callback`,
+					shouldCreateUser: true,
+				},
 			});
-			if (!response.ok) {
+			if (otpError) {
 				throw new Error('We could not send a secure link. Please try again.');
 			}
+			// UX-only marker consumed after an authenticated callback. It does not
+			// authorize anything and is scoped to the one callback route.
+			document.cookie = `gk_account_entry_flow=1; Path=/auth/callback; Max-Age=${10 * 60}; SameSite=Lax`;
 
 			setSubmittedEmail(email);
 			setCooldown(RESEND_COOLDOWN_SECONDS);
