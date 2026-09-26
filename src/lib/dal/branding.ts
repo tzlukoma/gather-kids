@@ -72,12 +72,20 @@ export async function getDefaultBrandingSettings(): Promise<Partial<BrandingSett
 // ---------------------------------------------------------------------------
 
 /**
+ * The client the avatar functions write through. Defaults to the shared one;
+ * a server route passes a client bound to the caller's session, so the
+ * `avatars` write policies judge the caller rather than a signed-out visitor.
+ */
+type AvatarClient = SupabaseAdapter['client'];
+
+/**
  * Update an entity's avatar in the generic avatars table.
  */
 export async function updateEntityAvatar(
     entityType: 'child' | 'guardian' | 'leader' | 'user',
     entityId: string,
     photoDataUrl: string,
+    client: AvatarClient = supabaseAdapter.client,
 ): Promise<string> {
     let storagePath: string;
 
@@ -90,7 +98,7 @@ export async function updateEntityAvatar(
         storagePath = photoDataUrl;
     }
 
-    const { data, error } = await supabaseAdapter.client.from('avatars').upsert(
+    const { data, error } = await client.from('avatars').upsert(
         {
             entity_type: entityType,
             entity_id: entityId,
@@ -115,9 +123,10 @@ export async function updateEntityAvatar(
 export async function getEntityAvatar(
     entityType: 'child' | 'guardian' | 'leader' | 'user',
     entityId: string,
+    client: AvatarClient = supabaseAdapter.client,
 ): Promise<string | null> {
     try {
-        const { data, error } = await supabaseAdapter.client
+        const { data, error } = await client
             .from('avatars')
             .select('storage_path')
             .eq('entity_type', entityType)
@@ -143,8 +152,9 @@ export async function getEntityAvatar(
 export async function clearEntityAvatar(
     entityType: 'child' | 'guardian' | 'leader' | 'user',
     entityId: string,
+    client: AvatarClient = supabaseAdapter.client,
 ): Promise<void> {
-    const { error } = await supabaseAdapter.client
+    const { error } = await client
         .from('avatars')
         .delete()
         .eq('entity_type', entityType)

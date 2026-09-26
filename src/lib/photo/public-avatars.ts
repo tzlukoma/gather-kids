@@ -1,73 +1,12 @@
 import { db as dbAdapter } from '@/lib/database/factory';
+import type { DatabaseAdapter } from '@/lib/database/types';
 import type { AuditLogEntry } from '@/lib/types';
 
-export const PUBLIC_AVATARS_BUCKET = 'public-avatars';
+// Photos are `avatars` rows (#529). The helpers for the `public-avatars`
+// storage bucket are gone: no migration creates that bucket, and nothing
+// writes to it any more.
 
 export type PhotoAuditAction = 'profile_photo_updated' | 'child_photo_updated';
-
-/** Minimal storage surface used by best-effort deletes (avoids importing supabase-js here). */
-export type PhotoStorageClient = {
-	storage: {
-		from: (bucket: string) => {
-			remove: (
-				paths: string[]
-			) => Promise<{ data: unknown; error: { message: string } | null }>;
-		};
-	};
-};
-
-/**
- * Extract the object path inside `public-avatars` from a public URL or raw path.
- */
-export function extractPublicAvatarObjectPath(
-	urlOrPath: string | null | undefined
-): string | null {
-	if (!urlOrPath) return null;
-
-	const trimmed = urlOrPath.trim();
-	if (!trimmed) return null;
-
-	const marker = `/object/public/${PUBLIC_AVATARS_BUCKET}/`;
-	const markerIdx = trimmed.indexOf(marker);
-	if (markerIdx !== -1) {
-		const raw = trimmed.slice(markerIdx + marker.length).split('?')[0];
-		return raw ? decodeURIComponent(raw) : null;
-	}
-
-	// Paths written as `public-avatars/avatars/...` or bare `avatars/...`
-	const withBucket = `${PUBLIC_AVATARS_BUCKET}/`;
-	if (trimmed.startsWith(withBucket)) {
-		return trimmed.slice(withBucket.length).split('?')[0] || null;
-	}
-
-	if (trimmed.startsWith('avatars/')) {
-		return trimmed.split('?')[0];
-	}
-
-	return null;
-}
-
-/**
- * Best-effort delete of a public-avatars object. Never throws.
- */
-export async function deletePublicAvatarBestEffort(
-	client: PhotoStorageClient,
-	urlOrPath: string | null | undefined
-): Promise<void> {
-	const path = extractPublicAvatarObjectPath(urlOrPath);
-	if (!path) return;
-
-	try {
-		const { error } = await client.storage
-			.from(PUBLIC_AVATARS_BUCKET)
-			.remove([path]);
-		if (error) {
-			console.warn('Best-effort public-avatars delete failed:', error.message);
-		}
-	} catch (error) {
-		console.warn('Best-effort public-avatars delete failed:', error);
-	}
-}
 
 /**
  * Write a photo update/remove row to the existing `audit_log` table.
@@ -86,9 +25,11 @@ export async function logPhotoAudit(params: {
 	householdId?: string | null;
 	beforeUrl?: string | null;
 	afterUrl?: string | null;
-}): Promise<void> {
+}, adapter: DatabaseAdapter = dbAdapter): Promise<void> {
+	// `audit_log` admits a row only when `user_id` is the caller, so a server
+	// route passes an adapter bound to the caller's session.
 	try {
-		await dbAdapter.logAudit({
+		await adapter.logAudit({
 			household_id: params.householdId ?? null,
 			user_id: params.userId,
 			action: params.action,

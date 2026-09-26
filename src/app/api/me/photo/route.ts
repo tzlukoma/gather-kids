@@ -1,225 +1,142 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-import { supabase } from '@/lib/supabaseClient';
-import { getMeProfile, saveProfile } from '@/lib/dal';
-import type { BaseUser } from '@/lib/auth-types';
-import {
-	PUBLIC_AVATARS_BUCKET,
-	deletePublicAvatarBestEffort,
-	logPhotoAudit,
-} from '@/lib/photo/public-avatars';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import { requireUserClient, type CallerSupabaseClient } from '@/lib/api-auth';
+import { SupabaseAdapter } from '@/lib/database/supabase-adapter';
+import type { Database } from '@/lib/database/supabase-types';
+import { clearEntityAvatar, getEntityAvatar, updateEntityAvatar } from '@/lib/dal';
+import { logPhotoAudit } from '@/lib/photo/public-avatars';
 
-function createPhotoStorageClient() {
-	const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-	const key =
-		process.env.SUPABASE_SERVICE_ROLE_KEY ||
-		process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-	if (!url || !key) {
-		throw new Error('Supabase configuration is required for photo storage');
-	}
-	return createClient(url, key, { auth: { persistSession: false } });
+/**
+ * The signed-in user's own profile photo (the settings modal).
+ *
+ * Stored the way child photos are: one `avatars` row, `entity_type = 'user'`,
+ * keyed by the caller's auth id, holding the image as a data URL (#529). No
+ * storage bucket, and no column on `households` or `leader_profiles`, so it
+ * works the same for a guardian and a leader.
+ *
+ * Who the caller is comes from `requireUserClient()`: the session cookie,
+ * validated server-side, and the role from `app_metadata`. Nothing in the
+ * request body is an identity. The row and the audit entry are written through
+ * a client bound to that session, so the `avatars` and `audit_log` policies
+ * judge the caller: a user can write their own photo and nobody else's.
+ */
+
+const ALLOWED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+
+/**
+ * The image lives in a database row, so it is held well under the old 10MB
+ * storage limit. The modal sends a square crop re-encoded as WebP, which is
+ * tens of kilobytes.
+ */
+const MAX_BYTES = 2 * 1024 * 1024;
+
+type CallerClient = SupabaseClient<Database>;
+
+function asCallerClient(client: CallerSupabaseClient): CallerClient {
+	return client as unknown as CallerClient;
 }
 
-
-// Handle multipart form data
-async function parseFormData(request: NextRequest) {
-	const formData = await request.formData();
-	const file = formData.get('file') as File | null;
-	const userId = formData.get('userId') as string | null;
-	const userData = formData.get('userData') as string | null;
-
-	return {
-		file,
-		userId,
-		userData: userData ? JSON.parse(userData) : null,
-	};
-}
-
-// Get current user from Supabase session
-async function getCurrentUser(request: NextRequest): Promise<BaseUser | null> {
-	const authHeader = request.headers.get('authorization');
-	if (!authHeader?.startsWith('Bearer ')) {
-		return null;
-	}
-
-	const token = authHeader.substring(7);
-	const { data: { user }, error } = await supabase.auth.getUser(token);
-
-	if (error || !user) {
-		return null;
-	}
-
-	return {
-		uid: user.id,
-		email: user.email || '',
-		displayName: user.user_metadata?.full_name || user.email?.split('@')[0] || 'User',
-		metadata: {
-			role: user.user_metadata?.role,
-			household_id: user.user_metadata?.household_id,
-		},
-		is_active: true,
-	} as BaseUser;
-}
-
-function userIdOf(user: BaseUser): string {
-	return user.uid || (user as { id?: string }).id || '';
+function callerAdapter(client: CallerClient) {
+	return new SupabaseAdapter(
+		process.env.NEXT_PUBLIC_SUPABASE_URL ?? '',
+		process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '',
+		client
+	);
 }
 
 export async function POST(request: NextRequest) {
-	let uploadedPath: string | null = null;
-	let storageClient: ReturnType<typeof createPhotoStorageClient> | null = null;
-
 	try {
-		const user = await getCurrentUser(request);
-		if (!user) {
-			return NextResponse.json(
-				{ error: 'Unauthorized' },
-				{ status: 401 }
-			);
+		const auth = await requireUserClient();
+		if (!auth.authorized) {
+			return auth.response;
 		}
 
-		const userId = userIdOf(user);
-		const { file } = await parseFormData(request);
-		if (!file) {
-			return NextResponse.json(
-				{ error: 'No file provided' },
-				{ status: 400 }
-			);
-		}
+		const { userId, role } = auth;
+		const client = asCallerClient(auth.supabase);
 
-		const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
-		if (!allowedTypes.includes(file.type)) {
+		const file = (await request.formData()).get('file');
+		if (!(file instanceof File)) {
+			return NextResponse.json({ error: 'No file provided' }, { status: 400 });
+		}
+		if (!ALLOWED_TYPES.includes(file.type)) {
 			return NextResponse.json(
 				{ error: 'Invalid file type. Only JPG, PNG, and WebP are allowed.' },
 				{ status: 400 }
 			);
 		}
-
-		const maxSize = 10 * 1024 * 1024; // 10MB
-		if (file.size > maxSize) {
+		if (file.size > MAX_BYTES) {
 			return NextResponse.json(
-				{ error: 'File size too large. Maximum size is 10MB.' },
+				{ error: 'File size too large. Maximum size is 2MB.' },
 				{ status: 400 }
 			);
 		}
 
-		const beforeProfile = await getMeProfile(userId);
-		const beforeUrl = beforeProfile?.photo_url || beforeProfile?.avatar_path || null;
+		const bytes = Buffer.from(await file.arrayBuffer());
+		const photoUrl = `data:${file.type};base64,${bytes.toString('base64')}`;
 
-		storageClient = createPhotoStorageClient();
-		const timestamp = Date.now();
-		const extension = file.name.split('.').pop() || 'jpg';
-		const filename = `${userId}-${timestamp}.${extension}`;
-		uploadedPath = `avatars/users/${filename}`;
+		const beforeUrl = await getEntityAvatar('user', userId, client);
+		await updateEntityAvatar('user', userId, photoUrl, client);
 
-		const { error: uploadError } = await storageClient.storage
-			.from(PUBLIC_AVATARS_BUCKET)
-			.upload(uploadedPath, file, {
-				contentType: file.type,
-				upsert: true,
-			});
+		await logPhotoAudit(
+			{
+				userId,
+				action: 'profile_photo_updated',
+				actorRole: role,
+				entityType: 'household',
+				entityId: userId,
+				beforeUrl: summarizeForAudit(beforeUrl),
+				afterUrl: summarizeForAudit(photoUrl),
+			},
+			callerAdapter(client)
+		);
 
-		if (uploadError) {
-			console.error('Storage upload error:', uploadError);
-			return NextResponse.json(
-				{ error: 'Failed to upload image' },
-				{ status: 500 }
-			);
-		}
-
-		const { data: urlData } = storageClient.storage
-			.from(PUBLIC_AVATARS_BUCKET)
-			.getPublicUrl(uploadedPath);
-
-		const photoUrl = urlData.publicUrl;
-
-		try {
-			await saveProfile(userId, {
-				photoPath: photoUrl,
-			});
-		} catch (dbError) {
-			console.error('Profile photo DB update failed; rolling back upload:', dbError);
-			await deletePublicAvatarBestEffort(storageClient, uploadedPath);
-			return NextResponse.json(
-				{ error: 'Failed to update profile photo' },
-				{ status: 500 }
-			);
-		}
-
-		// Keep old photo until DB succeeds; then best-effort cleanup.
-		if (beforeUrl && beforeUrl !== photoUrl) {
-			await deletePublicAvatarBestEffort(storageClient, beforeUrl);
-		}
-
-		await logPhotoAudit({
-			userId,
-			action: 'profile_photo_updated',
-			actorRole: user.metadata?.role,
-			entityType: 'household',
-			entityId: userId,
-			householdId: user.metadata?.household_id ?? null,
-			beforeUrl,
-			afterUrl: photoUrl,
-		});
-
-		return NextResponse.json({
-			success: true,
-			photoUrl,
-		});
-
+		return NextResponse.json({ success: true, photoUrl });
 	} catch (error) {
 		console.error('Error uploading user photo:', error);
-		if (storageClient && uploadedPath) {
-			await deletePublicAvatarBestEffort(storageClient, uploadedPath);
-		}
-		return NextResponse.json(
-			{ error: 'Internal server error' },
-			{ status: 500 }
-		);
+		return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
 	}
 }
 
-export async function DELETE(request: NextRequest) {
+export async function DELETE() {
 	try {
-		const user = await getCurrentUser(request);
-		if (!user) {
-			return NextResponse.json(
-				{ error: 'Unauthorized' },
-				{ status: 401 }
-			);
+		const auth = await requireUserClient();
+		if (!auth.authorized) {
+			return auth.response;
 		}
 
-		const userId = userIdOf(user);
-		const beforeProfile = await getMeProfile(userId);
-		const beforeUrl = beforeProfile?.photo_url || beforeProfile?.avatar_path || null;
+		const { userId, role } = auth;
+		const client = asCallerClient(auth.supabase);
 
-		await saveProfile(userId, {
-			photoPath: null,
-		});
+		const beforeUrl = await getEntityAvatar('user', userId, client);
+		await clearEntityAvatar('user', userId, client);
 
-		const storageClient = createPhotoStorageClient();
-		await deletePublicAvatarBestEffort(storageClient, beforeUrl);
+		await logPhotoAudit(
+			{
+				userId,
+				action: 'profile_photo_updated',
+				actorRole: role,
+				entityType: 'household',
+				entityId: userId,
+				beforeUrl: summarizeForAudit(beforeUrl),
+				afterUrl: null,
+			},
+			callerAdapter(client)
+		);
 
-		await logPhotoAudit({
-			userId,
-			action: 'profile_photo_updated',
-			actorRole: user.metadata?.role,
-			entityType: 'household',
-			entityId: userId,
-			householdId: user.metadata?.household_id ?? null,
-			beforeUrl,
-			afterUrl: null,
-		});
-
-		return NextResponse.json({
-			success: true,
-		});
-
+		return NextResponse.json({ success: true });
 	} catch (error) {
 		console.error('Error removing user photo:', error);
-		return NextResponse.json(
-			{ error: 'Internal server error' },
-			{ status: 500 }
-		);
+		return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
 	}
+}
+
+/**
+ * The audit row records that the photo changed, not the image: a data URL is
+ * the whole picture, and copying it into `audit_log` on every change would
+ * keep every photo a user ever replaced.
+ */
+function summarizeForAudit(url: string | null): string | null {
+	if (!url) return null;
+	const match = /^data:([^;,]+)[;,]/.exec(url);
+	return match ? `${match[1]} (${url.length} chars)` : url;
 }

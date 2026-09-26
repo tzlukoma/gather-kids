@@ -2,6 +2,9 @@ import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 
+/** A Supabase client carrying the caller's session. */
+export type CallerSupabaseClient = ReturnType<typeof createServerClient>;
+
 /**
  * The parts of a Supabase auth user this module needs. Declared locally rather
  * than imported, because `@supabase/supabase-js` is restricted outside the DAL
@@ -38,7 +41,7 @@ export function resolveTrustedRole(user: Pick<AuthUser, 'app_metadata'>): string
 }
 
 async function getAuthenticatedUser(): Promise<
-	| { ok: true; user: AuthUser }
+	| { ok: true; user: AuthUser; supabase: CallerSupabaseClient }
 	| { ok: false; reason: 'misconfigured' | 'unauthenticated'; response: NextResponse }
 > {
 	const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -74,7 +77,7 @@ async function getAuthenticatedUser(): Promise<
 		};
 	}
 
-	return { ok: true, user };
+	return { ok: true, user, supabase };
 }
 
 export async function requireAdmin(): Promise<
@@ -128,5 +131,31 @@ export async function requireUser(): Promise<
 		authorized: true,
 		userId: result.user.id,
 		role: resolveTrustedRole(result.user),
+	};
+}
+
+/**
+ * `requireUser`, plus a Supabase client that acts as the caller.
+ *
+ * The client carries the caller's session from their cookies, so every query
+ * through it runs under RLS as that user: it can reach exactly what the
+ * browser could, and nothing a signed-out visitor or the service role could.
+ * Use it for work done on the caller's behalf; never hand it data the request
+ * supplied as an identity.
+ */
+export async function requireUserClient(): Promise<
+	| { authorized: true; userId: string; role: string; supabase: CallerSupabaseClient }
+	| { authorized: false; response: NextResponse }
+> {
+	const result = await getAuthenticatedUser();
+	if (!result.ok) {
+		return { authorized: false, response: result.response };
+	}
+
+	return {
+		authorized: true,
+		userId: result.user.id,
+		role: resolveTrustedRole(result.user),
+		supabase: result.supabase,
 	};
 }

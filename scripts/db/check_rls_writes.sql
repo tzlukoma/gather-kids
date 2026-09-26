@@ -32,7 +32,7 @@ grant select, insert, update, delete on
 	bible_bee_cycles, divisions, scriptures, essay_prompts, competition_years,
 	branding_settings, events, grade_rules, ministries, ministry_groups,
 	ministry_group_members, registration_cycles, users, leader_assignments,
-	ministry_accounts, leader_profiles, daily_digest_checkpoints
+	ministry_accounts, leader_profiles, daily_digest_checkpoints, avatars
 	to anon, authenticated;
 
 -- ---------------------------------------------------------------------------
@@ -81,6 +81,15 @@ insert into ministry_enrollments (enrollment_id, child_id, ministry_id, cycle_id
 insert into leader_profiles (leader_id, first_name, email, is_active) values
 	('00000000-0000-0000-0000-0000000000c1', 'Leader', 'w-led@example.test', true),
 	('00000000-0000-0000-0000-0000000000c2', 'Other leader', 'w-other@example.test', true);
+
+-- One photo each for child B, child Led and guardian B's own profile, plus a
+-- row of a type nothing in the app writes. Child A and guardian A start with
+-- none, so their probes create rather than replace.
+insert into avatars (entity_type, entity_id, storage_path) values
+	('child', 'w-ch-b', 'data:image/webp;base64,b'),
+	('child', 'w-ch-led', 'data:image/webp;base64,led'),
+	('user', '00000000-0000-0000-0000-0000000000a2', 'data:image/webp;base64,a2'),
+	('guardian', 'w-g-a', 'data:image/webp;base64,g');
 
 -- Yesterday, church time: the check-in probes check w-ch-led in for today, and
 -- an open row on the same day would trip the one-open-check-in index instead
@@ -299,6 +308,59 @@ set local request.jwt.claims = '';
 insert into w_probe values
 	('anon: add a guardian',                        pg_temp.try_write($q$insert into guardians (guardian_id, household_id) values ('w-g-new', 'w-hh-a')$q$), -1),
 	('anon: rename a household',                    pg_temp.try_write($q$update households set name = 'x' where household_id = 'w-hh-a'$q$), 0);
+reset role;
+
+-- ---------------------------------------------------------------------------
+-- Avatars (#529): who may manage which photo, per `src/lib/permissions.ts`.
+-- ---------------------------------------------------------------------------
+select pg_temp.as_caller('{"sub":"00000000-0000-0000-0000-0000000000a1","role":"authenticated","app_metadata":{"role":"GUARDIAN"}}');
+insert into w_probe values
+	('avatars: guardian sets own child''s photo',        pg_temp.try_write($q$insert into avatars (entity_type, entity_id, storage_path) values ('child', 'w-ch-a', 'x')$q$), 1),
+	('avatars: guardian sets another household''s child photo', pg_temp.try_write($q$insert into avatars (entity_type, entity_id, storage_path) values ('child', 'w-ch-c', 'x')$q$), -1),
+	('avatars: guardian replaces another household''s child photo', pg_temp.try_write($q$update avatars set storage_path = 'x' where entity_type = 'child' and entity_id = 'w-ch-b'$q$), 0),
+	('avatars: guardian removes another household''s child photo', pg_temp.try_write($q$delete from avatars where entity_type = 'child' and entity_id = 'w-ch-b'$q$), 0),
+	('avatars: guardian sets own profile photo',         pg_temp.try_write($q$insert into avatars (entity_type, entity_id, storage_path) values ('user', '00000000-0000-0000-0000-0000000000a1', 'x')$q$), 1),
+	('avatars: guardian sets another user''s profile photo', pg_temp.try_write($q$insert into avatars (entity_type, entity_id, storage_path) values ('user', '00000000-0000-0000-0000-0000000000c1', 'x')$q$), -1),
+	('avatars: guardian replaces another user''s profile photo', pg_temp.try_write($q$update avatars set storage_path = 'x' where entity_type = 'user' and entity_id = '00000000-0000-0000-0000-0000000000a2'$q$), 0),
+	('avatars: guardian removes another user''s profile photo', pg_temp.try_write($q$delete from avatars where entity_type = 'user' and entity_id = '00000000-0000-0000-0000-0000000000a2'$q$), 0),
+	-- Unfiltered, so only the UPDATE policy applies (see the leader probe above).
+	('avatars: blanket update reaches no one else''s photo', pg_temp.try_write($q$update avatars set storage_path = 'x'$q$), 0),
+	('avatars: guardian writes a guardian-type row',     pg_temp.try_write($q$insert into avatars (entity_type, entity_id, storage_path) values ('guardian', 'w-g-new', 'x')$q$), -1),
+	('avatars: guardian removes a guardian-type row',    pg_temp.try_write($q$delete from avatars where entity_type = 'guardian'$q$), 0);
+reset role;
+
+-- Guardian B owns a profile photo and child B's photo, so these rows exist to
+-- be re-pointed.
+select pg_temp.as_caller('{"sub":"00000000-0000-0000-0000-0000000000a2","role":"authenticated","app_metadata":{"role":"GUARDIAN"}}');
+insert into w_probe values
+	('avatars: guardian replaces own profile photo',     pg_temp.try_write($q$update avatars set storage_path = 'x' where entity_type = 'user' and entity_id = '00000000-0000-0000-0000-0000000000a2'$q$), 1),
+	('avatars: guardian replaces own child''s photo',     pg_temp.try_write($q$update avatars set storage_path = 'x' where entity_type = 'child' and entity_id = 'w-ch-b'$q$), 1),
+	('avatars: guardian re-points own child''s photo at another child', pg_temp.try_write($q$update avatars set entity_id = 'w-ch-a' where entity_type = 'child' and entity_id = 'w-ch-b'$q$), -1),
+	('avatars: guardian re-points own profile photo at another user', pg_temp.try_write($q$update avatars set entity_id = '00000000-0000-0000-0000-0000000000a1' where entity_type = 'user' and entity_id = '00000000-0000-0000-0000-0000000000a2'$q$), -1),
+	('avatars: guardian removes own profile photo',      pg_temp.try_write($q$delete from avatars where entity_type = 'user' and entity_id = '00000000-0000-0000-0000-0000000000a2'$q$), 1);
+reset role;
+
+-- A leader has no say over the photos of children they lead, only over their
+-- own household's.
+select pg_temp.as_caller('{"sub":"00000000-0000-0000-0000-0000000000c1","email":"w-led@example.test","role":"authenticated","app_metadata":{"role":"MINISTRY_LEADER"}}');
+insert into w_probe values
+	('avatars: leader replaces a led child''s photo',    pg_temp.try_write($q$update avatars set storage_path = 'x' where entity_type = 'child' and entity_id = 'w-ch-led'$q$), 0),
+	('avatars: leader sets own child''s photo',          pg_temp.try_write($q$insert into avatars (entity_type, entity_id, storage_path) values ('child', 'w-ch-c', 'x')$q$), 1),
+	('avatars: leader sets own profile photo',           pg_temp.try_write($q$insert into avatars (entity_type, entity_id, storage_path) values ('user', '00000000-0000-0000-0000-0000000000c1', 'x')$q$), 1);
+reset role;
+
+select pg_temp.as_caller('{"sub":"00000000-0000-0000-0000-0000000000ad","role":"authenticated","app_metadata":{"role":"ADMIN"}}');
+insert into w_probe values
+	('avatars: admin replaces any child''s photo',       pg_temp.try_write($q$update avatars set storage_path = 'x' where entity_type = 'child' and entity_id = 'w-ch-led'$q$), 1),
+	('avatars: admin replaces a user''s profile photo',  pg_temp.try_write($q$update avatars set storage_path = 'x' where entity_type = 'user' and entity_id = '00000000-0000-0000-0000-0000000000a2'$q$), 1),
+	('avatars: admin writes a guardian-type row',        pg_temp.try_write($q$insert into avatars (entity_type, entity_id, storage_path) values ('guardian', 'w-g-new', 'x')$q$), 1);
+reset role;
+
+set local role anon;
+set local request.jwt.claims = '';
+insert into w_probe values
+	('avatars: anon sets a child''s photo',              pg_temp.try_write($q$insert into avatars (entity_type, entity_id, storage_path) values ('child', 'w-ch-a', 'x')$q$), -1),
+	('avatars: anon replaces a child''s photo',          pg_temp.try_write($q$update avatars set storage_path = 'x' where entity_type = 'child' and entity_id = 'w-ch-b'$q$), 0);
 reset role;
 
 -- ---------------------------------------------------------------------------
