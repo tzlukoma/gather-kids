@@ -100,7 +100,30 @@ describe('Magic Link API redirectTo', () => {
 			options: {
 				emailRedirectTo:
 					'https://gather-kids-abc123.vercel.app/auth/callback?next=%2Fregister',
+				shouldCreateUser: true,
 			},
 		});
+	});
+
+	it('uses the path-only callback and marks the unified account-entry flow', async () => {
+		process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://project.supabase.co';
+
+		const response = await POST(
+			new NextRequest('https://preview.vercel.app/api/auth/magic-link', {
+				method: 'POST',
+				body: JSON.stringify({ email: 'new@example.com', accountEntry: true }),
+				headers: { 'Content-Type': 'application/json' },
+			})
+		);
+
+		expect(mockSignInWithOtp).toHaveBeenCalledWith({
+			email: 'new@example.com',
+			options: {
+				emailRedirectTo: 'https://preview.vercel.app/auth/callback',
+				shouldCreateUser: true,
+			},
+		});
+		expect(response.headers.get('set-cookie')).toContain('gk_account_entry_flow=1');
+		expect(await response.json()).toEqual({ message: 'Check your email to continue.' });
 	});
 });

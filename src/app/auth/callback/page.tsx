@@ -9,10 +9,14 @@ import {
 	resolveSafePostAuthPath,
 } from '@/lib/authRedirect';
 import { isOfflineSupabase, createOfflineSessionUser } from '@/lib/offline-supabase';
-import { resolveGuardianPostLoginRoute } from '@/lib/dal/households';
+import {
+	getHouseholdForUser,
+	resolveGuardianPostLoginRoute,
+} from '@/lib/dal/households';
 import { AuthRole } from '@/lib/auth-types';
 import { getPostLoginRoute } from '@/lib/auth-utils';
 import { useAuth } from '@/contexts/auth-context';
+import { captureAnalyticsEvent } from '@/lib/analytics/browser';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
@@ -404,6 +408,15 @@ The verification code required for magic links was not found. This happens when:
 					}
 				} else if (data.session) {
 					setSuccess(true);
+					const accountEntryFlow = document.cookie
+						.split('; ')
+						.some((cookie) => cookie === 'gk_account_entry_flow=1');
+					if (accountEntryFlow) {
+						// This marker chooses UX only. Session, role, and household checks
+						// below remain the source of authorization and routing truth.
+						document.cookie = 'gk_account_entry_flow=; Path=/auth/callback; Max-Age=0; SameSite=Lax';
+						captureAnalyticsEvent('account_magic_link_authenticated');
+					}
 
 					// A link that carries no `next` (an older email, or a provider that
 					// dropped the query) must not strand a family on an empty household
@@ -424,9 +437,11 @@ The verification code required for magic links was not found. This happens when:
 							!userRole
 						) {
 							try {
-								resolvedRedirect = await resolveGuardianPostLoginRoute(
-									data.session.user.id
-								);
+								const householdId = await getHouseholdForUser(data.session.user.id);
+								resolvedRedirect =
+									accountEntryFlow && !householdId
+										? '/onboarding?next=/register'
+										: await resolveGuardianPostLoginRoute(data.session.user.id);
 							} catch (routeError) {
 								console.error(
 									'Failed to resolve guardian post-auth route, using the role default:',

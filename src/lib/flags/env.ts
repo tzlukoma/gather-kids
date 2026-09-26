@@ -8,6 +8,7 @@ export const GATHERSYSTEM_FLAG_KEYS = [
 	'gathersystem_admin',
 	'gathersystem_incidents',
 	'gathersystem_auth',
+	'gathersystem_account_entry',
 ] as const;
 
 export type GatherSystemFlagKey = (typeof GATHERSYSTEM_FLAG_KEYS)[number];

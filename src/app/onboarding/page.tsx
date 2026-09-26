@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,8 @@ import { AlertCircle, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { AuthDebug } from '@/components/auth/auth-debug';
 import { cn } from '@/lib/utils';
+import { resolveSafePostAuthPath } from '@/lib/authRedirect';
+import { captureAnalyticsEvent } from '@/lib/analytics/browser';
 import { useGatherSystemAuth } from '@/components/auth/gathersystem-auth-context';
 import {
 	AUTH_BODY_TEXT,
@@ -23,6 +25,9 @@ import {
 export default function OnboardingPage() {
 	const gatherSystem = useGatherSystemAuth();
 	const router = useRouter();
+	const searchParams = useSearchParams();
+	const completionPath = resolveSafePostAuthPath(searchParams.get('next'), '/household');
+	const passwordRequiredForRegistration = completionPath === '/register';
 	const { toast } = useToast();
 	const [loading, setLoading] = useState(true);
 	const [user, setUser] = useState<any>(null);
@@ -68,7 +73,7 @@ export default function OnboardingPage() {
 								recoveredSession.user.user_metadata?.onboarding_dismissed ===
 								true;
 
-							if (!hasPassword && !onboardingDismissed) {
+							if (passwordRequiredForRegistration || (!hasPassword && !onboardingDismissed)) {
 								setShowOnboarding(true);
 								setLoading(false);
 								return;
@@ -96,7 +101,7 @@ export default function OnboardingPage() {
 				const onboardingDismissed =
 					session.user.user_metadata?.onboarding_dismissed === true;
 
-				if (!hasPassword && !onboardingDismissed) {
+				if (passwordRequiredForRegistration || (!hasPassword && !onboardingDismissed)) {
 					setShowOnboarding(true);
 				} else {
 					// User doesn't need onboarding, redirect to dashboard
@@ -111,7 +116,7 @@ export default function OnboardingPage() {
 		};
 
 		checkAuthAndOnboarding();
-	}, [router]);
+	}, [passwordRequiredForRegistration, router]);
 
 	const handleSetPassword = async () => {
 		if (password !== confirmPassword) {
@@ -158,7 +163,8 @@ export default function OnboardingPage() {
 				description: 'You can now sign in with your email and password.',
 			});
 
-			setTimeout(() => router.push('/household'), 1500);
+			captureAnalyticsEvent('account_password_setup_completed');
+			setTimeout(() => router.push(completionPath), 1500);
 		} catch (error: any) {
 			console.error('Error setting password:', error);
 			toast({
@@ -228,7 +234,7 @@ export default function OnboardingPage() {
 				const onboardingDismissed =
 					data.session.user.user_metadata?.onboarding_dismissed === true;
 
-				if (!hasPassword && !onboardingDismissed) {
+				if (passwordRequiredForRegistration || (!hasPassword && !onboardingDismissed)) {
 					setShowOnboarding(true);
 				} else {
 					router.replace('/household');
@@ -318,7 +324,9 @@ export default function OnboardingPage() {
 							className={cn(
 								gatherSystem ? AUTH_CARD_TITLE : 'text-xl font-headline'
 							)}>
-						Make future sign-ins faster
+						{passwordRequiredForRegistration
+							? 'Create your password'
+							: 'Make future sign-ins faster'}
 					</CardTitle>
 					<p
 						className={cn(
@@ -326,8 +334,9 @@ export default function OnboardingPage() {
 								? AUTH_CARD_DESCRIPTION
 								: 'text-base text-muted-foreground'
 						)}>
-						You&apos;re all set with magic link. Prefer a password next time? You can
-						still use a magic link anytime.
+						{passwordRequiredForRegistration
+							? 'Your email is verified. Create a password for faster sign-in next time.'
+							: 'You’re all set with magic link. Prefer a password next time? You can still use a magic link anytime.'}
 					</p>
 				</CardHeader>
 				<CardContent className="space-y-6">
@@ -379,9 +388,11 @@ export default function OnboardingPage() {
 							) : null}
 							Set Password
 						</Button>
-						<Button variant="outline" onClick={handleNotNow}>
-							Not now
-						</Button>
+						{!passwordRequiredForRegistration && (
+							<Button variant="outline" onClick={handleNotNow}>
+								Not now
+							</Button>
+						)}
 					</div>
 
 					{user && process.env.NODE_ENV !== 'production' && (

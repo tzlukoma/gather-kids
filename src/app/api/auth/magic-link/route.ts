@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabaseClient';
 
 export async function POST(request: NextRequest) {
   try {
-    const { email, next } = await request.json();
+    const { email, next, accountEntry } = await request.json();
 
     if (!email) {
       return NextResponse.json(
@@ -49,20 +49,23 @@ export async function POST(request: NextRequest) {
     // This supports Vercel preview deployments, production, and local development
     const requestUrl = new URL(request.url);
     const baseUrl = `${requestUrl.protocol}//${requestUrl.host}`;
+    // Account entry uses the path-only callback. Query-string callback URLs can
+    // miss a path-only Supabase redirect allowlist on Preview deployments.
     const postAuthPath = resolveSafePostAuthPath(
       typeof next === 'string' ? next : null,
       '/household'
     );
-    const redirectToUrl = `${baseUrl}/auth/callback?next=${encodeURIComponent(postAuthPath)}`;
-
-    console.log('Constructing magic link with redirectTo:', redirectToUrl);
+    const redirectToUrl = accountEntry
+      ? `${baseUrl}/auth/callback`
+      : `${baseUrl}/auth/callback?next=${encodeURIComponent(postAuthPath)}`;
 
     if (isSupabaseConfigured) {
       // Use Supabase's built-in magic link functionality
       const { error } = await supabase.auth.signInWithOtp({
         email: email,
         options: {
-          emailRedirectTo: redirectToUrl
+          emailRedirectTo: redirectToUrl,
+          shouldCreateUser: true,
         }
       });
 
@@ -74,7 +77,6 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      console.log('Magic link sent via Supabase to:', email, 'with redirectTo:', redirectToUrl);
     } else if (isTestMode) {
       // For testing with MailHog, send a mock magic link
       try {
@@ -104,7 +106,6 @@ export async function POST(request: NextRequest) {
           appName: process.env.NEXT_PUBLIC_APP_NAME || 'gatherKids'
         });
 
-        console.log('Test magic link sent via MailHog to:', email, 'with URL:', magicLink);
       } catch (emailError) {
         console.error('MailHog email error:', emailError);
         return NextResponse.json(
@@ -114,10 +115,20 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({ 
-      message: 'Verification email sent successfully',
-      email: email
+    const response = NextResponse.json({
+      // This intentionally does not confirm account existence or echo email.
+      message: accountEntry ? 'Check your email to continue.' : 'Verification email sent successfully',
     });
+    if (accountEntry) {
+      // UX-only marker consumed after an authenticated callback. It does not
+      // authorize anything and is scoped to the one callback route.
+      response.cookies.set('gk_account_entry_flow', '1', {
+        path: '/auth/callback',
+        sameSite: 'lax',
+        maxAge: 10 * 60,
+      });
+    }
+    return response;
 
   } catch (error) {
     console.error('Magic link API error:', error);
