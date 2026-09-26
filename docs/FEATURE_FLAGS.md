@@ -56,7 +56,8 @@ Defaults in call sites should keep **legacy UI on** (`getBoolean(key, false)` �
 | `gathersystem_registration` | Guardian registration wizard GatherSystem UI | **#389 must close first.** Do not broaden this key until then. |
 | `gathersystem_admin` | Staff shell (grouped nav) + admin overview GatherSystem UI | — |
 | `gathersystem_incidents` | Staff incidents log + acknowledgement GatherSystem UI | **#429 must land, and its backfill run in that environment.** See below. |
-| `gathersystem_auth` | Account surfaces — `/onboarding` and `/unauthorized` — GatherSystem type scale | — for what it covers. **It must not be extended to `/login` or `/create-account`** until the question on #379 is answered. See below. |
+| `gathersystem_auth` | Account surfaces — `/onboarding` and `/unauthorized` — GatherSystem type scale | — for what it covers. It does not own `/login` or `/create-account`; see `gathersystem_account_entry`. |
+| `gathersystem_account_entry` | Email-first magic-link entry on `/create-account` | Configure only 0% or 100% by `deploy_env`; signed-out visitors share one anonymous bucket. See below. |
 
 Constants: `GATHERSYSTEM_FLAG_KEYS` in `src/lib/flags/env.ts`. Multivariate experiments use `getVariant(key, 'control')` when an issue defines arms.
 
@@ -111,6 +112,23 @@ meet a GatherSystem `/onboarding` immediately after a legacy `/login`, because
 the two sides of that journey are gated differently. That is a cosmetic
 inconsistency rather than a fault, but it is the reason #379 shipped partially
 rather than waiting.
+
+#### `gathersystem_account_entry` — unified family account entry
+
+This key owns the signed-out `/create-account` behavior. Off preserves the
+password-first form; on presents an email-only magic-link entry for both new
+and returning family users. The callback resolves roles and household linkage
+only after authentication: staff keep their role-specific route, linked
+guardians use normal guardian routing, and unlinked family users set a password
+before `/register`.
+
+Because every signed-out request evaluates as `<deploy_env>:anonymous`, a
+percentage rollout is not gradual. In PostHog, target by `deploy_env` and use
+only **0% or 100%** for each environment. Do not pass email, name, household,
+child, or another invented identifier as flag context. After UAT synthetic
+validation at 100%, keep production at 0% until Thomas explicitly authorizes a
+production flip. Returning the matching environment condition to 0% is the
+immediate no-redeploy rollback.
 
 #### `gathersystem_guardian` — shell and home only
 

@@ -10,6 +10,7 @@ jest.mock('posthog-node', () => ({
 import {
 	buildFlagDistinctId,
 	buildFlagPersonProperties,
+	GATHERSYSTEM_FLAG_KEYS,
 	getFlagsDeployEnv,
 	shouldUseRemoteFlags,
 } from '@/lib/flags/env';
@@ -17,6 +18,10 @@ import { createFlagEvaluator } from '@/lib/flags';
 import { createPostHogFlagAdapter } from '@/lib/flags/posthog-adapter';
 
 describe('flags façade', () => {
+	it('declares the unified account-entry key for safe local overrides', () => {
+		expect(GATHERSYSTEM_FLAG_KEYS).toContain('gathersystem_account_entry');
+	});
+
 	it('prefers NEXT_PUBLIC_DEPLOY_ENV over VERCEL_ENV', () => {
 		expect(
 			getFlagsDeployEnv({

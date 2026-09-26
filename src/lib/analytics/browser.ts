@@ -6,6 +6,10 @@ type Env = Record<string, string | undefined>;
 /** Events we are willing to send. Everything else from the wizard was dropped. */
 export type AnalyticsEventName =
 	| 'account_created'
+	| 'account_magic_link_requested'
+	| 'account_magic_link_authenticated'
+	| 'account_password_setup_completed'
+	| 'family_registration_started'
 	| 'registration_submitted'
 	| 'child_checked_in'
 	| 'child_checked_out'

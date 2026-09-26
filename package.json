@@ -11,7 +11,7 @@
     "predev": "node scripts/inject-build-info.mjs",
     "dev": "next dev --turbopack -p 9002",
     "dev:seeded": "npm run seed:dev && npm run dev",
-    "dev:gathersystem": "GATHERSYSTEM_LOCAL_FLAGS=gathersystem_door,gathersystem_admin,gathersystem_incidents,gathersystem_guardian,gathersystem_bible_bee_household,gathersystem_registration,gathersystem_auth NEXT_PUBLIC_LOGIN_PASSWORD_ENABLED=true npm run dev",
+    "dev:gathersystem": "GATHERSYSTEM_LOCAL_FLAGS=gathersystem_door,gathersystem_admin,gathersystem_incidents,gathersystem_guardian,gathersystem_bible_bee_household,gathersystem_registration,gathersystem_auth,gathersystem_account_entry NEXT_PUBLIC_LOGIN_PASSWORD_ENABLED=true npm run dev",
     "screens:capture": "node scripts/dev/capture-screens.mjs",
     "dev:uat": "./scripts/dev/dev-uat.sh",
     "genkit:dev": "genkit start -- tsx src/ai/dev.ts",
