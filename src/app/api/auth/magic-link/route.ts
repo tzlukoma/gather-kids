@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabaseClient';
 
 export async function POST(request: NextRequest) {
   try {
-    const { email, next, accountEntry } = await request.json();
+    const { email, next } = await request.json();
 
     if (!email) {
       return NextResponse.json(
@@ -49,15 +49,11 @@ export async function POST(request: NextRequest) {
     // This supports Vercel preview deployments, production, and local development
     const requestUrl = new URL(request.url);
     const baseUrl = `${requestUrl.protocol}//${requestUrl.host}`;
-    // Account entry uses the path-only callback. Query-string callback URLs can
-    // miss a path-only Supabase redirect allowlist on Preview deployments.
     const postAuthPath = resolveSafePostAuthPath(
       typeof next === 'string' ? next : null,
       '/household'
     );
-    const redirectToUrl = accountEntry
-      ? `${baseUrl}/auth/callback`
-      : `${baseUrl}/auth/callback?next=${encodeURIComponent(postAuthPath)}`;
+    const redirectToUrl = `${baseUrl}/auth/callback?next=${encodeURIComponent(postAuthPath)}`;
 
     if (isSupabaseConfigured) {
       // Use Supabase's built-in magic link functionality
@@ -115,20 +111,10 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const response = NextResponse.json({
-      // This intentionally does not confirm account existence or echo email.
-      message: accountEntry ? 'Check your email to continue.' : 'Verification email sent successfully',
+    return NextResponse.json({
+      // This intentionally does not echo the email.
+      message: 'Verification email sent successfully',
     });
-    if (accountEntry) {
-      // UX-only marker consumed after an authenticated callback. It does not
-      // authorize anything and is scoped to the one callback route.
-      response.cookies.set('gk_account_entry_flow', '1', {
-        path: '/auth/callback',
-        sameSite: 'lax',
-        maxAge: 10 * 60,
-      });
-    }
-    return response;
 
   } catch (error) {
     console.error('Magic link API error:', error);

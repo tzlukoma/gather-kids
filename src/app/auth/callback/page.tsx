@@ -3,6 +3,10 @@
 import { useEffect, useState, Suspense, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { handlePKCECodeExchange } from '@/lib/supabaseClient';
+import {
+	accountEntryRegistrationRoute,
+	getPasswordStatus,
+} from '@/lib/auth/account-entry-route';
 import { decodeTestAuthCodeInBrowser } from '@/lib/test-auth-code';
 import {
 	appendSafePostAuthSearchParam,
@@ -440,7 +444,9 @@ The verification code required for magic links was not found. This happens when:
 								const householdId = await getHouseholdForUser(data.session.user.id);
 								resolvedRedirect =
 									accountEntryFlow && !householdId
-										? '/onboarding?next=/register'
+										? accountEntryRegistrationRoute(
+												getPasswordStatus(data.session.user)
+											)
 										: await resolveGuardianPostLoginRoute(data.session.user.id);
 							} catch (routeError) {
 								console.error(

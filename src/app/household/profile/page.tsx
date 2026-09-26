@@ -88,6 +88,7 @@ export default function ProfilePage() {
 			// Step 2: Update password if re-authentication succeeds
 			const { error: updateError } = await supabase.auth.updateUser({
 				password: data.newPassword,
+				data: { has_password: true },
 			});
 
 			if (updateError) {

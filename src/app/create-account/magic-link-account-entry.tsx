@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { captureAnalyticsEvent } from '@/lib/analytics/browser';
+import { MAGIC_LINK_ERROR, requestMagicLink } from '@/lib/auth/request-magic-link';
 
 const RESEND_COOLDOWN_SECONDS = 60;
 
@@ -31,24 +32,13 @@ export default function MagicLinkAccountEntry() {
 		setPending(true);
 		setError(null);
 		try {
-			const response = await fetch('/api/auth/magic-link', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ email, accountEntry: true }),
-			});
-			if (!response.ok) {
-				throw new Error('We could not send a secure link. Please try again.');
-			}
+			await requestMagicLink(email);
 
 			setSubmittedEmail(email);
 			setCooldown(RESEND_COOLDOWN_SECONDS);
 			captureAnalyticsEvent('account_magic_link_requested');
-		} catch (requestError) {
-			setError(
-				requestError instanceof Error
-					? requestError.message
-					: 'We could not send a secure link. Please try again.'
-			);
+		} catch {
+			setError(MAGIC_LINK_ERROR);
 		} finally {
 			setPending(false);
 		}

@@ -27,7 +27,10 @@ function OnboardingContent() {
 	const router = useRouter();
 	const searchParams = useSearchParams();
 	const completionPath = resolveSafePostAuthPath(searchParams.get('next'), '/household');
-	const passwordRequiredForRegistration = completionPath === '/register';
+	// `password=optional` comes from a magic-link sign-in where we could not
+	// tell whether the account already has a password, so it must not be forced.
+	const passwordRequiredForRegistration =
+		completionPath === '/register' && searchParams.get('password') !== 'optional';
 	const { toast } = useToast();
 	const [loading, setLoading] = useState(true);
 	const [user, setUser] = useState<any>(null);
@@ -79,7 +82,7 @@ function OnboardingContent() {
 								return;
 							} else {
 								// User doesn't need onboarding, redirect to dashboard
-								router.replace('/household');
+								router.replace(completionPath);
 								return;
 							}
 						}
@@ -105,7 +108,7 @@ function OnboardingContent() {
 					setShowOnboarding(true);
 				} else {
 					// User doesn't need onboarding, redirect to dashboard
-					router.replace('/household');
+					router.replace(completionPath);
 				}
 			} catch (err) {
 				console.error('Unexpected error:', err);
@@ -116,7 +119,7 @@ function OnboardingContent() {
 		};
 
 		checkAuthAndOnboarding();
-	}, [passwordRequiredForRegistration, router]);
+	}, [completionPath, passwordRequiredForRegistration, router]);
 
 	const handleSetPassword = async () => {
 		if (password !== confirmPassword) {
@@ -194,7 +197,7 @@ function OnboardingContent() {
 				description: 'You can set a password later in Settings.',
 			});
 
-			router.push('/household');
+			router.push(completionPath);
 		} catch (error: any) {
 			console.error('Error dismissing onboarding:', error);
 			toast({
@@ -237,7 +240,7 @@ function OnboardingContent() {
 				if (passwordRequiredForRegistration || (!hasPassword && !onboardingDismissed)) {
 					setShowOnboarding(true);
 				} else {
-					router.replace('/household');
+					router.replace(completionPath);
 				}
 
 				toast({
