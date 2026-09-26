@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -22,7 +22,7 @@ import {
 	AUTH_CARD_TITLE,
 } from '@/components/auth/auth-page-styles';
 
-export default function OnboardingPage() {
+function OnboardingContent() {
 	const gatherSystem = useGatherSystemAuth();
 	const router = useRouter();
 	const searchParams = useSearchParams();
@@ -410,5 +410,25 @@ export default function OnboardingPage() {
 				</CardContent>
 			</Card>
 		</div>
+	);
+}
+
+export default function OnboardingPage() {
+	return (
+		<Suspense
+			fallback={
+				<div className="flex min-h-screen items-center justify-center bg-muted/50 p-4">
+					<Card className="w-full max-w-md">
+						<CardContent className="flex flex-col items-center justify-center py-8 space-y-4">
+							<Loader2 className="h-6 w-6 animate-spin" />
+							<p className="text-sm text-muted-foreground">
+								Setting up your account...
+							</p>
+						</CardContent>
+					</Card>
+				</div>
+			}>
+			<OnboardingContent />
+		</Suspense>
 	);
 }
