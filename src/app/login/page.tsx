@@ -33,6 +33,7 @@ import { supabase } from '@/lib/supabaseClient';
 import { getPostLoginRoute } from '@/lib/auth-utils';
 import { resolveGuardianPostLoginRoute } from '@/lib/dal';
 import { AppFooter } from '@/components/app-footer';
+import { MAGIC_LINK_ERROR, requestMagicLink } from '@/lib/auth/request-magic-link';
 
 export default function LoginPage() {
 	const router = useRouter();
@@ -44,6 +45,9 @@ export default function LoginPage() {
 	const [password, setPassword] = useState('');
 	const [showPassword, setShowPassword] = useState(false);
 	const [loading, setLoading] = useState(false);
+	const [magicLinkPending, setMagicLinkPending] = useState(false);
+	const [magicLinkSentTo, setMagicLinkSentTo] = useState('');
+	const [magicLinkError, setMagicLinkError] = useState<string | null>(null);
 
 	// Show session expired toast if redirected from an expired session
 	useEffect(() => {
@@ -59,6 +63,23 @@ export default function LoginPage() {
 			}
 		}
 	}, [toast]);
+
+	const handleMagicLink = async () => {
+		if (!email) {
+			setMagicLinkError('Enter your email first.');
+			return;
+		}
+		setMagicLinkPending(true);
+		setMagicLinkError(null);
+		try {
+			await requestMagicLink(email);
+			setMagicLinkSentTo(email);
+		} catch {
+			setMagicLinkError(MAGIC_LINK_ERROR);
+		} finally {
+			setMagicLinkPending(false);
+		}
+	};
 
 	// Handle Supabase authentication
 	const handleLogin = async () => {
@@ -130,6 +151,14 @@ export default function LoginPage() {
 				}
 
 				if (data.session) {
+					if (data.session.user.user_metadata?.has_password !== true) {
+						// Supabase cannot tell a chosen password from the random one it
+						// gives magic-link accounts, so the app records it. Best effort:
+						// a failure must not block sign-in.
+						void supabase.auth
+							.updateUser({ data: { has_password: true } })
+							.catch(() => undefined);
+					}
 					toast({
 						title: 'Login Successful',
 						description: `Welcome back!`,
@@ -313,14 +342,45 @@ export default function LoginPage() {
 						)}
 
 						{flags.loginMagicEnabled && (
-							<Alert>
-								<Info className="h-4 w-4" />
-								<AlertTitle>Magic Link Available</AlertTitle>
-								<AlertDescription>
-									Magic link authentication would be available here when
-									implemented.
-								</AlertDescription>
-							</Alert>
+							<div className="space-y-3 border-t pt-4">
+								{!flags.loginPasswordEnabled && (
+									<div className="space-y-2">
+										<Label htmlFor="magic-link-email">Email</Label>
+										<Input
+											id="magic-link-email"
+											type="email"
+											placeholder="m@example.com"
+											required
+											value={email}
+											onChange={(e) => setEmail(e.target.value)}
+										/>
+									</div>
+								)}
+								{magicLinkSentTo ? (
+									<Alert>
+										<Info className="h-4 w-4" />
+										<AlertTitle>Check your email</AlertTitle>
+										<AlertDescription>
+											If the address can be used, we’ve sent a sign-in link to{' '}
+											{magicLinkSentTo}.
+										</AlertDescription>
+									</Alert>
+								) : (
+									<Button
+										type="button"
+										variant="outline"
+										className="w-full"
+										onClick={handleMagicLink}
+										disabled={magicLinkPending || loading}>
+										{magicLinkPending ? 'Sending...' : 'Email me a sign-in link'}
+									</Button>
+								)}
+								{magicLinkError && (
+									<p className="text-sm text-destructive" role="alert">
+										{magicLinkError}
+									</p>
+								)}
+							</div>
 						)}
 
 						{flags.loginGoogleEnabled && (

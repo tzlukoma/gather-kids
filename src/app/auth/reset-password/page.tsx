@@ -103,6 +103,7 @@ function ResetPasswordForm() {
 		try {
 			const { error } = await supabase.auth.updateUser({
 				password: data.password,
+				data: { has_password: true },
 			});
 
 			if (error) {

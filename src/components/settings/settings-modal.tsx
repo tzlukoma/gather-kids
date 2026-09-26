@@ -278,6 +278,7 @@ export function SettingsModal({
 			// Update password in Supabase
 			const { error } = await supabase.auth.updateUser({
 				password: data.newPassword,
+				data: { has_password: true },
 			});
 
 			if (error) {

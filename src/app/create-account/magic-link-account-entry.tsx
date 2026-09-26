@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { captureAnalyticsEvent } from '@/lib/analytics/browser';
-import { supabase } from '@/lib/supabaseClient';
+import { MAGIC_LINK_ERROR, requestMagicLink } from '@/lib/auth/request-magic-link';
 
 const RESEND_COOLDOWN_SECONDS = 60;
 
@@ -32,32 +32,13 @@ export default function MagicLinkAccountEntry() {
 		setPending(true);
 		setError(null);
 		try {
-			// Requested from the browser so the PKCE code verifier is stored where
-			// /auth/callback exchanges the code. The path-only callback URL matches
-			// a path-only Supabase redirect allowlist on Preview deployments.
-			const { error: otpError } = await supabase.auth.signInWithOtp({
-				email,
-				options: {
-					emailRedirectTo: `${window.location.origin}/auth/callback`,
-					shouldCreateUser: true,
-				},
-			});
-			if (otpError) {
-				throw new Error('We could not send a secure link. Please try again.');
-			}
-			// UX-only marker consumed after an authenticated callback. It does not
-			// authorize anything and is scoped to the one callback route.
-			document.cookie = `gk_account_entry_flow=1; Path=/auth/callback; Max-Age=${10 * 60}; SameSite=Lax`;
+			await requestMagicLink(email);
 
 			setSubmittedEmail(email);
 			setCooldown(RESEND_COOLDOWN_SECONDS);
 			captureAnalyticsEvent('account_magic_link_requested');
-		} catch (requestError) {
-			setError(
-				requestError instanceof Error
-					? requestError.message
-					: 'We could not send a secure link. Please try again.'
-			);
+		} catch {
+			setError(MAGIC_LINK_ERROR);
 		} finally {
 			setPending(false);
 		}

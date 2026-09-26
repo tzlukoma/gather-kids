@@ -122,6 +122,7 @@ export default function CreateAccountPage() {
 				password,
 				options: {
 					emailRedirectTo,
+					data: { has_password: true },
 				},
 			});
 
