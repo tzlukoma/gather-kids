@@ -48,6 +48,17 @@ describe('isGuardianNavItemActive', () => {
 		expect(isGuardianNavItemActive('/help', help)).toBe(true);
 	});
 
+	it('lights Bible Bee on a child\'s scripture page, which lives under the child', () => {
+		const path = '/household/children/child-1/bible-bee';
+		expect(isGuardianNavItemActive(path, bibleBee)).toBe(true);
+		expect(isGuardianNavItemActive(`${path}?cycleId=c1`.split('?')[0], bibleBee)).toBe(true);
+		expect(isGuardianNavItemActive(path, household)).toBe(false);
+		expect(isGuardianNavItemActive(path, home)).toBe(false);
+		// The child's own page is household detail, not Bible Bee.
+		expect(isGuardianNavItemActive('/household/children/child-1', bibleBee)).toBe(false);
+		expect(isGuardianNavItemActive('/household/children/child-1/bible-beehive', bibleBee)).toBe(false);
+	});
+
 	it('does not light a tab on a route that merely shares its prefix string', () => {
 		expect(isGuardianNavItemActive('/household/detailsomething', household)).toBe(
 			false

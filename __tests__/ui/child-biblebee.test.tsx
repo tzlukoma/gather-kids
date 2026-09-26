@@ -221,8 +221,12 @@ jest.mock('next/navigation', () => ({
 	}),
 }));
 
-const ChildBibleBeePage =
-	require('@/app/household/children/[childId]/bible-bee/page').default;
+// The route is now an async server component that picks legacy or GatherSystem
+// by flag (covered in `__tests__/app/household/child-bible-bee-page.test.tsx`).
+// This suite is about the legacy screen, which the flag-off path renders as-is.
+const ChildBibleBeeDetail =
+	require('@/components/gatherKids/child-bible-bee-detail').default;
+const ChildBibleBeePage = () => <ChildBibleBeeDetail allowPhotoUpdates={true} />;
 
 describe('Child Bible Bee UI', () => {
 	beforeEach(() => {
