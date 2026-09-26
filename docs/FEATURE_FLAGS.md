@@ -52,7 +52,7 @@ Defaults in call sites should keep **legacy UI on** (`getBoolean(key, false)` �
 |-----|--------|------------------------------|
 | `gathersystem_door` | New door / check-in GatherSystem surface | **#432 and #385 must both land first.** The flag can resolve true without a session, and the surface cannot check a child out. See below. |
 | `gathersystem_guardian` | Guardian household shell + home | — for the shell and home. The Bible Bee scripture and essay screens are a separate key. See below. |
-| `gathersystem_bible_bee_household` | Bible Bee household GatherSystem path | — |
+| `gathersystem_bible_bee_household` | One child's Bible Bee scriptures or essay, `/household/children/[childId]/bible-bee` | — See below. |
 | `gathersystem_registration` | Guardian registration wizard GatherSystem UI | **#389 must close first.** Do not broaden this key until then. |
 | `gathersystem_admin` | Staff shell (grouped nav) + admin overview GatherSystem UI | — |
 | `gathersystem_incidents` | Staff incidents log + acknowledgement GatherSystem UI | **#429 must land, and its backfill run in that environment.** See below. |
@@ -147,7 +147,7 @@ evaluated with a real user id and a percentage rollout buckets per user in the
 ordinary way. There is no prerequisite; it is safe to raise.
 
 **It is not the Bible Bee household key.** The scripture list and the essay
-screens are `gathersystem_bible_bee_household` and are still legacy. Raising
+screens are `gathersystem_bible_bee_household`. Raising
 this key alone gives a GatherSystem home whose `Open scripture list` lands on
 the legacy scripture screen — deliberate, and the reason the two are separate
 keys — but worth knowing before a UAT walkthrough.
@@ -174,6 +174,25 @@ later migration handing those grants back fails the build.
 The wider problem neither of these routes solves — RLS is absent across
 `children`, `households` and `guardians`, and `src/lib/database/factory.ts` publishes the
 adapter as `window.gatherKidsDbAdapter` — is tracked on its own issue.
+
+#### `gathersystem_bible_bee_household` — one child's scriptures or essay
+
+**This key covers `/household/children/[childId]/bible-bee` and nothing else.**
+Off, the route renders the legacy `ChildBibleBeeDetail` exactly as before. On,
+it renders the GatherSystem screen: the scripture list with `To memorize /
+Memorized / All` tabs and translation chips, the all-memorized summary, or, for
+an essay division, the essay card whose `Upload Essay` opens the same form the
+legacy screen opens. `/household/bible-bee`, the tab listing every enrolled
+child, is not covered and stays legacy on both sides.
+
+Both sides read and write through the same hooks (`useStudentAssignmentsQuery`,
+`useBibleBeeStats`, `useToggleScriptureMutation`), so the flag changes rendering
+only. The route is behind the guardian session guard, so a percentage rollout
+buckets per user. There is no prerequisite; it is safe to raise.
+
+It is independent of `gathersystem_guardian`. With only this key on, the new
+screen renders inside the legacy household sidebar. Child photo updates are not
+on the new screen; they stay on `/household/children/[childId]`.
 
 #### `gathersystem_incidents` — trusted role claims
 

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ExternalLink } from 'lucide-react';
 import EssayCard from '@/components/gatherKids/essay-card';
+import { ESSAY_UPLOAD_URL } from '@/lib/bible-bee-household';
 
 interface EssaySubmission {
 	id: string;
@@ -62,10 +63,7 @@ export function EssaySubmissions({
 							{e.status !== 'submitted' && (
 								<Button
 									onClick={() =>
-										window.open(
-											'https://docs.google.com/forms/d/e/1FAIpQLSe4z-u1Tiyz403ExsRH-tV4tAO0PwI7Min4QPwBLtSrf1lQOA/viewform?usp=header',
-											'_blank'
-										)
+										window.open(ESSAY_UPLOAD_URL, '_blank')
 									}
 									size="sm"
 									variant="outline">

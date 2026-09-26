@@ -57,11 +57,16 @@ export function buildGuardianNavItems(
  * match for the rest, so a child's Bible Bee detail page still shows Bible Bee
  * as the section the guardian is in.
  */
+const CHILD_BIBLE_BEE = /^\/household\/children\/[^/]+\/bible-bee(\/|$)/;
+
 export function isGuardianNavItemActive(
 	pathname: string | null | undefined,
 	item: GuardianNavItem
 ): boolean {
 	const path = pathname ?? '';
 	if (item.href === '/household') return path === '/household';
+	// A child's scripture page lives under the child, not under
+	// `/household/bible-bee`, so the prefix rule alone never reaches it.
+	if (item.id === 'bible-bee' && CHILD_BIBLE_BEE.test(path)) return true;
 	return path === item.href || path.startsWith(`${item.href}/`);
 }
