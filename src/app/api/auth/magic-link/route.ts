@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createEmailService } from '@/lib/email-service';
 import { resolveSafePostAuthPath } from '@/lib/authRedirect';
 import { supabase } from '@/lib/supabaseClient';
+import { getGatherSystemAccountEntryFlag } from '@/lib/flags/get-gathersystem-account-entry-flag';
 
 export async function POST(request: NextRequest) {
   try {
@@ -27,7 +28,12 @@ export async function POST(request: NextRequest) {
     const isMagicEnabled = process.env.NEXT_PUBLIC_LOGIN_MAGIC_ENABLED === 'true';
     const isTestMode = process.env.NODE_ENV === 'test' || process.env.SMTP_HOST === 'localhost';
 
-    if (!isMagicEnabled && !isTestMode) {
+    // The unified account entry is gated by its own flag, evaluated here on the
+    // server so a client cannot unlock magic links by sending accountEntry.
+    const isAccountEntryEnabled =
+      accountEntry === true && (await getGatherSystemAccountEntryFlag());
+
+    if (!isMagicEnabled && !isAccountEntryEnabled && !isTestMode) {
       return NextResponse.json(
         { error: 'Magic link authentication is not enabled' },
         { status: 503 }
