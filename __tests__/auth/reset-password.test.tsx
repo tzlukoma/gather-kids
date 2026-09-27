@@ -1,4 +1,5 @@
 import { render, screen, waitFor } from '@testing-library/react';
+import { StrictMode } from 'react';
 import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 import ResetPasswordPage from '@/app/auth/reset-password/page';
@@ -117,6 +118,27 @@ describe('ResetPasswordPage', () => {
 		expect(mockUpdateUser).not.toHaveBeenCalled();
 	});
 
+	it('exchanges a recovery code once when Strict Mode replays effects', async () => {
+		(useSearchParams as jest.Mock).mockReturnValue({
+			get: jest.fn().mockImplementation((key: string) =>
+				key === 'code' ? 'strict-mode-code' : null
+			),
+		});
+		mockExchangeCodeForSession.mockResolvedValue({
+			data: { session: { user: { id: 'uid', email: 'test@example.com' } } },
+			error: null,
+		});
+
+		render(
+			<StrictMode>
+				<ResetPasswordPage />
+			</StrictMode>
+		);
+
+		await screen.findByText('Reset Your Password');
+		expect(mockExchangeCodeForSession).toHaveBeenCalledTimes(1);
+	});
+
 	it('validates password requirements', async () => {
 		(useSearchParams as jest.Mock).mockReturnValue({
 			get: jest.fn().mockImplementation((key: string) => {
@@ -172,7 +194,7 @@ describe('ResetPasswordPage', () => {
 				password: 'ValidPass1!',
 				data: { has_password: true },
 			});
-			expect(mockSignOut).toHaveBeenCalled();
+			expect(mockSignOut).toHaveBeenCalledWith({ scope: 'local' });
 			expect(mockPush).toHaveBeenCalledWith('/login');
 		});
 	});

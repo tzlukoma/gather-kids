@@ -45,6 +45,28 @@ const resetPasswordSchema = z
 
 type ResetPasswordFormData = z.infer<typeof resetPasswordSchema>;
 
+const recoveryCodeExchanges = new Map<
+	string,
+	ReturnType<typeof supabase.auth.exchangeCodeForSession>
+>();
+
+function exchangeRecoveryCode(code: string, flowId: string | null) {
+	const key = `${flowId ?? ''}:${code}`;
+	const existingExchange = recoveryCodeExchanges.get(key);
+	if (existingExchange) return existingExchange;
+
+	const exchange = supabase.auth.exchangeCodeForSession(
+		code,
+		flowId ? { flowId } : undefined
+	);
+	recoveryCodeExchanges.set(key, exchange);
+	void exchange.then(
+		() => recoveryCodeExchanges.delete(key),
+		() => recoveryCodeExchanges.delete(key)
+	);
+	return exchange;
+}
+
 function ResetPasswordForm() {
 	const router = useRouter();
 	const searchParams = useSearchParams();
@@ -72,12 +94,9 @@ function ResetPasswordForm() {
 		}
 		const recoveryCode = code;
 		let cancelled = false;
-		async function exchangeRecoveryCode() {
+		async function validateRecoveryCode() {
 			try {
-				const { data, error } = await supabase.auth.exchangeCodeForSession(
-					recoveryCode,
-					flowId ? { flowId } : undefined
-				);
+				const { data, error } = await exchangeRecoveryCode(recoveryCode, flowId);
 
 				if (cancelled) return;
 
@@ -95,7 +114,7 @@ function ResetPasswordForm() {
 				if (!cancelled) setHasValidToken(false);
 			}
 		}
-		void exchangeRecoveryCode();
+		void validateRecoveryCode();
 		return () => {
 			cancelled = true;
 		};
@@ -113,7 +132,9 @@ function ResetPasswordForm() {
 				throw error;
 			}
 
-			const { error: signOutError } = await supabase.auth.signOut();
+			const { error: signOutError } = await supabase.auth.signOut({
+				scope: 'local',
+			});
 			if (signOutError) {
 				throw signOutError;
 			}
