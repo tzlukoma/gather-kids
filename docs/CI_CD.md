@@ -323,7 +323,7 @@ On the `production` GitHub Environment, set:
 2. **Actions** → **Production release** → **Run workflow**. Enter the full `main` SHA, or leave it empty to use the selected ref. The workflow derives exactly one immutable `https://….vercel.app` staged deployment from Vercel's Git metadata; operators never paste a URL.
 3. GitHub Environment **`production`** approval is required. That review is **Production approval pending**. Nothing is promoted until a reviewer approves. The workflow summary is written only after the job starts.
 4. The job checks out that SHA, dry-runs and applies migrations with `scripts/db/apply_migrations_cli.sh`, runs FK checks, then requires the staged URL's `/api/version` to be **Production DB verified** (`deployEnv` production, `gitSha` matches, `inSync` true).
-5. Only then does it run `vercel promote` on that staged URL.
+5. Only then does it run `vercel promote` on that staged URL. If Vercel returns **409** because that deployment is already the current production deployment, the step succeeds (idempotent re-run).
 6. It calls `PROD_APP_URL` `/api/version` and `/api/health`. The summary says **Production released** only when those checks pass.
 
 A failed migration, status check, or staged-build mismatch exits before promotion. Production domains stay on the previous deployment. The summary state is `failed`.

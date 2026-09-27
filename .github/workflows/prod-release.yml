@@ -242,7 +242,20 @@ jobs:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: |
           set -euo pipefail
-          npx --yes vercel@59.24.0 promote "$STAGED_URL" --token "$VERCEL_TOKEN" --yes
+          set +e
+          promote_output=$(npx --yes vercel@59.24.0 promote "$STAGED_URL" --token "$VERCEL_TOKEN" --yes 2>&1)
+          promote_status=$?
+          set -e
+          if [[ "$promote_status" -ne 0 ]]; then
+            if echo "$promote_output" | grep -Fq 'already the current production deployment' \
+              && echo "$promote_output" | grep -Fq '(409)'; then
+              echo "Staged deployment is already the current production deployment; promote treated as success (Vercel 409)."
+              exit 0
+            fi
+            echo "$promote_output"
+            exit "$promote_status"
+          fi
+          echo "$promote_output"
 
       - name: Confirm production domain after promotion
         env:
