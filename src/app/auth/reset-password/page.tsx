@@ -52,10 +52,10 @@ function ResetPasswordForm() {
 	const [isLoading, setIsLoading] = useState(false);
 	const [showPassword, setShowPassword] = useState(false);
 	const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-	const token = searchParams.get('token');
 	const code = searchParams.get('code');
+	const flowId = searchParams.get('sb_flow_id');
 	const [hasValidToken, setHasValidToken] = useState<boolean | null>(
-		token || code ? null : false,
+		code ? null : false
 	);
 
 	const form = useForm<ResetPasswordFormData>({
@@ -67,36 +67,39 @@ function ResetPasswordForm() {
 	});
 
 	useEffect(() => {
-		if (!token && !code) {
+		if (!code) {
 			return;
 		}
+		const recoveryCode = code;
 		let cancelled = false;
-		async function validateResetToken() {
+		async function exchangeRecoveryCode() {
 			try {
-				const {
-					data: { session },
-					error: sessionError,
-				} = await supabase.auth.getSession();
+				const { data, error } = await supabase.auth.exchangeCodeForSession(
+					recoveryCode,
+					flowId ? { flowId } : undefined
+				);
 
 				if (cancelled) return;
 
-				if (sessionError) {
-					console.error('Session validation failed:', sessionError);
+				if (error || !data.session?.user) {
+					console.error('Recovery code exchange failed:', error);
 					setHasValidToken(false);
 					return;
 				}
 
-				setHasValidToken(!!session?.user);
+				// A recovery code is single-use and should not remain in browser history.
+				window.history.replaceState({}, '', '/auth/reset-password');
+				setHasValidToken(true);
 			} catch (error) {
-				console.error('Reset token validation failed:', error);
+				console.error('Recovery code exchange failed:', error);
 				if (!cancelled) setHasValidToken(false);
 			}
 		}
-		void validateResetToken();
+		void exchangeRecoveryCode();
 		return () => {
 			cancelled = true;
 		};
-	}, [token, code]);
+	}, [code, flowId]);
 
 	const onSubmit = async (data: ResetPasswordFormData) => {
 		setIsLoading(true);
@@ -110,12 +113,17 @@ function ResetPasswordForm() {
 				throw error;
 			}
 
+			const { error: signOutError } = await supabase.auth.signOut();
+			if (signOutError) {
+				throw signOutError;
+			}
+
 			toast({
 				title: 'Password Reset Successful',
 				description:
 					'Your password has been updated successfully. You can now sign in with your new password.',
 			});
-			router.push('/login');
+			router.replace('/login');
 		} catch (error) {
 			console.error('Password reset failed:', error);
 			toast({
