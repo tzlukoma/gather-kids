@@ -34,10 +34,15 @@ export const queryKeys = {
     householdProfile: (id: string) => ['householdProfile', id] as const,
     guardians: ['guardians'] as const,
     households: ['households'] as const,
-    householdList: (leaderMinistryIds?: string[], ministryId?: string) => {
+    householdList: (
+        leaderMinistryIds?: string[],
+        ministryId?: string,
+        cycleId?: string,
+    ) => {
         const parts: string[] = ['householdList'];
         if (leaderMinistryIds) parts.push('leaderMinistryIds', ...leaderMinistryIds);
         if (ministryId) parts.push('ministryId', ministryId);
+        if (cycleId) parts.push('cycleId', cycleId);
         return parts;
     },
     emergencyContacts: ['emergencyContacts'] as const,
@@ -109,10 +114,14 @@ export function useHouseholds() {
 }
 
 // Household list query (for registrations page)
-export function useHouseholdList(leaderMinistryIds?: string[], ministryId?: string) {
+export function useHouseholdList(
+    leaderMinistryIds?: string[],
+    ministryId?: string,
+    cycleId?: string,
+) {
     return useQuery({
-        queryKey: queryKeys.householdList(leaderMinistryIds, ministryId),
-        queryFn: () => queryHouseholdList(leaderMinistryIds, ministryId),
+        queryKey: queryKeys.householdList(leaderMinistryIds, ministryId, cycleId),
+        queryFn: () => queryHouseholdList(leaderMinistryIds, ministryId, cycleId),
         staleTime: 5 * 60 * 1000,
     });
 }

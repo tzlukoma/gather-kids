@@ -20,14 +20,18 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
-import { ChevronRight, Filter, Search, X, Home } from 'lucide-react';
+import { CalendarDays, ChevronRight, Filter, Search, X, Home } from 'lucide-react';
 import { EmptyState } from '@/components/ui/empty-state';
 import { useAuth } from '@/contexts/auth-context';
 import { AuthRole } from '@/lib/auth-types';
 import React, { useState, useEffect, useMemo } from 'react';
 import { Combobox } from '@/components/ui/combobox';
-import { useHouseholdList } from '@/hooks/data';
+import { useHouseholdList, useRegistrationCycles } from '@/hooks/data';
 import { useMinistries } from '@/hooks/data/ministries';
+import {
+	pickActiveRegistrationCycle,
+	registrationCycleLabel,
+} from '@/lib/dal/registration-cycle-utils';
 import type { Child } from '@/lib/types';
 import type { HouseholdListItem } from '@/lib/dal';
 
@@ -36,13 +40,42 @@ export default function RegistrationsPage() {
 	const { user } = useAuth();
 	const [ministryFilter, setMinistryFilter] = useState<string | null>(null);
 	const [searchTerm, setSearchTerm] = useState<string>('');
+	const [selectedCycleId, setSelectedCycleId] = useState<string | null>(null);
 
-	// React Query hooks for data fetching
 	const {
 		data: allMinistries = [],
 		isLoading: ministriesLoading,
 		error: ministriesError,
 	} = useMinistries();
+
+	const {
+		data: registrationCycles = [],
+		isLoading: cyclesLoading,
+	} = useRegistrationCycles();
+
+	const activeCycle = useMemo(
+		() => pickActiveRegistrationCycle(registrationCycles),
+		[registrationCycles],
+	);
+
+	const sortedCycles = useMemo(
+		() =>
+			[...registrationCycles].sort(
+				(a, b) =>
+					new Date(b.start_date || 0).getTime() -
+					new Date(a.start_date || 0).getTime(),
+			),
+		[registrationCycles],
+	);
+
+	const effectiveCycleId = selectedCycleId ?? activeCycle?.cycle_id ?? null;
+	const selectedCycle =
+		sortedCycles.find((cycle) => cycle.cycle_id === effectiveCycleId) ??
+		activeCycle;
+	const selectedCycleLabel = registrationCycleLabel(
+		selectedCycle,
+		'the selected year',
+	);
 
 	// For ministry leaders, find which ministry their email is associated with
 	const [leaderMinistryId, setLeaderMinistryId] = useState<string | null>(null);
@@ -59,7 +92,7 @@ export default function RegistrationsPage() {
 			try {
 				// For ministry leaders, use their assigned ministry IDs
 				let filterIds: string[] | undefined = undefined;
-				
+
 				// Check if user is a ministry leader
 				if (user?.metadata?.role === AuthRole.MINISTRY_LEADER) {
 					if (user.assignedMinistryIds && user.assignedMinistryIds.length > 0) {
@@ -97,7 +130,11 @@ export default function RegistrationsPage() {
 
 	// Use React Query hook for household list with children data
 	const { data: households = [], isLoading: householdsLoading } =
-		useHouseholdList(ministryFilterIds, ministryFilter || undefined);
+		useHouseholdList(
+			ministryFilterIds,
+			ministryFilter || undefined,
+			effectiveCycleId ?? undefined,
+		);
 
 	// Client-side filtering using useMemo for optimal performance
 	const filteredHouseholds = useMemo(() => {
@@ -145,6 +182,12 @@ export default function RegistrationsPage() {
 	};
 
 	const handleRowClick = (householdId: string) => {
+		if (effectiveCycleId) {
+			router.push(
+				`/registrations/${householdId}?cycle=${encodeURIComponent(effectiveCycleId)}`,
+			);
+			return;
+		}
 		router.push(`/registrations/${householdId}`);
 	};
 
@@ -165,7 +208,7 @@ export default function RegistrationsPage() {
 		return formatted;
 	};
 
-	const loading = ministriesLoading || householdsLoading;
+	const loading = ministriesLoading || householdsLoading || cyclesLoading;
 
 	if (loading) {
 		return <div>Loading registrations...</div>;
@@ -210,12 +253,17 @@ export default function RegistrationsPage() {
 	const ministryOptions =
 		allMinistries?.map((m) => ({ value: m.ministry_id, label: m.name })) || [];
 
+	const cycleOptions = sortedCycles.map((cycle) => ({
+		value: cycle.cycle_id,
+		label: cycle.is_active ? `${cycle.name} (Current)` : cycle.name,
+	}));
+
 	return (
 		<div className="flex flex-col gap-8">
 			<div>
 				<h1 className="text-3xl font-bold font-headline">Registrations</h1>
 				<p className="text-muted-foreground">
-					A list of all households that have completed the registration process.
+					Households registered for {selectedCycleLabel}.
 				</p>
 			</div>
 			<Card>
@@ -241,6 +289,22 @@ export default function RegistrationsPage() {
 									value={searchTerm}
 									onChange={(e) => setSearchTerm(e.target.value)}
 									className="pl-9"
+								/>
+							</div>
+
+							{/* Registration cycle selector */}
+							<div className="flex items-center gap-2 w-full sm:w-auto">
+								<CalendarDays className="h-4 w-4 text-muted-foreground" />
+								<Combobox
+									options={cycleOptions}
+									value={effectiveCycleId}
+									onChange={(value) =>
+										setSelectedCycleId(value ?? activeCycle?.cycle_id ?? null)
+									}
+									placeholder="Select registration year..."
+									searchPlaceholder="Search years..."
+									emptyPlaceholder="No registration years found."
+									clearable={false}
 								/>
 							</div>
 
@@ -305,7 +369,7 @@ export default function RegistrationsPage() {
 						<TableHeader>
 							<TableRow>
 								<TableHead>Household Name</TableHead>
-								<TableHead>Latest registration</TableHead>
+								<TableHead>{selectedCycleLabel} registration</TableHead>
 								<TableHead>Original registration</TableHead>
 								<TableHead>Children</TableHead>
 								<TableHead className="w-[50px]"></TableHead>
