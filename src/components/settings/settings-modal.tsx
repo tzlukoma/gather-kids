@@ -36,7 +36,12 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
 import { useToast } from '@/hooks/use-toast';
-import { getMeProfile, saveProfile, getActiveProfileTarget } from '@/lib/dal';
+import {
+	getMeProfile,
+	saveProfile,
+	getActiveProfileTarget,
+	getEntityAvatar,
+} from '@/lib/dal';
 import { supabase } from '@/lib/supabaseClient';
 // PERF-06: Lazy-load the heavy cropper modal (812 lines + canvas deps) — only needed on demand
 import dynamic from 'next/dynamic';
@@ -96,6 +101,8 @@ export function SettingsModal({
 	);
 	const [avatarFile, setAvatarFile] = useState<File | null>(null);
 	const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+	// The saved photo is to be removed on the next save.
+	const [avatarRemoved, setAvatarRemoved] = useState(false);
 	const [showCropper, setShowCropper] = useState(false);
 	const [showCurrentPassword, setShowCurrentPassword] = useState(false);
 	const [showNewPassword, setShowNewPassword] = useState(false);
@@ -138,8 +145,12 @@ export function SettingsModal({
 					phone: profile?.phone || '',
 				});
 
-				if (profile?.photo_url || profile?.avatar_path) {
-					setAvatarPreview(profile.photo_url || profile.avatar_path || null);
+				// The profile photo is the user's own `avatars` row (#529).
+				setAvatarRemoved(false);
+				const photo = await getEntityAvatar('user', currentUser.uid || currentUser.id || '');
+				if (cancelled) return;
+				if (photo) {
+					setAvatarPreview(photo);
 				}
 			} catch (error) {
 				console.error('Error loading profile:', error);
@@ -174,6 +185,7 @@ export function SettingsModal({
 
 			setAvatarFile(file);
 			setAvatarPreview(croppedDataUrl);
+			setAvatarRemoved(false);
 
 			toast({
 				title: 'Avatar Updated',
@@ -195,14 +207,11 @@ export function SettingsModal({
 
 		setSaving(true);
 		try {
-			let photoPath: string | undefined;
-
 			// Handle avatar upload if there's a new file
 			if (avatarFile) {
 				try {
 					const formData = new FormData();
 					formData.append('file', avatarFile, 'avatar.webp');
-					formData.append('userData', JSON.stringify(user));
 
 					const response = await fetch('/api/me/photo', {
 						method: 'POST',
@@ -214,10 +223,17 @@ export function SettingsModal({
 						throw new Error(errorData.error || 'Failed to upload avatar');
 					}
 
-					const { photoUrl } = await response.json();
-					photoPath = photoUrl;
+					// The route saved it; the preview already shows the crop.
 				} catch (error: any) {
 					throw new Error(`Avatar upload failed: ${error.message}`);
+				}
+			} else if (avatarRemoved) {
+				const response = await fetch('/api/me/photo', { method: 'DELETE' });
+				if (!response.ok) {
+					const errorData = await response.json().catch(() => ({}));
+					throw new Error(
+						`Removing your photo failed: ${errorData.error || response.statusText}`
+					);
 				}
 			}
 
@@ -244,11 +260,15 @@ export function SettingsModal({
 				}
 			}
 
-			// Save to domain tables
-			await saveProfile(user.uid || user.id || '', {
-				phone: data.phone,
-				photoPath,
-			});
+			// Save to domain tables. Only when the phone changed: the photo is
+			// its own row, saved above, and a photo-only save must not fail on
+			// a profile lookup it never needed.
+			if (profileForm.formState.dirtyFields.phone) {
+				await saveProfile(user.uid || user.id || '', {
+					phone: data.phone,
+				});
+				profileForm.reset({ email: data.email, phone: data.phone });
+			}
 
 			toast({
 				title: 'Profile Updated',
@@ -257,6 +277,7 @@ export function SettingsModal({
 
 			// Clear avatar file after successful save
 			setAvatarFile(null);
+			setAvatarRemoved(false);
 		} catch (error: any) {
 			console.error('Error saving profile:', error);
 			toast({
@@ -335,6 +356,7 @@ export function SettingsModal({
 	const removeAvatar = () => {
 		setAvatarFile(null);
 		setAvatarPreview(null);
+		setAvatarRemoved(true);
 	};
 
 	if (!user) return null;
@@ -349,7 +371,8 @@ export function SettingsModal({
 			.slice(0, 2);
 	};
 
-	const isProfileDirty = profileForm.formState.isDirty || avatarFile !== null;
+	const isProfileDirty =
+		profileForm.formState.isDirty || avatarFile !== null || avatarRemoved;
 	const isPasswordDirty = passwordForm.formState.isDirty;
 
 	return (
