@@ -15,7 +15,10 @@ const useSearchParams = () => ({
 	get: (k) => null,
 });
 
+const usePathname = () => '/';
+
 module.exports = {
 	useRouter,
 	useSearchParams,
+	usePathname,
 };

@@ -9,6 +9,7 @@ import React, {
 	useRef,
 	ReactNode,
 } from 'react';
+import { usePathname } from 'next/navigation';
 import { getLeaderAssignmentsForCycle, getRegistrationCycles } from '@/lib/dal';
 import { db as dbAdapter } from '@/lib/database/factory';
 import { AuthRole, BaseUser } from '@/lib/auth-types';
@@ -50,6 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 		return null;
 	});
 	const [loading, setLoading] = useState<boolean>(() => !isOfflineSupabase());
+	const pathname = usePathname();
 	const [userRole, setUserRole] = useState<AuthRole | null>(() => {
 		if (isOfflineSupabase()) {
 			const stored = readOfflineSessionUser();
@@ -239,6 +241,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 			return;
 		}
 
+		// A PKCE password-recovery session is deliberately temporary. The reset page
+		// exchanges it itself and must not hydrate household/ministry state in the
+		// shared app context while the password is being changed.
+		if (pathname === '/auth/reset-password') {
+			return;
+		}
+
 		const initializeAuth = async () => {
 			authLog.log('Starting initialization (Supabase mode)');
 
@@ -333,7 +342,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 		return () => {
 			subscription.unsubscribe();
 		};
-	}, [resetPostHogIdentity, setUserFromSupabaseData]);
+	}, [pathname, resetPostHogIdentity, setUserFromSupabaseData]);
 
 	const login = async (userData: Omit<BaseUser, 'assignedMinistryIds'>) => {
 		authLog.log('Login called with userData:', userData);
