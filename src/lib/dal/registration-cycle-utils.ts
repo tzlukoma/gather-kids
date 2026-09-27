@@ -88,12 +88,20 @@ export function sortCycleIdsByStartDate(
   });
 }
 
-/** Cycle to expand on household profile — prefer active cycle when enrolled. */
+/**
+ * Cycle to expand on household profile.
+ * Prefer an explicit selection (e.g. from the registrations list), then the
+ * active cycle when the child is enrolled in it, then the newest year.
+ */
 export function pickExpandedCycleId(
   cycleIds: string[],
   cycleStartDates: Record<string, string>,
   activeCycleId?: string | null,
+  preferredCycleId?: string | null,
 ): string | undefined {
+  if (preferredCycleId && cycleIds.includes(preferredCycleId)) {
+    return preferredCycleId;
+  }
   if (activeCycleId && cycleIds.includes(activeCycleId)) {
     return activeCycleId;
   }

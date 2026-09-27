@@ -96,4 +96,29 @@ describe('registration cycle resolution', () => {
       pickExpandedCycleId(['fall2025', 'fall2026'], startDates, 'fall2026'),
     ).toBe('fall2026');
   });
+
+  it('prefers an explicit selected cycle over the active cycle', () => {
+    const startDates = {
+      fall2025: '2025-09-14',
+      fall2026: '2026-09-13',
+    };
+    expect(
+      pickExpandedCycleId(
+        ['fall2025', 'fall2026'],
+        startDates,
+        'fall2026',
+        'fall2025',
+      ),
+    ).toBe('fall2025');
+  });
+
+  it('falls back to the active cycle when the preferred cycle has no enrollments', () => {
+    const startDates = {
+      fall2025: '2025-09-14',
+      fall2026: '2026-09-13',
+    };
+    expect(
+      pickExpandedCycleId(['fall2026'], startDates, 'fall2026', 'fall2025'),
+    ).toBe('fall2026');
+  });
 });

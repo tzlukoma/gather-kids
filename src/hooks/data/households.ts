@@ -57,10 +57,14 @@ export function useEmergencyContacts() {
   });
 }
 
-export function useHouseholdList(leaderMinistryIds?: string[], ministryId?: string) {
+export function useHouseholdList(
+  leaderMinistryIds?: string[],
+  ministryId?: string,
+  cycleId?: string,
+) {
   return useQuery({
-    queryKey: queryKeys.householdList(leaderMinistryIds, ministryId),
-    queryFn: () => queryHouseholdList(leaderMinistryIds, ministryId),
+    queryKey: queryKeys.householdList(leaderMinistryIds, ministryId, cycleId),
+    queryFn: () => queryHouseholdList(leaderMinistryIds, ministryId, cycleId),
     ...cacheConfig.moderate,
   });
 }

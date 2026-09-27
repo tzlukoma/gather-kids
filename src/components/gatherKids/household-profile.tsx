@@ -175,6 +175,7 @@ const ChildCard = ({
 	cycleNames,
 	cycleStartDates,
 	activeCycleId,
+	preferredCycleId,
 	onPhotoClick,
 	onPhotoViewClick,
 	onEditChild,
@@ -188,6 +189,7 @@ const ChildCard = ({
 	cycleNames: Record<string, string>;
 	cycleStartDates: Record<string, string>;
 	activeCycleId?: string | null;
+	preferredCycleId?: string | null;
 	onPhotoClick: (child: Child) => void;
 	onPhotoViewClick: (photo: { name: string; url: string }) => void;
 	onEditChild: (child: Child) => void;
@@ -203,6 +205,7 @@ const ChildCard = ({
 		cycleIds,
 		cycleStartDates,
 		activeCycleId,
+		preferredCycleId,
 	);
 
 	return (
@@ -388,8 +391,10 @@ const ChildCard = ({
 
 export function HouseholdProfile({
 	profileData,
+	preferredCycleId,
 }: {
 	profileData: HouseholdProfileData;
+	preferredCycleId?: string | null;
 }) {
 	const { household, guardians, emergencyContact, children, cycleNames: cycleNamesRaw, cycleStartDates: cycleStartDatesRaw, activeCycleId } =
 		profileData;
@@ -792,6 +797,7 @@ export function HouseholdProfile({
 								cycleNames={cycleNames}
 								cycleStartDates={cycleStartDates}
 								activeCycleId={activeCycleId}
+								preferredCycleId={preferredCycleId}
 								onPhotoClick={setSelectedChildForPhoto}
 								onPhotoViewClick={setViewingPhoto}
 								onEditChild={setEditingChild}
@@ -821,6 +827,7 @@ export function HouseholdProfile({
 										cycleNames={cycleNames}
 										cycleStartDates={cycleStartDates}
 										activeCycleId={activeCycleId}
+										preferredCycleId={preferredCycleId}
 										onPhotoClick={setSelectedChildForPhoto}
 										onPhotoViewClick={setViewingPhoto}
 										onEditChild={setEditingChild}

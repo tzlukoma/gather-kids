@@ -57,13 +57,13 @@ type RegistrationDateSource = Pick<
 /**
  * Derive household registration dates from registration rows.
  * Original = earliest submitted_at for any household child, any cycle.
- * Latest = latest submitted_at for any household child in the active cycle.
+ * Latest = latest submitted_at for any household child in the selected cycle.
  * Enrollment timestamps are never used.
  */
 export function aggregateHouseholdRegistrationDates(
     registrations: RegistrationDateSource[],
     householdChildIds: Iterable<string>,
-    activeCycleId: string,
+    selectedCycleId: string,
 ): {
     original_registration_submitted_at: string | null;
     latest_registration_submitted_at: string | null;
@@ -91,7 +91,7 @@ export function aggregateHouseholdRegistrationDates(
             original = registration.submitted_at;
         }
 
-        if (registration.cycle_id === activeCycleId && submittedMs > latestMs) {
+        if (registration.cycle_id === selectedCycleId && submittedMs > latestMs) {
             latestMs = submittedMs;
             latest = registration.submitted_at;
         }
@@ -318,23 +318,37 @@ export async function resolveGuardianPostLoginRoute(
 
 /**
  * Staff registrations list: cycle-scoped active children plus household
- * registration dates. Household eligibility for a ministry filter is unchanged
- * (enrolled in that ministry in the active cycle). Displayed children are the
- * active-cycle union scope, not every child on the household.
+ * registration dates. When `cycleId` is omitted, the active registration
+ * cycle is used. An unknown `cycleId` returns an empty list.
+ *
+ * Household eligibility for a ministry filter uses enrollments in the
+ * selected cycle. Displayed children are that cycle's union scope, not every
+ * child on the household.
  */
 export async function queryHouseholdList(
     leaderMinistryIds?: string[],
     ministryId?: string,
+    cycleId?: string,
 ): Promise<HouseholdListItem[]> {
-    let activeCycle;
-    try {
-        activeCycle = await requireActiveRegistrationCycle();
-    } catch {
-        return [];
+    let selectedCycleId: string;
+
+    if (cycleId) {
+        const cycles = await dbAdapter.listRegistrationCycles();
+        const requested = cycles.find((cycle) => cycle.cycle_id === cycleId);
+        if (!requested) {
+            return [];
+        }
+        selectedCycleId = requested.cycle_id;
+    } else {
+        try {
+            const activeCycle = await requireActiveRegistrationCycle();
+            selectedCycleId = activeCycle.cycle_id;
+        } catch {
+            return [];
+        }
     }
 
     const households = await dbAdapter.listHouseholds();
-    const cycleId = activeCycle.cycle_id;
 
     let filteredHouseholds = households;
     let ministryFilterIds = leaderMinistryIds;
@@ -347,7 +361,7 @@ export async function queryHouseholdList(
         const enrollments = await dbAdapter.listMinistryEnrollments(
             undefined,
             undefined,
-            cycleId,
+            selectedCycleId,
         );
         const relevantEnrollments = enrollments.filter(
             (e) =>
@@ -372,7 +386,7 @@ export async function queryHouseholdList(
         );
     } else {
         const cycleHouseholdIds = new Set(
-            await householdIdsForCycle(cycleId, 'union'),
+            await householdIdsForCycle(selectedCycleId, 'union'),
         );
         filteredHouseholds = households.filter((h) =>
             cycleHouseholdIds.has(h.household_id),
@@ -383,7 +397,9 @@ export async function queryHouseholdList(
         return [];
     }
 
-    const cycleChildIds = new Set(await getChildIdsForCycle(cycleId, 'union'));
+    const cycleChildIds = new Set(
+        await getChildIdsForCycle(selectedCycleId, 'union'),
+    );
     const [allChildren, registrations] = await Promise.all([
         dbAdapter.listChildren(),
         dbAdapter.listRegistrations(),
@@ -423,7 +439,7 @@ export async function queryHouseholdList(
         ...aggregateHouseholdRegistrationDates(
             registrations,
             childIdsByHousehold.get(household.household_id) || [],
-            cycleId,
+            selectedCycleId,
         ),
     }));
 }

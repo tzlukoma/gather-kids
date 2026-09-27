@@ -8,29 +8,78 @@ import type { Household, Child, Ministry } from '@/lib/types';
 // Mock the hooks
 jest.mock('@/hooks/data', () => ({
 	useHouseholdList: jest.fn(),
+	useRegistrationCycles: jest.fn(),
 }));
 
 jest.mock('@/hooks/data/ministries', () => ({
 	useMinistries: jest.fn(),
 }));
 
+jest.mock('@/components/ui/combobox', () => ({
+	Combobox: ({
+		options,
+		value,
+		onChange,
+		placeholder,
+	}: {
+		options: { value: string; label: string }[];
+		value: string | null;
+		onChange: (value: string | null) => void;
+		placeholder?: string;
+	}) => (
+		<select
+			aria-label={placeholder || 'Select'}
+			value={value ?? ''}
+			onChange={(event) => onChange(event.target.value || null)}>
+			{!value && <option value="">{placeholder}</option>}
+			{options.map((option) => (
+				<option key={option.value} value={option.value}>
+					{option.label}
+				</option>
+			))}
+		</select>
+	),
+}));
+
 // Mock Next.js router
+const mockRouterPush = jest.fn();
 jest.mock('next/navigation', () => ({
 	useRouter: () => ({
-		push: jest.fn(),
+		push: mockRouterPush,
 	}),
 }));
 
 // Import the mocked hooks
-import { useHouseholdList } from '@/hooks/data';
+import { useHouseholdList, useRegistrationCycles } from '@/hooks/data';
 import { useMinistries } from '@/hooks/data/ministries';
 
 const mockUseHouseholdList = useHouseholdList as jest.MockedFunction<
 	typeof useHouseholdList
 >;
+const mockUseRegistrationCycles = useRegistrationCycles as jest.MockedFunction<
+	typeof useRegistrationCycles
+>;
 const mockUseMinistries = useMinistries as jest.MockedFunction<
 	typeof useMinistries
 >;
+
+const mockActiveCycle = {
+	cycle_id: 'cycle-2026',
+	name: 'Fall 2026',
+	is_active: true,
+	start_date: '2026-08-01',
+	end_date: '2027-06-30',
+	updated_at: '2026-08-01T00:00:00.000Z',
+};
+
+const mockPriorCycle = {
+	cycle_id: 'cycle-2025',
+	name: 'Fall 2025',
+	is_active: false,
+	start_date: '2025-08-01',
+	end_date: '2026-06-30',
+	updated_at: '2025-08-01T00:00:00.000Z',
+};
 
 // Test data
 const mockChild1: Child & { age: number | null } = {
@@ -97,6 +146,12 @@ describe('RegistrationsPage', () => {
 
 		// Reset mocks
 		jest.clearAllMocks();
+
+		mockUseRegistrationCycles.mockReturnValue({
+			data: [mockActiveCycle, mockPriorCycle],
+			isLoading: false,
+			error: null,
+		} as any);
 	});
 
 	const renderWithProviders = (
@@ -137,8 +192,11 @@ describe('RegistrationsPage', () => {
 
 		// Verify the table structure
 		expect(screen.getByText('Household Name')).toBeInTheDocument();
-		expect(screen.getByText('Latest registration')).toBeInTheDocument();
+		expect(screen.getByText('Fall 2026 registration')).toBeInTheDocument();
 		expect(screen.getByText('Original registration')).toBeInTheDocument();
+		expect(
+			screen.getByText('Households registered for Fall 2026.'),
+		).toBeInTheDocument();
 		expect(screen.queryByText('Registration Date')).not.toBeInTheDocument();
 		expect(screen.getByText('Children')).toBeInTheDocument();
 		expect(screen.getByText('September 2nd, 2026')).toBeInTheDocument();
@@ -268,9 +326,49 @@ describe('RegistrationsPage', () => {
 		await waitFor(() => {
 			expect(mockUseHouseholdList).toHaveBeenCalledWith(
 				['ministry-1', 'ministry-2'],
-				undefined
+				undefined,
+				'cycle-2026',
 			);
 		});
+	});
+
+	test('passes the selected registration cycle to useHouseholdList', async () => {
+		mockUseHouseholdList.mockReturnValue({
+			data: [mockHousehold],
+			isLoading: false,
+			error: null,
+		} as any);
+
+		mockUseMinistries.mockReturnValue({
+			data: [mockMinistry],
+			isLoading: false,
+			error: null,
+		} as any);
+
+		renderWithProviders(<RegistrationsPage />);
+
+		await waitFor(() => {
+			expect(mockUseHouseholdList).toHaveBeenCalledWith(
+				undefined,
+				undefined,
+				'cycle-2026',
+			);
+		});
+
+		const cycleSelect = screen.getByLabelText('Select registration year...');
+		fireEvent.change(cycleSelect, { target: { value: 'cycle-2025' } });
+
+		await waitFor(() => {
+			expect(mockUseHouseholdList).toHaveBeenCalledWith(
+				undefined,
+				undefined,
+				'cycle-2025',
+			);
+		});
+
+		expect(
+			screen.getByText('Households registered for Fall 2025.'),
+		).toBeInTheDocument();
 	});
 
 	test('filters households by search term', async () => {

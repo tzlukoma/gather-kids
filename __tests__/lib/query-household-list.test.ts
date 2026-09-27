@@ -40,6 +40,15 @@ const ACTIVE_CYCLE = {
 
 const PRIOR_CYCLE_ID = 'cycle-2025';
 
+const PRIOR_CYCLE = {
+	cycle_id: PRIOR_CYCLE_ID,
+	name: 'Fall 2025',
+	is_active: false,
+	start_date: '2025-08-01',
+	end_date: '2026-06-30',
+	updated_at: '2025-08-01T00:00:00.000Z',
+};
+
 const returningHousehold = {
 	household_id: 'hh-returning',
 	name: 'Returning Family',
@@ -369,5 +378,132 @@ describe('queryHouseholdList', () => {
 		});
 
 		await expect(queryHouseholdList()).resolves.toEqual([]);
+	});
+
+	it('lists a prior-cycle-only household when that cycleId is requested', async () => {
+		setupAdapter({
+			households: [otherHousehold],
+			children: [otherCycleChild],
+			cycles: [ACTIVE_CYCLE, PRIOR_CYCLE],
+			registrations: [
+				{
+					child_id: 'child-other',
+					cycle_id: PRIOR_CYCLE_ID,
+					submitted_at: '2025-08-01T00:00:00.000Z',
+				},
+			],
+		});
+
+		await expect(queryHouseholdList()).resolves.toEqual([]);
+
+		const rows = await queryHouseholdList(undefined, undefined, PRIOR_CYCLE_ID);
+		expect(rows).toHaveLength(1);
+		expect(rows[0].household_id).toBe('hh-other');
+		expect(rows[0].children.map((child) => child.child_id)).toEqual([
+			'child-other',
+		]);
+		expect(rows[0].latest_registration_submitted_at).toBe(
+			'2025-08-01T00:00:00.000Z',
+		);
+	});
+
+	it('scopes displayed children to the selected cycle when viewing a prior year', async () => {
+		setupAdapter({
+			children: [currentChild, historicalChild],
+			cycles: [ACTIVE_CYCLE, PRIOR_CYCLE],
+			registrations: [
+				{
+					child_id: 'child-historical',
+					cycle_id: PRIOR_CYCLE_ID,
+					submitted_at: '2025-08-01T00:00:00.000Z',
+				},
+				{
+					child_id: 'child-current',
+					cycle_id: 'cycle-2026',
+					submitted_at: '2026-09-01T00:00:00.000Z',
+				},
+			],
+		});
+
+		const [row] = await queryHouseholdList(
+			undefined,
+			undefined,
+			PRIOR_CYCLE_ID,
+		);
+		expect(row.children.map((child) => child.child_id)).toEqual([
+			'child-historical',
+		]);
+	});
+
+	it('applies the ministry filter against the selected cycle enrollments', async () => {
+		setupAdapter({
+			children: [currentChild, historicalChild, otherCycleChild],
+			cycles: [ACTIVE_CYCLE, PRIOR_CYCLE],
+			registrations: [
+				{
+					child_id: 'child-historical',
+					cycle_id: PRIOR_CYCLE_ID,
+					submitted_at: '2025-08-01T00:00:00.000Z',
+				},
+				{
+					child_id: 'child-other',
+					cycle_id: PRIOR_CYCLE_ID,
+					submitted_at: '2025-08-02T00:00:00.000Z',
+				},
+				{
+					child_id: 'child-current',
+					cycle_id: 'cycle-2026',
+					submitted_at: '2026-09-01T00:00:00.000Z',
+				},
+			],
+			enrollments: [
+				{
+					child_id: 'child-historical',
+					ministry_id: 'min-choir',
+					cycle_id: PRIOR_CYCLE_ID,
+					status: 'enrolled',
+				},
+				{
+					child_id: 'child-other',
+					ministry_id: 'min-sports',
+					cycle_id: PRIOR_CYCLE_ID,
+					status: 'enrolled',
+				},
+				{
+					child_id: 'child-current',
+					ministry_id: 'min-choir',
+					cycle_id: 'cycle-2026',
+					status: 'enrolled',
+				},
+			],
+		});
+
+		const rows = await queryHouseholdList(
+			undefined,
+			'min-choir',
+			PRIOR_CYCLE_ID,
+		);
+		expect(rows.map((row) => row.household_id)).toEqual(['hh-returning']);
+		expect(rows[0].children.map((child) => child.child_id)).toEqual([
+			'child-historical',
+		]);
+	});
+
+	it('returns an empty list for an unknown cycleId', async () => {
+		setupAdapter({
+			children: [currentChild],
+			cycles: [ACTIVE_CYCLE, PRIOR_CYCLE],
+			registrations: [
+				{
+					child_id: 'child-current',
+					cycle_id: 'cycle-2026',
+					submitted_at: '2026-09-01T00:00:00.000Z',
+				},
+			],
+		});
+
+		await expect(
+			queryHouseholdList(undefined, undefined, 'cycle-does-not-exist'),
+		).resolves.toEqual([]);
 	});
 });
