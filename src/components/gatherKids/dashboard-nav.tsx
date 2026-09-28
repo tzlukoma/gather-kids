@@ -27,7 +27,7 @@ import {
 import { MENU_ITEMS } from '@/lib/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import { useBranding } from '@/contexts/branding-context';
-import { LogOut, User } from 'lucide-react';
+import { LogOut } from 'lucide-react';
 import Image from 'next/image';
 import { AuthRole } from '@/lib/auth-types';
 import { renderNavIcon } from '@/components/ui/nav-icon';
@@ -249,7 +249,15 @@ export function DashboardNav({ children }: DashboardNavProps) {
 										userId={getUserId(user)}
 										alt="User Avatar"
 										className="h-6 w-6"
-										fallback={<User className="h-4 w-4" />}
+										fallback={
+											<Image
+												src="/avatars/default-avatar.png"
+												alt="User Avatar"
+												width={24}
+												height={24}
+												className="rounded-full"
+											/>
+										}
 									/>
 									<span className="truncate">{user?.email}</span>
 								</Button>
