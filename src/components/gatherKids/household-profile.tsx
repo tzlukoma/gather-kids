@@ -218,11 +218,21 @@ const ChildCard = ({
 		<Card className={!child.is_active ? 'bg-muted/25' : ''}>
 			<CardHeader className="relative">
 				{canEdit && (
-					<div className="absolute top-2 right-2 sm:hidden z-10">
+					<div className="absolute top-3 right-3 sm:hidden z-10">
 						<DropdownMenu>
+							{/*
+							 * The phone's only way to edit, change enrollments or delete
+							 * a child. Outlined and 44px so it reads as a button and is
+							 * easy to hit; the label names whose actions these are.
+							 */}
 							<DropdownMenuTrigger asChild>
-								<Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-									<MoreVertical size={14} />
+								<Button
+									variant="outline"
+									size="icon"
+									className="h-11 w-11 rounded-full bg-background"
+									aria-label={`Actions for ${child.first_name} ${child.last_name}`}
+									title="Actions">
+									<MoreVertical className="h-5 w-5" aria-hidden />
 								</Button>
 							</DropdownMenuTrigger>
 							<DropdownMenuContent align="end">
@@ -287,7 +297,7 @@ const ChildCard = ({
 							</Button>
 						)}
 					</div>
-					<div className="flex-1 min-w-0">
+					<div className={`flex-1 min-w-0 ${canEdit ? 'pr-12 sm:pr-0' : ''}`}>
 						<CardTitle className="font-headline flex items-center gap-2">
 							{linkToChildPage ? (
 								<Link
