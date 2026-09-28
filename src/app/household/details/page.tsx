@@ -11,8 +11,9 @@ import { isOfflineSupabase } from '@/lib/offline-supabase';
  *
  * It gets its own route because the GatherSystem home takes `/household`, and
  * the record has to stay reachable: the shell's `Household` tab points here.
- * Deliberately the same `HouseholdProfile` component, unmodified, so the flag
- * moves the screen without changing it. Restyling this screen is #378.
+ * The same `HouseholdProfile` component as the flag-off page, in its
+ * GatherSystem treatment (#378, frames 94:2 and 94:266). Every edit surface is
+ * the shared one; only the class strings differ.
  */
 export default function GuardianHouseholdDetailsPage() {
 	const { profileData, isLoading, error } = useGuardianHouseholdProfile();
@@ -43,7 +44,7 @@ export default function GuardianHouseholdDetailsPage() {
 
 	return (
 		<div>
-			<HouseholdProfile profileData={profileData} />
+			<HouseholdProfile profileData={profileData} variant="gathersystem" />
 		</div>
 	);
 }

@@ -82,6 +82,14 @@ describe('buildHouseholdLine', () => {
 		expect(buildHouseholdLine(null, 'Fall 2026')).toBe('Fall 2026 cycle');
 		expect(buildHouseholdLine('', '   ')).toBe('');
 	});
+
+	it('does not double a name registration already stored as "… Household" or "… Family"', () => {
+		expect(buildHouseholdLine('Bennett Household', 'Fall 2026')).toBe(
+			'Bennett Household · Fall 2026 cycle'
+		);
+		expect(buildHouseholdLine('The Smith Family', null)).toBe('The Smith Family');
+		expect(buildHouseholdLine('bennett household', null)).toBe('bennett household');
+	});
 });
 
 describe('initialsForName', () => {

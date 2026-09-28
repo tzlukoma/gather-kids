@@ -16,7 +16,7 @@ import type {
     MinistryEnrollment,
     Registration,
 } from '../types';
-import { ageOn } from './utils';
+import { ageOn, getTodayIsoDate } from './utils';
 import { getPriorRegistrationCycle, getCurrentRegistrationCycle, requireActiveRegistrationCycle } from './ministries';
 import { getChildIdsForCycle, householdIdsForCycle } from './cycle-scoping';
 import { pickActiveRegistrationCycle } from './registration-cycle-utils';
@@ -499,6 +499,7 @@ export async function getHouseholdProfile(
     const allMinistries = await dbAdapter.listMinistries();
     const ministryMap = new Map(allMinistries.map(m => [m.ministry_id, m]));
 
+    const todayIso = getTodayIsoDate();
     const enrichedChildren = children.map(child => {
         const enrollments = childEnrollments
             .filter(e => e.child_id === child.child_id)
@@ -520,6 +521,9 @@ export async function getHouseholdProfile(
 
         return {
             ...child,
+            // The record prints `Grade (Age N)`, and nothing else computed
+            // it, so every child read `(Age )`.
+            age: child.dob ? ageOn(todayIso, child.dob) ?? undefined : undefined,
             photo_url: avatarMap.get(child.child_id) || undefined,
             enrollments,
             enrollmentsByCycle,

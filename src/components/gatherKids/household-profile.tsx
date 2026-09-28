@@ -41,7 +41,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Button } from '../ui/button';
 import { Label } from '../ui/label';
-import { useState, useEffect, useMemo } from 'react';
+import { createContext, useContext, useState, useEffect, useMemo } from 'react';
 // PERF-06: Lazy-load camera/photo dialogs — heavy media components only needed on demand
 import dynamic from 'next/dynamic';
 const PhotoCaptureDialog = dynamic(
@@ -82,6 +82,21 @@ import {
 } from '@/hooks/data/users';
 import { Combobox } from '@/components/ui/combobox';
 import { Loader2 } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { initialsForName } from '@/lib/guardian-home';
+import {
+	HOUSEHOLD_RECORD_STYLES,
+	type HouseholdRecordStyles,
+	type HouseholdRecordVariant,
+} from './household-record-styles';
+
+/**
+ * The treatment in force for this render. Read by the record's own pieces so
+ * the variant does not have to be threaded through every prop list.
+ */
+const RecordStylesContext = createContext<HouseholdRecordStyles>(
+	HOUSEHOLD_RECORD_STYLES.legacy
+);
 
 const InfoItem = ({
 	icon,
@@ -91,19 +106,22 @@ const InfoItem = ({
 	icon: React.ReactNode;
 	label: string;
 	value: React.ReactNode;
-}) => (
-	<div className="flex items-start gap-3">
-		<div className="text-muted-foreground mt-1">{icon}</div>
-		<div>
-			<p className="text-sm text-muted-foreground">{label}</p>
-			{typeof value === 'string' ? (
-				<p className="font-medium">{value}</p>
-			) : (
-				<div className="font-medium">{value}</div>
-			)}
+}) => {
+	const s = useContext(RecordStylesContext);
+	return (
+		<div className="flex items-start gap-3">
+			<div className={s.infoIcon}>{icon}</div>
+			<div>
+				<p className={s.infoLabel}>{label}</p>
+				{typeof value === 'string' ? (
+					<p className={s.infoValue}>{value}</p>
+				) : (
+					<div className={s.infoValue}>{value}</div>
+				)}
+			</div>
 		</div>
-	</div>
-);
+	);
+};
 
 const formatAddress = (household: any) => {
 	if (!household) return ['N/A'];
@@ -135,17 +153,32 @@ const ProgramEnrollmentCard = ({
 }: {
 	enrollment: HouseholdProfileData['children'][0]['enrollmentsByCycle'][string][0];
 }) => {
+	const s = useContext(RecordStylesContext);
 	const customFields = enrollment.custom_fields || {};
 	const customQuestions = enrollment.customQuestions || [];
 
 	return (
-		<div className="p-3 rounded-md border bg-muted/25">
+		<div className={s.programRow}>
 			<div className="flex justify-between items-center">
-				<p className="font-medium">{enrollment.ministryName}</p>
-				<Badge
-					variant={enrollment.status === 'enrolled' ? 'default' : 'secondary'}>
-					{enrollment.status.replace('_', ' ')}
-				</Badge>
+				<p className={s.programName}>{enrollment.ministryName}</p>
+				{s.statusPill ? (
+					<span
+						className={cn(
+							s.statusPill,
+							enrollment.status === 'enrolled'
+								? s.statusEnrolled
+								: s.statusInterested
+						)}>
+						{enrollment.status === 'expressed_interest'
+							? 'interested'
+							: enrollment.status.replace('_', ' ')}
+					</span>
+				) : (
+					<Badge
+						variant={enrollment.status === 'enrolled' ? 'default' : 'secondary'}>
+						{enrollment.status.replace('_', ' ')}
+					</Badge>
+				)}
 			</div>
 			{Object.keys(customFields).length > 0 && (
 				<div className="mt-2 text-sm text-muted-foreground pl-4 border-l-2 ml-2 space-y-1">
@@ -205,6 +238,7 @@ const ChildCard = ({
 	// from here. The admin registration view and the flag-off household page
 	// read `false` and keep the plain name.
 	const linkToChildPage = useGuardianShell();
+	const s = useContext(RecordStylesContext);
 	const cycleIds = Object.keys(child.enrollmentsByCycle);
 	const sortedCycleIds = sortCycleIdsByStartDate(cycleIds, cycleStartDates);
 	const expandedCycleId = pickExpandedCycleId(
@@ -215,7 +249,7 @@ const ChildCard = ({
 	);
 
 	return (
-		<Card className={!child.is_active ? 'bg-muted/25' : ''}>
+		<Card className={cn(s.card, !child.is_active && 'bg-muted/25') || undefined}>
 			<CardHeader className="relative">
 				{canEdit && (
 					<div className="absolute top-3 right-3 sm:hidden z-10">
@@ -282,8 +316,12 @@ const ChildCard = ({
 							}>
 							<Avatar className="h-full w-full">
 								<AvatarImage src={child.photo_url} alt={child.first_name} />
-								<AvatarFallback>
-									<User className="h-8 w-8" />
+								<AvatarFallback className={s.avatarFallback || undefined}>
+									{s.avatarInitials ? (
+										initialsForName(child.first_name, child.last_name)
+									) : (
+										<User className="h-8 w-8" />
+									)}
 								</AvatarFallback>
 							</Avatar>
 						</Button>
@@ -298,7 +336,7 @@ const ChildCard = ({
 						)}
 					</div>
 					<div className={`flex-1 min-w-0 ${canEdit ? 'pr-12 sm:pr-0' : ''}`}>
-						<CardTitle className="font-headline flex items-center gap-2">
+						<CardTitle className={s.cardTitle}>
 							{linkToChildPage ? (
 								<Link
 									href={`/household/children/${child.child_id}`}
@@ -375,8 +413,9 @@ const ChildCard = ({
 				</div>
 				<Separator />
 				<div>
-					<h4 className="font-semibold mb-2 flex items-center gap-2">
-						<CheckCircle2 /> Program Enrollments & Interests
+					<h4 className={s.sectionHeading}>
+						<CheckCircle2 className={s.sectionHeadingIcon || undefined} /> Program
+						Enrollments & Interests
 					</h4>
 					<Accordion
 						type="multiple"
@@ -387,7 +426,7 @@ const ChildCard = ({
 							const cycleName = cycleNames[cycleId] || cycleId; // Fallback to cycleId if name not found
 							return (
 								<AccordionItem key={cycleId} value={cycleId}>
-									<AccordionTrigger>
+									<AccordionTrigger className={s.cycleTrigger || undefined}>
 										{cycleName} Registration Year
 									</AccordionTrigger>
 									<AccordionContent>
@@ -419,10 +458,14 @@ const ChildCard = ({
 export function HouseholdProfile({
 	profileData,
 	preferredCycleId,
+	variant = 'legacy',
 }: {
 	profileData: HouseholdProfileData;
 	preferredCycleId?: string | null;
+	/** `gathersystem` only from `/household/details` (flag on). See household-record-styles.ts. */
+	variant?: HouseholdRecordVariant;
 }) {
+	const s = HOUSEHOLD_RECORD_STYLES[variant];
 	const { household, guardians, emergencyContact, children, cycleNames: cycleNamesRaw, cycleStartDates: cycleStartDatesRaw, activeCycleId } =
 		profileData;
 	const cycleNames: Record<string, string> = cycleNamesRaw ?? {};
@@ -608,25 +651,153 @@ export function HouseholdProfile({
 		}
 	};
 
+	// Built once and placed by the variant: beside the children on a wide
+	// screen either way, but after them on a phone in the GatherSystem order.
+	const guardiansCard = (
+					<Card className={cn(s.guardiansCard, s.card)}>
+						<CardHeader>
+							<CardTitle className={s.cardTitle}>
+								<User className={s.cardTitleIcon || undefined} /> Guardians &
+								Contacts
+							</CardTitle>
+						</CardHeader>
+						<CardContent className="space-y-4">
+							{guardians.map((g) => (
+								<div key={g.guardian_id} className="space-y-2">
+									<div className="flex items-center justify-between">
+										<h4 className={s.personHeading}>
+											{g.first_name} {g.last_name} ({g.relationship}){' '}
+											{g.is_primary && <Badge>Primary</Badge>}
+										</h4>
+										{canEdit && (
+											<div className="flex gap-1">
+												<Button
+													variant="ghost"
+													size="sm"
+													className={s.iconButton}
+													aria-label={`Edit ${g.first_name} ${g.last_name}`}
+													onClick={() => setEditingGuardian(g)}>
+													<Edit size={14} />
+												</Button>
+												{!g.is_primary && (
+													<Button
+														variant="ghost"
+														size="sm"
+														className={s.iconButtonDestructive}
+														aria-label={`Remove ${g.first_name} ${g.last_name}`}
+														onClick={() => setDeletingGuardian(g)}>
+														<Trash2 size={14} />
+													</Button>
+												)}
+											</div>
+										)}
+									</div>
+									<InfoItem
+										icon={<Mail size={16} />}
+										label="Email"
+										value={g.email || 'N/A'}
+									/>
+									<InfoItem
+										icon={<Phone size={16} />}
+										label="Phone"
+										value={g.mobile_phone ? formatPhone(g.mobile_phone) : 'N/A'}
+									/>
+								</div>
+							))}
+							<Separator />
+							{emergencyContact && (
+								<div className="space-y-2">
+									<div className="flex items-center justify-between">
+										<h4 className={s.personHeading}>
+											{emergencyContact.first_name} {emergencyContact.last_name}{' '}
+											(Emergency)
+										</h4>
+										{canEdit && (
+											<Button
+												variant="ghost"
+												size="sm"
+												className={s.iconButton}
+												aria-label="Edit emergency contact"
+												onClick={() =>
+													setEditingEmergencyContact(emergencyContact)
+												}>
+												<Edit size={14} />
+											</Button>
+										)}
+									</div>
+									<InfoItem
+										icon={<Phone size={16} />}
+										label="Phone"
+										value={
+											emergencyContact.mobile_phone
+												? formatPhone(emergencyContact.mobile_phone)
+												: 'N/A'
+										}
+									/>
+									<InfoItem
+										icon={<User size={16} />}
+										label="Relationship"
+										value={emergencyContact.relationship}
+									/>
+								</div>
+							)}
+							<Separator />
+							<div className="space-y-2">
+								<div className="flex items-center justify-between">
+									<h4 className={s.personHeading}>Address</h4>
+									{canEdit && (
+										<Button
+											variant="ghost"
+											size="sm"
+											className={s.iconButton}
+											aria-label="Edit address"
+											onClick={() => setEditingHouseholdAddress(household)}>
+											<Edit size={14} />
+										</Button>
+									)}
+								</div>
+								<InfoItem
+									icon={<Home size={16} />}
+									label="Address"
+									value={
+										<div>
+											{formatAddress(household).map((line, index) => (
+												<div key={index}>{line}</div>
+											))}
+										</div>
+									}
+								/>
+							</div>
+						</CardContent>
+					</Card>
+	);
+
 	return (
-		<>
+		<RecordStylesContext.Provider value={s}>
 			<div className="flex flex-col gap-8">
 				<div>
-					<h1 className="text-3xl font-bold font-headline">
+					<h1 className={s.title}>
 						{household?.name}
 					</h1>
-					<p className="text-muted-foreground">
+					<p className={s.subtitle}>
 						Registered on{' '}
-						{household && format(parseISO(household.created_at), 'PPpp')}
+						{household &&
+							format(parseISO(household.created_at), s.registeredFormat)}
 					</p>
 				</div>
 
 				{canEdit && (
-					<div className="flex gap-4 justify-start">
-						<Button variant="outline" onClick={() => setEditingGuardian(null)}>
+					<div className={s.addActions}>
+						<Button
+							variant="outline"
+							className={s.addButton || undefined}
+							onClick={() => setEditingGuardian(null)}>
 							Add Guardian
 						</Button>
-						<Button variant="outline" onClick={() => setEditingChild(null)}>
+						<Button
+							variant="outline"
+							className={s.addButton || undefined}
+							onClick={() => setEditingChild(null)}>
 							Add Child
 						</Button>
 					</div>
@@ -703,120 +874,10 @@ export function HouseholdProfile({
 					</Card>
 				)}
 
-				<div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-					<Card className="lg:col-span-1 h-fit">
-						<CardHeader>
-							<CardTitle className="font-headline flex items-center gap-2">
-								<User /> Guardians & Contacts
-							</CardTitle>
-						</CardHeader>
-						<CardContent className="space-y-4">
-							{guardians.map((g) => (
-								<div key={g.guardian_id} className="space-y-2">
-									<div className="flex items-center justify-between">
-										<h4 className="font-semibold">
-											{g.first_name} {g.last_name} ({g.relationship}){' '}
-											{g.is_primary && <Badge>Primary</Badge>}
-										</h4>
-										{canEdit && (
-											<div className="flex gap-1">
-												<Button
-													variant="ghost"
-													size="sm"
-													className="h-6 w-6 p-0"
-													onClick={() => setEditingGuardian(g)}>
-													<Edit size={14} />
-												</Button>
-												{!g.is_primary && (
-													<Button
-														variant="ghost"
-														size="sm"
-														className="h-6 w-6 p-0 text-red-600 hover:text-red-700"
-														onClick={() => setDeletingGuardian(g)}>
-														<Trash2 size={14} />
-													</Button>
-												)}
-											</div>
-										)}
-									</div>
-									<InfoItem
-										icon={<Mail size={16} />}
-										label="Email"
-										value={g.email || 'N/A'}
-									/>
-									<InfoItem
-										icon={<Phone size={16} />}
-										label="Phone"
-										value={g.mobile_phone ? formatPhone(g.mobile_phone) : 'N/A'}
-									/>
-								</div>
-							))}
-							<Separator />
-							{emergencyContact && (
-								<div className="space-y-2">
-									<div className="flex items-center justify-between">
-										<h4 className="font-semibold">
-											{emergencyContact.first_name} {emergencyContact.last_name}{' '}
-											(Emergency)
-										</h4>
-										{canEdit && (
-											<Button
-												variant="ghost"
-												size="sm"
-												className="h-6 w-6 p-0"
-												onClick={() =>
-													setEditingEmergencyContact(emergencyContact)
-												}>
-												<Edit size={14} />
-											</Button>
-										)}
-									</div>
-									<InfoItem
-										icon={<Phone size={16} />}
-										label="Phone"
-										value={
-											emergencyContact.mobile_phone
-												? formatPhone(emergencyContact.mobile_phone)
-												: 'N/A'
-										}
-									/>
-									<InfoItem
-										icon={<User size={16} />}
-										label="Relationship"
-										value={emergencyContact.relationship}
-									/>
-								</div>
-							)}
-							<Separator />
-							<div className="space-y-2">
-								<div className="flex items-center justify-between">
-									<h4 className="font-semibold">Address</h4>
-									{canEdit && (
-										<Button
-											variant="ghost"
-											size="sm"
-											className="h-6 w-6 p-0"
-											onClick={() => setEditingHouseholdAddress(household)}>
-											<Edit size={14} />
-										</Button>
-									)}
-								</div>
-								<InfoItem
-									icon={<Home size={16} />}
-									label="Address"
-									value={
-										<div>
-											{formatAddress(household).map((line, index) => (
-												<div key={index}>{line}</div>
-											))}
-										</div>
-									}
-								/>
-							</div>
-						</CardContent>
-					</Card>
+				<div className={s.grid}>
+					{!s.childrenFirst && guardiansCard}
 
-					<div className="lg:col-span-2 space-y-6">
+					<div className={s.childrenColumn}>
 						{activeChildren.map((child) => (
 							<ChildCard
 								key={child.child_id}
@@ -868,6 +929,7 @@ export function HouseholdProfile({
 							</>
 						)}
 					</div>
+					{s.childrenFirst && guardiansCard}
 				</div>
 			</div>
 			<PhotoCaptureDialog
@@ -942,6 +1004,6 @@ export function HouseholdProfile({
 				cancelText="Cancel"
 				variant="destructive"
 			/>
-		</>
+		</RecordStylesContext.Provider>
 	);
 }

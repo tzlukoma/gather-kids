@@ -110,6 +110,39 @@ describe('getHouseholdProfile avatar enrichment', () => {
 		expect(profile.children[0].photo_url).toBeUndefined();
 	});
 
+	it('computes each child\'s age from their date of birth (#378: the record read "(Age )")', async () => {
+		avatarQuery({ data: [], error: null });
+		mockDb.listChildren.mockResolvedValue([
+			{
+				child_id: childId,
+				household_id: householdId,
+				first_name: 'Ada',
+				last_name: 'Lovelace',
+				dob: '2017-03-14',
+				is_active: true,
+				created_at: '2025-01-01T00:00:00Z',
+				updated_at: '2025-01-01T00:00:00Z',
+			},
+			{
+				child_id: 'child-2',
+				household_id: householdId,
+				first_name: 'No',
+				last_name: 'Dob',
+				is_active: true,
+				created_at: '2025-01-01T00:00:00Z',
+				updated_at: '2025-01-01T00:00:00Z',
+			},
+		]);
+		jest.useFakeTimers().setSystemTime(new Date('2026-09-28T12:00:00Z'));
+		try {
+			const profile = await getHouseholdProfile(householdId);
+			expect(profile.children[0].age).toBe(9);
+			expect(profile.children[1].age).toBeUndefined();
+		} finally {
+			jest.useRealTimers();
+		}
+	});
+
 	it('skips the avatars query when the household has no children', async () => {
 		mockDb.listChildren.mockResolvedValue([]);
 

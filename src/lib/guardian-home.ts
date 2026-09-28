@@ -122,7 +122,13 @@ export function buildHouseholdLine(
 	const parts: string[] = [];
 	const household = (householdName ?? '').trim();
 	const cycle = (cycleName ?? '').trim();
-	if (household) parts.push(`${household} household`);
+	// Registration stores the name as `Bennett Household`, and some are
+	// `The Smith Family`; only a bare surname gets the word added.
+	if (household) {
+		parts.push(
+			/\b(household|family)$/i.test(household) ? household : `${household} household`
+		);
+	}
 	if (cycle) parts.push(`${cycle} cycle`);
 	return parts.join(' · ');
 }
