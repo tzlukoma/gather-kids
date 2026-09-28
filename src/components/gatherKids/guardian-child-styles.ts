@@ -95,11 +95,15 @@ export const CHILD_SECTION_HEADER = [
 
 /**
  * `Edit enrollments`, at the right of the Program enrollments header. Teal
- * outline, per Rule A; `min-h-11` keeps a 44px tap target on a phone, where
- * this is the only way in to the enrollments dialog.
+ * outline, per Rule A. On a phone it is a 44px square pencil — the label would
+ * push `Program enrollments` onto two lines — and the words stay for screen
+ * readers; from `sm` up there is room, so the label shows.
  */
 export const CHILD_SECTION_ACTION = [
-	'min-h-11',
+	'size-11',
+	'px-0',
+	'sm:size-auto',
+	'sm:px-3',
 	'border-primary/30',
 	'bg-card',
 	'text-body-13',

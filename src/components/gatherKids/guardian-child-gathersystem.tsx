@@ -233,7 +233,8 @@ function EnrollmentsCard({
 						onClick={onEdit}
 					>
 						<Pencil aria-hidden />
-						Edit enrollments
+						{/* Icon-only on a phone so the title keeps its one line. */}
+						<span className="sr-only sm:not-sr-only">Edit enrollments</span>
 					</Button>
 				) : null
 			}
