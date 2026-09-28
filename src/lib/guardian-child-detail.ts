@@ -13,6 +13,7 @@
 import { format, parseISO, isValid } from 'date-fns';
 import { ageOn } from '@/lib/dal/utils';
 import { formatPhone } from '@/lib/phone-utils';
+import { SERVICE_DAY_TIMEZONE } from '@/lib/utils/timezone';
 import { normalizeGradeDisplay } from '@/lib/gradeUtils';
 import {
 	BIBLE_BEE_MINISTRY_CODE,
@@ -219,4 +220,47 @@ export function pickupGuardians(
 			return { name: fullName(guardian), phone: phone ? formatPhone(phone) : null };
 		})
 		.filter((row) => row.name);
+}
+
+type AttendanceLike = {
+	child_id?: string | null;
+	check_out_at?: string | null;
+	check_in_at?: string | null;
+	event_name?: string | null;
+};
+
+/**
+ * `9:42 AM`, in the church's time zone rather than the viewer's, so a guardian
+ * travelling or on a misconfigured phone still reads the time the door saw.
+ */
+export function formatCheckInTime(checkInAt: string | null | undefined): string | null {
+	if (!checkInAt) return null;
+	const at = new Date(checkInAt);
+	if (Number.isNaN(at.getTime())) return null;
+	return new Intl.DateTimeFormat('en-US', {
+		hour: 'numeric',
+		minute: '2-digit',
+		timeZone: SERVICE_DAY_TIMEZONE,
+	}).format(at);
+}
+
+/**
+ * The event and time for the Today card while the child is checked in, or
+ * null when they are not. Reads the same open row `derivePresence` does, so
+ * the pill and these details can never disagree. Deliberately no "by …": the
+ * data only knows which staff member checked the child in, and naming staff to
+ * guardians was not approved (#378).
+ */
+export function todayCheckIn(
+	childId: string,
+	attendance: AttendanceLike[] | null | undefined
+): { eventName: string | null; time: string | null } | null {
+	const open = (attendance ?? []).find(
+		(row) => row.child_id === childId && !row.check_out_at
+	);
+	if (!open) return null;
+	return {
+		eventName: (open.event_name ?? '').trim() || null,
+		time: formatCheckInTime(open.check_in_at),
+	};
 }

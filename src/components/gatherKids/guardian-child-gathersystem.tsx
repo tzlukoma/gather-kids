@@ -41,6 +41,7 @@ import {
 	pickupGuardians,
 	selfCheckoutLine,
 	specialNeedsSummary,
+	todayCheckIn,
 } from '@/lib/guardian-child-detail';
 import { cn } from '@/lib/utils';
 import {
@@ -144,10 +145,11 @@ function TodayCard({ childId, className }: { childId: string; className?: string
 	const { data: attendance } = useHouseholdAttendance(today);
 	const presence = derivePresence(childId, attendance);
 	const onSite = presence === 'on-site';
+	const checkIn = todayCheckIn(childId, attendance);
 
 	return (
 		<SectionCard icon={Clock} title="Today" className={className}>
-			<div>
+			<div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
 				<span
 					className={cn(
 						GUARDIAN_PILL_BASE,
@@ -162,7 +164,11 @@ function TodayCard({ childId, className }: { childId: string; className?: string
 					) : null}
 					{PRESENCE_LABEL[presence]}
 				</span>
+				{checkIn?.eventName ? (
+					<span className="text-body-14 text-foreground">{checkIn.eventName}</span>
+				) : null}
 			</div>
+			{checkIn?.time ? <Field label="Checked in at">{checkIn.time}</Field> : null}
 			<p className={CHILD_STAFF_NOTE}>
 				<Lock className="mt-0.5 size-3.5 shrink-0" aria-hidden />
 				<span>Only ministry staff check children out, at the door.</span>

@@ -18,12 +18,15 @@ const CHILDREN = [
 	{ child_id: 'other-a', household_id: 'hh-2', is_active: true },
 ];
 
+const STAFF = 'staff-user-1';
 const ATTENDANCE = [
-	{ child_id: 'own-a', check_out_at: null, date: '2026-09-21', notes: 'private' },
-	{ child_id: 'own-gone', check_out_at: null, date: '2026-09-21', notes: 'private' },
-	{ child_id: 'other-a', check_out_at: null, date: '2026-09-21', notes: 'private' },
-	{ child_id: 'own-a', check_out_at: null, date: '2026-09-14', notes: 'private' },
+	{ child_id: 'own-a', check_out_at: null, check_in_at: '2026-09-21T13:42:00Z', event_id: 'evt_sunday_school', checked_in_by: STAFF, date: '2026-09-21', notes: 'private' },
+	{ child_id: 'own-gone', check_out_at: null, check_in_at: '2026-09-21T13:40:00Z', event_id: 'evt_sunday_school', checked_in_by: STAFF, date: '2026-09-21', notes: 'private' },
+	{ child_id: 'other-a', check_out_at: null, check_in_at: '2026-09-21T13:41:00Z', event_id: 'evt_sunday_school', checked_in_by: STAFF, date: '2026-09-21', notes: 'private' },
+	{ child_id: 'own-a', check_out_at: null, check_in_at: '2026-09-14T13:42:00Z', event_id: 'evt_sunday_school', checked_in_by: STAFF, date: '2026-09-14', notes: 'private' },
 ];
+
+const EVENTS = [{ event_id: 'evt_sunday_school', name: 'Sunday School' }];
 
 /** Every `in('child_id', …)` the route sent to the attendance table. */
 const attendanceIdFilters: string[][] = [];
@@ -79,7 +82,11 @@ function attendanceQuery() {
 			return Promise.resolve({
 				data: ATTENDANCE.filter(
 					(r) => r.date === date && ids.includes(r.child_id)
-				).map((r) => ({ child_id: r.child_id, check_out_at: r.check_out_at })),
+				).map((r) => {
+					// Return only the columns the route asked for, as PostgREST would.
+					const cols = attendanceSelects[attendanceSelects.length - 1].split(',').map((c) => c.trim());
+					return Object.fromEntries(cols.map((c) => [c, (r as any)[c]]));
+				}),
 				error: null,
 			});
 		}),
@@ -87,9 +94,20 @@ function attendanceQuery() {
 	return q;
 }
 
+function eventsQuery() {
+	const q: any = {
+		select: jest.fn(() => q),
+		in: jest.fn((_col: string, ids: string[]) =>
+			Promise.resolve({ data: EVENTS.filter((e) => ids.includes(e.event_id)), error: null })
+		),
+	};
+	return q;
+}
+
 const mockFrom = jest.fn((table: string) => {
 	if (table === 'user_households') return userHouseholdsQuery();
 	if (table === 'children') return childrenQuery();
+	if (table === 'events') return eventsQuery();
 	return attendanceQuery();
 });
 
@@ -211,12 +229,28 @@ describe('GET /api/household/attendance authorization', () => {
 		expect(attendanceIdFilters).toHaveLength(0);
 	});
 
-	it('returns only the two fields the presence pill needs', async () => {
+	it('returns only the approved fields, with the event resolved to its name', async () => {
 		signedInAs('guardian-1');
 		const { body } = await get();
-		expect(attendanceSelects[0]).toBe('child_id, check_out_at');
+		expect(attendanceSelects[0]).toBe('child_id, check_out_at, check_in_at, event_id');
+		expect(body.attendance).toEqual([
+			{
+				child_id: 'own-a',
+				check_out_at: null,
+				check_in_at: '2026-09-21T13:42:00Z',
+				event_name: 'Sunday School',
+			},
+		]);
+	});
+
+	it('never names the staff member who did the check-in', async () => {
+		signedInAs('guardian-1');
+		const { body } = await get();
+		expect(attendanceSelects[0]).not.toContain('checked_in_by');
+		expect(JSON.stringify(body)).not.toContain(STAFF);
 		for (const row of body.attendance) {
-			expect(Object.keys(row).sort()).toEqual(['check_out_at', 'child_id']);
+			expect(row).not.toHaveProperty('event_id');
+			expect(row).not.toHaveProperty('notes');
 		}
 	});
 

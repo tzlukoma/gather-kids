@@ -8,6 +8,7 @@ import {
 	pickupGuardians,
 	selfCheckoutLine,
 	specialNeedsSummary,
+	todayCheckIn,
 } from '@/lib/guardian-child-detail';
 
 const TODAY = '2026-09-28';
@@ -180,5 +181,34 @@ describe('pickupGuardians', () => {
 			{ name: 'Alex Example', phone: '(555) 000-0002' },
 			{ name: 'Sam Example', phone: null },
 		]);
+	});
+});
+
+describe('todayCheckIn', () => {
+	it('gives the event and the time in the church time zone while checked in', () => {
+		expect(
+			todayCheckIn('c1', [
+				{ child_id: 'c1', check_out_at: null, check_in_at: '2026-09-27T13:42:00Z', event_name: 'Sunday School' },
+			])
+		).toEqual({ eventName: 'Sunday School', time: '9:42 AM' });
+	});
+
+	it('is null once checked out, or with no row, or for another child', () => {
+		expect(
+			todayCheckIn('c1', [
+				{ child_id: 'c1', check_out_at: '2026-09-27T15:00:00Z', check_in_at: '2026-09-27T13:42:00Z', event_name: 'Sunday School' },
+			])
+		).toBeNull();
+		expect(todayCheckIn('c1', [])).toBeNull();
+		expect(
+			todayCheckIn('c1', [{ child_id: 'c2', check_out_at: null, check_in_at: '2026-09-27T13:42:00Z' }])
+		).toBeNull();
+	});
+
+	it('leaves out a missing event name or time rather than inventing one', () => {
+		expect(todayCheckIn('c1', [{ child_id: 'c1', check_out_at: null }])).toEqual({
+			eventName: null,
+			time: null,
+		});
 	});
 });

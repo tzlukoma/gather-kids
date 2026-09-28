@@ -17,9 +17,13 @@ import { requireUser } from '@/lib/api-auth';
  * — there is deliberately no parameter to honour, so a forged one is inert
  * rather than merely rejected.
  *
- * Only `child_id` and `check_out_at` are returned. `derivePresence` needs those
- * two fields; `checked_in_by`, `picked_up_by`, `notes` and the rest have no
- * business on a summary screen.
+ * Returned per row: `child_id` and `check_out_at`, which `derivePresence`
+ * needs, and `check_in_at` plus `event_name` for the child page's Today card
+ * (#378; Thomas approved both for the caller's own children on 2026-09-28).
+ * The event id is resolved to its name here and not returned. `checked_in_by`
+ * is deliberately absent: it names the staff member, and showing staff to
+ * guardians was not approved. `picked_up_by`, `notes` and the rest stay out
+ * too.
  *
  * This closes the read this screen introduced. It does not close the wider
  * problem — RLS is off across `children`, `households` and `guardians`, and
@@ -103,7 +107,7 @@ export async function GET(request: NextRequest) {
 
 		const { data: rows, error: rowsError } = await supabase
 			.from('attendance')
-			.select('child_id, check_out_at')
+			.select('child_id, check_out_at, check_in_at, event_id')
 			.eq('date', date)
 			.in('child_id', childIds);
 
@@ -112,7 +116,33 @@ export async function GET(request: NextRequest) {
 			return NextResponse.json({ error: 'Failed to load attendance' }, { status: 500 });
 		}
 
-		return NextResponse.json({ attendance: rows ?? [] });
+		const eventIds = Array.from(
+			new Set((rows ?? []).map((row) => row.event_id).filter(Boolean))
+		) as string[];
+		const eventNames = new Map<string, string>();
+		if (eventIds.length > 0) {
+			const { data: events, error: eventsError } = await supabase
+				.from('events')
+				.select('event_id, name')
+				.in('event_id', eventIds);
+			// A missing name costs the card one word, not the page, so a
+			// failure here is logged and the rows still go out.
+			if (eventsError) {
+				console.error('GET /api/household/attendance: events lookup failed', eventsError);
+			}
+			for (const event of events ?? []) {
+				if (event.name) eventNames.set(event.event_id, event.name);
+			}
+		}
+
+		return NextResponse.json({
+			attendance: (rows ?? []).map((row) => ({
+				child_id: row.child_id,
+				check_out_at: row.check_out_at,
+				check_in_at: row.check_in_at ?? null,
+				event_name: (row.event_id && eventNames.get(row.event_id)) || null,
+			})),
+		});
 	} catch (error) {
 		console.error('GET /api/household/attendance: unexpected failure', error);
 		return NextResponse.json({ error: 'Failed to load attendance' }, { status: 500 });
