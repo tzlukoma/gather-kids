@@ -66,6 +66,7 @@ import {
 	CHILD_PROGRAM_LINK,
 	CHILD_PROGRAM_ROW,
 	CHILD_RULED_GROUP,
+	CHILD_SECTION_ACTION,
 	CHILD_SECTION_BODY,
 	CHILD_SECTION_HEADER,
 	CHILD_SECTION_ICON,
@@ -73,6 +74,7 @@ import {
 	CHILD_STAFF_NOTE,
 } from '@/components/gatherKids/guardian-child-styles';
 import { EditChildModal } from '@/components/gatherKids/edit-child-modal';
+import { EditChildEnrollmentsModal } from '@/components/gatherKids/edit-child-enrollments-modal';
 
 // Lazy for the same reason as the legacy page (PERF-06): camera and cropper
 // code is only needed once someone opens them.
@@ -92,11 +94,14 @@ export const HOUSEHOLD_RECORD_HREF = '/household/details';
 function SectionCard({
 	icon: Icon,
 	title,
+	action,
 	className,
 	children,
 }: {
 	icon: React.ComponentType<{ className?: string; 'aria-hidden'?: boolean }>;
 	title: string;
+	/** A control for the section as a whole, at the right of its header. */
+	action?: React.ReactNode;
 	className?: string;
 	children: React.ReactNode;
 }) {
@@ -109,6 +114,7 @@ function SectionCard({
 					<h2 id={headingId} className={CHILD_SECTION_TITLE}>
 						{title}
 					</h2>
+					{action ? <div className="ml-auto">{action}</div> : null}
 				</div>
 				<div className={CHILD_SECTION_BODY}>{children}</div>
 			</section>
@@ -200,18 +206,38 @@ function EnrollmentsCard({
 	child,
 	cycleNames,
 	activeCycleId,
+	onEdit,
 	className,
 }: {
 	child: ProfileChild;
 	cycleNames: Record<string, string> | undefined;
 	activeCycleId: string | null | undefined;
+	/** Present only when the viewer may change this child's enrollments. */
+	onEdit?: () => void;
 	className?: string;
 }) {
 	const rows = buildEnrollmentRows(child, activeCycleId);
 	const eyebrow = cycleEyebrow(cycleNames, activeCycleId);
 
 	return (
-		<SectionCard icon={CircleCheck} title="Program enrollments" className={className}>
+		<SectionCard
+			icon={CircleCheck}
+			title="Program enrollments"
+			className={className}
+			action={
+				onEdit ? (
+					<Button
+						variant="outline"
+						size="sm"
+						className={CHILD_SECTION_ACTION}
+						onClick={onEdit}
+					>
+						<Pencil aria-hidden />
+						Edit enrollments
+					</Button>
+				) : null
+			}
+		>
 			{eyebrow ? <p className={CHILD_CYCLE_EYEBROW}>{eyebrow}</p> : null}
 			{rows.length > 0 ? (
 				<ul className="flex flex-col gap-2">
@@ -332,6 +358,7 @@ export function GuardianChildGatherSystem({
 	const [capturing, setCapturing] = React.useState<Child | null>(null);
 	const [viewing, setViewing] = React.useState<{ name: string; url: string } | null>(null);
 	const [editing, setEditing] = React.useState(false);
+	const [editingEnrollments, setEditingEnrollments] = React.useState(false);
 
 	const todayIso = React.useMemo(() => getServiceDayIso(), []);
 	const householdId = profileData.household?.household_id ?? child.household_id;
@@ -443,6 +470,13 @@ export function GuardianChildGatherSystem({
 						child={child}
 						cycleNames={profileData.cycleNames}
 						activeCycleId={profileData.activeCycleId}
+						// Same rule as the household record: an editor, and only
+						// for a child still active in the household.
+						onEdit={
+							canEdit && child.is_active !== false
+								? () => setEditingEnrollments(true)
+								: undefined
+						}
 					/>
 				</div>
 				<PickupCard
@@ -455,6 +489,14 @@ export function GuardianChildGatherSystem({
 
 			<PhotoCaptureDialog child={capturing} onClose={() => setCapturing(null)} />
 			<PhotoViewerDialog photo={viewing} onClose={() => setViewing(null)} />
+			{editingEnrollments ? (
+				<EditChildEnrollmentsModal
+					child={child}
+					householdId={householdId}
+					currentEnrollments={child.enrollmentsByCycle}
+					onClose={() => setEditingEnrollments(false)}
+				/>
+			) : null}
 			{editing ? (
 				<EditChildModal
 					child={child}

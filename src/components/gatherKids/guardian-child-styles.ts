@@ -93,6 +93,23 @@ export const CHILD_SECTION_HEADER = [
 	'py-4',
 ].join(' ');
 
+/**
+ * `Edit enrollments`, at the right of the Program enrollments header. Teal
+ * outline, per Rule A; `min-h-11` keeps a 44px tap target on a phone, where
+ * this is the only way in to the enrollments dialog.
+ */
+export const CHILD_SECTION_ACTION = [
+	'min-h-11',
+	'border-primary/30',
+	'bg-card',
+	'text-body-13',
+	'font-semibold',
+	'text-primary',
+	'hover:bg-brand-aqua/10',
+	'hover:text-primary',
+	'sm:min-h-9',
+].join(' ');
+
 export const CHILD_SECTION_ICON = 'size-4 shrink-0 text-primary';
 
 /** `Medical & care`. Title/16, weight 600. */
