@@ -62,6 +62,7 @@ export const queryKeys = {
   // Branding keys
   brandingSettings: (orgId: string) => ['brandingSettings', orgId] as const,
   defaultBrandingSettings: () => ['defaultBrandingSettings'] as const,
+  userAvatar: (userId: string) => ['avatars', 'user', userId] as const,
   
   // Bible Bee keys
   bibleBeeCycles: (isActive?: boolean) => ['bibleBeeCycles', isActive] as const,

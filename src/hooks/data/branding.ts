@@ -1,7 +1,12 @@
 'use client';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getBrandingSettings, saveBrandingSettings, getDefaultBrandingSettings } from '@/lib/dal';
+import {
+  getBrandingSettings,
+  saveBrandingSettings,
+  getDefaultBrandingSettings,
+  getEntityAvatar,
+} from '@/lib/dal';
 import { queryKeys } from './keys';
 import { cacheConfig } from './config';
 
@@ -19,6 +24,16 @@ export function useDefaultBrandingSettings() {
     queryKey: queryKeys.defaultBrandingSettings(),
     queryFn: getDefaultBrandingSettings,
     ...cacheConfig.reference, // Default settings rarely change
+  });
+}
+
+/** The signed-in user's profile photo, stored in their `avatars` row. */
+export function useUserAvatar(userId: string | undefined) {
+  return useQuery({
+    queryKey: queryKeys.userAvatar(userId ?? ''),
+    queryFn: () => getEntityAvatar('user', userId!),
+    enabled: Boolean(userId),
+    ...cacheConfig.moderate,
   });
 }
 

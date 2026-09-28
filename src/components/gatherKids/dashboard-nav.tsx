@@ -31,6 +31,7 @@ import { LogOut } from 'lucide-react';
 import Image from 'next/image';
 import { AuthRole } from '@/lib/auth-types';
 import { renderNavIcon } from '@/components/ui/nav-icon';
+import { UserAvatar } from '@/components/gatherKids/user-avatar';
 
 interface DashboardNavProps {
 	children: React.ReactNode;
@@ -244,12 +245,19 @@ export function DashboardNav({ children }: DashboardNavProps) {
 									variant="ghost"
 									size="sm"
 									className="flex items-center gap-2 w-full">
-									<Image
-										src="/avatars/default-avatar.png"
+									<UserAvatar
+										userId={getUserId(user)}
 										alt="User Avatar"
-										width={24}
-										height={24}
-										className="rounded-full"
+										className="h-6 w-6"
+										fallback={
+											<Image
+												src="/avatars/default-avatar.png"
+												alt="User Avatar"
+												width={24}
+												height={24}
+												className="rounded-full"
+											/>
+										}
 									/>
 									<span className="truncate">{user?.email}</span>
 								</Button>

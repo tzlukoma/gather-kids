@@ -26,7 +26,7 @@ import {
 	SidebarInset,
 } from '@/components/ui/sidebar';
 import { User, LogOut, Settings } from 'lucide-react';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { UserAvatar } from '@/components/gatherKids/user-avatar';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/auth-context';
 import { ProtectedRoute } from '@/components/auth/protected-route';
@@ -193,12 +193,12 @@ function DashboardLayoutContent({
 								<Button
 									variant="ghost"
 									className="relative h-10 w-10 rounded-full">
-									<Avatar className="h-10 w-10">
-										<AvatarImage src={undefined} alt={user.name} />
-										<AvatarFallback>
-											<User className="h-5 w-5" />
-										</AvatarFallback>
-									</Avatar>
+									<UserAvatar
+										userId={user.uid ?? user.id}
+										alt={user.name ?? ''}
+										className="h-10 w-10"
+										fallback={<User className="h-5 w-5" />}
+									/>
 								</Button>
 							</DropdownMenuTrigger>
 							<DropdownMenuContent className="w-56" align="end" forceMount>
