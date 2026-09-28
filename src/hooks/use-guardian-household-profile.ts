@@ -21,11 +21,21 @@ import { isOfflineSupabase } from '@/lib/offline-supabase';
  * The household id comes from the session's own metadata first and from
  * `user_households` second; a guardian with neither is sent to `/register`.
  * Nothing here widens what the caller may read.
+ *
+ * `redirectToRegistration: false` skips the registration check and both
+ * redirects. The child page uses it: the legacy page never sent a guardian to
+ * `/register`, and a page reached from a link should not start doing so. With
+ * the redirects off, `householdMissing` reports a guardian with no household so
+ * the page can say so instead of loading forever.
  */
-export function useGuardianHouseholdProfile() {
+export function useGuardianHouseholdProfile(options?: {
+	redirectToRegistration?: boolean;
+}) {
+	const redirectToRegistration = options?.redirectToRegistration ?? true;
 	const { user } = useAuth();
 	const router = useRouter();
 	const [householdId, setHouseholdId] = useState<string | null>(null);
+	const [householdMissing, setHouseholdMissing] = useState(false);
 
 	const {
 		data: profileData,
@@ -38,14 +48,16 @@ export function useGuardianHouseholdProfile() {
 			if (!user?.uid) return;
 			if (isOfflineSupabase()) return;
 
-			try {
-				const needsRegistration = await needsRegistrationForActiveCycle(user.uid);
-				if (needsRegistration) {
-					router.replace('/register');
-					return;
+			if (redirectToRegistration) {
+				try {
+					const needsRegistration = await needsRegistrationForActiveCycle(user.uid);
+					if (needsRegistration) {
+						router.replace('/register');
+						return;
+					}
+				} catch (loadError) {
+					console.error('HouseholdPage: registration check failed:', loadError);
 				}
-			} catch (loadError) {
-				console.error('HouseholdPage: registration check failed:', loadError);
 			}
 
 			let targetHouseholdId = user.metadata?.household_id ?? undefined;
@@ -60,14 +72,27 @@ export function useGuardianHouseholdProfile() {
 			}
 
 			if (!targetHouseholdId) {
-				router.replace('/register');
+				if (redirectToRegistration) {
+					router.replace('/register');
+				} else {
+					setHouseholdMissing(true);
+				}
 				return;
 			}
 
 			setHouseholdId(targetHouseholdId);
 		};
 		load();
-	}, [user, router]);
+	}, [user, router, redirectToRegistration]);
 
-	return { profileData, isLoading, error };
+	return {
+		profileData,
+		isLoading,
+		error,
+		// Until the household id resolves the query is disabled, which react-query
+		// reports as not loading. This lets a page tell that wait apart from
+		// "loaded, and the child is not here".
+		householdResolved: householdId !== null || householdMissing,
+		householdMissing,
+	};
 }

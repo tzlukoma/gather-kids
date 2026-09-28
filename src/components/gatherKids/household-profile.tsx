@@ -1,5 +1,7 @@
 'use client';
 
+import Link from 'next/link';
+import { useGuardianShell } from '@/components/gatherKids/guardian-shell-context';
 import type { HouseholdProfileData } from '@/lib/dal';
 import {
 	Card,
@@ -199,6 +201,10 @@ const ChildCard = ({
 	user: any; // BaseUser type
 	canEdit: boolean;
 }) => {
+	// Flag on only (#378): the GatherSystem child page is where a guardian goes
+	// from here. The admin registration view and the flag-off household page
+	// read `false` and keep the plain name.
+	const linkToChildPage = useGuardianShell();
 	const cycleIds = Object.keys(child.enrollmentsByCycle);
 	const sortedCycleIds = sortCycleIdsByStartDate(cycleIds, cycleStartDates);
 	const expandedCycleId = pickExpandedCycleId(
@@ -293,7 +299,18 @@ const ChildCard = ({
 					</div>
 					<div className={`flex-1 min-w-0 ${canEdit ? 'pr-12 sm:pr-0' : ''}`}>
 						<CardTitle className="font-headline flex items-center gap-2">
-							{child.first_name} {child.last_name}
+							{linkToChildPage ? (
+								<Link
+									href={`/household/children/${child.child_id}`}
+									className="hover:underline underline-offset-4"
+								>
+									{child.first_name} {child.last_name}
+								</Link>
+							) : (
+								<>
+									{child.first_name} {child.last_name}
+								</>
+							)}
 							{!child.is_active && <Badge variant="outline">Inactive</Badge>}
 						</CardTitle>
 						<CardDescription>

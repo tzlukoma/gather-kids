@@ -29,19 +29,11 @@ import {
 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import {
-	format,
-	isWithinInterval,
-	subDays,
-	addDays,
-	setYear,
-	parseISO,
-	subYears,
-	addYears,
-} from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import type { Incident, Child } from '@/lib/types';
 import { normalizeGradeDisplay } from '@/lib/gradeUtils';
 import { formatPhone } from '@/hooks/usePhoneFormat';
+import { isBirthdayThisWeek } from '@/lib/birthday';
 
 interface ChildCardProps {
 	child: EnrichedChild;
@@ -54,51 +46,6 @@ interface ChildCardProps {
 	canUpdatePhoto?: boolean; // New prop to control photo update visibility
 	isCheckInPending?: boolean;
 }
-
-const isBirthdayThisWeek = (dob?: string): boolean => {
-	if (!dob) return false;
-	try {
-		const today = new Date();
-		const birthDate = parseISO(dob);
-
-		const currentYearBirthday = setYear(birthDate, today.getFullYear());
-
-		const sevenDaysAgo = subDays(today, 7);
-		const sevenDaysFromNow = addDays(today, 7);
-
-		if (
-			isWithinInterval(currentYearBirthday, {
-				start: sevenDaysAgo,
-				end: sevenDaysFromNow,
-			})
-		) {
-			return true;
-		}
-
-		const nextYearBirthday = addYears(currentYearBirthday, 1);
-		if (
-			isWithinInterval(nextYearBirthday, {
-				start: sevenDaysAgo,
-				end: sevenDaysFromNow,
-			})
-		) {
-			return true;
-		}
-		const prevYearBirthday = subYears(currentYearBirthday, 1);
-		if (
-			isWithinInterval(prevYearBirthday, {
-				start: sevenDaysAgo,
-				end: sevenDaysFromNow,
-			})
-		) {
-			return true;
-		}
-	} catch (e) {
-		return false;
-	}
-
-	return false;
-};
 
 // getEventName is imported from @/lib/constants (MAINT-20)
 

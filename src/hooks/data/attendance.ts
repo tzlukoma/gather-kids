@@ -31,10 +31,18 @@ export function useAttendance(date: string, eventId?: string) {
  * `GET /api/household/attendance`; this hook sends a date and nothing else, so
  * there is no parameter a guardian could edit to reach another household.
  */
+/** One of the caller's own children's attendance rows for the day. */
+export type HouseholdAttendanceRow = {
+  child_id: string;
+  check_out_at: string | null;
+  check_in_at: string | null;
+  event_name: string | null;
+};
+
 export function useHouseholdAttendance(date: string) {
   return useQuery({
     queryKey: queryKeys.householdAttendance(date),
-    queryFn: async (): Promise<Array<{ child_id: string; check_out_at: string | null }>> => {
+    queryFn: async (): Promise<HouseholdAttendanceRow[]> => {
       const response = await fetch(
         `/api/household/attendance?date=${encodeURIComponent(date)}`,
         { credentials: 'same-origin' },
