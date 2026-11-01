@@ -18,7 +18,7 @@ import {
 	CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { FileDown, ArrowUpDown, Edit, User, Users } from 'lucide-react';
+import { FileDown, ArrowUpDown, ArrowRightLeft, Edit, User, Users } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { EmptyState } from '@/components/ui/empty-state';
 import { PermissionEmpty } from '@/components/ui/permission-empty';
@@ -56,6 +56,7 @@ import type {
 	Incident,
 } from '@/lib/types';
 import { CheckoutDialog } from '@/components/gatherKids/checkout-dialog';
+import { TransferCheckInDialog } from '@/components/gatherKids/transfer-check-in-dialog';
 import { useToast } from '@/hooks/use-toast';
 import type { EnrichedChild } from '@/components/gatherKids/check-in-view';
 import { Label } from '@/components/ui/label';
@@ -91,7 +92,7 @@ const PhotoCaptureDialog = dynamic(
 );
 import { ChildCard } from '@/components/gatherKids/child-card';
 import { IncidentDetailsDialog } from '@/components/gatherKids/incident-details-dialog';
-import { canUpdateChildPhoto } from '@/lib/permissions';
+import { canTransferCheckIn, canUpdateChildPhoto } from '@/lib/permissions';
 import {
 	useChildrenForActiveCycle,
 	useHouseholds,
@@ -99,6 +100,7 @@ import {
 	useAttendance,
 	useIncidents,
 	useEmergencyContacts,
+	useTransferCheckInMutation,
 } from '@/hooks/data';
 import { RosterSkeleton } from '@/components/skeletons';
 import { useQueryClient } from '@tanstack/react-query';
@@ -197,6 +199,9 @@ export default function RostersPage() {
 		null
 	);
 	const [isEventDialogOpen, setIsEventDialogOpen] = useState(false);
+	const [childToTransfer, setChildToTransfer] = useState<RosterChild | null>(null);
+	const transferMutation = useTransferCheckInMutation();
+	const showTransfer = canTransferCheckIn(user);
 	const [viewingPhoto, setViewingPhoto] = useState<{
 		name: string;
 		url: string;
@@ -633,6 +638,25 @@ export default function RostersPage() {
 		}
 	};
 
+	/**
+	 * Transfer to another event (#561). The roster is not tied to one door, so
+	 * the source is whichever event the child is checked in to. Failures are
+	 * rethrown for the dialog to show in place; the mutation refreshes the
+	 * attendance queries either way.
+	 */
+	const handleTransfer = async (
+		child: RosterChild,
+		attendanceId: string,
+		toEventId: string
+	) => {
+		const fromEventId = child.activeAttendance?.event_id;
+		await transferMutation.mutateAsync({ attendanceId, toEventId });
+		toast({
+			title: 'Transferred',
+			description: `${child.first_name} ${child.last_name} moved from ${getEventName(fromEventId)} to ${getEventName(toEventId)} and is still on site.`,
+		});
+	};
+
 	const toggleGradeSort = () => {
 		if (gradeSort === 'none') setGradeSort('asc');
 		else if (gradeSort === 'asc') setGradeSort('desc');
@@ -721,6 +745,44 @@ export default function RostersPage() {
 	const showBulkActions =
 		(showCheckedIn && !showCheckedOut) || (!showCheckedIn && showCheckedOut);
 
+	/**
+	 * The Action column, shared by the flat and grade-grouped tables. A checked-in
+	 * child gets Check Out and, for staff who may move children, Transfer (#561).
+	 */
+	const renderActionCell = (child: RosterChild) => (
+		<TableCell className="min-w-[120px]">
+			{child.activeAttendance ? (
+				<div className="flex items-center gap-1">
+					{showTransfer && (
+						<Button
+							variant="ghost"
+							size="sm"
+							onClick={() => setChildToTransfer(child)}
+							aria-label={`Transfer ${child.first_name} ${child.last_name} to another event`}>
+							<ArrowRightLeft aria-hidden="true" />
+							Transfer
+						</Button>
+					)}
+					<Button
+						variant="outline"
+						size="sm"
+						className="w-full min-w-[104px]"
+						onClick={() => setChildToCheckout(child)}>
+						Check Out
+					</Button>
+				</div>
+			) : (
+				<Button
+					variant="door"
+					size="sm"
+					className="w-full"
+					onClick={() => handleCheckIn(child.child_id)}>
+					Check In
+				</Button>
+			)}
+		</TableCell>
+	);
+
 	const renderTable = () => (
 		<Table className={cn(gatherSystem && STAFF_TABLE_DENSE)}>
 			<TableHeader>
@@ -790,25 +852,7 @@ export default function RostersPage() {
 									<Badge variant="destructive">Allergy</Badge>
 								)}
 							</TableCell>
-							<TableCell className="w-[120px]">
-								{child.activeAttendance ? (
-									<Button
-										variant="outline"
-										size="sm"
-										className="w-full"
-										onClick={() => setChildToCheckout(child)}>
-										Check Out
-									</Button>
-								) : (
-									<Button
-										variant="door"
-										size="sm"
-										className="w-full"
-										onClick={() => handleCheckIn(child.child_id)}>
-										Check In
-									</Button>
-								)}
-							</TableCell>
+							{renderActionCell(child)}
 						</TableRow>
 					))}
 				{groupedChildren &&
@@ -870,25 +914,7 @@ export default function RostersPage() {
 												<Badge variant="destructive">Allergy</Badge>
 											)}
 										</TableCell>
-										<TableCell className="w-[120px]">
-											{child.activeAttendance ? (
-												<Button
-													variant="outline"
-													size="sm"
-													className="w-full"
-													onClick={() => setChildToCheckout(child)}>
-													Check Out
-												</Button>
-											) : (
-												<Button
-													variant="door"
-													size="sm"
-													className="w-full"
-													onClick={() => handleCheckIn(child.child_id)}>
-													Check In
-												</Button>
-											)}
-										</TableCell>
+										{renderActionCell(child)}
 									</TableRow>
 								))}
 							</React.Fragment>
@@ -930,6 +956,7 @@ export default function RostersPage() {
 									selectedEvent={selectedEvent}
 									onCheckIn={handleCheckIn}
 									onCheckout={setChildToCheckout}
+									onTransfer={showTransfer ? setChildToTransfer : undefined}
 									onViewIncidents={setSelectedIncidents}
 									onUpdatePhoto={setSelectedChildForPhoto}
 									onViewPhoto={setViewingPhoto}
@@ -946,6 +973,7 @@ export default function RostersPage() {
 						selectedEvent={selectedEvent}
 						onCheckIn={handleCheckIn}
 						onCheckout={setChildToCheckout}
+						onTransfer={showTransfer ? setChildToTransfer : undefined}
 						onViewIncidents={setSelectedIncidents}
 						onUpdatePhoto={setSelectedChildForPhoto}
 						onViewPhoto={setViewingPhoto}
@@ -1139,6 +1167,12 @@ export default function RostersPage() {
 				child={childToCheckout}
 				onClose={() => setChildToCheckout(null)}
 				onCheckout={handleCheckout}
+			/>
+			<TransferCheckInDialog
+				child={childToTransfer}
+				onClose={() => setChildToTransfer(null)}
+				onTransfer={handleTransfer}
+				isPending={transferMutation.isPending}
 			/>
 			<PhotoViewerDialog
 				photo={viewingPhoto}

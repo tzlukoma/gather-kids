@@ -22,7 +22,7 @@ description: How leaders complete pickup from check-in.
 
 When a child who is already checked in needs to go to a different event (for example, from Sunday School to another event your church runs), use **Transfer** instead of checking them out.
 
-1. On **Check-In**, with the event they are in now selected, find the child.
+1. On **Check-In**, with the event they are in now selected, find the child. You can also start from **Rosters**, where Transfer appears next to **Check Out** for any child who is checked in.
 2. Select **Transfer**.
 3. Choose the event they are moving to and confirm.
 
