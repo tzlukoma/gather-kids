@@ -153,6 +153,73 @@ describe('transferCheckIn when the response is lost', () => {
 		expect(error.currentEventId).toBe('evt_teen_church');
 	});
 
+	/** Serve `getAttendance` from a fixed set of synthetic rows. */
+	function rows(...list: Array<Record<string, unknown>>) {
+		const byId = new Map(list.map((r) => [r.attendance_id as string, r]));
+		mockAdapter.getAttendance.mockImplementation(async (id: string) => byId.get(id) ?? null);
+	}
+
+	/*
+	 * Follow-up review on #563: the transfer to B committed and its response
+	 * was lost, then the child was picked up from B, or moved on from B to C,
+	 * before the read-back. B matches the requested destination but is closed,
+	 * so this is not a plain success: staff must not be told the child is
+	 * "still on site" in B.
+	 */
+	it('does not report success when the destination has since been checked out', async () => {
+		mockAdapter.transferAttendance.mockRejectedValue(LOST_RESPONSE);
+		rows(
+			{ attendance_id: 'att-a', event_id: 'evt_sunday_school', check_out_at: 't1', transferred_to_attendance_id: 'att-b' },
+			{ attendance_id: 'att-b', event_id: 'evt_joy_bells', check_out_at: 't2', picked_up_by: 'Guardian A', pickup_method: 'PIN', transferred_to_attendance_id: null },
+		);
+
+		const error = await transferCheckIn('att-a', 'evt_joy_bells').catch((e) => e);
+		expect(error).toBeInstanceOf(AttendanceTransferError);
+		expect(error.reason).toBe('stale');
+		expect(error.message).toBe('The transfer went through, but the child has since been checked out.');
+		expect(error.currentEventId).toBeNull();
+	});
+
+	it('names the onward event when the child has since been moved from the destination', async () => {
+		mockAdapter.transferAttendance.mockRejectedValue(LOST_RESPONSE);
+		rows(
+			{ attendance_id: 'att-a', event_id: 'evt_sunday_school', check_out_at: 't1', transferred_to_attendance_id: 'att-b' },
+			{ attendance_id: 'att-b', event_id: 'evt_joy_bells', check_out_at: 't2', transferred_to_attendance_id: 'att-c' },
+			{ attendance_id: 'att-c', event_id: 'evt_teen_church', check_out_at: null, transferred_to_attendance_id: null },
+		);
+
+		const error = await transferCheckIn('att-a', 'evt_joy_bells').catch((e) => e);
+		expect(error.reason).toBe('stale');
+		expect(error.message).toBe('The transfer went through, but the child has since been moved to another event.');
+		expect(error.currentEventId).toBe('evt_teen_church');
+	});
+
+	it('follows a longer chain to a pickup after an onward transfer', async () => {
+		mockAdapter.transferAttendance.mockRejectedValue(LOST_RESPONSE);
+		rows(
+			{ attendance_id: 'att-a', event_id: 'evt_sunday_school', check_out_at: 't1', transferred_to_attendance_id: 'att-b' },
+			{ attendance_id: 'att-b', event_id: 'evt_joy_bells', check_out_at: 't2', transferred_to_attendance_id: 'att-c' },
+			{ attendance_id: 'att-c', event_id: 'evt_teen_church', check_out_at: 't3', transferred_to_attendance_id: null },
+		);
+
+		const error = await transferCheckIn('att-a', 'evt_joy_bells').catch((e) => e);
+		expect(error.reason).toBe('stale');
+		expect(error.message).toMatch(/checked out/);
+		expect(error.currentEventId).toBeNull();
+	});
+
+	it('reports an unknown outcome if the chain cannot be read to its end', async () => {
+		mockAdapter.transferAttendance.mockRejectedValue(LOST_RESPONSE);
+		rows(
+			{ attendance_id: 'att-a', event_id: 'evt_sunday_school', check_out_at: 't1', transferred_to_attendance_id: 'att-b' },
+			{ attendance_id: 'att-b', event_id: 'evt_joy_bells', check_out_at: 't2', transferred_to_attendance_id: 'att-missing' },
+		);
+
+		const error = await transferCheckIn('att-a', 'evt_joy_bells').catch((e) => e);
+		expect(error.reason).toBe('unknown');
+		expect(error.currentEventId).toBeNull();
+	});
+
 	it('still does not claim nothing changed when the check cannot be made either', async () => {
 		mockAdapter.transferAttendance.mockRejectedValue(new TypeError('Failed to fetch'));
 		mockAdapter.getAttendance.mockRejectedValue(new TypeError('Failed to fetch'));

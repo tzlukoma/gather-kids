@@ -133,7 +133,10 @@ export async function recordCheckOut(
  *
  * - `forbidden`: the signed-in user may not move this child.
  * - `stale`: the child is no longer on that row (already checked out, or
- *   already moved by someone else). The roster needs refreshing.
+ *   already moved by someone else). The roster needs refreshing. Also used
+ *   when a transfer whose answer was lost turns out to have committed but the
+ *   child has been picked up or moved on since; `currentEventId` then names
+ *   where they are, if still on site.
  * - `invalid`: the destination is not a valid choice.
  * - `failed`: the database refused for another reason; nothing changed.
  *
@@ -190,33 +193,85 @@ function isConfirmedRefusal(code: string): boolean {
     return /^(?:[0-9]{2}|P0|XX|F0|HV)[0-9A-Z]{3}$/.test(code) || code.startsWith('PGRST');
 }
 
+type AttendanceRow = NonNullable<Awaited<ReturnType<typeof dbAdapter.getAttendance>>>;
+
+/** Hops followed along a transfer chain before giving up; a day never has this many. */
+const MAX_TRANSFER_HOPS = 20;
+
 /**
- * After a lost response, read the source row to find out what actually
- * happened. Resolves with the destination row when the transfer did commit;
- * otherwise throws an `unknown` error carrying the child's current event when
- * it can be established.
+ * Follow `transferred_to_attendance_id` from `row` to the newest row in the
+ * chain: the child's open row if they are still on site, or the row they were
+ * picked up from. Returns null when a link cannot be read.
+ */
+async function latestInTransferChain(row: AttendanceRow): Promise<AttendanceRow | null> {
+    let current = row;
+    for (let hop = 0; hop < MAX_TRANSFER_HOPS && current.transferred_to_attendance_id; hop++) {
+        const next = await dbAdapter.getAttendance(current.transferred_to_attendance_id);
+        if (!next) return null;
+        current = next;
+    }
+    return current.transferred_to_attendance_id ? null : current;
+}
+
+/**
+ * After a lost response, read the attendance back to find out what actually
+ * happened, and say only what that read establishes.
+ *
+ * Resolves with the destination row only when the transfer committed **and
+ * the child is still there** — the same condition the RPC's retry path uses.
+ * Everything else throws, carrying the child's current event when the read
+ * establishes one:
+ *
+ * - committed, then the child was picked up, or moved on to another event,
+ *   before this read: `stale`, naming where they are now (never "still on
+ *   site" at the destination);
+ * - not committed, or someone else moved the child: `unknown`, with the
+ *   child's current location.
  */
 async function reconcileLostTransfer(attendanceId: string, toEventId: string): Promise<string> {
-    let source: Awaited<ReturnType<typeof dbAdapter.getAttendance>>;
-    let destination: Awaited<ReturnType<typeof dbAdapter.getAttendance>> = null;
+    let source: AttendanceRow | null;
+    let destination: AttendanceRow | null = null;
+    let latest: AttendanceRow | null = null;
     try {
         source = await dbAdapter.getAttendance(attendanceId);
         if (source?.transferred_to_attendance_id) {
             destination = await dbAdapter.getAttendance(source.transferred_to_attendance_id);
+            latest = destination ? await latestInTransferChain(destination) : null;
         }
     } catch {
         throw new AttendanceTransferError('unknown', UNCONFIRMED_MESSAGE);
     }
 
-    if (destination && destination.event_id === toEventId) {
-        // It went through; only the answer was lost.
-        return destination.attendance_id;
+    if (destination && !latest) {
+        // The chain could not be read to its end.
+        throw new AttendanceTransferError('unknown', UNCONFIRMED_MESSAGE);
     }
-    if (destination) {
+
+    if (destination && latest && destination.event_id === toEventId) {
+        if (latest.attendance_id === destination.attendance_id && !latest.check_out_at) {
+            // It went through and the child is still there; only the answer was lost.
+            return destination.attendance_id;
+        }
+        if (!latest.check_out_at) {
+            throw new AttendanceTransferError(
+                'stale',
+                'The transfer went through, but the child has since been moved to another event.',
+                latest.event_id,
+            );
+        }
+        throw new AttendanceTransferError(
+            'stale',
+            'The transfer went through, but the child has since been checked out.',
+        );
+    }
+
+    if (destination && latest) {
         throw new AttendanceTransferError(
             'unknown',
-            'Unable to confirm this transfer, and the child has been moved to another event since.',
-            destination.check_out_at ? null : destination.event_id,
+            latest.check_out_at
+                ? 'Unable to confirm this transfer. The child was moved to another event and has since been checked out.'
+                : 'Unable to confirm this transfer, and the child has been moved to another event since.',
+            latest.check_out_at ? null : latest.event_id,
         );
     }
     if (source && !source.check_out_at) {
