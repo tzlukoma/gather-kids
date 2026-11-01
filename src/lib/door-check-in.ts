@@ -1,5 +1,5 @@
 import { format, parseISO } from 'date-fns';
-import { getEventName } from '@/lib/constants';
+import { EVENT_OPTIONS, getEventName } from '@/lib/constants';
 
 /**
  * Pure presentation logic for the GatherSystem door check-in screen
@@ -390,4 +390,27 @@ export function buildDoorQuery(
 	params.set('event', next.event);
 
 	return params.toString();
+}
+
+/** One event a checked-in child can be transferred to. */
+export interface TransferDestination {
+	id: string;
+	name: string;
+}
+
+/**
+ * Events a child checked in to `sourceEventId` can be transferred to (#561):
+ * every configured check-in event except the one they are already in.
+ *
+ * "Configured" is `EVENT_OPTIONS`, the list the door's own event picker
+ * offers, so transfers can reach exactly the events check-in can. An event
+ * such as Joy Bells becomes a destination by being added there (and to the
+ * `events` table, which the database checks); it is not special-cased here.
+ */
+export function transferDestinations(
+	sourceEventId: string | null | undefined
+): TransferDestination[] {
+	return EVENT_OPTIONS.filter((event) => event.id !== sourceEventId).map(
+		(event) => ({ id: event.id, name: event.name })
+	);
 }

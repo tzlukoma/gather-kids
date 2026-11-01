@@ -167,6 +167,13 @@ jobs:
           psql -h localhost -p 54322 -U postgres -d postgres \
             -v ON_ERROR_STOP=1 -f scripts/db/check_rls_writes.sql
 
+      - name: Check attendance transfers are atomic and scoped
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -h localhost -p 54322 -U postgres -d postgres \
+            -v ON_ERROR_STOP=1 -f scripts/db/check_attendance_transfer.sql
+
       - name: Check schema migration status RPC
         env:
           PGPASSWORD: postgres

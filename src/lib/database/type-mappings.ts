@@ -330,6 +330,8 @@ export function supabaseToAttendance(row: Database['public']['Tables']['attendan
 		timeslot_id: (r['timeslot_id'] as string) ?? undefined,
 		date: (r['date'] as string) ?? undefined,
 		created_at: (r['created_at'] as string) ?? undefined,
+		transferred_to_attendance_id: (r['transferred_to_attendance_id'] as string) ?? null,
+		transferred_from_attendance_id: (r['transferred_from_attendance_id'] as string) ?? null,
 	} as Attendance;
 }
 

@@ -1186,6 +1186,21 @@ export class SupabaseAdapter implements DatabaseAdapter {
 		if (error) throw error;
 	}
 
+	async transferAttendance(attendanceId: string, toEventId: string): Promise<string> {
+		// One database call, so the source row closing and the destination row
+		// opening cannot be split by a failure in between (#561). The caller
+		// is identified from the session inside `transfer_attendance`.
+		const { data, error } = await this.client.rpc('transfer_attendance', {
+			p_attendance_id: attendanceId,
+			p_to_event_id: toEventId,
+		});
+		if (error) throw error;
+		if (typeof data !== 'string' || !data) {
+			throw new Error('transferAttendance: no destination returned from DB');
+		}
+		return data;
+	}
+
 	// Incidents
 	async getIncident(id: string): Promise<Incident | null> {
 	const { data, error } = await this.client

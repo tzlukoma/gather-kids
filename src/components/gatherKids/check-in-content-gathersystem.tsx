@@ -5,6 +5,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import {
 	AlertTriangle,
+	ArrowRightLeft,
 	Camera,
 	CheckCircle,
 	Info,
@@ -58,11 +59,13 @@ import {
 	useEmergencyContacts,
 	useCheckInMutation,
 	useCheckOutMutation,
+	useTransferCheckInMutation,
 } from '@/hooks/data';
 import { useToast } from '@/hooks/use-toast';
 import { parseISO, differenceInYears, format } from 'date-fns';
 import type { EnrichedChild } from '@/components/gatherKids/check-in-view';
 import { CheckoutDialog } from '@/components/gatherKids/checkout-dialog';
+import { TransferCheckInDialog } from '@/components/gatherKids/transfer-check-in-dialog';
 import { IncidentDetailsDialog } from '@/components/gatherKids/incident-details-dialog';
 // PERF-06: the camera/photo dialogs are heavy and only needed on demand. Loaded
 // the same way `check-in-view.tsx` loads them so the door's first paint is not
@@ -84,7 +87,7 @@ const PhotoViewerDialog = dynamic(
 import { useIncidents } from '@/hooks/data';
 import { captureAnalyticsEvent } from '@/lib/analytics/browser';
 import { useAuth } from '@/contexts/auth-context';
-import { canUpdateChildPhoto } from '@/lib/permissions';
+import { canTransferCheckIn, canUpdateChildPhoto } from '@/lib/permissions';
 import { formatPhone } from '@/hooks/usePhoneFormat';
 import { getEventName } from '@/lib/constants';
 import {
@@ -241,6 +244,7 @@ export function CheckInContentGatherSystem() {
 	const [prevSearchKey, setPrevSearchKey] = useState(searchKey);
 	const [isEventDialogOpen, setIsEventDialogOpen] = useState(false);
 	const [childToCheckout, setChildToCheckout] = useState<EnrichedChild | null>(null);
+	const [childToTransfer, setChildToTransfer] = useState<EnrichedChild | null>(null);
 	/**
 	 * Detail surfaces the legacy `ChildCard` owned and the GatherSystem door lost
 	 * in #383: the incident detail, the full-size photo, and photo capture. Same
@@ -276,6 +280,8 @@ export function CheckInContentGatherSystem() {
 
 	const checkInMutation = useCheckInMutation();
 	const checkOutMutation = useCheckOutMutation();
+	const transferMutation = useTransferCheckInMutation();
+	const showTransfer = canTransferCheckIn(user);
 
 	const loading = childrenLoading || attendanceLoading || incidentsLoading;
 	const loadError = childrenError || attendanceError;
@@ -597,6 +603,23 @@ export function CheckInContentGatherSystem() {
 					e?.message || 'Failed to check out child. Please try again.',
 			});
 		}
+	};
+
+	/**
+	 * Transfer to another event (#561). Failures are rethrown for the dialog to
+	 * show in place; the mutation refreshes the roster either way.
+	 */
+	const handleTransfer = async (
+		child: EnrichedChild,
+		attendanceId: string,
+		toEventId: string
+	) => {
+		const fromEventId = child.activeAttendance?.event_id;
+		await transferMutation.mutateAsync({ attendanceId, toEventId });
+		toast({
+			title: 'Transferred',
+			description: `${child.first_name} ${child.last_name} moved from ${getEventName(fromEventId)} to ${getEventName(toEventId)} and is still on site.`,
+		});
 	};
 
 	const handleCheckInSelected = async () => {
@@ -1112,6 +1135,21 @@ export function CheckInContentGatherSystem() {
 														</PopoverContent>
 													</Popover>
 
+													{isCheckedIn && showTransfer && (
+														// Icon-only below `md`: with a label the row's
+														// second line overflows a phone and pushes Check out
+														// off-screen. The aria-label names it either way.
+														<Button
+															variant="ghost"
+															size="sm"
+															className="h-8 w-8 px-0 md:w-auto md:px-3"
+															onClick={() => setChildToTransfer(child)}
+															title="Transfer to another event"
+															aria-label={`Transfer ${child.first_name} ${child.last_name} to another event`}>
+															<ArrowRightLeft aria-hidden="true" />
+															<span className="hidden md:inline">Transfer</span>
+														</Button>
+													)}
 													{isCheckedIn ? (
 														<Button
 															variant="outline"
@@ -1225,6 +1263,13 @@ export function CheckInContentGatherSystem() {
 				onCheckout={(childId, attendanceId, verifier) =>
 					handleCheckOut(childId, attendanceId, verifier)
 				}
+			/>
+
+			<TransferCheckInDialog
+				child={childToTransfer}
+				onClose={() => setChildToTransfer(null)}
+				onTransfer={handleTransfer}
+				isPending={transferMutation.isPending}
 			/>
 
 			<IncidentDetailsDialog

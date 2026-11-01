@@ -293,6 +293,14 @@ export interface Attendance {
     pickup_method?: 'name_last4' | 'PIN' | 'other';
     notes?: string;
     first_time_flag?: boolean;
+    /**
+     * Set on a row closed by an internal transfer to another event (#561): the
+     * destination row's id. Such a row was not a pickup and carries no pickup
+     * details.
+     */
+    transferred_to_attendance_id?: string | null;
+    /** Set on a row opened by a transfer: the source row's id. */
+    transferred_from_attendance_id?: string | null;
 }
 
 export type IncidentSeverity = 'low' | 'medium' | 'high';

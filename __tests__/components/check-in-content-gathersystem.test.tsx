@@ -41,14 +41,16 @@ jest.mock('@/lib/dal', () => ({
 	getServiceDayIso: () => '2026-09-13',
 }));
 
-// An ADMIN so `canUpdateChildPhoto` is true and the photo-capture affordance is
-// exercised; the helper itself is the real one, unmocked.
+// An ADMIN by default so `canUpdateChildPhoto` is true and the photo-capture
+// affordance is exercised; the helpers themselves are the real ones, unmocked.
+// `mockRole` lets a test sign in as someone else.
+let mockRole = 'ADMIN';
 jest.mock('@/contexts/auth-context', () => ({
 	useAuth: () => ({
 		user: {
 			uid: 'admin-1',
 			email: 'admin@example.com',
-			metadata: { role: 'ADMIN' },
+			metadata: { role: mockRole },
 		},
 	}),
 }));
@@ -61,6 +63,7 @@ jest.mock('@/lib/analytics/browser', () => ({
 const mockCheckIn = jest.fn();
 const mockCheckOut = jest.fn();
 const mockUseCheckOutMutation = jest.fn(() => ({ mutateAsync: mockCheckOut }));
+const mockTransfer = jest.fn();
 const mockChildren = jest.fn();
 const mockAttendance = jest.fn();
 const mockIncidents = jest.fn();
@@ -78,6 +81,7 @@ jest.mock('@/hooks/data', () => ({
 	useEmergencyContacts: () => mockEmergencyContacts(),
 	useCheckInMutation: () => ({ mutateAsync: mockCheckIn }),
 	useCheckOutMutation: () => mockUseCheckOutMutation(),
+	useTransferCheckInMutation: () => ({ mutateAsync: mockTransfer, isPending: false }),
 	useUpdateChildPhotoMutation: () => ({ mutateAsync: mockUpdatePhoto }),
 }));
 
@@ -242,8 +246,160 @@ describe('CheckInContentGatherSystem', () => {
 	beforeEach(() => {
 		jest.clearAllMocks();
 		searchParams = new URLSearchParams('');
+		mockRole = 'ADMIN';
 		mockUseCheckOutMutation.mockReturnValue({ mutateAsync: mockCheckOut });
 		setup();
+	});
+
+	/**
+	 * Moving a checked-in child to another event without a pickup (#561). The
+	 * atomicity, authorization and destination checks live in the database and
+	 * are exercised by `scripts/db/check_attendance_transfer.sql`; this covers
+	 * the screen: who is offered the action, what the dialog offers, and what
+	 * it sends.
+	 */
+	describe('transfer between events (#561)', () => {
+		const transferButton = (name: string) =>
+			within(rowFor(name)).queryByRole('button', {
+				name: `Transfer ${name} to another event`,
+			});
+
+		beforeEach(() => {
+			setup({
+				children: [onSiteChild, waitingChild, elsewhereChild],
+				attendance: [openAttendance, elsewhereAttendance],
+			});
+		});
+
+		it('offers Transfer only to a child checked in to this event', () => {
+			render(<CheckInContentGatherSystem />);
+
+			expect(transferButton('Jordan Kim')).toBeInTheDocument();
+			expect(transferButton('Amara Bennett')).not.toBeInTheDocument();
+			// On site, but at another door: that door moves them.
+			expect(transferButton('Priya Okonjo')).not.toBeInTheDocument();
+		});
+
+		it('offers Transfer to a ministry leader', () => {
+			mockRole = 'MINISTRY_LEADER';
+			render(<CheckInContentGatherSystem />);
+			expect(transferButton('Jordan Kim')).toBeInTheDocument();
+		});
+
+		it('does not offer Transfer to a guardian', () => {
+			mockRole = 'GUARDIAN';
+			render(<CheckInContentGatherSystem />);
+			expect(transferButton('Jordan Kim')).not.toBeInTheDocument();
+		});
+
+		it('shows the source event and offers every other configured event', () => {
+			render(<CheckInContentGatherSystem />);
+			fireEvent.click(transferButton('Jordan Kim')!);
+
+			const dialog = screen.getByRole('dialog');
+			expect(within(dialog).getByText('Transfer Jordan Kim')).toBeInTheDocument();
+			expect(within(dialog).getByText('Sunday School')).toBeInTheDocument();
+			expect(
+				within(dialog)
+					.getAllByRole('radio')
+					.map((r) => r.getAttribute('value'))
+			).toEqual(['evt_childrens_church', 'evt_teen_church']);
+			// Nothing to confirm until a destination is chosen.
+			expect(within(dialog).getByRole('button', { name: /^Transfer/ })).toBeDisabled();
+		});
+
+		it('transfers the open row to the chosen event and says so', async () => {
+			mockTransfer.mockResolvedValue('att-new');
+			render(<CheckInContentGatherSystem />);
+			fireEvent.click(transferButton('Jordan Kim')!);
+
+			const dialog = screen.getByRole('dialog');
+			fireEvent.click(within(dialog).getByRole('radio', { name: 'Teen Church' }));
+			fireEvent.click(
+				within(dialog).getByRole('button', { name: 'Transfer to Teen Church' })
+			);
+
+			await waitFor(() =>
+				expect(mockTransfer).toHaveBeenCalledWith({
+					attendanceId: 'att-jordan',
+					toEventId: 'evt_teen_church',
+				})
+			);
+			expect(mockTransfer).toHaveBeenCalledTimes(1);
+			await waitFor(() =>
+				expect(mockToast).toHaveBeenCalledWith({
+					title: 'Transferred',
+					description:
+						'Jordan Kim moved from Sunday School to Teen Church and is still on site.',
+				})
+			);
+			await waitFor(() =>
+				expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+			);
+			// A transfer is not a pickup.
+			expect(mockCheckOut).not.toHaveBeenCalled();
+		});
+
+		it('keeps the dialog open and explains a refused transfer', async () => {
+			mockTransfer.mockRejectedValue(
+				new Error('This child has already been moved to another event.')
+			);
+			render(<CheckInContentGatherSystem />);
+			fireEvent.click(transferButton('Jordan Kim')!);
+
+			const dialog = screen.getByRole('dialog');
+			fireEvent.click(
+				within(dialog).getByRole('radio', { name: "Children's Church" })
+			);
+			fireEvent.click(
+				within(dialog).getByRole('button', {
+					name: "Transfer to Children's Church",
+				})
+			);
+
+			expect(await within(dialog).findByRole('alert')).toHaveTextContent(
+				'This child has already been moved to another event.'
+			);
+			expect(screen.getByRole('dialog')).toBeInTheDocument();
+			expect(mockToast).not.toHaveBeenCalledWith(
+				expect.objectContaining({ title: 'Transferred' })
+			);
+		});
+
+		it('sends one transfer for a double tap on confirm', async () => {
+			let resolve: (id: string) => void = () => {};
+			mockTransfer.mockImplementation(
+				() => new Promise<string>((r) => (resolve = r))
+			);
+			render(<CheckInContentGatherSystem />);
+			fireEvent.click(transferButton('Jordan Kim')!);
+
+			const dialog = screen.getByRole('dialog');
+			fireEvent.click(within(dialog).getByRole('radio', { name: 'Teen Church' }));
+			const confirm = within(dialog).getByRole('button', {
+				name: 'Transfer to Teen Church',
+			});
+			fireEvent.click(confirm);
+			fireEvent.click(confirm);
+
+			expect(mockTransfer).toHaveBeenCalledTimes(1);
+			resolve('att-new');
+			await waitFor(() =>
+				expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+			);
+		});
+
+		it('changes nothing when cancelled', () => {
+			render(<CheckInContentGatherSystem />);
+			fireEvent.click(transferButton('Jordan Kim')!);
+
+			const dialog = screen.getByRole('dialog');
+			fireEvent.click(within(dialog).getByRole('radio', { name: 'Teen Church' }));
+			fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+
+			expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+			expect(mockTransfer).not.toHaveBeenCalled();
+		});
 	});
 
 	describe('check-out (feature-parity restoration)', () => {

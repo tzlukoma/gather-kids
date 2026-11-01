@@ -66,6 +66,7 @@ describe('Database Adapter Interface Compliance', () => {
 		'updateAttendance',
 		'listAttendance',
 		'deleteAttendance',
+		'transferAttendance',
 		
 		// Incident methods
 		'getIncident',

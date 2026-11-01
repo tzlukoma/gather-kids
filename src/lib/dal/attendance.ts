@@ -125,6 +125,85 @@ export async function recordCheckOut(
     return updatedRecord.attendance_id;
 }
 
+/**
+ * Why a transfer was refused, so the screen can say what to do next.
+ *
+ * - `forbidden`: the signed-in user may not move this child.
+ * - `stale`: the child is no longer on that row (already checked out, or
+ *   already moved by someone else). The roster needs refreshing.
+ * - `invalid`: the destination is not a valid choice.
+ * - `failed`: anything else; nothing changed.
+ */
+export type TransferFailureReason = 'forbidden' | 'stale' | 'invalid' | 'failed';
+
+export class AttendanceTransferError extends Error {
+    readonly reason: TransferFailureReason;
+
+    constructor(reason: TransferFailureReason, message: string) {
+        super(message);
+        this.name = 'AttendanceTransferError';
+        this.reason = reason;
+    }
+}
+
+const TRANSFER_REASON_BY_SQLSTATE: Record<string, TransferFailureReason> = {
+    '42501': 'forbidden',
+    P0002: 'stale',
+    '22023': 'invalid',
+};
+
+const TRANSFER_FALLBACK_MESSAGE: Record<TransferFailureReason, string> = {
+    forbidden: 'You are not allowed to transfer this child.',
+    stale: 'This child is no longer checked in there. The roster has been refreshed.',
+    invalid: 'Choose a different event to transfer to.',
+    failed: 'The transfer did not go through and nothing was changed. Please try again.',
+};
+
+/**
+ * Move a checked-in child from one event to another without them leaving the
+ * building (#561).
+ *
+ * One atomic database call (`transfer_attendance`): the source row is closed as
+ * a transfer — not a pickup — and an ordinary open row is created at the
+ * destination, so the child stays on site and pickup at the destination still
+ * goes through `CheckoutDialog`. The database decides who may do this and
+ * which destinations are valid; nothing here is an authorization input.
+ * Repeating a transfer that already happened resolves to the same row.
+ *
+ * Ministry enrollment is untouched: this moves event attendance only.
+ */
+export async function transferCheckIn(
+    attendanceId: string,
+    toEventId: string,
+): Promise<string> {
+    try {
+        return await dbAdapter.transferAttendance(attendanceId, toEventId);
+    } catch (error) {
+        const code =
+            typeof error === 'object' && error !== null && 'code' in error
+                ? String((error as { code?: unknown }).code)
+                : '';
+        const reason = TRANSFER_REASON_BY_SQLSTATE[code] ?? 'failed';
+        // For a stale row or a bad destination the database's own message is
+        // written for staff ("this child has already been moved to another
+        // event"). A permission error can come from PostgREST as well as the
+        // function, so it, like anything unexpected, gets a fixed message
+        // rather than a raw driver error.
+        const serverMessage =
+            (reason === 'stale' || reason === 'invalid') &&
+            typeof error === 'object' &&
+            error !== null &&
+            'message' in error &&
+            typeof (error as { message?: unknown }).message === 'string'
+                ? (error as { message: string }).message
+                : '';
+        const message = serverMessage
+            ? serverMessage.charAt(0).toUpperCase() + serverMessage.slice(1) + '.'
+            : TRANSFER_FALLBACK_MESSAGE[reason];
+        throw new AttendanceTransferError(reason, message);
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Incidents
 // ---------------------------------------------------------------------------

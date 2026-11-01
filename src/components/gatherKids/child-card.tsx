@@ -26,6 +26,7 @@ import {
 	Cake,
 	AlertTriangle,
 	ShieldAlert,
+	ArrowRightLeft,
 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -40,6 +41,11 @@ interface ChildCardProps {
 	selectedEvent: string;
 	onCheckIn: (childId: string) => void;
 	onCheckout: (child: EnrichedChild) => void;
+	/**
+	 * Offer Transfer on a child checked in to this event (#561). Omit to hide
+	 * it, as for guardians and other roles that cannot move a child.
+	 */
+	onTransfer?: (child: EnrichedChild) => void;
 	onViewIncidents: (incidents: Incident[]) => void;
 	onUpdatePhoto: (child: Child) => void;
 	onViewPhoto: (photo: { name: string; url: string }) => void;
@@ -54,6 +60,7 @@ export function ChildCard({
 	selectedEvent,
 	onCheckIn,
 	onCheckout,
+	onTransfer,
 	onViewIncidents,
 	onUpdatePhoto,
 	onViewPhoto,
@@ -237,6 +244,16 @@ export function ChildCard({
 						onClick={() => onViewIncidents(child.incidents)}>
 						<ShieldAlert className="h-5 w-5" />
 						<span className="sr-only">View Incidents</span>
+					</Button>
+				)}
+				{isCheckedInHere && onTransfer && (
+					<Button
+						className="w-full"
+						variant="ghost"
+						onClick={() => onTransfer(child)}
+						aria-label={`Transfer ${child.first_name} ${child.last_name} to another event`}>
+						<ArrowRightLeft aria-hidden="true" />
+						Transfer
 					</Button>
 				)}
 				{isCheckedInHere ? (
