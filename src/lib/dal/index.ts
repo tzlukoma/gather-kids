@@ -8,6 +8,7 @@
 
 export * from './utils';
 export * from './attendance';
+export * from './events';
 export * from './households';
 export * from './children';
 export * from './ministries';

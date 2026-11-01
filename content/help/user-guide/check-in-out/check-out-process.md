@@ -28,6 +28,6 @@ When a child who is already checked in needs to go to a different event (for exa
 
 The child stays checked in and on site, and their arrival time is kept. A transfer is not a pickup, so no pickup details are recorded. When the family collects the child, check them out from the new event as usual, with the same verification.
 
-Only events set up for check-in can be chosen. Transfer is available to admins and ministry leaders.
+Only events set up for check-in can be chosen. That is the same list the event picker on Check-In shows. Transfer is available to admins and ministry leaders.
 
 See also [Check-in overview](/help/user-guide/check-in-out/overview).

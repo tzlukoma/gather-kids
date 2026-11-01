@@ -14,8 +14,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { getEventName } from '@/lib/constants';
 import { transferDestinations } from '@/lib/door-check-in';
+import type { CheckInEvent } from '@/lib/check-in-events';
 import type { EnrichedChild } from './check-in-view';
 
 interface TransferCheckInDialogProps {
@@ -29,7 +29,14 @@ interface TransferCheckInDialogProps {
 	 */
 	onTransfer: (child: EnrichedChild, attendanceId: string, toEventId: string) => Promise<void>;
 	isPending: boolean;
+	/** The persisted check-in events (`useCheckInEvents`), destinations included. */
+	events: ReadonlyArray<CheckInEvent>;
+	/** Event name lookup from the same list. */
+	nameOf: (eventId: string | null | undefined) => string;
 }
+
+/** An error the transfer reported, plus where the child is now if it knows. */
+type ShownError = { message: string; currentEventId: string | null };
 
 function formatCheckInTime(iso: string | undefined): string | null {
 	if (!iso) return null;
@@ -54,15 +61,17 @@ export function TransferCheckInDialog({
 	onClose,
 	onTransfer,
 	isPending,
+	events,
+	nameOf,
 }: TransferCheckInDialogProps) {
 	const [destination, setDestination] = useState('');
-	const [error, setError] = useState<string | null>(null);
+	const [error, setError] = useState<ShownError | null>(null);
 	// Guards a second tap landing before `isPending` re-renders the button.
 	const submitting = useRef(false);
 
 	const attendance = child?.activeAttendance ?? null;
 	const sourceEventId = attendance?.event_id ?? null;
-	const destinations = transferDestinations(sourceEventId);
+	const destinations = transferDestinations(events, sourceEventId);
 	const destinationName = destinations.find((d) => d.id === destination)?.name;
 	const checkedInAt = formatCheckInTime(attendance?.check_in_at);
 	const childName = child ? `${child.first_name} ${child.last_name}` : '';
@@ -83,11 +92,19 @@ export function TransferCheckInDialog({
 			setDestination('');
 			onClose();
 		} catch (e) {
-			setError(
-				e instanceof Error && e.message
-					? e.message
-					: 'The transfer did not go through and nothing was changed. Please try again.'
-			);
+			// Never claim nothing changed unless the error says so: a lost
+			// response leaves the outcome unknown (see `transferCheckIn`).
+			const currentEventId =
+				e && typeof e === 'object' && 'currentEventId' in e
+					? ((e as { currentEventId?: string | null }).currentEventId ?? null)
+					: null;
+			setError({
+				message:
+					e instanceof Error && e.message
+						? e.message
+						: 'Unable to confirm the transfer. Check where the child is on the roster before trying again.',
+				currentEventId,
+			});
 		} finally {
 			submitting.current = false;
 		}
@@ -107,7 +124,7 @@ export function TransferCheckInDialog({
 				<dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 rounded-md border p-3 text-sm">
 					<dt className="text-muted-foreground">Currently in</dt>
 					<dd className="font-medium">
-						{getEventName(sourceEventId) || 'Unknown event'}
+						{nameOf(sourceEventId) || 'Unknown event'}
 					</dd>
 					{checkedInAt && (
 						<>
@@ -153,9 +170,15 @@ export function TransferCheckInDialog({
 				</p>
 
 				{error && (
-					<p role="alert" className="rounded-md border border-destructive bg-destructive/5 p-3 text-sm text-destructive">
-						{error}
-					</p>
+					<div role="alert" className="space-y-1 rounded-md border border-destructive bg-destructive/5 p-3 text-sm text-destructive">
+						<p>{error.message}</p>
+						{error.currentEventId && (
+							<p className="font-medium">
+								{child?.first_name} is currently checked in to{' '}
+								{nameOf(error.currentEventId)}.
+							</p>
+						)}
+					</div>
 				)}
 
 				<DialogFooter className="gap-2 sm:gap-0">

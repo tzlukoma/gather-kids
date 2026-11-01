@@ -22,7 +22,6 @@ import { CardGridSkeleton } from '@/components/skeletons/CardGridSkeleton';
 import { getServiceDayIso } from '@/lib/dal';
 import type { Attendance, Child } from '@/lib/types';
 import { normalizeGradeDisplay, getGradeSortOrder } from '@/lib/gradeUtils';
-import { EVENT_OPTIONS } from '@/lib/constants';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -60,6 +59,7 @@ import {
 	useCheckInMutation,
 	useCheckOutMutation,
 	useTransferCheckInMutation,
+	useCheckInEvents,
 } from '@/hooks/data';
 import { useToast } from '@/hooks/use-toast';
 import { parseISO, differenceInYears, format } from 'date-fns';
@@ -89,7 +89,6 @@ import { captureAnalyticsEvent } from '@/lib/analytics/browser';
 import { useAuth } from '@/contexts/auth-context';
 import { canTransferCheckIn, canUpdateChildPhoto } from '@/lib/permissions';
 import { formatPhone } from '@/hooks/usePhoneFormat';
-import { getEventName } from '@/lib/constants';
 import {
 	computeDoorStats,
 	countDoorStatuses,
@@ -231,10 +230,9 @@ export function CheckInContentGatherSystem() {
 	const urlEvent = searchParams?.get('event');
 	const searchKey = searchParams?.toString() ?? '';
 	const initialStatus: StatusFilter = parseDoorStatusFilter(urlFilter) ?? 'all';
-	const initialEvent =
-		urlEvent && EVENT_OPTIONS.find((e) => e.id === urlEvent)
-			? urlEvent
-			: 'evt_sunday_school';
+	// Any event the URL names is taken as given until the persisted list has
+	// loaded; an id that is not in it is replaced below.
+	const initialEvent = urlEvent || 'evt_sunday_school';
 
 	const [selectedEvent, setSelectedEvent] = useState(initialEvent);
 	const [selectedGrades, setSelectedGrades] = useState<Set<string>>(() => new Set());
@@ -299,9 +297,30 @@ export function CheckInContentGatherSystem() {
 		// just chosen and the assignment is a no-op. Writing only the event would
 		// reset a hand-picked tab to All.
 		setStatusFilter(parseDoorStatusFilter(urlFilter) ?? 'all');
-		if (urlEvent && EVENT_OPTIONS.find((e) => e.id === urlEvent)) {
+		if (urlEvent) {
 			setSelectedEvent(urlEvent);
 		}
+	}
+
+	/**
+	 * The check-in events come from the `events` table (#561 review), so an
+	 * event added there appears in the picker and as a transfer destination
+	 * without a code change, and a rename shows everywhere on this screen.
+	 * Once the list has loaded, an event the URL named that does not exist
+	 * falls back to the first real one rather than leaving the door pointed at
+	 * nothing.
+	 */
+	const {
+		events: checkInEvents,
+		isPersisted: eventsPersisted,
+		nameOf: eventName,
+	} = useCheckInEvents();
+	if (
+		eventsPersisted &&
+		checkInEvents.length > 0 &&
+		!checkInEvents.some((e) => e.id === selectedEvent)
+	) {
+		setSelectedEvent(checkInEvents[0].id);
 	}
 
 	/**
@@ -437,8 +456,8 @@ export function CheckInContentGatherSystem() {
 	);
 
 	const currentEventName = useMemo(
-		() => EVENT_OPTIONS.find((e) => e.id === selectedEvent)?.name || 'Select Event',
-		[selectedEvent]
+		() => checkInEvents.find((e) => e.id === selectedEvent)?.name || 'Select Event',
+		[checkInEvents, selectedEvent]
 	);
 
 	// Derived from `today` — the same string the roster, counts and incidents are
@@ -553,7 +572,7 @@ export function CheckInContentGatherSystem() {
 				title: 'Checked In',
 				description: `${child?.first_name} ${
 					child?.last_name
-				} has been checked in to ${getEventName(selectedEvent)}.`,
+				} has been checked in to ${eventName(selectedEvent)}.`,
 			});
 
 			setSelectedChildIds((prev) => {
@@ -618,7 +637,7 @@ export function CheckInContentGatherSystem() {
 		await transferMutation.mutateAsync({ attendanceId, toEventId });
 		toast({
 			title: 'Transferred',
-			description: `${child.first_name} ${child.last_name} moved from ${getEventName(fromEventId)} to ${getEventName(toEventId)} and is still on site.`,
+			description: `${child.first_name} ${child.last_name} moved from ${eventName(fromEventId)} to ${eventName(toEventId)} and is still on site.`,
 		});
 	};
 
@@ -650,7 +669,7 @@ export function CheckInContentGatherSystem() {
 
 			toast({
 				title: 'Checked In',
-				description: `${childrenToCheckIn.length} ${childrenToCheckIn.length === 1 ? 'child' : 'children'} checked in to ${getEventName(selectedEvent)}.`,
+				description: `${childrenToCheckIn.length} ${childrenToCheckIn.length === 1 ? 'child' : 'children'} checked in to ${eventName(selectedEvent)}.`,
 			});
 
 			setSelectedChildIds(new Set());
@@ -1114,7 +1133,7 @@ export function CheckInContentGatherSystem() {
 																	: 'bg-muted-foreground/60'
 														}`}
 													/>
-													{formatDoorStatusLabel(rowStatus)}
+													{formatDoorStatusLabel(rowStatus, eventName)}
 												</span>
 											</TableCell>
 
@@ -1170,7 +1189,7 @@ export function CheckInContentGatherSystem() {
 															disabled={isElsewhere}
 															title={
 																isElsewhere
-																	? `Checked in to ${getEventName(rowStatus.elsewhereEventId)} — check out there first`
+																	? `Checked in to ${eventName(rowStatus.elsewhereEventId)} — check out there first`
 																	: undefined
 															}
 															onClick={() => handleCheckIn(child.child_id)}>
@@ -1241,7 +1260,7 @@ export function CheckInContentGatherSystem() {
 							setIsEventDialogOpen(false);
 						}}
 						className="space-y-2">
-						{EVENT_OPTIONS.map((event) => (
+						{checkInEvents.map((event) => (
 							<Label
 								key={event.id}
 								htmlFor={`gathersystem-event-${event.id}`}
@@ -1270,6 +1289,8 @@ export function CheckInContentGatherSystem() {
 				onClose={() => setChildToTransfer(null)}
 				onTransfer={handleTransfer}
 				isPending={transferMutation.isPending}
+				events={checkInEvents}
+				nameOf={eventName}
 			/>
 
 			<IncidentDetailsDialog

@@ -1,5 +1,6 @@
 import { format, parseISO } from 'date-fns';
-import { EVENT_OPTIONS, getEventName } from '@/lib/constants';
+import { getEventName } from '@/lib/constants';
+import type { CheckInEvent } from '@/lib/check-in-events';
 
 /**
  * Pure presentation logic for the GatherSystem door check-in screen
@@ -216,10 +217,13 @@ export function deriveDoorRowStatus(
  * attendance row has one ("Checked in 9:04 AM"); a row without a timestamp
  * falls back to the bare label rather than rendering "Invalid Date".
  */
-export function formatDoorStatusLabel(state: DoorRowState): string {
+export function formatDoorStatusLabel(
+	state: DoorRowState,
+	nameOf: (eventId: string | null | undefined) => string = getEventName
+): string {
 	if (state.status === 'notCheckedIn') return 'Not checked in';
 	if (state.status === 'checkedInElsewhere') {
-		const name = getEventName(state.elsewhereEventId);
+		const name = nameOf(state.elsewhereEventId);
 		return name ? `In ${name}` : 'In another event';
 	}
 	if (!state.checkInAt) return 'Checked in';
@@ -392,25 +396,18 @@ export function buildDoorQuery(
 	return params.toString();
 }
 
-/** One event a checked-in child can be transferred to. */
-export interface TransferDestination {
-	id: string;
-	name: string;
-}
-
 /**
  * Events a child checked in to `sourceEventId` can be transferred to (#561):
- * every configured check-in event except the one they are already in.
+ * every check-in event except the one they are already in.
  *
- * "Configured" is `EVENT_OPTIONS`, the list the door's own event picker
- * offers, so transfers can reach exactly the events check-in can. An event
- * such as Joy Bells becomes a destination by being added there (and to the
- * `events` table, which the database checks); it is not special-cased here.
+ * `events` is the persisted list from `useCheckInEvents` — the same list the
+ * door's own event picker offers — so an event added to the `events` table
+ * (Joy Bells, say) becomes a destination without a code change, and the
+ * database checks the same table when the transfer is made.
  */
 export function transferDestinations(
+	events: ReadonlyArray<CheckInEvent>,
 	sourceEventId: string | null | undefined
-): TransferDestination[] {
-	return EVENT_OPTIONS.filter((event) => event.id !== sourceEventId).map(
-		(event) => ({ id: event.id, name: event.name })
-	);
+): CheckInEvent[] {
+	return events.filter((event) => event.id !== sourceEventId);
 }

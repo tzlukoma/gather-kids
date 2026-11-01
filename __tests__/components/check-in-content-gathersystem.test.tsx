@@ -64,6 +64,14 @@ const mockCheckIn = jest.fn();
 const mockCheckOut = jest.fn();
 const mockUseCheckOutMutation = jest.fn(() => ({ mutateAsync: mockCheckOut }));
 const mockTransfer = jest.fn();
+const DEFAULT_EVENTS = [
+	{ id: 'evt_sunday_school', name: 'Sunday School' },
+	{ id: 'evt_childrens_church', name: "Children's Church" },
+	{ id: 'evt_teen_church', name: 'Teen Church' },
+];
+/** The persisted `events` rows the screen sees; a test can add or rename one. */
+let mockEvents = DEFAULT_EVENTS;
+let mockEventsPersisted = true;
 const mockChildren = jest.fn();
 const mockAttendance = jest.fn();
 const mockIncidents = jest.fn();
@@ -82,6 +90,15 @@ jest.mock('@/hooks/data', () => ({
 	useCheckInMutation: () => ({ mutateAsync: mockCheckIn }),
 	useCheckOutMutation: () => mockUseCheckOutMutation(),
 	useTransferCheckInMutation: () => ({ mutateAsync: mockTransfer, isPending: false }),
+	useCheckInEvents: () => {
+		// The real lookup, over whatever rows the test set.
+		const { eventNameLookup } = require('@/lib/check-in-events');
+		return {
+			events: mockEvents,
+			isPersisted: mockEventsPersisted,
+			nameOf: eventNameLookup(mockEvents),
+		};
+	},
 	useUpdateChildPhotoMutation: () => ({ mutateAsync: mockUpdatePhoto }),
 }));
 
@@ -247,6 +264,8 @@ describe('CheckInContentGatherSystem', () => {
 		jest.clearAllMocks();
 		searchParams = new URLSearchParams('');
 		mockRole = 'ADMIN';
+		mockEvents = DEFAULT_EVENTS;
+		mockEventsPersisted = true;
 		mockUseCheckOutMutation.mockReturnValue({ mutateAsync: mockCheckOut });
 		setup();
 	});
@@ -389,6 +408,34 @@ describe('CheckInContentGatherSystem', () => {
 			);
 		});
 
+		/**
+		 * Review on #563: a lost response is not a rollback. The dialog shows
+		 * what the DAL established instead of "nothing changed".
+		 */
+		it('shows an unconfirmed outcome with where the child is now', async () => {
+			mockTransfer.mockRejectedValue(
+				Object.assign(
+					new Error(
+						'Unable to confirm the transfer because the connection dropped. A fresh check shows the child has not moved. Trying again is safe.'
+					),
+					{ reason: 'unknown', currentEventId: 'evt_sunday_school' }
+				)
+			);
+			render(<CheckInContentGatherSystem />);
+			fireEvent.click(transferButton('Jordan Kim')!);
+
+			const dialog = screen.getByRole('dialog');
+			fireEvent.click(within(dialog).getByRole('radio', { name: 'Teen Church' }));
+			fireEvent.click(
+				within(dialog).getByRole('button', { name: 'Transfer to Teen Church' })
+			);
+
+			const alert = await within(dialog).findByRole('alert');
+			expect(alert).toHaveTextContent('Unable to confirm the transfer');
+			expect(alert).toHaveTextContent('Jordan is currently checked in to Sunday School.');
+			expect(alert).not.toHaveTextContent(/nothing (was )?changed/i);
+		});
+
 		it('changes nothing when cancelled', () => {
 			render(<CheckInContentGatherSystem />);
 			fireEvent.click(transferButton('Jordan Kim')!);
@@ -399,6 +446,110 @@ describe('CheckInContentGatherSystem', () => {
 
 			expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 			expect(mockTransfer).not.toHaveBeenCalled();
+		});
+	});
+
+	/**
+	 * Review on #563: the event picker and the transfer destinations read the
+	 * persisted `events` table, not a list compiled into the app, so adding or
+	 * renaming an event needs no code change. Event ids never change, so
+	 * attendance keeps pointing at the same event.
+	 */
+	describe('check-in events come from the events table', () => {
+		const withJoyBells = [...DEFAULT_EVENTS, { id: 'evt_joy_bells', name: 'Joy Bells' }];
+
+		it('offers an added event in the Change event picker', () => {
+			mockEvents = withJoyBells;
+			render(<CheckInContentGatherSystem />);
+
+			fireEvent.click(screen.getByRole('button', { name: 'Change event' }));
+			expect(
+				within(screen.getByRole('dialog')).getByRole('radio', { name: 'Joy Bells' })
+			).toBeInTheDocument();
+		});
+
+		it('offers an added event as a transfer destination and sends its id', async () => {
+			mockEvents = withJoyBells;
+			mockTransfer.mockResolvedValue('att-new');
+			render(<CheckInContentGatherSystem />);
+
+			fireEvent.click(
+				within(rowFor('Jordan Kim')).getByRole('button', {
+					name: 'Transfer Jordan Kim to another event',
+				})
+			);
+			const dialog = screen.getByRole('dialog');
+			fireEvent.click(within(dialog).getByRole('radio', { name: 'Joy Bells' }));
+			fireEvent.click(
+				within(dialog).getByRole('button', { name: 'Transfer to Joy Bells' })
+			);
+
+			await waitFor(() =>
+				expect(mockTransfer).toHaveBeenCalledWith({
+					attendanceId: 'att-jordan',
+					toEventId: 'evt_joy_bells',
+				})
+			);
+			await waitFor(() =>
+				expect(mockToast).toHaveBeenCalledWith(
+					expect.objectContaining({
+						description:
+							'Jordan Kim moved from Sunday School to Joy Bells and is still on site.',
+					})
+				)
+			);
+		});
+
+		it('shows a renamed event by its new name in the header, rows, picker and transfer dialog', () => {
+			mockEvents = DEFAULT_EVENTS.map((e) =>
+				e.id === 'evt_sunday_school'
+					? { ...e, name: 'Sunday Bible Class' }
+					: e.id === 'evt_childrens_church'
+						? { ...e, name: 'Kids Church' }
+						: e
+			);
+			setup({
+				children: [onSiteChild, waitingChild, elsewhereChild],
+				attendance: [openAttendance, elsewhereAttendance],
+			});
+			render(<CheckInContentGatherSystem />);
+
+			expect(screen.getByText(/^Sunday Bible Class · /)).toBeInTheDocument();
+			expect(within(rowFor('Priya Okonjo')).getByText('In Kids Church')).toBeInTheDocument();
+
+			fireEvent.click(
+				within(rowFor('Jordan Kim')).getByRole('button', {
+					name: 'Transfer Jordan Kim to another event',
+				})
+			);
+			const dialog = screen.getByRole('dialog');
+			expect(within(dialog).getByText('Sunday Bible Class')).toBeInTheDocument();
+			expect(within(dialog).getByRole('radio', { name: 'Kids Church' })).toHaveAttribute(
+				'value',
+				'evt_childrens_church'
+			);
+		});
+
+		it('honours a deep link to an added event', () => {
+			mockEvents = withJoyBells;
+			searchParams = new URLSearchParams('event=evt_joy_bells');
+			render(<CheckInContentGatherSystem />);
+			expect(screen.getByText(/^Joy Bells · /)).toBeInTheDocument();
+		});
+
+		it('falls back to a real event when the URL names one that does not exist', () => {
+			searchParams = new URLSearchParams('event=evt_retired');
+			render(<CheckInContentGatherSystem />);
+			expect(screen.getByText(/^Sunday School · /)).toBeInTheDocument();
+		});
+
+		it('keeps a deep-linked event while the list is still loading', () => {
+			mockEventsPersisted = false;
+			mockEvents = DEFAULT_EVENTS;
+			searchParams = new URLSearchParams('event=evt_joy_bells');
+			render(<CheckInContentGatherSystem />);
+			// Not yet known, so not replaced: the header waits for the list.
+			expect(screen.queryByText(/^Sunday School · /)).not.toBeInTheDocument();
 		});
 	});
 

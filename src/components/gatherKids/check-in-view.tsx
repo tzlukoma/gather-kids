@@ -42,8 +42,8 @@ import {
 	useCheckInMutation,
 	useCheckOutMutation,
 	useTransferCheckInMutation,
+	useCheckInEvents,
 } from '@/hooks/data';
-import { getEventName } from '@/lib/constants';
 import { captureAnalyticsEvent } from '@/lib/analytics/browser';
 
 interface CheckInViewProps {
@@ -103,6 +103,8 @@ export function CheckInView({
 	const transferMutation = useTransferCheckInMutation();
 	const [childToTransfer, setChildToTransfer] = useState<EnrichedChild | null>(null);
 	const showTransfer = canTransferCheckIn(user);
+	// Names and transfer destinations from the `events` table (#561 review).
+	const { events: checkInEvents, nameOf: eventName } = useCheckInEvents();
 
 	const today = getServiceDayIso();
 
@@ -208,7 +210,7 @@ export function CheckInView({
 				title: 'Checked In',
 				description: `${child?.first_name} ${
 					child?.last_name
-				} has been checked in to ${getEventName(selectedEvent)}.`,
+				} has been checked in to ${eventName(selectedEvent)}.`,
 			});
 		} catch (e: any) {
 			console.error(e);
@@ -267,7 +269,7 @@ export function CheckInView({
 		await transferMutation.mutateAsync({ attendanceId, toEventId });
 		toast({
 			title: 'Transferred',
-			description: `${child.first_name} ${child.last_name} moved from ${getEventName(fromEventId)} to ${getEventName(toEventId)} and is still on site.`,
+			description: `${child.first_name} ${child.last_name} moved from ${eventName(fromEventId)} to ${eventName(toEventId)} and is still on site.`,
 		});
 	};
 
@@ -339,6 +341,7 @@ export function CheckInView({
 						onCheckIn={handleCheckIn}
 						onCheckout={openCheckoutDialog}
 						onTransfer={showTransfer ? setChildToTransfer : undefined}
+						eventName={eventName}
 						onViewIncidents={setSelectedIncidents}
 						onUpdatePhoto={setSelectedChildForPhoto}
 						onViewPhoto={setViewingPhoto}
@@ -376,6 +379,8 @@ export function CheckInView({
 				onClose={() => setChildToTransfer(null)}
 				onTransfer={handleTransfer}
 				isPending={transferMutation.isPending}
+				events={checkInEvents}
+				nameOf={eventName}
 			/>
 
 			<IncidentDetailsDialog

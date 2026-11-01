@@ -101,11 +101,12 @@ import {
 	useIncidents,
 	useEmergencyContacts,
 	useTransferCheckInMutation,
+	useCheckInEvents,
 } from '@/hooks/data';
 import { RosterSkeleton } from '@/components/skeletons';
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/hooks/data/keys';
-import { EVENT_OPTIONS, getEventName } from '@/lib/constants';
+
 import { captureAnalyticsEvent } from '@/lib/analytics/browser';
 
 export type RosterChild = EnrichedChild;
@@ -202,6 +203,20 @@ export default function RostersPage() {
 	const [childToTransfer, setChildToTransfer] = useState<RosterChild | null>(null);
 	const transferMutation = useTransferCheckInMutation();
 	const showTransfer = canTransferCheckIn(user);
+	// Check-in events from the `events` table (#561 review), for the event
+	// picker, names and transfer destinations.
+	const {
+		events: checkInEvents,
+		isPersisted: eventsPersisted,
+		nameOf: eventName,
+	} = useCheckInEvents();
+	if (
+		eventsPersisted &&
+		checkInEvents.length > 0 &&
+		!checkInEvents.some((e) => e.id === selectedEvent)
+	) {
+		setSelectedEvent(checkInEvents[0].id);
+	}
 	const [viewingPhoto, setViewingPhoto] = useState<{
 		name: string;
 		url: string;
@@ -327,9 +342,9 @@ export default function RostersPage() {
 
 	const currentEventName = useMemo(() => {
 		return (
-			EVENT_OPTIONS.find((e) => e.id === selectedEvent)?.name || 'Select Event'
+			checkInEvents.find((e) => e.id === selectedEvent)?.name || 'Select Event'
 		);
-	}, [selectedEvent]);
+	}, [checkInEvents, selectedEvent]);
 
 	const leaderFilterKey = `${user?.metadata?.role ?? ''}:${leaderMinistryId ?? ''}`;
 	const [prevLeaderFilterKey, setPrevLeaderFilterKey] = useState(leaderFilterKey);
@@ -594,7 +609,7 @@ export default function RostersPage() {
 				title: 'Checked In',
 				description: `${child?.first_name} ${
 					child?.last_name
-				} has been checked in to ${getEventName(selectedEvent)}.`,
+				} has been checked in to ${eventName(selectedEvent)}.`,
 			});
 		} catch (e: any) {
 			console.error(e);
@@ -623,10 +638,10 @@ export default function RostersPage() {
 			});
 
 			const child = childrenWithDetails.find((c) => c.child_id === childId);
-			const eventName = getEventName(child?.activeAttendance?.event_id || null);
+			const fromEventName = eventName(child?.activeAttendance?.event_id || null);
 			toast({
 				title: 'Checked Out',
-				description: `${child?.first_name} ${child?.last_name} has been checked out from ${eventName}.`,
+				description: `${child?.first_name} ${child?.last_name} has been checked out from ${fromEventName}.`,
 			});
 		} catch (e) {
 			console.error(e);
@@ -653,7 +668,7 @@ export default function RostersPage() {
 		await transferMutation.mutateAsync({ attendanceId, toEventId });
 		toast({
 			title: 'Transferred',
-			description: `${child.first_name} ${child.last_name} moved from ${getEventName(fromEventId)} to ${getEventName(toEventId)} and is still on site.`,
+			description: `${child.first_name} ${child.last_name} moved from ${eventName(fromEventId)} to ${eventName(toEventId)} and is still on site.`,
 		});
 	};
 
@@ -957,6 +972,7 @@ export default function RostersPage() {
 									onCheckIn={handleCheckIn}
 									onCheckout={setChildToCheckout}
 									onTransfer={showTransfer ? setChildToTransfer : undefined}
+									eventName={eventName}
 									onViewIncidents={setSelectedIncidents}
 									onUpdatePhoto={setSelectedChildForPhoto}
 									onViewPhoto={setViewingPhoto}
@@ -974,6 +990,7 @@ export default function RostersPage() {
 						onCheckIn={handleCheckIn}
 						onCheckout={setChildToCheckout}
 						onTransfer={showTransfer ? setChildToTransfer : undefined}
+						eventName={eventName}
 						onViewIncidents={setSelectedIncidents}
 						onUpdatePhoto={setSelectedChildForPhoto}
 						onViewPhoto={setViewingPhoto}
@@ -1035,7 +1052,7 @@ export default function RostersPage() {
 										setIsEventDialogOpen(false);
 									}}
 									className="space-y-2">
-									{EVENT_OPTIONS.map((event) => (
+									{checkInEvents.map((event) => (
 										<Label
 											key={event.id}
 											htmlFor={event.id}
@@ -1173,6 +1190,8 @@ export default function RostersPage() {
 				onClose={() => setChildToTransfer(null)}
 				onTransfer={handleTransfer}
 				isPending={transferMutation.isPending}
+				events={checkInEvents}
+				nameOf={eventName}
 			/>
 			<PhotoViewerDialog
 				photo={viewingPhoto}

@@ -46,6 +46,8 @@ interface ChildCardProps {
 	 * it, as for guardians and other roles that cannot move a child.
 	 */
 	onTransfer?: (child: EnrichedChild) => void;
+	/** Event name lookup over the persisted events; defaults to the built-in names. */
+	eventName?: (eventId: string | null | undefined) => string;
 	onViewIncidents: (incidents: Incident[]) => void;
 	onUpdatePhoto: (child: Child) => void;
 	onViewPhoto: (photo: { name: string; url: string }) => void;
@@ -61,6 +63,7 @@ export function ChildCard({
 	onCheckIn,
 	onCheckout,
 	onTransfer,
+	eventName = getEventName,
 	onViewIncidents,
 	onUpdatePhoto,
 	onViewPhoto,
@@ -203,7 +206,7 @@ export function ChildCard({
 						)}
 						{isCheckedInElsewhere && (
 							<Badge variant="secondary">
-								In {getEventName(checkedInEvent)}
+								In {eventName(checkedInEvent)}
 							</Badge>
 						)}
 						{!checkedInEvent && <Badge variant="secondary">Checked Out</Badge>}
