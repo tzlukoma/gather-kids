@@ -33,3 +33,19 @@ export function canUpdateUserAvatar(user: BaseUser | null): boolean {
 	// Any logged-in user can update their own avatar
 	return !!user;
 }
+/**
+ * Whether to offer the check-in screen's Transfer action (#561).
+ *
+ * Presentation only: `transfer_attendance` decides in the database whether
+ * this user may move this particular child (an admin, or a leader of a
+ * ministry the child is enrolled in — the same rule as check-in and
+ * check-out). Guardians, volunteers and guests can open the screen but never
+ * move a child, so the action is not shown to them.
+ */
+export function canTransferCheckIn(user: BaseUser | null): boolean {
+	if (!user) return false;
+	return (
+		user.metadata.role === AuthRole.ADMIN ||
+		user.metadata.role === AuthRole.MINISTRY_LEADER
+	);
+}

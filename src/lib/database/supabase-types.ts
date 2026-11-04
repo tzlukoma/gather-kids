@@ -31,6 +31,8 @@ export type Database = {
           picked_up_by: string | null
           pickup_method: string | null
           timeslot_id: string | null
+          transferred_from_attendance_id: string | null
+          transferred_to_attendance_id: string | null
         }
         Insert: {
           attendance_id: string
@@ -47,6 +49,8 @@ export type Database = {
           picked_up_by?: string | null
           pickup_method?: string | null
           timeslot_id?: string | null
+          transferred_from_attendance_id?: string | null
+          transferred_to_attendance_id?: string | null
         }
         Update: {
           attendance_id?: string
@@ -63,6 +67,8 @@ export type Database = {
           picked_up_by?: string | null
           pickup_method?: string | null
           timeslot_id?: string | null
+          transferred_from_attendance_id?: string | null
+          transferred_to_attendance_id?: string | null
         }
         Relationships: [
           {
@@ -71,6 +77,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "events"
             referencedColumns: ["event_id"]
+          },
+          {
+            foreignKeyName: "attendance_transferred_from_attendance_id_fkey"
+            columns: ["transferred_from_attendance_id"]
+            isOneToOne: false
+            referencedRelation: "attendance"
+            referencedColumns: ["attendance_id"]
+          },
+          {
+            foreignKeyName: "attendance_transferred_to_attendance_id_fkey"
+            columns: ["transferred_to_attendance_id"]
+            isOneToOne: false
+            referencedRelation: "attendance"
+            referencedColumns: ["attendance_id"]
           },
         ]
       }
@@ -1718,6 +1738,13 @@ export type Database = {
           p_using_expr?: string
         }
         Returns: undefined
+      }
+      transfer_attendance: {
+        Args: {
+          p_attendance_id: string
+          p_to_event_id: string
+        }
+        Returns: string
       }
     }
     Enums: {

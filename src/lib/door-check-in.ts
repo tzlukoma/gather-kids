@@ -1,5 +1,6 @@
 import { format, parseISO } from 'date-fns';
 import { getEventName } from '@/lib/constants';
+import type { CheckInEvent } from '@/lib/check-in-events';
 
 /**
  * Pure presentation logic for the GatherSystem door check-in screen
@@ -216,10 +217,13 @@ export function deriveDoorRowStatus(
  * attendance row has one ("Checked in 9:04 AM"); a row without a timestamp
  * falls back to the bare label rather than rendering "Invalid Date".
  */
-export function formatDoorStatusLabel(state: DoorRowState): string {
+export function formatDoorStatusLabel(
+	state: DoorRowState,
+	nameOf: (eventId: string | null | undefined) => string = getEventName
+): string {
 	if (state.status === 'notCheckedIn') return 'Not checked in';
 	if (state.status === 'checkedInElsewhere') {
-		const name = getEventName(state.elsewhereEventId);
+		const name = nameOf(state.elsewhereEventId);
 		return name ? `In ${name}` : 'In another event';
 	}
 	if (!state.checkInAt) return 'Checked in';
@@ -390,4 +394,20 @@ export function buildDoorQuery(
 	params.set('event', next.event);
 
 	return params.toString();
+}
+
+/**
+ * Events a child checked in to `sourceEventId` can be transferred to (#561):
+ * every check-in event except the one they are already in.
+ *
+ * `events` is the persisted list from `useCheckInEvents` — the same list the
+ * door's own event picker offers — so an event added to the `events` table
+ * (Joy Bells, say) becomes a destination without a code change, and the
+ * database checks the same table when the transfer is made.
+ */
+export function transferDestinations(
+	events: ReadonlyArray<CheckInEvent>,
+	sourceEventId: string | null | undefined
+): CheckInEvent[] {
+	return events.filter((event) => event.id !== sourceEventId);
 }

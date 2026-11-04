@@ -125,6 +125,215 @@ export async function recordCheckOut(
     return updatedRecord.attendance_id;
 }
 
+/**
+ * Why a transfer did not complete, so the screen can say what to do next.
+ *
+ * The first four are **confirmed**: the database answered, and its transaction
+ * was rolled back, so the child is where they were.
+ *
+ * - `forbidden`: the signed-in user may not move this child.
+ * - `stale`: the child is no longer on that row (already checked out, or
+ *   already moved by someone else). The roster needs refreshing. Also used
+ *   when a transfer whose answer was lost turns out to have committed but the
+ *   child has been picked up or moved on since; `currentEventId` then names
+ *   where they are, if still on site.
+ * - `invalid`: the destination is not a valid choice.
+ * - `failed`: the database refused for another reason; nothing changed.
+ *
+ * - `unknown`: no answer came back (a dropped connection, a timeout, a gateway
+ *   error). The transfer may have committed before the response was lost, so
+ *   "nothing changed" would be a guess. `currentEventId` carries the child's
+ *   location when a fresh read could establish it.
+ */
+export type TransferFailureReason = 'forbidden' | 'stale' | 'invalid' | 'failed' | 'unknown';
+
+export class AttendanceTransferError extends Error {
+    readonly reason: TransferFailureReason;
+    /** Where the child is now, when a fresh read established it. */
+    readonly currentEventId: string | null;
+
+    constructor(reason: TransferFailureReason, message: string, currentEventId: string | null = null) {
+        super(message);
+        this.name = 'AttendanceTransferError';
+        this.reason = reason;
+        this.currentEventId = currentEventId;
+    }
+}
+
+const TRANSFER_REASON_BY_SQLSTATE: Record<string, TransferFailureReason> = {
+    '42501': 'forbidden',
+    P0002: 'stale',
+    '22023': 'invalid',
+};
+
+const TRANSFER_FALLBACK_MESSAGE: Record<Exclude<TransferFailureReason, 'unknown'>, string> = {
+    forbidden: 'You are not allowed to transfer this child.',
+    stale: 'This child is no longer checked in there. The roster has been refreshed.',
+    invalid: 'Choose a different event to transfer to.',
+    failed: 'The transfer was refused and nothing was changed. Please try again.',
+};
+
+const UNCONFIRMED_MESSAGE =
+    'Unable to confirm the transfer because the connection dropped. Check where the child is on the roster before trying again. Trying again is safe.';
+
+function errorField(error: unknown, field: 'code' | 'message'): string {
+    if (typeof error !== 'object' || error === null || !(field in error)) return '';
+    const value = (error as Record<string, unknown>)[field];
+    return typeof value === 'string' ? value : '';
+}
+
+/**
+ * True when the error is an answer from the database or PostgREST — a SQLSTATE
+ * or a `PGRST…` code — rather than a lost response. Only an answer proves the
+ * transaction did not commit. SQLSTATE classes are two digits or one of the
+ * few lettered ones (P0 PL/pgSQL, XX internal, F0 config, HV FDW), which also
+ * keeps a transport code such as `EPIPE` from passing for one.
+ */
+function isConfirmedRefusal(code: string): boolean {
+    return /^(?:[0-9]{2}|P0|XX|F0|HV)[0-9A-Z]{3}$/.test(code) || code.startsWith('PGRST');
+}
+
+type AttendanceRow = NonNullable<Awaited<ReturnType<typeof dbAdapter.getAttendance>>>;
+
+/** Hops followed along a transfer chain before giving up; a day never has this many. */
+const MAX_TRANSFER_HOPS = 20;
+
+/**
+ * Follow `transferred_to_attendance_id` from `row` to the newest row in the
+ * chain: the child's open row if they are still on site, or the row they were
+ * picked up from. Returns null when a link cannot be read.
+ */
+async function latestInTransferChain(row: AttendanceRow): Promise<AttendanceRow | null> {
+    let current = row;
+    for (let hop = 0; hop < MAX_TRANSFER_HOPS && current.transferred_to_attendance_id; hop++) {
+        const next = await dbAdapter.getAttendance(current.transferred_to_attendance_id);
+        if (!next) return null;
+        current = next;
+    }
+    return current.transferred_to_attendance_id ? null : current;
+}
+
+/**
+ * After a lost response, read the attendance back to find out what actually
+ * happened, and say only what that read establishes.
+ *
+ * Resolves with the destination row only when the transfer committed **and
+ * the child is still there** — the same condition the RPC's retry path uses.
+ * Everything else throws, carrying the child's current event when the read
+ * establishes one:
+ *
+ * - committed, then the child was picked up, or moved on to another event,
+ *   before this read: `stale`, naming where they are now (never "still on
+ *   site" at the destination);
+ * - not committed, or someone else moved the child: `unknown`, with the
+ *   child's current location.
+ */
+async function reconcileLostTransfer(attendanceId: string, toEventId: string): Promise<string> {
+    let source: AttendanceRow | null;
+    let destination: AttendanceRow | null = null;
+    let latest: AttendanceRow | null = null;
+    try {
+        source = await dbAdapter.getAttendance(attendanceId);
+        if (source?.transferred_to_attendance_id) {
+            destination = await dbAdapter.getAttendance(source.transferred_to_attendance_id);
+            latest = destination ? await latestInTransferChain(destination) : null;
+        }
+    } catch {
+        throw new AttendanceTransferError('unknown', UNCONFIRMED_MESSAGE);
+    }
+
+    if (destination && !latest) {
+        // The chain could not be read to its end.
+        throw new AttendanceTransferError('unknown', UNCONFIRMED_MESSAGE);
+    }
+
+    if (destination && latest && destination.event_id === toEventId) {
+        if (latest.attendance_id === destination.attendance_id && !latest.check_out_at) {
+            // It went through and the child is still there; only the answer was lost.
+            return destination.attendance_id;
+        }
+        if (!latest.check_out_at) {
+            throw new AttendanceTransferError(
+                'stale',
+                'The transfer went through, but the child has since been moved to another event.',
+                latest.event_id,
+            );
+        }
+        throw new AttendanceTransferError(
+            'stale',
+            'The transfer went through, but the child has since been checked out.',
+        );
+    }
+
+    if (destination && latest) {
+        throw new AttendanceTransferError(
+            'unknown',
+            latest.check_out_at
+                ? 'Unable to confirm this transfer. The child was moved to another event and has since been checked out.'
+                : 'Unable to confirm this transfer, and the child has been moved to another event since.',
+            latest.check_out_at ? null : latest.event_id,
+        );
+    }
+    if (source && !source.check_out_at) {
+        throw new AttendanceTransferError(
+            'unknown',
+            'Unable to confirm the transfer because the connection dropped. A fresh check shows the child has not moved. Trying again is safe.',
+            source.event_id,
+        );
+    }
+    if (source) {
+        throw new AttendanceTransferError(
+            'unknown',
+            'Unable to confirm the transfer, and the child has been checked out since.',
+        );
+    }
+    throw new AttendanceTransferError('unknown', UNCONFIRMED_MESSAGE);
+}
+
+/**
+ * Move a checked-in child from one event to another without them leaving the
+ * building (#561).
+ *
+ * One atomic database call (`transfer_attendance`): the source row is closed as
+ * a transfer — not a pickup — and an ordinary open row is created at the
+ * destination, so the child stays on site and pickup at the destination still
+ * goes through `CheckoutDialog`. The database decides who may do this and
+ * which destinations are valid; nothing here is an authorization input.
+ * Repeating a transfer that already happened resolves to the same row, so a
+ * retry is always safe.
+ *
+ * A refusal from the database is reported as such. A lost response is not
+ * treated as a refusal: the transfer may have committed, so the outcome is
+ * reconciled against the stored attendance before anything is said.
+ *
+ * Ministry enrollment is untouched: this moves event attendance only.
+ */
+export async function transferCheckIn(
+    attendanceId: string,
+    toEventId: string,
+): Promise<string> {
+    try {
+        return await dbAdapter.transferAttendance(attendanceId, toEventId);
+    } catch (error) {
+        const code = errorField(error, 'code');
+        if (!isConfirmedRefusal(code)) {
+            return reconcileLostTransfer(attendanceId, toEventId);
+        }
+        const reason = TRANSFER_REASON_BY_SQLSTATE[code] ?? 'failed';
+        // For a stale row or a bad destination the database's own message is
+        // written for staff ("this child has already been moved to another
+        // event"). A permission error can come from PostgREST as well as the
+        // function, so it, like any other refusal, gets a fixed message
+        // rather than a raw driver error.
+        const serverMessage =
+            reason === 'stale' || reason === 'invalid' ? errorField(error, 'message') : '';
+        const message = serverMessage
+            ? serverMessage.charAt(0).toUpperCase() + serverMessage.slice(1) + '.'
+            : TRANSFER_FALLBACK_MESSAGE[reason as Exclude<TransferFailureReason, 'unknown'>];
+        throw new AttendanceTransferError(reason, message);
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Incidents
 // ---------------------------------------------------------------------------

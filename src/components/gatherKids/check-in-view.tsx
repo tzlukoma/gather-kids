@@ -31,17 +31,19 @@ const PhotoViewerDialog = dynamic(
 import { parseISO, differenceInYears } from 'date-fns';
 import { ChildCard } from './child-card';
 import { CheckoutDialog } from './checkout-dialog';
+import { TransferCheckInDialog } from './transfer-check-in-dialog';
 import { normalizeGradeDisplay } from '@/lib/gradeUtils';
 import { useAuth } from '@/contexts/auth-context';
-import { canUpdateChildPhoto } from '@/lib/permissions';
+import { canTransferCheckIn, canUpdateChildPhoto } from '@/lib/permissions';
 import {
 	useGuardians,
 	useHouseholds,
 	useEmergencyContacts,
 	useCheckInMutation,
 	useCheckOutMutation,
+	useTransferCheckInMutation,
+	useCheckInEvents,
 } from '@/hooks/data';
-import { getEventName } from '@/lib/constants';
 import { captureAnalyticsEvent } from '@/lib/analytics/browser';
 
 interface CheckInViewProps {
@@ -98,6 +100,11 @@ export function CheckInView({
 	// Use React Query mutations for check-in/check-out
 	const checkInMutation = useCheckInMutation();
 	const checkOutMutation = useCheckOutMutation();
+	const transferMutation = useTransferCheckInMutation();
+	const [childToTransfer, setChildToTransfer] = useState<EnrichedChild | null>(null);
+	const showTransfer = canTransferCheckIn(user);
+	// Names and transfer destinations from the `events` table (#561 review).
+	const { events: checkInEvents, nameOf: eventName } = useCheckInEvents();
 
 	const today = getServiceDayIso();
 
@@ -203,7 +210,7 @@ export function CheckInView({
 				title: 'Checked In',
 				description: `${child?.first_name} ${
 					child?.last_name
-				} has been checked in to ${getEventName(selectedEvent)}.`,
+				} has been checked in to ${eventName(selectedEvent)}.`,
 			});
 		} catch (e: any) {
 			console.error(e);
@@ -247,6 +254,23 @@ export function CheckInView({
 					e?.message || 'Failed to check out child. Please try again.',
 			});
 		}
+	};
+
+	/**
+	 * Transfer to another event (#561). Failures are rethrown for the dialog to
+	 * show in place; the mutation refreshes the roster either way.
+	 */
+	const handleTransfer = async (
+		child: EnrichedChild,
+		attendanceId: string,
+		toEventId: string
+	) => {
+		const fromEventId = child.activeAttendance?.event_id;
+		await transferMutation.mutateAsync({ attendanceId, toEventId });
+		toast({
+			title: 'Transferred',
+			description: `${child.first_name} ${child.last_name} moved from ${eventName(fromEventId)} to ${eventName(toEventId)} and is still on site.`,
+		});
 	};
 
 	const openCheckoutDialog = (child: EnrichedChild) => {
@@ -316,6 +340,8 @@ export function CheckInView({
 						selectedEvent={selectedEvent}
 						onCheckIn={handleCheckIn}
 						onCheckout={openCheckoutDialog}
+						onTransfer={showTransfer ? setChildToTransfer : undefined}
+						eventName={eventName}
 						onViewIncidents={setSelectedIncidents}
 						onUpdatePhoto={setSelectedChildForPhoto}
 						onViewPhoto={setViewingPhoto}
@@ -346,6 +372,15 @@ export function CheckInView({
 				onCheckout={(childId, attendanceId, verifier) =>
 					handleCheckOut(childId, attendanceId, verifier)
 				}
+			/>
+
+			<TransferCheckInDialog
+				child={childToTransfer}
+				onClose={() => setChildToTransfer(null)}
+				onTransfer={handleTransfer}
+				isPending={transferMutation.isPending}
+				events={checkInEvents}
+				nameOf={eventName}
 			/>
 
 			<IncidentDetailsDialog

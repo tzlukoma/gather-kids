@@ -129,7 +129,10 @@ export async function exportAttendanceRollupCSV(
             checked_in_by: att.checked_in_by || 'N/A',
             checked_out_by: att.checked_out_by || 'N/A',
             picked_up_by: att.picked_up_by || 'N/A',
-            pickup_method: att.pickup_method || 'N/A',
+            // A row closed by a transfer was not a pickup (#561).
+            pickup_method: att.transferred_to_attendance_id
+                ? 'Transferred'
+                : att.pickup_method || 'N/A',
             event: att.event_id,
         };
     });

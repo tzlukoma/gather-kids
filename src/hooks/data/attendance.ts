@@ -8,6 +8,7 @@ import {
   acknowledgeIncident,
   recordCheckIn,
   recordCheckOut,
+  transferCheckIn,
   getServiceDayIso
 } from '@/lib/dal';
 import { queryKeys } from './keys';
@@ -136,6 +137,31 @@ export function useCheckOutMutation() {
       queryClient.invalidateQueries({ queryKey: queryKeys.checkedInCount(today) });
       // Invalidate children list
       queryClient.invalidateQueries({ queryKey: queryKeys.children() });
+    },
+  });
+}
+
+/**
+ * Transfer a checked-in child to another event (#561).
+ *
+ * The attendance queries are refreshed whether the transfer succeeded or not:
+ * on success both rosters and the counts move, and on a refusal because the
+ * child was already moved or checked out, the screen is showing a stale row
+ * and needs the current one.
+ */
+export function useTransferCheckInMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ attendanceId, toEventId }: {
+      attendanceId: string;
+      toEventId: string;
+    }) => transferCheckIn(attendanceId, toEventId),
+    onSettled: () => {
+      const today = getServiceDayIso();
+      queryClient.invalidateQueries({ queryKey: queryKeys.attendance(today) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.checkedInChildren(today) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.checkedInCount(today) });
     },
   });
 }

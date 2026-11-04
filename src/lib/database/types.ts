@@ -179,6 +179,12 @@ export interface DatabaseAdapter {
 	updateAttendance(id: string, data: Partial<Attendance>): Promise<Attendance>;
 	listAttendance(filters?: AttendanceFilters): Promise<Attendance[]>;
 	deleteAttendance(id: string): Promise<void>;
+	/**
+	 * Atomically move the child on open attendance row `attendanceId` to
+	 * `toEventId` (#561). Returns the destination row's id. Authorization and
+	 * destination validation happen in the database (`transfer_attendance`).
+	 */
+	transferAttendance(attendanceId: string, toEventId: string): Promise<string>;
 
 	// Incidents
 	getIncident(id: string): Promise<Incident | null>;

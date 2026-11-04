@@ -20,7 +20,7 @@ import {
 	parseDoorStatusFilter,
 } from '@/lib/door-check-in';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { useChildrenForActiveCycle, useAttendance } from '@/hooks/data';
+import { useChildrenForActiveCycle, useAttendance, useCheckInEvents } from '@/hooks/data';
 import { CardGridSkeleton } from '@/components/skeletons/CardGridSkeleton';
 import { getServiceDayIso } from '@/lib/dal';
 import { countChildrenOnSite } from '@/lib/attendance-open-count';
@@ -37,7 +37,6 @@ import {
 	SheetTrigger,
 } from '@/components/ui/sheet';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { EVENT_OPTIONS } from '@/lib/constants';
 
 export type StatusFilter = 'all' | 'checkedIn' | 'checkedOut';
 
@@ -126,10 +125,8 @@ export function CheckInContentLegacy() {
 	// accepts the `notCheckedIn` spelling and is case-insensitive, which the
 	// hand-rolled comparison here was not.
 	const initialStatus: StatusFilter = parseDoorStatusFilter(urlFilter) ?? 'all';
-	const initialEvent =
-		urlEvent && EVENT_OPTIONS.find((e) => e.id === urlEvent)
-			? urlEvent
-			: 'evt_sunday_school';
+	// Taken as given until the persisted event list has loaded; see below.
+	const initialEvent = urlEvent || 'evt_sunday_school';
 
 	const [selectedEvent, setSelectedEvent] = useState(initialEvent);
 	const [selectedGrades, setSelectedGrades] = useState<Set<string>>(() => new Set());
@@ -144,9 +141,21 @@ export function CheckInContentLegacy() {
 		if (parsedFilter) {
 			setStatusFilter(parsedFilter);
 		}
-		if (urlEvent && EVENT_OPTIONS.find((e) => e.id === urlEvent)) {
+		if (urlEvent) {
 			setSelectedEvent(urlEvent);
 		}
+	}
+
+	// Check-in events from the `events` table (#561 review): an event added or
+	// renamed there shows in the picker without a code change. An event the URL
+	// named that does not exist falls back to the first real one once loaded.
+	const { events: checkInEvents, isPersisted: eventsPersisted } = useCheckInEvents();
+	if (
+		eventsPersisted &&
+		checkInEvents.length > 0 &&
+		!checkInEvents.some((e) => e.id === selectedEvent)
+	) {
+		setSelectedEvent(checkInEvents[0].id);
 	}
 
 	/**
@@ -197,9 +206,9 @@ export function CheckInContentLegacy() {
 
 	const currentEventName = useMemo(() => {
 		return (
-			EVENT_OPTIONS.find((e) => e.id === selectedEvent)?.name || 'Select Event'
+			checkInEvents.find((e) => e.id === selectedEvent)?.name || 'Select Event'
 		);
-	}, [selectedEvent]);
+	}, [checkInEvents, selectedEvent]);
 
 	const availableGrades = useMemo(() => {
 		if (!children) return [];
@@ -264,7 +273,7 @@ export function CheckInContentLegacy() {
 									setIsEventDialogOpen(false);
 								}}
 								className="space-y-2">
-								{EVENT_OPTIONS.map((event) => (
+								{checkInEvents.map((event) => (
 									<Label
 										key={event.id}
 										htmlFor={event.id}

@@ -5,6 +5,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import {
 	AlertTriangle,
+	ArrowRightLeft,
 	Camera,
 	CheckCircle,
 	Info,
@@ -21,7 +22,6 @@ import { CardGridSkeleton } from '@/components/skeletons/CardGridSkeleton';
 import { getServiceDayIso } from '@/lib/dal';
 import type { Attendance, Child } from '@/lib/types';
 import { normalizeGradeDisplay, getGradeSortOrder } from '@/lib/gradeUtils';
-import { EVENT_OPTIONS } from '@/lib/constants';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -58,11 +58,14 @@ import {
 	useEmergencyContacts,
 	useCheckInMutation,
 	useCheckOutMutation,
+	useTransferCheckInMutation,
+	useCheckInEvents,
 } from '@/hooks/data';
 import { useToast } from '@/hooks/use-toast';
 import { parseISO, differenceInYears, format } from 'date-fns';
 import type { EnrichedChild } from '@/components/gatherKids/check-in-view';
 import { CheckoutDialog } from '@/components/gatherKids/checkout-dialog';
+import { TransferCheckInDialog } from '@/components/gatherKids/transfer-check-in-dialog';
 import { IncidentDetailsDialog } from '@/components/gatherKids/incident-details-dialog';
 // PERF-06: the camera/photo dialogs are heavy and only needed on demand. Loaded
 // the same way `check-in-view.tsx` loads them so the door's first paint is not
@@ -84,9 +87,8 @@ const PhotoViewerDialog = dynamic(
 import { useIncidents } from '@/hooks/data';
 import { captureAnalyticsEvent } from '@/lib/analytics/browser';
 import { useAuth } from '@/contexts/auth-context';
-import { canUpdateChildPhoto } from '@/lib/permissions';
+import { canTransferCheckIn, canUpdateChildPhoto } from '@/lib/permissions';
 import { formatPhone } from '@/hooks/usePhoneFormat';
-import { getEventName } from '@/lib/constants';
 import {
 	computeDoorStats,
 	countDoorStatuses,
@@ -228,10 +230,9 @@ export function CheckInContentGatherSystem() {
 	const urlEvent = searchParams?.get('event');
 	const searchKey = searchParams?.toString() ?? '';
 	const initialStatus: StatusFilter = parseDoorStatusFilter(urlFilter) ?? 'all';
-	const initialEvent =
-		urlEvent && EVENT_OPTIONS.find((e) => e.id === urlEvent)
-			? urlEvent
-			: 'evt_sunday_school';
+	// Any event the URL names is taken as given until the persisted list has
+	// loaded; an id that is not in it is replaced below.
+	const initialEvent = urlEvent || 'evt_sunday_school';
 
 	const [selectedEvent, setSelectedEvent] = useState(initialEvent);
 	const [selectedGrades, setSelectedGrades] = useState<Set<string>>(() => new Set());
@@ -241,6 +242,7 @@ export function CheckInContentGatherSystem() {
 	const [prevSearchKey, setPrevSearchKey] = useState(searchKey);
 	const [isEventDialogOpen, setIsEventDialogOpen] = useState(false);
 	const [childToCheckout, setChildToCheckout] = useState<EnrichedChild | null>(null);
+	const [childToTransfer, setChildToTransfer] = useState<EnrichedChild | null>(null);
 	/**
 	 * Detail surfaces the legacy `ChildCard` owned and the GatherSystem door lost
 	 * in #383: the incident detail, the full-size photo, and photo capture. Same
@@ -276,6 +278,8 @@ export function CheckInContentGatherSystem() {
 
 	const checkInMutation = useCheckInMutation();
 	const checkOutMutation = useCheckOutMutation();
+	const transferMutation = useTransferCheckInMutation();
+	const showTransfer = canTransferCheckIn(user);
 
 	const loading = childrenLoading || attendanceLoading || incidentsLoading;
 	const loadError = childrenError || attendanceError;
@@ -293,9 +297,30 @@ export function CheckInContentGatherSystem() {
 		// just chosen and the assignment is a no-op. Writing only the event would
 		// reset a hand-picked tab to All.
 		setStatusFilter(parseDoorStatusFilter(urlFilter) ?? 'all');
-		if (urlEvent && EVENT_OPTIONS.find((e) => e.id === urlEvent)) {
+		if (urlEvent) {
 			setSelectedEvent(urlEvent);
 		}
+	}
+
+	/**
+	 * The check-in events come from the `events` table (#561 review), so an
+	 * event added there appears in the picker and as a transfer destination
+	 * without a code change, and a rename shows everywhere on this screen.
+	 * Once the list has loaded, an event the URL named that does not exist
+	 * falls back to the first real one rather than leaving the door pointed at
+	 * nothing.
+	 */
+	const {
+		events: checkInEvents,
+		isPersisted: eventsPersisted,
+		nameOf: eventName,
+	} = useCheckInEvents();
+	if (
+		eventsPersisted &&
+		checkInEvents.length > 0 &&
+		!checkInEvents.some((e) => e.id === selectedEvent)
+	) {
+		setSelectedEvent(checkInEvents[0].id);
 	}
 
 	/**
@@ -431,8 +456,8 @@ export function CheckInContentGatherSystem() {
 	);
 
 	const currentEventName = useMemo(
-		() => EVENT_OPTIONS.find((e) => e.id === selectedEvent)?.name || 'Select Event',
-		[selectedEvent]
+		() => checkInEvents.find((e) => e.id === selectedEvent)?.name || 'Select Event',
+		[checkInEvents, selectedEvent]
 	);
 
 	// Derived from `today` — the same string the roster, counts and incidents are
@@ -547,7 +572,7 @@ export function CheckInContentGatherSystem() {
 				title: 'Checked In',
 				description: `${child?.first_name} ${
 					child?.last_name
-				} has been checked in to ${getEventName(selectedEvent)}.`,
+				} has been checked in to ${eventName(selectedEvent)}.`,
 			});
 
 			setSelectedChildIds((prev) => {
@@ -599,6 +624,23 @@ export function CheckInContentGatherSystem() {
 		}
 	};
 
+	/**
+	 * Transfer to another event (#561). Failures are rethrown for the dialog to
+	 * show in place; the mutation refreshes the roster either way.
+	 */
+	const handleTransfer = async (
+		child: EnrichedChild,
+		attendanceId: string,
+		toEventId: string
+	) => {
+		const fromEventId = child.activeAttendance?.event_id;
+		await transferMutation.mutateAsync({ attendanceId, toEventId });
+		toast({
+			title: 'Transferred',
+			description: `${child.first_name} ${child.last_name} moved from ${eventName(fromEventId)} to ${eventName(toEventId)} and is still on site.`,
+		});
+	};
+
 	const handleCheckInSelected = async () => {
 		const childrenToCheckIn = selectableForCheckIn(enrichedChildren, selectedChildIds);
 
@@ -627,7 +669,7 @@ export function CheckInContentGatherSystem() {
 
 			toast({
 				title: 'Checked In',
-				description: `${childrenToCheckIn.length} ${childrenToCheckIn.length === 1 ? 'child' : 'children'} checked in to ${getEventName(selectedEvent)}.`,
+				description: `${childrenToCheckIn.length} ${childrenToCheckIn.length === 1 ? 'child' : 'children'} checked in to ${eventName(selectedEvent)}.`,
 			});
 
 			setSelectedChildIds(new Set());
@@ -1091,7 +1133,7 @@ export function CheckInContentGatherSystem() {
 																	: 'bg-muted-foreground/60'
 														}`}
 													/>
-													{formatDoorStatusLabel(rowStatus)}
+													{formatDoorStatusLabel(rowStatus, eventName)}
 												</span>
 											</TableCell>
 
@@ -1112,6 +1154,21 @@ export function CheckInContentGatherSystem() {
 														</PopoverContent>
 													</Popover>
 
+													{isCheckedIn && showTransfer && (
+														// Icon-only below `md`: with a label the row's
+														// second line overflows a phone and pushes Check out
+														// off-screen. The aria-label names it either way.
+														<Button
+															variant="ghost"
+															size="sm"
+															className="h-8 w-8 px-0 md:w-auto md:px-3"
+															onClick={() => setChildToTransfer(child)}
+															title="Transfer to another event"
+															aria-label={`Transfer ${child.first_name} ${child.last_name} to another event`}>
+															<ArrowRightLeft aria-hidden="true" />
+															<span className="hidden md:inline">Transfer</span>
+														</Button>
+													)}
 													{isCheckedIn ? (
 														<Button
 															variant="outline"
@@ -1132,7 +1189,7 @@ export function CheckInContentGatherSystem() {
 															disabled={isElsewhere}
 															title={
 																isElsewhere
-																	? `Checked in to ${getEventName(rowStatus.elsewhereEventId)} — check out there first`
+																	? `Checked in to ${eventName(rowStatus.elsewhereEventId)} — check out there first`
 																	: undefined
 															}
 															onClick={() => handleCheckIn(child.child_id)}>
@@ -1203,7 +1260,7 @@ export function CheckInContentGatherSystem() {
 							setIsEventDialogOpen(false);
 						}}
 						className="space-y-2">
-						{EVENT_OPTIONS.map((event) => (
+						{checkInEvents.map((event) => (
 							<Label
 								key={event.id}
 								htmlFor={`gathersystem-event-${event.id}`}
@@ -1225,6 +1282,15 @@ export function CheckInContentGatherSystem() {
 				onCheckout={(childId, attendanceId, verifier) =>
 					handleCheckOut(childId, attendanceId, verifier)
 				}
+			/>
+
+			<TransferCheckInDialog
+				child={childToTransfer}
+				onClose={() => setChildToTransfer(null)}
+				onTransfer={handleTransfer}
+				isPending={transferMutation.isPending}
+				events={checkInEvents}
+				nameOf={eventName}
 			/>
 
 			<IncidentDetailsDialog
