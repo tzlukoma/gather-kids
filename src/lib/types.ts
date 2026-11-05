@@ -277,6 +277,8 @@ export interface Event {
     name: string;
     location_label?: string;
     timeslots: EventTimeslot[];
+    /** Set when an admin archived the event (#565): kept for history, closed to new check-ins. */
+    archived_at?: string | null;
 }
 
 export interface Attendance {

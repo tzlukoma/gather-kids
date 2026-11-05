@@ -134,6 +134,14 @@ export const MENU_ITEMS: MenuItem[] = [
 		group: 'ADMINISTRATION',
 	},
 	{
+		// Check-in events (#565): create, rename, archive, delete.
+		href: '/events',
+		icon: Calendar,
+		label: 'Events',
+		roles: [AuthRole.ADMIN],
+		group: 'PROGRAMS',
+	},
+	{
 		href: '/branding',
 		icon: Palette,
 		label: 'Branding',
@@ -198,7 +206,7 @@ const GATHERSYSTEM_GROUP_DEFS: ReadonlyArray<{
 }> = [
 	{ label: 'TODAY', hrefs: ['/admin-overview', '/check-in', '/incidents'] },
 	{ label: 'PEOPLE', hrefs: ['/rosters', '/registrations', '/leaders'] },
-	{ label: 'PROGRAMS', hrefs: ['/bible-bee', '/ministries'] },
+	{ label: 'PROGRAMS', hrefs: ['/bible-bee', '/ministries', '/events'] },
 	{ label: 'ADMINISTRATION', hrefs: ['/reports', '/branding', '/users'] },
 ];
 

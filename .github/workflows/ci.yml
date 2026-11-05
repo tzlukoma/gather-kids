@@ -174,6 +174,13 @@ jobs:
           psql -h localhost -p 54322 -U postgres -d postgres \
             -v ON_ERROR_STOP=1 -f scripts/db/check_attendance_transfer.sql
 
+      - name: Check event management is safe at the data boundary
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -h localhost -p 54322 -U postgres -d postgres \
+            -v ON_ERROR_STOP=1 -f scripts/db/check_event_management.sql
+
       - name: Check schema migration status RPC
         env:
           PGPASSWORD: postgres

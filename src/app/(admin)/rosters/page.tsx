@@ -57,6 +57,11 @@ import type {
 } from '@/lib/types';
 import { CheckoutDialog } from '@/components/gatherKids/checkout-dialog';
 import { TransferCheckInDialog } from '@/components/gatherKids/transfer-check-in-dialog';
+import {
+	doorEventOptions,
+	eventPickerLabel,
+	onSiteEventIds,
+} from '@/lib/check-in-events';
 import { useToast } from '@/hooks/use-toast';
 import type { EnrichedChild } from '@/components/gatherKids/check-in-view';
 import { Label } from '@/components/ui/label';
@@ -203,20 +208,14 @@ export default function RostersPage() {
 	const [childToTransfer, setChildToTransfer] = useState<RosterChild | null>(null);
 	const transferMutation = useTransferCheckInMutation();
 	const showTransfer = canTransferCheckIn(user);
-	// Check-in events from the `events` table (#561 review), for the event
-	// picker, names and transfer destinations.
+	// Check-in events from the `events` table (#561 review, #565): active ones
+	// for transfer destinations, all of them for names and the picker.
 	const {
 		events: checkInEvents,
+		allEvents: allCheckInEvents,
 		isPersisted: eventsPersisted,
 		nameOf: eventName,
 	} = useCheckInEvents();
-	if (
-		eventsPersisted &&
-		checkInEvents.length > 0 &&
-		!checkInEvents.some((e) => e.id === selectedEvent)
-	) {
-		setSelectedEvent(checkInEvents[0].id);
-	}
 	const [viewingPhoto, setViewingPhoto] = useState<{
 		name: string;
 		url: string;
@@ -251,6 +250,24 @@ export default function RostersPage() {
 		useHouseholds();
 	const { data: todaysAttendance = EMPTY_ATTENDANCE, isLoading: attendanceLoading } =
 		useAttendance(today);
+
+	/**
+	 * The event picker (#565): active events, plus an archived one that still
+	 * has children on site today. Once both lists have loaded, an event that is
+	 * not offered falls back to the first one that is.
+	 */
+	const pickerEvents = useMemo(
+		() => doorEventOptions(allCheckInEvents, onSiteEventIds(todaysAttendance)),
+		[allCheckInEvents, todaysAttendance]
+	);
+	if (
+		eventsPersisted &&
+		!attendanceLoading &&
+		pickerEvents.length > 0 &&
+		!pickerEvents.some((e) => e.id === selectedEvent)
+	) {
+		setSelectedEvent(pickerEvents[0].id);
+	}
 	const { data: todaysIncidents = EMPTY_INCIDENTS, isLoading: incidentsLoading } =
 		useIncidents(today);
 	const {
@@ -342,9 +359,12 @@ export default function RostersPage() {
 
 	const currentEventName = useMemo(() => {
 		return (
-			checkInEvents.find((e) => e.id === selectedEvent)?.name || 'Select Event'
+			(() => {
+				const event = pickerEvents.find((e) => e.id === selectedEvent);
+				return event ? eventPickerLabel(event) : 'Select Event';
+			})()
 		);
-	}, [checkInEvents, selectedEvent]);
+	}, [pickerEvents, selectedEvent]);
 
 	const leaderFilterKey = `${user?.metadata?.role ?? ''}:${leaderMinistryId ?? ''}`;
 	const [prevLeaderFilterKey, setPrevLeaderFilterKey] = useState(leaderFilterKey);
@@ -1052,13 +1072,13 @@ export default function RostersPage() {
 										setIsEventDialogOpen(false);
 									}}
 									className="space-y-2">
-									{checkInEvents.map((event) => (
+									{pickerEvents.map((event) => (
 										<Label
 											key={event.id}
 											htmlFor={event.id}
 											className="flex items-center gap-4 p-4 border rounded-md cursor-pointer hover:bg-muted/50 has-[input:checked]:bg-muted has-[input:checked]:border-primary">
 											<RadioGroupItem value={event.id} id={event.id} />
-											<span>{event.name}</span>
+											<span>{eventPickerLabel(event)}</span>
 										</Label>
 									))}
 								</RadioGroup>

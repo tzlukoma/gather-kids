@@ -24,6 +24,7 @@ export const queryKeys = {
   householdAttendance: (date: string) => ['attendance', date, 'household'],
   // The persisted check-in events (`events` table).
   checkInEvents: () => ['checkInEvents'] as const,
+  eventUsage: () => ['eventUsage'] as const,
   incidents: (date: string, eventId?: string) =>
     eventId ? ['incidents', date, eventId] : ['incidents', date],
   incidentsForUser: (userId: string | undefined) => ['incidents', 'user', userId] as const,

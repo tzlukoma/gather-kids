@@ -1381,6 +1381,49 @@ export class SupabaseAdapter implements DatabaseAdapter {
 		if (error) throw error;
 	}
 
+	// Check-in event management (#565). Only the columns the table has: the
+	// older createEvent/updateEvent above also send `updated_at`, which
+	// `events` does not have.
+	async createCheckInEvent(input: { event_id: string; name: string }): Promise<Event> {
+		const { data, error } = await this.client
+			.from('events')
+			.insert({
+				event_id: input.event_id,
+				name: input.name,
+				created_at: new Date().toISOString(),
+			})
+			.select()
+			.single();
+		if (error) throw error;
+		return supabaseToEvent(data as Database['public']['Tables']['events']['Row']);
+	}
+
+	async updateCheckInEvent(
+		id: string,
+		patch: { name?: string; archived_at?: string | null }
+	): Promise<Event> {
+		const { data, error } = await this.client
+			.from('events')
+			.update(patch)
+			.eq('event_id', id)
+			.select()
+			.single();
+		if (error) throw error;
+		return supabaseToEvent(data as Database['public']['Tables']['events']['Row']);
+	}
+
+	async getEventAttendanceSummary(): Promise<
+		Array<{ event_id: string; attendance_count: number; on_site_count: number }>
+	> {
+		const { data, error } = await this.client.rpc('event_attendance_summary');
+		if (error) throw error;
+		return (data ?? []).map((row) => ({
+			event_id: row.event_id,
+			attendance_count: Number(row.attendance_count) || 0,
+			on_site_count: Number(row.on_site_count) || 0,
+		}));
+	}
+
 	// Users
 	async getUser(id: string): Promise<User | null> {
 		const { data, error } = await this.client

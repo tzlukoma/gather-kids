@@ -64,6 +64,11 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { parseISO, differenceInYears, format } from 'date-fns';
 import type { EnrichedChild } from '@/components/gatherKids/check-in-view';
+import {
+	doorEventOptions,
+	eventPickerLabel,
+	onSiteEventIds,
+} from '@/lib/check-in-events';
 import { CheckoutDialog } from '@/components/gatherKids/checkout-dialog';
 import { TransferCheckInDialog } from '@/components/gatherKids/transfer-check-in-dialog';
 import { IncidentDetailsDialog } from '@/components/gatherKids/incident-details-dialog';
@@ -261,6 +266,14 @@ export function CheckInContentGatherSystem() {
 	const today = getServiceDayIso();
 
 	// Data hooks
+	// Check-in events from the `events` table (#561 review, #565): active ones
+	// for transfer destinations, all of them for names.
+	const {
+		events: checkInEvents,
+		allEvents: allCheckInEvents,
+		isPersisted: eventsPersisted,
+		nameOf: eventName,
+	} = useCheckInEvents();
 	const {
 		data: children = EMPTY_CHILDREN,
 		isLoading: childrenLoading,
@@ -271,6 +284,26 @@ export function CheckInContentGatherSystem() {
 		isLoading: attendanceLoading,
 		error: attendanceError,
 	} = useAttendance(today);
+
+	/**
+	 * Events this screen's picker offers (#565): every active event, plus an
+	 * archived one that still has children on site today, so that door stays
+	 * reachable for check-out and transfer out until the last child leaves.
+	 * Once both lists have loaded, an event the URL named that the picker does
+	 * not offer falls back to the first one it does.
+	 */
+	const pickerEvents = useMemo(
+		() => doorEventOptions(allCheckInEvents, onSiteEventIds(todaysAttendance)),
+		[allCheckInEvents, todaysAttendance]
+	);
+	if (
+		eventsPersisted &&
+		!attendanceLoading &&
+		pickerEvents.length > 0 &&
+		!pickerEvents.some((e) => e.id === selectedEvent)
+	) {
+		setSelectedEvent(pickerEvents[0].id);
+	}
 	const { data: allGuardians = EMPTY_GUARDIANS } = useGuardians();
 	const { data: allHouseholds = EMPTY_HOUSEHOLDS } = useHouseholds();
 	const { data: allEmergencyContacts = EMPTY_EMERGENCY_CONTACTS } = useEmergencyContacts();
@@ -302,26 +335,6 @@ export function CheckInContentGatherSystem() {
 		}
 	}
 
-	/**
-	 * The check-in events come from the `events` table (#561 review), so an
-	 * event added there appears in the picker and as a transfer destination
-	 * without a code change, and a rename shows everywhere on this screen.
-	 * Once the list has loaded, an event the URL named that does not exist
-	 * falls back to the first real one rather than leaving the door pointed at
-	 * nothing.
-	 */
-	const {
-		events: checkInEvents,
-		isPersisted: eventsPersisted,
-		nameOf: eventName,
-	} = useCheckInEvents();
-	if (
-		eventsPersisted &&
-		checkInEvents.length > 0 &&
-		!checkInEvents.some((e) => e.id === selectedEvent)
-	) {
-		setSelectedEvent(checkInEvents[0].id);
-	}
 
 	/**
 	 * Keep the URL describing what is on screen.
@@ -456,8 +469,11 @@ export function CheckInContentGatherSystem() {
 	);
 
 	const currentEventName = useMemo(
-		() => checkInEvents.find((e) => e.id === selectedEvent)?.name || 'Select Event',
-		[checkInEvents, selectedEvent]
+		() => {
+			const event = pickerEvents.find((e) => e.id === selectedEvent);
+			return event ? eventPickerLabel(event) : 'Select Event';
+		},
+		[pickerEvents, selectedEvent]
 	);
 
 	// Derived from `today` — the same string the roster, counts and incidents are
@@ -1260,7 +1276,7 @@ export function CheckInContentGatherSystem() {
 							setIsEventDialogOpen(false);
 						}}
 						className="space-y-2">
-						{checkInEvents.map((event) => (
+						{pickerEvents.map((event) => (
 							<Label
 								key={event.id}
 								htmlFor={`gathersystem-event-${event.id}`}
@@ -1269,7 +1285,7 @@ export function CheckInContentGatherSystem() {
 									value={event.id}
 									id={`gathersystem-event-${event.id}`}
 								/>
-								<span>{event.name}</span>
+								<span>{eventPickerLabel(event)}</span>
 							</Label>
 						))}
 					</RadioGroup>
