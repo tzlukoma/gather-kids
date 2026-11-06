@@ -18,7 +18,7 @@ describe('GatherSystem staff shell navigation groups', () => {
 		expect(groups.map((g) => g.items.map((i) => i.label))).toEqual([
 			['Dashboard', 'Check-In/Out', 'Incidents'],
 			['Rosters', 'Registrations', 'Leaders'],
-			['Bible Bee', 'Ministries'],
+			['Bible Bee', 'Ministries', 'Events'],
 			['Reports', 'Branding', 'Users'],
 		]);
 	});
@@ -70,6 +70,7 @@ describe('GatherSystem staff shell navigation groups', () => {
 			'/users',
 			'/leaders',
 			'/ministries',
+			'/events',
 		]) {
 			expect(hrefs).not.toContain(adminOnly);
 		}

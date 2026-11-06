@@ -70,7 +70,7 @@ const DEFAULT_EVENTS = [
 	{ id: 'evt_teen_church', name: 'Teen Church' },
 ];
 /** The persisted `events` rows the screen sees; a test can add or rename one. */
-let mockEvents = DEFAULT_EVENTS;
+let mockEvents: Array<{ id: string; name: string; archived?: boolean }> = DEFAULT_EVENTS;
 let mockEventsPersisted = true;
 const mockChildren = jest.fn();
 const mockAttendance = jest.fn();
@@ -91,12 +91,16 @@ jest.mock('@/hooks/data', () => ({
 	useCheckOutMutation: () => mockUseCheckOutMutation(),
 	useTransferCheckInMutation: () => ({ mutateAsync: mockTransfer, isPending: false }),
 	useCheckInEvents: () => {
-		// The real lookup, over whatever rows the test set.
-		const { eventNameLookup } = require('@/lib/check-in-events');
+		// The real helpers, over whatever rows the test set.
+		const { activeCheckInEvents, eventNameLookup } = require('@/lib/check-in-events');
 		return {
-			events: mockEvents,
+			events: activeCheckInEvents(mockEvents),
+			allEvents: mockEvents,
 			isPersisted: mockEventsPersisted,
 			nameOf: eventNameLookup(mockEvents),
+			isLoading: false,
+			isError: false,
+			refetch: () => undefined,
 		};
 	},
 	useUpdateChildPhotoMutation: () => ({ mutateAsync: mockUpdatePhoto }),
@@ -541,6 +545,100 @@ describe('CheckInContentGatherSystem', () => {
 			searchParams = new URLSearchParams('event=evt_retired');
 			render(<CheckInContentGatherSystem />);
 			expect(screen.getByText(/^Sunday School · /)).toBeInTheDocument();
+		});
+
+		/**
+		 * #565: an archived event takes no new check-ins or transfers, but a
+		 * child already there must not be stranded, so its door stays in the
+		 * picker until they have gone.
+		 */
+		it('leaves an archived event out of the picker and the transfer destinations', () => {
+			mockEvents = [...DEFAULT_EVENTS, { id: 'evt_joy_bells', name: 'Joy Bells', archived: true }];
+			render(<CheckInContentGatherSystem />);
+
+			fireEvent.click(screen.getByRole('button', { name: 'Change event' }));
+			expect(
+				within(screen.getByRole('dialog')).queryByRole('radio', { name: /Joy Bells/ })
+			).not.toBeInTheDocument();
+			fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
+
+			fireEvent.click(
+				within(rowFor('Jordan Kim')).getByRole('button', {
+					name: 'Transfer Jordan Kim to another event',
+				})
+			);
+			expect(
+				within(screen.getByRole('dialog')).queryByRole('radio', { name: /Joy Bells/ })
+			).not.toBeInTheDocument();
+		});
+
+		it('keeps an archived event in the picker while a child is still checked in there', () => {
+			mockEvents = [
+				...DEFAULT_EVENTS,
+				{ id: 'evt_joy_bells', name: 'Joy Bells', archived: true },
+			];
+			setup({
+				children: [onSiteChild, waitingChild, elsewhereChild],
+				attendance: [
+					openAttendance,
+					{ ...elsewhereAttendance, event_id: 'evt_joy_bells' },
+				],
+			});
+			render(<CheckInContentGatherSystem />);
+
+			fireEvent.click(screen.getByRole('button', { name: 'Change event' }));
+			expect(
+				within(screen.getByRole('dialog')).getByRole('radio', {
+					name: 'Joy Bells (archived)',
+				})
+			).toBeInTheDocument();
+		});
+
+		it('opens an archived event\'s door from a link while a child is there, so they can leave', () => {
+			mockEvents = [
+				...DEFAULT_EVENTS,
+				{ id: 'evt_joy_bells', name: 'Joy Bells', archived: true },
+			];
+			setup({
+				children: [onSiteChild, waitingChild],
+				attendance: [{ ...openAttendance, event_id: 'evt_joy_bells' }],
+			});
+			searchParams = new URLSearchParams('event=evt_joy_bells');
+			render(<CheckInContentGatherSystem />);
+
+			expect(screen.getByText(/^Joy Bells \(archived\) · /)).toBeInTheDocument();
+			expect(
+				within(rowFor('Jordan Kim')).getByRole('button', { name: 'Check out' })
+			).toBeInTheDocument();
+			expect(
+				within(rowFor('Jordan Kim')).getByRole('button', {
+					name: 'Transfer Jordan Kim to another event',
+				})
+			).toBeInTheDocument();
+		});
+
+		it('moves off an archived event\'s door once nobody is there', () => {
+			mockEvents = [
+				...DEFAULT_EVENTS,
+				{ id: 'evt_joy_bells', name: 'Joy Bells', archived: true },
+			];
+			searchParams = new URLSearchParams('event=evt_joy_bells');
+			render(<CheckInContentGatherSystem />);
+			expect(screen.getByText(/^Sunday School · /)).toBeInTheDocument();
+		});
+
+		/**
+		 * Review on #567: a confirmed empty `events` table is not replaced by
+		 * the compiled-in list, so the door says why nothing can be checked in
+		 * and offers no invented events or destinations.
+		 */
+		it('says no events are set up, and offers none, when the table is empty', () => {
+			mockEvents = [];
+			render(<CheckInContentGatherSystem />);
+
+			expect(screen.getByText(/No check-in events are set up/)).toBeInTheDocument();
+			fireEvent.click(screen.getByRole('button', { name: 'Change event' }));
+			expect(within(screen.getByRole('dialog')).queryAllByRole('radio')).toHaveLength(0);
 		});
 
 		it('keeps a deep-linked event while the list is still loading', () => {

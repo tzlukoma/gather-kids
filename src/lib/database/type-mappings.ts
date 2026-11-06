@@ -363,6 +363,7 @@ export function supabaseToEvent(row: Database['public']['Tables']['events']['Row
 		description: (r['description'] as string) || '',
 		timeslots,
 		created_at: (r['created_at'] as string) ?? undefined,
+		archived_at: (r['archived_at'] as string) ?? null,
 	} as Event;
 }
 

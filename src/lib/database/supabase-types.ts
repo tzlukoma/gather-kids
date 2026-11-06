@@ -678,6 +678,7 @@ export type Database = {
       }
       events: {
         Row: {
+          archived_at: string | null
           created_at: string | null
           description: string | null
           event_id: string
@@ -685,6 +686,7 @@ export type Database = {
           timeslots: SupabaseJson | null
         }
         Insert: {
+          archived_at?: string | null
           created_at?: string | null
           description?: string | null
           event_id: string
@@ -692,6 +694,7 @@ export type Database = {
           timeslots?: SupabaseJson | null
         }
         Update: {
+          archived_at?: string | null
           created_at?: string | null
           description?: string | null
           event_id?: string
@@ -1673,6 +1676,18 @@ export type Database = {
           "": string
         }
         Returns: string
+      }
+      event_attendance_summary: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          attendance_count: number
+          event_id: string
+          on_site_count: number
+        }[]
+      }
+      dedupe_event_names: {
+        Args: Record<PropertyKey, never>
+        Returns: number
       }
       ensure_student_assignments: {
         Args: {

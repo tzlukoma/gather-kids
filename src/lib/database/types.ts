@@ -203,6 +203,19 @@ export interface DatabaseAdapter {
 	updateEvent(id: string, data: Partial<Event>): Promise<Event>;
 	listEvents(): Promise<Event[]>;
 	deleteEvent(id: string): Promise<void>;
+	/**
+	 * Check-in event management (#565). Writes are admin-only under RLS; the
+	 * database also refuses blank names and deleting an event with attendance.
+	 */
+	createCheckInEvent(input: { event_id: string; name: string }): Promise<Event>;
+	updateCheckInEvent(
+		id: string,
+		patch: { name?: string; archived_at?: string | null }
+	): Promise<Event>;
+	/** Per event: attendance rows ever, and children on site there today. */
+	getEventAttendanceSummary(): Promise<
+		Array<{ event_id: string; attendance_count: number; on_site_count: number }>
+	>;
 
 	// Users
 	getUser(id: string): Promise<User | null>;

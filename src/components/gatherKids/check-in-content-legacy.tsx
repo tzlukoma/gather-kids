@@ -19,6 +19,12 @@ import {
 	buildDoorQuery,
 	parseDoorStatusFilter,
 } from '@/lib/door-check-in';
+import { NoCheckInEventsNotice } from '@/components/gatherKids/no-check-in-events-notice';
+import {
+	doorEventOptions,
+	eventPickerLabel,
+	onSiteEventIds,
+} from '@/lib/check-in-events';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useChildrenForActiveCycle, useAttendance, useCheckInEvents } from '@/hooks/data';
 import { CardGridSkeleton } from '@/components/skeletons/CardGridSkeleton';
@@ -146,17 +152,6 @@ export function CheckInContentLegacy() {
 		}
 	}
 
-	// Check-in events from the `events` table (#561 review): an event added or
-	// renamed there shows in the picker without a code change. An event the URL
-	// named that does not exist falls back to the first real one once loaded.
-	const { events: checkInEvents, isPersisted: eventsPersisted } = useCheckInEvents();
-	if (
-		eventsPersisted &&
-		checkInEvents.length > 0 &&
-		!checkInEvents.some((e) => e.id === selectedEvent)
-	) {
-		setSelectedEvent(checkInEvents[0].id);
-	}
 
 	/**
 	 * Write the screen's state to the query string.
@@ -191,11 +186,33 @@ export function CheckInContentLegacy() {
 	};
 
 	const today = getServiceDayIso();
+	// Check-in events from the `events` table (#561 review, #565).
+	const { allEvents: allCheckInEvents, isPersisted: eventsPersisted } = useCheckInEvents();
 
 	// Use React Query hooks for data fetching
 	const { data: children = EMPTY_CHILDREN, isLoading: childrenLoading } = useChildrenForActiveCycle();
 	const { data: todaysAttendance = EMPTY_ATTENDANCE, isLoading: attendanceLoading } =
 		useAttendance(today);
+
+	/**
+	 * Events this screen's picker offers (#565): every active event, plus an
+	 * archived one that still has children on site today, so that door stays
+	 * reachable for check-out and transfer out until the last child leaves.
+	 * Once both lists have loaded, an event the URL named that the picker does
+	 * not offer falls back to the first one it does.
+	 */
+	const pickerEvents = useMemo(
+		() => doorEventOptions(allCheckInEvents, onSiteEventIds(todaysAttendance)),
+		[allCheckInEvents, todaysAttendance]
+	);
+	if (
+		eventsPersisted &&
+		!attendanceLoading &&
+		pickerEvents.length > 0 &&
+		!pickerEvents.some((e) => e.id === selectedEvent)
+	) {
+		setSelectedEvent(pickerEvents[0].id);
+	}
 
 	const loading = childrenLoading || attendanceLoading;
 
@@ -205,10 +222,9 @@ export function CheckInContentLegacy() {
 	}, [todaysAttendance]);
 
 	const currentEventName = useMemo(() => {
-		return (
-			checkInEvents.find((e) => e.id === selectedEvent)?.name || 'Select Event'
-		);
-	}, [checkInEvents, selectedEvent]);
+		const event = pickerEvents.find((e) => e.id === selectedEvent);
+		return event ? eventPickerLabel(event) : 'Select Event';
+	}, [pickerEvents, selectedEvent]);
 
 	const availableGrades = useMemo(() => {
 		if (!children) return [];
@@ -242,6 +258,7 @@ export function CheckInContentLegacy() {
 
 	return (
 		<div className="flex flex-col gap-4">
+			{eventsPersisted && pickerEvents.length === 0 && <NoCheckInEventsNotice />}
 			<div className="flex items-start justify-between gap-4">
 				<div>
 					<div className="flex items-center gap-2">
@@ -273,13 +290,13 @@ export function CheckInContentLegacy() {
 									setIsEventDialogOpen(false);
 								}}
 								className="space-y-2">
-								{checkInEvents.map((event) => (
+								{pickerEvents.map((event) => (
 									<Label
 										key={event.id}
 										htmlFor={event.id}
 										className="flex items-center gap-4 p-4 border rounded-md cursor-pointer hover:bg-muted/50 has-[input:checked]:bg-muted has-[input:checked]:border-primary">
 										<RadioGroupItem value={event.id} id={event.id} />
-										<span>{event.name}</span>
+										<span>{eventPickerLabel(event)}</span>
 									</Label>
 								))}
 							</RadioGroup>
