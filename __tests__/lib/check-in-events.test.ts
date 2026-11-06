@@ -179,12 +179,12 @@ describe('checkedInStatusLabel (#566)', () => {
 	]);
 
 	it('names the event a checked-in child is in, by its current name', () => {
-		expect(checkedInStatusLabel('evt_teen_church', nameOf)).toBe('Checked in · Youth Service');
+		expect(checkedInStatusLabel('evt_teen_church', nameOf)).toBe('In Youth Service');
 	});
 
 	it('falls back to the built-in name, then the id, for an event not in the list', () => {
-		expect(checkedInStatusLabel('evt_sunday_school', nameOf)).toBe('Checked in · Sunday School');
-		expect(checkedInStatusLabel('evt_gone', nameOf)).toBe('Checked in · evt_gone');
+		expect(checkedInStatusLabel('evt_sunday_school', nameOf)).toBe('In Sunday School');
+		expect(checkedInStatusLabel('evt_gone', nameOf)).toBe('In evt_gone');
 	});
 
 	it('does not leave a dangling separator when the row has no event', () => {

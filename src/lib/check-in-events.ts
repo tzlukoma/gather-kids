@@ -166,14 +166,15 @@ export function onSiteEventIds(
 
 /**
  * Status copy for a checked-in child where the screen is not tied to one
- * event (Rosters, #566): "Checked in · Teen Church". Uses the persisted name
- * lookup, so a renamed or newly added event reads correctly. A row with no
- * event id falls back to the bare label rather than a dangling separator.
+ * event (Rosters, #566): "In Teen Church" — short, so it fits a table badge
+ * and a phone card. Uses the persisted name lookup, so a renamed or newly
+ * added event reads correctly. A row with no event id falls back to
+ * "Checked in".
  */
 export function checkedInStatusLabel(
 	eventId: string | null | undefined,
 	nameOf: (eventId: string | null | undefined) => string
 ): string {
 	const name = eventId ? nameOf(eventId) : '';
-	return name ? `Checked in · ${name}` : 'Checked in';
+	return name ? `In ${name}` : 'Checked in';
 }

@@ -85,14 +85,15 @@ describe('ChildCard status on Rosters (#566)', () => {
 
 	it('names the event for a child in the roster\'s own event when asked to', () => {
 		renderCard({ alwaysNameEvent: true, eventName: nameOf });
-		expect(screen.getByText('Checked in · Sunday School')).toBeInTheDocument();
+		expect(screen.getByText('In Sunday School')).toBeInTheDocument();
 		expect(screen.queryByText('Checked In')).not.toBeInTheDocument();
 	});
 
 	it('names the event for a child in another event the same way', () => {
 		renderCard({ alwaysNameEvent: true, eventName: nameOf, child: child('evt_childrens_church') });
-		expect(screen.getByText('Checked in · Kids Church')).toBeInTheDocument();
-		expect(screen.queryByText('In Kids Church')).not.toBeInTheDocument();
+		// The same wording as the door's, but one badge, in the checked-in style.
+		expect(screen.getAllByText('In Kids Church')).toHaveLength(1);
+		expect(screen.getByText('In Kids Church').closest('.bg-brand-aqua')).not.toBeNull();
 	});
 
 	it('keeps the check-in door wording when not asked to', () => {

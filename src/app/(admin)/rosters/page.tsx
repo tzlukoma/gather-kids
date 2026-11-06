@@ -789,7 +789,7 @@ export default function RostersPage() {
 	/**
 	 * The Status column, shared by the flat and grade-grouped tables (#566). A
 	 * roster is not tied to one door, so a checked-in child's badge names the
-	 * event they are in now ("Checked in · Teen Church"), from the persisted
+	 * event they are in now ("In Teen Church"), from the persisted
 	 * event names. Long names truncate, with the full label in `title`.
 	 */
 	const renderStatusCell = (child: RosterChild) => {

@@ -98,8 +98,8 @@ describe('Rosters status names the current event (#566)', () => {
 		render(<RostersPage />);
 		await waitFor(() => expect(screen.getByText('Jordan Kim')).toBeInTheDocument());
 
-		expect(within(rowFor('Jordan Kim')).getByText('Checked in · Sunday School')).toBeInTheDocument();
-		expect(within(rowFor('Priya Okonjo')).getByText('Checked in · Teen Church')).toBeInTheDocument();
+		expect(within(rowFor('Jordan Kim')).getByText('In Sunday School')).toBeInTheDocument();
+		expect(within(rowFor('Priya Okonjo')).getByText('In Teen Church')).toBeInTheDocument();
 		expect(within(rowFor('Amara Bennett')).getByText('Checked Out')).toBeInTheDocument();
 	});
 
@@ -110,7 +110,7 @@ describe('Rosters status names the current event (#566)', () => {
 		render(<RostersPage />);
 		await waitFor(() => expect(screen.getByText('Priya Okonjo')).toBeInTheDocument());
 
-		expect(within(rowFor('Priya Okonjo')).getByText('Checked in · Youth Service')).toBeInTheDocument();
+		expect(within(rowFor('Priya Okonjo')).getByText('In Youth Service')).toBeInTheDocument();
 	});
 
 	it('keeps the full label available when a long name is truncated', async () => {
@@ -122,7 +122,7 @@ describe('Rosters status names the current event (#566)', () => {
 		render(<RostersPage />);
 		await waitFor(() => expect(screen.getByText('Priya Okonjo')).toBeInTheDocument());
 
-		const label = 'Checked in · Wednesday Night Middle and High School Youth Gathering';
+		const label = 'In Wednesday Night Middle and High School Youth Gathering';
 		expect(within(rowFor('Priya Okonjo')).getByTitle(label)).toHaveTextContent(label);
 	});
 
@@ -131,8 +131,10 @@ describe('Rosters status names the current event (#566)', () => {
 		render(<RostersPage />);
 		await waitFor(() => expect(screen.getByText('Jordan Kim')).toBeInTheDocument());
 
-		expect(screen.getByText('Checked in · Sunday School')).toBeInTheDocument();
-		expect(screen.getByText('Checked in · Teen Church')).toBeInTheDocument();
-		expect(screen.queryByText('In Teen Church')).not.toBeInTheDocument();
+		expect(screen.getByText('In Sunday School')).toBeInTheDocument();
+		// One badge per child, in the checked-in style, whichever event they are in.
+		const badge = screen.getByText('In Teen Church');
+		expect(badge.closest('.bg-brand-aqua')).not.toBeNull();
+		expect(screen.queryByText('Checked In')).not.toBeInTheDocument();
 	});
 });
