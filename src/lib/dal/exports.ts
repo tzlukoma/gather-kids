@@ -49,7 +49,16 @@ function convertToCSV(data: Record<string, unknown>[]): string {
 /**
  * Export a roster as a CSV blob.
  */
-export async function exportRosterCSV<T = unknown>(children: T[]): Promise<Blob> {
+/**
+ * Roster CSV. `event` is the name of the event a checked-in child is in now
+ * (#566), from `eventName` when the caller has the persisted event names, so
+ * a renamed event exports under its current name; without it, the event id.
+ * `event_id`, right after it, is always the stable id.
+ */
+export async function exportRosterCSV<T = unknown>(
+    children: T[],
+    options: { eventName?: (eventId: string | null | undefined) => string } = {},
+): Promise<Blob> {
     const exportData = children.map(child => {
         const childRec = child as Record<string, unknown>;
         const guardiansArr = childRec['guardians'] as Guardian[] | undefined;
@@ -70,7 +79,12 @@ export async function exportRosterCSV<T = unknown>(children: T[]): Promise<Blob>
             check_in_time: activeAttendance?.check_in_at
                 ? new Date(activeAttendance.check_in_at).toLocaleTimeString()
                 : 'N/A',
-            event: activeAttendance?.event_id || 'N/A',
+            event: activeAttendance?.event_id
+                ? options.eventName?.(activeAttendance.event_id) || activeAttendance.event_id
+                : 'N/A',
+            // The stable id alongside the readable name, for filters and
+            // integrations that must survive a rename.
+            event_id: activeAttendance?.event_id || 'N/A',
             allergies: (childRec['allergies'] ?? 'None') as string,
             medical_notes: (childRec['medical_notes'] ?? 'None') as string,
             household:
