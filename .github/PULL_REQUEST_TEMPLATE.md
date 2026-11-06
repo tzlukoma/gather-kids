@@ -32,6 +32,7 @@ Schema change: none
 - [ ] Commands run with exact pass/fail results
 - [ ] Relevant unit, integration or E2E coverage added or updated
 - [ ] UI screenshots or recordings attached, or marked not applicable
+- [ ] Help guide screenshots (`public/help/screenshots/`) updated, or the reason they were not is stated, when this changes a screen pictured in `/help` or adds a guide section for a new screen. Otherwise mark not applicable. See [docs/HELP_DOCS.md](../docs/HELP_DOCS.md#when-screenshots-must-be-updated).
 - [ ] Accessibility and responsive behaviour checked where applicable
 - [ ] Schema/migration impact documented, or marked none
 - [ ] Release state named if this changes deploy or promotion. A Vercel build is not `Production released`. See [docs/CI_CD.md](../docs/CI_CD.md#release-states).

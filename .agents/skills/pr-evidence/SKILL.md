@@ -39,6 +39,7 @@ Copy into the PR (also in [`.github/PULL_REQUEST_TEMPLATE.md`](../../../.github/
 - [ ] Commands run with exact pass/fail results
 - [ ] Relevant unit, integration or E2E coverage added or updated
 - [ ] UI screenshots or recordings attached, or marked not applicable
+- [ ] Help guide screenshots (`public/help/screenshots/`) updated, or the reason they were not is stated, when this changes a screen pictured in `/help` or adds a guide section for a new screen. Otherwise mark not applicable. See [docs/HELP_DOCS.md](../../../docs/HELP_DOCS.md#when-screenshots-must-be-updated).
 - [ ] Accessibility and responsive behaviour checked where applicable
 - [ ] Schema/migration impact documented, or marked none (`Schema change: documented` when `supabase/migrations/` changes; `Schema change: none` otherwise)
 - [ ] Release state named when the diff changes deploy or promotion (`Build complete`, `UAT schema pending`, `UAT verified`, `Production approval pending`, `Production DB verified`, `Production released`). A Vercel build is not `Production released`.

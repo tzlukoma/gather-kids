@@ -100,6 +100,7 @@ See [`docs/CONTRIBUTING.md`](./CONTRIBUTING.md) and [`commitlint.config.js`](../
 
 1. Conventional commits land on **`main`** via squash merge. That is **Build complete**.
 2. [`release-please.yml`](../.github/workflows/release-please.yml) opens a **Release PR** updating `package.json` + `CHANGELOG.md`.
+   - Before merging it, refresh the in-app help screenshots against that `main` commit and merge any changes as a separate `docs(help): refresh screenshots for vX.Y.Z` PR. See [`docs/HELP_DOCS.md`](./HELP_DOCS.md#2-before-each-release).
 3. Merging the Release PR creates git tag `vX.Y.Z` and a GitHub Release. The tag is the app version, not a database release and not production traffic.
 4. **UAT verified** and **Production released** are separate manual workflows. A green Vercel build does not complete either one.
 

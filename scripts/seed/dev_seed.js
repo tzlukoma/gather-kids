@@ -32,8 +32,25 @@ const SMITH_HOUSEHOLD = 'Smith Family';
 const JOHNSON_HOUSEHOLD = 'Johnson Family';
 
 // Supabase client setup
+//
+// Since the RLS work (#495) the anon key cannot create registration cycles,
+// ministries and the rest, so seeding with it fails on the first insert.
+// Against a LOCAL stack the seed uses the service-role key when one is set
+// (as `.env.local` from `supabase status` provides). It never uses the
+// service-role key against a non-local URL: that would let a dev seed write
+// past RLS into a shared database.
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const isLocalSupabase = (() => {
+	try {
+		const host = new URL(supabaseUrl).hostname;
+		return host === 'localhost' || host === '127.0.0.1' || host === '::1';
+	} catch {
+		return false;
+	}
+})();
+const supabaseKey =
+	(isLocalSupabase && process.env.SUPABASE_SERVICE_ROLE_KEY) ||
+	process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
 if (!supabaseUrl || !supabaseKey) {
 	console.error('❌ Missing Supabase environment variables');
