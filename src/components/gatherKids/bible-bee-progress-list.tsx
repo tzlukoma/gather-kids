@@ -256,7 +256,9 @@ export function BibleBeeProgressList({
 			const pct = r.essayStatus === 'submitted' ? 100 : 0;
 			return { ...r, progressPct: pct };
 		} else {
-			// Scripture tracks: normal percentage calculation using requiredScriptures as denominator
+			// Scripture tracks: percentage of requiredScriptures. Left uncapped here so
+			// children with bonus scriptures sort above those who just met the target;
+			// the card caps what it displays at 100%.
 			const denom = r.requiredScriptures || 1;
 			const pct = denom === 0 ? 0 : (r.completedScriptures / denom) * 100;
 			return { ...r, progressPct: pct };

@@ -9,6 +9,7 @@ import { Progress } from '@/components/ui/progress';
 import { ExternalLink, BookOpen, FileText } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useChild } from '@/hooks/data';
+import { getScriptureProgress } from '@/lib/bible-bee-progress';
 
 interface BibleBeeProgressCardProps {
 	childId: string;
@@ -141,8 +142,13 @@ export function BibleBeeProgressCard({
 		}
 	};
 
-	const denom = requiredScriptures || 1; // Use requiredScriptures as the denominator (division target)
-	const progressPct = denom === 0 ? 0 : (completedScriptures / denom) * 100;
+	// Progress toward the division's requirement; extra scriptures are a bonus,
+	// so the percentage never goes past 100%.
+	const {
+		percent: progressPct,
+		countedTowardRequired,
+		bonus,
+	} = getScriptureProgress(completedScriptures, requiredScriptures);
 
 	// Determine the appropriate link path
 	const href =
@@ -226,7 +232,8 @@ export function BibleBeeProgressCard({
 									{Math.round(progressPct)}%
 								</div>
 								<div className="text-xs text-muted-foreground">
-									{completedScriptures}/{requiredScriptures}
+									{countedTowardRequired}/{requiredScriptures}
+									{bonus > 0 && ` · +${bonus} bonus`}
 								</div>
 							</div>
 						)}

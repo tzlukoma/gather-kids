@@ -23,6 +23,7 @@ import { queryKeys } from './keys';
 import { cacheConfig } from './config';
 import type { Scripture } from '@/lib/types';
 import { enrollmentsForActiveBibleBeeCycle } from '@/lib/bible-bee-cycle';
+import { getScriptureProgress } from '@/lib/bible-bee-progress';
 
 async function listActiveCycleEnrollments(childId: string) {
 	const [enrollments, cycles] = await Promise.all([
@@ -432,11 +433,10 @@ export function useToggleScriptureMutation(childId: string, cycleId?: string) {
           ? old.bbStats.completedScriptures + 1
           : old.bbStats.completedScriptures - 1;
         
-        const percent = old.bbStats.requiredScriptures > 0 
-          ? (completedScriptures / old.bbStats.requiredScriptures) * 100 
-          : 0;
-        
-        const bonus = Math.max(0, completedScriptures - old.bbStats.requiredScriptures);
+        const { percent, bonus } = getScriptureProgress(
+          completedScriptures,
+          old.bbStats.requiredScriptures,
+        );
         
         return {
           ...old,
@@ -769,8 +769,7 @@ export function useBibleBeeStats(childId: string, cycleId?: string) {
           const completed = scriptures
             .filter((s: any) => s.status === 'completed')
             .reduce((sum: number, s: any) => sum + (s.counts_for || 1), 0);
-          const percent = required > 0 ? (completed / required) * 100 : 0;
-          const bonus = Math.max(0, completed - required);
+          const { percent, bonus } = getScriptureProgress(completed, required);
 
           // Check if there's an essay assigned
           const essayAssigned = validEssays.length > 0;
