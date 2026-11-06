@@ -30,6 +30,48 @@ Do not hand-edit `doc-site/releases/` (removed). [release-please](https://github
 - Duplicate squash-merge lines are collapsed.
 - Smoke: `npm run help:parse-changelog`
 
+## When screenshots must be updated
+
+Screenshots go stale silently: `npm run docs:validate` only checks that a referenced image exists, not that it still matches the app. Two rules keep them current.
+
+### 1. In the PR that changes the screen
+
+A PR must **update the affected guide screenshots, or say in the PR why not**, when it:
+
+- changes what a screen in the table below looks like or does (a new button, column, dialog, status, or wording), or
+- adds a guide section for a new screen or feature.
+
+"Why not" is a sentence in the PR, for example "layout unchanged; only the toast copy changed" or "screenshot deferred to the release refresh". It is not silence. For a new screen, add a `shot(...)` step to `scripts/capture-help-screenshots.mjs` and reference the image from the new section.
+
+Which screens are pictured (image in `public/help/screenshots/`, used by `content/help/`):
+
+| Screen (route) | Screenshot | Used in |
+|----------------|------------|---------|
+| Landing `/` | `registration-landing.png` | `getting-started.md` |
+| Dashboard `/admin-overview` | `leader-dashboard.png` | `leader-tools/dashboard.md` |
+| Check-in `/check-in` | `check-in-list.png`, `check-in-success.png`, `check-out.png`, `check-in-transfer.png` | `check-in-out/overview.md`, `check-in-process.md`, `check-out-process.md` |
+| Rosters `/rosters` | `leader-roster.png` | `leader-tools/rosters.md` |
+| Incidents `/incidents` | `leader-incidents.png` | `leader-tools/incidents.md` |
+| Events `/events` | `events-admin.png` | `check-in-out/overview.md` |
+| Ministries `/ministries` | `ministry-list.png`, `ministry-enrollment-config.png` | `ministry-management/overview.md`, `configuration.md`, `enrollments.md` |
+| Bible Bee `/bible-bee` | `bible-bee-overview.png`, `bible-bee-progress.png` | `bible-bee/overview.md`, `progress-tracking.md` |
+| Registration `/register` | `registration-household-form.png`, `registration-child-profile.png`, `registration-returning-welcome.png` | `registration/getting-started.md`, `child-profiles.md` |
+| Household `/household` | `household-profile-accordion.png`, `household-edit-child-dialog.png`, `household-bible-bee-progress.png` | `registration/household-management.md`, `child-profiles.md` |
+
+Keep this table in step with the capture script when screenshots are added or removed.
+
+PR review screenshots (the "UI screenshots or recordings" checklist item) are a separate thing: they are evidence for the reviewer, posted on the PR. This rule is about the images committed under `public/help/screenshots/`.
+
+### 2. Before each release
+
+While the release-please **Release PR** is open, and before it is merged:
+
+1. Check out `main` at the commit the Release PR covers, reset and seed the local stack, and run `npm run help:capture-screenshots` (see below).
+2. If any image changed, open a PR titled `docs(help): refresh screenshots for vX.Y.Z` with the new PNGs and the updated `CAPTURE_META.json`. Spot-check every image for PII. The `docs` scope keeps it out of the release notes.
+3. Merge it before the Release PR, so the release ships a guide that matches it. If nothing changed, note "help screenshots: no changes" on the Release PR.
+
+Do not push to the Release PR's own branch; release-please owns it and may rewrite it.
+
 ## Screenshots (Playwright, synthetic data only)
 
 **Capture locally** against seeded local Supabase. Do **not** point the script at production (`gatherkidslive.com`) or at UAT unless UAT was fully reset to synthetic seed data.

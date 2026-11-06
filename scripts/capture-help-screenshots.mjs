@@ -151,6 +151,11 @@ async function ensureScreenshotUsers() {
 		auth: { persistSession: false },
 	});
 
+	// The role goes in app_metadata as well as user_metadata: since the RLS
+	// work (#495) the database reads the caller's role from the JWT's
+	// app_metadata, so a user with the role only in user_metadata is a GUEST
+	// to the database. The admin then sees no children and every staff screen
+	// is captured empty.
 	async function upsertAuthUser({ email, password, role, fullName }) {
 		const { data: listed, error: listError } =
 			await supabase.auth.admin.listUsers();
@@ -161,6 +166,7 @@ async function ensureScreenshotUsers() {
 				password,
 				email_confirm: true,
 				user_metadata: { role, full_name: fullName },
+				app_metadata: { role },
 			});
 			if (error) throw error;
 			return existing.id;
@@ -170,6 +176,7 @@ async function ensureScreenshotUsers() {
 			password,
 			email_confirm: true,
 			user_metadata: { role, full_name: fullName },
+			app_metadata: { role },
 		});
 		if (error) throw error;
 		return data.user.id;
@@ -298,7 +305,11 @@ const CAPTURE_CHROME_CSS = `
       }
       [role="dialog"] {
         opacity: 1 !important;
-        transform: translate(-50%, -50%) !important;
+        /* Centring comes from the separate \`translate\` property (Tailwind v4's
+           translate-x/y utilities). Adding translate(-50%, -50%) here as a
+           transform as well moved every dialog half its size up and left. Only
+           the open animation's zoom needs cancelling. */
+        transform: none !important;
         background-color: hsl(var(--background)) !important;
       }
 `;
@@ -416,7 +427,7 @@ async function safe(label, fn) {
 		return true;
 	} catch (error) {
 		if (
-			/expected UI missing|redirected to|bible-bee-overview|bible-bee-progress|registration-returning|registration-child|registration-household|household-profile|household-edit-child|household-bible-bee/.test(
+			/expected UI missing|redirected to|check-in-transfer|events-admin|bible-bee-overview|bible-bee-progress|registration-returning|registration-child|registration-household|household-profile|household-edit-child|household-bible-bee/.test(
 				String(error.message || '')
 			)
 		) {
@@ -487,6 +498,9 @@ async function main() {
 		if (await checkIn.count()) {
 			await checkIn.click();
 			await page.waitForTimeout(1200);
+			// Move the pointer off the card: the button that replaces Check In
+			// would otherwise be captured in its hover state.
+			await page.mouse.move(0, 0);
 			await shot('check-in-success.png', 'check-in-success');
 			const checkOut = page.getByRole('button', { name: 'Check Out' }).first();
 			if (await checkOut.count()) {
@@ -494,8 +508,23 @@ async function main() {
 				await page.waitForTimeout(500);
 				await shot('check-out.png', 'check-out');
 				await page.keyboard.press('Escape');
+				await page.getByRole('dialog').waitFor({ state: 'detached' });
 			}
 		}
+
+		// Transfer (#561): open the dialog for a checked-in child and pick a
+		// destination, so the confirm button reads "Transfer to …".
+		const transfer = page
+			.getByRole('button', { name: /^Transfer .+ to another event$/ })
+			.first();
+		await waitVisible(page, transfer, 'check-in-transfer button');
+		await transfer.click();
+		await waitForOpaqueDialog(page, 'check-in-transfer');
+		await page.getByRole('dialog').getByRole('radio').last().click();
+		await page.mouse.move(0, 0);
+		await shot('check-in-transfer.png', 'check-in-transfer');
+		await page.keyboard.press('Escape');
+		await page.getByRole('dialog').waitFor({ state: 'detached' });
 
 		await page.goto(`${BASE_URL}/rosters`, { waitUntil: 'networkidle' });
 		await page.waitForTimeout(800);
@@ -504,6 +533,20 @@ async function main() {
 		await page.goto(`${BASE_URL}/incidents`, { waitUntil: 'networkidle' });
 		await page.waitForTimeout(800);
 		await shot('leader-incidents.png', 'leader-incidents');
+
+		// Check-in events (#565): the admin Events screen, once usage counts
+		// have loaded so the Attendance column is filled in.
+		await page.goto(`${BASE_URL}/events`, { waitUntil: 'networkidle' });
+		await waitVisible(
+			page,
+			// Visible only: the same text is repeated under each name for phones.
+			page
+				.getByText(/records?(\s·|$)|No attendance yet/)
+				.filter({ visible: true })
+				.first(),
+			'events-admin usage'
+		);
+		await shot('events-admin.png', 'events-admin');
 
 		await page.goto(`${BASE_URL}/ministries`, { waitUntil: 'networkidle' });
 		await page.waitForTimeout(800);
@@ -650,7 +693,9 @@ async function main() {
 			'household-edit-child-dialog heading'
 		);
 		await waitForOpaqueDialog(page, 'household-edit-child-dialog');
-		const dialogFirstName = page.locator('#first_name');
+		// The dialog's fields use the shared TextFormField, whose input id is
+		// generated, so find the input by its form field name instead.
+		const dialogFirstName = page.locator('[role="dialog"] input[name="first_name"]');
 		await waitVisible(
 			page,
 			dialogFirstName,
@@ -658,7 +703,10 @@ async function main() {
 		);
 		try {
 			await page.waitForFunction(
-				() => /sophia/i.test(document.querySelector('#first_name')?.value || ''),
+				() =>
+					/sophia/i.test(
+						document.querySelector('[role="dialog"] input[name="first_name"]')?.value || ''
+					),
 				{ timeout: 10000 }
 			);
 		} catch (error) {

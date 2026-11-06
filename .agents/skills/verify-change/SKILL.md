@@ -106,6 +106,8 @@ db-fk                 CI-only — will run on this PR
 
 Required for user-visible UI changes. Mark **N/A** otherwise.
 
+These are PR evidence. Separately, if the change alters a screen pictured in the in-app guide, or adds a guide section for a new screen, update `public/help/screenshots/` with `npm run help:capture-screenshots` or say in the PR why not. The rule and the table of pictured screens are in [`docs/HELP_DOCS.md`](../../../docs/HELP_DOCS.md#when-screenshots-must-be-updated).
+
 - Synthetic data only.
 - Redact PII if any real data appeared.
 - Note viewport (desktop / mobile) when layout is involved.

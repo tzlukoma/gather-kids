@@ -23,6 +23,8 @@ Select the gathering (for example, Sunday service) before checking children in s
 
 Admins manage the list of events under **Events** in the menu.
 
+![Events screen](/help/screenshots/events-admin.png)
+
 - **Add** an event to make it available for check-in and as a transfer destination straight away.
 - **Rename** an event to change its name everywhere, including on past attendance. The event and its history stay the same.
 - **Archive** an event you no longer run. It disappears from the event pickers and takes no new check-ins, but its history is kept. Any child still checked in to it can be checked out or transferred out as usual. Its door stays available until the last child has left. You can **Restore** an archived event at any time.
