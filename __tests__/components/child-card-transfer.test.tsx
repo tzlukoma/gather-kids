@@ -78,3 +78,32 @@ describe('ChildCard transfer', () => {
 		expect(transferButton()).not.toBeInTheDocument();
 	});
 });
+
+describe('ChildCard status on Rosters (#566)', () => {
+	const nameOf = (id: string | null | undefined) =>
+		({ evt_sunday_school: 'Sunday School', evt_childrens_church: 'Kids Church' } as Record<string, string>)[id ?? ''] ?? '';
+
+	it('names the event for a child in the roster\'s own event when asked to', () => {
+		renderCard({ alwaysNameEvent: true, eventName: nameOf });
+		expect(screen.getByText('Checked in · Sunday School')).toBeInTheDocument();
+		expect(screen.queryByText('Checked In')).not.toBeInTheDocument();
+	});
+
+	it('names the event for a child in another event the same way', () => {
+		renderCard({ alwaysNameEvent: true, eventName: nameOf, child: child('evt_childrens_church') });
+		expect(screen.getByText('Checked in · Kids Church')).toBeInTheDocument();
+		expect(screen.queryByText('In Kids Church')).not.toBeInTheDocument();
+	});
+
+	it('keeps the check-in door wording when not asked to', () => {
+		renderCard({ eventName: nameOf });
+		expect(screen.getByText('Checked In')).toBeInTheDocument();
+		renderCard({ eventName: nameOf, child: child('evt_childrens_church') });
+		expect(screen.getByText('In Kids Church')).toBeInTheDocument();
+	});
+
+	it('leaves a child who is not on site unchanged', () => {
+		renderCard({ alwaysNameEvent: true, eventName: nameOf, child: child(null) });
+		expect(screen.getByText('Checked Out')).toBeInTheDocument();
+	});
+});

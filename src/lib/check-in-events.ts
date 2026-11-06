@@ -163,3 +163,17 @@ export function onSiteEventIds(
 		.filter((row) => !row.check_out_at && !!row.event_id)
 		.map((row) => row.event_id as string);
 }
+
+/**
+ * Status copy for a checked-in child where the screen is not tied to one
+ * event (Rosters, #566): "Checked in · Teen Church". Uses the persisted name
+ * lookup, so a renamed or newly added event reads correctly. A row with no
+ * event id falls back to the bare label rather than a dangling separator.
+ */
+export function checkedInStatusLabel(
+	eventId: string | null | undefined,
+	nameOf: (eventId: string | null | undefined) => string
+): string {
+	const name = eventId ? nameOf(eventId) : '';
+	return name ? `Checked in · ${name}` : 'Checked in';
+}

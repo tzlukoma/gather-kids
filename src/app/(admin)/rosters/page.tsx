@@ -59,6 +59,7 @@ import { CheckoutDialog } from '@/components/gatherKids/checkout-dialog';
 import { NoCheckInEventsNotice } from '@/components/gatherKids/no-check-in-events-notice';
 import { TransferCheckInDialog } from '@/components/gatherKids/transfer-check-in-dialog';
 import {
+	checkedInStatusLabel,
 	doorEventOptions,
 	eventPickerLabel,
 	onSiteEventIds,
@@ -700,7 +701,7 @@ export default function RostersPage() {
 	};
 
 	const handleExport = async () => {
-		const blob = await exportRosterCSV(displayChildren);
+		const blob = await exportRosterCSV(displayChildren, { eventName });
 		const url = URL.createObjectURL(blob);
 		const a = document.createElement('a');
 
@@ -785,6 +786,32 @@ export default function RostersPage() {
 	 * The Action column, shared by the flat and grade-grouped tables. A checked-in
 	 * child gets Check Out and, for staff who may move children, Transfer (#561).
 	 */
+	/**
+	 * The Status column, shared by the flat and grade-grouped tables (#566). A
+	 * roster is not tied to one door, so a checked-in child's badge names the
+	 * event they are in now ("Checked in · Teen Church"), from the persisted
+	 * event names. Long names truncate, with the full label in `title`.
+	 */
+	const renderStatusCell = (child: RosterChild) => {
+		if (!child.activeAttendance) {
+			return (
+				<TableCell>
+					<Badge variant="secondary">Checked Out</Badge>
+				</TableCell>
+			);
+		}
+		const label = checkedInStatusLabel(child.activeAttendance.event_id, eventName);
+		return (
+			<TableCell>
+				<Badge
+					className="bg-brand-aqua hover:opacity-90 max-w-[14rem]"
+					title={label}>
+					<span className="min-w-0 truncate">{label}</span>
+				</Badge>
+			</TableCell>
+		);
+	};
+
 	const renderActionCell = (child: RosterChild) => (
 		<TableCell className="min-w-[120px]">
 			{child.activeAttendance ? (
@@ -869,15 +896,7 @@ export default function RostersPage() {
 							</TableCell>
 							<TableCell className="font-medium">{`${child.first_name} ${child.last_name}`}</TableCell>
 							<TableCell>{normalizeGradeDisplay(child.grade)}</TableCell>
-							<TableCell>
-								{child.activeAttendance ? (
-									<Badge className="bg-brand-aqua hover:opacity-90">
-										Checked In
-									</Badge>
-								) : (
-									<Badge variant="secondary">Checked Out</Badge>
-								)}
-							</TableCell>
+							{renderStatusCell(child)}
 							<TableCell>
 								{child.activeAttendance?.check_in_at
 									? format(new Date(child.activeAttendance.check_in_at), 'p')
@@ -928,15 +947,7 @@ export default function RostersPage() {
 										</TableCell>
 										<TableCell className="font-medium">{`${child.first_name} ${child.last_name}`}</TableCell>
 										<TableCell>{normalizeGradeDisplay(child.grade)}</TableCell>
-										<TableCell>
-											{child.activeAttendance ? (
-												<Badge className="bg-brand-aqua hover:opacity-90">
-													Checked In
-												</Badge>
-											) : (
-												<Badge variant="secondary">Checked Out</Badge>
-											)}
-										</TableCell>
+										{renderStatusCell(child)}
 										<TableCell>
 											{child.activeAttendance?.check_in_at
 												? format(
@@ -994,6 +1005,7 @@ export default function RostersPage() {
 									onCheckout={setChildToCheckout}
 									onTransfer={showTransfer ? setChildToTransfer : undefined}
 									eventName={eventName}
+									alwaysNameEvent
 									onViewIncidents={setSelectedIncidents}
 									onUpdatePhoto={setSelectedChildForPhoto}
 									onViewPhoto={setViewingPhoto}
@@ -1012,6 +1024,7 @@ export default function RostersPage() {
 						onCheckout={setChildToCheckout}
 						onTransfer={showTransfer ? setChildToTransfer : undefined}
 						eventName={eventName}
+						alwaysNameEvent
 						onViewIncidents={setSelectedIncidents}
 						onUpdatePhoto={setSelectedChildForPhoto}
 						onViewPhoto={setViewingPhoto}

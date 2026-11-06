@@ -1,5 +1,6 @@
 import {
 	activeCheckInEvents,
+	checkedInStatusLabel,
 	doorEventOptions,
 	eventNameLookup,
 	eventPickerLabel,
@@ -169,5 +170,24 @@ describe('newEventId', () => {
 
 	it('still produces an id for a name with no letters or digits', () => {
 		expect(newEventId('★★★', [])).toBe('evt_event');
+	});
+});
+
+describe('checkedInStatusLabel (#566)', () => {
+	const nameOf = eventNameLookup([
+		{ id: 'evt_teen_church', name: 'Youth Service' },
+	]);
+
+	it('names the event a checked-in child is in, by its current name', () => {
+		expect(checkedInStatusLabel('evt_teen_church', nameOf)).toBe('Checked in · Youth Service');
+	});
+
+	it('falls back to the built-in name, then the id, for an event not in the list', () => {
+		expect(checkedInStatusLabel('evt_sunday_school', nameOf)).toBe('Checked in · Sunday School');
+		expect(checkedInStatusLabel('evt_gone', nameOf)).toBe('Checked in · evt_gone');
+	});
+
+	it('does not leave a dangling separator when the row has no event', () => {
+		expect(checkedInStatusLabel(null, nameOf)).toBe('Checked in');
 	});
 });

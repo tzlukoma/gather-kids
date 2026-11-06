@@ -11,6 +11,7 @@ import {
 import type { EnrichedChild } from './check-in-view';
 import { Button } from '@/components/ui/button';
 import { getEventName } from '@/lib/constants';
+import { checkedInStatusLabel } from '@/lib/check-in-events';
 import { Badge } from '@/components/ui/badge';
 import {
 	Popover,
@@ -48,6 +49,13 @@ interface ChildCardProps {
 	onTransfer?: (child: EnrichedChild) => void;
 	/** Event name lookup over the persisted events; defaults to the built-in names. */
 	eventName?: (eventId: string | null | undefined) => string;
+	/**
+	 * Name the event on every checked-in child, the roster's own event
+	 * included (#566). Rosters set this because a roster is not tied to one
+	 * door; the check-in doors leave it off and keep "Checked In" for their
+	 * own event.
+	 */
+	alwaysNameEvent?: boolean;
 	onViewIncidents: (incidents: Incident[]) => void;
 	onUpdatePhoto: (child: Child) => void;
 	onViewPhoto: (photo: { name: string; url: string }) => void;
@@ -64,6 +72,7 @@ export function ChildCard({
 	onCheckout,
 	onTransfer,
 	eventName = getEventName,
+	alwaysNameEvent = false,
 	onViewIncidents,
 	onUpdatePhoto,
 	onViewPhoto,
@@ -197,14 +206,25 @@ export function ChildCard({
 					<CardTitle className="font-headline text-lg">{`${child.first_name} ${child.last_name}`}</CardTitle>
 					<CardDescription>{child.household?.name || '...'}</CardDescription>
 					<div className="flex flex-wrap gap-1 mt-2 justify-center sm:justify-start">
-						{isCheckedInHere && (
+						{alwaysNameEvent && checkedInEvent ? (
 							<Badge
 								variant="default"
-								className="bg-brand-aqua hover:opacity-90">
-								Checked In
+								className="bg-brand-aqua hover:opacity-90 max-w-full"
+								title={checkedInStatusLabel(checkedInEvent, eventName)}>
+								<span className="min-w-0 truncate">
+									{checkedInStatusLabel(checkedInEvent, eventName)}
+								</span>
 							</Badge>
+						) : (
+							isCheckedInHere && (
+								<Badge
+									variant="default"
+									className="bg-brand-aqua hover:opacity-90">
+									Checked In
+								</Badge>
+							)
 						)}
-						{isCheckedInElsewhere && (
+						{isCheckedInElsewhere && !alwaysNameEvent && (
 							<Badge variant="secondary">
 								In {eventName(checkedInEvent)}
 							</Badge>
