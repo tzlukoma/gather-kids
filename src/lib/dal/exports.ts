@@ -53,6 +53,7 @@ function convertToCSV(data: Record<string, unknown>[]): string {
  * Roster CSV. `event` is the name of the event a checked-in child is in now
  * (#566), from `eventName` when the caller has the persisted event names, so
  * a renamed event exports under its current name; without it, the event id.
+ * `event_id`, right after it, is always the stable id.
  */
 export async function exportRosterCSV<T = unknown>(
     children: T[],
@@ -81,6 +82,9 @@ export async function exportRosterCSV<T = unknown>(
             event: activeAttendance?.event_id
                 ? options.eventName?.(activeAttendance.event_id) || activeAttendance.event_id
                 : 'N/A',
+            // The stable id alongside the readable name, for filters and
+            // integrations that must survive a rename.
+            event_id: activeAttendance?.event_id || 'N/A',
             allergies: (childRec['allergies'] ?? 'None') as string,
             medical_notes: (childRec['medical_notes'] ?? 'None') as string,
             household:

@@ -16,12 +16,15 @@ describe('exportRosterCSV event column', () => {
 		{ first_name: 'Amara', last_name: 'Bennett', activeAttendance: null },
 	];
 
-	function eventColumn(csv: string): string[] {
-		const lines = csv.replace(/^﻿/, '').trim().split(/\r?\n/);
+	/** The cells of one named column, one per data row. */
+	function column(csv: string, name: string): string[] {
+		const lines = csv.replace(/^\uFEFF/, '').trim().split(/\r?\n/);
 		const header = lines[0].split(',').map((h) => h.replace(/"/g, ''));
-		const index = header.indexOf('event');
+		const index = header.indexOf(name);
+		expect(index).toBeGreaterThanOrEqual(0);
 		return lines.slice(1).map((line) => line.split(',')[index].replace(/"/g, ''));
 	}
+	const eventColumn = (csv: string) => column(csv, 'event');
 
 	it('uses the current event name when the caller provides names', async () => {
 		const csv = await blobToText(
@@ -35,5 +38,20 @@ describe('exportRosterCSV event column', () => {
 	it('falls back to the event id without names', async () => {
 		const csv = await blobToText(await exportRosterCSV(rows));
 		expect(eventColumn(csv)).toEqual(['evt_teen_church', 'N/A']);
+	});
+
+	it('keeps the stable id in an event_id column next to the name', async () => {
+		const csv = await blobToText(
+			await exportRosterCSV(rows, {
+				eventName: (id) => (id === 'evt_teen_church' ? 'Youth Service' : ''),
+			})
+		);
+		expect(column(csv, 'event_id')).toEqual(['evt_teen_church', 'N/A']);
+		const header = csv
+			.replace(/^\uFEFF/, '')
+			.split(/\r?\n/)[0]
+			.split(',')
+			.map((h) => h.replace(/"/g, ''));
+		expect(header.indexOf('event_id')).toBe(header.indexOf('event') + 1);
 	});
 });
