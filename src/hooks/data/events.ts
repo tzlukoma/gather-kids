@@ -30,9 +30,10 @@ import { cacheConfig } from './config';
  *   event is archived or renamed.
  *
  * Until the query resolves, and if it fails, the compiled-in list stands in so
- * the door never loses its picker. `isPersisted` says whether the list came
- * from the database, which is what a screen needs before deciding that an
- * event named in its URL does not exist.
+ * the door never loses its picker. Once it succeeds the database list is used
+ * as is, even when it is empty. `isPersisted` says whether the list came from
+ * the database, which is what a screen needs before deciding that an event
+ * named in its URL does not exist, or that there are no events at all.
  */
 export function useCheckInEvents(): {
   events: CheckInEvent[];
@@ -48,7 +49,10 @@ export function useCheckInEvents(): {
     queryFn: getCheckInEvents,
     ...cacheConfig.moderate,
   });
-  const persisted = isSuccess && !!data && data.length > 0;
+  // A successful answer is the truth even when it is empty: an installation
+  // with no events must show none (and let an admin add one), not the
+  // compiled-in list.
+  const persisted = isSuccess && Array.isArray(data);
   const allEvents = persisted ? data : FALLBACK_CHECK_IN_EVENTS;
   return {
     events: activeCheckInEvents(allEvents),

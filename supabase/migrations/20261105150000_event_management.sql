@@ -15,7 +15,11 @@
 --     transfer (`transfer_attendance` inserts, so the same guard applies), and
 --     not by an edit that moves a row onto it. Checking a child out of, or
 --     transferring them out of, an archived event is untouched.
---   * A new or renamed event must have a non-blank name.
+--   * A new or renamed event must have a non-blank name, and no two events
+--     may share a name -- compared without regard to case or spacing, and
+--     counting archived events -- so pickers and reports can always tell
+--     events apart. Enforced here, not only in the browser, so two admins
+--     working from stale screens cannot both rename into the same name.
 --
 -- Attendance is event attendance, not ministry enrollment. Nothing here
 -- touches `ministry_enrollments`.
@@ -29,6 +33,45 @@ alter table events add column if not exists archived_at timestamptz;
 alter table events drop constraint if exists events_name_not_blank;
 alter table events add constraint events_name_not_blank
 	check (name is not null and btrim(name) <> '') not valid;
+
+-- Unique names. The key matches the app's `normalizeEventName` plus case:
+-- runs of whitespace collapse to one space, the ends are trimmed, and case is
+-- ignored, so "Joy Bells", " joy  BELLS " and "JOY BELLS" are the same name.
+--
+-- Existing duplicates are resolved deliberately before the index is built,
+-- rather than letting the migration fail: the earliest event (by created_at,
+-- then id) keeps the name, and each later one has its own id appended, e.g.
+-- "Sunday School (evt_sunday_school_2)". Only names change; ids and
+-- attendance do not. Each rename is reported with RAISE NOTICE so it appears
+-- in the deploy log and can be tidied up on the Events screen.
+do $$
+declare
+	dup record;
+begin
+	for dup in
+		select event_id, name
+		  from (
+			select event_id, name,
+			       row_number() over (
+			           partition by lower(btrim(regexp_replace(name, '\s+', ' ', 'g')))
+			           order by created_at nulls last, event_id
+			       ) as rn
+			  from events
+			 where name is not null
+		  ) ranked
+		 where rn > 1
+	loop
+		update events
+		   set name = btrim(dup.name) || ' (' || dup.event_id || ')'
+		 where event_id = dup.event_id;
+		raise notice 'event % shared its name with another event; renamed to "% (%)"',
+			dup.event_id, btrim(dup.name), dup.event_id;
+	end loop;
+end
+$$;
+
+create unique index if not exists events_name_unique_normalized
+	on events (lower(btrim(regexp_replace(name, '\s+', ' ', 'g'))));
 
 -- ---------------------------------------------------------------------------
 -- Deleting an event never deletes attendance.

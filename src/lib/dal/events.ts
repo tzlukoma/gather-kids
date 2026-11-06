@@ -42,6 +42,7 @@ export async function getEventUsage(): Promise<Record<string, EventUsage>> {
 
 export type EventManagementFailure =
     | 'invalid_name'
+    | 'duplicate_name'
     | 'has_history'
     | 'forbidden'
     | 'not_found'
@@ -57,16 +58,19 @@ export class EventManagementError extends Error {
     }
 }
 
-function codeOf(error: unknown): string {
-    if (typeof error !== 'object' || error === null || !('code' in error)) return '';
-    const code = (error as { code?: unknown }).code;
-    return typeof code === 'string' ? code : '';
+function fieldOf(error: unknown, field: 'code' | 'message' | 'details'): string {
+    if (typeof error !== 'object' || error === null || !(field in error)) return '';
+    const value = (error as Record<string, unknown>)[field];
+    return typeof value === 'string' ? value : '';
 }
+
+/** The database's unique index on normalized event names (see the #565 migration). */
+const NAME_UNIQUE_INDEX = 'events_name_unique_normalized';
 
 /** Turn a database refusal into something an admin can act on. */
 function toEventError(error: unknown, action: string): EventManagementError {
     if (error instanceof EventManagementError) return error;
-    switch (codeOf(error)) {
+    switch (fieldOf(error, 'code')) {
         case '23503':
             return new EventManagementError(
                 'has_history',
@@ -75,6 +79,17 @@ function toEventError(error: unknown, action: string): EventManagementError {
         case '23514':
             return new EventManagementError('invalid_name', 'Enter a name for the event.');
         case '23505':
+            // Two unique keys can refuse: the name (usually another admin got
+            // there first from a screen this one has not refreshed) or the id.
+            if (
+                fieldOf(error, 'message').includes(NAME_UNIQUE_INDEX) ||
+                fieldOf(error, 'details').includes(NAME_UNIQUE_INDEX)
+            ) {
+                return new EventManagementError(
+                    'duplicate_name',
+                    'Another event already has this name, possibly added or renamed just now. The list has been refreshed; choose a different name.',
+                );
+            }
             return new EventManagementError(
                 'failed',
                 'Another event was just created with the same id. Please try again.',

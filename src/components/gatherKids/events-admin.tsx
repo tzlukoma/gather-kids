@@ -390,7 +390,7 @@ export function EventsAdmin() {
 
 	if (isLoading) return <TableSkeleton rows={4} columns={4} />;
 
-	if (isError || !isPersisted) {
+	if (isError) {
 		return (
 			<LoadStalled
 				tone="error"
@@ -440,6 +440,13 @@ export function EventsAdmin() {
 							</TableRow>
 						</TableHeader>
 						<TableBody>
+							{rows.length === 0 && (
+								<TableRow>
+									<TableCell colSpan={4} className="py-8 text-center text-muted-foreground">
+										No check-in events yet. Add one to start checking children in.
+									</TableCell>
+								</TableRow>
+							)}
 							{rows.map((event) => {
 								const u = usageOf(event);
 								const usageKnown = !!usage;

@@ -627,6 +627,20 @@ describe('CheckInContentGatherSystem', () => {
 			expect(screen.getByText(/^Sunday School · /)).toBeInTheDocument();
 		});
 
+		/**
+		 * Review on #567: a confirmed empty `events` table is not replaced by
+		 * the compiled-in list, so the door says why nothing can be checked in
+		 * and offers no invented events or destinations.
+		 */
+		it('says no events are set up, and offers none, when the table is empty', () => {
+			mockEvents = [];
+			render(<CheckInContentGatherSystem />);
+
+			expect(screen.getByText(/No check-in events are set up/)).toBeInTheDocument();
+			fireEvent.click(screen.getByRole('button', { name: 'Change event' }));
+			expect(within(screen.getByRole('dialog')).queryAllByRole('radio')).toHaveLength(0);
+		});
+
 		it('keeps a deep-linked event while the list is still loading', () => {
 			mockEventsPersisted = false;
 			mockEvents = DEFAULT_EVENTS;

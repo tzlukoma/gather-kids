@@ -70,6 +70,40 @@ describe('createCheckInEvent', () => {
 	});
 });
 
+describe('name conflicts the database catches (#567 review)', () => {
+	beforeEach(() => jest.clearAllMocks());
+
+	const nameConflict = {
+		code: '23505',
+		message: 'duplicate key value violates unique constraint "events_name_unique_normalized"',
+		details: 'Key (lower(btrim(regexp_replace(name, \'\\s+\'::text, \' \'::text, \'g\'::text))))=(joy bells) already exists.',
+	};
+
+	it('reports a stale-tab rename into a taken name as a duplicate name', async () => {
+		// This tab's list does not know another admin just took the name.
+		mockAdapter.updateCheckInEvent.mockRejectedValue(nameConflict);
+		const error = await renameCheckInEvent('evt_sunday_school', 'Joy Bells', existing).catch((e) => e);
+		expect(error.reason).toBe('duplicate_name');
+		expect(error.message).toMatch(/already has this name/);
+	});
+
+	it('reports a create into a taken name as a duplicate name', async () => {
+		mockAdapter.createCheckInEvent.mockRejectedValue(nameConflict);
+		const error = await createCheckInEvent('Youth Night', existing).catch((e) => e);
+		expect(error.reason).toBe('duplicate_name');
+	});
+
+	it('still reports an id collision as an id collision', async () => {
+		mockAdapter.createCheckInEvent.mockRejectedValue({
+			code: '23505',
+			message: 'duplicate key value violates unique constraint "events_pkey"',
+		});
+		const error = await createCheckInEvent('Youth Night', existing).catch((e) => e);
+		expect(error.reason).toBe('failed');
+		expect(error.message).toMatch(/same id/);
+	});
+});
+
 describe('renameCheckInEvent', () => {
 	beforeEach(() => jest.clearAllMocks());
 

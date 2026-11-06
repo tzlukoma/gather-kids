@@ -70,6 +70,7 @@ import {
 	onSiteEventIds,
 } from '@/lib/check-in-events';
 import { CheckoutDialog } from '@/components/gatherKids/checkout-dialog';
+import { NoCheckInEventsNotice } from '@/components/gatherKids/no-check-in-events-notice';
 import { TransferCheckInDialog } from '@/components/gatherKids/transfer-check-in-dialog';
 import { IncidentDetailsDialog } from '@/components/gatherKids/incident-details-dialog';
 // PERF-06: the camera/photo dialogs are heavy and only needed on demand. Loaded
@@ -738,6 +739,8 @@ export function CheckInContentGatherSystem() {
 					</Button>
 				</div>
 			</div>
+
+			{eventsPersisted && pickerEvents.length === 0 && <NoCheckInEventsNotice />}
 
 			{loadError && (
 				<div

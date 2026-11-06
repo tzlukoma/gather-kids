@@ -56,6 +56,7 @@ import type {
 	Incident,
 } from '@/lib/types';
 import { CheckoutDialog } from '@/components/gatherKids/checkout-dialog';
+import { NoCheckInEventsNotice } from '@/components/gatherKids/no-check-in-events-notice';
 import { TransferCheckInDialog } from '@/components/gatherKids/transfer-check-in-dialog';
 import {
 	doorEventOptions,
@@ -1171,6 +1172,11 @@ export default function RostersPage() {
 						</div>
 					</CardHeader>
 					<CardContent>
+						{eventsPersisted && pickerEvents.length === 0 && (
+							<div className="mb-4">
+								<NoCheckInEventsNotice />
+							</div>
+						)}
 						{showBulkActions && (
 							<div className="border-b mb-4 pb-4 flex items-center justify-between">
 								<div>

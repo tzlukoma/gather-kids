@@ -7,7 +7,7 @@
 --   ok:n   the statement succeeded and touched n rows (0 = RLS hid the row)
 --   XXXXX  it failed with that SQLSTATE
 --            42501 permission, 23503 event has history, 22023 archived event,
---            23514 blank name
+--            23514 blank name, 23505 name already used
 --
 -- Probes are independent: none sees another's effect. The whole check runs in
 -- one transaction and rolls back.
@@ -91,6 +91,15 @@ insert into m_result values
 	('admin: create an event with no name',   pg_temp.try_sql($q$insert into events (event_id) values ('m-new')$q$), '23514'),
 	('admin: rename an event',                pg_temp.try_sql($q$update events set name = 'Renamed' where event_id = 'm-used'$q$), 'ok:1'),
 	('admin: rename an event to blank',       pg_temp.try_sql($q$update events set name = '' where event_id = 'm-used'$q$), '23514'),
+	-- Names are unique ignoring case and spacing, archived events included,
+	-- whatever list the browser was looking at.
+	('admin: create a name another event has, in other case and spacing', pg_temp.try_sql($q$insert into events (event_id, name) values ('m-new', '  used   EVENT ')$q$), '23505'),
+	('admin: create the name of an archived event', pg_temp.try_sql($q$insert into events (event_id, name) values ('m-new', 'archived event')$q$), '23505'),
+	('admin: rename to another event''s name', pg_temp.try_sql($q$update events set name = 'OPEN  event' where event_id = 'm-empty'$q$), '23505'),
+	('admin: re-case an event''s own name',   pg_temp.try_sql($q$update events set name = 'OPEN EVENT' where event_id = 'm-open'$q$), 'ok:1'),
+	-- Two admins on stale screens renaming different events to the same name:
+	-- the second rename is refused.
+	('admin: two stale renames to one name',  pg_temp.try_sql($q$update events set name = 'Joy Bells' where event_id = 'm-empty'; update events set name = ' joy   bells' where event_id = 'm-open'$q$), '23505'),
 	('admin: archive an event with history',  pg_temp.try_sql($q$update events set archived_at = now() where event_id = 'm-used'$q$), 'ok:1'),
 	('admin: archive an event without history', pg_temp.try_sql($q$update events set archived_at = now() where event_id = 'm-empty'$q$), 'ok:1'),
 	('admin: restore an archived event',      pg_temp.try_sql($q$update events set archived_at = null where event_id = 'm-arch'$q$), 'ok:1'),
@@ -177,7 +186,13 @@ insert into m_result
 	  from event_attendance_summary() where event_id like 'm-%';
 reset role;
 
--- Structural: the cascade is gone.
+-- Structural: the name index exists and the cascade is gone.
+insert into m_result
+	select 'normalized unique name index exists', count(*)::text, '1'
+	  from pg_indexes
+	 where tablename = 'events' and indexname = 'events_name_unique_normalized'
+	   and indexdef like 'CREATE UNIQUE INDEX%';
+
 insert into m_result
 	select 'no cascading delete from events to attendance', count(*)::text, '0'
 	  from pg_constraint

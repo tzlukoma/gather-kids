@@ -19,6 +19,7 @@ import {
 	buildDoorQuery,
 	parseDoorStatusFilter,
 } from '@/lib/door-check-in';
+import { NoCheckInEventsNotice } from '@/components/gatherKids/no-check-in-events-notice';
 import {
 	doorEventOptions,
 	eventPickerLabel,
@@ -257,6 +258,7 @@ export function CheckInContentLegacy() {
 
 	return (
 		<div className="flex flex-col gap-4">
+			{eventsPersisted && pickerEvents.length === 0 && <NoCheckInEventsNotice />}
 			<div className="flex items-start justify-between gap-4">
 				<div>
 					<div className="flex items-center gap-2">
