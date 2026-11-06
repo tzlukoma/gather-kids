@@ -1685,6 +1685,10 @@ export type Database = {
           on_site_count: number
         }[]
       }
+      dedupe_event_names: {
+        Args: Record<PropertyKey, never>
+        Returns: number
+      }
       ensure_student_assignments: {
         Args: {
           p_child_id: string

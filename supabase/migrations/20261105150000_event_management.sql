@@ -44,9 +44,25 @@ alter table events add constraint events_name_not_blank
 -- "Sunday School (evt_sunday_school_2)". Only names change; ids and
 -- attendance do not. Each rename is reported with RAISE NOTICE so it appears
 -- in the deploy log and can be tidied up on the Events screen.
-do $$
+--
+-- A generated name is checked against every name in the table as it stands
+-- at that moment -- including names this loop has already generated -- and
+-- gets a further " (2)", " (3)", ... until it is free, because "Joy Bells
+-- (evt_b)" may already be the real name of some other event (#567 review).
+-- A function rather than an inline block so CI can run exactly this logic
+-- against planted duplicates (scripts/db/check_event_name_dedupe.sql). Not
+-- callable from the browser: execute is revoked from every API role.
+create or replace function dedupe_event_names()
+returns integer
+language plpgsql
+set search_path = public
+as $$
 declare
 	dup record;
+	base text;
+	candidate text;
+	n int;
+	renamed int := 0;
 begin
 	for dup in
 		select event_id, name
@@ -60,15 +76,34 @@ begin
 			 where name is not null
 		  ) ranked
 		 where rn > 1
+		 order by event_id
 	loop
-		update events
-		   set name = btrim(dup.name) || ' (' || dup.event_id || ')'
-		 where event_id = dup.event_id;
-		raise notice 'event % shared its name with another event; renamed to "% (%)"',
-			dup.event_id, btrim(dup.name), dup.event_id;
+		base := btrim(dup.name) || ' (' || dup.event_id || ')';
+		candidate := base;
+		n := 1;
+		while exists (
+			select 1
+			  from events
+			 where event_id <> dup.event_id
+			   and lower(btrim(regexp_replace(name, '\s+', ' ', 'g')))
+			       = lower(btrim(regexp_replace(candidate, '\s+', ' ', 'g')))
+		) loop
+			n := n + 1;
+			candidate := base || ' (' || n || ')';
+		end loop;
+
+		update events set name = candidate where event_id = dup.event_id;
+		renamed := renamed + 1;
+		raise notice 'event % shared its name with another event; renamed to "%"',
+			dup.event_id, candidate;
 	end loop;
-end
+	return renamed;
+end;
 $$;
+
+revoke all on function dedupe_event_names() from public, anon, authenticated;
+
+select dedupe_event_names();
 
 create unique index if not exists events_name_unique_normalized
 	on events (lower(btrim(regexp_replace(name, '\s+', ' ', 'g'))));
