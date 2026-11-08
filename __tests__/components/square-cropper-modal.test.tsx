@@ -149,7 +149,8 @@ describe('SquareCropperModal', () => {
 
 		const dialog = screen.getByRole('dialog');
 		expect(dialog).toBeInTheDocument();
-		expect(dialog).toHaveAttribute('aria-describedby', 'cropper-description');
+		const describedBy = dialog.getAttribute('aria-describedby') ?? '';
+		expect(describedBy.split(/\s+/)).toContain('cropper-description');
 	});
 
 	it('shows camera and upload tabs', () => {
