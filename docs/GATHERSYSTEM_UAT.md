@@ -25,9 +25,10 @@ Thomas confirms these on the round's issue before testing begins.
 | 1 | The **UAT URL** for this round, from the summary of the latest **UAT release** workflow run (`https://….vercel.app`). Use only that URL. |
 | 2 | `/api/version` on that URL returns `deployEnv: "uat"`. If it says anything else, stop. |
 | 3 | In PostHog, every flag being tested has a `deploy_env = uat` condition at **100%**. Flags that are off show the legacy screen, which is not what is being tested. |
-| 4 | Test accounts exist in UAT for each role below, and their passwords have been given to the tester **privately**, never in an issue or a doc. |
-| 5 | An active registration cycle, an active Bible Bee cycle with scriptures, and at least two open check-in events exist in UAT. |
-| 6 | For the magic-link cases (ACCT): the tester has an inbox that UAT can send to. Without one, skip those cases and say so. |
+| 4 | Test accounts exist in UAT for each role below, and their passwords have been given to the tester through a secret store (for example `UAT_BOT_EMAIL` / `UAT_BOT_PASSWORD`), never in an issue, a doc or a prompt. |
+| 5 | Whether UAT still holds a **restore of production data**. If it does, staff screens (door, rosters, incidents) show real families, so Thomas either accepts that on the round's issue or the Admin and Ministry leader cases are skipped. |
+| 6 | An active registration cycle, an active Bible Bee cycle with scriptures, and at least two open check-in events exist in UAT. |
+| 7 | For the magic-link cases (ACCT): the tester has an inbox that UAT can send to. Without one, skip those cases and say so. |
 
 ### Accounts
 
@@ -49,7 +50,7 @@ Run every case at **desktop 1440 × 900**. Run the cases marked 📱 again at **
 ## Rules for testers
 
 - **UAT only.** Never open the production site (`gatherkidslive.com`) during a round.
-- **Synthetic data only.** Every family, child and staff member in UAT is invented. Never type a real person's name, email, phone number or medical detail. For photo uploads, use a plain illustration, never a photo of a real person.
+- **Synthetic data only.** Change only the synthetic records named on the round's issue. UAT may also hold a restore of real family data: do not open, copy or screenshot any other family's details, and crop screenshots to the record under test. Never type a real person's name, email, phone number or medical detail. For photo uploads, use a plain illustration, never a photo of a real person.
 - **Use the app, not the database.** Do not call Supabase, the API or the browser console directly.
 - **Allowed changes,** through the app on synthetic records only: check-in and check-out, transfer, logging and acknowledging an incident, marking a scripture memorized and back, editing a child's details and changing them back, registering a new synthetic family, and creating an event whose name starts with `UAT test`, archived when done.
 - **Not allowed:** deleting anything; Users and role changes; Branding; editing a ministry or its consents; turning flags on or off; importing data.
@@ -168,7 +169,7 @@ Route: `/register`. CI already runs the full browser test suite for this flag (`
 
 ### Create account — `gathersystem_account_entry`
 
-Route: `/create-account`. Signed out. Needs the inbox from Before you start #6.
+Route: `/create-account`. Signed out. Needs the inbox from Before you start #7.
 
 | ID | Steps | Expected |
 |---|---|---|
