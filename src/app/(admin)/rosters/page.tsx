@@ -100,6 +100,9 @@ const PhotoCaptureDialog = dynamic(
 import { ChildCard } from '@/components/gatherKids/child-card';
 import { IncidentDetailsDialog } from '@/components/gatherKids/incident-details-dialog';
 import { canTransferCheckIn, canUpdateChildPhoto } from '@/lib/permissions';
+// The Allergy badge follows the same rule as the guardian page: "No known
+// allergies" is stored as `none`, which is not an allergy (#584).
+import { allergyAlert } from '@/lib/guardian-child-detail';
 import {
 	useChildrenForActiveCycle,
 	useHouseholds,
@@ -903,7 +906,7 @@ export default function RostersPage() {
 									: 'N/A'}
 							</TableCell>
 							<TableCell>
-								{child.allergies && (
+								{allergyAlert(child.allergies) && (
 									<Badge variant="destructive">Allergy</Badge>
 								)}
 							</TableCell>
@@ -957,7 +960,7 @@ export default function RostersPage() {
 												: 'N/A'}
 										</TableCell>
 										<TableCell>
-											{child.allergies && (
+											{allergyAlert(child.allergies) && (
 												<Badge variant="destructive">Allergy</Badge>
 											)}
 										</TableCell>
