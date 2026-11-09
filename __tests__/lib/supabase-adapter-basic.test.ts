@@ -122,6 +122,39 @@ describe('Supabase Adapter Basic Functionality', () => {
 		await adapter.deleteHousehold(household.household_id);
 	});
 
+	test('clearing medical notes persists, and omitting them leaves them alone (#583)', async () => {
+		const household = await adapter.createHousehold({
+			address_line1: '1 Synthetic Way',
+			city: 'TestCity',
+			state: 'TC',
+			zip: '11111',
+		});
+		const created = await adapter.createChild({
+			child_id: 'child-synthetic-583',
+			household_id: household.household_id,
+			first_name: 'Avery',
+			last_name: 'Testchild',
+			dob: '2017-04-02',
+			is_active: true,
+			medical_notes: 'Synthetic note',
+		});
+
+		// An update that does not mention the note keeps it.
+		await adapter.updateChild(created.child_id, { grade: '3rd Grade' });
+		expect((await adapter.getChild(created.child_id))!.medical_notes).toBe('Synthetic note');
+
+		// Clearing it, with an empty or blank value, removes it.
+		for (const cleared of ['', '   ']) {
+			await adapter.updateChild(created.child_id, { medical_notes: 'Synthetic note' });
+			const updated = await adapter.updateChild(created.child_id, { medical_notes: cleared });
+			expect(updated.medical_notes).toBeUndefined();
+			expect((await adapter.getChild(created.child_id))!.medical_notes).toBeUndefined();
+		}
+
+		await adapter.deleteChild(created.child_id);
+		await adapter.deleteHousehold(household.household_id);
+	});
+
 	test('utility methods work correctly', async () => {
 		// Test subscribeToTable
 		const callback = jest.fn();
