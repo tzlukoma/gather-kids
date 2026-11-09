@@ -99,7 +99,10 @@ export function EditChildModal({
 						...data,
 						child_mobile: data.child_mobile || undefined,
 						allergies: data.allergies || undefined,
-						medical_notes: data.medical_notes || undefined,
+						// An empty string, not undefined: the adapter skips undefined
+						// fields, so a cleared note would otherwise keep its old text
+						// (#583). The adapter stores a blank note as null.
+						medical_notes: data.medical_notes ?? '',
 						special_needs_notes: data.special_needs_notes || undefined,
 					},
 				});
