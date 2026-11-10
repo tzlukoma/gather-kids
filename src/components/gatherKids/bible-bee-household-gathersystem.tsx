@@ -362,7 +362,7 @@ function ScripturesView({
 							<li key={s.id} className={S.BB_ROW}>
 								<span className="size-[18px] shrink-0 rounded-full bg-brand-aqua" aria-hidden="true" />
 								<span className={S.BB_ROW_LABEL}>
-									{s.number} · {s.reference}
+									{s.label} · {s.reference}
 								</span>
 								<span className={S.BB_ROW_DATE}>{shortDate(s.completedAt) ?? ''}</span>
 							</li>
@@ -489,7 +489,7 @@ function ScriptureCard({
 				<div className="flex min-w-0 flex-1 flex-col gap-2">
 					<h3 className={S.BB_CARD_TITLE}>{scripture.reference}</h3>
 					<div className="flex gap-1.5">
-						<span className={S.BB_META_CHIP}>#{scripture.number}</span>
+						<span className={S.BB_META_CHIP}>#{scripture.label}</span>
 						<span className={S.BB_META_CHIP}>{verse.translation}</span>
 					</div>
 				</div>

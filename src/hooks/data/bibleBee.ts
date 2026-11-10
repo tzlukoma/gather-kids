@@ -411,6 +411,17 @@ export function useToggleScriptureMutation(childId: string, cycleId?: string) {
       const previousStudentData = queryClient.getQueryData(assignmentsKey);
       const previousStatsData = queryClient.getQueryData(statsKey);
 
+      // The scripture count moves by what this passage counts for (#587):
+      // Exodus 20:2-3 is scriptures #1-2, so marking it adds 2, as the stats
+      // query will once it refetches. A tap that changes nothing adds nothing;
+      // a passage not in the cache moves it by 1 until the refetch, as before.
+      const toggled = (previousStudentData as any)?.scriptures?.find(
+        (scripture: any) => scripture.id === id
+      );
+      const weight = Number(toggled?.counts_for ?? toggled?.scripture?.counts_for) || 1;
+      const unchanged = !!toggled && (toggled.status === 'completed') === complete;
+      const delta = unchanged ? 0 : complete ? weight : -weight;
+
       // Optimistically update the student assignments cache
       queryClient.setQueryData(assignmentsKey, (old: any) => {
         if (!old) return old;
@@ -429,9 +440,7 @@ export function useToggleScriptureMutation(childId: string, cycleId?: string) {
       queryClient.setQueryData(statsKey, (old: any) => {
         if (!old || !old.bbStats) return old;
         
-        const completedScriptures = complete 
-          ? old.bbStats.completedScriptures + 1
-          : old.bbStats.completedScriptures - 1;
+        const completedScriptures = Math.max(0, old.bbStats.completedScriptures + delta);
         
         const { percent, bonus } = getScriptureProgress(
           completedScriptures,
