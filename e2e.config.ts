@@ -44,9 +44,12 @@ export default defineConfig({
     // Wait up to 90s for the server to start in slower environments
     timeout: 90_000,
     // Never reuse a local server for GatherSystem flag-on suites — an existing
-    // `npm run dev` without OVERRIDE would serve the legacy registration page.
+    // `npm run dev` without OVERRIDE (or without GATHERSYSTEM_LOCAL_FLAGS)
+    // would serve the legacy screens.
     reuseExistingServer:
-      !process.env.CI && process.env.GATHERSYSTEM_REGISTRATION_E2E !== '1',
+      !process.env.CI &&
+      process.env.GATHERSYSTEM_REGISTRATION_E2E !== '1' &&
+      !process.env.GATHERSYSTEM_LOCAL_FLAGS,
     env: {
       ...process.env,
       // When GatherSystem E2E is requested, force the local override on the
