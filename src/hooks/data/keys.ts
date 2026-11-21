@@ -44,7 +44,7 @@ export const queryKeys = {
   groupsForMinistry: (ministryId: string) => ['groupsForMinistry', ministryId] as const,
   
   // Registration
-  registrationCycles: () => ['registrationCycles'] as const,
+  registrationCycles: (isActive?: boolean) => ['registrationCycles', isActive] as const,
   registrationCycle: (id: string) => ['registrationCycle', id] as const,
   registrationStats: () => ['registrationStats'] as const,
   ministryGroups: () => ['ministryGroups'] as const,

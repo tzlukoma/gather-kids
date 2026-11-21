@@ -20,7 +20,6 @@ import {
     updateLeaderProfileStatus,
     saveLeaderProfile,
     getMinistries,
-    getRegistrationCycles,
     getMinistryGroups,
     getMinistriesByGroupCode
 } from '@/lib/dal';
@@ -53,7 +52,6 @@ export const queryKeys = {
     leaderSearch: (term: string) => ['leaderSearch', term] as const,
     // Registration-related query keys
     ministries: ['ministries'] as const,
-    registrationCycles: ['registrationCycles'] as const,
     ministryGroups: ['ministryGroups'] as const,
     ministriesByGroup: (groupCode: string) => ['ministriesByGroup', groupCode] as const,
 };
@@ -313,14 +311,6 @@ export function useMinistries() {
         queryKey: queryKeys.ministries,
         queryFn: () => getMinistries(),
         staleTime: 10 * 60 * 1000, // 10 minutes
-    });
-}
-
-export function useRegistrationCycles() {
-    return useQuery({
-        queryKey: queryKeys.registrationCycles,
-        queryFn: () => getRegistrationCycles(),
-        staleTime: 15 * 60 * 1000, // 15 minutes - cycles don't change often
     });
 }
 
