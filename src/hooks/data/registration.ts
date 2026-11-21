@@ -11,7 +11,7 @@ import { cacheConfig } from './config';
 
 export function useRegistrationCycles(isActive?: boolean) {
   return useQuery({
-    queryKey: queryKeys.registrationCycles(),
+    queryKey: queryKeys.registrationCycles(isActive),
     queryFn: () => getRegistrationCycles(isActive),
     ...cacheConfig.reference, // Registration cycles change infrequently
   });
