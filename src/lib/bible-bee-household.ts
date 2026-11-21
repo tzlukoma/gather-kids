@@ -16,8 +16,13 @@ import { SERVICE_DAY_TIMEZONE } from '@/lib/utils/timezone';
 export type HouseholdScripture = {
 	id: string;
 	reference: string;
-	/** Display number (`#10`). Falls back to list position. */
+	/** Sort position: the first official number (`1` for `1-2`). Falls back to list position. */
 	number: number;
+	/**
+	 * The official number as shown on the card: `10`, or `1–2` for a passage
+	 * that counts as two scriptures (#587), as the legacy card shows it.
+	 */
+	label: string;
 	/** Verse text by translation code, upper-cased keys. */
 	texts: Record<string, string>;
 	/** Text and translation the hook chose from the household's preference. */
@@ -80,24 +85,35 @@ function textsOf(scripture: Loose): Record<string, string> {
 	return out;
 }
 
+/** `1-2` → `1–2`; anything that is not a number or a range shows the sort number. */
+function numberLabel(declared: string, fallback: number): string {
+	const range = declared.match(/^(\d+)\s*[-–]\s*(\d+)$/);
+	if (range && Number(range[1]) > 0) return `${Number(range[1])}–${Number(range[2])}`;
+	return String(fallback);
+}
+
 /**
  * Normalise the assignments `useStudentAssignmentsQuery` returns.
  *
  * Numbering follows the legacy `ScriptureCard`: `scripture_number`, then
  * `scripture_order`, then position. Sorted by that number so the list reads
- * in competition order whatever order the query returned.
+ * in competition order whatever order the query returned. A range such as
+ * `1-2` keeps its range in `label` and sorts by its first number.
  */
 export function normalizeScriptures(raw: unknown[]): HouseholdScripture[] {
 	return (raw ?? [])
 		.map((item, index) => {
 			const a = asRecord(item);
 			const s = asRecord(a.scripture);
-			const declared = Number(s.scripture_number ?? s.scripture_order);
+			const declaredText = String(s.scripture_number ?? s.scripture_order ?? '').trim();
+			const declared = parseInt(declaredText, 10);
+			const number = Number.isFinite(declared) && declared > 0 ? declared : index + 1;
 			return {
 				id: asString(a.id),
 				reference: asString(s.reference).trim().replace(/\s+/g, ' ') ||
 					asString(a.scriptureId),
-				number: Number.isFinite(declared) && declared > 0 ? declared : index + 1,
+				number,
+				label: numberLabel(declaredText, number),
 				texts: textsOf(s),
 				fallbackText: asString(a.verseText) || asString(s.text),
 				fallbackTranslation: (

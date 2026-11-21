@@ -311,8 +311,11 @@ export class SupabaseAdapter implements DatabaseAdapter {
 		if (data.special_needs !== undefined) updateData.special_needs = data.special_needs;
 		if (data.special_needs_notes !== undefined) updateData.special_needs_notes = data.special_needs_notes;
 		if (data.medical_notes !== undefined) {
-			updateData.medical_notes = data.medical_notes;
-			updateData.notes = data.medical_notes; // Legacy field mapping
+			// A blank note clears the field (#583): stored as null, which reads
+			// back as no notes on file, rather than as whitespace.
+			const medicalNotes = (data.medical_notes ?? '').trim() ? data.medical_notes : null;
+			updateData.medical_notes = medicalNotes;
+			updateData.notes = medicalNotes; // Legacy field mapping
 		}
 
 		const { data: result, error } = await this.client

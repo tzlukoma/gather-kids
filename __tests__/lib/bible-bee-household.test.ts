@@ -24,6 +24,7 @@ function scripture(
 	return {
 		reference: `Ref ${overrides.id}`,
 		number: 1,
+		label: '1',
 		texts: {},
 		fallbackText: 'text',
 		fallbackTranslation: 'NIV',
@@ -78,6 +79,29 @@ describe('normalizeScriptures', () => {
 			['y', 3],
 		]);
 		expect(out[1].texts).toEqual({});
+	});
+});
+
+describe('normalizeScriptures number ranges (#587)', () => {
+	it('shows a passage that counts as two as its official range, and sorts it by its first number', () => {
+		const out = normalizeScriptures([
+			{ id: 'lev', scripture: { reference: 'Leviticus 20:26', scripture_number: '3', scripture_order: 2 } },
+			{ id: 'ex', scripture: { reference: 'Exodus 20:2-3', scripture_number: '1-2', scripture_order: 1, counts_for: 2 } },
+			{ id: 'mt', scripture: { reference: 'Matthew 6:9-15', scripture_number: '13 – 19', scripture_order: 11 } },
+		]);
+		expect(out.map((s) => [s.id, s.number, s.label])).toEqual([
+			['ex', 1, '1–2'],
+			['lev', 3, '3'],
+			['mt', 13, '13–19'],
+		]);
+	});
+
+	it('labels a numeric or missing number with the sort number', () => {
+		const out = normalizeScriptures([
+			{ id: 'a', scripture: { reference: 'A', scripture_number: 7 } },
+			{ id: 'b', scripture: { reference: 'B' } },
+		]);
+		expect(out.map((s) => s.label)).toEqual(['2', '7']);
 	});
 });
 
