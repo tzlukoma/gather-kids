@@ -50,10 +50,10 @@ Defaults in call sites should keep **legacy UI on** (`getBoolean(key, false)` �
 
 | Key | Intent | Prerequisite before enabling |
 |-----|--------|------------------------------|
-| `gathersystem_door` | New door / check-in GatherSystem surface | **#432 and #385 must both land first.** The flag can resolve true without a session, and the surface cannot check a child out. See below. |
+| `gathersystem_door` | New door / check-in GatherSystem surface | — Both earlier blockers are closed (#432, #385). See below. |
 | `gathersystem_guardian` | Guardian household shell + home | — for the shell and home. The Bible Bee scripture and essay screens are a separate key. See below. |
 | `gathersystem_bible_bee_household` | One child's Bible Bee scriptures or essay, `/household/children/[childId]/bible-bee` | — See below. |
-| `gathersystem_registration` | Guardian registration wizard GatherSystem UI | **#389 must close first.** Do not broaden this key until then. |
+| `gathersystem_registration` | Guardian registration wizard GatherSystem UI | — The remediation it waited on (#389) is closed. Signed-out visitors to `/register` all share the anonymous bucket, so prefer 0% or 100% by `deploy_env`. |
 | `gathersystem_admin` | Staff shell (grouped nav) + admin overview GatherSystem UI | — |
 | `gathersystem_incidents` | Staff incidents log + acknowledgement GatherSystem UI | **#429 must land, and its backfill run in that environment.** See below. |
 | `gathersystem_auth` | Account surfaces — `/onboarding` and `/unauthorized` — GatherSystem type scale | — for what it covers. It does not own `/login` or `/create-account`; see `gathersystem_account_entry`. |
@@ -65,33 +65,20 @@ Constants: `GATHERSYSTEM_FLAG_KEYS` in `src/lib/flags/env.ts`. Multivariate expe
 
 A prerequisite is something that must be true **in the target environment** before the key is raised above 0% there. Merging the code does not satisfy it, and it is per-environment: satisfying it in UAT says nothing about production.
 
-**Percentage rollouts and session-less traffic.** `getFlagEvalContext` fails closed on missing Supabase env, not on a missing session, and `buildFlagDistinctId(undefined)` collapses every session-less caller into one `<env>:anonymous` bucket. So for unauthenticated traffic a percentage rollout is not gradual — the whole bucket resolves together. This affects any key evaluated on a route reachable without a session; #432 tracks it for `gathersystem_door`, and #379 is the open decision about what to do on routes whose audience is *entirely* session-less. Prefer targeting by `userId` over a blanket percentage until it closes.
+**Percentage rollouts and session-less traffic.** `getFlagEvalContext` fails closed on missing Supabase env, not on a missing session, and `buildFlagDistinctId(undefined)` collapses every session-less caller into one `<env>:anonymous` bucket. So for unauthenticated traffic a percentage rollout is not gradual — the whole bucket resolves together. Keys evaluated through `getGatherSystemFlag` (`src/lib/flags/get-gathersystem-flag.ts`) are not affected: it returns `false` when there is no session, so they bucket per user. Two keys are evaluated on routes that serve signed-out visitors: `gathersystem_registration` (`/register`) and `gathersystem_account_entry` (`/create-account`). Prefer 0% or 100% for those. #379 is the open decision about `/login`, whose audience is *entirely* session-less.
 
-#### `gathersystem_door` — two open blockers
+#### `gathersystem_door` — earlier blockers, now closed
 
-**Do not enable this key for real door usage until both #432 and #385 land.** They are independent problems and neither fixes the other.
+Two problems used to block this key. Both are fixed on `main`; this section records what they were so the history is not lost.
 
-**1. The flag can resolve true without a session (#432).**
+1. **The flag could resolve true without a session (#432).** The door evaluated the key through `getFlagEvalContext` directly, which fails closed on missing Supabase env but not on a missing session, so every signed-out request shared one `<env>:anonymous` bucket. Fixed by #442: `src/lib/flags/get-gathersystem-door-flag.ts` now goes through `getGatherSystemFlag`, which returns `false` with no session.
+2. **The surface could not check a child out (#385).** It imported `useCheckInMutation` only. Fixed by #443, which restored check-out alongside the Figma 1a stats, status tabs and table layout.
 
-`src/app/(admin)/check-in/page.tsx` does use the shared `getFlagEvalContext`, but that helper fails closed only on **missing Supabase env** — `canEvaluateFlags` is `true` whenever the env exists, session or not. A request with no session therefore reaches `getBoolean` with `userId: undefined`, and `buildFlagDistinctId(undefined)` (`src/lib/flags/env.ts:81`) maps every such caller to a single shared bucket:
+Since then the door has gained transfer between events (#563) and shows which event a checked-in child is in (#569). Both work the same with the flag off.
 
-```
-`${deployEnv}:anonymous`
-```
+**Mitigation is immediate either way.** Turning the flag off restores the legacy screen with no redeploy.
 
-So all session-less requests share one evaluation. If PostHog resolves that bucket to true — which a percentage rollout can do — every session-less request gets the new surface, regardless of who they are. Raising this key by percentage is therefore not a gradual rollout for unauthenticated traffic; it is all-or-nothing for the whole anonymous bucket.
-
-`ProtectedRoute` still redirects an unauthorised viewer, so this is unexpected surface exposure rather than a data leak. It does mean the flag is not a reliable rollout control until #432 closes.
-
-**2. The surface cannot check a child out (#385).**
-
-`src/components/gatherKids/check-in-content-gathersystem.tsx` imports `useCheckInMutation` only. The legacy `check-in-view.tsx` imports both `useCheckInMutation` and `useCheckOutMutation`. The GatherSystem surface's two `check_out_at` references (lines 160, 189) are reads that compute who is currently on site; nothing performs a check-out.
-
-So with this flag on, staff can check children **in** but not **out** — on the screen used to release children to their guardians at pickup. This is a feature-parity break, not styling debt, and no amount of visual work on #385 fixes it unless the check-out action is restored with it.
-
-**Mitigation is immediate either way.** Turning the flag off restores the legacy screen, full check-out, and deterministic behaviour.
-
-PR #383 delivered the interaction model for this surface (search, grade chips, multi-select, sticky dock, photos, allergy/incident chips). #385 carries the remainder: stats cards, status tabs, header chrome, table layout — and check-out.
+**Before raising it in an environment,** run the door section of [`GATHERSYSTEM_UAT.md`](GATHERSYSTEM_UAT.md) there, on desktop and phone widths.
 
 #### `gathersystem_auth` — scoped to session-bearing routes only
 
@@ -361,6 +348,7 @@ Creating a boolean flag in the PostHog UI:
 5. **Match by** — Properties; filter `deploy_env` **equals** `uat` until a deliberate production rollout.
 6. **Rollout** — **0%** until Thomas wants UAT exposure; then raise (often 100% under the UAT filter).
 7. Production flips are **Thomas-only**. Do not add a production condition set or raise prod rollout without an issue that authorises it.
+8. **Before a production flip,** the key's section of [`GATHERSYSTEM_UAT.md`](GATHERSYSTEM_UAT.md) has passed in UAT at 100%, including the off-switch check.
 
 Privacy: no email, names, photos, DOB, allergies, addresses, child ids, or household ids in flag payloads, person properties, or filters beyond opaque ids / `deploy_env` / `role`.
 
