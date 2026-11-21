@@ -48,4 +48,24 @@ const config = {
 };
 
 // createJestConfig is exported this way to ensure that next/jest can load the Next.js config which is async
-export default createJestConfig(config);
+export default async () => {
+	const jestConfig = await createJestConfig(config)();
+	const nextAllowList =
+		'(geist|next/dist/client|next/dist/shared/lib|next/src/client|next/src/shared/lib)';
+	const nextAllowListWithUuid = `${nextAllowList}|uuid`;
+
+	const transformIgnorePatterns = (jestConfig.transformIgnorePatterns ?? []).map(
+		(pattern) => {
+			const text = String(pattern);
+			if (text.includes(nextAllowList)) {
+				return text.replaceAll(nextAllowList, nextAllowListWithUuid);
+			}
+			return pattern;
+		}
+	);
+
+	return {
+		...jestConfig,
+		transformIgnorePatterns,
+	};
+};
