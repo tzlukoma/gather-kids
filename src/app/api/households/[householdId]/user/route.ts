@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { z } from 'zod';
+import { requireAdmin } from '@/lib/api-auth';
 
 function getSupabaseAdmin() {
 	const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -22,6 +23,11 @@ export async function GET(
 	{ params }: { params: Promise<{ householdId: string }> }
 ) {
 	try {
+		const authResult = await requireAdmin();
+		if (!authResult.authorized) {
+			return authResult.response;
+		}
+
 		const supabase = getSupabaseAdmin();
 		const { householdId } = await params;
 
@@ -103,6 +109,11 @@ export async function PUT(
 	{ params }: { params: Promise<{ householdId: string }> }
 ) {
 	try {
+		const authResult = await requireAdmin();
+		if (!authResult.authorized) {
+			return authResult.response;
+		}
+
 		const supabase = getSupabaseAdmin();
 		const { householdId } = await params;
 		const body = await request.json();
