@@ -82,7 +82,7 @@ jobs:
             ./node_modules/.bin/sentry-cli monitors run \
               --environment production \
               --schedule "0 11 * * *" \
-              --timezone "America/New_York" \
+              --timezone "UTC" \
               --check-in-margin 15 \
               --max-runtime 30 \
               daily-digest \
