@@ -10,8 +10,6 @@ import {
     getChild,
     getHousehold,
     updateChildPhoto,
-    recordCheckIn,
-    recordCheckOut,
     queryHouseholdList,
     queryLeaderProfiles,
     searchLeaderProfiles,
@@ -258,49 +256,6 @@ export function useSaveLeaderProfileMutation() {
             queryClient.invalidateQueries({ queryKey: queryKeys.leader(leaderId) });
             queryClient.invalidateQueries({ queryKey: queryKeys.leaders });
             queryClient.invalidateQueries({ queryKey: ['leaderSearch'] });
-        },
-    });
-}
-
-// Check-in mutation
-export function useCheckInMutation() {
-    const queryClient = useQueryClient();
-    
-    return useMutation({
-        mutationFn: ({ childId, eventId, notes, userId }: { 
-            childId: string; 
-            eventId: string; 
-            notes?: string; 
-            userId?: string;
-        }) => recordCheckIn(childId, eventId, notes, userId),
-        onSuccess: (_, { eventId }) => {
-            // Invalidate attendance queries for today
-            const today = new Date().toISOString().split('T')[0];
-            queryClient.invalidateQueries({ queryKey: ['attendance', today] });
-            
-            // Also invalidate children queries in case attendance affects child display
-            queryClient.invalidateQueries({ queryKey: queryKeys.children });
-        },
-    });
-}
-
-// Check-out mutation
-export function useCheckOutMutation() {
-    const queryClient = useQueryClient();
-    
-    return useMutation({
-        mutationFn: ({ attendanceId, verifier, userId }: { 
-            attendanceId: string; 
-            verifier: { method: 'PIN' | 'other'; value: string; pickedUpBy?: string }; 
-            userId?: string;
-        }) => recordCheckOut(attendanceId, verifier, userId),
-        onSuccess: () => {
-            // Invalidate attendance queries for today
-            const today = new Date().toISOString().split('T')[0];
-            queryClient.invalidateQueries({ queryKey: ['attendance', today] });
-            
-            // Also invalidate children queries in case attendance affects child display
-            queryClient.invalidateQueries({ queryKey: queryKeys.children });
         },
     });
 }
