@@ -503,7 +503,7 @@ gatherKids crons are GitHub Actions, not Vercel Cron. `automaticVercelMonitors` 
 | `supabase-keepalive.yml` and other scheduled ops workflows | **No** — do not instrument |
 
 - **Monitor slug:** `daily-digest`
-- **Schedule upserted on check-in:** `0 11 * * *` (`America/New_York`), 15-minute margin, 30-minute max runtime
+- **Schedule upserted on check-in:** `0 11 * * *` (`UTC`), 15-minute margin, 30-minute max runtime
 - **Check-in:** `sentry-cli monitors run daily-digest -- …` wraps `node scripts/dailyDigest.js`. CLI check-ins authenticate with the **project DSN**, not an org auth token.
 
 **GitHub Environment secret (digest workflow only):**
