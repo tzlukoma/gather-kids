@@ -41,21 +41,9 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install Supabase CLI
-        run: |
-          # Create bin directory in home if it doesn't exist
-          mkdir -p "$HOME/.bin"
-
-          # Download the latest version for Linux
-          curl -s -L https://github.com/supabase/cli/releases/latest/download/supabase_linux_amd64.tar.gz | tar -xz -C "$HOME/.bin"
-
-          # Make it executable
-          chmod +x "$HOME/.bin/supabase"
-
-          # Add to PATH
-          echo "$HOME/.bin" >> $GITHUB_PATH
-
-          # Verify installation
-          "$HOME/.bin/supabase" --version || true
+        uses: ./.github/actions/setup-supabase-cli
+        with:
+          version: '2.116.0'
 
       - name: Select Environment (DB URL + Drive Folder)
         run: |
