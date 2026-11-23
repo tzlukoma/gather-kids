@@ -7,12 +7,10 @@ import {
 	AlertTriangle,
 	ArrowRightLeft,
 	Camera,
-	CheckCircle,
 	Info,
 	Printer,
 	Search,
 	ShieldAlert,
-	Smartphone,
 	Users,
 	X,
 } from 'lucide-react';
@@ -51,7 +49,6 @@ import {
 	PopoverContent,
 	PopoverTrigger,
 } from '@/components/ui/popover';
-import { Separator } from '@/components/ui/separator';
 import {
 	useGuardians,
 	useHouseholds,
@@ -94,7 +91,7 @@ import { useIncidents } from '@/hooks/data';
 import { captureAnalyticsEvent } from '@/lib/analytics/browser';
 import { useAuth } from '@/contexts/auth-context';
 import { canTransferCheckIn, canUpdateChildPhoto } from '@/lib/permissions';
-import { formatPhone } from '@/hooks/usePhoneFormat';
+import { ChildInfoPopoverContent } from '@/components/gatherKids/child-info-popover';
 import {
 	computeDoorStats,
 	countDoorStatuses,
@@ -113,15 +110,11 @@ import {
  * The contact detail the door needs in hand before releasing a child: who may
  * collect them, on what number, and whether they may leave on their own.
  *
- * This mirrors the popover on the legacy `ChildCard` field for field. It is a
- * local component rather than a shared one because extracting it would mean
- * editing `child-card.tsx`, which sits on the flag-off path this PR guarantees
- * is byte-identical to `main`. Worth folding together once the door is no
- * longer behind a flag.
+ * The shared guardian/contact content now lives in `ChildInfoPopoverContent`
+ * (#455). This wrapper keeps the door-specific header (name, DOB, grade, notes)
+ * and the extra separators the legacy card does not use.
  */
 function ChildDoorInfo({ child }: { child: EnrichedChild }) {
-	const canSelfCheckout = child.age !== null && child.age >= 13;
-
 	return (
 		<div className="space-y-4">
 			<div>
@@ -147,65 +140,11 @@ function ChildDoorInfo({ child }: { child: EnrichedChild }) {
 				</div>
 			</div>
 
-			{canSelfCheckout && child.child_mobile && (
-				<div>
-					<h4 className="font-semibold font-headline mb-2 flex items-center gap-2">
-						<CheckCircle aria-hidden="true" className="h-4 w-4 text-green-500" />{' '}
-						Self-Checkout Allowed
-					</h4>
-					<p className="text-sm text-muted-foreground flex items-center gap-2">
-						<Smartphone aria-hidden="true" size={14} />
-						{formatPhone(child.child_mobile)}
-					</p>
-				</div>
-			)}
-
-			<Separator />
-
-			<div>
-				<h4 className="font-semibold font-headline mb-2">Guardians</h4>
-				<div className="space-y-3">
-					{child.guardians?.map((g) => (
-						<div key={g.guardian_id} className="text-sm">
-							<p className="font-medium">
-								{g.first_name} {g.last_name} ({g.relationship})
-							</p>
-							<p className="text-muted-foreground">
-								{g.mobile_phone ? formatPhone(g.mobile_phone) : 'N/A'}
-							</p>
-						</div>
-					))}
-					{!child.guardians?.length && (
-						<p className="text-sm text-muted-foreground">
-							No guardian information available.
-						</p>
-					)}
-				</div>
-			</div>
-
-			<Separator />
-
-			<div>
-				<h4 className="font-semibold font-headline mb-2">Emergency Contact</h4>
-				{child.emergencyContact ? (
-					<div className="text-sm">
-						<p className="font-medium">
-							{child.emergencyContact.first_name}{' '}
-							{child.emergencyContact.last_name} (
-							{child.emergencyContact.relationship})
-						</p>
-						<p className="text-muted-foreground">
-							{child.emergencyContact.mobile_phone
-								? formatPhone(child.emergencyContact.mobile_phone)
-								: 'N/A'}
-						</p>
-					</div>
-				) : (
-					<p className="text-sm text-muted-foreground">
-						No emergency contact available.
-					</p>
-				)}
-			</div>
+			<ChildInfoPopoverContent
+				child={child}
+				showSelfCheckoutName={false}
+				showSeparators="all"
+			/>
 		</div>
 	);
 }
