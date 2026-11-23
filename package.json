@@ -160,7 +160,7 @@
     "genkit-cli": "1.45.0",
     "jest": "^30.5.2",
     "jest-environment-jsdom": "^30.5.2",
-    "jsdom": "^26.1.0",
+    "jsdom": "^31.0.1",
     "node-fetch": "^3.3.2",
     "postcss": "^8.5.32",
     "supabase": "^2.117.0",
