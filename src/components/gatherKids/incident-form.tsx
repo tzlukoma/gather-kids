@@ -27,6 +27,8 @@ import { useCheckedInChildren, useChildrenForActiveCycle } from '@/hooks/data';
 import type { IncidentSeverity } from '@/lib/types';
 import { useAuth } from '@/contexts/auth-context';
 import { useMemo } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { queryKeys } from '@/hooks/data/keys';
 
 const incidentFormSchema = z.object({
 	childId: z.string({ required_error: 'Please select a child.' }),
@@ -65,6 +67,8 @@ export function IncidentForm() {
 		return checkedInChildren.filter((child) => cycleIds.has(child.child_id));
 	}, [checkedInChildren, cycleChildren]);
 
+	const queryClient = useQueryClient();
+
 	async function onSubmit(data: IncidentFormValues) {
 		try {
 			const child = scopedCheckedInChildren?.find(
@@ -79,6 +83,16 @@ export function IncidentForm() {
 				severity: data.severity as IncidentSeverity,
 				leader_id: user?.id || 'unknown_user',
 			});
+
+			// The incidents list and the dashboard's pending card read cached
+			// queries. Without this the new incident only appears after they go
+			// stale on their own, so it looked as if logging had failed.
+			await Promise.all([
+				queryClient.invalidateQueries({ queryKey: ['incidents'] }),
+				queryClient.invalidateQueries({
+					queryKey: queryKeys.unacknowledgedIncidents(),
+				}),
+			]);
 
 			toast({
 				title: 'Incident Logged',

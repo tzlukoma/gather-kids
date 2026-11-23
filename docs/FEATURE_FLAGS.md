@@ -287,6 +287,14 @@ GATHERSYSTEM_LOCAL_FLAGS=gathersystem_door NEXT_PUBLIC_LOGIN_PASSWORD_ENABLED=tr
 
 `npm run dev:gathersystem` boots with every key in `GATHERSYSTEM_FLAG_KEYS` on, plus password login.
 
+**Flag-on browser tests.** CI runs one short main-path test per GatherSystem screen with its flag forced on this way: `e2e/gathersystem-screens-*.spec.ts` in the `e2e-gathersystem-screens` workflow (registration has its own suite in `e2e-registration-smoke`). Each test also asserts something only the GatherSystem screen renders, so it fails rather than passes if a page silently falls back to legacy. Locally, against `supabase start` and `npm run seed:dev`, with no dev server already running:
+
+```bash
+npm run test:e2e:gathersystem-screens   # reads SUPABASE_URL / SUPABASE_SERVICE_ROLE from .env.e2e.local
+```
+
+A new GatherSystem screen should add a spec there in the PR that adds it.
+
 Rules:
 
 - Only the keys in `GATHERSYSTEM_FLAG_KEYS` are honoured. Unknown or

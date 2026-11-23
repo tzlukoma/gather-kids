@@ -1,0 +1,91 @@
+name: E2E GatherSystem Screens
+
+# The seven GatherSystem screens other than registration, each with its flag
+# forced on. Registration's flag-on suite lives in e2e-registration-smoke.yml.
+#
+# Flags are forced on through GATHERSYSTEM_LOCAL_FLAGS, which
+# src/lib/flags/local-flag-overrides.ts honours only under NODE_ENV
+# development/test and never for a uat or production deploy env. The data is
+# `npm run seed:dev` plus the help-screenshot fixtures on the job's own local
+# Supabase, so nothing here touches UAT or production.
+
+on:
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'e2e/**'
+      - 'e2e.config.ts'
+      - 'scripts/seed/dev_seed.js'
+      - 'scripts/help-screenshot-fixtures.mjs'
+      - 'supabase/migrations/**'
+      - '.github/workflows/e2e-gathersystem-screens.yml'
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-gathersystem-screens-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e-gathersystem-screens:
+    name: e2e-gathersystem-screens
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-node-app
+        with:
+          checkout: 'false'
+      - uses: ./.github/actions/setup-supabase-cli
+        with:
+          version: '2.116.0'
+
+      - name: Start local Supabase
+        run: supabase start --exclude studio --exclude edge-runtime
+
+      - name: Export local Supabase env
+        run: |
+          set -euo pipefail
+          eval "$(supabase status -o env)"
+          {
+            echo "NEXT_PUBLIC_SUPABASE_URL=${API_URL}"
+            echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=${ANON_KEY}"
+            echo "SUPABASE_SERVICE_ROLE_KEY=${SERVICE_ROLE_KEY}"
+            echo "SUPABASE_URL=${API_URL}"
+            echo "SUPABASE_SERVICE_ROLE=${SERVICE_ROLE_KEY}"
+          } >> "$GITHUB_ENV"
+
+      # seed:dev reads .env.local; it uses the service key only for a local URL.
+      - name: Seed synthetic data
+        run: |
+          set -euo pipefail
+          {
+            echo "NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}"
+            echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}"
+            echo "SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}"
+          } > .env.local
+          npm run seed:dev
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run GatherSystem screen suite (flags on)
+        run: npx playwright test e2e/gathersystem-screens-*.spec.ts --config=e2e.config.ts --project=chromium
+        env:
+          CI: true
+          BASE_URL: http://localhost:9002
+          GATHERSYSTEM_LOCAL_FLAGS: gathersystem_door,gathersystem_admin,gathersystem_incidents,gathersystem_guardian,gathersystem_bible_bee_household,gathersystem_auth,gathersystem_account_entry
+          NEXT_PUBLIC_LOGIN_PASSWORD_ENABLED: 'true'
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-gathersystem-screens-report
+          path: playwright-report/
+          retention-days: 14
+          if-no-files-found: ignore
