@@ -20,8 +20,6 @@ import {
 } from '@/components/ui/popover';
 import {
 	Info,
-	CheckCircle,
-	Smartphone,
 	User,
 	Camera,
 	Cake,
@@ -29,13 +27,12 @@ import {
 	ShieldAlert,
 	ArrowRightLeft,
 } from 'lucide-react';
-import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { format, parseISO } from 'date-fns';
 import type { Incident, Child } from '@/lib/types';
 import { normalizeGradeDisplay } from '@/lib/gradeUtils';
-import { formatPhone } from '@/hooks/usePhoneFormat';
 import { isBirthdayThisWeek } from '@/lib/birthday';
+import { ChildInfoPopoverContent } from '@/components/gatherKids/child-info-popover';
 
 interface ChildCardProps {
 	child: EnrichedChild;
@@ -79,7 +76,6 @@ export function ChildCard({
 	canUpdatePhoto = true, // Default to true for backward compatibility
 	isCheckInPending = false,
 }: ChildCardProps) {
-	const canSelfCheckout = child.age !== null && child.age >= 13;
 	const checkedInEvent = child.activeAttendance?.event_id;
 	const isCheckedInHere = checkedInEvent === selectedEvent;
 	const isCheckedInElsewhere =
@@ -107,69 +103,7 @@ export function ChildCard({
 				</PopoverTrigger>
 				<PopoverContent className="w-80" align="end">
 					<div className="space-y-4">
-						{canSelfCheckout && child.child_mobile && (
-							<div>
-								<h4 className="font-semibold font-headline mb-2 flex items-center gap-2">
-									<CheckCircle className="text-green-500" /> Self-Checkout
-									Allowed
-								</h4>
-								<div className="text-sm">
-									<p className="font-medium">
-										{child.first_name} {child.last_name}
-									</p>
-									<p className="text-muted-foreground flex items-center gap-2">
-										<Smartphone size={14} />
-										{child.child_mobile
-											? formatPhone(child.child_mobile)
-											: 'N/A'}
-									</p>
-								</div>
-							</div>
-						)}
-						<div>
-							<h4 className="font-semibold font-headline mb-2">Guardians</h4>
-							<div className="space-y-3">
-								{child.guardians?.map((g) => (
-									<div key={g.guardian_id} className="text-sm">
-										<p className="font-medium">
-											{g.first_name} {g.last_name} ({g.relationship})
-										</p>
-										<p className="text-muted-foreground">
-											{g.mobile_phone ? formatPhone(g.mobile_phone) : 'N/A'}
-										</p>
-									</div>
-								))}
-								{!child.guardians?.length && (
-									<p className="text-sm text-muted-foreground">
-										No guardian information available.
-									</p>
-								)}
-							</div>
-						</div>
-						<Separator />
-						<div>
-							<h4 className="font-semibold font-headline mb-2">
-								Emergency Contact
-							</h4>
-							{child.emergencyContact ? (
-								<div className="text-sm">
-									<p className="font-medium">
-										{child.emergencyContact.first_name}{' '}
-										{child.emergencyContact.last_name} (
-										{child.emergencyContact.relationship})
-									</p>
-									<p className="text-muted-foreground">
-										{child.emergencyContact.mobile_phone
-											? formatPhone(child.emergencyContact.mobile_phone)
-											: 'N/A'}
-									</p>
-								</div>
-							) : (
-								<p className="text-sm text-muted-foreground">
-									No emergency contact available.
-								</p>
-							)}
-						</div>
+						<ChildInfoPopoverContent child={child} />
 					</div>
 				</PopoverContent>
 			</Popover>
