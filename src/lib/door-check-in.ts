@@ -24,6 +24,9 @@ import type { CheckInEvent } from '@/lib/check-in-events';
  */
 export type DoorStatusFilter = 'all' | 'checkedIn' | 'checkedOut';
 
+/** Canonical spellings to show when a `?filter=` value is not understood. */
+export const DOOR_STATUS_FILTER_ACCEPTED = ['all', 'checkedIn', 'notCheckedIn'] as const;
+
 /**
  * Read a `?filter=` value off the URL, or `null` when it is not one we know.
  *
@@ -57,6 +60,76 @@ export function parseDoorStatusFilter(
 		default:
 			return null;
 	}
+}
+
+/**
+ * Result of reading a `?filter=` value, including a safe fallback status and
+ * the verbatim raw value when it could not be read.
+ *
+ * Callers should use `status` directly (it is never null) and render a notice
+ * when `rejectedRaw` is non-null.
+ */
+export interface DoorStatusFilterParamResult {
+	status: DoorStatusFilter;
+	/** The raw URL value that could not be parsed, or null when it was accepted/absent. */
+	rejectedRaw: string | null;
+}
+
+/**
+ * Read a `?filter=` value safely.
+ *
+ * Known values return their internal status and no rejection. Unknown values
+ * fall back to `all` and carry the raw input verbatim so the screen can say
+ * what it did not understand. Missing, null, empty or whitespace-only values
+ * are treated as absent and silent.
+ */
+export function readDoorStatusFilterParam(
+	value: string | null | undefined
+): DoorStatusFilterParamResult {
+	const parsed = parseDoorStatusFilter(value);
+	if (parsed) {
+		return { status: parsed, rejectedRaw: null };
+	}
+	const raw = typeof value === 'string' ? value : null;
+	if (raw === null || raw.trim() === '') {
+		return { status: 'all', rejectedRaw: null };
+	}
+	return { status: 'all', rejectedRaw: raw };
+}
+
+/**
+ * Result of reading a `?event=` value against the events the screen currently
+ * offers.
+ */
+export interface DoorEventParamResult {
+	/** The raw URL value that is not offered, or null when accepted/absent/unresolved. */
+	rejectedRaw: string | null;
+}
+
+/**
+ * Read a `?event=` value safely.
+ *
+ * An offered id is accepted with no rejection. An id that is not offered, once
+ * the event list has resolved, is rejected so the screen can announce the raw
+ * value and the events it does offer. Until the list resolves the value is
+ * treated as unresolved and silent, avoiding flicker on initial load.
+ */
+export function readDoorEventParam(
+	value: string | null | undefined,
+	offeredEvents: ReadonlyArray<{ id: string }>,
+	resolved: boolean
+): DoorEventParamResult {
+	const raw = typeof value === 'string' ? value : null;
+	if (raw === null || raw.trim() === '') {
+		return { rejectedRaw: null };
+	}
+	if (!resolved) {
+		return { rejectedRaw: null };
+	}
+	if (offeredEvents.some((event) => event.id === raw)) {
+		return { rejectedRaw: null };
+	}
+	return { rejectedRaw: raw };
 }
 
 /** The minimum shape the door screen needs from an enriched child row. */

@@ -1334,4 +1334,137 @@ describe('CheckInContentGatherSystem', () => {
 			expect(screen.queryByText('Amara Bennett')).not.toBeInTheDocument();
 		});
 	});
+
+	/**
+	 * #456: when a URL parameter cannot be read, the screen falls back safely
+	 * and tells door staff what value was not understood and what is accepted.
+	 */
+	describe('unreadable URL parameter notices (#456)', () => {
+		const filterNotice = () =>
+			screen.queryByRole('status', {
+				name: /unreadable filter/i,
+			});
+		const eventNotice = () =>
+			screen.queryByRole('status', {
+				name: /unreadable event/i,
+			});
+
+		it('shows a dismissible notice for an unreadable filter and falls back to the full roster', () => {
+			searchParams = new URLSearchParams('filter=pending');
+			render(<CheckInContentGatherSystem />);
+
+			const notice = filterNotice();
+			expect(notice).toBeInTheDocument();
+			expect(notice).toHaveTextContent('pending');
+			expect(notice).toHaveTextContent('all');
+			expect(notice).toHaveTextContent('checkedIn');
+			expect(notice).toHaveTextContent('notCheckedIn');
+			expect(screen.getByText('Amara Bennett')).toBeInTheDocument();
+			expect(screen.getByText('Jordan Kim')).toBeInTheDocument();
+		});
+
+		it('shows no notice for a valid filter', () => {
+			searchParams = new URLSearchParams('filter=checkedIn');
+			render(<CheckInContentGatherSystem />);
+
+			expect(filterNotice()).not.toBeInTheDocument();
+			expect(screen.getByText('Jordan Kim')).toBeInTheDocument();
+			expect(screen.queryByText('Amara Bennett')).not.toBeInTheDocument();
+		});
+
+		it('shows a dismissible notice for an unknown event once the list resolves', () => {
+			searchParams = new URLSearchParams('event=evt_nonsense');
+			render(<CheckInContentGatherSystem />);
+
+			const notice = eventNotice();
+			expect(notice).toBeInTheDocument();
+			expect(notice).toHaveTextContent('evt_nonsense');
+			expect(notice).toHaveTextContent('Sunday School');
+			expect(notice).toHaveTextContent("Children's Church");
+			expect(notice).toHaveTextContent('Teen Church');
+		});
+
+		it('shows no event notice for a valid event', () => {
+			searchParams = new URLSearchParams('event=evt_childrens_church');
+			render(<CheckInContentGatherSystem />);
+
+			expect(eventNotice()).not.toBeInTheDocument();
+			expect(screen.getByText(/Children's Church ·/)).toBeInTheDocument();
+		});
+
+		it('is silent when params are missing', () => {
+			render(<CheckInContentGatherSystem />);
+
+			expect(filterNotice()).not.toBeInTheDocument();
+			expect(eventNotice()).not.toBeInTheDocument();
+		});
+
+		it('treats an empty filter value as absent', () => {
+			searchParams = new URLSearchParams('filter=');
+			render(<CheckInContentGatherSystem />);
+
+			expect(filterNotice()).not.toBeInTheDocument();
+		});
+
+		it('re-evaluates on client-side navigation from valid to invalid', () => {
+			searchParams = new URLSearchParams('filter=checkedIn');
+			const { rerender } = render(<CheckInContentGatherSystem />);
+			expect(filterNotice()).not.toBeInTheDocument();
+
+			searchParams = new URLSearchParams('filter=pending');
+			rerender(<CheckInContentGatherSystem />);
+			expect(filterNotice()).toBeInTheDocument();
+		});
+
+		it('clears the notice on client-side navigation from invalid to valid', () => {
+			searchParams = new URLSearchParams('filter=pending');
+			const { rerender } = render(<CheckInContentGatherSystem />);
+			expect(filterNotice()).toBeInTheDocument();
+
+			searchParams = new URLSearchParams('filter=checkedIn');
+			rerender(<CheckInContentGatherSystem />);
+			expect(filterNotice()).not.toBeInTheDocument();
+		});
+
+		it('hides the notice when dismissed without changing the URL or filter state', () => {
+			searchParams = new URLSearchParams('filter=pending');
+			render(<CheckInContentGatherSystem />);
+
+			fireEvent.click(
+				screen.getByRole('button', { name: 'Dismiss filter notice' })
+			);
+			expect(filterNotice()).not.toBeInTheDocument();
+			expect(screen.getByText('Amara Bennett')).toBeInTheDocument();
+			expect(screen.getByText('Jordan Kim')).toBeInTheDocument();
+			expect(mockReplace).not.toHaveBeenCalled();
+		});
+
+		it('re-announces a new invalid raw value after dismissal', () => {
+			searchParams = new URLSearchParams('filter=pending');
+			const { rerender } = render(<CheckInContentGatherSystem />);
+			fireEvent.click(
+				screen.getByRole('button', { name: 'Dismiss filter notice' })
+			);
+
+			searchParams = new URLSearchParams('filter=waiting');
+			rerender(<CheckInContentGatherSystem />);
+			const notice = filterNotice();
+			expect(notice).toBeInTheDocument();
+			expect(notice).toHaveTextContent('waiting');
+		});
+
+		it('shows two independent notices when both params are invalid', () => {
+			searchParams = new URLSearchParams('filter=pending&event=evt_nonsense');
+			render(<CheckInContentGatherSystem />);
+
+			expect(filterNotice()).toBeInTheDocument();
+			expect(eventNotice()).toBeInTheDocument();
+			expect(
+				screen.getByRole('button', { name: 'Dismiss filter notice' })
+			).toBeInTheDocument();
+			expect(
+				screen.getByRole('button', { name: 'Dismiss event notice' })
+			).toBeInTheDocument();
+		});
+	});
 });

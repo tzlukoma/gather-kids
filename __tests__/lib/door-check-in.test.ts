@@ -12,6 +12,9 @@ import {
 	selectableForCheckIn,
 	toDoorFilterParam,
 	summarizeSelectedHouseholds,
+	readDoorStatusFilterParam,
+	readDoorEventParam,
+	DOOR_STATUS_FILTER_ACCEPTED,
 	type DoorRosterEntry,
 } from '@/lib/door-check-in';
 
@@ -350,7 +353,7 @@ describe('an open attendance row with no event', () => {
 		}
 	});
 
-	it('appears in the Checked in tab it offers a check-out from', () => {
+	it('appears in the Checked in tab it offers that check-out from', () => {
 		expect(matchesDoorStatusFilter(noEvent, 'checkedIn', SUNDAY)).toBe(true);
 		expect(matchesDoorStatusFilter(noEvent, 'checkedOut', SUNDAY)).toBe(false);
 		expect(ids(filterByDoorStatus(withLegacyRow, 'checkedIn', SUNDAY))).toEqual([
@@ -363,6 +366,63 @@ describe('an open attendance row with no event', () => {
 		expect(ids(selectableForCheckIn(withLegacyRow, ['amara', 'legacy-row']))).toEqual(
 			['amara']
 		);
+	});
+});
+
+describe('readDoorStatusFilterParam', () => {
+	it('returns the parsed filter for accepted values with no rejection', () => {
+		expect(readDoorStatusFilterParam('all')).toEqual({ status: 'all', rejectedRaw: null });
+		expect(readDoorStatusFilterParam('checkedIn')).toEqual({ status: 'checkedIn', rejectedRaw: null });
+		expect(readDoorStatusFilterParam('notCheckedIn')).toEqual({ status: 'checkedOut', rejectedRaw: null });
+		expect(readDoorStatusFilterParam('checkedOut')).toEqual({ status: 'checkedOut', rejectedRaw: null });
+	});
+
+	it('accepts case and separator variants without rejection', () => {
+		for (const value of ['checkedout', 'CHECKEDOUT', 'checked-out', 'Checked Out']) {
+			expect(readDoorStatusFilterParam(value)).toEqual({ status: 'checkedOut', rejectedRaw: null });
+		}
+		expect(readDoorStatusFilterParam('CHECKEDIN')).toEqual({ status: 'checkedIn', rejectedRaw: null });
+	});
+
+	it('rejects unknown values and preserves the raw input verbatim', () => {
+		expect(readDoorStatusFilterParam('pending')).toEqual({ status: 'all', rejectedRaw: 'pending' });
+		expect(readDoorStatusFilterParam('nonsense')).toEqual({ status: 'all', rejectedRaw: 'nonsense' });
+		expect(readDoorStatusFilterParam(' checkedInn ')).toEqual({ status: 'all', rejectedRaw: ' checkedInn ' });
+	});
+
+	it('treats null, undefined, empty and whitespace as absent (no rejection)', () => {
+		expect(readDoorStatusFilterParam(null)).toEqual({ status: 'all', rejectedRaw: null });
+		expect(readDoorStatusFilterParam(undefined)).toEqual({ status: 'all', rejectedRaw: null });
+		expect(readDoorStatusFilterParam('')).toEqual({ status: 'all', rejectedRaw: null });
+		expect(readDoorStatusFilterParam('   ')).toEqual({ status: 'all', rejectedRaw: null });
+	});
+
+	it('exports the canonical accepted spellings', () => {
+		expect(DOOR_STATUS_FILTER_ACCEPTED).toEqual(['all', 'checkedIn', 'notCheckedIn']);
+	});
+});
+
+describe('readDoorEventParam', () => {
+	const offered = [{ id: 'evt_sunday_school' }, { id: 'evt_childrens_church' }];
+
+	it('accepts an offered event id without rejection', () => {
+		expect(readDoorEventParam('evt_sunday_school', offered, true)).toEqual({ rejectedRaw: null });
+	});
+
+	it('rejects an unknown event id and preserves the raw value', () => {
+		expect(readDoorEventParam('evt_nonsense', offered, true)).toEqual({ rejectedRaw: 'evt_nonsense' });
+	});
+
+	it('does not reject while the event list is unresolved', () => {
+		expect(readDoorEventParam('evt_nonsense', offered, false)).toEqual({ rejectedRaw: null });
+		expect(readDoorEventParam('evt_sunday_school', [], false)).toEqual({ rejectedRaw: null });
+	});
+
+	it('treats null, undefined, empty and whitespace as absent', () => {
+		expect(readDoorEventParam(null, offered, true)).toEqual({ rejectedRaw: null });
+		expect(readDoorEventParam(undefined, offered, true)).toEqual({ rejectedRaw: null });
+		expect(readDoorEventParam('', offered, true)).toEqual({ rejectedRaw: null });
+		expect(readDoorEventParam('   ', offered, true)).toEqual({ rejectedRaw: null });
 	});
 });
 
