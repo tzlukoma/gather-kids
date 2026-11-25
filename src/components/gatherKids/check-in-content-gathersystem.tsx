@@ -106,8 +106,12 @@ import {
 	selectableForCheckIn,
 	toDoorFilterParam,
 	summarizeSelectedHouseholds,
+	readDoorStatusFilterParam,
+	readDoorEventParam,
+	DOOR_STATUS_FILTER_ACCEPTED,
 	type DoorStatusFilter,
 } from '@/lib/door-check-in';
+import { CheckInParamNotice } from '@/components/gatherKids/check-in-param-notice';
 
 /**
  * The contact detail the door needs in hand before releasing a child: who may
@@ -246,6 +250,7 @@ export function CheckInContentGatherSystem() {
 	const [searchQuery, setSearchQuery] = useState('');
 	const [selectedChildIds, setSelectedChildIds] = useState<Set<string>>(new Set());
 	const [prevSearchKey, setPrevSearchKey] = useState(searchKey);
+	const [dismissedNotices, setDismissedNotices] = useState<Set<string>>(new Set());
 	const [isEventDialogOpen, setIsEventDialogOpen] = useState(false);
 	const [childToCheckout, setChildToCheckout] = useState<EnrichedChild | null>(null);
 	const [childToTransfer, setChildToTransfer] = useState<EnrichedChild | null>(null);
@@ -296,6 +301,13 @@ export function CheckInContentGatherSystem() {
 	const pickerEvents = useMemo(
 		() => doorEventOptions(allCheckInEvents, onSiteEventIds(todaysAttendance)),
 		[allCheckInEvents, todaysAttendance]
+	);
+	const eventsResolved = eventsPersisted && !attendanceLoading && pickerEvents.length > 0;
+	const filterRead = readDoorStatusFilterParam(urlFilter);
+	const eventRead = readDoorEventParam(urlEvent, pickerEvents, eventsResolved);
+	const offeredEventNames = useMemo(
+		() => pickerEvents.map((event) => eventPickerLabel(event)),
+		[pickerEvents]
 	);
 	if (
 		eventsPersisted &&
@@ -750,6 +762,40 @@ export function CheckInContentGatherSystem() {
 					before using this screen at the door.
 				</div>
 			)}
+
+			{/* #456: announce URL params the screen cannot read */}
+			<div className="flex flex-col gap-3">
+				{filterRead.rejectedRaw &&
+					!dismissedNotices.has(`filter:${filterRead.rejectedRaw}`) && (
+						<CheckInParamNotice
+							param="filter"
+							raw={filterRead.rejectedRaw}
+							accepted={Array.from(DOOR_STATUS_FILTER_ACCEPTED)}
+							onDismiss={() =>
+								setDismissedNotices((prev) => {
+									const next = new Set(prev);
+									next.add(`filter:${filterRead.rejectedRaw}`);
+									return next;
+								})
+							}
+						/>
+					)}
+				{eventRead.rejectedRaw &&
+					!dismissedNotices.has(`event:${eventRead.rejectedRaw}`) && (
+						<CheckInParamNotice
+							param="event"
+							raw={eventRead.rejectedRaw}
+							accepted={offeredEventNames}
+							onDismiss={() =>
+								setDismissedNotices((prev) => {
+									const next = new Set(prev);
+									next.add(`event:${eventRead.rejectedRaw}`);
+									return next;
+								})
+							}
+						/>
+					)}
+			</div>
 
 			{/* Stats cards (item 2) */}
 			<section

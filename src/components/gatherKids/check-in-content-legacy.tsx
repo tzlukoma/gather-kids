@@ -18,7 +18,11 @@ import { Users, Filter, Edit } from 'lucide-react';
 import {
 	buildDoorQuery,
 	parseDoorStatusFilter,
+	readDoorStatusFilterParam,
+	readDoorEventParam,
+	DOOR_STATUS_FILTER_ACCEPTED,
 } from '@/lib/door-check-in';
+import { CheckInParamNotice } from '@/components/gatherKids/check-in-param-notice';
 import { NoCheckInEventsNotice } from '@/components/gatherKids/no-check-in-events-notice';
 import {
 	doorEventOptions,
@@ -140,13 +144,15 @@ export function CheckInContentLegacy() {
 	const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
 	const [isEventDialogOpen, setIsEventDialogOpen] = useState(false);
 	const [prevSearchKey, setPrevSearchKey] = useState(searchKey);
+	const [dismissedNotices, setDismissedNotices] = useState<Set<string>>(new Set());
 
 	if (searchKey !== prevSearchKey) {
 		setPrevSearchKey(searchKey);
 		const parsedFilter = parseDoorStatusFilter(urlFilter);
-		if (parsedFilter) {
-			setStatusFilter(parsedFilter);
-		}
+		// #456: an unreadable filter on navigation must fall back to the full
+		// roster, matching the GatherSystem door. A missing param also lands on
+		// 'all'.
+		setStatusFilter(parsedFilter ?? 'all');
 		if (urlEvent) {
 			setSelectedEvent(urlEvent);
 		}
@@ -205,6 +211,13 @@ export function CheckInContentLegacy() {
 		() => doorEventOptions(allCheckInEvents, onSiteEventIds(todaysAttendance)),
 		[allCheckInEvents, todaysAttendance]
 	);
+	const eventsResolved = eventsPersisted && !attendanceLoading && pickerEvents.length > 0;
+	const filterRead = readDoorStatusFilterParam(urlFilter);
+	const eventRead = readDoorEventParam(urlEvent, pickerEvents, eventsResolved);
+	const offeredEventNames = useMemo(
+		() => pickerEvents.map((event) => eventPickerLabel(event)),
+		[pickerEvents]
+	);
 	if (
 		eventsPersisted &&
 		!attendanceLoading &&
@@ -259,6 +272,41 @@ export function CheckInContentLegacy() {
 	return (
 		<div className="flex flex-col gap-4">
 			{eventsPersisted && pickerEvents.length === 0 && <NoCheckInEventsNotice />}
+
+			{/* #456: announce URL params the screen cannot read */}
+			<div className="flex flex-col gap-3">
+				{filterRead.rejectedRaw &&
+					!dismissedNotices.has(`filter:${filterRead.rejectedRaw}`) && (
+						<CheckInParamNotice
+							param="filter"
+							raw={filterRead.rejectedRaw}
+							accepted={Array.from(DOOR_STATUS_FILTER_ACCEPTED)}
+							onDismiss={() =>
+								setDismissedNotices((prev) => {
+									const next = new Set(prev);
+									next.add(`filter:${filterRead.rejectedRaw}`);
+									return next;
+								})
+							}
+						/>
+					)}
+				{eventRead.rejectedRaw &&
+					!dismissedNotices.has(`event:${eventRead.rejectedRaw}`) && (
+						<CheckInParamNotice
+							param="event"
+							raw={eventRead.rejectedRaw}
+							accepted={offeredEventNames}
+							onDismiss={() =>
+								setDismissedNotices((prev) => {
+									const next = new Set(prev);
+									next.add(`event:${eventRead.rejectedRaw}`);
+									return next;
+								})
+							}
+						/>
+					)}
+			</div>
+
 			<div className="flex items-start justify-between gap-4">
 				<div>
 					<div className="flex items-center gap-2">
